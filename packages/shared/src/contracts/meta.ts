@@ -1,5 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
-import { deckFormatSchema, metaListStatusSchema } from "@openrift/shared/response-schemas";
+import {
+  deckFormatSchema,
+  metaEventTierSchema,
+  metaListStatusSchema,
+} from "@openrift/shared/response-schemas";
 import { isoDate } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
@@ -19,8 +23,16 @@ export const metaEventSummarySchema = z
     name: z.string(),
     eventDate: isoDate,
     format: deckFormatSchema,
+    /** How much the event counts for, in the archive's own vocabulary rather than the source's product names. */
+    tier: metaEventTierSchema,
+    /** ISO 3166-1 alpha-2 of the venue, null when no source told us. */
+    country: z.string().nullable(),
+    /** What the source reported the field size as, which can exceed the rows we hold. */
     playerCount: z.number().int().nullable(),
     organizer: z.string().nullable(),
+    /** Standings rows the archive holds, decks and deckless entries alike. */
+    playerRowCount: z.number().int().nonnegative(),
+    /** The subset of those rows with a decklist attached. */
     deckCount: z.number().int().nonnegative(),
   })
   .openapi("MetaEventSummary");
@@ -62,6 +74,8 @@ export const metaEventSourceSchema = z
 export const metaEventDetailSchema = metaEventSummarySchema
   .extend({
     notes: z.string().nullable(),
+    /** The venue address as the source published it. */
+    location: z.string().nullable(),
     sources: z.array(metaEventSourceSchema),
     contributors: z.array(z.string()),
   })
@@ -76,37 +90,110 @@ const metaDeckEventSchema = z.object({
 });
 
 /**
- * One archived deck as a tile or table row. Legend and champion are
- * denormalized (id, name, canonical front image) so the deck browser and the
- * event page SSR without pulling the catalog. Both are nullable: an
- * admin-entered deck is not required to have either zone filled.
+ * A legend or champion as a standings row names it: denormalized so the event
+ * page and deck browser render without pulling the catalog.
+ */
+const metaCardRefSchema = z
+  .object({
+    cardId: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    /** Canonical front image, null when the card has no usable artwork. */
+    imageId: z.string().nullable(),
+  })
+  .openapi("MetaCardRef");
+
+/**
+ * One player's entry in an event's standings. Every archived event has the whole
+ * field here, not only the players whose decklists were published: `deckId` and
+ * `shareToken` are set exactly for the entries a list is known for, and
+ * `listStatus` is `"none"` for the rest.
+ *
+ * `rankIsTier` says how to print `rank`: an exact final standing renders "8th",
+ * a source that only publishes cut buckets renders "T8".
+ */
+export const metaEventPlayerSchema = z
+  .object({
+    id: z.string(),
+    rank: z.number().int(),
+    rankIsTier: z.boolean(),
+    playerName: z.string(),
+    wins: z.number().int().nullable(),
+    losses: z.number().int().nullable(),
+    draws: z.number().int().nullable(),
+    legend: metaCardRefSchema.nullable(),
+    champion: metaCardRefSchema.nullable(),
+    /** Null for a standings-only entry, which has no page. */
+    deckId: z.string().nullable(),
+    /** The deck's display name; null together with {@link deckId}. */
+    deckName: z.string().nullable(),
+    /** The public permalink slug — `decks.share_token`. Null together with {@link deckId}. */
+    shareToken: z.string().nullable(),
+    listStatus: metaListStatusSchema,
+  })
+  .openapi("MetaEventPlayer");
+
+/**
+ * One archived match in one round, referencing the event's player rows by id.
+ * Per-match facts only; no aggregate is computed or served from these.
+ */
+export const metaEventMatchSchema = z
+  .object({
+    /** Position of the round's phase (Day 1, Day 2, top cut). */
+    phaseOrder: z.number().int(),
+    roundNumber: z.number().int(),
+    /** Null on byes. */
+    tableNumber: z.number().int().nullable(),
+    isBye: z.boolean(),
+    isDraw: z.boolean(),
+    /** Ids from this event's `players` array. */
+    player1Id: z.string(),
+    /** Null exactly on a bye. */
+    player2Id: z.string().nullable(),
+    /** One of the participants; null on a draw or an unreported result. */
+    winnerId: z.string().nullable(),
+    gamesWonP1: z.number().int().nullable(),
+    gamesWonP2: z.number().int().nullable(),
+  })
+  .openapi("MetaEventMatch");
+
+/**
+ * One archived deck as a tile or table row in the cross-event browser. Only
+ * standings rows that carry a list appear here, so `deckId` and `shareToken`
+ * are always set.
+ *
+ * Legend and champion are denormalized (id, name, canonical front image) so the
+ * browser SSRs without pulling the catalog. Both are nullable: nothing forces an
+ * admin-entered deck to fill either zone.
  */
 export const metaDeckSummarySchema = z
   .object({
+    /** The `meta_event_players` row this deck hangs off. */
+    playerId: z.string(),
     deckId: z.string(),
+    /** The public permalink slug — `decks.share_token`, not a second column. */
+    shareToken: z.string(),
     /**
-     * The public permalink slug — `decks.share_token`, not a second column.
-     * Null exactly when `listStatus` is `"archetype"`: such an entry has no
-     * page, so its row renders as a plain, non-clickable tile.
-     */
-    shareToken: z.string().nullable(),
-    /**
-     * How much of the pilot's list the archive holds. `"partial"` is worth
-     * labelling on a tile (the main deck is there, the side zones may not be);
-     * `"archetype"` is the state with no page behind it.
+     * How much of the player's list the archive holds. Never `"none"` here: an
+     * entry with no list has no deck to browse. `"partial"` is worth labelling
+     * on a tile — the main deck is there, the side zones may not be.
      */
     listStatus: metaListStatusSchema,
     name: z.string(),
     format: deckFormatSchema,
     legendCardId: z.string().nullable(),
     legendName: z.string().nullable(),
+    legendSlug: z.string().nullable(),
     legendImageId: z.string().nullable(),
     championCardId: z.string().nullable(),
     championName: z.string().nullable(),
     championImageId: z.string().nullable(),
     playerName: z.string(),
-    finishTier: z.number().int(),
-    record: z.string().nullable(),
+    rank: z.number().int(),
+    rankIsTier: z.boolean(),
+    wins: z.number().int().nullable(),
+    losses: z.number().int().nullable(),
+    draws: z.number().int().nullable(),
     event: metaDeckEventSchema,
   })
   .openapi("MetaDeckSummary");
@@ -115,8 +202,14 @@ export const metaEventListResponseSchema = z
   .object({ events: z.array(metaEventSummarySchema) })
   .openapi("MetaEventListResponse");
 
+/** The event and its whole standings table, best finish first. */
 export const metaEventDetailResponseSchema = z
-  .object({ event: metaEventDetailSchema, decks: z.array(metaDeckSummarySchema) })
+  .object({
+    event: metaEventDetailSchema,
+    players: z.array(metaEventPlayerSchema),
+    /** Round-by-round results, empty for events whose source published none. */
+    matches: z.array(metaEventMatchSchema),
+  })
   .openapi("MetaEventDetailResponse");
 
 export const metaDeckListResponseSchema = z
@@ -133,15 +226,18 @@ export const metaDeckDetailResponseSchema = publicDeckDetailResponseSchema
     meta: z.object({
       event: metaDeckEventSchema,
       /**
-       * Only ever `"full"` or `"partial"` here — an `"archetype"` has no page,
-       * so the route 404s before it can be rendered. `"partial"` is what the
-       * page acts on: it tells the reader the source published a complete main
-       * deck but may have left the side zones out.
+       * Only ever `"full"` or `"partial"` here — a standings-only entry has no
+       * deck and so no page. `"partial"` is what the page acts on: it tells the
+       * reader the source published a complete main deck but may have left the
+       * side zones out.
        */
       listStatus: metaListStatusSchema,
       playerName: z.string(),
-      finishTier: z.number().int(),
-      record: z.string().nullable(),
+      rank: z.number().int(),
+      rankIsTier: z.boolean(),
+      wins: z.number().int().nullable(),
+      losses: z.number().int().nullable(),
+      draws: z.number().int().nullable(),
       /**
        * Who added this deck to the archive, as the page prints them: display
        * names already resolved and already filtered by
@@ -156,41 +252,20 @@ export const metaDeckDetailResponseSchema = publicDeckDetailResponseSchema
   })
   .openapi("MetaDeckDetailResponse");
 
-/** One card's presence across the archived decks in scope. */
-const metaStatRowSchema = z.object({
-  cardId: z.string(),
-  name: z.string(),
-  slug: z.string(),
-  imageId: z.string().nullable(),
-  deckCount: z.number().int().nonnegative(),
-  /** Battlefield art is stored landscape, so the thumbnail rotates it rather than cropping. */
-  landscape: z.boolean(),
-});
-
 /**
- * Two denominators, because the two aggregates count over different
- * populations. `totalDecks` is every archived deck in scope and is what
- * `legends` divides by — every deck names its legend whatever its list status,
- * so all three states are legitimate data points there.
- * `decksWithMainDeck` counts the decks whose main deck the archive holds
- * (`full` and `partial` alike, since the card table reads the main zone only)
- * and is what `cards` divides by. The client labels the card panel with the
- * second number so the gap is visible rather than silently deflating every
- * percentage.
- *
- * Uncapped and unpaginated: the archive is curated and small (ADR-014
- * explicitly defers materialized views until pressure shows up).
+ * How much the archive holds in scope: `totalPlayers` counts every standings
+ * row, `decksWithMainDeck` the entries whose main deck is published (`full`
+ * and `partial` alike, since a partial list's main deck is complete). Counts
+ * about the archive itself, used to caption the page's lists.
  */
-export const metaStatsResponseSchema = z
+export const metaCountsResponseSchema = z
   .object({
-    totalDecks: z.number().int().nonnegative(),
+    totalPlayers: z.number().int().nonnegative(),
     decksWithMainDeck: z.number().int().nonnegative(),
-    cards: z.array(metaStatRowSchema),
-    legends: z.array(metaStatRowSchema),
   })
-  .openapi("MetaStatsResponse");
+  .openapi("MetaCountsResponse");
 
-export const metaStatsQuerySchema = z.object({
+export const metaCountsQuerySchema = z.object({
   format: z.string().min(1).optional(),
   dateFrom: isoDate.optional(),
   dateTo: isoDate.optional(),
@@ -206,8 +281,7 @@ export const metaStatsQuerySchema = z.object({
  *
  * Domain codes: `event`, `deck` → NOT_FOUND. `deck` also 404s for a share
  * token that resolves to a deck outside the archive, so a regular user's
- * shared deck can never be rendered as an archive entry, and for one that
- * resolves to a deck whose `listStatus` is `"archetype"`, which has no page.
+ * shared deck can never be rendered as an archive entry.
  */
 export const metaContract = {
   events: oc
@@ -234,11 +308,11 @@ export const metaContract = {
     .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(metaDeckDetailResponseSchema),
 
-  stats: oc
-    .route({ method: "GET", path: `${BASE}/stats`, tags: [TAG] })
+  counts: oc
+    .route({ method: "GET", path: `${BASE}/counts`, tags: [TAG] })
     .meta({ auth: "public", cache: "short" })
-    .input(metaStatsQuerySchema)
-    .output(metaStatsResponseSchema),
+    .input(metaCountsQuerySchema)
+    .output(metaCountsResponseSchema),
 };
 
 export type MetaContract = typeof metaContract;

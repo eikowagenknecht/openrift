@@ -20,6 +20,7 @@ import type { VirtualItem } from "@tanstack/react-virtual";
 import type { RefObject } from "react";
 import { useRef, useState } from "react";
 
+import { ariaSort } from "@/components/admin/sortable-header";
 import {
   Table,
   TableBody,
@@ -172,7 +173,13 @@ export function VirtualizedAdminCardTable<TData extends RowData>({
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} style={{ width: columnWidths[header.id] }}>
+              <TableHead
+                key={header.id}
+                style={{ width: columnWidths[header.id] }}
+                aria-sort={
+                  header.column.getCanSort() ? ariaSort(header.column.getIsSorted()) : undefined
+                }
+              >
                 <FlexRender header={header} />
               </TableHead>
             ))}

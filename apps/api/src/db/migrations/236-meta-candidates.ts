@@ -104,7 +104,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn("finish_tier", "integer", (col) => col.notNull())
     .addColumn("record", "text")
     // Nullable: most sources don't name their lists. Accept derives one from
-    // the legend and the pilot when it is still missing.
+    // the legend and the player when it is still missing.
     .addColumn("name", "text")
     // [{ name, zone, quantity, cardId | null }] — cardId is the shared
     // name-matcher's verdict, null while the name resolves to nothing.

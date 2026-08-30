@@ -1,4 +1,4 @@
-import type { MetaDeckSubmission } from "@openrift/shared";
+import type { MetaSubmission } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ScrollTextIcon } from "lucide-react";
@@ -39,7 +39,7 @@ function SubmissionRow({
   submission,
   shareToken,
 }: {
-  submission: MetaDeckSubmission;
+  submission: MetaSubmission;
   shareToken: string | null;
 }) {
   const explanation = metaSubmissionExplanation(

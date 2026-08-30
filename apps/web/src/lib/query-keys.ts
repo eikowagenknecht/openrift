@@ -54,8 +54,8 @@ export const queryKeys = {
     event: (slug: string) => ["meta", "events", slug] as const,
     decks: ["meta", "decks"] as const,
     deck: (token: string) => ["meta", "decks", token] as const,
-    stats: (format?: string, dateFrom?: string, dateTo?: string) =>
-      ["meta", "stats", format ?? null, dateFrom ?? null, dateTo ?? null] as const,
+    counts: (format?: string, dateFrom?: string, dateTo?: string) =>
+      ["meta", "counts", format ?? null, dateFrom ?? null, dateTo ?? null] as const,
   },
   // The archive's signed-in surfaces (ADR-014): a contributor's own decklist
   // submissions and their credit setting. Both are scoped to the session user
@@ -336,8 +336,23 @@ export const queryKeys = {
     formats: ["admin", "formats"] as const,
     markers: ["admin", "markers"] as const,
     meta: {
+      // `events` is the prefix every event read sits under, so a write that
+      // moves an event's counts refetches whichever page is on screen without
+      // knowing its filters, plus any open detail.
       events: ["admin", "meta", "events"] as const,
-      eventDecks: (eventId: string) => ["admin", "meta", "events", eventId, "decks"] as const,
+      eventList: (params: {
+        page: number;
+        search?: string;
+        format?: string;
+        dateFrom?: string;
+        dateTo?: string;
+        incompleteStandings?: boolean;
+        noDecks?: boolean;
+        sort?: string;
+        direction?: string;
+      }) => ["admin", "meta", "events", "list", params] as const,
+      event: (eventId: string) => ["admin", "meta", "events", eventId] as const,
+      eventPlayers: (eventId: string) => ["admin", "meta", "events", eventId, "players"] as const,
       // The event's citation list. Nested under `events` so an event write that
       // invalidates the list refetches the citations of whichever event is open.
       eventSources: (eventId: string) => ["admin", "meta", "events", eventId, "sources"] as const,
@@ -350,13 +365,47 @@ export const queryKeys = {
       // the same reason: linking one is what makes its suggestions stale.
       eventSuggestions: (candidateId: string) =>
         ["admin", "meta", "candidates", candidateId, "match-suggestions"] as const,
-      deckSuggestions: (candidateDeckId: string) =>
-        ["admin", "meta", "candidate-decks", candidateDeckId, "match-suggestions"] as const,
-      // The ledger row behind one candidate deck (ADR-014's user submissions).
-      // Null for a provider's deck, which is an answer and gets cached as one.
-      submissionForDeck: (candidateDeckId: string) =>
-        ["admin", "meta", "candidate-decks", candidateDeckId, "submission"] as const,
+      playerSuggestions: (candidatePlayerId: string) =>
+        ["admin", "meta", "candidate-players", candidatePlayerId, "match-suggestions"] as const,
+      // The ledger row behind one candidate standings row (ADR-014's user
+      // submissions). Null for a provider's row, which is an answer and gets
+      // cached as one.
+      submissionForPlayer: (candidatePlayerId: string) =>
+        ["admin", "meta", "candidate-players", candidatePlayerId, "submission"] as const,
       ignored: ["admin", "meta", "ignored-candidates"] as const,
+      // The catalogue mirror and its sync controls (ADR-014). `catalogue` is
+      // the prefix every filtered page sits under, so accepting or dismissing
+      // one row refetches whichever page is on screen without knowing its
+      // filters.
+      catalogue: ["admin", "meta", "catalogue"] as const,
+      catalogueList: (params: {
+        page: number;
+        search?: string;
+        triage?: string;
+        displayStatus?: string;
+        minPlayers?: number;
+        decklistPublished?: boolean;
+        missing?: boolean;
+        dateFrom?: string;
+        dateTo?: string;
+        sort?: string;
+        direction?: string;
+      }) => ["admin", "meta", "catalogue", "list", params] as const,
+      // playloltcg mirrors the catalogue above under its own prefix: the two
+      // sources are paged and triaged separately, so a write to one must not
+      // drop the other's pages.
+      playloltcgCatalogue: ["admin", "meta", "playloltcg", "catalogue"] as const,
+      playloltcgCatalogueList: (params: { page?: number; search?: string; triage?: string }) =>
+        ["admin", "meta", "playloltcg", "catalogue", "list", params] as const,
+      syncSettings: ["admin", "meta", "sync", "settings"] as const,
+      syncStatus: Object.assign(
+        (source: string) => ["admin", "meta", "sync", "status", source] as const,
+        { prefix: ["admin", "meta", "sync", "status"] as const },
+      ),
+      // The vocabulary the crawl discovers rather than the maintainer entering:
+      // the source's own event templates and format strings.
+      sourceTemplates: ["admin", "meta", "source", "templates"] as const,
+      sourceFormats: ["admin", "meta", "source", "formats"] as const,
     },
     customTags: ["admin", "custom-tags"] as const,
     customTagCategories: ["admin", "custom-tag-categories"] as const,

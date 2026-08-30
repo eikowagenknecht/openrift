@@ -5,27 +5,16 @@ import {
   JOB_STATUSES,
   JOB_TRIGGERS,
 } from "@openrift/shared/contracts/admin/job-runs";
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  LoaderIcon,
-  RefreshCwIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, LoaderIcon } from "lucide-react";
 import { useState } from "react";
 
+import { AdminFilterSelect } from "@/components/admin/admin-filters";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { AdminPager } from "@/components/admin/admin-pager";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
-import { PageDescription, PageTopBarButton } from "@/components/layout/page-top-bar";
+import { RefreshCountdownButton } from "@/components/admin/refresh-countdown-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -34,12 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useHydrated } from "@/hooks/use-hydrated";
-import { useAdminJobRuns } from "@/hooks/use-job-runs";
+import { jobRunsRefreshIntervalMs, useAdminJobRuns } from "@/hooks/use-job-runs";
 import { useCancelRegenerateImages } from "@/hooks/use-rehost";
-import { getPageItems } from "@/lib/paginate";
 import type { JobRunView } from "@/lib/server-fns/api-types";
-import { cn } from "@/lib/utils";
 
 /** Job kinds that expose a cancel endpoint. Only resumable jobs that re-read
  *  `result` between batches can be cancelled mid-run; everything else has no
@@ -123,12 +109,6 @@ export function JobRunsPage() {
     activity: filterValue(JOB_RUN_ACTIVITIES, activityFilter),
   });
 
-  // The stamp is on the viewer's clock, so it stays blank until hydration —
-  // formatting it during the SSR pass would mismatch every non-UTC visitor.
-  const hydrated = useHydrated();
-  const lastUpdated =
-    hydrated && dataUpdatedAt > 0 ? formatDayTimeLocal(new Date(dataUpdatedAt)) : "";
-
   // A filter change reframes the whole result set, so jump back to page 1.
   function changeFilter(setFilter: (value: string) => void, value: string) {
     setFilter(value);
@@ -151,10 +131,12 @@ export function JobRunsPage() {
     <AdminPageTopBar
       title="Job Runs"
       actions={
-        <PageTopBarButton onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-          Refresh
-        </PageTopBarButton>
+        <RefreshCountdownButton
+          onRefresh={() => refetch()}
+          isFetching={isFetching}
+          dataUpdatedAt={dataUpdatedAt}
+          intervalMs={jobRunsRefreshIntervalMs(page)}
+        />
       }
     />
   );
@@ -169,36 +151,36 @@ export function JobRunsPage() {
   return (
     <div className="space-y-4">
       {topBar}
-      <PageDescription>
-        Auto-refreshes every 15 seconds on the first page.
-        {lastUpdated && ` Last updated ${lastUpdated}.`}
-      </PageDescription>
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect
+        <AdminFilterSelect
           value={kindFilter}
           onChange={(value) => changeFilter(setKindFilter, value)}
-          width="w-52"
+          label="Job kind"
+          className="w-52"
           options={[
             { value: ANY, label: "All kinds" },
             ...kinds.map((kind) => ({ value: kind, label: kind })),
           ]}
         />
-        <FilterSelect
+        <AdminFilterSelect
           value={triggerFilter}
           onChange={(value) => changeFilter(setTriggerFilter, value)}
-          width="w-36"
+          label="Trigger"
+          className="w-36"
           options={TRIGGER_OPTIONS}
         />
-        <FilterSelect
+        <AdminFilterSelect
           value={statusFilter}
           onChange={(value) => changeFilter(setStatusFilter, value)}
-          width="w-36"
+          label="Status"
+          className="w-36"
           options={STATUS_OPTIONS}
         />
-        <FilterSelect
+        <AdminFilterSelect
           value={activityFilter}
           onChange={(value) => changeFilter(setActivityFilter, value)}
-          width="w-36"
+          label="Activity"
+          className="w-36"
           options={ACTIVITY_OPTIONS}
         />
       </div>
@@ -239,65 +221,13 @@ export function JobRunsPage() {
         </TableBody>
       </Table>
 
-      <JobRunsPager page={page} totalPages={totalPages} onPageChange={setPage} />
+      <AdminPager
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        label="Job run pages"
+      />
     </div>
-  );
-}
-
-function JobRunsPager({
-  page,
-  totalPages,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}) {
-  if (totalPages <= 1) {
-    return null;
-  }
-  const items = getPageItems(page, totalPages);
-  return (
-    <nav className="flex items-center justify-center gap-1" aria-label="Job run pages">
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        disabled={page <= 1}
-        onClick={() => onPageChange(page - 1)}
-        aria-label="Previous page"
-      >
-        <ChevronLeftIcon className="size-4" />
-      </Button>
-      {items.map((item, index) =>
-        item === "ellipsis" ? (
-          <span key={`ellipsis-${index}`} className="text-muted-foreground px-1.5">
-            …
-          </span>
-        ) : (
-          <Button
-            key={item}
-            variant={item === page ? "default" : "outline"}
-            size="icon"
-            className="size-8 font-mono"
-            aria-current={item === page ? "page" : undefined}
-            onClick={() => onPageChange(item)}
-          >
-            {item}
-          </Button>
-        ),
-      )}
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        disabled={page >= totalPages}
-        onClick={() => onPageChange(page + 1)}
-        aria-label="Next page"
-      >
-        <ChevronRightIcon className="size-4" />
-      </Button>
-    </nav>
   );
 }
 
@@ -403,32 +333,5 @@ function JobRunRow({
         </TableRow>
       )}
     </>
-  );
-}
-
-function FilterSelect({
-  value,
-  onChange,
-  options,
-  width,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  width: string;
-}) {
-  return (
-    <Select items={options} value={value} onValueChange={(next) => onChange(next ?? ANY)}>
-      <SelectTrigger className={cn("h-8", width)}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((item) => (
-          <SelectItem key={item.value} value={item.value}>
-            {item.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

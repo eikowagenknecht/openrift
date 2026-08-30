@@ -36,6 +36,8 @@ import type {
   Marketplace,
   MarketplaceGroupKind,
   MetaCreditVisibility,
+  MetaEventTier,
+  MetaEntryStatus,
   MetaListStatus,
   MetaSubmissionReason,
   MetaSubmissionStatus,
@@ -553,6 +555,12 @@ export type AdminEventAction =
   | "provider.delete-candidates"
   | "candidates.upload"
   | "meta-candidates.upload"
+  | "meta-catalog.accept"
+  | "meta-catalog.dismiss"
+  | "meta-catalog.undismiss"
+  | "meta-catalog.settings"
+  | "meta-catalog.template"
+  | "meta-catalog.format"
   | "meta-submission.resolve"
   | "meta-submission.reopen";
 
@@ -562,6 +570,9 @@ export type AdminEventEntityType =
   | "candidate-card"
   | "candidate-printing"
   | "card-submission"
+  | "meta-catalog"
+  | "meta-catalog-template"
+  | "meta-catalog-format"
   | "meta-submission"
   | "image"
   | "errata"
@@ -845,6 +856,283 @@ export interface TierListsTable {
 }
 
 /**
+ * A slim mirror of uvsgames' whole event listing, one row per catalogued event
+ * and roughly a quarter of a million of them. The raw listing row is never
+ * stored: an order of magnitude more for no read path.
+ *
+ * Named and keyed for the one source it mirrors. A second source would not
+ * share this shape — every column here is uvsgames' own field — so it would
+ * get its own table and its own crawl rather than a `provider` dimension on
+ * this one. Candidates are the multi-source layer, and those stay keyed by
+ * provider.
+ *
+ * Triage state is derived rather than stored — an event is "new" when no
+ * candidate links its key and it is not ignored — so nothing here says whether
+ * the archive wants the event. What is here is what the crawl needs to decide
+ * when to look again.
+ *
+ * The status and format columns hold the source's vocabulary, not ours; the
+ * format is mapped to `deck_formats.slug` through {@link
+ * UvsgamesFormatMappingsTable}, and an event whose format does not map is never
+ * auto-accepted.
+ */
+export interface UvsgamesEventsTable {
+  /** PK. The source's stable id. CHECK: <> '' */
+  externalId: string;
+  /** CHECK: <> '' */
+  name: string;
+  startAt: Date;
+  endAtEstimate: Date | null;
+  /** Source vocabulary: upcoming / inProgress / complete. CHECK: <> ''. */
+  displayStatus: string;
+  /** Source vocabulary; PUBLISHED is what unlocks the per-deck fetches. */
+  decklistStatus: string | null;
+  /** CHECK: NULL or >= 0 — an event nobody registered for is a real row. */
+  playerCount: number | null;
+  eventType: string | null;
+  /** Source vocabulary, mapped to `deck_formats.slug` at accept. */
+  eventFormat: string | null;
+  /** FK → uvsgames_stores.id. Null for a row the source published no keyed store for. */
+  storeId: number | null;
+  /**
+   * The store's name as the listing gave it, kept only as the fallback for a
+   * row with no {@link storeId}. Every read resolves the store row first.
+   */
+  storeName: string | null;
+  location: string | null;
+  /**
+   * The venue's IANA zone. `meta_events.event_date` is the venue-local day of
+   * {@link startAt}, and taking the UTC day instead files an evening event in
+   * the Americas under the next day.
+   */
+  timezone: string | null;
+  /** Hash of the projection above, so an unchanged row costs one timestamp write. CHECK: <> ''. */
+  contentHash: string;
+  firstSeenAt: Generated<Date>;
+  lastSeenAt: Date;
+  /** Set when a covering crawl stopped returning the row. The row is never deleted. */
+  missingSince: Date | null;
+  /**
+   * The source's own event-configuration template, raw. Which templates matter
+   * is admin curation, not a constant: see {@link UvsgamesEventTemplatesTable}.
+   */
+  eventConfigurationTemplate: string | null;
+}
+
+/**
+ * One event-configuration template the source publishes. Rows are filled by the
+ * sync from the source's own template endpoint, never declared here, so the
+ * admin's only input is which templates to watch.
+ *
+ * Watching a template is what earns it the daily poll query, the badge on the
+ * triage list, and the official auto-accept rule.
+ *
+ * CHECK: `source_name` length 1..200.
+ */
+interface UvsgamesEventTemplatesTable {
+  /** PK. The source's template uuid, verbatim. CHECK: <> '' */
+  templateId: string;
+  /** The source's own name for it; null for a template the endpoint no longer lists. */
+  sourceName: string | null;
+  watched: Generated<boolean>;
+  /**
+   * The admin-curated tier this template's events file under.
+   * NULL until an admin maps it; events then get a player-count placeholder.
+   */
+  tier: MetaEventTier | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * One of the source's format strings, mapped to ours. A row exists only for a
+ * format that maps: the archive would rather leave an event in the human queue
+ * than file a sealed event as constructed, so an absent row means unmapped and
+ * deleting one un-maps it.
+ *
+ * Lookups normalize both sides through `normalizeFormatKey`, so "Constructed"
+ * and "CONSTRUCTED" are one mapping. Nothing in the key stops two rows that
+ * normalize alike, so keeping them out is the repository's job on write.
+ */
+interface UvsgamesFormatMappingsTable {
+  /** PK. The source's format string as the listing publishes it. CHECK: <> '' */
+  sourceFormat: string;
+  /** FK → deck_formats.slug */
+  mappedFormat: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * A store as the listing names it. Upserted by every crawl that sees one, so a
+ * rename reaches every event it runs instead of being frozen into a quarter of
+ * a million rows.
+ *
+ * The venue columns stay on the event: where a tournament happened is not the
+ * same fact as where the store is.
+ */
+interface UvsgamesStoresTable {
+  /** PK. The source's integer store id, from the listing's nested store object. */
+  id: number;
+  /** CHECK: length 1..200 */
+  name: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * A player as the source knows them, keyed on their global user id. Upserted by
+ * every deep fetch, so a rename reaches every standings row rather than being
+ * snapshotted per event.
+ *
+ * The archive can still override a name locally: a live standings row carrying
+ * its own {@link MetaEventPlayersTable.playerName} wins over this one.
+ */
+interface UvsgamesPlayersTable {
+  /** PK. The source's integer user id, from a registration's `user.id`. */
+  id: number;
+  /** The source's `best_identifier`. CHECK: length 1..80 */
+  displayName: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * The recheck queue, one row per accepted event. Split off the mirror because
+ * the mirror's other columns are observations of the listing while these two
+ * are the crawl's own intent.
+ *
+ * A null {@link nextCheckAt} is the ladder's terminal state rather than a
+ * deleted row: the row's existence records that the event was accepted, and
+ * {@link checkStage} still says how far the ladder got.
+ */
+interface UvsgamesEventChecksTable {
+  /** PK, FK → uvsgames_events.external_id ON DELETE CASCADE. */
+  externalId: string;
+  /** Null once the ladder is exhausted. */
+  nextCheckAt: Date | null;
+  /** How far through the decaying recheck ladder this event is. CHECK: >= 0. */
+  checkStage: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * A store from the playloltcg registry, the `searchShop` feed
+ * (~1,515 rows in one call). It carries structured geography and the only
+ * stable store id the source exposes. The event listing omits that id, so an
+ * event's {@link PlayloltcgEventsTable.shopId} is filled by the deep fetch from
+ * the exact `shopInfoResponse.id` the detail carries, never matched by name.
+ */
+interface PlayloltcgShopsTable {
+  /** PK. The source's integer shop id. */
+  id: number;
+  /** CHECK: length 1..200 */
+  name: string;
+  province: string | null;
+  city: string | null;
+  area: string | null;
+  address: string | null;
+  longitude: number | null;
+  latitude: number | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * One playloltcg event, keyed on the source's stable
+ * `activityShopId`. The venue columns live here, not on the shop: the source
+ * repeats the address per event and an event can run away from the store.
+ *
+ * `activityType` is a blunt bucket ("符文竞技" spans city qualifiers down to
+ * casual nights), so unlike a uvsgames template it is not an accept signal —
+ * playloltcg auto-accept is player-count only. It is kept for display and for
+ * excluding non-competitive buckets.
+ */
+export interface PlayloltcgEventsTable {
+  /** PK. The source's `activityShopId`. */
+  activityShopId: number;
+  /**
+   * FK → playloltcg_shops.id. The listing never links the shop, so this stays
+   * null until the event is deep-fetched — the `activityShop/info` detail
+   * carries the exact `shopInfoResponse.id`. Until then {@link shopName} is the
+   * fallback, exactly as uvsgames keeps `store_name`.
+   */
+  shopId: number | null;
+  /** The venue name as the listing gave it, the display fallback for a null {@link shopId}. */
+  shopName: string | null;
+  /** CHECK: length >= 1 */
+  name: string;
+  activityType: string | null;
+  activityTypeName: string | null;
+  /** The source's `battleMode`: 1v1, 2v2, 3v3, multi. */
+  battleMode: string | null;
+  /**
+   * The source's `sortWeight` lifecycle, the `display_status` equivalent: 1
+   * registration-open, 2 fully-booked, 3 scheduled, 4 in-progress, 5 finished.
+   * The recheck ladder fetches results once this reads 5. CHECK: NULL or 1..5.
+   */
+  status: number | null;
+  /**
+   * The source publishes day granularity only, so these are `date` columns,
+   * handed back as `"2026-08-14"` rather than a `Date` (the OID 1082 override
+   * in `db/connect.ts`). The write path passes the same shape.
+   */
+  startAt: string | null;
+  endAt: string | null;
+  /** The source's `applyNum` (registered players). CHECK: NULL or >= 0. */
+  playerCount: number | null;
+  maxUser: number | null;
+  /** The source's `applyAmount` (entry fee, in the source's own units). */
+  fee: number | null;
+  province: string | null;
+  city: string | null;
+  area: string | null;
+  address: string | null;
+  longitude: number | null;
+  latitude: number | null;
+  /** Hash of the projection, so an unchanged row costs one timestamp write. CHECK: <> ''. */
+  contentHash: string;
+  firstSeenAt: Generated<Date>;
+  lastSeenAt: Date;
+  /** Set when a covering crawl stopped returning the row. The row is never deleted. */
+  missingSince: Date | null;
+}
+
+/**
+ * The playloltcg recheck queue, one row per accepted event,
+ * split from the mirror exactly as {@link UvsgamesEventChecksTable} is.
+ */
+interface PlayloltcgEventChecksTable {
+  /** PK, FK → playloltcg_events.activity_shop_id ON DELETE CASCADE. */
+  activityShopId: number;
+  /** Null once the ladder is exhausted. */
+  nextCheckAt: Date | null;
+  /** How far through the decaying recheck ladder this event is. CHECK: >= 0. */
+  checkStage: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * The auto-accept rules and sync switches, as one admin-edited row. Global
+ * rather than per-source: the player-count rule is the only one both crawled
+ * sources run, and the template and notable-name rules only ever applied to
+ * uvsgames.
+ *
+ * CHECK: id = 1 — the singleton is the constraint, not a convention.
+ */
+interface MetaSyncSettingsTable {
+  id: number;
+  /** NULL turns the rule off, rather than a threshold nothing meets. CHECK: NULL or > 0. */
+  autoAcceptMinPlayers: number | null;
+  autoAcceptNotable: Generated<boolean>;
+  /** Accepts every event running a template the code recognizes as official. */
+  autoAcceptOfficial: Generated<boolean>;
+  updatedAt: UpdatedAt;
+}
+
+/**
  * One archived competitive event. Admin-curated: there is no
  * submission flow. Metadata is deliberately light — riftdecks-equivalent, not
  * more — so no location, standings, or multi-day representation.
@@ -869,6 +1157,16 @@ export interface MetaEventsTable {
   organizer: string | null;
   /** Markdown. CHECK: NULL or length <= 4000 */
   notes: string | null;
+  /**
+   * How much the event counts for: premier / competitive / store / casual
+   * (CHECK). Classified by rule at ingest (`lib/meta-event-classify.ts`),
+   * admin-editable per event. Defaults to `store`, the tier that claims least.
+   */
+  tier: ColumnType<MetaEventTier, MetaEventTier | undefined, MetaEventTier>;
+  /** ISO 3166-1 alpha-2, parsed from the venue address. CHECK: NULL or `~ '^[A-Z]{2}$'`. */
+  country: string | null;
+  /** The venue address as the source published it. CHECK: NULL or length 1..500. */
+  location: string | null;
   // No source key and no source URL on this row: attribution is
   // {@link MetaEventSourcesTable}, and the link to a provider is the
   // candidate-side FK, which is many-to-one so several sources can feed
@@ -878,33 +1176,158 @@ export interface MetaEventsTable {
 }
 
 /**
- * Satellite row pairing an archived `decks` row with its event and placement.
- * The deck is the PK because a deck belongs to exactly one event. Both FKs cascade, but neither reaches the `decks` row itself — the
- * admin delete-event path removes those explicitly.
+ * One player's entry in one archived event. The source publishes the whole
+ * field with records for every event and a legend for nearly every one, and a
+ * decklist for almost none, so the row that exists per player is this one and a
+ * deck is an optional attachment to it.
+ *
+ * There is no natural key: names collide and ranks tie.
  */
-export interface MetaDecksTable {
-  /** PK — FK → decks.id, ON DELETE CASCADE */
-  deckId: string;
+export interface MetaEventPlayersTable {
+  id: Generated<string>;
   /** FK → meta_events.id, ON DELETE CASCADE */
   metaEventId: string;
-  /** CHECK: length 1..80 — free text, no players table */
-  playerName: string;
-  /** CHECK: >= 1. Lower is better; equal tiers within an event are ties. */
-  finishTier: number;
-  /** CHECK: NULL or length 1..20 — free text, e.g. "5-1" */
-  record: string | null;
+  /** CHECK: >= 1. Ties are legal, so this is indexed with the event but never unique. */
+  rank: number;
   /**
-   * DEFAULT 'full'. CHECK: one of 'full' / 'partial' / 'archetype'. How much of
-   * the pilot's list `deck_cards` holds — see {@link MetaListStatus} for what
-   * each state means. All three count towards legend play-rate; 'archetype' is
-   * the one excluded from card inclusion, and the one whose
-   * `decks.share_token` stays NULL because it has no page. Promoting a deck out
-   * of 'archetype' is what mints the token.
+   * DEFAULT false. Whether {@link rank} is a cut bucket rather than an exact
+   * standing — a tier-only source sets it and the rank displays as "T8".
+   */
+  rankIsTier: Generated<boolean>;
+  /**
+   * CHECK: length 1..80. Null only when {@link uvsgamesPlayerId} is set, so
+   * the name comes from the source; writing it back is the admin's override.
+   * A CHECK enforces that one of the two is always present.
+   */
+  playerName: string | null;
+  /**
+   * FK → uvsgames_players.id. UNIQUE with {@link metaEventId} where set, which
+   * is what stops one player appearing twice in an event's standings.
+   */
+  uvsgamesPlayerId: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  /**
+   * The standings columns the source sorts on, kept so a rank can be explained
+   * and checked rather than only displayed. Which tiebreakers apply is the
+   * event's own choice, published alongside the standings; these three are the
+   * ones the official source declares (OMWP, GWP, OGWP).
+   */
+  matchPoints: number | null;
+  opponentMatchWinPct: number | null;
+  gameWinPct: number | null;
+  opponentGameWinPct: number | null;
+  /**
+   * CHECK: NULL or one of the {@link MetaEntryStatus} values. NULL for a source
+   * that publishes no status, which is every source but the official one.
+   */
+  entryStatus: MetaEntryStatus | null;
+  /**
+   * FK → cards.id ON DELETE SET NULL. Held here even when a deck exists, so
+   * the play-rate stat reads one column whether or not the list was published.
+   */
+  legendCardId: string | null;
+  /** FK → cards.id ON DELETE SET NULL */
+  championCardId: string | null;
+  /**
+   * UNIQUE FK → decks.id ON DELETE RESTRICT. Deleting an archived deck must
+   * not silently take a standings row with it: the admin path clears this and
+   * {@link listStatus} first, then deletes the deck.
+   */
+  deckId: string | null;
+  /**
+   * DEFAULT 'none'. CHECK: one of the {@link MetaListStatus} values, and
+   * CHECK: `(deck_id IS NULL) = (list_status = 'none')`, so a deck and its
+   * status can never disagree. See that type for what each state means.
    */
   listStatus: Generated<MetaListStatus>;
-  // No source key on this row: `candidate_meta_decks.deck_id` is many-to-one
-  // and two providers can both describe one archived deck. It lives in
-  // {@link MetaDeckSourcesTable}, not on the candidate, which an ignore deletes.
+  // No source key on this row: the link is the candidate-side FK, which is
+  // many-to-one so several sources can feed one player row.
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * One archived match: who sat at one table in one round, and how it ended.
+ * Participants are player rows, not source ids, so a
+ * second pairings source would land the way standings do. Stored and rendered
+ * as per-match facts only; no aggregate is computed from them.
+ */
+export interface MetaEventMatchesTable {
+  id: Generated<string>;
+  /** FK → meta_events.id ON DELETE CASCADE */
+  metaEventId: string;
+  /**
+   * The source's own id for this match, and the row's real key: UNIQUE with the
+   * event where set. NULL for a hand-entered match or a source that publishes
+   * no match id, which is why the seat key below still exists.
+   */
+  sourceMatchId: string | null;
+  /** The source's id for the round, kept as provenance. */
+  sourceRoundId: string | null;
+  /** DEFAULT 0. CHECK: >= 0. Position of the round's phase (Day 1, Day 2, cut). */
+  phaseOrder: Generated<number>;
+  /** CHECK: >= 1. The round's position within its phase. */
+  roundNumber: number;
+  /** Null on byes, where the source sends -1. */
+  tableNumber: number | null;
+  /** DEFAULT false. CHECK with {@link player2Id}: a bye has exactly one player. */
+  isBye: Generated<boolean>;
+  isDraw: Generated<boolean>;
+  /**
+   * FK → meta_event_players.id ON DELETE CASCADE. Participants are ordered
+   * deterministically at parse time. UNIQUE with the event, phase, and round
+   * for rows with no {@link sourceMatchId}, which is the fallback key: a row
+   * that has one is keyed by that instead, so a player the source pairs twice
+   * in a round keeps both matches.
+   */
+  player1Id: string;
+  /** FK → meta_event_players.id ON DELETE CASCADE. Null exactly on a bye. */
+  player2Id: string | null;
+  /** FK → meta_event_players.id ON DELETE CASCADE. CHECK: one of the participants. */
+  winnerId: string | null;
+  gamesWonP1: number | null;
+  gamesWonP2: number | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * One phase of an archived event: the block of rounds the source ran under one
+ * structure. `phase_order` is the join to {@link MetaEventMatchesTable}, whose
+ * own column carries no meaning without this row.
+ *
+ * Only the official source publishes phases, so a hand-entered event simply has
+ * none and its matches render by round number alone.
+ */
+export interface MetaEventPhasesTable {
+  id: Generated<string>;
+  /** FK → meta_events.id ON DELETE CASCADE. UNIQUE with {@link phaseOrder}. */
+  metaEventId: string;
+  /** CHECK: >= 0. Matches {@link MetaEventMatchesTable.phaseOrder}. */
+  phaseOrder: number;
+  /** The source's own name for the phase, e.g. "Phase 2". CHECK: NULL or length 1..120. */
+  name: string | null;
+  /**
+   * Source vocabulary, kept raw: `SWISS`, `RANKED_SINGLE_ELIMINATION`. This is
+   * what separates a cut from the Swiss rounds before it. CHECK: <> ''.
+   */
+  roundType: string;
+  /** How many rounds the phase was configured for. CHECK: NULL or > 0. */
+  roundCount: number | null;
+  /**
+   * The standing that entered this phase — 8 for a Top 8. The source has a
+   * `top_cut_size` field too and leaves it null on every event, so this is
+   * where a cut size actually comes from. CHECK: NULL or > 0.
+   */
+  rankRequired: number | null;
+  /**
+   * Game wins needed to take a match: 1 for Bo1, 2 for Bo3. Per phase, not per
+   * event, because a Bo1 Swiss into a Bo3 cut is a real configuration.
+   * CHECK: NULL or > 0.
+   */
+  maxGameWins: number | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -938,8 +1361,22 @@ export interface CandidateMetaEventsTable {
   sourceUrl: string | null;
   /** CHECK: NULL or length <= 4000 */
   notes: string | null;
+  /** CHECK: NULL or one of {@link MetaEventsTable.tier}'s vocabulary — null when the producer sent none. */
+  tier: MetaEventTier | null;
+  /** ISO 3166-1 alpha-2. CHECK: NULL or `~ '^[A-Z]{2}$'`. */
+  country: string | null;
+  /** The venue address as the source published it. CHECK: NULL or length 1..500. */
+  location: string | null;
   /** FK → meta_events.id ON DELETE SET NULL — the live row this was accepted into. */
   metaEventId: string | null;
+  /**
+   * The latest deep-fetch payload, overwritten on every fetch, so a mapping fix
+   * can be re-run without going back to the source. NULL for push providers.
+   * CHECK: NULL or `jsonb_typeof(raw) = 'object'`.
+   */
+  raw: CandidateMetaEventRaw | null;
+  /** NULL for push providers, which arrive rather than being fetched. */
+  fetchedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   /** When an admin last reviewed this row. Reset to NULL whenever an upload changes it. */
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   /** Source fields that map to no column of ours. */
@@ -948,7 +1385,21 @@ export interface CandidateMetaEventsTable {
   updatedAt: UpdatedAt;
 }
 
-/** One card row inside {@link CandidateMetaDecksTable.cards}. */
+/**
+ * The deep fetch's own responses, kept verbatim under
+ * {@link CandidateMetaEventsTable.raw}. The keys are the fetch's five calls;
+ * their contents stay `unknown` because the source publishes no schema and the
+ * transform, not this type, is what decides they are usable.
+ */
+export interface CandidateMetaEventRaw {
+  detail?: unknown;
+  registrations?: unknown;
+  standings?: unknown;
+  roundStandings?: unknown;
+  decks?: unknown;
+}
+
+/** One card row inside {@link CandidateMetaPlayersTable.cards}. */
 export interface CandidateMetaDeckCard {
   /** The name exactly as the source wrote it — kept even when it resolves. */
   name: string;
@@ -960,15 +1411,15 @@ export interface CandidateMetaDeckCard {
 }
 
 /**
- * A proposed deck under a candidate event. Card lists are jsonb
+ * A proposed player entry under a candidate event. Card lists are jsonb
  * rather than a third staging table: they are written whole, read whole, and
  * never queried across rows.
  *
- * `(candidate_event_id, external_id)` is UNIQUE. Deck external ids are scoped
- * to their event, which is why the ignore list keys on the source's event id
- * alongside the deck's rather than on the provider alone.
+ * `(candidate_event_id, external_id)` is UNIQUE. Player external ids are
+ * scoped to their event, which is why the ignore list keys on the source's
+ * event id alongside the player's rather than on the provider alone.
  */
-export interface CandidateMetaDecksTable {
+export interface CandidateMetaPlayersTable {
   id: Generated<string>;
   /**
    * FK → candidate_meta_events.id ON DELETE CASCADE. NULL for a user
@@ -984,22 +1435,53 @@ export interface CandidateMetaDecksTable {
   /** CHECK: length 1..80 */
   playerName: string;
   /** CHECK: >= 1 */
-  finishTier: number;
-  /** CHECK: NULL or length 1..20 */
-  record: string | null;
-  /** CHECK: NULL or length 1..120 — accept derives one when the source gave none. */
-  name: string | null;
-  /** jsonb array of the source's card lines. */
-  cards: CandidateMetaDeckCard[];
+  rank: number;
+  /** DEFAULT false. See {@link MetaEventPlayersTable.rankIsTier}. */
+  rankIsTier: Generated<boolean>;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
   /**
-   * DEFAULT 'full'. Same CHECK and same vocabulary as
-   * {@link MetaDecksTable.listStatus}, which accepting copies it into. It is
-   * the source's own claim about its payload, never inferred from the card
-   * count.
+   * The standings columns the source sorts on, kept so a rank can be explained
+   * and checked rather than only displayed. Which tiebreakers apply is the
+   * event's own choice, published alongside the standings; these three are the
+   * ones the official source declares (OMWP, GWP, OGWP).
+   */
+  matchPoints: number | null;
+  opponentMatchWinPct: number | null;
+  gameWinPct: number | null;
+  opponentGameWinPct: number | null;
+  /**
+   * CHECK: NULL or one of the {@link MetaEntryStatus} values. NULL for a source
+   * that publishes no status, which is every source but the official one.
+   */
+  entryStatus: MetaEntryStatus | null;
+  /**
+   * FK → uvsgames_players.id, set by the deep fetch. Null for a pushed or
+   * user-submitted row, which has no identity on the source at all.
+   */
+  uvsgamesPlayerId: number | null;
+  /** The legend name exactly as the source wrote it, kept even when it resolves. */
+  legendName: string | null;
+  /** FK → cards.id ON DELETE SET NULL — the name matcher's verdict. */
+  legendCardId: string | null;
+  championName: string | null;
+  /** FK → cards.id ON DELETE SET NULL */
+  championCardId: string | null;
+  /**
+   * jsonb array of the source's card lines, NULL for a standings-only row.
+   * CHECK: NULL or `jsonb_typeof(cards) = 'array'`.
+   */
+  cards: CandidateMetaDeckCard[] | null;
+  /**
+   * DEFAULT 'none'. Same CHECK and same vocabulary as
+   * {@link MetaEventPlayersTable.listStatus}, which accepting copies it into.
+   * It is the source's own claim about its payload, never inferred from the
+   * card count.
    */
   listStatus: Generated<MetaListStatus>;
-  /** FK → decks.id ON DELETE SET NULL — the live archived deck this became. */
-  deckId: string | null;
+  /** FK → meta_event_players.id ON DELETE SET NULL — the live row this became. */
+  metaEventPlayerId: string | null;
   /**
    * FK → users.id ON DELETE SET NULL. Set for the
    * `usersubmission` provider only; scraped providers leave it NULL. Copied
@@ -1009,6 +1491,56 @@ export interface CandidateMetaDecksTable {
   /** What the submitter wrote about their submission. CHECK: <> ''. */
   submissionNote: string | null;
   checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * A staged match from the deep fetch, parsed on arrival; matches never ride
+ * in the candidate's raw payload. Participants reference
+ * uvsgames_players because that is how the source keys them; the ordering
+ * (by user id) is what makes the per-round unique key deterministic.
+ *
+ * {@link metaEventMatchId} is the materialization's stamp. NULL marks a match
+ * still waiting for its participants to be accepted live; those rows are the
+ * retry queue a later ladder visit picks up without refetching.
+ */
+export interface CandidateMetaMatchesTable {
+  id: Generated<string>;
+  /**
+   * FK → candidate_meta_events.id ON DELETE CASCADE. NOT NULL, unlike the
+   * player rows: the deep fetch is the only producer.
+   */
+  candidateEventId: string;
+  /**
+   * The source's own id for this match, and the row's key: UNIQUE with the
+   * event. NOT NULL, because the deep fetch is this tier's only producer and
+   * drops a match the source gave no id for.
+   */
+  sourceMatchId: string;
+  /**
+   * The source's round key. CHECK: <> ''. A round already staged is never
+   * refetched; a refetched round is replaced wholesale.
+   */
+  roundId: string;
+  /** DEFAULT 0. CHECK: >= 0. */
+  phaseOrder: Generated<number>;
+  /** CHECK: >= 1. */
+  roundNumber: number;
+  tableNumber: number | null;
+  /** DEFAULT false. CHECK with {@link player2UvsgamesId}: a bye has one player. */
+  isBye: Generated<boolean>;
+  isDraw: Generated<boolean>;
+  /** FK → uvsgames_players.id */
+  player1UvsgamesId: number;
+  /** FK → uvsgames_players.id. Null exactly on a bye. */
+  player2UvsgamesId: number | null;
+  /** FK → uvsgames_players.id. CHECK: one of the participants. */
+  winnerUvsgamesId: number | null;
+  gamesWonP1: number | null;
+  gamesWonP2: number | null;
+  /** FK → meta_event_matches.id ON DELETE SET NULL — the live row this became. */
+  metaEventMatchId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1027,14 +1559,18 @@ interface IgnoredCandidateMetaEventsTable {
 }
 
 /**
- * A rejected candidate deck. Keyed on the source's event id as
- * well as the deck's, because deck external ids are only unique within their
- * event.
+ * A rejected candidate player. Keyed on the source's event id as
+ * well as the player's, because player external ids are only unique within
+ * their event.
+ *
+ * An ignore marks the key and leaves the candidate row in place, live link
+ * included, so un-ignoring and re-fetching resolves to the same live rows
+ * instead of staging a duplicate.
  */
-interface IgnoredCandidateMetaDecksTable {
+interface IgnoredCandidateMetaPlayersTable {
   /** PK part. CHECK: <> '' */
   provider: string;
-  /** PK part. The source's id for the deck's event. CHECK: <> '' */
+  /** PK part. The source's id for the player's event. CHECK: <> '' */
   eventExternalId: string;
   /** PK part. CHECK: <> '' */
   externalId: string;
@@ -1067,31 +1603,6 @@ export interface MetaEventSourcesTable {
 }
 
 /**
- * Which source deck an archived deck came from, one row per source. Not a
- * citation and nothing public reads it — a deck prints
- * no attribution of its own, its event's {@link MetaEventSourcesTable} list
- * covers that. It exists so the source key outlives the candidate row: ignoring
- * a deck deletes the candidate, and without this the next upload would archive
- * a second copy of the same list instead of finding the deck it already made.
- *
- * Written for provider ingest only. A user submission targets a live event
- * directly and has no source event to key on, which is the same reason it
- * cannot be ignored.
- */
-interface MetaDeckSourcesTable {
-  id: Generated<string>;
-  /** FK → decks.id ON DELETE CASCADE */
-  deckId: string;
-  /** CHECK: <> '' */
-  provider: string;
-  /** The provider's own id for the deck's event. CHECK: <> ''. */
-  eventExternalId: string;
-  /** The provider's own id for the deck, unique only within its event. CHECK: <> ''. */
-  externalId: string;
-  createdAt: CreatedAt;
-}
-
-/**
  * One contribution by a signed-in user, written in the same transaction as the
  * accept it belongs to. Never written for provider ingest or
  * hand entry.
@@ -1105,8 +1616,8 @@ interface MetaCreditsTable {
   id: Generated<string>;
   /** FK → meta_events.id ON DELETE CASCADE */
   metaEventId: string;
-  /** FK → decks.id ON DELETE CASCADE. NULL credits the event itself. */
-  deckId: string | null;
+  /** FK → meta_event_players.id ON DELETE CASCADE. NULL credits the event itself. */
+  metaEventPlayerId: string | null;
   /** FK → users.id ON DELETE CASCADE — deleting an account removes its credits. */
   userId: string;
   createdAt: CreatedAt;
@@ -1121,7 +1632,7 @@ interface MetaCreditsTable {
  * the ledger keeps reading correctly after the candidate is accepted, the
  * target event is deleted, or the deck is removed.
  */
-export interface MetaDeckSubmissionsTable {
+export interface MetaSubmissionsTable {
   id: Generated<string>;
   /** FK → users.id ON DELETE CASCADE */
   userId: string;
@@ -1129,8 +1640,8 @@ export interface MetaDeckSubmissionsTable {
   provider: string;
   /** CHECK: <> '' — per-submission id, UNIQUE with {@link provider}. */
   externalId: string;
-  /** FK → candidate_meta_decks.id ON DELETE SET NULL */
-  candidateMetaDeckId: string | null;
+  /** FK → candidate_meta_players.id ON DELETE SET NULL */
+  candidateMetaPlayerId: string | null;
   /** FK → meta_events.id ON DELETE SET NULL — the event this targets, when it has one. */
   metaEventId: string | null;
   /** What the submitter called the event, so the row still reads without a target. CHECK: length 1..120. */
@@ -2409,6 +2920,10 @@ interface MvDailyPrintingPricesView {
   headlineCents: number;
 }
 
+// Must stay exported — TypeScript names it in inferred Kysely query return
+// types (e.g. selectCopyWithCard in repositories/query-helpers.ts).
+// oxlint-disable-next-line jsdoc/check-tag-names -- @public is consumed by knip to suppress the unused-export warning
+/** @public */
 export interface MvCardAggregatesView {
   cardId: string;
   domains: string[];
@@ -2461,16 +2976,28 @@ export interface Database {
   deckFolders: DeckFoldersTable;
   deckFolderEntries: DeckFolderEntriesTable;
 
+  uvsgamesEvents: UvsgamesEventsTable;
+  uvsgamesEventTemplates: UvsgamesEventTemplatesTable;
+  uvsgamesFormatMappings: UvsgamesFormatMappingsTable;
+  uvsgamesStores: UvsgamesStoresTable;
+  uvsgamesPlayers: UvsgamesPlayersTable;
+  uvsgamesEventChecks: UvsgamesEventChecksTable;
+  playloltcgShops: PlayloltcgShopsTable;
+  playloltcgEvents: PlayloltcgEventsTable;
+  playloltcgEventChecks: PlayloltcgEventChecksTable;
+  metaSyncSettings: MetaSyncSettingsTable;
   metaEvents: MetaEventsTable;
-  metaDecks: MetaDecksTable;
+  metaEventPlayers: MetaEventPlayersTable;
+  metaEventMatches: MetaEventMatchesTable;
+  metaEventPhases: MetaEventPhasesTable;
   candidateMetaEvents: CandidateMetaEventsTable;
-  candidateMetaDecks: CandidateMetaDecksTable;
+  candidateMetaPlayers: CandidateMetaPlayersTable;
+  candidateMetaMatches: CandidateMetaMatchesTable;
   ignoredCandidateMetaEvents: IgnoredCandidateMetaEventsTable;
-  ignoredCandidateMetaDecks: IgnoredCandidateMetaDecksTable;
+  ignoredCandidateMetaPlayers: IgnoredCandidateMetaPlayersTable;
   metaEventSources: MetaEventSourcesTable;
-  metaDeckSources: MetaDeckSourcesTable;
   metaCredits: MetaCreditsTable;
-  metaDeckSubmissions: MetaDeckSubmissionsTable;
+  metaSubmissions: MetaSubmissionsTable;
 
   tierLists: TierListsTable;
 

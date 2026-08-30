@@ -103,6 +103,44 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Merges a progress patch into the stored result, keeping the keys it does
+     * not name. Two things depend on that: a long job whose phases each write
+     * their own counters (a recheck's totals and the deck fetch's progress land
+     * in one row), and a cancel request that arrives while the job is building
+     * its next heartbeat, which a read-modify-write would drop. A
+     * `cancelRequested` already on the row therefore survives a patch carrying
+     * its own `false`.
+     */
+    async mergeResult(id: string, patch: object): Promise<void> {
+      await db
+        .updateTable("jobRuns")
+        .set({
+          result: sql`
+            (coalesce(result, '{}'::jsonb) || ${patch}::jsonb)
+            || case
+                 when coalesce((result ->> 'cancelRequested')::boolean, false)
+                 then '{"cancelRequested": true}'::jsonb
+                 else '{}'::jsonb
+               end`,
+        })
+        .where("id", "=", id)
+        .execute();
+    },
+
+    /**
+     * Asks a running job to stop, without reading its result first: the job
+     * rewrites that column every heartbeat, so a read-modify-write here loses
+     * the request whenever a beat lands between the two statements.
+     */
+    async requestCancel(id: string): Promise<void> {
+      await db
+        .updateTable("jobRuns")
+        .set({ result: sql`coalesce(result, '{}'::jsonb) || '{"cancelRequested": true}'::jsonb` })
+        .where("id", "=", id)
+        .execute();
+    },
+
+    /**
      * Find the most recent run of a kind that has a stored checkpoint. Rows
      * with a null `result` are skipped so a failure that never wrote a
      * checkpoint doesn't shadow an earlier run's progress.
@@ -209,6 +247,35 @@ export function jobRunsRepo(db: Kysely<Database>) {
         countQuery.executeTakeFirstOrThrow(),
       ]);
       return { rows, total: Number(countRow.total) };
+    },
+
+    /**
+     * Recent runs across a family of kinds, for a status panel that owns
+     * several jobs (the meta sync's six). One query rather than one per kind,
+     * so the panel reads a single interleaved history.
+     */
+    listRecentByKinds(kinds: string[], limit: number): Promise<JobRun[]> {
+      if (kinds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("jobRuns")
+        .select([
+          "id",
+          "kind",
+          "trigger",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "durationMs",
+          "errorMessage",
+          "result",
+          "noop",
+        ])
+        .where("kind", "in", kinds)
+        .orderBy("startedAt", "desc")
+        .limit(limit)
+        .execute();
     },
 
     async listKinds(): Promise<string[]> {

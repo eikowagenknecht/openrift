@@ -6,7 +6,7 @@ import { AppError } from "../../errors.js";
 import { toAdminMetaSubmission } from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import type { MetaDeckSubmissionRow } from "../../repositories/meta-submissions.js";
+import type { MetaSubmissionRow } from "../../repositories/meta-submissions.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminMetaSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
@@ -24,7 +24,7 @@ const os = implement(adminMetaSubmissionsContract).$context<ApiContext>().use(re
 async function requireUnsettled(
   repos: ApiContext["repos"],
   id: string,
-): Promise<MetaDeckSubmissionRow> {
+): Promise<MetaSubmissionRow> {
   const submission = await repos.metaSubmissions.byId(id);
   if (submission === null) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Submission not found");
@@ -43,20 +43,22 @@ async function requireUnsettled(
  * Admin side of meta decklist submissions.
  *
  * The card pipeline derives a submission's outcome from the check and ignore
- * verbs its review loop already uses. This one cannot: a submitted deck hangs
+ * verbs its review loop already uses. This one cannot: a submitted entry hangs
  * off a live event and carries no source-event key, so there is no ignore entry
  * to represent it and nothing for an outcome to fall out of. The verb is
  * explicit here instead — without it a submission can only ever reach
  * `accepted`, and a contributor whose list was turned down reads "pending"
  * forever.
  *
- * Resolving does not delete the staged candidate deck. That is what lets
+ * Resolving does not delete the staged candidate row. That is what lets
  * {@link adminMetaSubmissionsRouter.reopen} actually undo a misclick, and the
  * cost of the alternative is somebody's decklist gone on one wrong button.
  */
 export const adminMetaSubmissionsRouter = {
-  forCandidateDeck: os.forCandidateDeck.handler(async ({ input, context }) => {
-    const submission = await context.repos.metaSubmissions.byCandidateDeckId(input.candidateDeckId);
+  forCandidatePlayer: os.forCandidatePlayer.handler(async ({ input, context }) => {
+    const submission = await context.repos.metaSubmissions.byCandidatePlayerId(
+      input.candidatePlayerId,
+    );
     return { submission: submission === null ? null : toAdminMetaSubmission(submission) };
   }),
 

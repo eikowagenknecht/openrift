@@ -15,7 +15,7 @@ export interface MetaDeckFilterActions {
   setEvents: (values: string[]) => void;
   setLegends: (values: string[]) => void;
   /** Null clears the finish bound. */
-  setMaxFinishTier: (value: number | null) => void;
+  setMaxRank: (value: number | null) => void;
   setDateFrom: (value: string | null) => void;
   setDateTo: (value: string | null) => void;
   clearAllFilters: () => void;
@@ -61,7 +61,7 @@ export function useMetaDeckFilters(): MetaDeckFilterValues & MetaDeckFilterActio
     formats,
     events,
     legends,
-    maxFinishTier: search.finish ?? null,
+    maxRank: search.finish ?? null,
     dateFrom: search.from ?? null,
     dateTo: search.to ?? null,
 
@@ -71,7 +71,7 @@ export function useMetaDeckFilters(): MetaDeckFilterValues & MetaDeckFilterActio
     setFormats: (values) => update({ formats: values }),
     setEvents: (values) => update({ events: values }),
     setLegends: (values) => update({ legends: values }),
-    setMaxFinishTier: (value) => update({ finish: value ?? undefined }),
+    setMaxRank: (value) => update({ finish: value ?? undefined }),
     setDateFrom: (value) => update({ from: value ?? undefined }),
     setDateTo: (value) => update({ to: value ?? undefined }),
     clearAllFilters: () =>

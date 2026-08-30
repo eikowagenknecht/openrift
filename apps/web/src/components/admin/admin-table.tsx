@@ -15,10 +15,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { ColumnDef, RowData, SortingState } from "@tanstack/react-table";
+import type { ColumnDef, RowData, SortingState, Updater } from "@tanstack/react-table";
 import {
   FlexRender,
   createSortedRowModel,
+  functionalUpdate,
   rowSortingFeature,
   tableFeatures,
   useTable,
@@ -26,7 +27,6 @@ import {
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  ChevronsUpDownIcon,
   DownloadIcon,
   GripVerticalIcon,
   Trash2Icon,
@@ -35,6 +35,7 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { SortHeaderButton, ariaSort } from "@/components/admin/sortable-header";
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import {
   AlertDialog,
@@ -81,6 +82,19 @@ type AdminTableFeatures = typeof features;
 // Column definition (public API — consumed by all admin pages)
 // ---------------------------------------------------------------------------
 
+/** One column's sort, as a server-paged table reports and receives it. */
+export interface ServerSort {
+  /** The active column's {@link AdminColumnDef.sortKey}. */
+  key: string;
+  direction: "asc" | "desc";
+  /**
+   * A null key is the third step of the header's cycle: the reader has taken
+   * the sort off, and the list falls back to whatever order the endpoint
+   * returns unasked.
+   */
+  onChange: (sort: { key: string | null; direction: "asc" | "desc" }) => void;
+}
+
 /** Per-row data injected into `cell` elements via cloneElement. */
 export interface AdminCellSlotProps<TData> {
   row?: TData;
@@ -96,6 +110,12 @@ export interface AdminDraftSlotProps<TDraft> {
 export interface AdminColumnDef<TData, TDraft = TData> {
   /** Header label */
   header: string;
+  /**
+   * Identifies the column to sort state and to {@link AdminTableProps.defaultSort}.
+   * Defaults to {@link header}, which is enough until two columns share a
+   * label — at which point the sort silently lands on whichever comes first.
+   */
+  id?: string;
   /** Tooltip for header (title attribute) */
   headerTitle?: string;
   /** Tailwind width class, e.g. "w-28" */
@@ -105,6 +125,21 @@ export interface AdminColumnDef<TData, TDraft = TData> {
 
   /** Return a sortable value for this column. If provided, the column header becomes clickable. */
   sortValue?: (row: TData) => string | number | null;
+
+  /**
+   * Names this column to the server's own sort vocabulary. The header becomes
+   * clickable and reports through {@link AdminTableProps.serverSort} instead of
+   * reordering the rows in the browser, which is the only honest option on a
+   * table whose page is one slice of a much larger result.
+   */
+  sortKey?: string;
+
+  /**
+   * Which way a first click on this column sorts, whether it orders on the
+   * server ({@link sortKey}) or in the browser ({@link sortValue}). Defaults to
+   * ascending.
+   */
+  sortFirst?: "asc" | "desc";
 
   /**
    * JSX element rendered as the display-mode cell. The per-row `row` and
@@ -144,8 +179,16 @@ interface AdminTableProps<TData, TDraft = TData> {
   /** Text shown when data is empty */
   emptyText?: string;
 
-  /** Initial sort state. `column` must match a column's `header` that has `sortValue`. */
+  /** Initial sort state. `column` is a column's {@link AdminColumnDef.id}, which defaults to its header. */
   defaultSort?: { column: string; direction: "asc" | "desc" };
+
+  /**
+   * Controlled sort for a server-paged table, over the columns carrying a
+   * {@link AdminColumnDef.sortKey}. Switches the table to TanStack's
+   * `manualSorting`, so the rows render in the order they arrived and the
+   * headers only report the click.
+   */
+  serverSort?: ServerSort;
 
   /**
    * Page title. When set, the table owns the page's sticky top bar
@@ -236,17 +279,24 @@ function alignClass(align?: "left" | "center" | "right") {
   }
 }
 
+/** What sort state and `defaultSort` name a column by. */
+function columnId<TData, TDraft>(col: AdminColumnDef<TData, TDraft>): string {
+  return col.id ?? col.header;
+}
+
 // Convert our public AdminColumnDef to TanStack ColumnDef.
 function toTanStackColumns<TData extends RowData, TDraft>(
   adminCols: AdminColumnDef<TData, TDraft>[],
   enableSort: boolean,
+  serverSorted: boolean,
 ): ColumnDef<AdminTableFeatures, TData>[] {
   return adminCols.map((col) => {
+    const sortsOnServer = serverSorted && col.sortKey !== undefined;
     const def: ColumnDef<AdminTableFeatures, TData> = {
-      id: col.header,
+      id: columnId(col),
       header: col.header,
       cell: (info) => cloneElement(col.cell, { row: info.row.original, index: info.row.index }),
-      enableSorting: enableSort && Boolean(col.sortValue),
+      enableSorting: enableSort && (Boolean(col.sortValue) || sortsOnServer),
       meta: {
         headerTitle: col.headerTitle,
         width: col.width,
@@ -256,35 +306,61 @@ function toTanStackColumns<TData extends RowData, TDraft>(
       } satisfies AdminColumnMeta<TDraft>,
     };
 
+    if (sortsOnServer) {
+      // `getCanSort` refuses a column with no accessor, and under
+      // `manualSorting` the value is never read, so this only unlocks the
+      // header. The row order comes back with the page.
+      (def as ColumnDef<AdminTableFeatures, TData> & { accessorFn: () => null }).accessorFn = () =>
+        null;
+    }
+
+    // A server-sorted column always states the direction, because its accessor
+    // is a constant null and table-core's own guess reads that as descending.
+    if (sortsOnServer || col.sortFirst !== undefined) {
+      def.sortDescFirst = col.sortFirst === "desc";
+    }
+
     if (col.sortValue) {
       const { sortValue } = col;
+      // A blank reaches the row model as undefined rather than null, because
+      // `sortUndefined` is the sorted row model's only blank handling and it
+      // tests for undefined. That path also returns before the descending pass
+      // negates the comparison, which is what keeps blanks trailing whichever
+      // way the column runs, the way the server orders a nullable column.
       (
         def as ColumnDef<AdminTableFeatures, TData> & {
-          accessorFn: (row: TData) => string | number | null;
+          accessorFn: (row: TData) => string | number | undefined;
         }
-      ).accessorFn = sortValue;
-      def.sortFn = (rowA, rowB, columnId) => {
-        const va = rowA.getValue<string | number | null>(columnId);
-        const vb = rowB.getValue<string | number | null>(columnId);
-        if (va === null && vb === null) {
-          return 0;
-        }
-        if (va === null) {
-          return 1;
-        }
-        if (vb === null) {
-          return -1;
-        }
+      ).accessorFn = (row: TData) => sortValue(row) ?? undefined;
+      def.sortUndefined = "last";
+      // Only ever handed two present values, since sortUndefined settles the
+      // rest. Kept over a built-in because those coerce through String, which
+      // misorders negatives and decimals, and compare by char code, which files
+      // every accented name after Z.
+      def.sortFn = (rowA, rowB, id) => {
+        const va = rowA.getValue<string | number>(id);
+        const vb = rowB.getValue<string | number>(id);
         if (typeof va === "string" && typeof vb === "string") {
           return va.localeCompare(vb);
         }
         return (va as number) - (vb as number);
       };
-      def.sortUndefined = "last";
     }
 
     return def;
   });
+}
+
+/** The sorting state a server-sorted table is showing, keyed back to column ids. */
+function serverSortingState<TData, TDraft>(
+  adminCols: AdminColumnDef<TData, TDraft>[],
+  serverSort: ServerSort,
+): SortingState {
+  const column = adminCols.find((col) => col.sortKey === serverSort.key);
+  if (column === undefined) {
+    return [];
+  }
+  return [{ id: columnId(column), desc: serverSort.direction === "desc" }];
 }
 
 // ---------------------------------------------------------------------------
@@ -297,6 +373,7 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
   getRowKey,
   emptyText = "No data.",
   defaultSort,
+  serverSort,
   title,
   toolbar,
   add,
@@ -334,19 +411,37 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
   );
 
   const enableSort = !reorder;
-  const tanStackColumns = toTanStackColumns(adminColumns, enableSort);
+  const tanStackColumns = toTanStackColumns(adminColumns, enableSort, serverSort !== undefined);
 
   const initialSorting: SortingState = defaultSort
     ? [{ id: defaultSort.column, desc: defaultSort.direction === "desc" }]
     : [];
-  const [sorting, setSorting] = useState<SortingState>(initialSorting);
+  const [localSorting, setLocalSorting] = useState<SortingState>(initialSorting);
+  const sorting =
+    serverSort === undefined ? localSorting : serverSortingState(adminColumns, serverSort);
+
+  function handleSortingChange(updater: Updater<SortingState>) {
+    const next = functionalUpdate(updater, sorting);
+    if (serverSort === undefined) {
+      setLocalSorting(next);
+      return;
+    }
+    const first = next[0];
+    if (first === undefined) {
+      serverSort.onChange({ key: null, direction: "asc" });
+      return;
+    }
+    const key = adminColumns.find((col) => columnId(col) === first.id)?.sortKey ?? null;
+    serverSort.onChange({ key, direction: first.desc ? "desc" : "asc" });
+  }
 
   const table = useTable({
     features,
     data,
     columns: tanStackColumns,
     state: { sorting },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
+    manualSorting: serverSort !== undefined,
     getRowId: (row) => getRowKey(row),
     enableSorting: enableSort,
   });
@@ -590,27 +685,20 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
                     return (
                       <TableHead
                         key={header.id}
-                        className={cn(
-                          meta?.width,
-                          alignClass(meta?.align),
-                          canSort && "cursor-pointer select-none",
-                        )}
+                        className={cn(meta?.width, alignClass(meta?.align))}
                         title={meta?.headerTitle}
-                        onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                        aria-sort={canSort ? ariaSort(sorted) : undefined}
                       >
-                        <span className={cn(canSort && "inline-flex items-center gap-1")}>
+                        {canSort ? (
+                          <SortHeaderButton
+                            sorted={sorted}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            <FlexRender header={header} />
+                          </SortHeaderButton>
+                        ) : (
                           <FlexRender header={header} />
-                          {canSort &&
-                            (sorted ? (
-                              sorted === "asc" ? (
-                                <ArrowUpIcon className="text-foreground inline h-3.5 w-3.5" />
-                              ) : (
-                                <ArrowDownIcon className="text-foreground inline h-3.5 w-3.5" />
-                              )
-                            ) : (
-                              <ChevronsUpDownIcon className="text-muted-foreground/50 inline h-3.5 w-3.5" />
-                            ))}
-                        </span>
+                        )}
                       </TableHead>
                     );
                   })}

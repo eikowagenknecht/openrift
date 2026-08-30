@@ -106,7 +106,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     // must stay possible, so the tier is any exact placement or cut bucket.
     .addColumn("finish_tier", "integer", (col) => col.notNull())
     .addColumn("record", "text")
-    // How much of the pilot's list `deck_cards` actually holds. Sources publish
+    // How much of the player's list `deck_cards` actually holds. Sources publish
     // at three levels of detail, and conflating them would either throw away
     // usable data or quietly corrupt the stats:
     //

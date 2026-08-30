@@ -35,7 +35,7 @@ const suggestion: MetaEventMatchSuggestion = {
   name: "Summoner Skirmish 2026",
   eventDate: "2026-08-15",
   format: "standard",
-  deckCount: 8,
+  playerRowCount: 8,
   score: 12,
   reasons: ["Same format", "1 day apart", "Name similarity 0.82"],
 };

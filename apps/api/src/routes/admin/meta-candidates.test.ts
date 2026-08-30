@@ -16,46 +16,50 @@ import { adminMetaCandidatesRouter } from "./meta-candidates";
 const mockCandidates = {
   eventById: vi.fn(),
   eventsByMetaEventId: vi.fn(),
-  deckById: vi.fn(),
-  decksByCandidateEventIds: vi.fn(),
-  decksByMetaEventIds: vi.fn(),
-  liveDecksByIds: vi.fn(),
+  playerById: vi.fn(),
+  playersByCandidateEventIds: vi.fn(),
+  playersByMetaEventIds: vi.fn(),
   liveDeckCards: vi.fn(),
   liveEventsByIds: vi.fn(),
   cardNamesByIds: vi.fn(),
-  ignoreDeck: vi.fn(),
+  ignoreEvent: vi.fn(),
+  ignorePlayer: vi.fn(),
 };
 
+const mockMeta = { livePlayersByIds: vi.fn() };
 const mockUsers = { findById: vi.fn() };
 const mockDeckFormats = { getBySlug: vi.fn() };
 
 const mockServices = {
   acceptCandidateEvent: vi.fn(),
-  acceptCandidateEventWithDecks: vi.fn(),
-  acceptCandidateDeck: vi.fn(),
+  acceptCandidateEventWithPlayers: vi.fn(),
+  acceptCandidatePlayer: vi.fn(),
   linkCandidateEvent: vi.fn(),
   relinkCandidateEvent: vi.fn(),
   unlinkCandidateEvent: vi.fn(),
-  linkCandidateDeck: vi.fn(),
-  relinkCandidateDeck: vi.fn(),
-  unlinkCandidateDeck: vi.fn(),
+  linkCandidatePlayer: vi.fn(),
+  relinkCandidatePlayer: vi.fn(),
+  unlinkCandidatePlayer: vi.fn(),
   acceptMetaEventField: vi.fn(),
-  acceptMetaDeckField: vi.fn(),
+  acceptMetaPlayerField: vi.fn(),
   acceptMetaDeckList: vi.fn(),
   suggestMetaEventMatches: vi.fn(),
-  suggestMetaDeckMatches: vi.fn(),
+  suggestMetaPlayerMatches: vi.fn(),
 };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const CANDIDATE_ID = "b0000000-0001-4000-a000-000000000001";
 const SIBLING_ID = "b0000000-0001-4000-a000-000000000002";
+const PLAYER_ID = "c0000000-0001-4000-a000-000000000001";
 const DECK_ID = "d0000000-0001-4000-a000-000000000001";
 const LIVE_EVENT_ID = "e0000000-0001-4000-a000-000000000001";
+const LIVE_PLAYER_ID = "f0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", {
+    meta: mockMeta,
     metaCandidates: mockCandidates,
     users: mockUsers,
     deckFormats: mockDeckFormats,
@@ -78,7 +82,12 @@ function candidateEvent(overrides: Record<string, unknown> = {}) {
     organizer: "LGS Berlin",
     sourceUrl: "https://example.invalid/uvs",
     notes: null,
+    tier: null,
+    country: null,
+    location: null,
     metaEventId: null,
+    raw: null,
+    fetchedAt: null,
     checkedAt: null,
     extraData: null,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -87,25 +96,55 @@ function candidateEvent(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns A candidate deck row under a candidate event, unless overridden. */
-function candidateDeck(overrides: Record<string, unknown> = {}) {
+/**
+ * @returns A candidate standings row under a candidate event, unless
+ * overridden. Standings-only, which is what most of a source's field is.
+ */
+function candidatePlayer(overrides: Record<string, unknown> = {}) {
   return {
-    id: DECK_ID,
+    id: PLAYER_ID,
     candidateEventId: CANDIDATE_ID,
     metaEventId: null,
-    externalId: "deck-1",
+    externalId: "player-1",
     playerName: "Renata",
-    finishTier: 1,
-    record: "5-1",
-    name: null,
-    cards: [],
-    listStatus: "full",
-    deckId: null,
+    rank: 1,
+    rankIsTier: false,
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendName: "Azir",
+    legendCardId: null,
+    championName: null,
+    championCardId: null,
+    cards: null,
+    listStatus: "none",
+    metaEventPlayerId: null,
     submittedByUserId: null,
     submissionNote: null,
     checkedAt: null,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
     updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+/** @returns A live standings row as the diff reads it. */
+function livePlayer(overrides: Record<string, unknown> = {}) {
+  return {
+    id: LIVE_PLAYER_ID,
+    metaEventId: LIVE_EVENT_ID,
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Renata",
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId: null,
+    championCardId: null,
+    listStatus: "none",
+    deckId: null,
+    deckName: null,
+    shareToken: null,
     ...overrides,
   };
 }
@@ -121,19 +160,19 @@ function post(path: string, body?: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockCandidates.decksByCandidateEventIds.mockResolvedValue([]);
-  mockCandidates.decksByMetaEventIds.mockResolvedValue([]);
-  mockCandidates.liveDecksByIds.mockResolvedValue([]);
+  mockCandidates.playersByCandidateEventIds.mockResolvedValue([]);
+  mockCandidates.playersByMetaEventIds.mockResolvedValue([]);
   mockCandidates.liveDeckCards.mockResolvedValue([]);
   mockCandidates.liveEventsByIds.mockResolvedValue([]);
   mockCandidates.cardNamesByIds.mockResolvedValue(new Map());
+  mockMeta.livePlayersByIds.mockResolvedValue([]);
   mockDeckFormats.getBySlug.mockResolvedValue({ slug: "constructed" });
 });
 
 describe("GET /meta/candidates/{id}", () => {
   it("returns an unlinked candidate as its own only source", async () => {
     mockCandidates.eventById.mockResolvedValue(candidateEvent());
-    mockCandidates.decksByCandidateEventIds.mockResolvedValue([candidateDeck()]);
+    mockCandidates.playersByCandidateEventIds.mockResolvedValue([candidatePlayer()]);
 
     const res = await app.request(`/api/admin/v1/meta/candidates/${CANDIDATE_ID}`);
 
@@ -141,10 +180,51 @@ describe("GET /meta/candidates/{id}", () => {
     const json = await readJson(res);
     expect(json.sources).toHaveLength(1);
     expect(json.sources[0].provider).toBe("uvsgames");
-    expect(json.sources[0].decks).toHaveLength(1);
-    expect(json.submittedDecks).toEqual([]);
+    expect(json.sources[0].players).toHaveLength(1);
+    expect(json.submittedPlayers).toEqual([]);
     // An unlinked candidate has no siblings, so nothing goes looking for them.
     expect(mockCandidates.eventsByMetaEventId).not.toHaveBeenCalled();
+  });
+
+  it("carries a standings-only entry with no list and no deck", async () => {
+    mockCandidates.eventById.mockResolvedValue(candidateEvent());
+    mockCandidates.playersByCandidateEventIds.mockResolvedValue([candidatePlayer()]);
+
+    const res = await app.request(`/api/admin/v1/meta/candidates/${CANDIDATE_ID}`);
+
+    const json = await readJson(res);
+    expect(json.players[0]).toMatchObject({
+      rank: 1,
+      rankIsTier: false,
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      legendName: "Azir",
+      cards: null,
+      listStatus: "none",
+      unresolvedNames: [],
+      state: "new",
+      diff: null,
+    });
+  });
+
+  it("reports the card names that matched nothing, which block taking the list", async () => {
+    mockCandidates.eventById.mockResolvedValue(candidateEvent());
+    mockCandidates.playersByCandidateEventIds.mockResolvedValue([
+      candidatePlayer({
+        listStatus: "full",
+        cards: [
+          { name: "Azir", zone: "legend", quantity: 1, cardId: null },
+          { name: "Shock", zone: "main", quantity: 3, cardId: null },
+          { name: "Shock", zone: "sideboard", quantity: 1, cardId: null },
+        ],
+      }),
+    ]);
+
+    const res = await app.request(`/api/admin/v1/meta/candidates/${CANDIDATE_ID}`);
+
+    const json = await readJson(res);
+    expect(json.players[0].unresolvedNames).toEqual(["Azir", "Shock"]);
   });
 
   it("returns one source column per candidate on the same live event", async () => {
@@ -158,9 +238,12 @@ describe("GET /meta/candidates/{id}", () => {
     });
     mockCandidates.eventById.mockResolvedValue(linked);
     mockCandidates.eventsByMetaEventId.mockResolvedValue([linked, sibling]);
-    mockCandidates.decksByCandidateEventIds.mockResolvedValue([
-      candidateDeck(),
-      candidateDeck({ id: "d0000000-0001-4000-a000-000000000002", candidateEventId: SIBLING_ID }),
+    mockCandidates.playersByCandidateEventIds.mockResolvedValue([
+      candidatePlayer(),
+      candidatePlayer({
+        id: "c0000000-0001-4000-a000-000000000002",
+        candidateEventId: SIBLING_ID,
+      }),
     ]);
     mockCandidates.liveEventsByIds.mockResolvedValue([
       { id: LIVE_EVENT_ID, slug: "summoner-skirmish-2026", name: "Summoner Skirmish" },
@@ -174,20 +257,49 @@ describe("GET /meta/candidates/{id}", () => {
       "uvsgames",
       "playriftbound",
     ]);
-    // Each column carries only its own decks, and `decks` stays this
+    // Each column carries only its own standings, and `players` stays this
     // candidate's own — the review screen reads both.
-    expect(json.sources[1].decks).toHaveLength(1);
-    expect(json.decks).toHaveLength(1);
+    expect(json.sources[1].players).toHaveLength(1);
+    expect(json.players).toHaveLength(1);
   });
 
-  it("carries the directly-submitted decks with their submitter resolved", async () => {
+  it("diffs a linked entry against its live standings row", async () => {
     mockCandidates.eventById.mockResolvedValue(candidateEvent({ metaEventId: LIVE_EVENT_ID }));
     mockCandidates.eventsByMetaEventId.mockResolvedValue([
       candidateEvent({ metaEventId: LIVE_EVENT_ID }),
     ]);
-    mockCandidates.decksByMetaEventIds.mockResolvedValue([
-      candidateDeck({
-        id: "d0000000-0001-4000-a000-000000000003",
+    mockCandidates.playersByCandidateEventIds.mockResolvedValue([
+      candidatePlayer({ rank: 1, rankIsTier: false, wins: 5, metaEventPlayerId: LIVE_PLAYER_ID }),
+    ]);
+    mockMeta.livePlayersByIds.mockResolvedValue([
+      livePlayer({ rank: 8, rankIsTier: true, wins: 4 }),
+    ]);
+    mockCandidates.liveEventsByIds.mockResolvedValue([
+      { id: LIVE_EVENT_ID, slug: "summoner-skirmish-2026", name: "Summoner Skirmish" },
+    ]);
+
+    const res = await app.request(`/api/admin/v1/meta/candidates/${CANDIDATE_ID}`);
+
+    const json = await readJson(res);
+    expect(mockMeta.livePlayersByIds).toHaveBeenCalledWith([LIVE_PLAYER_ID]);
+    expect(json.players[0].state).toBe("changed");
+    expect(json.players[0].diff.fields).toEqual(
+      expect.arrayContaining([
+        { field: "rank", from: 8, to: 1 },
+        { field: "rankIsTier", from: true, to: false },
+        { field: "wins", from: 4, to: 5 },
+      ]),
+    );
+  });
+
+  it("carries the directly-submitted entries with their submitter resolved", async () => {
+    mockCandidates.eventById.mockResolvedValue(candidateEvent({ metaEventId: LIVE_EVENT_ID }));
+    mockCandidates.eventsByMetaEventId.mockResolvedValue([
+      candidateEvent({ metaEventId: LIVE_EVENT_ID }),
+    ]);
+    mockCandidates.playersByMetaEventIds.mockResolvedValue([
+      candidatePlayer({
+        id: "c0000000-0001-4000-a000-000000000003",
         candidateEventId: null,
         metaEventId: LIVE_EVENT_ID,
         submittedByUserId: "user-7",
@@ -199,10 +311,10 @@ describe("GET /meta/candidates/{id}", () => {
     const res = await app.request(`/api/admin/v1/meta/candidates/${CANDIDATE_ID}`);
 
     const json = await readJson(res);
-    expect(json.submittedDecks).toHaveLength(1);
-    expect(json.submittedDecks[0].submittedByName).toBe("Skarner Fan");
-    expect(json.submittedDecks[0].submissionNote).toBe("Saw it on stream.");
-    // One lookup per distinct submitter, and none at all for provider decks.
+    expect(json.submittedPlayers).toHaveLength(1);
+    expect(json.submittedPlayers[0].submittedByName).toBe("Skarner Fan");
+    expect(json.submittedPlayers[0].submissionNote).toBe("Saw it on stream.");
+    // One lookup per distinct submitter, and none at all for provider rows.
     expect(mockUsers.findById).toHaveBeenCalledTimes(1);
   });
 
@@ -265,18 +377,39 @@ describe("linking", () => {
     expect(mockServices.linkCandidateEvent).not.toHaveBeenCalled();
   });
 
-  it("links, relinks and unlinks a candidate deck", async () => {
-    mockServices.linkCandidateDeck.mockResolvedValue({ deckId: "live-deck" });
-    mockServices.relinkCandidateDeck.mockResolvedValue({ deckId: "other-deck" });
-    mockServices.unlinkCandidateDeck.mockResolvedValue({ deckId: null });
+  it("links, relinks and unlinks a candidate player against a live standings row", async () => {
+    mockServices.linkCandidatePlayer.mockResolvedValue({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: null,
+    });
+    mockServices.relinkCandidatePlayer.mockResolvedValue({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: DECK_ID,
+    });
+    mockServices.unlinkCandidatePlayer.mockResolvedValue({
+      metaEventPlayerId: null,
+      deckId: null,
+    });
 
-    const linked = await post(`/candidate-decks/${DECK_ID}/link`, { deckId: LIVE_EVENT_ID });
-    const relinked = await post(`/candidate-decks/${DECK_ID}/relink`, { deckId: LIVE_EVENT_ID });
-    const unlinked = await post(`/candidate-decks/${DECK_ID}/unlink`);
+    const linked = await post(`/candidate-players/${PLAYER_ID}/link`, {
+      metaEventPlayerId: LIVE_PLAYER_ID,
+    });
+    const relinked = await post(`/candidate-players/${PLAYER_ID}/relink`, {
+      metaEventPlayerId: LIVE_PLAYER_ID,
+    });
+    const unlinked = await post(`/candidate-players/${PLAYER_ID}/unlink`);
 
-    expect(await readJson(linked)).toEqual({ deckId: "live-deck" });
-    expect(await readJson(relinked)).toEqual({ deckId: "other-deck" });
-    expect(await readJson(unlinked)).toEqual({ deckId: null });
+    expect(await readJson(linked)).toEqual({ metaEventPlayerId: LIVE_PLAYER_ID, deckId: null });
+    expect(await readJson(relinked)).toEqual({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: DECK_ID,
+    });
+    expect(await readJson(unlinked)).toEqual({ metaEventPlayerId: null, deckId: null });
+    expect(mockServices.linkCandidatePlayer).toHaveBeenCalledWith(
+      expect.anything(),
+      PLAYER_ID,
+      LIVE_PLAYER_ID,
+    );
   });
 });
 
@@ -301,34 +434,50 @@ describe("per-field accept", () => {
     expect(mockServices.acceptMetaEventField).not.toHaveBeenCalled();
   });
 
-  it("takes one named deck field and names the reviewing admin", async () => {
-    mockServices.acceptMetaDeckField.mockResolvedValue({ deckId: "live-deck" });
+  it("takes one named standings field and names the reviewing admin", async () => {
+    mockServices.acceptMetaPlayerField.mockResolvedValue({ metaEventPlayerId: LIVE_PLAYER_ID });
 
-    const res = await post(`/candidate-decks/${DECK_ID}/accept-field`, { field: "finishTier" });
+    const res = await post(`/candidate-players/${PLAYER_ID}/accept-field`, { field: "rank" });
 
     expect(res.status).toBe(200);
-    expect(mockServices.acceptMetaDeckField).toHaveBeenCalledWith(
+    expect(mockServices.acceptMetaPlayerField).toHaveBeenCalledWith(
       expect.anything(),
-      { candidateDeckId: DECK_ID, field: "finishTier" },
+      { candidatePlayerId: PLAYER_ID, field: "rank" },
       { resolvedByUserId: USER_ID },
     );
   });
 
   it("refuses the card list as a per-field accept", async () => {
     // The list moves whole, through accept-list.
-    const res = await post(`/candidate-decks/${DECK_ID}/accept-field`, { field: "cards" });
+    const res = await post(`/candidate-players/${PLAYER_ID}/accept-field`, { field: "cards" });
 
     expect(res.status).toBe(400);
-    expect(mockServices.acceptMetaDeckField).not.toHaveBeenCalled();
+    expect(mockServices.acceptMetaPlayerField).not.toHaveBeenCalled();
   });
 
-  it("takes the whole card list", async () => {
-    mockServices.acceptMetaDeckList.mockResolvedValue({ deckId: "live-deck" });
+  it("refuses the list status, which only agrees with a list it comes with", async () => {
+    const res = await post(`/candidate-players/${PLAYER_ID}/accept-field`, {
+      field: "listStatus",
+    });
 
-    const res = await post(`/candidate-decks/${DECK_ID}/accept-list`);
+    expect(res.status).toBe(400);
+    expect(mockServices.acceptMetaPlayerField).not.toHaveBeenCalled();
+  });
+
+  it("takes the whole card list onto its standings row", async () => {
+    mockServices.acceptMetaDeckList.mockResolvedValue({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: DECK_ID,
+    });
+
+    const res = await post(`/candidate-players/${PLAYER_ID}/accept-list`);
 
     expect(res.status).toBe(200);
-    expect(mockServices.acceptMetaDeckList).toHaveBeenCalledWith(expect.anything(), DECK_ID, {
+    expect(await readJson(res)).toEqual({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: DECK_ID,
+    });
+    expect(mockServices.acceptMetaDeckList).toHaveBeenCalledWith(expect.anything(), PLAYER_ID, {
       resolvedByUserId: USER_ID,
     });
   });
@@ -398,31 +547,81 @@ describe("whole-entity accept", () => {
     expect(json.code).toBe(ERROR_CODES.CONFLICT);
   });
 
-  it("passes both the confirmation and the acting admin on accept-with-decks", async () => {
-    mockServices.acceptCandidateEventWithDecks.mockResolvedValue({
+  it("passes the confirmation, the legend override and the acting admin on accept-with-players", async () => {
+    mockServices.acceptCandidateEventWithPlayers.mockResolvedValue({
       metaEventId: LIVE_EVENT_ID,
       slug: "s",
       created: true,
-      acceptedDecks: [],
-      skippedDecks: [],
+      acceptedPlayers: [],
+      skippedPlayers: [],
     });
 
-    await post(`/candidates/${CANDIDATE_ID}/accept-with-decks`, { overwriteAll: true });
+    await post(`/candidates/${CANDIDATE_ID}/accept-with-players`, {
+      overwriteAll: true,
+      allowUnresolvedLegend: true,
+    });
 
-    expect(mockServices.acceptCandidateEventWithDecks).toHaveBeenCalledWith(
+    expect(mockServices.acceptCandidateEventWithPlayers).toHaveBeenCalledWith(
       expect.anything(),
       CANDIDATE_ID,
-      { overwriteAll: true, resolvedByUserId: USER_ID },
+      { overwriteAll: true, allowUnresolvedLegend: true, resolvedByUserId: USER_ID },
     );
   });
 
-  it("names the acting admin when accepting one deck, for the submission ledger", async () => {
-    mockServices.acceptCandidateDeck.mockResolvedValue({ deckId: "live-deck", created: true });
+  it("reports the entries an accept-with-players had to skip", async () => {
+    mockServices.acceptCandidateEventWithPlayers.mockResolvedValue({
+      metaEventId: LIVE_EVENT_ID,
+      slug: "s",
+      created: true,
+      acceptedPlayers: [{ metaEventPlayerId: LIVE_PLAYER_ID, deckId: null, created: true }],
+      skippedPlayers: [
+        {
+          candidatePlayerId: PLAYER_ID,
+          externalId: "player-2",
+          playerName: "Ekko",
+          reason: "Unresolved card names",
+        },
+      ],
+    });
 
-    const res = await post(`/candidate-decks/${DECK_ID}/accept`);
+    const res = await post(`/candidates/${CANDIDATE_ID}/accept-with-players`);
+
+    const json = await readJson(res);
+    expect(json.acceptedPlayers[0]).toEqual({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: null,
+      created: true,
+    });
+    expect(json.skippedPlayers[0].reason).toBe("Unresolved card names");
+  });
+
+  it("files an entry whose legend resolved to nothing only when the admin says so", async () => {
+    mockServices.acceptCandidatePlayer.mockResolvedValue({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: null,
+      created: true,
+    });
+
+    await post(`/candidate-players/${PLAYER_ID}/accept`, { allowUnresolvedLegend: true });
+
+    expect(mockServices.acceptCandidatePlayer).toHaveBeenCalledWith(expect.anything(), PLAYER_ID, {
+      allowUnresolvedLegend: true,
+      resolvedByUserId: USER_ID,
+    });
+  });
+
+  it("names the acting admin when accepting one entry, for the submission ledger", async () => {
+    mockServices.acceptCandidatePlayer.mockResolvedValue({
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      deckId: DECK_ID,
+      created: true,
+    });
+
+    const res = await post(`/candidate-players/${PLAYER_ID}/accept`);
 
     expect(res.status).toBe(200);
-    expect(mockServices.acceptCandidateDeck).toHaveBeenCalledWith(expect.anything(), DECK_ID, {
+    expect(mockServices.acceptCandidatePlayer).toHaveBeenCalledWith(expect.anything(), PLAYER_ID, {
+      allowUnresolvedLegend: false,
       resolvedByUserId: USER_ID,
     });
   });
@@ -437,7 +636,7 @@ describe("match suggestions", () => {
         name: "Summoner Skirmish",
         eventDate: "2026-08-01",
         format: "constructed",
-        deckCount: 8,
+        playerRowCount: 64,
         score: 9.5,
         reasons: ["same format", "same date", "similar name"],
       },
@@ -450,16 +649,17 @@ describe("match suggestions", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.suggestions[0].metaEventId).toBe(LIVE_EVENT_ID);
+    expect(json.suggestions[0].playerRowCount).toBe(64);
     expect(json.suggestions[0].reasons).toContain("same date");
     // Travels so an empty list can say why instead of just being empty.
     expect(json.windowDays).toBeGreaterThan(0);
   });
 
   it("returns an empty list rather than a 404 when nothing matches", async () => {
-    mockServices.suggestMetaDeckMatches.mockResolvedValue([]);
+    mockServices.suggestMetaPlayerMatches.mockResolvedValue([]);
 
     const res = await app.request(
-      `/api/admin/v1/meta/candidate-decks/${DECK_ID}/match-suggestions`,
+      `/api/admin/v1/meta/candidate-players/${PLAYER_ID}/match-suggestions`,
     );
 
     expect(res.status).toBe(200);
@@ -477,33 +677,50 @@ describe("match suggestions", () => {
   });
 });
 
-describe("POST /meta/candidate-decks/{id}/ignore", () => {
-  it("ignores a provider's deck under its source event's key", async () => {
-    mockCandidates.deckById.mockResolvedValue(candidateDeck());
-    mockCandidates.eventById.mockResolvedValue(candidateEvent());
+describe("ignoring", () => {
+  it("writes an event's ignore key and leaves the staged row where it is", async () => {
+    mockCandidates.eventById.mockResolvedValue(candidateEvent({ metaEventId: LIVE_EVENT_ID }));
 
-    const res = await post(`/candidate-decks/${DECK_ID}/ignore`);
+    const res = await post(`/candidates/${CANDIDATE_ID}/ignore`);
 
     expect(res.status).toBe(204);
-    expect(mockCandidates.ignoreDeck).toHaveBeenCalledWith(
-      "uvsgames",
-      { eventExternalId: "evt-1", externalId: "deck-1" },
-      DECK_ID,
-    );
+    expect(mockCandidates.ignoreEvent).toHaveBeenCalledWith("uvsgames", "evt-1");
+  });
+
+  it("404s ignoring an unknown candidate event", async () => {
+    mockCandidates.eventById.mockResolvedValue(undefined);
+
+    const res = await post(`/candidates/${CANDIDATE_ID}/ignore`);
+
+    expect(res.status).toBe(404);
+    expect(mockCandidates.ignoreEvent).not.toHaveBeenCalled();
+  });
+
+  it("ignores a provider's entry under its source event's key", async () => {
+    mockCandidates.playerById.mockResolvedValue(candidatePlayer());
+    mockCandidates.eventById.mockResolvedValue(candidateEvent());
+
+    const res = await post(`/candidate-players/${PLAYER_ID}/ignore`);
+
+    expect(res.status).toBe(204);
+    expect(mockCandidates.ignorePlayer).toHaveBeenCalledWith("uvsgames", {
+      eventExternalId: "evt-1",
+      externalId: "player-1",
+    });
   });
 
   it("refuses a user submission, which has no source event to key on", async () => {
-    mockCandidates.deckById.mockResolvedValue(
-      candidateDeck({
+    mockCandidates.playerById.mockResolvedValue(
+      candidatePlayer({
         candidateEventId: null,
         metaEventId: LIVE_EVENT_ID,
         submittedByUserId: "user-7",
       }),
     );
 
-    const res = await post(`/candidate-decks/${DECK_ID}/ignore`);
+    const res = await post(`/candidate-players/${PLAYER_ID}/ignore`);
 
     expect(res.status).toBe(400);
-    expect(mockCandidates.ignoreDeck).not.toHaveBeenCalled();
+    expect(mockCandidates.ignorePlayer).not.toHaveBeenCalled();
   });
 });

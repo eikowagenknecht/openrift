@@ -15,7 +15,6 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { META_DESCRIPTION } from "@/components/meta/meta-copy";
-import { MetaStatsPanels } from "@/components/meta/meta-stats-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
@@ -31,8 +30,9 @@ import {
 } from "@/components/ui/select";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { useMetaEvents, useMetaStats } from "@/hooks/use-meta";
+import { useMetaCounts, useMetaEvents } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
+import { metaEventCounts } from "@/lib/meta-format";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta");
@@ -42,10 +42,13 @@ const ALL_FORMATS = "";
 
 function EventRow({ event }: { event: MetaEventSummary }) {
   const { labels: formatLabels } = useDeckFormatList();
+  // `playerCount` is the field size the source reported, which routinely
+  // exceeds the standings rows we hold; `playerRowCount` is what the archive
+  // can actually show. Printing the reported size when the two disagree would
+  // promise a page that isn't there.
   const details = [
     event.organizer,
-    event.playerCount === null ? null : `${event.playerCount} players`,
-    `${event.deckCount} ${event.deckCount === 1 ? "deck" : "decks"}`,
+    ...metaEventCounts(event.playerRowCount, event.deckCount),
   ].filter(Boolean);
 
   return (
@@ -84,9 +87,8 @@ function MetaEmptyState() {
 }
 
 /**
- * The format / date-range controls. They drive the stats request server-side
- * (that is what the stats endpoint's params are for) and narrow the event list
- * client-side from the same values.
+ * The format / date-range controls. They drive the counts request server-side
+ * and narrow the event list client-side from the same values.
  * @returns The filter row.
  */
 function MetaFilters({ formats }: { formats: string[] }) {
@@ -160,15 +162,15 @@ function MetaFilters({ formats }: { formats: string[] }) {
 }
 
 /**
- * `/meta` — the archive's overview: the two meta aggregates over the selected
- * scope, then every archived event newest first (ADR-014).
+ * `/meta` — the archive's overview: the scope counts, then every archived
+ * event newest first (ADR-014).
  * @returns The overview page.
  */
 export function MetaOverviewPage() {
   const search = routeApi.useSearch();
   const userId = useUserId();
   const { data: eventsData } = useMetaEvents();
-  const { data: stats } = useMetaStats({
+  const { data: counts } = useMetaCounts({
     format: search.format,
     dateFrom: search.from,
     dateTo: search.to,
@@ -178,7 +180,7 @@ export function MetaOverviewPage() {
   const formats = [...new Set(allEvents.map((event) => event.format))].sort((left, right) =>
     left.localeCompare(right),
   );
-  // The event list narrows from the same controls the stats use, so the two
+  // The event list narrows from the same controls the counts use, so the two
   // halves of the page always describe the same scope.
   const events = allEvents.filter((event) => {
     if (search.format !== undefined && event.format !== search.format) {
@@ -220,10 +222,10 @@ export function MetaOverviewPage() {
             <MetaFilters formats={formats} />
 
             <p className="text-muted-foreground text-sm">
-              {stats.totalDecks} archived {stats.totalDecks === 1 ? "deck" : "decks"} in scope.
+              {counts.totalPlayers} archived{" "}
+              {counts.totalPlayers === 1 ? "tournament entry" : "tournament entries"} in scope,{" "}
+              {counts.decksWithMainDeck} with a decklist.
             </p>
-
-            <MetaStatsPanels stats={stats} />
 
             <section>
               <Heading className="mb-3">Events</Heading>

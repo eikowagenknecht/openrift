@@ -1,4 +1,4 @@
-import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared";
 import {
   ActivityIcon,
   BugIcon,
@@ -6,7 +6,6 @@ import {
   CpuIcon,
   DatabaseIcon,
   LoaderIcon,
-  RefreshCwIcon,
   SendIcon,
   ServerIcon,
   TagIcon,
@@ -15,15 +14,14 @@ import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { JobStatusBadge } from "@/components/admin/job-status-badge";
-import { PageDescription, PageTopBarButton } from "@/components/layout/page-top-bar";
+import { RefreshCountdownButton } from "@/components/admin/refresh-countdown-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFlushPrintingEvents, useLatestFlushRun } from "@/hooks/use-flush-printing-events";
-import { useHydrated } from "@/hooks/use-hydrated";
 import { usePostChangelog } from "@/hooks/use-post-changelog";
 import { useThrowInApi, useThrowInSsr } from "@/hooks/use-sentry-test";
-import { useAdminStatus } from "@/hooks/use-status";
+import { ADMIN_STATUS_REFRESH_INTERVAL_MS, useAdminStatus } from "@/hooks/use-status";
 
 const SECONDS_PER_DAY = 86_400;
 const SECONDS_PER_HOUR = 3600;
@@ -72,20 +70,17 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export function StatusPage() {
   const { data, refetch, isFetching, dataUpdatedAt } = useAdminStatus();
-  // The stamp is on the viewer's clock, so it stays blank until hydration —
-  // formatting it during the SSR pass would mismatch every non-UTC visitor.
-  const hydrated = useHydrated();
-  const lastUpdated =
-    hydrated && dataUpdatedAt > 0 ? formatDayTimeLocal(new Date(dataUpdatedAt)) : "";
 
   const topBar = (
     <AdminPageTopBar
       title="Status"
       actions={
-        <PageTopBarButton onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-          Refresh
-        </PageTopBarButton>
+        <RefreshCountdownButton
+          onRefresh={() => refetch()}
+          isFetching={isFetching}
+          dataUpdatedAt={dataUpdatedAt}
+          intervalMs={ADMIN_STATUS_REFRESH_INTERVAL_MS}
+        />
       }
     />
   );
@@ -99,9 +94,6 @@ export function StatusPage() {
   return (
     <div className="space-y-4">
       {topBar}
-      <PageDescription>
-        Auto-refreshes every 30 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`}
-      </PageDescription>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Server */}

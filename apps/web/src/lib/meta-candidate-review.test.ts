@@ -1,12 +1,13 @@
-import type { MetaCandidateDeck, MetaCandidateQueueRow } from "@openrift/shared";
+import type { MetaCandidatePlayer, MetaCandidateQueueRow } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
+  candidateProviderDisplay,
   candidateStateDisplay,
   formatCardDeltaLines,
   formatDiffValue,
   groupCandidateCardsByZone,
-  hasDeckChanges,
+  hasCandidateChanges,
   parseMetaUploadFile,
   sortCandidateQueue,
 } from "@/lib/meta-candidate-review";
@@ -19,10 +20,11 @@ function queueRow(overrides: Partial<MetaCandidateQueueRow> = {}): MetaCandidate
     name: "Summoner Skirmish",
     eventDate: "2026-08-01",
     format: "standard",
-    deckCount: 8,
-    unacceptedDeckCount: 8,
+    playerRowCount: 8,
+    unacceptedPlayerCount: 8,
     state: "new",
     unresolvedCardCount: 0,
+    linkedSourceCount: 0,
     checkedAt: null,
     metaEventId: null,
     metaEventSlug: null,
@@ -140,32 +142,32 @@ describe("formatCardDeltaLines", () => {
   });
 });
 
-describe("hasDeckChanges", () => {
+describe("hasCandidateChanges", () => {
   it("is false while the deck is unlinked", () => {
-    expect(hasDeckChanges(null)).toBe(false);
+    expect(hasCandidateChanges(null)).toBe(false);
   });
 
   it("is false for an empty diff", () => {
-    expect(hasDeckChanges({ fields: [], cards: emptyDelta })).toBe(false);
+    expect(hasCandidateChanges({ fields: [], cards: emptyDelta })).toBe(false);
   });
 
   it("is true for a field-only change", () => {
-    const diff: NonNullable<MetaCandidateDeck["diff"]> = {
+    const diff: NonNullable<MetaCandidatePlayer["diff"]> = {
       fields: [{ field: "record", from: "5-1", to: "6-0" }],
       cards: emptyDelta,
     };
-    expect(hasDeckChanges(diff)).toBe(true);
+    expect(hasCandidateChanges(diff)).toBe(true);
   });
 
   it("is true for a card-only change", () => {
-    const diff: NonNullable<MetaCandidateDeck["diff"]> = {
+    const diff: NonNullable<MetaCandidatePlayer["diff"]> = {
       fields: [],
       cards: {
         ...emptyDelta,
         changed: [{ cardId: "c1", zone: "main", from: 1, to: 2, name: "Vi" }],
       },
     };
-    expect(hasDeckChanges(diff)).toBe(true);
+    expect(hasCandidateChanges(diff)).toBe(true);
   });
 });
 
@@ -219,6 +221,10 @@ describe("groupCandidateCardsByZone", () => {
   it("handles an empty card list", () => {
     expect(groupCandidateCardsByZone([], ["main"])).toEqual([]);
   });
+
+  it("handles a standings-only row, which carries no list at all", () => {
+    expect(groupCandidateCardsByZone(null, ["main"])).toEqual([]);
+  });
 });
 
 describe("candidateStateDisplay", () => {
@@ -226,5 +232,21 @@ describe("candidateStateDisplay", () => {
     expect(candidateStateDisplay("new").label).toBe("New");
     expect(candidateStateDisplay("changed").label).toBe("Changed");
     expect(candidateStateDisplay("inSync").label).toBe("In sync");
+  });
+});
+
+describe("candidateProviderDisplay", () => {
+  it("shows a crawler's provider slug the way the source writes it", () => {
+    expect(candidateProviderDisplay("uvsgames")).toEqual({
+      label: "uvsgames",
+      variant: "outline",
+    });
+  });
+
+  it("names a player's own submission, which is not a source slug at all", () => {
+    expect(candidateProviderDisplay("usersubmission")).toEqual({
+      label: "User submission",
+      variant: "violet",
+    });
   });
 });

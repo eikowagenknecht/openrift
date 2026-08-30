@@ -109,21 +109,29 @@ export function metaSubmissionExplanation(
 }
 
 /**
- * How much of a deck the submitter is sending, in a player's words. The stored
- * vocabulary is `full` / `partial` / `archetype`; none of those three words
- * belongs in front of someone typing in a decklist.
+ * How complete a submitted list is. `none` is not among them: a submission is a
+ * decklist, and a standings-only entry comes from the archive's own sources
+ * rather than from a person (ADR-014).
  */
-export const metaSubmissionCompletenessLabels: Record<MetaListStatus, string> = {
+export type MetaSubmissionCompleteness = Exclude<MetaListStatus, "none">;
+
+/** The completeness choices the form offers, most complete first. */
+export const META_SUBMISSION_COMPLETENESS: MetaSubmissionCompleteness[] = ["full", "partial"];
+
+/**
+ * How much of a deck the submitter is sending, in a player's words. The stored
+ * vocabulary is `full` / `partial`; neither word belongs in front of someone
+ * typing in a decklist.
+ */
+export const metaSubmissionCompletenessLabels: Record<MetaSubmissionCompleteness, string> = {
   full: "The whole deck",
   partial: "Main deck only",
-  archetype: "Just the legend",
 };
 
 /** One line under each completeness option, so the choice is obvious. */
-export const metaSubmissionCompletenessHints: Record<MetaListStatus, string> = {
-  full: "Every card the pilot played, side zones included.",
+export const metaSubmissionCompletenessHints: Record<MetaSubmissionCompleteness, string> = {
+  full: "Every card the player played, side zones included.",
   partial: "Every main-deck card, but the battlefields, runes, or sideboard are missing.",
-  archetype: "You know which legend they played, but not what was in the deck.",
 };
 
 /** Label for the credit setting's three states. */

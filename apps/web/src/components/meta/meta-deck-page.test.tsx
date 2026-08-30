@@ -22,8 +22,11 @@ vi.mock("@/hooks/use-meta", () => ({
       meta: {
         event: { slug: "summoner-skirmish", name: "Summoner Skirmish", eventDate: "2026-08-01" },
         playerName: "Nova",
-        finishTier: 1,
-        record: "5-1",
+        rank: 1,
+        rankIsTier: false,
+        wins: 5,
+        losses: 1,
+        draws: null,
         ...captured.meta,
       },
     },

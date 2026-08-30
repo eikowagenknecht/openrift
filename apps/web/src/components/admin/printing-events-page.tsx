@@ -1,10 +1,11 @@
 import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CheckIcon, LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon, XIcon } from "lucide-react";
+import { CheckIcon, LoaderIcon, RotateCcwIcon, SendIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
+import { RefreshCountdownButton } from "@/components/admin/refresh-countdown-button";
 import {
   PageDescription,
   PageTopBarButton,
@@ -23,6 +24,7 @@ import {
 import type { PrintingEventView } from "@/hooks/use-flush-printing-events";
 import {
   isFlushPrintingEventsResult,
+  PRINTING_EVENTS_REFRESH_INTERVAL_MS,
   useAdminPrintingEvents,
   useFlushPrintingEvents,
   useLatestFlushRun,
@@ -42,7 +44,7 @@ function StatusBadge({ status }: { status: PrintingEventView["status"] }) {
 }
 
 export function PrintingEventsPage() {
-  const { data, refetch, isFetching } = useAdminPrintingEvents();
+  const { data, refetch, isFetching, dataUpdatedAt } = useAdminPrintingEvents();
   const flush = useFlushPrintingEvents();
   const latestRun = useLatestFlushRun();
   const retry = useRetryPrintingEvents();
@@ -94,10 +96,12 @@ export function PrintingEventsPage() {
               Retry all failed
             </PageTopBarButton>
           )}
-          <PageTopBarButton onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-            Refresh
-          </PageTopBarButton>
+          <RefreshCountdownButton
+            onRefresh={() => refetch()}
+            isFetching={isFetching}
+            dataUpdatedAt={dataUpdatedAt}
+            intervalMs={PRINTING_EVENTS_REFRESH_INTERVAL_MS}
+          />
           <PageTopBarPrimaryButton onClick={handleFlush} disabled={isFlushRunning}>
             {isFlushRunning ? <LoaderIcon className="animate-spin" /> : <SendIcon />}
             Flush now

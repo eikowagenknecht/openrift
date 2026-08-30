@@ -1,17 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import type { AdminMetaDeckRow, MetaEventWithCount } from "../repositories/meta.js";
+import type { Repos } from "../deps.js";
+import type { AdminMetaPlayerRow, MetaEventWithCounts } from "../repositories/meta.js";
 import {
   MAX_EVENT_MATCH_DAY_DELTA,
   nameSimilarity,
-  rankDeckMatches,
   rankEventMatches,
-  scoreDeckMatch,
+  rankPlayerMatches,
   scoreEventMatch,
+  scorePlayerMatch,
+  suggestMetaEventMatches,
 } from "./meta-match-suggestions.js";
 
 /** @returns A live event row with the fields the ranking reads. */
-function event(overrides: Partial<MetaEventWithCount> = {}): MetaEventWithCount {
+function event(overrides: Partial<MetaEventWithCounts> = {}): MetaEventWithCounts {
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000001",
     slug: "summoner-skirmish-berlin",
@@ -21,24 +23,40 @@ function event(overrides: Partial<MetaEventWithCount> = {}): MetaEventWithCount 
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: null,
+    tier: "store",
+    country: "DE",
+    location: null,
     createdAt: new Date("2026-08-02T10:00:00.000Z"),
     updatedAt: new Date("2026-08-02T10:00:00.000Z"),
+    playerRowCount: 64,
     deckCount: 8,
     ...overrides,
   };
 }
 
-/** @returns An archived deck row with the fields the ranking reads. */
-function deck(overrides: Partial<AdminMetaDeckRow> = {}): AdminMetaDeckRow {
+/** @returns A live standings row with the fields the ranking reads. */
+function player(overrides: Partial<AdminMetaPlayerRow> = {}): AdminMetaPlayerRow {
   return {
+    id: "3f7a1c2e-0000-7000-8000-00000000000p",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Nova",
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId: "card-azir",
+    legendName: "Azir",
+    legendSlug: "azir",
+    legendTypes: ["legend"],
+    legendTags: [],
+    championCardId: null,
+    championName: null,
+    championSlug: null,
     deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
+    deckName: "Jinx Aggro",
     shareToken: "aB3dE5gH7jK9",
     listStatus: "full",
-    name: "Jinx Aggro",
-    format: "constructed",
-    playerName: "Nova",
-    finishTier: 1,
-    record: "5-1",
+    deckFormat: "constructed",
     cardCount: 40,
     ...overrides,
   };
@@ -136,6 +154,11 @@ describe("rankEventMatches", () => {
     expect(ranked[0].metaEventId).toBe("strong");
   });
 
+  it("carries the size of the standings the admin would be linking into", () => {
+    const ranked = rankEventMatches(CANDIDATE, [event({ playerRowCount: 64, deckCount: 8 })]);
+    expect(ranked[0].playerRowCount).toBe(64);
+  });
+
   it("offers nothing for a name that only coincides with a different season", () => {
     // Same recurring series, wrong year and wrong format: name alone must not
     // carry a suggestion.
@@ -174,45 +197,125 @@ describe("rankEventMatches", () => {
   });
 });
 
-describe("scoreDeckMatch", () => {
-  it("treats the same pilot as the whole signal", () => {
-    const { score, reasons } = scoreDeckMatch(
-      { playerName: "nova", finishTier: 4 },
-      deck({ finishTier: 4 }),
+describe("scorePlayerMatch", () => {
+  it("treats the same player as the whole signal", () => {
+    const { score, reasons } = scorePlayerMatch(
+      { playerName: "nova", rank: 4 },
+      player({ rank: 4 }),
     );
     expect(score).toBe(11);
     expect(reasons).toEqual(["same player", "same finish"]);
   });
 
-  it("prefers an equal finish only as a tie-break", () => {
-    const same = scoreDeckMatch({ playerName: "Nova", finishTier: 1 }, deck());
-    const different = scoreDeckMatch({ playerName: "Nova", finishTier: 8 }, deck());
+  it("prefers an equal rank only as a tie-break", () => {
+    const same = scorePlayerMatch({ playerName: "Nova", rank: 1 }, player());
+    const different = scorePlayerMatch({ playerName: "Nova", rank: 8 }, player());
     expect(same.score - different.score).toBe(1);
   });
 
   it("still ranks a near-miss spelling below an exact one", () => {
-    const near = scoreDeckMatch({ playerName: "Novaa", finishTier: 1 }, deck());
+    const near = scorePlayerMatch({ playerName: "Novaa", rank: 1 }, player());
     expect(near.score).toBeGreaterThan(0);
     expect(near.score).toBeLessThan(10);
   });
+
+  it("does not match on the finish alone, which a whole cut bucket shares", () => {
+    const { score, playerMatched } = scorePlayerMatch(
+      { playerName: "Ekko", rank: 1 },
+      player({ playerName: "Nova", rank: 1 }),
+    );
+    expect(playerMatched).toBe(false);
+    expect(score).toBe(1);
+  });
 });
 
-describe("rankDeckMatches", () => {
-  it("orders by pilot, best first", () => {
-    const ranked = rankDeckMatches({ playerName: "Nova", finishTier: 1 }, [
-      deck({ deckId: "other", playerName: "Novaa" }),
-      deck({ deckId: "exact", playerName: "Nova" }),
+describe("rankPlayerMatches", () => {
+  it("orders by player, best first", () => {
+    const ranked = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ id: "other", playerName: "Novaa" }),
+      player({ id: "exact", playerName: "Nova" }),
     ]);
-    expect(ranked.map((row) => row.deckId)).toEqual(["exact", "other"]);
+    expect(ranked.map((row) => row.metaEventPlayerId)).toEqual(["exact", "other"]);
   });
 
-  it("offers nothing when no pilot name overlaps", () => {
+  it("offers a standings-only row, which most of a field is", () => {
+    const ranked = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ deckId: null, deckName: null, shareToken: null, listStatus: "none" }),
+    ]);
+    expect(ranked).toHaveLength(1);
+    expect(ranked[0].deckId).toBeNull();
+  });
+
+  it("carries the rank and its tier flag, so the admin sees what they link into", () => {
+    const ranked = rankPlayerMatches({ playerName: "Nova", rank: 8 }, [
+      player({ rank: 8, rankIsTier: true }),
+    ]);
+    expect(ranked[0]).toMatchObject({ rank: 8, rankIsTier: true });
+  });
+
+  it("offers nothing when no player name overlaps", () => {
     expect(
-      rankDeckMatches({ playerName: "Nova", finishTier: 1 }, [deck({ playerName: "Ekko" })]),
+      rankPlayerMatches({ playerName: "Nova", rank: 1 }, [player({ playerName: "Ekko" })]),
     ).toEqual([]);
   });
 
-  it("returns nothing for an event with no decks yet", () => {
-    expect(rankDeckMatches({ playerName: "Nova", finishTier: 1 }, [])).toEqual([]);
+  it("returns nothing for an event with no standings yet", () => {
+    expect(rankPlayerMatches({ playerName: "Nova", rank: 1 }, [])).toEqual([]);
+  });
+});
+
+describe("suggestMetaEventMatches", () => {
+  const CANDIDATE_ID = "3f7a1c2e-0000-7000-8000-0000000000ca";
+
+  function repos(candidate: Record<string, unknown> | undefined, rows: MetaEventWithCounts[] = []) {
+    const listEvents = vi.fn().mockResolvedValue({ rows, total: rows.length });
+    const eventById = vi.fn().mockResolvedValue(candidate);
+    return {
+      repos: { meta: { listEvents }, metaCandidates: { eventById } } as unknown as Repos,
+      listEvents,
+    };
+  }
+
+  const candidate = {
+    id: CANDIDATE_ID,
+    metaEventId: null,
+    name: "Summoner Skirmish Berlin",
+    eventDate: "2026-08-01",
+    format: "constructed",
+  };
+
+  it("reads only the events the date window could score, never the whole archive", async () => {
+    const { repos: r, listEvents } = repos(candidate);
+
+    await suggestMetaEventMatches(r, CANDIDATE_ID);
+
+    expect(listEvents).toHaveBeenCalledWith(
+      { dateFrom: "2026-07-29", dateTo: "2026-08-04" },
+      expect.objectContaining({ offset: 0 }),
+    );
+  });
+
+  it("ranks only what the window returned, so an out-of-window twin cannot be offered", async () => {
+    const { repos: r } = repos(candidate, [
+      event({ name: "Summoner Skirmish Berlin", eventDate: "2026-08-01" }),
+    ]);
+
+    const suggestions = await suggestMetaEventMatches(r, CANDIDATE_ID);
+
+    expect(suggestions.map((row) => row.name)).toEqual(["Summoner Skirmish Berlin"]);
+  });
+
+  it("suggests nothing for a candidate that is already linked, without querying at all", async () => {
+    const { repos: r, listEvents } = repos({ ...candidate, metaEventId: "live-1" });
+
+    expect(await suggestMetaEventMatches(r, CANDIDATE_ID)).toEqual([]);
+    expect(listEvents).not.toHaveBeenCalled();
+  });
+
+  it("suggests nothing for a candidate id that resolves to no row", async () => {
+    const { repos: r, listEvents } = repos(undefined);
+
+    expect(await suggestMetaEventMatches(r, CANDIDATE_ID)).toEqual([]);
+    expect(listEvents).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
-import type { AdminMetaEvent } from "@openrift/shared";
+import type { AdminMetaEvent, MetaEventTier } from "@openrift/shared";
+import { META_EVENT_TIERS } from "@openrift/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +35,7 @@ import {
   validateMetaEventDraft,
 } from "@/lib/admin-meta-draft";
 import { errorText } from "@/lib/error-text";
+import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 
 interface MetaEventDialogProps {
   /** The event being edited. Omitted when the dialog creates a new one. */
@@ -155,6 +157,30 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="meta-event-tier">Tier</Label>
+              <Select
+                value={draft.tier}
+                onValueChange={(value) => {
+                  if (value !== null) {
+                    set("tier", value as MetaEventTier);
+                  }
+                }}
+                items={META_EVENT_TIER_LABELS}
+              >
+                <SelectTrigger id="meta-event-tier" className="mb-0 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {META_EVENT_TIERS.map((tier) => (
+                    <SelectItem key={tier} value={tier}>
+                      {META_EVENT_TIER_LABELS[tier]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
               <Label htmlFor="meta-event-players">Players</Label>
               <Input
                 id="meta-event-players"
@@ -172,6 +198,28 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
                 value={draft.organizer}
                 onChange={(e) => set("organizer", e.target.value)}
                 placeholder="Optional, e.g. LGS Berlin"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="meta-event-country">Country</Label>
+              <Input
+                id="meta-event-country"
+                value={draft.country}
+                onChange={(e) => set("country", e.target.value.toUpperCase())}
+                placeholder="Optional, e.g. DE"
+                maxLength={2}
+                className="font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="meta-event-location">Address</Label>
+              <Input
+                id="meta-event-location"
+                value={draft.location}
+                onChange={(e) => set("location", e.target.value)}
+                placeholder="Optional venue address"
               />
             </div>
 

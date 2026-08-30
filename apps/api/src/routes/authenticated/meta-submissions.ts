@@ -4,7 +4,7 @@ import { implement } from "@orpc/server";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
-import { toMetaDeckSubmission } from "../../lib/meta-presenters.js";
+import { toMetaSubmission } from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { orpcErrorResponse } from "../../orpc/error-body.js";
@@ -25,8 +25,8 @@ const os = implement(metaSubmissionsContract).$context<ApiContext>().use(require
  * Hono middleware on the `/api/v1/meta` prefix: the archive's reads live on that
  * same prefix and are anonymous, so a prefix gate would 401 every public page.
  *
- * Nothing here writes a live row. A submission stages one candidate deck and one
- * ledger row, and an admin accept is what makes any of it public.
+ * Nothing here writes a live row. A submission stages one candidate standings
+ * row and one ledger row, and an admin accept is what makes any of it public.
  */
 export const metaSubmissionsRouter = {
   submit: os.submit.handler(async ({ input, context, errors }) => {
@@ -35,8 +35,11 @@ export const metaSubmissionsRouter = {
       metaEventId: input.metaEventId,
       proposedEvent: input.proposedEvent,
       playerName: input.playerName,
-      finishTier: input.finishTier,
-      record: input.record,
+      rank: input.rank,
+      rankIsTier: input.rankIsTier,
+      wins: input.wins,
+      losses: input.losses,
+      draws: input.draws,
       listStatus: input.listStatus,
       cards: input.cards,
       note: input.note,
@@ -66,7 +69,7 @@ export const metaSubmissionsRouter = {
       limit,
     });
 
-    return keysetPage(rows, limit, toMetaDeckSubmission);
+    return keysetPage(rows, limit, toMetaSubmission);
   }),
 
   creditVisibility: os.creditVisibility.handler(async ({ context }) => {

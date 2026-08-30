@@ -34,16 +34,23 @@ export type {
   SetsTable,
   ListEntriesTable,
   ListsTable,
-  // Meta archive (migration 235, ADR-014)
+  // Meta archive
   MetaEventsTable,
-  MetaDecksTable,
-  // Meta archive candidate ingest (migration 236, ADR-014)
+  MetaEventPlayersTable,
+  MetaEventMatchesTable,
+  MetaEventPhasesTable,
+  // Meta archive catalogue sync
+  UvsgamesEventsTable,
+  PlayloltcgEventsTable,
+  // Meta archive candidate ingest
   CandidateMetaDeckCard,
-  CandidateMetaDecksTable,
+  CandidateMetaEventRaw,
+  CandidateMetaPlayersTable,
+  CandidateMetaMatchesTable,
   CandidateMetaEventsTable,
-  // Meta archive multi-source (migration 255, ADR-014)
+  // Meta archive multi-source
   MetaEventSourcesTable,
-  MetaDeckSubmissionsTable,
+  MetaSubmissionsTable,
   // Tier lists (migration 237)
   TierListCard,
   TierListRow,

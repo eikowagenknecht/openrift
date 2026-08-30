@@ -126,7 +126,7 @@ function ResolvedSummary({
 interface MetaSubmissionResolveProps {
   submission: AdminMetaSubmission;
   /** Scopes the cache invalidation to the roster row this was resolved from. */
-  candidateDeckId: string;
+  candidatePlayerId: string;
 }
 
 /**
@@ -140,7 +140,10 @@ interface MetaSubmissionResolveProps {
  *
  * @returns The pending form's trigger, or the resolved summary with its reopen.
  */
-export function MetaSubmissionResolve({ submission, candidateDeckId }: MetaSubmissionResolveProps) {
+export function MetaSubmissionResolve({
+  submission,
+  candidatePlayerId,
+}: MetaSubmissionResolveProps) {
   const resolve = useResolveMetaSubmission();
   const reopen = useReopenMetaSubmission();
   const [open, setOpen] = useState(false);
@@ -161,7 +164,7 @@ export function MetaSubmissionResolve({ submission, candidateDeckId }: MetaSubmi
   async function handleReopen() {
     let result;
     try {
-      result = await reopen.mutateAsync({ submissionId: submission.id, candidateDeckId });
+      result = await reopen.mutateAsync({ submissionId: submission.id, candidatePlayerId });
     } catch {
       // Reported by the global mutation error toast.
       return;
@@ -177,7 +180,7 @@ export function MetaSubmissionResolve({ submission, candidateDeckId }: MetaSubmi
     try {
       result = await resolve.mutateAsync({
         submissionId: submission.id,
-        candidateDeckId,
+        candidatePlayerId,
         status,
         reason,
         note: notePayload,

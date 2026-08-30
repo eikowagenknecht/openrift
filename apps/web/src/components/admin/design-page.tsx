@@ -38,6 +38,7 @@ import { Area, AreaChart } from "recharts";
 import { siDiscord, siTwitch, siYoutube } from "simple-icons";
 import { toast } from "sonner";
 
+import { AdminFilterSelect, AdminFilterSwitch } from "@/components/admin/admin-filters";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
@@ -2113,6 +2114,10 @@ function CompositesSection() {
   const [excludedRegions, setExcludedRegions] = useState<string[]>(["zaun"]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [ownedCount, setOwnedCount] = useState(2);
+  const [demoTriage, setDemoTriage] = useState("any");
+  const [demoStatus, setDemoStatus] = useState("any");
+  const [demoDecklists, setDemoDecklists] = useState(true);
+  const [demoMissing, setDemoMissing] = useState(false);
   return (
     <DemoSection
       id="composites"
@@ -2158,6 +2163,51 @@ function CompositesSection() {
               segments={[{ label: "Admin", link: <Link to="/admin" /> }, { label: "Design" }]}
             />
           </PageTopBar>
+        </Demo>
+        <Demo
+          name="AdminFilterSelect / AdminFilterSwitch"
+          hint="The admin filter row above a server-paged table. The first option is the filter's off state; each page owns the sentinel it uses for that, since the meta catalogue spells it into the URL."
+          className="sm:col-span-2 xl:col-span-3"
+        >
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <AdminFilterSelect
+              value={demoTriage}
+              onChange={setDemoTriage}
+              label="Triage state"
+              className="w-44"
+              options={[
+                { value: "any", label: "Any state" },
+                { value: "new", label: "New (128)" },
+                { value: "accepted", label: "Accepted (12)" },
+                { value: "dismissed", label: "Dismissed (4)" },
+              ]}
+            />
+            <AdminFilterSelect
+              value={demoStatus}
+              onChange={setDemoStatus}
+              label="Event status"
+              className="w-40"
+              options={[
+                { value: "any", label: "Any status" },
+                { value: "upcoming", label: "Upcoming" },
+                { value: "complete", label: "Complete" },
+              ]}
+            />
+            <AdminFilterSwitch
+              id="design-filter-decklists"
+              checked={demoDecklists}
+              onChange={setDemoDecklists}
+            >
+              Decklists published
+            </AdminFilterSwitch>
+            <AdminFilterSwitch
+              id="design-filter-missing"
+              checked={demoMissing}
+              onChange={setDemoMissing}
+            >
+              Gone from the listing
+            </AdminFilterSwitch>
+          </div>
         </Demo>
         <Demo
           name="SearchInput"

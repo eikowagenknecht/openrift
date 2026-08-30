@@ -15,21 +15,35 @@ const mockMeta = {
   eventById: vi.fn(),
   eventBySlug: vi.fn(),
   createEvent: vi.fn(),
+  adminPlayersForEvent: vi.fn(),
+  createPlayer: vi.fn(),
+  updatePlayer: vi.fn(),
+  setPlayerDeck: vi.fn(),
+  clearPlayerDeck: vi.fn(),
+  deletePlayer: vi.fn(),
   sourcesForEvent: vi.fn(),
   insertEventSource: vi.fn(),
   deleteEventSource: vi.fn(),
 };
 
 const mockDeckFormats = { getBySlug: vi.fn() };
+const mockCustomTags = { listBySlugs: vi.fn() };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const EVENT_ID = "b0000000-0001-4000-a000-000000000001";
 const SOURCE_ID = "c0000000-0001-4000-a000-000000000001";
+const PLAYER_ID = "a1000000-0001-4000-a000-000000000001";
+const DECK_ID = "d0000000-0001-4000-a000-000000000001";
+const CARD_ID = "f0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
-  c.set("repos", { meta: mockMeta, deckFormats: mockDeckFormats } as never);
+  c.set("repos", {
+    meta: mockMeta,
+    deckFormats: mockDeckFormats,
+    customTags: mockCustomTags,
+  } as never);
   await next();
 });
 registerRouterForTest(app, adminMetaRouter);
@@ -48,8 +62,8 @@ function sourceRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** @returns An event row with a deck count, as the repo hands it back. */
-function eventRow() {
+/** @returns An event row with its standings and deck counts, as the repo hands it back. */
+function eventRow(overrides: Record<string, unknown> = {}) {
   return {
     id: EVENT_ID,
     slug: "summoner-skirmish-2026",
@@ -59,9 +73,48 @@ function eventRow() {
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: null,
+    tier: "store",
+    country: null,
+    location: null,
+    playerRowCount: 0,
     deckCount: 0,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
     updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+/** @returns A standings row with no list attached, as the admin table reads it. */
+function playerRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: PLAYER_ID,
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Renata",
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId: null,
+    legendName: null,
+    championCardId: null,
+    championName: null,
+    listStatus: "none",
+    deckId: null,
+    shareToken: null,
+    deckName: null,
+    deckFormat: null,
+    cardCount: 0,
+    ...overrides,
+  };
+}
+
+/** @returns A list body for a standings row's archived deck. */
+function listBody(overrides: Record<string, unknown> = {}) {
+  return {
+    name: "Renata Control",
+    format: "constructed",
+    cards: [{ cardId: CARD_ID, zone: "main", quantity: 3 }],
+    ...overrides,
   };
 }
 
@@ -74,13 +127,31 @@ function createSource(body: unknown) {
   });
 }
 
+/** @returns The response to a standings-row POST. */
+function createPlayer(body: unknown) {
+  return app.request("/api/admin/v1/meta/players", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** @returns The response to a standings-row PATCH. */
+function updatePlayer(body: unknown) {
+  return app.request(`/api/admin/v1/meta/players/${PLAYER_ID}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
+  mockDeckFormats.getBySlug.mockResolvedValue({ slug: "constructed" });
 });
 
 describe("POST /meta/events", () => {
   it("creates an event without any attribution column", async () => {
-    mockDeckFormats.getBySlug.mockResolvedValue({ slug: "constructed" });
     mockMeta.eventBySlug.mockResolvedValue(undefined);
     mockMeta.createEvent.mockResolvedValue(eventRow());
 
@@ -108,9 +179,253 @@ describe("POST /meta/events", () => {
       playerCount: 64,
       organizer: "LGS Berlin",
       notes: null,
+      tier: "store",
+      country: null,
+      location: null,
     });
     const json = await readJson(res);
     expect(json.sourceUrl).toBeUndefined();
+  });
+});
+
+describe("GET /meta/events/{id}/players", () => {
+  it("lists the whole standings table, deckless entries included", async () => {
+    mockMeta.eventById.mockResolvedValue(eventRow({ playerRowCount: 2, deckCount: 1 }));
+    mockMeta.adminPlayersForEvent.mockResolvedValue([
+      playerRow({
+        listStatus: "partial",
+        deckId: DECK_ID,
+        shareToken: "tok-1",
+        deckName: "Renata Control",
+        deckFormat: "constructed",
+        cardCount: 40,
+      }),
+      playerRow({
+        id: "a1000000-0001-4000-a000-000000000002",
+        rank: 8,
+        rankIsTier: true,
+        playerName: "Ekko",
+      }),
+    ]);
+
+    const res = await app.request(`/api/admin/v1/meta/events/${EVENT_ID}/players`);
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.players).toHaveLength(2);
+    expect(json.players[0]).toMatchObject({
+      listStatus: "partial",
+      deckId: DECK_ID,
+      shareToken: "tok-1",
+      cardCount: 40,
+    });
+    expect(json.players[1]).toMatchObject({
+      rank: 8,
+      rankIsTier: true,
+      listStatus: "none",
+      deckId: null,
+      deckFormat: null,
+      cardCount: 0,
+    });
+  });
+
+  it("404s for an unknown event", async () => {
+    mockMeta.eventById.mockResolvedValue(undefined);
+
+    const res = await app.request(`/api/admin/v1/meta/events/${EVENT_ID}/players`);
+
+    expect(res.status).toBe(404);
+    expect(mockMeta.adminPlayersForEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /meta/players", () => {
+  it("files a standings-only entry, which gets no deck and no permalink", async () => {
+    mockMeta.createPlayer.mockResolvedValue({ metaEventPlayerId: PLAYER_ID, deckId: null });
+
+    const res = await createPlayer({
+      eventId: EVENT_ID,
+      rank: 12,
+      playerName: "Ekko",
+      legendCardId: CARD_ID,
+    });
+
+    expect(res.status).toBe(201);
+    expect(await readJson(res)).toEqual({
+      metaEventPlayerId: PLAYER_ID,
+      deckId: null,
+      shareToken: null,
+    });
+    expect(mockMeta.createPlayer).toHaveBeenCalledWith(
+      {
+        eventId: EVENT_ID,
+        rank: 12,
+        rankIsTier: false,
+        playerName: "Ekko",
+        wins: null,
+        losses: null,
+        draws: null,
+        legendCardId: CARD_ID,
+        championCardId: null,
+        deck: null,
+      },
+      null,
+    );
+    // No list, so no format was validated.
+    expect(mockDeckFormats.getBySlug).not.toHaveBeenCalled();
+  });
+
+  it("mints a permalink for an entry that arrives with a list", async () => {
+    mockMeta.createPlayer.mockResolvedValue({ metaEventPlayerId: PLAYER_ID, deckId: DECK_ID });
+
+    const res = await createPlayer({
+      eventId: EVENT_ID,
+      rank: 1,
+      rankIsTier: true,
+      playerName: "Renata",
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      list: listBody({ listStatus: "partial" }),
+    });
+
+    expect(res.status).toBe(201);
+    const json = await readJson(res);
+    expect(json.deckId).toBe(DECK_ID);
+    expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
+    expect(mockMeta.createPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rankIsTier: true,
+        deck: {
+          name: "Renata Control",
+          format: "constructed",
+          formatConfig: null,
+          cards: [{ cardId: CARD_ID, zone: "main", quantity: 3, preferredPrintingId: null }],
+          listStatus: "partial",
+        },
+      }),
+      json.shareToken,
+    );
+  });
+
+  it("defaults an unlabelled list to a full one", async () => {
+    mockMeta.createPlayer.mockResolvedValue({ metaEventPlayerId: PLAYER_ID, deckId: DECK_ID });
+
+    await createPlayer({ eventId: EVENT_ID, rank: 1, playerName: "Renata", list: listBody() });
+
+    expect(mockMeta.createPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({ deck: expect.objectContaining({ listStatus: "full" }) }),
+      expect.any(String),
+    );
+  });
+
+  it("rejects a list in an unknown format", async () => {
+    mockDeckFormats.getBySlug.mockResolvedValue(undefined);
+
+    const res = await createPlayer({
+      eventId: EVENT_ID,
+      rank: 1,
+      playerName: "Renata",
+      list: listBody({ format: "pauper" }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(mockMeta.createPlayer).not.toHaveBeenCalled();
+  });
+
+  it("404s when the event is gone", async () => {
+    mockMeta.createPlayer.mockResolvedValue(undefined);
+
+    const res = await createPlayer({ eventId: EVENT_ID, rank: 1, playerName: "Renata" });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /meta/players/{id}", () => {
+  it("writes only the named scalars and leaves the list alone", async () => {
+    mockMeta.updatePlayer.mockResolvedValue(true);
+
+    const res = await updatePlayer({ rank: 3, rankIsTier: true, wins: null });
+
+    expect(res.status).toBe(204);
+    expect(mockMeta.updatePlayer).toHaveBeenCalledWith(PLAYER_ID, {
+      rank: 3,
+      rankIsTier: true,
+      wins: null,
+    });
+    expect(mockMeta.setPlayerDeck).not.toHaveBeenCalled();
+    expect(mockMeta.clearPlayerDeck).not.toHaveBeenCalled();
+  });
+
+  it("detaches and deletes the list on an explicit null", async () => {
+    mockMeta.updatePlayer.mockResolvedValue(true);
+    mockMeta.clearPlayerDeck.mockResolvedValue(true);
+
+    const res = await updatePlayer({ list: null });
+
+    expect(res.status).toBe(204);
+    expect(mockMeta.clearPlayerDeck).toHaveBeenCalledWith(PLAYER_ID);
+    expect(mockMeta.setPlayerDeck).not.toHaveBeenCalled();
+  });
+
+  it("replaces the list when one is given", async () => {
+    mockMeta.updatePlayer.mockResolvedValue(true);
+    mockMeta.setPlayerDeck.mockResolvedValue({ deckId: DECK_ID });
+
+    const res = await updatePlayer({ list: listBody() });
+
+    expect(res.status).toBe(204);
+    expect(mockMeta.setPlayerDeck).toHaveBeenCalledWith(
+      PLAYER_ID,
+      expect.objectContaining({ name: "Renata Control", listStatus: "full" }),
+      expect.any(String),
+    );
+  });
+
+  it("404s a move onto an event that does not exist", async () => {
+    mockMeta.eventById.mockResolvedValue(undefined);
+
+    const res = await updatePlayer({ eventId: EVENT_ID });
+
+    expect(res.status).toBe(404);
+    expect(mockMeta.updatePlayer).not.toHaveBeenCalled();
+  });
+
+  it("404s an unknown standings row", async () => {
+    mockMeta.updatePlayer.mockResolvedValue(false);
+
+    const res = await updatePlayer({ rank: 3 });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("404s when the row vanished before its list could be written", async () => {
+    mockMeta.updatePlayer.mockResolvedValue(true);
+    mockMeta.setPlayerDeck.mockResolvedValue(undefined);
+
+    const res = await updatePlayer({ list: listBody() });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /meta/players/{id}", () => {
+  it("removes a standings row", async () => {
+    mockMeta.deletePlayer.mockResolvedValue(true);
+
+    const res = await app.request(`/api/admin/v1/meta/players/${PLAYER_ID}`, { method: "DELETE" });
+
+    expect(res.status).toBe(204);
+    expect(mockMeta.deletePlayer).toHaveBeenCalledWith(PLAYER_ID);
+  });
+
+  it("404s an unknown standings row", async () => {
+    mockMeta.deletePlayer.mockResolvedValue(false);
+
+    const res = await app.request(`/api/admin/v1/meta/players/${PLAYER_ID}`, { method: "DELETE" });
+
+    expect(res.status).toBe(404);
   });
 });
 

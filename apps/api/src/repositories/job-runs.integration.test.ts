@@ -119,6 +119,38 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(secondRows[0]?.result).toEqual({ processed: 10, total: 10 });
   });
 
+  it("mergeResult keeps the keys the patch does not name", async () => {
+    const { id } = await begin("test.kind", "admin");
+    await repo.updateResult(id, { due: 40, processed: 3 });
+
+    await repo.mergeResult(id, { phase: "decks", decksFetched: 25 });
+
+    expect(await repo.getResult(id)).toEqual({
+      due: 40,
+      processed: 3,
+      phase: "decks",
+      decksFetched: 25,
+    });
+  });
+
+  it("mergeResult starts from an empty object when the run has no result yet", async () => {
+    const { id } = await begin("test.kind", "admin");
+
+    await repo.mergeResult(id, { processed: 1 });
+
+    expect(await repo.getResult(id)).toEqual({ processed: 1 });
+  });
+
+  it("requestCancel sets the flag without reading the row, and a heartbeat cannot undo it", async () => {
+    const { id } = await begin("test.kind", "admin");
+    await repo.updateResult(id, { processed: 3, cancelRequested: false });
+
+    await repo.requestCancel(id);
+    await repo.mergeResult(id, { processed: 4, cancelRequested: false });
+
+    expect(await repo.getResult(id)).toEqual({ processed: 4, cancelRequested: true });
+  });
+
   it("getResult returns the parsed JSONB or null", async () => {
     const { id } = await begin("test.kind", "admin");
     expect(await repo.getResult(id)).toBeNull();

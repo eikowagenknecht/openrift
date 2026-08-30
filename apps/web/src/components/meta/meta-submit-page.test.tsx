@@ -76,6 +76,9 @@ const EVENT: MetaEventSummary = {
   format: "standard",
   playerCount: 64,
   organizer: "Rift Games Berlin",
+  tier: "store",
+  country: null,
+  playerRowCount: 64,
   deckCount: 8,
 };
 
@@ -113,7 +116,8 @@ describe("MetaSubmitPage", () => {
       metaEventId: "event-1",
       proposedEvent: null,
       playerName: "Kira",
-      finishTier: 1,
+      rank: 1,
+      rankIsTier: false,
       listStatus: "full",
       cards: [{ name: "Blade of the Exile", zone: "main", quantity: 3 }],
     });
@@ -221,16 +225,56 @@ describe("MetaSubmitPage", () => {
     expect(screen.getByRole("button", { name: "Send the decklist" })).toBeInTheDocument();
   });
 
-  it("asks an archetype-only entry for its legend", async () => {
+  it("offers only the two completeness choices a submission can carry", () => {
+    render(<MetaSubmitPage />);
+    expect(screen.getByRole("radio", { name: /The whole deck/u })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Main deck only/u })).toBeInTheDocument();
+    // A submission always carries a list, so there is no standings-only option.
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+  });
+
+  it("sends a partial list as one", async () => {
     render(<MetaSubmitPage />);
     await pickEvent();
-    await userEvent.click(screen.getByRole("radio", { name: /Just the legend/u }));
-    await userEvent.type(screen.getByLabelText("Who played it"), "Kira");
-    // The paste box is asking for the legend now, and this is a main-deck card.
-    await userEvent.type(screen.getByLabelText("The legend"), DECK_TEXT);
+    await userEvent.click(screen.getByRole("radio", { name: /Main deck only/u }));
+    await fillDeckAndPlayer();
+    await userEvent.click(screen.getByRole("button", { name: "Send the decklist" }));
+
+    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ listStatus: "partial" });
+  });
+
+  it("sends the match record as separate counts", async () => {
+    render(<MetaSubmitPage />);
+    await pickEvent();
+    await fillDeckAndPlayer();
+    await userEvent.type(screen.getByLabelText("Wins"), "5");
+    await userEvent.type(screen.getByLabelText("Losses"), "1");
+    await userEvent.type(screen.getByLabelText("Draws"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "Send the decklist" }));
+
+    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ wins: 5, losses: 1, draws: 2 });
+  });
+
+  it("sends a bracket-only finish as a tier rather than a placing", async () => {
+    render(<MetaSubmitPage />);
+    await pickEvent();
+    await fillDeckAndPlayer();
+    await userEvent.clear(screen.getByLabelText("Where they finished"));
+    await userEvent.type(screen.getByLabelText("Where they finished"), "8");
+    await userEvent.click(screen.getByRole("checkbox", { name: /Only the bracket is known/u }));
+    await userEvent.click(screen.getByRole("button", { name: "Send the decklist" }));
+
+    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ rank: 8, rankIsTier: true });
+  });
+
+  it("refuses half a match record rather than losing what was typed", async () => {
+    render(<MetaSubmitPage />);
+    await pickEvent();
+    await fillDeckAndPlayer();
+    await userEvent.type(screen.getByLabelText("Wins"), "5");
     await userEvent.click(screen.getByRole("button", { name: "Send the decklist" }));
 
     expect(mutateAsync).not.toHaveBeenCalled();
-    expect(screen.getByText(/needs its legend/u)).toBeInTheDocument();
+    expect(screen.getByText(/both wins and losses/u)).toBeInTheDocument();
   });
 });

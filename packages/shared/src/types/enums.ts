@@ -82,24 +82,97 @@ export type DeckZone =
   | "overflow";
 
 /**
- * How much of an archived deck's list the meta archive holds (ADR-014). Sources
- * publish at three levels of detail, and the archive keeps them apart rather
- * than guessing from the card count.
+ * How much of a player's list the meta archive holds (ADR-014). Sources publish
+ * at three levels of detail, and the archive keeps them apart rather than
+ * guessing from the card count.
  *
- * - `full`: the pilot's whole list.
+ * - `none`: no list at all. The archive still knows who played, how they
+ *   finished, and usually which legend they piloted, which is what most
+ *   archived entries are.
  * - `partial`: the main deck is complete, the side zones (battlefields, runes,
- *   sideboard) may be missing. Card inclusion reads the main zone alone, so
- *   these count there exactly like a full list.
- * - `archetype`: the main deck is unknown; the cards are the legend and, where
- *   the source named one, the champion.
+ *   sideboard) may be missing.
+ * - `full`: the player's whole list.
  *
- * All three count towards legend play-rate. Only `archetype` is excluded from
- * card inclusion, and only `archetype` has no public deck page.
+ * `none` is the one with no deck attached, and so the one with no public page.
  */
-export type MetaListStatus = "full" | "partial" | "archetype";
+export type MetaListStatus = "none" | "partial" | "full";
 
-/** The {@link MetaListStatus} values, in decreasing completeness. */
-export const META_LIST_STATUSES = ["full", "partial", "archetype"] as const;
+/** The {@link MetaListStatus} values, in increasing completeness. */
+export const META_LIST_STATUSES = ["none", "partial", "full"] as const;
+
+/**
+ * How a player's entry in an archived event ended, as the official source
+ * reports it. It is the one fact a win/loss record cannot carry: a player who
+ * dropped at 0-2 and one who played every round and lost both show "0-2".
+ *
+ * - `complete`: played the event out.
+ * - `eliminated`: knocked out by the structure, in a cut or an elimination phase.
+ * - `dropped`: left before the event finished.
+ */
+export type MetaEntryStatus = "complete" | "eliminated" | "dropped";
+
+/** The {@link MetaEntryStatus} values. */
+export const META_ENTRY_STATUSES = ["complete", "eliminated", "dropped"] as const;
+
+/**
+ * How much an archived event counts for, in the archive's own vocabulary
+ * rather than any one source's product names:
+ *
+ * - `premier`: the main stage — Regional Qualifiers, and whatever nationals or
+ *   worlds the programme grows.
+ * - `competitive`: serious open fields below the main stage — Showdown Series,
+ *   City Challenges, and the large side events run alongside a qualifier.
+ * - `store`: an ordinary store tournament, such as a Summoner Skirmish.
+ * - `casual`: play nights and teaching events — Nexus Nights, open play,
+ *   learn-to-play.
+ *
+ * Sources are matched into these by rule at ingest and the value is
+ * admin-editable per event, so a renamed product line is a rule change, not a
+ * new tier.
+ */
+export type MetaEventTier = "premier" | "competitive" | "store" | "casual";
+
+/** The {@link MetaEventTier} values, most to least competitive. */
+export const META_EVENT_TIERS = ["premier", "competitive", "store", "casual"] as const;
+
+/**
+ * The columns the admin live event list can be ordered by. The list is paged on
+ * the server, so a sort has to travel with the query rather than reorder the
+ * page that happens to be on screen.
+ */
+export const META_EVENT_SORTS = [
+  "eventDate",
+  "name",
+  "format",
+  "playerRowCount",
+  "deckCount",
+  "organizer",
+] as const;
+
+/** Which way a {@link META_EVENT_SORTS} column runs. */
+export const META_EVENT_SORT_DIRECTIONS = ["asc", "desc"] as const;
+
+/** The catalogued sources, the axis the admin Sync and Catalogue tabs select on. */
+export const META_CATALOG_PROVIDERS = ["uvsgames", "playloltcg"] as const;
+
+/**
+ * Triage state, derived from the candidate link and the ignore table rather than
+ * stored: `new` means no candidate links the key and it is not ignored.
+ */
+export const META_CATALOG_TRIAGE = ["new", "accepted", "dismissed"] as const;
+
+/** The source's own status vocabulary, not ours. */
+export const META_CATALOG_DISPLAY_STATUSES = ["upcoming", "inProgress", "complete"] as const;
+
+/**
+ * The columns the catalogue can be ordered by. The list is paged on the server
+ * over a six-figure mirror, so a sort has to travel with the query rather than
+ * reorder the fifty rows that happen to be on screen.
+ */
+export const META_CATALOG_SORTS = ["startAt", "name", "playerCount"] as const;
+
+/** Which way a {@link META_CATALOG_SORTS} column runs. */
+export const META_CATALOG_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 /**
  * Whether a contributor's name appears on the meta archive pages they

@@ -1,4 +1,4 @@
-import type { MetaEventDetail } from "@openrift/shared";
+import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ExternalLinkIcon, PlusIcon } from "lucide-react";
@@ -13,13 +13,24 @@ import {
 } from "@/components/layout/page-top-bar";
 import { MarkdownText } from "@/components/markdown-text";
 import { MetaContributors } from "@/components/meta/meta-contributors";
+import { metaDeckViewFromPlayer } from "@/components/meta/meta-deck-card";
 import { MetaDeckRow } from "@/components/meta/meta-deck-row";
+import { MetaLegendLink } from "@/components/meta/meta-legend-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
+import { formatRank, formatRecord } from "@/lib/meta-format";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
@@ -129,13 +140,96 @@ function AddDeckCta({ slug }: { slug: string }) {
 }
 
 /**
- * `/meta/$slug` — one archived event: its metadata, its notes, and its decks in
- * finish order (ADR-014).
+ * One row of the standings: what the archive knows about a player whether or not
+ * their list was ever published (ADR-014). The decklist cell is the bridge back
+ * to the section above, so a reader scanning the field can jump straight to the
+ * few entries that have a page.
+ * @returns The table row.
+ */
+function StandingsRow({ player }: { player: MetaEventPlayer }) {
+  const record = formatRecord(player.wins, player.losses, player.draws);
+
+  return (
+    <TableRow>
+      <TableCell className="tabular-nums">{formatRank(player.rank, player.rankIsTier)}</TableCell>
+      <TableCell className="font-medium">{player.playerName}</TableCell>
+      <TableCell className="text-muted-foreground tabular-nums">{record}</TableCell>
+      <TableCell className="text-muted-foreground">
+        <MetaLegendLink name={player.legend?.name} slug={player.legend?.slug} />
+      </TableCell>
+      <TableCell>
+        {player.shareToken !== null && (
+          <Link
+            to="/meta/decks/$token"
+            params={{ token: player.shareToken }}
+            className="whitespace-nowrap hover:underline"
+          >
+            {player.listStatus === "partial" ? "Partial list" : "Decklist"}
+          </Link>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/**
+ * The whole field, best finish first: the tier of the archive that covers every
+ * player, not only the ones whose decklist the organizer published (ADR-014).
+ * The archive knows the legend for nearly every entry, so this is where a reader
+ * sees what the room was actually playing.
+ * @returns The standings section, or a note that they have not arrived yet.
+ */
+function Standings({ players }: { players: MetaEventPlayer[] }) {
+  if (players.length === 0) {
+    return (
+      <section className="mt-8">
+        <Heading className="mb-3">Standings</Heading>
+        <Empty>
+          <EmptyHeader>
+            <EmptyDescription>
+              The results for this event have not come through yet. Check back soon.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </section>
+    );
+  }
+  return (
+    <section className="mt-8">
+      <Heading className="mb-3">Standings</Heading>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-16">Rank</TableHead>
+              <TableHead>Player</TableHead>
+              <TableHead className="w-20">Record</TableHead>
+              <TableHead>Legend</TableHead>
+              <TableHead className="w-28">List</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {players.map((player) => (
+              <StandingsRow key={player.id} player={player} />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * `/meta/$slug` — one archived event: its metadata, its notes, the decks whose
+ * lists are known, and the full standings behind them (ADR-014).
  * @returns The event page.
  */
 export function MetaEventPage({ slug }: { slug: string }) {
   const { data } = useMetaEvent(slug);
-  const { event, decks } = data;
+  const { event, players } = data;
+  const decks = players
+    .map((player) => metaDeckViewFromPlayer(player, event.format))
+    .filter((deck) => deck !== null);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -173,13 +267,15 @@ export function MetaEventPage({ slug }: { slug: string }) {
           ) : (
             <ul className="flex flex-col gap-2">
               {decks.map((deck) => (
-                <li key={deck.deckId}>
+                <li key={deck.shareToken}>
                   <MetaDeckRow deck={deck} />
                 </li>
               ))}
             </ul>
           )}
         </section>
+
+        <Standings players={players} />
 
         <p className="text-muted-foreground mt-8 text-sm">
           <Link to="/meta/decks" className="hover:underline">

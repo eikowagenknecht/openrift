@@ -33,13 +33,26 @@ const fetchJobRuns = createServerFn({ method: "GET" })
     }),
   );
 
+const JOB_RUNS_REFRESH_INTERVAL_MS = 15_000;
+
+/**
+ * The auto-refresh cadence for a page of job runs, or false where that page
+ * does not poll.
+ *
+ * @param page - The 1-based page being viewed.
+ * @returns The interval in milliseconds, or false.
+ */
+export function jobRunsRefreshIntervalMs(page: number): number | false {
+  return page === 1 ? JOB_RUNS_REFRESH_INTERVAL_MS : false;
+}
+
 export function adminJobRunsQueryOptions(params: JobRunsQueryParams) {
   return queryOptions({
     queryKey: queryKeys.admin.jobRunsList(params),
     queryFn: () => fetchJobRuns({ data: params }),
     // Only the freshest page keeps auto-refreshing; deeper pages would shift
     // under the reader as new runs arrive, so we leave them static.
-    refetchInterval: params.page === 1 ? 15_000 : false,
+    refetchInterval: jobRunsRefreshIntervalMs(params.page),
     // Keep the previous page on screen while the next loads, so paging never
     // flashes the route skeleton.
     placeholderData: keepPreviousData,

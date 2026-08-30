@@ -7,7 +7,7 @@ import { sql } from "kysely";
 // candidate exists, and breaks the moment it does not: ignoring a deck deletes
 // the candidate row, so un-ignoring it and re-uploading finds no live deck,
 // stages the same list as new, and accepting it archives a *second* copy of one
-// pilot's deck.
+// player's deck.
 //
 // Events do not have the hole because migration 255 gave them
 // `meta_event_sources`, which keeps `(provider, external_id)` independently of

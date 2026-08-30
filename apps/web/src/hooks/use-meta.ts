@@ -1,9 +1,9 @@
 import type {
+  MetaCountsResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
   MetaEventDetailResponse,
   MetaEventListResponse,
-  MetaStatsResponse,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { isDefinedError, safe } from "@orpc/client";
@@ -16,8 +16,8 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-/** Filters that scope the meta stats to one format and/or date window. */
-export type MetaStatsParams = ContractInput<typeof metaContract, "stats">;
+/** Filters that scope the archive counts to one format and/or date window. */
+export type MetaCountsParams = ContractInput<typeof metaContract, "counts">;
 
 // Every read here is public and identical for every visitor, so the SSR
 // responses go through the shared `serverCache` rather than being refetched
@@ -119,33 +119,33 @@ export function useMetaDeck(token: string) {
   return useSuspenseQuery(metaDeckQueryOptions(token));
 }
 
-const fetchMetaStats = createServerFn({ method: "GET" })
-  .validator((input: MetaStatsParams) => input)
+const fetchMetaCounts = createServerFn({ method: "GET" })
+  .validator((input: MetaCountsParams) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<MetaStatsResponse> =>
+  .handler(({ context, data }): Promise<MetaCountsResponse> =>
     serverCache.fetchQuery({
-      // The filters scope the aggregate, so they belong in the cache key —
+      // The filters scope the counts, so they belong in the cache key —
       // otherwise a filtered view would serve the unfiltered numbers.
       queryKey: [
         "server-cache",
         "meta",
-        "stats",
+        "counts",
         data.format ?? null,
         data.dateFrom ?? null,
         data.dateTo ?? null,
       ],
-      queryFn: () => apiOrpcClient(metaContract, context.cookie).stats(data),
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).counts(data),
     }),
   );
 
-export function metaStatsQueryOptions(params: MetaStatsParams = {}) {
+export function metaCountsQueryOptions(params: MetaCountsParams = {}) {
   return queryOptions({
-    queryKey: queryKeys.meta.stats(params.format, params.dateFrom, params.dateTo),
-    queryFn: () => fetchMetaStats({ data: params }),
+    queryKey: queryKeys.meta.counts(params.format, params.dateFrom, params.dateTo),
+    queryFn: () => fetchMetaCounts({ data: params }),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useMetaStats(params: MetaStatsParams = {}) {
-  return useSuspenseQuery(metaStatsQueryOptions(params));
+export function useMetaCounts(params: MetaCountsParams = {}) {
+  return useSuspenseQuery(metaCountsQueryOptions(params));
 }

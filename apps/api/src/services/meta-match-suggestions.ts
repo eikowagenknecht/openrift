@@ -10,7 +10,7 @@
  * saved.
  *
  * The signals: for an event, the same format, a close date, and a similar
- * name; for a deck inside an already-linked event, the same normalized pilot
+ * name; for a player inside an already-linked event, the same normalized player
  * name, preferring an equal finish. Name comparison reuses
  * `normalizeNameForIdentity`, the same normalization the card matcher and the
  * deck ingest run on, so "Summoner Skirmish #4" and "summoner skirmish 4" are
@@ -19,7 +19,7 @@
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
-import type { AdminMetaDeckRow, MetaEventWithCount } from "../repositories/meta.js";
+import type { AdminMetaPlayerRow, MetaEventWithCounts } from "../repositories/meta.js";
 
 export interface MetaEventMatchSuggestion {
   metaEventId: string;
@@ -27,18 +27,20 @@ export interface MetaEventMatchSuggestion {
   name: string;
   eventDate: string;
   format: string;
-  deckCount: number;
+  playerRowCount: number;
   /** Higher is a better match. Comparable only within one call. */
   score: number;
   /** Why it ranked, in the order the signals were weighed. */
   reasons: string[];
 }
 
-export interface MetaDeckMatchSuggestion {
-  deckId: string;
-  name: string;
+export interface MetaPlayerMatchSuggestion {
+  metaEventPlayerId: string;
   playerName: string;
-  finishTier: number;
+  rank: number;
+  rankIsTier: boolean;
+  /** The row's deck, when it already has one. */
+  deckId: string | null;
   score: number;
   reasons: string[];
 }
@@ -50,9 +52,9 @@ export interface MetaEventMatchInput {
   format: string;
 }
 
-export interface MetaDeckMatchInput {
+export interface MetaPlayerMatchInput {
   playerName: string;
-  finishTier: number;
+  rank: number;
 }
 
 /** How many suggestions a review screen is offered. Beyond this it is a search box, not a hint. */
@@ -79,6 +81,19 @@ const MIN_EVENT_SCORE = 4;
 export const MAX_EVENT_MATCH_DAY_DELTA = 3;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * How many events inside the window the ranking will look at. The cap cuts by
+ * the listing's own newest-first order, not by score, so a window that overflows
+ * it can hide the right event: the number is a guard against an unbounded read,
+ * and the week-wide window is what keeps it out of reach.
+ */
+const MAX_WINDOW_EVENTS = 500;
+
+/** The ISO day `days` away from `day`. */
+function shiftDay(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
+}
 
 function dayDelta(a: string, b: string): number | null {
   const left = Date.parse(`${a}T00:00:00Z`);
@@ -168,15 +183,15 @@ export function scoreEventMatch(
 }
 
 /**
- * The pilot's name is the whole signal — an event's decks are told apart by who
- * played them — and the finish only breaks ties, because sources disagree about
- * placements far more often than about who was there. That is also why a shared
- * finish alone is not a match: eight decks of a top 8 share four tiers between
- * them.
+ * The player's name is the whole signal — an event's standings are told apart by
+ * who played them — and the finish only breaks ties, because sources disagree
+ * about placements far more often than about who was there. That is also why a
+ * shared finish alone is not a match: eight entries of a top 8 share four tiers
+ * between them.
  */
-export function scoreDeckMatch(
-  candidate: MetaDeckMatchInput,
-  live: { playerName: string; finishTier: number },
+export function scorePlayerMatch(
+  candidate: MetaPlayerMatchInput,
+  live: { playerName: string; rank: number },
 ): { score: number; reasons: string[]; playerMatched: boolean } {
   const reasons: string[] = [];
   let score = 0;
@@ -190,7 +205,7 @@ export function scoreDeckMatch(
     reasons.push("similar player name");
   }
 
-  if (live.finishTier === candidate.finishTier) {
+  if (live.rank === candidate.rank) {
     score += 1;
     reasons.push("same finish");
   }
@@ -200,9 +215,8 @@ export function scoreDeckMatch(
 
 /**
  * The live events an unlinked candidate event probably describes, best first.
- * Reads the whole archive rather than filtering in SQL: it is curated and small
- * by design, the deck browser already fetches all of it, and doing the ranking
- * in one place keeps the scoring testable without a database.
+ * The date window is the only filter SQL applies; the scoring stays a pure
+ * function over the rows it returns, so it is testable without a database.
  */
 export async function suggestMetaEventMatches(
   repos: Repos,
@@ -212,13 +226,21 @@ export async function suggestMetaEventMatches(
   if (candidate === undefined || candidate.metaEventId !== null) {
     return [];
   }
-  const events = await repos.meta.listEvents();
-  return rankEventMatches(candidate, events);
+  // Only an event inside the date window can score at all, so the ranking reads
+  // that slice rather than the whole archive.
+  const { rows } = await repos.meta.listEvents(
+    {
+      dateFrom: shiftDay(candidate.eventDate, -MAX_EVENT_MATCH_DAY_DELTA),
+      dateTo: shiftDay(candidate.eventDate, MAX_EVENT_MATCH_DAY_DELTA),
+    },
+    { limit: MAX_WINDOW_EVENTS, offset: 0 },
+  );
+  return rankEventMatches(candidate, rows);
 }
 
 export function rankEventMatches(
   candidate: MetaEventMatchInput,
-  events: readonly MetaEventWithCount[],
+  events: readonly MetaEventWithCounts[],
 ): MetaEventMatchSuggestion[] {
   return events
     .map((event) => ({ event, ...scoreEventMatch(candidate, event) }))
@@ -231,23 +253,23 @@ export function rankEventMatches(
       name: row.event.name,
       eventDate: row.event.eventDate,
       format: row.event.format,
-      deckCount: row.event.deckCount,
+      playerRowCount: row.event.playerRowCount,
       score: row.score,
       reasons: row.reasons,
     }));
 }
 
 /**
- * The archived decks an unlinked candidate deck probably describes, best first.
- * Scoped to the live event the candidate's own event resolves to, because a
- * candidate deck may only ever link inside its own event.
+ * The live standings rows an unlinked candidate player probably describes, best
+ * first. Scoped to the live event the candidate's own event resolves to,
+ * because a candidate may only ever link inside its own event.
  */
-export async function suggestMetaDeckMatches(
+export async function suggestMetaPlayerMatches(
   repos: Repos,
-  candidateDeckId: string,
-): Promise<MetaDeckMatchSuggestion[]> {
-  const candidate = await repos.metaCandidates.deckById(candidateDeckId);
-  if (candidate === undefined || candidate.deckId !== null) {
+  candidatePlayerId: string,
+): Promise<MetaPlayerMatchSuggestion[]> {
+  const candidate = await repos.metaCandidates.playerById(candidatePlayerId);
+  if (candidate === undefined || candidate.metaEventPlayerId !== null) {
     return [];
   }
 
@@ -260,24 +282,25 @@ export async function suggestMetaDeckMatches(
     return [];
   }
 
-  const decks = await repos.meta.adminDecksForEvent(metaEventId);
-  return rankDeckMatches(candidate, decks);
+  const players = await repos.meta.adminPlayersForEvent(metaEventId);
+  return rankPlayerMatches(candidate, players);
 }
 
-export function rankDeckMatches(
-  candidate: MetaDeckMatchInput,
-  decks: readonly AdminMetaDeckRow[],
-): MetaDeckMatchSuggestion[] {
-  return decks
-    .map((deck) => ({ deck, ...scoreDeckMatch(candidate, deck) }))
+export function rankPlayerMatches(
+  candidate: MetaPlayerMatchInput,
+  players: readonly AdminMetaPlayerRow[],
+): MetaPlayerMatchSuggestion[] {
+  return players
+    .map((player) => ({ player, ...scorePlayerMatch(candidate, player) }))
     .filter((row) => row.playerMatched)
-    .toSorted((a, b) => b.score - a.score || a.deck.playerName.localeCompare(b.deck.playerName))
+    .toSorted((a, b) => b.score - a.score || a.player.playerName.localeCompare(b.player.playerName))
     .slice(0, MAX_SUGGESTIONS)
     .map((row) => ({
-      deckId: row.deck.deckId,
-      name: row.deck.name,
-      playerName: row.deck.playerName,
-      finishTier: row.deck.finishTier,
+      metaEventPlayerId: row.player.id,
+      playerName: row.player.playerName,
+      rank: row.player.rank,
+      rankIsTier: row.player.rankIsTier,
+      deckId: row.player.deckId,
       score: row.score,
       reasons: row.reasons,
     }));

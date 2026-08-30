@@ -83,7 +83,7 @@ describe("metaEventSlugCandidates", () => {
 });
 
 describe("defaultMetaDeckName", () => {
-  it("leads with the legend and names the pilot", () => {
+  it("leads with the legend and names the player", () => {
     expect(defaultMetaDeckName("Azir, Emperor of the Sands", "Renata", "Rift Open")).toBe(
       "Azir, Emperor of the Sands (Renata)",
     );

@@ -325,16 +325,13 @@ export async function runRegenerateImagesJob(
       errors: appendCappedErrors(checkpoint.errors, batchResult.errors),
     };
 
-    // Re-read the row so an out-of-band cancel from the cancel endpoint is
-    // visible. Read-modify-write race with the cancel writer is a few µs
-    // wide and the worst case is the user re-clicks cancel — fine for an
-    // admin-only flow.
+    // mergeResult keeps a stored `cancelRequested` over this patch's `false`,
+    // so a cancel landing around this write survives it; the re-read after the
+    // write is what makes it visible to the loop.
+    await jobRuns.mergeResult(runId, checkpoint);
     const latestResult = await jobRuns.getResult(runId);
     const cancelRequested =
       isRegenerateImagesCheckpoint(latestResult) && latestResult.cancelRequested === true;
-    checkpoint = { ...checkpoint, cancelRequested };
-
-    await jobRuns.updateResult(runId, checkpoint);
 
     if (cancelRequested) {
       log.warn({ runId, cursor }, "regenerate-images cancelled mid-run");

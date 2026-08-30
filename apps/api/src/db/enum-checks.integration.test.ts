@@ -68,7 +68,7 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * is unique per table.
  */
 const ENUM_CHECKS: Record<string, readonly string[]> = {
-  chk_candidate_meta_decks_list_status: metaListStatusSchema.options,
+  chk_candidate_meta_players_list_status: metaListStatusSchema.options,
   chk_card_submissions_kind: cardSubmissionKindSchema.options,
   chk_card_submissions_reason: cardSubmissionReasonSchema.options,
   chk_card_submissions_status: cardSubmissionStatusSchema.options,
@@ -98,9 +98,9 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_marketplace_groups_marketplace: marketplaceEnum.options,
   chk_marketplace_ignored_products_marketplace: marketplaceEnum.options,
   chk_marketplace_products_marketplace: marketplaceEnum.options,
-  chk_meta_decks_list_status: metaListStatusSchema.options,
-  chk_meta_deck_submissions_reason: metaSubmissionReasonSchema.options,
-  chk_meta_deck_submissions_status: metaSubmissionStatusSchema.options,
+  chk_meta_event_players_list_status: metaListStatusSchema.options,
+  chk_meta_submissions_reason: metaSubmissionReasonSchema.options,
+  chk_meta_submissions_status: metaSubmissionStatusSchema.options,
   chk_organization_members_role: organizationRoleSchema.options,
   chk_pod_rounds_status: podRoundStatusSchema.options,
   chk_pods_result_status: podResultStatusSchema.options,

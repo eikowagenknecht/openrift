@@ -52,18 +52,26 @@ export const metaSubmissionProposedEventSchema = z.object({
 /**
  * One decklist submitted against an event the archive already has, or against
  * one it does not. Exactly one of `metaEventId` and `proposedEvent` is set: a
- * submission targets one event, and `candidate_meta_decks` has a CHECK for
+ * submission targets one event, and `candidate_meta_players` has a CHECK for
  * precisely that.
+ *
+ * A submission always carries a list — that is what a contributor has to give —
+ * so `listStatus` never says `"none"`. Standings-only rows come from the
+ * archive's own sources, not from people.
  */
-export const metaDeckSubmissionInputSchema = z
+export const metaSubmissionInputSchema = z
   .object({
     metaEventId: z.uuid().nullable().optional().default(null),
     proposedEvent: metaSubmissionProposedEventSchema.nullable().optional().default(null),
     playerName: z.string().trim().min(1).max(80),
-    finishTier: z.number().int().min(1),
-    record: z.string().trim().min(1).max(20).nullable().optional().default(null),
-    /** How much of the list this is; an archetype needs its legend to resolve. */
-    listStatus: metaListStatusSchema.optional().default("full"),
+    rank: z.number().int().min(1),
+    /** True when `rank` is a cut bucket ("T8") rather than an exact standing. */
+    rankIsTier: z.boolean().optional().default(false),
+    wins: z.number().int().min(0).nullable().optional().default(null),
+    losses: z.number().int().min(0).nullable().optional().default(null),
+    draws: z.number().int().min(0).nullable().optional().default(null),
+    /** `"partial"` when the main deck is complete but the side zones are not. */
+    listStatus: metaListStatusSchema.exclude(["none"]).optional().default("full"),
     cards: z.array(metaSubmissionCardSchema).min(1).max(200),
     note: z.string().trim().min(1).max(2000).nullable().optional().default(null),
   })
@@ -71,7 +79,7 @@ export const metaDeckSubmissionInputSchema = z
     message: "Submit against an existing event or propose one, not both and not neither",
   });
 
-export const metaDeckSubmissionResultSchema = z
+export const metaSubmissionResultSchema = z
   .object({
     id: z.string(),
     /**
@@ -81,14 +89,14 @@ export const metaDeckSubmissionResultSchema = z
      */
     unresolvedNames: z.array(z.string()),
   })
-  .openapi("MetaDeckSubmissionResult");
+  .openapi("MetaSubmissionResult");
 
 /**
  * One row of the contributor's own submission history. The candidate id and the
  * provider key stay off the wire: they are staging details, and staging is
  * disposable while this ledger is not.
  */
-export const metaDeckSubmissionSchema = z
+export const metaSubmissionSchema = z
   .object({
     id: z.string(),
     /** What the submitter called the event, so a row still reads without a target. */
@@ -105,16 +113,16 @@ export const metaDeckSubmissionSchema = z
     createdAt: z.string(),
     resolvedAt: z.string().nullable(),
   })
-  .openapi("MetaDeckSubmission");
+  .openapi("MetaSubmission");
 
-export const metaDeckSubmissionListResponseSchema = z
+export const metaSubmissionListResponseSchema = z
   .object({
-    items: z.array(metaDeckSubmissionSchema),
+    items: z.array(metaSubmissionSchema),
     nextCursor: z.string().nullable(),
   })
-  .openapi("MetaDeckSubmissionListResponse");
+  .openapi("MetaSubmissionListResponse");
 
-export const metaDeckSubmissionsQuerySchema = z.object({
+export const metaSubmissionsQuerySchema = z.object({
   cursor: keysetCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
@@ -140,7 +148,7 @@ export const updateMetaCreditVisibilitySchema = z.object({
  * even though it shares the `/api/v1/meta` prefix — auth is per procedure here,
  * never a middleware on the prefix, which would 401 the public reads.
  *
- * `submit` stages one candidate deck and one ledger row in a single
+ * `submit` stages one candidate player and one ledger row in a single
  * transaction; nothing it writes is public until an admin accepts it.
  * `TOO_MANY_REQUESTS` is the per-user pending cap (a review of a whole decklist
  * is the cost being bounded, so the queue clears itself as the archive catches
@@ -158,13 +166,13 @@ export const metaSubmissionsContract = {
       BAD_REQUEST: { message: "Submission failed validation" },
       NOT_FOUND: { message: "Event not found" },
     })
-    .input(metaDeckSubmissionInputSchema)
-    .output(metaDeckSubmissionResultSchema),
+    .input(metaSubmissionInputSchema)
+    .output(metaSubmissionResultSchema),
 
   list: authedRoute
     .route({ method: "GET", path: `${BASE}/submissions`, tags: [TAG] })
-    .input(metaDeckSubmissionsQuerySchema)
-    .output(metaDeckSubmissionListResponseSchema),
+    .input(metaSubmissionsQuerySchema)
+    .output(metaSubmissionListResponseSchema),
 
   creditVisibility: authedRoute
     .route({ method: "GET", path: `${BASE}/credit-visibility`, tags: [TAG] })

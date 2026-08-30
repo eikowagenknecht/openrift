@@ -22,10 +22,12 @@ const clearSsrCache = createServerFn({ method: "POST" })
     serverCache.clear();
   });
 
+export const ADMIN_STATUS_REFRESH_INTERVAL_MS = 30_000;
+
 export const adminStatusQueryOptions = queryOptions({
   queryKey: queryKeys.admin.status,
   queryFn: () => fetchStatus(),
-  refetchInterval: 30_000,
+  refetchInterval: ADMIN_STATUS_REFRESH_INTERVAL_MS,
 });
 
 export function useAdminStatus() {

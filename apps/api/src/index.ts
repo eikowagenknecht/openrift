@@ -14,7 +14,7 @@ import { createConfig, validateConfig } from "./config.js";
 import { cronJobs } from "./cron-jobs.js";
 import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
-import { createRepos } from "./deps.js";
+import { createRepos, createTransact } from "./deps.js";
 import { createEmailSender } from "./email.js";
 import { isDroppableTransientRejection } from "./lib/transient-network-error.js";
 import { wellKnownRepo } from "./repositories/well-known.js";
@@ -23,6 +23,21 @@ import {
   flushPendingPrintingEvents,
   isPrintingFlushNoop,
 } from "./services/flush-printing-events.js";
+import {
+  createMetaSyncDeps,
+  createPlayloltcgSyncDeps,
+  isCatalogSyncNoop,
+  isPlayloltcgRecheckNoop,
+  isPlayloltcgSyncNoop,
+  syncCatalog,
+  syncPlayloltcgCatalog,
+  isRecheckNoop,
+  playloltcgCoolingDown,
+  PLAYLOLTCG_RECHECK_BATCH_SIZE,
+  processPlayloltcgRechecks,
+  processRechecks,
+  RECHECK_BATCH_SIZE,
+} from "./services/meta-sync/index.js";
 import {
   refreshCardmarketPrices,
   refreshCardtraderPrices,
@@ -350,6 +365,98 @@ if (config.cron.tradeStatusFlushSchedule) {
     );
   });
   tsfLog.info(`Cron registered (${tsfSchedule})`);
+}
+
+// Meta archive sync. Every schedule is opt-in: a deployment that sets none of
+// them never reaches the sources, which is what keeps local dev off them. The
+// admin UI's manual triggers run the same jobs on demand.
+{
+  const metaLog = log.child({ service: "meta-sync" });
+  const metaTransact = createTransact(db);
+  const metaDeps = () =>
+    createMetaSyncDeps({
+      repos,
+      transact: metaTransact,
+      fetch: globalThis.fetch,
+      log: metaLog,
+      baseUrl: config.metaSync.baseUrl,
+    });
+
+  if (config.cron.metaUvsgamesSyncSchedule) {
+    const schedule = config.cron.metaUvsgamesSyncSchedule;
+    cronJobs.metaUvsgamesSync = new Cron(schedule, { protect: true }, async () => {
+      await runJob(
+        { repos, log: metaLog },
+        "meta.uvsgames_sync",
+        "cron",
+        (runId) => syncCatalog(metaDeps(), runId),
+        { summarize: (result) => result, classifyNoop: isCatalogSyncNoop },
+      );
+    });
+    metaLog.info(`Cron registered (${schedule})`);
+  }
+
+  if (config.cron.metaUvsgamesRecheckSchedule) {
+    const schedule = config.cron.metaUvsgamesRecheckSchedule;
+    cronJobs.metaUvsgamesRecheck = new Cron(schedule, { protect: true }, async () => {
+      await runJob(
+        { repos, log: metaLog },
+        "meta.uvsgames_recheck",
+        "cron",
+        (runId) => processRechecks(metaDeps(), RECHECK_BATCH_SIZE, runId),
+        { summarize: (result) => result, classifyNoop: isRecheckNoop },
+      );
+    });
+    metaLog.info(`Cron registered (${schedule})`);
+  }
+
+  // The second source's API shape differs (POST/GET, its own backoff), so it
+  // gets its own deps. A cooling-down guard short-circuits before a run is
+  // recorded, so a refused source is left alone until its cool-down passes.
+  const playloltcgDeps = () =>
+    createPlayloltcgSyncDeps({
+      repos,
+      transact: metaTransact,
+      fetch: globalThis.fetch,
+      log: metaLog,
+      baseUrl: config.metaSync.playloltcgBaseUrl,
+    });
+
+  if (config.cron.metaPlayloltcgSyncSchedule) {
+    const schedule = config.cron.metaPlayloltcgSyncSchedule;
+    cronJobs.metaPlayloltcgSync = new Cron(schedule, { protect: true }, async () => {
+      if (await playloltcgCoolingDown(playloltcgDeps(), "meta.playloltcg_sync", new Date())) {
+        metaLog.info("playloltcg sync cooling down after a WAF block; skipping");
+        return;
+      }
+      await runJob(
+        { repos, log: metaLog },
+        "meta.playloltcg_sync",
+        "cron",
+        () => syncPlayloltcgCatalog(playloltcgDeps()),
+        { summarize: (result) => result, classifyNoop: isPlayloltcgSyncNoop },
+      );
+    });
+    metaLog.info(`Cron registered (${schedule})`);
+  }
+
+  if (config.cron.metaPlayloltcgRecheckSchedule) {
+    const schedule = config.cron.metaPlayloltcgRecheckSchedule;
+    cronJobs.metaPlayloltcgRecheck = new Cron(schedule, { protect: true }, async () => {
+      if (await playloltcgCoolingDown(playloltcgDeps(), "meta.playloltcg_recheck", new Date())) {
+        metaLog.info("playloltcg recheck cooling down after a WAF block; skipping");
+        return;
+      }
+      await runJob(
+        { repos, log: metaLog },
+        "meta.playloltcg_recheck",
+        "cron",
+        () => processPlayloltcgRechecks(playloltcgDeps(), PLAYLOLTCG_RECHECK_BATCH_SIZE),
+        { summarize: (result) => result, classifyNoop: isPlayloltcgRecheckNoop },
+      );
+    });
+    metaLog.info(`Cron registered (${schedule})`);
+  }
 }
 
 // ── 4. Start server ─────────────────────────────────────────────────────────

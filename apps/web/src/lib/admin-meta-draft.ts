@@ -1,5 +1,9 @@
-import type { AdminMetaDeck, AdminMetaEvent, MetaListStatus } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type {
+  AdminMetaEvent,
+  AdminMetaPlayer,
+  MetaEventTier,
+  MetaListStatus,
+} from "@openrift/shared";
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 
@@ -14,6 +18,7 @@ const RESERVED_META_EVENT_SLUGS = ["decks", "events", "stats", "new", "admin"];
 const EVENT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{2,49}$/u;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const WHOLE_NUMBER_PATTERN = /^\d+$/u;
+const COUNTRY_PATTERN = /^[A-Za-z]{2}$/u;
 
 /** The event form's fields, as edited. */
 export interface MetaEventDraft {
@@ -21,8 +26,12 @@ export interface MetaEventDraft {
   name: string;
   eventDate: string;
   format: string;
+  tier: MetaEventTier;
   playerCount: string;
   organizer: string;
+  /** Two ISO letters, or blank for unknown. */
+  country: string;
+  location: string;
   notes: string;
 }
 
@@ -32,8 +41,11 @@ export const EMPTY_META_EVENT_DRAFT: MetaEventDraft = {
   name: "",
   eventDate: "",
   format: "",
+  tier: "store",
   playerCount: "",
   organizer: "",
+  country: "",
+  location: "",
   notes: "",
 };
 
@@ -68,6 +80,13 @@ export function validateMetaEventDraft(draft: MetaEventDraft): string | null {
   if (draft.organizer.trim().length > 120) {
     return "Organizer must be 120 characters or fewer";
   }
+  const country = draft.country.trim();
+  if (country.length > 0 && !COUNTRY_PATTERN.test(country)) {
+    return "Country must be a two-letter code (e.g. DE), or blank";
+  }
+  if (draft.location.trim().length > 500) {
+    return "Address must be 500 characters or fewer";
+  }
   if (draft.notes.trim().length > 4000) {
     return "Notes must be 4000 characters or fewer";
   }
@@ -80,8 +99,11 @@ export interface MetaEventBody {
   name: string;
   eventDate: string;
   format: string;
+  tier: MetaEventTier;
   playerCount: number | null;
   organizer: string | null;
+  country: string | null;
+  location: string | null;
   notes: string | null;
 }
 
@@ -100,8 +122,11 @@ export function metaEventDraftToBody(draft: MetaEventDraft): MetaEventBody {
     name: draft.name.trim(),
     eventDate: draft.eventDate.trim(),
     format: draft.format.trim(),
+    tier: draft.tier,
     playerCount: players.length > 0 ? Number(players) : null,
     organizer: draft.organizer.trim() || null,
+    country: draft.country.trim().toUpperCase() || null,
+    location: draft.location.trim() || null,
     notes: draft.notes.trim() || null,
   };
 }
@@ -118,133 +143,133 @@ export function metaEventToDraft(event: AdminMetaEvent): MetaEventDraft {
     name: event.name,
     eventDate: event.eventDate,
     format: event.format,
+    tier: event.tier,
     playerCount: event.playerCount === null ? "" : String(event.playerCount),
     organizer: event.organizer ?? "",
+    country: event.country ?? "",
+    location: event.location ?? "",
     notes: event.notes ?? "",
   };
 }
 
 /**
- * The deck form's metadata fields, as edited. A pasted card list is held
- * separately, but an archetype-only entry has no list to paste: its two cards
- * are picked from the catalog, so those picks live on the draft.
+ * The standings-row form's fields, as edited. The unit of curation is the player,
+ * so the decklist fields only come into play once `listStatus` says there is
+ * one — most of a real event's field is standings and a legend.
  */
-export interface MetaDeckDraft {
-  name: string;
-  format: string;
+export interface MetaPlayerDraft {
   playerName: string;
-  finishTier: string;
-  record: string;
-  listStatus: MetaListStatus;
-  /** Archetype only: the legend the source named. Required for that status. */
+  /** Where the player finished, as a positive whole number. */
+  rank: string;
+  /** True when the source published a cut bucket, so `rank` prints as "T8". */
+  rankIsTier: boolean;
+  wins: string;
+  losses: string;
+  draws: string;
+  /**
+   * The legend the player played. Set for nearly every entry whether or not a
+   * list was published, and what the archive names a deckless row by. A pasted
+   * list overrides it from its own legend zone.
+   */
   legendCardId: string | null;
-  /** Archetype only: the champion, where the source named one. */
   championCardId: string | null;
+  /** `"none"` files a standings-only row; the other two carry a decklist. */
+  listStatus: MetaListStatus;
+  /** Only in play while `listStatus` is not `"none"`. */
+  deckName: string;
+  deckFormat: string;
 }
 
-/** Finish tiers offered as one-click choices; any positive value can be typed. */
-export const FINISH_TIER_PRESETS = [1, 2, 3, 4, 8, 16, 32, 64];
+/** Ranks offered as one-click choices; any positive value can be typed. */
+export const RANK_PRESETS = [1, 2, 3, 4, 8, 16, 32, 64];
 
 /**
- * Reads the finish-tier field.
+ * Reads the rank field.
  *
  * @param value - The raw field text.
- * @returns The tier, or null when it is not a positive whole number.
+ * @returns The rank, or null when it is not a positive whole number.
  */
-export function metaDeckFinishTier(value: string): number | null {
+export function metaPlayerRank(value: string): number | null {
   const trimmed = value.trim();
   if (!WHOLE_NUMBER_PATTERN.test(trimmed)) {
     return null;
   }
-  const tier = Number(trimmed);
-  if (tier < 1) {
+  const rank = Number(trimmed);
+  if (rank < 1) {
     return null;
   }
-  return tier;
+  return rank;
+}
+
+/** @returns The box's number, or null when it was left blank. */
+export function metaPlayerRecordPart(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : Number(trimmed);
+}
+
+/** @returns True when a record box is blank or holds a whole number. */
+function isRecordPart(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === "" || WHOLE_NUMBER_PATTERN.test(trimmed);
 }
 
 /**
- * Checks a deck draft against the contract's bounds.
+ * Checks a standings-row draft against the contract's bounds.
  *
- * @param draft - The deck form's current values.
- * @param requireCards - Whether the save must carry a card list. True when
- *   archiving a new deck; false when editing a stored one, whose cards stay put
- *   unless the form supplies replacements.
+ * @param draft - The form's current values.
  * @returns The first problem found, or null when the draft is valid.
  */
-export function validateMetaDeckDraft(draft: MetaDeckDraft, requireCards = true): string | null {
-  const name = draft.name.trim();
-  if (name.length === 0 || name.length > 200) {
-    return "Deck name is required and must be 200 characters or fewer";
-  }
-  if (draft.format.trim().length === 0) {
-    return "Format is required";
-  }
+export function validateMetaPlayerDraft(draft: MetaPlayerDraft): string | null {
   const player = draft.playerName.trim();
   if (player.length === 0 || player.length > 80) {
     return "Player name is required and must be 80 characters or fewer";
   }
-  if (metaDeckFinishTier(draft.finishTier) === null) {
+  if (metaPlayerRank(draft.rank) === null) {
     return "Finish must be a positive whole number";
   }
-  if (draft.record.trim().length > 20) {
-    return "Record must be 20 characters or fewer";
+  if (!isRecordPart(draft.wins) || !isRecordPart(draft.losses) || !isRecordPart(draft.draws)) {
+    return "Wins, losses, and draws must be whole numbers";
   }
-  if (requireCards && draft.listStatus === "archetype" && draft.legendCardId === null) {
-    return "Pick the legend. An archetype-only entry is filed under it, so there is nothing to archive without one";
+  // The archive derives "5-1" from the two, so one without the other would
+  // display as nothing and quietly lose what was typed.
+  if ((draft.wins.trim() === "") !== (draft.losses.trim() === "")) {
+    return "Enter both wins and losses, or neither";
+  }
+  if (draft.listStatus === "none") {
+    return null;
+  }
+  const deckName = draft.deckName.trim();
+  if (deckName.length === 0 || deckName.length > 200) {
+    return "Deck name is required and must be 200 characters or fewer";
+  }
+  if (draft.deckFormat.trim().length === 0) {
+    return "Format is required";
   }
   return null;
 }
 
 /**
- * The card rows an archetype-only entry saves: the legend the archive files it
- * under, plus the champion when the source named one. There is no list to
- * paste, so this is the whole card payload.
+ * Loads a stored standings row back into the form. The card list starts empty
+ * even for a row that has one: the stored cards are only replaced when something
+ * new is pasted.
  *
- * @param draft - A draft whose `listStatus` is `"archetype"`.
- * @returns The rows to send, or an empty list when no legend is picked yet.
- */
-export function metaDeckArchetypeCards(draft: MetaDeckDraft): ImportedDeckCard[] {
-  if (draft.legendCardId === null) {
-    return [];
-  }
-  const cards: ImportedDeckCard[] = [
-    {
-      cardId: draft.legendCardId,
-      zone: WellKnown.deckZone.LEGEND,
-      quantity: 1,
-      preferredPrintingId: null,
-    },
-  ];
-  if (draft.championCardId !== null) {
-    cards.push({
-      cardId: draft.championCardId,
-      zone: WellKnown.deckZone.CHAMPION,
-      quantity: 1,
-      preferredPrintingId: null,
-    });
-  }
-  return cards;
-}
-
-/**
- * Loads a stored deck back into the form. The card picks start empty even for
- * an archetype: the stored rows are only replaced when something new is picked,
- * exactly as the paste flow only replaces the list when something is pasted.
- *
- * @param deck - The archived deck to edit.
+ * @param player - The standings row to edit.
+ * @param eventFormat - The event's format, for a row whose deck has none yet.
  * @returns The draft the edit dialog starts from.
  */
-export function metaDeckToDraft(deck: AdminMetaDeck): MetaDeckDraft {
+export function metaPlayerToDraft(player: AdminMetaPlayer, eventFormat: string): MetaPlayerDraft {
   return {
-    name: deck.name,
-    format: deck.format,
-    playerName: deck.playerName,
-    finishTier: String(deck.finishTier),
-    record: deck.record ?? "",
-    listStatus: deck.listStatus,
-    legendCardId: null,
-    championCardId: null,
+    playerName: player.playerName,
+    rank: String(player.rank),
+    rankIsTier: player.rankIsTier,
+    wins: player.wins === null ? "" : String(player.wins),
+    losses: player.losses === null ? "" : String(player.losses),
+    draws: player.draws === null ? "" : String(player.draws),
+    legendCardId: player.legendCardId,
+    championCardId: player.championCardId,
+    listStatus: player.listStatus,
+    deckName: player.deckName ?? "",
+    deckFormat: player.deckFormat ?? eventFormat,
   };
 }
 

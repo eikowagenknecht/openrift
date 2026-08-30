@@ -1,39 +1,54 @@
 /**
  * Turns reviewed meta-archive candidates into live rows. Link/relink/unlink
- * move only the FK, citation, and deck source keys — never field values — so
- * crediting a source does not depend on taking any of its values.
+ * move only the FK and the citation — never field values — so crediting a
+ * source does not depend on taking any of its values.
+ *
+ * The candidate row itself is the source key: `(provider, external_id)` on the
+ * event, plus `external_id` on each of its players. An ignore marks the key and
+ * leaves the row and its live link in place (ADR-014, second revision), so
+ * there is no second table holding a key that has to outlive the candidate.
  *
  * The create and the link are deliberately not one transaction: the retry
- * inside `createArchivedDeck` re-runs the whole share-token mint on a
+ * inside `createMetaEventPlayer` re-runs the whole share-token mint on a
  * collision, and a transaction would have to re-run itself from inside itself.
  * A crash between the two leaves a live row with no candidate pointing at it,
  * which the manual link action already repairs.
- *
- * The source key is a separate write from the link (`meta_event_sources` /
- * `meta_deck_sources`): ignoring a candidate deletes its row, so a key held
- * only there would make un-ignoring it archive a second copy of everything
- * that source already produced.
  */
-import { ERROR_CODES, WellKnown } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared";
 import type {
-  MetaDeckAcceptField,
   MetaEventAcceptField,
+  MetaPlayerAcceptField,
 } from "@openrift/shared/contracts/admin/meta";
 import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
+import type { MetaListStatus } from "@openrift/shared/types";
 
+import type { CandidateMetaDeckCard } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { assertKnownFormat } from "../lib/deck-format-validation.js";
 import type { MetaDeckCardEntry } from "../lib/meta-candidate-diff.js";
-import { collapseCardEntries, diffMetaDeckCards, hasCardDiff } from "../lib/meta-candidate-diff.js";
+import {
+  collapseCardEntries,
+  diffMetaDeckCards,
+  hasCardDiff,
+  META_EVENT_NO_CLAIM_FIELDS,
+  resolveMetaPlayerCards,
+} from "../lib/meta-candidate-diff.js";
 import { defaultMetaDeckName, metaEventSlugCandidates } from "../lib/meta-candidate-naming.js";
+import { classifyMetaEventTier } from "../lib/meta-event-classify.js";
 import type {
-  CandidateMetaDeckRow,
   CandidateMetaEventRow,
+  CandidateMetaPlayerRow,
 } from "../repositories/meta-candidates.js";
-import type { MetaDeckCardInput, MetaDeckPatch, MetaDeckSourceKey } from "../repositories/meta.js";
+import type {
+  LiveMetaPlayerRow,
+  MetaArchivedDeckInput,
+  MetaDeckCardInput,
+  MetaEventPlayerPatch,
+} from "../repositories/meta.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
-import { createArchivedDeck, updateArchivedDeck } from "./create-archived-deck.js";
+import { materializeCandidateMatches, syncEventPhases } from "./meta-event-matches.js";
+import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.js";
 
 /** `meta_event_sources.label` CHECK bound. */
 const MAX_CITATION_LABEL_LENGTH = 60;
@@ -44,8 +59,9 @@ export interface AcceptedMetaEvent {
   created: boolean;
 }
 
-export interface AcceptedMetaDeck {
-  deckId: string;
+export interface AcceptedMetaPlayer {
+  metaEventPlayerId: string;
+  deckId: string | null;
   created: boolean;
 }
 
@@ -54,33 +70,50 @@ export interface MetaEventLinkResult {
   slug: string | null;
 }
 
-export interface MetaDeckLinkResult {
+export interface MetaPlayerLinkResult {
+  metaEventPlayerId: string | null;
   deckId: string | null;
 }
 
-interface SkippedMetaDeck {
-  candidateDeckId: string;
+interface SkippedMetaPlayer {
+  candidatePlayerId: string;
   externalId: string;
   playerName: string;
   reason: string;
 }
 
-export interface AcceptedMetaEventWithDecks extends AcceptedMetaEvent {
-  acceptedDecks: AcceptedMetaDeck[];
-  skippedDecks: SkippedMetaDeck[];
+export interface AcceptedMetaEventWithPlayers extends AcceptedMetaEvent {
+  acceptedPlayers: AcceptedMetaPlayer[];
+  skippedPlayers: SkippedMetaPlayer[];
 }
 
 export interface MetaRematchResult {
-  /** Decks that held at least one unresolved name before the pass. */
+  /** Candidate rows that held at least one unresolved name before the pass. */
   examined: number;
-  /** Decks whose card list gained at least one resolution. */
+  /** Rows that gained at least one resolution. */
   updated: number;
-  /** Card rows (not decks) that went from unresolved to a live card. */
+  /** Individual names (card lines, legends, champions) that went from unresolved to a card. */
   resolved: number;
 }
 
 export interface MetaAcceptOptions {
   resolvedByUserId?: string;
+}
+
+export interface MetaPlayerAcceptOptions extends MetaAcceptOptions {
+  /**
+   * Files a standings-only entry whose legend name matched nothing. Deliberate
+   * admin action, because the alternative is a silent hole in the play-rate
+   * stats. Never covers an entry with a list: an unresolved card name is a
+   * missing alias, and the fix is `resolveName`.
+   */
+  allowUnresolvedLegend?: boolean;
+  /**
+   * Leaves staged matches unmaterialized. For callers accepting a whole
+   * field player by player, which materialize once at the end instead of
+   * rescanning the pending matches after every row.
+   */
+  skipMatchMaterialization?: boolean;
 }
 
 export interface MetaEventAcceptOptions {
@@ -96,10 +129,10 @@ async function requireEvent(repos: Repos, id: string): Promise<CandidateMetaEven
   return row;
 }
 
-async function requireDeck(repos: Repos, id: string): Promise<CandidateMetaDeckRow> {
-  const row = await repos.metaCandidates.deckById(id);
+async function requirePlayer(repos: Repos, id: string): Promise<CandidateMetaPlayerRow> {
+  const row = await repos.metaCandidates.playerById(id);
   if (row === undefined) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate deck not found");
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate player not found");
   }
   return row;
 }
@@ -113,18 +146,18 @@ async function requireLiveEvent(repos: Repos, id: string) {
 }
 
 /**
- * A provider's deck inherits its candidate event's link; a user submission
+ * A provider's player inherits its candidate event's link; a user submission
  * targets a live event directly and has no candidate parent. The table's CHECK
  * guarantees exactly one of the two, so this never has to pick.
  */
-async function deckTarget(
+async function playerTarget(
   repos: Repos,
-  deck: CandidateMetaDeckRow,
+  player: CandidateMetaPlayerRow,
 ): Promise<{ metaEventId: string | null; parent: CandidateMetaEventRow | null }> {
-  if (deck.candidateEventId === null) {
-    return { metaEventId: deck.metaEventId, parent: null };
+  if (player.candidateEventId === null) {
+    return { metaEventId: player.metaEventId, parent: null };
   }
-  const parent = await requireEvent(repos, deck.candidateEventId);
+  const parent = await requireEvent(repos, player.candidateEventId);
   return { metaEventId: parent.metaEventId, parent };
 }
 
@@ -171,24 +204,6 @@ async function writeEventCitation(
     label: candidate.provider.slice(0, MAX_CITATION_LABEL_LENGTH),
     sourceUrl: candidate.sourceUrl,
   });
-}
-
-/**
- * Null for a user submission: it has no source event to scope a deck id to,
- * which is also why it cannot be ignored.
- */
-function deckSourceKey(
-  parent: CandidateMetaEventRow | null,
-  deck: CandidateMetaDeckRow,
-): MetaDeckSourceKey | null {
-  if (parent === null) {
-    return null;
-  }
-  return {
-    provider: parent.provider,
-    eventExternalId: parent.externalId,
-    externalId: deck.externalId,
-  };
 }
 
 /** Writes the link and citation only — field values are taken separately, or never. */
@@ -247,6 +262,16 @@ export async function acceptCandidateEvent(
   candidateEventId: string,
   options?: MetaEventAcceptOptions,
 ): Promise<AcceptedMetaEvent> {
+  const { event } = await acceptCandidateEventRow(repos, candidateEventId, options);
+  return event;
+}
+
+/** Hands the candidate row back too, so a caller needing its payload re-reads nothing. */
+async function acceptCandidateEventRow(
+  repos: Repos,
+  candidateEventId: string,
+  options?: MetaEventAcceptOptions,
+): Promise<{ event: AcceptedMetaEvent; candidate: CandidateMetaEventRow }> {
   const { meta, metaCandidates, deckFormats } = repos;
   const candidate = await requireEvent(repos, candidateEventId);
 
@@ -263,21 +288,45 @@ export async function acceptCandidateEvent(
     organizer: candidate.organizer,
     notes: candidate.notes,
   };
+  const claimed = claimedNoClaimFields(candidate);
 
   if (candidate.metaEventId !== null) {
     const live = await requireLiveEvent(repos, candidate.metaEventId);
     await assertOverwriteAllowed(repos, candidate, live.id, options);
-    await meta.updateEvent(live.id, fields);
+    await meta.updateEvent(live.id, { ...fields, ...claimed });
     await metaCandidates.setEventCheckedAt(candidateEventId, new Date());
-    return { metaEventId: live.id, slug: live.slug, created: false };
+    return { event: { metaEventId: live.id, slug: live.slug, created: false }, candidate };
   }
 
   const slug = await resolveEventSlug(meta, candidate.name, candidate.eventDate);
-  const created = await meta.createEvent({ slug, ...fields });
+  const created = await meta.createEvent({
+    slug,
+    ...fields,
+    // The live column is NOT NULL: a candidate no producer classified (a user
+    // submission's proposed event) gets the player-count placeholder at accept.
+    tier: classifyMetaEventTier({ playerCount: candidate.playerCount }),
+    ...claimed,
+  });
   await writeEventCitation(repos, candidate, created.id);
   await metaCandidates.linkEvent(candidateEventId, created.id, new Date());
   await creditEventProposers(repos, candidate, created.id);
-  return { metaEventId: created.id, slug, created: true };
+  return { event: { metaEventId: created.id, slug, created: true }, candidate };
+}
+
+/**
+ * The no-claim fields this source actually holds a value for. A whole-entity
+ * accept from a source with no venue must not null out what another source
+ * filled in, and a null tier cannot go near a NOT NULL column.
+ */
+function claimedNoClaimFields(candidate: CandidateMetaEventRow): Partial<{
+  [Field in (typeof META_EVENT_NO_CLAIM_FIELDS)[number]]: NonNullable<CandidateMetaEventRow[Field]>;
+}> {
+  return Object.fromEntries(
+    META_EVENT_NO_CLAIM_FIELDS.filter((field) => candidate[field] !== null).map((field) => [
+      field,
+      candidate[field],
+    ]),
+  );
 }
 
 /**
@@ -330,6 +379,18 @@ export async function acceptMetaEventField(
     await assertKnownFormat(deckFormats, candidate.format);
   }
 
+  // A no-claim field this source holds nothing for is never offered as a diff,
+  // and taking it anyway would null a NOT NULL column or erase another
+  // source's value.
+  const noClaim = META_EVENT_NO_CLAIM_FIELDS.find((field) => field === input.field);
+  if (noClaim !== undefined && candidate[noClaim] === null) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `This source holds no ${input.field} for the event.`,
+    );
+  }
+
   // `checked_at` is deliberately left alone. Taking one field is not reviewing
   // the row — the admin may still be taking the next field from another source.
   await meta.updateEvent(live.id, { [input.field]: candidate[input.field] });
@@ -337,26 +398,38 @@ export async function acceptMetaEventField(
 }
 
 /**
- * The archetype gate is separate because the general "every card resolved"
- * gate would pass a deck with no legend at all, whose entry would then sit in
- * the legend play-rates filed under nothing.
+ * Why this candidate cannot become a live standings row yet, or null when it
+ * can.
+ *
+ * The two gates answer different questions. An entry with a list needs every
+ * card name resolved, because `deck_cards` needs real card ids. An entry
+ * without one needs its legend, because a legend-less row sits in the play-rate
+ * stats filed under nothing — but that one is only a warning the admin can wave
+ * through, since the archive still knows who played and how they finished.
  */
-function deckBlockedReason(metaEventId: string | null, deck: CandidateMetaDeckRow): string | null {
+function playerBlockedReason(
+  metaEventId: string | null,
+  player: CandidateMetaPlayerRow,
+  allowUnresolvedLegend: boolean,
+): string | null {
   if (metaEventId === null) {
-    return "Accept the event first — its decks have nowhere to go yet.";
+    return "Accept the event first — its standings have nowhere to go yet.";
   }
-  const unresolved = [...new Set(deck.cards.filter((c) => c.cardId === null).map((c) => c.name))];
-  if (unresolved.length > 0) {
-    return `Unmatched card names: ${unresolved.join(", ")}. Add a card name alias and rematch.`;
+  if (player.cards !== null) {
+    const unresolved = unresolvedCardNames(player.cards);
+    if (unresolved.length > 0) {
+      return `Unmatched card names: ${unresolved.join(", ")}. Add a card name alias and rematch.`;
+    }
+    return null;
   }
-  if (deck.listStatus === "archetype" && !hasResolvedLegend(deck)) {
-    return "An archetype needs its legend. This deck has no legend-zone card that matched, so there is nothing to file it under.";
+  if (!allowUnresolvedLegend && player.legendName !== null && player.legendCardId === null) {
+    return `The legend "${player.legendName}" matched no card. Add a card name alias and rematch, or accept the entry without a legend.`;
   }
   return null;
 }
 
-function hasResolvedLegend(deck: CandidateMetaDeckRow): boolean {
-  return deck.cards.some((card) => card.zone === WellKnown.deckZone.LEGEND && card.cardId !== null);
+function unresolvedCardNames(cards: readonly CandidateMetaDeckCard[]): string[] {
+  return [...new Set(cards.filter((card) => card.cardId === null).map((card) => card.name))];
 }
 
 /**
@@ -365,9 +438,9 @@ function hasResolvedLegend(deck: CandidateMetaDeckRow): boolean {
  * card — and `deck_cards` is unique on `(deck, card, zone)`, so duplicates are
  * summed rather than failing the accept on the second insert.
  */
-function toCardEntries(deck: CandidateMetaDeckRow): MetaDeckCardEntry[] {
+function toCardEntries(cards: readonly CandidateMetaDeckCard[]): MetaDeckCardEntry[] {
   return collapseCardEntries(
-    deck.cards.map((card) => ({
+    cards.map((card) => ({
       cardId: card.cardId as string,
       zone: card.zone,
       quantity: card.quantity,
@@ -375,8 +448,8 @@ function toCardEntries(deck: CandidateMetaDeckRow): MetaDeckCardEntry[] {
   );
 }
 
-function toDeckCardInputs(deck: CandidateMetaDeckRow): MetaDeckCardInput[] {
-  return toCardEntries(deck).map((entry) => ({
+function toDeckCardInputs(cards: readonly CandidateMetaDeckCard[]): MetaDeckCardInput[] {
+  return toCardEntries(cards).map((entry) => ({
     cardId: entry.cardId,
     zone: entry.zone as MetaDeckCardInput["zone"],
     quantity: entry.quantity,
@@ -384,185 +457,275 @@ function toDeckCardInputs(deck: CandidateMetaDeckRow): MetaDeckCardInput[] {
   }));
 }
 
-export async function linkCandidateDeck(
+/**
+ * A candidate the source identified is filed under that identity with no name of
+ * its own, so the player's renames reach the archive. One with no identity —
+ * pushed, or user-submitted — keeps the name it was staged with, and names no
+ * `uvsgamesPlayerId` at all: writing a null there would strip the identity a
+ * uvsgames candidate gave the same live row. On the create path the omission
+ * still satisfies the identity CHECK, because that branch always carries a name.
+ */
+function playerIdentity(player: CandidateMetaPlayerRow): {
+  playerName: string | null;
+  uvsgamesPlayerId?: number;
+} {
+  return player.uvsgamesPlayerId === null
+    ? { playerName: player.playerName }
+    : { playerName: null, uvsgamesPlayerId: player.uvsgamesPlayerId };
+}
+
+function playerScalars(player: CandidateMetaPlayerRow): MetaEventPlayerPatch {
+  return {
+    rank: player.rank,
+    rankIsTier: player.rankIsTier,
+    ...playerIdentity(player),
+    wins: player.wins,
+    losses: player.losses,
+    draws: player.draws,
+    matchPoints: player.matchPoints,
+    opponentMatchWinPct: player.opponentMatchWinPct,
+    gameWinPct: player.gameWinPct,
+    opponentGameWinPct: player.opponentGameWinPct,
+    entryStatus: player.entryStatus,
+    ...resolveMetaPlayerCards(player),
+  };
+}
+
+export async function linkCandidatePlayer(
   repos: Repos,
-  candidateDeckId: string,
-  deckId: string,
-): Promise<MetaDeckLinkResult> {
-  const deck = await requireDeck(repos, candidateDeckId);
-  if (deck.deckId !== null) {
+  candidatePlayerId: string,
+  metaEventPlayerId: string,
+): Promise<MetaPlayerLinkResult> {
+  const player = await requirePlayer(repos, candidatePlayerId);
+  if (player.metaEventPlayerId !== null) {
     throw new AppError(
       409,
       ERROR_CODES.CONFLICT,
-      "This candidate is already linked. Relink it to move it to another deck.",
+      "This candidate is already linked. Relink it to move it to another standings row.",
     );
   }
-  return applyDeckLink(repos, deck, deckId);
+  return applyPlayerLink(repos, player, metaEventPlayerId);
 }
 
-export async function relinkCandidateDeck(
+export async function relinkCandidatePlayer(
   repos: Repos,
-  candidateDeckId: string,
-  deckId: string,
-): Promise<MetaDeckLinkResult> {
-  const deck = await requireDeck(repos, candidateDeckId);
-  return applyDeckLink(repos, deck, deckId);
+  candidatePlayerId: string,
+  metaEventPlayerId: string,
+): Promise<MetaPlayerLinkResult> {
+  const player = await requirePlayer(repos, candidatePlayerId);
+  return applyPlayerLink(repos, player, metaEventPlayerId);
 }
 
-async function applyDeckLink(
+async function applyPlayerLink(
   repos: Repos,
-  deck: CandidateMetaDeckRow,
-  deckId: string,
-): Promise<MetaDeckLinkResult> {
-  const { metaEventId, parent } = await deckTarget(repos, deck);
+  player: CandidateMetaPlayerRow,
+  metaEventPlayerId: string,
+): Promise<MetaPlayerLinkResult> {
+  const { metaEventId } = await playerTarget(repos, player);
   if (metaEventId === null) {
     throw new AppError(
       400,
       ERROR_CODES.BAD_REQUEST,
-      "Link this deck's event to a live event first.",
+      "Link this entry's event to a live event first.",
     );
   }
-  const [live] = await repos.metaCandidates.liveDecksByIds([deckId]);
+  const [live] = await repos.meta.livePlayersByIds([metaEventPlayerId]);
   if (live === undefined) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Archived deck not found");
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Standings row not found");
   }
   if (live.metaEventId !== metaEventId) {
     throw new AppError(
       400,
       ERROR_CODES.BAD_REQUEST,
-      "That deck belongs to a different event. A candidate deck can only link inside its own event.",
+      "That standings row belongs to a different event. A candidate can only link inside its own event.",
     );
   }
-  await writeDeckSource(repos, deckSourceKey(parent, deck), deckId);
-  await repos.metaCandidates.linkDeck(deck.id, deckId, new Date());
-  return { deckId };
+  await repos.metaCandidates.linkPlayer(player.id, live.id, new Date());
+  return { metaEventPlayerId: live.id, deckId: live.deckId };
 }
 
-async function writeDeckSource(
+export async function unlinkCandidatePlayer(
   repos: Repos,
-  key: MetaDeckSourceKey | null,
-  deckId: string,
-): Promise<void> {
-  if (key !== null) {
-    await repos.meta.writeDeckSource(deckId, key);
-  }
-}
-
-export async function unlinkCandidateDeck(
-  repos: Repos,
-  candidateDeckId: string,
-): Promise<MetaDeckLinkResult> {
-  const deck = await requireDeck(repos, candidateDeckId);
-  if (deck.deckId !== null && deck.submittedByUserId !== null) {
+  candidatePlayerId: string,
+): Promise<MetaPlayerLinkResult> {
+  const player = await requirePlayer(repos, candidatePlayerId);
+  if (player.metaEventPlayerId !== null && player.submittedByUserId !== null) {
     // Scoped to this submitter: several people can have contributed to one
-    // archived deck, and detaching one of them must not silence the others.
-    await repos.meta.deleteCreditsForDeck(deck.deckId, deck.submittedByUserId);
+    // standings row, and detaching one of them must not silence the others.
+    await repos.meta.deleteCreditsForPlayer(player.metaEventPlayerId, player.submittedByUserId);
   }
-  // The source key goes with the link: this provider no longer claims to
-  // describe that archived deck, so the next upload of the same key must stage
-  // as new rather than re-link.
-  const { parent } = await deckTarget(repos, deck);
-  const key = deckSourceKey(parent, deck);
-  if (key !== null) {
-    await repos.meta.deleteDeckSourceByKey(key);
-  }
-  await repos.metaCandidates.unlinkDeck(deck.id);
-  return { deckId: null };
+  await repos.metaCandidates.unlinkPlayer(player.id);
+  return { metaEventPlayerId: null, deckId: null };
 }
 
-export async function acceptCandidateDeck(
+export async function acceptCandidatePlayer(
   repos: Repos,
-  candidateDeckId: string,
-  options?: MetaAcceptOptions,
-): Promise<AcceptedMetaDeck> {
-  const deck = await requireDeck(repos, candidateDeckId);
-  const { metaEventId, parent } = await deckTarget(repos, deck);
-  const blocked = deckBlockedReason(metaEventId, deck);
+  candidatePlayerId: string,
+  options?: MetaPlayerAcceptOptions,
+): Promise<AcceptedMetaPlayer> {
+  const player = await requirePlayer(repos, candidatePlayerId);
+  const { metaEventId } = await playerTarget(repos, player);
+  const blocked = playerBlockedReason(metaEventId, player, options?.allowUnresolvedLegend === true);
   if (blocked !== null) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, blocked);
   }
-  return acceptResolvedDeck(repos, metaEventId as string, deck, parent, options);
+  const accepted = await acceptResolvedPlayer(repos, metaEventId as string, player, options);
+  // This accept may have completed pairings whose other seat was already live.
+  if (player.candidateEventId !== null && options?.skipMatchMaterialization !== true) {
+    await materializeCandidateMatches(repos, player.candidateEventId, metaEventId as string);
+  }
+  return accepted;
 }
 
 /**
- * Split from {@link acceptCandidateDeck} so the whole-event accept reads the
- * parent once, not once per deck.
+ * Split from {@link acceptCandidatePlayer} so the whole-event accept validates
+ * the parent once, not once per player.
  */
-async function acceptResolvedDeck(
+async function acceptResolvedPlayer(
   repos: Repos,
   metaEventId: string,
-  deck: CandidateMetaDeckRow,
-  parent: CandidateMetaEventRow | null,
-  options?: MetaAcceptOptions,
-): Promise<AcceptedMetaDeck> {
+  player: CandidateMetaPlayerRow,
+  options?: MetaPlayerAcceptOptions,
+): Promise<AcceptedMetaPlayer> {
   const { meta, metaCandidates } = repos;
   const now = new Date();
-  const sourceKey = deckSourceKey(parent, deck);
-
-  if (deck.deckId !== null) {
-    // Card replacement is wholesale, so it is only worth doing when the list
-    // actually moved — an untouched deck should not churn `decks.updated_at`.
-    const liveCards = await metaCandidates.liveDeckCards([deck.deckId]);
-    const cardsChanged = hasCardDiff(diffMetaDeckCards(liveCards, toCardEntries(deck)));
-    // Through the service, not the repo: this accept is how a source's
-    // archetype gets published with a main deck, and that has to mint the
-    // permalink the deck never had.
-    await updateArchivedDeck(meta, deck.deckId, {
-      eventId: metaEventId,
-      // A source that ships no deck name is not proposing to rename the
-      // archived deck; it just never had one.
-      ...(deck.name === null ? {} : { name: deck.name }),
-      playerName: deck.playerName,
-      finishTier: deck.finishTier,
-      record: deck.record,
-      listStatus: deck.listStatus,
-      ...(cardsChanged ? { cards: toDeckCardInputs(deck) } : {}),
-    });
-    await writeDeckSource(repos, sourceKey, deck.deckId);
-    await metaCandidates.setDeckCheckedAt(deck.id, now);
-    await creditDeckAccept(repos, deck, metaEventId, deck.deckId, options);
-    return { deckId: deck.deckId, created: false };
-  }
-
   const liveEvent = await requireLiveEvent(repos, metaEventId);
 
-  const created = await createArchivedDeck(meta, {
+  if (player.metaEventPlayerId !== null) {
+    const [live] = await meta.livePlayersByIds([player.metaEventPlayerId]);
+    if (live === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Linked standings row no longer exists");
+    }
+    await meta.updatePlayer(live.id, { eventId: metaEventId, ...playerScalars(player) });
+
+    let deckId = live.deckId;
+    if (player.cards !== null && (await listMoved(repos, live, player))) {
+      const deck = await buildDeckInput(repos, player, liveEvent, live);
+      const written = await setMetaPlayerList(meta, live.id, deck);
+      deckId = written?.deckId ?? deckId;
+    }
+
+    await metaCandidates.setPlayerCheckedAt(player.id, now);
+    await creditPlayerAccept(repos, player, metaEventId, live.id, deckId, options);
+    return { metaEventPlayerId: live.id, deckId, created: false };
+  }
+
+  const created = await createMetaEventPlayer(meta, {
     eventId: metaEventId,
-    name: deck.name ?? (await deriveDeckName(repos, deck, liveEvent.name)),
-    // The event's format, not the candidate's: the archive's own vocabulary is
-    // already FK-valid.
-    format: liveEvent.format,
-    formatConfig: null,
-    cards: toDeckCardInputs(deck),
-    playerName: deck.playerName,
-    finishTier: deck.finishTier,
-    record: deck.record,
-    listStatus: deck.listStatus,
+    rank: player.rank,
+    rankIsTier: player.rankIsTier,
+    ...playerIdentity(player),
+    wins: player.wins,
+    losses: player.losses,
+    draws: player.draws,
+    matchPoints: player.matchPoints,
+    opponentMatchWinPct: player.opponentMatchWinPct,
+    gameWinPct: player.gameWinPct,
+    opponentGameWinPct: player.opponentGameWinPct,
+    entryStatus: player.entryStatus,
+    ...resolveMetaPlayerCards(player),
+    deck: player.cards === null ? null : await buildDeckInput(repos, player, liveEvent, null),
   });
   if (created === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Linked event no longer exists");
   }
 
-  await writeDeckSource(repos, sourceKey, created.deckId);
-  await metaCandidates.linkDeck(deck.id, created.deckId, now);
-  await creditDeckAccept(repos, deck, metaEventId, created.deckId, options);
-  return { deckId: created.deckId, created: true };
+  await metaCandidates.linkPlayer(player.id, created.metaEventPlayerId, now);
+  await creditPlayerAccept(
+    repos,
+    player,
+    metaEventId,
+    created.metaEventPlayerId,
+    created.deckId,
+    options,
+  );
+  return { metaEventPlayerId: created.metaEventPlayerId, deckId: created.deckId, created: true };
 }
 
 /**
- * Must write through `updateArchivedDeck`: promoting a deck out of
- * `"archetype"` via `listStatus` is what mints its permalink.
+ * Whether taking this candidate's list would actually change the live deck.
+ * Card replacement is wholesale, so it is only worth doing when the list moved
+ * — an untouched deck should not churn `decks.updated_at`.
  */
-export async function acceptMetaDeckField(
+async function listMoved(
   repos: Repos,
-  input: { candidateDeckId: string; field: MetaDeckAcceptField },
+  live: LiveMetaPlayerRow,
+  player: CandidateMetaPlayerRow,
+): Promise<boolean> {
+  if (live.deckId === null || live.listStatus !== player.listStatus) {
+    return true;
+  }
+  const liveCards = await repos.metaCandidates.liveDeckCards([live.deckId]);
+  return hasCardDiff(diffMetaDeckCards(liveCards, toCardEntries(player.cards ?? [])));
+}
+
+/**
+ * The archived deck a candidate's list becomes. The name is the live deck's own
+ * when it already has one — a source ships a card list, never a proposal to
+ * rename what the maintainer called it — and derived from the legend otherwise.
+ * The format is the event's, not the candidate's: the archive's own vocabulary
+ * is already FK-valid.
+ */
+async function buildDeckInput(
+  repos: Repos,
+  player: CandidateMetaPlayerRow,
+  liveEvent: { name: string; format: string },
+  live: LiveMetaPlayerRow | null,
+): Promise<MetaArchivedDeckInput> {
+  const cards = player.cards ?? [];
+  return {
+    name: live?.deckName ?? (await deriveDeckName(repos, player, liveEvent.name)),
+    format: liveEvent.format,
+    formatConfig: null,
+    cards: toDeckCardInputs(cards),
+    listStatus: player.listStatus as Exclude<MetaListStatus, "none">,
+  };
+}
+
+/**
+ * Must write through {@link setMetaPlayerList} when the list travels: an entry
+ * that leaves `"none"` is what mints its permalink.
+ */
+export async function acceptMetaPlayerField(
+  repos: Repos,
+  input: { candidatePlayerId: string; field: MetaPlayerAcceptField },
   options?: MetaAcceptOptions,
-): Promise<{ deckId: string }> {
-  const deck = await requireLinkedDeck(repos, input.candidateDeckId);
-  const patch: MetaDeckPatch = { [input.field]: deck.candidate[input.field] };
-  await updateArchivedDeck(repos.meta, deck.deckId, patch);
-  await creditDeckAccept(repos, deck.candidate, deck.metaEventId, deck.deckId, options);
-  return { deckId: deck.deckId };
+): Promise<{ metaEventPlayerId: string }> {
+  const linked = await requireLinkedPlayer(repos, input.candidatePlayerId);
+  const patch = playerFieldPatch(linked.candidate, input.field);
+  await repos.meta.updatePlayer(linked.metaEventPlayerId, patch);
+  await creditPlayerAccept(
+    repos,
+    linked.candidate,
+    linked.metaEventId,
+    linked.metaEventPlayerId,
+    linked.deckId,
+    options,
+  );
+  return { metaEventPlayerId: linked.metaEventPlayerId };
+}
+
+/**
+ * `legend` and `champion` name what a reviewer sees in the grid; the column
+ * behind each is the resolved card id, so a source whose name matched nothing
+ * has nothing to take.
+ */
+function playerFieldPatch(
+  candidate: CandidateMetaPlayerRow,
+  field: MetaPlayerAcceptField,
+): MetaEventPlayerPatch {
+  const resolved = resolveMetaPlayerCards(candidate);
+  switch (field) {
+    case "legend": {
+      return { legendCardId: resolved.legendCardId };
+    }
+    case "champion": {
+      return { championCardId: resolved.championCardId };
+    }
+    default: {
+      return { [field]: candidate[field] };
+    }
+  }
 }
 
 /**
@@ -573,39 +736,74 @@ export async function acceptMetaDeckField(
  */
 export async function acceptMetaDeckList(
   repos: Repos,
-  candidateDeckId: string,
+  candidatePlayerId: string,
   options?: MetaAcceptOptions,
-): Promise<{ deckId: string }> {
-  const deck = await requireLinkedDeck(repos, candidateDeckId);
-  const blocked = deckBlockedReason(deck.metaEventId, deck.candidate);
-  if (blocked !== null) {
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, blocked);
-  }
-  await updateArchivedDeck(repos.meta, deck.deckId, {
-    cards: toDeckCardInputs(deck.candidate),
-    listStatus: deck.candidate.listStatus,
-  });
-  await creditDeckAccept(repos, deck.candidate, deck.metaEventId, deck.deckId, options);
-  return { deckId: deck.deckId };
-}
-
-async function requireLinkedDeck(
-  repos: Repos,
-  candidateDeckId: string,
-): Promise<{ candidate: CandidateMetaDeckRow; deckId: string; metaEventId: string }> {
-  const candidate = await requireDeck(repos, candidateDeckId);
-  if (candidate.deckId === null) {
+): Promise<{ metaEventPlayerId: string; deckId: string }> {
+  const linked = await requireLinkedPlayer(repos, candidatePlayerId);
+  const { candidate } = linked;
+  if (candidate.cards === null) {
     throw new AppError(
       400,
       ERROR_CODES.BAD_REQUEST,
-      "Link this candidate to an archived deck before taking its values.",
+      "This entry carries no list — the source published standings only.",
     );
   }
-  const { metaEventId } = await deckTarget(repos, candidate);
-  if (metaEventId === null) {
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "This deck's event is not linked yet.");
+  const unresolved = unresolvedCardNames(candidate.cards);
+  if (unresolved.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Unmatched card names: ${unresolved.join(", ")}. Add a card name alias and rematch.`,
+    );
   }
-  return { candidate, deckId: candidate.deckId, metaEventId };
+
+  const liveEvent = await requireLiveEvent(repos, linked.metaEventId);
+  const [live] = await repos.meta.livePlayersByIds([linked.metaEventPlayerId]);
+  const deck = await buildDeckInput(repos, candidate, liveEvent, live ?? null);
+  const written = await setMetaPlayerList(repos.meta, linked.metaEventPlayerId, deck);
+  if (written === undefined) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Linked standings row no longer exists");
+  }
+
+  await creditPlayerAccept(
+    repos,
+    candidate,
+    linked.metaEventId,
+    linked.metaEventPlayerId,
+    written.deckId,
+    options,
+  );
+  return { metaEventPlayerId: linked.metaEventPlayerId, deckId: written.deckId };
+}
+
+async function requireLinkedPlayer(
+  repos: Repos,
+  candidatePlayerId: string,
+): Promise<{
+  candidate: CandidateMetaPlayerRow;
+  metaEventPlayerId: string;
+  metaEventId: string;
+  deckId: string | null;
+}> {
+  const candidate = await requirePlayer(repos, candidatePlayerId);
+  if (candidate.metaEventPlayerId === null) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      "Link this candidate to a standings row before taking its values.",
+    );
+  }
+  const { metaEventId } = await playerTarget(repos, candidate);
+  if (metaEventId === null) {
+    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "This entry's event is not linked yet.");
+  }
+  const [live] = await repos.meta.livePlayersByIds([candidate.metaEventPlayerId]);
+  return {
+    candidate,
+    metaEventPlayerId: candidate.metaEventPlayerId,
+    metaEventId,
+    deckId: live?.deckId ?? null,
+  };
 }
 
 /**
@@ -613,21 +811,22 @@ async function requireLinkedDeck(
  * person is never credited without their submission saying so, or the
  * reverse.
  */
-async function creditDeckAccept(
+async function creditPlayerAccept(
   repos: Repos,
-  candidate: CandidateMetaDeckRow,
+  candidate: CandidateMetaPlayerRow,
   metaEventId: string,
-  deckId: string,
+  metaEventPlayerId: string,
+  deckId: string | null,
   options?: MetaAcceptOptions,
 ): Promise<void> {
   const userId = candidate.submittedByUserId;
   if (userId === null) {
     return;
   }
-  const submission = await repos.metaSubmissions.byCandidateDeckId(candidate.id);
+  const submission = await repos.metaSubmissions.byCandidatePlayerId(candidate.id);
   await repos.metaSubmissions.recordAcceptance({
     submissionId: submission?.id ?? null,
-    credit: { metaEventId, deckId, userId },
+    credit: { metaEventId, metaEventPlayerId, userId },
     acceptedDeckId: deckId,
     resolvedAt: new Date(),
     resolvedByUserId: options?.resolvedByUserId ?? null,
@@ -636,8 +835,8 @@ async function creditDeckAccept(
 
 /**
  * Candidate events carry no submitter of their own, so the proposers are the
- * distinct submitters among their decks. Their ledger rows stay pending: what
- * they sent was a decklist, and that settles when the deck is accepted.
+ * distinct submitters among their entries. Their ledger rows stay pending: what
+ * they sent was a decklist, and that settles when the entry is accepted.
  */
 async function creditEventProposers(
   repos: Repos,
@@ -649,99 +848,135 @@ async function creditEventProposers(
   if (candidate.provider !== META_USER_SUBMISSION_PROVIDER) {
     return;
   }
-  const decks = await repos.metaCandidates.decksByCandidateEventIds([candidate.id]);
+  const players = await repos.metaCandidates.playersByCandidateEventIds([candidate.id]);
   const proposers = new Set(
-    decks
-      .map((deck) => deck.submittedByUserId)
+    players
+      .map((player) => player.submittedByUserId)
       .filter((userId): userId is string => userId !== null),
   );
   for (const userId of proposers) {
-    await repos.meta.insertCredit({ metaEventId, deckId: null, userId });
+    await repos.meta.insertCredit({ metaEventId, metaEventPlayerId: null, userId });
   }
 }
 
 async function deriveDeckName(
   repos: Repos,
-  deck: CandidateMetaDeckRow,
+  player: CandidateMetaPlayerRow,
   eventName: string,
 ): Promise<string> {
-  const legend = deck.cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
-  const legendCardId = legend?.cardId ?? null;
+  const legendCardId = resolveMetaPlayerCards(player).legendCardId;
   const names =
     legendCardId === null
       ? new Map<string, string>()
       : await repos.metaCandidates.cardNamesByIds([legendCardId]);
-  const legendName = legendCardId === null ? null : (names.get(legendCardId) ?? null);
-  return defaultMetaDeckName(legendName, deck.playerName, eventName);
+  const legendName =
+    legendCardId === null ? player.legendName : (names.get(legendCardId) ?? player.legendName);
+  return defaultMetaDeckName(legendName, player.playerName, eventName);
 }
 
 /**
- * A blocked deck is skipped with its reason rather than failing the call: the
- * usual shape of a real event is "nine lists land, one has a typo", and
- * blocking the other nine on it would make the queue useless.
+ * A blocked entry is skipped with its reason rather than failing the call: the
+ * usual shape of a real event is "the whole field lands, one legend name is
+ * misspelled", and blocking the rest on it would make the queue useless.
  */
-export async function acceptCandidateEventWithDecks(
+export async function acceptCandidateEventWithPlayers(
   repos: Repos,
   candidateEventId: string,
-  options?: MetaAcceptOptions & MetaEventAcceptOptions,
-): Promise<AcceptedMetaEventWithDecks> {
-  const event = await acceptCandidateEvent(repos, candidateEventId, options);
-  const decks = await repos.metaCandidates.decksByCandidateEventIds([candidateEventId]);
-  const parent = await requireEvent(repos, candidateEventId);
+  options?: MetaPlayerAcceptOptions & MetaEventAcceptOptions,
+): Promise<AcceptedMetaEventWithPlayers> {
+  const { event, candidate } = await acceptCandidateEventRow(repos, candidateEventId, options);
+  const players = await repos.metaCandidates.playersByCandidateEventIds([candidateEventId]);
 
-  const acceptedDecks: AcceptedMetaDeck[] = [];
-  const skippedDecks: SkippedMetaDeck[] = [];
-  for (const deck of decks) {
-    const blocked = deckBlockedReason(event.metaEventId, deck);
+  const acceptedPlayers: AcceptedMetaPlayer[] = [];
+  const skippedPlayers: SkippedMetaPlayer[] = [];
+  for (const player of players) {
+    const blocked = playerBlockedReason(
+      event.metaEventId,
+      player,
+      options?.allowUnresolvedLegend === true,
+    );
     if (blocked !== null) {
-      skippedDecks.push({
-        candidateDeckId: deck.id,
-        externalId: deck.externalId,
-        playerName: deck.playerName,
+      skippedPlayers.push({
+        candidatePlayerId: player.id,
+        externalId: player.externalId,
+        playerName: player.playerName,
         reason: blocked,
       });
       continue;
     }
-    acceptedDecks.push(await acceptResolvedDeck(repos, event.metaEventId, deck, parent, options));
+    acceptedPlayers.push(await acceptResolvedPlayer(repos, event.metaEventId, player, options));
   }
 
-  return { ...event, acceptedDecks, skippedDecks };
+  await materializeCandidateMatches(repos, candidateEventId, event.metaEventId);
+  await syncEventPhases(repos, event.metaEventId, candidate.raw?.detail);
+
+  return { ...event, acceptedPlayers, skippedPlayers };
 }
 
 /**
  * The second half of the alias-fix flow: an admin adds a `card_name_aliases`
- * row, then rematches so already-staged decks pick it up without waiting for
- * the next upload. `checked_at` is deliberately left alone — resolving a name
- * is not a source change, so a reviewed deck does not re-enter the queue.
+ * row, then rematches so already-staged rows pick it up without waiting for the
+ * next upload. Legends and champions resolve through the same index as the card
+ * lines, so a fix reaches the deckless entries too. `checked_at` is deliberately
+ * left alone — resolving a name is not a source change, so a reviewed row does
+ * not re-enter the queue.
  */
 export async function rematchMetaCandidates(repos: Repos): Promise<MetaRematchResult> {
-  const [decks, index] = await Promise.all([
-    repos.metaCandidates.decksWithUnresolvedCards(),
+  const [players, index] = await Promise.all([
+    repos.metaCandidates.playersWithUnresolvedNames(),
     loadCardNameIndex(repos.ingest),
   ]);
 
   let updated = 0;
   let resolved = 0;
-  for (const deck of decks) {
-    let deckResolved = 0;
-    const cards = deck.cards.map((card) => {
-      if (card.cardId !== null) {
-        return card;
-      }
-      const cardId = resolveCardIdByName(index, card.name);
-      if (cardId === null) {
-        return card;
-      }
-      deckResolved++;
-      return { ...card, cardId };
-    });
+  for (const player of players) {
+    let playerResolved = 0;
+    const updates: {
+      cards?: CandidateMetaDeckCard[];
+      legendCardId?: string;
+      championCardId?: string;
+    } = {};
 
-    if (deckResolved > 0) {
-      await repos.metaCandidates.updateDeck(deck.id, { cards });
+    if (player.cards !== null) {
+      let cardsResolved = 0;
+      const cards = player.cards.map((card) => {
+        if (card.cardId !== null) {
+          return card;
+        }
+        const cardId = resolveCardIdByName(index, card.name);
+        if (cardId === null) {
+          return card;
+        }
+        cardsResolved++;
+        return { ...card, cardId };
+      });
+      if (cardsResolved > 0) {
+        updates.cards = cards;
+        playerResolved += cardsResolved;
+      }
+    }
+
+    if (player.legendName !== null && player.legendCardId === null) {
+      const cardId = resolveCardIdByName(index, player.legendName);
+      if (cardId !== null) {
+        updates.legendCardId = cardId;
+        playerResolved++;
+      }
+    }
+    if (player.championName !== null && player.championCardId === null) {
+      const cardId = resolveCardIdByName(index, player.championName);
+      if (cardId !== null) {
+        updates.championCardId = cardId;
+        playerResolved++;
+      }
+    }
+
+    if (playerResolved > 0) {
+      await repos.metaCandidates.updatePlayer(player.id, updates);
       updated++;
-      resolved += deckResolved;
+      resolved += playerResolved;
     }
   }
 
-  return { examined: decks.length, updated, resolved };
+  return { examined: players.length, updated, resolved };
 }

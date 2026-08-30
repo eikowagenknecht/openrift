@@ -10,7 +10,7 @@ const confirm: MetaOverwriteConfirm = {
   provider: "uvsgames",
   message:
     "This event also carries values from playriftbound. Accepting all of uvsgames would overwrite them — take the fields you want one at a time, or confirm the overwrite.",
-  withDecks: true,
+  withPlayers: true,
 };
 
 describe("MetaOverwriteConfirmDialog", () => {

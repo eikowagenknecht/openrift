@@ -1,0 +1,464 @@
+import type { MetaCandidateQueueRow } from "@openrift/shared";
+import type { MetaSyncStatus } from "@openrift/shared/contracts/admin/meta-catalog";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const captured = vi.hoisted(() => ({
+  status: null as unknown,
+  candidates: [] as unknown[],
+  /** What the router would hand a functional `search`, i.e. the URL as it stands. */
+  prevSearch: {} as Record<string, unknown>,
+  run: vi.fn(),
+  cancelRun: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: captured.toastSuccess, error: captured.toastError },
+}));
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, search }: { children?: ReactNode; search?: unknown }) => (
+    <a
+      href="/admin/meta"
+      data-search={JSON.stringify(
+        typeof search === "function"
+          ? (search as (prev: Record<string, unknown>) => unknown)(captured.prevSearch)
+          : search,
+      )}
+    >
+      {children}
+    </a>
+  ),
+  useNavigate: () => vi.fn(),
+  createLink: (component: unknown) => component,
+}));
+
+vi.mock("@/components/admin/admin-page-top-bar", () => ({
+  AdminPageTopBar: ({ actions }: { actions?: ReactNode }) => <div>{actions}</div>,
+}));
+
+vi.mock("@/hooks/use-admin-meta-catalog", () => ({
+  SYNC_STATUS_POLL_MS: 15_000,
+  useMetaSyncStatus: () => ({
+    data: captured.status,
+    refetch: vi.fn(),
+    isFetching: false,
+    dataUpdatedAt: 0,
+  }),
+  useRunMetaSync: () => ({ mutateAsync: captured.run, isPending: false, variables: undefined }),
+  useCancelMetaRun: () => ({
+    mutateAsync: captured.cancelRun,
+    isPending: false,
+    variables: undefined,
+  }),
+}));
+
+vi.mock("@/hooks/use-admin-meta-candidates", () => ({
+  useAdminMetaCandidates: () => ({ data: { candidates: captured.candidates } }),
+}));
+
+vi.mock("@/hooks/use-enums", () => ({
+  useDeckFormatList: () => ({ formats: [], labels: {} }),
+}));
+
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { MetaAdminOverviewPage } from "./meta-admin-overview-page";
+
+const NOW = new Date("2026-08-29T12:00:00.000Z");
+
+const status: MetaSyncStatus = {
+  catalog: {
+    total: 266_000,
+    completed: 190_000,
+    decklistPublished: 1200,
+    missing: 12,
+    queued: 40,
+    dueRecheck: 3,
+    acceptedAwaitingResults: 17,
+    acceptedMissing: 0,
+    lastSeenAt: "2026-08-29T09:00:00.000Z",
+  },
+  archive: { events: 480, eventsWithStandings: 420, eventsWithDecklists: 310, decks: 2600 },
+  counts: { new: 30, accepted: 8, dismissed: 4 },
+  runs: [
+    {
+      id: "run-1",
+      kind: "meta.uvsgames_sync",
+      trigger: "cron",
+      status: "succeeded",
+      startedAt: "2026-08-29T08:00:00.000Z",
+      finishedAt: "2026-08-29T08:04:00.000Z",
+      durationMs: 240_000,
+      errorMessage: null,
+      result: { pages: 250, upserted: 1200 },
+    },
+    {
+      id: "run-2",
+      kind: "meta.uvsgames_recheck",
+      trigger: "admin",
+      status: "failed",
+      startedAt: "2026-08-28T08:00:00.000Z",
+      finishedAt: "2026-08-28T08:00:02.000Z",
+      durationMs: 2000,
+      errorMessage: "Upstream returned 503",
+      result: null,
+    },
+  ],
+  schedules: {
+    "meta.uvsgames_sync": false,
+    "meta.uvsgames_recheck": true,
+    "meta.playloltcg_sync": true,
+    "meta.playloltcg_recheck": true,
+  },
+};
+
+/** A run of `kind` still in flight, which is what a Stop is aimed at. */
+function runningRun(kind: string): MetaSyncStatus["runs"][number] {
+  return {
+    id: "run-7",
+    kind,
+    trigger: "admin",
+    status: "running",
+    startedAt: "2026-08-29T11:00:00.000Z",
+    finishedAt: null,
+    durationMs: null,
+    errorMessage: null,
+    result: null,
+  };
+}
+
+function candidate(overrides: Partial<MetaCandidateQueueRow> = {}): MetaCandidateQueueRow {
+  return {
+    id: "candidate-1",
+    provider: "uvsgames",
+    externalId: "evt-1",
+    name: "Summoner Skirmish",
+    eventDate: "2026-08-15",
+    format: "standard",
+    playerRowCount: 8,
+    unacceptedPlayerCount: 8,
+    state: "new",
+    unresolvedCardCount: 0,
+    linkedSourceCount: 1,
+    checkedAt: null,
+    metaEventId: null,
+    metaEventSlug: null,
+    ...overrides,
+  };
+}
+
+function stage(label: string) {
+  return screen.getByRole("link", { name: new RegExp(label, "u") });
+}
+
+function statusWith(overrides: Partial<MetaSyncStatus["catalog"]>): MetaSyncStatus {
+  return { ...status, catalog: { ...status.catalog, ...overrides } };
+}
+
+describe("MetaAdminOverviewPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // The health alerts and the run summary are both measured against now, so
+    // the clock is pinned rather than the assertions loosened.
+    vi.useFakeTimers({ shouldAdvanceTime: true, now: NOW });
+    captured.prevSearch = {};
+    captured.status = status;
+    captured.candidates = [candidate(), candidate({ id: "candidate-2", checkedAt: "2026-08-20" })];
+    captured.run.mockResolvedValue({
+      status: "running",
+      runId: "run-9",
+      message: null,
+      result: null,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("counts each pipeline stage, review from the queue rather than the status", () => {
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(stage("Untriaged")).toHaveTextContent("30");
+    expect(stage("Untriaged")).toHaveTextContent("of 266,000 catalogued");
+    expect(stage("Awaiting results")).toHaveTextContent("17");
+    expect(stage("Needs review")).toHaveTextContent("1");
+    expect(stage("Needs review")).toHaveTextContent("0 unmatched card names");
+    expect(stage("Published")).toHaveTextContent("480");
+    expect(stage("Published")).toHaveTextContent("2,600 decks · 310 of 1,200 events with lists");
+  });
+
+  it("sends a stage straight to the rows it counted", () => {
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(stage("Untriaged")).toHaveAttribute("data-search", JSON.stringify({ tab: "catalogue" }));
+    expect(stage("Awaiting results")).toHaveAttribute(
+      "data-search",
+      JSON.stringify({ tab: "catalogue", triage: "accepted", awaitingResults: true }),
+    );
+    expect(stage("Needs review")).toHaveAttribute("data-search", JSON.stringify({ tab: "review" }));
+  });
+
+  it("carries the selected source through every link off the overview", () => {
+    captured.prevSearch = { source: "playloltcg" };
+    captured.status = statusWith({ acceptedMissing: 2 });
+    render(<MetaAdminOverviewPage source="playloltcg" />);
+
+    expect(stage("Untriaged")).toHaveAttribute(
+      "data-search",
+      JSON.stringify({ source: "playloltcg", tab: "catalogue" }),
+    );
+    expect(screen.getByRole("link", { name: "The missing events" })).toHaveAttribute(
+      "data-search",
+      JSON.stringify({
+        source: "playloltcg",
+        tab: "catalogue",
+        triage: "accepted",
+        missing: true,
+      }),
+    );
+  });
+
+  it("keeps one quiet mirror line instead of a comparison row", () => {
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+    expect(
+      screen.getByText(/Mirror: 266,000 events, 190,000 ran, last crawl/u),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/at uvsgames/u)).not.toBeInTheDocument();
+  });
+
+  it("says so plainly when nothing is wrong", () => {
+    captured.status = statusWith({ acceptedMissing: 0, dueRecheck: 3 });
+    captured.candidates = [candidate()];
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+    expect(screen.getByText("Sync looks healthy.")).toBeInTheDocument();
+  });
+
+  it("raises the events that vanished from the source and the unmatched card names", () => {
+    captured.status = statusWith({ acceptedMissing: 2 });
+    captured.candidates = [candidate({ unresolvedCardCount: 5 })];
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(
+      screen.getByText("2 events live on /meta have disappeared from the source listing."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("5 card names across staged decks match no live card."),
+    ).toBeInTheDocument();
+  });
+
+  it("lands the missing-event alert on the missing rows, not every accepted one", () => {
+    captured.status = statusWith({ acceptedMissing: 2, dueRecheck: 60 });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(screen.getByRole("link", { name: "The missing events" })).toHaveAttribute(
+      "data-search",
+      JSON.stringify({ tab: "catalogue", triage: "accepted", missing: true }),
+    );
+    expect(screen.getByRole("link", { name: "Accepted events" })).toHaveAttribute(
+      "data-search",
+      JSON.stringify({ tab: "catalogue", triage: "accepted" }),
+    );
+  });
+
+  it("raises a mirror that has stopped being crawled", () => {
+    captured.status = statusWith({ lastSeenAt: "2026-08-01T00:00:00.000Z" });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+    expect(screen.getByText(/The last crawl activity was 4w ago/u)).toBeInTheDocument();
+  });
+
+  it("keeps finding events and fetching their results on separate buttons", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    await user.click(screen.getByRole("button", { name: /Sync the catalogue/u }));
+    expect(captured.run.mock.calls).toEqual([[{ trigger: "runSync" }]]);
+
+    await user.click(screen.getByRole("button", { name: /^Fetch results/u }));
+    expect(captured.run.mock.calls).toEqual([
+      [{ trigger: "runSync" }],
+      [{ trigger: "runRecheck" }],
+    ]);
+  });
+
+  it("runs the playloltcg source on its own buttons", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<MetaAdminOverviewPage source="playloltcg" />);
+
+    await user.click(screen.getByRole("button", { name: /Sync the catalogue/u }));
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runPlayloltcgSync" });
+
+    await user.click(screen.getByRole("button", { name: /^Fetch results/u }));
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runPlayloltcgRecheck" });
+  });
+
+  it("says a crawl started rather than claiming it finished", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    await user.click(screen.getByRole("button", { name: /Sync the catalogue/u }));
+
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runSync" });
+    expect(captured.toastSuccess).toHaveBeenCalledWith(
+      "Sync the catalogue started",
+      expect.objectContaining({ description: expect.stringContaining("background") }),
+    );
+    expect(screen.getByText("Sync the catalogue: running")).toBeInTheDocument();
+  });
+
+  it("shows the backfill inline, no accordion", () => {
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(screen.getByRole("button", { name: /Sync the catalogue/u })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Full backfill/u })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Maintenance" })).not.toBeInTheDocument();
+  });
+
+  it("offers to stop a backfill only while one is running", () => {
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(screen.queryByRole("button", { name: /Stop the backfill/u })).not.toBeInTheDocument();
+  });
+
+  it("stops a running backfill and says which run it flagged", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    captured.status = {
+      ...status,
+      runs: [
+        {
+          id: "run-9",
+          kind: "meta.uvsgames_backfill",
+          trigger: "admin",
+          status: "running",
+          startedAt: "2026-08-29T11:00:00.000Z",
+          finishedAt: null,
+          durationMs: null,
+          errorMessage: null,
+          result: null,
+        },
+      ],
+    };
+    captured.cancelRun.mockResolvedValue({ runId: "run-9", cancelRequested: true });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(screen.queryByRole("button", { name: /Full backfill/u })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Continue backfill/u })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Stop the backfill/u }));
+
+    expect(captured.cancelRun).toHaveBeenCalledWith({ job: "backfill" });
+    expect(screen.getByText("Full backfill: stopping at run run-9")).toBeInTheDocument();
+  });
+
+  it("stops a running recheck from the button that started it", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    captured.status = { ...status, runs: [runningRun("meta.uvsgames_recheck")] };
+    captured.cancelRun.mockResolvedValue({ runId: "run-7", cancelRequested: true });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(screen.queryByRole("button", { name: /^Fetch results/u })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Stop fetching results/u }));
+
+    expect(captured.cancelRun).toHaveBeenCalledWith({ job: "recheck" });
+    expect(screen.getByText("Fetch results: stopping at run run-7")).toBeInTheDocument();
+  });
+
+  it("offers no Stop for a playloltcg recheck, which never reads the flag", () => {
+    captured.status = { ...status, runs: [runningRun("meta.playloltcg_recheck")] };
+    render(<MetaAdminOverviewPage source="playloltcg" />);
+
+    expect(screen.getByRole("button", { name: /^Fetch results/u })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Stop fetching/u })).not.toBeInTheDocument();
+  });
+
+  it("offers continue and start-over once a backfill stopped partway", () => {
+    captured.status = {
+      ...status,
+      runs: [
+        {
+          id: "run-9",
+          kind: "meta.uvsgames_backfill",
+          trigger: "admin",
+          status: "succeeded",
+          startedAt: "2026-08-29T11:00:00.000Z",
+          finishedAt: "2026-08-29T11:20:00.000Z",
+          durationMs: 1_200_000,
+          errorMessage: null,
+          result: {
+            complete: false,
+            cancelRequested: true,
+            rows: 120_000,
+            coveredThrough: "2026-04-06T13:00:00.000Z",
+          },
+        },
+      ],
+    };
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(
+      screen.getByText(/was stopped and covered events through 2026-04-06 13:00/u),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue backfill/u })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Backfill from scratch/u })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Full backfill/u })).not.toBeInTheDocument();
+  });
+
+  it("answers a trigger that is already in flight instead of looking like it worked", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    captured.run.mockResolvedValue({
+      status: "already_running",
+      runId: "run-8",
+      message: null,
+      result: null,
+    });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    await user.click(screen.getByRole("button", { name: /Full backfill/u }));
+
+    expect(captured.toastError).toHaveBeenCalledWith(
+      "Full backfill is already running",
+      expect.anything(),
+    );
+    expect(screen.getByText("Full backfill: already running")).toBeInTheDocument();
+  });
+
+  it("marks the crawls this deployment has no cron for", () => {
+    // The fixture schedules meta.uvsgames_sync off; recheck joins it here.
+    captured.status = {
+      ...status,
+      schedules: { ...status.schedules, "meta.uvsgames_recheck": false },
+    };
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    expect(screen.getAllByText("cron disabled")).toHaveLength(2);
+  });
+
+  it("keeps the run table folded away behind its last result", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    const toggle = screen.getByRole("button", { name: /Recent runs/u });
+    expect(screen.queryByText("Upstream returned 503")).not.toBeInTheDocument();
+    expect(within(toggle).getByText("meta.uvsgames_sync")).toBeInTheDocument();
+
+    await user.click(toggle);
+
+    expect(screen.getByText("250 pages · 1,200 upserted")).toBeInTheDocument();
+    expect(screen.getByText("Upstream returned 503")).toBeInTheDocument();
+    expect(screen.getByText("4m")).toBeInTheDocument();
+  });
+
+  it("opens the run table from the alert that points at it", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    captured.status = statusWith({ lastSeenAt: null });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    await user.click(screen.getByRole("button", { name: "Recent runs" }));
+
+    expect(screen.getByText("Upstream returned 503")).toBeInTheDocument();
+  });
+});

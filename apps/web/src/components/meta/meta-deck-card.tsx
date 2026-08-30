@@ -1,4 +1,9 @@
-import type { MetaDeckSummary, PrintingImage } from "@openrift/shared";
+import type {
+  MetaDeckSummary,
+  MetaEventPlayer,
+  MetaListStatus,
+  PrintingImage,
+} from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -7,8 +12,60 @@ import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { cardLinkVariants } from "@/components/ui/card-link";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { formatFinishTier } from "@/lib/meta-format";
+import { formatRank, formatRecord } from "@/lib/meta-format";
 import { cn } from "@/lib/utils";
+
+/**
+ * One archived deck as any archive surface renders it. The deck browser hands
+ * over a {@link MetaDeckSummary}, which already has this shape; an event page
+ * builds one from the standings row a deck hangs off, through
+ * {@link metaDeckViewFromPlayer}.
+ */
+export interface MetaDeckView {
+  shareToken: string;
+  name: string;
+  format: string;
+  legendName: string | null;
+  legendImageId: string | null;
+  championName: string | null;
+  championImageId: string | null;
+  playerName: string;
+  rank: number;
+  rankIsTier: boolean;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  listStatus: MetaListStatus;
+}
+
+/**
+ * The deck a standings row carries, in the shape the shared tiles render.
+ * @returns The view, or null for a standings-only entry, which has no deck.
+ */
+export function metaDeckViewFromPlayer(
+  player: MetaEventPlayer,
+  format: string,
+): MetaDeckView | null {
+  if (player.shareToken === null || player.deckName === null) {
+    return null;
+  }
+  return {
+    shareToken: player.shareToken,
+    name: player.deckName,
+    format,
+    legendName: player.legend?.name ?? null,
+    legendImageId: player.legend?.imageId ?? null,
+    championName: player.champion?.name ?? null,
+    championImageId: player.champion?.imageId ?? null,
+    playerName: player.playerName,
+    rank: player.rank,
+    rankIsTier: player.rankIsTier,
+    wins: player.wins,
+    losses: player.losses,
+    draws: player.draws,
+    listStatus: player.listStatus,
+  };
+}
 
 /**
  * The archive's denormalized image ids as the fan's `PrintingImage` shape. The
@@ -23,62 +80,59 @@ function frontImage(imageId: string | null): PrintingImage | null {
 /**
  * The finish/player/record byline every archive surface shows in place of an
  * account owner (ADR-014), with the list-completeness marker on the end so a
- * partial or archetype-only entry says so wherever it is listed.
+ * partial entry says so wherever it is listed.
  * @returns The byline element.
  */
 export function MetaDeckByline({
   deck,
   className,
 }: {
-  deck: Pick<MetaDeckSummary, "playerName" | "finishTier" | "record" | "listStatus">;
+  deck: Pick<
+    MetaDeckView,
+    "playerName" | "rank" | "rankIsTier" | "wins" | "losses" | "draws" | "listStatus"
+  >;
   className?: string;
 }) {
+  const record = formatRecord(deck.wins, deck.losses, deck.draws);
+
   return (
     <span className={cn("flex flex-wrap items-center gap-x-1.5 gap-y-0.5", className)}>
       <Badge variant="secondary" className="tabular-nums">
-        {formatFinishTier(deck.finishTier)}
+        {formatRank(deck.rank, deck.rankIsTier)}
       </Badge>
       <span className="font-medium">{deck.playerName}</span>
-      {deck.record !== null && (
-        <span className="text-muted-foreground tabular-nums">({deck.record})</span>
-      )}
+      {record !== null && <span className="text-muted-foreground tabular-nums">({record})</span>}
       <MetaListStatusBadge listStatus={deck.listStatus} />
     </span>
   );
 }
 
 /**
- * The wrapper a deck tile or row sits in. A deck with a permalink links to it;
- * an archetype-only entry has no page at all (ADR-014), so it renders as a
- * plain box with none of the hover, focus, or fan-scale affordances that would
- * promise a click. The body is the same either way and arrives as children
- * rather than being written twice.
+ * The wrapper a deck tile or row sits in: the archive's permalink
+ * (`/meta/decks/$token`), never the owner-scoped deck route. The body is the
+ * same for a tile and a row and arrives as children rather than being written
+ * twice.
  *
- * @returns The link or the plain wrapper, around `children`.
+ * @returns The link, around `children`.
  */
 export function MetaDeckFrame({
   deck,
   className,
   children,
 }: {
-  deck: Pick<MetaDeckSummary, "shareToken">;
+  deck: Pick<MetaDeckView, "shareToken">;
   /** Layout classes shared by both wrappers; the interactive ones are added here. */
   className: string;
   children: ReactNode;
 }) {
-  const shared = cn("ring-foreground/10 rounded-lg ring-1", className);
-
-  if (deck.shareToken === null) {
-    return <div className={shared}>{children}</div>;
-  }
   return (
     <Link
       to="/meta/decks/$token"
       params={{ token: deck.shareToken }}
       className={cn(
         cardLinkVariants(),
-        "focus-visible:ring-ring/50 group outline-none focus-visible:ring-2",
-        shared,
+        "focus-visible:ring-ring/50 ring-foreground/10 group rounded-lg ring-1 outline-none focus-visible:ring-2",
+        className,
       )}
     >
       {children}
@@ -93,7 +147,7 @@ export function MetaDeckFrame({
  * instead.
  * @returns The identity line, or null when neither zone is filled.
  */
-export function MetaDeckIdentityLine({ deck }: { deck: MetaDeckSummary }) {
+export function MetaDeckIdentityLine({ deck }: { deck: MetaDeckView }) {
   const pair = [deck.legendName, deck.championName].filter(Boolean).join(" / ");
   if (pair === "") {
     return null;
@@ -104,8 +158,7 @@ export function MetaDeckIdentityLine({ deck }: { deck: MetaDeckSummary }) {
 /**
  * One archived deck as a tile, the deck browser's rendering. Rows on an event
  * page (`MetaDeckRow`) share its byline and identity line, so a deck reads the
- * same either way. Links to the archive's permalink (`/meta/decks/$token`),
- * never to the owner-scoped deck route.
+ * same either way.
  * @returns The deck tile element.
  */
 export function MetaDeckCard({ deck }: { deck: MetaDeckSummary }) {

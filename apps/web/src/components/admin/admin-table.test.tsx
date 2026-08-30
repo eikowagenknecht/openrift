@@ -183,23 +183,210 @@ describe("AdminTable sorting", () => {
     expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
   });
 
-  // Alpha's score is null. The comparator pushes nulls behind every real
-  // value, and the descending pass negates that result, so they lead instead
-  // of trailing. Pinned in both directions because the sort comparator is
-  // ours, not the library's.
-  it("sorts null values behind real ones when ascending", () => {
+  // Alpha's score is null. A blank is not the answer to "highest first" and it
+  // is not the answer to "lowest first" either, so it trails both ways, which
+  // is also how the server orders a nullable column.
+  it("sorts blank values behind real ones when ascending", () => {
     renderScored({ column: "Score", direction: "asc" });
     expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
   });
 
-  it("sorts null values ahead of real ones when descending", () => {
+  it("keeps blank values behind real ones when descending", () => {
     renderScored({ column: "Score", direction: "desc" });
+    expect(renderedLabels()).toEqual(["Beta", "Gamma", "Alpha"]);
+  });
+
+  it("sorts on an explicit id when two columns would otherwise share a label", async () => {
+    const user = userEvent.setup();
+    render(
+      <AdminTable
+        columns={[
+          {
+            id: "label",
+            header: "Name",
+            sortValue: (r: Scored) => r.label,
+            cell: <ScoredLabelCell />,
+          },
+          {
+            id: "score",
+            header: "Name",
+            sortValue: (r: Scored) => r.score,
+            cell: <ScoredLabelCell />,
+          },
+        ]}
+        data={scoredData}
+        getRowKey={(r) => r.slug}
+        defaultSort={{ column: "score", direction: "asc" }}
+      />,
+    );
+
+    expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
+
+    await user.click(screen.getAllByText("Name")[0]);
+
     expect(renderedLabels()).toEqual(["Alpha", "Beta", "Gamma"]);
+  });
+
+  it("opens a client-sorted column the way sortFirst asks, not the way its value type suggests", async () => {
+    const user = userEvent.setup();
+    render(
+      <AdminTable
+        columns={[
+          {
+            header: "Label",
+            sortFirst: "desc",
+            sortValue: (r: Scored) => r.label,
+            cell: <ScoredLabelCell />,
+          },
+        ]}
+        data={scoredData}
+        getRowKey={(r) => r.slug}
+      />,
+    );
+
+    await user.click(screen.getByText("Label"));
+
+    expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
   });
 
   it("leaves rows in source order when no column is sorted", () => {
     renderScored();
     expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
+  });
+});
+
+describe("AdminTable server sorting", () => {
+  const serverColumns: AdminColumnDef<Row>[] = [
+    { header: "Label", sortKey: "label", sortFirst: "desc", cell: <LabelCell /> },
+    { header: "Name", sortKey: "name", sortFirst: "asc", cell: <LabelCell /> },
+    { header: "Slug", cell: <LabelCell /> },
+  ];
+
+  const serverData: Row[] = [
+    { slug: "b", label: "Beta" },
+    { slug: "a", label: "Alpha" },
+  ];
+
+  function renderServerSorted(
+    onChange: (sort: { key: string | null; direction: "asc" | "desc" }) => void,
+    direction: "asc" | "desc" = "desc",
+    key = "label",
+  ) {
+    render(
+      <AdminTable
+        columns={serverColumns}
+        data={serverData}
+        getRowKey={(r) => r.slug}
+        serverSort={{ key, direction, onChange }}
+      />,
+    );
+  }
+
+  it("reports the click instead of reordering the page it was given", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderServerSorted(onChange);
+
+    await user.click(screen.getByText("Label"));
+
+    expect(onChange).toHaveBeenCalledWith({ key: "label", direction: "asc" });
+    expect(
+      screen
+        .getAllByRole("row")
+        .slice(1)
+        .map((tr) => within(tr).getAllByRole("cell")[0].textContent),
+    ).toEqual(["Beta", "Alpha"]);
+  });
+
+  it("opens a column that is not the active one descending", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderServerSorted(onChange, "asc", "startAt");
+
+    await user.click(screen.getByText("Label"));
+
+    expect(onChange).toHaveBeenCalledWith({ key: "label", direction: "desc" });
+  });
+
+  it("opens a column ascending when that is the direction it asks for", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderServerSorted(onChange);
+
+    await user.click(screen.getByText("Name"));
+
+    expect(onChange).toHaveBeenCalledWith({ key: "name", direction: "asc" });
+  });
+
+  it("takes the sort off once the active column has been through both directions", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderServerSorted(onChange, "asc");
+
+    await user.click(screen.getByText("Label"));
+
+    expect(onChange).toHaveBeenCalledWith({ key: null, direction: "asc" });
+  });
+
+  it("leaves a column without a sort key inert", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderServerSorted(onChange);
+
+    await user.click(screen.getByText("Slug"));
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("AdminTable sortable headers", () => {
+  const headerColumns: AdminColumnDef<Row>[] = [
+    { header: "Label", sortKey: "label", cell: <LabelCell /> },
+    { header: "Name", sortKey: "name", cell: <LabelCell /> },
+    { header: "Slug", cell: <LabelCell /> },
+  ];
+
+  function renderHeaders(
+    onChange: (sort: { key: string | null; direction: "asc" | "desc" }) => void,
+    direction: "asc" | "desc" = "asc",
+  ) {
+    render(
+      <AdminTable
+        columns={headerColumns}
+        data={[row]}
+        getRowKey={(r) => r.slug}
+        serverSort={{ key: "label", direction, onChange }}
+      />,
+    );
+  }
+
+  function headerCell(name: string) {
+    return screen.getAllByRole("columnheader").find((th) => th.textContent?.startsWith(name));
+  }
+
+  it("announces the active column's order to a screen reader", () => {
+    renderHeaders(vi.fn(), "desc");
+
+    expect(headerCell("Label")).toHaveAttribute("aria-sort", "descending");
+    expect(headerCell("Name")).toHaveAttribute("aria-sort", "none");
+  });
+
+  it("leaves aria-sort off a column that cannot be sorted", () => {
+    renderHeaders(vi.fn());
+
+    expect(headerCell("Slug")).not.toHaveAttribute("aria-sort");
+  });
+
+  it("sorts from the keyboard", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderHeaders(onChange);
+
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Label" })).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(onChange).toHaveBeenCalledWith({ key: "label", direction: "desc" });
   });
 });
 

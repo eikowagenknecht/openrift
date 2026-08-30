@@ -17,8 +17,8 @@ export interface MetaOverwriteConfirm {
   provider: string;
   /** The API's refusal, which names the sources that would be overwritten. */
   message: string;
-  /** True when the refused call was the accept that also archives the decks. */
-  withDecks: boolean;
+  /** True when the refused call was the accept that also files the standings. */
+  withPlayers: boolean;
 }
 
 /**

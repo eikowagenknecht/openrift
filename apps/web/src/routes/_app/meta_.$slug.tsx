@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_app/meta_/$slug")({
       return seoHead({ siteUrl, title: "Event", path, unlisted: true });
     }
     const { event } = data;
-    const description = `${event.name} on ${event.eventDate}: ${event.deckCount} archived Riftbound ${event.format} ${event.deckCount === 1 ? "decklist" : "decklists"}.`;
+    const description = `${event.name} on ${event.eventDate}: standings for ${event.playerRowCount} Riftbound ${event.format} ${event.playerRowCount === 1 ? "player" : "players"}, with ${event.deckCount} archived ${event.deckCount === 1 ? "decklist" : "decklists"}.`;
     return {
       ...seoHead({ siteUrl, title: event.name, description, path }),
       scripts: [

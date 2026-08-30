@@ -51,18 +51,28 @@ function eventBody(slug: string, overrides: Record<string, unknown> = {}) {
   };
 }
 
-function deckBody(eventId: string, overrides: Record<string, unknown> = {}) {
+function listBody(overrides: Record<string, unknown> = {}) {
   return {
-    eventId,
     name: "MTR Deck",
     format: FORMAT,
     cards: [
       { cardId: legendCardId, zone: "legend", quantity: 1 },
       { cardId: mainCardId, zone: "main", quantity: 3 },
     ],
-    playerName: "MTR Pilot",
-    finishTier: 1,
-    record: "5-1",
+    ...overrides,
+  };
+}
+
+function playerBody(eventId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    eventId,
+    playerName: "MTR Player",
+    rank: 1,
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId,
+    list: listBody(),
     ...overrides,
   };
 }
@@ -75,15 +85,26 @@ async function createEvent(slug: string, overrides: Record<string, unknown> = {}
   return json.id;
 }
 
-async function createDeck(
+async function createPlayer(
   eventId: string,
   overrides: Record<string, unknown> = {},
-): Promise<{ deckId: string; shareToken: string | null }> {
-  const res = await ctx!.app.fetch(adminReq("POST", "/meta/decks", deckBody(eventId, overrides)));
+): Promise<{ playerId: string; deckId: string | null; shareToken: string | null }> {
+  const res = await ctx!.app.fetch(
+    adminReq("POST", "/meta/players", playerBody(eventId, overrides)),
+  );
   expect(res.status).toBe(201);
   const json = await readJson(res);
-  createdDeckIds.push(json.deckId);
-  return { deckId: json.deckId, shareToken: json.shareToken };
+  if (json.deckId !== null) {
+    createdDeckIds.push(json.deckId);
+  }
+  return { playerId: json.metaEventPlayerId, deckId: json.deckId, shareToken: json.shareToken };
+}
+
+async function adminPlayers(eventId: string) {
+  const res = await ctx!.app.fetch(adminReq("GET", `/meta/events/${eventId}/players`));
+  expect(res.status).toBe(200);
+  const json = await readJson(res);
+  return json.players;
 }
 
 if (ctx) {
@@ -100,8 +121,10 @@ if (ctx) {
   await refreshCardAggregates(db);
 
   afterAll(async () => {
-    await db.deleteFrom("decks").where("id", "in", createdDeckIds).execute();
+    // Events first: `meta_event_players.deck_id` is ON DELETE RESTRICT, so the
+    // decks are only free once the event has cascaded its standings rows.
     await db.deleteFrom("metaEvents").where("id", "in", createdEventIds).execute();
+    await db.deleteFrom("decks").where("id", "in", createdDeckIds).execute();
     await db.deleteFrom("cards").where("id", "in", [legendCardId, mainCardId]).execute();
     // Takes the admins row and any deck this user owns with it.
     await db.deleteFrom("users").where("id", "=", USER_ID).execute();
@@ -123,8 +146,10 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
       expect(res.status).toBe(403);
     });
 
-    it("refuses deck creation", async () => {
-      const res = await app.fetch(adminReq("POST", "/meta/decks", deckBody(crypto.randomUUID())));
+    it("refuses standings-row creation", async () => {
+      const res = await app.fetch(
+        adminReq("POST", "/meta/players", playerBody(crypto.randomUUID())),
+      );
       expect(res.status).toBe(403);
     });
   });
@@ -135,14 +160,59 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
     });
   });
 
+  describe("GET /admin/meta/events", () => {
+    it("pages the list and reports the total behind it", async () => {
+      await createEvent("mtr-list-one");
+      await createEvent("mtr-list-two");
+
+      const res = await app.fetch(adminReq("GET", "/meta/events?limit=1&page=1"));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { events: unknown[]; total: number; limit: number };
+      expect(body.events).toHaveLength(1);
+      expect(body.limit).toBe(1);
+      expect(body.total).toBeGreaterThanOrEqual(2);
+    });
+
+    it("filters on the query rather than the page", async () => {
+      const eventId = await createEvent("mtr-list-filtered", { name: "MTR Distinctive Cup" });
+
+      const res = await app.fetch(adminReq("GET", "/meta/events?search=MTR%20Distinctive%20Cup"));
+      const body = (await res.json()) as { events: { id: string }[]; total: number };
+      expect(body.events.map((row) => row.id)).toEqual([eventId]);
+      expect(body.total).toBe(1);
+    });
+  });
+
+  describe("GET /admin/meta/events/{id}", () => {
+    it("serves one event with its counts and sources", async () => {
+      const eventId = await createEvent("mtr-get-one");
+
+      const res = await app.fetch(adminReq("GET", `/meta/events/${eventId}`));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        id: eventId,
+        slug: "mtr-get-one",
+        playerRowCount: 0,
+        deckCount: 0,
+        sources: [],
+      });
+    });
+
+    it("404s an event that is not there", async () => {
+      const res = await app.fetch(adminReq("GET", `/meta/events/${crypto.randomUUID()}`));
+      expect(res.status).toBe(404);
+    });
+  });
+
   describe("POST /admin/meta/events", () => {
-    it("creates an event and reports a zero deck count", async () => {
+    it("creates an event and reports zero counts", async () => {
       const res = await app.fetch(adminReq("POST", "/meta/events", eventBody("mtr-create")));
       expect(res.status).toBe(201);
       const json = await readJson(res);
       createdEventIds.push(json.id);
       expect(json.slug).toBe("mtr-create");
       expect(json.eventDate).toBe("2026-08-01");
+      expect(json.playerRowCount).toBe(0);
       expect(json.deckCount).toBe(0);
     });
 
@@ -285,13 +355,19 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
   });
 
   describe("DELETE /admin/meta/events/{id}", () => {
-    it("removes the event and the decks behind it", async () => {
+    it("removes the event, its standings rows and the decks behind them", async () => {
       const eventId = await createEvent("mtr-delete");
-      const { deckId } = await createDeck(eventId);
+      const { playerId, deckId } = await createPlayer(eventId);
 
       const res = await app.fetch(adminReq("DELETE", `/meta/events/${eventId}`));
       expect(res.status).toBe(204);
 
+      const players = await db
+        .selectFrom("metaEventPlayers")
+        .select("id")
+        .where("id", "=", playerId)
+        .execute();
+      expect(players).toHaveLength(0);
       const decks = await db.selectFrom("decks").select("id").where("id", "=", deckId).execute();
       expect(decks).toHaveLength(0);
     });
@@ -302,10 +378,10 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
     });
   });
 
-  describe("POST /admin/meta/decks", () => {
+  describe("POST /admin/meta/players", () => {
     it("mints the deck under the synthetic owner, public, with a token", async () => {
       const eventId = await createEvent("mtr-deck-owner");
-      const { deckId, shareToken } = await createDeck(eventId);
+      const { deckId, shareToken } = await createPlayer(eventId);
 
       const deck = await db
         .selectFrom("decks")
@@ -318,131 +394,147 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
     });
 
     it("404s when the event doesn't exist", async () => {
-      const res = await app.fetch(adminReq("POST", "/meta/decks", deckBody(crypto.randomUUID())));
+      const res = await app.fetch(
+        adminReq("POST", "/meta/players", playerBody(crypto.randomUUID())),
+      );
       expect(res.status).toBe(404);
     });
 
     it("rejects an empty card list", async () => {
       const eventId = await createEvent("mtr-empty-cards");
       const res = await app.fetch(
-        adminReq("POST", "/meta/decks", deckBody(eventId, { cards: [] })),
+        adminReq("POST", "/meta/players", playerBody(eventId, { list: listBody({ cards: [] }) })),
       );
       expect(res.status).toBe(400);
     });
 
-    it("rejects a finish tier outside the bounds", async () => {
-      const eventId = await createEvent("mtr-bad-finish");
+    it("rejects a rank below the bound", async () => {
+      const eventId = await createEvent("mtr-bad-rank");
       const res = await app.fetch(
-        adminReq("POST", "/meta/decks", deckBody(eventId, { finishTier: 0 })),
+        adminReq("POST", "/meta/players", playerBody(eventId, { rank: 0 })),
       );
       expect(res.status).toBe(400);
     });
 
-    it("mints an archetype with no permalink at all", async () => {
-      const eventId = await createEvent("mtr-archetype");
-      const { deckId, shareToken } = await createDeck(eventId, {
-        listStatus: "archetype",
-        cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
+    it("files a standings-only entry with no deck and no permalink", async () => {
+      const eventId = await createEvent("mtr-standings-only");
+      const { playerId, deckId, shareToken } = await createPlayer(eventId, {
+        playerName: "MTR Deckless",
+        rank: 8,
+        rankIsTier: true,
+        list: null,
       });
+      expect(deckId).toBeNull();
       expect(shareToken).toBeNull();
 
-      const deck = await db
-        .selectFrom("decks")
-        .select(["isPublic", "shareToken"])
-        .where("id", "=", deckId)
+      const row = await db
+        .selectFrom("metaEventPlayers")
+        .select(["listStatus", "deckId", "rankIsTier", "legendCardId"])
+        .where("id", "=", playerId)
         .executeTakeFirstOrThrow();
-      // Public, because it still shows in listings; token-less, because there
-      // is no page for it to address.
-      expect(deck.isPublic).toBe(true);
-      expect(deck.shareToken).toBeNull();
-
-      const satellite = await db
-        .selectFrom("metaDecks")
-        .select("listStatus")
-        .where("deckId", "=", deckId)
-        .executeTakeFirstOrThrow();
-      expect(satellite.listStatus).toBe("archetype");
+      // The legend is a column on the standings row, so the archive keeps it
+      // whether or not a list was ever published.
+      expect(row.listStatus).toBe("none");
+      expect(row.deckId).toBeNull();
+      expect(row.rankIsTier).toBe(true);
+      expect(row.legendCardId).toBe(legendCardId);
     });
 
     it("gives a partial list a permalink, since its main deck is there", async () => {
       const eventId = await createEvent("mtr-partial");
-      const { deckId, shareToken } = await createDeck(eventId, { listStatus: "partial" });
-      // The missing battlefields cost it nothing: only 'archetype' withholds
-      // the token.
+      const { playerId, shareToken } = await createPlayer(eventId, {
+        list: listBody({ listStatus: "partial" }),
+      });
       expect(shareToken).not.toBeNull();
 
-      const satellite = await db
-        .selectFrom("metaDecks")
+      const row = await db
+        .selectFrom("metaEventPlayers")
         .select("listStatus")
-        .where("deckId", "=", deckId)
+        .where("id", "=", playerId)
         .executeTakeFirstOrThrow();
-      expect(satellite.listStatus).toBe("partial");
+      expect(row.listStatus).toBe("partial");
     });
 
     it("defaults an unstated status to a full list", async () => {
       const eventId = await createEvent("mtr-default-status");
-      const { deckId } = await createDeck(eventId);
+      const { playerId } = await createPlayer(eventId);
 
-      const satellite = await db
-        .selectFrom("metaDecks")
+      const row = await db
+        .selectFrom("metaEventPlayers")
         .select("listStatus")
-        .where("deckId", "=", deckId)
+        .where("id", "=", playerId)
         .executeTakeFirstOrThrow();
-      expect(satellite.listStatus).toBe("full");
+      expect(row.listStatus).toBe("full");
     });
 
-    it("rejects a status outside the vocabulary", async () => {
-      const eventId = await createEvent("mtr-bad-status");
+    // "none" is the value that says there is no deck, so a list can never
+    // carry it — a list that exists is at least partial.
+    it.each(["mostly", "none"])("rejects the list status %s", async (listStatus) => {
+      const eventId = await createEvent(`mtr-bad-status-${listStatus}`);
       const res = await app.fetch(
-        adminReq("POST", "/meta/decks", deckBody(eventId, { listStatus: "mostly" })),
+        adminReq("POST", "/meta/players", playerBody(eventId, { list: listBody({ listStatus }) })),
       );
       expect(res.status).toBe(400);
     });
   });
 
-  describe("GET /admin/meta/events/{id}/decks", () => {
-    it("lists the event's decks best finish first", async () => {
-      const eventId = await createEvent("mtr-event-decks");
-      await createDeck(eventId, { playerName: "MTR Second", finishTier: 4 });
-      await createDeck(eventId, { playerName: "MTR First", finishTier: 1 });
+  describe("GET /admin/meta/events/{id}/players", () => {
+    it("lists the event's standings best finish first", async () => {
+      const eventId = await createEvent("mtr-event-players");
+      await createPlayer(eventId, { playerName: "MTR Second", rank: 4 });
+      await createPlayer(eventId, { playerName: "MTR First", rank: 1 });
+      await createPlayer(eventId, { playerName: "MTR Ninth", rank: 9, list: null });
 
-      const res = await app.fetch(adminReq("GET", `/meta/events/${eventId}/decks`));
-      expect(res.status).toBe(200);
-      const json = await readJson(res);
-      expect(json.decks.map((deck: { playerName: string }) => deck.playerName)).toEqual([
+      const players = await adminPlayers(eventId);
+      expect(players.map((player: { playerName: string }) => player.playerName)).toEqual([
         "MTR First",
         "MTR Second",
+        "MTR Ninth",
       ]);
-      expect(json.decks[0].cardCount).toBe(4);
+      expect(players[0].cardCount).toBe(4);
+      expect(players[0].legendName).toBe("MTR Legend");
+      // A standings-only entry carries the whole deck half as null.
+      expect(players[2].cardCount).toBe(0);
+      expect(players[2].deckId).toBeNull();
+      expect(players[2].shareToken).toBeNull();
+      expect(players[2].deckFormat).toBeNull();
+      expect(players[2].listStatus).toBe("none");
     });
 
     it("404s for an unknown event", async () => {
-      const res = await app.fetch(adminReq("GET", `/meta/events/${crypto.randomUUID()}/decks`));
+      const res = await app.fetch(adminReq("GET", `/meta/events/${crypto.randomUUID()}/players`));
       expect(res.status).toBe(404);
     });
   });
 
-  describe("PATCH / DELETE /admin/meta/decks/{id}", () => {
+  describe("PATCH / DELETE /admin/meta/players/{id}", () => {
     it("updates the placement and replaces the cards", async () => {
-      const eventId = await createEvent("mtr-deck-patch");
-      const { deckId } = await createDeck(eventId);
+      const eventId = await createEvent("mtr-player-patch");
+      const { playerId, deckId } = await createPlayer(eventId);
 
       const res = await app.fetch(
-        adminReq("PATCH", `/meta/decks/${deckId}`, {
+        adminReq("PATCH", `/meta/players/${playerId}`, {
           playerName: "MTR Updated",
-          finishTier: 8,
-          cards: [{ cardId: mainCardId, zone: "main", quantity: 1 }],
+          rank: 8,
+          rankIsTier: true,
+          wins: 6,
+          losses: 2,
+          list: listBody({ cards: [{ cardId: mainCardId, zone: "main", quantity: 1 }] }),
         }),
       );
       expect(res.status).toBe(204);
 
-      const satellite = await db
-        .selectFrom("metaDecks")
-        .select(["playerName", "finishTier"])
-        .where("deckId", "=", deckId)
+      const row = await db
+        .selectFrom("metaEventPlayers")
+        .select(["playerName", "rank", "rankIsTier", "wins", "losses", "deckId"])
+        .where("id", "=", playerId)
         .executeTakeFirstOrThrow();
-      expect(satellite.playerName).toBe("MTR Updated");
-      expect(satellite.finishTier).toBe(8);
+      expect(row.playerName).toBe("MTR Updated");
+      expect(row.rank).toBe(8);
+      expect(row.rankIsTier).toBe(true);
+      expect([row.wins, row.losses]).toEqual([6, 2]);
+      // Replacing the list keeps the deck it already had.
+      expect(row.deckId).toBe(deckId);
 
       const cards = await db
         .selectFrom("deckCards")
@@ -452,104 +544,131 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
       expect(cards).toEqual([{ cardId: mainCardId }]);
     });
 
+    it("leaves the list alone when the body doesn't name it", async () => {
+      const eventId = await createEvent("mtr-list-untouched");
+      const { playerId, shareToken } = await createPlayer(eventId);
+
+      const res = await app.fetch(
+        adminReq("PATCH", `/meta/players/${playerId}`, { playerName: "MTR Renamed" }),
+      );
+      expect(res.status).toBe(204);
+
+      const [player] = await adminPlayers(eventId);
+      expect(player.playerName).toBe("MTR Renamed");
+      expect(player.listStatus).toBe("full");
+      expect(player.shareToken).toBe(shareToken);
+    });
+
     it("mints the permalink when the real list finally arrives", async () => {
       const eventId = await createEvent("mtr-fill-in");
-      const { deckId } = await createDeck(eventId, {
-        listStatus: "archetype",
-        cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
-      });
+      const { playerId, shareToken } = await createPlayer(eventId, { list: null });
+      expect(shareToken).toBeNull();
 
       const res = await app.fetch(
-        adminReq("PATCH", `/meta/decks/${deckId}`, {
-          listStatus: "full",
-          cards: [
-            { cardId: legendCardId, zone: "legend", quantity: 1 },
-            { cardId: mainCardId, zone: "main", quantity: 3 },
-          ],
-        }),
+        adminReq("PATCH", `/meta/players/${playerId}`, { list: listBody() }),
       );
       expect(res.status).toBe(204);
 
-      const deck = await db
-        .selectFrom("decks")
-        .select("shareToken")
-        .where("id", "=", deckId)
-        .executeTakeFirstOrThrow();
-      expect(deck.shareToken).not.toBeNull();
-
-      const satellite = await db
-        .selectFrom("metaDecks")
-        .select("listStatus")
-        .where("deckId", "=", deckId)
-        .executeTakeFirstOrThrow();
-      expect(satellite.listStatus).toBe("full");
+      const [player] = await adminPlayers(eventId);
+      expect(player.listStatus).toBe("full");
+      expect(player.deckId).not.toBeNull();
+      expect(player.shareToken).not.toBeNull();
+      createdDeckIds.push(player.deckId);
     });
 
-    it("mints the permalink for a promotion to partial too", async () => {
-      // Only 'archetype' withholds the token, so the archetype-to-partial move
-      // has to mint it just like archetype-to-full does.
+    it("mints the permalink for a partial list too", async () => {
       const eventId = await createEvent("mtr-fill-partial");
-      const { deckId } = await createDeck(eventId, {
-        listStatus: "archetype",
-        cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
-      });
+      const { playerId } = await createPlayer(eventId, { list: null });
 
       const res = await app.fetch(
-        adminReq("PATCH", `/meta/decks/${deckId}`, {
-          listStatus: "partial",
-          cards: [
-            { cardId: legendCardId, zone: "legend", quantity: 1 },
-            { cardId: mainCardId, zone: "main", quantity: 3 },
-          ],
+        adminReq("PATCH", `/meta/players/${playerId}`, {
+          list: listBody({ listStatus: "partial" }),
         }),
       );
       expect(res.status).toBe(204);
 
-      const deck = await db
-        .selectFrom("decks")
-        .select("shareToken")
-        .where("id", "=", deckId)
-        .executeTakeFirstOrThrow();
-      expect(deck.shareToken).not.toBeNull();
+      const [player] = await adminPlayers(eventId);
+      expect(player.listStatus).toBe("partial");
+      expect(player.shareToken).not.toBeNull();
+      createdDeckIds.push(player.deckId);
     });
 
-    it("keeps the permalink stable across a second promotion", async () => {
+    it("keeps the permalink stable across a second list", async () => {
       const eventId = await createEvent("mtr-fill-twice");
-      const { deckId } = await createDeck(eventId, {
-        listStatus: "archetype",
-        cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
-      });
+      const { playerId, shareToken } = await createPlayer(eventId);
 
-      const patch = () =>
-        app.fetch(adminReq("PATCH", `/meta/decks/${deckId}`, { listStatus: "full" }));
-      const firstRes = await patch();
-      expect(firstRes.status).toBe(204);
-      const first = await db
-        .selectFrom("decks")
-        .select("shareToken")
-        .where("id", "=", deckId)
-        .executeTakeFirstOrThrow();
-
-      // A second flip must not rotate the token — links already published to
-      // the filled-in deck have to keep working.
-      const secondRes = await patch();
-      expect(secondRes.status).toBe(204);
-      const second = await db
-        .selectFrom("decks")
-        .select("shareToken")
-        .where("id", "=", deckId)
-        .executeTakeFirstOrThrow();
-      expect(second.shareToken).toBe(first.shareToken);
-    });
-
-    it("deletes an archived deck", async () => {
-      const eventId = await createEvent("mtr-deck-delete");
-      const { deckId } = await createDeck(eventId);
-
-      const res = await app.fetch(adminReq("DELETE", `/meta/decks/${deckId}`));
+      // A corrected list must not rotate the token — links already published
+      // to the archived deck have to keep working.
+      const res = await app.fetch(
+        adminReq("PATCH", `/meta/players/${playerId}`, {
+          list: listBody({ name: "MTR Corrected" }),
+        }),
+      );
       expect(res.status).toBe(204);
 
-      const again = await app.fetch(adminReq("DELETE", `/meta/decks/${deckId}`));
+      const [player] = await adminPlayers(eventId);
+      expect(player.deckName).toBe("MTR Corrected");
+      expect(player.shareToken).toBe(shareToken);
+    });
+
+    it("detaches and deletes the list, leaving the standings row", async () => {
+      const eventId = await createEvent("mtr-detach-list");
+      const { playerId, deckId } = await createPlayer(eventId);
+
+      const res = await app.fetch(adminReq("PATCH", `/meta/players/${playerId}`, { list: null }));
+      expect(res.status).toBe(204);
+
+      const decks = await db.selectFrom("decks").select("id").where("id", "=", deckId).execute();
+      expect(decks).toHaveLength(0);
+
+      const [player] = await adminPlayers(eventId);
+      expect(player.id).toBe(playerId);
+      expect(player.listStatus).toBe("none");
+      expect(player.deckId).toBeNull();
+      expect(player.shareToken).toBeNull();
+    });
+
+    it("moves a standings row to another event", async () => {
+      const from = await createEvent("mtr-move-from");
+      const to = await createEvent("mtr-move-to");
+      const { playerId } = await createPlayer(from, { playerName: "MTR Mover" });
+
+      const res = await app.fetch(adminReq("PATCH", `/meta/players/${playerId}`, { eventId: to }));
+      expect(res.status).toBe(204);
+
+      expect(await adminPlayers(from)).toEqual([]);
+      const [moved] = await adminPlayers(to);
+      expect(moved.id).toBe(playerId);
+    });
+
+    it("404s a move onto an event that doesn't exist", async () => {
+      const eventId = await createEvent("mtr-move-nowhere");
+      const { playerId } = await createPlayer(eventId);
+
+      const res = await app.fetch(
+        adminReq("PATCH", `/meta/players/${playerId}`, { eventId: crypto.randomUUID() }),
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it("404s an unknown standings row", async () => {
+      const res = await app.fetch(
+        adminReq("PATCH", `/meta/players/${crypto.randomUUID()}`, { playerName: "MTR Ghost" }),
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it("deletes a standings row and the deck behind it", async () => {
+      const eventId = await createEvent("mtr-player-delete");
+      const { playerId, deckId } = await createPlayer(eventId);
+
+      const res = await app.fetch(adminReq("DELETE", `/meta/players/${playerId}`));
+      expect(res.status).toBe(204);
+
+      const decks = await db.selectFrom("decks").select("id").where("id", "=", deckId).execute();
+      expect(decks).toHaveLength(0);
+
+      const again = await app.fetch(adminReq("DELETE", `/meta/players/${playerId}`));
       expect(again.status).toBe(404);
     });
   });
@@ -560,7 +679,7 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
 
       // Production can't reach this state: an archive deck is owned by the
       // synthetic user, which has no session, so the owner-scoped rotate never
-      // matches one. Attaching a satellite row to *this* user's deck is the
+      // matches one. Pointing a standings row at *this* user's deck is the
       // only way to exercise the guard itself.
       const [deck] = await db
         .insertInto("decks")
@@ -576,13 +695,13 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
         .returning("id")
         .execute();
       await db
-        .insertInto("metaDecks")
+        .insertInto("metaEventPlayers")
         .values({
-          deckId: deck.id,
           metaEventId: eventId,
           playerName: "MTR Guard",
-          finishTier: 1,
-          record: null,
+          rank: 1,
+          deckId: deck.id,
+          listStatus: "full",
         })
         .execute();
 
@@ -627,31 +746,58 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
 
   it("renders the event list", async () => {
     const eventId = await createEvent("mtr-public-list");
-    await createDeck(eventId);
+    await createPlayer(eventId);
+    await createPlayer(eventId, { playerName: "MTR Bystander", rank: 4, list: null });
 
     const res = await anonApp.fetch(req("GET", "/meta/events"));
     expect(res.status).toBe(200);
     const json = await readJson(res);
     const event = json.events.find((row: { slug: string }) => row.slug === "mtr-public-list");
+    expect(event.playerRowCount).toBe(2);
     expect(event.deckCount).toBe(1);
     expect(event.eventDate).toBe("2026-08-01");
     // The long-form fields belong to the detail shape only.
     expect(event.notes).toBeUndefined();
   });
 
-  it("renders one event with its decks", async () => {
+  it("renders one event with its whole standings table", async () => {
     const eventId = await createEvent("mtr-public-event");
-    await createDeck(eventId, { playerName: "MTR Anon", finishTier: 2, record: "4-2" });
+    await createPlayer(eventId, {
+      playerName: "MTR Anon",
+      rank: 2,
+      wins: 4,
+      losses: 2,
+      draws: 0,
+    });
+    await createPlayer(eventId, {
+      playerName: "MTR Unlisted",
+      rank: 9,
+      rankIsTier: true,
+      list: null,
+    });
 
     const res = await anonApp.fetch(req("GET", "/meta/events/mtr-public-event"));
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.event.id).toBe(eventId);
     expect(json.event.notes).toBe("MTR notes");
-    expect(json.decks).toHaveLength(1);
-    expect(json.decks[0].playerName).toBe("MTR Anon");
-    expect(json.decks[0].legendName).toBe("MTR Legend");
-    expect(json.decks[0].event.slug).toBe("mtr-public-event");
+    expect(json.players).toHaveLength(2);
+    expect(json.players[0].playerName).toBe("MTR Anon");
+    expect(json.players[0].legend.name).toBe("MTR Legend");
+    // The slug is what the standings line links to on /cards.
+    expect(json.players[0].legend.slug).toBe("mtr-legend");
+    expect([json.players[0].wins, json.players[0].losses, json.players[0].draws]).toEqual([
+      4, 2, 0,
+    ]);
+    expect(json.players[0].shareToken).not.toBeNull();
+
+    // Enough to render a standings line, not enough to click one.
+    expect(json.players[1].playerName).toBe("MTR Unlisted");
+    expect(json.players[1].listStatus).toBe("none");
+    expect(json.players[1].deckId).toBeNull();
+    expect(json.players[1].shareToken).toBeNull();
+    expect(json.players[1].rankIsTier).toBe(true);
+    expect(json.players[1].legend.name).toBe("MTR Legend");
   });
 
   it("prints the event's citations and no contributor line by default", async () => {
@@ -680,23 +826,34 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
     expect(res.status).toBe(404);
   });
 
-  it("renders the cross-event deck browser", async () => {
+  it("lists only the entries with a list in the cross-event deck browser", async () => {
     const eventId = await createEvent("mtr-public-decks");
-    const { shareToken } = await createDeck(eventId, { playerName: "MTR Browser" });
+    const { shareToken } = await createPlayer(eventId, { playerName: "MTR Browser" });
+    const { playerId } = await createPlayer(eventId, {
+      playerName: "MTR Absent",
+      rank: 5,
+      list: null,
+    });
 
     const res = await anonApp.fetch(req("GET", "/meta/decks"));
     expect(res.status).toBe(200);
     const json = await readJson(res);
     const deck = json.decks.find((row: { shareToken: string }) => row.shareToken === shareToken);
     expect(deck.playerName).toBe("MTR Browser");
+    expect(deck.legendName).toBe("MTR Legend");
+    expect(deck.legendSlug).toBe("mtr-legend");
+    expect(json.decks.some((row: { playerId: string }) => row.playerId === playerId)).toBe(false);
   });
 
-  it("renders one archived deck with its event panel", async () => {
+  it("renders one archived deck with its standings panel", async () => {
     const eventId = await createEvent("mtr-public-deck");
-    const { shareToken } = await createDeck(eventId, {
+    const { shareToken } = await createPlayer(eventId, {
       playerName: "MTR Detail",
-      finishTier: 4,
-      record: "3-3",
+      rank: 4,
+      rankIsTier: true,
+      wins: 3,
+      losses: 3,
+      draws: 0,
     });
 
     const res = await anonApp.fetch(req("GET", `/meta/decks/${shareToken}`));
@@ -713,8 +870,11 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
       },
       listStatus: "full",
       playerName: "MTR Detail",
-      finishTier: 4,
-      record: "3-3",
+      rank: 4,
+      rankIsTier: true,
+      wins: 3,
+      losses: 3,
+      draws: 0,
       // Hand-created by this test, so nobody is credited for the list.
       contributors: [],
     });
@@ -744,49 +904,11 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
     expect(res.status).toBe(404);
   });
 
-  it("lists an archetype with no token for the browser to link", async () => {
-    const eventId = await createEvent("mtr-public-archetype");
-    await createDeck(eventId, {
-      playerName: "MTR Archetype",
-      listStatus: "archetype",
-      cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
-    });
-
-    const res = await anonApp.fetch(req("GET", "/meta/events/mtr-public-archetype"));
-    expect(res.status).toBe(200);
-    const json = await readJson(res);
-    expect(json.decks).toHaveLength(1);
-    // Enough to render a tile, not enough to click one.
-    expect(json.decks[0].listStatus).toBe("archetype");
-    expect(json.decks[0].shareToken).toBeNull();
-    expect(json.decks[0].legendName).toBe("MTR Legend");
-  });
-
-  it("404s a token that somehow resolves to an archetype", async () => {
-    const eventId = await createEvent("mtr-archetype-token");
-    const { deckId } = await createDeck(eventId, {
-      listStatus: "archetype",
-      cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
-    });
-
-    // Nothing in the API mints this token; the guard exists for a hand-edited
-    // row, so the only way to exercise it is to hand-edit one.
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-    await ctx!.db
-      .updateTable("decks")
-      .set({ shareToken: "mtrArchety01" })
-      .where("id", "=", deckId)
-      .execute();
-
-    const res = await anonApp.fetch(req("GET", "/meta/decks/mtrArchety01"));
-    expect(res.status).toBe(404);
-  });
-
   it("renders a partial list's page like any other", async () => {
     const eventId = await createEvent("mtr-public-partial");
-    const { shareToken } = await createDeck(eventId, {
+    const { shareToken } = await createPlayer(eventId, {
       playerName: "MTR Partial",
-      listStatus: "partial",
+      list: listBody({ listStatus: "partial" }),
     });
 
     // The main deck is what the page shows, and a partial list has all of it.
@@ -794,62 +916,37 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
     expect(res.status).toBe(200);
   });
 
-  it("computes inclusion and legend play-rate against the scope", async () => {
-    const inScope = await createEvent("mtr-stats-in", { eventDate: "2026-05-10" });
-    const outOfScope = await createEvent("mtr-stats-out", { eventDate: "2026-02-10" });
-    await createDeck(inScope, { playerName: "MTR Stats A" });
-    await createDeck(inScope, { playerName: "MTR Stats B" });
-    await createDeck(outOfScope, { playerName: "MTR Stats C" });
+  it("counts only the standings rows whose event falls inside the scope", async () => {
+    const inScope = await createEvent("mtr-counts-in", { eventDate: "2026-05-10" });
+    const outOfScope = await createEvent("mtr-counts-out", { eventDate: "2026-02-10" });
+    await createPlayer(inScope, { playerName: "MTR Counts A" });
+    await createPlayer(inScope, { playerName: "MTR Counts B", rank: 2 });
+    await createPlayer(outOfScope, { playerName: "MTR Counts C" });
 
     const res = await anonApp.fetch(
-      req("GET", "/meta/stats?dateFrom=2026-05-01&dateTo=2026-05-31"),
+      req("GET", "/meta/counts?dateFrom=2026-05-01&dateTo=2026-05-31"),
     );
     expect(res.status).toBe(200);
-    const json = await readJson(res);
-    expect(json.totalDecks).toBe(2);
-
-    const legend = json.legends.find((row: { cardId: string }) => row.cardId === legendCardId);
-    expect(legend.deckCount).toBe(2);
-    expect(legend.name).toBe("MTR Legend");
-
-    const main = json.cards.find((row: { cardId: string }) => row.cardId === mainCardId);
-    expect(main.deckCount).toBe(2);
-    // The main-deck card is not a legend, so it appears in cards only.
-    expect(json.legends.some((row: { cardId: string }) => row.cardId === mainCardId)).toBe(false);
-    // And the inverse: "most played cards" counts the main deck, so the legend
-    // stays out of it.
-    expect(json.cards.some((row: { cardId: string }) => row.cardId === legendCardId)).toBe(false);
+    expect(await readJson(res)).toEqual({ totalPlayers: 2, decksWithMainDeck: 2 });
   });
 
-  it("reports two denominators so the card panel isn't deflated by archetypes", async () => {
-    const eventId = await createEvent("mtr-stats-archetype", { eventDate: "2026-04-10" });
-    await createDeck(eventId, { playerName: "MTR Full" });
-    // A partial list's main deck is complete, so it belongs on the card side
-    // with the full one. Only the archetype drops out.
-    await createDeck(eventId, { playerName: "MTR Partial", listStatus: "partial" });
-    await createDeck(eventId, {
-      playerName: "MTR Archetype",
-      listStatus: "archetype",
-      cards: [{ cardId: legendCardId, zone: "legend", quantity: 1 }],
+  it("reports two denominators, so a deckless entry deflates neither on its own", async () => {
+    const eventId = await createEvent("mtr-counts-pyramid", { eventDate: "2026-04-10" });
+    await createPlayer(eventId, { playerName: "MTR Full" });
+    // A partial list's main deck is complete, so it belongs on the deck side
+    // with the full one. Only the entry with no list at all drops out.
+    await createPlayer(eventId, {
+      playerName: "MTR Partial",
+      rank: 2,
+      list: listBody({ listStatus: "partial" }),
     });
+    await createPlayer(eventId, { playerName: "MTR Deckless", rank: 3, list: null });
 
     const res = await anonApp.fetch(
-      req("GET", "/meta/stats?dateFrom=2026-04-01&dateTo=2026-04-30"),
+      req("GET", "/meta/counts?dateFrom=2026-04-01&dateTo=2026-04-30"),
     );
     expect(res.status).toBe(200);
-    const json = await readJson(res);
-    // Every deck counts as a deck; two of the three have a main deck.
-    expect(json.totalDecks).toBe(3);
-    expect(json.decksWithMainDeck).toBe(2);
-
-    // The legend is real data on all three, so the play-rate axis sees them all.
-    const legend = json.legends.find((row: { cardId: string }) => row.cardId === legendCardId);
-    expect(legend.deckCount).toBe(3);
-
-    // The main-deck card is in the two known main decks, and its count reads
-    // against decksWithMainDeck rather than totalDecks.
-    const main = json.cards.find((row: { cardId: string }) => row.cardId === mainCardId);
-    expect(main.deckCount).toBe(2);
+    expect(await readJson(res)).toEqual({ totalPlayers: 3, decksWithMainDeck: 2 });
   });
 
   it("refuses an anonymous write to the admin surface", async () => {

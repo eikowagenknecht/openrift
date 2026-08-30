@@ -15,16 +15,16 @@ import {
 } from "@/components/ui/dialog";
 import type {
   IgnoredMetaCandidate,
-  IgnoredMetaCandidateDeck,
+  IgnoredMetaCandidatePlayer,
 } from "@/hooks/use-admin-meta-candidates";
 import {
   useAdminMetaIgnoredCandidates,
-  useUnignoreMetaCandidateDeck,
   useUnignoreMetaCandidateEvent,
+  useUnignoreMetaCandidatePlayer,
 } from "@/hooks/use-admin-meta-candidates";
 
 interface IgnoredRowProps {
-  /** The source's event id, shown on deck rows: deck ids repeat across events. */
+  /** The source's event id, shown on player rows: player ids repeat across events. */
   eventExternalId?: string;
   externalId: string;
   provider: string;
@@ -82,15 +82,16 @@ function IgnoredList({ title, emptyText, count, children }: IgnoredListProps) {
 }
 
 /**
- * The keys uploads skip (ADR-014). Unignoring one only lifts the skip: the row
- * comes back the next time a source pushes it, not immediately.
+ * The keys the queue hides and uploads skip (ADR-014). Ignoring leaves the
+ * staged row and its live link in place, so unignoring brings the same candidate
+ * straight back rather than waiting for the next push to stage a duplicate.
  *
  * @returns The ignored-candidates dialog.
  */
 export function MetaIgnoredCandidatesDialog({ onClose }: { onClose: () => void }) {
   const { data, isPending } = useAdminMetaIgnoredCandidates();
   const unignoreEvent = useUnignoreMetaCandidateEvent();
-  const unignoreDeck = useUnignoreMetaCandidateDeck();
+  const unignorePlayer = useUnignoreMetaCandidatePlayer();
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -98,12 +99,13 @@ export function MetaIgnoredCandidatesDialog({ onClose }: { onClose: () => void }
         <DialogHeader>
           <DialogTitle>Ignored candidates</DialogTitle>
           <DialogDescription>
-            These keys are skipped on every upload. A deck key covers only its listed event.
+            These keys are hidden from the queue and skipped on every upload. Unignoring one brings
+            it back as it was. A player key covers only its listed event.
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-6 overflow-y-auto">
-          {isPending && <p className="text-muted-foreground text-sm">Loading...</p>}
+          {isPending && <p className="text-muted-foreground text-sm">Loading…</p>}
           {data && (
             <>
               <IgnoredList title="Events" emptyText="No ignored events." count={data.events.length}>
@@ -120,17 +122,21 @@ export function MetaIgnoredCandidatesDialog({ onClose }: { onClose: () => void }
                   />
                 ))}
               </IgnoredList>
-              <IgnoredList title="Decks" emptyText="No ignored decks." count={data.decks.length}>
-                {data.decks.map((row: IgnoredMetaCandidateDeck) => (
+              <IgnoredList
+                title="Players"
+                emptyText="No ignored players."
+                count={data.players.length}
+              >
+                {data.players.map((row: IgnoredMetaCandidatePlayer) => (
                   <IgnoredRow
                     key={`${row.provider}\n${row.eventExternalId}\n${row.externalId}`}
                     provider={row.provider}
                     eventExternalId={row.eventExternalId}
                     externalId={row.externalId}
                     createdAt={row.createdAt}
-                    pending={unignoreDeck.isPending}
+                    pending={unignorePlayer.isPending}
                     onUnignore={() =>
-                      unignoreDeck.mutate({
+                      unignorePlayer.mutate({
                         provider: row.provider,
                         eventExternalId: row.eventExternalId,
                         externalId: row.externalId,

@@ -14,25 +14,25 @@ describe("meta roster store", () => {
   });
 
   it("toggles one row without touching the others", () => {
-    useMetaRosterStore.getState().toggleRow("pilot:ana");
-    useMetaRosterStore.getState().toggleRow("pilot:bo");
-    useMetaRosterStore.getState().toggleRow("pilot:ana");
+    useMetaRosterStore.getState().toggleRow("live:ana");
+    useMetaRosterStore.getState().toggleRow("name:bo");
+    useMetaRosterStore.getState().toggleRow("live:ana");
 
     const { expandedRows } = useMetaRosterStore.getState();
-    expect(expandedRows.has("pilot:ana")).toBe(false);
-    expect(expandedRows.has("pilot:bo")).toBe(true);
+    expect(expandedRows.has("live:ana")).toBe(false);
+    expect(expandedRows.has("name:bo")).toBe(true);
   });
 
   it("replaces the set rather than mutating it, so subscribers see the change", () => {
     const before = useMetaRosterStore.getState().expandedRows;
-    useMetaRosterStore.getState().toggleRow("pilot:ana");
+    useMetaRosterStore.getState().toggleRow("live:ana");
     expect(useMetaRosterStore.getState().expandedRows).not.toBe(before);
     expect(before.size).toBe(0);
   });
 
   it("collapses everything at once", () => {
-    useMetaRosterStore.getState().toggleRow("pilot:ana");
-    useMetaRosterStore.getState().toggleRow("pilot:bo");
+    useMetaRosterStore.getState().toggleRow("live:ana");
+    useMetaRosterStore.getState().toggleRow("name:bo");
     useMetaRosterStore.getState().collapseAll();
     expect(useMetaRosterStore.getState().expandedRows.size).toBe(0);
   });

@@ -77,11 +77,13 @@ interface CatalogSearchComboboxProps<T> {
  * form, and the admin assign/link/tag/mapping pickers.
  *
  * Items are filtered externally — the surface re-queries on `onQueryChange` and
- * passes `results` back — so `autoComplete="none"` makes BaseUI render exactly
- * what it is handed. Open/close, keyboard navigation, highlight tracking, and
- * the ARIA combobox/listbox semantics all come from the BaseUI primitive. This
- * replaced a hand-rolled listbox that reimplemented all of that (and needed
- * three lint suppressions to do it).
+ * passes `results` back. `filter={null}` is what turns BaseUI's own label
+ * filter off (`autoComplete="none"` does not, despite its docs); without it a
+ * row matched through an alt name or a printing code is hidden again because
+ * the query is not a substring of the visible label. Open/close, keyboard
+ * navigation, highlight tracking, and the ARIA combobox/listbox semantics all
+ * come from the BaseUI primitive. This replaced a hand-rolled listbox that
+ * reimplemented all of that (and needed three lint suppressions to do it).
  *
  * @returns A BaseUI Combobox wired for external filtering.
  */
@@ -118,6 +120,7 @@ export function CatalogSearchCombobox<T>({
   return (
     <Combobox<T>
       items={results}
+      filter={null}
       autoComplete="none"
       defaultInputValue={initialQuery}
       itemToStringLabel={itemToInputValue}

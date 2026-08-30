@@ -1,6 +1,7 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES, WellKnown } from "@openrift/shared";
 import type { AdminMetaEvent } from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
+import type { MetaListStatus } from "@openrift/shared/types";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
@@ -8,13 +9,19 @@ import type { MetaEventsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
 import { assertFound, assertSlugAvailable } from "../../lib/assertions.js";
 import { assertKnownFormat, validateFormatConfig } from "../../lib/deck-format-validation.js";
-import { toAdminMetaDeck, toAdminMetaEvent, toMetaEventSource } from "../../lib/meta-presenters.js";
+import { classifyMetaEventTier } from "../../lib/meta-event-classify.js";
+import {
+  toAdminMetaEvent,
+  toAdminMetaPlayer,
+  toMetaEventSource,
+} from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
-import type { MetaDeckCardInput } from "../../repositories/meta.js";
-import { createArchivedDeck, updateArchivedDeck } from "../../services/create-archived-deck.js";
+import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../../repositories/meta.js";
+import { createMetaEventPlayer, setMetaPlayerList } from "../../services/meta-event-players.js";
+import { reclassifyMetaEvents } from "../../services/meta-reclassify.js";
 
 const os = implement(adminMetaContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -27,6 +34,9 @@ const EVENT_FIELDS: FieldMapping<Updateable<MetaEventsTable>> = {
   playerCount: "playerCount",
   organizer: "organizer",
   notes: "notes",
+  tier: "tier",
+  country: "country",
+  location: "location",
 };
 
 // Turns a repository's "did the row exist" boolean into the 404 the contract
@@ -51,21 +61,101 @@ function toCardInputs(
   }));
 }
 
+interface ListBody {
+  name: string;
+  format: string;
+  formatConfig?: Record<string, unknown> | null;
+  cards: { cardId: string; zone: string; quantity: number; preferredPrintingId?: string | null }[];
+  listStatus: Exclude<MetaListStatus, "none">;
+}
+
+/**
+ * Validates the list's format against `deck_formats` and its config against
+ * that format's own schema, then shapes it for the repo. Both writes need it,
+ * and skipping either would surface as an FK violation or a 500.
+ */
+async function toDeckInput(
+  repos: ApiContext["repos"],
+  list: ListBody,
+): Promise<MetaArchivedDeckInput> {
+  await assertKnownFormat(repos.deckFormats, list.format);
+  const formatConfig = await validateFormatConfig(repos.customTags, list.format, list.formatConfig);
+  return {
+    name: list.name,
+    format: list.format,
+    formatConfig,
+    cards: toCardInputs(list.cards),
+    listStatus: list.listStatus,
+  };
+}
+
+/**
+ * A list's own legend and champion zones, which win over the standings row's
+ * fields whenever a list is given. The archive reads the legend off the
+ * standings row, so a pasted decklist has to sync it there or the play-rate
+ * stat would file the entry under whatever the form happened to hold.
+ */
+function zoneCardIds(deck: MetaArchivedDeckInput | null): {
+  legendCardId: string | null;
+  championCardId: string | null;
+} {
+  const inZone = (zone: string) => deck?.cards.find((card) => card.zone === zone)?.cardId ?? null;
+  return {
+    legendCardId: inZone(WellKnown.deckZone.LEGEND),
+    championCardId: inZone(WellKnown.deckZone.CHAMPION),
+  };
+}
+
+/** Rows per page when the client does not say. Matches the admin table's own page size. */
+const ADMIN_META_EVENT_PAGE_SIZE = 50;
+
 /**
  * Meta archive curation, mounted under `/api/admin/v1/meta`. The Hono
  * `requireAdmin` middleware on that prefix is the only role check — no
  * handler here re-derives it, and the archive is deliberately not a grantable
  * admin section.
  *
- * Archived decks are created here rather than through the deck builder, so
- * this is the single place that stamps the synthetic owner and the public
- * flag. Both live in the repo's transaction; nothing in this file can mint a
- * deck under a different owner.
+ * The unit of curation is a standings row: a decklist is an optional
+ * attachment, so `list` on the write bodies distinguishes "leave it alone"
+ * (absent), "this is the list" (an object) and "there is no list" (null).
+ * Archived decks are created here rather than through the deck builder, so this
+ * is the single place that stamps the synthetic owner and the public flag; both
+ * live in the repo's transaction, and nothing in this file can mint a deck
+ * under a different owner.
  */
 export const adminMetaRouter = {
-  listEvents: os.listEvents.handler(async ({ context }) => {
-    const rows = await context.repos.meta.listEvents();
-    return { events: rows.map((row) => toAdminMetaEvent(row)) };
+  listEvents: os.listEvents.handler(async ({ input, context }) => {
+    const page = input.page ?? 1;
+    const limit = input.limit ?? ADMIN_META_EVENT_PAGE_SIZE;
+    const { rows, total } = await context.repos.meta.listEvents(
+      {
+        search: input.search,
+        format: input.format,
+        dateFrom: input.dateFrom,
+        dateTo: input.dateTo,
+        incompleteStandings: input.incompleteStandings,
+        noDecks: input.noDecks,
+      },
+      { limit, offset: (page - 1) * limit },
+      { sort: input.sort, direction: input.direction },
+    );
+    const sources = await context.repos.metaCandidates.sourcesByMetaEventIds(
+      rows.map((row) => row.id),
+    );
+    const sourcesByEvent = Map.groupBy(sources, (source) => source.metaEventId);
+    return {
+      events: rows.map((row) => toAdminMetaEvent(row, sourcesByEvent.get(row.id) ?? [])),
+      total,
+      page,
+      limit,
+    };
+  }),
+
+  getEvent: os.getEvent.handler(async ({ input, context }): Promise<AdminMetaEvent> => {
+    const row = await context.repos.meta.eventById(input.id);
+    assertFound(row, "Event not found");
+    const sources = await context.repos.metaCandidates.sourcesByMetaEventIds([row.id]);
+    return toAdminMetaEvent(row, sources);
   }),
 
   createEvent: os.createEvent.handler(async ({ input, context }): Promise<AdminMetaEvent> => {
@@ -82,8 +172,11 @@ export const adminMetaRouter = {
       playerCount: input.playerCount ?? null,
       organizer: input.organizer ?? null,
       notes: input.notes ?? null,
+      tier: input.tier ?? classifyMetaEventTier({ playerCount: input.playerCount ?? null }),
+      country: input.country ?? null,
+      location: input.location ?? null,
     });
-    return toAdminMetaEvent(row);
+    return toAdminMetaEvent(row, []);
   }),
 
   updateEvent: os.updateEvent.handler(async ({ input, context }): Promise<void> => {
@@ -108,59 +201,82 @@ export const adminMetaRouter = {
     assertExisted(await context.repos.meta.deleteEvent(input.id), "Event not found");
   }),
 
-  eventDecks: os.eventDecks.handler(async ({ input, context }) => {
+  reclassifyEvents: os.reclassifyEvents.handler(({ context }) =>
+    reclassifyMetaEvents(context.repos, { transact: context.transact }),
+  ),
+
+  eventPlayers: os.eventPlayers.handler(async ({ input, context }) => {
     const { meta } = context.repos;
     assertFound(await meta.eventById(input.id), "Event not found");
-    const rows = await meta.adminDecksForEvent(input.id);
-    return { decks: rows.map((row) => toAdminMetaDeck(row)) };
+    const rows = await meta.adminPlayersForEvent(input.id);
+    return { players: rows.map((row) => toAdminMetaPlayer(row)) };
   }),
 
-  createDeck: os.createDeck.handler(async ({ input, context }) => {
-    const { meta, deckFormats, customTags } = context.repos;
+  createPlayer: os.createPlayer.handler(async ({ input, context }) => {
+    const { meta } = context.repos;
 
-    await assertKnownFormat(deckFormats, input.format);
-    const formatConfig = await validateFormatConfig(customTags, input.format, input.formatConfig);
+    const deck = input.list === null ? null : await toDeckInput(context.repos, input.list);
+    const zones = zoneCardIds(deck);
 
     // Shared with the candidate accept path, so the synthetic owner, the
     // public flag, and the share token are stamped in exactly one place.
-    const result = await createArchivedDeck(meta, {
+    const result = await createMetaEventPlayer(meta, {
       eventId: input.eventId,
-      name: input.name,
-      format: input.format,
-      formatConfig,
-      cards: toCardInputs(input.cards),
+      rank: input.rank,
+      rankIsTier: input.rankIsTier,
       playerName: input.playerName,
-      finishTier: input.finishTier,
-      record: input.record ?? null,
-      listStatus: input.listStatus,
+      wins: input.wins,
+      losses: input.losses,
+      draws: input.draws,
+      legendCardId: zones.legendCardId ?? input.legendCardId,
+      championCardId: zones.championCardId ?? input.championCardId,
+      deck,
     });
 
     assertFound(result, "Event not found");
     return result;
   }),
 
-  updateDeck: os.updateDeck.handler(async ({ input, context }): Promise<void> => {
+  updatePlayer: os.updatePlayer.handler(async ({ input, context }): Promise<void> => {
     const { meta } = context.repos;
-    const { id, cards, ...rest } = input;
+    const { id, list, ...rest } = input;
 
-    // A moved deck's target event must exist, or the FK violation would
-    // surface as a 500 instead of the contract's 404.
+    // A moved row's target event must exist, or the FK violation would surface
+    // as a 500 instead of the contract's 404.
     if (rest.eventId !== undefined) {
       assertFound(await meta.eventById(rest.eventId), "Event not found");
     }
 
-    // Through the service, not the repo: filling in a previously unknown list
-    // is what mints the deck's permalink, and the candidate accept path has to
-    // do the same thing.
-    const updated = await updateArchivedDeck(meta, id, {
+    // Built before the scalar write so an unknown format is a 400 with nothing
+    // half-applied behind it.
+    const deck =
+      list === undefined || list === null ? null : await toDeckInput(context.repos, list);
+    const zones = zoneCardIds(deck);
+
+    const existed = await meta.updatePlayer(id, {
       ...rest,
-      ...(cards === undefined ? {} : { cards: toCardInputs(cards) }),
+      ...(zones.legendCardId === null ? {} : { legendCardId: zones.legendCardId }),
+      ...(zones.championCardId === null ? {} : { championCardId: zones.championCardId }),
     });
-    assertExisted(updated, "Archived deck not found");
+    assertExisted(existed, "Standings row not found");
+
+    if (list === undefined) {
+      return;
+    }
+    if (deck === null) {
+      // Clears the reference before deleting the deck: `deck_id` is ON DELETE
+      // RESTRICT, so a standings row never disappears with its list.
+      assertExisted(await meta.clearPlayerDeck(id), "Standings row not found");
+      return;
+    }
+    // Through the service, not the repo: giving an entry a list is what mints
+    // its permalink, and the candidate accept path has to do the same thing.
+    const written = await setMetaPlayerList(meta, id, deck);
+    assertFound(written, "Standings row not found");
   }),
 
-  deleteDeck: os.deleteDeck.handler(async ({ input, context }): Promise<void> => {
-    assertExisted(await context.repos.meta.deleteDeck(input.id), "Archived deck not found");
+  deletePlayer: os.deletePlayer.handler(async ({ input, context }): Promise<void> => {
+    assertExisted(await context.repos.meta.deletePlayer(input.id), "Standings row not found");
   }),
 
   // A citation says where a slice of the event's data came from. It is public,

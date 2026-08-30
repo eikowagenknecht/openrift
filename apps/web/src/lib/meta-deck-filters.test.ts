@@ -14,7 +14,7 @@ const EMPTY: MetaDeckFilterValues = {
   formats: [],
   events: [],
   legends: [],
-  maxFinishTier: null,
+  maxRank: null,
   dateFrom: null,
   dateTo: null,
 };
@@ -28,38 +28,43 @@ function makeDeck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
     ...overrides.event,
   };
   return {
+    playerId: "player-1",
     deckId: "deck-1",
     shareToken: "token000001",
     listStatus: "full",
     name: "Fury Aggro",
     format: event.format,
     legendCardId: "card-jinx",
-    legendName: "Jinx",
+    legendName: "Jinx, Loose Cannon",
+    legendSlug: "jinx-loose-cannon",
     legendImageId: "img-jinx",
     championCardId: "card-jinx-champ",
     championName: "Jinx, Loose Cannon",
     championImageId: "img-jinx-champ",
     playerName: "Ashen",
-    finishTier: 1,
-    record: "6-1",
+    rank: 1,
+    rankIsTier: false,
+    wins: 6,
+    losses: 1,
+    draws: null,
     ...overrides,
     event,
   };
 }
 
 const decks: MetaDeckSummary[] = [
-  makeDeck({ deckId: "a", playerName: "Ashen", finishTier: 1 }),
+  makeDeck({ deckId: "a", playerName: "Ashen", rank: 1 }),
   makeDeck({
     deckId: "b",
     playerName: "Bram",
-    finishTier: 4,
+    rank: 4,
     legendCardId: "card-lux",
     legendName: "Lux",
   }),
   makeDeck({
     deckId: "c",
     playerName: "Cyra",
-    finishTier: 8,
+    rank: 8,
     legendCardId: null,
     legendName: null,
     event: {
@@ -106,8 +111,8 @@ describe("filterMetaDecks", () => {
   });
 
   it("treats the finish bound as inclusive", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxFinishTier: 4 }))).toEqual(["a", "b"]);
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxFinishTier: 1 }))).toEqual(["a"]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxRank: 4 }))).toEqual(["a", "b"]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxRank: 1 }))).toEqual(["a"]);
   });
 
   it("treats both date bounds as inclusive", () => {
@@ -125,7 +130,7 @@ describe("filterMetaDecks", () => {
     const result = filterMetaDecks(decks, {
       ...EMPTY,
       formats: ["standard"],
-      maxFinishTier: 4,
+      maxRank: 4,
       legends: ["card-lux"],
     });
     expect(ids(result)).toEqual(["b"]);
@@ -135,7 +140,7 @@ describe("filterMetaDecks", () => {
     const result = filterMetaDecks(decks, {
       ...EMPTY,
       formats: ["legacy"],
-      maxFinishTier: 1,
+      maxRank: 1,
     });
     expect(result).toEqual([]);
   });
@@ -147,10 +152,10 @@ describe("sortMetaDecks", () => {
     expect(ids(sortMetaDecks(shuffled))).toEqual(["a", "b", "c"]);
   });
 
-  it("breaks a finish tie on player name", () => {
+  it("breaks a rank tie on player name", () => {
     const tied = [
-      makeDeck({ deckId: "z", playerName: "Zed", finishTier: 4 }),
-      makeDeck({ deckId: "m", playerName: "Mel", finishTier: 4 }),
+      makeDeck({ deckId: "z", playerName: "Zed", rank: 4 }),
+      makeDeck({ deckId: "m", playerName: "Mel", rank: 4 }),
     ];
     expect(ids(sortMetaDecks(tied))).toEqual(["m", "z"]);
   });
@@ -192,7 +197,7 @@ describe("metaDeckFilterOptions", () => {
       { value: "rift-open", label: "Rift Open" },
     ]);
     expect(options.legends).toEqual([
-      { value: "card-jinx", label: "Jinx" },
+      { value: "card-jinx", label: "Jinx, Loose Cannon" },
       { value: "card-lux", label: "Lux" },
     ]);
   });
@@ -209,7 +214,7 @@ describe("hasActiveMetaDeckFilters", () => {
 
   it("is true once any axis is populated", () => {
     expect(hasActiveMetaDeckFilters({ ...EMPTY, formats: ["standard"] })).toBe(true);
-    expect(hasActiveMetaDeckFilters({ ...EMPTY, maxFinishTier: 8 })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, maxRank: 8 })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, dateTo: "2026-01-01" })).toBe(true);
   });
 });

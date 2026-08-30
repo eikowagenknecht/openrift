@@ -1,22 +1,27 @@
 import { ERROR_CODES } from "@openrift/shared";
-import type { MetaCandidateDeck } from "@openrift/shared";
+import type { MetaCandidatePlayer } from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import type { MetaDeckDiff } from "../../lib/meta-candidate-diff.js";
-import { collapseCardEntries, diffMetaDeck, diffMetaEvent } from "../../lib/meta-candidate-diff.js";
+import type { MetaPlayerDiff } from "../../lib/meta-candidate-diff.js";
 import {
-  toMetaCandidateDeck,
+  collapseCardEntries,
+  diffMetaEvent,
+  diffMetaPlayer,
+  resolveMetaPlayerCards,
+} from "../../lib/meta-candidate-diff.js";
+import {
   toMetaCandidateDetail,
+  toMetaCandidatePlayer,
   toMetaCandidateQueueRow,
   toMetaCandidateSource,
   unresolvedCardNames,
 } from "../../lib/meta-candidate-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import type { CandidateMetaDeckRow } from "../../repositories/meta-candidates.js";
+import type { CandidateMetaPlayerRow } from "../../repositories/meta-candidates.js";
 import { MAX_EVENT_MATCH_DAY_DELTA } from "../../services/meta-match-suggestions.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
@@ -25,29 +30,29 @@ const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(req
 /**
  * Unresolved rows are dropped, and rows that landed on the same card and zone
  * are summed — the accept path folds them the same way before writing
- * `deck_cards`, so without the collapse an accepted deck would keep reading as
+ * `deck_cards`, so without the collapse an accepted list would keep reading as
  * changed against the row it just wrote.
  */
-function resolvedEntries(deck: CandidateMetaDeckRow) {
+function resolvedEntries(player: CandidateMetaPlayerRow) {
   return collapseCardEntries(
-    deck.cards
+    (player.cards ?? [])
       .filter((card) => card.cardId !== null)
       .map((card) => ({ cardId: card.cardId as string, zone: card.zone, quantity: card.quantity })),
   );
 }
 
 /**
- * One lookup per distinct submitter, not a join: a provider's decks carry no
+ * One lookup per distinct submitter, not a join: a provider's rows carry no
  * submitter at all, and an event's roster holds a handful of contributors at
  * most. Absent entries mean the account is gone.
  */
 async function resolveSubmitterNames(
   users: ApiContext["repos"]["users"],
-  decks: readonly CandidateMetaDeckRow[],
+  players: readonly CandidateMetaPlayerRow[],
 ): Promise<Map<string, string | null>> {
   const ids = [
     ...new Set(
-      decks.map((deck) => deck.submittedByUserId).filter((id): id is string => id !== null),
+      players.map((player) => player.submittedByUserId).filter((id): id is string => id !== null),
     ),
   ];
   const rows = await Promise.all(ids.map((id) => users.findById(id)));
@@ -122,10 +127,10 @@ export const adminMetaCandidatesRouter = {
         newEvents: result.newEvents,
         updatedEvents: result.updatedEvents,
         unchangedEvents: result.unchangedEvents,
-        newDecks: result.newDecks,
-        updatedDecks: result.updatedDecks,
-        removedDecks: result.removedDecks,
-        unchangedDecks: result.unchangedDecks,
+        newPlayers: result.newPlayers,
+        updatedPlayers: result.updatedPlayers,
+        removedPlayers: result.removedPlayers,
+        unchangedPlayers: result.unchangedPlayers,
         ignoredSkipped: result.ignoredSkipped,
         errors: result.errors.length,
       },
@@ -137,9 +142,9 @@ export const adminMetaCandidatesRouter = {
   list: os.list.handler(async ({ context }) => {
     const { metaCandidates } = context.repos;
 
-    const [events, decks] = await Promise.all([
+    const [events, players] = await Promise.all([
       metaCandidates.listEvents(),
-      metaCandidates.allDecks(),
+      metaCandidates.allPlayers(),
     ]);
 
     const linkedIds = events
@@ -147,19 +152,26 @@ export const adminMetaCandidatesRouter = {
       .filter((id): id is string => id !== null);
     const liveEvents = await metaCandidates.liveEventsByIds(linkedIds);
     const liveById = new Map(liveEvents.map((row) => [row.id, row]));
-    const decksByEvent = Map.groupBy(decks, (deck) => deck.candidateEventId);
+    const playersByEvent = Map.groupBy(players, (player) => player.candidateEventId);
+    // Counted off the queue itself, so a row's source count agrees with the
+    // columns its review screen will show.
+    const siblingsByLiveEvent = Map.groupBy(events, (event) => event.metaEventId);
 
     return {
       candidates: events.map((event) => {
-        const own = decksByEvent.get(event.id) ?? [];
+        const own = playersByEvent.get(event.id) ?? [];
         const live = event.metaEventId === null ? undefined : liveById.get(event.metaEventId);
         return toMetaCandidateQueueRow(event, {
-          deckCount: own.length,
-          unacceptedDeckCount: own.filter((deck) => deck.deckId === null).length,
+          playerRowCount: own.length,
+          unacceptedPlayerCount: own.filter((player) => player.metaEventPlayerId === null).length,
           unresolvedCardCount: own.reduce(
-            (total, deck) => total + unresolvedCardNames(deck).length,
+            (total, player) => total + unresolvedCardNames(player.cards).length,
             0,
           ),
+          linkedSourceCount:
+            event.metaEventId === null
+              ? 0
+              : (siblingsByLiveEvent.get(event.metaEventId)?.length ?? 0),
           hasDiff: live !== undefined && diffMetaEvent(live, event).length > 0,
           metaEventSlug: live?.slug ?? null,
         });
@@ -168,7 +180,7 @@ export const adminMetaCandidatesRouter = {
   }),
 
   detail: os.detail.handler(async ({ input, context }) => {
-    const { metaCandidates, deckFormats, users } = context.repos;
+    const { meta, metaCandidates, deckFormats, users } = context.repos;
 
     const event = await metaCandidates.eventById(input.id);
     if (event === undefined) {
@@ -183,29 +195,31 @@ export const adminMetaCandidatesRouter = {
         : await metaCandidates.eventsByMetaEventId(event.metaEventId);
     const parentById = new Map(siblings.map((row) => [row.id, row]));
 
-    // User submissions hang off the live event directly, so they join the deck
+    // User submissions hang off the live event directly, so they join the
     // roster while belonging to no source column.
-    const [sourceDecks, submitted] = await Promise.all([
-      metaCandidates.decksByCandidateEventIds(siblings.map((row) => row.id)),
+    const [sourcePlayers, submitted] = await Promise.all([
+      metaCandidates.playersByCandidateEventIds(siblings.map((row) => row.id)),
       event.metaEventId === null
-        ? Promise.resolve<CandidateMetaDeckRow[]>([])
-        : metaCandidates.decksByMetaEventIds([event.metaEventId]),
+        ? Promise.resolve<CandidateMetaPlayerRow[]>([])
+        : metaCandidates.playersByMetaEventIds([event.metaEventId]),
     ]);
-    const allDecks = [...sourceDecks, ...submitted];
-    const liveDeckIds = allDecks
-      .map((deck) => deck.deckId)
+    const allPlayers = [...sourcePlayers, ...submitted];
+    const livePlayerIds = allPlayers
+      .map((player) => player.metaEventPlayerId)
       .filter((id): id is string => id !== null);
 
-    const [liveDecks, liveDeckCards, format] = await Promise.all([
-      metaCandidates.liveDecksByIds(liveDeckIds),
-      metaCandidates.liveDeckCards(liveDeckIds),
+    const [livePlayers, format] = await Promise.all([
+      meta.livePlayersByIds(livePlayerIds),
       deckFormats.getBySlug(event.format),
     ]);
+    const liveDeckCards = await metaCandidates.liveDeckCards(
+      livePlayers.map((row) => row.deckId).filter((id): id is string => id !== null),
+    );
 
-    // The sources' own live events plus whichever events their linked decks
-    // currently sit under. Those usually coincide; when they don't, the deck
-    // was re-parented and accepting it would move it, which the diff has to say.
-    const eventIds = new Set(liveDecks.map((row) => row.metaEventId));
+    // The sources' own live events plus whichever events their linked rows
+    // currently sit under. Those usually coincide; when they don't, the row was
+    // re-parented and accepting it would move it, which the diff has to say.
+    const eventIds = new Set(livePlayers.map((row) => row.metaEventId));
     for (const sibling of siblings) {
       if (sibling.metaEventId !== null) {
         eventIds.add(sibling.metaEventId);
@@ -215,16 +229,22 @@ export const adminMetaCandidatesRouter = {
     const liveEventNames = new Map(liveEvents.map((row) => [row.id, row.name]));
 
     const live = liveEvents.find((row) => row.id === event.metaEventId);
-    const liveDeckById = new Map(liveDecks.map((row) => [row.deckId, row]));
+    const livePlayerById = new Map(livePlayers.map((row) => [row.id, row]));
     const liveCardsByDeck = Map.groupBy(liveDeckCards, (row) => row.deckId);
 
-    // One lookup for every card the response names: the candidates' own rows and
-    // whatever only the live side still holds (a removed card).
+    // One lookup for every card the response names: the candidates' own rows
+    // and whatever only the live side still holds (a removed card).
     const cardIds = new Set<string>();
-    for (const deck of allDecks) {
-      for (const card of deck.cards) {
+    for (const player of allPlayers) {
+      for (const card of player.cards ?? []) {
         if (card.cardId !== null) {
           cardIds.add(card.cardId);
+        }
+      }
+      const resolved = resolveMetaPlayerCards(player);
+      for (const id of [resolved.legendCardId, resolved.championCardId]) {
+        if (id !== null) {
+          cardIds.add(id);
         }
       }
     }
@@ -233,76 +253,91 @@ export const adminMetaCandidatesRouter = {
     }
     const [cardNames, submitterNames] = await Promise.all([
       metaCandidates.cardNamesByIds([...cardIds]),
-      resolveSubmitterNames(users, allDecks),
+      resolveSubmitterNames(users, allPlayers),
     ]);
 
-    function targetEventId(deck: CandidateMetaDeckRow): string | null {
-      if (deck.metaEventId !== null) {
-        return deck.metaEventId;
+    function targetEventId(player: CandidateMetaPlayerRow): string | null {
+      if (player.metaEventId !== null) {
+        return player.metaEventId;
       }
       const parent =
-        deck.candidateEventId === null ? undefined : parentById.get(deck.candidateEventId);
+        player.candidateEventId === null ? undefined : parentById.get(player.candidateEventId);
       return parent?.metaEventId ?? null;
     }
 
-    function presentDeck(deck: CandidateMetaDeckRow): MetaCandidateDeck {
-      const liveDeck = deck.deckId === null ? undefined : liveDeckById.get(deck.deckId);
-      let diff: MetaDeckDiff | null = null;
-      if (liveDeck !== undefined) {
-        diff = diffMetaDeck(
+    function presentPlayer(player: CandidateMetaPlayerRow): MetaCandidatePlayer {
+      const livePlayer =
+        player.metaEventPlayerId === null
+          ? undefined
+          : livePlayerById.get(player.metaEventPlayerId);
+      let diff: MetaPlayerDiff | null = null;
+      if (livePlayer !== undefined) {
+        const resolved = resolveMetaPlayerCards(player);
+        diff = diffMetaPlayer(
           {
-            event: liveDeck.metaEventId,
-            name: liveDeck.name,
-            playerName: liveDeck.playerName,
-            finishTier: liveDeck.finishTier,
-            record: liveDeck.record,
-            listStatus: liveDeck.listStatus,
-            cards: liveCardsByDeck.get(liveDeck.deckId) ?? [],
+            event: livePlayer.metaEventId,
+            playerName: livePlayer.playerName,
+            rank: livePlayer.rank,
+            rankIsTier: livePlayer.rankIsTier,
+            wins: livePlayer.wins,
+            losses: livePlayer.losses,
+            draws: livePlayer.draws,
+            legendCardId: livePlayer.legendCardId,
+            championCardId: livePlayer.championCardId,
+            listStatus: livePlayer.listStatus,
+            cards: livePlayer.deckId === null ? [] : (liveCardsByDeck.get(livePlayer.deckId) ?? []),
           },
           {
-            // Accepting re-parents the live deck onto the source's own event,
-            // so a mismatch here is a move the reviewer has to see.
-            event: targetEventId(deck),
-            // A source that ships no deck name is not proposing to blank the
-            // archived deck's name, so the live one stands in for the compare.
-            name: deck.name ?? liveDeck.name,
-            playerName: deck.playerName,
-            finishTier: deck.finishTier,
-            record: deck.record,
-            // Accepting an archetype the source has since published with a
-            // main deck is what gives it a page, so the status belongs in the
-            // diff — as does the quieter partial-to-full move.
-            listStatus: deck.listStatus,
-            cards: resolvedEntries(deck),
+            // Accepting re-parents the live row onto the source's own event, so
+            // a mismatch here is a move the reviewer has to see.
+            event: targetEventId(player),
+            playerName: player.playerName,
+            rank: player.rank,
+            rankIsTier: player.rankIsTier,
+            wins: player.wins,
+            losses: player.losses,
+            draws: player.draws,
+            legendCardId: resolved.legendCardId,
+            championCardId: resolved.championCardId,
+            // A source publishing standings only is not proposing to strip a
+            // list another source contributed, so the live values stand in.
+            listStatus: player.cards === null ? livePlayer.listStatus : player.listStatus,
+            cards:
+              player.cards === null
+                ? livePlayer.deckId === null
+                  ? []
+                  : (liveCardsByDeck.get(livePlayer.deckId) ?? [])
+                : resolvedEntries(player),
           },
         );
       }
-      return toMetaCandidateDeck(deck, {
+      return toMetaCandidatePlayer(player, {
         diff,
-        shareToken: liveDeck?.shareToken ?? null,
+        deckId: livePlayer?.deckId ?? null,
+        shareToken: livePlayer?.shareToken ?? null,
         cardNames,
         eventNames: liveEventNames,
         submittedByName:
-          deck.submittedByUserId === null
+          player.submittedByUserId === null
             ? null
-            : (submitterNames.get(deck.submittedByUserId) ?? null),
+            : (submitterNames.get(player.submittedByUserId) ?? null),
       });
     }
 
-    const decksByParent = Map.groupBy(sourceDecks, (deck) => deck.candidateEventId);
+    const playersByParent = Map.groupBy(sourcePlayers, (player) => player.candidateEventId);
 
     return toMetaCandidateDetail(event, {
       diff: live === undefined ? null : diffMetaEvent(live, event),
       formatKnown: format !== undefined,
       metaEventSlug: live?.slug ?? null,
-      decks: (decksByParent.get(event.id) ?? []).map((deck) => presentDeck(deck)),
+      players: (playersByParent.get(event.id) ?? []).map((player) => presentPlayer(player)),
       sources: siblings.map((sibling) =>
         toMetaCandidateSource(
           sibling,
-          (decksByParent.get(sibling.id) ?? []).map((deck) => presentDeck(deck)),
+          (playersByParent.get(sibling.id) ?? []).map((player) => presentPlayer(player)),
         ),
       ),
-      submittedDecks: submitted.map((deck) => presentDeck(deck)),
+      submittedPlayers: submitted.map((player) => presentPlayer(player)),
     });
   }),
 
@@ -312,7 +347,7 @@ export const adminMetaCandidatesRouter = {
 
   // The alias-fix flow in one call: record "this source name means that card"
   // in card_name_aliases (shared with the card pipeline, so the fix applies to
-  // every future upload from any source), then rematch so the unblocked decks
+  // every future upload from any source), then rematch so the unblocked rows
   // update immediately.
   resolveName: os.resolveName.handler(async ({ input, context }) => {
     const { catalog, catalogMutations } = context.repos;
@@ -351,10 +386,11 @@ export const adminMetaCandidatesRouter = {
     }
   }),
 
-  acceptEventWithDecks: os.acceptEventWithDecks.handler(async ({ input, context, errors }) => {
+  acceptEventWithPlayers: os.acceptEventWithPlayers.handler(async ({ input, context, errors }) => {
     try {
-      return await context.services.acceptCandidateEventWithDecks(context.repos, input.id, {
+      return await context.services.acceptCandidateEventWithPlayers(context.repos, input.id, {
         overwriteAll: input.overwriteAll,
+        allowUnresolvedLegend: input.allowUnresolvedLegend,
         resolvedByUserId: context.userId,
       });
     } catch (error) {
@@ -366,8 +402,9 @@ export const adminMetaCandidatesRouter = {
     }
   }),
 
-  acceptDeck: os.acceptDeck.handler(({ input, context }) =>
-    context.services.acceptCandidateDeck(context.repos, input.id, {
+  acceptPlayer: os.acceptPlayer.handler(({ input, context }) =>
+    context.services.acceptCandidatePlayer(context.repos, input.id, {
+      allowUnresolvedLegend: input.allowUnresolvedLegend,
       resolvedByUserId: context.userId,
     }),
   ),
@@ -380,12 +417,12 @@ export const adminMetaCandidatesRouter = {
     assertExisted(existed, "Candidate event not found");
   }),
 
-  checkDeck: os.checkDeck.handler(async ({ input, context }): Promise<void> => {
-    const existed = await context.repos.metaCandidates.setDeckCheckedAt(
+  checkPlayer: os.checkPlayer.handler(async ({ input, context }): Promise<void> => {
+    const existed = await context.repos.metaCandidates.setPlayerCheckedAt(
       input.id,
       input.checked ? new Date() : null,
     );
-    assertExisted(existed, "Candidate deck not found");
+    assertExisted(existed, "Candidate player not found");
   }),
 
   ignoreEvent: os.ignoreEvent.handler(async ({ input, context }): Promise<void> => {
@@ -394,47 +431,46 @@ export const adminMetaCandidatesRouter = {
     if (event === undefined) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate event not found");
     }
-    // Writes the ignore key and drops the staged row, so the queue loses it now
-    // and every later upload skips it. Its decks go with it via the cascade —
-    // but each keeps only the parent link, so a deck ignored on its own needs
-    // its own key.
+    // Writes the ignore key and keeps the staged row. The queue reads join
+    // against the ignore table, so the event drops out of view now and every
+    // later upload skips it — while its link survives, which is what makes an
+    // un-ignore resolve back to the same live event instead of a duplicate.
     await metaCandidates.ignoreEvent(event.provider, event.externalId);
   }),
 
-  ignoreDeck: os.ignoreDeck.handler(async ({ input, context }): Promise<void> => {
+  ignorePlayer: os.ignorePlayer.handler(async ({ input, context }): Promise<void> => {
     const { metaCandidates } = context.repos;
-    const deck = await metaCandidates.deckById(input.id);
-    if (deck === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate deck not found");
+    const player = await metaCandidates.playerById(input.id);
+    if (player === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate player not found");
     }
     // A user submission hangs off the live event and has no source event to key
     // an ignore on (the key is `(provider, event external id, external id)`), so
     // rejecting one is a ledger resolution, not an ignore entry. The verb this
     // points at is `adminMetaSubmissionsContract.resolve`, which also tells the
     // contributor what happened — an ignore entry would tell them nothing.
-    if (deck.candidateEventId === null) {
+    if (player.candidateEventId === null) {
       throw new AppError(
         400,
         ERROR_CODES.BAD_REQUEST,
         "A user submission has no source event to ignore. Resolve its submission instead.",
       );
     }
-    const parent = await metaCandidates.eventById(deck.candidateEventId);
+    const parent = await metaCandidates.eventById(player.candidateEventId);
     if (parent === undefined) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate event not found");
     }
     // The key names the source's event, not the candidate row it hangs off:
-    // deck ids restart per event, so ignoring "1" here must not also silence
-    // and delete deck "1" of every other event this provider pushes.
-    await metaCandidates.ignoreDeck(
-      parent.provider,
-      { eventExternalId: parent.externalId, externalId: deck.externalId },
-      deck.id,
-    );
+    // player ids restart per event, so ignoring "1" here must not also silence
+    // entry "1" of every other event this provider pushes.
+    await metaCandidates.ignorePlayer(parent.provider, {
+      eventExternalId: parent.externalId,
+      externalId: player.externalId,
+    });
   }),
 
   listIgnored: os.listIgnored.handler(async ({ context }) => {
-    const { events, decks } = await context.repos.metaCandidates.listIgnored();
+    const { events, players } = await context.repos.metaCandidates.listIgnored();
     const toRow = (row: { provider: string; externalId: string; createdAt: Date }) => ({
       provider: row.provider,
       externalId: row.externalId,
@@ -442,7 +478,7 @@ export const adminMetaCandidatesRouter = {
     });
     return {
       events: events.map((row) => toRow(row)),
-      decks: decks.map((row) => ({ ...toRow(row), eventExternalId: row.eventExternalId })),
+      players: players.map((row) => ({ ...toRow(row), eventExternalId: row.eventExternalId })),
     };
   }),
 
@@ -454,8 +490,8 @@ export const adminMetaCandidatesRouter = {
     assertExisted(removed, "Ignore entry not found");
   }),
 
-  unignoreDeck: os.unignoreDeck.handler(async ({ input, context }): Promise<void> => {
-    const removed = await context.repos.metaCandidates.unignoreDeck(input.provider, {
+  unignorePlayer: os.unignorePlayer.handler(async ({ input, context }): Promise<void> => {
+    const removed = await context.repos.metaCandidates.unignorePlayer(input.provider, {
       eventExternalId: input.eventExternalId,
       externalId: input.externalId,
     });
@@ -478,19 +514,19 @@ export const adminMetaCandidatesRouter = {
     context.services.unlinkCandidateEvent(context.repos, input.id),
   ),
 
-  linkCandidateDeck: os.linkCandidateDeck.handler(({ input, context }) =>
-    context.services.linkCandidateDeck(context.repos, input.id, input.deckId),
+  linkCandidatePlayer: os.linkCandidatePlayer.handler(({ input, context }) =>
+    context.services.linkCandidatePlayer(context.repos, input.id, input.metaEventPlayerId),
   ),
 
-  relinkCandidateDeck: os.relinkCandidateDeck.handler(({ input, context }) =>
-    context.services.relinkCandidateDeck(context.repos, input.id, input.deckId),
+  relinkCandidatePlayer: os.relinkCandidatePlayer.handler(({ input, context }) =>
+    context.services.relinkCandidatePlayer(context.repos, input.id, input.metaEventPlayerId),
   ),
 
-  unlinkCandidateDeck: os.unlinkCandidateDeck.handler(({ input, context }) =>
-    context.services.unlinkCandidateDeck(context.repos, input.id),
+  unlinkCandidatePlayer: os.unlinkCandidatePlayer.handler(({ input, context }) =>
+    context.services.unlinkCandidatePlayer(context.repos, input.id),
   ),
 
-  // The reviewing admin is passed along because a deck accept settles any
+  // The reviewing admin is passed along because a player accept settles any
   // submission ledger row behind it, and that row records who resolved it.
 
   acceptMetaEventField: os.acceptMetaEventField.handler(({ input, context }) =>
@@ -500,10 +536,10 @@ export const adminMetaCandidatesRouter = {
     }),
   ),
 
-  acceptMetaDeckField: os.acceptMetaDeckField.handler(({ input, context }) =>
-    context.services.acceptMetaDeckField(
+  acceptMetaPlayerField: os.acceptMetaPlayerField.handler(({ input, context }) =>
+    context.services.acceptMetaPlayerField(
       context.repos,
-      { candidateDeckId: input.id, field: input.field },
+      { candidatePlayerId: input.id, field: input.field },
       { resolvedByUserId: context.userId },
     ),
   ),
@@ -523,7 +559,7 @@ export const adminMetaCandidatesRouter = {
     windowDays: MAX_EVENT_MATCH_DAY_DELTA,
   })),
 
-  deckMatchSuggestions: os.deckMatchSuggestions.handler(async ({ input, context }) => ({
-    suggestions: await context.services.suggestMetaDeckMatches(context.repos, input.id),
+  playerMatchSuggestions: os.playerMatchSuggestions.handler(async ({ input, context }) => ({
+    suggestions: await context.services.suggestMetaPlayerMatches(context.repos, input.id),
   })),
 };

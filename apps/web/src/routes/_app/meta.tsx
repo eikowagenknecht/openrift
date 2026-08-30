@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RouteErrorFallback } from "@/components/error-message";
 import { META_DESCRIPTION } from "@/components/meta/meta-copy";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaEventsQueryOptions, metaStatsQueryOptions } from "@/hooks/use-meta";
+import { metaCountsQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { metaOverviewSearchSchema } from "@/lib/meta-deck-search";
@@ -27,15 +27,15 @@ export const Route = createFileRoute("/_app/meta")({
       throw redirect({ to: "/cards" });
     }
   },
-  // The stats endpoint scopes its aggregates server-side, so the filters are
-  // loader deps rather than a client-side narrowing.
+  // The counts endpoint scopes server-side, so the filters are loader deps
+  // rather than a client-side narrowing.
   loaderDeps: ({ search }) => ({ format: search.format, from: search.from, to: search.to }),
   loader: async ({ context, deps }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(initQueryOptions),
       context.queryClient.ensureQueryData(metaEventsQueryOptions),
       context.queryClient.ensureQueryData(
-        metaStatsQueryOptions({ format: deps.format, dateFrom: deps.from, dateTo: deps.to }),
+        metaCountsQueryOptions({ format: deps.format, dateFrom: deps.from, dateTo: deps.to }),
       ),
     ]);
   },

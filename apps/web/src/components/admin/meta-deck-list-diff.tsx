@@ -1,7 +1,7 @@
 import { MinusIcon, PlusIcon } from "lucide-react";
 
-import type { RosterListDelta } from "@/lib/meta-deck-roster";
-import { hasListDelta } from "@/lib/meta-deck-roster";
+import type { RosterListDelta } from "@/lib/meta-player-roster";
+import { hasListDelta } from "@/lib/meta-player-roster";
 import { cn } from "@/lib/utils";
 
 /** One rendered line of the diff: what changes, by how much, in which zone. */

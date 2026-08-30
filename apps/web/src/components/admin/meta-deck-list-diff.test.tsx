@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { MetaDeckListDiff, buildListDiffLines } from "@/components/admin/meta-deck-list-diff";
-import type { RosterListDelta } from "@/lib/meta-deck-roster";
+import type { RosterListDelta } from "@/lib/meta-player-roster";
 
 const zoneLabel = (zone: string) => (zone === "main" ? "Main" : zone);
 

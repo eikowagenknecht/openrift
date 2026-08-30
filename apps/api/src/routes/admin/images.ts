@@ -95,7 +95,7 @@ export const adminImagesRouter = {
         "Job is still initializing. Try again shortly.",
       );
     }
-    await jobRuns.updateResult(running.id, { ...current, cancelRequested: true });
+    await jobRuns.requestCancel(running.id);
     return { runId: running.id, cancelRequested: true as const };
   }),
 

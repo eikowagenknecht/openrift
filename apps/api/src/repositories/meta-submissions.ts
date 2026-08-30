@@ -1,16 +1,16 @@
 import type { MetaSubmissionReason, MetaSubmissionStatus } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, MetaDeckSubmissionsTable } from "../db/index.js";
+import type { Database, MetaSubmissionsTable } from "../db/index.js";
 import { listOwnedByUser } from "./query-helpers.js";
 
-export type MetaDeckSubmissionRow = Selectable<MetaDeckSubmissionsTable>;
+export type MetaSubmissionRow = Selectable<MetaSubmissionsTable>;
 
-export interface MetaDeckSubmissionInput {
+export interface MetaSubmissionInsert {
   userId: string;
   provider: string;
   externalId: string;
-  candidateMetaDeckId: string;
+  candidateMetaPlayerId: string;
   /** The live event the submission targets, or null when it proposes one. */
   metaEventId: string | null;
   /** What the submitter called the event, so the row still reads without a target. */
@@ -23,7 +23,7 @@ export interface MetaDeckSubmissionInput {
  * The outcome ledger for user decklist submissions to the meta archive,
  * shaped like `card_submissions`.
  *
- * Separate from `candidate_meta_decks` because staging is disposable and a
+ * Separate from `candidate_meta_players` because staging is disposable and a
  * contributor's history is not: the candidate row is replaced, ignored or
  * deleted as the queue moves, and the person who sent it still needs to see
  * what happened. Provider uploads write nothing here — those sources are the
@@ -33,11 +33,11 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
   return {
     /**
      * Record a new submission. Called inside the submission transaction so a
-     * candidate deck never exists without its ledger row.
+     * candidate player never exists without its ledger row.
      */
-    async insert(values: MetaDeckSubmissionInput): Promise<string> {
+    async insert(values: MetaSubmissionInsert): Promise<string> {
       const row = await db
-        .insertInto("metaDeckSubmissions")
+        .insertInto("metaSubmissions")
         .values(values)
         .returning("id")
         .executeTakeFirstOrThrow();
@@ -53,13 +53,13 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
     listByUser(
       userId: string,
       options: { cursor?: string | null; limit: number },
-    ): Promise<MetaDeckSubmissionRow[]> {
-      return listOwnedByUser<MetaDeckSubmissionRow>(db, "metaDeckSubmissions", userId, options);
+    ): Promise<MetaSubmissionRow[]> {
+      return listOwnedByUser<MetaSubmissionRow>(db, "metaSubmissions", userId, options);
     },
 
-    async byId(id: string): Promise<MetaDeckSubmissionRow | null> {
+    async byId(id: string): Promise<MetaSubmissionRow | null> {
       const row = await db
-        .selectFrom("metaDeckSubmissions")
+        .selectFrom("metaSubmissions")
         .selectAll()
         .where("id", "=", id)
         .executeTakeFirst();
@@ -70,11 +70,11 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
      * The submission behind one staging row, or null when the candidate is not
      * a submission. This is how an accept finds the ledger entry to resolve.
      */
-    async byCandidateDeckId(candidateMetaDeckId: string): Promise<MetaDeckSubmissionRow | null> {
+    async byCandidatePlayerId(candidateMetaPlayerId: string): Promise<MetaSubmissionRow | null> {
       const row = await db
-        .selectFrom("metaDeckSubmissions")
+        .selectFrom("metaSubmissions")
         .selectAll()
-        .where("candidateMetaDeckId", "=", candidateMetaDeckId)
+        .where("candidateMetaPlayerId", "=", candidateMetaPlayerId)
         .executeTakeFirst();
       return row ?? null;
     },
@@ -95,7 +95,7 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
       },
     ): Promise<void> {
       await db
-        .updateTable("metaDeckSubmissions")
+        .updateTable("metaSubmissions")
         .set({
           status: values.status,
           resolvedAt: values.resolvedAt,
@@ -125,7 +125,7 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
      */
     async recordAcceptance(values: {
       submissionId: string | null;
-      credit: { metaEventId: string; deckId: string | null; userId: string };
+      credit: { metaEventId: string; metaEventPlayerId: string | null; userId: string };
       acceptedDeckId: string | null;
       resolvedAt: Date;
       resolvedByUserId: string | null;
@@ -134,7 +134,9 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
         await trx
           .insertInto("metaCredits")
           .values(values.credit)
-          .onConflict((oc) => oc.columns(["metaEventId", "userId", "deckId"]).doNothing())
+          .onConflict((oc) =>
+            oc.columns(["metaEventId", "userId", "metaEventPlayerId"]).doNothing(),
+          )
           .execute();
 
         if (values.submissionId === null) {
@@ -144,7 +146,7 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
         // contributor a message before accepting, and an accept is not a
         // reason to drop it.
         await trx
-          .updateTable("metaDeckSubmissions")
+          .updateTable("metaSubmissions")
           .set({
             status: "accepted",
             resolvedAt: values.resolvedAt,
@@ -162,7 +164,7 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
      */
     async reopen(id: string): Promise<void> {
       await db
-        .updateTable("metaDeckSubmissions")
+        .updateTable("metaSubmissions")
         .set({ status: "pending", resolvedAt: null, acceptedDeckId: null })
         .where("id", "=", id)
         .execute();
@@ -170,12 +172,12 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
 
     /**
      * How many of a user's submissions are still awaiting an outcome, for the
-     * per-user cap. Counted on the ledger rather than on `candidate_meta_decks`
+     * per-user cap. Counted on the ledger rather than on `candidate_meta_players`
      * so purging staging cannot hand a spammer a fresh allowance.
      */
     async countPendingByUser(userId: string): Promise<number> {
       const row = await db
-        .selectFrom("metaDeckSubmissions")
+        .selectFrom("metaSubmissions")
         .select((eb) => eb.fn.countAll<string>().as("count"))
         .where("userId", "=", userId)
         .where("status", "=", "pending")

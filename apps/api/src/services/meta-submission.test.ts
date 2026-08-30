@@ -21,8 +21,11 @@ function args(overrides: Partial<MetaSubmissionArgs> = {}): MetaSubmissionArgs {
     metaEventId: EVENT_ID,
     proposedEvent: null,
     playerName: "Nova",
-    finishTier: 1,
-    record: "5-1",
+    rank: 1,
+    rankIsTier: false,
+    wins: 5,
+    losses: 1,
+    draws: 0,
     listStatus: "full",
     cards: [
       { name: "Azir", zone: "legend", quantity: 1 },
@@ -38,7 +41,7 @@ function args(overrides: Partial<MetaSubmissionArgs> = {}): MetaSubmissionArgs {
 interface Harness {
   transact: Transact;
   insertEvent: ReturnType<typeof vi.fn>;
-  insertDeck: ReturnType<typeof vi.fn>;
+  insertPlayer: ReturnType<typeof vi.fn>;
   insertSubmission: ReturnType<typeof vi.fn>;
 }
 
@@ -56,7 +59,7 @@ function harness(
   } = {},
 ): Harness {
   const insertEvent = vi.fn().mockResolvedValue("candidate-event-1");
-  const insertDeck = vi.fn().mockResolvedValue("candidate-deck-1");
+  const insertPlayer = vi.fn().mockResolvedValue("candidate-player-1");
   const insertSubmission = vi.fn().mockResolvedValue("submission-1");
   const resolved = options.resolvedCardIds ?? { Azir: "card-azir", Shock: "card-shock" };
 
@@ -77,7 +80,7 @@ function harness(
           options.eventName === undefined ? undefined : { id: EVENT_ID, name: options.eventName },
         ),
     },
-    metaCandidates: { insertEvent, insertDeck },
+    metaCandidates: { insertEvent, insertPlayer },
     metaSubmissions: {
       countPendingByUser: vi.fn().mockResolvedValue(options.pending ?? 0),
       insert: insertSubmission,
@@ -87,7 +90,7 @@ function harness(
   return {
     transact: (fn) => fn(repos),
     insertEvent,
-    insertDeck,
+    insertPlayer,
     insertSubmission,
   };
 }
@@ -117,6 +120,29 @@ describe("validateMetaSubmission", () => {
       }),
     );
     expect(problems).toHaveLength(1);
+  });
+
+  it("rejects a rank below first place", () => {
+    expect(validateMetaSubmission(args({ rank: 0 }))).toContain("rank must be a positive integer");
+  });
+
+  it("rejects a fractional rank", () => {
+    expect(validateMetaSubmission(args({ rank: 1.5 }))).toContain(
+      "rank must be a positive integer",
+    );
+  });
+
+  it("names each of the three record columns it refuses", () => {
+    const problems = validateMetaSubmission(args({ wins: -1, losses: 0.5, draws: -2 }));
+    expect(problems).toEqual([
+      "wins must be a non-negative integer",
+      "losses must be a non-negative integer",
+      "draws must be a non-negative integer",
+    ]);
+  });
+
+  it("accepts an unknown record, which most sources publish for nobody", () => {
+    expect(validateMetaSubmission(args({ wins: null, losses: null, draws: null }))).toEqual([]);
   });
 
   it("rejects an empty card list rather than staging an empty deck", () => {
@@ -178,27 +204,58 @@ describe("buildMetaSubmissionExternalId", () => {
 });
 
 describe("submitMetaDeck", () => {
-  it("stages one candidate deck against the live event and records the ledger row", async () => {
+  it("stages one candidate entry against the live event and records the ledger row", async () => {
     const h = harness({ eventName: "Summoner Skirmish Berlin" });
     const result = await submitMetaDeck(h.transact, args());
 
-    expect(result).toMatchObject({ status: "ok", candidateDeckId: "candidate-deck-1" });
-    // No placeholder candidate event: the deck hangs off the live one.
+    expect(result).toMatchObject({ status: "ok", candidatePlayerId: "candidate-player-1" });
     expect(h.insertEvent).not.toHaveBeenCalled();
-    expect(h.insertDeck).toHaveBeenCalledWith(
+    expect(h.insertPlayer).toHaveBeenCalledWith(
       expect.objectContaining({
         candidateEventId: null,
         metaEventId: EVENT_ID,
         submittedByUserId: "user-1",
-        deckId: null,
+        metaEventPlayerId: null,
         checkedAt: null,
       }),
     );
     expect(h.insertSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: META_USER_SUBMISSION_PROVIDER,
+        candidateMetaPlayerId: "candidate-player-1",
         metaEventId: EVENT_ID,
         eventName: "Summoner Skirmish Berlin",
+      }),
+    );
+  });
+
+  it("stages the standing the submitter reported", async () => {
+    const h = harness({ eventName: "Summoner Skirmish Berlin" });
+    await submitMetaDeck(h.transact, args({ rank: 8, rankIsTier: true, wins: 4, losses: 2 }));
+
+    expect(h.insertPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        playerName: "Nova",
+        rank: 8,
+        rankIsTier: true,
+        wins: 4,
+        losses: 2,
+        draws: 0,
+        listStatus: "full",
+      }),
+    );
+  });
+
+  it("names no legend of its own, since the list's zones carry it", async () => {
+    const h = harness({ eventName: "Summoner Skirmish Berlin" });
+    await submitMetaDeck(h.transact, args());
+
+    expect(h.insertPlayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        legendName: null,
+        legendCardId: null,
+        championName: null,
+        championCardId: null,
       }),
     );
   });
@@ -207,7 +264,7 @@ describe("submitMetaDeck", () => {
     const h = harness({ eventName: "Summoner Skirmish Berlin" });
     await submitMetaDeck(h.transact, args());
 
-    expect(h.insertDeck.mock.calls[0][0].cards).toEqual([
+    expect(h.insertPlayer.mock.calls[0][0].cards).toEqual([
       { name: "Azir", zone: "legend", quantity: 1, cardId: "card-azir" },
       { name: "Shock", zone: "main", quantity: 3, cardId: "card-shock" },
     ]);
@@ -246,7 +303,7 @@ describe("submitMetaDeck", () => {
         checkedAt: null,
       }),
     );
-    expect(h.insertDeck).toHaveBeenCalledWith(
+    expect(h.insertPlayer).toHaveBeenCalledWith(
       expect.objectContaining({ candidateEventId: "candidate-event-1", metaEventId: null }),
     );
     // The ledger keeps the submitter's own name for the event, since there is
@@ -259,7 +316,7 @@ describe("submitMetaDeck", () => {
   it("refuses a target event that does not exist", async () => {
     const h = harness();
     await expect(submitMetaDeck(h.transact, args())).rejects.toBeInstanceOf(AppError);
-    expect(h.insertDeck).not.toHaveBeenCalled();
+    expect(h.insertPlayer).not.toHaveBeenCalled();
   });
 
   it("stops a contributor at the pending cap", async () => {
@@ -267,7 +324,7 @@ describe("submitMetaDeck", () => {
     const result = await submitMetaDeck(h.transact, args());
 
     expect(result).toEqual({ status: "rate_limited", limit: META_PENDING_SUBMISSION_LIMIT });
-    expect(h.insertDeck).not.toHaveBeenCalled();
+    expect(h.insertPlayer).not.toHaveBeenCalled();
   });
 
   it("reports validation problems without opening a transaction", async () => {

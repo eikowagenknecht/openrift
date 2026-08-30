@@ -206,6 +206,15 @@ import * as m257 from "./257-printing-fallback-art.js";
 import * as m258 from "./258-printing-citations.js";
 import * as m259 from "./259-drop-group-email-invites.js";
 import * as m260 from "./260-account-issuer.js";
+import * as m261 from "./261-meta-standings-pyramid.js";
+import * as m262 from "./262-meta-official-templates.js";
+import * as m263 from "./263-uvsgames-source-tables.js";
+import * as m264 from "./264-uvsgames-stores-players-checks.js";
+import * as m265 from "./265-playloltcg-source-tables.js";
+import * as m266 from "./266-meta-event-tier-location.js";
+import * as m267 from "./267-template-tier-mapping.js";
+import * as m268 from "./268-meta-event-matches.js";
+import * as m269 from "./269-meta-phases-and-tiebreakers.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -471,4 +480,13 @@ export const migrations: Record<string, Migration> = {
   "258-printing-citations": m258,
   "259-drop-group-email-invites": m259,
   "260-account-issuer": m260,
+  "261-meta-standings-pyramid": m261,
+  "262-meta-official-templates": m262,
+  "263-uvsgames-source-tables": m263,
+  "264-uvsgames-stores-players-checks": m264,
+  "265-playloltcg-source-tables": m265,
+  "266-meta-event-tier-location": m266,
+  "267-template-tier-mapping": m267,
+  "268-meta-event-matches": m268,
+  "269-meta-phases-and-tiebreakers": m269,
 };

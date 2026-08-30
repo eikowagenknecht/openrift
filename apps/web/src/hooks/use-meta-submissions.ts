@@ -1,9 +1,9 @@
 import type {
   MetaCreditVisibility,
   MetaCreditVisibilityResponse,
-  MetaDeckSubmissionInput,
-  MetaDeckSubmissionListResponse,
-  MetaDeckSubmissionResult,
+  MetaSubmissionInput,
+  MetaSubmissionListResponse,
+  MetaSubmissionResult,
 } from "@openrift/shared";
 import { metaSubmissionsContract } from "@openrift/shared/contracts/meta-submissions";
 import { isDefinedError, safe } from "@orpc/client";
@@ -40,11 +40,11 @@ type MetaSubmissionRefusal = "cap" | "invalid" | "event-missing";
 
 /** A submission either staged, or refused for a reason the submitter can act on. */
 export type MetaSubmissionOutcome =
-  | { ok: true; result: MetaDeckSubmissionResult }
+  | { ok: true; result: MetaSubmissionResult }
   | { ok: false; refusal: MetaSubmissionRefusal; message: string };
 
 const submitMetaDeckFn = createServerFn({ method: "POST" })
-  .validator((input: MetaDeckSubmissionInput) => input)
+  .validator((input: MetaSubmissionInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<MetaSubmissionOutcome> => {
     const { error, data: result } = await safe(
@@ -85,7 +85,7 @@ export function useSubmitMetaDeck() {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: MetaDeckSubmissionInput): Promise<MetaSubmissionOutcome> =>
+    mutationFn: (input: MetaSubmissionInput): Promise<MetaSubmissionOutcome> =>
       submitMetaDeckFn({ data: input }) as Promise<MetaSubmissionOutcome>,
     onSuccess: (outcome) => {
       if (outcome.ok) {
@@ -100,7 +100,7 @@ export function useSubmitMetaDeck() {
 const fetchMetaSubmissionsFn = createServerFn({ method: "GET" })
   .validator((input: { cursor?: string }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<MetaDeckSubmissionListResponse> =>
+  .handler(({ context, data }): Promise<MetaSubmissionListResponse> =>
     apiOrpcClient(metaSubmissionsContract, context.cookie).list(
       data.cursor ? { cursor: data.cursor } : {},
     ),
@@ -117,13 +117,12 @@ const fetchMetaSubmissionsFn = createServerFn({ method: "GET" })
 export function metaSubmissionsQueryOptions(userId: string) {
   return infiniteQueryOptions({
     queryKey: queryKeys.metaSubmissions.all(userId),
-    queryFn: ({ pageParam }): Promise<MetaDeckSubmissionListResponse> =>
+    queryFn: ({ pageParam }): Promise<MetaSubmissionListResponse> =>
       fetchMetaSubmissionsFn({
         data: { cursor: pageParam },
-      }) as Promise<MetaDeckSubmissionListResponse>,
+      }) as Promise<MetaSubmissionListResponse>,
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage: MetaDeckSubmissionListResponse) =>
-      lastPage.nextCursor ?? undefined,
+    getNextPageParam: (lastPage: MetaSubmissionListResponse) => lastPage.nextCursor ?? undefined,
   });
 }
 

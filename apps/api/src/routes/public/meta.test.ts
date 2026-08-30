@@ -11,16 +11,21 @@ import { metaRouter } from "./meta";
 // ---------------------------------------------------------------------------
 
 const mockMeta = {
-  listEvents: vi.fn(),
+  allEvents: vi.fn(),
   eventBySlug: vi.fn(),
-  deckSummariesForEvent: vi.fn(),
+  standingsForEvent: vi.fn(),
+  matchesForEvent: vi.fn(),
   sourcesForEvent: vi.fn(),
   contributorsForEvent: vi.fn(),
+  playerCountInScope: vi.fn(),
+  deckCountInScope: vi.fn(),
 };
 
 const mockCanonicalPrintings = { resolvePrintingMetaForRows: vi.fn() };
 
 const EVENT_ID = "b0000000-0001-4000-a000-000000000001";
+const LEGEND_ID = "f0000000-0001-4000-a000-000000000001";
+const CHAMPION_ID = "f0000000-0001-4000-a000-000000000002";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
@@ -29,8 +34,8 @@ app.use("*", async (c, next) => {
 });
 registerRouterForTest(app, metaRouter);
 
-/** @returns An event row with its deck count, as the repo hands it back. */
-function eventRow() {
+/** @returns An event row with its standings and deck counts, as the repo hands it back. */
+function eventRow(overrides: Record<string, unknown> = {}) {
   return {
     id: EVENT_ID,
     slug: "summoner-skirmish-2026",
@@ -40,9 +45,40 @@ function eventRow() {
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: "Top 8 lists only.",
+    tier: "store",
+    country: "DE",
+    location: "Kartenstraße 1, 10115 Berlin, DE",
+    playerRowCount: 0,
     deckCount: 0,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
     updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+/** @returns A standings row with no list attached, which is most of a real field. */
+function playerRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "p0000000-0001-4000-a000-000000000001",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Renata",
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId: null,
+    legendName: null,
+    legendSlug: null,
+    legendTypes: null,
+    legendTags: null,
+    championCardId: null,
+    championName: null,
+    championSlug: null,
+    deckId: null,
+    deckName: null,
+    shareToken: null,
+    listStatus: "none",
+    ...overrides,
   };
 }
 
@@ -62,9 +98,11 @@ function sourceRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockMeta.deckSummariesForEvent.mockResolvedValue([]);
+  mockMeta.standingsForEvent.mockResolvedValue([]);
+  mockMeta.matchesForEvent.mockResolvedValue([]);
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockMeta.contributorsForEvent.mockResolvedValue([]);
+  mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([]);
 });
 
 describe("GET /meta/events/{slug}", () => {
@@ -119,12 +157,189 @@ describe("GET /meta/events/{slug}", () => {
     expect(json.event.sources).toEqual([]);
   });
 
+  it("returns the whole standings table, deckless entries included", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow({ playerRowCount: 3, deckCount: 1 }));
+    mockMeta.standingsForEvent.mockResolvedValue([
+      playerRow({
+        deckId: "d0000000-0001-4000-a000-000000000001",
+        deckName: "Renata Control",
+        shareToken: "tok-1",
+        listStatus: "full",
+      }),
+      playerRow({ id: "p0000000-0001-4000-a000-000000000002", rank: 2, playerName: "Ekko" }),
+      playerRow({
+        id: "p0000000-0001-4000-a000-000000000003",
+        rank: 3,
+        playerName: "Jinx",
+        wins: null,
+        losses: null,
+        draws: null,
+      }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.players).toHaveLength(3);
+    expect(json.players[0]).toMatchObject({
+      deckId: "d0000000-0001-4000-a000-000000000001",
+      deckName: "Renata Control",
+      shareToken: "tok-1",
+      listStatus: "full",
+    });
+    expect(json.players[1]).toMatchObject({
+      playerName: "Ekko",
+      deckId: null,
+      shareToken: null,
+      listStatus: "none",
+    });
+    expect(json.players[2]).toMatchObject({ wins: null, losses: null, draws: null });
+    expect(json.event.playerRowCount).toBe(3);
+    expect(json.event.deckCount).toBe(1);
+  });
+
+  it("says whether a rank is an exact standing or a cut bucket", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow());
+    mockMeta.standingsForEvent.mockResolvedValue([
+      playerRow({ rank: 1, rankIsTier: false }),
+      playerRow({
+        id: "p0000000-0001-4000-a000-000000000002",
+        rank: 8,
+        rankIsTier: true,
+        playerName: "Ekko",
+      }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
+
+    const json = await readJson(res);
+    expect(json.players.map((p: { rankIsTier: boolean }) => p.rankIsTier)).toEqual([false, true]);
+  });
+
+  it("serves the round-by-round matches keyed to the standings rows", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow());
+    mockMeta.matchesForEvent.mockResolvedValue([
+      {
+        id: "m0000000-0000-4000-a000-000000000001",
+        metaEventId: "e0000000-0000-4000-a000-000000000001",
+        phaseOrder: 0,
+        roundNumber: 1,
+        tableNumber: 4,
+        isBye: false,
+        isDraw: false,
+        player1Id: "p0000000-0001-4000-a000-000000000001",
+        player2Id: "p0000000-0001-4000-a000-000000000002",
+        winnerId: "p0000000-0001-4000-a000-000000000001",
+        gamesWonP1: 2,
+        gamesWonP2: 1,
+        createdAt: new Date("2026-08-18T10:00:00.000Z"),
+        updatedAt: new Date("2026-08-18T10:00:00.000Z"),
+      },
+    ]);
+
+    const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
+
+    const json = await readJson(res);
+    expect(json.matches).toEqual([
+      {
+        phaseOrder: 0,
+        roundNumber: 1,
+        tableNumber: 4,
+        isBye: false,
+        isDraw: false,
+        player1Id: "p0000000-0001-4000-a000-000000000001",
+        player2Id: "p0000000-0001-4000-a000-000000000002",
+        winnerId: "p0000000-0001-4000-a000-000000000001",
+        gamesWonP1: 2,
+        gamesWonP2: 1,
+      },
+    ]);
+  });
+
+  it("resolves every legend and champion image in one batch", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow());
+    mockMeta.standingsForEvent.mockResolvedValue([
+      playerRow({
+        legendCardId: LEGEND_ID,
+        legendName: "Azir",
+        legendSlug: "azir",
+        championCardId: CHAMPION_ID,
+        championName: "Jinx",
+        championSlug: "jinx",
+      }),
+      playerRow({
+        id: "p0000000-0001-4000-a000-000000000002",
+        rank: 2,
+        playerName: "Ekko",
+        legendCardId: LEGEND_ID,
+        legendName: "Azir",
+        legendSlug: "azir",
+      }),
+    ]);
+    mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([
+      { imageId: "img-legend" },
+      { imageId: null },
+    ]);
+
+    const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
+
+    const json = await readJson(res);
+    expect(mockCanonicalPrintings.resolvePrintingMetaForRows).toHaveBeenCalledTimes(1);
+    // Deduplicated, and asking for each card's canonical default rather than a
+    // particular printing of it.
+    expect(mockCanonicalPrintings.resolvePrintingMetaForRows).toHaveBeenCalledWith([
+      { cardId: LEGEND_ID, preferredPrintingId: null },
+      { cardId: CHAMPION_ID, preferredPrintingId: null },
+    ]);
+    expect(json.players[0].legend).toEqual({
+      cardId: LEGEND_ID,
+      name: "Azir",
+      slug: "azir",
+      imageId: "img-legend",
+    });
+    expect(json.players[0].champion).toEqual({
+      cardId: CHAMPION_ID,
+      name: "Jinx",
+      slug: "jinx",
+      imageId: null,
+    });
+    expect(json.players[1].champion).toBeNull();
+  });
+
+  it("names a Legend for its champion, so a standings line reads the way players say it", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow());
+    mockMeta.standingsForEvent.mockResolvedValue([
+      playerRow({
+        legendCardId: LEGEND_ID,
+        legendName: "Emperor of the Sands",
+        legendSlug: "emperor-of-the-sands",
+        legendTypes: ["legend"],
+        legendTags: ["Azir"],
+      }),
+    ]);
+    mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([
+      { imageId: "img-legend" },
+    ]);
+
+    const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
+
+    const json = await readJson(res);
+    expect(json.players[0].legend).toEqual({
+      cardId: LEGEND_ID,
+      name: "Azir, Emperor of the Sands",
+      slug: "emperor-of-the-sands",
+      imageId: "img-legend",
+    });
+  });
+
   it("404s an unknown slug without reading citations or contributors", async () => {
     mockMeta.eventBySlug.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/meta/events/no-such-event");
 
     expect(res.status).toBe(404);
+    expect(mockMeta.standingsForEvent).not.toHaveBeenCalled();
     expect(mockMeta.sourcesForEvent).not.toHaveBeenCalled();
     expect(mockMeta.contributorsForEvent).not.toHaveBeenCalled();
   });
@@ -132,14 +347,31 @@ describe("GET /meta/events/{slug}", () => {
 
 describe("GET /meta/events", () => {
   it("leaves the long-form fields off the list rows", async () => {
-    mockMeta.listEvents.mockResolvedValue([eventRow()]);
+    mockMeta.allEvents.mockResolvedValue([eventRow({ playerRowCount: 64, deckCount: 8 })]);
 
     const res = await app.request("/api/v1/meta/events");
 
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.events[0].slug).toBe("summoner-skirmish-2026");
+    expect(json.events[0].playerRowCount).toBe(64);
+    expect(json.events[0].deckCount).toBe(8);
     expect(json.events[0].notes).toBeUndefined();
     expect(json.events[0].sources).toBeUndefined();
+  });
+});
+
+describe("GET /meta/counts", () => {
+  it("returns both scope counts and forwards the event-level filters", async () => {
+    mockMeta.playerCountInScope.mockResolvedValue(240);
+    mockMeta.deckCountInScope.mockResolvedValue(12);
+
+    const res = await app.request("/api/v1/meta/counts?format=constructed");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json).toEqual({ totalPlayers: 240, decksWithMainDeck: 12 });
+    expect(mockMeta.playerCountInScope).toHaveBeenCalledWith({ format: "constructed" });
+    expect(mockMeta.deckCountInScope).toHaveBeenCalledWith({ format: "constructed" });
   });
 });

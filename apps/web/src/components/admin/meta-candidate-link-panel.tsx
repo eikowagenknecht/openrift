@@ -35,8 +35,8 @@ function SuggestionRow({
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{suggestion.name}</p>
         <p className="text-muted-foreground text-sm tabular-nums">
-          {formatDay(suggestion.eventDate)} · {formatLabel} · {suggestion.deckCount}{" "}
-          {suggestion.deckCount === 1 ? "deck" : "decks"}
+          {formatDay(suggestion.eventDate)} · {formatLabel} · {suggestion.playerRowCount}{" "}
+          {suggestion.playerRowCount === 1 ? "deck" : "decks"}
         </p>
         <div className="mt-1 flex flex-wrap gap-1">
           {suggestion.reasons.map((reason) => (

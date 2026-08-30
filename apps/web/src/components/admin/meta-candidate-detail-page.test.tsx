@@ -8,7 +8,7 @@ import type { MetaCandidateDetailView } from "@/hooks/use-admin-meta-candidates"
 
 const captured = vi.hoisted(() => ({
   candidate: null as unknown,
-  acceptWithDecks: vi.fn(),
+  acceptWithPlayers: vi.fn(),
   acceptEvent: vi.fn(),
   unlinkEvent: vi.fn(),
   toastSuccess: vi.fn(),
@@ -38,12 +38,12 @@ vi.mock("@/components/admin/meta-candidate-event-grid", () => ({
   MetaCandidateEventGrid: () => <div data-testid="grid" />,
 }));
 
-vi.mock("@/components/admin/meta-deck-roster", () => ({
-  MetaDeckRoster: () => <div data-testid="roster" />,
+vi.mock("@/components/admin/meta-player-roster", () => ({
+  MetaPlayerRoster: () => <div data-testid="roster" />,
 }));
 
-vi.mock("@/components/admin/meta-candidate-deck-panel", () => ({
-  MetaCandidateDeckPanel: () => <div data-testid="deck-panel" />,
+vi.mock("@/components/admin/meta-candidate-player-panel", () => ({
+  MetaCandidatePlayerPanel: () => <div data-testid="player-panel" />,
 }));
 
 vi.mock("@/components/admin/meta-public-link", () => ({
@@ -59,11 +59,18 @@ const event: AdminMetaEvent = {
   playerCount: 64,
   organizer: null,
   notes: null,
+  tier: "store",
+  country: null,
+  location: null,
+  playerRowCount: 64,
   deckCount: 8,
+  sources: [],
 };
 
 vi.mock("@/hooks/use-admin-meta", () => ({
-  useAdminMetaEvents: () => ({ data: { events: [event] } }),
+  useAdminMetaLinkedEvent: (eventId: string | null) => ({
+    data: eventId === null ? undefined : event,
+  }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({
@@ -77,7 +84,10 @@ const stub = { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false };
 vi.mock("@/hooks/use-admin-meta-candidates", () => ({
   useAdminMetaCandidate: () => ({ data: captured.candidate }),
   useAcceptMetaCandidateEvent: () => ({ ...stub, mutateAsync: captured.acceptEvent }),
-  useAcceptMetaCandidateEventWithDecks: () => ({ ...stub, mutateAsync: captured.acceptWithDecks }),
+  useAcceptMetaCandidateEventWithPlayers: () => ({
+    ...stub,
+    mutateAsync: captured.acceptWithPlayers,
+  }),
   useCheckMetaCandidateEvent: () => stub,
   useIgnoreMetaCandidateEvent: () => stub,
   useUnlinkMetaCandidateEvent: () => ({ ...stub, mutate: captured.unlinkEvent }),
@@ -98,8 +108,11 @@ function source(id: string, provider: string): MetaCandidateSource {
     organizer: null,
     sourceUrl: null,
     notes: null,
+    tier: null,
+    country: null,
+    location: null,
     checkedAt: null,
-    decks: [],
+    players: [],
   };
 }
 
@@ -116,15 +129,18 @@ function candidate(overrides: Partial<MetaCandidateDetailView> = {}): MetaCandid
     organizer: null,
     sourceUrl: null,
     notes: null,
+    tier: "store",
+    country: null,
+    location: null,
     extraData: null,
     metaEventId: null,
     metaEventSlug: null,
     state: "new",
     diff: null,
     checkedAt: null,
-    decks: [],
+    players: [],
     sources: [],
-    submittedDecks: [],
+    submittedPlayers: [],
     ...overrides,
   };
 }
@@ -137,20 +153,20 @@ describe("MetaCandidateDetailPage", () => {
 
   it("keeps the single-source path a one-click accept", async () => {
     const user = userEvent.setup();
-    captured.acceptWithDecks.mockResolvedValue({
+    captured.acceptWithPlayers.mockResolvedValue({
       status: "accepted",
       event: {
         metaEventId: "event-1",
         slug: "s",
         created: true,
-        acceptedDecks: [],
-        skippedDecks: [],
+        acceptedPlayers: [],
+        skippedPlayers: [],
       },
     });
     render(<MetaCandidateDetailPage candidateId="cand-1" />);
 
-    await user.click(screen.getByRole("button", { name: "Accept event + ready decks" }));
-    expect(captured.acceptWithDecks).toHaveBeenCalledWith({ id: "cand-1", overwriteAll: false });
+    await user.click(screen.getByRole("button", { name: "Accept event + ready standings" }));
+    expect(captured.acceptWithPlayers).toHaveBeenCalledWith({ id: "cand-1", overwriteAll: false });
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
@@ -161,7 +177,7 @@ describe("MetaCandidateDetailPage", () => {
       metaEventSlug: "summoner-skirmish-2026",
       sources: [source("cand-1", "uvsgames"), source("cand-2", "playriftbound")],
     });
-    captured.acceptWithDecks.mockResolvedValueOnce({
+    captured.acceptWithPlayers.mockResolvedValueOnce({
       status: "needsOverwriteConfirm",
       message: "This event also carries values from playriftbound.",
     });
@@ -181,7 +197,7 @@ describe("MetaCandidateDetailPage", () => {
       metaEventId: "event-1",
       sources: [source("cand-1", "uvsgames"), source("cand-2", "playriftbound")],
     });
-    captured.acceptWithDecks
+    captured.acceptWithPlayers
       .mockResolvedValueOnce({
         status: "needsOverwriteConfirm",
         message: "This event also carries values from playriftbound.",
@@ -192,8 +208,8 @@ describe("MetaCandidateDetailPage", () => {
           metaEventId: "event-1",
           slug: "s",
           created: false,
-          acceptedDecks: [],
-          skippedDecks: [],
+          acceptedPlayers: [],
+          skippedPlayers: [],
         },
       });
     render(<MetaCandidateDetailPage candidateId="cand-1" />);
@@ -202,7 +218,7 @@ describe("MetaCandidateDetailPage", () => {
     const dialog = await screen.findByRole("alertdialog");
     await user.click(screen.getByRole("button", { name: "Overwrite" }));
 
-    expect(captured.acceptWithDecks).toHaveBeenLastCalledWith({
+    expect(captured.acceptWithPlayers).toHaveBeenLastCalledWith({
       id: "cand-1",
       overwriteAll: true,
     });
@@ -215,7 +231,7 @@ describe("MetaCandidateDetailPage", () => {
       metaEventId: "event-1",
       sources: [source("cand-1", "uvsgames"), source("cand-2", "playriftbound")],
     });
-    captured.acceptWithDecks.mockResolvedValue({
+    captured.acceptWithPlayers.mockResolvedValue({
       status: "needsOverwriteConfirm",
       message: "This event also carries values from playriftbound.",
     });
@@ -226,7 +242,7 @@ describe("MetaCandidateDetailPage", () => {
     await user.click(screen.getByRole("button", { name: "Take fields one at a time" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-    expect(captured.acceptWithDecks).toHaveBeenCalledTimes(1);
+    expect(captured.acceptWithPlayers).toHaveBeenCalledTimes(1);
   });
 
   it("shows the compare grid and roster only once a source is linked", () => {

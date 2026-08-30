@@ -1,23 +1,29 @@
 /**
  * External tooling pushes `{ provider, events: [...] }`; each uploaded event
- * wholly replaces its own candidate — fields and decks alike — and events the
- * payload does not name are left alone. There is deliberately no provider-wide
- * replace: a full dump could be huge, and a partial push must stay safe.
+ * wholly replaces its own candidate — fields and standings alike — and events
+ * the payload does not name are left alone. There is deliberately no
+ * provider-wide replace: a full dump could be huge, and a partial push must
+ * stay safe.
  *
  * The shape follows the card pipeline (`ingest-candidates.ts`): dedup the
  * payload first, validate per item and skip the bad ones rather than failing the
  * batch, bulk-read everything before the write loop, and reset `checked_at`
  * whenever an upload disagrees with what a human already reviewed.
  *
- * Two things this pipeline adds. Card names resolve through the *shared*
- * matcher in `candidate-links.ts`, so an alias fix made for the card pipeline
- * applies here too. And a candidate that is already linked to a live row and
- * has nothing to change against it settles itself (`checked_at = now`) at
- * ingest, so a re-upload of an event the admin already accepted never re-enters
- * the review queue.
+ * Three things this pipeline adds. Names — card lines, legends, champions —
+ * resolve through the *shared* matcher in `candidate-links.ts`, so an alias fix
+ * made for the card pipeline applies here too. A candidate that is already
+ * linked to a live row and has nothing to change against it settles itself
+ * (`checked_at = now`) at ingest, so a re-upload of an event the admin already
+ * accepted never re-enters the review queue. And an ignored key is skipped
+ * without its stored row being touched: the ignore keeps the row and its live
+ * link, so re-uploading an ignored player updates nothing rather than staging a
+ * duplicate.
  */
 import { WellKnown } from "@openrift/shared";
-import type { MetaIngestEvent, MetaIngestEventDeck } from "@openrift/shared";
+import type { MetaIngestEvent, MetaIngestEventPlayer } from "@openrift/shared";
+import { META_ENTRY_STATUSES, META_EVENT_TIERS } from "@openrift/shared/types";
+import type { MetaEntryStatus, MetaEventTier, MetaListStatus } from "@openrift/shared/types";
 
 import type { CandidateMetaDeckCard } from "../db/index.js";
 import type { Transact } from "../deps.js";
@@ -25,16 +31,13 @@ import { isValidIsoDate } from "../lib/iso-date.js";
 import type { MetaDeckCardEntry } from "../lib/meta-candidate-diff.js";
 import {
   collapseCardEntries,
-  diffMetaDeck,
   diffMetaEvent,
-  hasDeckDiff,
+  diffMetaPlayer,
+  hasPlayerDiff,
   normalize,
+  resolveMetaPlayerCards,
 } from "../lib/meta-candidate-diff.js";
-import type {
-  CandidateMetaDeckRow,
-  CandidateMetaEventRow,
-  LiveMetaDeckRow,
-} from "../repositories/meta-candidates.js";
+import type { LiveMetaPlayerRow } from "../repositories/meta.js";
 import type { CardNameIndex } from "./candidate-links.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 
@@ -43,17 +46,17 @@ interface MetaIngestEventDetail {
   name: string;
 }
 
-/** A candidate deck the upload dropped because its event no longer lists it. */
-interface MetaIngestDeckDetail {
+/** A candidate standings row the upload dropped because its event no longer lists it. */
+interface MetaIngestPlayerDetail {
   eventExternalId: string;
   externalId: string;
   playerName: string;
 }
 
-/** Card names in one deck that matched no live card, so it cannot be accepted yet. */
+/** Card names in one list that matched no live card, so it cannot be accepted yet. */
 interface MetaIngestUnresolvedCards {
   eventExternalId: string;
-  deckExternalId: string;
+  playerExternalId: string;
   names: string[];
 }
 
@@ -63,29 +66,28 @@ export interface MetaIngestResult {
   newEvents: number;
   updatedEvents: number;
   unchangedEvents: number;
-  newDecks: number;
-  updatedDecks: number;
-  removedDecks: number;
-  unchangedDecks: number;
-  /** Events and decks skipped because their key is on an ignore list. */
+  newPlayers: number;
+  updatedPlayers: number;
+  removedPlayers: number;
+  unchangedPlayers: number;
+  /** Events and players skipped because their key is on an ignore list. */
   ignoredSkipped: number;
   /** One line per dropped duplicate and per item that failed validation. */
   errors: string[];
   newEventDetails: MetaIngestEventDetail[];
   updatedEventDetails: MetaIngestEventDetail[];
-  removedDeckDetails: MetaIngestDeckDetail[];
+  removedPlayerDetails: MetaIngestPlayerDetail[];
   unresolvedCards: MetaIngestUnresolvedCards[];
 }
 
 const DECK_ZONES = new Set<string>(Object.values(WellKnown.deckZone));
 
 /**
- * External deck ids are only unique within an event, so anything that spans
- * events — the ignore list, the index of live decks this provider already
- * contributed — has to pair the two. The separator is a newline, which no
- * source id contains.
+ * External player ids are only unique within an event, so anything that spans
+ * events — the ignore list above all — has to pair the two. The separator is a
+ * newline, which no source id contains.
  */
-function deckKey(eventExternalId: string, externalId: string): string {
+function playerKey(eventExternalId: string, externalId: string): string {
   return `${eventExternalId}\n${externalId}`;
 }
 
@@ -93,8 +95,28 @@ function isPositiveInt(value: number): boolean {
   return Number.isInteger(value) && value > 0;
 }
 
+function isCount(value: number | null): boolean {
+  return value === null || (Number.isInteger(value) && value >= 0);
+}
+
 function inBounds(value: string | null, min: number, max: number): boolean {
   return value === null || (value.length >= min && value.length <= max);
+}
+
+/** A tiebreaker percentage, against the same 0..1 the column CHECKs. */
+function isFraction(value: number | null): boolean {
+  return value === null || (Number.isFinite(value) && value >= 0 && value <= 1);
+}
+
+/**
+ * The wire's free-text status narrowed to the column's vocabulary. Anything else
+ * is null here and a reported problem in {@link validatePlayer}, so a producer's
+ * unknown status skips the row instead of tripping the CHECK.
+ */
+function asEntryStatus(value: string | null): MetaEntryStatus | null {
+  return value !== null && (META_ENTRY_STATUSES as readonly string[]).includes(value)
+    ? (value as MetaEntryStatus)
+    : null;
 }
 
 /**
@@ -130,35 +152,63 @@ function validateEvent(event: MetaIngestEvent): string[] {
   if (!inBounds(event.notes, 0, 4000)) {
     problems.push("notes must be at most 4000 characters");
   }
+  if (event.tier !== null && !isMetaEventTier(event.tier)) {
+    problems.push(`tier "${event.tier}" is not one of ${META_EVENT_TIERS.join(", ")}`);
+  }
+  if (event.country !== null && !/^[A-Z]{2}$/u.test(event.country)) {
+    problems.push(`country "${event.country}" is not a two-letter ISO 3166-1 code`);
+  }
+  if (!inBounds(event.location, 1, 500)) {
+    problems.push("location must be 1-500 characters");
+  }
   return problems;
 }
 
 /**
- * A deck with no cards is rejected even though the column would accept `[]`:
- * an empty list trivially satisfies "every card resolved" and would accept
- * into an empty archived deck.
+ * A list of zero cards is not a standings-only row: the schema folds an empty
+ * `cards` array to null before this runs, so anything that arrives here as an
+ * array is a real list and must have lines in it.
  */
-function validateDeck(deck: MetaIngestEventDeck): string[] {
+function validatePlayer(player: MetaIngestEventPlayer): string[] {
   const problems: string[] = [];
-  if (deck.externalId.trim() === "") {
+  if (player.externalId.trim() === "") {
     problems.push("externalId must not be empty");
   }
-  if (!inBounds(deck.playerName, 1, 80)) {
+  if (!inBounds(player.playerName, 1, 80)) {
     problems.push("playerName must be 1-80 characters");
   }
-  if (!Number.isInteger(deck.finishTier) || deck.finishTier < 1) {
-    problems.push("finishTier must be a positive integer");
+  if (!isPositiveInt(player.rank)) {
+    problems.push("rank must be a positive integer");
   }
-  if (!inBounds(deck.record, 1, 20)) {
-    problems.push("record must be 1-20 characters");
+  for (const [field, value] of [
+    ["wins", player.wins],
+    ["losses", player.losses],
+    ["draws", player.draws],
+    ["matchPoints", player.matchPoints],
+  ] as const) {
+    if (!isCount(value)) {
+      problems.push(`${field} must be a non-negative integer`);
+    }
   }
-  if (!inBounds(deck.name, 1, 120)) {
-    problems.push("name must be 1-120 characters");
+  for (const [field, value] of [
+    ["opponentMatchWinPct", player.opponentMatchWinPct],
+    ["gameWinPct", player.gameWinPct],
+    ["opponentGameWinPct", player.opponentGameWinPct],
+  ] as const) {
+    if (!isFraction(value)) {
+      problems.push(`${field} must be between 0 and 1`);
+    }
   }
-  if (deck.cards.length === 0) {
-    problems.push("cards must not be empty");
+  if (player.entryStatus !== null && asEntryStatus(player.entryStatus) === null) {
+    problems.push(`entryStatus must be one of ${META_ENTRY_STATUSES.join(", ")}`);
   }
-  for (const card of deck.cards) {
+  if (!inBounds(player.legendName, 1, 200)) {
+    problems.push("legendName must be 1-200 characters");
+  }
+  if (!inBounds(player.championName, 1, 200)) {
+    problems.push("championName must be 1-200 characters");
+  }
+  for (const card of player.cards ?? []) {
     if (card.name.trim() === "") {
       problems.push("a card name is empty");
     }
@@ -172,8 +222,28 @@ function validateDeck(deck: MetaIngestEventDeck): string[] {
   return problems;
 }
 
-/** The candidate event columns an upload owns, for change detection and writes. */
-function eventFields(event: MetaIngestEvent) {
+function isMetaEventTier(value: string): value is MetaEventTier {
+  return (META_EVENT_TIERS as readonly string[]).includes(value);
+}
+
+/**
+ * The candidate event columns an upload owns, for change detection and writes.
+ * Structural rather than `MetaIngestEvent`, so change detection can hand it the
+ * stored row directly.
+ */
+function eventFields(event: {
+  name: string;
+  eventDate: string;
+  format: string;
+  playerCount: number | null;
+  organizer: string | null;
+  sourceUrl: string | null;
+  notes: string | null;
+  tier: MetaEventTier | null;
+  country: string | null;
+  location: string | null;
+  extraData: unknown;
+}) {
   return {
     name: event.name,
     eventDate: event.eventDate,
@@ -182,22 +252,49 @@ function eventFields(event: MetaIngestEvent) {
     organizer: event.organizer,
     sourceUrl: event.sourceUrl,
     notes: event.notes,
+    tier: event.tier,
+    country: event.country,
+    location: event.location,
     extraData: event.extraData,
   };
 }
 
-/** The candidate deck columns an upload owns, excluding the card list. */
-function deckFields(deck: MetaIngestEventDeck) {
+/** The candidate standings columns an upload owns, excluding the card list. */
+function playerFields(player: {
+  playerName: string;
+  rank: number;
+  rankIsTier: boolean;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  matchPoints: number | null;
+  opponentMatchWinPct: number | null;
+  gameWinPct: number | null;
+  opponentGameWinPct: number | null;
+  entryStatus: string | null;
+  legendName: string | null;
+  championName: string | null;
+  listStatus: MetaListStatus;
+}) {
   return {
-    playerName: deck.playerName,
-    finishTier: deck.finishTier,
-    record: deck.record,
-    name: deck.name,
-    // A source that fills in what it published before — an archetype becoming a
+    playerName: player.playerName,
+    rank: player.rank,
+    rankIsTier: player.rankIsTier,
+    wins: player.wins,
+    losses: player.losses,
+    draws: player.draws,
+    matchPoints: player.matchPoints,
+    opponentMatchWinPct: player.opponentMatchWinPct,
+    gameWinPct: player.gameWinPct,
+    opponentGameWinPct: player.opponentGameWinPct,
+    entryStatus: asEntryStatus(player.entryStatus),
+    legendName: player.legendName,
+    championName: player.championName,
+    // A source that fills in what it published before — standings gaining a
     // list, a partial one gaining its battlefields — changes this and the cards
     // and nothing else, so it has to be part of change detection or the upgrade
     // never reaches the queue.
-    listStatus: deck.listStatus,
+    listStatus: player.listStatus,
   };
 }
 
@@ -210,7 +307,8 @@ function deckFields(deck: MetaIngestEventDeck) {
 function comparable(fields: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(fields)) {
-    const scalar = typeof value === "string" || typeof value === "number";
+    const scalar =
+      typeof value === "string" || typeof value === "number" || typeof value === "boolean";
     out[key] = scalar || value === null || value === undefined ? normalize(value) : value;
   }
   return out;
@@ -225,12 +323,12 @@ function sameFields(a: Record<string, unknown>, b: Record<string, unknown>): boo
 }
 
 /**
- * A deck's cards in a stable order, so a source that reshuffles its list
- * between pushes does not read as a change and reset a completed review. The
- * stored column keeps the source's own order; only the comparison is sorted.
+ * A list's cards in a stable order, so a source that reshuffles it between
+ * pushes does not read as a change and reset a completed review. The stored
+ * column keeps the source's own order; only the comparison is sorted.
  */
-function sortedCards(cards: readonly CandidateMetaDeckCard[]): CandidateMetaDeckCard[] {
-  return cards.toSorted((a, b) => {
+function sortedCards(cards: readonly CandidateMetaDeckCard[] | null): CandidateMetaDeckCard[] {
+  return (cards ?? []).toSorted((a, b) => {
     const byCard = (a.cardId ?? a.name).localeCompare(b.cardId ?? b.name);
     if (byCard !== 0) {
       return byCard;
@@ -241,12 +339,12 @@ function sortedCards(cards: readonly CandidateMetaDeckCard[]): CandidateMetaDeck
 }
 
 /**
- * What a deck's card list says *before* name resolution. Change detection runs
- * on this rather than on the resolved rows, so that a rematch turning a null
- * `cardId` into a real one does not kick an already-reviewed deck back into the
- * queue — the source said the same thing, we just understand it better now.
+ * What a list says *before* name resolution. Change detection runs on this
+ * rather than on the resolved rows, so that a rematch turning a null `cardId`
+ * into a real one does not kick an already-reviewed row back into the queue —
+ * the source said the same thing, we just understand it better now.
  */
-function sourceCards(cards: readonly CandidateMetaDeckCard[]) {
+function sourceCards(cards: readonly CandidateMetaDeckCard[] | null) {
   return sortedCards(cards).map((card) => ({
     name: card.name,
     zone: card.zone,
@@ -258,11 +356,11 @@ function sourceCards(cards: readonly CandidateMetaDeckCard[]) {
  * The resolved rows a diff against a live deck compares, dropping unresolved
  * ones and summing rows that landed on the same card and zone — the same
  * collapse the accept path applies before writing `deck_cards`, so an accepted
- * deck reads as in sync afterwards.
+ * list reads as in sync afterwards.
  */
-function resolvedCardEntries(cards: readonly CandidateMetaDeckCard[]): MetaDeckCardEntry[] {
+function resolvedCardEntries(cards: readonly CandidateMetaDeckCard[] | null): MetaDeckCardEntry[] {
   const entries: MetaDeckCardEntry[] = [];
-  for (const card of cards) {
+  for (const card of cards ?? []) {
     if (card.cardId !== null) {
       entries.push({ cardId: card.cardId, zone: card.zone, quantity: card.quantity });
     }
@@ -270,13 +368,23 @@ function resolvedCardEntries(cards: readonly CandidateMetaDeckCard[]): MetaDeckC
   return collapseCardEntries(entries);
 }
 
-function resolveCards(index: CardNameIndex, deck: MetaIngestEventDeck): CandidateMetaDeckCard[] {
-  return deck.cards.map((card) => ({
+function resolveCards(
+  index: CardNameIndex,
+  player: MetaIngestEventPlayer,
+): CandidateMetaDeckCard[] | null {
+  if (player.cards === null) {
+    return null;
+  }
+  return player.cards.map((card) => ({
     name: card.name,
     zone: card.zone,
     quantity: card.quantity,
     cardId: resolveCardIdByName(index, card.name),
   }));
+}
+
+function resolveName(index: CardNameIndex, name: string | null): string | null {
+  return name === null ? null : resolveCardIdByName(index, name);
 }
 
 /**
@@ -310,9 +418,9 @@ function nextCheckedAt(options: {
  * wholesale and leaving every other candidate untouched.
  *
  * The whole batch runs in one transaction: a payload either lands or it does
- * not, so a mid-batch failure can never leave an event's decks half-replaced.
- * Per-item validation failures are not batch failures — they are reported and
- * skipped.
+ * not, so a mid-batch failure can never leave an event's standings
+ * half-replaced. Per-item validation failures are not batch failures — they are
+ * reported and skipped.
  */
 export async function ingestMetaCandidates(
   transact: Transact,
@@ -328,15 +436,15 @@ export async function ingestMetaCandidates(
     newEvents: 0,
     updatedEvents: 0,
     unchangedEvents: 0,
-    newDecks: 0,
-    updatedDecks: 0,
-    removedDecks: 0,
-    unchangedDecks: 0,
+    newPlayers: 0,
+    updatedPlayers: 0,
+    removedPlayers: 0,
+    unchangedPlayers: 0,
     ignoredSkipped: 0,
     errors: [],
     newEventDetails: [],
     updatedEventDetails: [],
-    removedDeckDetails: [],
+    removedPlayerDetails: [],
     unresolvedCards: [],
   };
 
@@ -344,11 +452,10 @@ export async function ingestMetaCandidates(
   // twice, and which values survived would depend on payload order — a silent
   // flip on every re-upload. Keep the first occurrence and report the rest.
   //
-  // Deck ids dedup within their event, matching the table's UNIQUE
+  // Player ids dedup within their event, matching the table's UNIQUE
   // (candidate_event_id, external_id). They are only event-scoped — sources
-  // number their lists per event — so every key that reaches past this loop
-  // (the ignore list, the live-deck index, the live source columns) pairs the
-  // deck id with its event's.
+  // number their entries per event — so every key that reaches past this loop
+  // pairs the player id with its event's.
   const seenEventIds = new Set<string>();
   const deduped: MetaIngestEvent[] = [];
   for (const event of events) {
@@ -360,19 +467,19 @@ export async function ingestMetaCandidates(
     }
     seenEventIds.add(event.externalId);
 
-    const seenDeckIds = new Set<string>();
-    const decks: MetaIngestEventDeck[] = [];
-    for (const deck of event.decks) {
-      if (seenDeckIds.has(deck.externalId)) {
+    const seenPlayerIds = new Set<string>();
+    const players: MetaIngestEventPlayer[] = [];
+    for (const player of event.players) {
+      if (seenPlayerIds.has(player.externalId)) {
         result.errors.push(
-          `Duplicate deck externalId "${deck.externalId}" in event "${event.externalId}" — dropped duplicate, keeping first occurrence`,
+          `Duplicate player externalId "${player.externalId}" in event "${event.externalId}" — dropped duplicate, keeping first occurrence`,
         );
         continue;
       }
-      seenDeckIds.add(deck.externalId);
-      decks.push(deck);
+      seenPlayerIds.add(player.externalId);
+      players.push(player);
     }
-    deduped.push({ ...event, decks });
+    deduped.push({ ...event, players });
   }
 
   await transact(async (repos) => {
@@ -380,46 +487,46 @@ export async function ingestMetaCandidates(
     const now = new Date();
 
     const eventKeys = deduped.map((event) => event.externalId);
-    const deckKeys = deduped.flatMap((event) => event.decks.map((deck) => deck.externalId));
 
-    const [existingEvents, ignoredEventIds, ignoredDeckKeys, liveEvents, liveDecks, nameIndex] =
-      await Promise.all([
-        repo.eventsBySourceKeys(provider, eventKeys),
-        repo.ignoredEventIds(provider),
-        repo.ignoredDeckKeys(provider),
-        repo.liveEventsByCandidateKeys(provider, eventKeys),
-        repo.liveDecksByCandidateKeys(provider, eventKeys, deckKeys),
-        loadCardNameIndex(repos.ingest),
-      ]);
+    const [existingEvents, ignoredEventIds, ignoredPlayerKeys, nameIndex] = await Promise.all([
+      repo.eventsBySourceKeys(provider, eventKeys),
+      repo.ignoredEventIds(provider),
+      repo.ignoredPlayerKeys(provider),
+      loadCardNameIndex(repos.ingest),
+    ]);
 
     const existingEventByKey = new Map(existingEvents.map((row) => [row.externalId, row]));
     const ignoredEvents = new Set(ignoredEventIds);
-    const ignoredDecks = new Set(
-      ignoredDeckKeys.map((key) => deckKey(key.eventExternalId, key.externalId)),
-    );
-    // Both indexes are keyed on the *source's* vocabulary, which the live
-    // tables do not hold. The repo reads it from the `meta_event_sources` /
-    // `meta_deck_sources` rows — deliberately not from the candidate, which an
-    // ignore deletes — and hands the key back alongside the live row.
-    const liveEventByKey = new Map(liveEvents.map((row) => [row.candidateExternalId, row]));
-    const liveDeckByKey = new Map<string, LiveMetaDeckRow>(
-      liveDecks.map((row) => [deckKey(row.candidateEventExternalId, row.candidateExternalId), row]),
+    const ignoredPlayers = new Set(
+      ignoredPlayerKeys.map((key) => playerKey(key.eventExternalId, key.externalId)),
     );
 
-    const liveDeckCardRows = await repo.liveDeckCards(liveDecks.map((row) => row.deckId));
-    const liveCardsByDeck = new Map<string, MetaDeckCardEntry[]>();
-    for (const row of liveDeckCardRows) {
-      const entries = liveCardsByDeck.get(row.deckId);
-      const entry = { cardId: row.cardId, zone: row.zone, quantity: row.quantity };
-      if (entries) {
-        entries.push(entry);
-      } else {
-        liveCardsByDeck.set(row.deckId, [entry]);
-      }
-    }
+    // Ignored rows included: the replace pass below must not delete one, and an
+    // upload naming an ignored key must find it and leave it alone.
+    const existingPlayers = await repo.allPlayersByCandidateEventIds(
+      existingEvents.map((row) => row.id),
+    );
+    const existingPlayersByEvent = Map.groupBy(existingPlayers, (row) => row.candidateEventId);
 
-    const existingDecks = await repo.decksByCandidateEventIds(existingEvents.map((row) => row.id));
-    const existingDecksByEvent = Map.groupBy(existingDecks, (row) => row.candidateEventId);
+    // The candidate row's own link is the source key now: it survives an
+    // ignore, so nothing has to read the live side by the provider's vocabulary.
+    const [liveEvents, livePlayers] = await Promise.all([
+      repo.liveEventsByIds(
+        existingEvents.map((row) => row.metaEventId).filter((id): id is string => id !== null),
+      ),
+      repos.meta.livePlayersByIds(
+        existingPlayers
+          .map((row) => row.metaEventPlayerId)
+          .filter((id): id is string => id !== null),
+      ),
+    ]);
+    const liveEventById = new Map(liveEvents.map((row) => [row.id, row]));
+    const livePlayerById = new Map(livePlayers.map((row) => [row.id, row]));
+
+    const liveDeckCardRows = await repo.liveDeckCards(
+      livePlayers.map((row) => row.deckId).filter((id): id is string => id !== null),
+    );
+    const liveCardsByDeck = Map.groupBy(liveDeckCardRows, (row) => row.deckId);
 
     for (const event of deduped) {
       if (ignoredEvents.has(event.externalId)) {
@@ -434,9 +541,13 @@ export async function ingestMetaCandidates(
       }
 
       const existing = existingEventByKey.get(event.externalId);
-      const live = liveEventByKey.get(event.externalId);
+      const live =
+        existing?.metaEventId === null || existing?.metaEventId === undefined
+          ? undefined
+          : liveEventById.get(existing.metaEventId);
       const metaEventId = live?.id ?? null;
-      const fields = eventFields(event);
+      const tier = event.tier !== null && isMetaEventTier(event.tier) ? event.tier : null;
+      const fields = eventFields({ ...event, tier });
       const inSync = live !== undefined && diffMetaEvent(live, event).length === 0;
 
       let candidateEventId: string;
@@ -453,9 +564,7 @@ export async function ingestMetaCandidates(
         result.newEventDetails.push({ externalId: event.externalId, name: event.name });
       } else {
         candidateEventId = existing.id;
-        const fieldsChanged = !sameFields(fields, eventFields(toEventLike(existing)));
-        const linkChanged = existing.metaEventId !== metaEventId;
-        const changed = fieldsChanged || linkChanged;
+        const changed = !sameFields(fields, eventFields(existing));
         const checkedAt = nextCheckedAt({
           previous: existing.checkedAt,
           changed,
@@ -467,7 +576,6 @@ export async function ingestMetaCandidates(
           await repo.updateEvent(candidateEventId, {
             ...fields,
             extraData: fields.extraData,
-            metaEventId,
             ...(checkedAt === undefined ? {} : { checkedAt }),
           });
         }
@@ -480,100 +588,124 @@ export async function ingestMetaCandidates(
         }
       }
 
-      const existingDeckRows = existingDecksByEvent.get(candidateEventId) ?? [];
-      const existingDeckByKey = new Map(existingDeckRows.map((row) => [row.externalId, row]));
-      const keptDeckIds = new Set<string>();
+      const existingPlayerRows = existingPlayersByEvent.get(candidateEventId) ?? [];
+      const existingPlayerByKey = new Map(existingPlayerRows.map((row) => [row.externalId, row]));
+      const keptPlayerIds = new Set<string>();
 
-      for (const deck of event.decks) {
-        if (ignoredDecks.has(deckKey(event.externalId, deck.externalId))) {
+      for (const player of event.players) {
+        if (ignoredPlayers.has(playerKey(event.externalId, player.externalId))) {
+          // The stored row stays exactly as it is, link included. Keeping it out
+          // of the replace below is what stops an un-ignore from staging a
+          // second copy of a player the archive already holds.
+          const ignored = existingPlayerByKey.get(player.externalId);
+          if (ignored !== undefined) {
+            keptPlayerIds.add(ignored.id);
+          }
           result.ignoredSkipped++;
           continue;
         }
 
-        const deckProblems = validateDeck(deck);
-        if (deckProblems.length > 0) {
+        const playerProblems = validatePlayer(player);
+        if (playerProblems.length > 0) {
           result.errors.push(
-            `Deck "${deck.externalId}" in event "${event.externalId}": ${deckProblems.join(", ")}`,
+            `Player "${player.externalId}" in event "${event.externalId}": ${playerProblems.join(", ")}`,
           );
           continue;
         }
 
-        const cards = resolveCards(nameIndex, deck);
-        const unresolved = cards.filter((card) => card.cardId === null).map((card) => card.name);
+        const cards = resolveCards(nameIndex, player);
+        const unresolved = (cards ?? [])
+          .filter((card) => card.cardId === null)
+          .map((card) => card.name);
         if (unresolved.length > 0) {
           result.unresolvedCards.push({
             eventExternalId: event.externalId,
-            deckExternalId: deck.externalId,
+            playerExternalId: player.externalId,
             names: [...new Set(unresolved)],
           });
         }
 
-        const liveDeck = liveDeckByKey.get(deckKey(event.externalId, deck.externalId));
-        const liveDeckId = liveDeck?.deckId ?? null;
-        const deckValues = deckFields(deck);
-        const deckInSync =
-          liveDeck !== undefined &&
+        const resolvedNames = {
+          legendCardId: resolveName(nameIndex, player.legendName),
+          championCardId: resolveName(nameIndex, player.championName),
+        };
+        const values = { ...playerFields(player), ...resolvedNames };
+
+        const existingPlayer = existingPlayerByKey.get(player.externalId);
+        const livePlayer =
+          existingPlayer?.metaEventPlayerId === null ||
+          existingPlayer?.metaEventPlayerId === undefined
+            ? undefined
+            : livePlayerById.get(existingPlayer.metaEventPlayerId);
+        const playerInSync =
+          livePlayer !== undefined &&
           unresolved.length === 0 &&
-          !hasAnyDeckChange(
-            liveDeck,
-            liveCardsByDeck.get(liveDeck.deckId) ?? [],
-            deck,
+          !hasAnyPlayerChange(
+            livePlayer,
+            livePlayer.deckId === null ? [] : (liveCardsByDeck.get(livePlayer.deckId) ?? []),
+            player,
             cards,
+            resolvedNames,
             metaEventId,
           );
 
-        const existingDeck = existingDeckByKey.get(deck.externalId);
-        if (existingDeck === undefined) {
-          await repo.insertDeck({
+        if (existingPlayer === undefined) {
+          await repo.insertPlayer({
             candidateEventId,
-            externalId: deck.externalId,
-            ...deckValues,
+            externalId: player.externalId,
+            ...values,
             cards,
-            deckId: liveDeckId,
-            checkedAt: deckInSync ? now : null,
+            checkedAt: playerInSync ? now : null,
           });
-          result.newDecks++;
+          result.newPlayers++;
           continue;
         }
 
-        keptDeckIds.add(existingDeck.id);
-        const fieldsChanged = !sameFields(deckValues, deckFields(toDeckLike(existingDeck)));
+        keptPlayerIds.add(existingPlayer.id);
+        const fieldsChanged = !sameFields(values, {
+          ...playerFields(existingPlayer),
+          legendCardId: existingPlayer.legendCardId,
+          championCardId: existingPlayer.championCardId,
+        });
+        const listPresenceChanged = (cards === null) !== (existingPlayer.cards === null);
         const sourceChanged =
-          fieldsChanged || !Bun.deepEquals(sourceCards(cards), sourceCards(existingDeck.cards));
-        const linkChanged = existingDeck.deckId !== liveDeckId;
-        const cardsChanged = !Bun.deepEquals(sortedCards(cards), sortedCards(existingDeck.cards));
+          fieldsChanged ||
+          listPresenceChanged ||
+          !Bun.deepEquals(sourceCards(cards), sourceCards(existingPlayer.cards));
+        const cardsChanged =
+          listPresenceChanged ||
+          !Bun.deepEquals(sortedCards(cards), sortedCards(existingPlayer.cards));
         const checkedAt = nextCheckedAt({
-          previous: existingDeck.checkedAt,
-          changed: sourceChanged || linkChanged,
-          inSync: deckInSync,
+          previous: existingPlayer.checkedAt,
+          changed: sourceChanged,
+          inSync: playerInSync,
           now,
         });
 
-        if (sourceChanged || linkChanged || cardsChanged || checkedAt !== undefined) {
-          await repo.updateDeck(existingDeck.id, {
-            ...deckValues,
+        if (sourceChanged || cardsChanged || checkedAt !== undefined) {
+          await repo.updatePlayer(existingPlayer.id, {
+            ...values,
             ...(cardsChanged ? { cards } : {}),
-            deckId: liveDeckId,
             ...(checkedAt === undefined ? {} : { checkedAt }),
           });
         }
 
-        if (sourceChanged || linkChanged) {
-          result.updatedDecks++;
+        if (sourceChanged) {
+          result.updatedPlayers++;
         } else {
-          result.unchangedDecks++;
+          result.unchangedPlayers++;
         }
       }
 
-      // Per-event replace: a deck the upload no longer lists is gone from that
-      // event. This also removes a deck that failed validation this time round,
+      // Per-event replace: a player the upload no longer lists is gone from that
+      // event. This also removes one that failed validation this time round,
       // which is the point — the payload is the event's current truth.
-      const removed = existingDeckRows.filter((row) => !keptDeckIds.has(row.id));
+      const removed = existingPlayerRows.filter((row) => !keptPlayerIds.has(row.id));
       if (removed.length > 0) {
-        await repo.deleteDecks(removed.map((row) => row.id));
-        result.removedDecks += removed.length;
+        await repo.deletePlayers(removed.map((row) => row.id));
+        result.removedPlayers += removed.length;
         for (const row of removed) {
-          result.removedDeckDetails.push({
+          result.removedPlayerDetails.push({
             eventExternalId: event.externalId,
             externalId: row.externalId,
             playerName: row.playerName,
@@ -586,73 +718,52 @@ export async function ingestMetaCandidates(
   return result;
 }
 
-/** The stored candidate event in the shape {@link eventFields} reads. */
-function toEventLike(row: CandidateMetaEventRow): MetaIngestEvent {
-  return {
-    externalId: row.externalId,
-    name: row.name,
-    eventDate: row.eventDate,
-    format: row.format,
-    playerCount: row.playerCount,
-    organizer: row.organizer,
-    sourceUrl: row.sourceUrl,
-    notes: row.notes,
-    extraData: row.extraData ?? null,
-    decks: [],
-  };
-}
-
-/** The stored candidate deck in the shape {@link deckFields} reads. */
-function toDeckLike(row: CandidateMetaDeckRow): MetaIngestEventDeck {
-  return {
-    externalId: row.externalId,
-    playerName: row.playerName,
-    finishTier: row.finishTier,
-    record: row.record,
-    name: row.name,
-    listStatus: row.listStatus,
-    cards: [],
-  };
-}
-
 /**
- * Whether accepting this candidate deck would change the live deck it links to,
- * in its placement, its metadata, or its card list.
+ * Whether accepting this candidate would change the live standings row it links
+ * to, in its placement, its metadata, its legend, or its card list.
  *
- * The live deck's own name is compared against the candidate's only when the
- * candidate carries one: a source that ships no deck name did not propose
- * renaming the archived deck to null.
- *
- * The event comparison is what stops a re-parented deck settling itself: the
- * candidate's parent points at one live event, the deck it links to still sits
+ * The event comparison is what stops a re-parented row settling itself: the
+ * candidate's parent points at one live event, the row it links to still sits
  * under another, and accepting would move it.
  */
-function hasAnyDeckChange(
-  liveDeck: LiveMetaDeckRow,
+function hasAnyPlayerChange(
+  livePlayer: LiveMetaPlayerRow,
   liveCards: readonly MetaDeckCardEntry[],
-  deck: MetaIngestEventDeck,
-  cards: readonly CandidateMetaDeckCard[],
+  player: MetaIngestEventPlayer,
+  cards: readonly CandidateMetaDeckCard[] | null,
+  resolvedNames: { legendCardId: string | null; championCardId: string | null },
   candidateEventId: string | null,
 ): boolean {
-  return hasDeckDiff(
-    diffMetaDeck(
+  const candidateCards = resolveMetaPlayerCards({ cards, ...resolvedNames });
+  return hasPlayerDiff(
+    diffMetaPlayer(
       {
-        event: liveDeck.metaEventId,
-        name: liveDeck.name,
-        playerName: liveDeck.playerName,
-        finishTier: liveDeck.finishTier,
-        record: liveDeck.record,
-        listStatus: liveDeck.listStatus,
+        event: livePlayer.metaEventId,
+        playerName: livePlayer.playerName,
+        rank: livePlayer.rank,
+        rankIsTier: livePlayer.rankIsTier,
+        wins: livePlayer.wins,
+        losses: livePlayer.losses,
+        draws: livePlayer.draws,
+        legendCardId: livePlayer.legendCardId,
+        championCardId: livePlayer.championCardId,
+        listStatus: livePlayer.listStatus,
         cards: liveCards,
       },
       {
         event: candidateEventId,
-        name: deck.name ?? liveDeck.name,
-        playerName: deck.playerName,
-        finishTier: deck.finishTier,
-        record: deck.record,
-        listStatus: deck.listStatus,
-        cards: resolvedCardEntries(cards),
+        playerName: player.playerName,
+        rank: player.rank,
+        rankIsTier: player.rankIsTier,
+        wins: player.wins,
+        losses: player.losses,
+        draws: player.draws,
+        legendCardId: candidateCards.legendCardId,
+        championCardId: candidateCards.championCardId,
+        // A source that publishes standings only is not proposing to strip a
+        // list another source already contributed, so the live status stands in.
+        listStatus: cards === null ? livePlayer.listStatus : player.listStatus,
+        cards: cards === null ? liveCards : resolvedCardEntries(cards),
       },
     ),
   );

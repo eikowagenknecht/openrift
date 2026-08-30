@@ -27,13 +27,14 @@ import {
   useRematchMetaCandidates,
 } from "@/hooks/use-admin-meta-candidates";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { sortCandidateQueue } from "@/lib/meta-candidate-review";
+import { candidateProviderDisplay, sortCandidateQueue } from "@/lib/meta-candidate-review";
 
 function ProviderCell({ row }: AdminCellSlotProps<MetaCandidateQueueRow>) {
   if (!row) {
     return null;
   }
-  return <Badge variant="outline">{row.provider}</Badge>;
+  const provider = candidateProviderDisplay(row.provider);
+  return <Badge variant={provider.variant}>{provider.label}</Badge>;
 }
 
 function NameCell({ row }: AdminCellSlotProps<MetaCandidateQueueRow>) {
@@ -70,15 +71,15 @@ function FormatCell({ row }: AdminCellSlotProps<MetaCandidateQueueRow>) {
   return <span className="text-muted-foreground">{labels[row.format] ?? row.format}</span>;
 }
 
-function DecksCell({ row }: AdminCellSlotProps<MetaCandidateQueueRow>) {
+function PlayersCell({ row }: AdminCellSlotProps<MetaCandidateQueueRow>) {
   if (!row) {
     return null;
   }
   return (
     <span className="tabular-nums">
-      {row.deckCount}
-      {row.unacceptedDeckCount > 0 && (
-        <span className="text-muted-foreground"> ({row.unacceptedDeckCount} pending)</span>
+      {row.playerRowCount}
+      {row.unacceptedPlayerCount > 0 && (
+        <span className="text-muted-foreground"> ({row.unacceptedPlayerCount} pending)</span>
       )}
     </span>
   );
@@ -89,8 +90,13 @@ function StateCell({ row }: AdminCellSlotProps<MetaCandidateQueueRow>) {
     return null;
   }
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <CandidateStateBadge state={row.state} />
+      {row.linkedSourceCount > 1 && (
+        <Badge variant="sky" title="Several candidates feed the same live event">
+          {row.linkedSourceCount} sources
+        </Badge>
+      )}
       {row.unresolvedCardCount > 0 && (
         <Badge variant="destructive">{row.unresolvedCardCount} unmatched</Badge>
       )}
@@ -118,7 +124,12 @@ const columns: AdminColumnDef<MetaCandidateQueueRow>[] = [
   { header: "Event", sortValue: (row) => row.name, cell: <NameCell /> },
   { header: "Date", sortValue: (row) => row.eventDate, cell: <DateCell /> },
   { header: "Format", sortValue: (row) => row.format, cell: <FormatCell /> },
-  { header: "Decks", align: "right", sortValue: (row) => row.deckCount, cell: <DecksCell /> },
+  {
+    header: "Players",
+    align: "right",
+    sortValue: (row) => row.playerRowCount,
+    cell: <PlayersCell />,
+  },
   { header: "State", sortValue: (row) => row.state, cell: <StateCell /> },
   { header: "Live event", cell: <LiveEventCell /> },
 ];
@@ -167,7 +178,7 @@ function CandidateRowActions({ row }: AdminCellSlotProps<MetaCandidateQueueRow>)
  * that — and reviewed rows are hidden by default, because an in-sync reviewed
  * candidate is exactly the noise the queue exists to keep out of view.
  *
- * @returns The candidates tab.
+ * @returns The review tab.
  */
 export function MetaCandidatesPage() {
   const { data } = useAdminMetaCandidates();
@@ -200,7 +211,7 @@ export function MetaCandidatesPage() {
         title="Meta Archive"
         actions={
           <>
-            <PageTopBarButton onClick={() => setIgnoredOpen(true)}>Ignored...</PageTopBarButton>
+            <PageTopBarButton onClick={() => setIgnoredOpen(true)}>Ignored…</PageTopBarButton>
             <PageTopBarButton onClick={handleRematch} disabled={rematch.isPending}>
               <RefreshCwIcon />
               Rematch cards
@@ -225,8 +236,9 @@ export function MetaCandidatesPage() {
         toolbar={
           <div className="space-y-3">
             <PageDescription>
-              Events and decks staged by an external source. Nothing reaches the archive until you
-              accept it here.
+              The work queue: everything the sync staged, or a player submitted, that a human still
+              has to look at. Nothing reaches the public archive until it is accepted here, and the
+              chips on each row say why it is waiting.
             </PageDescription>
             <div className="flex items-center gap-2">
               <Switch

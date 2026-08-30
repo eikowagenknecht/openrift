@@ -8,7 +8,6 @@ import type { MetaSubmissionDraft } from "./meta-submission-form";
 import {
   EMPTY_META_SUBMISSION_DRAFT,
   buildMetaSubmissionInput,
-  hasLegendLine,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "./meta-submission-form";
@@ -34,8 +33,9 @@ function catalog(): Printing[] {
 const readyDraft: MetaSubmissionDraft = {
   ...EMPTY_META_SUBMISSION_DRAFT,
   playerName: "Kira",
-  finishTier: "4",
-  record: "5-1",
+  rank: "4",
+  wins: "5",
+  losses: "1",
 };
 
 describe("parseMetaSubmissionList", () => {
@@ -113,13 +113,40 @@ describe("validateMetaSubmissionDraft", () => {
     );
   });
 
-  it("asks for the legend when an archetype-only entry has nothing read", () => {
+  it("asks for a finish that is a number", () => {
     expect(
       validateMetaSubmissionDraft(
-        { ...readyDraft, listStatus: "archetype" },
-        { proposing: false, cardCount: 0 },
+        { ...readyDraft, rank: "top 8" },
+        { proposing: false, cardCount: 12 },
       ),
-    ).toMatch(/legend/iu);
+    ).toMatch(/finish/iu);
+  });
+
+  it("refuses a record that is not whole numbers", () => {
+    expect(
+      validateMetaSubmissionDraft(
+        { ...readyDraft, wins: "five" },
+        { proposing: false, cardCount: 12 },
+      ),
+    ).toMatch(/whole numbers/iu);
+  });
+
+  it("refuses half a record, which would display as nothing", () => {
+    expect(
+      validateMetaSubmissionDraft(
+        { ...readyDraft, losses: "" },
+        { proposing: false, cardCount: 12 },
+      ),
+    ).toMatch(/both wins and losses/iu);
+  });
+
+  it("accepts a draft with no record at all", () => {
+    expect(
+      validateMetaSubmissionDraft(
+        { ...readyDraft, wins: "", losses: "", draws: "" },
+        { proposing: false, cardCount: 12 },
+      ),
+    ).toBeNull();
   });
 
   it("refuses more lines than the endpoint takes", () => {
@@ -196,8 +223,10 @@ describe("buildMetaSubmissionInput", () => {
     expect(input.metaEventId).toBe("event-1");
     expect(input.proposedEvent).toBeNull();
     expect(input.playerName).toBe("Kira");
-    expect(input.finishTier).toBe(4);
-    expect(input.record).toBe("5-1");
+    expect(input.rank).toBe(4);
+    expect(input.rankIsTier).toBe(false);
+    expect(input.wins).toBe(5);
+    expect(input.losses).toBe(1);
     expect(input.cards).toEqual(cards);
   });
 
@@ -227,11 +256,22 @@ describe("buildMetaSubmissionInput", () => {
     });
   });
 
-  it("sends the optional event fields as null rather than empty strings", () => {
+  it("sends a bracket-only finish as a tier", () => {
+    const input = buildMetaSubmissionInput({ ...readyDraft, rankIsTier: true }, cards, {
+      metaEventId: "event-1",
+    });
+
+    expect(input.rank).toBe(4);
+    expect(input.rankIsTier).toBe(true);
+  });
+
+  it("sends the optional fields as null rather than empty strings", () => {
     const input = buildMetaSubmissionInput(
       {
         ...readyDraft,
-        record: "",
+        wins: "",
+        losses: "",
+        draws: "",
         note: "",
         eventName: "Summoner Skirmish",
         eventDate: "2026-08-15",
@@ -241,24 +281,12 @@ describe("buildMetaSubmissionInput", () => {
       null,
     );
 
-    expect(input.record).toBeNull();
+    expect(input.wins).toBeNull();
+    expect(input.losses).toBeNull();
+    expect(input.draws).toBeNull();
     expect(input.note).toBeNull();
     expect(input.proposedEvent?.playerCount).toBeNull();
     expect(input.proposedEvent?.organizer).toBeNull();
     expect(input.proposedEvent?.sourceUrl).toBeNull();
-  });
-});
-
-describe("hasLegendLine", () => {
-  it("is true when a line sits in the legend zone", () => {
-    expect(
-      hasLegendLine([{ name: "Wandering Ronin", zone: WellKnown.deckZone.LEGEND, quantity: 1 }]),
-    ).toBe(true);
-  });
-
-  it("is false for a main deck alone", () => {
-    expect(
-      hasLegendLine([{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }]),
-    ).toBe(false);
   });
 });

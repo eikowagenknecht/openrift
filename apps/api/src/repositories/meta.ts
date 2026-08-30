@@ -1,18 +1,29 @@
-import { WellKnown, getOrientation, legendDisplayName } from "@openrift/shared";
 import type {
   CardType,
   DeckFormatConfig,
   DeckZone,
+  META_EVENT_SORTS,
   MetaCreditVisibility,
+  MetaEntryStatus,
+  MetaEventTier,
   MetaListStatus,
 } from "@openrift/shared/types";
-import type { Kysely, Selectable, SqlBool, Updateable } from "kysely";
+import type {
+  ExpressionBuilder,
+  Insertable,
+  Kysely,
+  RawBuilder,
+  Selectable,
+  SqlBool,
+  Updateable,
+} from "kysely";
 import { sql } from "kysely";
 
 import type {
   Database,
-  DecksTable,
-  MetaDecksTable,
+  MetaEventMatchesTable,
+  MetaEventPhasesTable,
+  MetaEventPlayersTable,
   MetaEventSourcesTable,
   MetaEventsTable,
 } from "../db/index.js";
@@ -24,93 +35,146 @@ import type {
  */
 export const META_ARCHIVE_USER_ID = "meta-archive";
 
-export type MetaEventWithCount = Selectable<MetaEventsTable> & { deckCount: number };
+export type MetaEventMatchRow = Selectable<MetaEventMatchesTable>;
 
-export interface MetaDeckSummaryRow {
-  deckId: string;
-  /**
-   * Null for an archetype-only deck: those get no token, so there is no public
-   * page to link a tile to.
-   */
+export type NewMetaEventMatch = Insertable<MetaEventMatchesTable>;
+
+export type MetaEventPhaseRow = Selectable<MetaEventPhasesTable>;
+
+export type NewMetaEventPhase = Insertable<MetaEventPhasesTable>;
+
+/** One event's recomputed classification, with the fields the pass owns. */
+export interface MetaEventClassificationPatch {
+  id: string;
+  /** Omitted leaves the live value: the column is NOT NULL and a human may own it. */
+  tier?: MetaEventTier;
+  country?: string | null;
+  location?: string | null;
+}
+
+/** A written match row, with the source key the caller pairs it back up by. */
+export interface UpsertedMetaEventMatch {
+  id: string;
+  sourceMatchId: string | null;
+}
+
+/**
+ * `playerRowCount` is the whole standings table; `deckCount` the subset a
+ * decklist is known for. They differ for nearly every real event, which is the
+ * point of the pyramid.
+ */
+export type MetaEventWithCounts = Selectable<MetaEventsTable> & {
+  playerRowCount: number;
+  deckCount: number;
+};
+
+/**
+ * One player's entry as a public standings table renders it.
+ *
+ * `legendName` is the canonical `cards.name`; the types and tags travel beside
+ * it so a player-facing presenter can compose the champion-led label while the
+ * admin table keeps the field it edits.
+ */
+export interface MetaEventPlayerRow {
+  id: string;
+  rank: number;
+  rankIsTier: boolean;
+  playerName: string;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  legendCardId: string | null;
+  legendName: string | null;
+  legendSlug: string | null;
+  legendTypes: CardType[] | null;
+  legendTags: string[] | null;
+  championCardId: string | null;
+  championName: string | null;
+  championSlug: string | null;
+  /** Null for a standings-only entry, together with the three fields below. */
+  deckId: string | null;
+  deckName: string | null;
   shareToken: string | null;
+  listStatus: MetaListStatus;
+}
+
+/** One archived deck as the cross-event browser lists it. */
+export interface MetaDeckSummaryRow {
+  playerId: string;
+  deckId: string;
+  shareToken: string;
   listStatus: MetaListStatus;
   deckName: string;
   deckFormat: string;
   legendCardId: string | null;
   legendName: string | null;
-  legendTypes: string[] | null;
+  legendSlug: string | null;
+  legendTypes: CardType[] | null;
   legendTags: string[] | null;
   championCardId: string | null;
   championName: string | null;
   playerName: string;
-  finishTier: number;
-  record: string | null;
+  rank: number;
+  rankIsTier: boolean;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
   eventSlug: string;
   eventName: string;
   eventDate: string;
   eventFormat: string;
-}
-
-export interface MetaDeckContextRow {
-  /**
-   * `"archetype"` here means the deck has no page. Such a deck also has no
-   * share token, so the public deck route cannot normally reach it; carrying
-   * the status is what lets that route refuse one anyway if a token ever
-   * resolves to it.
-   */
-  listStatus: MetaListStatus;
-  playerName: string;
-  finishTier: number;
-  record: string | null;
-  eventSlug: string;
-  eventName: string;
-  eventDate: string;
-  eventFormat: string;
-}
-
-export interface AdminMetaDeckRow {
-  deckId: string;
-  /** Null while the deck is archetype-only. */
-  shareToken: string | null;
-  listStatus: MetaListStatus;
-  name: string;
-  format: string;
-  playerName: string;
-  finishTier: number;
-  record: string | null;
-  cardCount: number;
-}
-
-export interface MetaCardStatRow {
-  cardId: string;
-  name: string;
-  slug: string;
-  deckCount: number;
-  /**
-   * Whether the card's art is stored landscape (Battlefields). The thumbnail
-   * rotates it instead of cropping it to a strip, so the flag has to travel
-   * with the row — the stats surfaces never load the catalog.
-   */
-  landscape: boolean;
-}
-
-/** Applied to the *event's* fields, not the deck's. */
-export interface MetaStatsFilters {
-  format?: string;
-  dateFrom?: string;
-  dateTo?: string;
 }
 
 /**
- * `knownMainDeckOnly` drops the archetype-only decks, which is what the
- * card-inclusion numbers need: those decks carry a legend and nothing else, so
- * counting them would make every card's percentage read against a denominator
- * most of it never had a chance to appear in. Partial lists stay in — a partial
- * list's main deck is complete by definition. The legend play-rate passes
- * nothing, since a legend is the one thing all three states have.
+ * The standings context an archived deck's page prints. Also the
+ * archive-membership test the public deck endpoint uses — `undefined` means the
+ * token belongs to a deck outside the archive, which must 404 rather than
+ * render as an archive entry.
  */
-export interface MetaStatsScope {
-  knownMainDeckOnly?: boolean;
+export interface MetaDeckContextRow {
+  playerId: string;
+  listStatus: MetaListStatus;
+  playerName: string;
+  rank: number;
+  rankIsTier: boolean;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  eventSlug: string;
+  eventName: string;
+  eventDate: string;
+  eventFormat: string;
+}
+
+/** One standings row in the admin's event management table. */
+export interface AdminMetaPlayerRow extends MetaEventPlayerRow {
+  deckFormat: string | null;
+  cardCount: number;
+}
+
+/** A live standings row as the candidate pipeline compares against it. */
+export interface LiveMetaPlayerRow {
+  id: string;
+  metaEventId: string;
+  rank: number;
+  rankIsTier: boolean;
+  playerName: string;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  legendCardId: string | null;
+  championCardId: string | null;
+  listStatus: MetaListStatus;
+  deckId: string | null;
+  deckName: string | null;
+  shareToken: string | null;
+}
+
+/** Applied to the *event's* fields, not the standings row's. */
+export interface MetaCountsFilters {
+  format?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 /**
@@ -134,16 +198,6 @@ export interface MetaEventSourceInput {
 }
 
 /**
- * The key that names one source's deck. Scoped by the source's event id as well
- * as the deck's, because deck ids restart per event.
- */
-export interface MetaDeckSourceKey {
-  provider: string;
-  eventExternalId: string;
-  externalId: string;
-}
-
-/**
  * One contributor as an event page prints them. The name is resolved at read
  * time from the user's profile and their `meta_credit_visibility`, so a rename
  * or an opt-out reaches every past contribution with no sweep across rows.
@@ -163,6 +217,10 @@ export interface MetaEventInput {
   playerCount: number | null;
   organizer: string | null;
   notes: string | null;
+  /** Omitted means the column default (`store`); the accept paths always classify one. */
+  tier?: MetaEventTier;
+  country?: string | null;
+  location?: string | null;
 }
 
 export interface MetaDeckCardInput {
@@ -172,57 +230,205 @@ export interface MetaDeckCardInput {
   preferredPrintingId: string | null;
 }
 
-export interface MetaDeckInput {
-  eventId: string;
+/**
+ * The decklist attached to a standings row. `listStatus` cannot be `"none"`
+ * here: that value means there is no deck, and the table CHECKs the two agree.
+ */
+export interface MetaArchivedDeckInput {
   name: string;
   format: string;
   formatConfig: DeckFormatConfig | null;
   cards: MetaDeckCardInput[];
-  playerName: string;
-  finishTier: number;
-  record: string | null;
-  /**
-   * `"archetype"` pairs with a null `shareToken` — the two belong together,
-   * and `createArchivedDeck` is what keeps them that way.
-   */
-  listStatus: MetaListStatus;
+  listStatus: Exclude<MetaListStatus, "none">;
 }
 
-export interface MetaDeckPatch {
-  eventId?: string;
-  name?: string;
-  playerName?: string;
-  finishTier?: number;
-  record?: string | null;
-  cards?: MetaDeckCardInput[];
-  listStatus?: MetaListStatus;
+export interface MetaEventPlayerInput {
+  eventId: string;
+  rank: number;
+  rankIsTier: boolean;
   /**
-   * Service-owned, not an editable field: only `updateArchivedDeck` sets it,
-   * to mint the permalink a deck gains when it is promoted out of
-   * `"archetype"`. Never routed from a request body.
+   * Null only when {@link uvsgamesPlayerId} is set: a row filed from the
+   * source is named by the source, and the archive stores no snapshot of it.
+   * Both together is an admin's override of the source's name.
    */
-  shareToken?: string;
+  playerName: string | null;
+  uvsgamesPlayerId?: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  /** The standings columns behind the rank; every source but the official one omits them. */
+  matchPoints?: number | null;
+  opponentMatchWinPct?: number | null;
+  gameWinPct?: number | null;
+  opponentGameWinPct?: number | null;
+  entryStatus?: MetaEntryStatus | null;
+  legendCardId: string | null;
+  championCardId: string | null;
+  /** Null leaves the entry standings-only, which is what most of a field is. */
+  deck: MetaArchivedDeckInput | null;
+}
+
+/** Scalar columns only — the deck moves through `setPlayerDeck` / `clearPlayerDeck`. */
+export interface MetaEventPlayerPatch {
+  eventId?: string;
+  rank?: number;
+  rankIsTier?: boolean;
+  playerName?: string | null;
+  uvsgamesPlayerId?: number | null;
+  wins?: number | null;
+  losses?: number | null;
+  draws?: number | null;
+  matchPoints?: number | null;
+  opponentMatchWinPct?: number | null;
+  gameWinPct?: number | null;
+  opponentGameWinPct?: number | null;
+  entryStatus?: MetaEntryStatus | null;
+  legendCardId?: string | null;
+  championCardId?: string | null;
 }
 
 /**
- * Queries for the admin-curated meta archive. Archived decks live in `decks`
- * under {@link META_ARCHIVE_USER_ID}; this repo owns the event rows, the
- * satellite placement rows, and every join that treats the two as one thing.
+ * Queries for the admin-curated meta archive. `meta_event_players` is the
+ * anchor: one row per player per event, with an optional `decks` row (owned by
+ * {@link META_ARCHIVE_USER_ID}) hanging off it. This repo owns the event rows,
+ * the standings rows, and every join that treats the three as one thing.
  */
+/**
+ * The player's name as every read serves it: the row's own column when the
+ * archive holds one, otherwise the source's current display name. Writing the
+ * local column is the admin's override, and clearing it hands the player back to
+ * the source's renames.
+ *
+ * Requires `uvsgames_players` left-joined as `up`.
+ */
+const resolvedPlayerName = sql<string>`coalesce(p.player_name, up.display_name)`;
+
+/** How one page of the live event list is filtered. */
+export interface MetaEventFilters {
+  /** Matched against the event name and the organizer. */
+  search?: string;
+  format?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  /** Keeps only events holding fewer standings rows than the reported field. */
+  incompleteStandings?: boolean;
+  /** Keeps only events where no standings row carries a decklist. */
+  noDecks?: boolean;
+}
+
+/** How one page of the live event list is ordered. Defaults to newest first. */
+export interface MetaEventOrder {
+  sort?: (typeof META_EVENT_SORTS)[number];
+  direction?: "asc" | "desc";
+}
+
+const EVENT_ORDER_COLUMNS: Record<(typeof META_EVENT_SORTS)[number], RawBuilder<unknown>> = {
+  eventDate: sql`meta_events.event_date`,
+  name: sql`meta_events.name`,
+  format: sql`meta_events.format`,
+  organizer: sql`meta_events.organizer`,
+  playerRowCount: sql`c.player_row_count`,
+  deckCount: sql`c.deck_count`,
+};
+
+/**
+ * Nulls sort last whichever way the column runs: an event with no organizer is
+ * not the answer to "who ran the earliest event", in either direction.
+ */
+function eventOrderBy(order: MetaEventOrder) {
+  const column = EVENT_ORDER_COLUMNS[order.sort ?? "eventDate"];
+  return order.direction === "asc" ? sql`${column} asc nulls last` : sql`${column} desc nulls last`;
+}
+
+/**
+ * The archive holds fewer standings rows than the source said played. An event
+ * whose field size was never reported cannot be short of it, so it is left out
+ * rather than counted as complete.
+ */
+const standingsShort = sql<boolean>`meta_events.player_count is not null
+  and c.player_row_count < meta_events.player_count`;
+
+const noDecks = sql<boolean>`c.deck_count = 0`;
+
 export function metaRepo(db: Kysely<Database>) {
-  const deckCountExpr = sql<number>`(select count(*)::int from meta_decks where meta_decks.meta_event_id = meta_events.id)`;
+  /**
+   * The roster and deck counts, joined once per event rather than as two
+   * correlated subqueries. Lateral so the counts are also filterable and
+   * sortable: the list works down the events whose standings or decklists are
+   * still short, and neither is a column on `meta_events`.
+   *
+   * The lateral body is an ungrouped aggregate, so it yields one row of zeroes
+   * for an event with no standings rather than no row: every reader of
+   * `c.player_row_count` / `c.deck_count` can take them as non-null.
+   */
+  function eventQuery() {
+    return db
+      .selectFrom("metaEvents")
+      .leftJoinLateral(
+        (eb) =>
+          eb
+            .selectFrom("metaEventPlayers as p")
+            .whereRef("p.metaEventId", "=", "metaEvents.id")
+            .select([
+              eb.cast<number>(eb.fn.countAll(), "integer").as("playerRowCount"),
+              sql<number>`count(*) filter (where p.deck_id is not null)::int`.as("deckCount"),
+            ])
+            .as("c"),
+        (join) => join.onTrue(),
+      )
+      .selectAll("metaEvents")
+      .select([
+        sql<number>`c.player_row_count`.as("playerRowCount"),
+        sql<number>`c.deck_count`.as("deckCount"),
+      ]);
+  }
 
   /**
-   * The filters read the *event*, not the deck: a deck inherits its format and
-   * its date from where it was played, so "constructed decks since June" is a
-   * statement about events. `knownMainDeckOnly` is the one deck-level
-   * narrowing, and it exists so the card table's numerator and denominator
-   * agree — see {@link MetaStatsScope}.
+   * The legend and champion are columns on the standings row, not zones of a
+   * deck: the archive knows which legend a player played for nearly every entry,
+   * and only a fraction of those entries ever gain a decklist.
    */
-  function decksInScope(filters: MetaStatsFilters, scope?: MetaStatsScope) {
+  function playerQuery() {
+    return (
+      db
+        .selectFrom("metaEventPlayers as p")
+        .leftJoin("cards as lc", "lc.id", "p.legendCardId")
+        .leftJoin("cards as cc", "cc.id", "p.championCardId")
+        // Left, like every other join onto the view: it is refreshed on demand,
+        // and an inner join would drop a fresh Legend's standings row entirely
+        // rather than just naming it without its champion.
+        .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
+        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+        .leftJoin("decks as d", "d.id", "p.deckId")
+        .select([
+          "p.id",
+          "p.rank",
+          "p.rankIsTier",
+          resolvedPlayerName.as("playerName"),
+          "p.wins",
+          "p.losses",
+          "p.draws",
+          "p.legendCardId",
+          "lc.name as legendName",
+          "lc.slug as legendSlug",
+          "lmca.types as legendTypes",
+          "lc.tags as legendTags",
+          "p.championCardId",
+          "cc.name as championName",
+          "cc.slug as championSlug",
+          "p.deckId",
+          "d.name as deckName",
+          "d.shareToken",
+          "p.listStatus",
+        ])
+    );
+  }
+
+  /** The standings rows a count reads, narrowed by the event's own fields. */
+  function playersInScope(filters: MetaCountsFilters) {
     let query = db
-      .selectFrom("metaDecks as md")
-      .innerJoin("metaEvents as me", "me.id", "md.metaEventId");
+      .selectFrom("metaEventPlayers as p")
+      .innerJoin("metaEvents as me", "me.id", "p.metaEventId");
     if (filters.format !== undefined) {
       query = query.where("me.format", "=", filters.format);
     }
@@ -232,80 +438,15 @@ export function metaRepo(db: Kysely<Database>) {
     if (filters.dateTo !== undefined) {
       query = query.where("me.eventDate", "<=", filters.dateTo);
     }
-    if (scope?.knownMainDeckOnly === true) {
-      query = query.where("md.listStatus", "!=", "archetype");
-    }
     return query;
-  }
-
-  /**
-   * The legend and champion come from lateral joins rather than two correlated
-   * subqueries each, so the card id and its name are read in one pass per
-   * zone. A deck with several cards in a zone (not a legal state, but
-   * representable) resolves to the alphabetically first, deterministically.
-   */
-  function deckSummaryQuery() {
-    return db
-      .selectFrom("metaDecks as md")
-      .innerJoin("decks as d", "d.id", "md.deckId")
-      .innerJoin("metaEvents as me", "me.id", "md.metaEventId")
-      .leftJoinLateral(
-        (eb) =>
-          eb
-            .selectFrom("deckCards as dc")
-            .innerJoin("cards as c", "c.id", "dc.cardId")
-            .leftJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
-            .select(["dc.cardId", "c.name", "mca.types", "c.tags"])
-            .whereRef("dc.deckId", "=", "md.deckId")
-            .where("dc.zone", "=", WellKnown.deckZone.LEGEND)
-            .orderBy("c.name")
-            .limit(1)
-            .as("legend"),
-        (join) => join.onTrue(),
-      )
-      .leftJoinLateral(
-        (eb) =>
-          eb
-            .selectFrom("deckCards as dc")
-            .innerJoin("cards as c", "c.id", "dc.cardId")
-            .select(["dc.cardId", "c.name"])
-            .whereRef("dc.deckId", "=", "md.deckId")
-            .where("dc.zone", "=", WellKnown.deckZone.CHAMPION)
-            .orderBy("c.name")
-            .limit(1)
-            .as("champion"),
-        (join) => join.onTrue(),
-      )
-      .select([
-        "md.deckId",
-        // Nullable here, unlike everywhere else a deck token is read: an
-        // archetype-only deck has no page, so it never gets one.
-        "d.shareToken",
-        "md.listStatus",
-        "d.name as deckName",
-        "d.format as deckFormat",
-        "legend.cardId as legendCardId",
-        "legend.name as legendName",
-        "legend.types as legendTypes",
-        "legend.tags as legendTags",
-        "champion.cardId as championCardId",
-        "champion.name as championName",
-        "md.playerName",
-        "md.finishTier",
-        "md.record",
-        "me.slug as eventSlug",
-        "me.name as eventName",
-        "me.eventDate",
-        "me.format as eventFormat",
-      ]);
   }
 
   /**
    * The display string is resolved in SQL so the filter and the ordering agree
    * with it: a contributor on `riot_id` falls back to their display name, a
    * blank result drops the row rather than printing part of a user id, and the
-   * `DISTINCT` collapses the several decks one person contributed into one name
-   * per event.
+   * `DISTINCT` collapses the several entries one person contributed into one
+   * name per event.
    */
   function contributorQuery() {
     const displayName = sql<string>`nullif(btrim(case
@@ -324,199 +465,467 @@ export function metaRepo(db: Kysely<Database>) {
       .orderBy("mc.userId", "asc");
   }
 
+  /** Writes the `decks` row and its cards, and points the standings row at it. */
+  async function insertDeckForPlayer(
+    trx: Kysely<Database>,
+    playerId: string,
+    deck: MetaArchivedDeckInput,
+    shareToken: string | null,
+  ): Promise<string> {
+    const row = await trx
+      .insertInto("decks")
+      .values({
+        userId: META_ARCHIVE_USER_ID,
+        name: deck.name,
+        description: null,
+        format: deck.format,
+        formatConfig: deck.formatConfig,
+        // The permalink is the point of an archived deck; it is public from the
+        // moment it exists, never through a later share toggle.
+        isPublic: true,
+        shareToken,
+        links: [],
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+
+    await trx
+      .insertInto("deckCards")
+      .values(deck.cards.map((card) => ({ deckId: row.id, ...card })))
+      .execute();
+
+    await trx
+      .updateTable("metaEventPlayers")
+      .set({ deckId: row.id, listStatus: deck.listStatus })
+      .where("id", "=", playerId)
+      .execute();
+
+    return row.id;
+  }
+
   return {
-    listEvents(): Promise<MetaEventWithCount[]> {
-      return db
-        .selectFrom("metaEvents")
-        .selectAll()
-        .select(deckCountExpr.as("deckCount"))
-        .orderBy("eventDate", "desc")
-        .orderBy("name", "asc")
+    /**
+     * Every archived event, unpaged. The public `/meta` list is the only caller
+     * that legitimately wants the whole archive in one payload; anything admin
+     * pages or narrows by date goes through {@link listEvents} instead.
+     */
+    allEvents(): Promise<MetaEventWithCounts[]> {
+      return eventQuery().orderBy("eventDate", "desc").orderBy("name", "asc").execute();
+    },
+
+    async listEvents(
+      filters: MetaEventFilters,
+      page: { limit: number; offset: number },
+      order: MetaEventOrder = {},
+    ): Promise<{ rows: MetaEventWithCounts[]; total: number }> {
+      let rowQuery = eventQuery()
+        .orderBy(eventOrderBy(order))
+        // Whole days collide constantly on the date column, so the slug breaks
+        // ties and keeps a page boundary from repeating or skipping a row.
+        .orderBy("metaEvents.slug", "asc")
+        .limit(page.limit)
+        .offset(page.offset);
+      let countQuery = eventQuery()
+        .clearSelect()
+        .select((eb) => eb.fn.countAll<string>().as("total"));
+
+      if (filters.search !== undefined && filters.search.trim() !== "") {
+        const pattern = `%${filters.search.trim()}%`;
+        const matches = (eb: ExpressionBuilder<Database, "metaEvents">) =>
+          eb.or([
+            eb("metaEvents.name", "ilike", pattern),
+            eb("metaEvents.organizer", "ilike", pattern),
+          ]);
+        rowQuery = rowQuery.where(matches);
+        countQuery = countQuery.where(matches);
+      }
+      if (filters.format !== undefined) {
+        rowQuery = rowQuery.where("metaEvents.format", "=", filters.format);
+        countQuery = countQuery.where("metaEvents.format", "=", filters.format);
+      }
+      if (filters.dateFrom !== undefined) {
+        rowQuery = rowQuery.where("metaEvents.eventDate", ">=", filters.dateFrom);
+        countQuery = countQuery.where("metaEvents.eventDate", ">=", filters.dateFrom);
+      }
+      if (filters.dateTo !== undefined) {
+        rowQuery = rowQuery.where("metaEvents.eventDate", "<=", filters.dateTo);
+        countQuery = countQuery.where("metaEvents.eventDate", "<=", filters.dateTo);
+      }
+      if (filters.incompleteStandings === true) {
+        rowQuery = rowQuery.where(standingsShort);
+        countQuery = countQuery.where(standingsShort);
+      }
+      if (filters.noDecks === true) {
+        rowQuery = rowQuery.where(noDecks);
+        countQuery = countQuery.where(noDecks);
+      }
+
+      const [rows, countRow] = await Promise.all([
+        rowQuery.execute(),
+        countQuery.executeTakeFirstOrThrow(),
+      ]);
+      return { rows, total: Number(countRow.total) };
+    },
+
+    eventBySlug(slug: string): Promise<MetaEventWithCounts | undefined> {
+      return eventQuery().where("slug", "=", slug).executeTakeFirst();
+    },
+
+    eventById(id: string): Promise<MetaEventWithCounts | undefined> {
+      return eventQuery().where("id", "=", id).executeTakeFirst();
+    },
+
+    /** The whole field, deckless entries included, best finish first. */
+    standingsForEvent(eventId: string): Promise<MetaEventPlayerRow[]> {
+      return playerQuery()
+        .where("p.metaEventId", "=", eventId)
+        .orderBy("p.rank", "asc")
+        .orderBy(resolvedPlayerName, "asc")
         .execute();
     },
 
-    eventBySlug(slug: string): Promise<MetaEventWithCount | undefined> {
-      return db
-        .selectFrom("metaEvents")
-        .selectAll()
-        .select(deckCountExpr.as("deckCount"))
-        .where("slug", "=", slug)
-        .executeTakeFirst();
+    playerById(id: string): Promise<MetaEventPlayerRow | undefined> {
+      return playerQuery().where("p.id", "=", id).executeTakeFirst();
     },
 
-    eventById(id: string): Promise<MetaEventWithCount | undefined> {
+    /** The event's phase structure in play order; empty when no source published it. */
+    phasesForEvent(eventId: string): Promise<MetaEventPhaseRow[]> {
       return db
-        .selectFrom("metaEvents")
+        .selectFrom("metaEventPhases")
         .selectAll()
-        .select(deckCountExpr.as("deckCount"))
-        .where("id", "=", id)
-        .executeTakeFirst();
+        .where("metaEventId", "=", eventId)
+        .orderBy("phaseOrder", "asc")
+        .execute();
     },
 
-    deckSummariesForEvent(eventId: string): Promise<MetaDeckSummaryRow[]> {
-      return deckSummaryQuery()
-        .where("md.metaEventId", "=", eventId)
-        .orderBy("md.finishTier", "asc")
-        .orderBy("md.playerName", "asc")
+    /**
+     * Replaces one event's phases. The source republishes the whole list on
+     * every fetch and nothing references a phase row, so a wholesale replace is
+     * both correct and cheaper than reconciling three rows.
+     */
+    async replaceEventPhases(eventId: string, rows: NewMetaEventPhase[]): Promise<void> {
+      await db.transaction().execute(async (trx) => {
+        await trx.deleteFrom("metaEventPhases").where("metaEventId", "=", eventId).execute();
+        if (rows.length > 0) {
+          await trx.insertInto("metaEventPhases").values(rows).execute();
+        }
+      });
+    },
+
+    /** Round-by-round results in play order; empty when no source carried them. */
+    matchesForEvent(eventId: string): Promise<MetaEventMatchRow[]> {
+      return db
+        .selectFrom("metaEventMatches")
+        .selectAll()
+        .where("metaEventId", "=", eventId)
+        .orderBy("phaseOrder", "asc")
+        .orderBy("roundNumber", "asc")
+        .orderBy("tableNumber", "asc")
+        .orderBy("id", "asc")
+        .execute();
+    },
+
+    /**
+     * Writes materialized matches, converging on the source's own match id so a
+     * replayed materialization refreshes facts instead of failing, and so a
+     * re-paired round moves its rows rather than duplicating them.
+     *
+     * @returns Each written row's live id beside its source id. Postgres returns
+     * `ON CONFLICT` rows in whatever order it wrote them, so the caller pairs
+     * them up by key rather than by position.
+     */
+    async upsertEventMatches(rows: NewMetaEventMatch[]): Promise<UpsertedMetaEventMatch[]> {
+      if (rows.length === 0) {
+        return [];
+      }
+      return await db
+        .insertInto("metaEventMatches")
+        .values(rows)
+        .onConflict((oc) =>
+          // The source key, as a partial index, so the conflict target names
+          // its predicate. Every row this path writes carries a source id;
+          // the seat index covers only the rows that do not.
+          oc
+            .columns(["metaEventId", "sourceMatchId"])
+            .where("sourceMatchId", "is not", null)
+            .doUpdateSet((eb) => ({
+              phaseOrder: eb.ref("excluded.phaseOrder"),
+              roundNumber: eb.ref("excluded.roundNumber"),
+              sourceRoundId: eb.ref("excluded.sourceRoundId"),
+              tableNumber: eb.ref("excluded.tableNumber"),
+              isBye: eb.ref("excluded.isBye"),
+              isDraw: eb.ref("excluded.isDraw"),
+              player1Id: eb.ref("excluded.player1Id"),
+              player2Id: eb.ref("excluded.player2Id"),
+              winnerId: eb.ref("excluded.winnerId"),
+              gamesWonP1: eb.ref("excluded.gamesWonP1"),
+              gamesWonP2: eb.ref("excluded.gamesWonP2"),
+            })),
+        )
+        .returning(["id", "sourceMatchId"])
         .execute();
     },
 
     /**
      * Unpaginated and unfiltered by design: the archive is curated and small,
-     * and the deck browser filters client-side.
+     * and the deck browser filters client-side. Only rows with a list appear —
+     * a standings-only entry has no deck to browse.
      */
     allDeckSummaries(): Promise<MetaDeckSummaryRow[]> {
-      return deckSummaryQuery()
-        .orderBy("me.eventDate", "desc")
-        .orderBy("md.finishTier", "asc")
-        .orderBy("md.playerName", "asc")
-        .execute();
+      return (
+        db
+          .selectFrom("metaEventPlayers as p")
+          .innerJoin("decks as d", "d.id", "p.deckId")
+          .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+          .leftJoin("cards as lc", "lc.id", "p.legendCardId")
+          .leftJoin("cards as cc", "cc.id", "p.championCardId")
+          .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
+          .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+          .select([
+            "p.id as playerId",
+            "p.deckId",
+            "d.shareToken",
+            "p.listStatus",
+            "d.name as deckName",
+            "d.format as deckFormat",
+            "p.legendCardId",
+            "lc.name as legendName",
+            "lc.slug as legendSlug",
+            "lmca.types as legendTypes",
+            "lc.tags as legendTags",
+            "p.championCardId",
+            "cc.name as championName",
+            resolvedPlayerName.as("playerName"),
+            "p.rank",
+            "p.rankIsTier",
+            "p.wins",
+            "p.losses",
+            "p.draws",
+            "me.slug as eventSlug",
+            "me.name as eventName",
+            "me.eventDate",
+            "me.format as eventFormat",
+          ])
+          // A deck is minted with its permalink, so this only ever narrows the
+          // type; a token cleared by hand would leave a row with no page anyway.
+          .where("d.shareToken", "is not", null)
+          .$narrowType<{ deckId: string; shareToken: string }>()
+          .orderBy("me.eventDate", "desc")
+          .orderBy("p.rank", "asc")
+          .orderBy(resolvedPlayerName, "asc")
+          .execute()
+      );
     },
 
     /**
      * Guard for the share-token rotate path: an archived deck's token is its
-     * permalink, so rotation must be refused while this row exists.
+     * permalink, so rotation must be refused while a standings row points at it.
      */
     async isMetaDeck(deckId: string): Promise<boolean> {
       const row = await db
-        .selectFrom("metaDecks")
-        .select("deckId")
+        .selectFrom("metaEventPlayers")
+        .select("id")
         .where("deckId", "=", deckId)
         .executeTakeFirst();
       return row !== undefined;
     },
 
-    /**
-     * The two facts an update has to know before it writes: promoting a deck
-     * out of `"archetype"` is what mints the token, and that must happen
-     * exactly once.
-     */
-    deckShareState(
-      deckId: string,
-    ): Promise<{ listStatus: MetaListStatus; shareToken: string | null } | undefined> {
-      return db
-        .selectFrom("metaDecks as md")
-        .innerJoin("decks as d", "d.id", "md.deckId")
-        .select(["md.listStatus", "d.shareToken"])
-        .where("md.deckId", "=", deckId)
-        .executeTakeFirst();
-    },
-
-    /**
-     * Also the archive-membership test the public deck endpoint uses —
-     * `undefined` means the token belongs to a deck outside the archive, which
-     * must 404 rather than render as an archive entry.
-     */
     contextForDeck(deckId: string): Promise<MetaDeckContextRow | undefined> {
       return db
-        .selectFrom("metaDecks as md")
-        .innerJoin("metaEvents as me", "me.id", "md.metaEventId")
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
         .select([
-          "md.listStatus",
-          "md.playerName",
-          "md.finishTier",
-          "md.record",
+          "p.id as playerId",
+          "p.listStatus",
+          resolvedPlayerName.as("playerName"),
+          "p.rank",
+          "p.rankIsTier",
+          "p.wins",
+          "p.losses",
+          "p.draws",
           "me.slug as eventSlug",
           "me.name as eventName",
           "me.eventDate",
           "me.format as eventFormat",
         ])
-        .where("md.deckId", "=", deckId)
+        .where("p.deckId", "=", deckId)
         .executeTakeFirst();
     },
 
     /**
-     * The denominator an aggregate is read against. Called twice by the public
-     * stats route, once per {@link MetaStatsScope}, because the two aggregates
-     * count over different populations.
+     * The archive's side of the sync funnel: how many events it holds, how many
+     * of those have standings at all, how many carry at least one decklist, and
+     * how many decks that adds up to.
      */
-    async deckCountInScope(filters: MetaStatsFilters, scope?: MetaStatsScope): Promise<number> {
-      const row = await decksInScope(filters, scope)
+    async archiveOverview(provider?: string): Promise<{
+      events: number;
+      eventsWithStandings: number;
+      eventsWithDecklists: number;
+      decks: number;
+    }> {
+      // When a provider is given, count only events a candidate of that provider
+      // links, so the per-source funnel's "Published" is the archive this source
+      // fed. The decks count follows the same restriction.
+      let base = db.selectFrom("metaEvents as e");
+      if (provider !== undefined) {
+        base = base.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("candidateMetaEvents as ce")
+              .whereRef("ce.metaEventId", "=", "e.id")
+              .where("ce.provider", "=", provider),
+          ),
+        );
+      }
+      const row = await base
+        .select((eb) => [
+          eb.fn.countAll<string>().as("events"),
+          sql<string>`count(*) filter (where exists (
+            select 1 from meta_event_players p where p.meta_event_id = e.id
+          ))`.as("eventsWithStandings"),
+          sql<string>`count(*) filter (where exists (
+            select 1 from meta_event_players p
+            where p.meta_event_id = e.id and p.deck_id is not null
+          ))`.as("eventsWithDecklists"),
+          // A deck belongs to this slice when its event is in the filtered set.
+          // The correlated exists keeps the provider restriction on the count.
+          provider === undefined
+            ? sql<string>`(select count(*) from meta_event_players p where p.deck_id is not null)`.as(
+                "decks",
+              )
+            : sql<string>`(
+                select count(*) from meta_event_players p
+                where p.deck_id is not null and exists (
+                  select 1 from candidate_meta_events ce
+                  where ce.meta_event_id = p.meta_event_id and ce.provider = ${provider}
+                )
+              )`.as("decks"),
+        ])
+        .executeTakeFirstOrThrow();
+      return {
+        events: Number(row.events),
+        eventsWithStandings: Number(row.eventsWithStandings),
+        eventsWithDecklists: Number(row.eventsWithDecklists),
+        decks: Number(row.decks),
+      };
+    },
+
+    /** Every standings row in scope. */
+    async playerCountInScope(filters: MetaCountsFilters): Promise<number> {
+      const row = await playersInScope(filters)
         .select((eb) => eb.cast<number>(eb.fn.countAll(), "integer").as("count"))
         .executeTakeFirst();
       return row?.count ?? 0;
     },
 
     /**
-     * Same event-level scope as {@link deckCountInScope}, whose matching
-     * result is the denominator: the card table passes `knownMainDeckOnly` on
-     * both, the legend play-rate on neither.
+     * Rows whose main deck the archive holds. `partial` counts exactly like
+     * `full` — a partial list's main deck is complete by definition.
      */
-    cardInclusion(
-      filters: MetaStatsFilters,
-      options?: MetaStatsScope & { zone?: DeckZone },
-    ): Promise<MetaCardStatRow[]> {
-      const zone = options?.zone;
-      let query = decksInScope(filters, options)
-        .innerJoin("deckCards as dc", "dc.deckId", "md.deckId")
-        .innerJoin("cards as c", "c.id", "dc.cardId");
-      if (zone !== undefined) {
-        query = query.where("dc.zone", "=", zone);
-      }
-      return query
-        .select((eb) => [
-          "dc.cardId",
-          "c.name",
-          "c.slug",
-          "c.tags",
-          eb.cast<number>(eb.fn.count("dc.deckId").distinct(), "integer").as("deckCount"),
-          // The junction table rather than `mv_card_aggregates`: the view is
-          // refreshed on demand, and a card the archive already references
-          // must not drop out of the stats while it is stale.
-          eb
-            .selectFrom("cardCardTypes as cct")
-            .select(sql<CardType[]>`array_agg(cct.type_slug order by cct.position)`.as("types"))
-            .whereRef("cct.cardId", "=", "dc.cardId")
-            .as("types"),
-        ])
-        .groupBy(["dc.cardId", "c.name", "c.slug", "c.tags"])
-        .orderBy("deckCount", "desc")
-        .orderBy("c.name", "asc")
-        .execute()
-        .then((rows) =>
-          rows.map(({ types, tags, ...row }) => ({
-            ...row,
-            name: legendDisplayName({ name: row.name, types: types ?? [], tags }),
-            landscape: getOrientation(types ?? []) === "landscape",
-          })),
-        );
+    async deckCountInScope(filters: MetaCountsFilters): Promise<number> {
+      const row = await playersInScope(filters)
+        .where("p.listStatus", "!=", "none")
+        .select((eb) => eb.cast<number>(eb.fn.countAll(), "integer").as("count"))
+        .executeTakeFirst();
+      return row?.count ?? 0;
     },
 
-    adminDecksForEvent(eventId: string): Promise<AdminMetaDeckRow[]> {
-      return db
-        .selectFrom("metaDecks as md")
-        .innerJoin("decks as d", "d.id", "md.deckId")
+    adminPlayersForEvent(eventId: string): Promise<AdminMetaPlayerRow[]> {
+      return playerQuery()
         .select((eb) => [
-          "md.deckId",
-          "d.shareToken",
-          "md.listStatus",
-          "d.name",
-          "d.format",
-          "md.playerName",
-          "md.finishTier",
-          "md.record",
+          "d.format as deckFormat",
           eb
             .selectFrom("deckCards as dc")
             .select((inner) =>
               inner.cast<number>(inner.fn.sum("dc.quantity"), "integer").as("cardCount"),
             )
-            .whereRef("dc.deckId", "=", "md.deckId")
+            .whereRef("dc.deckId", "=", "p.deckId")
             .as("cardCount"),
         ])
-        .where("md.metaEventId", "=", eventId)
-        .orderBy("md.finishTier", "asc")
-        .orderBy("md.playerName", "asc")
+        .where("p.metaEventId", "=", eventId)
+        .orderBy("p.rank", "asc")
+        .orderBy(resolvedPlayerName, "asc")
         .execute()
         .then((rows) => rows.map((row) => ({ ...row, cardCount: row.cardCount ?? 0 })));
     },
 
-    async createEvent(input: MetaEventInput): Promise<MetaEventWithCount> {
+    /** The live rows a candidate pipeline diffs against, by standings-row id. */
+    livePlayersByIds(ids: string[]): Promise<LiveMetaPlayerRow[]> {
+      if (ids.length === 0) {
+        return Promise.resolve([]);
+      }
+      return (
+        db
+          .selectFrom("metaEventPlayers as p")
+          .leftJoin("decks as d", "d.id", "p.deckId")
+          // Resolved, so a diff against a candidate's own name does not report a
+          // change on every pass for a row filed under the source's identity.
+          .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+          .select([
+            "p.id",
+            "p.metaEventId",
+            "p.rank",
+            "p.rankIsTier",
+            resolvedPlayerName.as("playerName"),
+            "p.wins",
+            "p.losses",
+            "p.draws",
+            "p.legendCardId",
+            "p.championCardId",
+            "p.listStatus",
+            "p.deckId",
+            "d.name as deckName",
+            "d.shareToken",
+          ])
+          .where("p.id", "in", ids)
+          .execute()
+      );
+    },
+
+    async createEvent(input: MetaEventInput): Promise<MetaEventWithCounts> {
       const row = await db
         .insertInto("metaEvents")
         .values(input)
         .returningAll()
         .executeTakeFirstOrThrow();
-      return { ...row, deckCount: 0 };
+      return { ...row, playerRowCount: 0, deckCount: 0 };
+    },
+
+    /**
+     * Writes the reclassify pass's per-field decisions in one statement. A field
+     * the pass left alone is not in the patch and must keep its live value, so
+     * each column reads its own flag out of the VALUES list rather than being
+     * overwritten with a null.
+     *
+     * @returns How many rows the statement touched.
+     */
+    async setEventClassifications(rows: readonly MetaEventClassificationPatch[]): Promise<number> {
+      if (rows.length === 0) {
+        return 0;
+      }
+      const values = sql.join(
+        rows.map(
+          (row) => sql`(
+            ${row.id}::uuid,
+            ${row.tier ?? null}::text,
+            ${row.country !== undefined}::boolean,
+            ${row.country ?? null}::text,
+            ${row.location !== undefined}::boolean,
+            ${row.location ?? null}::text
+          )`,
+        ),
+      );
+      const result = await sql`
+        update meta_events as m
+           set tier = coalesce(v.tier, m.tier),
+               country = case when v.set_country then v.country else m.country end,
+               location = case when v.set_location then v.location else m.location end
+          from (values ${values})
+            as v(id, tier, set_country, country, set_location, location)
+         where m.id = v.id
+      `.execute(db);
+      return Number(result.numAffectedRows ?? 0n);
     },
 
     /** The caller has already narrowed the body to real columns via `buildPatchUpdates`. */
@@ -530,16 +939,19 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The FK cascade only reaches `meta_decks`, so without the explicit deck
-     * delete the archived decks would survive under the synthetic owner with
-     * nothing left pointing at them.
+     * Deleting the event cascades its standings rows, which is what releases
+     * the RESTRICT on their decks; the decks themselves are then removed
+     * explicitly, or they would survive under the synthetic owner with nothing
+     * pointing at them.
      */
     deleteEvent(id: string): Promise<boolean> {
       return db.transaction().execute(async (trx) => {
         const deckRows = await trx
-          .selectFrom("metaDecks")
+          .selectFrom("metaEventPlayers")
           .select("deckId")
           .where("metaEventId", "=", id)
+          .where("deckId", "is not", null)
+          .$narrowType<{ deckId: string }>()
           .execute();
 
         const result = await trx.deleteFrom("metaEvents").where("id", "=", id).executeTakeFirst();
@@ -564,13 +976,13 @@ export function metaRepo(db: Kysely<Database>) {
     /**
      * `shareToken` is supplied by the caller (wrapped in `withUniqueShareToken`)
      * because the retry has to re-run the whole transaction, not just the
-     * insert that collided. It is null for an archetype-only deck, which has no
-     * public page and so needs no permalink.
+     * insert that collided. It is null exactly when `input.deck` is, since a
+     * standings-only entry has no page to address.
      */
-    createDeck(
-      input: MetaDeckInput,
+    createPlayer(
+      input: MetaEventPlayerInput,
       shareToken: string | null,
-    ): Promise<{ deckId: string } | undefined> {
+    ): Promise<{ metaEventPlayerId: string; deckId: string | null } | undefined> {
       return db.transaction().execute(async (trx) => {
         const event = await trx
           .selectFrom("metaEvents")
@@ -581,125 +993,197 @@ export function metaRepo(db: Kysely<Database>) {
           return;
         }
 
-        const deck = await trx
-          .insertInto("decks")
+        const player = await trx
+          .insertInto("metaEventPlayers")
           .values({
-            userId: META_ARCHIVE_USER_ID,
-            name: input.name,
-            description: null,
-            format: input.format,
-            formatConfig: input.formatConfig,
-            // The permalink is the point of an archived deck; it is public
-            // from the moment it exists, never through a later share toggle.
-            isPublic: true,
-            shareToken,
-            links: [],
+            metaEventId: input.eventId,
+            rank: input.rank,
+            rankIsTier: input.rankIsTier,
+            playerName: input.playerName,
+            uvsgamesPlayerId: input.uvsgamesPlayerId ?? null,
+            wins: input.wins,
+            losses: input.losses,
+            draws: input.draws,
+            matchPoints: input.matchPoints ?? null,
+            opponentMatchWinPct: input.opponentMatchWinPct ?? null,
+            gameWinPct: input.gameWinPct ?? null,
+            opponentGameWinPct: input.opponentGameWinPct ?? null,
+            entryStatus: input.entryStatus ?? null,
+            legendCardId: input.legendCardId,
+            championCardId: input.championCardId,
           })
           .returning("id")
           .executeTakeFirstOrThrow();
 
-        await trx
-          .insertInto("deckCards")
-          .values(input.cards.map((card) => ({ deckId: deck.id, ...card })))
-          .execute();
+        const deckId =
+          input.deck === null
+            ? null
+            : await insertDeckForPlayer(trx, player.id, input.deck, shareToken);
 
-        await trx
-          .insertInto("metaDecks")
-          .values({
-            deckId: deck.id,
-            metaEventId: input.eventId,
-            playerName: input.playerName,
-            finishTier: input.finishTier,
-            record: input.record,
-            listStatus: input.listStatus,
-          })
-          .execute();
-
-        return { deckId: deck.id };
+        return { metaEventPlayerId: player.id, deckId };
       });
     },
 
-    updateDeck(deckId: string, patch: MetaDeckPatch): Promise<boolean> {
-      return db.transaction().execute(async (trx) => {
-        const existing = await trx
-          .selectFrom("metaDecks")
-          .select("deckId")
-          .where("deckId", "=", deckId)
+    async updatePlayer(id: string, patch: MetaEventPlayerPatch): Promise<boolean> {
+      const updates: Updateable<MetaEventPlayersTable> = {};
+      if (patch.eventId !== undefined) {
+        updates.metaEventId = patch.eventId;
+      }
+      if (patch.rank !== undefined) {
+        updates.rank = patch.rank;
+      }
+      if (patch.rankIsTier !== undefined) {
+        updates.rankIsTier = patch.rankIsTier;
+      }
+      if (patch.uvsgamesPlayerId !== undefined) {
+        updates.uvsgamesPlayerId = patch.uvsgamesPlayerId;
+      }
+      if (patch.playerName !== undefined) {
+        updates.playerName = patch.playerName;
+      }
+      if (patch.wins !== undefined) {
+        updates.wins = patch.wins;
+      }
+      if (patch.losses !== undefined) {
+        updates.losses = patch.losses;
+      }
+      if (patch.draws !== undefined) {
+        updates.draws = patch.draws;
+      }
+      if (patch.matchPoints !== undefined) {
+        updates.matchPoints = patch.matchPoints;
+      }
+      if (patch.opponentMatchWinPct !== undefined) {
+        updates.opponentMatchWinPct = patch.opponentMatchWinPct;
+      }
+      if (patch.gameWinPct !== undefined) {
+        updates.gameWinPct = patch.gameWinPct;
+      }
+      if (patch.opponentGameWinPct !== undefined) {
+        updates.opponentGameWinPct = patch.opponentGameWinPct;
+      }
+      if (patch.entryStatus !== undefined) {
+        updates.entryStatus = patch.entryStatus;
+      }
+      if (patch.legendCardId !== undefined) {
+        updates.legendCardId = patch.legendCardId;
+      }
+      if (patch.championCardId !== undefined) {
+        updates.championCardId = patch.championCardId;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        const row = await db
+          .selectFrom("metaEventPlayers")
+          .select("id")
+          .where("id", "=", id)
           .executeTakeFirst();
-        if (!existing) {
-          return false;
+        return row !== undefined;
+      }
+
+      const result = await db
+        .updateTable("metaEventPlayers")
+        .set(updates)
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return (result.numUpdatedRows ?? 0n) > 0n;
+    },
+
+    /**
+     * Attaches a list, or replaces the one already there. The permalink is
+     * minted with the deck and never rotated afterwards, so `shareToken` is
+     * only written when the deck is created — a replacement keeps the token the
+     * published links already use.
+     */
+    setPlayerDeck(
+      playerId: string,
+      deck: MetaArchivedDeckInput,
+      shareToken: string,
+    ): Promise<{ deckId: string } | undefined> {
+      return db.transaction().execute(async (trx) => {
+        const player = await trx
+          .selectFrom("metaEventPlayers")
+          .select("deckId")
+          .where("id", "=", playerId)
+          .executeTakeFirst();
+        if (!player) {
+          return;
         }
 
-        const satellite: Updateable<MetaDecksTable> = {};
-        if (patch.eventId !== undefined) {
-          satellite.metaEventId = patch.eventId;
-        }
-        if (patch.playerName !== undefined) {
-          satellite.playerName = patch.playerName;
-        }
-        if (patch.finishTier !== undefined) {
-          satellite.finishTier = patch.finishTier;
-        }
-        if (patch.record !== undefined) {
-          satellite.record = patch.record;
-        }
-        if (patch.listStatus !== undefined) {
-          satellite.listStatus = patch.listStatus;
-        }
-        if (Object.keys(satellite).length > 0) {
-          await trx.updateTable("metaDecks").set(satellite).where("deckId", "=", deckId).execute();
+        if (player.deckId === null) {
+          const deckId = await insertDeckForPlayer(trx, playerId, deck, shareToken);
+          return { deckId };
         }
 
-        // The token travels with the deck row, not the satellite, and arrives
-        // only when a deck stops being archetype-only.
-        const deckUpdates: Updateable<DecksTable> = {};
-        if (patch.name !== undefined) {
-          deckUpdates.name = patch.name;
-        }
-        if (patch.shareToken !== undefined) {
-          deckUpdates.shareToken = patch.shareToken;
-        }
-        if (Object.keys(deckUpdates).length > 0) {
-          await trx.updateTable("decks").set(deckUpdates).where("id", "=", deckId).execute();
-        }
+        await trx
+          .updateTable("decks")
+          .set({
+            name: deck.name,
+            format: deck.format,
+            formatConfig: deck.formatConfig,
+            updatedAt: sql`now()`,
+          })
+          .where("id", "=", player.deckId)
+          .execute();
+        await trx.deleteFrom("deckCards").where("deckId", "=", player.deckId).execute();
+        await trx
+          .insertInto("deckCards")
+          .values(deck.cards.map((card) => ({ deckId: player.deckId as string, ...card })))
+          .execute();
+        await trx
+          .updateTable("metaEventPlayers")
+          .set({ listStatus: deck.listStatus })
+          .where("id", "=", playerId)
+          .execute();
 
-        if (patch.cards !== undefined) {
-          await trx.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
-          await trx
-            .insertInto("deckCards")
-            .values(patch.cards.map((card) => ({ deckId, ...card })))
-            .execute();
-          await trx
-            .updateTable("decks")
-            .set({ updatedAt: sql`now()` })
-            .where("id", "=", deckId)
-            .execute();
-        }
-
-        return true;
+        return { deckId: player.deckId };
       });
     },
 
     /**
-     * Deleting the `decks` row cascades to both `deck_cards` and the satellite
-     * row, so this is the whole operation. The extra `meta_decks` predicate
-     * keeps the method from ever reaching a user's own deck.
+     * Detaches and deletes a standings row's list. The reference is cleared
+     * first because `meta_event_players.deck_id` is ON DELETE RESTRICT: a
+     * standings row must never disappear because someone removed a decklist.
      */
-    async deleteDeck(deckId: string): Promise<boolean> {
-      const result = await db
-        .deleteFrom("decks")
-        .where("id", "=", deckId)
-        .where("userId", "=", META_ARCHIVE_USER_ID)
-        .where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom("metaDecks")
-              .select("deckId")
-              .whereRef("metaDecks.deckId", "=", "decks.id"),
-          ),
-        )
-        .executeTakeFirst();
-      return (result.numDeletedRows ?? 0n) > 0n;
+    clearPlayerDeck(playerId: string): Promise<boolean> {
+      return db.transaction().execute(async (trx) => {
+        const player = await trx
+          .selectFrom("metaEventPlayers")
+          .select("deckId")
+          .where("id", "=", playerId)
+          .executeTakeFirst();
+        if (!player) {
+          return false;
+        }
+        if (player.deckId === null) {
+          return true;
+        }
+        await trx
+          .updateTable("metaEventPlayers")
+          .set({ deckId: null, listStatus: "none" })
+          .where("id", "=", playerId)
+          .execute();
+        await trx.deleteFrom("decks").where("id", "=", player.deckId).execute();
+        return true;
+      });
+    },
+
+    deletePlayer(playerId: string): Promise<boolean> {
+      return db.transaction().execute(async (trx) => {
+        const player = await trx
+          .selectFrom("metaEventPlayers")
+          .select("deckId")
+          .where("id", "=", playerId)
+          .executeTakeFirst();
+        if (!player) {
+          return false;
+        }
+        await trx.deleteFrom("metaEventPlayers").where("id", "=", playerId).execute();
+        if (player.deckId !== null) {
+          await trx.deleteFrom("decks").where("id", "=", player.deckId).execute();
+        }
+        return true;
+      });
     },
 
     sourcesForEvent(eventId: string): Promise<MetaEventSourceRow[]> {
@@ -742,61 +1226,32 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Records which source deck an archived deck came from, replacing whatever
-     * that key pointed at before. The delete is what makes a relink work: the
-     * key is unique across the table, so moving a source from one archived deck
-     * to another has to take the row with it.
-     */
-    async writeDeckSource(deckId: string, key: MetaDeckSourceKey): Promise<void> {
-      await db
-        .deleteFrom("metaDeckSources")
-        .where("provider", "=", key.provider)
-        .where("eventExternalId", "=", key.eventExternalId)
-        .where("externalId", "=", key.externalId)
-        .execute();
-      await db
-        .insertInto("metaDeckSources")
-        .values({ deckId, ...key })
-        .execute();
-    },
-
-    async deleteDeckSourceByKey(key: MetaDeckSourceKey): Promise<boolean> {
-      const result = await db
-        .deleteFrom("metaDeckSources")
-        .where("provider", "=", key.provider)
-        .where("eventExternalId", "=", key.eventExternalId)
-        .where("externalId", "=", key.externalId)
-        .executeTakeFirst();
-      return (result.numDeletedRows ?? 0n) > 0n;
-    },
-
-    /**
-     * Records one contribution; a null `deckId` credits the event itself.
-     * Idempotent on the contribution's unique index (`NULLS NOT DISTINCT`, so
-     * a second event-level credit for the same user is the same row), because
-     * an accept is legitimately re-run — a corrected list, a re-upload — and a
-     * contributor is credited once per thing they contributed, not once per
-     * click.
+     * Records one contribution; a null `metaEventPlayerId` credits the event
+     * itself. Idempotent on the contribution's unique index (`NULLS NOT
+     * DISTINCT`, so a second event-level credit for the same user is the same
+     * row), because an accept is legitimately re-run — a corrected list, a
+     * re-upload — and a contributor is credited once per thing they
+     * contributed, not once per click.
      */
     async insertCredit(values: {
       metaEventId: string;
-      deckId: string | null;
+      metaEventPlayerId: string | null;
       userId: string;
     }): Promise<void> {
       await db
         .insertInto("metaCredits")
         .values(values)
-        .onConflict((oc) => oc.columns(["metaEventId", "userId", "deckId"]).doNothing())
+        .onConflict((oc) => oc.columns(["metaEventId", "userId", "metaEventPlayerId"]).doNothing())
         .execute();
     },
 
     /**
-     * Deleting the deck itself cascades; this is the narrower case of taking a
-     * credit back while the deck stays. Several people can have contributed to
-     * one deck, so the unlink path always passes `userId`.
+     * Deleting the standings row itself cascades; this is the narrower case of
+     * taking a credit back while the row stays. Several people can have
+     * contributed to one entry, so the unlink path always passes `userId`.
      */
-    async deleteCreditsForDeck(deckId: string, userId?: string): Promise<void> {
-      let query = db.deleteFrom("metaCredits").where("deckId", "=", deckId);
+    async deleteCreditsForPlayer(metaEventPlayerId: string, userId?: string): Promise<void> {
+      let query = db.deleteFrom("metaCredits").where("metaEventPlayerId", "=", metaEventPlayerId);
       if (userId !== undefined) {
         query = query.where("userId", "=", userId);
       }
@@ -812,8 +1267,8 @@ export function metaRepo(db: Kysely<Database>) {
       return contributorQuery().where("mc.metaEventId", "=", eventId).execute();
     },
 
-    contributorsForDeck(deckId: string): Promise<MetaContributorRow[]> {
-      return contributorQuery().where("mc.deckId", "=", deckId).execute();
+    contributorsForPlayer(metaEventPlayerId: string): Promise<MetaContributorRow[]> {
+      return contributorQuery().where("mc.metaEventPlayerId", "=", metaEventPlayerId).execute();
     },
 
     /**
@@ -856,8 +1311,8 @@ export function metaRepo(db: Kysely<Database>) {
           .orderBy("eventDate", "desc")
           .execute(),
         db
-          .selectFrom("metaDecks as md")
-          .innerJoin("decks as d", "d.id", "md.deckId")
+          .selectFrom("metaEventPlayers as p")
+          .innerJoin("decks as d", "d.id", "p.deckId")
           .select(["d.shareToken as slug", "d.updatedAt"])
           .where("d.shareToken", "is not", null)
           .$narrowType<{ slug: string }>()

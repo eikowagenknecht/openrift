@@ -5,27 +5,27 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { MetaCandidateDeckPanel } from "@/components/admin/meta-candidate-deck-panel";
 import { MetaCandidateEventGrid } from "@/components/admin/meta-candidate-event-grid";
 import { MetaCandidateLinkPanel } from "@/components/admin/meta-candidate-link-panel";
+import { MetaCandidatePlayerPanel } from "@/components/admin/meta-candidate-player-panel";
 import {
   CandidateDisclosure,
   CandidateStateBadge,
   ConfirmActionButton,
 } from "@/components/admin/meta-candidate-shared";
-import { MetaDeckRoster } from "@/components/admin/meta-deck-roster";
 import type { MetaOverwriteConfirm } from "@/components/admin/meta-overwrite-confirm-dialog";
 import { MetaOverwriteConfirmDialog } from "@/components/admin/meta-overwrite-confirm-dialog";
+import { MetaPlayerRoster } from "@/components/admin/meta-player-roster";
 import { MetaPublicLinkButton } from "@/components/admin/meta-public-link";
 import { Heading } from "@/components/heading";
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAdminMetaEvents } from "@/hooks/use-admin-meta";
+import { useAdminMetaLinkedEvent } from "@/hooks/use-admin-meta";
 import {
   useAcceptMetaCandidateEvent,
-  useAcceptMetaCandidateEventWithDecks,
+  useAcceptMetaCandidateEventWithPlayers,
   useAdminMetaCandidate,
   useCheckMetaCandidateEvent,
   useIgnoreMetaCandidateEvent,
@@ -34,21 +34,21 @@ import {
 import { useDeckFormatList } from "@/hooks/use-enums";
 
 /**
- * Summarizes what an "accept event and decks" run did, for the success toast.
+ * Summarizes what an "accept event and standings" run did, for the success toast.
  *
- * @param accepted - How many decks were archived.
- * @param skipped - The decks that could not be, with their reasons.
+ * @param accepted - How many standings rows were filed.
+ * @param skipped - The rows that could not be, with their reasons.
  * @returns A one-line summary.
  */
 function acceptSummary(
   accepted: number,
   skipped: { playerName: string; reason: string }[],
 ): string {
-  const head = `${accepted} deck${accepted === 1 ? "" : "s"} archived`;
+  const head = `${accepted} ${accepted === 1 ? "player" : "players"} filed`;
   if (skipped.length === 0) {
     return `${head}.`;
   }
-  const reasons = skipped.map((deck) => `${deck.playerName}: ${deck.reason}`).join("; ");
+  const reasons = skipped.map((player) => `${player.playerName}: ${player.reason}`).join("; ");
   return `${head}. Skipped ${skipped.length}: ${reasons}`;
 }
 
@@ -66,21 +66,21 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
  *
  * It has two shapes, and which one shows is the link. An unlinked candidate is
  * still the one-click path a single-source event uses every week: the staged
- * values, its decks, and an accept that creates everything. A linked one opens
- * the two-tier compare screen — the event header as a field-by-field grid
- * against every source feeding the live event, then the deck roster — because
- * once two sources describe one tournament, taking everything from one of them
- * reverts what the other contributed.
+ * values, its standings, and an accept that creates everything. A linked one
+ * opens the two-tier compare screen — the event header as a field-by-field grid
+ * against every source feeding the live event, then the standings roster —
+ * because once two sources describe one tournament, taking everything from one
+ * of them reverts what the other contributed.
  *
  * @returns The candidate detail page.
  */
 export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }) {
   const { data: candidate } = useAdminMetaCandidate(candidateId);
-  const { data: eventsData } = useAdminMetaEvents();
+  const { data: liveEvent } = useAdminMetaLinkedEvent(candidate.metaEventId);
   const { labels: formatLabels } = useDeckFormatList();
   const navigate = useNavigate();
   const acceptEvent = useAcceptMetaCandidateEvent();
-  const acceptWithDecks = useAcceptMetaCandidateEventWithDecks();
+  const acceptWithPlayers = useAcceptMetaCandidateEventWithPlayers();
   const checkEvent = useCheckMetaCandidateEvent();
   const ignoreEvent = useIgnoreMetaCandidateEvent();
   const unlinkEvent = useUnlinkMetaCandidateEvent();
@@ -88,23 +88,22 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
 
   const reviewed = candidate.checkedAt !== null;
   const linked = candidate.metaEventId !== null;
-  const liveEvent = eventsData.events.find((event) => event.id === candidate.metaEventId);
   // Once a second source feeds the event, "take everything" stops being the
   // default move — it is the one that overwrites the other source's values — so
   // the per-field grid gets the emphasis and this drops to a plain button.
   const multiSource = candidate.sources.length > 1;
-  const accepting = acceptEvent.isPending || acceptWithDecks.isPending;
+  const accepting = acceptEvent.isPending || acceptWithPlayers.isPending;
 
   async function acceptSource(input: {
     candidateId: string;
     provider: string;
-    withDecks: boolean;
+    withPlayers: boolean;
     overwriteAll: boolean;
   }) {
-    if (input.withDecks) {
+    if (input.withPlayers) {
       let result;
       try {
-        result = await acceptWithDecks.mutateAsync({
+        result = await acceptWithPlayers.mutateAsync({
           id: input.candidateId,
           overwriteAll: input.overwriteAll,
         });
@@ -117,13 +116,16 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
           candidateId: input.candidateId,
           provider: input.provider,
           message: result.message,
-          withDecks: true,
+          withPlayers: true,
         });
         return;
       }
       setOverwrite(null);
       toast.success(`"${candidate.name}" is in the archive`, {
-        description: acceptSummary(result.event.acceptedDecks.length, result.event.skippedDecks),
+        description: acceptSummary(
+          result.event.acceptedPlayers.length,
+          result.event.skippedPlayers,
+        ),
       });
       return;
     }
@@ -143,7 +145,7 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
         candidateId: input.candidateId,
         provider: input.provider,
         message: result.message,
-        withDecks: false,
+        withPlayers: false,
       });
       return;
     }
@@ -158,19 +160,19 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
     await acceptSource({
       candidateId: overwrite.candidateId,
       provider: overwrite.provider,
-      withDecks: overwrite.withDecks,
+      withPlayers: overwrite.withPlayers,
       overwriteAll: true,
     });
   }
 
   async function handleIgnore() {
     await ignoreEvent.mutateAsync({ id: candidateId });
-    await navigate({ to: "/admin/meta", search: { tab: "candidates" } });
+    await navigate({ to: "/admin/meta", search: { tab: "review" } });
   }
 
   const acceptAllLabel = linked
     ? `Take everything from ${candidate.provider}`
-    : "Accept event + ready decks";
+    : "Accept event + ready standings";
 
   return (
     <div className="space-y-6">
@@ -180,7 +182,7 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
           <>
             <ConfirmActionButton
               title={`Ignore "${candidate.name}"?`}
-              description="The staged event and its decks are deleted, and future uploads skip this key until you unignore it."
+              description="The staged event and its standings stay, hidden from the queue, and future uploads skip this key until you unignore it."
               confirmLabel="Ignore"
               onConfirm={handleIgnore}
               trigger={<PageTopBarButton />}
@@ -202,7 +204,7 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
                   acceptSource({
                     candidateId,
                     provider: candidate.provider,
-                    withDecks: true,
+                    withPlayers: true,
                     overwriteAll: false,
                   })
                 }
@@ -216,7 +218,7 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
                   acceptSource({
                     candidateId,
                     provider: candidate.provider,
-                    withDecks: true,
+                    withPlayers: true,
                     overwriteAll: false,
                   })
                 }
@@ -232,10 +234,10 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
         <Button
           variant="ghost"
           size="sm"
-          render={<Link to="/admin/meta" search={{ tab: "candidates" }} />}
+          render={<Link to="/admin/meta" search={{ tab: "review" }} />}
         >
           <ArrowLeftIcon />
-          All candidates
+          Review queue
         </Button>
       </div>
 
@@ -266,7 +268,7 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
                   acceptSource({
                     candidateId,
                     provider: candidate.provider,
-                    withDecks: false,
+                    withPlayers: false,
                     overwriteAll: false,
                   })
                 }
@@ -331,7 +333,7 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
               acceptSource({
                 candidateId: sourceCandidateId,
                 provider,
-                withDecks: false,
+                withPlayers: false,
                 overwriteAll: false,
               })
             }
@@ -347,26 +349,26 @@ export function MetaCandidateDetailPage({ candidateId }: { candidateId: string }
       )}
 
       {linked && candidate.metaEventId !== null && (
-        <MetaDeckRoster
+        <MetaPlayerRoster
           metaEventId={candidate.metaEventId}
           sources={candidate.sources}
-          submittedDecks={candidate.submittedDecks}
+          submittedPlayers={candidate.submittedPlayers}
         />
       )}
 
       {!linked && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Heading level={2}>Decks ({candidate.decks.length})</Heading>
-            {candidate.decks.length > 0 && (
-              <Badge variant="warning">Accept the event first to enable deck accepts</Badge>
+            <Heading level={2}>Standings ({candidate.players.length})</Heading>
+            {candidate.players.length > 0 && (
+              <Badge variant="warning">Accept the event first to enable per-player accepts</Badge>
             )}
           </div>
-          {candidate.decks.length === 0 && (
-            <p className="text-muted-foreground text-sm">This event carries no decks.</p>
+          {candidate.players.length === 0 && (
+            <p className="text-muted-foreground text-sm">This event carries no standings.</p>
           )}
-          {candidate.decks.map((deck) => (
-            <MetaCandidateDeckPanel key={deck.id} deck={deck} eventAccepted={false} />
+          {candidate.players.map((player) => (
+            <MetaCandidatePlayerPanel key={player.id} player={player} eventAccepted={false} />
           ))}
         </section>
       )}

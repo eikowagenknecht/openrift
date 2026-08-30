@@ -1,10 +1,10 @@
-import type { MetaDeckSubmission, MetaDeckSummary } from "@openrift/shared";
+import type { MetaSubmission, MetaDeckSummary } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
-  items: [] as MetaDeckSubmission[],
+  items: [] as MetaSubmission[],
   decks: [] as MetaDeckSummary[],
   isPending: false,
   hasNextPage: false,
@@ -49,7 +49,7 @@ vi.mock("@tanstack/react-router", () => ({
 import { MetaSubmissionsPage } from "./meta-submissions-page";
 
 /** @returns One ledger row, pending against a named event unless overridden. */
-function submission(overrides: Partial<MetaDeckSubmission> = {}): MetaDeckSubmission {
+function submission(overrides: Partial<MetaSubmission> = {}): MetaSubmission {
   return {
     id: "sub-1",
     eventName: "Summoner Skirmish",
@@ -66,7 +66,7 @@ function submission(overrides: Partial<MetaDeckSubmission> = {}): MetaDeckSubmis
 }
 
 /** Renders the ledger for the given rows. */
-function renderLedger(items: MetaDeckSubmission[], decks: MetaDeckSummary[] = []): void {
+function renderLedger(items: MetaSubmission[], decks: MetaDeckSummary[] = []): void {
   captured.items = items;
   captured.decks = decks;
   render(<MetaSubmissionsPage />);

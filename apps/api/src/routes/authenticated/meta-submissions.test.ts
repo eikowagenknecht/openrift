@@ -33,8 +33,10 @@ function submissionBody(overrides: Record<string, unknown> = {}) {
   return {
     metaEventId: EVENT_ID,
     playerName: "Renata",
-    finishTier: 2,
-    record: "4-2",
+    rank: 2,
+    wins: 4,
+    losses: 2,
+    draws: 0,
     cards: [
       { name: "Azir", zone: "legend", quantity: 1 },
       { name: "Shock", zone: "main", quantity: 3 },
@@ -60,7 +62,7 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
     userId: USER_ID,
     provider: "usersubmission",
     externalId: "2026-08-18--user--abcd1234",
-    candidateMetaDeckId: "d0000000-0001-4000-a000-000000000001",
+    candidateMetaPlayerId: "d0000000-0001-4000-a000-000000000001",
     metaEventId: EVENT_ID,
     eventName: "Summoner Skirmish",
     playerName: "Renata",
@@ -86,7 +88,7 @@ describe("POST /meta/submissions", () => {
     mockSubmitMetaDeck.mockResolvedValue({
       status: "ok",
       submissionId: "sub-1",
-      candidateDeckId: "cand-1",
+      candidatePlayerId: "cand-1",
       unresolvedNames: ["Shock"],
     });
 
@@ -101,17 +103,46 @@ describe("POST /meta/submissions", () => {
         metaEventId: EVENT_ID,
         proposedEvent: null,
         playerName: "Renata",
-        finishTier: 2,
+        rank: 2,
+        rankIsTier: false,
+        wins: 4,
+        losses: 2,
+        draws: 0,
         listStatus: "full",
       }),
     );
+  });
+
+  it("carries a tier rank through as one", async () => {
+    mockSubmitMetaDeck.mockResolvedValue({
+      status: "ok",
+      submissionId: "sub-3",
+      candidatePlayerId: "cand-3",
+      unresolvedNames: [],
+    });
+
+    await submit(submissionBody({ rank: 8, rankIsTier: true }));
+
+    expect(mockSubmitMetaDeck).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rank: 8, rankIsTier: true }),
+    );
+  });
+
+  it("rejects a submission claiming it carries no list", async () => {
+    // A submission is a decklist; standings-only rows come from the archive's
+    // own sources.
+    const res = await submit(submissionBody({ listStatus: "none" }));
+
+    expect(res.status).toBe(400);
+    expect(mockSubmitMetaDeck).not.toHaveBeenCalled();
   });
 
   it("passes a proposed event through when the archive has no target", async () => {
     mockSubmitMetaDeck.mockResolvedValue({
       status: "ok",
       submissionId: "sub-2",
-      candidateDeckId: "cand-2",
+      candidatePlayerId: "cand-2",
       unresolvedNames: [],
     });
 

@@ -12,7 +12,7 @@ import { adminMetaSubmissionsRouter } from "./meta-submissions";
 
 const mockSubmissions = {
   byId: vi.fn(),
-  byCandidateDeckId: vi.fn(),
+  byCandidatePlayerId: vi.fn(),
   resolve: vi.fn(),
   reopen: vi.fn(),
 };
@@ -21,7 +21,7 @@ const mockAdminEvents = { insert: vi.fn() };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const SUBMISSION_ID = "b0000000-0001-4000-a000-000000000001";
-const CANDIDATE_DECK_ID = "c0000000-0001-4000-a000-000000000001";
+const CANDIDATE_PLAYER_ID = "c0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
@@ -38,7 +38,7 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
     userId: "user-7",
     provider: "usersubmission",
     externalId: "2026-08-18--user-7--abcd1234",
-    candidateMetaDeckId: CANDIDATE_DECK_ID,
+    candidateMetaPlayerId: CANDIDATE_PLAYER_ID,
     metaEventId: "d0000000-0001-4000-a000-000000000001",
     eventName: "Summoner Skirmish",
     playerName: "Renata",
@@ -68,12 +68,12 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("GET /meta/submissions/by-candidate-deck/{candidateDeckId}", () => {
+describe("GET /meta/submissions/by-candidate-player/{candidatePlayerId}", () => {
   it("returns the ledger row behind a submitted deck", async () => {
-    mockSubmissions.byCandidateDeckId.mockResolvedValue(ledgerRow());
+    mockSubmissions.byCandidatePlayerId.mockResolvedValue(ledgerRow());
 
     const res = await app.request(
-      `/api/admin/v1/meta/submissions/by-candidate-deck/${CANDIDATE_DECK_ID}`,
+      `/api/admin/v1/meta/submissions/by-candidate-player/${CANDIDATE_PLAYER_ID}`,
     );
 
     expect(res.status).toBe(200);
@@ -93,13 +93,13 @@ describe("GET /meta/submissions/by-candidate-deck/{candidateDeckId}", () => {
     });
   });
 
-  it("answers null for a provider's candidate deck rather than 404ing", async () => {
+  it("answers null for a provider's candidate row rather than 404ing", async () => {
     // The review screen asks for every row it renders, and most rows are
-    // scraped decks with no submission behind them.
-    mockSubmissions.byCandidateDeckId.mockResolvedValue(null);
+    // scraped standings with no submission behind them.
+    mockSubmissions.byCandidatePlayerId.mockResolvedValue(null);
 
     const res = await app.request(
-      `/api/admin/v1/meta/submissions/by-candidate-deck/${CANDIDATE_DECK_ID}`,
+      `/api/admin/v1/meta/submissions/by-candidate-player/${CANDIDATE_PLAYER_ID}`,
     );
 
     expect(res.status).toBe(200);

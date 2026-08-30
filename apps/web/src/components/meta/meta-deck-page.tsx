@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useCloneSharedDeck } from "@/hooks/use-decks";
 import { useMetaDeck } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
-import { formatFinishTier } from "@/lib/meta-format";
+import { formatRank, formatRecord } from "@/lib/meta-format";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 /**
@@ -61,9 +61,10 @@ export function MetaDeckPage({ token }: { token: string }) {
     }
   };
 
-  // An archetype-only entry has no page at all, so "partial" is the only status
+  // A standings-only entry has no page at all, so "partial" is the only status
   // the incomplete-list callout ever fires on.
   const isPartial = data.meta.listStatus === "partial";
+  const record = formatRecord(data.meta.wins, data.meta.losses, data.meta.draws);
   const contributors = data.meta.contributors;
   // Both belong directly under the hero, with the archive's own facts: the
   // byline carries finish, player, record and event, and this carries who typed
@@ -79,7 +80,7 @@ export function MetaDeckPage({ token }: { token: string }) {
             <AlertTitle>This list is incomplete</AlertTitle>
             <AlertDescription>
               The source published the main deck but not the rest, so the battlefields, runes, and
-              sideboard you see may be missing cards the pilot actually played.
+              sideboard you see may be missing cards the player actually played.
             </AlertDescription>
           </Alert>
         )}
@@ -97,8 +98,8 @@ export function MetaDeckPage({ token }: { token: string }) {
       // the whole event context, since the page shows nothing above the hero.
       heroByline={
         <>
-          {formatFinishTier(data.meta.finishTier)} · {data.meta.playerName}
-          {data.meta.record !== null && ` (${data.meta.record})`} ·{" "}
+          {formatRank(data.meta.rank, data.meta.rankIsTier)} · {data.meta.playerName}
+          {record !== null && ` (${record})`} ·{" "}
           <Link
             to="/meta/$slug"
             params={{ slug: data.meta.event.slug }}

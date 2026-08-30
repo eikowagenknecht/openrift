@@ -40,7 +40,7 @@ describe("useMetaDeckFilters", () => {
       formats: [],
       events: [],
       legends: [],
-      maxFinishTier: null,
+      maxRank: null,
       dateFrom: null,
       dateTo: null,
     });
@@ -60,7 +60,7 @@ describe("useMetaDeckFilters", () => {
       formats: ["standard"],
       events: ["rift-open"],
       legends: ["card-jinx"],
-      maxFinishTier: 8,
+      maxRank: 8,
       dateFrom: "2026-01-01",
       dateTo: "2026-12-31",
     });
@@ -88,13 +88,13 @@ describe("useMetaDeckFilters", () => {
   it("drops the finish bound when cleared", () => {
     mockSearch = { finish: 4 };
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.setMaxFinishTier(null);
+    result.current.setMaxRank(null);
     expect(resultingSearch()).toEqual({});
   });
 
   it("writes the finish bound as a number", () => {
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.setMaxFinishTier(16);
+    result.current.setMaxRank(16);
     expect(resultingSearch()).toEqual({ finish: 16 });
   });
 

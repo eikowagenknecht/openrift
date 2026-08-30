@@ -15,47 +15,50 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // and the contributor's credit in one go — so everything here is the other
 // outcome: the ledger row an admin stamps by hand, which is the only thing a
 // declined contributor ever hears back.
+//
+// A submission stages one candidate standings row, so the roster row a resolve
+// comes from is a candidate player, not a candidate deck.
 
 /**
  * Resolving changes no live archive row, so only the queue and this row go
  * stale — the archived decks and the public pages are untouched by an outcome.
  *
- * @param candidateDeckId - The roster row the write came from.
+ * @param candidatePlayerId - The roster row the write came from.
  * @returns The query keys to invalidate.
  */
-function submissionKeys(candidateDeckId: string) {
+function submissionKeys(candidatePlayerId: string) {
   return [
-    queryKeys.admin.meta.submissionForDeck(candidateDeckId),
+    queryKeys.admin.meta.submissionForPlayer(candidatePlayerId),
     queryKeys.admin.meta.candidates,
   ] as const;
 }
 
-const fetchSubmissionForCandidateDeck = createServerFn({ method: "GET" })
-  .validator((input: { candidateDeckId: string }) => input)
+const fetchSubmissionForCandidatePlayer = createServerFn({ method: "GET" })
+  .validator((input: { candidatePlayerId: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<{ submission: AdminMetaSubmission | null }> =>
-    apiOrpcClient(adminMetaSubmissionsContract, context.cookie).forCandidateDeck({
-      candidateDeckId: data.candidateDeckId,
+    apiOrpcClient(adminMetaSubmissionsContract, context.cookie).forCandidatePlayer({
+      candidatePlayerId: data.candidatePlayerId,
     }),
   );
 
 /**
- * The ledger row behind one candidate deck, or null when that deck is a
+ * The ledger row behind one candidate standings row, or null when that row is a
  * provider's rather than a person's.
  *
- * Null is the answer, not an error: the roster asks this about every deck it
+ * Null is the answer, not an error: the roster asks this about every row it
  * opens, and most of them are scraped. The null is what decides whether a
- * resolve control renders at all — the candidate deck's own `submittedByUserId`
+ * resolve control renders at all — the candidate row's own `submittedByUserId`
  * is a hint, but it goes null if the contributor deletes their account, and a
  * submission that outlives its submitter still needs resolving.
  *
- * @param candidateDeckId - The candidate deck being reviewed.
+ * @param candidatePlayerId - The candidate standings row being reviewed.
  * @returns The query holding the submission, or null when there is none.
  */
-export function useMetaSubmissionForCandidateDeck(candidateDeckId: string) {
+export function useMetaSubmissionForCandidatePlayer(candidatePlayerId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.submissionForDeck(candidateDeckId),
-    queryFn: () => fetchSubmissionForCandidateDeck({ data: { candidateDeckId } }),
+    queryKey: queryKeys.admin.meta.submissionForPlayer(candidatePlayerId),
+    queryFn: () => fetchSubmissionForCandidatePlayer({ data: { candidatePlayerId } }),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -76,11 +79,11 @@ export type ResolveMetaSubmissionInput = Omit<
 > & {
   submissionId: string;
   /** Scopes the cache invalidation to the roster row this was resolved from. */
-  candidateDeckId: string;
+  candidatePlayerId: string;
 };
 
 const resolveMetaSubmissionFn = createServerFn({ method: "POST" })
-  .validator((input: Omit<ResolveMetaSubmissionInput, "candidateDeckId">) => input)
+  .validator((input: Omit<ResolveMetaSubmissionInput, "candidatePlayerId">) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<MetaSubmissionWriteResult> => {
     const { error } = await safe(
@@ -117,7 +120,7 @@ export function useResolveMetaSubmission() {
           note: vars.note,
         },
       }),
-    invalidates: (vars) => submissionKeys(vars.candidateDeckId),
+    invalidates: (vars) => submissionKeys(vars.candidatePlayerId),
   });
 }
 
@@ -141,7 +144,7 @@ const reopenMetaSubmissionFn = createServerFn({ method: "POST" })
 
 /**
  * Puts a resolved submission back to pending. Resolving leaves the staged
- * candidate deck in place, so this genuinely undoes a misclick rather than
+ * candidate row in place, so this genuinely undoes a misclick rather than
  * apologising for a deleted decklist.
  *
  * @returns The mutation.
@@ -149,9 +152,9 @@ const reopenMetaSubmissionFn = createServerFn({ method: "POST" })
 export function useReopenMetaSubmission() {
   return useMutationWithInvalidation<
     MetaSubmissionWriteResult,
-    { submissionId: string; candidateDeckId: string }
+    { submissionId: string; candidatePlayerId: string }
   >({
     mutationFn: (vars) => reopenMetaSubmissionFn({ data: { submissionId: vars.submissionId } }),
-    invalidates: (vars) => submissionKeys(vars.candidateDeckId),
+    invalidates: (vars) => submissionKeys(vars.candidatePlayerId),
   });
 }

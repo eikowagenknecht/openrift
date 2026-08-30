@@ -1,4 +1,5 @@
 import type { AdminMetaEvent, MetaCandidateSource } from "@openrift/shared";
+import { META_EVENT_TIERS } from "@openrift/shared";
 import type { MetaEventAcceptField } from "@openrift/shared/contracts/admin/meta";
 import { META_EVENT_ACCEPT_FIELDS } from "@openrift/shared/contracts/admin/meta";
 import { CopyCheckIcon, Link2OffIcon } from "lucide-react";
@@ -10,6 +11,7 @@ import type { MetaEventInput } from "@/hooks/use-admin-meta";
 import { useUpdateMetaEvent } from "@/hooks/use-admin-meta";
 import { useAcceptMetaEventField } from "@/hooks/use-admin-meta-candidates";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 
 /**
  * The grid's rows: every column the per-field accept can write, plus the two
@@ -20,6 +22,11 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 type MetaEventGridFieldKey = MetaEventAcceptField | "externalId" | "sourceUrl";
 
 const ACCEPT_FIELDS = new Set<string>(META_EVENT_ACCEPT_FIELDS);
+
+const TIER_OPTIONS = META_EVENT_TIERS.map((tier) => ({
+  value: tier,
+  label: META_EVENT_TIER_LABELS[tier],
+}));
 
 /**
  * Whether a grid key is one the accept endpoint takes. The read-only columns
@@ -49,8 +56,11 @@ function buildMetaEventFields(
     { key: "name", label: "Name" },
     { key: "eventDate", label: "Date" },
     { key: "format", label: "Format", labeledOptions: formatOptions },
+    { key: "tier", label: "Tier", labeledOptions: TIER_OPTIONS },
     { key: "playerCount", label: "Players", type: "number" },
     { key: "organizer", label: "Organizer" },
+    { key: "country", label: "Country" },
+    { key: "location", label: "Address" },
     { key: "notes", label: "Notes", multiline: true },
     { key: "sourceUrl", label: "Source link", readOnly: true },
   ];
@@ -85,7 +95,17 @@ export function metaEventFieldPatch(
   if (field === "notes") {
     return { notes: value === null ? null : String(value) };
   }
-  // The remaining three are NOT NULL on the live row, so a cleared cell is a
+  if (field === "country") {
+    if (value === null) {
+      return { country: null };
+    }
+    const country = String(value).trim().toUpperCase();
+    return /^[A-Z]{2}$/u.test(country) ? { country } : null;
+  }
+  if (field === "location") {
+    return { location: value === null ? null : String(value) };
+  }
+  // The remaining four are NOT NULL on the live row, so a cleared cell is a
   // no-op rather than a write that would be refused.
   if (value === null || String(value).trim().length === 0) {
     return null;
@@ -95,6 +115,10 @@ export function metaEventFieldPatch(
   }
   if (field === "eventDate") {
     return { eventDate: String(value) };
+  }
+  if (field === "tier") {
+    const tier = META_EVENT_TIERS.find((candidate) => candidate === value);
+    return tier === undefined ? null : { tier };
   }
   return { format: String(value) };
 }

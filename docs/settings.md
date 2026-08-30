@@ -42,26 +42,32 @@ Email sending is disabled when `SMTP_HOST` is unset.
 | `SMTP_PASS`   |         | SMTP authentication password                            |
 | `SMTP_FROM`   |         | "From" address (e.g. `OpenRift <noreply@openrift.app>`) |
 
-#### Cron (Price Refresh)
+#### Cron
 
-| Variable               | Default                     | Description                                                                              |
-| ---------------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
-| `CRON_TCGPLAYER`       |                             | Cron expression for TCGPlayer refresh (e.g. `0 6 * * *`). Unset to disable.              |
-| `CRON_CARDMARKET`      |                             | Cron expression for Cardmarket refresh (e.g. `15 6 * * *`). Unset to disable.            |
-| `CRON_CARDTRADER`      |                             | Cron expression for CardTrader refresh (e.g. `30 6 * * *`). Also requires the API token. |
-| `CRON_CHANGELOG`       |                             | Cron expression for changelog Discord post (e.g. `0 20 * * *`). Unset to disable.        |
-| `CARDTRADER_API_TOKEN` |                             | CardTrader API token. Required for CardTrader refresh; leave empty to skip.              |
-| `CHANGELOG_PATH`       | `apps/web/src/CHANGELOG.md` | Path to the changelog file read by the Discord cron job.                                 |
+| Variable                       | Default                              | Description                                                                                         |
+| ------------------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `CRON_TCGPLAYER`               |                                      | Cron expression for TCGPlayer refresh (e.g. `0 6 * * *`). Unset to disable.                         |
+| `CRON_CARDMARKET`              |                                      | Cron expression for Cardmarket refresh (e.g. `15 6 * * *`). Unset to disable.                       |
+| `CRON_CARDTRADER`              |                                      | Cron expression for CardTrader refresh (e.g. `30 6 * * *`). Also requires the API token.            |
+| `CRON_CHANGELOG`               |                                      | Cron expression for changelog Discord post (e.g. `0 20 * * *`). Unset to disable.                   |
+| `CARDTRADER_API_TOKEN`         |                                      | CardTrader API token. Required for CardTrader refresh; leave empty to skip.                         |
+| `CHANGELOG_PATH`               | `apps/web/src/CHANGELOG.md`          | Path to the changelog file read by the Discord cron job.                                            |
+| `CRON_META_UVSGAMES_SYNC`      |                                      | Cron expression for the uvsgames daily catalogue sync. Unset to disable.                            |
+| `CRON_META_UVSGAMES_RECHECK`   |                                      | Cron expression for the uvsgames recheck queue (suggested `*/10 * * * *`). Unset to disable.        |
+| `CRON_META_PLAYLOLTCG_SYNC`    |                                      | Cron expression for the playloltcg daily catalogue sync. Unset to disable.                          |
+| `CRON_META_PLAYLOLTCG_RECHECK` |                                      | Cron expression for the playloltcg recheck queue (suggested `*/10 * * * *`). Unset to disable.      |
+| `META_SYNC_BASE_URL`           | `https://api.riftbound.uvsgames.com` | Base URL of the uvsgames API the meta sync reads. Override to point at a recorded fixture server.   |
+| `META_PLAYLOLTCG_BASE_URL`     | `https://lol-api.playloltcg.com`     | Base URL of the playloltcg API the meta sync reads. Override to point at a recorded fixture server. |
 
 #### Discord Webhooks
 
 Each webhook is independent — leave any unset to disable that notification stream. These are environment variables only; they are **not** configurable as site settings.
 
-| Variable                            | Description                                                                                                       |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `DISCORD_WEBHOOK_NEW_PRINTINGS`     | Webhook URL for the new-printings channel. Receives notifications when new printings are created.                |
-| `DISCORD_WEBHOOK_PRINTING_CHANGES`  | Webhook URL for the data-updates channel. Receives notifications when printing data changes.                     |
-| `DISCORD_WEBHOOK_CHANGELOG`         | Webhook URL for the changelog post driven by `CRON_CHANGELOG`.                                                   |
+| Variable                           | Description                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `DISCORD_WEBHOOK_NEW_PRINTINGS`    | Webhook URL for the new-printings channel. Receives notifications when new printings are created. |
+| `DISCORD_WEBHOOK_PRINTING_CHANGES` | Webhook URL for the data-updates channel. Receives notifications when printing data changes.      |
+| `DISCORD_WEBHOOK_CHANGELOG`        | Webhook URL for the changelog post driven by `CRON_CHANGELOG`.                                    |
 
 ### Web (Vite)
 
@@ -125,10 +131,10 @@ Site settings are key-value pairs stored in the `site_settings` database table. 
 
 The site settings system is generic (any kebab-case key works), but only the keys below are read by application code. Other keys are stored but have no effect. Unconfigured known settings are shown in the admin UI under "Available settings" for easy setup.
 
-| Key                                | Scope | Description                                                                                             |
-| ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
-| `umami-url`                        | web   | Base URL of the Umami analytics instance (e.g. `https://analytics.example.com`).                        |
-| `umami-website-id`                 | web   | Umami website ID. Both `umami-url` and `umami-website-id` must be set for the analytics script to load. |
+| Key                | Scope | Description                                                                                             |
+| ------------------ | ----- | ------------------------------------------------------------------------------------------------------- |
+| `umami-url`        | web   | Base URL of the Umami analytics instance (e.g. `https://analytics.example.com`).                        |
+| `umami-website-id` | web   | Umami website ID. Both `umami-url` and `umami-website-id` must be set for the analytics script to load. |
 
 ### How It Works
 

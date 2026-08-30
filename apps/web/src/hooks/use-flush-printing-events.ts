@@ -81,10 +81,12 @@ const fetchPrintingEvents = createServerFn({ method: "GET" })
     apiOrpcClient(adminPrintingEventsContract, context.cookie).list(),
   );
 
+export const PRINTING_EVENTS_REFRESH_INTERVAL_MS = 30_000;
+
 export const adminPrintingEventsQueryOptions = queryOptions({
   queryKey: PRINTING_EVENTS_KEY,
   queryFn: () => fetchPrintingEvents(),
-  refetchInterval: 30_000,
+  refetchInterval: PRINTING_EVENTS_REFRESH_INTERVAL_MS,
 });
 
 export function useAdminPrintingEvents() {

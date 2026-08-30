@@ -1,5 +1,5 @@
-import type { MetaDeckSubmissionResult, MetaListStatus } from "@openrift/shared";
-import { META_LIST_STATUSES, formatDay } from "@openrift/shared";
+import type { MetaSubmissionResult } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
@@ -16,6 +16,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -33,17 +34,16 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvents } from "@/hooks/use-meta";
 import type { MetaSubmissionOutcome } from "@/hooks/use-meta-submissions";
 import { useSubmitMetaDeck } from "@/hooks/use-meta-submissions";
-import { formatFinishTier } from "@/lib/meta-format";
+import type { MetaSubmissionCompleteness } from "@/lib/meta-submission-copy";
 import {
+  META_SUBMISSION_COMPLETENESS,
   metaSubmissionCompletenessHints,
   metaSubmissionCompletenessLabels,
 } from "@/lib/meta-submission-copy";
 import type { MetaSubmissionDraft, MetaSubmissionParsedList } from "@/lib/meta-submission-form";
 import {
   EMPTY_META_SUBMISSION_DRAFT,
-  META_SUBMISSION_FINISH_TIERS,
   buildMetaSubmissionInput,
-  hasLegendLine,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "@/lib/meta-submission-form";
@@ -154,7 +154,7 @@ function SubmissionSent({
   result,
   onSendAnother,
 }: {
-  result: MetaDeckSubmissionResult;
+  result: MetaSubmissionResult;
   onSendAnother: () => void;
 }) {
   const unresolved = result.unresolvedNames;
@@ -224,7 +224,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
   const [proposing, setProposing] = useState(eventFromSlug === undefined && events.length === 0);
   const [parsed, setParsed] = useState<MetaSubmissionParsedList | null>(null);
   const [formError, setFormError] = useState("");
-  const [result, setResult] = useState<MetaDeckSubmissionResult | null>(null);
+  const [result, setResult] = useState<MetaSubmissionResult | null>(null);
 
   const lockedToEvent = eventFromSlug !== undefined;
 
@@ -271,10 +271,6 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
       setFormError("Pick the tournament this deck came from.");
       return;
     }
-    if (draft.listStatus === "archetype" && !hasLegendLine(list.cards)) {
-      setFormError("An archetype entry needs its legend, so paste that line at least.");
-      return;
-    }
 
     const target = proposing ? null : { metaEventId: selectedEventId };
     const input = buildMetaSubmissionInput(draft, list.cards, target);
@@ -298,11 +294,6 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
   const formatItems: Record<string, string> = {};
   for (const format of formats) {
     formatItems[format.slug] = format.label;
-  }
-
-  const finishItems: Record<string, string> = {};
-  for (const tier of META_SUBMISSION_FINISH_TIERS) {
-    finishItems[String(tier)] = formatFinishTier(tier);
   }
 
   return (
@@ -502,39 +493,66 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
                       id="meta-submit-player"
                       value={draft.playerName}
                       maxLength={80}
-                      placeholder="The pilot's name, as the results list it"
+                      placeholder="The player's name, as the results list it"
                       onChange={(event) => set("playerName", event.target.value)}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="meta-submit-finish">Where they finished</FieldLabel>
-                    <Select
-                      items={finishItems}
-                      value={draft.finishTier}
-                      onValueChange={(value) => set("finishTier", (value as string) ?? "1")}
-                    >
-                      <SelectTrigger id="meta-submit-finish" className="w-44">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(finishItems).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FieldLabel htmlFor="meta-submit-rank">Where they finished</FieldLabel>
+                    <Input
+                      id="meta-submit-rank"
+                      inputMode="numeric"
+                      value={draft.rank}
+                      placeholder="1"
+                      className="w-24"
+                      onChange={(event) => set("rank", event.target.value)}
+                    />
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        id="meta-submit-rank-is-tier"
+                        checked={draft.rankIsTier}
+                        onCheckedChange={(checked) => set("rankIsTier", checked === true)}
+                        className="mt-0.5"
+                      />
+                      <label htmlFor="meta-submit-rank-is-tier" className="cursor-pointer">
+                        <span className="block">Only the bracket is known</span>
+                        <span className="text-muted-foreground block text-sm">
+                          Tick this when the results say &ldquo;top 8&rdquo; rather than an exact
+                          placing. The archive will print it as T8.
+                        </span>
+                      </label>
+                    </div>
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="meta-submit-record">Match record (optional)</FieldLabel>
-                    <Input
-                      id="meta-submit-record"
-                      value={draft.record}
-                      maxLength={20}
-                      placeholder="5-1"
-                      className="w-44"
-                      onChange={(event) => set("record", event.target.value)}
-                    />
+                    <FieldLabel htmlFor="meta-submit-wins">Match record (optional)</FieldLabel>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="meta-submit-wins"
+                        inputMode="numeric"
+                        value={draft.wins}
+                        placeholder="W"
+                        aria-label="Wins"
+                        className="w-16"
+                        onChange={(event) => set("wins", event.target.value)}
+                      />
+                      <Input
+                        inputMode="numeric"
+                        value={draft.losses}
+                        placeholder="L"
+                        aria-label="Losses"
+                        className="w-16"
+                        onChange={(event) => set("losses", event.target.value)}
+                      />
+                      <Input
+                        inputMode="numeric"
+                        value={draft.draws}
+                        placeholder="D"
+                        aria-label="Draws"
+                        className="w-16"
+                        onChange={(event) => set("draws", event.target.value)}
+                      />
+                    </div>
+                    <FieldDescription>Wins, losses, and draws.</FieldDescription>
                   </Field>
                 </FieldGroup>
               </CardContent>
@@ -551,11 +569,13 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
                     <FieldLabel>How much of it do you have?</FieldLabel>
                     <RadioGroup
                       value={draft.listStatus}
-                      onValueChange={(next) => set("listStatus", next as MetaListStatus)}
+                      onValueChange={(next) =>
+                        set("listStatus", next as MetaSubmissionCompleteness)
+                      }
                       className="flex flex-col gap-3"
                       aria-label="How much of it do you have?"
                     >
-                      {META_LIST_STATUSES.map((option) => {
+                      {META_SUBMISSION_COMPLETENESS.map((option) => {
                         const radioId = `meta-submit-completeness-${option}`;
                         return (
                           <div key={option} className="flex items-start gap-2">
@@ -575,9 +595,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="meta-submit-deck">
-                      {draft.listStatus === "archetype" ? "The legend" : "The decklist"}
-                    </FieldLabel>
+                    <FieldLabel htmlFor="meta-submit-deck">The decklist</FieldLabel>
                     <Textarea
                       id="meta-submit-deck"
                       value={draft.deckText}
@@ -587,9 +605,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
                       onChange={(event) => set("deckText", event.target.value)}
                     />
                     <FieldDescription>
-                      {draft.listStatus === "archetype"
-                        ? "One line naming the legend they played, and the champion if you know it."
-                        : "A deck code, a TTS export, or one card per line under its zone heading."}
+                      A deck code, a TTS export, or one card per line under its zone heading.
                     </FieldDescription>
                   </Field>
 

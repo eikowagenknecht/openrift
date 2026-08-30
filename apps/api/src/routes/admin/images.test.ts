@@ -68,6 +68,7 @@ const mockJobRuns = {
   findLatestForResume: vi.fn<Repos["jobRuns"]["findLatestForResume"]>(async () => null),
   getResult: vi.fn(),
   updateResult: vi.fn(),
+  requestCancel: vi.fn(),
   listRecent: vi.fn(),
   getLatestPerKind: vi.fn(),
   sweepOrphaned: vi.fn(),
@@ -222,10 +223,8 @@ describe("POST /api/admin/v1/regenerate-images/cancel", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json).toEqual({ runId: RUN_X, cancelRequested: true });
-    expect(mockJobRuns.updateResult).toHaveBeenCalledWith(
-      RUN_X,
-      expect.objectContaining({ cancelRequested: true }),
-    );
+    expect(mockJobRuns.requestCancel).toHaveBeenCalledWith(RUN_X);
+    expect(mockJobRuns.updateResult).not.toHaveBeenCalled();
   });
 
   it("404s when no regenerate job is running", async () => {

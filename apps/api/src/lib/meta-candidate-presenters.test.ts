@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  CandidateMetaDeckRow,
   CandidateMetaEventRow,
+  CandidateMetaPlayerRow,
 } from "../repositories/meta-candidates.js";
-import type { MetaDeckDiff } from "./meta-candidate-diff.js";
+import type { MetaPlayerDiff } from "./meta-candidate-diff.js";
 import {
-  toMetaCandidateDeck,
   toMetaCandidateDetail,
+  toMetaCandidatePlayer,
   toMetaCandidateQueueRow,
   toMetaCandidateSource,
   unresolvedCardNames,
@@ -15,6 +15,7 @@ import {
 
 const AZIR = "11111111-0000-7000-8000-000000000001";
 const SHOCK = "11111111-0000-7000-8000-000000000003";
+const VI = "11111111-0000-7000-8000-000000000004";
 
 const CHECKED = new Date("2026-08-10T09:30:00.000Z");
 
@@ -30,7 +31,12 @@ function eventRow(overrides: Partial<CandidateMetaEventRow> = {}): CandidateMeta
     organizer: "LGS Berlin",
     sourceUrl: "https://example.invalid/skirmish",
     notes: "Top 8 lists only.",
+    tier: "store",
+    country: "DE",
+    location: "Kartenstraße 1, 10115 Berlin, DE",
     metaEventId: null,
+    raw: null,
+    fetchedAt: null,
     checkedAt: null,
     extraData: null,
     createdAt: new Date("2026-08-02T10:00:00.000Z"),
@@ -39,27 +45,36 @@ function eventRow(overrides: Partial<CandidateMetaEventRow> = {}): CandidateMeta
   };
 }
 
-/** A candidate deck row whose cards all resolved. */
-function deckRow(overrides: Partial<CandidateMetaDeckRow> = {}): CandidateMetaDeckRow {
+function playerRow(overrides: Partial<CandidateMetaPlayerRow> = {}): CandidateMetaPlayerRow {
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000010",
     candidateEventId: "3f7a1c2e-0000-7000-8000-000000000001",
-    // Exactly one parent: a provider's deck hangs off its candidate event, a
-    // user submission off the live event it targets.
     metaEventId: null,
     submittedByUserId: null,
     submissionNote: null,
-    externalId: "deck-991",
+    externalId: "player-991",
+    uvsgamesPlayerId: null,
     playerName: "Renata",
-    finishTier: 1,
-    record: "5-1",
-    name: null,
+    rank: 1,
+    rankIsTier: false,
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    matchPoints: null,
+    opponentMatchWinPct: null,
+    gameWinPct: null,
+    opponentGameWinPct: null,
+    entryStatus: null,
+    legendName: "Azir",
+    legendCardId: AZIR,
+    championName: "Vi",
+    championCardId: VI,
     cards: [
       { name: "Azir", zone: "legend", quantity: 1, cardId: AZIR },
       { name: "Shock", zone: "main", quantity: 3, cardId: SHOCK },
     ],
     listStatus: "full",
-    deckId: null,
+    metaEventPlayerId: null,
     checkedAt: null,
     createdAt: new Date("2026-08-02T10:00:00.000Z"),
     updatedAt: new Date("2026-08-03T11:00:00.000Z"),
@@ -77,46 +92,54 @@ const EVENT_NAMES = new Map([
   ["live-2", "Summoner Skirmish Cologne"],
 ]);
 
+const LOOKUPS = { cardNames: CARD_NAMES, eventNames: EVENT_NAMES };
+
+const UNLINKED = { diff: null, deckId: null, shareToken: null, ...LOOKUPS };
+
+const EMPTY_DIFF: MetaPlayerDiff = { fields: [], cards: { added: [], removed: [], changed: [] } };
+
 describe("unresolvedCardNames", () => {
   it("returns nothing when every name matched", () => {
-    expect(unresolvedCardNames(deckRow())).toEqual([]);
+    expect(unresolvedCardNames(playerRow().cards)).toEqual([]);
+  });
+
+  it("returns nothing for a standings-only row, which has no list to gate", () => {
+    expect(unresolvedCardNames(null)).toEqual([]);
   });
 
   it("lists the unmatched names once each", () => {
-    const deck = deckRow({
-      cards: [
+    expect(
+      unresolvedCardNames([
         { name: "Mystery Card", zone: "main", quantity: 2, cardId: null },
         { name: "Mystery Card", zone: "sideboard", quantity: 1, cardId: null },
         { name: "Shock", zone: "main", quantity: 3, cardId: SHOCK },
-      ],
-    });
-    expect(unresolvedCardNames(deck)).toEqual(["Mystery Card"]);
+      ]),
+    ).toEqual(["Mystery Card"]);
   });
 });
 
-describe("toMetaCandidateDeck", () => {
-  // Whole-object, not field by field: a presenter's job is the shape, so a new
-  // field the presenter forgets has to fail here rather than ship as undefined.
-  it("presents an unlinked deck as new with no diff", () => {
-    const row = toMetaCandidateDeck(deckRow(), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
-    });
-    expect(row).toEqual({
+describe("toMetaCandidatePlayer", () => {
+  it("presents an unlinked row as new with no diff", () => {
+    expect(toMetaCandidatePlayer(playerRow(), UNLINKED)).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000010",
-      externalId: "deck-991",
+      externalId: "player-991",
       playerName: "Renata",
-      finishTier: 1,
-      record: "5-1",
-      name: null,
+      rank: 1,
+      rankIsTier: false,
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      legendName: "Azir",
+      legendCardId: AZIR,
+      championName: "Vi",
+      championCardId: VI,
       cards: [
         { name: "Azir", zone: "legend", quantity: 1, cardId: AZIR },
         { name: "Shock", zone: "main", quantity: 3, cardId: SHOCK },
       ],
       listStatus: "full",
       unresolvedNames: [],
+      metaEventPlayerId: null,
       deckId: null,
       shareToken: null,
       submittedByUserId: null,
@@ -129,105 +152,132 @@ describe("toMetaCandidateDeck", () => {
   });
 
   it("presents a linked user submission whole, attribution included", () => {
-    const row = toMetaCandidateDeck(
-      deckRow({
+    const row = toMetaCandidatePlayer(
+      playerRow({
         candidateEventId: null,
         metaEventId: "live-1",
-        deckId: "deck-1",
+        metaEventPlayerId: "player-1",
         submittedByUserId: "user-7",
         submissionNote: "Saw it on the stream.",
         checkedAt: CHECKED,
       }),
       {
-        diff: { fields: [], cards: { added: [], removed: [], changed: [] } },
+        diff: EMPTY_DIFF,
+        deckId: "deck-1",
         shareToken: "aB3xY9zQ1p2R",
-        cardNames: CARD_NAMES,
-        eventNames: EVENT_NAMES,
+        ...LOOKUPS,
         submittedByName: "Skarner Fan",
       },
     );
     expect(row).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000010",
-      externalId: "deck-991",
+      externalId: "player-991",
       playerName: "Renata",
-      finishTier: 1,
-      record: "5-1",
-      name: null,
+      rank: 1,
+      rankIsTier: false,
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      legendName: "Azir",
+      legendCardId: AZIR,
+      championName: "Vi",
+      championCardId: VI,
       cards: [
         { name: "Azir", zone: "legend", quantity: 1, cardId: AZIR },
         { name: "Shock", zone: "main", quantity: 3, cardId: SHOCK },
       ],
       listStatus: "full",
       unresolvedNames: [],
+      metaEventPlayerId: "player-1",
       deckId: "deck-1",
       shareToken: "aB3xY9zQ1p2R",
       submittedByUserId: "user-7",
       submittedByName: "Skarner Fan",
       submissionNote: "Saw it on the stream.",
       state: "inSync",
-      diff: { fields: [], cards: { added: [], removed: [], changed: [] } },
+      diff: EMPTY_DIFF,
       checkedAt: "2026-08-10T09:30:00.000Z",
     });
   });
 
-  it("carries the source's archetype claim through", () => {
-    const row = toMetaCandidateDeck(
-      deckRow({
-        listStatus: "archetype",
-        cards: [{ name: "Azir", zone: "legend", quantity: 1, cardId: AZIR }],
-      }),
-      { diff: null, shareToken: null, cardNames: CARD_NAMES, eventNames: EVENT_NAMES },
+  it("keeps a standings-only row's list null rather than empty", () => {
+    const row = toMetaCandidatePlayer(
+      playerRow({ cards: null, listStatus: "none", championName: null, championCardId: null }),
+      UNLINKED,
     );
-    expect(row.listStatus).toBe("archetype");
+    expect(row.cards).toBeNull();
+    expect(row.listStatus).toBe("none");
     expect(row.unresolvedNames).toEqual([]);
+    expect(row.legendCardId).toBe(AZIR);
+  });
+
+  it("carries a tier-only standing and an unknown record through", () => {
+    const row = toMetaCandidatePlayer(
+      playerRow({ rank: 8, rankIsTier: true, wins: null, losses: null, draws: null }),
+      UNLINKED,
+    );
+    expect(row.rank).toBe(8);
+    expect(row.rankIsTier).toBe(true);
+    expect(row.wins).toBeNull();
+    expect(row.losses).toBeNull();
+    expect(row.draws).toBeNull();
+  });
+
+  it("keeps a legend name the matcher could not resolve", () => {
+    const row = toMetaCandidatePlayer(
+      playerRow({ legendName: "Azyr", legendCardId: null, cards: null, listStatus: "none" }),
+      UNLINKED,
+    );
+    expect(row.legendName).toBe("Azyr");
+    expect(row.legendCardId).toBeNull();
   });
 
   it("carries a partial claim through as its own state", () => {
-    const row = toMetaCandidateDeck(deckRow({ listStatus: "partial" }), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
-    });
-    expect(row.listStatus).toBe("partial");
+    expect(toMetaCandidatePlayer(playerRow({ listStatus: "partial" }), UNLINKED).listStatus).toBe(
+      "partial",
+    );
   });
 
   it("serializes checkedAt as an ISO instant", () => {
-    const row = toMetaCandidateDeck(deckRow({ checkedAt: CHECKED }), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
-    });
-    expect(row.checkedAt).toBe("2026-08-10T09:30:00.000Z");
+    expect(toMetaCandidatePlayer(playerRow({ checkedAt: CHECKED }), UNLINKED).checkedAt).toBe(
+      "2026-08-10T09:30:00.000Z",
+    );
   });
 
-  it("calls a linked deck with an empty diff inSync", () => {
-    const diff: MetaDeckDiff = { fields: [], cards: { added: [], removed: [], changed: [] } };
-    const row = toMetaCandidateDeck(deckRow({ deckId: "deck-1" }), {
-      diff,
+  it("calls a linked row with an empty diff inSync", () => {
+    const row = toMetaCandidatePlayer(playerRow({ metaEventPlayerId: "player-1" }), {
+      diff: EMPTY_DIFF,
+      deckId: "deck-1",
       shareToken: "aB3xY9zQ1p2R",
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+      ...LOOKUPS,
     });
     expect(row.state).toBe("inSync");
     expect(row.shareToken).toBe("aB3xY9zQ1p2R");
   });
 
-  it("calls a linked deck with a diff changed, and names every diff row", () => {
-    const diff: MetaDeckDiff = {
-      fields: [{ field: "finishTier", from: 1, to: 4 }],
+  it("links on the live standings row, not on the deck it may not have", () => {
+    const row = toMetaCandidatePlayer(
+      playerRow({ metaEventPlayerId: "player-1", cards: null, listStatus: "none" }),
+      { diff: EMPTY_DIFF, deckId: null, shareToken: null, ...LOOKUPS },
+    );
+    expect(row.state).toBe("inSync");
+    expect(row.deckId).toBeNull();
+  });
+
+  it("calls a linked row with a diff changed, and names every diff row", () => {
+    const diff: MetaPlayerDiff = {
+      fields: [{ field: "rank", from: 1, to: 4 }],
       cards: {
         added: [{ cardId: SHOCK, zone: "main", quantity: 3 }],
         removed: [{ cardId: AZIR, zone: "legend", quantity: 1 }],
         changed: [{ cardId: SHOCK, zone: "sideboard", from: 1, to: 2 }],
       },
     };
-    const row = toMetaCandidateDeck(deckRow({ deckId: "deck-1" }), {
+    const row = toMetaCandidatePlayer(playerRow({ metaEventPlayerId: "player-1" }), {
       diff,
+      deckId: "deck-1",
       shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+      ...LOOKUPS,
     });
     expect(row.state).toBe("changed");
     expect(row.diff?.cards.added[0]).toEqual({
@@ -241,7 +291,7 @@ describe("toMetaCandidateDeck", () => {
   });
 
   it("leaves a diff row unnamed when the card is missing from the lookup", () => {
-    const diff: MetaDeckDiff = {
+    const diff: MetaPlayerDiff = {
       fields: [],
       cards: {
         added: [{ cardId: "unknown-card", zone: "main", quantity: 1 }],
@@ -249,25 +299,25 @@ describe("toMetaCandidateDeck", () => {
         changed: [],
       },
     };
-    const row = toMetaCandidateDeck(deckRow({ deckId: "deck-1" }), {
+    const row = toMetaCandidatePlayer(playerRow({ metaEventPlayerId: "player-1" }), {
       diff,
+      deckId: "deck-1",
       shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+      ...LOOKUPS,
     });
     expect(row.diff?.cards.added[0].name).toBeNull();
   });
 
   it("names both sides of an event move, which the diff carries as ids", () => {
-    const diff: MetaDeckDiff = {
+    const diff: MetaPlayerDiff = {
       fields: [{ field: "event", from: "live-2", to: "live-1" }],
       cards: { added: [], removed: [], changed: [] },
     };
-    const row = toMetaCandidateDeck(deckRow({ deckId: "deck-1" }), {
+    const row = toMetaCandidatePlayer(playerRow({ metaEventPlayerId: "player-1" }), {
       diff,
+      deckId: "deck-1",
       shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+      ...LOOKUPS,
     });
     expect(row.state).toBe("changed");
     expect(row.diff?.fields).toEqual([
@@ -276,55 +326,56 @@ describe("toMetaCandidateDeck", () => {
   });
 
   it("leaves an event id in place when no name is known for it", () => {
-    const diff: MetaDeckDiff = {
+    const diff: MetaPlayerDiff = {
       fields: [{ field: "event", from: "live-gone", to: null }],
       cards: { added: [], removed: [], changed: [] },
     };
-    const row = toMetaCandidateDeck(deckRow({ deckId: "deck-1" }), {
+    const row = toMetaCandidatePlayer(playerRow({ metaEventPlayerId: "player-1" }), {
       diff,
+      deckId: "deck-1",
       shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+      ...LOOKUPS,
     });
     expect(row.diff?.fields).toEqual([{ field: "event", from: "live-gone", to: null }]);
   });
 
   it("leaves other field diffs alone", () => {
-    const diff: MetaDeckDiff = {
-      fields: [{ field: "name", from: "live-1", to: "live-2" }],
+    const diff: MetaPlayerDiff = {
+      fields: [{ field: "playerName", from: "live-1", to: "live-2" }],
       cards: { added: [], removed: [], changed: [] },
     };
-    const row = toMetaCandidateDeck(deckRow({ deckId: "deck-1" }), {
+    const row = toMetaCandidatePlayer(playerRow({ metaEventPlayerId: "player-1" }), {
       diff,
+      deckId: "deck-1",
       shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+      ...LOOKUPS,
     });
-    expect(row.diff?.fields).toEqual([{ field: "name", from: "live-1", to: "live-2" }]);
+    expect(row.diff?.fields).toEqual([{ field: "playerName", from: "live-1", to: "live-2" }]);
   });
 });
 
 describe("toMetaCandidateQueueRow", () => {
   const counts = {
-    deckCount: 8,
-    unacceptedDeckCount: 8,
+    playerRowCount: 8,
+    unacceptedPlayerCount: 8,
     unresolvedCardCount: 0,
+    linkedSourceCount: 0,
     hasDiff: false,
     metaEventSlug: null,
   };
 
   it("presents an unlinked candidate as new", () => {
-    const row = toMetaCandidateQueueRow(eventRow(), counts);
-    expect(row).toEqual({
+    expect(toMetaCandidateQueueRow(eventRow(), counts)).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000001",
       provider: "riftdecks",
       externalId: "evt-482",
       name: "Summoner Skirmish Berlin",
       eventDate: "2026-08-01",
       format: "constructed",
-      deckCount: 8,
-      unacceptedDeckCount: 8,
+      playerRowCount: 8,
+      unacceptedPlayerCount: 8,
       unresolvedCardCount: 0,
+      linkedSourceCount: 0,
       state: "new",
       checkedAt: null,
       metaEventId: null,
@@ -335,11 +386,15 @@ describe("toMetaCandidateQueueRow", () => {
   it("passes the aggregate counts through", () => {
     const row = toMetaCandidateQueueRow(eventRow(), {
       ...counts,
-      unacceptedDeckCount: 3,
+      playerRowCount: 64,
+      unacceptedPlayerCount: 3,
       unresolvedCardCount: 5,
+      linkedSourceCount: 2,
     });
-    expect(row.unacceptedDeckCount).toBe(3);
+    expect(row.playerRowCount).toBe(64);
+    expect(row.unacceptedPlayerCount).toBe(3);
     expect(row.unresolvedCardCount).toBe(5);
+    expect(row.linkedSourceCount).toBe(2);
   });
 
   it("derives changed and inSync from the link plus the diff", () => {
@@ -360,21 +415,16 @@ describe("toMetaCandidateQueueRow", () => {
 });
 
 describe("toMetaCandidateDetail", () => {
-  it("presents an unlinked candidate with no diff and its decks", () => {
-    const deck = toMetaCandidateDeck(deckRow(), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
-    });
-    const source = toMetaCandidateSource(eventRow(), [deck]);
+  it("presents an unlinked candidate with no diff and its standings", () => {
+    const player = toMetaCandidatePlayer(playerRow(), UNLINKED);
+    const source = toMetaCandidateSource(eventRow(), [player]);
     const detail = toMetaCandidateDetail(eventRow(), {
       diff: null,
       formatKnown: true,
       metaEventSlug: null,
-      decks: [deck],
+      players: [player],
       sources: [source],
-      submittedDecks: [],
+      submittedPlayers: [],
     });
     expect(detail).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000001",
@@ -388,15 +438,18 @@ describe("toMetaCandidateDetail", () => {
       organizer: "LGS Berlin",
       sourceUrl: "https://example.invalid/skirmish",
       notes: "Top 8 lists only.",
+      tier: "store",
+      country: "DE",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
       extraData: null,
       metaEventId: null,
       metaEventSlug: null,
       state: "new",
       diff: null,
       checkedAt: null,
-      decks: [deck],
+      players: [player],
       sources: [source],
-      submittedDecks: [],
+      submittedPlayers: [],
     });
   });
 
@@ -405,9 +458,9 @@ describe("toMetaCandidateDetail", () => {
       diff: null,
       formatKnown: false,
       metaEventSlug: null,
-      decks: [],
+      players: [],
       sources: [],
-      submittedDecks: [],
+      submittedPlayers: [],
     });
     expect(detail.extraData).toEqual({ region: "EUW" });
     expect(detail.formatKnown).toBe(false);
@@ -418,9 +471,9 @@ describe("toMetaCandidateDetail", () => {
       diff: [{ field: "name", from: "Old", to: "New" }],
       formatKnown: true,
       metaEventSlug: "skirmish-2026",
-      decks: [],
+      players: [],
       sources: [],
-      submittedDecks: [],
+      submittedPlayers: [],
     });
     expect(detail.state).toBe("changed");
     expect(detail.metaEventSlug).toBe("skirmish-2026");
@@ -431,55 +484,78 @@ describe("toMetaCandidateDetail", () => {
       diff: [],
       formatKnown: true,
       metaEventSlug: "skirmish-2026",
-      decks: [],
+      players: [],
       sources: [],
-      submittedDecks: [],
+      submittedPlayers: [],
     });
     expect(detail.state).toBe("inSync");
+  });
+
+  it("carries every sibling source and the directly-submitted rows", () => {
+    const own = toMetaCandidatePlayer(playerRow(), UNLINKED);
+    const submitted = toMetaCandidatePlayer(
+      playerRow({
+        id: "3f7a1c2e-0000-7000-8000-000000000099",
+        candidateEventId: null,
+        metaEventId: "live-1",
+        submittedByUserId: "user-7",
+      }),
+      { ...UNLINKED, submittedByName: "Skarner Fan" },
+    );
+    const detail = toMetaCandidateDetail(eventRow({ metaEventId: "live-1" }), {
+      diff: [],
+      formatKnown: true,
+      metaEventSlug: "skirmish-2026",
+      players: [own],
+      sources: [
+        toMetaCandidateSource(eventRow({ metaEventId: "live-1" }), [own]),
+        toMetaCandidateSource(
+          eventRow({ id: "other", provider: "playriftbound", externalId: "prb-3" }),
+          [],
+        ),
+      ],
+      submittedPlayers: [submitted],
+    });
+
+    expect(detail.sources.map((source) => source.provider)).toEqual(["riftdecks", "playriftbound"]);
+    expect(detail.submittedPlayers).toEqual([submitted]);
   });
 });
 
 describe("submitter attribution", () => {
   it("carries the submitter, their resolved name, and their note", () => {
-    const deck = toMetaCandidateDeck(
-      deckRow({ submittedByUserId: "user-7", submissionNote: "Saw it on the stream." }),
-      {
-        diff: null,
-        shareToken: null,
-        cardNames: CARD_NAMES,
-        eventNames: EVENT_NAMES,
-        submittedByName: "Skarner Fan",
-      },
+    const player = toMetaCandidatePlayer(
+      playerRow({ submittedByUserId: "user-7", submissionNote: "Saw it on the stream." }),
+      { ...UNLINKED, submittedByName: "Skarner Fan" },
     );
-    expect(deck.submittedByUserId).toBe("user-7");
-    expect(deck.submittedByName).toBe("Skarner Fan");
-    expect(deck.submissionNote).toBe("Saw it on the stream.");
+    expect(player.submittedByUserId).toBe("user-7");
+    expect(player.submittedByName).toBe("Skarner Fan");
+    expect(player.submissionNote).toBe("Saw it on the stream.");
   });
 
-  it("leaves a provider deck unattributed", () => {
-    const deck = toMetaCandidateDeck(deckRow(), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
+  it("leaves a provider row unattributed", () => {
+    const player = toMetaCandidatePlayer(playerRow(), UNLINKED);
+    expect(player.submittedByUserId).toBeNull();
+    expect(player.submittedByName).toBeNull();
+    expect(player.submissionNote).toBeNull();
+  });
+
+  it("leaves a submitter whose name is gone unnamed", () => {
+    const player = toMetaCandidatePlayer(playerRow({ submittedByUserId: "user-7" }), {
+      ...UNLINKED,
+      submittedByName: null,
     });
-    expect(deck.submittedByUserId).toBeNull();
-    expect(deck.submittedByName).toBeNull();
-    expect(deck.submissionNote).toBeNull();
+    expect(player.submittedByUserId).toBe("user-7");
+    expect(player.submittedByName).toBeNull();
   });
 });
 
 describe("toMetaCandidateSource", () => {
-  it("presents one source column with its own values and decks", () => {
-    const deck = toMetaCandidateDeck(deckRow(), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
-    });
+  it("presents one source column with its own values and standings", () => {
+    const player = toMetaCandidatePlayer(playerRow(), UNLINKED);
     const source = toMetaCandidateSource(
       eventRow({ provider: "uvsgames", externalId: "uvs-9", checkedAt: CHECKED }),
-      [deck],
+      [player],
     );
     expect(source).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000001",
@@ -492,57 +568,17 @@ describe("toMetaCandidateSource", () => {
       organizer: "LGS Berlin",
       sourceUrl: "https://example.invalid/skirmish",
       notes: "Top 8 lists only.",
+      tier: "store",
+      country: "DE",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
       checkedAt: "2026-08-10T09:30:00.000Z",
-      decks: [deck],
+      players: [player],
     });
   });
 
-  it("reports a source that has pushed no decks as an empty column", () => {
+  it("reports a source that has pushed no standings as an empty column", () => {
     const source = toMetaCandidateSource(eventRow(), []);
-    expect(source.decks).toEqual([]);
+    expect(source.players).toEqual([]);
     expect(source.checkedAt).toBeNull();
-  });
-});
-
-describe("toMetaCandidateDetail sources", () => {
-  it("carries every sibling source and the directly-submitted decks", () => {
-    const own = toMetaCandidateDeck(deckRow(), {
-      diff: null,
-      shareToken: null,
-      cardNames: CARD_NAMES,
-      eventNames: EVENT_NAMES,
-    });
-    const submitted = toMetaCandidateDeck(
-      deckRow({
-        id: "3f7a1c2e-0000-7000-8000-000000000099",
-        candidateEventId: null,
-        metaEventId: "live-1",
-        submittedByUserId: "user-7",
-      }),
-      {
-        diff: null,
-        shareToken: null,
-        cardNames: CARD_NAMES,
-        eventNames: EVENT_NAMES,
-        submittedByName: "Skarner Fan",
-      },
-    );
-    const detail = toMetaCandidateDetail(eventRow({ metaEventId: "live-1" }), {
-      diff: [],
-      formatKnown: true,
-      metaEventSlug: "skirmish-2026",
-      decks: [own],
-      sources: [
-        toMetaCandidateSource(eventRow({ metaEventId: "live-1" }), [own]),
-        toMetaCandidateSource(
-          eventRow({ id: "other", provider: "playriftbound", externalId: "prb-3" }),
-          [],
-        ),
-      ],
-      submittedDecks: [submitted],
-    });
-
-    expect(detail.sources.map((source) => source.provider)).toEqual(["riftdecks", "playriftbound"]);
-    expect(detail.submittedDecks).toEqual([submitted]);
   });
 });

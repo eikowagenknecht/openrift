@@ -1,48 +1,78 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetaDeckSubmissionRow } from "../repositories/meta-submissions.js";
+import type { MetaSubmissionRow } from "../repositories/meta-submissions.js";
 import type {
-  AdminMetaDeckRow,
+  AdminMetaPlayerRow,
   MetaContributorRow,
   MetaDeckContextRow,
   MetaDeckSummaryRow,
+  MetaEventPlayerRow,
   MetaEventSourceRow,
-  MetaEventWithCount,
+  MetaEventWithCounts,
 } from "../repositories/meta.js";
 import {
-  toAdminMetaDeck,
   toAdminMetaEvent,
+  toAdminMetaPlayer,
+  toAdminMetaSubmission,
   toMetaDeckContext,
-  toMetaDeckSubmission,
   toMetaDeckSummary,
   toMetaEventDetail,
+  toMetaEventMatch,
+  toMetaEventPlayer,
   toMetaEventSource,
   toMetaEventSummary,
-  toMetaStatRow,
+  toMetaSubmission,
 } from "./meta-presenters.js";
 
-/** @returns An event row with every optional field populated. */
-function eventRow(overrides: Partial<MetaEventWithCount> = {}): MetaEventWithCount {
+function eventRow(overrides: Partial<MetaEventWithCounts> = {}): MetaEventWithCounts {
   return {
     id: "3f7a1c2e-0000-7000-8000-000000000001",
     slug: "summoner-skirmish-berlin",
     name: "Summoner Skirmish Berlin",
-    // A `date` column: the driver hands this back already date-only.
     eventDate: "2026-08-01",
     format: "constructed",
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: "Top 8 lists only.",
+    tier: "store",
+    country: "DE",
+    location: "Kartenstraße 1, 10115 Berlin, DE",
     createdAt: new Date("2026-08-02T10:00:00.000Z"),
     updatedAt: new Date("2026-08-03T11:00:00.000Z"),
+    playerRowCount: 64,
     deckCount: 8,
     ...overrides,
   };
 }
 
-/** @returns A deck summary row with both zones filled. */
+function playerRow(overrides: Partial<MetaEventPlayerRow> = {}): MetaEventPlayerRow {
+  return {
+    id: "3f7a1c2e-0000-7000-8000-0000000000c1",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Nova",
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId: "legend-1",
+    legendName: "Jinx",
+    legendSlug: "jinx",
+    legendTypes: ["legend"],
+    legendTags: [],
+    championCardId: "champion-1",
+    championName: "Vi",
+    championSlug: "vi",
+    deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
+    deckName: "Jinx Aggro",
+    shareToken: "aB3dE5gH7jK9",
+    listStatus: "full",
+    ...overrides,
+  };
+}
+
 function deckRow(overrides: Partial<MetaDeckSummaryRow> = {}): MetaDeckSummaryRow {
   return {
+    playerId: "3f7a1c2e-0000-7000-8000-0000000000c1",
     deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
     shareToken: "aB3dE5gH7jK9",
     listStatus: "full",
@@ -50,13 +80,17 @@ function deckRow(overrides: Partial<MetaDeckSummaryRow> = {}): MetaDeckSummaryRo
     deckFormat: "constructed",
     legendCardId: "legend-1",
     legendName: "Jinx",
+    legendSlug: "jinx",
     legendTypes: ["legend"],
     legendTags: [],
     championCardId: "champion-1",
     championName: "Vi",
     playerName: "Nova",
-    finishTier: 1,
-    record: "5-1",
+    rank: 1,
+    rankIsTier: false,
+    wins: 5,
+    losses: 1,
+    draws: 0,
     eventSlug: "summoner-skirmish-berlin",
     eventName: "Summoner Skirmish Berlin",
     eventDate: "2026-08-01",
@@ -65,9 +99,12 @@ function deckRow(overrides: Partial<MetaDeckSummaryRow> = {}): MetaDeckSummaryRo
   };
 }
 
+const IMAGES = new Map([
+  ["legend-1", "image-legend"],
+  ["champion-1", "image-champion"],
+]);
+
 describe("toMetaEventSummary", () => {
-  // Whole-object, not field by field: a presenter's job is the shape, so a
-  // field it forgets to map has to fail here rather than ship as undefined.
   it("maps the list row, date column unreformatted and timestamps dropped", () => {
     expect(toMetaEventSummary(eventRow())).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000001",
@@ -75,23 +112,28 @@ describe("toMetaEventSummary", () => {
       name: "Summoner Skirmish Berlin",
       eventDate: "2026-08-01",
       format: "constructed",
+      tier: "store",
+      country: "DE",
       playerCount: 64,
       organizer: "LGS Berlin",
+      playerRowCount: 64,
       deckCount: 8,
     });
   });
 
   it("carries the nullable fields through as null", () => {
-    const summary = toMetaEventSummary(
-      eventRow({ playerCount: null, organizer: null, deckCount: 0 }),
-    );
+    const summary = toMetaEventSummary(eventRow({ playerCount: null, organizer: null }));
     expect(summary.playerCount).toBeNull();
     expect(summary.organizer).toBeNull();
+  });
+
+  it("keeps the standings count apart from the decks known for it", () => {
+    const summary = toMetaEventSummary(eventRow({ playerRowCount: 128, deckCount: 0 }));
+    expect(summary.playerRowCount).toBe(128);
     expect(summary.deckCount).toBe(0);
   });
 });
 
-/** @returns A citation row, defaulting to a provider's. */
 function sourceRow(overrides: Partial<MetaEventSourceRow> = {}): MetaEventSourceRow {
   return {
     id: "3f7a1c2e-0000-7000-8000-0000000000a1",
@@ -105,7 +147,6 @@ function sourceRow(overrides: Partial<MetaEventSourceRow> = {}): MetaEventSource
   };
 }
 
-/** @returns A resolved contributor row. */
 function contributorRow(overrides: Partial<MetaContributorRow> = {}): MetaContributorRow {
   return {
     metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
@@ -153,10 +194,14 @@ describe("toMetaEventDetail", () => {
       name: "Summoner Skirmish Berlin",
       eventDate: "2026-08-01",
       format: "constructed",
+      tier: "store",
+      country: "DE",
       playerCount: 64,
       organizer: "LGS Berlin",
+      playerRowCount: 64,
       deckCount: 8,
       notes: "Top 8 lists only.",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
       sources: [
         {
           id: "3f7a1c2e-0000-7000-8000-0000000000a1",
@@ -171,10 +216,7 @@ describe("toMetaEventDetail", () => {
   });
 
   it("keeps absent notes null", () => {
-    const detail = toMetaEventDetail(eventRow({ notes: null }), {
-      sources: [],
-      contributors: [],
-    });
+    const detail = toMetaEventDetail(eventRow({ notes: null }), { sources: [], contributors: [] });
     expect(detail.notes).toBeNull();
   });
 
@@ -208,20 +250,151 @@ describe("toMetaEventDetail", () => {
   });
 });
 
-describe("toMetaDeckSummary", () => {
-  const images = new Map([
-    ["legend-1", "image-legend"],
-    ["champion-1", "image-champion"],
-  ]);
+describe("toMetaEventMatch", () => {
+  it("keeps the per-match facts and drops the row bookkeeping", () => {
+    expect(
+      toMetaEventMatch({
+        id: "3f7a1c2e-0000-7000-8000-0000000000m1",
+        metaEventId: "3f7a1c2e-0000-7000-8000-0000000000e1",
+        sourceMatchId: "7197367",
+        sourceRoundId: "1267524",
+        phaseOrder: 1,
+        roundNumber: 3,
+        tableNumber: null,
+        isBye: true,
+        isDraw: false,
+        player1Id: "3f7a1c2e-0000-7000-8000-0000000000c1",
+        player2Id: null,
+        winnerId: "3f7a1c2e-0000-7000-8000-0000000000c1",
+        gamesWonP1: 2,
+        gamesWonP2: null,
+        createdAt: new Date("2026-08-18T10:00:00Z"),
+        updatedAt: new Date("2026-08-18T10:00:00Z"),
+      }),
+    ).toEqual({
+      phaseOrder: 1,
+      roundNumber: 3,
+      tableNumber: null,
+      isBye: true,
+      isDraw: false,
+      player1Id: "3f7a1c2e-0000-7000-8000-0000000000c1",
+      player2Id: null,
+      winnerId: "3f7a1c2e-0000-7000-8000-0000000000c1",
+      gamesWonP1: 2,
+      gamesWonP2: null,
+    });
+  });
+});
 
+describe("toMetaEventPlayer", () => {
+  it("denormalizes each zone's card into a ref with its artwork", () => {
+    expect(toMetaEventPlayer(playerRow(), IMAGES)).toEqual({
+      id: "3f7a1c2e-0000-7000-8000-0000000000c1",
+      rank: 1,
+      rankIsTier: false,
+      playerName: "Nova",
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      legend: { cardId: "legend-1", name: "Jinx", slug: "jinx", imageId: "image-legend" },
+      champion: { cardId: "champion-1", name: "Vi", slug: "vi", imageId: "image-champion" },
+      deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
+      deckName: "Jinx Aggro",
+      shareToken: "aB3dE5gH7jK9",
+      listStatus: "full",
+    });
+  });
+
+  it("leaves a standings-only entry with a legend but no page", () => {
+    const player = toMetaEventPlayer(
+      playerRow({ deckId: null, deckName: null, shareToken: null, listStatus: "none" }),
+      IMAGES,
+    );
+    expect(player.deckId).toBeNull();
+    expect(player.shareToken).toBeNull();
+    expect(player.listStatus).toBe("none");
+    expect(player.legend).toEqual({
+      cardId: "legend-1",
+      name: "Jinx",
+      slug: "jinx",
+      imageId: "image-legend",
+    });
+  });
+
+  it("drops a zone the entry names no card for", () => {
+    const player = toMetaEventPlayer(
+      playerRow({ championCardId: null, championName: null }),
+      IMAGES,
+    );
+    expect(player.champion).toBeNull();
+  });
+
+  it("keeps a card whose name never landed, so the artwork still renders", () => {
+    const player = toMetaEventPlayer(playerRow({ legendName: null }), IMAGES);
+    expect(player.legend).toEqual({
+      cardId: "legend-1",
+      name: "",
+      slug: "jinx",
+      imageId: "image-legend",
+    });
+  });
+
+  it("names a Legend for its champion, and leaves a champion unit's own name alone", () => {
+    const player = toMetaEventPlayer(
+      playerRow({
+        legendName: "Emperor of the Sands",
+        legendSlug: "emperor-of-the-sands",
+        legendTags: ["Azir"],
+        championName: "Vi, Piltover Enforcer",
+      }),
+      IMAGES,
+    );
+
+    expect(player.legend).toEqual({
+      cardId: "legend-1",
+      name: "Azir, Emperor of the Sands",
+      slug: "emperor-of-the-sands",
+      imageId: "image-legend",
+    });
+    expect(player.champion?.name).toBe("Vi, Piltover Enforcer");
+  });
+
+  it("leaves a card that is not a tagged Legend under its own name", () => {
+    const player = toMetaEventPlayer(
+      playerRow({ legendName: "Jinx", legendTypes: ["unit"], legendTags: ["Jinx"] }),
+      IMAGES,
+    );
+    expect(player.legend?.name).toBe("Jinx");
+  });
+
+  it("leaves the image null for a card with no artwork", () => {
+    const player = toMetaEventPlayer(playerRow(), new Map([["legend-1", null]]));
+    expect(player.legend?.imageId).toBeNull();
+    expect(player.champion?.imageId).toBeNull();
+  });
+
+  it("prints a tier-only standing and an unknown record as they came", () => {
+    const player = toMetaEventPlayer(
+      playerRow({ rank: 8, rankIsTier: true, wins: null, losses: null, draws: null }),
+      IMAGES,
+    );
+    expect(player.rank).toBe(8);
+    expect(player.rankIsTier).toBe(true);
+    expect(player.wins).toBeNull();
+    expect(player.losses).toBeNull();
+    expect(player.draws).toBeNull();
+  });
+});
+
+describe("toMetaDeckSummary", () => {
   it("attaches the artwork resolved for each zone's card", () => {
-    const summary = toMetaDeckSummary(deckRow(), images);
+    const summary = toMetaDeckSummary(deckRow(), IMAGES);
     expect(summary.legendImageId).toBe("image-legend");
     expect(summary.championImageId).toBe("image-champion");
   });
 
   it("nests the event so a row renders its byline standalone", () => {
-    expect(toMetaDeckSummary(deckRow(), images).event).toEqual({
+    expect(toMetaDeckSummary(deckRow(), IMAGES).event).toEqual({
       slug: "summoner-skirmish-berlin",
       name: "Summoner Skirmish Berlin",
       eventDate: "2026-08-01",
@@ -232,7 +405,7 @@ describe("toMetaDeckSummary", () => {
   it("leaves a zone's image null when the deck has no card there", () => {
     const summary = toMetaDeckSummary(
       deckRow({ championCardId: null, championName: null }),
-      images,
+      IMAGES,
     );
     expect(summary.championCardId).toBeNull();
     expect(summary.championName).toBeNull();
@@ -242,52 +415,85 @@ describe("toMetaDeckSummary", () => {
   it("leaves the image null when the card has no artwork", () => {
     const summary = toMetaDeckSummary(deckRow(), new Map([["legend-1", null]]));
     expect(summary.legendImageId).toBeNull();
-    // Absent from the map entirely, not merely null.
     expect(summary.championImageId).toBeNull();
   });
 
   it("renames the deck's own columns onto the wire shape", () => {
-    const summary = toMetaDeckSummary(deckRow(), images);
+    const summary = toMetaDeckSummary(deckRow(), IMAGES);
     expect(summary.name).toBe("Jinx Aggro");
     expect(summary.format).toBe("constructed");
     expect(summary.shareToken).toBe("aB3dE5gH7jK9");
     expect(summary.listStatus).toBe("full");
   });
 
-  it("carries an archetype through with no permalink", () => {
-    // No token means no page, which is what tells the browser to render the
-    // tile without a link.
+  it("carries the standings row the tile bylines, its own id included", () => {
+    const summary = toMetaDeckSummary(deckRow(), IMAGES);
+    expect(summary.playerId).toBe("3f7a1c2e-0000-7000-8000-0000000000c1");
+    expect(summary.playerName).toBe("Nova");
+    expect(summary.rank).toBe(1);
+    expect(summary.rankIsTier).toBe(false);
+    expect(summary.wins).toBe(5);
+    expect(summary.losses).toBe(1);
+    expect(summary.draws).toBe(0);
+  });
+
+  it("carries a cut-bucket finish with no record", () => {
     const summary = toMetaDeckSummary(
-      deckRow({ listStatus: "archetype", shareToken: null }),
-      images,
+      deckRow({ rank: 8, rankIsTier: true, wins: null, losses: null, draws: null }),
+      IMAGES,
     );
-    expect(summary.shareToken).toBeNull();
-    expect(summary.listStatus).toBe("archetype");
-    // The legend still resolves: it is the whole point of the entry.
-    expect(summary.legendName).toBe("Jinx");
-    expect(summary.legendImageId).toBe("image-legend");
+    expect(summary.rank).toBe(8);
+    expect(summary.rankIsTier).toBe(true);
+    expect(summary.wins).toBeNull();
   });
 
   it("keeps a partial list clickable, since its main deck is there", () => {
-    const summary = toMetaDeckSummary(deckRow({ listStatus: "partial" }), images);
+    const summary = toMetaDeckSummary(deckRow({ listStatus: "partial" }), IMAGES);
     expect(summary.listStatus).toBe("partial");
     expect(summary.shareToken).toBe("aB3dE5gH7jK9");
+  });
+
+  it("names the Legend for its champion and carries the slug the tile links to", () => {
+    const summary = toMetaDeckSummary(
+      deckRow({
+        legendName: "Emperor of the Sands",
+        legendSlug: "emperor-of-the-sands",
+        legendTags: ["Azir"],
+      }),
+      IMAGES,
+    );
+    expect(summary.legendName).toBe("Azir, Emperor of the Sands");
+    expect(summary.legendSlug).toBe("emperor-of-the-sands");
+  });
+
+  it("leaves the legend's name and slug null for a deck with no legend", () => {
+    const summary = toMetaDeckSummary(
+      deckRow({ legendCardId: null, legendName: null, legendSlug: null, legendTypes: null }),
+      IMAGES,
+    );
+    expect(summary.legendName).toBeNull();
+    expect(summary.legendSlug).toBeNull();
+    expect(summary.legendImageId).toBeNull();
   });
 });
 
 describe("toMetaDeckContext", () => {
   const row: MetaDeckContextRow = {
+    playerId: "3f7a1c2e-0000-7000-8000-0000000000c1",
     listStatus: "full",
     playerName: "Nova",
-    finishTier: 4,
-    record: null,
+    rank: 4,
+    rankIsTier: false,
+    wins: 4,
+    losses: 2,
+    draws: null,
     eventSlug: "summoner-skirmish-berlin",
     eventName: "Summoner Skirmish Berlin",
     eventDate: "2026-08-01",
     eventFormat: "constructed",
   };
 
-  it("nests the event, keeps an absent record null, and credits nobody by default", () => {
+  it("nests the event, keeps an absent draw count null, and credits nobody by default", () => {
     expect(toMetaDeckContext(row, [])).toEqual({
       event: {
         slug: "summoner-skirmish-berlin",
@@ -297,8 +503,11 @@ describe("toMetaDeckContext", () => {
       },
       listStatus: "full",
       playerName: "Nova",
-      finishTier: 4,
-      record: null,
+      rank: 4,
+      rankIsTier: false,
+      wins: 4,
+      losses: 2,
+      draws: null,
       contributors: [],
     });
   });
@@ -312,54 +521,24 @@ describe("toMetaDeckContext", () => {
     expect(JSON.stringify(meta)).not.toContain("user-1");
   });
 
+  it("keeps the standings row's own id off the deck page", () => {
+    expect(toMetaDeckContext(row, [])).not.toHaveProperty("playerId");
+  });
+
+  it("prints a tier-only finish as such", () => {
+    const meta = toMetaDeckContext({ ...row, rank: 8, rankIsTier: true }, []);
+    expect(meta.rank).toBe(8);
+    expect(meta.rankIsTier).toBe(true);
+  });
+
   it("carries the list status through, so the page can flag an incomplete list", () => {
     expect(toMetaDeckContext({ ...row, listStatus: "partial" }, []).listStatus).toBe("partial");
   });
 });
 
-describe("toMetaStatRow", () => {
-  it("denormalizes the card's artwork alongside its count", () => {
-    const row = toMetaStatRow(
-      { cardId: "card-1", name: "Jinx", slug: "jinx", deckCount: 12, landscape: false },
-      new Map([["card-1", "image-1"]]),
-    );
-    expect(row).toEqual({
-      cardId: "card-1",
-      name: "Jinx",
-      slug: "jinx",
-      imageId: "image-1",
-      deckCount: 12,
-      landscape: false,
-    });
-  });
-
-  it("falls back to null for a card with no artwork", () => {
-    expect(
-      toMetaStatRow(
-        { cardId: "card-2", name: "Vi", slug: "vi", deckCount: 0, landscape: false },
-        new Map(),
-      ).imageId,
-    ).toBeNull();
-  });
-
-  it("carries the landscape flag so the thumbnail can rotate the art", () => {
-    const row = toMetaStatRow(
-      {
-        cardId: "card-3",
-        name: "Howling Abyss",
-        slug: "howling-abyss",
-        deckCount: 3,
-        landscape: true,
-      },
-      new Map([["card-3", "image-3"]]),
-    );
-    expect(row.landscape).toBe(true);
-  });
-});
-
 describe("toAdminMetaEvent", () => {
-  it("exposes every stored column plus the deck count", () => {
-    expect(toAdminMetaEvent(eventRow())).toEqual({
+  it("exposes every stored column plus both counts", () => {
+    expect(toAdminMetaEvent(eventRow(), [])).toEqual({
       id: "3f7a1c2e-0000-7000-8000-000000000001",
       slug: "summoner-skirmish-berlin",
       name: "Summoner Skirmish Berlin",
@@ -368,94 +547,128 @@ describe("toAdminMetaEvent", () => {
       playerCount: 64,
       organizer: "LGS Berlin",
       notes: "Top 8 lists only.",
+      tier: "store",
+      country: "DE",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
+      playerRowCount: 64,
       deckCount: 8,
+      sources: [],
     });
+  });
+
+  it("lists the candidates feeding the event, without their live-event key", () => {
+    const event = toAdminMetaEvent(eventRow(), [
+      {
+        metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
+        candidateEventId: "cand-1",
+        provider: "uvsgames",
+      },
+      {
+        metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
+        candidateEventId: "cand-2",
+        provider: "usersubmission",
+      },
+    ]);
+
+    expect(event.sources).toEqual([
+      { candidateEventId: "cand-1", provider: "uvsgames" },
+      { candidateEventId: "cand-2", provider: "usersubmission" },
+    ]);
   });
 });
 
-describe("toAdminMetaDeck", () => {
-  it("maps the admin row straight through", () => {
-    const row: AdminMetaDeckRow = {
-      deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
-      shareToken: "aB3dE5gH7jK9",
-      listStatus: "full",
-      name: "Jinx Aggro",
-      format: "constructed",
-      playerName: "Nova",
-      finishTier: 2,
-      record: "4-2",
+describe("toAdminMetaPlayer", () => {
+  it("maps the admin row straight through, minus the display-name parts", () => {
+    const row: AdminMetaPlayerRow = { ...playerRow(), deckFormat: "constructed", cardCount: 40 };
+    const presented = toAdminMetaPlayer(row);
+
+    expect(presented).toMatchObject({
+      id: row.id,
+      playerName: row.playerName,
+      legendCardId: row.legendCardId,
+      legendName: row.legendName,
+      deckFormat: "constructed",
+      cardCount: 40,
+    });
+    for (const field of ["legendSlug", "legendTypes", "legendTags", "championSlug"]) {
+      expect(presented).not.toHaveProperty(field);
+    }
+  });
+
+  it("keeps the canonical name of a Legend, which is the field the admin edits", () => {
+    const row: AdminMetaPlayerRow = {
+      ...playerRow({ legendName: "Emperor of the Sands", legendTags: ["Azir"] }),
+      deckFormat: "constructed",
       cardCount: 40,
     };
-    expect(toAdminMetaDeck(row)).toEqual(row);
+    expect(toAdminMetaPlayer(row).legendName).toBe("Emperor of the Sands");
   });
 
   it("keeps an empty deck's card count at zero", () => {
-    const row: AdminMetaDeckRow = {
-      deckId: "3f7a1c2e-0000-7000-8000-00000000000e",
-      shareToken: "zZ9yY8xX7wW6",
-      listStatus: "full",
-      name: "Placeholder",
-      format: "constructed",
-      playerName: "Ekko",
-      finishTier: 8,
-      record: null,
+    const row: AdminMetaPlayerRow = {
+      ...playerRow({ deckName: "Placeholder", playerName: "Ekko" }),
+      deckFormat: "constructed",
       cardCount: 0,
     };
-    expect(toAdminMetaDeck(row).cardCount).toBe(0);
+    expect(toAdminMetaPlayer(row).cardCount).toBe(0);
   });
 
-  it("reports an archetype as having no permalink", () => {
-    const row: AdminMetaDeckRow = {
-      deckId: "3f7a1c2e-0000-7000-8000-00000000000f",
-      shareToken: null,
-      listStatus: "archetype",
-      name: "Jinx",
-      format: "constructed",
-      playerName: "Ekko",
-      finishTier: 8,
-      record: null,
-      cardCount: 1,
+  it("reports a standings-only entry with every deck field null", () => {
+    const row: AdminMetaPlayerRow = {
+      ...playerRow({
+        rank: 8,
+        rankIsTier: true,
+        deckId: null,
+        deckName: null,
+        shareToken: null,
+        listStatus: "none",
+      }),
+      deckFormat: null,
+      cardCount: 0,
     };
-    const deck = toAdminMetaDeck(row);
-    expect(deck.shareToken).toBeNull();
-    expect(deck.listStatus).toBe("archetype");
+    const player = toAdminMetaPlayer(row);
+    expect(player.deckId).toBeNull();
+    expect(player.shareToken).toBeNull();
+    expect(player.deckName).toBeNull();
+    expect(player.deckFormat).toBeNull();
+    expect(player.listStatus).toBe("none");
+    expect(player.legendCardId).toBe("legend-1");
   });
 });
 
-describe("toMetaDeckSubmission", () => {
-  /** @returns A pending ledger row. */
-  function submissionRow(overrides: Partial<MetaDeckSubmissionRow> = {}): MetaDeckSubmissionRow {
-    return {
-      id: "3f7a1c2e-0000-7000-8000-0000000000b1",
-      userId: "user-1",
-      provider: "usersubmission",
-      externalId: "20260815-1200--user-1--abcdef12",
-      candidateMetaDeckId: "3f7a1c2e-0000-7000-8000-000000000010",
-      metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
-      eventName: "Summoner Skirmish Berlin",
-      playerName: "Nova",
-      note: "Top 8 list from the stream.",
-      status: "pending",
-      resolutionReason: null,
-      resolutionNote: null,
-      resolvedAt: null,
-      resolvedByUserId: null,
-      acceptedDeckId: null,
-      createdAt: new Date("2026-08-15T12:00:00.000Z"),
-      updatedAt: new Date("2026-08-15T12:00:00.000Z"),
-      ...overrides,
-    };
-  }
+function submissionRow(overrides: Partial<MetaSubmissionRow> = {}): MetaSubmissionRow {
+  return {
+    id: "3f7a1c2e-0000-7000-8000-0000000000b1",
+    userId: "user-1",
+    provider: "usersubmission",
+    externalId: "20260815-1200--user-1--abcdef12",
+    candidateMetaPlayerId: "3f7a1c2e-0000-7000-8000-000000000010",
+    metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
+    eventName: "Summoner Skirmish Berlin",
+    playerName: "Nova",
+    note: "Top 8 list from the stream.",
+    status: "pending",
+    resolutionReason: null,
+    resolutionNote: null,
+    resolvedAt: null,
+    resolvedByUserId: null,
+    acceptedDeckId: null,
+    createdAt: new Date("2026-08-15T12:00:00.000Z"),
+    updatedAt: new Date("2026-08-15T12:00:00.000Z"),
+    ...overrides,
+  };
+}
 
+describe("toMetaSubmission", () => {
   it("serializes the instants and keeps a pending row's outcome empty", () => {
-    const response = toMetaDeckSubmission(submissionRow());
+    const response = toMetaSubmission(submissionRow());
     expect(response.createdAt).toBe("2026-08-15T12:00:00.000Z");
     expect(response.resolvedAt).toBeNull();
     expect(response.status).toBe("pending");
   });
 
   it("carries the outcome an admin wrote", () => {
-    const response = toMetaDeckSubmission(
+    const response = toMetaSubmission(
       submissionRow({
         status: "already_correct",
         resolutionReason: "already_correct",
@@ -468,11 +681,46 @@ describe("toMetaDeckSubmission", () => {
     expect(response.resolvedAt).toBe("2026-08-16T09:30:00.000Z");
   });
 
+  it("carries the archived deck an accept produced", () => {
+    const response = toMetaSubmission(
+      submissionRow({
+        status: "accepted",
+        acceptedDeckId: "3f7a1c2e-0000-7000-8000-00000000000d",
+        resolvedAt: new Date("2026-08-16T09:30:00.000Z"),
+      }),
+    );
+    expect(response.acceptedDeckId).toBe("3f7a1c2e-0000-7000-8000-00000000000d");
+  });
+
   it("keeps the staging details off the wire", () => {
-    const response = toMetaDeckSubmission(submissionRow());
-    expect(response).not.toHaveProperty("candidateMetaDeckId");
+    const response = toMetaSubmission(submissionRow());
+    expect(response).not.toHaveProperty("candidateMetaPlayerId");
     expect(response).not.toHaveProperty("provider");
     expect(response).not.toHaveProperty("externalId");
     expect(response).not.toHaveProperty("userId");
+  });
+});
+
+describe("toAdminMetaSubmission", () => {
+  it("names the outcome reason as the admin screen reads it", () => {
+    const response = toAdminMetaSubmission(
+      submissionRow({
+        status: "rejected",
+        resolutionReason: "unverified",
+        resolutionNote: "No source for this list.",
+        resolvedAt: new Date("2026-08-16T09:30:00.000Z"),
+      }),
+    );
+    expect(response.reason).toBe("unverified");
+    expect(response.resolutionNote).toBe("No source for this list.");
+    expect(response.resolvedAt).toBe("2026-08-16T09:30:00.000Z");
+  });
+
+  it("leaves the submitter's identity to the candidate row beside it", () => {
+    const response = toAdminMetaSubmission(submissionRow());
+    expect(response).not.toHaveProperty("userId");
+    expect(response).not.toHaveProperty("candidateMetaPlayerId");
+    expect(response.status).toBe("pending");
+    expect(response.createdAt).toBe("2026-08-15T12:00:00.000Z");
   });
 });

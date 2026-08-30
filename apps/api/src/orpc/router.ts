@@ -37,6 +37,7 @@ import { adminLanguagesRouter } from "../routes/admin/languages.js";
 import { adminMarkersRouter } from "../routes/admin/markers.js";
 import { adminMarketplaceGroupsRouter } from "../routes/admin/marketplace-groups.js";
 import { adminMetaCandidatesRouter } from "../routes/admin/meta-candidates.js";
+import { adminMetaCatalogRouter } from "../routes/admin/meta-catalog.js";
 import { adminMetaSubmissionsRouter } from "../routes/admin/meta-submissions.js";
 import { adminMetaRouter } from "../routes/admin/meta.js";
 import { adminOperationsRouter } from "../routes/admin/operations.js";
@@ -145,6 +146,7 @@ const apiRouter = {
   adminMarkersRouter,
   adminMarketplaceGroupsRouter,
   adminMetaCandidatesRouter,
+  adminMetaCatalogRouter,
   adminMetaRouter,
   adminMetaSubmissionsRouter,
   adminOperationsRouter,

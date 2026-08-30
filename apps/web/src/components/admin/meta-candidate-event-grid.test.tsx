@@ -56,7 +56,12 @@ const event: AdminMetaEvent = {
   playerCount: 64,
   organizer: "LGS Berlin",
   notes: null,
+  tier: "store",
+  country: null,
+  location: null,
+  playerRowCount: 64,
   deckCount: 8,
+  sources: [],
 };
 
 function source(id: string, provider: string, name: string): MetaCandidateSource {
@@ -71,8 +76,11 @@ function source(id: string, provider: string, name: string): MetaCandidateSource
     organizer: null,
     sourceUrl: `https://example.test/${provider}`,
     notes: null,
+    tier: null,
+    country: null,
+    location: null,
     checkedAt: null,
-    decks: [],
+    players: [],
   };
 }
 
@@ -113,8 +121,11 @@ describe("MetaCandidateEventGrid", () => {
       "name",
       "eventDate",
       "format",
+      "tier",
       "playerCount",
       "organizer",
+      "country",
+      "location",
       "notes",
       "sourceUrl",
     ]);
@@ -167,6 +178,25 @@ describe("metaEventFieldPatch", () => {
     expect(metaEventFieldPatch("name", "   ")).toBeNull();
     expect(metaEventFieldPatch("eventDate", null)).toBeNull();
     expect(metaEventFieldPatch("format", "")).toBeNull();
+    expect(metaEventFieldPatch("tier", null)).toBeNull();
+  });
+
+  it("takes only a known tier", () => {
+    expect(metaEventFieldPatch("tier", "competitive")).toEqual({ tier: "competitive" });
+    expect(metaEventFieldPatch("tier", "legendary")).toBeNull();
+  });
+
+  it("normalizes the country and clears it when blanked", () => {
+    expect(metaEventFieldPatch("country", "de")).toEqual({ country: "DE" });
+    expect(metaEventFieldPatch("country", "Germany")).toBeNull();
+    expect(metaEventFieldPatch("country", null)).toEqual({ country: null });
+  });
+
+  it("passes the address through and clears it when blanked", () => {
+    expect(metaEventFieldPatch("location", "Kartenstraße 1")).toEqual({
+      location: "Kartenstraße 1",
+    });
+    expect(metaEventFieldPatch("location", null)).toEqual({ location: null });
   });
 
   it("passes the scalar columns through", () => {

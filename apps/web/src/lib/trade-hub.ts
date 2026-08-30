@@ -341,7 +341,7 @@ export function buildTradeHubCards<
 }
 
 /** The rows the overview band's shelf can hold, in display order. */
-export type TradeShelfRowKey = "answer" | "hand-over" | "confirm" | "could-get" | "would-want";
+type TradeShelfRowKey = "answer" | "hand-over" | "confirm" | "could-get" | "would-want";
 
 /** One row of the overview band: a label, the cards behind it, and who they involve. */
 export interface TradeShelfRow {

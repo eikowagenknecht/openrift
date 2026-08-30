@@ -12,6 +12,7 @@
 - fix(Tournaments): **Invite links open when signed out** — a join or staff-invite link crashed for anyone not already signed in, instead of showing the event and a sign-in button.
 - fix(App): **Stage links to your own tier list** — opening one while signed out crashed the page, and now sends you to sign in and back to the same list, position and preset.
 - fix(Collection): **Finish names in shared lists** — a list copied as text guessed the finish name from its internal id, writing "Metal-deluxe", and now uses the same name the rest of the app shows.
+- fix(Cards): **Search keeps alternate-name matches** — the search dropdown no longer hides a card that matched on an alternate name or a printing code.
 - fix(Collection): **Set and rarity names in CSV exports** — exports wrote the internal set id ("OGN") instead of the set name ("Origins").
 
 ## 2026-08-29

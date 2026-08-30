@@ -1,9 +1,9 @@
-import type { MetaCandidateDeck, MetaCandidateQueueRow, MetaUploadBody } from "@openrift/shared";
+import type { MetaCandidatePlayer, MetaCandidateQueueRow, MetaUploadBody } from "@openrift/shared";
 
 // Pure helpers for the Meta Archive's candidate review queue (ADR-014): parsing
-// an upload file, ordering the queue, and rendering a deck's card delta. Kept
-// out of the components so they can be tested without a DOM, and because the
-// React Compiler cannot lower the parser's branching inside its try/catch.
+// an upload file, ordering the queue, and rendering a staged list's card delta.
+// Kept out of the components so they can be tested without a DOM, and because
+// the React Compiler cannot lower the parser's branching inside its try/catch.
 
 /** What a candidate's link state is called and how the badge is toned. */
 export interface CandidateStateDisplay {
@@ -27,6 +27,30 @@ export function candidateStateDisplay(
   state: MetaCandidateQueueRow["state"],
 ): CandidateStateDisplay {
   return STATE_DISPLAY[state];
+}
+
+/** What a candidate's source is called and how its chip is toned. */
+export interface CandidateProviderDisplay {
+  label: string;
+  variant: "outline" | "violet";
+}
+
+/** The provider a player's own submission is staged under. */
+const USER_SUBMISSION_PROVIDER = "usersubmission";
+
+/**
+ * Label and badge tone for the source a candidate came from. Provider slugs are
+ * the sources' own words and are shown verbatim, with one exception: a player's
+ * submission is not a crawler and reads as one unless it is named.
+ *
+ * @param provider - The candidate's provider slug.
+ * @returns The display label and the Badge variant to render it with.
+ */
+export function candidateProviderDisplay(provider: string): CandidateProviderDisplay {
+  if (provider === USER_SUBMISSION_PROVIDER) {
+    return { label: "User submission", variant: "violet" };
+  }
+  return { label: provider, variant: "outline" };
 }
 
 export type MetaUploadParseResult =
@@ -84,8 +108,8 @@ export function sortCandidateQueue(rows: MetaCandidateQueueRow[]): MetaCandidate
   });
 }
 
-/** A candidate deck's card delta against the live deck it is linked to. */
-type CardDelta = NonNullable<MetaCandidateDeck["diff"]>["cards"];
+/** A candidate row's card delta against the archived deck it is linked to. */
+type CardDelta = NonNullable<MetaCandidatePlayer["diff"]>["cards"];
 
 /** @returns The card's name, or a placeholder when the row vanished under us. */
 function cardLabel(name: string | null): string {
@@ -93,7 +117,7 @@ function cardLabel(name: string | null): string {
 }
 
 /**
- * Renders a deck's card delta as one compact line per change: "+2 Vi (Main)",
+ * Renders a card delta as one compact line per change: "+2 Vi (Main)",
  * "-1 Jinx (Sideboard)", "Ekko (Main) 3 → 2".
  *
  * @param cards - The diff's card section.
@@ -118,13 +142,13 @@ export function formatCardDeltaLines(
 }
 
 /**
- * Whether a linked deck's diff carries anything worth showing. A diff object
- * with no field changes and no card changes means "identical to live".
+ * Whether a linked row's diff carries anything worth showing. A diff object with
+ * no field changes and no card changes means "identical to live".
  *
- * @param diff - The deck's diff, or null while it is unlinked.
+ * @param diff - The row's diff, or null while it is unlinked.
  * @returns True when the diff has at least one field or card change.
  */
-export function hasDeckChanges(diff: MetaCandidateDeck["diff"]): boolean {
+export function hasCandidateChanges(diff: MetaCandidatePlayer["diff"]): boolean {
   if (!diff) {
     return false;
   }
@@ -136,26 +160,29 @@ export function hasDeckChanges(diff: MetaCandidateDeck["diff"]): boolean {
   );
 }
 
-/** One zone's worth of a candidate deck's card list. */
+/** One candidate card line, as the staged list carries it. */
+type CandidateCard = NonNullable<MetaCandidatePlayer["cards"]>[number];
+
+/** One zone's worth of a staged card list. */
 export interface CandidateZoneGroup {
   zone: string;
-  cards: MetaCandidateDeck["cards"];
+  cards: CandidateCard[];
 }
 
 /**
- * Groups a candidate deck's cards by zone, configured zones in their configured
- * order first. A source can name a zone we have never heard of, so unknown ones
- * follow in the order they first appear rather than being dropped.
+ * Groups a staged card list by zone, configured zones in their configured order
+ * first. A source can name a zone we have never heard of, so unknown ones follow
+ * in the order they first appear rather than being dropped.
  *
- * @param cards - The candidate deck's card list.
+ * @param cards - The staged card list, or null for a standings-only row.
  * @param zoneOrder - The configured zone slugs, in display order.
  * @returns One group per zone that has cards, cards sorted by name.
  */
 export function groupCandidateCardsByZone(
-  cards: MetaCandidateDeck["cards"],
+  cards: CandidateCard[] | null,
   zoneOrder: string[],
 ): CandidateZoneGroup[] {
-  const byZone = Map.groupBy(cards, (card) => card.zone);
+  const byZone = Map.groupBy(cards ?? [], (card) => card.zone);
   const known = zoneOrder.filter((zone) => byZone.has(zone));
   const unknown = [...byZone.keys()].filter((zone) => !zoneOrder.includes(zone));
   return [...known, ...unknown].map((zone) => ({

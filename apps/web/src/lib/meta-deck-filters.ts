@@ -13,10 +13,10 @@ export interface MetaDeckFilterValues {
   /** Legend card ids to keep; empty means every legend. */
   legends: string[];
   /**
-   * The worst finish still shown, as a tier bound: 1 = winners, 4 = top 4, and
+   * The worst finish still shown, as a rank bound: 1 = winners, 4 = top 4, and
    * so on. Null means any finish.
    */
-  maxFinishTier: number | null;
+  maxRank: number | null;
   /** Inclusive event-date bounds as ISO date-only strings, or null for open. */
   dateFrom: string | null;
   dateTo: string | null;
@@ -57,7 +57,7 @@ function passesAxis(
     );
   }
   if (axis === "finish") {
-    return filters.maxFinishTier === null || deck.finishTier <= filters.maxFinishTier;
+    return filters.maxRank === null || deck.rank <= filters.maxRank;
   }
   // Date-only strings sort lexicographically, so plain comparison is enough.
   if (filters.dateFrom !== null && deck.event.eventDate < filters.dateFrom) {
@@ -81,7 +81,7 @@ export function filterMetaDecks(
 
 /**
  * Orders decks for the browser: newest event first, then best finish, then
- * player name so ties inside one tier stay stable.
+ * player name so ties on one rank stay stable.
  * @returns A new sorted array.
  */
 export function sortMetaDecks(decks: MetaDeckSummary[]): MetaDeckSummary[] {
@@ -89,8 +89,8 @@ export function sortMetaDecks(decks: MetaDeckSummary[]): MetaDeckSummary[] {
     if (left.event.eventDate !== right.event.eventDate) {
       return left.event.eventDate < right.event.eventDate ? 1 : -1;
     }
-    if (left.finishTier !== right.finishTier) {
-      return left.finishTier - right.finishTier;
+    if (left.rank !== right.rank) {
+      return left.rank - right.rank;
     }
     return left.playerName.localeCompare(right.playerName);
   });
@@ -101,7 +101,7 @@ export interface MetaDeckFilterCounts {
   formats: Map<string, number>;
   events: Map<string, number>;
   legends: Map<string, number>;
-  /** Keyed by the bucket bound (1, 4, 8, 16) rather than a deck's own tier. */
+  /** Keyed by the bucket bound (1, 4, 8, 16) rather than a deck's own rank. */
   finish: Map<number, number>;
 }
 
@@ -139,7 +139,7 @@ export function metaDeckFilterCounts(
     }
     if (others("finish")) {
       for (const option of META_FINISH_OPTIONS) {
-        if (deck.finishTier <= option.value) {
+        if (deck.rank <= option.value) {
           bump(counts.finish, option.value);
         }
       }
@@ -198,7 +198,7 @@ export function hasActiveMetaDeckFilters(filters: MetaDeckFilterValues): boolean
     filters.formats.length > 0 ||
     filters.events.length > 0 ||
     filters.legends.length > 0 ||
-    filters.maxFinishTier !== null ||
+    filters.maxRank !== null ||
     filters.dateFrom !== null ||
     filters.dateTo !== null
   );

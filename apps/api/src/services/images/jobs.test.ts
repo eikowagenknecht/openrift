@@ -1,3 +1,4 @@
+import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -505,6 +506,14 @@ function makeFakeJobRunsRepo(initial: unknown = null) {
     updateResult: vi.fn(async (_id: string, result: unknown) => {
       state.stored = result;
     }),
+    mergeResult: vi.fn(async (_id: string, patch: object) => {
+      const prior = (state.stored ?? {}) as Record<string, unknown>;
+      const preserved = prior["cancelRequested"] === true;
+      state.stored = { ...prior, ...(patch as Record<string, unknown>) };
+      if (preserved) {
+        (state.stored as Record<string, unknown>)["cancelRequested"] = true;
+      }
+    }),
     getResult: vi.fn(async () => state.stored),
     start: vi.fn(),
     succeed: vi.fn(),
@@ -553,8 +562,10 @@ describe("runRegenerateImagesJob", () => {
     expect(result.regenerated).toBe(12);
     expect(result.failed).toBe(0);
     expect(result.resumedFromRunId).toBeNull();
-    // 12 / batch_size 10 = 2 batches; plus the initial snapshot write = 3.
-    expect(fake.repo.updateResult).toHaveBeenCalledTimes(3);
+    // The initial snapshot write; per-batch progress goes through mergeResult.
+    expect(fake.repo.updateResult).toHaveBeenCalledTimes(1);
+    // 12 / batch_size 10 = 2 batches.
+    expect(fake.repo.mergeResult).toHaveBeenCalledTimes(2);
     // Default: whole catalog, not just scans.
     expect(printingImages.listAllRehosted).toHaveBeenCalledWith(false);
   });
@@ -644,5 +655,56 @@ describe("runRegenerateImagesJob", () => {
     // First batch (10) ran; cancel checked after; second batch did not start.
     expect(final.processed).toBe(10);
     expect(final.cancelRequested).toBe(true);
+  });
+
+  it("keeps a cancel that lands while a batch's progress write is in flight", async () => {
+    const ids = Array.from({ length: 25 }, (_, i) => snap(`card-${String(i).padStart(3, "0")}`));
+    const printingImages = makeMockRepo({ rehosted: ids });
+    mockReaddir.mockImplementation(async () => ids.map((s) => `${s.imageId}-orig.png`));
+    const fake = makeFakeJobRunsRepo();
+
+    // The cancel endpoint writes the flag just as the loop merges its first
+    // batch's progress (which carries cancelRequested: false). The merge must
+    // not drop the flag, so the loop stops before batch two.
+    const realMerge = fake.repo.mergeResult.getMockImplementation()!;
+    let merges = 0;
+    fake.repo.mergeResult.mockImplementation(async (id: string, patch: object) => {
+      merges++;
+      if (merges === 1) {
+        fake.setCancel();
+      }
+      await realMerge(id, patch);
+    });
+
+    await expect(
+      runRegenerateImagesJob(
+        { io: mockIo, printingImages, jobRuns: fake.repo, log: noopLog },
+        "run-cancel-race",
+      ),
+    ).rejects.toThrow("cancelled");
+
+    const final = fake.current() as { processed: number; cancelRequested: boolean };
+    expect(final.processed).toBe(10);
+    expect(final.cancelRequested).toBe(true);
+  });
+
+  it("isRegenerateImagesCheckpoint accepts the canonical shape and rejects partial values", () => {
+    const ok = {
+      snapshot: [],
+      totalFiles: 0,
+      lastProcessedIndex: -1,
+      processed: 0,
+      regenerated: 0,
+      failed: 0,
+      errors: [],
+      resumedFromRunId: null,
+      cancelRequested: false,
+      skipExisting: false,
+    };
+    expect(isRegenerateImagesCheckpoint(ok)).toBe(true);
+    expect(isRegenerateImagesCheckpoint(null)).toBe(false);
+    expect(isRegenerateImagesCheckpoint({})).toBe(false);
+    expect(isRegenerateImagesCheckpoint({ ...ok, snapshot: "not-an-array" })).toBe(false);
+    expect(isRegenerateImagesCheckpoint({ ...ok, cancelRequested: "no" })).toBe(false);
   });
 });

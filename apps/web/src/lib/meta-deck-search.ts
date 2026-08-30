@@ -13,7 +13,7 @@ export const metaDeckSearchSchema = z.object({
   events: z.array(z.string()).optional().catch(undefined),
   /** Legend card ids, matched as a union. */
   legends: z.array(z.string()).optional().catch(undefined),
-  /** The worst finish still shown, as a tier bound (1, 4, 8, 16). */
+  /** The worst finish still shown, as a rank bound (1, 4, 8, 16). */
   finish: z.number().int().positive().optional().catch(undefined),
   /** Inclusive event-date bounds, as date-only strings. */
   from: z.string().optional().catch(undefined),

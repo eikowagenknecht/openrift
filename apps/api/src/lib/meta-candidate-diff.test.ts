@@ -1,22 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import type { MetaDeckCardEntry, MetaDeckFields, MetaEventFields } from "./meta-candidate-diff.js";
+import type {
+  MetaDeckCardEntry,
+  MetaEventFields,
+  MetaPlayerFields,
+} from "./meta-candidate-diff.js";
 import {
   collapseCardEntries,
-  diffMetaDeck,
   diffMetaDeckCards,
   diffMetaEvent,
+  diffMetaPlayer,
   hasCardDiff,
-  hasDeckDiff,
+  hasPlayerDiff,
   metaCandidateState,
   normalize,
+  resolveMetaPlayerCards,
 } from "./meta-candidate-diff.js";
 
 const AZIR = "11111111-0000-7000-8000-000000000001";
 const YASUO = "11111111-0000-7000-8000-000000000002";
 const SHOCK = "11111111-0000-7000-8000-000000000003";
+const VI = "11111111-0000-7000-8000-000000000004";
 
-/** @returns A live-shaped event with every field populated. */
 function event(overrides: Partial<MetaEventFields> = {}): MetaEventFields {
   return {
     name: "Summoner Skirmish Berlin",
@@ -25,13 +30,34 @@ function event(overrides: Partial<MetaEventFields> = {}): MetaEventFields {
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: "Top 8 lists only.",
+    tier: "store",
+    country: "DE",
+    location: "Kartenstraße 1, 10115 Berlin, DE",
     ...overrides,
   };
 }
 
-/** @returns A card entry, defaulting to one copy in the main zone. */
 function card(cardId: string, overrides: Partial<MetaDeckCardEntry> = {}): MetaDeckCardEntry {
   return { cardId, zone: "main", quantity: 1, ...overrides };
+}
+
+type PlayerWithCards = MetaPlayerFields & { cards: MetaDeckCardEntry[] };
+
+function player(overrides: Partial<PlayerWithCards> = {}): PlayerWithCards {
+  return {
+    event: "live-1",
+    playerName: "Renata",
+    rank: 1,
+    rankIsTier: false,
+    wins: 5,
+    losses: 1,
+    draws: 0,
+    legendCardId: AZIR,
+    championCardId: null,
+    listStatus: "full",
+    cards: [card(AZIR, { zone: "legend" })],
+    ...overrides,
+  };
 }
 
 describe("normalize", () => {
@@ -48,6 +74,7 @@ describe("normalize", () => {
     expect(normalize(" padded ")).toBe(" padded ");
     expect(normalize(0)).toBe(0);
     expect(normalize(64)).toBe(64);
+    expect(normalize(false)).toBe(false);
   });
 });
 
@@ -92,6 +119,19 @@ describe("diffMetaEvent", () => {
     expect(diffMetaEvent(event(), event({ eventDate: "2026-08-02" }))).toEqual([
       { field: "eventDate", from: "2026-08-01", to: "2026-08-02" },
     ]);
+  });
+
+  it("reports tier, country, and address disagreements like any field", () => {
+    const diff = diffMetaEvent(
+      event(),
+      event({ tier: "competitive", country: "AT", location: "Hauptplatz 1, Graz, AT" }),
+    );
+    expect(diff.map((entry) => entry.field)).toEqual(["tier", "country", "location"]);
+  });
+
+  it("stays silent on tier, country, and address a source holds nothing for", () => {
+    const candidate = event({ tier: null, country: null, location: null });
+    expect(diffMetaEvent(event(), candidate)).toEqual([]);
   });
 });
 
@@ -172,72 +212,134 @@ describe("diffMetaDeckCards", () => {
   });
 });
 
-describe("diffMetaDeck", () => {
-  const liveDeck: MetaDeckFields & { cards: MetaDeckCardEntry[] } = {
-    event: "live-1",
-    name: "Azir Control",
-    playerName: "Renata",
-    finishTier: 1,
-    record: "5-1",
-    listStatus: "full",
-    cards: [card(AZIR, { zone: "legend" })],
-  };
-
-  it("reports nothing for an identical deck", () => {
-    expect(hasDeckDiff(diffMetaDeck(liveDeck, liveDeck))).toBe(false);
+describe("diffMetaPlayer", () => {
+  it("reports nothing for an identical standings row", () => {
+    expect(hasPlayerDiff(diffMetaPlayer(player(), player()))).toBe(false);
   });
 
   it("reports a metadata change alone", () => {
-    const diff = diffMetaDeck(liveDeck, { ...liveDeck, finishTier: 4 });
-    expect(diff.fields).toEqual([{ field: "finishTier", from: 1, to: 4 }]);
+    const diff = diffMetaPlayer(player(), player({ rank: 4 }));
+    expect(diff.fields).toEqual([{ field: "rank", from: 1, to: 4 }]);
     expect(hasCardDiff(diff.cards)).toBe(false);
-    expect(hasDeckDiff(diff)).toBe(true);
+    expect(hasPlayerDiff(diff)).toBe(true);
   });
 
   it("reports a card change alone", () => {
-    const diff = diffMetaDeck(liveDeck, { ...liveDeck, cards: [...liveDeck.cards, card(SHOCK)] });
+    const live = player();
+    const diff = diffMetaPlayer(live, player({ cards: [...live.cards, card(SHOCK)] }));
     expect(diff.fields).toEqual([]);
     expect(hasCardDiff(diff.cards)).toBe(true);
-    expect(hasDeckDiff(diff)).toBe(true);
+    expect(hasPlayerDiff(diff)).toBe(true);
   });
 
-  it("folds a null record and an empty one together", () => {
-    const diff = diffMetaDeck({ ...liveDeck, record: null }, { ...liveDeck, record: "" });
-    expect(diff.fields).toEqual([]);
+  it("reports a cut bucket and the same exact standing as different", () => {
+    const diff = diffMetaPlayer(player({ rank: 8 }), player({ rank: 8, rankIsTier: true }));
+    expect(diff.fields).toEqual([{ field: "rankIsTier", from: false, to: true }]);
+    expect(hasPlayerDiff(diff)).toBe(true);
   });
 
-  it("reports a deck that moved to another event", () => {
-    const diff = diffMetaDeck(liveDeck, { ...liveDeck, event: "live-2" });
+  it("reports each part of the record the sources disagree on", () => {
+    const diff = diffMetaPlayer(player(), player({ wins: 4, draws: 1 }));
+    expect(diff.fields).toEqual([
+      { field: "wins", from: 5, to: 4 },
+      { field: "draws", from: 0, to: 1 },
+    ]);
+  });
+
+  it("keeps a zero in the record apart from an unknown one", () => {
+    const diff = diffMetaPlayer(player({ draws: null }), player({ draws: 0 }));
+    expect(diff.fields).toEqual([{ field: "draws", from: null, to: 0 }]);
+  });
+
+  it("reports a legend the source disagrees on", () => {
+    const diff = diffMetaPlayer(player(), player({ legendCardId: YASUO }));
+    expect(diff.fields).toEqual([{ field: "legendCardId", from: AZIR, to: YASUO }]);
+  });
+
+  it("reports a champion arriving where the archive knew none", () => {
+    const diff = diffMetaPlayer(player(), player({ championCardId: VI }));
+    expect(diff.fields).toEqual([{ field: "championCardId", from: null, to: VI }]);
+  });
+
+  it("reports a row that moved to another event", () => {
+    const diff = diffMetaPlayer(player(), player({ event: "live-2" }));
     expect(diff.fields).toEqual([{ field: "event", from: "live-1", to: "live-2" }]);
-    expect(hasDeckDiff(diff)).toBe(true);
+    expect(hasPlayerDiff(diff)).toBe(true);
   });
 
-  it("reports a deck whose candidate no longer points at any event", () => {
-    const diff = diffMetaDeck(liveDeck, { ...liveDeck, event: null });
+  it("reports a row whose candidate no longer points at any event", () => {
+    const diff = diffMetaPlayer(player(), player({ event: null }));
     expect(diff.fields).toEqual([{ field: "event", from: "live-1", to: null }]);
   });
 
-  it("reports a source that upgraded an archetype to a full list", () => {
-    // The status alone, so the case can't be mistaken for the card diff
-    // carrying it: an archive entry gaining a main deck also gains a public
-    // page, and the reviewer has to see that before accepting.
-    const archetype = { ...liveDeck, listStatus: "archetype" as const };
-    const diff = diffMetaDeck(archetype, liveDeck);
-    expect(diff.fields).toEqual([{ field: "listStatus", from: "archetype", to: "full" }]);
-    expect(hasDeckDiff(diff)).toBe(true);
+  it("reports a source that published a list for a standings-only entry", () => {
+    const standingsOnly = player({ listStatus: "none" });
+    const diff = diffMetaPlayer(standingsOnly, player({ cards: standingsOnly.cards }));
+    expect(diff.fields).toEqual([{ field: "listStatus", from: "none", to: "full" }]);
+    expect(hasPlayerDiff(diff)).toBe(true);
   });
 
   it("reports a partial list being completed, which changes no page", () => {
-    // Quieter than the archetype case (the deck already had its page) but still
-    // a change the reviewer sees: the side zones are arriving.
-    const partial = { ...liveDeck, listStatus: "partial" as const };
-    const diff = diffMetaDeck(partial, liveDeck);
+    const partial = player({ listStatus: "partial" });
+    const diff = diffMetaPlayer(partial, player({ cards: partial.cards }));
     expect(diff.fields).toEqual([{ field: "listStatus", from: "partial", to: "full" }]);
   });
 
-  it("reports nothing for two archetypes that agree", () => {
-    const archetype = { ...liveDeck, listStatus: "archetype" as const };
-    expect(hasDeckDiff(diffMetaDeck(archetype, archetype))).toBe(false);
+  it("reports nothing for two standings-only rows that agree", () => {
+    const standingsOnly = player({ listStatus: "none", cards: [] });
+    expect(hasPlayerDiff(diffMetaPlayer(standingsOnly, standingsOnly))).toBe(false);
+  });
+});
+
+describe("resolveMetaPlayerCards", () => {
+  it("takes the list's own zones when a list landed", () => {
+    expect(
+      resolveMetaPlayerCards({
+        cards: [
+          { zone: "legend", cardId: AZIR },
+          { zone: "champion", cardId: VI },
+          { zone: "main", cardId: SHOCK },
+        ],
+        legendCardId: YASUO,
+        championCardId: null,
+      }),
+    ).toEqual({ legendCardId: AZIR, championCardId: VI });
+  });
+
+  it("takes the source's own picks for a standings-only row", () => {
+    expect(
+      resolveMetaPlayerCards({ cards: null, legendCardId: YASUO, championCardId: VI }),
+    ).toEqual({ legendCardId: YASUO, championCardId: VI });
+  });
+
+  it("falls back per zone when the list fills only one of them", () => {
+    expect(
+      resolveMetaPlayerCards({
+        cards: [{ zone: "legend", cardId: AZIR }],
+        legendCardId: YASUO,
+        championCardId: VI,
+      }),
+    ).toEqual({ legendCardId: AZIR, championCardId: VI });
+  });
+
+  it("falls back when the list's own legend line matched no card", () => {
+    expect(
+      resolveMetaPlayerCards({
+        cards: [{ zone: "legend", cardId: null }],
+        legendCardId: YASUO,
+        championCardId: null,
+      }),
+    ).toEqual({ legendCardId: YASUO, championCardId: null });
+  });
+
+  it("reports nothing known when neither the list nor the source names one", () => {
+    expect(
+      resolveMetaPlayerCards({
+        cards: [{ zone: "main", cardId: SHOCK }],
+        legendCardId: null,
+        championCardId: null,
+      }),
+    ).toEqual({ legendCardId: null, championCardId: null });
   });
 });
 

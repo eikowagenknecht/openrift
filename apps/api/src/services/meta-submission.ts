@@ -1,20 +1,20 @@
 /**
  * Ingest one signed-in user's decklist submission to the meta archive.
  *
- * A submission is not an upload: `ingestMetaCandidates` replaces every deck of
- * each event it names, and all submissions share one provider, so a batch
- * ingest of one list would wipe every other person's pending contribution.
- * This inserts exactly one candidate deck under a per-submission external id
- * and deletes nothing. Everything downstream — the review queue, accept, the
+ * A submission is not an upload: `ingestMetaCandidates` replaces every standings
+ * row of each event it names, and all submissions share one provider, so a
+ * batch ingest of one list would wipe every other person's pending
+ * contribution. This inserts exactly one candidate row under a per-submission
+ * external id and deletes nothing. Everything downstream — the review queue, accept, the
  * ignore lists — is the machinery that already exists.
  *
  * Two things are worth knowing about the shape:
  *
  *   - A submission against an event the archive already has hangs its candidate
- *     deck off that *live* event, so no placeholder candidate event is invented
- *     for it. `candidate_meta_decks` has a CHECK for exactly that.
+ *     row off that *live* event, so no placeholder candidate event is invented
+ *     for it. `candidate_meta_players` has a CHECK for exactly that.
  *   - A submission that proposes an event the archive does not have needs
- *     somewhere for the deck to hang, and the same CHECK leaves one option: a
+ *     somewhere for the row to hang, and the same CHECK leaves one option: a
  *     real candidate event under this provider, carrying the fields the person
  *     typed. It is a proposal in the queue like any other, not a placeholder.
  */
@@ -67,9 +67,13 @@ export interface MetaSubmissionArgs {
   /** The event this proposes. Null exactly when {@link metaEventId} is set. */
   proposedEvent: MetaSubmissionProposedEvent | null;
   playerName: string;
-  finishTier: number;
-  record: string | null;
-  listStatus: MetaListStatus;
+  rank: number;
+  rankIsTier: boolean;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  /** A submission always carries a list, so this is never `"none"`. */
+  listStatus: Exclude<MetaListStatus, "none">;
   cards: MetaSubmissionCard[];
   note: string | null;
   /** "Now", passed in so the external id and any test are deterministic. */
@@ -84,7 +88,7 @@ export type MetaSubmissionResult =
   | {
       status: "ok";
       submissionId: string;
-      candidateDeckId: string;
+      candidatePlayerId: string;
       /**
        * Card names that matched nothing. The submission is still staged: an
        * unmatched name is usually a spelling the catalog needs an alias for,
@@ -113,11 +117,17 @@ export function validateMetaSubmission(args: MetaSubmissionArgs): string[] {
   if (args.playerName.trim() === "" || args.playerName.length > 80) {
     problems.push("playerName must be 1-80 characters");
   }
-  if (!Number.isInteger(args.finishTier) || args.finishTier < 1) {
-    problems.push("finishTier must be a positive integer");
+  if (!Number.isInteger(args.rank) || args.rank < 1) {
+    problems.push("rank must be a positive integer");
   }
-  if (args.record !== null && (args.record.length === 0 || args.record.length > 20)) {
-    problems.push("record must be 1-20 characters");
+  for (const [field, value] of [
+    ["wins", args.wins],
+    ["losses", args.losses],
+    ["draws", args.draws],
+  ] as const) {
+    if (value !== null && (!Number.isInteger(value) || value < 0)) {
+      problems.push(`${field} must be a non-negative integer`);
+    }
   }
   if (args.note !== null && args.note.trim() === "") {
     problems.push("note must not be blank");
@@ -256,17 +266,25 @@ export function submitMetaDeck(
       });
     }
 
-    const candidateDeckId = await repos.metaCandidates.insertDeck({
+    const candidatePlayerId = await repos.metaCandidates.insertPlayer({
       candidateEventId,
       metaEventId: candidateEventId === null ? args.metaEventId : null,
       externalId,
       playerName: args.playerName,
-      finishTier: args.finishTier,
-      record: args.record,
-      name: null,
+      rank: args.rank,
+      rankIsTier: args.rankIsTier,
+      wins: args.wins,
+      losses: args.losses,
+      draws: args.draws,
+      // The legend and champion come from the list's own zones at accept, so a
+      // submission never names them separately.
+      legendName: null,
+      legendCardId: null,
+      championName: null,
+      championCardId: null,
       cards,
       listStatus: args.listStatus,
-      deckId: null,
+      metaEventPlayerId: null,
       submittedByUserId: args.userId,
       submissionNote: args.note,
       checkedAt: null,
@@ -276,7 +294,7 @@ export function submitMetaDeck(
       userId: args.userId,
       provider: META_USER_SUBMISSION_PROVIDER,
       externalId,
-      candidateMetaDeckId: candidateDeckId,
+      candidateMetaPlayerId: candidatePlayerId,
       metaEventId: args.metaEventId,
       eventName,
       playerName: args.playerName,
@@ -286,7 +304,7 @@ export function submitMetaDeck(
     return {
       status: "ok",
       submissionId,
-      candidateDeckId,
+      candidatePlayerId,
       unresolvedNames: [...new Set(cards.filter((c) => c.cardId === null).map((c) => c.name))],
     };
   });

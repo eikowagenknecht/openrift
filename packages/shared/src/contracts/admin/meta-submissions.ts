@@ -17,9 +17,9 @@ const BASE = "/api/admin/v1/meta/submissions";
  * One submission as the reviewing admin sees it: the contributor's own claim
  * plus whatever outcome it already carries.
  *
- * The submitter's identity is deliberately absent — the candidate deck beside
- * it carries `submittedByUserId` and `submittedByName`, and this row is about
- * what the archive told them.
+ * The submitter's identity is deliberately absent — the candidate row beside it
+ * carries `submittedByUserId` and `submittedByName`, and this row is about what
+ * the archive told them.
  */
 export const adminMetaSubmissionSchema = z
   .object({
@@ -71,13 +71,13 @@ const resolveMetaSubmissionSchema = z.object({
  *
  * Unlike the card pipeline, where an outcome is derived from the check and
  * ignore verbs, a meta submission has no ignore path to derive from: its
- * candidate deck hangs off a live event and carries no
+ * candidate row hangs off a live event and carries no
  * `(provider, event external id, external id)` triple for the ignore list. So
  * the outcome is stamped explicitly here. Without it a submission could only
  * ever reach `accepted`, and a contributor whose list was turned down would
  * read "pending" forever.
  *
- * Resolving leaves the staged candidate deck in place on purpose, so
+ * Resolving leaves the staged candidate row in place on purpose, so
  * {@link adminMetaSubmissionsContract.reopen} can genuinely undo a misclick
  * rather than apologising for a deleted decklist.
  *
@@ -87,10 +87,10 @@ const resolveMetaSubmissionSchema = z.object({
  * disagreeing.
  */
 export const adminMetaSubmissionsContract = {
-  forCandidateDeck: authedRoute
-    .route({ method: "GET", path: `${BASE}/by-candidate-deck/{candidateDeckId}`, tags: [TAG] })
-    .input(z.object({ candidateDeckId: z.uuid() }))
-    // Null rather than a 404: a provider's candidate deck is simply not a
+  forCandidatePlayer: authedRoute
+    .route({ method: "GET", path: `${BASE}/by-candidate-player/{candidatePlayerId}`, tags: [TAG] })
+    .input(z.object({ candidatePlayerId: z.uuid() }))
+    // Null rather than a 404: a provider's candidate row is simply not a
     // submission, which the review screen asks about for every row it renders.
     .output(z.object({ submission: adminMetaSubmissionSchema.nullable() })),
 

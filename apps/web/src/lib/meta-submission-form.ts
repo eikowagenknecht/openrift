@@ -1,16 +1,16 @@
-import type { MetaDeckSubmissionInput, MetaListStatus, Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { MetaSubmissionInput, Printing } from "@openrift/shared";
 
 import type { DeckMatchedEntry } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import { parseDeckImportAuto } from "@/lib/deck-import-parsers";
+import type { MetaSubmissionCompleteness } from "@/lib/meta-submission-copy";
 
 /**
  * Draft shapes and validation for the meta archive's decklist submission form
  * (ADR-014's User submissions).
  *
  * Every field is held as a string while it is being edited, so the bounds below
- * mirror `metaDeckSubmissionInputSchema` and the service's own `validateMetaSubmission`.
+ * mirror `metaSubmissionInputSchema` and the service's own `validateMetaSubmission`.
  * The point is to name the problem next to the field instead of surfacing a 400
  * with a server sentence in it.
  */
@@ -18,10 +18,15 @@ import { parseDeckImportAuto } from "@/lib/deck-import-parsers";
 /** The submission form's fields, as edited. */
 export interface MetaSubmissionDraft {
   playerName: string;
-  /** A positive whole number, as typed by the finish picker. */
-  finishTier: string;
-  record: string;
-  listStatus: MetaListStatus;
+  /** Where the player finished, as a positive whole number. */
+  rank: string;
+  /** True when the source only published a cut bucket, so `rank` prints as "T8". */
+  rankIsTier: boolean;
+  /** The match record, one box each. Blank means the submitter does not know it. */
+  wins: string;
+  losses: string;
+  draws: string;
+  listStatus: MetaSubmissionCompleteness;
   note: string;
   /** The pasted decklist, in any format the import box accepts. */
   deckText: string;
@@ -37,8 +42,11 @@ export interface MetaSubmissionDraft {
 /** A blank submission form. */
 export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
   playerName: "",
-  finishTier: "1",
-  record: "",
+  rank: "1",
+  rankIsTier: false,
+  wins: "",
+  losses: "",
+  draws: "",
   listStatus: "full",
   note: "",
   deckText: "",
@@ -52,6 +60,18 @@ export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const WHOLE_NUMBER_PATTERN = /^\d+$/u;
+
+/** @returns True when a record box is blank or holds a whole number. */
+function isRecordPart(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === "" || WHOLE_NUMBER_PATTERN.test(trimmed);
+}
+
+/** @returns The box's number, or null when it was left blank. */
+function recordPart(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : Number(trimmed);
+}
 
 /** One card line, in the shape the submission endpoint takes. */
 export interface MetaSubmissionCardLine {
@@ -160,20 +180,23 @@ export function validateMetaSubmissionDraft(
   if (playerName.length === 0 || playerName.length > 80) {
     return "Enter the player's name (80 characters or fewer).";
   }
-  const finish = draft.finishTier.trim();
-  if (!WHOLE_NUMBER_PATTERN.test(finish) || Number(finish) < 1) {
-    return "Pick where the player finished.";
+  const rank = draft.rank.trim();
+  if (!WHOLE_NUMBER_PATTERN.test(rank) || Number(rank) < 1) {
+    return "Enter where the player finished, as a number.";
   }
-  if (draft.record.trim().length > 20) {
-    return "The record must be 20 characters or fewer.";
+  if (!isRecordPart(draft.wins) || !isRecordPart(draft.losses) || !isRecordPart(draft.draws)) {
+    return "A match record is whole numbers of wins, losses, and draws.";
+  }
+  // The archive derives "5-1" from the two, so one without the other would
+  // display as nothing and quietly lose what was typed.
+  if ((draft.wins.trim() === "") !== (draft.losses.trim() === "")) {
+    return "A match record needs both wins and losses, or neither.";
   }
   if (draft.note.trim().length > 2000) {
     return "The note must be 2000 characters or fewer.";
   }
   if (options.cardCount === 0) {
-    return draft.listStatus === "archetype"
-      ? "Paste the legend, then check it, before sending."
-      : "Paste the decklist, then check it, before sending.";
+    return "Paste the decklist, then check it, before sending.";
   }
   if (options.cardCount > 200) {
     return "That is more than 200 different lines. Send the deck without its sideboard.";
@@ -209,8 +232,8 @@ export function validateMetaSubmissionDraft(
 /**
  * Builds the request body from a validated draft.
  *
- * Exactly one of `metaEventId` and `proposedEvent` is set — the contract, the
- * service, and `candidate_meta_decks`' CHECK all say the same thing, so the
+ * Exactly one of `metaEventId` and `proposedEvent` is set: the contract, the
+ * service, and `candidate_meta_players`' CHECK all say the same thing, so the
  * branch is made here once rather than at the call site.
  *
  * @param draft The validated form values.
@@ -222,7 +245,7 @@ export function buildMetaSubmissionInput(
   draft: MetaSubmissionDraft,
   cards: MetaSubmissionCardLine[],
   target: { metaEventId: string } | null,
-): MetaDeckSubmissionInput {
+): MetaSubmissionInput {
   const players = draft.eventPlayerCount.trim();
   const organizer = draft.eventOrganizer.trim();
   const sourceUrl = draft.eventSourceUrl.trim();
@@ -241,35 +264,13 @@ export function buildMetaSubmissionInput(
     metaEventId: target?.metaEventId ?? null,
     proposedEvent,
     playerName: draft.playerName.trim(),
-    finishTier: Number(draft.finishTier.trim()),
-    record: draft.record.trim() || null,
+    rank: Number(draft.rank.trim()),
+    rankIsTier: draft.rankIsTier,
+    wins: recordPart(draft.wins),
+    losses: recordPart(draft.losses),
+    draws: recordPart(draft.draws),
     listStatus: draft.listStatus,
     cards,
     note: draft.note.trim() || null,
   };
-}
-
-/**
- * The finishes the picker offers. The wire accepts any positive integer, but a
- * free-text box invites "top8" and "2nd", and every real source publishes one of
- * these buckets.
- */
-export const META_SUBMISSION_FINISH_TIERS = [1, 2, 3, 4, 8, 16, 32, 64] as const;
-
-/**
- * A deck's legend zone, which an archetype-only entry has to carry — the legend
- * is the archive's grouping axis, so an entry filed under none is not worth
- * having (ADR-014).
- */
-const LEGEND_ZONE: string = WellKnown.deckZone.LEGEND;
-
-/**
- * Whether an archetype-only submission names its legend. The server refuses one
- * that does not, so the form says so before sending rather than after.
- *
- * @param cards The card lines from the last successful check.
- * @returns True when at least one line sits in the legend zone.
- */
-export function hasLegendLine(cards: readonly MetaSubmissionCardLine[]): boolean {
-  return cards.some((card) => card.zone === LEGEND_ZONE);
 }

@@ -11,4 +11,8 @@ export const cronJobs = {
   tradeMatchDigest: null as Cron | null,
   tradeRequestFlush: null as Cron | null,
   tradeStatusFlush: null as Cron | null,
+  metaUvsgamesSync: null as Cron | null,
+  metaUvsgamesRecheck: null as Cron | null,
+  metaPlayloltcgSync: null as Cron | null,
+  metaPlayloltcgRecheck: null as Cron | null,
 };

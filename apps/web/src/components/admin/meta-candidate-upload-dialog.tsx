@@ -30,14 +30,27 @@ const EXAMPLE_UPLOAD_JSON = `{
       "playerCount": 64,
       "organizer": "Piltover Game Night",
       "sourceUrl": "https://example.test/events/1",
-      "decks": [
+      "players": [
         {
           "externalId": "summoner-skirmish-2026-08-1",
           "playerName": "Rin",
-          "finishTier": 1,
-          "record": "6-1",
-          "name": "Yasuo Aggro",
-          "cards": [{ "name": "Yasuo", "zone": "main", "quantity": 1 }]
+          "rank": 1,
+          "rankIsTier": false,
+          "wins": 6,
+          "losses": 1,
+          "draws": 0,
+          "legendName": "Yasuo",
+          "cards": [{ "name": "Yasuo", "zone": "legend", "quantity": 1 }]
+        },
+        {
+          "externalId": "summoner-skirmish-2026-08-2",
+          "playerName": "Kael",
+          "rank": 8,
+          "rankIsTier": true,
+          "wins": 4,
+          "losses": 3,
+          "draws": 0,
+          "legendName": "Lux"
         }
       ]
     }
@@ -52,8 +65,9 @@ function FormatHelp() {
         <code className="bg-muted rounded px-1">provider</code> string and a non-empty{" "}
         <code className="bg-muted rounded px-1">events</code> array. Each event replaces its own
         staged copy in full, keyed by <code className="bg-muted rounded px-1">externalId</code>;
-        events left out of the file are untouched. Cards carry names, which are matched against the
-        catalog on ingest.
+        events left out of the file are untouched. A player carries a list only when the source
+        published one; the rest are standings rows with a legend. Card and legend names are matched
+        against the catalog on ingest.
       </p>
       <pre className="bg-muted overflow-x-auto rounded-md p-3">
         <code>{EXAMPLE_UPLOAD_JSON}</code>
@@ -74,10 +88,10 @@ function summaryItems(result: MetaUploadResponse): StatStripItem[] {
     { key: "updated-events", value: result.updatedEvents, label: "updated events" },
     { key: "unchanged-events", value: result.unchangedEvents, label: "unchanged events" },
     { key: "ignored-skipped", value: result.ignoredSkipped, label: "skipped (ignored)" },
-    { key: "new-decks", value: result.newDecks, label: "new decks" },
-    { key: "updated-decks", value: result.updatedDecks, label: "updated decks" },
-    { key: "removed-decks", value: result.removedDecks, label: "removed decks" },
-    { key: "unchanged-decks", value: result.unchangedDecks, label: "unchanged decks" },
+    { key: "new-players", value: result.newPlayers, label: "new players" },
+    { key: "updated-players", value: result.updatedPlayers, label: "updated players" },
+    { key: "removed-players", value: result.removedPlayers, label: "removed players" },
+    { key: "unchanged-players", value: result.unchangedPlayers, label: "unchanged players" },
   ];
 }
 
@@ -115,16 +129,16 @@ function UploadSummary({ result }: { result: MetaUploadResponse }) {
         </CandidateDisclosure>
       )}
 
-      {result.removedDeckDetails.length > 0 && (
+      {result.removedPlayerDetails.length > 0 && (
         <CandidateDisclosure
-          title={`Decks the source dropped (${result.removedDeckDetails.length})`}
+          title={`Players the source dropped (${result.removedPlayerDetails.length})`}
         >
           <ul className="space-y-1">
-            {result.removedDeckDetails.map((deck) => (
-              <li key={`${deck.eventExternalId}-${deck.externalId}`}>
-                {deck.playerName}{" "}
+            {result.removedPlayerDetails.map((player) => (
+              <li key={`${player.eventExternalId}-${player.externalId}`}>
+                {player.playerName}{" "}
                 <span className="text-muted-foreground font-mono">
-                  {deck.eventExternalId} / {deck.externalId}
+                  {player.eventExternalId} / {player.externalId}
                 </span>
               </li>
             ))}
@@ -134,13 +148,13 @@ function UploadSummary({ result }: { result: MetaUploadResponse }) {
 
       {result.unresolvedCards.length > 0 && (
         <CandidateDisclosure
-          title={`Decks with unmatched card names (${result.unresolvedCards.length})`}
+          title={`Lists with unmatched card names (${result.unresolvedCards.length})`}
         >
           <ul className="space-y-2">
             {result.unresolvedCards.map((entry) => (
-              <li key={`${entry.eventExternalId}-${entry.deckExternalId}`}>
+              <li key={`${entry.eventExternalId}-${entry.playerExternalId}`}>
                 <span className="text-muted-foreground font-mono">
-                  {entry.eventExternalId} / {entry.deckExternalId}
+                  {entry.eventExternalId} / {entry.playerExternalId}
                 </span>
                 <div>{entry.names.join(", ")}</div>
               </li>

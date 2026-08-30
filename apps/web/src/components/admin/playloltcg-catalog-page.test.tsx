@@ -1,0 +1,314 @@
+import type {
+  PlayloltcgCatalogListResponse,
+  PlayloltcgCatalogRow,
+} from "@openrift/shared/contracts/admin/meta-catalog";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { PlayloltcgCatalogParams } from "@/hooks/use-admin-playloltcg-catalog";
+
+const captured = vi.hoisted(() => ({
+  params: null as unknown,
+  response: null as unknown,
+  accept: vi.fn(),
+  dismiss: vi.fn(),
+  /** How many times the page asked for the accept mutation, to pin it per page rather than per row. */
+  acceptSubscriptions: 0,
+}));
+
+/**
+ * The route's search params, which the page reads its whole filter set from.
+ * Interactions go out through `navigate` and only reach the page when they come
+ * back around through here, which is the loop the real router closes.
+ */
+const searchStore = vi.hoisted(() => {
+  let value: Record<string, unknown> = {};
+  const listeners = new Set<() => void>();
+  return {
+    get: () => value,
+    set: (next: Record<string, unknown>) => {
+      value = next;
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+    seed: (next: Record<string, unknown>) => {
+      value = next;
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+});
+
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
+  useNavigate:
+    () => (options: { search?: (prev: Record<string, unknown>) => Record<string, unknown> }) => {
+      if (options.search) {
+        searchStore.set(options.search(searchStore.get()));
+      }
+    },
+  // `page-top-bar` builds its back button with createLink at module scope.
+  createLink: (component: unknown) => component,
+}));
+
+vi.mock("@/routes/_app/_authenticated/admin/meta", async () => {
+  const { useSyncExternalStore } = await import("react");
+  return {
+    Route: {
+      fullPath: "/admin/meta",
+      useSearch: () =>
+        useSyncExternalStore(searchStore.subscribe, searchStore.get, searchStore.get),
+    },
+  };
+});
+
+vi.mock("@/components/admin/admin-page-top-bar", () => ({
+  AdminPageTopBar: ({ actions }: { actions?: ReactNode }) => <div>{actions}</div>,
+}));
+
+vi.mock("@/hooks/use-admin-playloltcg-catalog", () => ({
+  PLAYLOLTCG_CATALOG_PAGE_SIZE: 50,
+  useAdminPlayloltcgCatalog: (params: PlayloltcgCatalogParams) => {
+    captured.params = params;
+    return { data: captured.response };
+  },
+  useAcceptPlayloltcgEvent: () => {
+    captured.acceptSubscriptions += 1;
+    return { mutate: captured.accept, isPending: false };
+  },
+  useDismissPlayloltcgEvent: () => ({ mutate: captured.dismiss, isPending: false }),
+}));
+
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { PlayloltcgCatalogPage } from "./playloltcg-catalog-page";
+
+function makeRow(overrides: Partial<PlayloltcgCatalogRow> = {}): PlayloltcgCatalogRow {
+  return {
+    activityShopId: 4021,
+    name: "Summoner Skirmish 2026",
+    shopName: "Piltover Games",
+    city: "Zaun",
+    status: 5,
+    battleMode: "1v1",
+    playerCount: 32,
+    startAt: "2026-08-15",
+    triage: "new",
+    candidateEventId: null,
+    metaEventId: null,
+    metaEventSlug: null,
+    fetchedAt: null,
+    sourceUrl: "https://example.test/activity/4021",
+    ...overrides,
+  };
+}
+
+function setResponse(
+  rows: PlayloltcgCatalogRow[],
+  overrides: Partial<PlayloltcgCatalogListResponse> = {},
+) {
+  captured.response = {
+    rows,
+    total: rows.length,
+    page: 1,
+    limit: 50,
+    counts: { new: 7, accepted: 2, dismissed: 1 },
+    ...overrides,
+  } satisfies PlayloltcgCatalogListResponse;
+}
+
+function rowActions(name: string) {
+  return within(screen.getByRole("row", { name: new RegExp(name, "u") }));
+}
+
+describe("PlayloltcgCatalogPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    captured.params = null;
+    captured.acceptSubscriptions = 0;
+    searchStore.seed({});
+    setResponse([makeRow()]);
+  });
+
+  it("asks for the untriaged rows first, since that is the queue being worked", () => {
+    render(<PlayloltcgCatalogPage />);
+    expect(captured.params).toMatchObject({ page: 1, triage: "new" });
+  });
+
+  it("shows what the source published about an event, chips included", () => {
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("Summoner Skirmish 2026")).toBeInTheDocument();
+    expect(screen.getByText("Piltover Games, Zaun")).toBeInTheDocument();
+    expect(screen.getByText("Finished")).toBeInTheDocument();
+    expect(screen.getByText("32")).toBeInTheDocument();
+  });
+
+  it("prints the event's day rather than the source's raw value", () => {
+    setResponse([makeRow({ startAt: "2026-08-15" })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("2026-08-15")).toBeInTheDocument();
+  });
+
+  it("leaves a dash where the source gave no date", () => {
+    setResponse([makeRow({ startAt: null })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(rowActions("Summoner Skirmish").getByText("—")).toBeInTheDocument();
+  });
+
+  it("says nothing about the status when the source reports one it does not know", () => {
+    setResponse([makeRow({ status: 9 })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.queryByText("Finished")).not.toBeInTheDocument();
+  });
+
+  it("names a battle mode that is not the ordinary duel", () => {
+    setResponse([makeRow({ battleMode: "2v2" })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("2v2")).toBeInTheDocument();
+  });
+
+  it("links the event name out to the source's own page", () => {
+    render(<PlayloltcgCatalogPage />);
+    const link = screen.getByRole("link", { name: "Summoner Skirmish 2026" });
+    expect(link).toHaveAttribute("href", "https://example.test/activity/4021");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+
+  it("accepts the row whose button was pressed", async () => {
+    const user = userEvent.setup();
+    setResponse([makeRow(), makeRow({ activityShopId: 5510, name: "Noxus Open" })]);
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(rowActions("Noxus Open").getByRole("button", { name: "Accept" }));
+
+    expect(captured.accept).toHaveBeenCalledWith({ activityShopId: 5510 });
+  });
+
+  it("dismisses the row whose button was pressed", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+
+    expect(captured.dismiss).toHaveBeenCalledWith({ activityShopId: 4021 });
+  });
+
+  it("subscribes to the mutations once for the page, not once per row", () => {
+    setResponse([
+      makeRow({ activityShopId: 1 }),
+      makeRow({ activityShopId: 2 }),
+      makeRow({ activityShopId: 3 }),
+      makeRow({ activityShopId: 4 }),
+    ]);
+    const many = render(<PlayloltcgCatalogPage />);
+    const withFourRows = captured.acceptSubscriptions;
+    many.unmount();
+
+    captured.acceptSubscriptions = 0;
+    setResponse([makeRow({ activityShopId: 1 })]);
+    render(<PlayloltcgCatalogPage />);
+
+    expect(withFourRows).toBe(captured.acceptSubscriptions);
+  });
+
+  it("offers nothing to accept on a row that has already been taken", () => {
+    setResponse([makeRow({ triage: "accepted" })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+  });
+
+  it("offers nothing to dismiss on a row that has already been dropped", () => {
+    setResponse([makeRow({ triage: "dismissed" })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("Dismissed")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+  });
+
+  it("opens on the triage bucket the URL named", () => {
+    searchStore.seed({ triage: "accepted" });
+    render(<PlayloltcgCatalogPage />);
+    expect(captured.params).toMatchObject({ triage: "accepted" });
+  });
+
+  it("leaves the default triage bucket out of the URL, and spells out any other", async () => {
+    const user = userEvent.setup();
+    searchStore.seed({ triage: "accepted" });
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByLabelText("Triage state"));
+    await user.click(await screen.findByRole("option", { name: /^New/u }));
+
+    expect(searchStore.get().triage).toBeUndefined();
+    expect(captured.params).toMatchObject({ triage: "new" });
+  });
+
+  it("asks for every bucket when the reader picks any state", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByLabelText("Triage state"));
+    await user.click(await screen.findByRole("option", { name: "Any state" }));
+
+    expect(searchStore.get()).toMatchObject({ triage: "any" });
+    expect(captured.params).toMatchObject({ triage: undefined });
+  });
+
+  it("counts the buckets on the filter, so the queue's size is visible before picking", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByLabelText("Triage state"));
+
+    expect(await screen.findByRole("option", { name: "New (7)" })).toBeInTheDocument();
+  });
+
+  it("drops a search into the URL rather than keeping it to itself", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+
+    await user.type(screen.getByPlaceholderText("Search event or shop"), "noxus");
+
+    await vi.waitFor(() => {
+      expect(searchStore.get().q).toBe("noxus");
+    });
+    expect(captured.params).toMatchObject({ search: "noxus" });
+  });
+
+  it("pages on the server, and asks for the page that was clicked", async () => {
+    const user = userEvent.setup();
+    setResponse([makeRow()], { total: 120 });
+    render(<PlayloltcgCatalogPage />);
+
+    expect(screen.getByText("120 matching events.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(searchStore.get().page).toBe(2);
+    expect(captured.params).toMatchObject({ page: 2 });
+  });
+
+  it("goes back to the first page whenever a filter reframes the result set", async () => {
+    const user = userEvent.setup();
+    setResponse([makeRow()], { total: 120 });
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    expect(captured.params).toMatchObject({ page: 2 });
+
+    await user.click(screen.getByLabelText("Triage state"));
+    await user.click(await screen.findByRole("option", { name: /^Accepted/u }));
+
+    expect(searchStore.get().page).toBeUndefined();
+    expect(captured.params).toMatchObject({ page: 1, triage: "accepted" });
+  });
+
+  it("says the catalogue is loading before the first page lands", () => {
+    captured.response = undefined;
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("Loading the catalogue…")).toBeInTheDocument();
+  });
+});

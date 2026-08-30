@@ -1,10 +1,9 @@
-import { WellKnown } from "@openrift/shared";
 import type {
   MetaDeckDetailResponse,
   MetaDeckListResponse,
   MetaEventDetailResponse,
   MetaEventListResponse,
-  MetaStatsResponse,
+  MetaCountsResponse,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { implement } from "@orpc/server";
@@ -14,21 +13,21 @@ import {
   toMetaDeckContext,
   toMetaDeckSummary,
   toMetaEventDetail,
+  toMetaEventMatch,
+  toMetaEventPlayer,
   toMetaEventSummary,
-  toMetaStatRow,
 } from "../../lib/meta-presenters.js";
 import { buildPublicDeckDetail } from "../../lib/public-deck-payload.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import type { MetaDeckSummaryRow } from "../../repositories/meta.js";
 
 const os = implement(metaContract).$context<ApiContext>().use(requireUser);
 
 /**
- * Resolves the canonical front image of each card in one batch, so a deck list
- * or a stats table costs one printing lookup rather than one per row. Passing
- * `preferredPrintingId: null` is what asks for the card's canonical default —
- * these surfaces show the card, not a particular printing of it.
+ * Resolves the canonical front image of each card in one batch, so a standings
+ * table or a deck list costs one printing lookup rather than one per row.
+ * Passing `preferredPrintingId: null` is what asks for the card's canonical
+ * default — these surfaces show the card, not a particular printing of it.
  *
  * @param canonicalPrintings The canonical-printings repo.
  * @param cardIds Card ids to resolve; duplicates and nulls are the caller's to avoid.
@@ -49,11 +48,13 @@ async function imageIdsForCards(
 }
 
 /**
- * Collects the legend and champion card ids across a batch of deck summaries.
- * @param rows Deck summary rows.
+ * Collects the legend and champion card ids across a batch of rows.
+ * @param rows Rows carrying a legend and a champion card id.
  * @returns Every non-null card id the rows reference.
  */
-function summaryCardIds(rows: MetaDeckSummaryRow[]): string[] {
+function referencedCardIds(
+  rows: readonly { legendCardId: string | null; championCardId: string | null }[],
+): string[] {
   return rows.flatMap((row) =>
     [row.legendCardId, row.championCardId].filter((id): id is string => id !== null),
   );
@@ -69,7 +70,7 @@ function summaryCardIds(rows: MetaDeckSummaryRow[]): string[] {
  */
 export const metaRouter = {
   events: os.events.handler(async ({ context }): Promise<MetaEventListResponse> => {
-    const rows = await context.repos.meta.listEvents();
+    const rows = await context.repos.meta.allEvents();
     return { events: rows.map((row) => toMetaEventSummary(row)) };
   }),
 
@@ -81,18 +82,20 @@ export const metaRouter = {
       throw errors.NOT_FOUND({ message: "Event not found" });
     }
 
-    const [deckRows, sources, contributors] = await Promise.all([
-      meta.deckSummariesForEvent(event.id),
+    const [players, matches, sources, contributors] = await Promise.all([
+      meta.standingsForEvent(event.id),
+      meta.matchesForEvent(event.id),
       meta.sourcesForEvent(event.id),
       // Already filtered by the repo: anyone on `hidden`, and anyone whose
       // chosen profile field is blank, never reaches this payload.
       meta.contributorsForEvent(event.id),
     ]);
-    const images = await imageIdsForCards(canonicalPrintings, summaryCardIds(deckRows));
+    const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(players));
 
     return {
       event: toMetaEventDetail(event, { sources, contributors }),
-      decks: deckRows.map((row) => toMetaDeckSummary(row, images)),
+      players: players.map((row) => toMetaEventPlayer(row, images)),
+      matches: matches.map((row) => toMetaEventMatch(row)),
     };
   }),
 
@@ -100,7 +103,7 @@ export const metaRouter = {
     const { meta, canonicalPrintings } = context.repos;
 
     const deckRows = await meta.allDeckSummaries();
-    const images = await imageIdsForCards(canonicalPrintings, summaryCardIds(deckRows));
+    const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(deckRows));
 
     return { decks: deckRows.map((row) => toMetaDeckSummary(row, images)) };
   }),
@@ -114,60 +117,28 @@ export const metaRouter = {
     }
 
     // Membership check, not decoration: without it this endpoint would render
-    // any shared user deck as an archive entry.
+    // any shared user deck as an archive entry. A standings-only entry has no
+    // deck at all, so it can never resolve here.
     const metaContext = await meta.contextForDeck(found.deck.id);
     if (!metaContext) {
       throw errors.NOT_FOUND({ message: "Deck not found" });
     }
 
-    // An archetype is never minted a token, so no request should get this far
-    // with one. Refusing anyway keeps the "no page without a main deck" rule
-    // true for a token added by hand, and for a deck demoted back to
-    // "archetype" after it had one. A partial list renders normally: its main
-    // deck is there, only some side zones are missing.
-    if (metaContext.listStatus === "archetype") {
-      throw errors.NOT_FOUND({ message: "Deck not found" });
-    }
-
     const [payload, contributors] = await Promise.all([
       buildPublicDeckDetail(context.repos, found),
-      // The deck's own credit line: whoever contributed this list, not everyone
+      // The entry's own credit line: whoever contributed this list, not everyone
       // who fed its event. Already filtered by the repo, as on the event page.
-      meta.contributorsForDeck(found.deck.id),
+      meta.contributorsForPlayer(metaContext.playerId),
     ]);
     return { ...payload, meta: toMetaDeckContext(metaContext, contributors) };
   }),
 
-  stats: os.stats.handler(async ({ input, context }): Promise<MetaStatsResponse> => {
-    const { meta, canonicalPrintings } = context.repos;
-
-    const [totalDecks, decksWithMainDeck, cards, legends] = await Promise.all([
+  counts: os.counts.handler(async ({ input, context }): Promise<MetaCountsResponse> => {
+    const { meta } = context.repos;
+    const [totalPlayers, decksWithMainDeck] = await Promise.all([
+      meta.playerCountInScope(input),
       meta.deckCountInScope(input),
-      meta.deckCountInScope(input, { knownMainDeckOnly: true }),
-      // Main deck only: counting every zone puts each deck's battlefields and
-      // runes at the top of the list, which says nothing about the meta.
-      //
-      // Which is also why a partial list counts here in full — its main deck is
-      // complete, and the main deck is all this reads. Only archetypes drop
-      // out, and they are counted in the legend play-rate below instead: their
-      // legend is real data, their card list is not a list at all. Hence the
-      // second denominator.
-      meta.cardInclusion(input, { zone: WellKnown.deckZone.MAIN, knownMainDeckOnly: true }),
-      meta.cardInclusion(input, { zone: WellKnown.deckZone.LEGEND }),
     ]);
-
-    // The two aggregates read disjoint zones, so both sets of card ids go into
-    // the one lookup.
-    const images = await imageIdsForCards(canonicalPrintings, [
-      ...cards.map((row) => row.cardId),
-      ...legends.map((row) => row.cardId),
-    ]);
-
-    return {
-      totalDecks,
-      decksWithMainDeck,
-      cards: cards.map((row) => toMetaStatRow(row, images)),
-      legends: legends.map((row) => toMetaStatRow(row, images)),
-    };
+    return { totalPlayers, decksWithMainDeck };
   }),
 };

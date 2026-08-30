@@ -6,6 +6,7 @@ import type { ErrorCode } from "./error-codes.js";
 import { isAllowedLinkUrl } from "./link-hosts.js";
 import {
   META_CREDIT_VISIBILITIES,
+  META_EVENT_TIERS,
   META_LIST_STATUSES,
   META_SUBMISSION_REASONS,
   META_SUBMISSION_STATUSES,
@@ -83,6 +84,12 @@ export const cardFaceSchema = z.enum(["front", "back"]);
  * means.
  */
 export const metaListStatusSchema = z.enum(META_LIST_STATUSES);
+
+/**
+ * How much an archived event counts for. Built from the same constant as the
+ * `MetaEventTier` type; see that type for what each tier holds.
+ */
+export const metaEventTierSchema = z.enum(META_EVENT_TIERS);
 
 /**
  * Whether a contributor's name appears on the archive pages they contributed

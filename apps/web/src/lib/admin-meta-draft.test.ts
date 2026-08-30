@@ -1,18 +1,18 @@
-import type { AdminMetaDeck, AdminMetaEvent } from "@openrift/shared";
+import type { AdminMetaEvent, AdminMetaPlayer } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
   EMPTY_META_EVENT_DRAFT,
-  metaDeckArchetypeCards,
-  metaDeckFinishTier,
-  metaDeckToDraft,
   metaEventDraftToBody,
   metaEventToDraft,
+  metaPlayerRank,
+  metaPlayerRecordPart,
+  metaPlayerToDraft,
   summarizeDeckCards,
-  validateMetaDeckDraft,
   validateMetaEventDraft,
+  validateMetaPlayerDraft,
 } from "@/lib/admin-meta-draft";
-import type { MetaDeckDraft, MetaEventDraft } from "@/lib/admin-meta-draft";
+import type { MetaEventDraft, MetaPlayerDraft } from "@/lib/admin-meta-draft";
 
 function eventDraft(overrides: Partial<MetaEventDraft> = {}): MetaEventDraft {
   return {
@@ -25,16 +25,19 @@ function eventDraft(overrides: Partial<MetaEventDraft> = {}): MetaEventDraft {
   };
 }
 
-function deckDraft(overrides: Partial<MetaDeckDraft> = {}): MetaDeckDraft {
+function playerDraft(overrides: Partial<MetaPlayerDraft> = {}): MetaPlayerDraft {
   return {
-    name: "Yasuo Aggro",
-    format: "standard",
     playerName: "Rell Enjoyer",
-    finishTier: "1",
-    record: "5-1",
-    listStatus: "full",
+    rank: "1",
+    rankIsTier: false,
+    wins: "5",
+    losses: "1",
+    draws: "",
     legendCardId: null,
     championCardId: null,
+    listStatus: "full",
+    deckName: "Yasuo Aggro",
+    deckFormat: "standard",
     ...overrides,
   };
 }
@@ -134,7 +137,12 @@ describe("metaEventToDraft", () => {
       playerCount: 96,
       organizer: "Riot Games",
       notes: "Swiss into top 8.",
+      tier: "competitive",
+      country: "DE",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
+      playerRowCount: 64,
       deckCount: 8,
+      sources: [],
     };
     const body = metaEventDraftToBody(metaEventToDraft(event));
     expect(body).toEqual({
@@ -145,6 +153,9 @@ describe("metaEventToDraft", () => {
       playerCount: 96,
       organizer: "Riot Games",
       notes: "Swiss into top 8.",
+      tier: "competitive",
+      country: "DE",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
     });
   });
 
@@ -158,7 +169,12 @@ describe("metaEventToDraft", () => {
       playerCount: null,
       organizer: null,
       notes: null,
+      tier: "store",
+      country: null,
+      location: null,
+      playerRowCount: 0,
       deckCount: 0,
+      sources: [],
     };
     const draft = metaEventToDraft(event);
     expect(draft.playerCount).toBe("");
@@ -167,137 +183,140 @@ describe("metaEventToDraft", () => {
   });
 });
 
-describe("metaDeckFinishTier", () => {
+describe("metaPlayerRank", () => {
   it("reads a whole number", () => {
-    expect(metaDeckFinishTier("8")).toBe(8);
+    expect(metaPlayerRank("8")).toBe(8);
   });
 
   it("tolerates surrounding whitespace", () => {
-    expect(metaDeckFinishTier(" 16 ")).toBe(16);
+    expect(metaPlayerRank(" 16 ")).toBe(16);
   });
 
-  it("accepts the bounds", () => {
-    expect(metaDeckFinishTier("1")).toBe(1);
-    expect(metaDeckFinishTier("1024")).toBe(1024);
+  it("accepts any positive rank, however deep the field", () => {
+    expect(metaPlayerRank("1")).toBe(1);
+    expect(metaPlayerRank("1024")).toBe(1024);
   });
 
-  it("rejects values outside the bounds", () => {
-    expect(metaDeckFinishTier("0")).toBeNull();
-    expect(metaDeckFinishTier("1025")).toBe(1025);
-  });
-
-  it("rejects non-integers and empty input", () => {
-    expect(metaDeckFinishTier("1.5")).toBeNull();
-    expect(metaDeckFinishTier("first")).toBeNull();
-    expect(metaDeckFinishTier("")).toBeNull();
+  it("rejects zero, non-integers, and empty input", () => {
+    expect(metaPlayerRank("0")).toBeNull();
+    expect(metaPlayerRank("1.5")).toBeNull();
+    expect(metaPlayerRank("first")).toBeNull();
+    expect(metaPlayerRank("")).toBeNull();
   });
 });
 
-describe("validateMetaDeckDraft", () => {
+describe("metaPlayerRecordPart", () => {
+  it("reads a number, and a blank box as null", () => {
+    expect(metaPlayerRecordPart("5")).toBe(5);
+    expect(metaPlayerRecordPart("0")).toBe(0);
+    expect(metaPlayerRecordPart("  ")).toBeNull();
+  });
+});
+
+describe("validateMetaPlayerDraft", () => {
   it("accepts a complete draft", () => {
-    expect(validateMetaDeckDraft(deckDraft())).toBeNull();
-  });
-
-  it("accepts a blank record", () => {
-    expect(validateMetaDeckDraft(deckDraft({ record: "" }))).toBeNull();
-  });
-
-  it("rejects an empty deck name", () => {
-    expect(validateMetaDeckDraft(deckDraft({ name: " " }))).toMatch(/deck name/iu);
-  });
-
-  it("rejects a deck name over 200 characters", () => {
-    expect(validateMetaDeckDraft(deckDraft({ name: "x".repeat(201) }))).toMatch(/deck name/iu);
+    expect(validateMetaPlayerDraft(playerDraft())).toBeNull();
   });
 
   it("rejects an empty player name", () => {
-    expect(validateMetaDeckDraft(deckDraft({ playerName: "" }))).toMatch(/player name/iu);
+    expect(validateMetaPlayerDraft(playerDraft({ playerName: "" }))).toMatch(/player name/iu);
   });
 
   it("rejects a player name over 80 characters", () => {
-    expect(validateMetaDeckDraft(deckDraft({ playerName: "p".repeat(81) }))).toMatch(
+    expect(validateMetaPlayerDraft(playerDraft({ playerName: "p".repeat(81) }))).toMatch(
       /player name/iu,
     );
   });
 
   it("rejects an out-of-range finish", () => {
-    expect(validateMetaDeckDraft(deckDraft({ finishTier: "0" }))).toMatch(/finish/iu);
+    expect(validateMetaPlayerDraft(playerDraft({ rank: "0" }))).toMatch(/finish/iu);
   });
 
-  it("rejects a record over 20 characters", () => {
-    expect(validateMetaDeckDraft(deckDraft({ record: "1".repeat(21) }))).toMatch(/record/iu);
+  it("rejects a record that is not whole numbers", () => {
+    expect(validateMetaPlayerDraft(playerDraft({ wins: "five" }))).toMatch(/whole numbers/iu);
   });
 
-  it("rejects a new archetype entry with no legend picked", () => {
-    expect(validateMetaDeckDraft(deckDraft({ listStatus: "archetype" }))).toMatch(/legend/iu);
+  it("rejects half a record, which would display as nothing", () => {
+    expect(validateMetaPlayerDraft(playerDraft({ losses: "" }))).toMatch(/both wins and losses/iu);
   });
 
-  it("accepts an archetype entry once its legend is picked", () => {
+  it("accepts a standings-only row with no record and no deck fields", () => {
     expect(
-      validateMetaDeckDraft(deckDraft({ listStatus: "archetype", legendCardId: "legend-1" })),
+      validateMetaPlayerDraft(
+        playerDraft({
+          listStatus: "none",
+          wins: "",
+          losses: "",
+          deckName: "",
+          deckFormat: "",
+        }),
+      ),
     ).toBeNull();
   });
 
-  it("lets an edit keep the stored legend without re-picking it", () => {
-    expect(validateMetaDeckDraft(deckDraft({ listStatus: "archetype" }), false)).toBeNull();
-  });
-
-  it("asks for no legend on a partial list, whose main deck is pasted", () => {
-    expect(validateMetaDeckDraft(deckDraft({ listStatus: "partial" }))).toBeNull();
+  it("asks for the deck name and format once a list is claimed", () => {
+    expect(validateMetaPlayerDraft(playerDraft({ deckName: " " }))).toMatch(/deck name/iu);
+    expect(validateMetaPlayerDraft(playerDraft({ deckFormat: "" }))).toMatch(/format/iu);
   });
 });
 
-describe("metaDeckArchetypeCards", () => {
-  it("builds a single legend row when no champion was named", () => {
-    expect(metaDeckArchetypeCards(deckDraft({ legendCardId: "legend-1" }))).toEqual([
-      { cardId: "legend-1", zone: "legend", quantity: 1, preferredPrintingId: null },
-    ]);
-  });
-
-  it("adds the champion row when one was picked", () => {
-    expect(
-      metaDeckArchetypeCards(deckDraft({ legendCardId: "legend-1", championCardId: "champ-1" })),
-    ).toEqual([
-      { cardId: "legend-1", zone: "legend", quantity: 1, preferredPrintingId: null },
-      { cardId: "champ-1", zone: "champion", quantity: 1, preferredPrintingId: null },
-    ]);
-  });
-
-  it("builds nothing without a legend, so an edit keeps the stored rows", () => {
-    expect(metaDeckArchetypeCards(deckDraft({ championCardId: "champ-1" }))).toEqual([]);
-  });
-});
-
-describe("metaDeckToDraft", () => {
-  const stored: AdminMetaDeck = {
+describe("metaPlayerToDraft", () => {
+  const stored: AdminMetaPlayer = {
+    id: "p1",
+    rank: 4,
+    rankIsTier: true,
+    playerName: "Rell Enjoyer",
+    wins: 5,
+    losses: 1,
+    draws: null,
+    legendCardId: "legend-1",
+    legendName: "Yasuo",
+    championCardId: null,
+    championName: null,
+    listStatus: "full",
     deckId: "d1",
     shareToken: "abc123def456",
-    listStatus: "full",
-    name: "Yasuo Aggro",
-    format: "standard",
-    playerName: "Rell Enjoyer",
-    finishTier: 4,
-    record: null,
+    deckName: "Yasuo Aggro",
+    deckFormat: "standard",
     cardCount: 40,
   };
 
-  it("loads a stored deck into the form", () => {
-    expect(metaDeckToDraft(stored)).toEqual({
-      name: "Yasuo Aggro",
-      format: "standard",
+  it("loads a stored standings row into the form", () => {
+    expect(metaPlayerToDraft(stored, "legacy")).toEqual({
       playerName: "Rell Enjoyer",
-      finishTier: "4",
-      record: "",
-      listStatus: "full",
-      legendCardId: null,
+      rank: "4",
+      rankIsTier: true,
+      wins: "5",
+      losses: "1",
+      draws: "",
+      legendCardId: "legend-1",
       championCardId: null,
+      listStatus: "full",
+      deckName: "Yasuo Aggro",
+      deckFormat: "standard",
     });
   });
 
-  it("keeps the stored status and leaves the card picks empty", () => {
-    const draft = metaDeckToDraft({ ...stored, shareToken: null, listStatus: "archetype" });
-    expect(draft.listStatus).toBe("archetype");
-    expect(draft.legendCardId).toBeNull();
+  it("falls back to the event format for a row with no deck", () => {
+    const draft = metaPlayerToDraft(
+      {
+        ...stored,
+        listStatus: "none",
+        deckId: null,
+        shareToken: null,
+        deckName: null,
+        deckFormat: null,
+        cardCount: 0,
+      },
+      "legacy",
+    );
+    expect(draft.listStatus).toBe("none");
+    expect(draft.deckName).toBe("");
+    expect(draft.deckFormat).toBe("legacy");
+  });
+
+  it("keeps the legend, which a standings-only row is filed under", () => {
+    expect(metaPlayerToDraft(stored, "legacy").legendCardId).toBe("legend-1");
   });
 });
 

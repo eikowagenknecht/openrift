@@ -1,6 +1,5 @@
-import type { MetaDeckSummary } from "@openrift/shared";
-
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import type { MetaDeckView } from "@/components/meta/meta-deck-card";
 import {
   MetaDeckByline,
   MetaDeckFrame,
@@ -20,7 +19,7 @@ import { useDeckFormatList } from "@/hooks/use-enums";
  *
  * @returns The deck row element.
  */
-export function MetaDeckRow({ deck }: { deck: MetaDeckSummary }) {
+export function MetaDeckRow({ deck }: { deck: MetaDeckView }) {
   const { labels: formatLabels } = useDeckFormatList();
   const artImageId = deck.legendImageId ?? deck.championImageId;
 

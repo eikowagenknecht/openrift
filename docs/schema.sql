@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict LssKGbWBwS0X62PuSqMpwLqEi7owYQeK0KZR4FgiXDsHAkPbpK6N4CQHVvbV5gr
+\restrict ZuCnFLMe31R7bBdCNbDWoxfuSAyc35xhLLA8SVBNBWiPtXe3a76wUyPHnqzK2dn
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -793,39 +793,6 @@ CREATE TABLE public.candidate_cards (
 
 
 --
--- Name: candidate_meta_decks; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.candidate_meta_decks (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    candidate_event_id uuid,
-    external_id text NOT NULL,
-    player_name text NOT NULL,
-    finish_tier integer NOT NULL,
-    record text,
-    name text,
-    cards jsonb NOT NULL,
-    list_status text DEFAULT 'full'::text NOT NULL,
-    deck_id uuid,
-    checked_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    meta_event_id uuid,
-    submitted_by_user_id text,
-    submission_note text,
-    CONSTRAINT chk_candidate_meta_decks_cards_shape CHECK (((cards IS NULL) OR (jsonb_typeof(cards) = 'array'::text))),
-    CONSTRAINT chk_candidate_meta_decks_external_id CHECK ((external_id <> ''::text)),
-    CONSTRAINT chk_candidate_meta_decks_finish_tier CHECK ((finish_tier >= 1)),
-    CONSTRAINT chk_candidate_meta_decks_list_status CHECK ((list_status = ANY (ARRAY['full'::text, 'partial'::text, 'archetype'::text]))),
-    CONSTRAINT chk_candidate_meta_decks_name CHECK (((name IS NULL) OR ((length(name) >= 1) AND (length(name) <= 120)))),
-    CONSTRAINT chk_candidate_meta_decks_parent CHECK ((num_nonnulls(candidate_event_id, meta_event_id) = 1)),
-    CONSTRAINT chk_candidate_meta_decks_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
-    CONSTRAINT chk_candidate_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20)))),
-    CONSTRAINT chk_candidate_meta_decks_submission_note CHECK ((submission_note <> ''::text))
-);
-
-
---
 -- Name: candidate_meta_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -845,15 +812,101 @@ CREATE TABLE public.candidate_meta_events (
     extra_data jsonb,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    raw jsonb,
+    fetched_at timestamp with time zone,
+    tier text,
+    country text,
+    location text,
+    CONSTRAINT chk_candidate_meta_events_country CHECK (((country IS NULL) OR (country ~ '^[A-Z]{2}$'::text))),
     CONSTRAINT chk_candidate_meta_events_external_id CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_candidate_meta_events_extra_data_shape CHECK (((extra_data IS NULL) OR (jsonb_typeof(extra_data) = 'object'::text))),
     CONSTRAINT chk_candidate_meta_events_format CHECK ((format <> ''::text)),
+    CONSTRAINT chk_candidate_meta_events_location CHECK (((location IS NULL) OR ((length(location) >= 1) AND (length(location) <= 500)))),
     CONSTRAINT chk_candidate_meta_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_candidate_meta_events_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_candidate_meta_events_organizer CHECK (((organizer IS NULL) OR ((length(organizer) >= 1) AND (length(organizer) <= 120)))),
     CONSTRAINT chk_candidate_meta_events_player_count CHECK (((player_count IS NULL) OR (player_count > 0))),
     CONSTRAINT chk_candidate_meta_events_provider CHECK ((provider <> ''::text)),
-    CONSTRAINT chk_candidate_meta_events_source_url CHECK (((source_url IS NULL) OR ((length(source_url) >= 1) AND (length(source_url) <= 2000))))
+    CONSTRAINT chk_candidate_meta_events_raw_shape CHECK (((raw IS NULL) OR (jsonb_typeof(raw) = 'object'::text))),
+    CONSTRAINT chk_candidate_meta_events_source_url CHECK (((source_url IS NULL) OR ((length(source_url) >= 1) AND (length(source_url) <= 2000)))),
+    CONSTRAINT chk_candidate_meta_events_tier CHECK (((tier IS NULL) OR (tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'store'::text, 'casual'::text]))))
+);
+
+
+--
+-- Name: candidate_meta_matches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.candidate_meta_matches (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    candidate_event_id uuid NOT NULL,
+    round_id text NOT NULL,
+    phase_order integer DEFAULT 0 NOT NULL,
+    round_number integer NOT NULL,
+    table_number integer,
+    is_bye boolean DEFAULT false NOT NULL,
+    is_draw boolean DEFAULT false NOT NULL,
+    player1_uvsgames_id integer NOT NULL,
+    player2_uvsgames_id integer,
+    winner_uvsgames_id integer,
+    games_won_p1 smallint,
+    games_won_p2 smallint,
+    meta_event_match_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    source_match_id text NOT NULL,
+    CONSTRAINT chk_candidate_meta_matches_bye CHECK (((player2_uvsgames_id IS NULL) = is_bye)),
+    CONSTRAINT chk_candidate_meta_matches_phase_order CHECK ((phase_order >= 0)),
+    CONSTRAINT chk_candidate_meta_matches_round_id CHECK ((round_id <> ''::text)),
+    CONSTRAINT chk_candidate_meta_matches_round_number CHECK ((round_number >= 1)),
+    CONSTRAINT chk_candidate_meta_matches_source_match_id CHECK ((source_match_id <> ''::text)),
+    CONSTRAINT chk_candidate_meta_matches_winner CHECK (((winner_uvsgames_id IS NULL) OR (winner_uvsgames_id = player1_uvsgames_id) OR (winner_uvsgames_id = player2_uvsgames_id)))
+);
+
+
+--
+-- Name: candidate_meta_players; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.candidate_meta_players (
+    id uuid DEFAULT uuidv7() CONSTRAINT candidate_meta_decks_id_not_null NOT NULL,
+    candidate_event_id uuid,
+    external_id text CONSTRAINT candidate_meta_decks_external_id_not_null NOT NULL,
+    player_name text CONSTRAINT candidate_meta_decks_player_name_not_null NOT NULL,
+    rank integer CONSTRAINT candidate_meta_decks_finish_tier_not_null NOT NULL,
+    cards jsonb,
+    list_status text DEFAULT 'none'::text CONSTRAINT candidate_meta_decks_list_status_not_null NOT NULL,
+    checked_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT candidate_meta_decks_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT candidate_meta_decks_updated_at_not_null NOT NULL,
+    meta_event_id uuid,
+    submitted_by_user_id text,
+    submission_note text,
+    meta_event_player_id uuid,
+    rank_is_tier boolean DEFAULT false CONSTRAINT candidate_meta_decks_rank_is_tier_not_null NOT NULL,
+    wins smallint,
+    losses smallint,
+    draws smallint,
+    legend_name text,
+    champion_name text,
+    legend_card_id uuid,
+    champion_card_id uuid,
+    uvsgames_player_id integer,
+    match_points integer,
+    opponent_match_win_pct double precision,
+    game_win_pct double precision,
+    opponent_game_win_pct double precision,
+    entry_status text,
+    CONSTRAINT chk_candidate_meta_players_cards_shape CHECK (((cards IS NULL) OR (jsonb_typeof(cards) = 'array'::text))),
+    CONSTRAINT chk_candidate_meta_players_entry_status CHECK (((entry_status IS NULL) OR (entry_status = ANY (ARRAY['complete'::text, 'eliminated'::text, 'dropped'::text])))),
+    CONSTRAINT chk_candidate_meta_players_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_candidate_meta_players_list_status CHECK ((list_status = ANY (ARRAY['none'::text, 'partial'::text, 'full'::text]))),
+    CONSTRAINT chk_candidate_meta_players_match_points CHECK (((match_points IS NULL) OR (match_points >= 0))),
+    CONSTRAINT chk_candidate_meta_players_parent CHECK ((num_nonnulls(candidate_event_id, meta_event_id) = 1)),
+    CONSTRAINT chk_candidate_meta_players_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
+    CONSTRAINT chk_candidate_meta_players_rank CHECK ((rank >= 1)),
+    CONSTRAINT chk_candidate_meta_players_submission_note CHECK ((submission_note <> ''::text)),
+    CONSTRAINT chk_candidate_meta_players_tiebreakers CHECK ((((opponent_match_win_pct IS NULL) OR ((opponent_match_win_pct >= (0)::double precision) AND (opponent_match_win_pct <= (1)::double precision))) AND ((game_win_pct IS NULL) OR ((game_win_pct >= (0)::double precision) AND (game_win_pct <= (1)::double precision))) AND ((opponent_game_win_pct IS NULL) OR ((opponent_game_win_pct >= (0)::double precision) AND (opponent_game_win_pct <= (1)::double precision)))))
 );
 
 
@@ -1770,21 +1823,6 @@ CREATE TABLE public.ignored_candidate_cards (
 
 
 --
--- Name: ignored_candidate_meta_decks; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.ignored_candidate_meta_decks (
-    provider text NOT NULL,
-    event_external_id text NOT NULL,
-    external_id text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_ignored_candidate_meta_decks_event_external_id CHECK ((event_external_id <> ''::text)),
-    CONSTRAINT chk_ignored_candidate_meta_decks_external_id CHECK ((external_id <> ''::text)),
-    CONSTRAINT chk_ignored_candidate_meta_decks_provider CHECK ((provider <> ''::text))
-);
-
-
---
 -- Name: ignored_candidate_meta_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1794,6 +1832,21 @@ CREATE TABLE public.ignored_candidate_meta_events (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_ignored_candidate_meta_events_external_id CHECK ((external_id <> ''::text)),
     CONSTRAINT chk_ignored_candidate_meta_events_provider CHECK ((provider <> ''::text))
+);
+
+
+--
+-- Name: ignored_candidate_meta_players; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.ignored_candidate_meta_players (
+    provider text CONSTRAINT ignored_candidate_meta_decks_provider_not_null NOT NULL,
+    event_external_id text CONSTRAINT ignored_candidate_meta_decks_event_external_id_not_null NOT NULL,
+    external_id text CONSTRAINT ignored_candidate_meta_decks_external_id_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT ignored_candidate_meta_decks_created_at_not_null NOT NULL,
+    CONSTRAINT chk_ignored_candidate_meta_players_event_external_id CHECK ((event_external_id <> ''::text)),
+    CONSTRAINT chk_ignored_candidate_meta_players_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_ignored_candidate_meta_players_provider CHECK ((provider <> ''::text))
 );
 
 
@@ -2174,80 +2227,99 @@ CREATE TABLE public.marketplace_products (
 CREATE TABLE public.meta_credits (
     id uuid DEFAULT uuidv7() NOT NULL,
     meta_event_id uuid NOT NULL,
-    deck_id uuid,
     user_id text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: meta_deck_sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.meta_deck_sources (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    deck_id uuid NOT NULL,
-    provider text NOT NULL,
-    event_external_id text NOT NULL,
-    external_id text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_meta_deck_sources_event_external_id CHECK ((event_external_id <> ''::text)),
-    CONSTRAINT chk_meta_deck_sources_external_id CHECK ((external_id <> ''::text)),
-    CONSTRAINT chk_meta_deck_sources_provider CHECK ((provider <> ''::text))
+    meta_event_player_id uuid
 );
 
 
 --
--- Name: meta_deck_submissions; Type: TABLE; Schema: public; Owner: -
+-- Name: meta_event_matches; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.meta_deck_submissions (
+CREATE TABLE public.meta_event_matches (
     id uuid DEFAULT uuidv7() NOT NULL,
-    user_id text NOT NULL,
-    provider text NOT NULL,
-    external_id text NOT NULL,
-    candidate_meta_deck_id uuid,
-    meta_event_id uuid,
-    event_name text NOT NULL,
-    player_name text NOT NULL,
-    note text,
-    status text DEFAULT 'pending'::text NOT NULL,
-    resolution_reason text,
-    resolution_note text,
-    resolved_at timestamp with time zone,
-    resolved_by_user_id text,
-    accepted_deck_id uuid,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_meta_deck_submissions_event_name CHECK (((length(event_name) >= 1) AND (length(event_name) <= 120))),
-    CONSTRAINT chk_meta_deck_submissions_external_id CHECK ((external_id <> ''::text)),
-    CONSTRAINT chk_meta_deck_submissions_note CHECK ((note <> ''::text)),
-    CONSTRAINT chk_meta_deck_submissions_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
-    CONSTRAINT chk_meta_deck_submissions_provider CHECK ((provider <> ''::text)),
-    CONSTRAINT chk_meta_deck_submissions_reason CHECK (((resolution_reason IS NULL) OR (resolution_reason = ANY (ARRAY['duplicate'::text, 'already_correct'::text, 'unverified'::text, 'incomplete_list'::text, 'not_an_event'::text])))),
-    CONSTRAINT chk_meta_deck_submissions_resolution_note CHECK ((resolution_note <> ''::text)),
-    CONSTRAINT chk_meta_deck_submissions_resolved_at CHECK (((status = 'pending'::text) = (resolved_at IS NULL))),
-    CONSTRAINT chk_meta_deck_submissions_status CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'already_correct'::text, 'not_applied'::text, 'rejected'::text])))
-);
-
-
---
--- Name: meta_decks; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.meta_decks (
-    deck_id uuid NOT NULL,
     meta_event_id uuid NOT NULL,
-    player_name text NOT NULL,
-    finish_tier integer NOT NULL,
-    record text,
-    list_status text DEFAULT 'full'::text NOT NULL,
+    phase_order integer DEFAULT 0 NOT NULL,
+    round_number integer NOT NULL,
+    table_number integer,
+    is_bye boolean DEFAULT false NOT NULL,
+    is_draw boolean DEFAULT false NOT NULL,
+    player1_id uuid NOT NULL,
+    player2_id uuid,
+    winner_id uuid,
+    games_won_p1 smallint,
+    games_won_p2 smallint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_meta_decks_finish_tier CHECK ((finish_tier >= 1)),
-    CONSTRAINT chk_meta_decks_list_status CHECK ((list_status = ANY (ARRAY['full'::text, 'partial'::text, 'archetype'::text]))),
-    CONSTRAINT chk_meta_decks_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
-    CONSTRAINT chk_meta_decks_record CHECK (((record IS NULL) OR ((length(record) >= 1) AND (length(record) <= 20))))
+    source_match_id text,
+    source_round_id text,
+    CONSTRAINT chk_meta_event_matches_bye CHECK (((player2_id IS NULL) = is_bye)),
+    CONSTRAINT chk_meta_event_matches_phase_order CHECK ((phase_order >= 0)),
+    CONSTRAINT chk_meta_event_matches_round_number CHECK ((round_number >= 1)),
+    CONSTRAINT chk_meta_event_matches_source_match_id CHECK (((source_match_id IS NULL) OR (source_match_id <> ''::text))),
+    CONSTRAINT chk_meta_event_matches_source_round_id CHECK (((source_round_id IS NULL) OR (source_round_id <> ''::text))),
+    CONSTRAINT chk_meta_event_matches_winner CHECK (((winner_id IS NULL) OR (winner_id = player1_id) OR (winner_id = player2_id)))
+);
+
+
+--
+-- Name: meta_event_phases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_event_phases (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    meta_event_id uuid NOT NULL,
+    phase_order integer NOT NULL,
+    name text,
+    round_type text NOT NULL,
+    round_count integer,
+    rank_required integer,
+    max_game_wins smallint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_meta_event_phases_max_game_wins CHECK (((max_game_wins IS NULL) OR (max_game_wins > 0))),
+    CONSTRAINT chk_meta_event_phases_name CHECK (((name IS NULL) OR ((length(name) >= 1) AND (length(name) <= 120)))),
+    CONSTRAINT chk_meta_event_phases_phase_order CHECK ((phase_order >= 0)),
+    CONSTRAINT chk_meta_event_phases_rank_required CHECK (((rank_required IS NULL) OR (rank_required > 0))),
+    CONSTRAINT chk_meta_event_phases_round_count CHECK (((round_count IS NULL) OR (round_count > 0))),
+    CONSTRAINT chk_meta_event_phases_round_type CHECK ((round_type <> ''::text))
+);
+
+
+--
+-- Name: meta_event_players; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_event_players (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    meta_event_id uuid NOT NULL,
+    rank integer NOT NULL,
+    rank_is_tier boolean DEFAULT false NOT NULL,
+    player_name text,
+    wins smallint,
+    losses smallint,
+    draws smallint,
+    legend_card_id uuid,
+    champion_card_id uuid,
+    deck_id uuid,
+    list_status text DEFAULT 'none'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    uvsgames_player_id integer,
+    match_points integer,
+    opponent_match_win_pct double precision,
+    game_win_pct double precision,
+    opponent_game_win_pct double precision,
+    entry_status text,
+    CONSTRAINT chk_meta_event_players_deck_status CHECK (((deck_id IS NULL) = (list_status = 'none'::text))),
+    CONSTRAINT chk_meta_event_players_entry_status CHECK (((entry_status IS NULL) OR (entry_status = ANY (ARRAY['complete'::text, 'eliminated'::text, 'dropped'::text])))),
+    CONSTRAINT chk_meta_event_players_identity CHECK (((player_name IS NOT NULL) OR (uvsgames_player_id IS NOT NULL))),
+    CONSTRAINT chk_meta_event_players_list_status CHECK ((list_status = ANY (ARRAY['none'::text, 'partial'::text, 'full'::text]))),
+    CONSTRAINT chk_meta_event_players_match_points CHECK (((match_points IS NULL) OR (match_points >= 0))),
+    CONSTRAINT chk_meta_event_players_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
+    CONSTRAINT chk_meta_event_players_rank CHECK ((rank >= 1)),
+    CONSTRAINT chk_meta_event_players_tiebreakers CHECK ((((opponent_match_win_pct IS NULL) OR ((opponent_match_win_pct >= (0)::double precision) AND (opponent_match_win_pct <= (1)::double precision))) AND ((game_win_pct IS NULL) OR ((game_win_pct >= (0)::double precision) AND (game_win_pct <= (1)::double precision))) AND ((opponent_game_win_pct IS NULL) OR ((opponent_game_win_pct >= (0)::double precision) AND (opponent_game_win_pct <= (1)::double precision)))))
 );
 
 
@@ -2286,11 +2358,66 @@ CREATE TABLE public.meta_events (
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    tier text DEFAULT 'store'::text NOT NULL,
+    country text,
+    location text,
+    CONSTRAINT chk_meta_events_country CHECK (((country IS NULL) OR (country ~ '^[A-Z]{2}$'::text))),
+    CONSTRAINT chk_meta_events_location CHECK (((location IS NULL) OR ((length(location) >= 1) AND (length(location) <= 500)))),
     CONSTRAINT chk_meta_events_name CHECK (((length(name) >= 1) AND (length(name) <= 120))),
     CONSTRAINT chk_meta_events_notes CHECK (((notes IS NULL) OR (length(notes) <= 4000))),
     CONSTRAINT chk_meta_events_organizer CHECK (((organizer IS NULL) OR ((length(organizer) >= 1) AND (length(organizer) <= 120)))),
     CONSTRAINT chk_meta_events_player_count CHECK (((player_count IS NULL) OR (player_count > 0))),
-    CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text))
+    CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text)),
+    CONSTRAINT chk_meta_events_tier CHECK ((tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'store'::text, 'casual'::text])))
+);
+
+
+--
+-- Name: meta_submissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_submissions (
+    id uuid DEFAULT uuidv7() CONSTRAINT meta_deck_submissions_id_not_null NOT NULL,
+    user_id text CONSTRAINT meta_deck_submissions_user_id_not_null NOT NULL,
+    provider text CONSTRAINT meta_deck_submissions_provider_not_null NOT NULL,
+    external_id text CONSTRAINT meta_deck_submissions_external_id_not_null NOT NULL,
+    candidate_meta_player_id uuid,
+    meta_event_id uuid,
+    event_name text CONSTRAINT meta_deck_submissions_event_name_not_null NOT NULL,
+    player_name text CONSTRAINT meta_deck_submissions_player_name_not_null NOT NULL,
+    note text,
+    status text DEFAULT 'pending'::text CONSTRAINT meta_deck_submissions_status_not_null NOT NULL,
+    resolution_reason text,
+    resolution_note text,
+    resolved_at timestamp with time zone,
+    resolved_by_user_id text,
+    accepted_deck_id uuid,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT meta_deck_submissions_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT meta_deck_submissions_updated_at_not_null NOT NULL,
+    CONSTRAINT chk_meta_submissions_event_name CHECK (((length(event_name) >= 1) AND (length(event_name) <= 120))),
+    CONSTRAINT chk_meta_submissions_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_meta_submissions_note CHECK ((note <> ''::text)),
+    CONSTRAINT chk_meta_submissions_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
+    CONSTRAINT chk_meta_submissions_provider CHECK ((provider <> ''::text)),
+    CONSTRAINT chk_meta_submissions_reason CHECK (((resolution_reason IS NULL) OR (resolution_reason = ANY (ARRAY['duplicate'::text, 'already_correct'::text, 'unverified'::text, 'incomplete_list'::text, 'not_an_event'::text])))),
+    CONSTRAINT chk_meta_submissions_resolution_note CHECK ((resolution_note <> ''::text)),
+    CONSTRAINT chk_meta_submissions_resolved_at CHECK (((status = 'pending'::text) = (resolved_at IS NULL))),
+    CONSTRAINT chk_meta_submissions_status CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'already_correct'::text, 'not_applied'::text, 'rejected'::text])))
+);
+
+
+--
+-- Name: meta_sync_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_sync_settings (
+    id integer NOT NULL,
+    auto_accept_min_players integer,
+    auto_accept_notable boolean DEFAULT false NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    auto_accept_official boolean DEFAULT false NOT NULL,
+    CONSTRAINT chk_meta_sync_settings_min_players CHECK (((auto_accept_min_players IS NULL) OR (auto_accept_min_players > 0))),
+    CONSTRAINT chk_meta_sync_settings_singleton CHECK ((id = 1))
 );
 
 
@@ -2506,6 +2633,74 @@ CREATE TABLE public.overlay_channels (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_overlay_channels_payload_shape CHECK (((payload IS NULL) OR (jsonb_typeof(payload) = 'object'::text))),
     CONSTRAINT chk_overlay_channels_token_not_empty CHECK ((token <> ''::text))
+);
+
+
+--
+-- Name: playloltcg_event_checks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.playloltcg_event_checks (
+    activity_shop_id bigint NOT NULL,
+    next_check_at timestamp with time zone,
+    check_stage smallint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_playloltcg_event_checks_stage CHECK ((check_stage >= 0))
+);
+
+
+--
+-- Name: playloltcg_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.playloltcg_events (
+    activity_shop_id bigint NOT NULL,
+    shop_id integer,
+    shop_name text,
+    name text NOT NULL,
+    activity_type text,
+    activity_type_name text,
+    battle_mode text,
+    status smallint,
+    start_at date,
+    end_at date,
+    player_count integer,
+    max_user integer,
+    fee integer,
+    province text,
+    city text,
+    area text,
+    address text,
+    longitude double precision,
+    latitude double precision,
+    content_hash text NOT NULL,
+    first_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen_at timestamp with time zone NOT NULL,
+    missing_since timestamp with time zone,
+    CONSTRAINT chk_playloltcg_events_content_hash CHECK ((content_hash <> ''::text)),
+    CONSTRAINT chk_playloltcg_events_name CHECK ((length(name) >= 1)),
+    CONSTRAINT chk_playloltcg_events_player_count CHECK (((player_count IS NULL) OR (player_count >= 0))),
+    CONSTRAINT chk_playloltcg_events_status CHECK (((status IS NULL) OR ((status >= 1) AND (status <= 5))))
+);
+
+
+--
+-- Name: playloltcg_shops; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.playloltcg_shops (
+    id integer NOT NULL,
+    name text NOT NULL,
+    province text,
+    city text,
+    area text,
+    address text,
+    longitude double precision,
+    latitude double precision,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_playloltcg_shops_name CHECK (((length(name) >= 1) AND (length(name) <= 200)))
 );
 
 
@@ -3101,6 +3296,107 @@ CREATE TABLE public.users (
 
 
 --
+-- Name: uvsgames_event_checks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_event_checks (
+    external_id text NOT NULL,
+    next_check_at timestamp with time zone,
+    check_stage smallint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_uvsgames_event_checks_stage CHECK ((check_stage >= 0))
+);
+
+
+--
+-- Name: uvsgames_event_templates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_event_templates (
+    template_id text NOT NULL,
+    source_name text,
+    watched boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    tier text,
+    CONSTRAINT chk_uvsgames_event_templates_source_name CHECK (((source_name IS NULL) OR ((length(source_name) >= 1) AND (length(source_name) <= 200)))),
+    CONSTRAINT chk_uvsgames_event_templates_template_id CHECK ((template_id <> ''::text)),
+    CONSTRAINT chk_uvsgames_event_templates_tier CHECK (((tier IS NULL) OR (tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'store'::text, 'casual'::text]))))
+);
+
+
+--
+-- Name: uvsgames_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_events (
+    external_id text NOT NULL,
+    name text NOT NULL,
+    start_at timestamp with time zone NOT NULL,
+    end_at_estimate timestamp with time zone,
+    display_status text NOT NULL,
+    decklist_status text,
+    player_count integer,
+    event_type text,
+    event_format text,
+    store_name text,
+    location text,
+    timezone text,
+    content_hash text NOT NULL,
+    first_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen_at timestamp with time zone NOT NULL,
+    missing_since timestamp with time zone,
+    event_configuration_template text,
+    store_id integer,
+    CONSTRAINT chk_uvsgames_events_content_hash CHECK ((content_hash <> ''::text)),
+    CONSTRAINT chk_uvsgames_events_display_status CHECK ((display_status <> ''::text)),
+    CONSTRAINT chk_uvsgames_events_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_uvsgames_events_name CHECK ((name <> ''::text)),
+    CONSTRAINT chk_uvsgames_events_player_count CHECK (((player_count IS NULL) OR (player_count >= 0)))
+);
+
+
+--
+-- Name: uvsgames_format_mappings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_format_mappings (
+    source_format text NOT NULL,
+    mapped_format text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_uvsgames_format_mappings_source_format CHECK ((source_format <> ''::text))
+);
+
+
+--
+-- Name: uvsgames_players; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_players (
+    id integer NOT NULL,
+    display_name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_uvsgames_players_display_name CHECK (((length(display_name) >= 1) AND (length(display_name) <= 80)))
+);
+
+
+--
+-- Name: uvsgames_stores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_stores (
+    id integer NOT NULL,
+    name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_uvsgames_stores_name CHECK (((length(name) >= 1) AND (length(name) <= 200)))
+);
+
+
+--
 -- Name: verifications; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3171,19 +3467,27 @@ ALTER TABLE ONLY public.candidate_cards
 
 
 --
--- Name: candidate_meta_decks candidate_meta_decks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_meta_decks
-    ADD CONSTRAINT candidate_meta_decks_pkey PRIMARY KEY (id);
-
-
---
 -- Name: candidate_meta_events candidate_meta_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.candidate_meta_events
     ADD CONSTRAINT candidate_meta_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: candidate_meta_matches candidate_meta_matches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT candidate_meta_matches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_pkey PRIMARY KEY (id);
 
 
 --
@@ -3675,19 +3979,19 @@ ALTER TABLE ONLY public.ignored_candidate_cards
 
 
 --
--- Name: ignored_candidate_meta_decks ignored_candidate_meta_decks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.ignored_candidate_meta_decks
-    ADD CONSTRAINT ignored_candidate_meta_decks_pkey PRIMARY KEY (provider, event_external_id, external_id);
-
-
---
 -- Name: ignored_candidate_meta_events ignored_candidate_meta_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.ignored_candidate_meta_events
     ADD CONSTRAINT ignored_candidate_meta_events_pkey PRIMARY KEY (provider, external_id);
+
+
+--
+-- Name: ignored_candidate_meta_players ignored_candidate_meta_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ignored_candidate_meta_players
+    ADD CONSTRAINT ignored_candidate_meta_players_pkey PRIMARY KEY (provider, event_external_id, external_id);
 
 
 --
@@ -3883,27 +4187,27 @@ ALTER TABLE ONLY public.meta_credits
 
 
 --
--- Name: meta_deck_sources meta_deck_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_matches meta_event_matches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_deck_sources
-    ADD CONSTRAINT meta_deck_sources_pkey PRIMARY KEY (id);
-
-
---
--- Name: meta_deck_submissions meta_deck_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meta_deck_submissions
-    ADD CONSTRAINT meta_deck_submissions_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.meta_event_matches
+    ADD CONSTRAINT meta_event_matches_pkey PRIMARY KEY (id);
 
 
 --
--- Name: meta_decks meta_decks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_phases meta_event_phases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_decks
-    ADD CONSTRAINT meta_decks_pkey PRIMARY KEY (deck_id);
+ALTER TABLE ONLY public.meta_event_phases
+    ADD CONSTRAINT meta_event_phases_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: meta_event_players meta_event_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_pkey PRIMARY KEY (id);
 
 
 --
@@ -3920,6 +4224,22 @@ ALTER TABLE ONLY public.meta_event_sources
 
 ALTER TABLE ONLY public.meta_events
     ADD CONSTRAINT meta_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: meta_submissions meta_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_submissions
+    ADD CONSTRAINT meta_submissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: meta_sync_settings meta_sync_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_sync_settings
+    ADD CONSTRAINT meta_sync_settings_pkey PRIMARY KEY (id);
 
 
 --
@@ -3968,6 +4288,30 @@ ALTER TABLE ONLY public.overlay_channels
 
 ALTER TABLE ONLY public.overlay_channels
     ADD CONSTRAINT overlay_channels_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: playloltcg_event_checks playloltcg_event_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.playloltcg_event_checks
+    ADD CONSTRAINT playloltcg_event_checks_pkey PRIMARY KEY (activity_shop_id);
+
+
+--
+-- Name: playloltcg_events playloltcg_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.playloltcg_events
+    ADD CONSTRAINT playloltcg_events_pkey PRIMARY KEY (activity_shop_id);
+
+
+--
+-- Name: playloltcg_shops playloltcg_shops_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.playloltcg_shops
+    ADD CONSTRAINT playloltcg_shops_pkey PRIMARY KEY (id);
 
 
 --
@@ -4267,19 +4611,27 @@ ALTER TABLE ONLY public.tournaments
 
 
 --
--- Name: candidate_meta_decks uq_candidate_meta_decks_source; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_meta_decks
-    ADD CONSTRAINT uq_candidate_meta_decks_source UNIQUE (candidate_event_id, external_id);
-
-
---
 -- Name: candidate_meta_events uq_candidate_meta_events_source; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.candidate_meta_events
     ADD CONSTRAINT uq_candidate_meta_events_source UNIQUE (provider, external_id);
+
+
+--
+-- Name: candidate_meta_matches uq_candidate_meta_matches_source; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT uq_candidate_meta_matches_source UNIQUE (candidate_event_id, source_match_id);
+
+
+--
+-- Name: candidate_meta_players uq_candidate_meta_players_source; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT uq_candidate_meta_players_source UNIQUE (candidate_event_id, external_id);
 
 
 --
@@ -4368,6 +4720,22 @@ ALTER TABLE ONLY public.lists
 
 ALTER TABLE ONLY public.loan_copies
     ADD CONSTRAINT uq_loan_copies_copy UNIQUE (copy_id);
+
+
+--
+-- Name: meta_event_phases uq_meta_event_phases_order; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_phases
+    ADD CONSTRAINT uq_meta_event_phases_order UNIQUE (meta_event_id, phase_order);
+
+
+--
+-- Name: meta_event_players uq_meta_event_players_deck; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT uq_meta_event_players_deck UNIQUE (deck_id);
 
 
 --
@@ -4467,6 +4835,54 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: uvsgames_event_checks uvsgames_event_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_event_checks
+    ADD CONSTRAINT uvsgames_event_checks_pkey PRIMARY KEY (external_id);
+
+
+--
+-- Name: uvsgames_event_templates uvsgames_event_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_event_templates
+    ADD CONSTRAINT uvsgames_event_templates_pkey PRIMARY KEY (template_id);
+
+
+--
+-- Name: uvsgames_events uvsgames_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_events
+    ADD CONSTRAINT uvsgames_events_pkey PRIMARY KEY (external_id);
+
+
+--
+-- Name: uvsgames_format_mappings uvsgames_format_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_format_mappings
+    ADD CONSTRAINT uvsgames_format_mappings_pkey PRIMARY KEY (source_format);
+
+
+--
+-- Name: uvsgames_players uvsgames_players_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_players
+    ADD CONSTRAINT uvsgames_players_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: uvsgames_stores uvsgames_stores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_stores
+    ADD CONSTRAINT uvsgames_stores_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: verifications verifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4559,17 +4975,17 @@ CREATE INDEX idx_candidate_cards_unchecked ON public.candidate_cards USING btree
 
 
 --
--- Name: idx_candidate_meta_decks_deck; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_candidate_meta_matches_unstamped; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_candidate_meta_decks_deck ON public.candidate_meta_decks USING btree (deck_id) WHERE (deck_id IS NOT NULL);
+CREATE INDEX idx_candidate_meta_matches_unstamped ON public.candidate_meta_matches USING btree (candidate_event_id) WHERE (meta_event_match_id IS NULL);
 
 
 --
--- Name: idx_candidate_meta_decks_meta_event; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_candidate_meta_players_meta_event; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_candidate_meta_decks_meta_event ON public.candidate_meta_decks USING btree (meta_event_id) WHERE (meta_event_id IS NOT NULL);
+CREATE INDEX idx_candidate_meta_players_meta_event ON public.candidate_meta_players USING btree (meta_event_id) WHERE (meta_event_id IS NOT NULL);
 
 
 --
@@ -5014,31 +5430,24 @@ CREATE INDEX idx_meta_credits_user ON public.meta_credits USING btree (user_id);
 
 
 --
--- Name: idx_meta_deck_sources_deck; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_meta_event_matches_round; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_meta_deck_sources_deck ON public.meta_deck_sources USING btree (deck_id);
-
-
---
--- Name: idx_meta_deck_submissions_user_created; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_meta_deck_submissions_user_created ON public.meta_deck_submissions USING btree (user_id, created_at DESC, id DESC);
+CREATE INDEX idx_meta_event_matches_round ON public.meta_event_matches USING btree (meta_event_id, phase_order, round_number);
 
 
 --
--- Name: idx_meta_deck_submissions_user_status; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_meta_event_players_event; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_meta_deck_submissions_user_status ON public.meta_deck_submissions USING btree (user_id, status);
+CREATE INDEX idx_meta_event_players_event ON public.meta_event_players USING btree (meta_event_id, rank);
 
 
 --
--- Name: idx_meta_decks_event_finish; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_meta_event_players_legend; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_meta_decks_event_finish ON public.meta_decks USING btree (meta_event_id, finish_tier);
+CREATE INDEX idx_meta_event_players_legend ON public.meta_event_players USING btree (legend_card_id);
 
 
 --
@@ -5060,6 +5469,20 @@ CREATE INDEX idx_meta_events_event_date ON public.meta_events USING btree (event
 --
 
 CREATE INDEX idx_meta_events_format ON public.meta_events USING btree (format);
+
+
+--
+-- Name: idx_meta_submissions_user_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_submissions_user_created ON public.meta_submissions USING btree (user_id, created_at DESC, id DESC);
+
+
+--
+-- Name: idx_meta_submissions_user_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_submissions_user_status ON public.meta_submissions USING btree (user_id, status);
 
 
 --
@@ -5102,6 +5525,27 @@ CREATE UNIQUE INDEX idx_mv_printings_canonical_rank_pk ON public.mv_printings_ca
 --
 
 CREATE INDEX idx_organization_members_user ON public.organization_members USING btree (user_id);
+
+
+--
+-- Name: idx_playloltcg_event_checks_due; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_playloltcg_event_checks_due ON public.playloltcg_event_checks USING btree (next_check_at) WHERE (next_check_at IS NOT NULL);
+
+
+--
+-- Name: idx_playloltcg_events_shop; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_playloltcg_events_shop ON public.playloltcg_events USING btree (shop_id) WHERE (shop_id IS NOT NULL);
+
+
+--
+-- Name: idx_playloltcg_events_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_playloltcg_events_start ON public.playloltcg_events USING btree (start_at);
 
 
 --
@@ -5315,6 +5759,34 @@ CREATE INDEX idx_user_contact_methods_user ON public.user_contact_methods USING 
 
 
 --
+-- Name: idx_uvsgames_event_checks_due; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uvsgames_event_checks_due ON public.uvsgames_event_checks USING btree (next_check_at) WHERE (next_check_at IS NOT NULL);
+
+
+--
+-- Name: idx_uvsgames_events_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uvsgames_events_start ON public.uvsgames_events USING btree (start_at DESC);
+
+
+--
+-- Name: idx_uvsgames_events_store; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uvsgames_events_store ON public.uvsgames_events USING btree (store_id) WHERE (store_id IS NOT NULL);
+
+
+--
+-- Name: idx_uvsgames_events_template; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uvsgames_events_template ON public.uvsgames_events USING btree (event_configuration_template) WHERE (event_configuration_template IS NOT NULL);
+
+
+--
 -- Name: marketplace_product_variants_product_printing_key; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -5343,10 +5815,10 @@ CREATE UNIQUE INDEX uq_accounts_provider_account ON public.accounts USING btree 
 
 
 --
--- Name: uq_candidate_meta_decks_submission; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_candidate_meta_players_submission; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_candidate_meta_decks_submission ON public.candidate_meta_decks USING btree (meta_event_id, external_id) WHERE (meta_event_id IS NOT NULL);
+CREATE UNIQUE INDEX uq_candidate_meta_players_submission ON public.candidate_meta_players USING btree (meta_event_id, external_id) WHERE (meta_event_id IS NOT NULL);
 
 
 --
@@ -5458,21 +5930,28 @@ CREATE UNIQUE INDEX uq_list_entries_printing ON public.list_entries USING btree 
 -- Name: uq_meta_credits_contribution; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_meta_credits_contribution ON public.meta_credits USING btree (meta_event_id, user_id, deck_id) NULLS NOT DISTINCT;
+CREATE UNIQUE INDEX uq_meta_credits_contribution ON public.meta_credits USING btree (meta_event_id, user_id, meta_event_player_id) NULLS NOT DISTINCT;
 
 
 --
--- Name: uq_meta_deck_sources_key; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_meta_event_matches_seat; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_meta_deck_sources_key ON public.meta_deck_sources USING btree (provider, event_external_id, external_id);
+CREATE UNIQUE INDEX uq_meta_event_matches_seat ON public.meta_event_matches USING btree (meta_event_id, phase_order, round_number, player1_id) WHERE (source_match_id IS NULL);
 
 
 --
--- Name: uq_meta_deck_submissions_provider_external; Type: INDEX; Schema: public; Owner: -
+-- Name: uq_meta_event_matches_source; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_meta_deck_submissions_provider_external ON public.meta_deck_submissions USING btree (provider, external_id);
+CREATE UNIQUE INDEX uq_meta_event_matches_source ON public.meta_event_matches USING btree (meta_event_id, source_match_id) WHERE (source_match_id IS NOT NULL);
+
+
+--
+-- Name: uq_meta_event_players_uvsgames_player; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_meta_event_players_uvsgames_player ON public.meta_event_players USING btree (meta_event_id, uvsgames_player_id) WHERE (uvsgames_player_id IS NOT NULL);
 
 
 --
@@ -5480,6 +5959,13 @@ CREATE UNIQUE INDEX uq_meta_deck_submissions_provider_external ON public.meta_de
 --
 
 CREATE UNIQUE INDEX uq_meta_event_sources_key ON public.meta_event_sources USING btree (provider, external_id) WHERE (provider IS NOT NULL);
+
+
+--
+-- Name: uq_meta_submissions_provider_external; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_meta_submissions_provider_external ON public.meta_submissions USING btree (provider, external_id);
 
 
 --
@@ -5791,17 +6277,24 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_cards FOR EA
 
 
 --
--- Name: candidate_meta_decks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_meta_decks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: candidate_meta_events trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_meta_events FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: candidate_meta_matches trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_meta_matches FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: candidate_meta_players trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_meta_players FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -5994,17 +6487,24 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_products F
 
 
 --
--- Name: meta_deck_submissions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: meta_event_matches trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_deck_submissions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_event_matches FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
--- Name: meta_decks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: meta_event_phases trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_decks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_event_phases FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: meta_event_players trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_event_players FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -6012,6 +6512,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_decks FOR EACH RO
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_events FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: meta_submissions trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_submissions FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: meta_sync_settings trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.meta_sync_settings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -6026,6 +6540,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.organizations FOR EACH
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.overlay_channels FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: playloltcg_event_checks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.playloltcg_event_checks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: playloltcg_shops trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.playloltcg_shops FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -6141,6 +6669,41 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXE
 
 
 --
+-- Name: uvsgames_event_checks trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.uvsgames_event_checks FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: uvsgames_event_templates trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.uvsgames_event_templates FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: uvsgames_format_mappings trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.uvsgames_format_mappings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: uvsgames_players trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.uvsgames_players FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: uvsgames_stores trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.uvsgames_stores FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: verifications trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -6223,43 +6786,107 @@ ALTER TABLE ONLY public.candidate_cards
 
 
 --
--- Name: candidate_meta_decks candidate_meta_decks_candidate_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_meta_decks
-    ADD CONSTRAINT candidate_meta_decks_candidate_event_id_fkey FOREIGN KEY (candidate_event_id) REFERENCES public.candidate_meta_events(id) ON DELETE CASCADE;
-
-
---
--- Name: candidate_meta_decks candidate_meta_decks_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_meta_decks
-    ADD CONSTRAINT candidate_meta_decks_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE SET NULL;
-
-
---
--- Name: candidate_meta_decks candidate_meta_decks_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_meta_decks
-    ADD CONSTRAINT candidate_meta_decks_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
-
-
---
--- Name: candidate_meta_decks candidate_meta_decks_submitted_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_meta_decks
-    ADD CONSTRAINT candidate_meta_decks_submitted_by_user_id_fkey FOREIGN KEY (submitted_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
 -- Name: candidate_meta_events candidate_meta_events_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.candidate_meta_events
     ADD CONSTRAINT candidate_meta_events_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_matches candidate_meta_matches_candidate_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT candidate_meta_matches_candidate_event_id_fkey FOREIGN KEY (candidate_event_id) REFERENCES public.candidate_meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: candidate_meta_matches candidate_meta_matches_meta_event_match_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT candidate_meta_matches_meta_event_match_id_fkey FOREIGN KEY (meta_event_match_id) REFERENCES public.meta_event_matches(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_matches candidate_meta_matches_player1_uvsgames_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT candidate_meta_matches_player1_uvsgames_id_fkey FOREIGN KEY (player1_uvsgames_id) REFERENCES public.uvsgames_players(id);
+
+
+--
+-- Name: candidate_meta_matches candidate_meta_matches_player2_uvsgames_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT candidate_meta_matches_player2_uvsgames_id_fkey FOREIGN KEY (player2_uvsgames_id) REFERENCES public.uvsgames_players(id);
+
+
+--
+-- Name: candidate_meta_matches candidate_meta_matches_winner_uvsgames_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_matches
+    ADD CONSTRAINT candidate_meta_matches_winner_uvsgames_id_fkey FOREIGN KEY (winner_uvsgames_id) REFERENCES public.uvsgames_players(id);
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_candidate_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_candidate_event_id_fkey FOREIGN KEY (candidate_event_id) REFERENCES public.candidate_meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_champion_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_champion_card_id_fkey FOREIGN KEY (champion_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_legend_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_legend_card_id_fkey FOREIGN KEY (legend_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_meta_event_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_meta_event_player_id_fkey FOREIGN KEY (meta_event_player_id) REFERENCES public.meta_event_players(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_submitted_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_submitted_by_user_id_fkey FOREIGN KEY (submitted_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: candidate_meta_players candidate_meta_players_uvsgames_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.candidate_meta_players
+    ADD CONSTRAINT candidate_meta_players_uvsgames_player_id_fkey FOREIGN KEY (uvsgames_player_id) REFERENCES public.uvsgames_players(id);
 
 
 --
@@ -7231,19 +7858,19 @@ ALTER TABLE ONLY public.marketplace_product_card_overrides
 
 
 --
--- Name: meta_credits meta_credits_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meta_credits
-    ADD CONSTRAINT meta_credits_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
-
-
---
 -- Name: meta_credits meta_credits_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.meta_credits
     ADD CONSTRAINT meta_credits_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_credits meta_credits_meta_event_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_credits
+    ADD CONSTRAINT meta_credits_meta_event_player_id_fkey FOREIGN KEY (meta_event_player_id) REFERENCES public.meta_event_players(id) ON DELETE CASCADE;
 
 
 --
@@ -7255,67 +7882,83 @@ ALTER TABLE ONLY public.meta_credits
 
 
 --
--- Name: meta_deck_sources meta_deck_sources_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_matches meta_event_matches_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_deck_sources
-    ADD CONSTRAINT meta_deck_sources_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
-
-
---
--- Name: meta_deck_submissions meta_deck_submissions_accepted_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meta_deck_submissions
-    ADD CONSTRAINT meta_deck_submissions_accepted_deck_id_fkey FOREIGN KEY (accepted_deck_id) REFERENCES public.decks(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.meta_event_matches
+    ADD CONSTRAINT meta_event_matches_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
 
 
 --
--- Name: meta_deck_submissions meta_deck_submissions_candidate_meta_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_matches meta_event_matches_player1_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_deck_submissions
-    ADD CONSTRAINT meta_deck_submissions_candidate_meta_deck_id_fkey FOREIGN KEY (candidate_meta_deck_id) REFERENCES public.candidate_meta_decks(id) ON DELETE SET NULL;
-
-
---
--- Name: meta_deck_submissions meta_deck_submissions_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meta_deck_submissions
-    ADD CONSTRAINT meta_deck_submissions_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.meta_event_matches
+    ADD CONSTRAINT meta_event_matches_player1_id_fkey FOREIGN KEY (player1_id) REFERENCES public.meta_event_players(id) ON DELETE CASCADE;
 
 
 --
--- Name: meta_deck_submissions meta_deck_submissions_resolved_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_matches meta_event_matches_player2_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_deck_submissions
-    ADD CONSTRAINT meta_deck_submissions_resolved_by_user_id_fkey FOREIGN KEY (resolved_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: meta_deck_submissions meta_deck_submissions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.meta_deck_submissions
-    ADD CONSTRAINT meta_deck_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.meta_event_matches
+    ADD CONSTRAINT meta_event_matches_player2_id_fkey FOREIGN KEY (player2_id) REFERENCES public.meta_event_players(id) ON DELETE CASCADE;
 
 
 --
--- Name: meta_decks meta_decks_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_matches meta_event_matches_winner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_decks
-    ADD CONSTRAINT meta_decks_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.meta_event_matches
+    ADD CONSTRAINT meta_event_matches_winner_id_fkey FOREIGN KEY (winner_id) REFERENCES public.meta_event_players(id) ON DELETE CASCADE;
 
 
 --
--- Name: meta_decks meta_decks_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: meta_event_phases meta_event_phases_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.meta_decks
-    ADD CONSTRAINT meta_decks_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.meta_event_phases
+    ADD CONSTRAINT meta_event_phases_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_event_players meta_event_players_champion_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_champion_card_id_fkey FOREIGN KEY (champion_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_event_players meta_event_players_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_deck_id_fkey FOREIGN KEY (deck_id) REFERENCES public.decks(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: meta_event_players meta_event_players_legend_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_legend_card_id_fkey FOREIGN KEY (legend_card_id) REFERENCES public.cards(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_event_players meta_event_players_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
+
+
+--
+-- Name: meta_event_players meta_event_players_uvsgames_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_uvsgames_player_id_fkey FOREIGN KEY (uvsgames_player_id) REFERENCES public.uvsgames_players(id);
 
 
 --
@@ -7332,6 +7975,46 @@ ALTER TABLE ONLY public.meta_event_sources
 
 ALTER TABLE ONLY public.meta_events
     ADD CONSTRAINT meta_events_format_fkey FOREIGN KEY (format) REFERENCES public.deck_formats(slug);
+
+
+--
+-- Name: meta_submissions meta_submissions_accepted_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_submissions
+    ADD CONSTRAINT meta_submissions_accepted_deck_id_fkey FOREIGN KEY (accepted_deck_id) REFERENCES public.decks(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_submissions meta_submissions_candidate_meta_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_submissions
+    ADD CONSTRAINT meta_submissions_candidate_meta_player_id_fkey FOREIGN KEY (candidate_meta_player_id) REFERENCES public.candidate_meta_players(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_submissions meta_submissions_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_submissions
+    ADD CONSTRAINT meta_submissions_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_submissions meta_submissions_resolved_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_submissions
+    ADD CONSTRAINT meta_submissions_resolved_by_user_id_fkey FOREIGN KEY (resolved_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: meta_submissions meta_submissions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_submissions
+    ADD CONSTRAINT meta_submissions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -7356,6 +8039,22 @@ ALTER TABLE ONLY public.organization_members
 
 ALTER TABLE ONLY public.overlay_channels
     ADD CONSTRAINT overlay_channels_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: playloltcg_event_checks playloltcg_event_checks_activity_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.playloltcg_event_checks
+    ADD CONSTRAINT playloltcg_event_checks_activity_shop_id_fkey FOREIGN KEY (activity_shop_id) REFERENCES public.playloltcg_events(activity_shop_id) ON DELETE CASCADE;
+
+
+--
+-- Name: playloltcg_events playloltcg_events_shop_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.playloltcg_events
+    ADD CONSTRAINT playloltcg_events_shop_id_fkey FOREIGN KEY (shop_id) REFERENCES public.playloltcg_shops(id);
 
 
 --
@@ -7679,8 +8378,32 @@ ALTER TABLE ONLY public.user_preferences
 
 
 --
+-- Name: uvsgames_event_checks uvsgames_event_checks_external_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_event_checks
+    ADD CONSTRAINT uvsgames_event_checks_external_id_fkey FOREIGN KEY (external_id) REFERENCES public.uvsgames_events(external_id) ON DELETE CASCADE;
+
+
+--
+-- Name: uvsgames_events uvsgames_events_store_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_events
+    ADD CONSTRAINT uvsgames_events_store_id_fkey FOREIGN KEY (store_id) REFERENCES public.uvsgames_stores(id);
+
+
+--
+-- Name: uvsgames_format_mappings uvsgames_format_mappings_mapped_format_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_format_mappings
+    ADD CONSTRAINT uvsgames_format_mappings_mapped_format_fkey FOREIGN KEY (mapped_format) REFERENCES public.deck_formats(slug);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LssKGbWBwS0X62PuSqMpwLqEi7owYQeK0KZR4FgiXDsHAkPbpK6N4CQHVvbV5gr
+\unrestrict ZuCnFLMe31R7bBdCNbDWoxfuSAyc35xhLLA8SVBNBWiPtXe3a76wUyPHnqzK2dn
 

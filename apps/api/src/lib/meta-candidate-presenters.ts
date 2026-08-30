@@ -1,29 +1,35 @@
 import type {
-  MetaCandidateDeck,
   MetaCandidateDetail,
+  MetaCandidatePlayer,
   MetaCandidateQueueRow,
   MetaCandidateSource,
 } from "@openrift/shared";
 
+import type { CandidateMetaDeckCard } from "../db/index.js";
 import type {
-  CandidateMetaDeckRow,
   CandidateMetaEventRow,
+  CandidateMetaPlayerRow,
 } from "../repositories/meta-candidates.js";
-import type { MetaDeckCardDiff, MetaDeckDiff, MetaFieldDiff } from "./meta-candidate-diff.js";
-import { hasDeckDiff, metaCandidateState } from "./meta-candidate-diff.js";
+import type { MetaDeckCardDiff, MetaFieldDiff, MetaPlayerDiff } from "./meta-candidate-diff.js";
+import { hasPlayerDiff, metaCandidateState } from "./meta-candidate-diff.js";
 
 type CardNames = ReadonlyMap<string, string>;
 
-type CardDiffResponse = NonNullable<MetaCandidateDeck["diff"]>["cards"];
+type CardDiffResponse = NonNullable<MetaCandidatePlayer["diff"]>["cards"];
 
 /**
- * The distinct card names in a candidate deck that matched no live card. This
- * is the accept gate: a deck with any entry here cannot become an archived
- * deck, because a `deck_cards` row needs a real card id. The fix is a
- * `card_name_aliases` row plus a rematch, not an edit here.
+ * The distinct card names in a candidate's list that matched no live card. This
+ * is the accept gate for a list: a `deck_cards` row needs a real card id, and
+ * the fix is a `card_name_aliases` row plus a rematch, not an edit here.
+ *
+ * A standings-only row has no list and so nothing to report — its own gate is
+ * the legend, which resolves independently.
  */
-export function unresolvedCardNames(deck: CandidateMetaDeckRow): string[] {
-  return [...new Set(deck.cards.filter((card) => card.cardId === null).map((card) => card.name))];
+export function unresolvedCardNames(cards: readonly CandidateMetaDeckCard[] | null): string[] {
+  if (cards === null) {
+    return [];
+  }
+  return [...new Set(cards.filter((card) => card.cardId === null).map((card) => card.name))];
 }
 
 /**
@@ -53,42 +59,56 @@ function toCardDiffResponse(diff: MetaDeckCardDiff, cardNames: CardNames): CardD
 }
 
 /**
- * The deck as the review screen reads it. `submittedByName` is null for a
- * provider's deck, and for a submitter who never set a name or whose account
- * is gone.
+ * The standings row as the review screen reads it. `submittedByName` is null
+ * for a provider's row, and for a submitter who never set a name or whose
+ * account is gone.
  */
-export function toMetaCandidateDeck(
-  deck: CandidateMetaDeckRow,
+export function toMetaCandidatePlayer(
+  player: CandidateMetaPlayerRow,
   options: {
-    diff: MetaDeckDiff | null;
+    diff: MetaPlayerDiff | null;
+    deckId: string | null;
     shareToken: string | null;
     cardNames: CardNames;
     eventNames: ReadonlyMap<string, string>;
     submittedByName?: string | null;
   },
-): MetaCandidateDeck {
-  const { diff, shareToken, cardNames, eventNames } = options;
+): MetaCandidatePlayer {
+  const { diff, cardNames, eventNames } = options;
   return {
-    id: deck.id,
-    externalId: deck.externalId,
-    playerName: deck.playerName,
-    finishTier: deck.finishTier,
-    record: deck.record,
-    name: deck.name,
-    cards: deck.cards.map((card) => ({
-      name: card.name,
-      zone: card.zone,
-      quantity: card.quantity,
-      cardId: card.cardId,
-    })),
-    listStatus: deck.listStatus,
-    unresolvedNames: unresolvedCardNames(deck),
-    deckId: deck.deckId,
-    shareToken,
-    submittedByUserId: deck.submittedByUserId,
+    id: player.id,
+    externalId: player.externalId,
+    playerName: player.playerName,
+    rank: player.rank,
+    rankIsTier: player.rankIsTier,
+    wins: player.wins,
+    losses: player.losses,
+    draws: player.draws,
+    legendName: player.legendName,
+    legendCardId: player.legendCardId,
+    championName: player.championName,
+    championCardId: player.championCardId,
+    cards:
+      player.cards === null
+        ? null
+        : player.cards.map((card) => ({
+            name: card.name,
+            zone: card.zone,
+            quantity: card.quantity,
+            cardId: card.cardId,
+          })),
+    listStatus: player.listStatus,
+    unresolvedNames: unresolvedCardNames(player.cards),
+    metaEventPlayerId: player.metaEventPlayerId,
+    deckId: options.deckId,
+    shareToken: options.shareToken,
+    submittedByUserId: player.submittedByUserId,
     submittedByName: options.submittedByName ?? null,
-    submissionNote: deck.submissionNote,
-    state: metaCandidateState(deck.deckId !== null, diff !== null && hasDeckDiff(diff)),
+    submissionNote: player.submissionNote,
+    state: metaCandidateState(
+      player.metaEventPlayerId !== null,
+      diff !== null && hasPlayerDiff(diff),
+    ),
     diff:
       diff === null
         ? null
@@ -96,21 +116,22 @@ export function toMetaCandidateDeck(
             fields: withEventNames(diff.fields, eventNames),
             cards: toCardDiffResponse(diff.cards, cardNames),
           },
-    checkedAt: deck.checkedAt?.toISOString() ?? null,
+    checkedAt: player.checkedAt?.toISOString() ?? null,
   };
 }
 
 /**
  * One row of the review queue. The count options come from the caller because
- * they are aggregates over the event's decks, which the queue reads in one
+ * they are aggregates over the event's standings, which the queue reads in one
  * batch rather than per row.
  */
 export function toMetaCandidateQueueRow(
   event: CandidateMetaEventRow,
   options: {
-    deckCount: number;
-    unacceptedDeckCount: number;
+    playerRowCount: number;
+    unacceptedPlayerCount: number;
     unresolvedCardCount: number;
+    linkedSourceCount: number;
     hasDiff: boolean;
     metaEventSlug: string | null;
   },
@@ -122,9 +143,10 @@ export function toMetaCandidateQueueRow(
     name: event.name,
     eventDate: event.eventDate,
     format: event.format,
-    deckCount: options.deckCount,
-    unacceptedDeckCount: options.unacceptedDeckCount,
+    playerRowCount: options.playerRowCount,
+    unacceptedPlayerCount: options.unacceptedPlayerCount,
     unresolvedCardCount: options.unresolvedCardCount,
+    linkedSourceCount: options.linkedSourceCount,
     state: metaCandidateState(event.metaEventId !== null, options.hasDiff),
     checkedAt: event.checkedAt?.toISOString() ?? null,
     metaEventId: event.metaEventId,
@@ -135,7 +157,7 @@ export function toMetaCandidateQueueRow(
 /**
  * The full candidate view. `sources` holds every candidate on the same live
  * event, this one included, so the review screen gets one column per source;
- * `submittedDecks` are candidate decks attached to the live event directly —
+ * `submittedPlayers` are candidate rows attached to the live event directly —
  * user submissions, which belong to no source column.
  */
 export function toMetaCandidateDetail(
@@ -144,9 +166,9 @@ export function toMetaCandidateDetail(
     diff: MetaFieldDiff[] | null;
     formatKnown: boolean;
     metaEventSlug: string | null;
-    decks: MetaCandidateDeck[];
+    players: MetaCandidatePlayer[];
     sources: MetaCandidateSource[];
-    submittedDecks: MetaCandidateDeck[];
+    submittedPlayers: MetaCandidatePlayer[];
   },
 ): MetaCandidateDetail {
   return {
@@ -161,21 +183,24 @@ export function toMetaCandidateDetail(
     organizer: event.organizer,
     sourceUrl: event.sourceUrl,
     notes: event.notes,
+    tier: event.tier,
+    country: event.country,
+    location: event.location,
     extraData: event.extraData ?? null,
     metaEventId: event.metaEventId,
     metaEventSlug: options.metaEventSlug,
     state: metaCandidateState(event.metaEventId !== null, (options.diff?.length ?? 0) > 0),
     diff: options.diff,
     checkedAt: event.checkedAt?.toISOString() ?? null,
-    decks: options.decks,
+    players: options.players,
     sources: options.sources,
-    submittedDecks: options.submittedDecks,
+    submittedPlayers: options.submittedPlayers,
   };
 }
 
 export function toMetaCandidateSource(
   event: CandidateMetaEventRow,
-  decks: MetaCandidateDeck[],
+  players: MetaCandidatePlayer[],
 ): MetaCandidateSource {
   return {
     id: event.id,
@@ -188,7 +213,10 @@ export function toMetaCandidateSource(
     organizer: event.organizer,
     sourceUrl: event.sourceUrl,
     notes: event.notes,
+    tier: event.tier,
+    country: event.country,
+    location: event.location,
     checkedAt: event.checkedAt?.toISOString() ?? null,
-    decks,
+    players,
   };
 }

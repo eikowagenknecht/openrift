@@ -77,10 +77,10 @@ export function MetaDeckFilterControls({
       )}
 
       <Select
-        value={filters.maxFinishTier === null ? ANY_FINISH : String(filters.maxFinishTier)}
+        value={filters.maxRank === null ? ANY_FINISH : String(filters.maxRank)}
         onValueChange={(value) => {
           const next = (value as string | null) ?? ANY_FINISH;
-          filters.setMaxFinishTier(next === ANY_FINISH ? null : Number(next));
+          filters.setMaxRank(next === ANY_FINISH ? null : Number(next));
         }}
         items={finishItems}
       >
@@ -135,9 +135,7 @@ export function MetaDeckActiveFilters({ options }: { options: MetaDeckFilterOpti
 
   const eventLabels = new Map(options.events.map((entry) => [entry.value, entry.label]));
   const legendLabels = new Map(options.legends.map((entry) => [entry.value, entry.label]));
-  const finishLabel = META_FINISH_OPTIONS.find(
-    (option) => option.value === filters.maxFinishTier,
-  )?.label;
+  const finishLabel = META_FINISH_OPTIONS.find((option) => option.value === filters.maxRank)?.label;
 
   /**
    * One chip.
@@ -163,8 +161,7 @@ export function MetaDeckActiveFilters({ options }: { options: MetaDeckFilterOpti
           filters.toggleLegend(cardId),
         ),
       )}
-      {finishLabel !== undefined &&
-        chip("finish", finishLabel, () => filters.setMaxFinishTier(null))}
+      {finishLabel !== undefined && chip("finish", finishLabel, () => filters.setMaxRank(null))}
       {filters.dateFrom !== null &&
         chip("from", `From ${filters.dateFrom}`, () => filters.setDateFrom(null))}
       {filters.dateTo !== null && chip("to", `To ${filters.dateTo}`, () => filters.setDateTo(null))}

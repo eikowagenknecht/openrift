@@ -1,14 +1,15 @@
-import type { MetaEventDetail, MetaEventSource } from "@openrift/shared";
-import { render, screen } from "@testing-library/react";
+import type { MetaEventDetail, MetaEventPlayer, MetaEventSource } from "@openrift/shared";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   event: null as MetaEventDetail | null,
+  players: [] as MetaEventPlayer[],
   userId: null as string | null,
 }));
 
 vi.mock("@/hooks/use-meta", () => ({
-  useMetaEvent: () => ({ data: { event: captured.event, decks: [] } }),
+  useMetaEvent: () => ({ data: { event: captured.event, players: captured.players } }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({
@@ -38,8 +39,17 @@ vi.mock("@tanstack/react-router", () => ({
   }: {
     children?: React.ReactNode;
     to?: string;
-    params?: { slug?: string };
-  }) => <a href={(to ?? "/meta/decks").replace("$slug", params?.slug ?? "")}>{children}</a>,
+    params?: { slug?: string; token?: string; cardSlug?: string };
+  }) => (
+    <a
+      href={(to ?? "/meta/decks")
+        .replace("$cardSlug", params?.cardSlug ?? "")
+        .replace("$slug", params?.slug ?? "")
+        .replace("$token", params?.token ?? "")}
+    >
+      {children}
+    </a>
+  ),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
@@ -57,8 +67,36 @@ function source(overrides: Partial<MetaEventSource> = {}): MetaEventSource {
   };
 }
 
-/** Renders the page for one event's sources and contributors. */
-function renderEvent(overrides: Partial<MetaEventDetail> = {}): void {
+/** @returns One standings row, a deckless entry unless overridden. */
+function player(overrides: Partial<MetaEventPlayer> = {}): MetaEventPlayer {
+  return {
+    id: "p-1",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Ana",
+    wins: 6,
+    losses: 1,
+    draws: null,
+    legend: {
+      cardId: "card-yasuo",
+      name: "Yasuo, the Unforgiven",
+      slug: "yasuo-the-unforgiven",
+      imageId: null,
+    },
+    champion: null,
+    deckId: null,
+    deckName: null,
+    shareToken: null,
+    listStatus: "none",
+    ...overrides,
+  };
+}
+
+/** Renders the page for one event's sources, contributors, and standings. */
+function renderEvent(
+  overrides: Partial<MetaEventDetail> = {},
+  players: MetaEventPlayer[] = [],
+): void {
   captured.event = {
     id: "evt",
     slug: "summoner-skirmish",
@@ -67,12 +105,17 @@ function renderEvent(overrides: Partial<MetaEventDetail> = {}): void {
     format: "freeform",
     playerCount: 64,
     organizer: "LGS Berlin",
-    deckCount: 0,
+    tier: "store",
+    country: null,
+    location: null,
+    playerRowCount: players.length,
+    deckCount: players.filter((row) => row.deckId !== null).length,
     notes: null,
     sources: [],
     contributors: [],
     ...overrides,
   };
+  captured.players = players;
   render(<MetaEventPage slug="summoner-skirmish" />);
 }
 
@@ -84,6 +127,7 @@ function sourcesText(): string | null {
 describe("MetaEventPage sources", () => {
   beforeEach(() => {
     captured.event = null;
+    captured.players = [];
     captured.userId = null;
   });
 
@@ -144,6 +188,7 @@ describe("MetaEventPage sources", () => {
 describe("MetaEventPage contributors", () => {
   beforeEach(() => {
     captured.event = null;
+    captured.players = [];
     captured.userId = null;
   });
 
@@ -179,6 +224,7 @@ describe("MetaEventPage contributors", () => {
 describe("MetaEventPage add-a-decklist", () => {
   beforeEach(() => {
     captured.event = null;
+    captured.players = [];
     captured.userId = null;
   });
 
@@ -201,9 +247,130 @@ describe("MetaEventPage add-a-decklist", () => {
 
   it("offers the form even on an event with no decks yet", () => {
     captured.userId = "user-1";
-    renderEvent({ deckCount: 0 });
+    renderEvent({}, [player()]);
 
     expect(screen.getByRole("link", { name: /Add a decklist/u })).toBeInTheDocument();
     expect(screen.getByText(/haven|t archived any decks/u)).toBeInTheDocument();
+  });
+});
+
+describe("MetaEventPage standings", () => {
+  beforeEach(() => {
+    captured.event = null;
+    captured.players = [];
+    captured.userId = null;
+  });
+
+  /** @returns The standings row for one player. */
+  function standingsRow(name: string) {
+    return screen.getByRole("row", { name: new RegExp(name, "u") });
+  }
+
+  it("renders nothing when the archive holds no standings", () => {
+    renderEvent({}, []);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("lists every player, the deckless ones included", () => {
+    renderEvent({}, [
+      player({ id: "p-1", playerName: "Ana", rank: 1 }),
+      player({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+
+    expect(standingsRow("Ana")).toBeInTheDocument();
+    expect(standingsRow("Bo")).toBeInTheDocument();
+  });
+
+  it("prints an exact standing as an ordinal and a cut bucket as a bracket", () => {
+    renderEvent({}, [
+      player({ id: "p-1", playerName: "Ana", rank: 4, rankIsTier: false }),
+      player({ id: "p-2", playerName: "Bo", rank: 8, rankIsTier: true }),
+    ]);
+
+    expect(within(standingsRow("Ana")).getByText("4th")).toBeInTheDocument();
+    expect(within(standingsRow("Bo")).getByText("T8")).toBeInTheDocument();
+  });
+
+  it("derives the record from wins, losses, and draws", () => {
+    renderEvent({}, [
+      player({ id: "p-1", playerName: "Ana", wins: 6, losses: 1, draws: null }),
+      player({ id: "p-2", playerName: "Bo", wins: 5, losses: 1, draws: 1 }),
+    ]);
+
+    expect(within(standingsRow("Ana")).getByText("6-1")).toBeInTheDocument();
+    expect(within(standingsRow("Bo")).getByText("5-1-1")).toBeInTheDocument();
+  });
+
+  it("shows no record for a player the source published none for", () => {
+    renderEvent({}, [player({ playerName: "Ana", wins: null, losses: null, draws: null })]);
+    expect(within(standingsRow("Ana")).queryByText(/^\d+-\d+/u)).toBeNull();
+  });
+
+  it("names the legend, which the archive knows without a list", () => {
+    renderEvent({}, [player({ playerName: "Ana" })]);
+    expect(within(standingsRow("Ana")).getByText("Yasuo, the Unforgiven")).toBeInTheDocument();
+  });
+
+  it("leads the legend to its card page", () => {
+    renderEvent({}, [player({ playerName: "Ana" })]);
+    const link = within(standingsRow("Ana")).getByRole("link", { name: "Yasuo, the Unforgiven" });
+    expect(link.getAttribute("href")).toBe("/cards/yasuo-the-unforgiven");
+  });
+
+  it("prints a legend with no slug as plain text rather than a dead link", () => {
+    renderEvent({}, [
+      player({
+        playerName: "Ana",
+        legend: { cardId: "card-yasuo", name: "Yasuo, the Unforgiven", slug: "", imageId: null },
+      }),
+    ]);
+    const cell = within(standingsRow("Ana"));
+    expect(cell.getByText("Yasuo, the Unforgiven")).toBeInTheDocument();
+    expect(cell.queryByRole("link", { name: "Yasuo, the Unforgiven" })).toBeNull();
+  });
+
+  it("leaves the legend cell empty for a player the archive knows none for", () => {
+    renderEvent({}, [player({ playerName: "Ana", legend: null })]);
+    expect(within(standingsRow("Ana")).queryByText(/Yasuo/u)).toBeNull();
+  });
+
+  it("links only the players whose list the archive holds", () => {
+    renderEvent({}, [
+      player({
+        id: "p-1",
+        playerName: "Ana",
+        deckId: "d1",
+        deckName: "Yasuo Aggro",
+        shareToken: "tok1",
+        listStatus: "full",
+      }),
+      player({ id: "p-2", playerName: "Bo" }),
+    ]);
+
+    const link = within(standingsRow("Ana")).getByRole("link", { name: "Decklist" });
+    expect(link.getAttribute("href")).toBe("/meta/decks/tok1");
+    expect(within(standingsRow("Bo")).queryByRole("link", { name: "Decklist" })).toBeNull();
+  });
+
+  it("says when a linked list is only partial", () => {
+    renderEvent({}, [
+      player({
+        playerName: "Ana",
+        deckId: "d1",
+        deckName: "Yasuo Aggro",
+        shareToken: "tok1",
+        listStatus: "partial",
+      }),
+    ]);
+    expect(
+      within(standingsRow("Ana")).getByRole("link", { name: "Partial list" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says the results have not arrived rather than showing an empty field", () => {
+    renderEvent({}, []);
+    expect(
+      screen.getByText("The results for this event have not come through yet. Check back soon."),
+    ).toBeInTheDocument();
   });
 });

@@ -74,6 +74,21 @@ export function createConfig(env: Record<string, string | undefined>) {
       // actor→recipient burst has settled; set CRON_TRADE_STATUS_FLUSH to an
       // empty string to disable.
       tradeStatusFlushSchedule: env.CRON_TRADE_STATUS_FLUSH ?? "* * * * *",
+      // Meta archive sync. All four are unset by default, so a deployment that
+      // has not opted in never reaches the sources; the admin UI's manual
+      // triggers are how the sync is exercised there. Suggested production
+      // values: each catalogue sync daily, rechecks every ten minutes.
+      metaUvsgamesSyncSchedule: env.CRON_META_UVSGAMES_SYNC,
+      metaUvsgamesRecheckSchedule: env.CRON_META_UVSGAMES_RECHECK,
+      metaPlayloltcgSyncSchedule: env.CRON_META_PLAYLOLTCG_SYNC,
+      metaPlayloltcgRecheckSchedule: env.CRON_META_PLAYLOLTCG_RECHECK,
+    },
+
+    // The meta sources. Overridable so a test deployment can point at a recorded
+    // fixture server instead of the live APIs.
+    metaSync: {
+      baseUrl: env.META_SYNC_BASE_URL ?? "https://api.riftbound.uvsgames.com",
+      playloltcgBaseUrl: env.META_PLAYLOLTCG_BASE_URL ?? "https://lol-api.playloltcg.com",
     },
 
     discordWebhooks: {
