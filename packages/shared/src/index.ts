@@ -7,6 +7,7 @@ export * from "./types/index.js";
 export type { RelativeTimeOptions } from "./format-date.js";
 export {
   dateLeafParts,
+  dateLeafPartsUtc,
   formatCompactUtcStamp,
   formatDay,
   formatDayLocal,

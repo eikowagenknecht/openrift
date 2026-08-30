@@ -4,6 +4,7 @@ import {
   formatRank,
   formatRankRuns,
   formatRecord,
+  joinNames,
   metaEventCounts,
   recordSortValue,
   splitLegendName,
@@ -57,6 +58,28 @@ describe("formatRecord", () => {
     expect(formatRecord(null, null, null)).toBeNull();
     expect(formatRecord(5, null, null)).toBeNull();
     expect(formatRecord(null, 1, 0)).toBeNull();
+  });
+});
+
+describe("joinNames", () => {
+  it("prints one name alone", () => {
+    expect(joinNames(["Nova"])).toBe("Nova");
+  });
+
+  it("joins two with 'and'", () => {
+    expect(joinNames(["Nova", "Rell"])).toBe("Nova and Rell");
+  });
+
+  it("commas the middle and keeps 'and' for the last", () => {
+    expect(joinNames(["Nova", "Rell", "Sett"])).toBe("Nova, Rell and Sett");
+  });
+
+  it("names everyone rather than collapsing a long list to a count", () => {
+    expect(joinNames(["Nova", "Rell", "Sett", "Zed"])).toBe("Nova, Rell, Sett and Zed");
+  });
+
+  it("prints nothing for an empty list", () => {
+    expect(joinNames([])).toBe("");
   });
 });
 

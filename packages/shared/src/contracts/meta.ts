@@ -15,6 +15,36 @@ extendZodWithOpenApi(z);
 const TAG = "Meta archive";
 const BASE = "/api/v1/meta";
 
+/**
+ * A legend or champion as a standings row names it: denormalized so the event
+ * page and deck browser render without pulling the catalog.
+ */
+const metaCardRefSchema = z
+  .object({
+    cardId: z.string(),
+    name: z.string(),
+    slug: z.string(),
+    /** Canonical front image, null when the card has no usable artwork. */
+    imageId: z.string().nullable(),
+  })
+  .openapi("MetaCardRef");
+
+/**
+ * Who won one archived event: a rank-1 standings row, as an event list prints it
+ * inline. One published result, not a computed standing — an event whose
+ * standings the archive does not hold has no winner rather than a guessed one,
+ * and a source that published two first places gets both named.
+ */
+export const metaEventWinnerSchema = z
+  .object({
+    playerName: z.string(),
+    wins: z.number().int().nullable(),
+    losses: z.number().int().nullable(),
+    draws: z.number().int().nullable(),
+    legend: metaCardRefSchema.nullable(),
+  })
+  .openapi("MetaEventWinner");
+
 /** An event as it appears in a list: enough for a row, without the long-form fields. */
 export const metaEventSummarySchema = z
   .object({
@@ -27,6 +57,8 @@ export const metaEventSummarySchema = z
     tier: metaEventTierSchema,
     /** ISO 3166-1 alpha-2 of the venue, null when no source told us. */
     country: z.string().nullable(),
+    /** The venue address as the source published it. */
+    location: z.string().nullable(),
     /** What the source reported the field size as, which can exceed the rows we hold. */
     playerCount: z.number().int().nullable(),
     organizer: z.string().nullable(),
@@ -34,6 +66,8 @@ export const metaEventSummarySchema = z
     playerRowCount: z.number().int().nonnegative(),
     /** The subset of those rows with a decklist attached. */
     deckCount: z.number().int().nonnegative(),
+    /** Every rank-1 finish the archive holds, empty until standings are archived. */
+    winners: z.array(metaEventWinnerSchema),
   })
   .openapi("MetaEventSummary");
 
@@ -74,8 +108,6 @@ export const metaEventSourceSchema = z
 export const metaEventDetailSchema = metaEventSummarySchema
   .extend({
     notes: z.string().nullable(),
-    /** The venue address as the source published it. */
-    location: z.string().nullable(),
     sources: z.array(metaEventSourceSchema),
     contributors: z.array(z.string()),
   })
@@ -88,20 +120,6 @@ const metaDeckEventSchema = z.object({
   eventDate: isoDate,
   format: deckFormatSchema,
 });
-
-/**
- * A legend or champion as a standings row names it: denormalized so the event
- * page and deck browser render without pulling the catalog.
- */
-const metaCardRefSchema = z
-  .object({
-    cardId: z.string(),
-    name: z.string(),
-    slug: z.string(),
-    /** Canonical front image, null when the card has no usable artwork. */
-    imageId: z.string().nullable(),
-  })
-  .openapi("MetaCardRef");
 
 /**
  * One player's entry in an event's standings. Every archived event has the whole

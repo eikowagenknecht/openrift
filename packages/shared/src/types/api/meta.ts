@@ -37,11 +37,15 @@ import type {
   metaEventMatchSchema,
   metaEventSourceSchema,
   metaEventSummarySchema,
+  metaEventWinnerSchema,
   metaCountsResponseSchema,
 } from "../../contracts/meta.js";
 
 /** One archived event as a list row: header fields plus how much of it we hold. */
 export type MetaEventSummary = z.infer<typeof metaEventSummarySchema>;
+
+/** One rank-1 standings row, as an event list names it inline. */
+export type MetaEventWinner = z.infer<typeof metaEventWinnerSchema>;
 
 /** The summary plus the long-form fields only the event's own page shows. */
 export type MetaEventDetail = z.infer<typeof metaEventDetailSchema>;

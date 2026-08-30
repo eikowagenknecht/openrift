@@ -7,6 +7,7 @@ import type {
   MetaEventMatch,
   MetaEventPlayer,
   MetaEventSummary,
+  MetaEventWinner,
 } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
@@ -99,7 +100,10 @@ function legendLabel(row: {
  * here re-formats it. The timestamptz columns never reach the wire — the
  * archive's public shapes carry no `createdAt` / `updatedAt`.
  */
-export function toMetaEventSummary(row: MetaEventWithCounts): MetaEventSummary {
+export function toMetaEventSummary(
+  row: MetaEventWithCounts,
+  winners: readonly MetaEventWinner[] = [],
+): MetaEventSummary {
   return {
     id: row.id,
     slug: row.slug,
@@ -108,10 +112,30 @@ export function toMetaEventSummary(row: MetaEventWithCounts): MetaEventSummary {
     format: row.format,
     tier: row.tier,
     country: row.country,
+    location: row.location,
     playerCount: row.playerCount,
     organizer: row.organizer,
     playerRowCount: row.playerRowCount,
     deckCount: row.deckCount,
+    winners: [...winners],
+  };
+}
+
+/**
+ * One rank-1 standings row as a list row names it. The champion is left out: an
+ * inline winner is one thumbnail wide, and the legend is what names a deck
+ * across the archive.
+ */
+export function toMetaEventWinner(row: MetaEventPlayerRow, images: ImageIds): MetaEventWinner {
+  return {
+    playerName: row.playerName,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    legend: toCardRef(
+      { cardId: row.legendCardId, name: legendLabel(row), slug: row.legendSlug },
+      images,
+    ),
   };
 }
 
@@ -139,12 +163,12 @@ export function toMetaEventDetail(
   options: {
     sources: readonly MetaEventSourceRow[];
     contributors: readonly MetaContributorRow[];
+    winners?: readonly MetaEventWinner[];
   },
 ): MetaEventDetail {
   return {
-    ...toMetaEventSummary(row),
+    ...toMetaEventSummary(row, options.winners ?? []),
     notes: row.notes,
-    location: row.location,
     sources: options.sources.map((source) => toMetaEventSource(source)),
     contributors: options.contributors.map((contributor) => contributor.displayName),
   };

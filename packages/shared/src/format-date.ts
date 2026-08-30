@@ -168,6 +168,22 @@ export function dateLeafParts(input: Date | string): { month: string; day: strin
   return { month: MONTH_ABBREVIATIONS[date.getMonth()], day: String(date.getDate()) };
 }
 
+/**
+ * The same two lines in UTC, for a tile marking a calendar day that belongs to
+ * an event rather than to the viewer. A tournament was held on one day
+ * everywhere, so reading `2026-08-01` on a negative offset must not print JUL
+ * 31, and SSR must not disagree with the browser about which day it was.
+ *
+ * @returns The uppercase short month and the day of month, e.g. `AUG` / `15`.
+ */
+export function dateLeafPartsUtc(input: Date | string): { month: string; day: string } {
+  const date = toDate(input);
+  if (date === null) {
+    return { month: "", day: "" };
+  }
+  return { month: MONTH_ABBREVIATIONS[date.getUTCMonth()], day: String(date.getUTCDate()) };
+}
+
 /** Tuning for {@link formatRelativeTime}. */
 export interface RelativeTimeOptions {
   /** The reference "now"; injectable so tests can pin the buckets. */

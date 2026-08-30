@@ -12,6 +12,7 @@ import { metaRouter } from "./meta";
 
 const mockMeta = {
   allEvents: vi.fn(),
+  winnersForEvents: vi.fn(),
   eventBySlug: vi.fn(),
   standingsForEvent: vi.fn(),
   matchesForEvent: vi.fn(),
@@ -98,6 +99,7 @@ function sourceRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockMeta.winnersForEvents.mockResolvedValue([]);
   mockMeta.standingsForEvent.mockResolvedValue([]);
   mockMeta.matchesForEvent.mockResolvedValue([]);
   mockMeta.sourcesForEvent.mockResolvedValue([]);
@@ -358,6 +360,56 @@ describe("GET /meta/events", () => {
     expect(json.events[0].deckCount).toBe(8);
     expect(json.events[0].notes).toBeUndefined();
     expect(json.events[0].sources).toBeUndefined();
+  });
+
+  it("names each event's winner inline, with the legend's artwork", async () => {
+    mockMeta.allEvents.mockResolvedValue([eventRow({ playerRowCount: 64, deckCount: 8 })]);
+    mockMeta.winnersForEvents.mockResolvedValue([
+      {
+        ...playerRow({ legendCardId: LEGEND_ID, legendName: "Jinx", legendSlug: "jinx" }),
+        metaEventId: EVENT_ID,
+      },
+    ]);
+    mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([{ imageId: "img-jinx" }]);
+
+    const res = await app.request("/api/v1/meta/events");
+
+    const json = await readJson(res);
+    expect(json.events[0].winners).toHaveLength(1);
+    expect(json.events[0].winners[0]).toMatchObject({
+      playerName: "Renata",
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      legend: { slug: "jinx", imageId: "img-jinx" },
+    });
+  });
+
+  it("names both players when the source published two first places", async () => {
+    mockMeta.allEvents.mockResolvedValue([eventRow()]);
+    mockMeta.winnersForEvents.mockResolvedValue([
+      { ...playerRow({ playerName: "Ashe" }), metaEventId: EVENT_ID },
+      {
+        ...playerRow({ id: "p0000000-0001-4000-a000-000000000002", playerName: "Zed" }),
+        metaEventId: EVENT_ID,
+      },
+    ]);
+
+    const res = await app.request("/api/v1/meta/events");
+
+    const json = await readJson(res);
+    expect(json.events[0].winners.map((entry: { playerName: string }) => entry.playerName)).toEqual(
+      ["Ashe", "Zed"],
+    );
+  });
+
+  it("names no winner for an event whose standings have not arrived", async () => {
+    mockMeta.allEvents.mockResolvedValue([eventRow()]);
+
+    const res = await app.request("/api/v1/meta/events");
+
+    const json = await readJson(res);
+    expect(json.events[0].winners).toEqual([]);
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   dateLeafParts,
+  dateLeafPartsUtc,
   formatCompactUtcStamp,
   formatDay,
   formatDayLocal,
@@ -152,6 +153,23 @@ describe("dateLeafParts", () => {
 
   it("returns empty parts for unparseable input", () => {
     expect(dateLeafParts("nope")).toEqual({ month: "", day: "" });
+  });
+});
+
+describe("dateLeafPartsUtc", () => {
+  it("splits a date-only day without shifting it into the day before", () => {
+    expect(dateLeafPartsUtc("2026-08-01")).toEqual({ month: "AUG", day: "1" });
+  });
+
+  it("takes the UTC day of a full instant, not the viewer's", () => {
+    expect(dateLeafPartsUtc(new Date("2026-01-01T02:30:00.000Z"))).toEqual({
+      month: "JAN",
+      day: "1",
+    });
+  });
+
+  it("returns empty parts for unparseable input", () => {
+    expect(dateLeafPartsUtc("nope")).toEqual({ month: "", day: "" });
   });
 });
 

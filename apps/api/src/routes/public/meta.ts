@@ -16,6 +16,7 @@ import {
   toMetaEventMatch,
   toMetaEventPlayer,
   toMetaEventSummary,
+  toMetaEventWinner,
 } from "../../lib/meta-presenters.js";
 import { buildPublicDeckDetail } from "../../lib/public-deck-payload.js";
 import { requireUser } from "../../orpc/base.js";
@@ -70,8 +71,25 @@ function referencedCardIds(
  */
 export const metaRouter = {
   events: os.events.handler(async ({ context }): Promise<MetaEventListResponse> => {
-    const rows = await context.repos.meta.allEvents();
-    return { events: rows.map((row) => toMetaEventSummary(row)) };
+    const { meta, canonicalPrintings } = context.repos;
+
+    const rows = await meta.allEvents();
+    const winners = await meta.winnersForEvents(rows.map((row) => row.id));
+    // Legends only: a list row shows the winner's legend, never their champion.
+    const images = await imageIdsForCards(
+      canonicalPrintings,
+      winners.map((winner) => winner.legendCardId).filter((id) => id !== null),
+    );
+    const byEvent = Map.groupBy(winners, (winner) => winner.metaEventId);
+
+    return {
+      events: rows.map((row) =>
+        toMetaEventSummary(
+          row,
+          (byEvent.get(row.id) ?? []).map((winner) => toMetaEventWinner(winner, images)),
+        ),
+      ),
+    };
   }),
 
   event: os.event.handler(async ({ input, context, errors }): Promise<MetaEventDetailResponse> => {
@@ -91,9 +109,12 @@ export const metaRouter = {
       meta.contributorsForEvent(event.id),
     ]);
     const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(players));
+    const winners = players
+      .filter((player) => player.rank === 1)
+      .map((player) => toMetaEventWinner(player, images));
 
     return {
-      event: toMetaEventDetail(event, { sources, contributors }),
+      event: toMetaEventDetail(event, { sources, contributors, winners }),
       players: players.map((row) => toMetaEventPlayer(row, images)),
       matches: matches.map((row) => toMetaEventMatch(row)),
     };

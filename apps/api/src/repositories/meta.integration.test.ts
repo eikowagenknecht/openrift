@@ -653,6 +653,34 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(standings[1].listStatus).toBe("none");
     });
 
+    it("takes only rank 1, and nothing from an event with no standings", async () => {
+      const withWinner = await seedEvent(repo, "mta-winner-one");
+      const pending = await seedEvent(repo, "mta-winner-none");
+      await seedListedPlayer(repo, withWinner, { playerName: "MTA Champ", rank: 1, wins: 7 });
+      await seedDecklessPlayer(repo, withWinner, { playerName: "MTA Runner", rank: 2 });
+
+      const winners = await repo.winnersForEvents([withWinner, pending]);
+
+      expect(winners).toHaveLength(1);
+      expect(winners[0].metaEventId).toBe(withWinner);
+      expect(winners[0].playerName).toBe("MTA Champ");
+      expect(winners[0].wins).toBe(7);
+    });
+
+    it("keeps both rows when a source published two first places, ordered by name", async () => {
+      const eventId = await seedEvent(repo, "mta-winner-tie");
+      await seedDecklessPlayer(repo, eventId, { playerName: "MTA Zed", rank: 1 });
+      await seedDecklessPlayer(repo, eventId, { playerName: "MTA Ashe", rank: 1 });
+
+      const winners = await repo.winnersForEvents([eventId]);
+
+      expect(winners.map((row) => row.playerName)).toEqual(["MTA Ashe", "MTA Zed"]);
+    });
+
+    it("asks nothing of the database for an empty event list", async () => {
+      expect(await repo.winnersForEvents([])).toEqual([]);
+    });
+
     it("leaves the champion null when the standings row names none", async () => {
       const eventId = await seedEvent(repo, "mta-no-champion");
       await seedListedPlayer(repo, eventId, {

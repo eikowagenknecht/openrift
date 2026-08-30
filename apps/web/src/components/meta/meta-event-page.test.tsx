@@ -110,6 +110,7 @@ function renderEvent(
     location: null,
     playerRowCount: players.length,
     deckCount: players.filter((row) => row.deckId !== null).length,
+    winners: [],
     notes: null,
     sources: [],
     contributors: [],

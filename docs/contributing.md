@@ -115,7 +115,8 @@ The module builds every form from plain `Date` getters and never touches `Intl`,
 | `formatDayTimeLocal`  | `2026-08-15 14:30`                                    | An instant on the viewer's own clock.                                        |
 | `formatRelativeTime`  | `3h ago` / `in 3h`                                    | A gap from now, either direction. `{ seconds }` and `{ compound }` widen it. |
 | `formatRelativeDay`   | `Yesterday` … `2026-01-15`                            | A day relative to today, falling back to `formatDay`.                        |
-| `dateLeafParts`       | `AUG` / `15`                                          | The calendar-leaf tile.                                                      |
+| `dateLeafParts`       | `AUG` / `15`                                          | The calendar-leaf tile for an instant, on the viewer's clock.                |
+| `dateLeafPartsUtc`    | `AUG` / `15`                                          | The same tile for a day that belongs to an event, not to the viewer.         |
 | `formatReleasePeriod` | `2026-08-15` / `2026-08` / `2026-Q2` / `2026` / `TBA` | A set release, at whatever precision is known.                               |
 
 Two rules decide which one you want:

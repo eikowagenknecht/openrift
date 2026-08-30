@@ -55,6 +55,20 @@ export function formatRecord(
   return `${wins}-${losses}-${draws ?? 0}`;
 }
 
+/**
+ * "Nova", "Nova and Rell", "Nova, Rell and Sett" — every name printed, however
+ * many there are.
+ *
+ * Built by hand rather than through `Intl.ListFormat` so the string is the same
+ * for every reader, which is how the rest of the archive's rendered text works.
+ */
+export function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) {
+    return names[0] ?? "";
+  }
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
 /** A legend's name split into the two halves the archive prints separately. */
 export interface LegendNameParts {
   /** The champion the legend is named for, or the whole name when it has none. */

@@ -98,6 +98,9 @@ export interface MetaEventPlayerRow {
   listStatus: MetaListStatus;
 }
 
+/** A standings row carrying the event it belongs to, for a cross-event batch. */
+export type MetaEventPlayerWithEventRow = MetaEventPlayerRow & { metaEventId: string };
+
 /** One archived deck as the cross-event browser lists it. */
 export interface MetaDeckSummaryRow {
   playerId: string;
@@ -573,6 +576,26 @@ export function metaRepo(db: Kysely<Database>) {
 
     eventById(id: string): Promise<MetaEventWithCounts | undefined> {
       return eventQuery().where("id", "=", id).executeTakeFirst();
+    },
+
+    /**
+     * Every rank-1 standings row of the named events.
+     *
+     * A source that published two first places gets both rows, in a stable
+     * alphabetical order: which of a tie is "the" winner is not the archive's
+     * call to make, and picking one would print a fact nobody published.
+     */
+    winnersForEvents(eventIds: readonly string[]): Promise<MetaEventPlayerWithEventRow[]> {
+      if (eventIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return playerQuery()
+        .select("p.metaEventId")
+        .where("p.metaEventId", "in", [...eventIds])
+        .where("p.rank", "=", 1)
+        .orderBy("p.metaEventId")
+        .orderBy(resolvedPlayerName, "asc")
+        .execute();
     },
 
     /** The whole field, deckless entries included, best finish first. */

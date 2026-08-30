@@ -21,6 +21,7 @@ import {
   toMetaEventPlayer,
   toMetaEventSource,
   toMetaEventSummary,
+  toMetaEventWinner,
   toMetaSubmission,
 } from "./meta-presenters.js";
 
@@ -114,23 +115,67 @@ describe("toMetaEventSummary", () => {
       format: "constructed",
       tier: "store",
       country: "DE",
+      location: "Kartenstraße 1, 10115 Berlin, DE",
       playerCount: 64,
       organizer: "LGS Berlin",
       playerRowCount: 64,
       deckCount: 8,
+      winners: [],
     });
   });
 
   it("carries the nullable fields through as null", () => {
-    const summary = toMetaEventSummary(eventRow({ playerCount: null, organizer: null }));
+    const summary = toMetaEventSummary(
+      eventRow({ playerCount: null, organizer: null, location: null }),
+    );
     expect(summary.playerCount).toBeNull();
     expect(summary.organizer).toBeNull();
+    expect(summary.location).toBeNull();
   });
 
   it("keeps the standings count apart from the decks known for it", () => {
     const summary = toMetaEventSummary(eventRow({ playerRowCount: 128, deckCount: 0 }));
     expect(summary.playerRowCount).toBe(128);
     expect(summary.deckCount).toBe(0);
+  });
+
+  it("carries every winner it was handed", () => {
+    const summary = toMetaEventSummary(eventRow(), [
+      toMetaEventWinner(playerRow(), IMAGES),
+      toMetaEventWinner(playerRow({ playerName: "Rell" }), IMAGES),
+    ]);
+    expect(summary.winners.map((entry) => entry.playerName)).toEqual(["Nova", "Rell"]);
+  });
+
+  it("has no winners for an event whose standings have not arrived", () => {
+    expect(toMetaEventSummary(eventRow()).winners).toEqual([]);
+  });
+});
+
+describe("toMetaEventWinner", () => {
+  it("names the winner's legend the way players say it, with its artwork", () => {
+    expect(toMetaEventWinner(playerRow(), IMAGES)).toEqual({
+      playerName: "Nova",
+      wins: 5,
+      losses: 1,
+      draws: 0,
+      legend: {
+        cardId: "legend-1",
+        name: "Jinx",
+        slug: "jinx",
+        imageId: "image-legend",
+      },
+    });
+  });
+
+  it("keeps the winner when the archive never learned their legend", () => {
+    const winner = toMetaEventWinner(playerRow({ legendCardId: null, legendName: null }), IMAGES);
+    expect(winner).toMatchObject({ playerName: "Nova", legend: null });
+  });
+
+  it("leaves the record null when the source published none", () => {
+    const winner = toMetaEventWinner(playerRow({ wins: null, losses: null, draws: null }), IMAGES);
+    expect(winner).toMatchObject({ wins: null, losses: null, draws: null });
   });
 });
 
@@ -200,6 +245,7 @@ describe("toMetaEventDetail", () => {
       organizer: "LGS Berlin",
       playerRowCount: 64,
       deckCount: 8,
+      winners: [],
       notes: "Top 8 lists only.",
       location: "Kartenstraße 1, 10115 Berlin, DE",
       sources: [

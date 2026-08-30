@@ -78,8 +78,10 @@ const EVENT: MetaEventSummary = {
   organizer: "Rift Games Berlin",
   tier: "store",
   country: null,
+  location: null,
   playerRowCount: 64,
   deckCount: 8,
+  winners: [],
 };
 
 beforeEach(() => {
