@@ -36,7 +36,6 @@ import { initQueryOptions } from "@/hooks/use-init";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
-import { downloadImageAsPdf } from "@/lib/image-pdf";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
@@ -124,6 +123,16 @@ function resolveClipPaths(element: HTMLElement): void {
 async function loadRegistrationPdfGenerator() {
   const module = await import("@/lib/registration-pdf");
   return module.generateRegistrationPdf;
+}
+
+/**
+ * Loads the jsPDF-backed deck-sheet wrapper on first export, at module scope
+ * and for the same reasons as `loadRegistrationPdfGenerator` above.
+ * @returns The download function.
+ */
+async function loadImagePdfDownloader() {
+  const module = await import("@/lib/image-pdf");
+  return module.downloadImageAsPdf;
 }
 
 /**
@@ -667,6 +676,7 @@ function DeckSheetPrintPanel({
       : fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, options));
     // React Compiler can't yet lower try/finally, so reset in both paths.
     try {
+      const downloadImageAsPdf = await loadImagePdfDownloader();
       await downloadImageAsPdf(await blob, `${fileNameBase(deckName)}.pdf`);
       setDownloading(false);
     } catch {
