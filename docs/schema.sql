@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ZuCnFLMe31R7bBdCNbDWoxfuSAyc35xhLLA8SVBNBWiPtXe3a76wUyPHnqzK2dn
+\restrict alkPNG3DJ7RoQktX0QHflPkNYBz6vwYev5YwaYCIVtxhstMIIET4iPxSXsVlUin
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2641,7 +2641,7 @@ CREATE TABLE public.overlay_channels (
 --
 
 CREATE TABLE public.playloltcg_event_checks (
-    activity_shop_id bigint NOT NULL,
+    activity_shop_id integer NOT NULL,
     next_check_at timestamp with time zone,
     check_stage smallint DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -2655,7 +2655,7 @@ CREATE TABLE public.playloltcg_event_checks (
 --
 
 CREATE TABLE public.playloltcg_events (
-    activity_shop_id bigint NOT NULL,
+    activity_shop_id integer NOT NULL,
     shop_id integer,
     shop_name text,
     name text NOT NULL,
@@ -8405,5 +8405,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ZuCnFLMe31R7bBdCNbDWoxfuSAyc35xhLLA8SVBNBWiPtXe3a76wUyPHnqzK2dn
+\unrestrict alkPNG3DJ7RoQktX0QHflPkNYBz6vwYev5YwaYCIVtxhstMIIET4iPxSXsVlUin
 

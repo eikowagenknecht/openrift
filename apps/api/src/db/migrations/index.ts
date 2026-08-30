@@ -215,6 +215,7 @@ import * as m266 from "./266-meta-event-tier-location.js";
 import * as m267 from "./267-template-tier-mapping.js";
 import * as m268 from "./268-meta-event-matches.js";
 import * as m269 from "./269-meta-phases-and-tiebreakers.js";
+import * as m270 from "./270-playloltcg-event-key-integer.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -489,4 +490,5 @@ export const migrations: Record<string, Migration> = {
   "267-template-tier-mapping": m267,
   "268-meta-event-matches": m268,
   "269-meta-phases-and-tiebreakers": m269,
+  "270-playloltcg-event-key-integer": m270,
 };

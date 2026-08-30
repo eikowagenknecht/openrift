@@ -243,7 +243,7 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
 
   describe("ordering one page of the triage list", () => {
     /** Newest start first, and the same-day pair by key, highest first. */
-    const SORTED_KEYS = [KEYS.sortB, KEYS.sortC, KEYS.sortA];
+    const SORTED_KEYS = [KEYS.sortC, KEYS.sortB, KEYS.sortA];
 
     it("orders by start day, then by key", async () => {
       await repo().upsertBatch(

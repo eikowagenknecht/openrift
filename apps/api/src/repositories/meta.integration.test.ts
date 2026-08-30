@@ -21,6 +21,8 @@ import { META_ARCHIVE_USER_ID, metaRepo } from "./meta.js";
 const ctx = createDbContext(crypto.randomUUID());
 
 const FORMAT = "freeform";
+/** A second real format, so a deck can disagree with its event. */
+const DECK_ONLY_FORMAT = "constructed";
 
 let legendCardId: string;
 let championCardId: string;
@@ -42,6 +44,7 @@ interface PlayerOpts {
   losses?: number | null;
   draws?: number | null;
   withChampion?: boolean;
+  deckFormat?: string;
 }
 
 function shareToken(): string {
@@ -136,7 +139,7 @@ function deckInput(
       : [{ cardId: championCardId, zone: "champion", quantity: 3, preferredPrintingId: null }];
   return {
     name: `${opts.playerName} Deck`,
-    format: FORMAT,
+    format: opts.deckFormat ?? FORMAT,
     formatConfig: null,
     // A partial list is written with the same cards: what makes it partial is
     // the side zones the source never sent, which leave no trace in the row.
@@ -864,13 +867,28 @@ describe.skipIf(!ctx)("metaRepo", () => {
     });
 
     it("scopes by the event's format, not the deck's", async () => {
-      const eventId = await seedEvent(repo, "mta-stats-format", { eventDate: "2026-09-15" });
-      await seedListedPlayer(repo, eventId, { playerName: "MTA Format", rank: 1 });
+      // `meta_events.format` is a foreign key, so the scope can only name a real
+      // format and cannot be one this test owns. Every other suite seeds into
+      // the same archive, so the assertion is on the movement this test causes.
+      const eventScope = { format: FORMAT, dateFrom: "2026-09-01", dateTo: "2026-09-30" };
+      const deckScope = { ...eventScope, format: DECK_ONLY_FORMAT };
+      const before = {
+        players: await repo.playerCountInScope(eventScope),
+        decks: await repo.deckCountInScope(eventScope),
+        deckFormatDecks: await repo.deckCountInScope(deckScope),
+      };
 
-      const scope = { format: FORMAT, dateFrom: "2026-09-01", dateTo: "2026-09-30" };
-      expect(await repo.playerCountInScope(scope)).toBe(1);
-      expect(await repo.deckCountInScope(scope)).toBe(1);
-      expect(await repo.deckCountInScope({ ...scope, format: "no-such-format" })).toBe(0);
+      const eventId = await seedEvent(repo, "mta-stats-format", { eventDate: "2026-09-15" });
+      await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Format",
+        rank: 1,
+        deckFormat: DECK_ONLY_FORMAT,
+      });
+
+      expect(await repo.playerCountInScope(eventScope)).toBe(before.players + 1);
+      expect(await repo.deckCountInScope(eventScope)).toBe(before.decks + 1);
+      // The deck alone carries this format, and the scope never reads it.
+      expect(await repo.deckCountInScope(deckScope)).toBe(before.deckFormatDecks);
     });
 
     // The overview spans the whole archive, and the integration files share one

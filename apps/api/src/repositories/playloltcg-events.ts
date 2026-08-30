@@ -205,7 +205,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       const inserted: number[] = [];
       const changed: number[] = [];
       for (const row of written) {
-        (row.inserted ? inserted : changed).push(Number(row.activityShopId));
+        (row.inserted ? inserted : changed).push(row.activityShopId);
       }
       const touched = new Set([...inserted, ...changed]);
       const unchanged = rows.map((row) => row.activityShopId).filter((id) => !touched.has(id));

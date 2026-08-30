@@ -129,6 +129,11 @@ describe("toMetaCandidatePlayer", () => {
       wins: 5,
       losses: 1,
       draws: 0,
+      matchPoints: null,
+      opponentMatchWinPct: null,
+      gameWinPct: null,
+      opponentGameWinPct: null,
+      entryStatus: null,
       legendName: "Azir",
       legendCardId: AZIR,
       championName: "Vi",
@@ -178,6 +183,11 @@ describe("toMetaCandidatePlayer", () => {
       wins: 5,
       losses: 1,
       draws: 0,
+      matchPoints: null,
+      opponentMatchWinPct: null,
+      gameWinPct: null,
+      opponentGameWinPct: null,
+      entryStatus: null,
       legendName: "Azir",
       legendCardId: AZIR,
       championName: "Vi",
@@ -221,6 +231,24 @@ describe("toMetaCandidatePlayer", () => {
     expect(row.wins).toBeNull();
     expect(row.losses).toBeNull();
     expect(row.draws).toBeNull();
+  });
+
+  it("carries the standings detail behind the rank", () => {
+    const row = toMetaCandidatePlayer(
+      playerRow({
+        matchPoints: 21,
+        opponentMatchWinPct: 0.65382653,
+        gameWinPct: 0.77777778,
+        opponentGameWinPct: 0.64397379,
+        entryStatus: "dropped",
+      }),
+      UNLINKED,
+    );
+    expect(row.matchPoints).toBe(21);
+    expect(row.opponentMatchWinPct).toBe(0.65382653);
+    expect(row.gameWinPct).toBe(0.77777778);
+    expect(row.opponentGameWinPct).toBe(0.64397379);
+    expect(row.entryStatus).toBe("dropped");
   });
 
   it("keeps a legend name the matcher could not resolve", () => {

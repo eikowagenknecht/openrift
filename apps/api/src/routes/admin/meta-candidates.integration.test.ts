@@ -173,7 +173,7 @@ if (ctx) {
 
   await seedTestUser(db, { id: USER_ID });
   legendCardId = await seedCard("MTC Legend", "mtc-legend", "legend");
-  championCardId = await seedCard("MTC Champion", "mtc-champion", "champion");
+  championCardId = await seedCard("MTC Champion", "mtc-champion", "unit");
   mainCardId = await seedCard("MTC Main", "mtc-main", "spell");
   aliasCardId = await seedCard("MTC Aliased", "mtc-aliased", "spell");
 

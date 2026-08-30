@@ -426,10 +426,10 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
     it("clears the pointer with null", async () => {
       const source = await makeDeck("DV Parent Clear");
-      const older = await copyOf(source.id, {});
-      await decks.setPredecessor(source.id, userId, older.id);
+      // A copy descends from its source, so it starts out with a pointer.
+      const copy = await copyOf(source.id, {});
 
-      const updated = await decks.setPredecessor(source.id, userId, null);
+      const updated = await decks.setPredecessor(copy.id, userId, null);
       expect(typeof updated === "object" && updated.predecessorDeckId).toBeNull();
     });
 
@@ -557,9 +557,9 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
     });
 
     it("ignores the previous-version flag when this deck already has one", async () => {
-      const source = await makeDeck("DV Link Previous Kept");
-      const older = await copyOf(source.id, {});
-      await decks.setPredecessor(source.id, userId, older.id);
+      const older = await makeDeck("DV Link Previous Kept");
+      // The copy descends from its source, so it arrives already pointed.
+      const source = await copyOf(older.id, {});
       const other = await makeDeck("DV Link Previous Ignored");
 
       const linked = await linkOf(source.id, {
@@ -607,12 +607,15 @@ describe.skipIf(!ctx)("decksRepo variants (ADR-042)", () => {
 
   describe("unlinkVariant", () => {
     it("closes the predecessor chain over the departing deck", async () => {
-      // Three versions in one chain: live -> newer -> older.
+      // Three versions in one chain: live -> newer -> older. The copies both
+      // land pointed at `live`, so `older` has to let go of its pointer before
+      // the other two can descend from it without closing a loop.
       const live = await makeDeck("DV Unlink Chain");
       const older = await copyOf(live.id, {});
       const newer = await copyOf(live.id, {});
-      await decks.setPredecessor(newer.id, userId, older.id);
-      await decks.setPredecessor(live.id, userId, newer.id);
+      expect(await decks.setPredecessor(older.id, userId, null)).not.toBe("invalid");
+      expect(await decks.setPredecessor(newer.id, userId, older.id)).not.toBe("invalid");
+      expect(await decks.setPredecessor(live.id, userId, newer.id)).not.toBe("invalid");
 
       const departed = await unlinkOf(newer.id);
       expect(departed.familyId).toBeNull();

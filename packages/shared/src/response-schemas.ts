@@ -6,6 +6,7 @@ import type { ErrorCode } from "./error-codes.js";
 import { isAllowedLinkUrl } from "./link-hosts.js";
 import {
   META_CREDIT_VISIBILITIES,
+  META_ENTRY_STATUSES,
   META_EVENT_TIERS,
   META_LIST_STATUSES,
   META_SUBMISSION_REASONS,
@@ -90,6 +91,12 @@ export const metaListStatusSchema = z.enum(META_LIST_STATUSES);
  * `MetaEventTier` type; see that type for what each tier holds.
  */
 export const metaEventTierSchema = z.enum(META_EVENT_TIERS);
+
+/**
+ * How a player left the event: they played it out, were knocked out, or walked
+ * away. Built from the same constant as the `MetaEntryStatus` type.
+ */
+export const metaEntryStatusSchema = z.enum(META_ENTRY_STATUSES);
 
 /**
  * Whether a contributor's name appears on the archive pages they contributed

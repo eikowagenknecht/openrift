@@ -3,6 +3,7 @@ import {
   deckFormatSchema,
   deckZoneSchema,
   diffValueSchema,
+  metaEntryStatusSchema,
   metaEventTierSchema,
   metaListStatusSchema,
 } from "@openrift/shared/response-schemas";
@@ -452,6 +453,16 @@ export const metaCandidatePlayerSchema = z
     wins: z.number().int().nullable(),
     losses: z.number().int().nullable(),
     draws: z.number().int().nullable(),
+    /**
+     * The standings columns behind the rank, as the source published them. Null
+     * for the producers that publish a placement and nothing else, which is
+     * most of them.
+     */
+    matchPoints: z.number().int().nullable(),
+    opponentMatchWinPct: z.number().nullable(),
+    gameWinPct: z.number().nullable(),
+    opponentGameWinPct: z.number().nullable(),
+    entryStatus: metaEntryStatusSchema.nullable(),
     /** The legend name exactly as the source wrote it, kept even when it resolves. */
     legendName: z.string().nullable(),
     /** Null when `legendName` matched no live card, and when the source named none. */

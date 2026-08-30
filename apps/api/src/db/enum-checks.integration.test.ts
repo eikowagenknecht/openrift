@@ -41,6 +41,7 @@ import {
   listIntentResponseSchema,
   listKindResponseSchema,
   metaCreditVisibilitySchema,
+  metaEventTierSchema,
   metaListStatusSchema,
   metaSubmissionReasonSchema,
   metaSubmissionStatusSchema,
@@ -48,7 +49,7 @@ import {
   podRoundStatusSchema,
   tradeTypeResponseSchema,
 } from "@openrift/shared/response-schemas";
-import { marketplaceEnum, TRADE_PRICE_PREFS } from "@openrift/shared/types";
+import { marketplaceEnum, META_ENTRY_STATUSES, TRADE_PRICE_PREFS } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -68,6 +69,8 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * is unique per table.
  */
 const ENUM_CHECKS: Record<string, readonly string[]> = {
+  chk_candidate_meta_events_tier: metaEventTierSchema.options,
+  chk_candidate_meta_players_entry_status: META_ENTRY_STATUSES,
   chk_candidate_meta_players_list_status: metaListStatusSchema.options,
   chk_card_submissions_kind: cardSubmissionKindSchema.options,
   chk_card_submissions_reason: cardSubmissionReasonSchema.options,
@@ -98,7 +101,9 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_marketplace_groups_marketplace: marketplaceEnum.options,
   chk_marketplace_ignored_products_marketplace: marketplaceEnum.options,
   chk_marketplace_products_marketplace: marketplaceEnum.options,
+  chk_meta_event_players_entry_status: META_ENTRY_STATUSES,
   chk_meta_event_players_list_status: metaListStatusSchema.options,
+  chk_meta_events_tier: metaEventTierSchema.options,
   chk_meta_submissions_reason: metaSubmissionReasonSchema.options,
   chk_meta_submissions_status: metaSubmissionStatusSchema.options,
   chk_organization_members_role: organizationRoleSchema.options,
@@ -125,6 +130,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_tournaments_status: tournamentStatusSchema.options,
   chk_user_contact_methods_type: CONTACT_METHOD_TYPES,
   chk_users_meta_credit_visibility: metaCreditVisibilitySchema.options,
+  chk_uvsgames_event_templates_tier: metaEventTierSchema.options,
 };
 
 /**
