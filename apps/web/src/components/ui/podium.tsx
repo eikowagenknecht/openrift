@@ -17,9 +17,18 @@ import { cn } from "@/lib/utils";
 // the claim — the caller has already resolved the tie-break for the raised
 // seat, and passes the deciding number as `hint`.
 
-/** The winner's seat glow — the same accent wash CoverBand and the heroes use. */
-const SEAT_GLOW =
-  "radial-gradient(120% 90% at 50% 115%, color-mix(in oklab, var(--border-accent) 24%, transparent), transparent 70%)";
+/**
+ * The accent wash CoverBand and the heroes use, at the strength a surface wants
+ * it. Exported so anything else that marks a winner reaches for this rather than
+ * pasting a gradient that nearly matches. `strength` is the percentage of the
+ * accent mixed into the wash.
+ */
+export function accentGlow(strength: number): string {
+  return `radial-gradient(120% 90% at 50% 115%, color-mix(in oklab, var(--border-accent) ${strength}%, transparent), transparent 70%)`;
+}
+
+/** The winner's seat glow. */
+export const SEAT_GLOW = accentGlow(24);
 
 export interface PodiumSeat {
   key: string;
@@ -69,17 +78,17 @@ export type MedalVariant = "flat" | "onArt";
 /**
  * The display order for a row of seats: the winner is centered and the
  * runners-up flank it, so the row reads 2 · 1 · 3 rather than 1 · 2 · 3.
- *
- * @returns The seats in display order.
+ * Generic and exported, because the archive seats card art through the same
+ * arrangement and two copies of it would eventually disagree.
  */
-function seatOrder(seats: PodiumSeat[]): PodiumSeat[] {
+export function seatOrder<TSeat>(seats: readonly TSeat[]): TSeat[] {
   if (seats.length >= 3) {
     return [seats[1], seats[0], seats[2]];
   }
   if (seats.length === 2) {
     return [seats[1], seats[0]];
   }
-  return seats;
+  return [...seats];
 }
 
 const COLUMNS_CLASS: Record<number, string> = {

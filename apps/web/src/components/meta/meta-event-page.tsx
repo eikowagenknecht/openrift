@@ -1,101 +1,27 @@
-import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ExternalLinkIcon, PlusIcon } from "lucide-react";
-import { Fragment } from "react";
+import { PlusIcon } from "lucide-react";
 
-import { Heading } from "@/components/heading";
 import {
   PageTopBar,
-  PageTopBarBack,
+  PageTopBarActions,
+  PageTopBarPrimaryButton,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import { MarkdownText } from "@/components/markdown-text";
-import { MetaContributors } from "@/components/meta/meta-contributors";
-import { metaDeckViewFromPlayer } from "@/components/meta/meta-deck-card";
-import { MetaDeckRow } from "@/components/meta/meta-deck-row";
-import { MetaLegendLink } from "@/components/meta/meta-legend-link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useDeckFormatList } from "@/hooks/use-enums";
+  TopBarBreadcrumbSeparator,
+  TopBarBreadcrumbTrail,
+} from "@/components/layout/top-bar-breadcrumb";
+import { MarkdownText } from "@/components/markdown-text";
+import { MetaEventBracket } from "@/components/meta/meta-event-bracket";
+import { MetaEventDecklists } from "@/components/meta/meta-event-decklists";
+import { MetaEventHeader } from "@/components/meta/meta-event-header";
+import { MetaEventPodium } from "@/components/meta/meta-event-podium";
+import { MetaEventStandings } from "@/components/meta/meta-event-standings";
+import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
-import { formatRank, formatRecord } from "@/lib/meta-format";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-
-/**
- * The event's own line of metadata: date, format, field size, organizer.
- * Attribution is no longer part of it — see {@link EventSources}.
- * @returns The metadata block.
- */
-function EventMeta({ event }: { event: MetaEventDetail }) {
-  const { labels: formatLabels } = useDeckFormatList();
-  const facts = [
-    formatDay(event.eventDate),
-    event.playerCount === null ? null : `${event.playerCount} players`,
-    event.organizer,
-  ].filter(Boolean);
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-      <Badge variant="outline">{formatLabels[event.format] ?? event.format}</Badge>
-      <span className="text-muted-foreground">{facts.join(" · ")}</span>
-    </div>
-  );
-}
-
-/**
- * Where this event's data came from (ADR-014). One event is fed by several
- * sources — uvsgames posts the standings, playriftbound the lists — so this is
- * a list rather than the single link it replaced.
- *
- * Every citation is printed. None is collapsed behind a "+2 more" and none is
- * truncated: this is attribution, and a source that fed the page is owed its
- * credit whether it is the first or the fourth. A hand-entered citation (an
- * admin transcribing from a VOD or a photo of the standings board) carries no
- * URL, so it renders as plain text rather than a dead link.
- *
- * @param props.sources The event's citations, in the order the server sends them.
- * @returns The citation line, or null when the event has no sources.
- */
-function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
-  if (sources.length === 0) {
-    return null;
-  }
-  return (
-    <p className="text-muted-foreground mt-2 text-sm">
-      {sources.length === 1 ? "Source" : "Sources"}:{" "}
-      {sources.map((source, index) => (
-        <Fragment key={source.id}>
-          {index > 0 && <span aria-hidden="true"> · </span>}
-          {source.sourceUrl === null ? (
-            <span>{source.label}</span>
-          ) : (
-            <a
-              href={source.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:underline"
-            >
-              {source.label}
-              <ExternalLinkIcon className="size-3.5" />
-            </a>
-          )}
-        </Fragment>
-      ))}
-    </p>
-  );
-}
 
 /**
  * How someone who was at the tournament adds to it (ADR-014's User
@@ -108,141 +34,63 @@ function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
  * Signing in does gate the form, so a logged-out reader is told that before
  * they click rather than being bounced into a login screen with no reason
  * given, and the link carries them back to the form afterwards.
- *
- * @param props.slug The event this would add a deck to.
- * @returns The call to action.
  */
 function AddDeckCta({ slug }: { slug: string }) {
   const userId = useUserId();
 
   if (userId === null) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Know a list from this event?{" "}
-        <Link
-          to="/login"
-          search={{ redirect: `/meta/${slug}/submit`, email: undefined }}
-          className="underline underline-offset-4"
-        >
-          Sign in to send it
-        </Link>
-        .
-      </p>
+      <PageTopBarPrimaryButton
+        render={
+          <Link to="/login" search={{ redirect: `/meta/${slug}/submit`, email: undefined }} />
+        }
+      >
+        <PlusIcon />
+        Sign in to add a decklist
+      </PageTopBarPrimaryButton>
     );
   }
 
   return (
-    <Button variant="outline" size="sm" render={<Link to="/meta/$slug/submit" params={{ slug }} />}>
+    <PageTopBarPrimaryButton render={<Link to="/meta/$slug/submit" params={{ slug }} />}>
       <PlusIcon />
       Add a decklist
-    </Button>
+    </PageTopBarPrimaryButton>
   );
 }
 
 /**
- * One row of the standings: what the archive knows about a player whether or not
- * their list was ever published (ADR-014). The decklist cell is the bridge back
- * to the section above, so a reader scanning the field can jump straight to the
- * few entries that have a page.
- * @returns The table row.
- */
-function StandingsRow({ player }: { player: MetaEventPlayer }) {
-  const record = formatRecord(player.wins, player.losses, player.draws);
-
-  return (
-    <TableRow>
-      <TableCell className="tabular-nums">{formatRank(player.rank, player.rankIsTier)}</TableCell>
-      <TableCell className="font-medium">{player.playerName}</TableCell>
-      <TableCell className="text-muted-foreground tabular-nums">{record}</TableCell>
-      <TableCell className="text-muted-foreground">
-        <MetaLegendLink name={player.legend?.name} slug={player.legend?.slug} />
-      </TableCell>
-      <TableCell>
-        {player.shareToken !== null && (
-          <Link
-            to="/meta/decks/$token"
-            params={{ token: player.shareToken }}
-            className="whitespace-nowrap hover:underline"
-          >
-            {player.listStatus === "partial" ? "Partial list" : "Decklist"}
-          </Link>
-        )}
-      </TableCell>
-    </TableRow>
-  );
-}
-
-/**
- * The whole field, best finish first: the tier of the archive that covers every
- * player, not only the ones whose decklist the organizer published (ADR-014).
- * The archive knows the legend for nearly every entry, so this is where a reader
- * sees what the room was actually playing.
- * @returns The standings section, or a note that they have not arrived yet.
- */
-function Standings({ players }: { players: MetaEventPlayer[] }) {
-  if (players.length === 0) {
-    return (
-      <section className="mt-8">
-        <Heading className="mb-3">Standings</Heading>
-        <Empty>
-          <EmptyHeader>
-            <EmptyDescription>
-              The results for this event have not come through yet. Check back soon.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </section>
-    );
-  }
-  return (
-    <section className="mt-8">
-      <Heading className="mb-3">Standings</Heading>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-16">Rank</TableHead>
-              <TableHead>Player</TableHead>
-              <TableHead className="w-20">Record</TableHead>
-              <TableHead>Legend</TableHead>
-              <TableHead className="w-28">List</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {players.map((player) => (
-              <StandingsRow key={player.id} player={player} />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </section>
-  );
-}
-
-/**
- * `/meta/$slug` — one archived event: its metadata, its notes, the decks whose
- * lists are known, and the full standings behind them (ADR-014).
- * @returns The event page.
+ * `/meta/$slug` — one archived event, top-down: who won it, how the cut played
+ * out, the lists the archive holds, and the whole field behind them (ADR-014).
+ *
+ * Every section stands down on its own when the archive has nothing for it, so
+ * an event that arrived as bare standings still reads as a finished page rather
+ * than a page with holes in it.
  */
 export function MetaEventPage({ slug }: { slug: string }) {
   const { data } = useMetaEvent(slug);
-  const { event, players } = data;
-  const decks = players
-    .map((player) => metaDeckViewFromPlayer(player, event.format))
-    .filter((deck) => deck !== null);
+  const { event, players, matches, phases } = data;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <PageTopBarSticky width="capped">
-        <PageTopBar>
-          <PageTopBarBack to="/meta" aria-label="Meta archive" />
-          <PageTopBarTitle>{event.name}</PageTopBarTitle>
+        <PageTopBar className="gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <TopBarBreadcrumbTrail
+              segments={[{ label: "Meta Archive", link: <Link to="/meta" /> }]}
+            />
+            <TopBarBreadcrumbSeparator className="hidden sm:inline" />
+            <PageTopBarTitle>{event.name}</PageTopBarTitle>
+            <MetaTierBadge tier={event.tier} />
+          </div>
+          <PageTopBarActions>
+            <AddDeckCta slug={slug} />
+          </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-6")}>
-        <EventMeta event={event} />
-        <EventSources sources={event.sources} />
-        <MetaContributors contributors={event.contributors} className="mt-1" />
+
+      <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-10")}>
+        <MetaEventHeader event={event} />
 
         {event.notes !== null && event.notes !== "" && (
           <div className="mt-4">
@@ -251,31 +99,15 @@ export function MetaEventPage({ slug }: { slug: string }) {
           </div>
         )}
 
-        <section className="mt-8">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <Heading>Decks</Heading>
-            <AddDeckCta slug={slug} />
-          </div>
-          {decks.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyDescription>
-                  We haven&rsquo;t archived any decks from this event yet.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {decks.map((deck) => (
-                <li key={deck.shareToken}>
-                  <MetaDeckRow deck={deck} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <div className="mt-6">
+          <MetaEventPodium players={players} />
+        </div>
 
-        <Standings players={players} />
+        <MetaEventBracket matches={matches} phases={phases} players={players} />
+
+        <MetaEventDecklists players={players} fieldSize={event.playerCount} slug={slug} />
+
+        <MetaEventStandings players={players} slug={slug} />
 
         <p className="text-muted-foreground mt-8 text-sm">
           <Link to="/meta/decks" className="hover:underline">

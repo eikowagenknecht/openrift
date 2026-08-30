@@ -16,6 +16,7 @@ const mockMeta = {
   eventBySlug: vi.fn(),
   standingsForEvent: vi.fn(),
   matchesForEvent: vi.fn(),
+  phasesForEvent: vi.fn(),
   sourcesForEvent: vi.fn(),
   contributorsForEvent: vi.fn(),
   playerCountInScope: vi.fn(),
@@ -72,9 +73,11 @@ function playerRow(overrides: Record<string, unknown> = {}) {
     legendSlug: null,
     legendTypes: null,
     legendTags: null,
+    legendDomains: null,
     championCardId: null,
     championName: null,
     championSlug: null,
+    championDomains: null,
     deckId: null,
     deckName: null,
     shareToken: null,
@@ -102,6 +105,7 @@ beforeEach(() => {
   mockMeta.winnersForEvents.mockResolvedValue([]);
   mockMeta.standingsForEvent.mockResolvedValue([]);
   mockMeta.matchesForEvent.mockResolvedValue([]);
+  mockMeta.phasesForEvent.mockResolvedValue([]);
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockMeta.contributorsForEvent.mockResolvedValue([]);
   mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([]);
@@ -259,6 +263,50 @@ describe("GET /meta/events/{slug}", () => {
     ]);
   });
 
+  it("serves the phases those rounds belong to, so a cut is not guessed from their shape", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow());
+    mockMeta.phasesForEvent.mockResolvedValue([
+      {
+        id: "h0000000-0000-4000-a000-000000000001",
+        metaEventId: EVENT_ID,
+        phaseOrder: 0,
+        name: "Phase 1",
+        roundType: "SWISS",
+        roundCount: 8,
+        rankRequired: null,
+        maxGameWins: 2,
+        createdAt: new Date("2026-08-18T10:00:00.000Z"),
+        updatedAt: new Date("2026-08-18T10:00:00.000Z"),
+      },
+      {
+        id: "h0000000-0000-4000-a000-000000000002",
+        metaEventId: EVENT_ID,
+        phaseOrder: 1,
+        name: "Phase 3",
+        roundType: "RANKED_SINGLE_ELIMINATION",
+        roundCount: 3,
+        rankRequired: 8,
+        maxGameWins: 2,
+        createdAt: new Date("2026-08-18T10:00:00.000Z"),
+        updatedAt: new Date("2026-08-18T10:00:00.000Z"),
+      },
+    ]);
+
+    const res = await app.request("/api/v1/meta/events/summoner-skirmish-2026");
+
+    const json = await readJson(res);
+    expect(json.phases).toEqual([
+      { phaseOrder: 0, name: "Phase 1", roundType: "SWISS", roundCount: 8, rankRequired: null },
+      {
+        phaseOrder: 1,
+        name: "Phase 3",
+        roundType: "RANKED_SINGLE_ELIMINATION",
+        roundCount: 3,
+        rankRequired: 8,
+      },
+    ]);
+  });
+
   it("resolves every legend and champion image in one batch", async () => {
     mockMeta.eventBySlug.mockResolvedValue(eventRow());
     mockMeta.standingsForEvent.mockResolvedValue([
@@ -266,9 +314,11 @@ describe("GET /meta/events/{slug}", () => {
         legendCardId: LEGEND_ID,
         legendName: "Azir",
         legendSlug: "azir",
+        legendDomains: ["order", "calm"],
         championCardId: CHAMPION_ID,
         championName: "Jinx",
         championSlug: "jinx",
+        championDomains: ["chaos"],
       }),
       playerRow({
         id: "p0000000-0001-4000-a000-000000000002",
@@ -299,12 +349,14 @@ describe("GET /meta/events/{slug}", () => {
       name: "Azir",
       slug: "azir",
       imageId: "img-legend",
+      domains: ["order", "calm"],
     });
     expect(json.players[0].champion).toEqual({
       cardId: CHAMPION_ID,
       name: "Jinx",
       slug: "jinx",
       imageId: null,
+      domains: ["chaos"],
     });
     expect(json.players[1].champion).toBeNull();
   });
@@ -332,6 +384,7 @@ describe("GET /meta/events/{slug}", () => {
       name: "Azir, Emperor of the Sands",
       slug: "emperor-of-the-sands",
       imageId: "img-legend",
+      domains: [],
     });
   });
 

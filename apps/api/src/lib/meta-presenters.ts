@@ -5,6 +5,7 @@ import type {
   MetaDeckSummary,
   MetaEventDetail,
   MetaEventMatch,
+  MetaEventPhase,
   MetaEventPlayer,
   MetaEventSummary,
   MetaEventWinner,
@@ -21,6 +22,7 @@ import type {
   MetaDeckContextRow,
   MetaDeckSummaryRow,
   MetaEventMatchRow,
+  MetaEventPhaseRow,
   MetaEventPlayerRow,
   MetaEventSourceRow,
   MetaEventWithCounts,
@@ -61,7 +63,12 @@ export interface MetaSubmissionResponse {
 type ImageIds = ReadonlyMap<string, string | null>;
 
 function toCardRef(
-  card: { cardId: string | null; name: string | null; slug: string | null },
+  card: {
+    cardId: string | null;
+    name: string | null;
+    slug: string | null;
+    domains: string[] | null;
+  },
   images: ImageIds,
 ): MetaEventPlayer["legend"] {
   if (card.cardId === null) {
@@ -72,6 +79,7 @@ function toCardRef(
     name: card.name ?? "",
     slug: card.slug ?? "",
     imageId: images.get(card.cardId) ?? null,
+    domains: card.domains ?? [],
   };
 }
 
@@ -133,7 +141,12 @@ export function toMetaEventWinner(row: MetaEventPlayerRow, images: ImageIds): Me
     losses: row.losses,
     draws: row.draws,
     legend: toCardRef(
-      { cardId: row.legendCardId, name: legendLabel(row), slug: row.legendSlug },
+      {
+        cardId: row.legendCardId,
+        name: legendLabel(row),
+        slug: row.legendSlug,
+        domains: row.legendDomains,
+      },
       images,
     ),
   };
@@ -190,17 +203,42 @@ export function toMetaEventPlayer(row: MetaEventPlayerRow, images: ImageIds): Me
     losses: row.losses,
     draws: row.draws,
     legend: toCardRef(
-      { cardId: row.legendCardId, name: legendLabel(row), slug: row.legendSlug },
+      {
+        cardId: row.legendCardId,
+        name: legendLabel(row),
+        slug: row.legendSlug,
+        domains: row.legendDomains,
+      },
       images,
     ),
     champion: toCardRef(
-      { cardId: row.championCardId, name: row.championName, slug: row.championSlug },
+      {
+        cardId: row.championCardId,
+        name: row.championName,
+        slug: row.championSlug,
+        domains: row.championDomains,
+      },
       images,
     ),
     deckId: row.deckId,
     deckName: row.deckName,
     shareToken: row.shareToken,
     listStatus: row.listStatus,
+  };
+}
+
+/**
+ * One stage of an event. `roundType` travels as the source wrote it: the client
+ * needs to tell a cut from the Swiss rounds, and normalizing the vocabulary here
+ * would mean guessing at values no source has published yet.
+ */
+export function toMetaEventPhase(row: MetaEventPhaseRow): MetaEventPhase {
+  return {
+    phaseOrder: row.phaseOrder,
+    name: row.name,
+    roundType: row.roundType,
+    roundCount: row.roundCount,
+    rankRequired: row.rankRequired,
   };
 }
 

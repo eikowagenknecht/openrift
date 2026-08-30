@@ -55,7 +55,7 @@ function WinnerLine({ winner }: { winner: MetaEventWinner }) {
         <span className="truncate font-semibold">{winner.playerName}</span>
       </p>
       <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
-        <MetaIdentity name={winner.legend?.name} />
+        <MetaIdentity name={winner.legend?.name} domains={winner.legend?.domains} />
         {record !== null && <span className="text-muted-foreground tabular-nums">· {record}</span>}
       </div>
     </div>

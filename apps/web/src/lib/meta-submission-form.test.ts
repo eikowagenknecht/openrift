@@ -8,6 +8,7 @@ import type { MetaSubmissionDraft } from "./meta-submission-form";
 import {
   EMPTY_META_SUBMISSION_DRAFT,
   buildMetaSubmissionInput,
+  metaSubmissionDraftFromPrefill,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "./meta-submission-form";
@@ -288,5 +289,54 @@ describe("buildMetaSubmissionInput", () => {
     expect(input.proposedEvent?.playerCount).toBeNull();
     expect(input.proposedEvent?.organizer).toBeNull();
     expect(input.proposedEvent?.sourceUrl).toBeNull();
+  });
+});
+
+describe("metaSubmissionDraftFromPrefill", () => {
+  it("carries a standings row into the form so only the list is left to type", () => {
+    const draft = metaSubmissionDraftFromPrefill({
+      playerName: "M. Álvarez",
+      rank: 4,
+      rankIsTier: false,
+      wins: 12,
+      losses: 2,
+      draws: 1,
+    });
+
+    expect(draft.playerName).toBe("M. Álvarez");
+    expect(draft.rank).toBe("4");
+    expect(draft.rankIsTier).toBe(false);
+    expect(draft.wins).toBe("12");
+    expect(draft.losses).toBe("2");
+    expect(draft.draws).toBe("1");
+    expect(draft.deckText).toBe("");
+  });
+
+  it("keeps a cut bucket a cut bucket", () => {
+    expect(metaSubmissionDraftFromPrefill({ rank: 8, rankIsTier: true }).rankIsTier).toBe(true);
+  });
+
+  it("leaves the record blank when the source published none", () => {
+    const draft = metaSubmissionDraftFromPrefill({ playerName: "Ana", rank: 12 });
+    expect(draft.wins).toBe("");
+    expect(draft.losses).toBe("");
+    expect(draft.draws).toBe("");
+  });
+
+  it("prints a zero count rather than reading it as nothing published", () => {
+    const draft = metaSubmissionDraftFromPrefill({ wins: 5, losses: 0, draws: 0 });
+    expect(draft.losses).toBe("0");
+    expect(draft.draws).toBe("0");
+  });
+
+  it("drops a rank the form would reject rather than blocking the send", () => {
+    expect(metaSubmissionDraftFromPrefill({ rank: 0 }).rank).toBe(EMPTY_META_SUBMISSION_DRAFT.rank);
+    expect(metaSubmissionDraftFromPrefill({ rank: -3 }).rank).toBe(
+      EMPTY_META_SUBMISSION_DRAFT.rank,
+    );
+  });
+
+  it("returns a blank form when nothing was passed", () => {
+    expect(metaSubmissionDraftFromPrefill({})).toEqual(EMPTY_META_SUBMISSION_DRAFT);
   });
 });

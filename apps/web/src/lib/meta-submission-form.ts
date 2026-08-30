@@ -58,6 +58,50 @@ export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
   eventSourceUrl: "",
 };
 
+/**
+ * What a standings row hands the form when someone opens it from one: the entry
+ * the archive already holds, so the sender types the list and nothing else.
+ *
+ * Everything is optional because the row may itself be thin — a source that
+ * published no records leaves the three counts out, and the form shows them
+ * blank rather than inventing a 0-0-0.
+ */
+export interface MetaSubmissionPrefill {
+  playerName?: string;
+  rank?: number;
+  rankIsTier?: boolean;
+  wins?: number;
+  losses?: number;
+  draws?: number;
+}
+
+/** Blank for a count nobody published, which is not the same as a zero. */
+function countField(value: number | undefined): string {
+  return value === undefined ? "" : String(value);
+}
+
+/**
+ * Seeds a blank form from a standings row.
+ *
+ * A rank of zero or less is dropped rather than written into the field: the
+ * form validates it as a positive whole number, and a prefill that arrives
+ * invalid would block sending with an error nobody typed.
+ */
+export function metaSubmissionDraftFromPrefill(
+  prefill: MetaSubmissionPrefill,
+): MetaSubmissionDraft {
+  const rank = prefill.rank !== undefined && prefill.rank >= 1 ? String(prefill.rank) : undefined;
+  return {
+    ...EMPTY_META_SUBMISSION_DRAFT,
+    playerName: prefill.playerName ?? EMPTY_META_SUBMISSION_DRAFT.playerName,
+    rank: rank ?? EMPTY_META_SUBMISSION_DRAFT.rank,
+    rankIsTier: prefill.rankIsTier ?? EMPTY_META_SUBMISSION_DRAFT.rankIsTier,
+    wins: countField(prefill.wins),
+    losses: countField(prefill.losses),
+    draws: countField(prefill.draws),
+  };
+}
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const WHOLE_NUMBER_PATTERN = /^\d+$/u;
 

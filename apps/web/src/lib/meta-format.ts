@@ -11,6 +11,13 @@ export const META_LIST_STATUS_LABELS: Record<MetaListStatus, string> = {
   none: "No list",
 };
 
+/**
+ * The finishes that wear a medal instead of a printed rank. Every archive
+ * surface that ranks a field reads this, so the podium is the same three places
+ * on all of them.
+ */
+export const MEDAL_RANKS = 3;
+
 /** How much an event counts for, in the words the archive shows readers. */
 export const META_EVENT_TIER_LABELS: Record<MetaEventTier, string> = {
   premier: "Premier",

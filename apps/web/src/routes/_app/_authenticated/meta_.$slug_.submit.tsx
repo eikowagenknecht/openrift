@@ -6,6 +6,7 @@ import { metaEventsQueryOptions } from "@/hooks/use-meta";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { parseMetaSubmitSearch } from "@/lib/meta-submit-link";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -14,10 +15,16 @@ import { getSiteUrl } from "@/lib/site-config";
  * (ADR-014). The slug only preselects the target; an unknown one falls through
  * to the picker rather than 404ing, so a stale link still lets someone send
  * what they came to send.
+ *
+ * The search params carry the standings row an event page opened the form from,
+ * so someone filling a hole in the record types the decklist and nothing else.
+ * Every one of them is optional and none of them is trusted: the form validates
+ * what it was handed exactly as it validates what is typed.
  */
 export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Send a decklist", noIndex: true }),
+  validateSearch: parseMetaSubmitSearch,
   loader: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,

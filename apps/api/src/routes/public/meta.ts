@@ -14,6 +14,7 @@ import {
   toMetaDeckSummary,
   toMetaEventDetail,
   toMetaEventMatch,
+  toMetaEventPhase,
   toMetaEventPlayer,
   toMetaEventSummary,
   toMetaEventWinner,
@@ -100,9 +101,10 @@ export const metaRouter = {
       throw errors.NOT_FOUND({ message: "Event not found" });
     }
 
-    const [players, matches, sources, contributors] = await Promise.all([
+    const [players, matches, phases, sources, contributors] = await Promise.all([
       meta.standingsForEvent(event.id),
       meta.matchesForEvent(event.id),
+      meta.phasesForEvent(event.id),
       meta.sourcesForEvent(event.id),
       // Already filtered by the repo: anyone on `hidden`, and anyone whose
       // chosen profile field is blank, never reaches this payload.
@@ -117,6 +119,7 @@ export const metaRouter = {
       event: toMetaEventDetail(event, { sources, contributors, winners }),
       players: players.map((row) => toMetaEventPlayer(row, images)),
       matches: matches.map((row) => toMetaEventMatch(row)),
+      phases: phases.map((row) => toMetaEventPhase(row)),
     };
   }),
 

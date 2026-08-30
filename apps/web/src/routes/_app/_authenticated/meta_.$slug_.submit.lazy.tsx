@@ -8,5 +8,18 @@ export const Route = createLazyFileRoute("/_app/_authenticated/meta_/$slug_/subm
 
 function MetaEventSubmitRoute() {
   const { slug } = Route.useParams();
-  return <MetaSubmitPage slug={slug} />;
+  const search = Route.useSearch();
+  return (
+    <MetaSubmitPage
+      slug={slug}
+      prefill={{
+        playerName: search.player,
+        rank: search.rank,
+        rankIsTier: search.cut,
+        wins: search.wins,
+        losses: search.losses,
+        draws: search.draws,
+      }}
+    />
+  );
 }

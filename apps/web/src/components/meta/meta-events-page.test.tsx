@@ -74,7 +74,13 @@ function winner(playerName: string): MetaEventSummary["winners"][number] {
     wins: 5,
     losses: 1,
     draws: 0,
-    legend: { cardId: "c1", name: "Lee Sin, the Blind Monk", slug: "lee-sin", imageId: "i1" },
+    legend: {
+      cardId: "c1",
+      name: "Lee Sin, the Blind Monk",
+      slug: "lee-sin",
+      imageId: "i1",
+      domains: ["body"],
+    },
   };
 }
 

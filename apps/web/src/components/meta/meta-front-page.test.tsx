@@ -57,6 +57,10 @@ vi.mock("@/hooks/use-enums", () => ({
     formats: [{ slug: "standard", label: "Standard" }],
     labels: { standard: "Standard" },
   }),
+  useEnumOrders: () => ({
+    orders: { domains: ["calm", "order", "fury"] },
+    labels: { domains: { calm: "Calm", order: "Order", fury: "Fury" } },
+  }),
 }));
 
 vi.mock("@/hooks/use-admin", () => ({ useIsAdmin: () => ({ data: false }) }));
@@ -92,6 +96,7 @@ const WINNER = {
     name: "Azir, Emperor of the Sands",
     slug: "azir-emperor-of-the-sands",
     imageId: null,
+    domains: ["calm", "order"],
   },
 };
 
@@ -191,6 +196,14 @@ describe("MetaFrontPage", () => {
     expect(within(winners).getByText("· 14-1-0")).toBeInTheDocument();
   });
 
+  it("draws the winning legend's domain runes", () => {
+    render(<MetaFrontPage />);
+
+    const winners = section("Latest winners");
+    expect(within(winners).getByRole("img", { name: "Calm" })).toBeInTheDocument();
+    expect(within(winners).getByRole("img", { name: "Order" })).toBeInTheDocument();
+  });
+
   it("names both players when the source published a tie at the top", () => {
     captured.events = [
       event({
@@ -206,6 +219,7 @@ describe("MetaFrontPage", () => {
               name: "Yasuo, the Unforgiven",
               slug: "yasuo-the-unforgiven",
               imageId: null,
+              domains: ["fury"],
             },
           },
         ],

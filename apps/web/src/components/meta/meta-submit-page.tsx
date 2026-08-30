@@ -40,10 +40,14 @@ import {
   metaSubmissionCompletenessHints,
   metaSubmissionCompletenessLabels,
 } from "@/lib/meta-submission-copy";
-import type { MetaSubmissionDraft, MetaSubmissionParsedList } from "@/lib/meta-submission-form";
+import type {
+  MetaSubmissionDraft,
+  MetaSubmissionParsedList,
+  MetaSubmissionPrefill,
+} from "@/lib/meta-submission-form";
 import {
-  EMPTY_META_SUBMISSION_DRAFT,
   buildMetaSubmissionInput,
+  metaSubmissionDraftFromPrefill,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "@/lib/meta-submission-form";
@@ -204,9 +208,16 @@ function SubmissionSent({
  * The submission form.
  *
  * @param props.slug The archived event this targets, when the page was reached from one.
+ * @param props.prefill The standings row the form was opened from, if any.
  * @returns The page element.
  */
-export function MetaSubmitPage({ slug }: { slug?: string }) {
+export function MetaSubmitPage({
+  slug,
+  prefill,
+}: {
+  slug?: string;
+  prefill?: MetaSubmissionPrefill;
+}) {
   const { data: eventsData } = useMetaEvents();
   const { allPrintings } = useCards();
   const { formats, labels: formatLabels } = useDeckFormatList();
@@ -215,7 +226,9 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
   const events = eventsData.events;
   const eventFromSlug = slug === undefined ? undefined : events.find((row) => row.slug === slug);
 
-  const [draft, setDraft] = useState<MetaSubmissionDraft>(EMPTY_META_SUBMISSION_DRAFT);
+  const [draft, setDraft] = useState<MetaSubmissionDraft>(() =>
+    metaSubmissionDraftFromPrefill(prefill ?? {}),
+  );
   const [selectedEventId, setSelectedEventId] = useState<string>(eventFromSlug?.id ?? "");
   // Proposing is a mode, not a value: the archive genuinely does not have the
   // tournament, so there is nothing to pick and the event fields take over. An

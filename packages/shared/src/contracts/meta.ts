@@ -26,6 +26,12 @@ const metaCardRefSchema = z
     slug: z.string(),
     /** Canonical front image, null when the card has no usable artwork. */
     imageId: z.string().nullable(),
+    /**
+     * Domain slugs for the runes an archive surface draws beside the name.
+     * Empty when the aggregates view has not caught up with a freshly imported
+     * card, which renders the name without runes rather than blocking the row.
+     */
+    domains: z.array(z.string()),
   })
   .openapi("MetaCardRef");
 
@@ -152,6 +158,25 @@ export const metaEventPlayerSchema = z
   .openapi("MetaEventPlayer");
 
 /**
+ * One stage of an event: the Swiss rounds, then the cut. This is what tells a
+ * cut apart from the rounds before it — the match rows carry only a
+ * `phaseOrder`, and guessing a bracket from the shape of its rounds gets a
+ * bronze match or a thinning Swiss wrong.
+ */
+export const metaEventPhaseSchema = z
+  .object({
+    phaseOrder: z.number().int(),
+    /** The source's own name for the phase, e.g. "Phase 2". */
+    name: z.string().nullable(),
+    /** Source vocabulary, kept raw: `SWISS`, `RANKED_SINGLE_ELIMINATION`. */
+    roundType: z.string(),
+    roundCount: z.number().int().nullable(),
+    /** The standing that entered this phase — 8 for a Top 8. */
+    rankRequired: z.number().int().nullable(),
+  })
+  .openapi("MetaEventPhase");
+
+/**
  * One archived match in one round, referencing the event's player rows by id.
  * Per-match facts only; no aggregate is computed or served from these.
  */
@@ -227,6 +252,8 @@ export const metaEventDetailResponseSchema = z
     players: z.array(metaEventPlayerSchema),
     /** Round-by-round results, empty for events whose source published none. */
     matches: z.array(metaEventMatchSchema),
+    /** The stages those rounds belong to, empty when the source named none. */
+    phases: z.array(metaEventPhaseSchema),
   })
   .openapi("MetaEventDetailResponse");
 

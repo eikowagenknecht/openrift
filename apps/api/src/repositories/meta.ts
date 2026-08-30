@@ -88,9 +88,11 @@ export interface MetaEventPlayerRow {
   legendSlug: string | null;
   legendTypes: CardType[] | null;
   legendTags: string[] | null;
+  legendDomains: string[] | null;
   championCardId: string | null;
   championName: string | null;
   championSlug: string | null;
+  championDomains: string[] | null;
   /** Null for a standings-only entry, together with the three fields below. */
   deckId: string | null;
   deckName: string | null;
@@ -401,6 +403,7 @@ export function metaRepo(db: Kysely<Database>) {
         // and an inner join would drop a fresh Legend's standings row entirely
         // rather than just naming it without its champion.
         .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
+        .leftJoin("mvCardAggregates as cmca", "cmca.cardId", "p.championCardId")
         .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
         .leftJoin("decks as d", "d.id", "p.deckId")
         .select([
@@ -416,9 +419,11 @@ export function metaRepo(db: Kysely<Database>) {
           "lc.slug as legendSlug",
           "lmca.types as legendTypes",
           "lc.tags as legendTags",
+          "lmca.domains as legendDomains",
           "p.championCardId",
           "cc.name as championName",
           "cc.slug as championSlug",
+          "cmca.domains as championDomains",
           "p.deckId",
           "d.name as deckName",
           "d.shareToken",

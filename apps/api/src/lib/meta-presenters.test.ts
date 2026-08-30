@@ -18,6 +18,7 @@ import {
   toMetaDeckSummary,
   toMetaEventDetail,
   toMetaEventMatch,
+  toMetaEventPhase,
   toMetaEventPlayer,
   toMetaEventSource,
   toMetaEventSummary,
@@ -60,9 +61,11 @@ function playerRow(overrides: Partial<MetaEventPlayerRow> = {}): MetaEventPlayer
     legendSlug: "jinx",
     legendTypes: ["legend"],
     legendTags: [],
+    legendDomains: ["chaos", "fury"],
     championCardId: "champion-1",
     championName: "Vi",
     championSlug: "vi",
+    championDomains: ["body"],
     deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
     deckName: "Jinx Aggro",
     shareToken: "aB3dE5gH7jK9",
@@ -164,8 +167,19 @@ describe("toMetaEventWinner", () => {
         name: "Jinx",
         slug: "jinx",
         imageId: "image-legend",
+        domains: ["chaos", "fury"],
       },
     });
+  });
+
+  it("gives the winner's legend its real domains, so an inline winner draws its runes", () => {
+    const winner = toMetaEventWinner(playerRow({ legendDomains: ["order"] }), IMAGES);
+    expect(winner.legend?.domains).toEqual(["order"]);
+  });
+
+  it("draws no runes for a legend the aggregates view has not caught up with", () => {
+    const winner = toMetaEventWinner(playerRow({ legendDomains: null }), IMAGES);
+    expect(winner.legend?.domains).toEqual([]);
   });
 
   it("keeps the winner when the archive never learned their legend", () => {
@@ -296,6 +310,54 @@ describe("toMetaEventDetail", () => {
   });
 });
 
+describe("toMetaEventPhase", () => {
+  it("keeps the source's own round vocabulary rather than normalizing it", () => {
+    expect(
+      toMetaEventPhase({
+        id: "3f7a1c2e-0000-7000-8000-0000000000h1",
+        metaEventId: "3f7a1c2e-0000-7000-8000-0000000000e1",
+        phaseOrder: 1,
+        name: "Phase 3",
+        roundType: "RANKED_SINGLE_ELIMINATION",
+        roundCount: 3,
+        rankRequired: 8,
+        maxGameWins: 2,
+        createdAt: new Date("2026-08-18T10:00:00Z"),
+        updatedAt: new Date("2026-08-18T10:00:00Z"),
+      }),
+    ).toEqual({
+      phaseOrder: 1,
+      name: "Phase 3",
+      roundType: "RANKED_SINGLE_ELIMINATION",
+      roundCount: 3,
+      rankRequired: 8,
+    });
+  });
+
+  it("carries a phase the source named nothing about", () => {
+    expect(
+      toMetaEventPhase({
+        id: "3f7a1c2e-0000-7000-8000-0000000000h2",
+        metaEventId: "3f7a1c2e-0000-7000-8000-0000000000e1",
+        phaseOrder: 0,
+        name: null,
+        roundType: "SWISS",
+        roundCount: null,
+        rankRequired: null,
+        maxGameWins: null,
+        createdAt: new Date("2026-08-18T10:00:00Z"),
+        updatedAt: new Date("2026-08-18T10:00:00Z"),
+      }),
+    ).toEqual({
+      phaseOrder: 0,
+      name: null,
+      roundType: "SWISS",
+      roundCount: null,
+      rankRequired: null,
+    });
+  });
+});
+
 describe("toMetaEventMatch", () => {
   it("keeps the per-match facts and drops the row bookkeeping", () => {
     expect(
@@ -342,8 +404,20 @@ describe("toMetaEventPlayer", () => {
       wins: 5,
       losses: 1,
       draws: 0,
-      legend: { cardId: "legend-1", name: "Jinx", slug: "jinx", imageId: "image-legend" },
-      champion: { cardId: "champion-1", name: "Vi", slug: "vi", imageId: "image-champion" },
+      legend: {
+        cardId: "legend-1",
+        name: "Jinx",
+        slug: "jinx",
+        imageId: "image-legend",
+        domains: ["chaos", "fury"],
+      },
+      champion: {
+        cardId: "champion-1",
+        name: "Vi",
+        slug: "vi",
+        imageId: "image-champion",
+        domains: ["body"],
+      },
       deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
       deckName: "Jinx Aggro",
       shareToken: "aB3dE5gH7jK9",
@@ -364,6 +438,7 @@ describe("toMetaEventPlayer", () => {
       name: "Jinx",
       slug: "jinx",
       imageId: "image-legend",
+      domains: ["chaos", "fury"],
     });
   });
 
@@ -382,7 +457,17 @@ describe("toMetaEventPlayer", () => {
       name: "",
       slug: "jinx",
       imageId: "image-legend",
+      domains: ["chaos", "fury"],
     });
+  });
+
+  it("names a card the aggregates view has not caught up with, without runes", () => {
+    const player = toMetaEventPlayer(
+      playerRow({ legendDomains: null, championDomains: null }),
+      IMAGES,
+    );
+    expect(player.legend?.domains).toEqual([]);
+    expect(player.champion?.domains).toEqual([]);
   });
 
   it("names a Legend for its champion, and leaves a champion unit's own name alone", () => {
@@ -401,6 +486,7 @@ describe("toMetaEventPlayer", () => {
       name: "Azir, Emperor of the Sands",
       slug: "emperor-of-the-sands",
       imageId: "image-legend",
+      domains: ["chaos", "fury"],
     });
     expect(player.champion?.name).toBe("Vi, Piltover Enforcer");
   });

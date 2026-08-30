@@ -35,6 +35,7 @@ import type {
   metaEventListResponseSchema,
   metaEventPlayerSchema,
   metaEventMatchSchema,
+  metaEventPhaseSchema,
   metaEventSourceSchema,
   metaEventSummarySchema,
   metaEventWinnerSchema,
@@ -61,6 +62,9 @@ export type MetaEventPlayer = z.infer<typeof metaEventPlayerSchema>;
 
 /** One archived match in one round, referencing the event's players by id. */
 export type MetaEventMatch = z.infer<typeof metaEventMatchSchema>;
+
+/** One stage of an event, which is what tells a cut apart from the Swiss rounds. */
+export type MetaEventPhase = z.infer<typeof metaEventPhaseSchema>;
 
 /**
  * One archived deck as a tile or table row. Legend and champion are

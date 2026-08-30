@@ -76,6 +76,7 @@ const WINNER = {
     name: "Kennen, Heart of the Tempest",
     slug: "kennen",
     imageId: null,
+    domains: ["chaos", "order"],
   },
 };
 
