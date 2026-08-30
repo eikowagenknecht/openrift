@@ -14,6 +14,19 @@ export const CONTAINER_WIDTH =
   "w-full mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
 
 /**
+ * The two page widths. A page is `full` when its main content is a card grid,
+ * a virtualized list, or a wide table; every other page is `capped`. There is
+ * deliberately no third value: `PageTopBarSticky` requires one of these, so a
+ * new width cannot be introduced at a call site.
+ */
+export const PAGE_WIDTH = {
+  full: CONTAINER_WIDTH,
+  capped: "w-full mx-auto max-w-5xl",
+} as const;
+
+export type PageWidth = keyof typeof PAGE_WIDTH;
+
+/**
  * Horizontal page padding — shared axis constant for one-off compositions.
  * `px-safe` keeps the normal 0.75rem gutter but grows to clear the iOS safe
  * areas (Dynamic Island / rounded corners intruding from the sides in

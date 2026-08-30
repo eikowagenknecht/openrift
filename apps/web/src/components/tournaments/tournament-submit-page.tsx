@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRequestJoinTournament, useTournamentSubmitLanding } from "@/hooks/use-tournaments";
 import { useUserId } from "@/lib/auth-session";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 const CLAIM_LINK_HINT =
   "The organizer adds players directly. Open the personal claim link they sent you to take your spot.";
@@ -92,18 +92,14 @@ export function TournamentSubmitPage({ token }: { token: string }) {
   const canSubmitDeck =
     Boolean(userId) && data.deckExpected && (data.selfRegistrationOpen || data.viewerIsParticipant);
 
-  // Widen the column only when the deck submission form is shown; the
-  // join/claim-only landing stays narrow.
-  const maxWidth = canSubmitDeck ? "max-w-2xl" : "max-w-md";
-
   return (
     <>
-      <PageTopBarSticky maxWidth={canSubmitDeck ? "4xl" : "md"}>
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Join tournament</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full flex-col gap-6 pt-3", maxWidth, PAGE_PADDING_NO_TOP)}>
+      <div className={cn("flex flex-col gap-6 pt-3", PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP)}>
         <Card>
           <CardHeader>
             <CardTitle>{data.name}</CardTitle>

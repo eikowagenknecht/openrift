@@ -17,7 +17,7 @@ import { useSession } from "@/lib/auth-session";
 import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
 import { landingThumbnailCards } from "@/lib/landing-thumbnails";
 import { SOCIAL_LINKS } from "@/lib/social-links";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 import { BoxVignette } from "./box-vignette";
 import { ChapterDivider } from "./chapter-divider";
@@ -483,7 +483,7 @@ export function FeaturesPage() {
 
   return (
     <PageTopBarHeightContext value={topBarHeight}>
-      <PageTopBarSticky maxWidth="5xl" ref={setTopBarSlot}>
+      <PageTopBarSticky width="capped" ref={setTopBarSlot}>
         <PageTopBar>
           <PageTopBarTitle>Features</PageTopBarTitle>
         </PageTopBar>
@@ -491,7 +491,7 @@ export function FeaturesPage() {
       <FeaturesChipNav chapters={FEATURE_CHAPTERS} />
       <FeaturesRail chapters={FEATURE_CHAPTERS} />
       <FeaturesHero chapters={FEATURE_CHAPTERS} thumbnailUrls={thumbnailUrls.slice(0, 5)} />
-      <div className={cn(PAGE_PADDING_NO_TOP, "mx-auto w-full max-w-5xl")}>
+      <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP)}>
         {chapters.map((content) => {
           const chapter = FEATURE_CHAPTERS.find((entry) => entry.id === content.chapterId);
           if (!chapter) {

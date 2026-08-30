@@ -20,6 +20,7 @@ import {
   metaDeckFilterOptions,
   sortMetaDecks,
 } from "@/lib/meta-deck-filters";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * `/meta/decks` — the cross-event deck browser. The endpoint hands over the
@@ -37,13 +38,13 @@ export function MetaDeckBrowserPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageTopBarSticky maxWidth="6xl">
+      <PageTopBarSticky width="full">
         <PageTopBar>
           <PageTopBarBack to="/meta" aria-label="Meta archive" />
           <PageTopBarTitle>Archived decks</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="px-safe mx-auto w-full max-w-6xl pt-3 pb-6">
+      <div className={cn(PAGE_WIDTH.full, "px-safe pt-3 pb-6")}>
         <PageDescription className="pb-4">{META_DECKS_DESCRIPTION}</PageDescription>
 
         <div className="flex flex-col gap-3">

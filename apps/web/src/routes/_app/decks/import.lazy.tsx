@@ -95,7 +95,7 @@ import {
 import { resolveReplaceTarget } from "@/lib/deck-import-replace";
 import type { ImportBucket } from "@/lib/import-summary";
 import { classifyBucket } from "@/lib/import-summary";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 export const Route = createLazyFileRoute("/_app/decks/import")({
@@ -644,14 +644,14 @@ function InputStep({
   const isReplaceMode = replaceDeckName !== undefined;
   return (
     <>
-      <PageTopBarSticky maxWidth="2xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>
             {isReplaceMode ? "Replace deck contents" : "Import Deck"}
           </PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto w-full max-w-2xl space-y-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "space-y-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <PageDescription>
           {isReplaceMode ? (
             <>
@@ -881,7 +881,7 @@ function PreviewStep({
 
   return (
     <>
-      <PageTopBarSticky maxWidth="3xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarIconButton aria-label="Back" className="mr-1 -ml-2" onClick={onBack}>
             <ArrowLeftIcon />
@@ -889,7 +889,7 @@ function PreviewStep({
           <PageTopBarTitle>{isReplaceMode ? "Replace Preview" : "Import Preview"}</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto w-full max-w-3xl space-y-4 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "space-y-4 pt-3", PAGE_PADDING_NO_TOP)}>
         <PageDescription>
           {matchedEntries.length} card{matchedEntries.length === 1 ? "" : "s"} parsed
           {sourceNote ? ` (${sourceNote})` : null}

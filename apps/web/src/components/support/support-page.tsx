@@ -12,7 +12,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
 import { getSiteUrl } from "@/lib/site-config";
 import { SOCIAL_LINKS } from "@/lib/social-links";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 const GITHUB_SPONSORS_URL = "https://github.com/sponsors/eikowagenknecht";
 const KOFI_URL = "https://ko-fi.com/eikowagenknecht";
@@ -139,7 +139,7 @@ export function SupportPage() {
   const { labels } = useEnumOrders();
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-2xl flex-1 flex-col", PAGE_PADDING)}>
+    <div className={cn(PAGE_WIDTH.capped, "flex flex-1 flex-col", PAGE_PADDING)}>
       {/* Hero */}
       <div className="mb-10">
         <Heading level={1} className="mb-4">

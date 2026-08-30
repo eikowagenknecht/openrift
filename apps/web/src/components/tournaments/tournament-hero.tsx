@@ -12,6 +12,7 @@ import {
   EFFECTIVE_STATE_LABEL,
   effectiveTournamentState,
 } from "@/lib/tournament-display";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 // The band's backdrop, bottom layer up: a soft surface tint fading into the
 // page background, a faint violet under-tone, and the warm accent glow rising
@@ -83,7 +84,7 @@ export function TournamentHero({ detail }: { detail: TournamentDetailResponse })
           it ends where the content ends instead of smearing across ultra-wide
           viewports. */}
       <section
-        className="relative mx-auto w-full max-w-5xl overflow-hidden"
+        className={cn(PAGE_WIDTH.capped, "relative overflow-hidden")}
         style={{ backgroundImage: HERO_WASH }}
       >
         <div className="flex items-end gap-6">

@@ -75,7 +75,7 @@ import { resolveCardMetaPrinting } from "@/lib/card-meta";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
-import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 const PriceHistoryChart = lazy(async () => {
@@ -305,7 +305,7 @@ function CardDetailPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="6xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/cards" aria-label="All cards" />
           <PageTopBarTitle>{legendDisplayName(card)}</PageTopBarTitle>
@@ -321,7 +321,7 @@ function CardDetailPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn(PAGE_PADDING_NO_TOP, "mx-auto flex max-w-6xl flex-col gap-4 pt-3")}>
+      <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP, "flex flex-col gap-4 pt-3")}>
         <div className="flex flex-col gap-6 md:flex-row">
           {/* Left column: card image */}
           <div className="shrink-0 md:w-80">

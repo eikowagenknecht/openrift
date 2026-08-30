@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { tierRowsToQueue } from "@/lib/tier-list-presentation";
-import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -47,7 +47,7 @@ export function TierListShareView({ data, token }: TierListSharePageProps) {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="container">
+      <PageTopBarSticky width="full">
         <PageTopBar>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
             <PageTopBarTitle>{tierList.title}</PageTopBarTitle>
@@ -73,7 +73,7 @@ export function TierListShareView({ data, token }: TierListSharePageProps) {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-4 pt-3 pb-6")}>
+      <div className={cn(PAGE_PADDING, PAGE_WIDTH.full, "flex flex-col gap-4 pt-3 pb-6")}>
         {tierList.description ? <PageDescription>{tierList.description}</PageDescription> : null}
         <TierListShareBoard data={data} />
       </div>

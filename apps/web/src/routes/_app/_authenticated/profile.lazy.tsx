@@ -24,7 +24,7 @@ import { useIsAdmin } from "@/hooks/use-admin";
 import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/profile")({
   component: ProfilePage,
@@ -69,8 +69,8 @@ function ProfilePage() {
   const createdAt = user.createdAt ? formatDay(user.createdAt) : null;
 
   return (
-    <div className={cn("flex justify-center", PAGE_PADDING)}>
-      <SettingsLayout toc={isAdmin ? ADMIN_NAV_SECTIONS : NAV_SECTIONS} className="max-w-4xl">
+    <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING)}>
+      <SettingsLayout toc={isAdmin ? ADMIN_NAV_SECTIONS : NAV_SECTIONS}>
         <Card>
           <CardHeader className="flex flex-row items-center gap-4">
             <UserAvatar

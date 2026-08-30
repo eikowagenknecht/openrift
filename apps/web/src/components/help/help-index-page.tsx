@@ -8,7 +8,7 @@ import { CardLink } from "@/components/ui/card-link";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { SOCIAL_LINKS } from "@/lib/social-links";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 import { visibleHelpArticles } from "./articles";
 
@@ -18,7 +18,7 @@ export function HelpIndexPage() {
   const articles = visibleHelpArticles(flags as FeatureFlags);
 
   return (
-    <div className={cn("mx-auto w-full max-w-2xl flex-1", PAGE_PADDING)}>
+    <div className={cn(PAGE_WIDTH.capped, "flex-1", PAGE_PADDING)}>
       <div className="mb-6">
         <Heading level={1}>Help Center</Heading>
       </div>

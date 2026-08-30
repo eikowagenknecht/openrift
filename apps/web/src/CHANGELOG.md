@@ -8,6 +8,7 @@
 
 ### Other
 
+- feat(App): **One page width across the app** — pages used to settle at eight different widths, and now every page is either full width for card grids and tables, or one shared narrower column for everything else.
 - fix(Tournaments): **Invite links open when signed out** — a join or staff-invite link crashed for anyone not already signed in, instead of showing the event and a sign-in button.
 - fix(App): **Stage links to your own tier list** — opening one while signed out crashed the page, and now sends you to sign in and back to the same list, position and preset.
 - fix(Collection): **Finish names in shared lists** — a list copied as text guessed the finish name from its internal id, writing "Metal-deluxe", and now uses the same name the rest of the app shows.

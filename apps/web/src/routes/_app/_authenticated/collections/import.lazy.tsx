@@ -63,6 +63,7 @@ import {
 import type { MatchedEntry } from "@/lib/import-matcher";
 import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { partitionMatchedEntries } from "@/lib/import-summary";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/import")({
@@ -218,7 +219,7 @@ function ExportSection() {
   const copyCount = copies?.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={cn(PAGE_WIDTH.capped, "space-y-6")}>
       <div>
         <Heading level={2}>Export Collection</Heading>
         <p className="text-muted-foreground text-sm">
@@ -312,7 +313,7 @@ function InputStep({
   parseErrors,
 }: ImportInputStepProps) {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={cn(PAGE_WIDTH.capped, "space-y-6")}>
       <div>
         <Heading level={2}>Import Cards</Heading>
         <p className="text-muted-foreground text-sm">
@@ -469,7 +470,7 @@ function PreviewStep({
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pt-3">
+    <div className={cn(PAGE_WIDTH.capped, "space-y-4 pt-3")}>
       <SectionHeader>
         <SectionHeaderGroup>
           <SectionHeaderTitle>Import Preview</SectionHeaderTitle>

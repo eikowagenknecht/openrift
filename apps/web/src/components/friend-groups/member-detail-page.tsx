@@ -20,7 +20,7 @@ import {
   countTradeSuggestions,
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 import { ContactMethodChips } from "./contact-method-chips";
 import { ROLE_LABEL } from "./friend-group-shell";
@@ -183,7 +183,7 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
       {/* Card names in the trade and match rows below open the detail overlay
           the provider mounts — the same as on the group's Trades page. */}
       <CardDetailOverlayProvider>
-        <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
+        <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6", PAGE_PADDING)}>
           <header>
             <PersonPageHeader
               image={member.userImage}

@@ -2,7 +2,7 @@ import type { ReactNode, RefObject } from "react";
 
 import { ScanTrayShell } from "@/components/scan/scan-tray-shell";
 import type { ScanLayout } from "@/hooks/use-scan-layout";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * Clearance the portrait control bar keeps above the peeking tray sheet. Must
@@ -68,9 +68,7 @@ export function ScanStage({
   const landscape = layout === "landscape";
 
   return (
-    <div
-      className={cn(immersive ? "contents" : "px-safe mx-auto w-full max-w-4xl px-4 pt-3 pb-12")}
-    >
+    <div className={cn(immersive ? "contents" : cn(PAGE_WIDTH.capped, "px-safe px-4 pt-3 pb-12"))}>
       <div className={cn(immersive ? "contents" : "flex flex-col gap-3")}>
         <div className="empty:hidden">{immersive ? null : notices}</div>
 

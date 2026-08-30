@@ -24,6 +24,7 @@ import { useSession } from "@/lib/auth-session";
 import { groupProductsBySet } from "@/lib/group-products-by-set";
 import { markdownTeaser } from "@/lib/markdown-teaser";
 import { formatProductCounts } from "@/lib/product-counts";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { PRODUCTS_DESCRIPTION } from "@/routes/_app/products";
 
 export const Route = createLazyFileRoute("/_app/products")({
@@ -194,12 +195,12 @@ function ProductsIndexPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Products</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="px-safe mx-auto w-full max-w-4xl pt-3 pb-6">
+      <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-6")}>
         <PageDescription className="pb-4">{PRODUCTS_DESCRIPTION}</PageDescription>
         {products.length === 0 ? (
           <ProductsEmptyState />

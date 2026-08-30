@@ -41,7 +41,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 interface RoadmapItem {
   title: string;
@@ -280,7 +280,7 @@ const roadmapItems: RoadmapItem[] = [
 export function RoadmapPage() {
   return (
     <>
-      <PageTopBarSticky maxWidth="2xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Roadmap</PageTopBarTitle>
           <PageTopBarActions>
@@ -288,7 +288,7 @@ export function RoadmapPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto w-full max-w-2xl pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "pt-3", PAGE_PADDING_NO_TOP)}>
         <ol className="relative">
           {roadmapItems.map((item, i) => {
             const isFirst = i === 0;

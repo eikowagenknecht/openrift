@@ -67,7 +67,7 @@ import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { FilterSearch } from "@/lib/search-schemas";
 import type { DomainCount, RarityCount } from "@/lib/stat-types";
 import { buildMissingSearch } from "@/lib/stats-missing-search";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -822,7 +822,7 @@ export function CollectionStatsPage() {
     );
 
   return (
-    <div className={cn("mx-auto w-full max-w-4xl pt-3")}>
+    <div className={cn(PAGE_WIDTH.capped, "pt-3")}>
       {topBarPortal}
 
       {/* ── Controls bar ─────────────────────────────────── */}

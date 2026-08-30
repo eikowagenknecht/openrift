@@ -12,7 +12,7 @@ import {
   useJoinFriendGroupByCode,
 } from "@/hooks/use-friend-groups";
 import { useUserId } from "@/lib/auth-session";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 interface GroupsJoinPageProps {
   code?: string;
@@ -81,7 +81,7 @@ export function GroupsJoinPage({ code = "" }: GroupsJoinPageProps) {
   const deadLink = !code || preview.isError;
 
   return (
-    <div className={cn("mx-auto flex w-full max-w-md flex-col gap-6", PAGE_PADDING)}>
+    <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6", PAGE_PADDING)}>
       <div className="flex flex-col gap-2">
         <Heading level={1}>Join a group</Heading>
         <p className="text-muted-foreground text-sm">

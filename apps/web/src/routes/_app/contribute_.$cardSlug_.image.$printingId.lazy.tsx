@@ -13,7 +13,7 @@ import { Heading } from "@/components/heading";
 import { Pressable } from "@/components/ui/pressable";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/contribute_/$cardSlug_/image/$printingId")({
   component: ImageSuggestPage,
@@ -43,7 +43,7 @@ function ImageSuggestPage() {
   };
 
   return (
-    <div className={cn(PAGE_PADDING, "mx-auto flex w-full max-w-2xl flex-col gap-6")}>
+    <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING, "flex flex-col gap-6")}>
       <Pressable
         onClick={handleBack}
         className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1.5"

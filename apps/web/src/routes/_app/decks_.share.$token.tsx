@@ -11,7 +11,7 @@ import { publicDeckQueryOptions } from "@/hooks/use-decks";
 import { seoHead } from "@/lib/seo";
 import { deckShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
-import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/decks_/share/$token")({
   head: ({ loaderData, params }) => {
@@ -65,7 +65,7 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
  */
 function SharedDeckPending() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-6 py-4 pt-6")}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full, "flex flex-col gap-6 py-4 pt-6")}>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Skeleton className="h-24" />
         <Skeleton className="h-24" />
@@ -89,7 +89,7 @@ function SharedDeckPending() {
  */
 function SharedDeckNotFound() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH)}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full)}>
       <EmptyState
         className="py-16"
         icon={Link2OffIcon}

@@ -26,6 +26,7 @@ import { useLatestScanBankRun, useRebuildScanBank, useScanServing } from "@/hook
 import type { CameraInfo, CameraInfoEntry } from "@/lib/camera-info";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const MODES: { value: string; label: string }[] = [
   { value: "single", label: "Single card, one lock per card (handheld)" },
@@ -468,7 +469,7 @@ export function ScanTestPage() {
   return (
     <>
       <AdminPageTopBar title="Scan Test" />
-      <div className="px-safe mx-auto w-full max-w-5xl px-4 pt-3 pb-12">
+      <div className={cn(PAGE_WIDTH.capped, "px-safe px-4 pt-3 pb-12")}>
         <PageDescription>
           Point the camera at a card and hold steady. A card locks once several frames agree, and
           the lock time is the number the phone is judged on.

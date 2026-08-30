@@ -10,7 +10,7 @@ import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { formatFinishTier } from "@/lib/meta-format";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
+import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/meta_/decks_/$token")({
   head: ({ loaderData, params }) => {
@@ -65,7 +65,7 @@ export const Route = createFileRoute("/_app/meta_/decks_/$token")({
 
 function MetaDeckPending() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-4 py-4")}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full, "flex flex-col gap-4 py-4")}>
       <Skeleton className="h-14 w-full" />
       <Skeleton className="h-8 w-64" />
       <Skeleton className="h-96 w-full" />

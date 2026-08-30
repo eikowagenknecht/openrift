@@ -23,7 +23,7 @@ import {
 } from "@/lib/card-meta";
 import { breadcrumbJsonLd, productJsonLd, seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 const cardDetailSearchSchema = z.object({
   printingId: z.string().optional(),
@@ -214,7 +214,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
 
 function CardDetailPending() {
   return (
-    <div className={cn(PAGE_PADDING, "mx-auto flex max-w-6xl flex-col gap-4")}>
+    <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING, "flex flex-col gap-4")}>
       <Skeleton className="h-5 w-24" />
       <div>
         <Skeleton className="mb-1 h-8 w-48" />

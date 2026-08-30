@@ -70,15 +70,13 @@ export function TopBarBreadcrumbTrail({ segments }: { segments: TopBarCrumb[] })
  */
 export function TopBarBreadcrumbBar({
   segments,
-  maxWidth = "5xl",
   actions,
 }: {
   segments: TopBarCrumb[];
-  maxWidth?: "md" | "4xl" | "5xl" | "6xl";
   actions?: ReactNode;
 }) {
   return (
-    <PageTopBarSticky maxWidth={maxWidth}>
+    <PageTopBarSticky width="capped">
       <PageTopBar className="gap-2">
         <TopBarBreadcrumbTrail segments={segments} />
         {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}

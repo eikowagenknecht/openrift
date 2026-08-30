@@ -1,4 +1,5 @@
 import { Heading } from "@/components/heading";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 import { ClipFrame } from "./clip-frame";
 import { SectionRule } from "./feature-section";
@@ -90,7 +91,12 @@ export function FeaturesHero({
         className="pointer-events-none absolute inset-0"
         style={{ backgroundImage: "var(--hero-glow)" }}
       />
-      <div className="px-safe relative mx-auto flex w-full max-w-5xl flex-col gap-8 pt-8 pb-10 sm:pt-12 sm:pb-14">
+      <div
+        className={cn(
+          PAGE_WIDTH.capped,
+          "px-safe relative flex flex-col gap-8 pt-8 pb-10 sm:pt-12 sm:pb-14",
+        )}
+      >
         <div className="flex items-start justify-between gap-10">
           <div className="flex flex-col items-start gap-4">
             {/* The page's h1 is the "Features" title in the top bar. */}

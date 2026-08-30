@@ -37,7 +37,7 @@ import {
   ROUNDS_CHOICE_ITEMS,
   splitUtcToLocalDateTime,
 } from "@/lib/tournament-display";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: string }) {
   const navigate = useNavigate();
@@ -178,7 +178,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar className="gap-2">
           <TopBarBreadcrumbTrail
             segments={[{ label: "Tournaments", link: <Link to="/tournaments" /> }]}
@@ -187,7 +187,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
           <PageTopBarTitle>New tournament</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <SettingsGroup id="general" title="General">
           <Card>
             <CardHeader>

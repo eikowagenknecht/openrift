@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { usePageTopBarHeight } from "@/components/layout/page-top-bar";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 import { cornerClip } from "./clip-frame";
 import type { FeatureChapter } from "./features-chapters";
@@ -208,7 +208,10 @@ export function FeaturesChipNav({ chapters }: { chapters: FeatureChapter[] }) {
       <nav
         aria-label="Chapters"
         ref={setScroller}
-        className="px-safe mx-auto flex w-full max-w-5xl [scrollbar-width:none] gap-2 overflow-x-auto"
+        className={cn(
+          PAGE_WIDTH.capped,
+          "px-safe flex [scrollbar-width:none] gap-2 overflow-x-auto",
+        )}
       >
         {chapters.map((chapter) => {
           const Icon = chapter.icon;

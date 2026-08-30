@@ -34,7 +34,7 @@ import {
   mergeTombstones,
   parseSearchTerms,
 } from "@/lib/rules-changes";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 import { useRulesDiffExpandStore } from "@/stores/rules-diff-expand-store";
 import { useRulesFoldStore } from "@/stores/rules-fold-store";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
@@ -97,12 +97,12 @@ export function RulesPage({ kind, version }: { kind: RuleKind; version: string |
 function RulesEmpty({ kind }: { kind: RuleKind }) {
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>{KIND_TITLES[kind]}</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto w-full max-w-4xl pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "pt-3", PAGE_PADDING_NO_TOP)}>
         <div className="mb-4">
           <KindTabs kind={kind} />
         </div>
@@ -194,7 +194,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl" ref={setTopBarEl}>
+      <PageTopBarSticky width="capped" ref={setTopBarEl}>
         <PageTopBar>
           <PageTopBarTitle>{KIND_TITLES[kind]}</PageTopBarTitle>
           <PageTopBarActions>
@@ -228,7 +228,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto w-full max-w-4xl pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "pt-3", PAGE_PADDING_NO_TOP)}>
         <div className="mb-4">
           <KindTabs kind={kind} />
         </div>

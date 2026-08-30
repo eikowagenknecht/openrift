@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { useTournamentReport } from "@/hooks/use-tournaments";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 const STATUS_LABEL: Record<PodTournamentStatus, string> = {
   setup: "Not started",
@@ -68,7 +68,7 @@ export function TournamentReportFrame({
   const live = data.rounds.some((round) => round.status === "reporting");
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>{data.tournamentName}</PageTopBarTitle>
           <Badge variant="secondary" className="shrink-0">
@@ -82,7 +82,7 @@ export function TournamentReportFrame({
           ) : null}
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <nav className="flex gap-1 border-b">
           <ReportTabLink
             to="/tournaments/report/$token"

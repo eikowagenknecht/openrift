@@ -21,7 +21,7 @@ import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
+import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -196,7 +196,7 @@ function PublicDeckContent({
   return (
     <div
       ref={containerRef}
-      className={cn(PAGE_PADDING, CONTAINER_WIDTH, "relative flex flex-col gap-4 py-4")}
+      className={cn(PAGE_PADDING, PAGE_WIDTH.full, "relative flex flex-col gap-4 py-4")}
     >
       <HoveredCardPreview
         hoveredCard={hoveredCard}

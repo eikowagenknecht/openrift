@@ -24,6 +24,7 @@ import {
   submissionStatusHints,
   submissionStatusLabels,
 } from "@/lib/card-submission-copy";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * One submission: what was sent, where it ended up, and anything the reviewer
@@ -90,7 +91,7 @@ export function MySubmissionsPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/contribute" />
           <PageTopBarTitle>My submissions</PageTopBarTitle>
@@ -102,7 +103,7 @@ export function MySubmissionsPage() {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
+      <div className={cn(PAGE_WIDTH.capped, "space-y-4 px-4 pt-3 pb-12")}>
         <PageDescription>Every card and correction you&apos;ve sent in.</PageDescription>
 
         {isPending ? (

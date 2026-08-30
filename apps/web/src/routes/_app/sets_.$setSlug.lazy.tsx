@@ -51,7 +51,7 @@ function SetDetailPage() {
 
   return (
     <>
-      <PageTopBarSticky>
+      <PageTopBarSticky width="full">
         <PageTopBar>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
             <PageTopBarBack to="/sets" aria-label="Back to sets" />
@@ -92,7 +92,7 @@ function SetDetailPage() {
 function SetDetailPending() {
   return (
     <>
-      <PageTopBarSticky>
+      <PageTopBarSticky width="full">
         <PageTopBar>
           <Skeleton className="h-5 w-48" />
         </PageTopBar>

@@ -35,7 +35,7 @@ import {
   useRemoveOrganizationMember,
   useUpdateOrganizationMemberRole,
 } from "@/hooks/use-organizations";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 const ROLE_LABEL: Record<OrganizationRole, string> = {
   owner: "Owner",
@@ -85,7 +85,7 @@ export function OrganizationPage({ id }: { id: string }) {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>{data.name}</PageTopBarTitle>
           <Badge variant="outline" className="shrink-0 font-mono">
@@ -93,7 +93,7 @@ export function OrganizationPage({ id }: { id: string }) {
           </Badge>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {data.description ? <PageDescription>{data.description}</PageDescription> : null}
 
         <section className="flex flex-col gap-3">

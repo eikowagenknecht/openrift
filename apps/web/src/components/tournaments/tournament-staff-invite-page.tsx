@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClaimStaffInvite, useTournamentStaffInviteLanding } from "@/hooks/use-tournaments";
 import { useUserId } from "@/lib/auth-session";
 import { STAFF_ROLE_LABEL } from "@/lib/tournament-display";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * The one action the landing offers, which differs by who is looking: a
@@ -85,12 +85,12 @@ export function TournamentStaffInvitePage({ token }: { token: string }) {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="md">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Staff invite</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-md flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <Card>
           <CardHeader>
             <CardTitle>{data.name}</CardTitle>

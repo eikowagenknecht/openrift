@@ -47,6 +47,7 @@ import {
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "@/lib/meta-submission-form";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * `/meta/submit` and `/meta/$slug/submit` — a signed-in player sends one
@@ -306,7 +307,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/meta" />
           <PageTopBarTitle>Send a decklist</PageTopBarTitle>
@@ -318,7 +319,7 @@ export function MetaSubmitPage({ slug }: { slug?: string }) {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
+      <div className={cn(PAGE_WIDTH.capped, "space-y-4 px-4 pt-3 pb-12")}>
         <PageDescription>
           Know what someone played at a tournament? Send the list and we&apos;ll add it to the
           archive.

@@ -16,7 +16,7 @@ import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { KeywordEntry } from "@/lib/glossary";
 import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { getFilterIconPath } from "@/lib/icons";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * Link to a specific rule in the core rules, used throughout the glossary.
@@ -931,7 +931,7 @@ export function GlossaryPage() {
   }));
 
   return (
-    <div className={cn("mx-auto w-full max-w-6xl", PAGE_PADDING)}>
+    <div className={cn(PAGE_WIDTH.full, PAGE_PADDING)}>
       <Heading level={1}>Glossary</Heading>
       <p className="text-muted-foreground mt-1">
         The terms, symbols, and printing details on Riftbound cards and across OpenRift. Entries

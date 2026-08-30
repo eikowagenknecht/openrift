@@ -13,6 +13,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useFriendGroupActivity } from "@/hooks/use-friend-groups";
 import { frontImageId } from "@/lib/card-meta";
 import { distinctPrintingIds } from "@/lib/friend-group-activity";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /** How many member avatars the hero stack shows before collapsing to "+N". */
 const HERO_AVATARS = 5;
@@ -99,7 +100,7 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
           so it ends where the content ends instead of smearing across ultra-
           wide viewports. The fan's own glow is off — HERO_WASH is the glow. */}
       <section
-        className="relative mx-auto w-full max-w-5xl overflow-hidden"
+        className={cn(PAGE_WIDTH.capped, "relative overflow-hidden")}
         style={{ backgroundImage: HERO_WASH }}
       >
         <Button

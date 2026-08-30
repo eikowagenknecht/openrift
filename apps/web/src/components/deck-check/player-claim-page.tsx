@@ -3,13 +3,13 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Building2Icon, CalendarIcon, UsersIcon } from "lucide-react";
 
 import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";
-import { PAGE_TOP_BAR_STICKY, PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useClaimLanding, useClaimTournamentDeck } from "@/hooks/use-deck-check-player";
 import { useUserId } from "@/lib/auth-session";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * The pre-claim landing for a participant claim link (ADR-026 amendment,
@@ -31,19 +31,15 @@ export function PlayerClaimPage({ token }: { token: string }) {
   if (isPending) {
     return (
       <div>
-        <div className={PAGE_TOP_BAR_STICKY}>
-          <div className="mx-auto w-full max-w-3xl">
-            <PageTopBar>
-              <PageTopBarTitle>Claim your spot</PageTopBarTitle>
-            </PageTopBar>
-          </div>
-        </div>
-        <div className={cn("flex justify-center", PAGE_PADDING)}>
-          <div className="flex w-full max-w-3xl flex-col gap-4">
-            <DeckCheckInfoCardSkeleton />
-            <Skeleton className="h-4 w-full max-w-md" />
-            <Skeleton className="h-9 w-32" />
-          </div>
+        <PageTopBarSticky width="capped">
+          <PageTopBar>
+            <PageTopBarTitle>Claim your spot</PageTopBarTitle>
+          </PageTopBar>
+        </PageTopBarSticky>
+        <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-4", PAGE_PADDING)}>
+          <DeckCheckInfoCardSkeleton />
+          <Skeleton className="h-4 w-full max-w-md" />
+          <Skeleton className="h-9 w-32" />
         </div>
       </div>
     );
@@ -80,91 +76,83 @@ export function PlayerClaimPage({ token }: { token: string }) {
 
   return (
     <div>
-      <div className={PAGE_TOP_BAR_STICKY}>
-        <div className="mx-auto w-full max-w-3xl">
-          <PageTopBar>
-            <PageTopBarTitle>Claim your deck</PageTopBarTitle>
-          </PageTopBar>
-        </div>
-      </div>
-      <div className={cn("flex justify-center", PAGE_PADDING)}>
-        <div className="flex w-full max-w-3xl flex-col gap-4">
-          <Card className="gap-2 p-4">
-            <h2 className="font-medium">{data.tournamentName}</h2>
-            <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span className="flex items-center gap-1.5">
-                <CalendarIcon className="size-4 shrink-0" />
-                {formatDayTimeLocal(data.startsAt)}
-              </span>
+      <PageTopBarSticky width="capped">
+        <PageTopBar>
+          <PageTopBarTitle>Claim your deck</PageTopBarTitle>
+        </PageTopBar>
+      </PageTopBarSticky>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-4", PAGE_PADDING)}>
+        <Card className="gap-2 p-4">
+          <h2 className="font-medium">{data.tournamentName}</h2>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="flex items-center gap-1.5">
+              <CalendarIcon className="size-4 shrink-0" />
+              {formatDayTimeLocal(data.startsAt)}
+            </span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Building2Icon className="size-4 shrink-0" />
+              <span className="truncate">{data.hostName}</span>
+            </span>
+            {data.groupName ? (
               <span className="flex min-w-0 items-center gap-1.5">
-                <Building2Icon className="size-4 shrink-0" />
-                <span className="truncate">{data.hostName}</span>
+                <UsersIcon className="size-4 shrink-0" />
+                <span className="truncate">{data.groupName}</span>
               </span>
-              {data.groupName ? (
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <UsersIcon className="size-4 shrink-0" />
-                  <span className="truncate">{data.groupName}</span>
-                </span>
-              ) : null}
-            </div>
-            <p className="text-sm">
-              Your spot: <span className="font-medium">{data.participantName}</span>
-            </p>
-          </Card>
+            ) : null}
+          </div>
+          <p className="text-sm">
+            Your spot: <span className="font-medium">{data.participantName}</span>
+          </p>
+        </Card>
 
-          {outcome === "conflict" ? (
+        {outcome === "conflict" ? (
+          <p className="text-muted-foreground">
+            This spot is already linked to another account. If that was not you, contact the
+            organizer.
+          </p>
+        ) : outcome === "blocked" ? (
+          <p className="text-muted-foreground">
+            A judge detached this spot. Contact a judge to get it linked again.
+          </p>
+        ) : outcome === "duplicate" ? (
+          <div className="flex flex-col gap-3">
             <p className="text-muted-foreground">
-              This spot is already linked to another account. If that was not you, contact the
-              organizer.
+              Your account already holds a different spot in this tournament. If that&apos;s a
+              mistake, contact the organizer.
             </p>
-          ) : outcome === "blocked" ? (
-            <p className="text-muted-foreground">
-              A judge detached this spot. Contact a judge to get it linked again.
-            </p>
-          ) : outcome === "duplicate" ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-muted-foreground">
-                Your account already holds a different spot in this tournament. If that&apos;s a
-                mistake, contact the organizer.
-              </p>
-              {claim.data?.tournamentId ? (
-                <div>
-                  <Button
-                    render={
-                      <Link
-                        to={claim.data.entryId ? "/tournaments/$id/my-deck" : "/tournaments/$id"}
-                        params={{ id: claim.data.tournamentId }}
-                      />
-                    }
-                  >
-                    {claim.data.entryId ? "Go to your deck" : "Go to the tournament"}
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <>
-              <p className="text-muted-foreground">
-                {data.deckSubmission === "none"
-                  ? "Link this spot to your OpenRift account to follow this tournament and its standings any time."
-                  : "Link this spot to your OpenRift account to hand in your decklist and follow this tournament any time."}
-                {userId ? "" : " You will sign in or create an account first."}
-              </p>
+            {claim.data?.tournamentId ? (
               <div>
-                <Button onClick={() => void onConfirm()} disabled={claim.isPending}>
-                  {claim.isPending
-                    ? "Claiming..."
-                    : userId
-                      ? "Claim this spot"
-                      : "Sign in to claim"}
+                <Button
+                  render={
+                    <Link
+                      to={claim.data.entryId ? "/tournaments/$id/my-deck" : "/tournaments/$id"}
+                      params={{ id: claim.data.tournamentId }}
+                    />
+                  }
+                >
+                  {claim.data.entryId ? "Go to your deck" : "Go to the tournament"}
                 </Button>
               </div>
-              {claim.isError ? (
-                <p className="text-destructive text-sm">Something went wrong. Please try again.</p>
-              ) : null}
-            </>
-          )}
-        </div>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <p className="text-muted-foreground">
+              {data.deckSubmission === "none"
+                ? "Link this spot to your OpenRift account to follow this tournament and its standings any time."
+                : "Link this spot to your OpenRift account to hand in your decklist and follow this tournament any time."}
+              {userId ? "" : " You will sign in or create an account first."}
+            </p>
+            <div>
+              <Button onClick={() => void onConfirm()} disabled={claim.isPending}>
+                {claim.isPending ? "Claiming..." : userId ? "Claim this spot" : "Sign in to claim"}
+              </Button>
+            </div>
+            {claim.isError ? (
+              <p className="text-destructive text-sm">Something went wrong. Please try again.</p>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );

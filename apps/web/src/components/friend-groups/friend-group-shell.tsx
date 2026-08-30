@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDeclineFriendGroupInvite, useFriendGroupDetail } from "@/hooks/use-friend-groups";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 export const ROLE_LABEL: Record<FriendGroupRole, string> = {
   owner: "Owner",
@@ -52,7 +52,7 @@ export function FriendGroupPageFrame({
   return (
     <>
       <FriendGroupHero slug={slug} data={data} />
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-6", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-6", PAGE_PADDING_NO_TOP)}>
         {render(data)}
       </div>
     </>
@@ -85,7 +85,7 @@ export function FriendGroupSectionFrame({
   }
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:items-baseline">
             <TopBarBreadcrumbTrail
@@ -99,7 +99,7 @@ export function FriendGroupSectionFrame({
           {actions ? <PageTopBarActions>{actions}</PageTopBarActions> : null}
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {render(data)}
       </div>
     </>
@@ -111,7 +111,7 @@ function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
   const declineInvite = useDeclineFriendGroupInvite();
   const navigate = useNavigate();
   return (
-    <div className={cn("mx-auto flex w-full max-w-md flex-col gap-4 text-center", PAGE_PADDING)}>
+    <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-4 text-center", PAGE_PADDING)}>
       <Heading level={1}>{data.group.name}</Heading>
       <p className="text-muted-foreground">Waiting for an admin to approve your request to join.</p>
       <Button

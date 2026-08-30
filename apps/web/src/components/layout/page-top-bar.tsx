@@ -6,7 +6,8 @@ import { createContext, forwardRef, use, useLayoutEffect, useState } from "react
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
-import { CONTAINER_WIDTH, cn } from "@/lib/utils";
+import type { PageWidth } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 interface PageTopBarProps {
   children: React.ReactNode;
@@ -86,10 +87,10 @@ export function useMeasuredHeight(el: HTMLElement | null) {
  */
 // Base sticky styles WITHOUT the horizontal gutter. `px-safe` is a custom
 // utility that tailwind-merge does not recognise, so adding `px-0` later does
-// NOT cancel it (`cn("px-safe", "px-0")` keeps both) — the `maxWidth` branch
+// NOT cancel it (`cn("px-safe", "px-0")` keeps both) — the `capped` branch
 // would otherwise inherit `px-safe` on the full-bleed layer AND apply it again
 // on the inner column, double-insetting the bar's content. Keep the gutter out
-// of the base and add it explicitly only on the full-bleed (non-maxWidth) path.
+// of the base and add it explicitly only on the full-bleed path.
 // `pb-2` on mobile (not `py-3`): a borderless title sitting above content reads
 // as more space than it measures, so the gap below it is tightened to 8px on
 // phones to optically match the tighter rhythm of the controls below. Desktop
@@ -104,51 +105,35 @@ export const PAGE_TOP_BAR_STICKY_BASE = `${STICKY_SURFACE} sticky top-[calc(var(
 
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
 
-const STICKY_MAX_WIDTH = {
-  /** The app's standard responsive content column (`CONTAINER_WIDTH`). */
-  container: CONTAINER_WIDTH,
-  md: "max-w-md",
-  "2xl": "max-w-2xl",
-  "3xl": "max-w-3xl",
-  "4xl": "max-w-4xl",
-  "5xl": "max-w-5xl",
-  "6xl": "max-w-6xl",
-} as const;
-
 interface PageTopBarStickyProps extends ComponentProps<"div"> {
   /**
-   * Width of the page's centered content column. The sticky layer (blur,
-   * background) still spans the full viewport; only the bar's content is
-   * constrained so it aligns with the column below. Omit on full-width pages.
+   * Width of the page's content column, matching the `PAGE_WIDTH[width]`
+   * wrapper below the bar. The sticky layer (blur, background) always spans
+   * the full viewport; only the bar's content is constrained. Required, so
+   * every page states which of the two widths it is.
    */
-  maxWidth?: keyof typeof STICKY_MAX_WIDTH;
+  width: PageWidth;
 }
 
 /**
- * Sticky wrapper hosting a {@link PageTopBar}. Pages with a centered
- * `max-w-*` content column pass `maxWidth` so the bar's content aligns with
- * that column instead of pinning to the viewport edge.
+ * Sticky wrapper hosting a {@link PageTopBar}, aligning the bar's content with
+ * the page's content column.
  * @returns The sticky wrapper element.
  */
-export function PageTopBarSticky({
-  maxWidth,
-  className,
-  children,
-  ...props
-}: PageTopBarStickyProps) {
+export function PageTopBarSticky({ width, className, children, ...props }: PageTopBarStickyProps) {
   return (
-    // With maxWidth, the horizontal padding moves inside the centered
-    // container so the bar's content edges match a content column that is
-    // `mx-auto max-w-* px-safe` (padding inside the measured box). The
-    // full-bleed layer keeps no gutter (base styles) so its `px-safe` can't
-    // stack with the inner column's `px-safe`; without maxWidth the gutter
-    // lives on the sticky layer itself.
+    // On `capped`, the horizontal padding moves inside the centered container
+    // so the bar's content edges match a content column that is `mx-auto
+    // max-w-5xl px-safe` (padding inside the measured box). The full-bleed
+    // layer keeps no gutter (base styles) so its `px-safe` can't stack with
+    // the inner column's `px-safe`; on `full` the gutter lives on the sticky
+    // layer itself.
     <div
-      className={cn(maxWidth ? PAGE_TOP_BAR_STICKY_BASE : PAGE_TOP_BAR_STICKY, className)}
+      className={cn(width === "capped" ? PAGE_TOP_BAR_STICKY_BASE : PAGE_TOP_BAR_STICKY, className)}
       {...props}
     >
-      {maxWidth ? (
-        <div className={cn("px-safe mx-auto w-full", STICKY_MAX_WIDTH[maxWidth])}>{children}</div>
+      {width === "capped" ? (
+        <div className={cn("px-safe", PAGE_WIDTH.capped)}>{children}</div>
       ) : (
         children
       )}

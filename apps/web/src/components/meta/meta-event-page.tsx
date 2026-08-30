@@ -20,6 +20,7 @@ import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * The event's own line of metadata: date, format, field size, organizer.
@@ -138,13 +139,13 @@ export function MetaEventPage({ slug }: { slug: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/meta" aria-label="Meta archive" />
           <PageTopBarTitle>{event.name}</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="px-safe mx-auto w-full max-w-5xl pt-3 pb-6">
+      <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-6")}>
         <EventMeta event={event} />
         <EventSources sources={event.sources} />
         <MetaContributors contributors={event.contributors} className="mt-1" />

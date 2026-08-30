@@ -9,7 +9,7 @@ import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { CONTAINER_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
+import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/meta_/$slug")({
   head: ({ loaderData, params }) => {
@@ -62,7 +62,7 @@ export const Route = createFileRoute("/_app/meta_/$slug")({
 
 function MetaEventPending() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-4 py-4")}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full, "flex flex-col gap-4 py-4")}>
       <Skeleton className="h-8 w-64" />
       <Skeleton className="h-5 w-40" />
       <Skeleton className="h-96 w-full" />

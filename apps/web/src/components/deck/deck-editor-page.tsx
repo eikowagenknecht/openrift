@@ -126,7 +126,7 @@ import {
 } from "@/lib/deck-builder-collection";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
-import { cn, CONTAINER_WIDTH } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -915,7 +915,7 @@ function DeckEditorContent({
         }}
       />
       <DeckDndContext deckId={deckId}>
-        <div ref={containerRef} className={cn(CONTAINER_WIDTH, "px-safe relative flex gap-4")}>
+        <div ref={containerRef} className={cn(PAGE_WIDTH.full, "px-safe relative flex gap-4")}>
           <NestedSidebar
             className="w-(--sidebar-width)!"
             extraOffset="calc(0.75rem + 2rem + 0.75rem)"

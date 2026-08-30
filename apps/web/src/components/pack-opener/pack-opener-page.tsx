@@ -39,7 +39,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { usePrices } from "@/hooks/use-prices";
 import { publicSetDetailQueryOptions, publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { useSession } from "@/lib/auth-session";
-import { PAGE_PADDING_NO_TOP, cn } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 function poolFromPrintings(printings: readonly Printing[], language: string): PackPool {
@@ -159,7 +159,7 @@ export function PackOpenerPage() {
 
 function PackOpenerTopBar({ children }: { children?: ReactNode }) {
   return (
-    <PageTopBarSticky>
+    <PageTopBarSticky width="full">
       <PageTopBar>
         <PackagePlusIcon className="mr-2 size-5 shrink-0" />
         {/* "simulator" drops on phones: next to the two toggles the full title

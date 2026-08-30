@@ -45,7 +45,7 @@ import { collectCompareDeckOptions, ownDeckDiffCards } from "@/lib/deck-compare-
 import type { DeckDiffCard } from "@/lib/deck-diff";
 import type { SideBySideRow } from "@/lib/deck-side-by-side";
 import { alignDeckLists } from "@/lib/deck-side-by-side";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 import type { LocalDeck } from "@/stores/local-decks-store";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
@@ -643,7 +643,7 @@ export function DeckComparePage({
 
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           {anchorId === null ? (
             <PageTopBarBack to="/decks" aria-label="Back to your decks" />
@@ -668,7 +668,7 @@ export function DeckComparePage({
           this box, so docking it away from the cursor has to mean the viewport
           edge rather than the edge of the centred column. */}
       <div ref={containerRef} className="relative">
-        <div className={cn(PAGE_PADDING_NO_TOP, "mx-auto flex max-w-5xl flex-col gap-5 pt-3")}>
+        <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP, "flex flex-col gap-5 pt-3")}>
           {/* The pickers sit on the row grid, so each one heads the column it
             fills and the comparison needs no second row of deck names. */}
           <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-2">

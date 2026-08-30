@@ -25,6 +25,7 @@ import {
   metaSubmissionStatusHints,
   metaSubmissionStatusLabels,
 } from "@/lib/meta-submission-copy";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * One decklist a contributor sent: what it was, where it ended up, and anything
@@ -107,7 +108,7 @@ export function MetaSubmissionsPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/meta" />
           <PageTopBarTitle>Decklists you sent</PageTopBarTitle>
@@ -119,7 +120,7 @@ export function MetaSubmissionsPage() {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pt-3 pb-12">
+      <div className={cn(PAGE_WIDTH.capped, "space-y-4 px-4 pt-3 pb-12")}>
         <PageDescription>Every decklist you&apos;ve sent to the archive.</PageDescription>
 
         {isPending ? (

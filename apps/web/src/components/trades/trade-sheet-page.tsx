@@ -43,6 +43,7 @@ import {
   withoutLiveTradeMatches,
 } from "@/lib/trade-derivation";
 import { splitTradeLedger, stepSequence } from "@/lib/trade-sheet";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * One urgency section of the sheet: a heading with the count, optional bulk
@@ -259,7 +260,7 @@ export function TradeSheetPage({
       {/* px-safe matches the gutter the sticky bar's inner column uses, so the
           bar's content edges line up with the column below it. pt-3 is the
           vertical-gap rule: the bar's own pb sits inside its blur band. */}
-      <div className="px-safe mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3 pb-12">
+      <div className={cn(PAGE_WIDTH.capped, "px-safe flex flex-col gap-6 pt-3 pb-12")}>
         <header className="flex flex-col gap-4">
           <PersonPageHeader
             image={sheet.counterparty.image}

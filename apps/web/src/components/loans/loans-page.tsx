@@ -43,6 +43,7 @@ import {
   loanStatusLabel,
   outstandingQuantity,
 } from "@/lib/loan-derivation";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * One loan as a wide row with a contextual action set, oriented to the viewer.
@@ -315,13 +316,13 @@ export function LoansPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Lending</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 pt-3 pb-12">
+      <div className={cn(PAGE_WIDTH.capped, "space-y-6 px-4 pt-3 pb-12")}>
         <PageDescription>
           Cards you&apos;ve lent to friends and cards you&apos;re borrowing.
         </PageDescription>

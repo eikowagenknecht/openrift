@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TEAM_LABELS } from "@/lib/match-teams";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import type { TeamId, TrackedLegend } from "@/stores/match-tracker-store";
 import {
   MAX_PLAYERS,
@@ -169,12 +169,12 @@ export function SetupScreen() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="md">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Match tracker</PageTopBarTitle>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="mx-auto w-full max-w-md space-y-6 px-3 pt-3 pb-6">
+      <div className={cn(PAGE_WIDTH.capped, "space-y-6 px-3 pt-3 pb-6")}>
         <PageDescription>
           Keep score and XP for everyone at the table on one device.
         </PageDescription>

@@ -8,7 +8,7 @@ import { tierListQueryOptions } from "@/hooks/use-tier-lists";
 import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierListId")({
   ssr: "data-only",
@@ -51,7 +51,7 @@ export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierList
  */
 function TierListNotFound() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH)}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full)}>
       <EmptyState
         className="py-16"
         icon={Link2OffIcon}

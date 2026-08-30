@@ -14,7 +14,7 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 const changelogGroups = parseChangelog(changelogMd);
 
@@ -64,7 +64,7 @@ export function ChangelogPage() {
 
   return (
     <>
-      <PageTopBarSticky ref={setBarEl} maxWidth="2xl">
+      <PageTopBarSticky ref={setBarEl} width="capped">
         <PageTopBar>
           <PageTopBarTitle>What&apos;s new</PageTopBarTitle>
           <PageTopBarActions>
@@ -72,7 +72,7 @@ export function ChangelogPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto max-w-2xl pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "pt-3", PAGE_PADDING_NO_TOP)}>
         <div className="flex flex-col gap-6">
           {changelogGroups.map((group) => (
             <div key={group.date}>

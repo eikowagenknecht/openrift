@@ -35,7 +35,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -476,7 +476,7 @@ function ActivityPage() {
 
   if (allEvents.length === 0 && !hasNextPage) {
     return (
-      <div className="mx-auto w-full max-w-2xl pt-3">
+      <div className={cn(PAGE_WIDTH.capped, "pt-3")}>
         {topBarPortal}
         <ActivityEmptyState />
       </div>
@@ -505,7 +505,7 @@ function ActivityPage() {
   const byDate = Map.groupBy(filtered, (e) => formatDayLocal(e.createdAt));
 
   return (
-    <div className="mx-auto w-full max-w-4xl pt-3">
+    <div className={cn(PAGE_WIDTH.capped, "pt-3")}>
       {topBarPortal}
       <Toolbar
         actionFilter={actionFilter}

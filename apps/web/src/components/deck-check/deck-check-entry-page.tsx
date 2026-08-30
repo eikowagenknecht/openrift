@@ -33,7 +33,7 @@ import {
   useTournamentDeckCheckEntry,
 } from "@/hooks/use-tournament-deck-check";
 import { zoneFixAllowed } from "@/lib/deck-check-actions";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
 import type { DeckCheckSort } from "@/stores/deck-check-view-store";
 
@@ -106,7 +106,7 @@ export function TournamentDeckCheckEntry({
     return (
       <>
         <DeckEntryTopBar tournamentId={tournamentId} />
-        <div className="px-safe mx-auto flex w-full max-w-5xl flex-col gap-4">
+        <div className={cn(PAGE_WIDTH.capped, "px-safe flex flex-col gap-4")}>
           <div className="flex flex-col gap-2">
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-64" />
@@ -152,7 +152,7 @@ export function TournamentDeckCheckEntry({
           />
         }
       />
-      <div className="px-safe mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <div className={cn(PAGE_WIDTH.capped, "px-safe flex flex-col gap-4")}>
         <EntryHeader
           tournamentId={tournamentId}
           entryId={entryId}
@@ -198,7 +198,7 @@ export function TournamentDeckCheckEntry({
         <div
           className={cn(
             "px-safe w-full pt-4 pb-4",
-            (!wide || displayMode === "list") && "mx-auto max-w-5xl",
+            (!wide || displayMode === "list") && PAGE_WIDTH.capped,
           )}
         >
           <div className="mb-2 flex flex-wrap items-center justify-end gap-2">

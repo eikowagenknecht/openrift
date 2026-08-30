@@ -75,7 +75,7 @@ import {
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { getSiteUrl } from "@/lib/site-config";
-import { cn, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 import { isAdmin } from "./friend-group-shell";
 
@@ -113,7 +113,7 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
           { label: "Manage" },
         ]}
       />
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6", PAGE_PADDING)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6", PAGE_PADDING)}>
         <Heading level={1}>Manage {data.group.name}</Heading>
 
         {isAdmin(viewerRole) ? <AdminSettings data={data} slug={slug} /> : null}

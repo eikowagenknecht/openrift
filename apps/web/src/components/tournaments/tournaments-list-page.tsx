@@ -13,14 +13,14 @@ import {
 import { TournamentsOverview } from "@/components/tournaments/tournaments-overview";
 import { buttonVariants } from "@/components/ui/button";
 import { useTournaments } from "@/hooks/use-tournaments";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 export function TournamentsListPage() {
   const { data } = useTournaments();
 
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Tournaments</PageTopBarTitle>
           <PageTopBarActions>
@@ -30,7 +30,7 @@ export function TournamentsListPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         <PageDescription>Tournaments you host, judge, or joined.</PageDescription>
 
         {data.items.length === 0 ? (

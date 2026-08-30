@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeleteTierList, useTierLists } from "@/hooks/use-tier-lists";
-import { PAGE_PADDING, cn } from "@/lib/utils";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 /**
  * Tile width for the index's preview board. Fixed rather than following the
@@ -59,7 +59,7 @@ export function TierListIndexPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Tier lists</PageTopBarTitle>
           <PageTopBarActions>
@@ -71,7 +71,7 @@ export function TierListIndexPage() {
         </PageTopBar>
       </PageTopBarSticky>
 
-      <div className={cn(PAGE_PADDING, "mx-auto flex w-full max-w-5xl flex-col gap-4 pt-3 pb-6")}>
+      <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING, "flex flex-col gap-4 pt-3 pb-6")}>
         <PageDescription>
           Rank a set, then share the link or drop the exported image into a video.
         </PageDescription>

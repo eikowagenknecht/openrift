@@ -68,7 +68,7 @@ import {
   SAMPLE_DECK_NAME,
   sampleDeckKeyCards,
 } from "@/lib/sample-deck";
-import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import { useDeckListPrefsStore, useDeckListViewPrefs } from "@/stores/deck-list-prefs-store";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
@@ -387,7 +387,7 @@ export function DeckListPage() {
     );
 
   return (
-    <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING_NO_TOP}`}>
+    <div className={`${PAGE_WIDTH.full} ${PAGE_PADDING_NO_TOP}`}>
       {/* mx-safe-neg (not -mx-3): the container's gutter is px-safe, so the
           full-bleed margin must cancel the same amount or the bar's px-safe
           content lands double-inset on notched phones in landscape. */}

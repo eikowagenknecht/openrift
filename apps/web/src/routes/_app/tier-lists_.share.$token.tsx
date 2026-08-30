@@ -10,7 +10,7 @@ import { publicTierListQueryOptions } from "@/hooks/use-tier-lists";
 import { seoHead } from "@/lib/seo";
 import { shareImageVersion, tierListShareImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
-import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_WIDTH, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/tier-lists_/share/$token")({
   head: ({ loaderData, params }) => {
@@ -58,7 +58,7 @@ export const Route = createFileRoute("/_app/tier-lists_/share/$token")({
 
 function SharedTierListPending() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH, "flex flex-col gap-4 py-4 pt-6")}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full, "flex flex-col gap-4 py-4 pt-6")}>
       <Skeleton className="h-8 w-64" />
       <Skeleton className="h-72 w-full" />
     </div>
@@ -72,7 +72,7 @@ function SharedTierListPending() {
  */
 function SharedTierListNotFound() {
   return (
-    <div className={cn(PAGE_PADDING, CONTAINER_WIDTH)}>
+    <div className={cn(PAGE_PADDING, PAGE_WIDTH.full)}>
       <EmptyState
         className="py-16"
         icon={Link2OffIcon}

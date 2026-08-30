@@ -33,6 +33,7 @@ import { useIsAdmin } from "@/hooks/use-admin";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvents, useMetaStats } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta");
 
@@ -191,7 +192,7 @@ export function MetaOverviewPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <PageTopBarSticky maxWidth="5xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Meta</PageTopBarTitle>
           {/* The archive takes decklists from anyone signed in (ADR-014), and
@@ -209,7 +210,7 @@ export function MetaOverviewPage() {
           )}
         </PageTopBar>
       </PageTopBarSticky>
-      <div className="px-safe mx-auto w-full max-w-5xl pt-3 pb-6">
+      <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-6")}>
         <PageDescription className="pb-4">{META_DESCRIPTION}</PageDescription>
 
         {allEvents.length === 0 ? (

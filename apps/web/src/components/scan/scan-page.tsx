@@ -1045,7 +1045,7 @@ export function ScanPage() {
     // detail over it, rather than navigating away from a running session.
     <CardDetailOverlayProvider onOpenChange={setDetailOpen}>
       {!immersive && (
-        <PageTopBarSticky maxWidth="4xl">
+        <PageTopBarSticky width="capped">
           <PageTopBar>
             <PageTopBarTitle>Scan cards</PageTopBarTitle>
             <PageTopBarActions>

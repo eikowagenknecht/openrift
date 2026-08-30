@@ -46,7 +46,7 @@ import { deriveGroupSlug, groupSlugError } from "@/lib/group-slug";
 import { markdownTeaser } from "@/lib/markdown-teaser";
 import type { GroupSuggestionStrip } from "@/lib/trade-derivation";
 import { groupSuggestionStripsBySlug } from "@/lib/trade-derivation";
-import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 
@@ -237,7 +237,7 @@ export function GroupsIndexPage() {
 
   return (
     <>
-      <PageTopBarSticky maxWidth="4xl">
+      <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Groups</PageTopBarTitle>
           <PageTopBarActions>
@@ -255,7 +255,7 @@ export function GroupsIndexPage() {
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
-      <div className={cn("mx-auto flex w-full max-w-4xl flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
+      <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6 pt-3", PAGE_PADDING_NO_TOP)}>
         {data.outgoingRequests.length > 0 && (
           <section className="flex flex-col gap-3">
             <SectionHeading>Awaiting approval</SectionHeading>

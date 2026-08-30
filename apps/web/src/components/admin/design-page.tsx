@@ -220,7 +220,7 @@ import {
   useElementSpec,
 } from "@/hooks/use-element-spec";
 import { useLanguageList } from "@/hooks/use-enums";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const BUTTON_VARIANTS = [
   "default",
@@ -291,7 +291,7 @@ const SECTIONS = [
  */
 export function DesignPage() {
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 pb-16">
+    <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-10 pb-16")}>
       <AdminPageTopBar title="Design" />
       <div className="space-y-3">
         <PageDescription>
