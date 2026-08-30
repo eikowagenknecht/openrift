@@ -143,6 +143,7 @@ export {
   getOrientation,
   labelMap,
   legendDisplayName,
+  metaLegendSlug,
   preferredPrinting,
   mostCommonValue,
   normalizeNameForIdentity,

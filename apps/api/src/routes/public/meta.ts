@@ -4,12 +4,15 @@ import type {
   MetaEventDetailResponse,
   MetaEventListResponse,
   MetaCountsResponse,
+  MetaLegendDetailResponse,
+  MetaLegendListResponse,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import {
+  archiveLegendSlug,
   toMetaDeckContext,
   toMetaDeckSummary,
   toMetaEventDetail,
@@ -18,6 +21,8 @@ import {
   toMetaEventPlayer,
   toMetaEventSummary,
   toMetaEventWinner,
+  toMetaLegendFinish,
+  toMetaLegendSummary,
 } from "../../lib/meta-presenters.js";
 import { buildPublicDeckDetail } from "../../lib/public-deck-payload.js";
 import { requireUser } from "../../orpc/base.js";
@@ -156,6 +161,52 @@ export const metaRouter = {
     ]);
     return { ...payload, meta: toMetaDeckContext(metaContext, contributors) };
   }),
+
+  legends: os.legends.handler(async ({ context }): Promise<MetaLegendListResponse> => {
+    const { meta, canonicalPrintings } = context.repos;
+
+    const rows = await meta.archiveLegends();
+    const images = await imageIdsForCards(
+      canonicalPrintings,
+      rows.map((row) => row.cardId),
+    );
+
+    return {
+      legends: rows
+        .map((row) => toMetaLegendSummary(row, images))
+        // By the name a reader sees, so a legend files under its champion. The
+        // repo orders by the stored epithet, which would file Azir under E.
+        .toSorted((a, b) => a.legend.name.localeCompare(b.legend.name)),
+    };
+  }),
+
+  legend: os.legend.handler(
+    async ({ input, context, errors }): Promise<MetaLegendDetailResponse> => {
+      const { meta, canonicalPrintings } = context.repos;
+
+      // The route key is composed from the card's champion tag and its slug, so
+      // it cannot be looked up by a column. The archive holds one row per legend
+      // and a few dozen legends in all, so the set is scanned rather than a
+      // denormalized key column being kept in sync with the catalogue.
+      const legends = await meta.archiveLegends();
+      const row = legends.find((candidate) => archiveLegendSlug(candidate) === input.slug);
+      if (!row) {
+        throw errors.NOT_FOUND({ message: "Legend not found" });
+      }
+
+      const [finishes, images] = await Promise.all([
+        meta.finishesForLegend(row.cardId),
+        imageIdsForCards(canonicalPrintings, [row.cardId]),
+      ]);
+      const summary = toMetaLegendSummary(row, images);
+
+      return {
+        slug: summary.slug,
+        legend: summary.legend,
+        finishes: finishes.map((finish) => toMetaLegendFinish(finish)),
+      };
+    },
+  ),
 
   counts: os.counts.handler(async ({ input, context }): Promise<MetaCountsResponse> => {
     const { meta } = context.repos;

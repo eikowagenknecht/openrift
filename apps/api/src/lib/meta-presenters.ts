@@ -9,8 +9,10 @@ import type {
   MetaEventPlayer,
   MetaEventSummary,
   MetaEventWinner,
+  MetaLegendFinish,
+  MetaLegendSummary,
 } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { legendDisplayName, metaLegendSlug } from "@openrift/shared";
 import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
 import type { CardType } from "@openrift/shared/types";
 
@@ -18,9 +20,11 @@ import type { MetaEventSourceLinkRow } from "../repositories/meta-candidates.js"
 import type { MetaSubmissionRow } from "../repositories/meta-submissions.js";
 import type {
   AdminMetaPlayerRow,
+  MetaArchiveLegendRow,
   MetaContributorRow,
   MetaDeckContextRow,
   MetaDeckSummaryRow,
+  MetaLegendFinishRow,
   MetaEventMatchRow,
   MetaEventPhaseRow,
   MetaEventPlayerRow,
@@ -70,6 +74,7 @@ function toCardRef(
     domains: string[] | null;
   },
   images: ImageIds,
+  archiveSlug: string | null = null,
 ): MetaEventPlayer["legend"] {
   if (card.cardId === null) {
     return null;
@@ -80,6 +85,7 @@ function toCardRef(
     slug: card.slug ?? "",
     imageId: images.get(card.cardId) ?? null,
     domains: card.domains ?? [],
+    archiveSlug,
   };
 }
 
@@ -100,6 +106,20 @@ function legendLabel(row: {
         types: row.legendTypes ?? [],
         tags: row.legendTags ?? [],
       });
+}
+
+/** A standings row's legend key on `/meta/legends`, null when it names none. */
+function rowLegendArchiveSlug(row: {
+  legendName: string | null;
+  legendSlug: string | null;
+  legendTypes: CardType[] | null;
+  legendTags: string[] | null;
+}): string | null {
+  const name = legendLabel(row);
+  if (name === null || row.legendSlug === null) {
+    return null;
+  }
+  return metaLegendSlug(name, row.legendSlug);
 }
 
 /**
@@ -148,6 +168,7 @@ export function toMetaEventWinner(row: MetaEventPlayerRow, images: ImageIds): Me
         domains: row.legendDomains,
       },
       images,
+      rowLegendArchiveSlug(row),
     ),
   };
 }
@@ -210,6 +231,7 @@ export function toMetaEventPlayer(row: MetaEventPlayerRow, images: ImageIds): Me
         domains: row.legendDomains,
       },
       images,
+      rowLegendArchiveSlug(row),
     ),
     champion: toCardRef(
       {
@@ -285,6 +307,68 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
       name: row.eventName,
       eventDate: row.eventDate,
       format: row.eventFormat,
+    },
+  };
+}
+
+/**
+ * The champion-led display name for one legend card, as every archive surface
+ * prints it. A row whose legend is untagged keeps the card's own name.
+ */
+function archiveLegendName(row: MetaArchiveLegendRow): string {
+  return legendDisplayName({ name: row.name, types: row.types ?? [], tags: row.tags ?? [] });
+}
+
+export function toMetaLegendSummary(
+  row: MetaArchiveLegendRow,
+  images: ImageIds,
+): MetaLegendSummary {
+  const slug = archiveLegendSlug(row);
+  return {
+    slug,
+    legend: {
+      cardId: row.cardId,
+      name: archiveLegendName(row),
+      slug: row.slug,
+      imageId: images.get(row.cardId) ?? null,
+      domains: row.domains ?? [],
+      archiveSlug: slug,
+    },
+    deckCount: row.deckCount,
+  };
+}
+
+/**
+ * The route key one archive legend answers to. Kept beside the presenter so the
+ * slug a page links to and the slug a request resolves are built the same way.
+ */
+export function archiveLegendSlug(row: MetaArchiveLegendRow): string {
+  return metaLegendSlug(archiveLegendName(row), row.slug);
+}
+
+/**
+ * One archived finish on a legend's own page: the event it happened at, who
+ * piloted the legend there, and whether the archive holds the list.
+ */
+export function toMetaLegendFinish(row: MetaLegendFinishRow): MetaLegendFinish {
+  return {
+    playerId: row.playerId,
+    rank: row.rank,
+    rankIsTier: row.rankIsTier,
+    playerName: row.playerName,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    shareToken: row.shareToken,
+    listStatus: row.listStatus,
+    event: {
+      slug: row.eventSlug,
+      name: row.eventName,
+      eventDate: row.eventDate,
+      format: row.eventFormat,
+      tier: row.eventTier,
+      country: row.eventCountry,
+      playerCount: row.eventPlayerCount,
     },
   };
 }

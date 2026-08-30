@@ -21,3 +21,7 @@ export const META_DECKS_DESCRIPTION =
 /** Shared by the /meta/events description, the JSON-LD, and the visible page intro. */
 export const META_EVENTS_DESCRIPTION =
   "Every Riftbound tournament in the archive, from store nights to premier qualifiers. Search by name, venue or organizer, and see who won each one.";
+
+/** Shared by the /meta/legends description, the JSON-LD, and the visible page intro. */
+export const META_LEGENDS_DESCRIPTION =
+  "Every legend the archive holds a tournament result for, by name. Open one to see its finishes, the players behind them, and the lists they registered.";

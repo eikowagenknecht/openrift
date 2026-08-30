@@ -135,16 +135,19 @@ export function MetaFrontPage() {
       <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Meta Archive</PageTopBarTitle>
-          {/* Logged out there is nowhere to send a decklist to, so the pair
-              stands down entirely rather than leading somewhere dead. */}
-          {userId !== null && (
-            <PageTopBarActions>
-              <ContributionsLink />
-              <PageTopBarPrimaryButton render={<Link to="/meta/submit" />}>
-                Send a decklist
-              </PageTopBarPrimaryButton>
-            </PageTopBarActions>
-          )}
+          <PageTopBarActions>
+            <PageTopBarButton render={<Link to="/meta/legends" />}>Legends</PageTopBarButton>
+            {/* Logged out there is nowhere to send a decklist to, so the pair
+                stands down entirely rather than leading somewhere dead. */}
+            {userId !== null && (
+              <>
+                <ContributionsLink />
+                <PageTopBarPrimaryButton render={<Link to="/meta/submit" />}>
+                  Send a decklist
+                </PageTopBarPrimaryButton>
+              </>
+            )}
+          </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
 

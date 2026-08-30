@@ -77,6 +77,7 @@ const WINNER = {
     slug: "kennen",
     imageId: null,
     domains: ["chaos", "order"],
+    archiveSlug: "kennen-kennen",
   },
 };
 

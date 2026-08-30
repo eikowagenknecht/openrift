@@ -9,8 +9,23 @@ vi.mock("@/hooks/use-enums", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ params, children }: { params: { cardSlug: string }; children: React.ReactNode }) => (
-    <a href={`/cards/${params.cardSlug}`}>{children}</a>
+  Link: ({
+    to,
+    params,
+    children,
+  }: {
+    to: string;
+    params: Record<string, string>;
+    children: React.ReactNode;
+  }) => (
+    <a
+      href={Object.entries(params).reduce(
+        (path, [key, value]) => path.replace(`$${key}`, value),
+        to,
+      )}
+    >
+      {children}
+    </a>
   ),
 }));
 
@@ -53,6 +68,28 @@ describe("MetaIdentity", () => {
     expect(screen.getByRole("link", { name: "Lux" })).toHaveAttribute(
       "href",
       "/cards/lady-of-luminosity",
+    );
+  });
+
+  it("leads to the legend's archive page when the payload carries its key", () => {
+    render(
+      <MetaIdentity
+        name="Lux, Lady of Luminosity"
+        slug="lady-of-luminosity"
+        archiveSlug="lux-lady-of-luminosity"
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Lux" })).toHaveAttribute(
+      "href",
+      "/meta/legends/lux-lady-of-luminosity",
+    );
+  });
+
+  it("falls back to the card page for a ref with no archive page, never a guessed key", () => {
+    render(<MetaIdentity name="Garen, Crownguard" slug="garen-crownguard" archiveSlug={null} />);
+    expect(screen.getByRole("link", { name: "Garen" })).toHaveAttribute(
+      "href",
+      "/cards/garen-crownguard",
     );
   });
 

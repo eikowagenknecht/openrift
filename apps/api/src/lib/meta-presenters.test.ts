@@ -3,14 +3,19 @@ import { describe, expect, it } from "vitest";
 import type { MetaSubmissionRow } from "../repositories/meta-submissions.js";
 import type {
   AdminMetaPlayerRow,
+  MetaArchiveLegendRow,
   MetaContributorRow,
   MetaDeckContextRow,
   MetaDeckSummaryRow,
   MetaEventPlayerRow,
   MetaEventSourceRow,
   MetaEventWithCounts,
+  MetaLegendFinishRow,
 } from "../repositories/meta.js";
 import {
+  archiveLegendSlug,
+  toMetaLegendFinish,
+  toMetaLegendSummary,
   toAdminMetaEvent,
   toAdminMetaPlayer,
   toAdminMetaSubmission,
@@ -168,6 +173,7 @@ describe("toMetaEventWinner", () => {
         slug: "jinx",
         imageId: "image-legend",
         domains: ["chaos", "fury"],
+        archiveSlug: "jinx",
       },
     });
   });
@@ -410,6 +416,7 @@ describe("toMetaEventPlayer", () => {
         slug: "jinx",
         imageId: "image-legend",
         domains: ["chaos", "fury"],
+        archiveSlug: "jinx",
       },
       champion: {
         cardId: "champion-1",
@@ -417,6 +424,7 @@ describe("toMetaEventPlayer", () => {
         slug: "vi",
         imageId: "image-champion",
         domains: ["body"],
+        archiveSlug: null,
       },
       deckId: "3f7a1c2e-0000-7000-8000-00000000000d",
       deckName: "Jinx Aggro",
@@ -439,6 +447,7 @@ describe("toMetaEventPlayer", () => {
       slug: "jinx",
       imageId: "image-legend",
       domains: ["chaos", "fury"],
+      archiveSlug: "jinx",
     });
   });
 
@@ -458,6 +467,8 @@ describe("toMetaEventPlayer", () => {
       slug: "jinx",
       imageId: "image-legend",
       domains: ["chaos", "fury"],
+      // No name, so no key it could answer to; the row links at the card page.
+      archiveSlug: null,
     });
   });
 
@@ -487,8 +498,15 @@ describe("toMetaEventPlayer", () => {
       slug: "emperor-of-the-sands",
       imageId: "image-legend",
       domains: ["chaos", "fury"],
+      archiveSlug: "azir-emperor-of-the-sands",
     });
     expect(player.champion?.name).toBe("Vi, Piltover Enforcer");
+  });
+
+  it("gives a champion unit no archive key, so nothing links it at a page that is not there", () => {
+    const player = toMetaEventPlayer(playerRow({ championName: "Vi, Piltover Enforcer" }), IMAGES);
+    expect(player.champion?.archiveSlug).toBeNull();
+    expect(player.champion?.slug).toBe("vi");
   });
 
   it("leaves a card that is not a tagged Legend under its own name", () => {
@@ -854,5 +872,131 @@ describe("toAdminMetaSubmission", () => {
     expect(response).not.toHaveProperty("candidateMetaPlayerId");
     expect(response.status).toBe("pending");
     expect(response.createdAt).toBe("2026-08-15T12:00:00.000Z");
+  });
+});
+
+function archiveLegendRow(overrides: Partial<MetaArchiveLegendRow> = {}): MetaArchiveLegendRow {
+  return {
+    cardId: "3f7a1c2e-0000-7000-8000-00000000000e",
+    name: "Heart of the Tempest",
+    slug: "heart-of-the-tempest",
+    types: ["legend"],
+    tags: ["Kennen"],
+    domains: ["chaos", "order"],
+    deckCount: 3,
+    ...overrides,
+  };
+}
+
+function legendFinishRow(overrides: Partial<MetaLegendFinishRow> = {}): MetaLegendFinishRow {
+  return {
+    playerId: "3f7a1c2e-0000-7000-8000-00000000000f",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Renata",
+    wins: 12,
+    losses: 1,
+    draws: 0,
+    shareToken: null,
+    listStatus: "none",
+    eventSlug: "summoner-skirmish-2026",
+    eventName: "Summoner Skirmish",
+    eventDate: "2026-08-01",
+    eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
+    eventPlayerCount: 64,
+    ...overrides,
+  };
+}
+
+describe("toMetaLegendSummary", () => {
+  it("names the legend the way players say it and keys it on champion plus card slug", () => {
+    const summary = toMetaLegendSummary(
+      archiveLegendRow(),
+      new Map([["3f7a1c2e-0000-7000-8000-00000000000e", "img-1"]]),
+    );
+    expect(summary.slug).toBe("kennen-heart-of-the-tempest");
+    expect(summary.legend).toEqual({
+      cardId: "3f7a1c2e-0000-7000-8000-00000000000e",
+      name: "Kennen, Heart of the Tempest",
+      slug: "heart-of-the-tempest",
+      imageId: "img-1",
+      domains: ["chaos", "order"],
+      archiveSlug: "kennen-heart-of-the-tempest",
+    });
+    expect(summary.deckCount).toBe(3);
+  });
+
+  it("renders a legend with no artwork and no domains rather than dropping it", () => {
+    const summary = toMetaLegendSummary(
+      archiveLegendRow({ domains: null, types: null, tags: null }),
+      new Map(),
+    );
+    expect(summary.legend.imageId).toBeNull();
+    expect(summary.legend.domains).toEqual([]);
+    expect(summary.legend.name).toBe("Heart of the Tempest");
+    expect(summary.slug).toBe("heart-of-the-tempest");
+  });
+
+  it("publishes no results number beside a legend", () => {
+    const summary = toMetaLegendSummary(archiveLegendRow(), new Map());
+    expect(Object.keys(summary)).toEqual(["slug", "legend", "deckCount"]);
+  });
+});
+
+describe("archiveLegendSlug", () => {
+  it("agrees with the slug the summary carries", () => {
+    const row = archiveLegendRow();
+    expect(archiveLegendSlug(row)).toBe(toMetaLegendSummary(row, new Map()).slug);
+  });
+
+  it("keeps two legends of one champion apart", () => {
+    expect(
+      archiveLegendSlug(
+        archiveLegendRow({ name: "Wuju Master", slug: "wuju-master", tags: ["Master Yi"] }),
+      ),
+    ).toBe("master-yi-wuju-master");
+    expect(
+      archiveLegendSlug(
+        archiveLegendRow({
+          name: "Wuju Bladesman, Starter",
+          slug: "wuju-bladesman-starter",
+          tags: ["Master Yi"],
+        }),
+      ),
+    ).toBe("master-yi-wuju-bladesman-starter");
+  });
+});
+
+describe("toMetaLegendFinish", () => {
+  it("carries the event facts a row prints without leaving the legend's page", () => {
+    const finish = toMetaLegendFinish(legendFinishRow());
+    expect(finish.event).toEqual({
+      slug: "summoner-skirmish-2026",
+      name: "Summoner Skirmish",
+      eventDate: "2026-08-01",
+      format: "constructed",
+      tier: "store",
+      country: "DE",
+      playerCount: 64,
+    });
+    expect(finish).toMatchObject({ rank: 1, playerName: "Renata", listStatus: "none" });
+  });
+
+  it("offers no decklist for a standings-only entry", () => {
+    const finish = toMetaLegendFinish(legendFinishRow());
+    expect(finish.shareToken).toBeNull();
+    expect(finish.listStatus).toBe("none");
+  });
+
+  it("keeps a record the source never published null rather than inventing zeros", () => {
+    const finish = toMetaLegendFinish(
+      legendFinishRow({ wins: null, losses: null, draws: null, eventPlayerCount: null }),
+    );
+    expect(finish.wins).toBeNull();
+    expect(finish.losses).toBeNull();
+    expect(finish.draws).toBeNull();
+    expect(finish.event.playerCount).toBeNull();
   });
 });

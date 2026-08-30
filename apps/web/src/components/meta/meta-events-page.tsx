@@ -29,6 +29,7 @@ import {
 } from "@/lib/meta-events-index";
 import type { MetaEventIndexSort, MetaEventIndexSortDirection } from "@/lib/meta-events-search";
 import { DEFAULT_EVENT_DIRECTION, DEFAULT_EVENT_SORT } from "@/lib/meta-events-search";
+import { metaShownLabel } from "@/lib/meta-format";
 import type { MetaScope } from "@/lib/meta-scope";
 import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
@@ -85,7 +86,10 @@ export function MetaEventsPage() {
           <PageTopBarBack to="/meta" aria-label="Meta archive" />
           <PageTopBarTitle>Tournaments</PageTopBarTitle>
           <span className="text-muted-foreground shrink-0 tabular-nums">
-            {archivedLabel(events.length, all.length)}
+            {metaShownLabel(events.length, all.length, {
+              singular: "archived event",
+              plural: "archived events",
+            })}
           </span>
         </PageTopBar>
       </PageTopBarSticky>
@@ -259,15 +263,4 @@ function SortButton({
       {active && <Arrow className="size-3 shrink-0" />}
     </Pressable>
   );
-}
-
-/**
- * How many events the page is showing, and out of how many when the reader has
- * narrowed it. Counts of what the archive holds, never a proportion.
- */
-function archivedLabel(shown: number, total: number): string {
-  if (shown === total) {
-    return `${total.toLocaleString()} archived ${total === 1 ? "event" : "events"}`;
-  }
-  return `${shown.toLocaleString()} of ${total.toLocaleString()} archived events`;
 }

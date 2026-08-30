@@ -25,6 +25,10 @@ const TITLE_CLASS: Record<MetaIdentityLayout, string> = {
   tile: "text-muted-foreground text-xs",
 };
 
+function filled(value: string | null | undefined): string | null {
+  return value === null || value === undefined || value === "" ? null : value;
+}
+
 const RUNE_CLASS: Record<MetaIdentityLayout, string> = {
   row: "size-4",
   stacked: "size-3.5",
@@ -38,11 +42,23 @@ export interface MetaIdentityProps {
    */
   name: string | null | undefined;
   /**
-   * The legend card's slug. Supply it to link the name at the card page, and
-   * omit it inside a wrapper that is itself a link — an anchor inside an anchor
-   * is invalid, which is why deck tiles pass nothing.
+   * The legend card's slug. Supply it to link the name, and omit it inside a
+   * wrapper that is itself a link — an anchor inside an anchor is invalid, which
+   * is why deck tiles pass nothing.
    */
   slug?: string | null;
+  /**
+   * The card ref's `archiveSlug`. Supply it to send the name to the legend's own
+   * archive page instead of the catalog.
+   *
+   * Never composed here from `name` and `slug`: the key needs the champion tag,
+   * and this component cannot tell a legend's composed name from a champion
+   * unit's printed one. An archived list whose legend zone the source never
+   * published is titled by its Chosen Champion, and deriving a key for that
+   * produced a link to a page that does not exist. The API composes it once
+   * (null for anything with no archive page), and a caller passes it through.
+   */
+  archiveSlug?: string | null;
   /** Domain slugs for the runes, in the order they should read. */
   domains?: readonly string[];
   layout?: MetaIdentityLayout;
@@ -65,6 +81,7 @@ export interface MetaIdentityProps {
 export function MetaIdentity({
   name,
   slug,
+  archiveSlug,
   domains,
   layout = "row",
   championOnly = false,
@@ -78,14 +95,22 @@ export function MetaIdentity({
   const showTitle = !championOnly && title !== null;
 
   const championText = <span className={CHAMPION_CLASS[layout]}>{champion}</span>;
-  const named =
-    slug === null || slug === undefined || slug === "" ? (
-      championText
-    ) : (
-      <Link to="/cards/$cardSlug" params={{ cardSlug: slug }} className="hover:underline">
+  const legendKey = filled(archiveSlug);
+  const cardSlug = filled(slug);
+  let named = championText;
+  if (legendKey !== null) {
+    named = (
+      <Link to="/meta/legends/$slug" params={{ slug: legendKey }} className="hover:underline">
         {championText}
       </Link>
     );
+  } else if (cardSlug !== null) {
+    named = (
+      <Link to="/cards/$cardSlug" params={{ cardSlug }} className="hover:underline">
+        {championText}
+      </Link>
+    );
+  }
 
   const runeRow = domains?.length ? (
     <span className="flex shrink-0 items-center gap-0.5">

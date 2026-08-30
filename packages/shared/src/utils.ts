@@ -66,6 +66,32 @@ function legendEpithet(name: string): string {
 }
 
 /**
+ * A legend's key on `/meta/legends/{slug}`, built from the display name
+ * {@link legendDisplayName} composes and the legend card's own slug:
+ * `kennen-heart-of-the-tempest`.
+ *
+ * The card slug is always carried, not only when a champion has several legend
+ * variants. Making the suffix conditional would mean `/meta/legends/kennen`
+ * stopped resolving the day a second Kennen legend was printed, and every link
+ * anyone had saved would break. Carrying it always costs a few characters and
+ * makes the key a property of the card rather than of the catalogue's shape.
+ *
+ * A legend with no champion tag has no composed name and keys on its card slug
+ * alone. The split shares `splitLegendName`'s invariant: no untagged Legend in
+ * the catalogue prints a comma in its name, so a comma here always separates a
+ * champion from an epithet.
+ *
+ * @returns The route key, lowercase and hyphenated.
+ */
+export function metaLegendSlug(displayName: string, cardSlug: string): string {
+  const comma = displayName.indexOf(", ");
+  if (comma === -1) {
+    return cardSlug;
+  }
+  return `${slugifyName(displayName.slice(0, comma))}-${cardSlug}`;
+}
+
+/**
  * Compares two cards by the name the user actually reads, so a sorted list
  * files a Legend under its champion ("Azir, Emperor of the Sands" under A) and
  * agrees with the label beside it. Sorting on the stored `name` was what put

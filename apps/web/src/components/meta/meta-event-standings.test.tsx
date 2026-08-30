@@ -87,10 +87,10 @@ describe("MetaEventStandings", () => {
     expect(row.getByRole("img", { name: "Fury" })).toBeInTheDocument();
   });
 
-  it("leads the legend to its card page on phones too", () => {
+  it("leads the legend to its archive page on phones too", () => {
     renderStandings();
     const link = within(phoneRow("Ana")).getByRole("link", { name: "Yasuo" });
-    expect(link.getAttribute("href")).toBe("/cards/yasuo-the-unforgiven");
+    expect(link.getAttribute("href")).toBe("/meta/legends/yasuo-yasuo-the-unforgiven");
   });
 
   it("leaves the legend out for a player the archive knows none for", () => {

@@ -21,6 +21,8 @@ const mockMeta = {
   contributorsForEvent: vi.fn(),
   playerCountInScope: vi.fn(),
   deckCountInScope: vi.fn(),
+  archiveLegends: vi.fn(),
+  finishesForLegend: vi.fn(),
 };
 
 const mockCanonicalPrintings = { resolvePrintingMetaForRows: vi.fn() };
@@ -108,6 +110,8 @@ beforeEach(() => {
   mockMeta.phasesForEvent.mockResolvedValue([]);
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockMeta.contributorsForEvent.mockResolvedValue([]);
+  mockMeta.archiveLegends.mockResolvedValue([]);
+  mockMeta.finishesForLegend.mockResolvedValue([]);
   mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([]);
 });
 
@@ -350,6 +354,7 @@ describe("GET /meta/events/{slug}", () => {
       slug: "azir",
       imageId: "img-legend",
       domains: ["order", "calm"],
+      archiveSlug: "azir",
     });
     expect(json.players[0].champion).toEqual({
       cardId: CHAMPION_ID,
@@ -357,6 +362,7 @@ describe("GET /meta/events/{slug}", () => {
       slug: "jinx",
       imageId: null,
       domains: ["chaos"],
+      archiveSlug: null,
     });
     expect(json.players[1].champion).toBeNull();
   });
@@ -385,6 +391,7 @@ describe("GET /meta/events/{slug}", () => {
       slug: "emperor-of-the-sands",
       imageId: "img-legend",
       domains: [],
+      archiveSlug: "azir-emperor-of-the-sands",
     });
   });
 
@@ -463,6 +470,182 @@ describe("GET /meta/events", () => {
 
     const json = await readJson(res);
     expect(json.events[0].winners).toEqual([]);
+  });
+});
+
+/** @returns One legend the archive holds results for, as the repo groups it. */
+function legendRow(overrides: Record<string, unknown> = {}) {
+  return {
+    cardId: LEGEND_ID,
+    name: "Heart of the Tempest",
+    slug: "heart-of-the-tempest",
+    types: ["legend"],
+    tags: ["Kennen"],
+    domains: ["chaos", "order"],
+    deckCount: 3,
+    ...overrides,
+  };
+}
+
+/** @returns One archived finish for a legend, as the repo returns it. */
+function finishRow(overrides: Record<string, unknown> = {}) {
+  return {
+    playerId: "p0000000-0001-4000-a000-000000000001",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Renata",
+    wins: 12,
+    losses: 1,
+    draws: 0,
+    shareToken: null,
+    listStatus: "none",
+    eventSlug: "summoner-skirmish-2026",
+    eventName: "Summoner Skirmish",
+    eventDate: "2026-08-01",
+    eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
+    eventPlayerCount: 64,
+    ...overrides,
+  };
+}
+
+describe("GET /meta/legends", () => {
+  it("keys each legend on its champion and its card slug, ordered by the name a reader sees", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([
+      legendRow(),
+      legendRow({
+        cardId: "f0000000-0001-4000-a000-000000000009",
+        name: "Emperor of the Sands",
+        slug: "emperor-of-the-sands",
+        tags: ["Azir"],
+        deckCount: 1,
+      }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/legends");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.legends.map((entry: { slug: string }) => entry.slug)).toEqual([
+      "azir-emperor-of-the-sands",
+      "kennen-heart-of-the-tempest",
+    ]);
+    expect(json.legends[1].legend).toMatchObject({
+      name: "Kennen, Heart of the Tempest",
+      slug: "heart-of-the-tempest",
+      domains: ["chaos", "order"],
+    });
+  });
+
+  it("carries archive content counts and no results number", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+
+    const res = await app.request("/api/v1/meta/legends");
+
+    const json = await readJson(res);
+    expect(json.legends[0].deckCount).toBe(3);
+    expect(Object.keys(json.legends[0])).toEqual(["slug", "legend", "deckCount"]);
+  });
+
+  it("returns nothing for an archive with no standings yet", async () => {
+    const res = await app.request("/api/v1/meta/legends");
+
+    const json = await readJson(res);
+    expect(json.legends).toEqual([]);
+  });
+});
+
+describe("GET /meta/legends/{slug}", () => {
+  it("returns every archived finish for the legend the slug names", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+    mockMeta.finishesForLegend.mockResolvedValue([
+      finishRow({ shareToken: "tok-1", listStatus: "full" }),
+      finishRow({
+        playerId: "p0000000-0001-4000-a000-000000000002",
+        rank: 4,
+        playerName: "Ekko",
+        eventTier: "premier",
+      }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/legends/kennen-heart-of-the-tempest");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith(LEGEND_ID);
+    expect(json.slug).toBe("kennen-heart-of-the-tempest");
+    expect(json.legend.name).toBe("Kennen, Heart of the Tempest");
+    expect(json.finishes).toHaveLength(2);
+    expect(json.finishes[0]).toMatchObject({ rank: 1, shareToken: "tok-1", listStatus: "full" });
+    expect(json.finishes[1].event).toMatchObject({
+      slug: "summoner-skirmish-2026",
+      tier: "premier",
+      country: "DE",
+      playerCount: 64,
+    });
+  });
+
+  it("separates two legends of one champion by their card slugs", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([
+      legendRow({ name: "Wuju Master", slug: "wuju-master", tags: ["Master Yi"] }),
+      legendRow({
+        cardId: "f0000000-0001-4000-a000-000000000003",
+        name: "Wuju Bladesman, Starter",
+        slug: "wuju-bladesman-starter",
+        tags: ["Master Yi"],
+      }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/legends/master-yi-wuju-bladesman-starter");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith("f0000000-0001-4000-a000-000000000003");
+    expect(json.legend.name).toBe("Master Yi, Wuju Bladesman");
+  });
+
+  it("404s a slug no archived legend answers to", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+
+    const res = await app.request("/api/v1/meta/legends/teemo-swift-scout");
+
+    expect(res.status).toBe(404);
+    expect(mockMeta.finishesForLegend).not.toHaveBeenCalled();
+  });
+
+  it("resolves the key a standings row hands its legend link", async () => {
+    mockMeta.eventBySlug.mockResolvedValue(eventRow());
+    mockMeta.standingsForEvent.mockResolvedValue([
+      playerRow({
+        legendCardId: LEGEND_ID,
+        legendName: "Heart of the Tempest",
+        legendSlug: "heart-of-the-tempest",
+        legendTypes: ["legend"],
+        legendTags: ["Kennen"],
+      }),
+    ]);
+    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+
+    const standings = await readJson(
+      await app.request("/api/v1/meta/events/summoner-skirmish-2026"),
+    );
+    const linked = standings.players[0].legend.archiveSlug as string;
+
+    const res = await app.request(`/api/v1/meta/legends/${linked}`);
+    expect(res.status).toBe(200);
+    const legend = await readJson(res);
+    expect(legend.slug).toBe(linked);
+  });
+
+  it("returns a legend with no finishes rather than 404ing it", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([legendRow({ deckCount: 0 })]);
+
+    const res = await app.request("/api/v1/meta/legends/kennen-heart-of-the-tempest");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.finishes).toEqual([]);
   });
 });
 

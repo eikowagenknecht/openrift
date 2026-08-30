@@ -6,6 +6,7 @@ import {
   formatRecord,
   joinNames,
   metaEventCounts,
+  metaShownLabel,
   recordSortValue,
   splitLegendName,
   standingsGaps,
@@ -58,6 +59,34 @@ describe("formatRecord", () => {
     expect(formatRecord(null, null, null)).toBeNull();
     expect(formatRecord(5, null, null)).toBeNull();
     expect(formatRecord(null, 1, 0)).toBeNull();
+  });
+});
+
+describe("metaShownLabel", () => {
+  const events = { singular: "archived event", plural: "archived events" };
+
+  it("names the whole count while nothing is narrowed", () => {
+    expect(metaShownLabel(42, 42, events)).toBe("42 archived events");
+  });
+
+  it("says how much of the archive a narrowed view is showing", () => {
+    expect(metaShownLabel(3, 42, events)).toBe("3 of 42 archived events");
+  });
+
+  it("uses the singular for exactly one", () => {
+    expect(metaShownLabel(1, 1, events)).toBe("1 archived event");
+  });
+
+  it("groups thousands the same way for every reader", () => {
+    expect(metaShownLabel(1247, 1247, events)).toBe("1,247 archived events");
+  });
+
+  it("keeps the plural while narrowing down to one of many", () => {
+    expect(metaShownLabel(1, 42, events)).toBe("1 of 42 archived events");
+  });
+
+  it("handles an empty archive", () => {
+    expect(metaShownLabel(0, 0, events)).toBe("0 archived events");
   });
 });
 

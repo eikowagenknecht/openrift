@@ -17,6 +17,7 @@ import {
   cardSearchAltNames,
   labelMap,
   legendDisplayName,
+  metaLegendSlug,
   mostCommonValue,
   normalizeNameForIdentity,
   preferredPrinting,
@@ -82,6 +83,39 @@ describe("legendDisplayName", () => {
 
   it("returns the bare name for non-Legend cards even when tagged", () => {
     expect(legendDisplayName({ name: "Recall", types: ["spell"], tags: ["Azir"] })).toBe("Recall");
+  });
+});
+
+describe("metaLegendSlug", () => {
+  it("leads with the champion and keeps the card slug behind it", () => {
+    expect(metaLegendSlug("Kennen, Heart of the Tempest", "heart-of-the-tempest")).toBe(
+      "kennen-heart-of-the-tempest",
+    );
+  });
+
+  it("keys an untagged legend on its card slug alone", () => {
+    expect(metaLegendSlug("Nameless Legend", "nameless-legend")).toBe("nameless-legend");
+  });
+
+  it("separates two legends of the same champion", () => {
+    expect(metaLegendSlug("Master Yi, Wuju Master", "wuju-master")).toBe("master-yi-wuju-master");
+    expect(metaLegendSlug("Master Yi, Wuju Bladesman", "wuju-bladesman-starter")).toBe(
+      "master-yi-wuju-bladesman-starter",
+    );
+  });
+
+  it("slugifies a champion whose name carries punctuation or spaces", () => {
+    expect(metaLegendSlug("Kai’Sa, Survivor", "survivor")).toBe("kai-sa-survivor");
+    expect(metaLegendSlug("Lee Sin, Blind Monk", "blind-monk")).toBe("lee-sin-blind-monk");
+  });
+
+  it("round-trips the name legendDisplayName composes", () => {
+    const name = legendDisplayName({
+      name: "Dark Child, Starter",
+      types: ["legend"],
+      tags: ["Annie"],
+    });
+    expect(metaLegendSlug(name, "dark-child-starter")).toBe("annie-dark-child-starter");
   });
 });
 

@@ -80,6 +80,7 @@ function winner(playerName: string): MetaEventSummary["winners"][number] {
       slug: "lee-sin",
       imageId: "i1",
       domains: ["body"],
+      archiveSlug: "lee-sin-lee-sin",
     },
   };
 }

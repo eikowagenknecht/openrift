@@ -131,6 +131,40 @@ export interface MetaDeckSummaryRow {
 }
 
 /**
+ * One legend the archive holds a result for, with the card fields a display
+ * name and a route key are built from.
+ */
+export interface MetaArchiveLegendRow {
+  cardId: string;
+  name: string;
+  slug: string;
+  types: CardType[] | null;
+  tags: string[] | null;
+  domains: string[] | null;
+  deckCount: number;
+}
+
+/** One archived standings row as a legend's own page lists it. */
+export interface MetaLegendFinishRow {
+  playerId: string;
+  rank: number;
+  rankIsTier: boolean;
+  playerName: string;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  shareToken: string | null;
+  listStatus: MetaListStatus;
+  eventSlug: string;
+  eventName: string;
+  eventDate: string;
+  eventFormat: string;
+  eventTier: MetaEventTier;
+  eventCountry: string | null;
+  eventPlayerCount: number | null;
+}
+
+/**
  * The standings context an archived deck's page prints. Also the
  * archive-membership test the public deck endpoint uses — `undefined` means the
  * token belongs to a deck outside the archive, which must 404 rather than
@@ -743,6 +777,73 @@ export function metaRepo(db: Kysely<Database>) {
           .orderBy(resolvedPlayerName, "asc")
           .execute()
       );
+    },
+
+    /**
+     * Every legend the archive holds a standings row for, with the count of
+     * lists filed under it.
+     *
+     * Grouped by the card rather than the champion: two legends of one champion
+     * are two entries, which is what the route key keeps apart.
+     */
+    archiveLegends(): Promise<MetaArchiveLegendRow[]> {
+      return db
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("cards as lc", "lc.id", "p.legendCardId")
+        .leftJoin("mvCardAggregates as mca", "mca.cardId", "lc.id")
+        .leftJoin("decks as d", "d.id", "p.deckId")
+        .select([
+          "lc.id as cardId",
+          "lc.name",
+          "lc.slug",
+          "mca.types",
+          "lc.tags",
+          "mca.domains",
+          // Mirrors what `allDeckSummaries` yields for this legend: a row with
+          // no permalink has no page for the count to promise.
+          sql<number>`count(*) filter (where d.share_token is not null)::int`.as("deckCount"),
+        ])
+        .groupBy(["lc.id", "lc.name", "lc.slug", "mca.types", "lc.tags", "mca.domains"])
+        .orderBy("lc.name", "asc")
+        .execute();
+    },
+
+    /**
+     * One legend's whole record, best finish first and newest of an equal finish
+     * ahead of older ones.
+     *
+     * Every row is a published standings row. The archive computes nothing from
+     * them here beyond their order.
+     */
+    finishesForLegend(legendCardId: string): Promise<MetaLegendFinishRow[]> {
+      return db
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+        .leftJoin("decks as d", "d.id", "p.deckId")
+        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+        .select([
+          "p.id as playerId",
+          "p.rank",
+          "p.rankIsTier",
+          resolvedPlayerName.as("playerName"),
+          "p.wins",
+          "p.losses",
+          "p.draws",
+          "d.shareToken",
+          "p.listStatus",
+          "me.slug as eventSlug",
+          "me.name as eventName",
+          "me.eventDate",
+          "me.format as eventFormat",
+          "me.tier as eventTier",
+          "me.country as eventCountry",
+          "me.playerCount as eventPlayerCount",
+        ])
+        .where("p.legendCardId", "=", legendCardId)
+        .orderBy("p.rank", "asc")
+        .orderBy("me.eventDate", "desc")
+        .orderBy(resolvedPlayerName, "asc")
+        .execute();
     },
 
     /**

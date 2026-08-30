@@ -28,6 +28,7 @@ export function metaPlayer(overrides: Partial<MetaEventPlayer> = {}): MetaEventP
       slug: "yasuo-the-unforgiven",
       imageId: null,
       domains: ["fury"],
+      archiveSlug: "yasuo-yasuo-the-unforgiven",
     },
     champion: null,
     deckId: null,

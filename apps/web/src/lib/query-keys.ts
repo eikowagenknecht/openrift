@@ -54,6 +54,8 @@ export const queryKeys = {
     event: (slug: string) => ["meta", "events", slug] as const,
     decks: ["meta", "decks"] as const,
     deck: (token: string) => ["meta", "decks", token] as const,
+    legends: ["meta", "legends"] as const,
+    legend: (slug: string) => ["meta", "legends", slug] as const,
   },
   // The archive's signed-in surfaces (ADR-014): a contributor's own decklist
   // submissions and their credit setting. Both are scoped to the session user

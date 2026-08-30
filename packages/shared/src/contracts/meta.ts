@@ -19,7 +19,7 @@ const BASE = "/api/v1/meta";
  * A legend or champion as a standings row names it: denormalized so the event
  * page and deck browser render without pulling the catalog.
  */
-const metaCardRefSchema = z
+export const metaCardRefSchema = z
   .object({
     cardId: z.string(),
     name: z.string(),
@@ -32,6 +32,16 @@ const metaCardRefSchema = z
      * card, which renders the name without runes rather than blocking the row.
      */
     domains: z.array(z.string()),
+    /**
+     * The key this card answers to at `/meta/legends/{slug}`, or null when it
+     * has no such page — a champion ref never has one.
+     *
+     * Composed once here rather than at each call site: the key needs the
+     * champion tag, and a surface holding only a display name cannot tell a
+     * legend's composed name from a champion unit's printed one. Deriving it in
+     * a component therefore produced a link to a page that does not exist.
+     */
+    archiveSlug: z.string().nullable(),
   })
   .openapi("MetaCardRef");
 
@@ -310,6 +320,78 @@ export const metaCountsResponseSchema = z
   })
   .openapi("MetaCountsResponse");
 
+/**
+ * The event fields a finish prints without leaving the legend's page: enough for
+ * the row's date, tier and venue line, and the link back to the event itself.
+ */
+const metaLegendEventSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  eventDate: isoDate,
+  format: deckFormatSchema,
+  tier: metaEventTierSchema,
+  country: z.string().nullable(),
+  playerCount: z.number().int().nullable(),
+});
+
+/**
+ * One archived result for one legend: a published standings row, seen from the
+ * legend's side rather than the event's.
+ *
+ * `shareToken` is set exactly for the finishes a decklist is known for; the rest
+ * carry `listStatus: "none"` and offer the submission form instead.
+ */
+export const metaLegendFinishSchema = z
+  .object({
+    /** The `meta_event_players` row, so a list can key on it. */
+    playerId: z.string(),
+    rank: z.number().int(),
+    rankIsTier: z.boolean(),
+    playerName: z.string(),
+    wins: z.number().int().nullable(),
+    losses: z.number().int().nullable(),
+    draws: z.number().int().nullable(),
+    shareToken: z.string().nullable(),
+    listStatus: metaListStatusSchema,
+    event: metaLegendEventSchema,
+  })
+  .openapi("MetaLegendFinish");
+
+/**
+ * One legend as the alphabetical index lists it.
+ *
+ * `deckCount` is a count of archive content — how many lists are on file — and
+ * is the only number the index carries. The index is ordered by name and offers
+ * no other order: a page that let a reader sort legends by results would be a
+ * ranking of legends against each other, which this archive does not publish.
+ */
+export const metaLegendSummarySchema = z
+  .object({
+    /** The route key `/meta/legends/{slug}` resolves, e.g. `kennen-heart-of-the-tempest`. */
+    slug: z.string(),
+    legend: metaCardRefSchema,
+    deckCount: z.number().int().nonnegative(),
+  })
+  .openapi("MetaLegendSummary");
+
+export const metaLegendListResponseSchema = z
+  .object({ legends: z.array(metaLegendSummarySchema) })
+  .openapi("MetaLegendListResponse");
+
+/**
+ * Every archived finish for one legend, best first.
+ *
+ * Facts only: each entry is a standings row a tournament published. Nothing here
+ * is a rate, a share, or a comparison against another legend.
+ */
+export const metaLegendDetailResponseSchema = z
+  .object({
+    slug: z.string(),
+    legend: metaCardRefSchema,
+    finishes: z.array(metaLegendFinishSchema),
+  })
+  .openapi("MetaLegendDetailResponse");
+
 export const metaCountsQuerySchema = z.object({
   format: z.string().min(1).optional(),
   dateFrom: isoDate.optional(),
@@ -324,8 +406,8 @@ export const metaCountsQuerySchema = z.object({
  * client concern here (ADR-009), and the curated corpus is small enough that
  * one cacheable payload beats a filter matrix of uncacheable ones.
  *
- * Domain codes: `event`, `deck` → NOT_FOUND. `deck` also 404s for a share
- * token that resolves to a deck outside the archive, so a regular user's
+ * Domain codes: `event`, `deck`, `legend` → NOT_FOUND. `deck` also 404s for a
+ * share token that resolves to a deck outside the archive, so a regular user's
  * shared deck can never be rendered as an archive entry.
  */
 export const metaContract = {
@@ -352,6 +434,18 @@ export const metaContract = {
     .input(z.object({ token: z.string().min(1) }))
     .errors({ NOT_FOUND: { message: "Deck not found" } })
     .output(metaDeckDetailResponseSchema),
+
+  legends: oc
+    .route({ method: "GET", path: `${BASE}/legends`, tags: [TAG] })
+    .meta({ auth: "public", cache: "medium", etag: true })
+    .output(metaLegendListResponseSchema),
+
+  legend: oc
+    .route({ method: "GET", path: `${BASE}/legends/{slug}`, tags: [TAG] })
+    .meta({ auth: "public", cache: "medium", etag: true })
+    .input(z.object({ slug: z.string().min(1) }))
+    .errors({ NOT_FOUND: { message: "Legend not found" } })
+    .output(metaLegendDetailResponseSchema),
 
   counts: oc
     .route({ method: "GET", path: `${BASE}/counts`, tags: [TAG] })

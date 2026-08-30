@@ -40,6 +40,10 @@ import type {
   metaEventSummarySchema,
   metaEventWinnerSchema,
   metaCountsResponseSchema,
+  metaLegendDetailResponseSchema,
+  metaLegendFinishSchema,
+  metaLegendListResponseSchema,
+  metaLegendSummarySchema,
 } from "../../contracts/meta.js";
 
 /** One archived event as a list row: header fields plus how much of it we hold. */
@@ -87,6 +91,18 @@ export type MetaDeckDetailResponse = z.infer<typeof metaDeckDetailResponseSchema
 
 /** GET /meta/counts — how many standings rows and published decks are in scope. */
 export type MetaCountsResponse = z.infer<typeof metaCountsResponseSchema>;
+
+/** One archived standings row seen from the legend's side rather than the event's. */
+export type MetaLegendFinish = z.infer<typeof metaLegendFinishSchema>;
+
+/** One legend as the alphabetical index lists it. */
+export type MetaLegendSummary = z.infer<typeof metaLegendSummarySchema>;
+
+/** GET /meta/legends — every legend the archive holds a result for, by name. */
+export type MetaLegendListResponse = z.infer<typeof metaLegendListResponseSchema>;
+
+/** GET /meta/legends/{slug} — one legend and every finish on its record. */
+export type MetaLegendDetailResponse = z.infer<typeof metaLegendDetailResponseSchema>;
 
 /** Admin event row: every stored column plus the roster and deck counts. */
 export type AdminMetaEvent = z.infer<typeof adminMetaEventSchema>;

@@ -3,6 +3,8 @@ import type {
   MetaDeckListResponse,
   MetaEventDetailResponse,
   MetaEventListResponse,
+  MetaLegendDetailResponse,
+  MetaLegendListResponse,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { isDefinedError, safe } from "@orpc/client";
@@ -112,4 +114,51 @@ export function metaDeckQueryOptions(token: string) {
 
 export function useMetaDeck(token: string) {
   return useSuspenseQuery(metaDeckQueryOptions(token));
+}
+
+const fetchMetaLegends = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<MetaLegendListResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "meta", "legends"],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).legends(),
+    }),
+  );
+
+export const metaLegendsQueryOptions = queryOptions({
+  queryKey: queryKeys.meta.legends,
+  queryFn: () => fetchMetaLegends(),
+  staleTime: 5 * 60 * 1000,
+});
+
+export function useMetaLegends() {
+  return useSuspenseQuery(metaLegendsQueryOptions);
+}
+
+const fetchMetaLegend = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: slug }): Promise<MetaLegendDetailResponse> => {
+    const { error, data } = await safe(
+      apiOrpcClient(metaContract, context.cookie).legend({ slug }),
+    );
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
+    }
+    return data;
+  });
+
+export function metaLegendQueryOptions(slug: string) {
+  return queryOptions({
+    queryKey: queryKeys.meta.legend(slug),
+    queryFn: () => fetchMetaLegend({ data: slug }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useMetaLegend(slug: string) {
+  return useSuspenseQuery(metaLegendQueryOptions(slug));
 }

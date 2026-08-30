@@ -99,6 +99,7 @@ function DesktopRow({
         <MetaIdentity
           name={player.legend?.name}
           slug={player.legend?.slug}
+          archiveSlug={player.legend?.archiveSlug}
           domains={player.legend?.domains}
           layout="stacked"
         />
@@ -130,6 +131,7 @@ function PhoneRow({
         <MetaIdentity
           name={player.legend?.name}
           slug={player.legend?.slug}
+          archiveSlug={player.legend?.archiveSlug}
           domains={player.legend?.domains}
           className="text-muted-foreground text-xs"
         />

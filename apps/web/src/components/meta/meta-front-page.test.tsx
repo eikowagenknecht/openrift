@@ -97,6 +97,7 @@ const WINNER = {
     slug: "azir-emperor-of-the-sands",
     imageId: null,
     domains: ["calm", "order"],
+    archiveSlug: "azir-emperor-of-the-sands",
   },
 };
 
@@ -220,6 +221,7 @@ describe("MetaFrontPage", () => {
               slug: "yasuo-the-unforgiven",
               imageId: null,
               domains: ["fury"],
+              archiveSlug: "yasuo-the-unforgiven",
             },
           },
         ],
@@ -298,10 +300,18 @@ describe("MetaFrontPage", () => {
   it("offers a signed-out visitor no action that would need an account", () => {
     render(<MetaFrontPage />);
 
-    expect(pageActions()).toBeNull();
+    const actions = pageActions() as HTMLElement;
+    expect(within(actions).queryByText("Send a decklist")).not.toBeInTheDocument();
+    expect(within(actions).queryByText("Your contributions")).not.toBeInTheDocument();
     // The contribute band still explains where lists come from; it just leads
     // through sign-in rather than promising a form.
     expect(screen.getByText("Help complete the record")).toBeInTheDocument();
+  });
+
+  it("leads anyone to the legend index", () => {
+    render(<MetaFrontPage />);
+
+    expect(within(pageActions() as HTMLElement).getByText("Legends")).toBeInTheDocument();
   });
 
   it("offers the ledger only once a signed-in visitor has sent something", () => {

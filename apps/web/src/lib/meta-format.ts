@@ -63,6 +63,26 @@ export function formatRecord(
 }
 
 /**
+ * What an archive index's title bar says it is showing: the count on its own
+ * while nothing is narrowed, and "N of M" once something is.
+ *
+ * Counts of what the archive holds, never a proportion. Grouping is pinned to
+ * `en-US` because the page is server-rendered and a server on another default
+ * would send "1.247" into a browser that renders "1,247".
+ */
+export function metaShownLabel(
+  shown: number,
+  total: number,
+  noun: { singular: string; plural: string },
+): string {
+  const label = total === 1 ? noun.singular : noun.plural;
+  if (shown === total) {
+    return `${total.toLocaleString("en-US")} ${label}`;
+  }
+  return `${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} ${label}`;
+}
+
+/**
  * "Nova", "Nova and Rell", "Nova, Rell and Sett" — every name printed, however
  * many there are.
  *
