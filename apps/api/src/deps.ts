@@ -137,7 +137,7 @@ import {
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,
 } from "./services/meta-match-suggestions.js";
-import { submitMetaDeck } from "./services/meta-submission.js";
+import { submitMetaDeck, submitMetaEventCorrection } from "./services/meta-submission.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
 export interface Repos {
@@ -253,6 +253,7 @@ export interface Services {
   suggestMetaEventMatches: typeof suggestMetaEventMatches;
   suggestMetaPlayerMatches: typeof suggestMetaPlayerMatches;
   submitMetaDeck: typeof submitMetaDeck;
+  submitMetaEventCorrection: typeof submitMetaEventCorrection;
   rematchMetaCandidates: typeof rematchMetaCandidates;
   notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
   notifyAdminsOfGroupJoinRequest: typeof notifyAdminsOfGroupJoinRequest;
@@ -476,6 +477,7 @@ export const services: Services = {
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,
   submitMetaDeck,
+  submitMetaEventCorrection,
   rematchMetaCandidates,
   notifyAdminsOfCardSubmission,
   notifyAdminsOfGroupJoinRequest,

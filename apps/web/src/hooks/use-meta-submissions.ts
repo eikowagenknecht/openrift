@@ -1,6 +1,7 @@
 import type {
   MetaCreditVisibility,
   MetaCreditVisibilityResponse,
+  MetaEventCorrectionInput,
   MetaSubmissionInput,
   MetaSubmissionListResponse,
   MetaSubmissionResult,
@@ -87,6 +88,55 @@ export function useSubmitMetaDeck() {
   return useMutation({
     mutationFn: (input: MetaSubmissionInput): Promise<MetaSubmissionOutcome> =>
       submitMetaDeckFn({ data: input }) as Promise<MetaSubmissionOutcome>,
+    onSuccess: (outcome) => {
+      if (outcome.ok) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.metaSubmissions.all(userId) });
+      }
+    },
+  });
+}
+
+// ── Correcting an event's own facts ──────────────────────────────────────────
+
+/** A correction either recorded, or refused for a reason the dialog can show. */
+type MetaEventCorrectionOutcome =
+  | { ok: true }
+  | { ok: false; refusal: Exclude<MetaSubmissionRefusal, "invalid">; message: string };
+
+const submitMetaEventCorrectionFn = createServerFn({ method: "POST" })
+  .validator((input: MetaEventCorrectionInput) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }): Promise<MetaEventCorrectionOutcome> => {
+    const { error } = await safe(
+      apiOrpcClient(metaSubmissionsContract, context.cookie).submitEventCorrection(data),
+    );
+    if (!error) {
+      return { ok: true };
+    }
+    if (isDefinedError(error)) {
+      if (error.code === "TOO_MANY_REQUESTS") {
+        return { ok: false, refusal: "cap", message: error.message };
+      }
+      if (error.code === "NOT_FOUND") {
+        return { ok: false, refusal: "event-missing", message: error.message };
+      }
+    }
+    throw error;
+  });
+
+/**
+ * Sends a proposed fix to an archived event's own facts. Like a decklist, it is
+ * read by hand before anything changes; unlike one it stages nothing, so an
+ * admin applies it to the event themselves.
+ *
+ * @returns A React Query mutation; call `.mutateAsync(input)`.
+ */
+export function useSubmitMetaEventCorrection() {
+  const userId = useRequiredUserId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: MetaEventCorrectionInput): Promise<MetaEventCorrectionOutcome> =>
+      submitMetaEventCorrectionFn({ data: input }) as Promise<MetaEventCorrectionOutcome>,
     onSuccess: (outcome) => {
       if (outcome.ok) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.metaSubmissions.all(userId) });

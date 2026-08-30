@@ -36,9 +36,11 @@ import type {
   Marketplace,
   MarketplaceGroupKind,
   MetaCreditVisibility,
+  MetaEventFieldEdits,
   MetaEventTier,
   MetaEntryStatus,
   MetaListStatus,
+  MetaSubmissionKind,
   MetaSubmissionReason,
   MetaSubmissionStatus,
   OrganizationRole,
@@ -1646,8 +1648,15 @@ export interface MetaSubmissionsTable {
   metaEventId: string | null;
   /** What the submitter called the event, so the row still reads without a target. CHECK: length 1..120. */
   eventName: string;
-  /** CHECK: length 1..80 */
-  playerName: string;
+  /** CHECK: length 1..80, and NULL exactly when {@link kind} is 'event_correction'. */
+  playerName: string | null;
+  /** DEFAULT 'new_list'. CHECK: one of the {@link MetaSubmissionKind} values. */
+  kind: Generated<MetaSubmissionKind>;
+  /**
+   * The new values an event correction proposes, keyed as the event's own
+   * fields. CHECK: a jsonb object, and only on the 'event_correction' kind.
+   */
+  fieldEdits: MetaEventFieldEdits | null;
   /** The submitter's own note. CHECK: <> ''. */
   note: string | null;
   /** DEFAULT 'pending'. CHECK: one of the {@link MetaSubmissionStatus} values. */

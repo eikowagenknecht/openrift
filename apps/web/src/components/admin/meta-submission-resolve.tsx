@@ -1,5 +1,5 @@
 import type { MetaSubmissionReason } from "@openrift/shared";
-import { META_SUBMISSION_REASONS, formatDayTime } from "@openrift/shared";
+import { formatDayTime } from "@openrift/shared";
 import type {
   AdminMetaSubmission,
   MetaSubmissionResolution,
@@ -28,8 +28,10 @@ import {
 } from "@/hooks/use-admin-meta-submissions";
 import {
   metaSubmissionExplanation,
+  metaSubmissionKindLabels,
   metaSubmissionReasonLabels,
   metaSubmissionReasonSentences,
+  metaSubmissionReasonsFor,
   metaSubmissionResolutionHints,
   metaSubmissionResolutionLabels,
   metaSubmissionStatusBadgeVariant,
@@ -95,6 +97,7 @@ function ResolvedSummary({
       <Badge variant={metaSubmissionStatusBadgeVariant[submission.status]}>
         {metaSubmissionStatusLabels[submission.status]}
       </Badge>
+      <Badge variant="muted">{metaSubmissionKindLabels[submission.kind]}</Badge>
       {submission.resolvedAt !== null && (
         <span className="text-muted-foreground text-sm tabular-nums">
           {formatDayTime(submission.resolvedAt)}
@@ -125,8 +128,11 @@ function ResolvedSummary({
 
 interface MetaSubmissionResolveProps {
   submission: AdminMetaSubmission;
-  /** Scopes the cache invalidation to the roster row this was resolved from. */
-  candidatePlayerId: string;
+  /**
+   * Scopes the cache invalidation to the roster row this was resolved from.
+   * Null for a correction to an event's facts, which stages no row.
+   */
+  candidatePlayerId: string | null;
 }
 
 /**
@@ -221,6 +227,7 @@ export function MetaSubmissionResolve({
       <Badge variant={metaSubmissionStatusBadgeVariant.pending}>
         {metaSubmissionStatusLabels.pending}
       </Badge>
+      <Badge variant="muted">{metaSubmissionKindLabels[submission.kind]}</Badge>
       <span className="text-muted-foreground min-w-0 text-sm">
         Nothing has been sent back to this contributor yet.
       </span>
@@ -232,7 +239,11 @@ export function MetaSubmissionResolve({
         <DialogContent className="sm:max-w-lg">
           <DialogForm onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Resolve {submission.playerName}&apos;s submission</DialogTitle>
+              <DialogTitle>
+                {submission.playerName === null
+                  ? `Resolve the correction to ${submission.eventName}`
+                  : `Resolve ${submission.playerName}'s submission`}
+              </DialogTitle>
               <DialogDescription>This is the only reply the contributor sees.</DialogDescription>
             </DialogHeader>
 
@@ -264,7 +275,7 @@ export function MetaSubmissionResolve({
 
               <SubmissionMessageFields
                 idPrefix="meta-resolution"
-                reasonOrder={META_SUBMISSION_REASONS}
+                reasonOrder={metaSubmissionReasonsFor(submission.kind)}
                 reasonLabels={metaSubmissionReasonLabels}
                 reasonSentences={metaSubmissionReasonSentences}
                 reason={reason}

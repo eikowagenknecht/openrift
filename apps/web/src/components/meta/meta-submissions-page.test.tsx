@@ -54,6 +54,7 @@ function submission(overrides: Partial<MetaSubmission> = {}): MetaSubmission {
     id: "sub-1",
     eventName: "Summoner Skirmish",
     playerName: "Kira",
+    kind: "new_list",
     note: null,
     status: "pending",
     resolutionReason: null,
@@ -96,7 +97,7 @@ describe("MetaSubmissionsPage", () => {
   it("shows a pending row as waiting, with what to expect", () => {
     renderLedger([submission()]);
     expect(screen.getByText("Waiting for review")).toBeInTheDocument();
-    expect(screen.getByText(/reads every list by hand/u)).toBeInTheDocument();
+    expect(screen.getByText(/reads everything sent in by hand/u)).toBeInTheDocument();
   });
 
   it("shows an accepted row and when it was reviewed", () => {
@@ -114,7 +115,7 @@ describe("MetaSubmissionsPage", () => {
   it("shows an already-correct row", () => {
     renderLedger([submission({ status: "already_correct", resolutionReason: "already_correct" })]);
     expect(screen.getByText("Already there")).toBeInTheDocument();
-    expect(screen.getByText("The archive already had this list.")).toBeInTheDocument();
+    expect(screen.getByText("The archive already had this.")).toBeInTheDocument();
   });
 
   it("shows a not-applied row with its canned reason", () => {
@@ -161,5 +162,16 @@ describe("MetaSubmissionsPage", () => {
   it("offers no deck link while a row is still pending", () => {
     renderLedger([submission()]);
     expect(screen.queryByText("See the deck on the archive")).not.toBeInTheDocument();
+  });
+
+  it("says which of the three each row asked for", () => {
+    renderLedger([submission({ id: "sub-2", kind: "completion" })]);
+    expect(screen.getByText("Completion")).toBeInTheDocument();
+  });
+
+  it("names no player on a correction to the tournament's own facts", () => {
+    renderLedger([submission({ id: "sub-3", kind: "event_correction", playerName: null })]);
+    expect(screen.getByText("Event correction")).toBeInTheDocument();
+    expect(screen.queryByText("Kira")).not.toBeInTheDocument();
   });
 });

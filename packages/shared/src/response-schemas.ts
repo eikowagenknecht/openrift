@@ -9,6 +9,7 @@ import {
   META_ENTRY_STATUSES,
   META_EVENT_TIERS,
   META_LIST_STATUSES,
+  META_SUBMISSION_KINDS,
   META_SUBMISSION_REASONS,
   META_SUBMISSION_STATUSES,
 } from "./types/enums.js";
@@ -110,6 +111,9 @@ export const metaSubmissionStatusSchema = z.enum(META_SUBMISSION_STATUSES);
 
 /** Why an admin resolved a decklist submission without accepting it. */
 export const metaSubmissionReasonSchema = z.enum(META_SUBMISSION_REASONS);
+
+/** What a contribution to the archive asks for (ADR-014). */
+export const metaSubmissionKindSchema = z.enum(META_SUBMISSION_KINDS);
 
 // ── Health ───────────────────────────────────────────────────────────────────
 

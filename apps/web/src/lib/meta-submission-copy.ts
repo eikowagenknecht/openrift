@@ -1,6 +1,8 @@
+import { META_SUBMISSION_REASONS } from "@openrift/shared";
 import type {
   MetaCreditVisibility,
   MetaListStatus,
+  MetaSubmissionKind,
   MetaSubmissionReason,
   MetaSubmissionStatus,
 } from "@openrift/shared";
@@ -16,6 +18,37 @@ import type { MetaSubmissionResolution } from "@openrift/shared/contracts/admin/
  * apart. Nothing here uses the schema's own vocabulary — a submitter never sees
  * "candidate", "provider", or "list status".
  */
+
+/**
+ * What each contribution asked for, in a chip beside the row. Short on purpose:
+ * it shares a line with the event and the player.
+ */
+export const metaSubmissionKindLabels: Record<MetaSubmissionKind, string> = {
+  new_list: "New list",
+  completion: "Completion",
+  correction: "Correction",
+  event_correction: "Event correction",
+};
+
+/** The three the decklist form covers; an event correction has its own dialog. */
+export type MetaDeckSubmissionKind = Exclude<MetaSubmissionKind, "event_correction">;
+
+/** The form's title per kind, so the page says which of the three it is doing. */
+export const metaSubmissionFormTitles: Record<MetaDeckSubmissionKind, string> = {
+  new_list: "Send a decklist",
+  completion: "Complete a decklist",
+  correction: "Suggest a correction",
+};
+
+/** The line under the title, saying what the sender is expected to change. */
+export const metaSubmissionFormIntros: Record<MetaDeckSubmissionKind, string> = {
+  new_list:
+    "Know what someone played at a tournament? Send the list and we'll add it to the archive.",
+  completion:
+    "We only have part of this list. Add the cards we're missing and send the whole thing back.",
+  correction:
+    "The list below is what the archive holds. Change what's wrong and tell us where the right version came from.",
+};
 
 /** Badge label per outcome. */
 export const metaSubmissionStatusLabels: Record<MetaSubmissionStatus, string> = {
@@ -44,17 +77,39 @@ export const metaSubmissionStatusBadgeVariant: Record<
 
 /** One line under the badge, for the outcomes the label alone leaves thin. */
 export const metaSubmissionStatusHints: Record<MetaSubmissionStatus, string | null> = {
-  pending: "Someone reads every list by hand, so this can take a while.",
+  pending: "Someone reads everything sent in by hand, so this can take a while.",
   accepted: "The list is on the archive now. Thank you.",
-  already_correct: "The archive already had this list.",
+  already_correct: "The archive already had this.",
   not_applied: null,
   rejected: null,
 };
 
-/** The canned sentence behind each reason an admin can pick. */
+/**
+ * The reasons an admin may pick, per kind.
+ *
+ * A correction to an event's own facts carries no decklist, so the two reasons
+ * that talk about one would be nonsense in front of the person who sent it:
+ * nothing was "already sent in" as a list, and there is no list to have too
+ * little of.
+ */
+export function metaSubmissionReasonsFor(
+  kind: MetaSubmissionKind,
+): readonly MetaSubmissionReason[] {
+  if (kind !== "event_correction") {
+    return META_SUBMISSION_REASONS;
+  }
+  return ["already_correct", "unverified", "not_an_event"];
+}
+
+/**
+ * The canned sentence behind each reason an admin can pick.
+ *
+ * Worded so one sentence covers every kind: a contributor who sent a wrong date
+ * must not read that the archive already had their list.
+ */
 export const metaSubmissionReasonSentences: Record<MetaSubmissionReason, string> = {
-  duplicate: "Someone had already sent this list in.",
-  already_correct: "The archive already had this list.",
+  duplicate: "Someone had already sent this in.",
+  already_correct: "The archive already had this.",
   unverified:
     "We could not confirm this against a published result, so we left the event as it is.",
   incomplete_list: "Too much of the deck was missing to archive it.",
@@ -86,7 +141,7 @@ export const metaSubmissionResolutionLabels: Record<MetaSubmissionResolution, st
 
 /** One line under each outcome, so the choice between the three is obvious. */
 export const metaSubmissionResolutionHints: Record<MetaSubmissionResolution, string> = {
-  already_correct: "The archive already had this list. The usual outcome for a second sender.",
+  already_correct: "The archive already had this. The usual outcome for a second sender.",
   not_applied: "Read it, took nothing from it, and it is nobody's fault.",
   rejected: "Turned down. Records a signal about the submission, so keep it for real problems.",
 };

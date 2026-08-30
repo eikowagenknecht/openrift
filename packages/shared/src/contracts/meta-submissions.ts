@@ -2,6 +2,7 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   metaCreditVisibilitySchema,
   metaListStatusSchema,
+  metaSubmissionKindSchema,
   metaSubmissionReasonSchema,
   metaSubmissionStatusSchema,
 } from "@openrift/shared/response-schemas";
@@ -50,6 +51,12 @@ export const metaSubmissionProposedEventSchema = z.object({
 });
 
 /**
+ * The kinds a decklist submission can be. `event_correction` is excluded: it
+ * carries no list and no player, so it travels through its own procedure.
+ */
+const metaDeckSubmissionKindSchema = metaSubmissionKindSchema.exclude(["event_correction"]);
+
+/**
  * One decklist submitted against an event the archive already has, or against
  * one it does not. Exactly one of `metaEventId` and `proposedEvent` is set: a
  * submission targets one event, and `candidate_meta_players` has a CHECK for
@@ -62,6 +69,12 @@ export const metaSubmissionProposedEventSchema = z.object({
 export const metaSubmissionInputSchema = z
   .object({
     metaEventId: z.uuid().nullable().optional().default(null),
+    /**
+     * What this asks for. Advisory: an accept writes the same archive row
+     * whichever it is, and the reviewer reads it to know what they are being
+     * asked to compare against.
+     */
+    kind: metaDeckSubmissionKindSchema.optional().default("new_list"),
     proposedEvent: metaSubmissionProposedEventSchema.nullable().optional().default(null),
     playerName: z.string().trim().min(1).max(80),
     rank: z.number().int().min(1),
@@ -78,6 +91,49 @@ export const metaSubmissionInputSchema = z
   .refine((input) => (input.metaEventId === null) !== (input.proposedEvent === null), {
     message: "Submit against an existing event or propose one, not both and not neither",
   });
+
+/**
+ * The event facts a reader can propose a new value for, all optional: a key is
+ * present exactly when the submitter typed something into that box.
+ *
+ * Only setting a value is expressible, never clearing one. "The archive lists an
+ * organizer and there wasn't one" is rare enough to belong in the note, and a
+ * tri-state box in front of a reader who spotted a wrong date is worse than the
+ * fact it would capture.
+ */
+export const metaEventFieldEditsSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    eventDate: isoDate.optional(),
+    format: z.string().trim().min(1).max(60).optional(),
+    playerCount: z.number().int().positive().max(1_000_000).optional(),
+    organizer: z.string().trim().min(1).max(120).optional(),
+    /** The venue address, as the submitter would have it read. */
+    location: z.string().trim().min(1).max(200).optional(),
+    /** ISO 3166-1 alpha-2. */
+    country: z
+      .string()
+      .trim()
+      .length(2)
+      .regex(/^[A-Za-z]{2}$/u)
+      .optional(),
+  })
+  .openapi("MetaEventFieldEdits");
+
+/**
+ * A correction to an archived event's own facts, rather than to a decklist.
+ *
+ * It stages nothing: there is no candidate row to hang it off, and no accept
+ * that could apply it, so this is a message with structured edits attached that
+ * an admin applies by hand. The note is always required — a bare set of new
+ * values with no word about where they came from is not something a reviewer can
+ * act on.
+ */
+export const metaEventCorrectionInputSchema = z.object({
+  metaEventId: z.uuid(),
+  fieldEdits: metaEventFieldEditsSchema.optional().default({}),
+  note: z.string().trim().min(1).max(2000),
+});
 
 export const metaSubmissionResultSchema = z
   .object({
@@ -101,7 +157,10 @@ export const metaSubmissionSchema = z
     id: z.string(),
     /** What the submitter called the event, so a row still reads without a target. */
     eventName: z.string(),
-    playerName: z.string(),
+    /** Null on an event correction, which names no player. */
+    playerName: z.string().nullable(),
+    /** What this asked for, so the ledger row says which of the three it was. */
+    kind: metaSubmissionKindSchema,
     /** The contributor's own note. */
     note: z.string().nullable(),
     status: metaSubmissionStatusSchema,
@@ -168,6 +227,20 @@ export const metaSubmissionsContract = {
     })
     .input(metaSubmissionInputSchema)
     .output(metaSubmissionResultSchema),
+
+  submitEventCorrection: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/submissions/event-corrections`,
+      tags: [TAG],
+      successStatus: 201,
+    })
+    .errors({
+      TOO_MANY_REQUESTS: { message: "Too many submissions awaiting review" },
+      NOT_FOUND: { message: "Event not found" },
+    })
+    .input(metaEventCorrectionInputSchema)
+    .output(z.object({ id: z.string() })),
 
   list: authedRoute
     .route({ method: "GET", path: `${BASE}/submissions`, tags: [TAG] })

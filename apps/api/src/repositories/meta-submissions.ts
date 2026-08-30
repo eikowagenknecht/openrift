@@ -1,7 +1,12 @@
-import type { MetaSubmissionReason, MetaSubmissionStatus } from "@openrift/shared/types";
+import type {
+  MetaEventFieldEdits,
+  MetaSubmissionKind,
+  MetaSubmissionReason,
+  MetaSubmissionStatus,
+} from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, MetaSubmissionsTable } from "../db/index.js";
+import type { Database, MetaEventsTable, MetaSubmissionsTable } from "../db/index.js";
 import { listOwnedByUser } from "./query-helpers.js";
 
 export type MetaSubmissionRow = Selectable<MetaSubmissionsTable>;
@@ -10,13 +15,39 @@ export interface MetaSubmissionInsert {
   userId: string;
   provider: string;
   externalId: string;
-  candidateMetaPlayerId: string;
+  /** Null on an event correction, which stages nothing. */
+  candidateMetaPlayerId: string | null;
   /** The live event the submission targets, or null when it proposes one. */
   metaEventId: string | null;
   /** What the submitter called the event, so the row still reads without a target. */
   eventName: string;
-  playerName: string;
+  /** Null on an event correction, which names no player. */
+  playerName: string | null;
+  kind: MetaSubmissionKind;
+  /** The proposed new values, on an event correction and nowhere else. */
+  fieldEdits?: MetaEventFieldEdits | null;
   note: string | null;
+}
+
+/** The event fields a correction can propose a value for, as they stand today. */
+type CorrectedEventColumns = Pick<
+  Selectable<MetaEventsTable>,
+  | "id"
+  | "slug"
+  | "name"
+  | "eventDate"
+  | "format"
+  | "playerCount"
+  | "organizer"
+  | "location"
+  | "country"
+>;
+
+/** One unresolved event correction beside the event it is about. */
+export interface MetaEventCorrectionRow {
+  submission: MetaSubmissionRow;
+  /** Null when the event was deleted after the correction was sent. */
+  event: CorrectedEventColumns | null;
 }
 
 /**
@@ -55,6 +86,78 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
       options: { cursor?: string | null; limit: number },
     ): Promise<MetaSubmissionRow[]> {
       return listOwnedByUser<MetaSubmissionRow>(db, "metaSubmissions", userId, options);
+    },
+
+    /**
+     * Every unresolved correction to an event's own facts, oldest first, each
+     * beside the event as it stands today.
+     *
+     * A left join rather than an inner one: deleting an event does not delete
+     * the correction that was sent about it, and a row with nothing to compare
+     * against is still one the reviewer has to close.
+     */
+    async listPendingEventCorrections(limit: number): Promise<MetaEventCorrectionRow[]> {
+      const rows = await db
+        .selectFrom("metaSubmissions")
+        .leftJoin("metaEvents", "metaEvents.id", "metaSubmissions.metaEventId")
+        .selectAll("metaSubmissions")
+        .select([
+          "metaEvents.id as eventId",
+          "metaEvents.slug as eventSlug",
+          "metaEvents.name as eventFullName",
+          "metaEvents.eventDate as eventEventDate",
+          "metaEvents.format as eventFormat",
+          "metaEvents.playerCount as eventPlayerCount",
+          "metaEvents.organizer as eventOrganizer",
+          "metaEvents.location as eventLocation",
+          "metaEvents.country as eventCountry",
+        ])
+        .where("metaSubmissions.kind", "=", "event_correction")
+        .where("metaSubmissions.status", "=", "pending")
+        .orderBy("metaSubmissions.createdAt", "asc")
+        .orderBy("metaSubmissions.id", "asc")
+        .limit(limit)
+        .execute();
+
+      return rows.map((row) => ({
+        submission: {
+          id: row.id,
+          userId: row.userId,
+          provider: row.provider,
+          externalId: row.externalId,
+          candidateMetaPlayerId: row.candidateMetaPlayerId,
+          metaEventId: row.metaEventId,
+          eventName: row.eventName,
+          playerName: row.playerName,
+          kind: row.kind,
+          fieldEdits: row.fieldEdits,
+          note: row.note,
+          status: row.status,
+          resolutionReason: row.resolutionReason,
+          resolutionNote: row.resolutionNote,
+          resolvedAt: row.resolvedAt,
+          resolvedByUserId: row.resolvedByUserId,
+          acceptedDeckId: row.acceptedDeckId,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        },
+        event:
+          row.eventId === null
+            ? null
+            : {
+                id: row.eventId,
+                // Every column of a matched left join is non-null together, and
+                // the id is what the type narrowing has to hang off.
+                slug: row.eventSlug ?? "",
+                name: row.eventFullName ?? "",
+                eventDate: row.eventEventDate ?? "",
+                format: row.eventFormat ?? "",
+                playerCount: row.eventPlayerCount,
+                organizer: row.eventOrganizer,
+                location: row.eventLocation,
+                country: row.eventCountry,
+              },
+      }));
     },
 
     async byId(id: string): Promise<MetaSubmissionRow | null> {

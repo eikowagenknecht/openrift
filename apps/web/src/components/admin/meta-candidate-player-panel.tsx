@@ -186,7 +186,7 @@ export function MetaCandidatePlayerPanel({ player, eventAccepted }: MetaCandidat
 
       {allowUnresolvedLegend && (
         <p className="text-muted-foreground mt-1 text-sm">
-          Accepting files this player with no legend, which leaves them out of the play-rate stats.
+          Accepting files this player with no legend, so the archive never names what they played.
         </p>
       )}
 

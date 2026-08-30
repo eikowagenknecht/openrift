@@ -11,6 +11,7 @@ import { adminMetaSubmissionsRouter } from "./meta-submissions";
 // ---------------------------------------------------------------------------
 
 const mockSubmissions = {
+  listPendingEventCorrections: vi.fn(),
   byId: vi.fn(),
   byCandidatePlayerId: vi.fn(),
   resolve: vi.fn(),
@@ -42,6 +43,8 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
     metaEventId: "d0000000-0001-4000-a000-000000000001",
     eventName: "Summoner Skirmish",
     playerName: "Renata",
+    kind: "new_list",
+    fieldEdits: null,
     note: "Copied from the stream overlay.",
     status: "pending",
     resolutionReason: null,
@@ -82,6 +85,7 @@ describe("GET /meta/submissions/by-candidate-player/{candidatePlayerId}", () => 
         id: SUBMISSION_ID,
         eventName: "Summoner Skirmish",
         playerName: "Renata",
+        kind: "new_list",
         note: "Copied from the stream overlay.",
         status: "pending",
         reason: null,
@@ -246,5 +250,99 @@ describe("POST /meta/submissions/{id}/reopen", () => {
 
     expect(res.status).toBe(404);
     expect(mockSubmissions.reopen).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /meta/submissions/event-corrections", () => {
+  const event = {
+    id: "d0000000-0001-4000-a000-000000000001",
+    slug: "summoner-skirmish",
+    name: "Summoner Skirmish",
+    eventDate: "2026-08-15",
+    format: "freeform",
+    playerCount: 64,
+    organizer: "Rift Games Berlin",
+    location: null,
+    country: "DE",
+  };
+
+  it("pairs each proposed value with the event it would replace", async () => {
+    mockSubmissions.listPendingEventCorrections.mockResolvedValue([
+      {
+        submission: ledgerRow({
+          kind: "event_correction",
+          playerName: null,
+          candidateMetaPlayerId: null,
+          fieldEdits: { playerCount: 48 },
+        }),
+        event,
+      },
+    ]);
+
+    const res = await app.request("/api/admin/v1/meta/submissions/event-corrections");
+    const json = await readJson(res);
+
+    expect(res.status).toBe(200);
+    expect(json.items).toHaveLength(1);
+    expect(json.items[0].fieldEdits).toEqual({ playerCount: 48 });
+    expect(json.items[0].event.playerCount).toBe(64);
+    expect(json.items[0].submission.playerName).toBeNull();
+    expect(json.items[0].submission.kind).toBe("event_correction");
+  });
+
+  it("reads an absent edit set as no proposed values", async () => {
+    mockSubmissions.listPendingEventCorrections.mockResolvedValue([
+      {
+        submission: ledgerRow({
+          kind: "event_correction",
+          playerName: null,
+          candidateMetaPlayerId: null,
+          fieldEdits: null,
+        }),
+        event: null,
+      },
+    ]);
+
+    const json = await readJson(
+      await app.request("/api/admin/v1/meta/submissions/event-corrections"),
+    );
+
+    expect(json.items[0].fieldEdits).toEqual({});
+    expect(json.items[0].event).toBeNull();
+  });
+
+  it("answers an empty list when nothing is waiting", async () => {
+    mockSubmissions.listPendingEventCorrections.mockResolvedValue([]);
+
+    const json = await readJson(
+      await app.request("/api/admin/v1/meta/submissions/event-corrections"),
+    );
+
+    expect(json.items).toEqual([]);
+    expect(json.hasMore).toBe(false);
+  });
+
+  it("says the page was cut short rather than truncating in silence", async () => {
+    const row = {
+      submission: ledgerRow({
+        kind: "event_correction",
+        playerName: null,
+        candidateMetaPlayerId: null,
+        fieldEdits: {},
+      }),
+      event,
+    };
+    // The handler asks for one past the cap; the extra row is what tells it
+    // there is more behind.
+    mockSubmissions.listPendingEventCorrections.mockImplementation((limit: number) =>
+      Promise.resolve(Array.from({ length: limit }, () => row)),
+    );
+
+    const json = await readJson(
+      await app.request("/api/admin/v1/meta/submissions/event-corrections"),
+    );
+
+    expect(json.hasMore).toBe(true);
+    expect(json.items).toHaveLength(200);
   });
 });

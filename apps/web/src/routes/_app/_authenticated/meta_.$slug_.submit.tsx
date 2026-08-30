@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaEventsQueryOptions } from "@/hooks/use-meta";
+import { metaDeckQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -25,7 +25,8 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Send a decklist", noIndex: true }),
   validateSearch: parseMetaSubmitSearch,
-  loader: async ({ context }) => {
+  loaderDeps: ({ search }) => ({ deck: search.deck }),
+  loader: async ({ context, deps }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,
     )) as FeatureFlags;
@@ -36,6 +37,13 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")
       context.queryClient.ensureQueryData(initQueryOptions),
       context.queryClient.ensureQueryData(metaEventsQueryOptions),
       context.queryClient.ensureQueryData(catalogQueryOptions),
+      // The list a completion or a correction edits, in cache before the form
+      // mounts so its paste box opens already holding it. A token that no
+      // longer resolves is not fatal: the box opens empty and the sender types
+      // the list, which is what they came to do.
+      deps.deck === undefined
+        ? Promise.resolve()
+        : context.queryClient.ensureQueryData(metaDeckQueryOptions(deps.deck)).catch(() => null),
     ]);
   },
   errorComponent: RouteErrorFallback,

@@ -55,8 +55,20 @@ vi.mock("@/components/layout/page-top-bar", () => ({
       {isValidElement(node) ? cloneElement(node as ReactElement, {}, children) : children}
     </span>
   ),
+  PageTopBarIconButton: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
   PageTopBarSticky: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   PageTopBarTitle: ({ children }: { children?: ReactNode }) => <h1>{children}</h1>,
+}));
+
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@/components/meta/meta-event-correction-dialog", () => ({
+  MetaEventCorrectionDialog: () => null,
 }));
 
 vi.mock("@/components/layout/top-bar-breadcrumb", () => ({
@@ -124,6 +136,17 @@ describe("MetaEventPage", () => {
     renderPage();
     expect(screen.getByText("Sign in to add a decklist")).toBeInTheDocument();
     expect(ctaHref()).toBe("/login?redirect=%2Fmeta%2Fsummoner-skirmish%2Fsubmit");
+  });
+
+  it("offers a signed-in reader a way to correct the tournament's own facts", () => {
+    captured.userId = "user-1";
+    renderPage();
+    expect(screen.getByText("Suggest a correction")).toBeInTheDocument();
+  });
+
+  it("hides the correction menu from a logged-out reader, whose only item is a dead end", () => {
+    renderPage();
+    expect(screen.queryByText("Suggest a correction")).not.toBeInTheDocument();
   });
 
   it("renders the admin's notes when the event carries any", () => {

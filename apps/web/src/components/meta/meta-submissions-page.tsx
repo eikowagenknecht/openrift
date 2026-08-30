@@ -21,6 +21,7 @@ import { useMetaDecks } from "@/hooks/use-meta";
 import { useMetaSubmissions } from "@/hooks/use-meta-submissions";
 import {
   metaSubmissionExplanation,
+  metaSubmissionKindLabels,
   metaSubmissionStatusBadgeVariant,
   metaSubmissionStatusHints,
   metaSubmissionStatusLabels,
@@ -53,11 +54,16 @@ function SubmissionRow({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="font-medium">{submission.eventName}</span>
-          <span className="text-muted-foreground text-sm">{submission.playerName}</span>
+          {submission.playerName !== null && (
+            <span className="text-muted-foreground text-sm">{submission.playerName}</span>
+          )}
         </div>
-        <Badge variant={metaSubmissionStatusBadgeVariant[submission.status]}>
-          {metaSubmissionStatusLabels[submission.status]}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="muted">{metaSubmissionKindLabels[submission.kind]}</Badge>
+          <Badge variant={metaSubmissionStatusBadgeVariant[submission.status]}>
+            {metaSubmissionStatusLabels[submission.status]}
+          </Badge>
+        </div>
       </div>
 
       <p className="text-muted-foreground text-sm">
@@ -111,7 +117,7 @@ export function MetaSubmissionsPage() {
       <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/meta" />
-          <PageTopBarTitle>Decklists you sent</PageTopBarTitle>
+          <PageTopBarTitle>Your contributions</PageTopBarTitle>
           <PageTopBarActions>
             <PageTopBarPrimaryButton render={<Link to="/meta/submit" />}>
               Send a decklist
@@ -121,7 +127,9 @@ export function MetaSubmissionsPage() {
       </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "space-y-4 px-4 pt-3 pb-12")}>
-        <PageDescription>Every decklist you&apos;ve sent to the archive.</PageDescription>
+        <PageDescription>
+          Everything you&apos;ve sent to the archive, and what happened to each one.
+        </PageDescription>
 
         {isPending ? (
           <div className="space-y-3">
@@ -159,7 +167,7 @@ export function MetaSubmissionsPage() {
             disabled={isFetchingNextPage}
             onClick={() => void fetchNextPage()}
           >
-            {isFetchingNextPage ? "Loading…" : "Show older decklists"}
+            {isFetchingNextPage ? "Loading…" : "Show older contributions"}
           </Button>
         ) : null}
       </div>

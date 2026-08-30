@@ -39,6 +39,8 @@ import {
   META_SUBMISSION_COMPLETENESS,
   metaSubmissionCompletenessHints,
   metaSubmissionCompletenessLabels,
+  metaSubmissionFormIntros,
+  metaSubmissionFormTitles,
 } from "@/lib/meta-submission-copy";
 import type {
   MetaSubmissionDraft,
@@ -195,7 +197,7 @@ function SubmissionSent({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button render={<Link to="/meta/submissions" />}>See what you&apos;ve sent</Button>
+        <Button render={<Link to="/meta/submissions" />}>Your contributions</Button>
         <Button variant="outline" onClick={onSendAnother}>
           {unresolved.length === 0 ? "Send another" : "Fix the list and send again"}
         </Button>
@@ -240,6 +242,10 @@ export function MetaSubmitPage({
   const [result, setResult] = useState<MetaSubmissionResult | null>(null);
 
   const lockedToEvent = eventFromSlug !== undefined;
+  // Proposing a tournament the archive has never seen leaves nothing to
+  // complete or correct, so the page falls back to its plain wording.
+  const kind = proposing ? "new_list" : draft.kind;
+  const startedFromArchivedList = draft.kind !== "new_list" && (prefill?.deckText ?? "") !== "";
 
   function set<TKey extends keyof MetaSubmissionDraft>(
     key: TKey,
@@ -314,20 +320,17 @@ export function MetaSubmitPage({
       <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/meta" />
-          <PageTopBarTitle>Send a decklist</PageTopBarTitle>
+          <PageTopBarTitle>{metaSubmissionFormTitles[kind]}</PageTopBarTitle>
           <PageTopBarActions>
             <PageTopBarButton render={<Link to="/meta/submissions" />}>
-              What you&apos;ve sent
+              Your contributions
             </PageTopBarButton>
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "space-y-4 px-4 pt-3 pb-12")}>
-        <PageDescription>
-          Know what someone played at a tournament? Send the list and we&apos;ll add it to the
-          archive.
-        </PageDescription>
+        <PageDescription>{metaSubmissionFormIntros[kind]}</PageDescription>
 
         {result ? (
           <SubmissionSent result={result} onSendAnother={handleSendAnother} />
@@ -509,6 +512,12 @@ export function MetaSubmitPage({
                       placeholder="The player's name, as the results list it"
                       onChange={(event) => set("playerName", event.target.value)}
                     />
+                    {prefill?.legendName !== undefined && (
+                      <FieldDescription>
+                        The archive has them on {prefill.legendName}. We read the legend back off
+                        the list you send, so change it there if that is wrong.
+                      </FieldDescription>
+                    )}
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="meta-submit-rank">Where they finished</FieldLabel>
@@ -574,7 +583,11 @@ export function MetaSubmitPage({
             <Card>
               <CardHeader>
                 <CardTitle>The deck</CardTitle>
-                <CardDescription>Paste a deck code or a plain list.</CardDescription>
+                <CardDescription>
+                  {startedFromArchivedList
+                    ? "The box below holds the list the archive has. Edit it and send the whole thing back."
+                    : "Paste a deck code or a plain list."}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <FieldGroup>
@@ -640,14 +653,20 @@ export function MetaSubmitPage({
               <CardContent>
                 <Field>
                   <FieldLabel htmlFor="meta-submit-note">
-                    Note for the reviewer (optional)
+                    {kind === "correction"
+                      ? "What's wrong with the list we have"
+                      : "Note for the reviewer (optional)"}
                   </FieldLabel>
                   <Textarea
                     id="meta-submit-note"
                     value={draft.note}
                     rows={3}
                     maxLength={2000}
-                    placeholder="Where you got the list, anything you're unsure about"
+                    placeholder={
+                      kind === "correction"
+                        ? "What we got wrong, and where the right list came from"
+                        : "Where you got the list, anything you're unsure about"
+                    }
                     onChange={(event) => set("note", event.target.value)}
                   />
                 </Field>

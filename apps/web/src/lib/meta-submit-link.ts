@@ -1,4 +1,4 @@
-import type { MetaEventPlayer } from "@openrift/shared";
+import type { MetaDeckSubmissionKind } from "@/lib/meta-submission-copy";
 
 /**
  * The standings row an event page opened the submission form from, as its link
@@ -17,10 +17,31 @@ export interface MetaSubmitSearch {
   wins?: number;
   losses?: number;
   draws?: number;
+  /**
+   * What the sender is being asked for. Absent means a list the archive has
+   * none of, which is the form's own default and stays off the URL.
+   */
+  ask?: Exclude<MetaDeckSubmissionKind, "new_list">;
+  /**
+   * The archived deck to start from, by share token. The form seeds its paste
+   * box with that list, so completing or correcting one means editing what the
+   * archive holds rather than retyping it.
+   */
+  deck?: string;
+  /** The legend the archive already has this entry on, named for the sender. */
+  legend?: string;
 }
 
 /** Matches the player-name bound the submission form and its contract enforce. */
 const MAX_PLAYER_NAME = 80;
+
+/** Generous, and only a display string: a card name past this is not one. */
+const MAX_LEGEND_NAME = 120;
+
+/** A deck share token is opaque; this only keeps a pasted essay out of the URL. */
+const MAX_DECK_TOKEN = 64;
+
+const ASKS = new Set<string>(["completion", "correction"]);
 
 function count(value: number | null): number | undefined {
   return value ?? undefined;
@@ -30,16 +51,35 @@ function wholeCount(value: unknown): number | undefined {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined;
 }
 
+function text(value: unknown, max: number): string | undefined {
+  return typeof value === "string" && value.length > 0 && value.length <= max ? value : undefined;
+}
+
 /**
- * What a "+ Add" or "Complete" link hands the submission form, so someone
- * filling a hole in the record types the decklist and nothing else.
+ * What a "+ Add", "Complete" or "Suggest a correction" link hands the submission
+ * form, so someone filling a hole in the record types as little as possible.
  *
  * Only fields with values travel: `undefined` drops the param from the URL,
  * which keeps a link off a thin standings row short rather than littered with
  * empties.
+ *
+ * @param player The standings row the link sits on.
+ * @param ask What the link is asking for, when it is not a brand-new list.
  */
 export function metaSubmitSearchForPlayer(
-  player: Pick<MetaEventPlayer, "playerName" | "rank" | "rankIsTier" | "wins" | "losses" | "draws">,
+  player: {
+    playerName: string;
+    rank: number;
+    rankIsTier: boolean;
+    wins: number | null;
+    losses: number | null;
+    draws: number | null;
+    /** The archive's own legend for this entry, when it has resolved one. */
+    legend?: { name: string } | null;
+    /** The archived list, when the entry has one. */
+    shareToken?: string | null;
+  },
+  ask?: Exclude<MetaDeckSubmissionKind, "new_list">,
 ): MetaSubmitSearch {
   return {
     player: player.playerName,
@@ -48,6 +88,11 @@ export function metaSubmitSearchForPlayer(
     wins: count(player.wins),
     losses: count(player.losses),
     draws: count(player.draws),
+    ask,
+    // Only an ask that edits an existing list wants one: a brand-new list has
+    // nothing to start from, and the token would just seed the box wrongly.
+    deck: ask === undefined ? undefined : (player.shareToken ?? undefined),
+    legend: player.legend?.name,
   };
 }
 
@@ -58,15 +103,16 @@ export function metaSubmitSearchForPlayer(
  * submitter cannot see is wrong.
  */
 export function parseMetaSubmitSearch(search: Record<string, unknown>): MetaSubmitSearch {
+  const ask = typeof search.ask === "string" && ASKS.has(search.ask) ? search.ask : undefined;
   return {
-    player:
-      typeof search.player === "string" && search.player.length <= MAX_PLAYER_NAME
-        ? search.player
-        : undefined,
+    player: text(search.player, MAX_PLAYER_NAME),
     rank: wholeCount(search.rank),
     cut: search.cut === true ? true : undefined,
     wins: wholeCount(search.wins),
     losses: wholeCount(search.losses),
     draws: wholeCount(search.draws),
+    ask: ask as MetaSubmitSearch["ask"],
+    deck: text(search.deck, MAX_DECK_TOKEN),
+    legend: text(search.legend, MAX_LEGEND_NAME),
   };
 }

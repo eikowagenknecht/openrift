@@ -21,6 +21,8 @@ import type {
 } from "../../contracts/admin/meta.js";
 import type {
   metaCreditVisibilityResponseSchema,
+  metaEventCorrectionInputSchema,
+  metaEventFieldEditsSchema,
   metaSubmissionInputSchema,
   metaSubmissionListResponseSchema,
   metaSubmissionResultSchema,
@@ -184,6 +186,12 @@ export type MetaSubmissionInput = z.input<typeof metaSubmissionInputSchema>;
 
 /** What staging one submission produced, including any names that matched nothing. */
 export type MetaSubmissionResult = z.infer<typeof metaSubmissionResultSchema>;
+
+/** POST /meta/submissions/event-corrections — proposed new values for an event's own facts. */
+export type MetaEventCorrectionInput = z.input<typeof metaEventCorrectionInputSchema>;
+
+/** The event facts a reader can propose a new value for. */
+export type MetaEventFieldEdits = z.infer<typeof metaEventFieldEditsSchema>;
 
 /** One row of the contributor's own submission history. */
 export type MetaSubmission = z.infer<typeof metaSubmissionSchema>;

@@ -14,6 +14,7 @@ import { metaSubmissionsRouter, mountMetaSubmissionsMiddleware } from "./meta-su
 const mockSubmissions = { listByUser: vi.fn() };
 const mockMeta = { creditVisibility: vi.fn(), setCreditVisibility: vi.fn() };
 const mockSubmitMetaDeck = vi.fn();
+const mockSubmitMetaEventCorrection = vi.fn();
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const EVENT_ID = "b0000000-0001-4000-a000-000000000001";
@@ -22,7 +23,10 @@ const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", { metaSubmissions: mockSubmissions, meta: mockMeta } as never);
-  c.set("services", { submitMetaDeck: mockSubmitMetaDeck } as never);
+  c.set("services", {
+    submitMetaDeck: mockSubmitMetaDeck,
+    submitMetaEventCorrection: mockSubmitMetaEventCorrection,
+  } as never);
   c.set("transact", vi.fn() as never);
   await next();
 });
@@ -66,6 +70,8 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
     metaEventId: EVENT_ID,
     eventName: "Summoner Skirmish",
     playerName: "Renata",
+    kind: "new_list",
+    fieldEdits: null,
     note: null,
     status: "pending",
     resolutionReason: null,
@@ -357,5 +363,66 @@ describe("meta-submissions body limit", () => {
     const res = await post(100);
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe("POST /meta/submissions/event-corrections", () => {
+  /** @returns The response to a correction POST. */
+  function correct(body: unknown) {
+    return app.request("/api/v1/meta/submissions/event-corrections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("records the note and the proposed values", async () => {
+    mockSubmitMetaEventCorrection.mockResolvedValue({ status: "ok", submissionId: "sub-9" });
+
+    const res = await correct({
+      metaEventId: EVENT_ID,
+      fieldEdits: { playerCount: 48 },
+      note: "The results page lists 48 players.",
+    });
+
+    expect(res.status).toBe(201);
+    expect(await readJson(res)).toEqual({ id: "sub-9" });
+    expect(mockSubmitMetaEventCorrection).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: USER_ID,
+        metaEventId: EVENT_ID,
+        fieldEdits: { playerCount: 48 },
+        note: "The results page lists 48 players.",
+      }),
+    );
+  });
+
+  it("defaults a correction with no field edits to an empty set", async () => {
+    mockSubmitMetaEventCorrection.mockResolvedValue({ status: "ok", submissionId: "sub-10" });
+
+    await correct({ metaEventId: EVENT_ID, note: "The winner's name is misspelled." });
+
+    expect(mockSubmitMetaEventCorrection).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ fieldEdits: {} }),
+    );
+  });
+
+  it("refuses a correction with nothing written in the note", async () => {
+    const res = await correct({ metaEventId: EVENT_ID, fieldEdits: { playerCount: 48 } });
+
+    expect(res.status).toBe(400);
+    expect(mockSubmitMetaEventCorrection).not.toHaveBeenCalled();
+  });
+
+  it("turns the pending cap into a message the dialog can show", async () => {
+    mockSubmitMetaEventCorrection.mockResolvedValue({ status: "rate_limited", limit: 10 });
+
+    const res = await correct({ metaEventId: EVENT_ID, note: "Wrong date." });
+
+    expect(res.status).toBe(429);
+    const json = await readJson(res);
+    expect(json.message).toContain("10 submissions");
   });
 });

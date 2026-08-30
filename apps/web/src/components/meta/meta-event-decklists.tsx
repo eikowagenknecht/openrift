@@ -66,7 +66,7 @@ function DecklistRow({
           <Link
             to="/meta/$slug/submit"
             params={{ slug }}
-            search={metaSubmitSearchForPlayer(player)}
+            search={metaSubmitSearchForPlayer(player, "completion")}
             className="text-primary relative z-10 hidden shrink-0 text-sm font-medium hover:underline sm:inline"
           >
             Complete

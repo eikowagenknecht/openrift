@@ -1,5 +1,5 @@
 import type { DeckFormat, DeckZone, MetaDeckDetailResponse } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay, WellKnown } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, GitForkIcon, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +23,8 @@ import {
   unknownZoneCounts,
 } from "@/lib/meta-deck-archive";
 import { formatRank, formatRecord } from "@/lib/meta-format";
+import type { MetaSubmitSearch } from "@/lib/meta-submit-link";
+import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 /** Module scope so the copy handler's `try` stays branch-free (React Compiler). */
@@ -71,11 +73,14 @@ function MetaDeckNotice({
   format,
   unknown,
   isLoggedIn,
+  search,
 }: {
   eventSlug: string;
   format: DeckFormat;
   unknown: ReadonlyMap<DeckZone, number>;
   isLoggedIn: boolean;
+  /** The prefill the Complete button carries, so the form opens on this list. */
+  search: MetaSubmitSearch;
 }) {
   const missing = describeIncompleteList(format, unknown);
   if (missing === null) {
@@ -96,7 +101,7 @@ function MetaDeckNotice({
         <Button
           variant="secondary"
           size="sm"
-          render={<Link to="/meta/$slug/submit" params={{ slug: eventSlug }} />}
+          render={<Link to="/meta/$slug/submit" params={{ slug: eventSlug }} search={search} />}
         >
           Know the missing cards? Complete it
         </Button>
@@ -175,6 +180,27 @@ export function MetaDeckPage({ token }: { token: string }) {
   const unknown = unknownZoneCounts(data.cards, data.deck.format, data.meta.listStatus);
   const forkLabel = isLoggedIn ? "Fork to my decks" : "Open in deck builder";
 
+  const identity = archivedDeckIdentity(data.cards);
+  // `archivedDeckIdentity` falls back to the champion for a list with no legend
+  // card, which is right for the title and wrong for a param the form prints as
+  // "the archive has them on". Only a real legend zone travels, which is also
+  // what a standings row sends.
+  const legend = data.cards.some((card) => card.zone === WellKnown.deckZone.LEGEND)
+    ? identity
+    : null;
+  // The entry as the standings hold it, so both ways in open the form already
+  // knowing the player, the finish, the record, and the list itself.
+  const entry = {
+    playerName: data.meta.playerName,
+    rank: data.meta.rank,
+    rankIsTier: data.meta.rankIsTier,
+    wins: data.meta.wins,
+    losses: data.meta.losses,
+    draws: data.meta.draws,
+    legend,
+    shareToken: token,
+  };
+
   return (
     <PublicDeckSurface
       data={data}
@@ -183,7 +209,7 @@ export function MetaDeckPage({ token }: { token: string }) {
       topBar={
         <MetaDeckArchiveBar
           event={data.meta.event}
-          identity={archivedDeckIdentity(data.cards)}
+          identity={identity}
           deckName={data.deck.name}
           listStatus={data.meta.listStatus}
           actions={
@@ -220,6 +246,7 @@ export function MetaDeckPage({ token }: { token: string }) {
           format={data.deck.format}
           unknown={unknown}
           isLoggedIn={isLoggedIn}
+          search={metaSubmitSearchForPlayer(entry, "completion")}
         />
       }
       footer={
@@ -228,6 +255,7 @@ export function MetaDeckPage({ token }: { token: string }) {
           <Link
             to="/meta/$slug/submit"
             params={{ slug: data.meta.event.slug }}
+            search={metaSubmitSearchForPlayer(entry, "correction")}
             className="text-primary ml-auto text-sm hover:underline"
           >
             Something wrong? Suggest a correction

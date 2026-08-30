@@ -34,6 +34,7 @@ export const metaSubmissionsRouter = {
       userId: context.userId,
       metaEventId: input.metaEventId,
       proposedEvent: input.proposedEvent,
+      kind: input.kind,
       playerName: input.playerName,
       rank: input.rank,
       rankIsTier: input.rankIsTier,
@@ -59,6 +60,23 @@ export const metaSubmissionsRouter = {
     // unmatched spelling is usually an alias the catalog needs, which is the
     // admin's fix, and the contributor should still see which lines were odd.
     return { id: result.submissionId, unresolvedNames: result.unresolvedNames };
+  }),
+
+  submitEventCorrection: os.submitEventCorrection.handler(async ({ input, context, errors }) => {
+    const result = await context.services.submitMetaEventCorrection(context.transact, {
+      userId: context.userId,
+      metaEventId: input.metaEventId,
+      fieldEdits: input.fieldEdits,
+      note: input.note,
+      now: new Date(),
+    });
+
+    if (result.status === "rate_limited") {
+      throw errors.TOO_MANY_REQUESTS({
+        message: `You already have ${result.limit} submissions awaiting review. Please wait until they are looked at.`,
+      });
+    }
+    return { id: result.submissionId };
   }),
 
   list: os.list.handler(async ({ input, context }) => {
@@ -98,15 +116,14 @@ export const metaSubmissionsRouter = {
  * public reads share that prefix.
  */
 export function mountMetaSubmissionsMiddleware(app: Hono<{ Variables: Variables }>): void {
-  app.use(
-    "/api/v1/meta/submissions",
-    bodyLimit({
-      maxSize: MAX_BODY_BYTES,
-      // The limit rejects before the oRPC catch-all runs, so the body is built
-      // here rather than thrown as an AppError — the client gets the same
-      // envelope for the 413 as for this endpoint's other errors.
-      onError: (c) =>
-        orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Submission exceeds 128 KB"),
-    }),
-  );
+  const guard = bodyLimit({
+    maxSize: MAX_BODY_BYTES,
+    // The limit rejects before the oRPC catch-all runs, so the body is built
+    // here rather than thrown as an AppError — the client gets the same
+    // envelope for the 413 as for this endpoint's other errors.
+    onError: (c) =>
+      orpcErrorResponse(c, ERROR_CODES.PAYLOAD_TOO_LARGE, "Submission exceeds 128 KB"),
+  });
+  app.use("/api/v1/meta/submissions", guard);
+  app.use("/api/v1/meta/submissions/event-corrections", guard);
 }

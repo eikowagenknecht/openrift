@@ -7,6 +7,7 @@ import {
   META_PENDING_SUBMISSION_LIMIT,
   buildMetaSubmissionExternalId,
   submitMetaDeck,
+  submitMetaEventCorrection,
   validateMetaSubmission,
 } from "./meta-submission.js";
 import type { MetaSubmissionArgs } from "./meta-submission.js";
@@ -20,6 +21,7 @@ function args(overrides: Partial<MetaSubmissionArgs> = {}): MetaSubmissionArgs {
     userId: "user-1",
     metaEventId: EVENT_ID,
     proposedEvent: null,
+    kind: "new_list",
     playerName: "Nova",
     rank: 1,
     rankIsTier: false,
@@ -333,5 +335,73 @@ describe("submitMetaDeck", () => {
 
     expect(result).toEqual({ status: "invalid", errors: ["cards must not be empty"] });
     expect(transact).not.toHaveBeenCalled();
+  });
+});
+
+describe("submitMetaEventCorrection", () => {
+  it("records the proposed values against the event, staging nothing", async () => {
+    const h = harness({ eventName: "Summoner Skirmish Berlin" });
+    const result = await submitMetaEventCorrection(h.transact, {
+      userId: "user-1",
+      metaEventId: EVENT_ID,
+      fieldEdits: { playerCount: 48, country: "DE" },
+      note: "The results page lists 48 players, not 64.",
+      now: NOW,
+    });
+
+    expect(result).toEqual({ status: "ok", submissionId: "submission-1" });
+    expect(h.insertPlayer).not.toHaveBeenCalled();
+    expect(h.insertEvent).not.toHaveBeenCalled();
+    expect(h.insertSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "event_correction",
+        candidateMetaPlayerId: null,
+        playerName: null,
+        metaEventId: EVENT_ID,
+        eventName: "Summoner Skirmish Berlin",
+        fieldEdits: { playerCount: 48, country: "DE" },
+      }),
+    );
+  });
+
+  it("keeps an empty edit set as an object rather than dropping the column", async () => {
+    const h = harness({ eventName: "Skirmish" });
+    await submitMetaEventCorrection(h.transact, {
+      userId: "user-1",
+      metaEventId: EVENT_ID,
+      fieldEdits: {},
+      note: "The winner's name is spelled wrong somewhere.",
+      now: NOW,
+    });
+
+    expect(h.insertSubmission).toHaveBeenCalledWith(expect.objectContaining({ fieldEdits: {} }));
+  });
+
+  it("refuses an event that does not exist", async () => {
+    const h = harness();
+    await expect(
+      submitMetaEventCorrection(h.transact, {
+        userId: "user-1",
+        metaEventId: EVENT_ID,
+        fieldEdits: {},
+        note: "Wrong date.",
+        now: NOW,
+      }),
+    ).rejects.toBeInstanceOf(AppError);
+    expect(h.insertSubmission).not.toHaveBeenCalled();
+  });
+
+  it("counts against the same pending cap as a decklist", async () => {
+    const h = harness({ eventName: "Skirmish", pending: META_PENDING_SUBMISSION_LIMIT });
+    const result = await submitMetaEventCorrection(h.transact, {
+      userId: "user-1",
+      metaEventId: EVENT_ID,
+      fieldEdits: {},
+      note: "Wrong date.",
+      now: NOW,
+    });
+
+    expect(result).toEqual({ status: "rate_limited", limit: META_PENDING_SUBMISSION_LIMIT });
+    expect(h.insertSubmission).not.toHaveBeenCalled();
   });
 });

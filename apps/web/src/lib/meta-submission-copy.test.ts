@@ -1,6 +1,12 @@
+import { META_SUBMISSION_REASONS } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { metaCreditPreview, metaSubmissionExplanation } from "./meta-submission-copy";
+import {
+  metaCreditPreview,
+  metaSubmissionExplanation,
+  metaSubmissionReasonSentences,
+  metaSubmissionReasonsFor,
+} from "./meta-submission-copy";
 
 describe("metaCreditPreview", () => {
   it("prints nothing while credit is off", () => {
@@ -65,5 +71,27 @@ describe("metaSubmissionExplanation", () => {
 
   it("says nothing when there is no reason and no note", () => {
     expect(metaSubmissionExplanation(null, null)).toBeNull();
+  });
+});
+
+describe("metaSubmissionReasonsFor", () => {
+  it("offers every reason for a contribution that carries a decklist", () => {
+    expect(metaSubmissionReasonsFor("new_list")).toEqual(META_SUBMISSION_REASONS);
+    expect(metaSubmissionReasonsFor("completion")).toEqual(META_SUBMISSION_REASONS);
+    expect(metaSubmissionReasonsFor("correction")).toEqual(META_SUBMISSION_REASONS);
+  });
+
+  it("drops the reasons that talk about a list from an event correction", () => {
+    const reasons = metaSubmissionReasonsFor("event_correction");
+    expect(reasons).not.toContain("incomplete_list");
+    expect(reasons).not.toContain("duplicate");
+    expect(reasons).toEqual(["already_correct", "unverified", "not_an_event"]);
+  });
+
+  it("has a sentence for every reason it offers", () => {
+    for (const reason of metaSubmissionReasonsFor("event_correction")) {
+      expect(metaSubmissionReasonSentences[reason]).toBeTruthy();
+      expect(metaSubmissionReasonSentences[reason]).not.toContain("list");
+    }
   });
 });

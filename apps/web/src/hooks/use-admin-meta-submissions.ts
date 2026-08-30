@@ -1,4 +1,7 @@
-import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
+import type {
+  AdminMetaEventCorrection,
+  AdminMetaSubmission,
+} from "@openrift/shared/contracts/admin/meta-submissions";
 import { adminMetaSubmissionsContract } from "@openrift/shared/contracts/admin/meta-submissions";
 import { isDefinedError, safe } from "@orpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -23,14 +26,41 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
  * Resolving changes no live archive row, so only the queue and this row go
  * stale — the archived decks and the public pages are untouched by an outcome.
  *
- * @param candidatePlayerId - The roster row the write came from.
+ * @param candidatePlayerId - The roster row the write came from, or null for a
+ *   correction to an event's facts, which stages no row to come from.
  * @returns The query keys to invalidate.
  */
-function submissionKeys(candidatePlayerId: string) {
+function submissionKeys(candidatePlayerId: string | null) {
+  if (candidatePlayerId === null) {
+    return [queryKeys.admin.meta.eventCorrections] as const;
+  }
   return [
     queryKeys.admin.meta.submissionForPlayer(candidatePlayerId),
     queryKeys.admin.meta.candidates,
   ] as const;
+}
+
+const fetchMetaEventCorrections = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<{ items: AdminMetaEventCorrection[]; hasMore: boolean }> =>
+    apiOrpcClient(adminMetaSubmissionsContract, context.cookie).eventCorrections(),
+  );
+
+/**
+ * Every unresolved correction to an event's own facts, with the event beside it.
+ *
+ * These have no candidate row and no accept path — an admin reads the note,
+ * edits the event themselves, and stamps the outcome — so they are listed on
+ * their own rather than found through the roster.
+ *
+ * @returns The corrections query.
+ */
+export function useMetaEventCorrections() {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.eventCorrections,
+    queryFn: () => fetchMetaEventCorrections(),
+    staleTime: 60 * 1000,
+  });
 }
 
 const fetchSubmissionForCandidatePlayer = createServerFn({ method: "GET" })
@@ -78,8 +108,11 @@ export type ResolveMetaSubmissionInput = Omit<
   "id"
 > & {
   submissionId: string;
-  /** Scopes the cache invalidation to the roster row this was resolved from. */
-  candidatePlayerId: string;
+  /**
+   * Scopes the cache invalidation to the roster row this was resolved from.
+   * Null for a correction to an event's facts, which has no roster row.
+   */
+  candidatePlayerId: string | null;
 };
 
 const resolveMetaSubmissionFn = createServerFn({ method: "POST" })
@@ -152,7 +185,7 @@ const reopenMetaSubmissionFn = createServerFn({ method: "POST" })
 export function useReopenMetaSubmission() {
   return useMutationWithInvalidation<
     MetaSubmissionWriteResult,
-    { submissionId: string; candidatePlayerId: string }
+    { submissionId: string; candidatePlayerId: string | null }
   >({
     mutationFn: (vars) => reopenMetaSubmissionFn({ data: { submissionId: vars.submissionId } }),
     invalidates: (vars) => submissionKeys(vars.candidatePlayerId),

@@ -9,6 +9,7 @@ import {
   EMPTY_META_SUBMISSION_DRAFT,
   buildMetaSubmissionInput,
   metaSubmissionDraftFromPrefill,
+  metaSubmissionTextFromCards,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "./meta-submission-form";
@@ -338,5 +339,96 @@ describe("metaSubmissionDraftFromPrefill", () => {
 
   it("returns a blank form when nothing was passed", () => {
     expect(metaSubmissionDraftFromPrefill({})).toEqual(EMPTY_META_SUBMISSION_DRAFT);
+  });
+});
+
+describe("metaSubmissionDraftFromPrefill kinds", () => {
+  it("opens a completion holding the archive's own list", () => {
+    const draft = metaSubmissionDraftFromPrefill({
+      kind: "completion",
+      deckText: "MainDeck:\n3 Blade of the Exile",
+    });
+
+    expect(draft.kind).toBe("completion");
+    expect(draft.deckText).toBe("MainDeck:\n3 Blade of the Exile");
+  });
+
+  it("starts a completion at the whole deck, which is what filling one in produces", () => {
+    expect(metaSubmissionDraftFromPrefill({ kind: "completion" }).listStatus).toBe("full");
+  });
+
+  it("leaves a correction's completeness where the sender found it", () => {
+    expect(metaSubmissionDraftFromPrefill({ kind: "correction" }).listStatus).toBe(
+      EMPTY_META_SUBMISSION_DRAFT.listStatus,
+    );
+  });
+});
+
+describe("metaSubmissionTextFromCards", () => {
+  it("writes the archive's list back in the format the paste box reads", () => {
+    const text = metaSubmissionTextFromCards([
+      { cardName: "Wandering Ronin", quantity: 1, zone: WellKnown.deckZone.LEGEND },
+      { cardName: "Blade of the Exile", quantity: 3, zone: WellKnown.deckZone.MAIN },
+    ]);
+
+    expect(text).toBe("Legend:\n1 Wandering Ronin\n\nMainDeck:\n3 Blade of the Exile");
+  });
+
+  it("round-trips through the parser the form uses on the way back", () => {
+    const text = metaSubmissionTextFromCards([
+      { cardName: "Blade of the Exile", quantity: 3, zone: WellKnown.deckZone.MAIN },
+    ]);
+    const parsed = parseMetaSubmissionList(text, catalog());
+
+    expect(parsed.unmatched).toEqual([]);
+    expect(parsed.cards).toEqual([
+      { name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 },
+    ]);
+  });
+
+  it("writes nothing for a deck the archive holds no cards of", () => {
+    expect(metaSubmissionTextFromCards([])).toBe("");
+  });
+});
+
+describe("kinds on the way out", () => {
+  it("refuses a correction that says nothing about what is wrong", () => {
+    const draft: MetaSubmissionDraft = { ...readyDraft, kind: "correction", note: "  " };
+    expect(validateMetaSubmissionDraft(draft, { proposing: false, cardCount: 40 })).toContain(
+      "what's wrong",
+    );
+  });
+
+  it("accepts a correction that explains itself", () => {
+    const draft: MetaSubmissionDraft = {
+      ...readyDraft,
+      kind: "correction",
+      note: "The stream VOD shows four Blades, not three.",
+    };
+    expect(validateMetaSubmissionDraft(draft, { proposing: false, cardCount: 40 })).toBeNull();
+  });
+
+  it("sends the kind the link asked for", () => {
+    const input = buildMetaSubmissionInput(
+      { ...readyDraft, kind: "completion" },
+      [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }],
+      { metaEventId: "event-1" },
+    );
+    expect(input.kind).toBe("completion");
+  });
+
+  it("falls back to a new list when the tournament itself is being proposed", () => {
+    const input = buildMetaSubmissionInput(
+      {
+        ...readyDraft,
+        kind: "correction",
+        eventName: "Summoner Skirmish",
+        eventDate: "2026-08-15",
+        eventFormat: "freeform",
+      },
+      [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }],
+      null,
+    );
+    expect(input.kind).toBe("new_list");
   });
 });

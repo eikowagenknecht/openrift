@@ -373,6 +373,9 @@ export const queryKeys = {
       // cached as one.
       submissionForPlayer: (candidatePlayerId: string) =>
         ["admin", "meta", "candidate-players", candidatePlayerId, "submission"] as const,
+      // Corrections to an event's own facts. They stage no candidate row, so
+      // they hang off nothing and are listed on their own.
+      eventCorrections: ["admin", "meta", "event-corrections"] as const,
       ignored: ["admin", "meta", "ignored-candidates"] as const,
       // The catalogue mirror and its sync controls (ADR-014). `catalogue` is
       // the prefix every filtered page sits under, so accepting or dismissing

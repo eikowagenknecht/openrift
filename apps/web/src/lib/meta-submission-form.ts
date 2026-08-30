@@ -1,9 +1,13 @@
-import type { MetaSubmissionInput, Printing } from "@openrift/shared";
+import type { DeckZone, MetaSubmissionInput, Printing } from "@openrift/shared";
+import { encodeText } from "@openrift/shared/deck-codecs";
 
 import type { DeckMatchedEntry } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import { parseDeckImportAuto } from "@/lib/deck-import-parsers";
-import type { MetaSubmissionCompleteness } from "@/lib/meta-submission-copy";
+import type {
+  MetaDeckSubmissionKind,
+  MetaSubmissionCompleteness,
+} from "@/lib/meta-submission-copy";
 
 /**
  * Draft shapes and validation for the meta archive's decklist submission form
@@ -17,6 +21,8 @@ import type { MetaSubmissionCompleteness } from "@/lib/meta-submission-copy";
 
 /** The submission form's fields, as edited. */
 export interface MetaSubmissionDraft {
+  /** What this contribution is asking for, which the link the sender followed decides. */
+  kind: MetaDeckSubmissionKind;
   playerName: string;
   /** Where the player finished, as a positive whole number. */
   rank: string;
@@ -41,6 +47,7 @@ export interface MetaSubmissionDraft {
 
 /** A blank submission form. */
 export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
+  kind: "new_list",
   playerName: "",
   rank: "1",
   rankIsTier: false,
@@ -67,12 +74,21 @@ export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
  * blank rather than inventing a 0-0-0.
  */
 export interface MetaSubmissionPrefill {
+  kind?: MetaDeckSubmissionKind;
   playerName?: string;
   rank?: number;
   rankIsTier?: boolean;
   wins?: number;
   losses?: number;
   draws?: number;
+  /**
+   * The archived list this starts from, already written out as paste text. A
+   * completion or a correction is an edit of what the archive holds, so the box
+   * opens holding it rather than empty.
+   */
+  deckText?: string;
+  /** The legend the archive has this entry on, named so the sender can check it. */
+  legendName?: string;
 }
 
 /** Blank for a count nobody published, which is not the same as a zero. */
@@ -91,15 +107,48 @@ export function metaSubmissionDraftFromPrefill(
   prefill: MetaSubmissionPrefill,
 ): MetaSubmissionDraft {
   const rank = prefill.rank !== undefined && prefill.rank >= 1 ? String(prefill.rank) : undefined;
+  const kind = prefill.kind ?? EMPTY_META_SUBMISSION_DRAFT.kind;
   return {
     ...EMPTY_META_SUBMISSION_DRAFT,
+    kind,
     playerName: prefill.playerName ?? EMPTY_META_SUBMISSION_DRAFT.playerName,
     rank: rank ?? EMPTY_META_SUBMISSION_DRAFT.rank,
     rankIsTier: prefill.rankIsTier ?? EMPTY_META_SUBMISSION_DRAFT.rankIsTier,
     wins: countField(prefill.wins),
     losses: countField(prefill.losses),
     draws: countField(prefill.draws),
+    deckText: prefill.deckText ?? EMPTY_META_SUBMISSION_DRAFT.deckText,
+    // Someone filling in a list the archive holds part of is, by the time they
+    // send it, holding the whole deck. A correction leaves it alone: the list
+    // it started from already carries the archive's own answer.
+    listStatus: kind === "completion" ? "full" : EMPTY_META_SUBMISSION_DRAFT.listStatus,
   };
+}
+
+/**
+ * The archive's own list, written out in the format the paste box reads back.
+ *
+ * The catalog's card names, not the display ones: the server resolves a
+ * submission's names through the same alias index a scrape goes through, and
+ * that index knows a legend as its bare epithet rather than as the champion-led
+ * label the deck page prints.
+ *
+ * @param cards The archived deck's cards.
+ * @returns The list as text, or an empty string when the deck holds none.
+ */
+export function metaSubmissionTextFromCards(
+  cards: readonly { cardName: string; quantity: number; zone: DeckZone }[],
+): string {
+  if (cards.length === 0) {
+    return "";
+  }
+  return encodeText(
+    cards.map((card) => ({
+      cardName: card.cardName,
+      quantity: card.quantity,
+      zone: card.zone,
+    })),
+  ).code;
 }
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
@@ -239,6 +288,12 @@ export function validateMetaSubmissionDraft(
   if (draft.note.trim().length > 2000) {
     return "The note must be 2000 characters or fewer.";
   }
+  // A correction disputes something the archive already holds, so the reviewer
+  // needs to be told what is wrong with it. A list on its own is a second
+  // opinion with no argument attached.
+  if (draft.kind === "correction" && draft.note.trim().length === 0) {
+    return "Say what's wrong with the list we have, and where the right one came from.";
+  }
   if (options.cardCount === 0) {
     return "Paste the decklist, then check it, before sending.";
   }
@@ -307,6 +362,9 @@ export function buildMetaSubmissionInput(
   return {
     metaEventId: target?.metaEventId ?? null,
     proposedEvent,
+    // A proposal is a tournament the archive has never seen, so there is
+    // nothing there to complete or correct whatever link got the sender here.
+    kind: proposedEvent === null ? draft.kind : "new_list",
     playerName: draft.playerName.trim(),
     rank: Number(draft.rank.trim()),
     rankIsTier: draft.rankIsTier,

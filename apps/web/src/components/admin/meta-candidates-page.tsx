@@ -9,6 +9,7 @@ import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { CandidateStateBadge, ConfirmActionButton } from "@/components/admin/meta-candidate-shared";
 import { MetaCandidateUploadDialog } from "@/components/admin/meta-candidate-upload-dialog";
+import { MetaEventCorrectionsPanel } from "@/components/admin/meta-event-corrections-panel";
 import { MetaIgnoredCandidatesDialog } from "@/components/admin/meta-ignored-candidates-dialog";
 import { MetaPublicLinkButton } from "@/components/admin/meta-public-link";
 import {
@@ -223,6 +224,10 @@ export function MetaCandidatesPage() {
           </>
         }
       />
+
+      {/* Above the queue: a correction is one card to read and close, and
+          below a table of any length it is never seen. */}
+      <MetaEventCorrectionsPanel />
 
       <AdminTable
         columns={columns}

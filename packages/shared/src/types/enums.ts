@@ -208,6 +208,21 @@ export const META_SUBMISSION_STATUSES = [
   "rejected",
 ] as const;
 
+/**
+ * What a contribution to the meta archive asks for: a list the archive has none
+ * of, the missing half of one it holds partially, a fix to one it holds wrongly,
+ * or a fix to the event's own facts (the one kind carrying no decklist).
+ */
+export type MetaSubmissionKind = "new_list" | "completion" | "correction" | "event_correction";
+
+/** The {@link MetaSubmissionKind} values. */
+export const META_SUBMISSION_KINDS = [
+  "new_list",
+  "completion",
+  "correction",
+  "event_correction",
+] as const;
+
 /** Why an admin resolved a decklist submission without accepting it. */
 export type MetaSubmissionReason =
   | "duplicate"

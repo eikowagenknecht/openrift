@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict alkPNG3DJ7RoQktX0QHflPkNYBz6vwYev5YwaYCIVtxhstMIIET4iPxSXsVlUin
+\restrict 7wNOmeqzjvJ1INBsrRkSJIb7O7C8cnql1cw4JS9ypO4IFKcVJ2jxLL7qr2odq15
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2384,7 +2384,7 @@ CREATE TABLE public.meta_submissions (
     candidate_meta_player_id uuid,
     meta_event_id uuid,
     event_name text CONSTRAINT meta_deck_submissions_event_name_not_null NOT NULL,
-    player_name text CONSTRAINT meta_deck_submissions_player_name_not_null NOT NULL,
+    player_name text,
     note text,
     status text DEFAULT 'pending'::text CONSTRAINT meta_deck_submissions_status_not_null NOT NULL,
     resolution_reason text,
@@ -2394,10 +2394,16 @@ CREATE TABLE public.meta_submissions (
     accepted_deck_id uuid,
     created_at timestamp with time zone DEFAULT now() CONSTRAINT meta_deck_submissions_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT meta_deck_submissions_updated_at_not_null NOT NULL,
+    kind text DEFAULT 'new_list'::text NOT NULL,
+    field_edits jsonb,
     CONSTRAINT chk_meta_submissions_event_name CHECK (((length(event_name) >= 1) AND (length(event_name) <= 120))),
     CONSTRAINT chk_meta_submissions_external_id CHECK ((external_id <> ''::text)),
+    CONSTRAINT chk_meta_submissions_field_edits CHECK (((field_edits IS NULL) OR (jsonb_typeof(field_edits) = 'object'::text))),
+    CONSTRAINT chk_meta_submissions_field_edits_kind CHECK (((field_edits IS NULL) OR (kind = 'event_correction'::text))),
+    CONSTRAINT chk_meta_submissions_kind CHECK ((kind = ANY (ARRAY['new_list'::text, 'completion'::text, 'correction'::text, 'event_correction'::text]))),
     CONSTRAINT chk_meta_submissions_note CHECK ((note <> ''::text)),
-    CONSTRAINT chk_meta_submissions_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
+    CONSTRAINT chk_meta_submissions_player_name CHECK (((player_name IS NULL) OR ((length(player_name) >= 1) AND (length(player_name) <= 80)))),
+    CONSTRAINT chk_meta_submissions_player_present CHECK (((player_name IS NULL) = (kind = 'event_correction'::text))),
     CONSTRAINT chk_meta_submissions_provider CHECK ((provider <> ''::text)),
     CONSTRAINT chk_meta_submissions_reason CHECK (((resolution_reason IS NULL) OR (resolution_reason = ANY (ARRAY['duplicate'::text, 'already_correct'::text, 'unverified'::text, 'incomplete_list'::text, 'not_an_event'::text])))),
     CONSTRAINT chk_meta_submissions_resolution_note CHECK ((resolution_note <> ''::text)),
@@ -8405,5 +8411,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict alkPNG3DJ7RoQktX0QHflPkNYBz6vwYev5YwaYCIVtxhstMIIET4iPxSXsVlUin
+\unrestrict 7wNOmeqzjvJ1INBsrRkSJIb7O7C8cnql1cw4JS9ypO4IFKcVJ2jxLL7qr2odq15
 

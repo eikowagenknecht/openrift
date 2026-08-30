@@ -119,30 +119,6 @@ function CandidatePlayerCell({ player }: { player: MetaCandidatePlayer | undefin
   );
 }
 
-/**
- * The resolve control for a list someone contributed, or nothing at all for a
- * scraped row.
- *
- * Whether there is a submission behind this row is the endpoint's answer, not
- * the candidate's: `submittedByUserId` goes null if the contributor deletes
- * their account, and a submission that outlives its submitter is exactly the
- * one that must not be left pending forever.
- *
- * @returns The resolve control, or null when this row is a provider's.
- */
-function SubmissionSection({ candidatePlayerId }: { candidatePlayerId: string }) {
-  const { data } = useMetaSubmissionForCandidatePlayer(candidatePlayerId);
-  const submission = data?.submission ?? null;
-  if (submission === null) {
-    return null;
-  }
-  return (
-    <div className="mt-2 border-t pt-2">
-      <MetaSubmissionResolve submission={submission} candidatePlayerId={candidatePlayerId} />
-    </div>
-  );
-}
-
 interface SourceDetailProps {
   column: RosterColumn;
   player: MetaCandidatePlayer;
@@ -164,6 +140,11 @@ function RosterSourceDetail({ column, player, live, zoneLabel }: SourceDetailPro
   const acceptList = useAcceptMetaDeckList();
   const linkPlayer = useLinkMetaCandidatePlayer();
   const unlinkPlayer = useUnlinkMetaCandidatePlayer();
+  // Whether there is a submission behind this row is the endpoint's answer, not
+  // the candidate's: `submittedByUserId` goes null if the contributor deletes
+  // their account, and a submission that outlives its submitter is exactly the
+  // one that must not be left pending forever.
+  const { data: submissionData } = useMetaSubmissionForCandidatePlayer(player.id);
 
   const linked = player.metaEventPlayerId !== null;
   const blockedReason = rosterAcceptBlockedReason(player);
@@ -171,6 +152,58 @@ function RosterSourceDetail({ column, player, live, zoneLabel }: SourceDetailPro
   const comparisons = compareRosterFields(live, player);
   const delta = rosterListDelta(player);
   const hasList = player.cards !== null;
+  const submission = submissionData?.submission ?? null;
+  // A completion or a correction is an argument about the list itself, so the
+  // diff is what the reviewer opens on. A scraped row or a brand-new list has
+  // nothing to argue with and keeps the ordinary reading order.
+  const disputesTheList = submission !== null && submission.kind !== "new_list";
+
+  const listBlock = hasList ? (
+    <div className="mt-2 space-y-1">
+      <p className="text-muted-foreground text-sm">
+        {linked ? "Taking this list would:" : "Accepting archives this list:"}
+      </p>
+      <MetaDeckListDiff delta={delta} zoneLabel={zoneLabel} />
+    </div>
+  ) : null;
+
+  const fieldsBlock = (
+    <>
+      {linked && (
+        <ul className="mt-2 space-y-1">
+          {comparisons.map((comparison) => (
+            <li key={comparison.field} className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground w-24 shrink-0">{comparison.label}</span>
+              <span className="tabular-nums">{comparison.live}</span>
+              <span className="text-muted-foreground">→</span>
+              <span className={cn("tabular-nums", comparison.differs && "font-medium")}>
+                {comparison.candidate}
+              </span>
+              {comparison.differs && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={acceptField.isPending}
+                  onClick={() => acceptField.mutate({ id: player.id, field: comparison.field })}
+                >
+                  Take
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!linked && (
+        <div className="mt-2 space-y-1">
+          <p className="text-muted-foreground text-sm">
+            Link this source to an archived player to take its values field by field.
+          </p>
+          <MetaPlayerSuggestions candidatePlayerId={player.id} playerName={player.playerName} />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="rounded-md border p-3">
@@ -236,7 +269,7 @@ function RosterSourceDetail({ column, player, live, zoneLabel }: SourceDetailPro
 
       {allowUnresolvedLegend && (
         <p className="text-muted-foreground mt-1 text-sm">
-          Accepting files this player with no legend, which leaves them out of the play-rate stats.
+          Accepting files this player with no legend, so the archive never names what they played.
           Match the name below first to avoid that.
         </p>
       )}
@@ -256,50 +289,14 @@ function RosterSourceDetail({ column, player, live, zoneLabel }: SourceDetailPro
         <p className="text-muted-foreground mt-1 text-sm">“{player.submissionNote}”</p>
       )}
 
-      <SubmissionSection candidatePlayerId={player.id} />
-
-      {linked && (
-        <ul className="mt-2 space-y-1">
-          {comparisons.map((comparison) => (
-            <li key={comparison.field} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground w-24 shrink-0">{comparison.label}</span>
-              <span className="tabular-nums">{comparison.live}</span>
-              <span className="text-muted-foreground">→</span>
-              <span className={cn("tabular-nums", comparison.differs && "font-medium")}>
-                {comparison.candidate}
-              </span>
-              {comparison.differs && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={acceptField.isPending}
-                  onClick={() => acceptField.mutate({ id: player.id, field: comparison.field })}
-                >
-                  Take
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {!linked && (
-        <div className="mt-2 space-y-1">
-          <p className="text-muted-foreground text-sm">
-            Link this source to an archived player to take its values field by field.
-          </p>
-          <MetaPlayerSuggestions candidatePlayerId={player.id} playerName={player.playerName} />
+      {submission !== null && (
+        <div className="mt-2 border-t pt-2">
+          <MetaSubmissionResolve submission={submission} candidatePlayerId={player.id} />
         </div>
       )}
 
-      {hasList && (
-        <div className="mt-2 space-y-1">
-          <p className="text-muted-foreground text-sm">
-            {linked ? "Taking this list would:" : "Accepting archives this list:"}
-          </p>
-          <MetaDeckListDiff delta={delta} zoneLabel={zoneLabel} />
-        </div>
-      )}
+      {disputesTheList ? listBlock : fieldsBlock}
+      {disputesTheList ? fieldsBlock : listBlock}
     </div>
   );
 }

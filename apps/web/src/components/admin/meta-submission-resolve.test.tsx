@@ -21,6 +21,7 @@ function submission(overrides: Partial<AdminMetaSubmission> = {}): AdminMetaSubm
     id: "sub-1",
     eventName: "Summoner Skirmish 2026",
     playerName: "Ana",
+    kind: "new_list",
     note: "Top 8 list from the stream.",
     status: "pending",
     reason: null,
@@ -138,7 +139,7 @@ describe("MetaSubmissionResolve", () => {
     const user = userEvent.setup();
     renderResolve();
     const dialog = await openDialog(user);
-    expect(dialog).toHaveTextContent("They will read: The archive already had this list.");
+    expect(dialog).toHaveTextContent("They will read: The archive already had this.");
   });
 
   it("will not let a rejection go out with nothing said", async () => {

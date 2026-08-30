@@ -3,13 +3,21 @@ import { adminMetaSubmissionsContract } from "@openrift/shared/contracts/admin/m
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
-import { toAdminMetaSubmission } from "../../lib/meta-presenters.js";
+import { toAdminMetaEventCorrection, toAdminMetaSubmission } from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { MetaSubmissionRow } from "../../repositories/meta-submissions.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
 const os = implement(adminMetaSubmissionsContract).$context<ApiContext>().use(requireAuthedUser);
+
+/**
+ * Corrections are read one at a time and closed as they are read, so the queue
+ * is never long. The cap exists so a burst cannot turn one page into an
+ * unbounded fetch, not because a second page is expected — and when one happens
+ * the panel says so rather than the extras vanishing.
+ */
+const EVENT_CORRECTION_LIMIT = 200;
 
 /**
  * Loads the submission a write names, refusing the one outcome an admin must
@@ -62,6 +70,16 @@ export const adminMetaSubmissionsRouter = {
     return { submission: submission === null ? null : toAdminMetaSubmission(submission) };
   }),
 
+  eventCorrections: os.eventCorrections.handler(async ({ context }) => {
+    // One past the cap, so a full page is told apart from a page that ran out.
+    const rows = await context.repos.metaSubmissions.listPendingEventCorrections(
+      EVENT_CORRECTION_LIMIT + 1,
+    );
+    const hasMore = rows.length > EVENT_CORRECTION_LIMIT;
+    const page = hasMore ? rows.slice(0, EVENT_CORRECTION_LIMIT) : rows;
+    return { items: page.map((row) => toAdminMetaEventCorrection(row)), hasMore };
+  }),
+
   resolve: os.resolve.handler(async ({ input, context }): Promise<void> => {
     const submission = await requireUnsettled(context.repos, input.id);
 
@@ -80,7 +98,7 @@ export const adminMetaSubmissionsRouter = {
       action: "meta-submission.resolve",
       entityType: "meta-submission",
       entityId: input.id,
-      entityLabel: `${submission.playerName} — ${submission.eventName}`,
+      entityLabel: `${submission.playerName ?? "Event correction"} — ${submission.eventName}`,
       oldValues: { status: submission.status },
       newValues: { status: input.status, reason: input.reason },
     });
@@ -97,7 +115,7 @@ export const adminMetaSubmissionsRouter = {
       action: "meta-submission.reopen",
       entityType: "meta-submission",
       entityId: input.id,
-      entityLabel: `${submission.playerName} — ${submission.eventName}`,
+      entityLabel: `${submission.playerName ?? "Event correction"} — ${submission.eventName}`,
       oldValues: { status: submission.status },
       newValues: { status: "pending" },
     });

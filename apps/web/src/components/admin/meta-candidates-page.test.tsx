@@ -26,6 +26,12 @@ vi.mock("@/hooks/use-admin-meta-candidates", () => ({
   useRematchMetaCandidates: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+// The corrections panel is its own query and its own subject; this file is
+// about the candidate queue's rows.
+vi.mock("@/components/admin/meta-event-corrections-panel", () => ({
+  MetaEventCorrectionsPanel: () => null,
+}));
+
 vi.mock("@/hooks/use-enums", () => ({
   useDeckFormatList: () => ({ formats: [], labels: { standard: "Standard" } }),
 }));

@@ -14,11 +14,17 @@ import type {
   MetaLegendSummary,
 } from "@openrift/shared";
 import { legendDisplayName, metaLegendSlug } from "@openrift/shared";
-import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
+import type {
+  AdminMetaEventCorrection,
+  AdminMetaSubmission,
+} from "@openrift/shared/contracts/admin/meta-submissions";
 import type { CardType } from "@openrift/shared/types";
 
 import type { MetaEventSourceLinkRow } from "../repositories/meta-candidates.js";
-import type { MetaSubmissionRow } from "../repositories/meta-submissions.js";
+import type {
+  MetaEventCorrectionRow,
+  MetaSubmissionRow,
+} from "../repositories/meta-submissions.js";
 import type {
   AdminMetaPlayerRow,
   MetaArchiveLegendRow,
@@ -51,7 +57,8 @@ export interface MetaEventSourceResponse {
 export interface MetaSubmissionResponse {
   id: string;
   eventName: string;
-  playerName: string;
+  playerName: string | null;
+  kind: MetaSubmissionRow["kind"];
   note: string | null;
   status: MetaSubmissionRow["status"];
   resolutionReason: MetaSubmissionRow["resolutionReason"];
@@ -503,6 +510,7 @@ export function toMetaSubmission(row: MetaSubmissionRow): MetaSubmissionResponse
     id: row.id,
     eventName: row.eventName,
     playerName: row.playerName,
+    kind: row.kind,
     note: row.note,
     status: row.status,
     resolutionReason: row.resolutionReason,
@@ -523,6 +531,7 @@ export function toAdminMetaSubmission(row: MetaSubmissionRow): AdminMetaSubmissi
     id: row.id,
     eventName: row.eventName,
     playerName: row.playerName,
+    kind: row.kind,
     note: row.note,
     status: row.status,
     reason: row.resolutionReason,
@@ -530,5 +539,17 @@ export function toAdminMetaSubmission(row: MetaSubmissionRow): AdminMetaSubmissi
     acceptedDeckId: row.acceptedDeckId,
     createdAt: row.createdAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
+  };
+}
+
+/**
+ * One proposed correction to an event's facts, with the event as it stands so
+ * the queue can put each new value beside the one it would replace.
+ */
+export function toAdminMetaEventCorrection(row: MetaEventCorrectionRow): AdminMetaEventCorrection {
+  return {
+    submission: toAdminMetaSubmission(row.submission),
+    event: row.event,
+    fieldEdits: row.submission.fieldEdits ?? {},
   };
 }

@@ -1,9 +1,12 @@
+import type { MetaEventDetail } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { PlusIcon } from "lucide-react";
+import { EllipsisVerticalIcon, MessageSquareWarningIcon, PlusIcon } from "lucide-react";
+import { useState } from "react";
 
 import {
   PageTopBar,
   PageTopBarActions,
+  PageTopBarIconButton,
   PageTopBarPrimaryButton,
   PageTopBarSticky,
   PageTopBarTitle,
@@ -14,11 +17,18 @@ import {
 } from "@/components/layout/top-bar-breadcrumb";
 import { MarkdownText } from "@/components/markdown-text";
 import { MetaEventBracket } from "@/components/meta/meta-event-bracket";
+import { MetaEventCorrectionDialog } from "@/components/meta/meta-event-correction-dialog";
 import { MetaEventDecklists } from "@/components/meta/meta-event-decklists";
 import { MetaEventHeader } from "@/components/meta/meta-event-header";
 import { MetaEventPodium } from "@/components/meta/meta-event-podium";
 import { MetaEventStandings } from "@/components/meta/meta-event-standings";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
@@ -60,6 +70,44 @@ function AddDeckCta({ slug }: { slug: string }) {
 }
 
 /**
+ * The overflow menu beside the main call to action: the ways in that are not
+ * "add a decklist".
+ *
+ * A correction is a resubmission into the same review queue, never a direct
+ * edit, so it needs a signed-in sender the same way a decklist does. Signed out
+ * the menu is not rendered at all: its only item would be a dead end.
+ */
+function EventActionsMenu({ event }: { event: MetaEventDetail }) {
+  const userId = useUserId();
+  const [correcting, setCorrecting] = useState(false);
+
+  if (userId === null) {
+    return null;
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<PageTopBarIconButton />}>
+          <EllipsisVerticalIcon className="size-4" />
+          <span className="sr-only">Tournament actions</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setCorrecting(true)}>
+            <MessageSquareWarningIcon className="size-4" />
+            Suggest a correction
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {correcting && (
+        <MetaEventCorrectionDialog event={event} onClose={() => setCorrecting(false)} />
+      )}
+    </>
+  );
+}
+
+/**
  * `/meta/$slug` — one archived event, top-down: who won it, how the cut played
  * out, the lists the archive holds, and the whole field behind them (ADR-014).
  *
@@ -85,6 +133,7 @@ export function MetaEventPage({ slug }: { slug: string }) {
           </div>
           <PageTopBarActions>
             <AddDeckCta slug={slug} />
+            <EventActionsMenu event={event} />
           </PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>

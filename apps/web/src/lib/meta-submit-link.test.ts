@@ -9,6 +9,21 @@ const row = {
   wins: 12,
   losses: 2,
   draws: 1,
+  legend: null,
+  shareToken: null,
+};
+
+const withList = {
+  ...row,
+  legend: {
+    cardId: "card-1",
+    name: "Lux, Lady of Luminosity",
+    slug: "lux",
+    imageId: null,
+    domains: ["order"],
+    archiveSlug: "lux",
+  },
+  shareToken: "tok-1",
 };
 
 describe("metaSubmitSearchForPlayer", () => {
@@ -20,6 +35,9 @@ describe("metaSubmitSearchForPlayer", () => {
       wins: 12,
       losses: 2,
       draws: 1,
+      ask: undefined,
+      deck: undefined,
+      legend: undefined,
     });
   });
 
@@ -45,13 +63,53 @@ describe("metaSubmitSearchForPlayer", () => {
     expect(search.losses).toBe(0);
     expect(search.draws).toBe(0);
   });
+
+  it("names the legend the archive already has the entry on", () => {
+    expect(metaSubmitSearchForPlayer(withList).legend).toBe("Lux, Lady of Luminosity");
+  });
+
+  it("points a completion at the archived list it is filling in", () => {
+    const search = metaSubmitSearchForPlayer(withList, "completion");
+    expect(search.ask).toBe("completion");
+    expect(search.deck).toBe("tok-1");
+  });
+
+  it("sends a brand-new list with nothing to start from", () => {
+    expect(metaSubmitSearchForPlayer(withList).deck).toBeUndefined();
+  });
+
+  it("asks for a correction with no deck when the entry has no archived list", () => {
+    const search = metaSubmitSearchForPlayer({ ...withList, shareToken: null }, "correction");
+    expect(search.ask).toBe("correction");
+    expect(search.deck).toBeUndefined();
+  });
 });
 
 describe("parseMetaSubmitSearch", () => {
   it("reads back what the link wrote", () => {
     expect(
-      parseMetaSubmitSearch({ player: "Ana", rank: 8, cut: true, wins: 12, losses: 3, draws: 0 }),
-    ).toEqual({ player: "Ana", rank: 8, cut: true, wins: 12, losses: 3, draws: 0 });
+      parseMetaSubmitSearch({
+        player: "Ana",
+        rank: 8,
+        cut: true,
+        wins: 12,
+        losses: 3,
+        draws: 0,
+        ask: "correction",
+        deck: "tok-1",
+        legend: "Lux, Lady of Luminosity",
+      }),
+    ).toEqual({
+      player: "Ana",
+      rank: 8,
+      cut: true,
+      wins: 12,
+      losses: 3,
+      draws: 0,
+      ask: "correction",
+      deck: "tok-1",
+      legend: "Lux, Lady of Luminosity",
+    });
   });
 
   it("drops every param a bare URL carries none of", () => {
@@ -62,6 +120,9 @@ describe("parseMetaSubmitSearch", () => {
       wins: undefined,
       losses: undefined,
       draws: undefined,
+      ask: undefined,
+      deck: undefined,
+      legend: undefined,
     });
   });
 
@@ -89,5 +150,16 @@ describe("parseMetaSubmitSearch", () => {
   it("reads only a literal true as a cut bucket", () => {
     expect(parseMetaSubmitSearch({ cut: "true" }).cut).toBeUndefined();
     expect(parseMetaSubmitSearch({ cut: false }).cut).toBeUndefined();
+  });
+
+  it("drops an ask the form does not offer", () => {
+    expect(parseMetaSubmitSearch({ ask: "event_correction" }).ask).toBeUndefined();
+    expect(parseMetaSubmitSearch({ ask: "new_list" }).ask).toBeUndefined();
+    expect(parseMetaSubmitSearch({ ask: 1 }).ask).toBeUndefined();
+  });
+
+  it("drops a deck token long enough to be a pasted list", () => {
+    expect(parseMetaSubmitSearch({ deck: "a".repeat(65) }).deck).toBeUndefined();
+    expect(parseMetaSubmitSearch({ deck: "" }).deck).toBeUndefined();
   });
 });

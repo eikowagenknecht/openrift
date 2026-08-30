@@ -23,7 +23,11 @@ import { ERROR_CODES, formatCompactUtcStamp, WellKnown } from "@openrift/shared"
 // database keys `(provider, external_id)` on it, and a second copy is exactly
 // the pair that drifts.
 import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
-import type { MetaListStatus } from "@openrift/shared/types";
+import type {
+  MetaEventFieldEdits,
+  MetaListStatus,
+  MetaSubmissionKind,
+} from "@openrift/shared/types";
 
 import type { CandidateMetaDeckCard } from "../db/index.js";
 import type { Transact } from "../deps.js";
@@ -66,6 +70,12 @@ export interface MetaSubmissionArgs {
   metaEventId: string | null;
   /** The event this proposes. Null exactly when {@link metaEventId} is set. */
   proposedEvent: MetaSubmissionProposedEvent | null;
+  /**
+   * What the contributor is asking for. Advisory only: an accept writes the same
+   * archive row whichever it is, and the reviewer reads it to know whether they
+   * are being handed a missing list, a fuller one, or a disputed one.
+   */
+  kind: Exclude<MetaSubmissionKind, "event_correction">;
   playerName: string;
   rank: number;
   rankIsTier: boolean;
@@ -189,6 +199,69 @@ export function buildMetaSubmissionExternalId(userId: string, now: Date): string
   return `${formatCompactUtcStamp(now)}--${userId}--${crypto.randomUUID().slice(0, 8)}`;
 }
 
+interface MetaEventCorrectionArgs {
+  userId: string;
+  /** The archived event the correction is about. */
+  metaEventId: string;
+  /** The new values proposed, keyed as the event's own fields. */
+  fieldEdits: MetaEventFieldEdits;
+  /** Always present: a set of new values with no word about where they came from is not reviewable. */
+  note: string;
+  /** "Now", passed in so the external id and any test are deterministic. */
+  now: Date;
+}
+
+type MetaEventCorrectionResult =
+  | { status: "ok"; submissionId: string }
+  | { status: "rate_limited"; limit: number };
+
+/**
+ * Record one proposed correction to an archived event's own facts.
+ *
+ * Nothing is staged: a candidate row is a standings entry, and this is about the
+ * event around them, so there is no accept that could apply it. The ledger row
+ * is the whole artifact — an admin reads it, edits the event by hand, and stamps
+ * the outcome the contributor reads.
+ *
+ * It still counts against the same pending cap as a decklist. The thing being
+ * bounded is the queue one person can build up in front of a reviewer, and a
+ * correction costs a reviewer just as much attention as a list does.
+ */
+export function submitMetaEventCorrection(
+  transact: Transact,
+  args: MetaEventCorrectionArgs,
+): Promise<MetaEventCorrectionResult> {
+  return transact(async (repos) => {
+    await repos.ingest.lockUserSubmissions(args.userId);
+    const pending = await repos.metaSubmissions.countPendingByUser(args.userId);
+    if (pending >= META_PENDING_SUBMISSION_LIMIT) {
+      return { status: "rate_limited", limit: META_PENDING_SUBMISSION_LIMIT };
+    }
+
+    const event = await repos.meta.eventById(args.metaEventId);
+    if (event === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Event not found");
+    }
+
+    const submissionId = await repos.metaSubmissions.insert({
+      userId: args.userId,
+      provider: META_USER_SUBMISSION_PROVIDER,
+      externalId: buildMetaSubmissionExternalId(args.userId, args.now),
+      candidateMetaPlayerId: null,
+      metaEventId: args.metaEventId,
+      eventName: event.name,
+      playerName: null,
+      kind: "event_correction",
+      // The value, never JSON text: postgres.js already serializes a jsonb
+      // parameter, and text would land as a string scalar.
+      fieldEdits: args.fieldEdits,
+      note: args.note,
+    });
+
+    return { status: "ok", submissionId };
+  });
+}
+
 /**
  * Stage one user's decklist submission and record its ledger row.
  *
@@ -298,6 +371,7 @@ export function submitMetaDeck(
       metaEventId: args.metaEventId,
       eventName,
       playerName: args.playerName,
+      kind: args.kind,
       note: args.note,
     });
 

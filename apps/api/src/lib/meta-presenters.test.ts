@@ -17,6 +17,7 @@ import {
   toMetaLegendFinish,
   toMetaLegendSummary,
   toAdminMetaEvent,
+  toAdminMetaEventCorrection,
   toAdminMetaPlayer,
   toAdminMetaSubmission,
   toMetaDeckCardIndex,
@@ -861,6 +862,8 @@ function submissionRow(overrides: Partial<MetaSubmissionRow> = {}): MetaSubmissi
     metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
     eventName: "Summoner Skirmish Berlin",
     playerName: "Nova",
+    kind: "new_list",
+    fieldEdits: null,
     note: "Top 8 list from the stream.",
     status: "pending",
     resolutionReason: null,
@@ -1063,5 +1066,51 @@ describe("toMetaLegendFinish", () => {
     expect(finish.losses).toBeNull();
     expect(finish.draws).toBeNull();
     expect(finish.event.playerCount).toBeNull();
+  });
+});
+
+describe("toAdminMetaEventCorrection", () => {
+  const event = {
+    id: "3f7a1c2e-0000-7000-8000-000000000001",
+    slug: "summoner-skirmish-berlin",
+    name: "Summoner Skirmish Berlin",
+    eventDate: "2026-08-15",
+    format: "constructed",
+    playerCount: 64,
+    organizer: "Rift Games Berlin",
+    location: "Ionia Hall, Berlin",
+    country: "DE",
+  };
+
+  it("pairs the proposed values with the event they would replace", () => {
+    const correction = toAdminMetaEventCorrection({
+      submission: submissionRow({
+        kind: "event_correction",
+        playerName: null,
+        candidateMetaPlayerId: null,
+        fieldEdits: { playerCount: 48 },
+        note: "The results page lists 48 players.",
+      }),
+      event,
+    });
+
+    expect(correction.fieldEdits).toEqual({ playerCount: 48 });
+    expect(correction.event?.playerCount).toBe(64);
+    expect(correction.submission.kind).toBe("event_correction");
+    expect(correction.submission.playerName).toBeNull();
+  });
+
+  it("reads an absent edit set as no proposed values", () => {
+    const correction = toAdminMetaEventCorrection({
+      submission: submissionRow({
+        kind: "event_correction",
+        playerName: null,
+        fieldEdits: null,
+      }),
+      event: null,
+    });
+
+    expect(correction.fieldEdits).toEqual({});
+    expect(correction.event).toBeNull();
   });
 });
