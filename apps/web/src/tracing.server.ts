@@ -5,8 +5,8 @@
  * fetch helper instrument the boundaries we care about by hand.
  *
  * Server-only — Vite/TanStack Start splits the bundles, so this file (and the
- * `@opentelemetry/sdk-node` dependency behind `@openrift/shared/otel-node`)
- * never end up in the browser.
+ * Node tracing stack behind `@openrift/shared/otel-node`) never end up in the
+ * browser.
  */
 
 import { startTracing } from "@openrift/shared/otel-node";

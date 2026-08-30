@@ -190,6 +190,21 @@ export default defineConfig(({ mode, command }) => {
     resolve: {
       tsconfigPaths: true,
     },
+    environments: {
+      ssr: {
+        resolve: {
+          // The web image ships `.output` and no node_modules beside it (see
+          // the web stage in the Dockerfile), so an SSR dependency left
+          // external only works if Nitro's tracer copied it into
+          // .output/server/node_modules. The tracer misses OTel packages that
+          // are only reached through a CJS `require`, so the bundle ended up
+          // calling `require("@opentelemetry/context-async-hooks")` against a
+          // directory without it and every request 500d at module load.
+          // Bundling the scope removes the runtime lookup entirely.
+          noExternal: [/^@opentelemetry\//u],
+        },
+      },
+    },
     plugins: [
       // Needs to be first. Skipped under e2e — the console-pipe SSE channel
       // keeps the network "busy" forever, which breaks Playwright's

@@ -79,9 +79,38 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-  deploy:
+  # See the note on the same job in preview.yml: only booting the image proves
+  # the SSR bundle links, and that has to happen before the deploy job runs.
+  smoke:
     runs-on: ubuntu-latest
     needs: [release, build]
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Boot the web image and probe /health
+        run: |
+          docker run -d --name web-smoke -p 3001:3001 \
+            -e PORT=3001 -e API_WAIT_TIMEOUT=1 \
+            ghcr.io/${{ github.repository_owner }}/openrift-web:v${{ needs.release.outputs.version }}
+          for _ in $(seq 1 30); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/health)" = "200" ]; then
+              echo "SSR server answered /health"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::web image never answered 200 on /health"
+          docker logs web-smoke
+          exit 1
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [release, build, smoke]
     concurrency:
       group: deploy-stable
       cancel-in-progress: false
