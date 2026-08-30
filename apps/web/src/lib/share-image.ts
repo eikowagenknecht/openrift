@@ -6,16 +6,10 @@
  * entry add/edit/delete).
  */
 
-const API_BASE = "/api/v1";
+import type { ShareImageQuery } from "@openrift/shared";
+import { shareImageQueryParams } from "@openrift/shared";
 
-/**
- * Canvas an image is rendered on. `landscape` (the default everywhere) is the
- * link-unfurl shape every og:image uses; `vertical` is the 9:16 download for a
- * story, a photo-mode slide, or a plate in a video editor. Only decks and tier
- * lists render vertically, and only as a download — no crawler consumes a 9:16
- * og:image, so an og URL never carries the parameter.
- */
-export type ShareImageAspect = "landscape" | "vertical";
+const API_BASE = "/api/v1";
 
 /**
  * Appends query parameters to a URL that may already carry some.
@@ -28,11 +22,6 @@ function withParams(base: string, params: Record<string, string | undefined>): s
   }
   const query = entries.map(([key, value]) => `${key}=${value}`).join("&");
   return `${base}${base.includes("?") ? "&" : "?"}${query}`;
-}
-
-/** @returns The `aspect` query value for a canvas, or undefined for the default. */
-function aspectParam(aspect?: ShareImageAspect): string | undefined {
-  return aspect === "vertical" ? "vertical" : undefined;
 }
 
 /**
@@ -57,27 +46,11 @@ export function listShareImageUrl(siteUrl: string, shareToken: string, version: 
 
 /**
  * What every image-download surface lets a creator vary about a render. The
- * deck and grid (list/collection/bundle) routes all speak the same three
- * parameters; tier lists add a scale multiplier on top (see
- * {@link TierListImageOptions}).
+ * deck and grid (list/collection/bundle) routes all speak these three
+ * parameters; tier lists take an explicit scale multiplier instead of `size`
+ * (see {@link TierListImageOptions}).
  */
-export interface ShareImageOptions {
-  /** `"hq"` requests the 2× render, for print and desktop viewing. */
-  size?: "hq";
-  /** Canvas shape. `vertical` is the 9:16 export. */
-  aspect?: ShareImageAspect;
-  /** Draws the scannable mark. Only has an effect on a thing that is shared. */
-  qr?: boolean;
-}
-
-/** @returns The query parameters for a set of image options, defaults omitted. */
-function shareImageParams(options: ShareImageOptions = {}): Record<string, string | undefined> {
-  return {
-    size: options.size,
-    aspect: aspectParam(options.aspect),
-    qr: options.qr === false ? "0" : undefined,
-  };
-}
+export type ShareImageOptions = Pick<ShareImageQuery, "size" | "aspect" | "qr">;
 
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own
@@ -93,7 +66,7 @@ export function listOwnerImageUrl(
 ): string {
   return withParams(
     `${siteUrl}${API_BASE}/lists/${listId}/image.png?v=${version}`,
-    shareImageParams(options),
+    shareImageQueryParams(options),
   );
 }
 
@@ -110,7 +83,7 @@ export function collectionOwnerImageUrl(
 ): string {
   return withParams(
     `${siteUrl}${API_BASE}/collections/${collectionId}/image.png`,
-    shareImageParams(options),
+    shareImageQueryParams(options),
   );
 }
 
@@ -148,7 +121,10 @@ export function deckOwnerImageUrl(
   deckId: string,
   options: DeckImageOptions = {},
 ): string {
-  return withParams(`${siteUrl}${API_BASE}/decks/${deckId}/image.png`, shareImageParams(options));
+  return withParams(
+    `${siteUrl}${API_BASE}/decks/${deckId}/image.png`,
+    shareImageQueryParams(options),
+  );
 }
 
 /**
@@ -157,7 +133,7 @@ export function deckOwnerImageUrl(
  * @returns The render endpoint URL.
  */
 export function deckImageFromCardsUrl(siteUrl: string, options: DeckImageOptions = {}): string {
-  return withParams(`${siteUrl}${API_BASE}/decks/image`, shareImageParams(options));
+  return withParams(`${siteUrl}${API_BASE}/decks/image`, shareImageQueryParams(options));
 }
 
 /**
@@ -176,17 +152,7 @@ export function tierListShareImageUrl(
 }
 
 /** What the tier list export dialog lets a creator vary about the render. */
-export interface TierListImageOptions {
-  /** Canvas shape. `vertical` is the 9:16 export. */
-  aspect?: ShareImageAspect;
-  /**
-   * Render multiplier. 1 is the native canvas (1200×630, or 1080×1920 vertical);
-   * the server caps it, so an out-of-range value only costs sharpness.
-   */
-  scale?: number;
-  /** Draws the scannable mark. Only has an effect on a list that is shared. */
-  qr?: boolean;
-}
+export type TierListImageOptions = Pick<ShareImageQuery, "aspect" | "scale" | "qr">;
 
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own
@@ -204,11 +170,10 @@ export function tierListOwnerImageUrl(
   id: string,
   options: TierListImageOptions = {},
 ): string {
-  return withParams(`${siteUrl}${API_BASE}/tier-lists/${id}/image.png`, {
-    aspect: aspectParam(options.aspect),
-    scale: options.scale !== undefined && options.scale > 1 ? String(options.scale) : undefined,
-    qr: options.qr === false ? "0" : undefined,
-  });
+  return withParams(
+    `${siteUrl}${API_BASE}/tier-lists/${id}/image.png`,
+    shareImageQueryParams(options),
+  );
 }
 
 /**
@@ -223,7 +188,7 @@ export function bundleShareImageUrl(
 ): string {
   return withParams(
     `${siteUrl}${API_BASE}/users/share/${shareToken}/image.png?v=${version}`,
-    shareImageParams(options),
+    shareImageQueryParams(options),
   );
 }
 

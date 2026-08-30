@@ -1,4 +1,3 @@
-import type { SetReleases } from "@openrift/shared";
 import { adminCatalogContract } from "@openrift/shared/contracts/admin/catalog";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -6,23 +5,11 @@ import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminSetsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-interface CreateSetInput {
-  id: string;
-  name: string;
-  printedTotal: number;
-  releases?: SetReleases;
-  setType: "main" | "supplemental";
-}
-
-interface UpdateSetInput {
-  id: string;
-  name: string;
-  printedTotal: number;
-  releases: SetReleases;
-  setType: "main" | "supplemental";
-}
+type CreateSetInput = ContractInput<typeof adminCatalogContract, "createSet">;
+type UpdateSetInput = ContractInput<typeof adminCatalogContract, "updateSet">;
 
 const fetchSets = createServerFn({ method: "GET" })
   .middleware([withCookies])

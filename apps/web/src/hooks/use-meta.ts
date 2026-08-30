@@ -13,14 +13,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 /** Filters that scope the meta stats to one format and/or date window. */
-export interface MetaStatsParams {
-  format?: string;
-  dateFrom?: string;
-  dateTo?: string;
-}
+export type MetaStatsParams = ContractInput<typeof metaContract, "stats">;
 
 // Every read here is public and identical for every visitor, so the SSR
 // responses go through the shared `serverCache` rather than being refetched

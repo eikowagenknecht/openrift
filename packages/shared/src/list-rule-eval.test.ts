@@ -13,6 +13,7 @@ import type {
   VirtualEntry,
 } from "./list-rule-eval.js";
 import { priceLookupFromMap } from "./price-lookup.js";
+import { makePrinting as stubPrinting } from "./test-factories.js";
 import {
   EMPTY_CARD_FILTERS,
   listRulesSchema,
@@ -32,52 +33,25 @@ function makePrinting(
   cardId: string,
   overrides: Partial<Printing> & { type?: string; keywords?: string[] } = {},
 ): Printing {
-  const { type, keywords, ...printingOverrides } = overrides;
-  return {
+  const { type, keywords, ...printing } = overrides;
+  return stubPrinting({
     id,
     cardId,
     shortCode: id,
-    setId: "set-1",
-    setSlug: "set-alpha",
-    setReleased: true,
-    rarity: "common",
-    artVariant: "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
-    images: [],
-    artist: "Artist",
     publicCode: "PUB",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    language: "EN",
-    canonicalRank: 0,
     card: {
       slug: cardId,
       name: `Card ${cardId}`,
-      type: type ?? "unit",
-      types: [type ?? "unit"],
-      superTypes: [],
+      type,
       domains: ["fury"],
-      tokenCardIds: [],
       energy: 1,
       might: 1,
       power: 1,
-      keywords: keywords ?? [],
-      tags: [],
+      keywords,
       mightBonus: 0,
-      maxCopiesOverride: null,
-      errata: null,
-      bans: [],
     },
-    ...printingOverrides,
-  };
+    ...printing,
+  });
 }
 
 function ownedCopy(overrides: Partial<OwnedCopyRow> & { copyId: string }): OwnedCopyRow {

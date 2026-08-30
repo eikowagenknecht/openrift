@@ -1,9 +1,9 @@
+import type { CardLabels } from "@openrift/shared/scan";
 import { describe, expect, it } from "vitest";
 
-import type { CardLabel } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey } from "@/lib/scan-bank";
 
-const labels: Record<string, CardLabel> = {
+const labels: CardLabels = {
   battlefield: { name: "Star Spring", code: "OGN-286/298", language: "en", type: "battlefield" },
   unit: { name: "Lux", code: "OGN-011/298", language: "en", type: "unit" },
   untyped: { name: "Unknown Render", code: "OGN-999/298", language: "en" },

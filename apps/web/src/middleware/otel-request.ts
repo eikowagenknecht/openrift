@@ -1,11 +1,5 @@
-import {
-  context,
-  propagation,
-  ROOT_CONTEXT,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-} from "@opentelemetry/api";
+import { headersToRecord, recordSpanError } from "@openrift/shared/otel";
+import { context, propagation, ROOT_CONTEXT, SpanKind, trace } from "@opentelemetry/api";
 import {
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_ROUTE,
@@ -77,11 +71,7 @@ const decodeServerFn = (path: string): ServerFnIdentity | undefined => {
  */
 export const otelRequestMiddleware = createMiddleware().server(({ next, request }) => {
   const url = new URL(request.url);
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  const parentCtx = propagation.extract(ROOT_CONTEXT, headers);
+  const parentCtx = propagation.extract(ROOT_CONTEXT, headersToRecord(request.headers));
 
   // Server-function calls (`/_serverFn/<base64>`) get a readable span
   // name + a normalized `http.route` so they don't show up as opaque
@@ -132,11 +122,7 @@ export const otelRequestMiddleware = createMiddleware().server(({ next, request 
       span.end();
       return result;
     } catch (error) {
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      span.recordException(error as Error);
+      recordSpanError(span, error);
       span.end();
       throw error;
     }

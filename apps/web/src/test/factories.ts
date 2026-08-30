@@ -14,6 +14,7 @@ import type {
   SuperType,
   TradePreference,
 } from "@openrift/shared";
+import { makeCard, makePrinting } from "@openrift/shared/test-factories";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
@@ -64,32 +65,19 @@ export function stubCopy(overrides: Partial<CopyResponse> = {}): CopyResponse {
 }
 
 /**
- * Creates a stub Card object with sensible defaults.
+ * Creates a stub Card object. Adds the web fixtures' generated slug and stat
+ * line on top of the shared defaults.
  * @returns A complete Card object with overrides applied.
  */
 export function stubCard(overrides: Partial<Card> = {}): Card {
-  const slug = overrides.slug ?? `RB1-${nextId().slice(-3)}`;
-  // Keep `type` and `types` consistent when only one is overridden (ADR-037).
-  const type = overrides.type ?? overrides.types?.[0] ?? "unit";
-  return {
-    slug,
-    name: "Test Card",
-    type,
-    types: [type],
-    superTypes: [],
-    domains: [],
-    tokenCardIds: [],
+  return makeCard({
+    slug: `RB1-${nextId().slice(-3)}`,
     might: 1,
     energy: 1,
     power: 1,
-    keywords: [],
-    tags: [],
     mightBonus: 0,
-    maxCopiesOverride: null,
-    errata: null,
-    bans: [],
     ...overrides,
-  };
+  });
 }
 
 /**
@@ -99,38 +87,24 @@ export function stubCard(overrides: Partial<Card> = {}): Card {
 export function stubPrinting(
   overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
 ): Printing {
+  // The ids are drawn in this order, before the card, so a fixture's generated
+  // ids stay stable regardless of what the shared defaults do.
   const id = overrides.id ?? nextId();
   const cardId = overrides.cardId ?? nextId();
   const { card: cardOverrides, ...printingOverrides } = overrides;
+  // Built here rather than left to the shared factory: the codes derive from it.
   const card = stubCard(cardOverrides);
-  return {
+  return makePrinting({
     id,
     cardId,
     shortCode: card.slug,
     setId: nextId(),
     setSlug: "RB1",
-    setReleased: true,
-    rarity: "common",
-    artVariant: "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
-    images: [],
     artist: "Test Artist",
     publicCode: card.slug.toLowerCase(),
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    language: "EN",
-    canonicalRank: 0,
-    card,
     ...printingOverrides,
-  };
+    card,
+  });
 }
 
 /**

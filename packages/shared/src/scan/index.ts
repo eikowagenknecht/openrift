@@ -104,3 +104,5 @@ export { DEFAULT_FIT_OPTIONS, fitCardRects } from "./fit-rect";
 export { unwarpCard } from "./unwarp";
 
 export { EMBED_BANK_VERSION, decodeEmbedBank, encodeEmbedBank } from "./embed-format";
+
+export type { CardLabel, CardLabels } from "./labels";

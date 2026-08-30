@@ -1,54 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import { findStandardArtFallback, isStandardPrinting } from "./standard.js";
+import { makePrinting as stubPrinting } from "./test-factories.js";
 import type { Marker, Printing } from "./types/index.js";
 
+// Pinned identity for this file's assertions; everything else is the default.
 function makePrinting(overrides: Partial<Printing> = {}): Printing {
-  return {
+  return stubPrinting({
     id: "00000000-0000-0000-0000-000000000001",
     cardId: "00000000-0000-0000-0000-000000000001",
     shortCode: "SET1-001",
     setId: "00000000-0000-0000-0000-0000000000a1",
-    setSlug: "set-alpha",
-    setReleased: true,
-    rarity: "common",
-    artVariant: "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
-    images: [],
     artist: "Jane Doe",
     publicCode: "ABCD",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    language: "EN",
-    canonicalRank: 0,
-    card: {
-      slug: "SET1-001",
-      name: "Test Card",
-      type: "unit",
-      types: ["unit"],
-      superTypes: [],
-      domains: ["fury"],
-      tokenCardIds: [],
-      energy: 3,
-      might: 2,
-      power: 4,
-      keywords: [],
-      tags: [],
-      mightBonus: 0,
-      maxCopiesOverride: null,
-      errata: null,
-      bans: [],
-    },
+    card: { slug: "SET1-001", domains: ["fury"], energy: 3, might: 2, power: 4, mightBonus: 0 },
     ...overrides,
-  };
+  });
 }
 
 const aMarker: Marker = { id: "m1", slug: "stamp", label: "Stamp", description: null };

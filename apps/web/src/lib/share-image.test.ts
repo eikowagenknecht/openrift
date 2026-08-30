@@ -196,7 +196,7 @@ describe("tierListOwnerImageUrl", () => {
         scale: 2,
         qr: false,
       }),
-    ).toBe("https://openrift.app/api/v1/tier-lists/tl-1/image.png?aspect=vertical&scale=2&qr=0");
+    ).toBe("https://openrift.app/api/v1/tier-lists/tl-1/image.png?scale=2&aspect=vertical&qr=0");
   });
 });
 

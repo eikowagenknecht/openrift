@@ -1,8 +1,4 @@
-import type { MetaSubmissionReason } from "@openrift/shared";
-import type {
-  AdminMetaSubmission,
-  MetaSubmissionResolution,
-} from "@openrift/shared/contracts/admin/meta-submissions";
+import type { AdminMetaSubmission } from "@openrift/shared/contracts/admin/meta-submissions";
 import { adminMetaSubmissionsContract } from "@openrift/shared/contracts/admin/meta-submissions";
 import { isDefinedError, safe } from "@orpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -73,16 +70,14 @@ export function useMetaSubmissionForCandidateDeck(candidateDeckId: string) {
 export type MetaSubmissionWriteResult = { status: "ok" } | { status: "alreadyAccepted" };
 
 /** One hand-stamped outcome, with whatever the contributor gets told about it. */
-export interface ResolveMetaSubmissionInput {
+export type ResolveMetaSubmissionInput = Omit<
+  ContractInput<typeof adminMetaSubmissionsContract, "resolve">,
+  "id"
+> & {
   submissionId: string;
   /** Scopes the cache invalidation to the roster row this was resolved from. */
   candidateDeckId: string;
-  status: MetaSubmissionResolution;
-  /** The canned reason. Null leaves it unsaid. */
-  reason: MetaSubmissionReason | null;
-  /** The reviewer's own words, which replace the canned sentence when present. */
-  note: string | null;
-}
+};
 
 const resolveMetaSubmissionFn = createServerFn({ method: "POST" })
   .validator((input: Omit<ResolveMetaSubmissionInput, "candidateDeckId">) => input)

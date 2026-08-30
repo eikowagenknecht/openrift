@@ -1,5 +1,6 @@
 import type {
   MappingGroupHeader,
+  MappingPrintingResponse,
   Marketplace,
   MarketplaceAssignmentResponse as MarketplaceAssignment,
   MarketplaceGroupKind,
@@ -15,22 +16,7 @@ import type {
 } from "../routes/admin/marketplace-configs.js";
 import { buildStagedRowMapping } from "./marketplace-mapping-shared.js";
 
-interface PrintingRow {
-  printingId: string;
-  /** Slug of the printing's own set. Used by the suggester to scope by group.setId. */
-  setId: string;
-  shortCode: string;
-  rarity: string;
-  artVariant: string;
-  isSigned: boolean;
-  markerSlugs: string[];
-  /** The printing's own finish (may be `metal` / `metal-deluxe` — the marketplace never sees those). */
-  finish: string;
-  /** The printing's physical size (`standard` / `oversized`); marketplaces never expose this. */
-  size: string;
-  language: string;
-  imageUrl: string | null;
-  externalId: number | null;
+interface PrintingRow extends MappingPrintingResponse {
   sourceGroupId: number | null;
   /** The bound SKU's language (NULL for CM/TCG). Null when no variant is bound. */
   sourceLanguage: string | null;

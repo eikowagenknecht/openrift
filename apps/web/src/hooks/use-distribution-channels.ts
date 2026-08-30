@@ -1,4 +1,4 @@
-import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
+import type { DistributionChannelResponse } from "@openrift/shared";
 import type { AdminDistributionChannelsResponse } from "@openrift/shared/contracts/admin/distribution-channels";
 import { adminDistributionChannelsContract } from "@openrift/shared/contracts/admin/distribution-channels";
 import { createServerFn } from "@tanstack/react-start";
@@ -6,26 +6,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-interface CreateChannelInput {
-  slug: string;
-  label: string;
-  description?: string | null;
-  kind?: DistributionChannelKind;
-  parentId?: string | null;
-  childrenLabel?: string | null;
-}
-
-interface UpdateChannelInput {
-  id: string;
-  slug?: string;
-  label?: string;
-  description?: string | null;
-  kind?: DistributionChannelKind;
-  parentId?: string | null;
-  childrenLabel?: string | null;
-}
+type CreateChannelInput = ContractInput<typeof adminDistributionChannelsContract, "create">;
+type UpdateChannelInput = ContractInput<typeof adminDistributionChannelsContract, "update">;
 
 const fetchChannels = createServerFn({ method: "GET" })
   .middleware([withCookies])

@@ -234,30 +234,24 @@ export type ClearPricesResponse = z.infer<typeof clearPricesResponseSchema>;
 
 // ── Unified marketplace mappings response types ─────────────────────────────
 
-export interface MappingPrintingResponse {
-  printingId: string;
-  /** Slug of the printing's set, used by the suggester to scope by group.setId. */
-  setId: string;
-  shortCode: string;
-  rarity: string;
-  artVariant: string;
-  isSigned: boolean;
-  markerSlugs: string[];
-  finish: string;
-  language: string;
-  imageUrl: string | null;
-  externalId: number | null;
-}
-
 /**
  * Inferred from {@link unifiedMappingGroupResponseSchema} (zod-first, the single
- * source of truth). Shares the {@link MappingPrintingResponse} fields minus its
- * single `externalId`, replacing it with the merged per-marketplace external
- * IDs (`tcgExternalId` / `cmExternalId` / `ctExternalId`).
+ * source of truth). Carries the merged per-marketplace external IDs
+ * (`tcgExternalId` / `cmExternalId` / `ctExternalId`).
  */
 export type UnifiedMappingPrintingResponse = z.infer<
   typeof unifiedMappingGroupResponseSchema
 >["printings"][number];
+
+/**
+ * One printing in a single marketplace's mapping overview: the same descriptive
+ * fields as {@link UnifiedMappingPrintingResponse}, with the three merged
+ * external IDs collapsed to the one marketplace's `externalId`.
+ */
+export type MappingPrintingResponse = Omit<
+  UnifiedMappingPrintingResponse,
+  "tcgExternalId" | "cmExternalId" | "ctExternalId"
+> & { externalId: number | null };
 
 /**
  * One staged/assigned/unmatched marketplace product. Inferred from

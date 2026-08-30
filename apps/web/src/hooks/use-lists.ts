@@ -1,18 +1,13 @@
 import type {
-  Currency,
   ListBulkAddResponse,
   ListDetailResponse,
   ListEntryResponse,
   ListIntent,
-  ListKind,
   ListListResponse,
   ListMoveResponse,
   ListResponse,
-  ListRule,
-  ListRuleCombine,
   ListShareResponse,
   PublicListDetailResponse,
-  TradePreference,
 } from "@openrift/shared";
 import { listsContract } from "@openrift/shared/contracts/lists";
 import { publicListsContract } from "@openrift/shared/contracts/public-lists";
@@ -25,8 +20,21 @@ import { reportMutationError } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+type CreateListInput = ContractInput<typeof listsContract, "create">;
+type UpdateListInput = Omit<ContractInput<typeof listsContract, "update">, "id"> & {
+  listId: string;
+};
+type UpdateListEntryInput = Omit<
+  ContractInput<typeof listsContract, "updateEntry">,
+  "id" | "itemId"
+> & {
+  listId: string;
+  entryId: string;
+};
 
 // ── LIST ─────────────────────────────────────────────────────────────────────
 
@@ -83,16 +91,6 @@ export function useListDetail(listId: string) {
 
 // ── MUTATIONS ────────────────────────────────────────────────────────────────
 
-interface CreateListInput {
-  name: string;
-  intent: ListIntent;
-  kind: ListKind;
-  /** ADR-017: list-level trade defaults. Ignored on organize lists. */
-  tradeDefaults?: TradePreference;
-  /** ADR-017: list currency. Required when any 'absolute' preference is set. */
-  currency?: Currency | null;
-}
-
 const createListFn = createServerFn({ method: "POST" })
   .validator((input: CreateListInput) => input)
   .middleware([withCookies])
@@ -111,19 +109,6 @@ export function useCreateList() {
       queryKeys.lists.all(userId, variables.intent),
     ],
   });
-}
-
-interface UpdateListInput {
-  listId: string;
-  name?: string;
-  /** Pushes the list behind the sidebar's "Show more" toggle. */
-  sidebarHidden?: boolean;
-  tradeDefaults?: TradePreference;
-  currency?: Currency | null;
-  /** ADR-034: set/replace the dynamic rules. An empty array clears them. */
-  rules?: ListRule[];
-  /** ADR-034 amendment 2: the combine mode; null = the intent's default. */
-  ruleCombine?: ListRuleCombine | null;
 }
 
 const updateListFn = createServerFn({ method: "POST" })
@@ -405,14 +390,6 @@ export function useMoveListEntries() {
       queryKeys.lists.detail(userId, variables.toListId),
     ],
   });
-}
-
-interface UpdateListEntryInput {
-  listId: string;
-  entryId: string;
-  quantity?: number;
-  /** ADR-017 per-entry override. NULL fields fall through to list defaults. */
-  tradeOverride?: TradePreference;
 }
 
 const updateListEntryFn = createServerFn({ method: "POST" })

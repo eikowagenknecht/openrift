@@ -1,3 +1,4 @@
+import type { Marketplace } from "@openrift/shared";
 import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
 import { adminStagingCardOverridesContract } from "@openrift/shared/contracts/admin/staging-card-overrides";
 import { adminUnifiedMappingsContract } from "@openrift/shared/contracts/admin/unified-mappings";
@@ -17,6 +18,7 @@ import type {
   UnifiedMappingsResponse,
 } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
@@ -66,7 +68,7 @@ export function unifiedMappingsForCardQueryOptions(cardId: string) {
  * @returns A mutation hook that invalidates relevant queries on success.
  */
 function useUnifiedMutation<TInput, TResult>(
-  marketplace: "tcgplayer" | "cardmarket" | "cardtrader",
+  marketplace: Marketplace,
   mutationFn: (input: TInput) => Promise<TResult>,
 ) {
   const queryClient = useQueryClient();
@@ -83,51 +85,30 @@ function useUnifiedMutation<TInput, TResult>(
   });
 }
 
-interface SaveMappingsBody {
-  mappings: {
-    printingId: string;
-    externalId: number;
-    /** The marketplace's view of the finish — `normal` / `foil`. */
-    finish: string;
-    /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
-    language: string | null;
-  }[];
-}
+type SaveMappingsBody = ContractInput<typeof adminUnifiedMappingsContract, "save">["body"];
+
+/** The batch result: how many rows landed, and which SKUs the API refused. */
+type SaveMappingsResult = Awaited<
+  ReturnType<ReturnType<typeof apiOrpcClient<typeof adminUnifiedMappingsContract>>["save"]>
+>;
 
 const saveMappingsFn = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
-      mappings: {
-        printingId: string;
-        externalId: number;
-        finish: string;
-        language: string | null;
-      }[];
-    }) => input,
-  )
+  .validator((input: { marketplace: Marketplace } & SaveMappingsBody) => input)
   .middleware([withCookies])
-  .handler(
-    ({
-      context,
-      data,
-    }): Promise<{ saved: number; skipped?: { externalId: number; reason: string }[] }> =>
-      apiOrpcClient(adminUnifiedMappingsContract, context.cookie).save({
-        query: { marketplace: data.marketplace },
-        body: { mappings: data.mappings },
-      }),
+  .handler(({ context, data }): Promise<SaveMappingsResult> =>
+    apiOrpcClient(adminUnifiedMappingsContract, context.cookie).save({
+      query: { marketplace: data.marketplace },
+      body: { mappings: data.mappings },
+    }),
   );
 
-export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+export function useUnifiedSaveMappings(marketplace: Marketplace) {
   return useUnifiedMutation(marketplace, async (body: SaveMappingsBody) => {
     const result = await saveMappingsFn({
       data: { marketplace, mappings: body.mappings },
     });
-    const typed = result as { saved: number; skipped?: { externalId: number; reason: string }[] };
-    if (typed.skipped && typed.skipped.length > 0) {
-      for (const s of typed.skipped) {
-        toast.error(`#${s.externalId}: ${s.reason}`);
-      }
+    for (const skipped of result.skipped) {
+      toast.error(`#${skipped.externalId}: ${skipped.reason}`);
     }
     return result;
   });
@@ -136,7 +117,7 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
 const ignoreVariantsFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
-      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      marketplace: Marketplace;
       products: { externalId: number; finish: string; language: string | null }[];
     }) => input,
   )
@@ -150,12 +131,7 @@ const ignoreVariantsFn = createServerFn({ method: "POST" })
   });
 
 const ignoreProductsFn = createServerFn({ method: "POST" })
-  .validator(
-    (input: {
-      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
-      products: { externalId: number }[];
-    }) => input,
-  )
+  .validator((input: { marketplace: Marketplace; products: { externalId: number }[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminIgnoredProductsContract, context.cookie).ignore({
@@ -169,7 +145,7 @@ const ignoreProductsFn = createServerFn({ method: "POST" })
  * Level-3 ignore: deny a specific SKU (finish × language) of an upstream product.
  * @returns A mutation hook that posts a batch of variant-level ignores.
  */
-export function useUnifiedIgnoreVariants(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+export function useUnifiedIgnoreVariants(marketplace: Marketplace) {
   return useUnifiedMutation(
     marketplace,
     async (products: { externalId: number; finish: string; language: string | null }[]) => {
@@ -182,7 +158,7 @@ export function useUnifiedIgnoreVariants(marketplace: "tcgplayer" | "cardmarket"
  * Level-2 ignore: deny an entire upstream product regardless of finish/language.
  * @returns A mutation hook that posts a batch of product-level ignores.
  */
-export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+export function useUnifiedIgnoreProducts(marketplace: Marketplace) {
   return useUnifiedMutation(marketplace, async (products: { externalId: number }[]) => {
     await ignoreProductsFn({ data: { marketplace, products } });
   });
@@ -191,7 +167,7 @@ export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket"
 const assignToCardFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
-      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      marketplace: Marketplace;
       externalId: number;
       finish: string;
       language: string | null;
@@ -203,7 +179,7 @@ const assignToCardFn = createServerFn({ method: "POST" })
     await apiOrpcClient(adminStagingCardOverridesContract, context.cookie).create(data);
   });
 
-export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+export function useUnifiedAssignToCard(marketplace: Marketplace) {
   return useUnifiedMutation(
     marketplace,
     async (override: {
@@ -220,7 +196,7 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" |
 const unassignFromCardFn = createServerFn({ method: "POST" })
   .validator(
     (input: {
-      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      marketplace: Marketplace;
       externalId: number;
       finish: string;
       language: string | null;
@@ -239,7 +215,7 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
     });
   });
 
-export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+export function useUnifiedUnassignFromCard(marketplace: Marketplace) {
   return useUnifiedMutation(
     marketplace,
     async (params: { externalId: number; finish: string; language: string | null }) => {

@@ -4,6 +4,7 @@ import {
   candidateCardFieldRules,
   candidatePrintingFieldRules,
   printingFieldRules,
+  setFieldRules,
 } from "@openrift/shared/db-field-rules";
 import { diffValueSchema } from "@openrift/shared/response-schemas";
 import { z } from "zod";
@@ -63,8 +64,7 @@ export const uploadErrataResponseSchema = z.object({
 });
 export type UploadErrataResponse = z.infer<typeof uploadErrataResponseSchema>;
 
-// Mirrors `patchCandidatePrintingSchema` (apps/api cards/schemas); the
-// differentiator fields admins can correct on a candidate printing.
+// The differentiator fields admins can correct on a candidate printing.
 const patchCandidatePrintingFields = {
   artVariant: candidatePrintingFieldRules.artVariant.optional(),
   isSigned: z.boolean().optional(),
@@ -79,9 +79,9 @@ export type PatchCandidatePrintingBody = z.infer<z.ZodObject<typeof patchCandida
 
 // accept-field bodies. `value` stays `unknown` on the wire; the API validates
 // it per-field against {card,printing}FieldRules at runtime. These two arrays
-// ARE the allowlist of writable columns (mirrors apps/api cards/schemas), so the
-// web field editor derives its own writable set from them rather than keeping a
-// parallel list — see `isAcceptCardField` / `isAcceptPrintingField` below.
+// ARE the allowlist of writable columns, so the web field editor derives its
+// own writable set from them rather than keeping a parallel list — see
+// `isAcceptCardField` / `isAcceptPrintingField` below.
 export const ACCEPT_CARD_FIELDS = [
   "name",
   "types",
@@ -151,11 +151,7 @@ export function isAcceptPrintingField(key: string): key is AcceptPrintingField {
   return acceptPrintingFieldSet.has(key);
 }
 
-// ── Create / accept composite schemas (mirror apps/api cards/schemas) ────────
-// `setFieldRules` lives in apps/api (only the API touches the `sets` table);
-// the two fields these schemas reference are mirrored inline.
-const setSlug = z.string().min(1);
-const setName = z.string().min(1);
+// ── Create / accept composite schemas ────────────────────────────────────────
 
 export const cardFieldsSchema = z.object({
   id: cardFieldRules.slug,
@@ -173,8 +169,8 @@ export const cardFieldsSchema = z.object({
 // Flat printing fields for `createPrinting` (setId required, no `id`).
 const createPrintingFieldsSchema = z.object({
   shortCode: printingFieldRules.shortCode,
-  setId: setSlug,
-  setName: setName.optional().nullable(),
+  setId: setFieldRules.slug,
+  setName: setFieldRules.name.optional().nullable(),
   rarity: printingFieldRules.rarity.optional().nullable(),
   artVariant: printingFieldRules.artVariant.optional(),
   isSigned: z.boolean().optional(),
@@ -196,7 +192,7 @@ const createPrintingFieldsSchema = z.object({
 // `acceptPrinting` adds an optional `id` and relaxes setId to optional.
 const acceptPrintingFieldsSchema = createPrintingFieldsSchema.extend({
   id: z.string().optional(),
-  setId: setSlug.optional(),
+  setId: setFieldRules.slug.optional(),
 });
 
 const skippedPrintingSchema = z.object({ shortCode: z.string(), reason: z.string() });

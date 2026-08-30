@@ -1,3 +1,4 @@
+import { headersToRecord, recordSpanError } from "@openrift/shared/otel";
 import {
   context,
   propagation,
@@ -56,11 +57,7 @@ export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> 
   // Extract any incoming W3C traceparent so the span links to the upstream
   // trace (e.g. the web SSR span that issued this request). Falls back to
   // ROOT_CONTEXT (a fresh trace) when no header is present.
-  const headers: Record<string, string> = {};
-  c.req.raw.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
-  const parentCtx = propagation.extract(ROOT_CONTEXT, headers);
+  const parentCtx = propagation.extract(ROOT_CONTEXT, headersToRecord(c.req.raw.headers));
 
   const span = tracer.startSpan(
     `${c.req.method} ${route}`,
@@ -83,11 +80,7 @@ export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> 
         span.setStatus({ code: SpanStatusCode.ERROR });
       }
     } catch (error) {
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      span.recordException(error as Error);
+      recordSpanError(span, error);
       throw error;
     } finally {
       span.end();

@@ -1,16 +1,11 @@
-import type {
-  AdminMetaDeck,
-  AdminMetaEvent,
-  AdminMetaEventSource,
-  DeckZone,
-  MetaListStatus,
-} from "@openrift/shared";
+import type { AdminMetaDeck, AdminMetaEvent, AdminMetaEventSource } from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -19,24 +14,8 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // list as well as the touched event's deck list, because every deck write moves
 // the event row's deck count.
 
-/** One card row in a deck write. Built by the admin form's import parse. */
-interface MetaDeckCardInput {
-  cardId: string;
-  zone: DeckZone;
-  quantity: number;
-  preferredPrintingId?: string | null;
-}
-
 /** The body the create and update event endpoints share. */
-export interface MetaEventInput {
-  slug: string;
-  name: string;
-  eventDate: string;
-  format: string;
-  playerCount?: number | null;
-  organizer?: string | null;
-  notes?: string | null;
-}
+export type MetaEventInput = ContractInput<typeof adminMetaContract, "createEvent">;
 
 // ---------------------------------------------------------------------------
 // Events
@@ -161,17 +140,7 @@ export function useAdminMetaEventDecks(eventId: string) {
 }
 
 /** Everything `createDeck` needs: the metadata plus the resolved card rows. */
-export interface CreateMetaDeckInput {
-  eventId: string;
-  name: string;
-  format: string;
-  cards: MetaDeckCardInput[];
-  playerName: string;
-  finishTier: number;
-  record?: string | null;
-  /** Defaults to `"full"` server-side; `"archetype"` mints no share token. */
-  listStatus?: MetaListStatus;
-}
+export type CreateMetaDeckInput = ContractInput<typeof adminMetaContract, "createDeck">;
 
 const createMetaDeckFn = createServerFn({ method: "POST" })
   .validator((input: CreateMetaDeckInput) => input)
@@ -201,17 +170,9 @@ export function useCreateMetaDeck() {
  * cache invalidation to the list the row is shown in. Omitting `cards` keeps the
  * stored card list; passing one replaces it wholesale.
  */
-export interface UpdateMetaDeckInput {
-  id: string;
+export type UpdateMetaDeckInput = ContractInput<typeof adminMetaContract, "updateDeck"> & {
   eventId: string;
-  name?: string;
-  playerName?: string;
-  finishTier?: number;
-  record?: string | null;
-  cards?: MetaDeckCardInput[];
-  /** Promoting out of `"archetype"` alongside a real list is what mints the permalink. */
-  listStatus?: MetaListStatus;
-}
+};
 
 const updateMetaDeckFn = createServerFn({ method: "POST" })
   .validator((input: Omit<UpdateMetaDeckInput, "eventId">) => input)
@@ -303,11 +264,12 @@ export function useAdminMetaEventSources(eventId: string | null) {
 }
 
 /** A hand-entered citation. Provider citations are written by linking, never here. */
-export interface CreateMetaEventSourceInput {
+export type CreateMetaEventSourceInput = Omit<
+  ContractInput<typeof adminMetaContract, "createEventSource">,
+  "id"
+> & {
   eventId: string;
-  label: string;
-  sourceUrl?: string | null;
-}
+};
 
 const createMetaEventSourceFn = createServerFn({ method: "POST" })
   .validator((input: CreateMetaEventSourceInput) => input)

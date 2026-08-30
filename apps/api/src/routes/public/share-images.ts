@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { aspectFromQuery, ERROR_CODES, qrFromQuery } from "@openrift/shared";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
@@ -20,7 +20,6 @@ import {
   siteHostFromOrigin,
   topByQuantity,
 } from "../../services/list-image.js";
-import { aspectFromQuery, qrFromQuery } from "../../services/share-image-core.js";
 import type { ShareImageCard, ShareImageOptions } from "../../services/share-image.js";
 import { renderShareImage } from "../../services/share-image.js";
 import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";

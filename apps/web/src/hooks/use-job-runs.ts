@@ -1,30 +1,23 @@
-import type {
-  JobRunActivity,
-  JobRunView,
-  JobRunsListResponse,
-  JobStatus,
-  JobTrigger,
-} from "@openrift/shared/contracts/admin/job-runs";
+import type { JobRunView, JobRunsListResponse } from "@openrift/shared/contracts/admin/job-runs";
 import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 /** Rows per page on the admin job-runs table. */
 export const JOB_RUNS_PAGE_SIZE = 50;
 
 /** Filters and 1-based page that select one page of the job-runs table. */
-export interface JobRunsQueryParams {
+export type JobRunsQueryParams = Omit<
+  ContractInput<typeof adminJobRunsContract, "list">,
+  "limit" | "page"
+> & {
   page: number;
-  kind?: string;
-  trigger?: JobTrigger;
-  status?: JobStatus;
-  /** Filters by whether a run did anything. */
-  activity?: JobRunActivity;
-}
+};
 
 const fetchJobRuns = createServerFn({ method: "GET" })
   .validator((input: JobRunsQueryParams) => input)

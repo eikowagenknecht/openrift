@@ -5,61 +5,36 @@ import type {
   PricesResponse,
   RuleResponse,
 } from "@openrift/shared";
+import { makeCatalogCard, makeCatalogPrinting } from "@openrift/shared/test-factories";
 
 import type { CatalogCard, CatalogPrinting } from "../catalog-cache.js";
 import type { RulesSnapshot } from "../rules-cache.js";
 
 /** @returns A catalog card with sensible defaults, overridable per test. */
 export function makeCard(overrides: Partial<CatalogCard> = {}): CatalogCard {
-  return {
-    id: "card-1",
+  return makeCatalogCard({
     slug: "jinx-rebel",
     name: "Jinx, Rebel",
-    type: "unit",
-    types: ["unit"],
     superTypes: ["champion"],
     domains: ["chaos"],
-    tokenCardIds: [],
     might: 5,
     energy: 5,
-    power: null,
-    keywords: [],
-    tags: [],
-    mightBonus: null,
-    maxCopiesOverride: null,
-    errata: null,
-    bans: [],
     ...overrides,
-  };
+  });
 }
 
 /** @returns A catalog printing with sensible defaults, overridable per test. */
 export function makePrinting(overrides: Partial<CatalogPrinting> = {}): CatalogPrinting {
-  return {
-    id: "printing-1",
+  return makeCatalogPrinting({
     shortCode: "OGN-202",
-    setId: "set-1",
     rarity: "Epic",
-    artVariant: "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
     images: [{ face: "front", imageId: "0197f00d00aa" }],
     artist: "Kudos Productions",
     publicCode: "OGN-202/298",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
     printedYear: 2025,
-    language: "EN",
-    comment: null,
     canonicalRank: 1,
-    cardId: "card-1",
     ...overrides,
-  };
+  });
 }
 
 /** @returns A catalog set with sensible defaults, overridable per test. */

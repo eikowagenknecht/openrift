@@ -1,3 +1,5 @@
+import type { ShareImageAspect } from "@openrift/shared";
+import { SHARE_IMAGE_CANVAS } from "@openrift/shared";
 import {
   ImageDownIcon,
   Loader2Icon,
@@ -12,19 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { ShareImageAspect } from "@/lib/share-image";
 import { downloadImageFromUrl } from "@/lib/share-image";
-
-/**
- * Base canvas per aspect, mirroring `CANVAS` in the API's share-image core. Kept
- * here only to label the size buttons with the pixels they produce — a "2×" on
- * its own doesn't tell a creator whether the file will fit their thumbnail
- * template, and the whole point of the control is picking a resolution.
- */
-const CANVAS: Record<ShareImageAspect, { width: number; height: number }> = {
-  landscape: { width: 1200, height: 630 },
-  vertical: { width: 1080, height: 1920 },
-};
 
 /**
  * Default multiplier per aspect. Wide renders at 2× because 1200×630 is an
@@ -110,7 +100,7 @@ export function ShareImagePanel({
   const [downloading, setDownloading] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
 
-  const canvas = CANVAS[aspect];
+  const canvas = SHARE_IMAGE_CANVAS[aspect];
   // A render without a share link carries no mark whatever the switch says, so
   // the preview has to ask for the same thing the server will actually draw.
   const withQr = qrOn && qr === "available";

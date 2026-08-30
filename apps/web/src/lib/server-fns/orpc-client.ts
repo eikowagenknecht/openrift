@@ -1,6 +1,10 @@
 import { context, propagation } from "@opentelemetry/api";
 import { createORPCClient } from "@orpc/client";
-import type { AnyContractRouter, ContractRouterClient } from "@orpc/contract";
+import type {
+  AnyContractRouter,
+  ContractRouterClient,
+  InferContractRouterInputs,
+} from "@orpc/contract";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
 
 import { getApiUrl } from "./api-url";
@@ -68,3 +72,13 @@ export function browserApiOrpcClient<TContract extends AnyContractRouter>(
   const link = new OpenAPILink(contract, { url: () => globalThis.location.origin });
   return createORPCClient(link);
 }
+
+/**
+ * The input one contract procedure validates. A server function that forwards
+ * its payload straight to {@link apiOrpcClient} types its `.validator` with
+ * this rather than restating the body's fields, so the two can't drift.
+ */
+export type ContractInput<
+  TContract extends AnyContractRouter,
+  TProcedure extends keyof InferContractRouterInputs<TContract>,
+> = InferContractRouterInputs<TContract>[TProcedure];

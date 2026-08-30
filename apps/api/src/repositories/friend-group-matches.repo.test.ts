@@ -7,6 +7,7 @@ import type {
   PriceLookup,
   Printing,
 } from "@openrift/shared";
+import { makePrinting } from "@openrift/shared/test-factories";
 import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
@@ -100,59 +101,32 @@ function filters(overrides: Partial<CardFilters> = {}): CardFilters {
 }
 
 /**
- * Minimal catalog {@link Printing} for `filterCards` (mirrors the shared
- * evaluator's test builder). The empty filter matches all of these; the card
- * defaults to a normal `unit`.
+ * Minimal catalog {@link Printing} for `filterCards`. The empty filter matches
+ * all of these; the card defaults to a normal `unit`.
  */
 function makeCatalogPrinting(
   id: string,
   cardId: string,
   overrides: { type?: string; keywords?: string[]; artVariant?: string } = {},
 ): Printing {
-  return {
+  return makePrinting({
     id,
     cardId,
     shortCode: id,
-    setId: "set-1",
-    setSlug: "set-alpha",
-    setReleased: true,
-    rarity: "common",
-    artVariant: overrides.artVariant ?? "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
-    images: [],
-    artist: "Artist",
+    artVariant: overrides.artVariant,
     publicCode: "PUB",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    language: "EN",
-    canonicalRank: 0,
     card: {
       slug: cardId,
       name: `Card ${cardId}`,
-      type: overrides.type ?? "unit",
-      types: [overrides.type ?? "unit"],
-      superTypes: [],
+      type: overrides.type,
       domains: ["fury"],
-      tokenCardIds: [],
       energy: 1,
       might: 1,
       power: 1,
-      keywords: overrides.keywords ?? [],
-      tags: [],
+      keywords: overrides.keywords,
       mightBonus: 0,
-      maxCopiesOverride: null,
-      errata: null,
-      bans: [],
     },
-  } as Printing;
+  });
 }
 
 function ownedCopy(overrides: Partial<OwnedCopyRow> & { copyId: string }): OwnedCopyRow {

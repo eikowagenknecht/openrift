@@ -1,4 +1,5 @@
-import { legendDisplayName } from "@openrift/shared";
+import type { ShareImageAspect } from "@openrift/shared";
+import { legendDisplayName, SHARE_IMAGE_CANVAS } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
@@ -20,9 +21,8 @@ import {
   splitDeckZones,
   truncateTitle,
 } from "./deck-image-parts.js";
-import type { Child, Element, ShareImageAspect } from "./share-image-core.js";
+import type { Child, Element } from "./share-image-core.js";
 import {
-  CANVAS,
   CARD_ASPECT,
   COLORS,
   baselineNudge,
@@ -83,7 +83,7 @@ interface DeckCanvas {
 }
 
 const LANDSCAPE: DeckCanvas = {
-  ...CANVAS.landscape,
+  ...SHARE_IMAGE_CANVAS.landscape,
   pad: 22,
   titleH: 46,
   titleSize: 34,
@@ -95,7 +95,7 @@ const LANDSCAPE: DeckCanvas = {
 };
 
 const VERTICAL: DeckCanvas = {
-  ...CANVAS.vertical,
+  ...SHARE_IMAGE_CANVAS.vertical,
   pad: 28,
   // Title line, then the byline and metadata on a second line beneath it.
   titleH: 96,

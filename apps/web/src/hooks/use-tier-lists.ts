@@ -3,7 +3,6 @@ import type {
   TierListListResponse,
   TierListResponse,
   TierListShareResponse,
-  TierRow,
 } from "@openrift/shared";
 import { publicTierListsContract } from "@openrift/shared/contracts/public-tier-lists";
 import { tierListsContract } from "@openrift/shared/contracts/tier-lists";
@@ -14,8 +13,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+type CreateTierListBody = ContractInput<typeof tierListsContract, "create">;
+type UpdateTierListBody = ContractInput<typeof tierListsContract, "update">;
 
 const fetchTierLists = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -94,11 +97,6 @@ export function usePublicTierList(token: string) {
 
 // ── Mutations ───────────────────────────────────────────────────────────────
 
-interface CreateTierListBody {
-  title: string;
-  description?: string | null;
-}
-
 const createTierListFn = createServerFn({ method: "POST" })
   .validator((input: CreateTierListBody) => input)
   .middleware([withCookies])
@@ -112,13 +110,6 @@ export function useCreateTierList() {
     mutationFn: (body) => createTierListFn({ data: body }),
     invalidates: [queryKeys.tierLists.all(userId)],
   });
-}
-
-interface UpdateTierListBody {
-  id: string;
-  title?: string;
-  description?: string | null;
-  tiers?: TierRow[];
 }
 
 const updateTierListFn = createServerFn({ method: "POST" })

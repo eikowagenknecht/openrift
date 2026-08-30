@@ -1,3 +1,4 @@
+import { aspectFromQuery, qrFromQuery } from "@openrift/shared";
 import { Hono } from "hono";
 
 import { assertFound } from "../../lib/assertions.js";
@@ -10,7 +11,6 @@ import {
   resolveCoverImageId,
 } from "../../services/deck-image.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
-import { aspectFromQuery, qrFromQuery } from "../../services/share-image-core.js";
 import type { Variables } from "../../types.js";
 
 /**

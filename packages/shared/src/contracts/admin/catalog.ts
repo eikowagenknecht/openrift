@@ -1,21 +1,12 @@
+import { setFieldRules } from "@openrift/shared/db-field-rules";
 import { idParamSchema, isoDate, withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
 
-import { WellKnown } from "../../well-known.js";
 import { authedRoute } from "../_base.js";
 
 const TAG = "Admin - Catalog";
 
 const SETS = "/api/admin/v1/sets";
-
-// Mirrors the API-only `setFieldRules` (apps/api db/schemas) — only the API
-// touches the `sets` table.
-const setFieldRules = {
-  slug: z.string().min(1),
-  name: z.string().min(1),
-  printedTotal: z.number().int().min(0).nullable(),
-  setType: z.enum([WellKnown.setType.MAIN, WellKnown.setType.SUPPLEMENTAL]),
-};
 
 /**
  * One language's release period. A null date (with a null precision) means

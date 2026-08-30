@@ -1,10 +1,10 @@
-import { legendDisplayName, tierRowColor } from "@openrift/shared";
+import type { ShareImageAspect } from "@openrift/shared";
+import { legendDisplayName, SHARE_IMAGE_CANVAS, tierRowColor } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
 import type { Io } from "../io.js";
-import type { Child, Element, ShareImageAspect } from "./share-image-core.js";
+import type { Child, Element } from "./share-image-core.js";
 import {
-  CANVAS,
   CARD_ASPECT,
   COLORS,
   TILE_BORDER,
@@ -83,7 +83,7 @@ interface TierCanvas {
 }
 
 const LANDSCAPE: TierCanvas = {
-  ...CANVAS.landscape,
+  ...SHARE_IMAGE_CANVAS.landscape,
   pad: PAD,
   labelW: LABEL_W,
   titleSize: TITLE_SIZE,
@@ -96,7 +96,7 @@ const LANDSCAPE: TierCanvas = {
 };
 
 const VERTICAL: TierCanvas = {
-  ...CANVAS.vertical,
+  ...SHARE_IMAGE_CANVAS.vertical,
   pad: 28,
   labelW: 88,
   // A story is read at arm's length on a phone, where the landscape type sizes

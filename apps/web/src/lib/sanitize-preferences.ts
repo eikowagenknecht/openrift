@@ -8,6 +8,7 @@ import type {
 import { ALL_MARKETPLACES, CURRENCIES, PALETTES, RENAMED_LANGUAGES } from "@openrift/shared";
 
 import type { DisplayMode, DisplayOverrides } from "@/stores/display-store";
+import { NULL_OVERRIDES } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
@@ -49,7 +50,7 @@ interface SanitizedOverrides {
  */
 export function sanitizeOverrides(data: unknown): SanitizedOverrides {
   if (typeof data !== "object" || data === null) {
-    return { overrides: nullOverrides() };
+    return { overrides: { ...NULL_OVERRIDES } };
   }
   const record = data as Record<string, unknown>;
 
@@ -261,21 +262,6 @@ export function sanitizeThemePreference(data: unknown): Theme | null {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
-}
-
-function nullOverrides(): DisplayOverrides {
-  return {
-    showImages: null,
-    fancyFan: null,
-    foilEffect: null,
-    cardTilt: null,
-    marketplaceOrder: null,
-    languages: null,
-    completionScope: null,
-    defaultCardView: null,
-    defaultCurrency: null,
-    topLevelFilters: null,
-  };
 }
 
 function sanitizeDefaultCardView(value: unknown): "cards" | "printings" | null {

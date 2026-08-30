@@ -1,28 +1,14 @@
 import { WellKnown } from "@openrift/shared";
-import type { EmbedBank } from "@openrift/shared/scan";
+import type { CardLabels, EmbedBank } from "@openrift/shared/scan";
 import { decodeEmbedBank } from "@openrift/shared/scan";
 
 import { scanAssetError } from "@/lib/scan-asset-hint";
-
-export interface CardLabel {
-  name: string;
-  code: string;
-  language: string;
-  /** cards.type — selects the measured text band for printing disambiguation. */
-  type?: string;
-  /**
-   * Serialized marker set ("promo", "" for none) — gates the stamp stage of
-   * printing disambiguation. Null (or absent, in labels predating the field)
-   * when unknown or when the printings sharing this render disagree.
-   */
-  markers?: string | null;
-}
 
 export interface LoadedScanBank {
   bank: EmbedBank;
   /** Artwork identity per key; printings of one artwork share it. */
   artKeys: Map<string, string>;
-  labels: Record<string, CardLabel>;
+  labels: CardLabels;
   bytes: number;
   /**
    * The bank was built in the canonical frame (landscape references rotated
@@ -52,9 +38,7 @@ export async function loadScanBank(bankUrl: string, labelsUrl: string): Promise<
       throw new Error(scanAssetError("the scan bank", bankUrl));
     }
     const buffer = await bankResponse.arrayBuffer();
-    const labels = labelResponse.ok
-      ? ((await labelResponse.json()) as Record<string, CardLabel>)
-      : {};
+    const labels = labelResponse.ok ? ((await labelResponse.json()) as CardLabels) : {};
     const { bank, artKeys, canonical } = decodeEmbedBank(buffer);
     return { bank, artKeys, labels, bytes: buffer.byteLength, canonical };
   })();
@@ -73,7 +57,7 @@ export async function loadScanBank(bankUrl: string, labelsUrl: string): Promise<
  *
  * @returns The card name and printing code, or a short key when unlabelled.
  */
-export function describeKey(labels: Record<string, CardLabel>, key: string): string {
+export function describeKey(labels: CardLabels, key: string): string {
   const label = labels[key];
   return label ? `${label.name} (${label.code} ${label.language})` : `unknown ${key.slice(0, 8)}`;
 }
@@ -87,6 +71,6 @@ export function describeKey(labels: Record<string, CardLabel>, key: string): str
  * @returns True for a Battlefield key, false for everything else and for keys
  * with no label.
  */
-export function isLandscapeKey(labels: Record<string, CardLabel>, key: string): boolean {
+export function isLandscapeKey(labels: CardLabels, key: string): boolean {
   return labels[key]?.type === WellKnown.cardType.BATTLEFIELD;
 }

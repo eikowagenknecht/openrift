@@ -18,51 +18,6 @@ import { CARD_MEDIA_DIR } from "./images/paths.js";
  * PNG data URI with sharp first.
  */
 
-/**
- * `vertical` is a download-only export: no crawler consumes a 9:16 og:image
- * (they crop or letterbox it), so an aspect never reaches the `og:image` URL.
- */
-export type ShareImageAspect = "landscape" | "vertical";
-
-/**
- * 1200×630 is the og convention; 1080×1920 is the native upload resolution for
- * every vertical surface, so the 1× vertical render is already the deliverable.
- */
-export const CANVAS: Record<ShareImageAspect, { width: number; height: number }> = {
-  landscape: { width: 1200, height: 630 },
-  vertical: { width: 1080, height: 1920 },
-};
-
-export function aspectFromQuery(value: string | undefined): ShareImageAspect {
-  return value === "vertical" ? "vertical" : "landscape";
-}
-
-/**
- * Public, immutably-cached images are capped at 2× because rasterizing cost
- * grows super-linearly and every URL is a new cache entry. 3× is offered only
- * on the owner-only download routes (authenticated, `no-store`, low traffic).
- */
-export const MAX_IMAGE_SCALE = 3;
-
-/**
- * `?size=hq` is the older two-valued form and still means 2×, so existing
- * og:image and download URLs keep rendering what they did. An unparseable
- * `scale` falls through rather than erroring — a bad multiplier should cost
- * sharpness, not the whole image.
- */
-export function scaleFromQuery(scale: string | undefined, size: string | undefined): number {
-  const asked = Number(scale);
-  if (Number.isInteger(asked) && asked >= 1 && asked <= MAX_IMAGE_SCALE) {
-    return asked;
-  }
-  return size === "hq" ? 2 : 1;
-}
-
-/** `?qr=0` is the opt-out for a creator who wants a clean plate to composite over. */
-export function qrFromQuery(value: string | undefined): boolean {
-  return value !== "0";
-}
-
 // Concrete approximations of the site's dark theme (apps/web/src/index.css).
 export const COLORS = {
   background: "#14161d", // --background  oklch(0.16 0.025 260)

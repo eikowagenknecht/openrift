@@ -3,18 +3,12 @@ import type {
   PodTournamentDetailResponse,
   PublicTournamentJoinResponse,
   PublicTournamentLandingResponse,
-  TournamentDeckSubmission,
   TournamentDetailResponse,
-  TournamentListLockMode,
   TournamentListResponse,
-  TournamentMatchFormat,
-  TournamentPairingStyle,
-  TournamentPlayMode,
   TournamentParticipantListResponse,
   TournamentStaffCandidateListResponse,
   TournamentStaffInviteLandingResponse,
   TournamentStaffRole,
-  TournamentStatus,
 } from "@openrift/shared";
 import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-pod-tournaments";
 import { publicTournamentsContract } from "@openrift/shared/contracts/public-tournaments";
@@ -27,6 +21,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import { openRoundRefetchInterval } from "@/lib/open-round-polling";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import {
   participantMutationInvalidationKeys,
@@ -34,50 +29,8 @@ import {
 } from "@/lib/tournament-invalidation";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-interface CreateTournamentInput {
-  name: string;
-  host: { type: "user" } | { type: "organization"; orgId: string };
-  pairingStyle: TournamentPairingStyle;
-  playMode?: TournamentPlayMode;
-  matchFormat?: TournamentMatchFormat;
-  winPoints?: number;
-  drawPoints?: number;
-  byePoints?: number;
-  regionsEnabled?: boolean;
-  deckSubmission: TournamentDeckSubmission;
-  selfRegistration?: boolean;
-  submissionsCloseAt?: string | null;
-  listLockMode?: TournamentListLockMode;
-  deckFormat?: string | null;
-  allowedSets?: string[] | null;
-  groupId?: string | null;
-  startsAt: string;
-  endsAt?: string | null;
-}
-
-interface UpdateTournamentInput {
-  id: string;
-  name?: string;
-  status?: TournamentStatus;
-  host?: { type: "user" } | { type: "organization"; orgId: string };
-  pairingStyle?: TournamentPairingStyle;
-  playMode?: TournamentPlayMode;
-  startsAt?: string;
-  endsAt?: string | null;
-  scoringScheme?: "standard" | "three_pod_reduced";
-  byePoints?: number;
-  matchFormat?: TournamentMatchFormat;
-  winPoints?: number;
-  drawPoints?: number;
-  regionsEnabled?: boolean;
-  deckSubmission?: TournamentDeckSubmission;
-  submissionsCloseAt?: string | null;
-  listLockMode?: TournamentListLockMode;
-  deckFormat?: string | null;
-  allowedSets?: string[] | null;
-  selfRegistration?: boolean;
-  groupId?: string | null;
-}
+type CreateTournamentInput = ContractInput<typeof tournamentsContract, "create">;
+type UpdateTournamentInput = ContractInput<typeof tournamentsContract, "update">;
 
 // ── Server functions: queries ────────────────────────────────────────────────
 

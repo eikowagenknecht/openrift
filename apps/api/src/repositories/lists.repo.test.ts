@@ -1,5 +1,6 @@
 import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import type { Printing } from "@openrift/shared";
+import { makePrinting } from "@openrift/shared/test-factories";
 import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
@@ -319,50 +320,21 @@ function tableDb(rowsByTable: Record<string, Record<string, unknown>[]>): Kysely
  * every one of these.
  */
 function catalogPrinting(id: string, cardId: string): Printing {
-  return {
+  return makePrinting({
     id,
     cardId,
     shortCode: id,
-    setId: "set-1",
-    setSlug: "set-alpha",
-    setReleased: true,
-    rarity: "common",
-    artVariant: "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
-    images: [],
-    artist: "Artist",
     publicCode: "PUB",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    language: "EN",
-    canonicalRank: 0,
     card: {
       slug: cardId,
       name: `Card ${cardId}`,
-      type: "unit",
-      types: ["unit"],
-      superTypes: [],
       domains: ["fury"],
-      tokenCardIds: [],
       energy: 1,
       might: 1,
       power: 1,
-      keywords: [],
-      tags: [],
       mightBonus: 0,
-      maxCopiesOverride: null,
-      errata: null,
-      bans: [],
     },
-  } as Printing;
+  });
 }
 
 /** A card-kind wish rule that takes the whole catalog, one copy of each. */

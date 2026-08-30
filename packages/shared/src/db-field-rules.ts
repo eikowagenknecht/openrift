@@ -1,13 +1,14 @@
 /**
  * Field-level Zod rules that mirror the database CHECK / FK constraints. Single
- * source of truth — anything that builds a Zod object schema for cards or
- * printings (admin endpoints, candidate ingest, contribute form) reuses these.
+ * source of truth — anything that builds a Zod object schema for cards,
+ * printings or sets (admin endpoints, candidate ingest, contribute form)
+ * reuses these.
  *
  * Lives in `@openrift/shared` so both `apps/api` and `apps/web` can import.
- * Set rules stay in `apps/api/src/db/schemas.ts` since only the API touches
- * that table.
  */
 import { z } from "zod";
+
+import { WellKnown } from "./well-known.js";
 
 /**
  * Printing `language` codes: 2-letter uppercase, matching the codes Riot prints
@@ -119,4 +120,12 @@ export const candidatePrintingFieldRules = {
   flavorText: z.string().min(1).nullable(),
   externalId: z.string().min(1),
   extraData: noEmptyJsonb,
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB constraints on the `sets` table. */
+export const setFieldRules = {
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  printedTotal: z.number().int().min(0).nullable(),
+  setType: z.enum([WellKnown.setType.MAIN, WellKnown.setType.SUPPLEMENTAL]),
 } satisfies Record<string, z.ZodType>;

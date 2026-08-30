@@ -13,8 +13,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+type CreateProductInput = ContractInput<typeof adminProductsContract, "create">;
+type UpdateProductInput = ContractInput<typeof adminProductsContract, "update">;
 
 // ── Public reads ─────────────────────────────────────────────────────────────
 
@@ -118,14 +122,6 @@ export function useProductDetail(slug: string) {
 
 // ── Admin mutations (grantable section "products") ───────────────────────────
 
-interface CreateProductInput {
-  slug: string;
-  name: string;
-  description?: string | null;
-  setId?: string | null;
-  listId: string;
-}
-
 /**
  * The public products list is served through the shared `serverCache`, which
  * mutations must bust explicitly — otherwise the client-side invalidation
@@ -166,14 +162,6 @@ export function useResyncProduct() {
     mutationFn: (vars: { id: string; listId: string }) => resyncProductFn({ data: vars }),
     invalidates: [queryKeys.products.all],
   });
-}
-
-interface UpdateProductInput {
-  id: string;
-  slug?: string;
-  name?: string;
-  description?: string | null;
-  setId?: string | null;
 }
 
 const updateProductFn = createServerFn({ method: "POST" })

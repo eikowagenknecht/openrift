@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 import type { Logger } from "@openrift/shared/logger";
-import type { EmbedBank, RgbaImage } from "@openrift/shared/scan";
+import type { CardLabels, EmbedBank, RgbaImage } from "@openrift/shared/scan";
 import {
   EMBED_BANK_VERSION,
   embedImageSizeOf,
@@ -121,10 +121,7 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
   const imageSize = embedImageSizeOf(inputMeta?.isTensor ? inputMeta.shape : undefined);
 
   const keys: string[] = [];
-  const labels: Record<
-    string,
-    { name: string; code: string; language: string; type: string; markers: string | null }
-  > = {};
+  const labels: CardLabels = {};
   const artKeys = new Map<string, string>();
   const vectors: Float32Array[] = [];
   let skipped = 0;

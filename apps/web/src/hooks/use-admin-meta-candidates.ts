@@ -22,6 +22,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -157,10 +158,7 @@ export function useRematchMetaCandidates() {
 }
 
 /** The alias fix: "this source name means that card", then rematch. */
-export interface ResolveMetaNameInput {
-  name: string;
-  cardId: string;
-}
+export type ResolveMetaNameInput = ContractInput<typeof adminMetaCandidatesContract, "resolveName">;
 
 const resolveMetaNameFn = createServerFn({ method: "POST" })
   .validator((input: ResolveMetaNameInput) => input)
@@ -203,11 +201,9 @@ export type MetaAcceptEventWithDecksResult =
   | { status: "needsOverwriteConfirm"; message: string };
 
 /** An accept, with the confirmation the multi-source guard asks for. */
-export interface AcceptMetaEventInput {
-  id: string;
-  /** Only ever true on a retry the admin confirmed. */
-  overwriteAll?: boolean;
-}
+export type AcceptMetaEventInput = Partial<
+  ContractInput<typeof adminMetaCandidatesContract, "acceptEvent">
+> & { id: string };
 
 const acceptMetaCandidateEventFn = createServerFn({ method: "POST" })
   .validator((input: AcceptMetaEventInput) => input)
@@ -423,15 +419,10 @@ export function useAdminMetaIgnoredCandidates() {
 }
 
 /** A `(provider, externalId)` pair, the key the event ignore list uses. */
-export interface MetaSourceKey {
-  provider: string;
-  externalId: string;
-}
+export type MetaSourceKey = ContractInput<typeof adminMetaCandidatesContract, "unignoreEvent">;
 
 /** The deck ignore list's key, which needs the source's event id too. */
-export interface MetaDeckSourceKey extends MetaSourceKey {
-  eventExternalId: string;
-}
+export type MetaDeckSourceKey = ContractInput<typeof adminMetaCandidatesContract, "unignoreDeck">;
 
 const unignoreMetaEventFn = createServerFn({ method: "POST" })
   .validator((input: MetaSourceKey) => input)
@@ -491,12 +482,13 @@ const linkMetaCandidateEventFn = createServerFn({ method: "POST" })
   });
 
 /** Which verb a link action uses: `relink` moves a candidate that already has one. */
-export interface LinkMetaEventInput {
-  id: string;
-  metaEventId: string;
+export type LinkMetaEventInput = ContractInput<
+  typeof adminMetaCandidatesContract,
+  "linkCandidateEvent"
+> & {
   /** True when the candidate is already linked, since `link` refuses that. */
   relink?: boolean;
-}
+};
 
 /**
  * Points a candidate event at a live event, or moves an existing link.
@@ -548,11 +540,10 @@ const linkMetaCandidateDeckFn = createServerFn({ method: "POST" })
   });
 
 /** A candidate deck may only link to a deck inside its own event's live event. */
-export interface LinkMetaDeckInput {
-  id: string;
-  deckId: string;
-  relink?: boolean;
-}
+export type LinkMetaDeckInput = ContractInput<
+  typeof adminMetaCandidatesContract,
+  "linkCandidateDeck"
+> & { relink?: boolean };
 
 /**
  * Points a candidate deck at an archived deck, or moves an existing link.

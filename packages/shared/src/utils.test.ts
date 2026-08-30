@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { makePrinting as stubPrinting } from "./test-factories.js";
 import type { CardType, Printing } from "./types/index";
 import {
   boundsOf,
@@ -24,50 +25,16 @@ import {
 } from "./utils";
 
 function makePrinting(overrides: Partial<Printing> & { language: string }): Printing {
-  return {
+  return stubPrinting({
     id: "p1",
     cardId: "card1",
-    shortCode: "SET-001",
     setId: "SET-A",
     setSlug: "set-a",
-    setReleased: true,
-    rarity: "common",
     artVariant: "standard",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
-    images: [],
-    artist: "Artist",
     publicCode: "001",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    canonicalRank: 0,
-    card: {
-      slug: "card-1",
-      name: "Card 1",
-      type: "unit",
-      types: ["unit"],
-      superTypes: [],
-      domains: [],
-      tokenCardIds: [],
-      might: null,
-      energy: null,
-      power: null,
-      keywords: [],
-      tags: [],
-      mightBonus: null,
-      maxCopiesOverride: null,
-      errata: null,
-      bans: [],
-    },
+    card: { slug: "card-1", name: "Card 1" },
     ...overrides,
-  };
+  });
 }
 
 describe("legendDisplayName", () => {

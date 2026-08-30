@@ -590,19 +590,13 @@ function toMarketplaceGroup(
     might: group.might,
     setId: group.setId,
     setName: group.setName,
-    printings: group.printings.map((p) => ({
-      printingId: p.printingId,
-      setId: p.setId,
-      shortCode: p.shortCode,
-      rarity: p.rarity,
-      artVariant: p.artVariant,
-      isSigned: p.isSigned,
-      markerSlugs: p.markerSlugs,
-      finish: p.finish,
-      language: p.language,
-      imageUrl: p.imageUrl,
-      externalId: assignmentByPrinting.get(p.printingId) ?? null,
-    })),
+    // The merged per-marketplace ids give way to this marketplace's own.
+    printings: group.printings.map(
+      ({ tcgExternalId: _tcg, cmExternalId: _cm, ctExternalId: _ct, ...printing }) => ({
+        ...printing,
+        externalId: assignmentByPrinting.get(printing.printingId) ?? null,
+      }),
+    ),
     stagedProducts: mkData.stagedProducts,
     assignedProducts: mkData.assignedProducts,
     // Only CardTrader has per-language SKUs; on TCG/CM every language shares

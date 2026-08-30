@@ -1,10 +1,9 @@
 import type {
-  CompletionScopePreference,
-  Currency,
-  DefaultCardView,
-  Marketplace,
+  DisplayPreferenceKey,
+  DisplayPreferenceOverrides,
+  DisplayPreferences,
 } from "@openrift/shared";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import { DISPLAY_PREFERENCE_KEYS, PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -33,65 +32,40 @@ const DEFAULT_TIER_TILE_STEP = 2;
 
 // ── Override types (nullable — null means "use default") ────────────────────
 
-export interface DisplayOverrides {
-  showImages: boolean | null;
-  fancyFan: boolean | null;
-  foilEffect: boolean | null;
-  cardTilt: boolean | null;
-  marketplaceOrder: Marketplace[] | null;
-  languages: string[] | null;
-  completionScope: CompletionScopePreference | null;
-  defaultCardView: DefaultCardView | null;
-  defaultCurrency: Currency | null;
-  topLevelFilters: string[] | null;
-}
+/** The store's name for the shape, which lives with the preferences it mirrors. */
+export type DisplayOverrides = DisplayPreferenceOverrides;
 
-const NULL_OVERRIDES: DisplayOverrides = {
-  showImages: null,
-  fancyFan: null,
-  foilEffect: null,
-  cardTilt: null,
-  marketplaceOrder: null,
-  languages: null,
-  completionScope: null,
-  defaultCardView: null,
-  defaultCurrency: null,
-  topLevelFilters: null,
-};
+export const NULL_OVERRIDES: DisplayOverrides = Object.fromEntries(
+  DISPLAY_PREFERENCE_KEYS.map((key) => [key, null]),
+) as DisplayOverrides;
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
 
-function resolveAll(overrides: DisplayOverrides) {
-  return {
-    showImages: overrides.showImages ?? PREFERENCE_DEFAULTS.showImages,
-    fancyFan: overrides.fancyFan ?? PREFERENCE_DEFAULTS.fancyFan,
-    foilEffect: overrides.foilEffect ?? PREFERENCE_DEFAULTS.foilEffect,
-    cardTilt: overrides.cardTilt ?? PREFERENCE_DEFAULTS.cardTilt,
-    marketplaceOrder: overrides.marketplaceOrder ?? [...PREFERENCE_DEFAULTS.marketplaceOrder],
-    languages: overrides.languages ?? [...PREFERENCE_DEFAULTS.languages],
-    completionScope: overrides.completionScope ?? { ...PREFERENCE_DEFAULTS.completionScope },
-    defaultCardView: overrides.defaultCardView ?? PREFERENCE_DEFAULTS.defaultCardView,
-    defaultCurrency: overrides.defaultCurrency ?? PREFERENCE_DEFAULTS.defaultCurrency,
-    topLevelFilters: overrides.topLevelFilters ?? [...PREFERENCE_DEFAULTS.topLevelFilters],
-  };
+/**
+ * Fills every unset override from {@link PREFERENCE_DEFAULTS}. Array and object
+ * defaults are copied, so a resolved value is never the shared default instance.
+ *
+ * @returns Every display preference, concrete.
+ */
+function resolveAll(overrides: DisplayOverrides): DisplayPreferences {
+  const resolved: Record<string, unknown> = {};
+  for (const key of DISPLAY_PREFERENCE_KEYS) {
+    const override = overrides[key];
+    const value = override ?? PREFERENCE_DEFAULTS[key];
+    resolved[key] = Array.isArray(value)
+      ? [...value]
+      : typeof value === "object" && value !== null
+        ? { ...value }
+        : value;
+  }
+  return resolved as DisplayPreferences;
 }
 
 // ── Store ───────────────────────────────────────────────────────────────────
 
-interface DisplayState {
-  // Resolved values — always concrete, read by components
-  showImages: boolean;
-  fancyFan: boolean;
-  foilEffect: boolean;
-  cardTilt: boolean;
-  marketplaceOrder: Marketplace[];
-  languages: string[];
-  completionScope: CompletionScopePreference;
-  defaultCardView: DefaultCardView;
-  defaultCurrency: Currency;
-  topLevelFilters: string[];
-
-  // Nullable overrides — persisted to localStorage and synced to DB
+interface DisplayState extends DisplayPreferences {
+  // Resolved values (from DisplayPreferences) are always concrete, read by
+  // components. Nullable overrides are persisted to localStorage and synced to DB.
   overrides: DisplayOverrides;
 
   // True once server prefs have been merged (or we know none exist). Consumers
@@ -101,31 +75,19 @@ interface DisplayState {
   markPrefsHydrated: () => void;
 
   // Setters (explicitly set a preference)
-  setShowImages: (value: boolean) => void;
-  setFancyFan: (value: boolean) => void;
-  setFoilEffect: (value: boolean) => void;
-  setCardTilt: (value: boolean) => void;
-  setMarketplaceOrder: (value: Marketplace[]) => void;
-  setLanguages: (value: string[]) => void;
-  setCompletionScope: (value: CompletionScopePreference) => void;
-  setDefaultCardView: (value: DefaultCardView) => void;
-  setDefaultCurrency: (value: Currency) => void;
-  setTopLevelFilters: (value: string[]) => void;
+  setShowImages: (value: DisplayPreferences["showImages"]) => void;
+  setFancyFan: (value: DisplayPreferences["fancyFan"]) => void;
+  setFoilEffect: (value: DisplayPreferences["foilEffect"]) => void;
+  setCardTilt: (value: DisplayPreferences["cardTilt"]) => void;
+  setMarketplaceOrder: (value: DisplayPreferences["marketplaceOrder"]) => void;
+  setLanguages: (value: DisplayPreferences["languages"]) => void;
+  setCompletionScope: (value: DisplayPreferences["completionScope"]) => void;
+  setDefaultCardView: (value: DisplayPreferences["defaultCardView"]) => void;
+  setDefaultCurrency: (value: DisplayPreferences["defaultCurrency"]) => void;
+  setTopLevelFilters: (value: DisplayPreferences["topLevelFilters"]) => void;
 
   // Reset a top-level preference to its default
-  resetPreference: (
-    key:
-      | "showImages"
-      | "fancyFan"
-      | "foilEffect"
-      | "cardTilt"
-      | "marketplaceOrder"
-      | "languages"
-      | "completionScope"
-      | "defaultCardView"
-      | "defaultCurrency"
-      | "topLevelFilters",
-  ) => void;
+  resetPreference: (key: DisplayPreferenceKey) => void;
 
   // Clear all account-scoped overrides (used on sign-out so the next visitor
   // sees the unauthenticated defaults). Device-local state (maxColumns,
@@ -245,38 +207,15 @@ export const useDisplayStore = create<DisplayState>()(
         set((state) => {
           // Merge: only overwrite fields the server explicitly provided.
           // Undefined fields keep the existing localStorage value.
-          const merged: DisplayOverrides = {
-            showImages:
-              incoming.showImages === undefined ? state.overrides.showImages : incoming.showImages,
-            fancyFan:
-              incoming.fancyFan === undefined ? state.overrides.fancyFan : incoming.fancyFan,
-            foilEffect:
-              incoming.foilEffect === undefined ? state.overrides.foilEffect : incoming.foilEffect,
-            cardTilt:
-              incoming.cardTilt === undefined ? state.overrides.cardTilt : incoming.cardTilt,
-            marketplaceOrder:
-              incoming.marketplaceOrder === undefined
-                ? state.overrides.marketplaceOrder
-                : incoming.marketplaceOrder,
-            languages:
-              incoming.languages === undefined ? state.overrides.languages : incoming.languages,
-            completionScope:
-              incoming.completionScope === undefined
-                ? state.overrides.completionScope
-                : incoming.completionScope,
-            defaultCardView:
-              incoming.defaultCardView === undefined
-                ? state.overrides.defaultCardView
-                : incoming.defaultCardView,
-            defaultCurrency:
-              incoming.defaultCurrency === undefined
-                ? state.overrides.defaultCurrency
-                : incoming.defaultCurrency,
-            topLevelFilters:
-              incoming.topLevelFilters === undefined
-                ? state.overrides.topLevelFilters
-                : incoming.topLevelFilters,
-          };
+          const merged = { ...state.overrides };
+          for (const key of DISPLAY_PREFERENCE_KEYS) {
+            const value = incoming[key];
+            if (value !== undefined) {
+              // Each key's override type matches its own slot; the loop widens
+              // both sides to the union, which TS can't pair up per-iteration.
+              (merged[key] as unknown) = value;
+            }
+          }
           return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),
 

@@ -8,6 +8,7 @@ import {
   searchPrefixFields,
   sortCards,
 } from "./filters";
+import { makePrinting as stubPrinting } from "./test-factories.js";
 import { ALL_SEARCH_FIELDS, EMPTY_CARD_FILTERS, NONE } from "./types";
 import type { Card, CardFilters, EnumOrders, Printing } from "./types";
 
@@ -43,62 +44,32 @@ function withPrice(printing: Printing, price: number): Printing {
 }
 const getTestPrice = (p: Printing): number | undefined => TEST_PRICES.get(p);
 
-// ---------------------------------------------------------------------------
-// Helpers — build minimal Printing objects for testing
-// ---------------------------------------------------------------------------
-
 function makePrinting(
   overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
 ): Printing {
-  const { card: cardOverrides, ...printingOverrides } = overrides;
-  const cardSlug = cardOverrides?.slug ?? "SET1-001";
-  const cardType = cardOverrides?.type ?? cardOverrides?.types?.[0] ?? "unit";
-  return {
+  const { card, ...printing } = overrides;
+  return stubPrinting({
     id: "00000000-0000-0000-0000-000000000001",
     cardId: "00000000-0000-0000-0000-000000000001",
     shortCode: "SET1-001",
     setId: "00000000-0000-0000-0000-0000000000a1",
     setSlug: "Set Alpha",
-    setReleased: true,
-    rarity: "common",
-    artVariant: "normal",
-    isSigned: false,
-    markers: [],
-    distributionChannels: [],
-    finish: "normal",
-    size: "standard",
     images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
     artist: "Jane Doe",
     publicCode: "ABCD",
-    printedRulesText: null,
-    printedEffectText: null,
-    flavorText: null,
-    printedName: null,
-    printedYear: null,
-    comment: null,
-    language: "EN",
-    canonicalRank: 0,
     card: {
-      slug: cardSlug,
-      name: "Test Card",
-      type: cardType,
-      types: [cardType],
-      superTypes: [],
+      slug: "SET1-001",
       domains: ["fury"],
-      tokenCardIds: [],
       energy: 3,
       might: 2,
       power: 4,
       keywords: ["Shield"],
       tags: ["Warrior"],
       mightBonus: 0,
-      maxCopiesOverride: null,
-      errata: null,
-      bans: [],
-      ...cardOverrides,
+      ...card,
     },
-    ...printingOverrides,
-  };
+    ...printing,
+  });
 }
 
 function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {

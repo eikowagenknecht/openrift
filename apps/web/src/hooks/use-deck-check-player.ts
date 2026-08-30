@@ -13,6 +13,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -20,18 +21,10 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
  * One of an own deck's id, a pasted deck code, or the parsed lines of a
  * pasted text list; `dryRun` previews the resolved list without writing.
  */
-export interface TournamentDeckSubmissionInput {
-  deckId?: string;
-  deckCode?: string;
-  cards?: { name: string; quantity: number; section: string }[];
-  /** Consent for the organizer to publish the deck list publicly; omitted = keep stored. */
-  allowDeckPublishing?: boolean;
-  /** Consent to show the player's name on public platforms; omitted = keep stored. */
-  allowNameSharing?: boolean;
-  /** Consent to show the player's Riot ID on public platforms; omitted = keep stored. */
-  allowRiotIdSharing?: boolean;
-  dryRun?: boolean;
-}
+export type TournamentDeckSubmissionInput = Omit<
+  ContractInput<typeof deckCheckPlayerContract, "editList">,
+  "entryId"
+>;
 
 // ── Server functions ────────────────────────────────────────────────────────
 

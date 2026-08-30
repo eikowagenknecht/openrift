@@ -305,3 +305,13 @@ export {
   suggestedRoundCount,
   swissPointsForPlacements,
 } from "./pairing/index.js";
+
+export type { ShareImageAspect, ShareImageQuery } from "./share-image-params.js";
+export {
+  aspectFromQuery,
+  MAX_IMAGE_SCALE,
+  qrFromQuery,
+  scaleFromQuery,
+  SHARE_IMAGE_CANVAS,
+  shareImageQueryParams,
+} from "./share-image-params.js";

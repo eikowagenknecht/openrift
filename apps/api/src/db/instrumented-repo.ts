@@ -1,4 +1,5 @@
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+import { recordSpanError } from "@openrift/shared/otel";
+import { trace } from "@opentelemetry/api";
 
 const tracer = trace.getTracer("openrift-api/repo");
 
@@ -33,11 +34,7 @@ export const instrumentRepo = <R extends RepoLike>(name: string, repo: R): R => 
         try {
           return await fn.apply(receiver, args);
         } catch (error) {
-          span.recordException(error as Error);
-          span.setStatus({
-            code: SpanStatusCode.ERROR,
-            message: error instanceof Error ? error.message : String(error),
-          });
+          recordSpanError(span, error);
           throw error;
         } finally {
           span.end();

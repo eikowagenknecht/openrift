@@ -226,6 +226,39 @@ export interface ResolvedPreferences {
   topLevelFilters: string[];
 }
 
+/**
+ * The preferences the card-browser display store owns. `theme` and `palette`
+ * are the two that live elsewhere: the theme store applies them before React
+ * mounts, so they can't wait on the display store's hydration.
+ */
+export const DISPLAY_PREFERENCE_KEYS = [
+  "showImages",
+  "fancyFan",
+  "foilEffect",
+  "cardTilt",
+  "marketplaceOrder",
+  "languages",
+  "completionScope",
+  "defaultCardView",
+  "defaultCurrency",
+  "topLevelFilters",
+] as const satisfies readonly (keyof ResolvedPreferences)[];
+
+/** One of {@link DISPLAY_PREFERENCE_KEYS}. */
+export type DisplayPreferenceKey = (typeof DISPLAY_PREFERENCE_KEYS)[number];
+
+/** {@link ResolvedPreferences} narrowed to the display store's own keys. */
+export type DisplayPreferences = Pick<ResolvedPreferences, DisplayPreferenceKey>;
+
+/**
+ * A display preference explicitly set by the viewer, or null to fall back to
+ * {@link PREFERENCE_DEFAULTS}. Persisted to localStorage and synced to the
+ * account.
+ */
+export type DisplayPreferenceOverrides = {
+  [K in DisplayPreferenceKey]: ResolvedPreferences[K] | null;
+};
+
 /** Default values for every preference. Used to resolve missing/null fields. */
 export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   showImages: true,

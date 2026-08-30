@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -45,11 +46,7 @@ export function useAdminPrintingCitations(printingId: string) {
   });
 }
 
-interface CreatePrintingCitationInput {
-  printingId: string;
-  label: string;
-  sourceUrl: string | null;
-}
+type CreatePrintingCitationInput = ContractInput<typeof adminPrintingCitationsContract, "create">;
 
 const createPrintingCitationFn = createServerFn({ method: "POST" })
   .validator((input: CreatePrintingCitationInput) => input)

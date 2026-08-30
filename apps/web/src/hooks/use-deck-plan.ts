@@ -6,27 +6,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 /** The plan payload the editor sends on save. Matchups carry no id (the server assigns them). */
-export interface DeckPlanSaveInput {
-  generalStrategy: string;
-  mulliganSplit: boolean;
-  mulliganGeneral: string;
-  mulliganFirst: string;
-  mulliganSecond: string;
-  battlefieldGame1CardId: string | null;
-  battlefieldFirstCardId: string | null;
-  battlefieldSecondCardId: string | null;
-  battlefieldCustom: boolean;
-  battlefieldNote: string;
-  matchups: {
-    opponentCardId: string | null;
-    opponentLabel: string;
-    notes: string;
-    swaps: { cardId: string; direction: "in" | "out"; quantity: number }[];
-  }[];
-}
+export type DeckPlanSaveInput = Omit<ContractInput<typeof decksContract, "replacePlan">, "id">;
 
 const fetchDeckPlanFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)

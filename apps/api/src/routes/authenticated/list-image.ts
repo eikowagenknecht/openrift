@@ -1,3 +1,4 @@
+import { aspectFromQuery, qrFromQuery, scaleFromQuery } from "@openrift/shared";
 import { Hono } from "hono";
 
 import { assertFound } from "../../lib/assertions.js";
@@ -8,7 +9,6 @@ import {
   shareUrlFromOrigin,
   siteHostFromOrigin,
 } from "../../services/list-image.js";
-import { aspectFromQuery, qrFromQuery, scaleFromQuery } from "../../services/share-image-core.js";
 import type { Variables } from "../../types.js";
 
 /**

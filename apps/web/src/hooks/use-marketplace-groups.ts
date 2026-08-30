@@ -1,4 +1,3 @@
-import type { Marketplace, MarketplaceGroupKind } from "@openrift/shared";
 import type { MarketplaceGroupsResponse } from "@openrift/shared/contracts/admin/marketplace-groups";
 import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts/admin/marketplace-groups";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
@@ -6,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -26,13 +26,12 @@ export function useMarketplaceGroups() {
   return useSuspenseQuery(marketplaceGroupsQueryOptions);
 }
 
-interface UpdateMarketplaceGroupInput {
-  marketplace: Marketplace;
+type UpdateMarketplaceGroupInput = Omit<
+  ContractInput<typeof adminMarketplaceGroupsContract, "update">,
+  "id"
+> & {
   groupId: number;
-  name?: string | null;
-  groupKind?: MarketplaceGroupKind;
-  setId?: string | null;
-}
+};
 
 const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
   .validator((input: UpdateMarketplaceGroupInput) => input)

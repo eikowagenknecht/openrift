@@ -77,7 +77,9 @@ const unifiedMappingPrintingResponseSchema = z
     artVariant: artVariantSchema,
     isSigned: z.boolean().openapi({ example: false }),
     markerSlugs: z.array(z.string()).openapi({ example: [] }),
+    /** The printing's own finish, which may be `metal` / `metal-deluxe` — finishes no marketplace sells. */
     finish: finishSchema,
+    /** The printing's physical size; no marketplace exposes this as a SKU dimension. */
     size: cardSizeSchema,
     language: z.string().openapi({ example: "EN" }),
     imageUrl: z.string().nullable().openapi({ example: null }),

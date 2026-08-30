@@ -1,3 +1,4 @@
+import type { Marketplace } from "@openrift/shared";
 import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -6,8 +7,6 @@ import { queryKeys } from "@/lib/query-keys";
 import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
-
-type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
 /** Unignore a whole upstream product (level 2). */
 interface UnignoreProductInput {

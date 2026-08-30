@@ -1,7 +1,9 @@
+import type { ShareImageAspect } from "@openrift/shared";
+import { SHARE_IMAGE_CANVAS } from "@openrift/shared";
+
 import type { Io } from "../io.js";
-import type { Child, Element, ShareImageAspect } from "./share-image-core.js";
+import type { Child, Element } from "./share-image-core.js";
 import {
-  CANVAS,
   CARD_ASPECT,
   COLORS,
   QR_SIZE,
@@ -40,7 +42,7 @@ import {
  * already looks like.
  */
 
-const { width: WIDTH, height: HEIGHT } = CANVAS.landscape;
+const { width: WIDTH, height: HEIGHT } = SHARE_IMAGE_CANVAS.landscape;
 const PAD = 24;
 const GAP = 10;
 const TITLE_H = 52;
@@ -60,7 +62,7 @@ const TITLE_SIZE = 34;
 const BYLINE_SIZE = 22;
 const META_SIZE = 20;
 
-const { width: V_WIDTH, height: V_HEIGHT } = CANVAS.vertical;
+const { width: V_WIDTH, height: V_HEIGHT } = SHARE_IMAGE_CANVAS.vertical;
 const V_PAD = 28;
 /** Title line, then the byline and the count on a second line beneath it. */
 const V_TITLE_H = 92;

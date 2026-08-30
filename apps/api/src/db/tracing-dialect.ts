@@ -1,4 +1,5 @@
-import { context, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
+import { recordSpanError } from "@openrift/shared/otel";
+import { context, SpanKind, trace } from "@opentelemetry/api";
 import {
   ATTR_DB_QUERY_TEXT,
   ATTR_DB_SYSTEM_NAME,
@@ -146,11 +147,7 @@ class TracingConnection implements DatabaseConnection {
         this.inner.executeQuery<R>(compiledQuery, options),
       );
     } catch (error) {
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: error instanceof Error ? error.message : String(error),
-      });
-      span.recordException(error as Error);
+      recordSpanError(span, error);
       throw error;
     } finally {
       span.end();
@@ -183,11 +180,7 @@ async function* wrapIteratorWithSpan<R>(
   try {
     yield* iter;
   } catch (error) {
-    span.setStatus({
-      code: SpanStatusCode.ERROR,
-      message: error instanceof Error ? error.message : String(error),
-    });
-    span.recordException(error as Error);
+    recordSpanError(span, error);
     throw error;
   } finally {
     span.end();
