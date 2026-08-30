@@ -1,5 +1,4 @@
 import type {
-  MetaCountsResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
   MetaEventDetailResponse,
@@ -13,11 +12,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
-import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
-
-/** Filters that scope the archive counts to one format and/or date window. */
-export type MetaCountsParams = ContractInput<typeof metaContract, "counts">;
 
 // Every read here is public and identical for every visitor, so the SSR
 // responses go through the shared `serverCache` rather than being refetched
@@ -117,35 +112,4 @@ export function metaDeckQueryOptions(token: string) {
 
 export function useMetaDeck(token: string) {
   return useSuspenseQuery(metaDeckQueryOptions(token));
-}
-
-const fetchMetaCounts = createServerFn({ method: "GET" })
-  .validator((input: MetaCountsParams) => input)
-  .middleware([withCookies])
-  .handler(({ context, data }): Promise<MetaCountsResponse> =>
-    serverCache.fetchQuery({
-      // The filters scope the counts, so they belong in the cache key —
-      // otherwise a filtered view would serve the unfiltered numbers.
-      queryKey: [
-        "server-cache",
-        "meta",
-        "counts",
-        data.format ?? null,
-        data.dateFrom ?? null,
-        data.dateTo ?? null,
-      ],
-      queryFn: () => apiOrpcClient(metaContract, context.cookie).counts(data),
-    }),
-  );
-
-export function metaCountsQueryOptions(params: MetaCountsParams = {}) {
-  return queryOptions({
-    queryKey: queryKeys.meta.counts(params.format, params.dateFrom, params.dateTo),
-    queryFn: () => fetchMetaCounts({ data: params }),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useMetaCounts(params: MetaCountsParams = {}) {
-  return useSuspenseQuery(metaCountsQueryOptions(params));
 }

@@ -10,7 +10,7 @@
  * use. Strings the `head` needs live here; the pages import them from here too.
  */
 
-/** Shared by the /meta description, the JSON-LD, and the visible page intro. */
+/** The /meta page's description, for search results and social cards. */
 export const META_DESCRIPTION =
   "Decklists from Riftbound tournaments, with the cards and legends they were built on. Every list links into the catalog and shows what you already own.";
 

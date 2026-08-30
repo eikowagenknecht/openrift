@@ -3,7 +3,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RouteErrorFallback } from "@/components/error-message";
 import { META_DESCRIPTION } from "@/components/meta/meta-copy";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaCountsQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
+import { metaDecksQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
+import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { metaOverviewSearchSchema } from "@/lib/meta-deck-search";
@@ -27,16 +28,15 @@ export const Route = createFileRoute("/_app/meta")({
       throw redirect({ to: "/cards" });
     }
   },
-  // The counts endpoint scopes server-side, so the filters are loader deps
-  // rather than a client-side narrowing.
-  loaderDeps: ({ search }) => ({ format: search.format, from: search.from, to: search.to }),
-  loader: async ({ context, deps }) => {
+  // The whole archive ships as two payloads and the page narrows both in the
+  // browser, so the scope params are not loader deps: changing one re-renders
+  // rather than re-fetching.
+  loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.ensureQueryData(publicSetListQueryOptions),
       context.queryClient.ensureQueryData(metaEventsQueryOptions),
-      context.queryClient.ensureQueryData(
-        metaCountsQueryOptions({ format: deps.format, dateFrom: deps.from, dateTo: deps.to }),
-      ),
+      context.queryClient.ensureQueryData(metaDecksQueryOptions),
     ]);
   },
   errorComponent: RouteErrorFallback,

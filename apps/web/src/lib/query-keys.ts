@@ -46,16 +46,14 @@ export const queryKeys = {
   },
   // Meta Archive (ADR-014): public, admin-curated — no user scoping. Admin
   // mutations invalidate the `all` prefix: every public read (events, decks,
-  // stats, and both detail shapes) denormalizes event fields, so any write can
-  // stale any of them.
+  // and both detail shapes) denormalizes event fields, so any write can stale
+  // any of them.
   meta: {
     all: ["meta"] as const,
     events: ["meta", "events"] as const,
     event: (slug: string) => ["meta", "events", slug] as const,
     decks: ["meta", "decks"] as const,
     deck: (token: string) => ["meta", "decks", token] as const,
-    counts: (format?: string, dateFrom?: string, dateTo?: string) =>
-      ["meta", "counts", format ?? null, dateFrom ?? null, dateTo ?? null] as const,
   },
   // The archive's signed-in surfaces (ADR-014): a contributor's own decklist
   // submissions and their credit setting. Both are scoped to the session user

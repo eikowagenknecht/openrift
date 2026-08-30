@@ -73,7 +73,7 @@ export function metaDeckViewFromPlayer(
  * server-side without a catalog lookup.
  * @returns The image, or null when the deck has no card in that zone.
  */
-function frontImage(imageId: string | null): PrintingImage | null {
+export function metaFrontImage(imageId: string | null): PrintingImage | null {
   return imageId === null ? null : { face: "front", imageId };
 }
 
@@ -167,8 +167,8 @@ export function MetaDeckCard({ deck }: { deck: MetaDeckSummary }) {
   return (
     <MetaDeckFrame deck={deck} className="relative flex flex-col overflow-hidden">
       <FannedPreview
-        legendImage={frontImage(deck.legendImageId)}
-        championImage={frontImage(deck.championImageId)}
+        legendImage={metaFrontImage(deck.legendImageId)}
+        championImage={metaFrontImage(deck.championImageId)}
       />
 
       <div className="flex flex-1 flex-col gap-2 p-3">

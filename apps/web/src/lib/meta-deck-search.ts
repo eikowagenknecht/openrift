@@ -1,6 +1,8 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
 import { z } from "zod";
 
+import { metaScopeSearchSchema } from "@/lib/meta-scope";
+
 /**
  * Search-param schema for the meta deck browser (ADR-014). Mirrors the deck
  * list's conventions: every field is optional and `.catch`es to undefined, so a
@@ -23,12 +25,10 @@ export const metaDeckSearchSchema = z.object({
 export type MetaDeckSearch = z.infer<typeof metaDeckSearchSchema>;
 
 /**
- * Search-param schema for the `/meta` overview. The stats endpoint scopes its
- * aggregates server-side, so these three drive the request rather than a
- * client-side narrowing.
+ * Search-param schema for the `/meta` front page: the archive-wide scope every
+ * page shares, plus the front page's own text search.
  */
-export const metaOverviewSearchSchema = z.object({
-  format: z.string().optional().catch(undefined),
-  from: z.string().optional().catch(undefined),
-  to: z.string().optional().catch(undefined),
+export const metaOverviewSearchSchema = metaScopeSearchSchema.extend({
+  /** Free text matched against event names, organizers and venues. */
+  q: z.string().optional().catch(undefined),
 });

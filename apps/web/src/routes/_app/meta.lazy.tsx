@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { MetaOverviewPage } from "@/components/meta/meta-overview-page";
+import { MetaFrontPage } from "@/components/meta/meta-front-page";
 
 export const Route = createLazyFileRoute("/_app/meta")({
-  component: MetaOverviewPage,
+  component: MetaFrontPage,
 });
