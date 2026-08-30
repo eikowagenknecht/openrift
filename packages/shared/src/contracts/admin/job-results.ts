@@ -22,6 +22,19 @@ export const regenerateImagesCheckpointSchema = z.object({
   skipExisting: z.boolean(),
 });
 
+/**
+ * Reads `job_runs.result` (typed `unknown`) as a regenerate checkpoint. Both the
+ * API's resume path and the admin page's progress panel go through this, so a
+ * field added above tightens the check on both sides at once.
+ * @param value The raw `job_runs.result` payload.
+ * @returns True when the value matches the checkpoint schema.
+ */
+export function isRegenerateImagesCheckpoint(
+  value: unknown,
+): value is z.infer<typeof regenerateImagesCheckpointSchema> {
+  return regenerateImagesCheckpointSchema.safeParse(value).success;
+}
+
 export const priceRefreshUpsertCountsSchema = z.object({
   total: z.number(),
   new: z.number(),

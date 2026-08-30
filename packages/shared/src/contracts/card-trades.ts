@@ -1,4 +1,5 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { CARD_TRADE_LIVE_PHASES } from "@openrift/shared/card-trade-lifecycle";
 import { contactMethodSchema, copyMetadataResponseShape } from "@openrift/shared/response-schemas";
 import { friendGroupSlugSchema, idParamSchema, withParams } from "@openrift/shared/schemas";
 import { z } from "zod";
@@ -230,7 +231,7 @@ export const cardTradeCopyOptionsResponseSchema = z
  * which lives in the client — nothing here is a display string.
  */
 export const cardTradeLivePhaseSchema = z
-  .enum(["asked", "offered", "reserved"])
+  .enum(CARD_TRADE_LIVE_PHASES)
   .openapi("CardTradeLivePhase");
 
 /**

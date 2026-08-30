@@ -6,6 +6,7 @@ import type {
   RehostImageResponse,
   UnrehostImagesResponse,
 } from "@openrift/shared";
+import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Io } from "../../io.js";
@@ -239,24 +240,6 @@ function appendCappedErrors(existing: string[], more: string[]): string[] {
   return combined.slice(combined.length - MAX_CHECKPOINT_ERRORS);
 }
 
-export function isRegenerateCheckpoint(value: unknown): value is RegenerateImagesCheckpoint {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-  const v = value as Record<string, unknown>;
-  return (
-    Array.isArray(v.snapshot) &&
-    typeof v.totalFiles === "number" &&
-    typeof v.lastProcessedIndex === "number" &&
-    typeof v.processed === "number" &&
-    typeof v.regenerated === "number" &&
-    typeof v.failed === "number" &&
-    Array.isArray(v.errors) &&
-    typeof v.cancelRequested === "boolean" &&
-    typeof v.skipExisting === "boolean"
-  );
-}
-
 interface RunRegenerateJobDeps {
   io: Io;
   printingImages: PrintingImagesRepo;
@@ -348,7 +331,7 @@ export async function runRegenerateImagesJob(
     // admin-only flow.
     const latestResult = await jobRuns.getResult(runId);
     const cancelRequested =
-      isRegenerateCheckpoint(latestResult) && latestResult.cancelRequested === true;
+      isRegenerateImagesCheckpoint(latestResult) && latestResult.cancelRequested === true;
     checkpoint = { ...checkpoint, cancelRequested };
 
     await jobRuns.updateResult(runId, checkpoint);

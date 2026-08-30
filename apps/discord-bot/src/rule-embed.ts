@@ -1,5 +1,5 @@
 import type { RuleKind } from "@openrift/shared";
-import { RULE_REFERENCE_REGEX } from "@openrift/shared";
+import { RULE_REFERENCE_REGEX, truncateWithEllipsis } from "@openrift/shared";
 import type { APIEmbed } from "discord.js";
 
 import { EMBED_COLOR } from "./card-embed.js";
@@ -13,10 +13,6 @@ const KIND_LABEL: Record<RuleKind, string> = { core: "Core Rules", tournament: "
 // single pathological rule body longer than BODY_LIMIT on its own.
 const BODY_LIMIT = 3200;
 const DESCRIPTION_LIMIT = 4000;
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-}
 
 /**
  * The site link for a rule: the kind-level rules page (which redirects to the
@@ -179,7 +175,10 @@ export function buildRuleEmbed(input: RuleEmbedInput): APIEmbed {
   }
   if (!isHeading) {
     parts.push(
-      truncate(linkifyRuleReferences(entry.rule.content, entry.kind, siteUrl), BODY_LIMIT),
+      truncateWithEllipsis(
+        linkifyRuleReferences(entry.rule.content, entry.kind, siteUrl),
+        BODY_LIMIT,
+      ),
     );
   }
   const children = descendants(index, entry);
@@ -194,7 +193,7 @@ export function buildRuleEmbed(input: RuleEmbedInput): APIEmbed {
 
   const citation = `${entry.prefix} ${entry.number}`;
   return {
-    title: truncate(isHeading ? `${citation} — ${entry.plain}` : citation, 256),
+    title: truncateWithEllipsis(isHeading ? `${citation} — ${entry.plain}` : citation, 256),
     url: ruleUrl(siteUrl, entry),
     description: parts.join("\n\n"),
     color: EMBED_COLOR,

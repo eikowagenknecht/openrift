@@ -1,10 +1,9 @@
 import type {
   CardTradeLiveAnnotation,
-  CardTradeLivePhase,
   CardTradeResponse,
   FriendGroupMatchRow,
 } from "@openrift/shared";
-import { cardTradeState, isLiveCardTradeStatus } from "@openrift/shared";
+import { cardTradeLivePhaseRank, cardTradeState, isLiveCardTradeStatus } from "@openrift/shared";
 
 /** The three buckets the per-group Trades tab groups trades into. */
 export type TradeSection = "action-needed" | "active" | "history";
@@ -403,19 +402,6 @@ export function maxTradeQuantity(demandQuantity: number, availableCount: number)
 }
 
 /**
- * Live-trade phases from least to most committed, matching the server ladder in
- * `apps/api/src/lib/card-trade-presenters.ts`. `asked` is a bid nobody acted on,
- * `offered` already consumes the giver's supply, `reserved` has copies pinned,
- * `traded` means the cards changed hands.
- */
-const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved"];
-
-/** @returns How committed a phase is; higher wins a collapse. */
-function phaseRank(phase: CardTradeLivePhase): number {
-  return LIVE_PHASE_ORDER.indexOf(phase);
-}
-
-/**
  * Indexes the flat live-trade annotations by printing so a card cell can look
  * up its own without scanning. The value is always an array: `uq_card_trades_live`
  * is unique per (group, giver, receiver, printing), so one printing can carry
@@ -471,7 +457,7 @@ export function collapseTradeAnnotations(
   // Rank giver above receiver at equal phase by adding a half step, which keeps
   // the whole comparison one number and never crosses into the next phase.
   const rank = (entry: CardTradeLiveAnnotation): number =>
-    phaseRank(entry.phase) + (entry.role === "giver" ? 0.5 : 0);
+    cardTradeLivePhaseRank(entry.phase) + (entry.role === "giver" ? 0.5 : 0);
   return annotations.reduce<CardTradeLiveAnnotation | null>(
     (best, entry) => (best === null || rank(entry) > rank(best) ? entry : best),
     null,

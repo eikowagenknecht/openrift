@@ -75,11 +75,6 @@ export function truncateTitle(title: string, max = TITLE_MAX_CHARS): string {
   return elideTitle(title, max);
 }
 
-export function formatLabelFromSlug(slug: string): string {
-  const spaced = slug.replaceAll("-", " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
 function byEnergyThenName(left: DeckImageCard, right: DeckImageCard): number {
   return (left.energy ?? 99) - (right.energy ?? 99) || left.cardName.localeCompare(right.cardName);
 }

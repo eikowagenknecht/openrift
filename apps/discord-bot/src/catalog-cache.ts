@@ -1,4 +1,5 @@
 import type {
+  CardStatLabels,
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
@@ -7,19 +8,17 @@ import type {
   PricesResponse,
   VariantLabelEnumLabels,
 } from "@openrift/shared";
+import { labelMap } from "@openrift/shared";
 
 export type CatalogCard = CatalogResponseCardValue & { id: string };
 export type CatalogPrinting = CatalogResponsePrintingValue & { id: string };
 
 /**
- * Slug → display label maps for the enum groups the embeds use. Extends the
- * shared variant-label groups so a printing's distinguishing attributes can be
- * named with `formatPrintingVariantLabel`, exactly as the site names them.
+ * Slug → display label maps for the enum groups the embeds use. Composed from
+ * the shared groups so a printing's variant label and a card's stat line are
+ * named exactly as the site names them.
  */
-export interface EnumLabels extends VariantLabelEnumLabels {
-  cardTypes: Record<string, string>;
-  superTypes: Record<string, string>;
-  domains: Record<string, string>;
+export interface EnumLabels extends VariantLabelEnumLabels, CardStatLabels {
   deckZones: Record<string, string>;
 }
 
@@ -39,10 +38,6 @@ interface CatalogFetchers {
   fetchCatalog: () => Promise<CatalogResponse>;
   fetchInit: () => Promise<InitResponse>;
   fetchPrices: () => Promise<PricesResponse>;
-}
-
-function labelMap(rows: readonly { slug: string; label: string }[]): Record<string, string> {
-  return Object.fromEntries(rows.map((row) => [row.slug, row.label]));
 }
 
 /**

@@ -1,4 +1,5 @@
 import { aspectFromQuery, qrFromQuery } from "@openrift/shared";
+import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { Hono } from "hono";
 
 import { assertFound } from "../../lib/assertions.js";
@@ -6,7 +7,6 @@ import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import {
   buildDeckImageCards,
-  formatLabelFromSlug,
   renderDeckImage,
   resolveCoverImageId,
 } from "../../services/deck-image.js";
@@ -57,7 +57,7 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
       {
         deckName: deck.name,
         ownerName: c.get("user")?.name ?? undefined,
-        formatLabel: formatLabelFromSlug(deck.format),
+        formatLabel: sentenceCaseSlug(deck.format),
         cards,
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl,

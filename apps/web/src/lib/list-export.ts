@@ -27,17 +27,6 @@ const KIND_NOUN: Record<ListKind, { one: string; many: string }> = {
 };
 
 /**
- * Title-cases a finish slug for display (e.g. "rainbow_foil" → "Rainbow Foil").
- * @returns The display label.
- */
-function titleCaseSlug(slug: string): string {
-  return slug
-    .split("_")
-    .map((word) => (word.length > 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
-    .join(" ");
-}
-
-/**
  * Short descriptor that disambiguates printings of the same card in a
  * printing/copy list. Short codes alone repeat across finishes/languages, so:
  * short code (always), finish only when the same card also has a different
@@ -48,6 +37,7 @@ function titleCaseSlug(slug: string): string {
 function variantSuffix(
   entry: ListEntryDetailResponse,
   siblings: readonly ListEntryDetailResponse[],
+  finishLabels: Record<string, string>,
 ): string {
   if (entry.kind === "card") {
     return "";
@@ -57,7 +47,7 @@ function variantSuffix(
     (other) => other.kind !== "card" && other.finish !== entry.finish,
   );
   if (entry.finish !== WellKnown.finish.NORMAL && finishVaries) {
-    parts.push(titleCaseSlug(entry.finish));
+    parts.push(finishLabels[entry.finish]);
   }
   if (entry.language !== WellKnown.language.EN) {
     parts.push(entry.language);
@@ -234,6 +224,7 @@ export function formatListShareText(
   kind: ListKind,
   entries: readonly ListEntryDetailResponse[],
   shareUrl: string | null,
+  finishLabels: Record<string, string>,
   pricing?: SharePricing,
 ): string {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
@@ -250,7 +241,7 @@ export function formatListShareText(
     const price = pricing ? tradePriceText(entry, pricing) : "";
     // A plain ASCII "x" multiplier, not "×" — the text gets pasted into
     // Cardmarket's wants import, which only parses "2x Name" lines.
-    return `${entry.quantity}x ${straightenApostrophes(entry.cardName)}${variantSuffix(entry, siblings)}${price}`;
+    return `${entry.quantity}x ${straightenApostrophes(entry.cardName)}${variantSuffix(entry, siblings, finishLabels)}${price}`;
   });
   const head = shareUrl ? [header, shareUrl, ""] : [header, ""];
   return [...head, ...lines].join("\n");

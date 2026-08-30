@@ -16,6 +16,12 @@ vi.mock("@/hooks/use-cards", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-enums", () => ({
+  useEnumOrders: () => ({
+    labels: { rarities: {}, conditions: {}, graders: {} },
+  }),
+}));
+
 // The filter pass itself is covered by use-filtered-list-entries.test.ts; the
 // dialog only has to scope the export to whatever it reports.
 let filtered: { hasActiveFilters: boolean; filteredEntries: ListEntryDetailResponse[] } = {

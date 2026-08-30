@@ -18,9 +18,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useFilteredListEntries } from "@/hooks/use-filtered-list-entries";
 import type { CsvExportFormat } from "@/lib/csv-export";
-import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
+import {
+  CSV_EXPORT_FORMATS,
+  csvExportFilename,
+  csvExportLabels,
+  downloadCSV,
+} from "@/lib/csv-export";
 import {
   formatCardListAsDeckText,
   formatCardmarketWants,
@@ -163,13 +169,14 @@ function CsvExport({
   options?: ReactNode;
 }) {
   const { printingsById, sets } = useCards();
+  const { labels } = useEnumOrders();
   const [format, setFormat] = useState<CsvExportFormat>("openrift");
 
   const stacks = stacksFromListEntries(entries, printingsById, sets);
   const cardCount = stacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
 
   const handleDownload = () => {
-    const csv = CSV_EXPORT_FORMATS[format].generate(stacks);
+    const csv = CSV_EXPORT_FORMATS[format].generate(stacks, csvExportLabels(sets, labels));
     downloadCSV(csv, csvExportFilename(format, listName));
     toast.success("List exported.");
   };

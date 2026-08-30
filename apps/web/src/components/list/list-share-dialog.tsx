@@ -11,6 +11,7 @@ import { Link } from "@tanstack/react-router";
 import { CopyTextButton } from "@/components/share/copy-text-button";
 import { ShareDialog } from "@/components/share/share-dialog";
 import { Button } from "@/components/ui/button";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useShareList, useUnshareList } from "@/hooks/use-lists";
 import { ensurePriceLookup } from "@/hooks/use-prices";
 import { formatListShareText } from "@/lib/list-export";
@@ -50,6 +51,7 @@ export function ListShareDialog({
   const shareList = useShareList();
   const unshareList = useUnshareList();
   const queryClient = useQueryClient();
+  const { labels } = useEnumOrders();
 
   const shareUrl = shareToken ? `${getSiteUrl()}/lists/share/${shareToken}` : null;
   const sharing = shareToken !== null;
@@ -70,7 +72,7 @@ export function ListShareDialog({
       }
     }
     // shareUrl is null when the list isn't shared; the text block omits it.
-    return formatListShareText(listName, kind, entries, shareUrl, {
+    return formatListShareText(listName, kind, entries, shareUrl, labels.finishes, {
       tradeDefaults,
       currency,
       ctPriceFor,

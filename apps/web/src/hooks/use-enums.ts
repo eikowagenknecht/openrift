@@ -1,24 +1,21 @@
 import type {
+  CardStatLabels,
   ColoredEnumRow,
   CustomTag,
   DeckZone,
   DistributionChannel,
   EnumOrders,
   EnumRow,
+  VariantLabelEnumLabels,
 } from "@openrift/shared";
+import { labelMap } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
 
 /** Label lookup maps for enums that need display labels in the UI. */
-export interface EnumLabels {
-  finishes: Record<string, string>;
+export interface EnumLabels extends VariantLabelEnumLabels, CardStatLabels {
   rarities: Record<string, string>;
-  domains: Record<string, string>;
-  cardTypes: Record<string, string>;
-  superTypes: Record<string, string>;
-  artVariants: Record<string, string>;
-  cardSizes: Record<string, string>;
   conditions: Record<string, string>;
   graders: Record<string, string>;
 }
@@ -33,8 +30,9 @@ function slugs(rows: readonly EnumRow[]): string[] {
   return sorted(rows).map((row) => row.slug);
 }
 
-function labelMap(rows: readonly EnumRow[]): Record<string, string> {
-  return Object.fromEntries(sorted(rows).map((row) => [row.slug, row.label]));
+/** @returns The slug → label lookup, keyed in the enum's own display order. */
+function sortedLabelMap(rows: readonly EnumRow[]): Record<string, string> {
+  return labelMap(sorted(rows));
 }
 
 /** @returns The slug → hex-color lookup for the rows that have a color set. */
@@ -72,7 +70,7 @@ export function useZoneOrder(): {
  */
 export function useLanguageLabels(): Record<string, string> {
   const { data } = useSuspenseQuery(initQueryOptions);
-  return labelMap(data.enums.languages ?? []);
+  return sortedLabelMap(data.enums.languages ?? []);
 }
 
 /**
@@ -248,15 +246,15 @@ export function useEnumOrders(): {
       cardSizes: slugs(d.cardSizes ?? []),
     },
     labels: {
-      finishes: labelMap(d.finishes ?? []),
-      rarities: labelMap(d.rarities ?? []),
-      domains: labelMap(d.domains ?? []),
-      cardTypes: labelMap(d.cardTypes ?? []),
-      superTypes: labelMap(d.superTypes ?? []),
-      artVariants: labelMap(d.artVariants ?? []),
-      cardSizes: labelMap(d.cardSizes ?? []),
-      conditions: labelMap(d.conditions ?? []),
-      graders: labelMap(d.graders ?? []),
+      finishes: sortedLabelMap(d.finishes ?? []),
+      rarities: sortedLabelMap(d.rarities ?? []),
+      domains: sortedLabelMap(d.domains ?? []),
+      cardTypes: sortedLabelMap(d.cardTypes ?? []),
+      superTypes: sortedLabelMap(d.superTypes ?? []),
+      artVariants: sortedLabelMap(d.artVariants ?? []),
+      cardSizes: sortedLabelMap(d.cardSizes ?? []),
+      conditions: sortedLabelMap(d.conditions ?? []),
+      graders: sortedLabelMap(d.graders ?? []),
     },
     domainColors: colorMap(d.domains ?? []),
     rarityColors: colorMap(d.rarities ?? []),

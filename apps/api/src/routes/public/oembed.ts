@@ -1,6 +1,6 @@
+import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { Hono } from "hono";
 
-import { formatLabelFromSlug } from "../../services/deck-image.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -114,7 +114,7 @@ async function resolveShare(
       if (!found) {
         return undefined;
       }
-      const formatLabel = formatLabelFromSlug(found.deck.format);
+      const formatLabel = sentenceCaseSlug(found.deck.format);
       return {
         title: `${found.deck.name} (${formatLabel} deck)`,
         authorName: found.ownerName ?? undefined,

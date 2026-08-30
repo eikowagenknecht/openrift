@@ -15,7 +15,6 @@
 export { downloadImage } from "./download.js";
 export {
   REGENERATE_IMAGES_KIND,
-  isRegenerateCheckpoint,
   rehostImageFile,
   rehostImages,
   rehostSingleImage,

@@ -1,5 +1,5 @@
 import type { StagedProductResponse } from "@openrift/shared";
-import { formatDayTime } from "@openrift/shared";
+import { formatCents, formatDayTime } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangleIcon, BanIcon, EllipsisVerticalIcon, LinkIcon, XIcon } from "lucide-react";
 import React, { useState } from "react";
@@ -40,7 +40,7 @@ import {
 } from "@/hooks/use-unified-mappings";
 
 import type { AssignableCard, SourceMappingConfig, StagedProduct } from "./price-mappings-types";
-import { formatCents, ProductLink } from "./price-mappings-utils";
+import { ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 
 const MARKETPLACES = ["tcgplayer", "cardmarket", "cardtrader"] as const;

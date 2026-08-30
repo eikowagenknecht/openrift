@@ -30,15 +30,6 @@ export const PAGE_PADDING_NO_TOP = `${PAGE_X} pb-3`;
 /** Footer padding — horizontal + bottom only. `pb-safe` clears the iOS home indicator. */
 export const FOOTER_PADDING_NO_TOP = `${PAGE_X} pb-safe`;
 
-/**
- * Capitalises the first character of a single word (e.g. "regions" → "Regions").
- *
- * @returns The capitalised word.
- */
-export function capitalize(word: string): string {
-  return word.length === 0 ? word : word[0].toUpperCase() + word.slice(1);
-}
-
 /** Returns a safe relative redirect path, or `undefined` if the input is missing or unsafe.
  * @returns The sanitized path, or `undefined` if invalid.
  */

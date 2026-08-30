@@ -462,3 +462,67 @@ export function formatShortCodesArray(ids: string[]): string[] {
   }
   return [...counts.entries()].map(([id, n]) => (n > 1 ? `${id} ×${n}` : id));
 }
+
+/**
+ * Capitalises the first character of a single word.
+ * @returns The capitalised word, or the input unchanged when empty.
+ */
+export function capitalize(word: string): string {
+  return word.length === 0 ? word : word[0].toUpperCase() + word.slice(1);
+}
+
+/** Slug word separators. Reference-table slugs use `-`; a few legacy ones use `_`. */
+const SLUG_SEPARATORS = /[-_]/u;
+
+/**
+ * Renders a slug as a sentence: only the first word is capitalised
+ * ("custom-region" → "Custom region"). Use where the label reads as prose.
+ * @returns The sentence-cased label.
+ */
+export function sentenceCaseSlug(slug: string): string {
+  return capitalize(slug.split(SLUG_SEPARATORS).filter(Boolean).join(" "));
+}
+
+/**
+ * Renders a slug as a title: every word is capitalised ("metal-deluxe" →
+ * "Metal Deluxe"). Use where the label stands alone as a name.
+ * @returns The title-cased label.
+ */
+export function titleCaseSlug(slug: string): string {
+  return slug
+    .split(SLUG_SEPARATORS)
+    .filter(Boolean)
+    .map((word) => capitalize(word))
+    .join(" ");
+}
+
+/**
+ * Shortens text to fit a hard character budget, marking the cut with an
+ * ellipsis that is itself counted. Used for the embed and chat-answer limits
+ * that reject an over-long field outright.
+ * @returns The text, elided only when it exceeds `max`.
+ */
+export function truncateWithEllipsis(text: string, max: number): string {
+  if (max <= 0) {
+    return "";
+  }
+  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+}
+
+/**
+ * A reference table's slug → label lookup, in the rows' given order.
+ * @returns The lookup map as a plain object.
+ */
+export function labelMap(rows: readonly { slug: string; label: string }[]): Record<string, string> {
+  return Object.fromEntries(rows.map((row) => [row.slug, row.label]));
+}
+
+/**
+ * Formats a minor-unit amount as currency. Fixed to the `en` number format
+ * (grouping and decimal separator), so a server-rendered price and the same
+ * price in the browser cannot disagree.
+ * @returns The formatted amount, e.g. `$4.52`.
+ */
+export function formatCents(cents: number, currency: string): string {
+  return new Intl.NumberFormat("en", { style: "currency", currency }).format(cents / 100);
+}

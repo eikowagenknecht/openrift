@@ -318,34 +318,35 @@ describe("parseImportData — RiftMana format", () => {
 
 describe("parseImportData — Piltover Archive language", () => {
   const header =
-    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Quantity,Language,Condition";
+    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Foil,Quantity," +
+    "Language,Condition,Grading Company,Grading Value,Grading Label,Notes";
 
   it("normalizes English to EN", () => {
-    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM`;
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,English,Near Mint,,,,`;
     const result = parseImportData(csv);
     expect(result.entries[0].language).toBe("EN");
   });
 
   it("normalizes French to FR", () => {
-    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,French,NM`;
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,French,Near Mint,,,,`;
     const result = parseImportData(csv);
     expect(result.entries[0].language).toBe("FR");
   });
 
   it("normalizes Chinese to SC", () => {
-    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,Chinese,NM`;
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,Chinese,Near Mint,,,,`;
     const result = parseImportData(csv);
     expect(result.entries[0].language).toBe("SC");
   });
 
   it("handles two-letter code directly", () => {
-    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,EN,NM`;
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,EN,Near Mint,,,,`;
     const result = parseImportData(csv);
     expect(result.entries[0].language).toBe("EN");
   });
 
   it("returns undefined for missing language column", () => {
-    const csv = "Variant Number,Card Name,Quantity\nOGN-001,Test,1";
+    const csv = "Variant Number,Card Name,Quantity,Foil\nOGN-001,Test,1,false";
     const result = parseImportData(csv);
     expect(result.entries[0].language).toBeUndefined();
   });
@@ -353,8 +354,8 @@ describe("parseImportData — Piltover Archive language", () => {
   it("keeps rows with different languages separate", () => {
     const csv = [
       header,
-      "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
-      "OGN-001,Test,Origins,OGN,Common,Standard,,2,Chinese,NM",
+      "OGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,English,Near Mint,,,,",
+      "OGN-001,Test,Origins,OGN,Common,Standard,Standard,false,2,Chinese,Near Mint,,,,",
     ].join("\n");
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(2);
@@ -366,8 +367,8 @@ describe("parseImportData — Piltover Archive language", () => {
   it("keeps same-language rows with different conditions separate (ADR-038)", () => {
     const csv = [
       header,
-      "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
-      "OGN-001,Test,Origins,OGN,Common,Standard,,2,English,LP",
+      "OGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,English,Near Mint,,,,",
+      "OGN-001,Test,Origins,OGN,Common,Standard,Standard,false,2,English,Light Played,,,,",
     ].join("\n");
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(2);
@@ -380,8 +381,8 @@ describe("parseImportData — Piltover Archive language", () => {
   it("aggregates rows with the same condition", () => {
     const csv = [
       header,
-      "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
-      "OGN-001,Test,Origins,OGN,Common,Standard,,2,English,NM",
+      "OGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,English,Near Mint,,,,",
+      "OGN-001,Test,Origins,OGN,Common,Standard,Standard,false,2,English,Near Mint,,,,",
     ].join("\n");
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
@@ -390,53 +391,167 @@ describe("parseImportData — Piltover Archive language", () => {
   });
 });
 
-describe("parseImportData — Piltover Archive promo", () => {
+describe("parseImportData — Piltover Archive variant columns", () => {
   const header =
-    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Quantity,Language,Condition";
+    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Foil,Quantity," +
+    "Language,Condition,Grading Company,Grading Value,Grading Label,Notes";
 
-  it("sets isPromo when a promo suffix is present", () => {
-    const csv = `${header}\nOGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM`;
+  it("reads the promo from the Variant Type, keeping the variant number intact", () => {
+    const csv = `${header}\nOGN-089b,Mind Rune,Origins | Nexus Night,OGN-NN,Showcase,Promo,OGN Nexus Night Promo,true,4,English,Near Mint,,,,`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].isPromo).toBe(true);
-    expect(result.entries[0].sourceCode).toBe("OGN-001");
+    expect(result.entries[0]).toMatchObject({
+      sourceCode: "OGN-089b",
+      isPromo: true,
+      finish: "foil",
+      artVariant: "altart",
+    });
   });
 
-  it("leaves isPromo undefined for non-promo rows", () => {
-    const csv = `${header}\nOGN-001,Hero,Origins,OGN,Common,Standard,,1,English,NM`;
+  it("leaves isPromo undefined for a standard row", () => {
+    const csv = `${header}\nOGN-090,Orb of Regret,Origins,OGN,Common,Standard,Standard,false,4,English,Near Mint,,,,`;
     const result = parseImportData(csv);
     expect(result.entries[0].isPromo).toBeUndefined();
   });
 
-  it("keeps rows with different promo suffixes separate", () => {
+  it("takes the finish from the Foil column, not the rarity", () => {
     const csv = [
       header,
-      "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM",
-      "OGN-001-Launch,Hero,Origins,OGN,Common,Standard,Launch,2,English,NM",
+      "OGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,true,1,English,Near Mint,,,,",
+      "OGN-025,Showcase Card,Origins,OGN,Showcase,Standard,Standard,false,1,English,Near Mint,,,,",
     ].join("\n");
     const result = parseImportData(csv);
-    expect(result.entries).toHaveLength(2);
-    const quantities = result.entries.map((e) => e.quantity).toSorted();
-    expect(quantities).toEqual([1, 2]);
+    const byCode = new Map(result.entries.map((entry) => [entry.sourceCode, entry]));
+    expect(byCode.get("OGN-001")?.finish).toBe("foil");
+    // A showcase card is always foil in print, but this row says otherwise and it wins.
+    expect(byCode.get("OGN-025")?.finish).toBe("normal");
   });
 
-  it("keeps rows with the same promo suffix but different conditions separate (ADR-038)", () => {
+  it("keeps the signed marker in the variant number", () => {
+    const csv = `${header}\nOGN-309*,"Sett, The Boss",Origins,OGN,Showcase,Overnumbered,Overnumbered Signed,true,4,English,Near Mint,,,,`;
+    const result = parseImportData(csv);
+    expect(result.entries[0]).toMatchObject({
+      sourceCode: "OGN-309*",
+      artVariant: "overnumbered",
+    });
+  });
+
+  it("reads grading and notes into the copy metadata", () => {
+    const csv = `${header}\nOGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,false,1,English,,PSA,9,PSA 9 MINT,lolli`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].metadata).toEqual({
+      grader: "psa",
+      grade: 9,
+      notesPublic: "lolli",
+    });
+  });
+
+  it("keeps a graded copy out of the raw copies beside it (ADR-038)", () => {
     const csv = [
       header,
-      "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM",
-      "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,2,English,LP",
+      "OGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,false,1,English,,PSA,9,PSA 9 MINT,lolli",
+      "OGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,false,1,English,,,,,",
     ].join("\n");
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(2);
-    const byCondition = new Map(result.entries.map((e) => [e.metadata?.condition, e.quantity]));
-    expect(byCondition.get("near-mint")).toBe(1);
-    expect(byCondition.get("light-played")).toBe(2);
+    const graded = result.entries.find((entry) => entry.metadata?.grader === "psa");
+    expect(graded?.quantity).toBe(1);
+    expect(graded?.metadata).toMatchObject({ grade: 9, notesPublic: "lolli" });
+  });
+
+  it("rejects a file with no Foil column rather than importing everything as non-foil", () => {
+    const csv = "Variant Number,Card Name,Quantity\nOGN-001,Blazing Scorcher,1";
+    const result = parseImportData(csv);
+    expect(result.entries).toEqual([]);
+    expect(result.errors).toContain('Missing required column: "Foil".');
+  });
+});
+
+describe("parseImportData — a real Piltover Archive export", () => {
+  // Rows copied verbatim from one of their exports, chosen to cover every
+  // variant shape it contains: plain, alt art, the `b` promo, the one Ultimate
+  // (typed Overnumbered and named only in the label), a signed `*`, the
+  // `-Suffix` promo forms, and a set prefix that is not three letters.
+  const CSV = [
+    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Foil,Quantity,Language,Condition,Grading Company,Grading Value,Grading Label,Notes",
+    "OGN-089,Mind Rune,Origins,OGN,Common,Standard,OGN Rune,false,4,English,Near Mint,,,,",
+    "OGN-089a,Mind Rune,Origins,OGN,Showcase,Alt Art,OGN Foil,true,4,English,Near Mint,,,,",
+    "OGN-089b,Mind Rune,Origins | Nexus Night,OGN-NN,Showcase,Promo,OGN Nexus Night Promo,true,4,English,Near Mint,,,,",
+    "UNL-238,Baron Nashor,Unleashed,UNL,Showcase,Overnumbered,Ultimate,true,4,English,Near Mint,,,,",
+    'OGN-300*,"Volibear, Relentless Storm",Origins,OGN,Showcase,Overnumbered Signed,Overnumbered Signed,true,4,English,Near Mint,,,,',
+    'OGN-309,"Miss Fortune, Bounty Hunter",Origins,OGN,Showcase,Overnumbered,Overnumbered,true,4,English,Near Mint,,,,',
+    'OGN-151b-Nexus,"Lee Sin, Centered",Unleashed | Nexus Night,UNL-NN,Showcase,Promo,Nexus Night Promo,true,4,English,Near Mint,,,,',
+    'OGN-263-Worlds,"Teemo, Swift Scout",Worlds Bundle 2025,WRLD25,Showcase,Promo,Worlds 2025 Bundle,true,4,English,Near Mint,,,,',
+    "OGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,false,1,English,,PSA,9,PSA 9 MINT,lolli",
+    "OGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,false,1,English,,,,,",
+  ].join("\n");
+
+  const result = parseImportData(CSV);
+  const byCode = new Map(
+    result.entries.map((entry) => [`${entry.sourceCode}::${entry.metadata?.grader ?? ""}`, entry]),
+  );
+
+  it("parses every row without error", () => {
+    expect(result.source).toBe("piltover-archive");
+    expect(result.errors).toEqual([]);
+    expect(result.entries).toHaveLength(10);
+  });
+
+  it("keeps the variant number verbatim, letter suffix and signed marker included", () => {
+    expect(byCode.has("OGN-089a::")).toBe(true);
+    expect(byCode.has("OGN-300*::")).toBe(true);
+  });
+
+  it("strips only the promo suffix their `-Suffix` forms carry", () => {
+    expect(byCode.get("OGN-151b::")).toMatchObject({ isPromo: true, artVariant: "altart" });
+    expect(byCode.get("OGN-263::")).toMatchObject({ isPromo: true, artVariant: "normal" });
+  });
+
+  it("reads the finish from the Foil column alone", () => {
+    expect(byCode.get("OGN-089::")?.finish).toBe("normal");
+    expect(byCode.get("OGN-089a::")?.finish).toBe("foil");
+  });
+
+  it("treats `*` as signed, not as an art variant", () => {
+    // Their Variant Type is what says overnumbered; the star only marks signing.
+    expect(byCode.get("OGN-300*::")?.artVariant).toBe("overnumbered");
+    expect(byCode.get("OGN-309::")?.artVariant).toBe("overnumbered");
+  });
+
+  it("takes Ultimate from the label, which is finer than the Overnumbered type", () => {
+    expect(byCode.get("UNL-238::")?.artVariant).toBe("ultimate");
+  });
+
+  it("keeps a graded copy out of the raw copy beside it (ADR-038)", () => {
+    expect(byCode.get("OGN-001::psa")).toMatchObject({
+      quantity: 1,
+      metadata: { grader: "psa", grade: 9, notesPublic: "lolli" },
+    });
+    expect(byCode.get("OGN-001::")?.quantity).toBe(1);
+  });
+
+  it("keeps a promo apart from the plain printing it shares a code with", () => {
+    // Both reduce to OGN-263 once the suffix is stripped, and they agree on
+    // finish, language and metadata, so only the suffix keeps them apart.
+    const csv = [
+      "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Foil,Quantity,Language,Condition,Grading Company,Grading Value,Grading Label,Notes",
+      'OGN-263,"Teemo, Swift Scout",Origins,OGN,Rare,Standard,Standard,true,4,English,Near Mint,,,,',
+      'OGN-263-Worlds,"Teemo, Swift Scout",Worlds Bundle 2025,WRLD25,Showcase,Promo,Worlds 2025 Bundle,true,4,English,Near Mint,,,,',
+    ].join("\n");
+    const promoPair = parseImportData(csv);
+    expect(promoPair.entries).toHaveLength(2);
+    expect(promoPair.entries.map((entry) => entry.quantity)).toEqual([4, 4]);
+    expect(promoPair.entries.filter((entry) => entry.isPromo)).toHaveLength(1);
+  });
+
+  it("records conditions written as full words", () => {
+    expect(byCode.get("OGN-089::")?.metadata?.condition).toBe("near-mint");
   });
 });
 
 describe("parseImportData — format detection", () => {
   it("still detects Piltover Archive format", () => {
-    const csv = "Variant Number,Card Name,Quantity\nOGN-001,Test,1";
+    const csv = "Variant Number,Card Name,Quantity,Foil\nOGN-001,Test,1,false";
     const result = parseImportData(csv);
     expect(result.source).toBe("piltover-archive");
   });

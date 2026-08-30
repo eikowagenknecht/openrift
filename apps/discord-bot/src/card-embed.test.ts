@@ -5,7 +5,6 @@ import {
   cardTextFields,
   cardWarnings,
   fallbackArtDifferences,
-  formatCents,
 } from "./card-embed.js";
 import { buildSnapshot } from "./catalog-cache.js";
 import {
@@ -27,16 +26,6 @@ function snapshotWithPrices(prices = makePricesResponse()) {
 }
 
 const LABELS = snapshotWithPrices().labels;
-
-describe("formatCents", () => {
-  it("formats USD cents", () => {
-    expect(formatCents(452, "USD")).toBe("$4.52");
-  });
-
-  it("formats EUR cents", () => {
-    expect(formatCents(380, "EUR")).toBe("€3.80");
-  });
-});
 
 describe("fallbackArtDifferences", () => {
   it("mirrors the site's badge order: language, markers, art variant, signed, finish", () => {

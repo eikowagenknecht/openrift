@@ -15,7 +15,8 @@
  * in a Twitch chat and in a Discord embed.
  */
 
-import { describeCardStats, legendDisplayName } from "@openrift/shared";
+import type { CardStatLabels } from "@openrift/shared";
+import { describeCardStats, legendDisplayName, truncateWithEllipsis } from "@openrift/shared";
 
 /** Character budget for a response line. See the module comment. */
 const CHAT_LINE_LIMIT = 400;
@@ -30,13 +31,6 @@ const QUERY_LIMIT = 60;
 /** Separator between the line's segments, matching the Discord bot's em dash. */
 const SEPARATOR = " — ";
 
-/** Slug → display label for the enum groups the stat line names. */
-export interface ChatEnumLabels {
-  cardTypes: Record<string, string>;
-  superTypes: Record<string, string>;
-  domains: Record<string, string>;
-}
-
 export interface ChatCard {
   slug: string;
   name: string;
@@ -47,13 +41,6 @@ export interface ChatCard {
   energy: number | null;
   might: number | null;
   power: number | null;
-}
-
-function truncate(text: string, max: number): string {
-  if (max <= 0) {
-    return "";
-  }
-  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
 /**
@@ -70,16 +57,16 @@ function oneLine(text: string): string {
  * no configured origin — in which case the line still carries the card, just
  * without a link.
  */
-export function chatCardLine(card: ChatCard, labels: ChatEnumLabels, siteUrl?: string): string {
+export function chatCardLine(card: ChatCard, labels: CardStatLabels, siteUrl?: string): string {
   const tail = siteUrl ? `${SEPARATOR}${siteUrl}/cards/${card.slug}` : "";
-  const name = truncate(oneLine(legendDisplayName(card)), NAME_LIMIT);
+  const name = truncateWithEllipsis(oneLine(legendDisplayName(card)), NAME_LIMIT);
   const room = CHAT_LINE_LIMIT - name.length - tail.length - SEPARATOR.length;
-  const description = truncate(describeCardStats(card, labels), room);
+  const description = truncateWithEllipsis(describeCardStats(card, labels), room);
   return description ? `${name}${SEPARATOR}${description}${tail}` : `${name}${tail}`;
 }
 
 export function chatMissLine(query: string, siteUrl?: string): string {
-  const safe = truncate(oneLine(query), QUERY_LIMIT);
+  const safe = truncateWithEllipsis(oneLine(query), QUERY_LIMIT);
   const tail = siteUrl ? ` Try ${siteUrl}/cards?search=${encodeURIComponent(safe)}` : "";
   return `No Riftbound card found for "${safe}".${tail}`;
 }

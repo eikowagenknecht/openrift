@@ -1,4 +1,5 @@
 import type { DeckResponse } from "@openrift/shared";
+import { capitalize } from "@openrift/shared";
 import { useState } from "react";
 
 import { TagMultiSelect, useCategoryTagSlugs } from "@/components/deck/format-tag-multi-select";
@@ -8,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useUpdateDeckMeta } from "@/hooks/use-decks";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
-import { capitalize } from "@/lib/utils";
 
 /**
  * Shown inside the deck builder when a tag-locked deck format has no tags

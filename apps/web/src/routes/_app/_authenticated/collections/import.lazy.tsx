@@ -48,12 +48,18 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
+import { useEnumOrders } from "@/hooks/use-enums";
 import type { ImportableListOption } from "@/hooks/use-import-flow";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import type { CsvExportFormat } from "@/lib/csv-export";
-import { CSV_EXPORT_FORMATS, csvExportFilename, downloadCSV } from "@/lib/csv-export";
+import {
+  CSV_EXPORT_FORMATS,
+  csvExportFilename,
+  csvExportLabels,
+  downloadCSV,
+} from "@/lib/csv-export";
 import type { MatchedEntry } from "@/lib/import-matcher";
 import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { partitionMatchedEntries } from "@/lib/import-summary";
@@ -137,6 +143,7 @@ function ExportSection() {
   const userId = useRequiredUserId();
   const { data: collections } = useCollections();
   const { allPrintings, sets } = useCards();
+  const { labels } = useEnumOrders();
   const [exportCollectionId, setExportCollectionId] = useState<string>("__all__");
   const [exportFormat, setExportFormat] = useState<CsvExportFormat>("openrift");
 
@@ -193,7 +200,11 @@ function ExportSection() {
     // Per-copy metadata (ADR-038): each printing exports one row per distinct
     // metadata combination, so conditions and notes survive the round trip.
     const copiesById = new Map(copies.map((copy) => [copy.id, copy]));
-    const csv = CSV_EXPORT_FORMATS[exportFormat].generate(sortedStacks, copiesById);
+    const csv = CSV_EXPORT_FORMATS[exportFormat].generate(
+      sortedStacks,
+      csvExportLabels(sets, labels),
+      copiesById,
+    );
 
     const collectionName =
       exportCollectionId === "__all__"

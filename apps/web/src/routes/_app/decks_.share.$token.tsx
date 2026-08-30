@@ -1,4 +1,5 @@
 import type { PublicDeckDetailResponse } from "@openrift/shared";
+import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Link2OffIcon } from "lucide-react";
 
@@ -11,18 +12,6 @@ import { seoHead } from "@/lib/seo";
 import { deckShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
-
-/**
- * Capitalize a deck-format slug for the SSR/meta context where no React hooks
- * are available. The `<head>` strings ship in the HTML before /init runs, so
- * we can't look up the admin-managed display label here — render the slug
- * with hyphens turned into spaces and the first letter capitalized.
- * @returns A presentable rendering of the slug.
- */
-function formatLabelFromSlug(slug: string): string {
-  const spaced = slug.replaceAll("-", " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 export const Route = createFileRoute("/_app/decks_/share/$token")({
   head: ({ loaderData, params }) => {
@@ -37,7 +26,9 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
     // summary, battlefields, and the cost-sorted deck. Versioned off the deck's
     // updatedAt (bumped on every card change), so the immutable URL busts on edit.
     const ogImage = deckShareImageUrl(siteUrl, params.token, shareImageVersion(deck.updatedAt));
-    const formatLabel = formatLabelFromSlug(deck.format);
+    // The `<head>` strings ship in the HTML before /init runs, so the
+    // admin-managed display label isn't available here.
+    const formatLabel = sentenceCaseSlug(deck.format);
     const title = `${deck.name} (${formatLabel} deck)`;
     const description =
       deck.description ?? `A ${formatLabel} Riftbound deck shared by ${owner.displayName}.`;

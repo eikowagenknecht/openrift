@@ -1,5 +1,5 @@
 import type { ContactMethod, CopyLink } from "@openrift/shared";
-import { copyHasMetadata, copyMetadataWeight } from "@openrift/shared";
+import { cardTradeLivePhaseRank, copyHasMetadata, copyMetadataWeight } from "@openrift/shared";
 import type {
   CardTradeActionNeeded,
   CardTradeCopyOption,
@@ -8,7 +8,6 @@ import type {
   CardTradeInitiator,
   CardTradeLiveAnnotation,
   CardTradeLiveByPrintingResponse,
-  CardTradeLivePhase,
   CardTradeResponse,
   CardTradeRole,
   CardTradeSheetGroup,
@@ -186,19 +185,6 @@ export function toCardTradeCopyOptions(input: {
   };
 }
 
-/**
- * Live-trade phases from least to most committed. `asked` is a bid nobody has
- * acted on, `offered` already consumes the giver's supply, and `reserved` has
- * physical copies pinned. Clients that can only show one marker per card
- * collapse along this ladder, so the order is part of the contract, not a
- * presentation detail.
- *
- * The ladder stops at `reserved`. Settling is per side, and a side that has
- * settled has nothing left to annotate, so a `traded` rung would have no rows
- * to carry.
- */
-const LIVE_PHASE_ORDER: readonly CardTradeLivePhase[] = ["asked", "offered", "reserved"];
-
 /** Roles in their response order: the viewer's own copies first. */
 const LIVE_ROLE_ORDER: readonly CardTradeRole[] = ["giver", "receiver"];
 
@@ -232,7 +218,7 @@ export function toCardTradeLiveByPrinting(
     (a, b) =>
       a.printingId.localeCompare(b.printingId) ||
       LIVE_ROLE_ORDER.indexOf(a.role) - LIVE_ROLE_ORDER.indexOf(b.role) ||
-      LIVE_PHASE_ORDER.indexOf(b.phase) - LIVE_PHASE_ORDER.indexOf(a.phase),
+      cardTradeLivePhaseRank(b.phase) - cardTradeLivePhaseRank(a.phase),
   );
   return { annotations: ordered.map((row) => toCardTradeLiveAnnotation(row)) };
 }

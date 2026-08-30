@@ -1,4 +1,4 @@
-import type { CopyResponse } from "@openrift/shared";
+import type { CopyResponse, Printing } from "@openrift/shared";
 import {
   formatDay,
   isAlwaysFoilRarity,
@@ -8,8 +8,41 @@ import {
 } from "@openrift/shared";
 
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
-import { conditionShortCode, piltoverConditionCode } from "@/lib/condition-codes";
+import { conditionShortCode } from "@/lib/condition-codes";
 import { languageNameForCode } from "@/lib/language-names";
+
+/**
+ * The display labels the writers put in text cells, so an export names a set,
+ * rarity, condition or grader exactly as the app does. Sets come from the
+ * catalog; the rest are the admin-managed enum tables.
+ */
+export interface CsvExportLabels {
+  /** Set slug to display name, e.g. `OGN` to `Origins`. */
+  sets: Record<string, string>;
+  rarities: Record<string, string>;
+  conditions: Record<string, string>;
+  graders: Record<string, string>;
+}
+
+/**
+ * Assembles the writers' labels from the catalog's sets and the enum tables.
+ * @returns The label lookups a CSV writer needs.
+ */
+export function csvExportLabels(
+  sets: readonly { slug: string; name: string }[],
+  labels: {
+    rarities: Record<string, string>;
+    conditions: Record<string, string>;
+    graders: Record<string, string>;
+  },
+): CsvExportLabels {
+  return {
+    sets: Object.fromEntries(sets.map((set) => [set.slug, set.name])),
+    rarities: labels.rarities,
+    conditions: labels.conditions,
+    graders: labels.graders,
+  };
+}
 
 const HEADERS = [
   "Card ID",
@@ -40,9 +73,14 @@ const PILTOVER_HEADERS = [
   "Rarity",
   "Variant Type",
   "Variant Label",
+  "Foil",
   "Quantity",
   "Language",
   "Condition",
+  "Grading Company",
+  "Grading Value",
+  "Grading Label",
+  "Notes",
 ] as const;
 
 function escapeField(value: string): string {
@@ -155,108 +193,98 @@ export function generateExportCSV(
   return lines.join("\n");
 }
 
-// Title-cases a slug like "proving-grounds" → "Proving Grounds".
-function titleCaseSlug(slug: string): string {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
+/** The marker slug Piltover treats as its own Variant Type rather than an art variant. */
+const PROMO_MARKER = "promo";
 
-// Maps an internal art variant to Piltover Archive's Variant Type label.
-function piltoverVariantType(artVariant: string): string {
-  switch (artVariant) {
-    case WellKnown.artVariant.ALTART: {
-      return "Alt Art";
-    }
-    case WellKnown.artVariant.OVERNUMBERED: {
-      return "Overnumbered";
-    }
-    case WellKnown.artVariant.ULTIMATE: {
-      return "Ultimate";
-    }
-    default: {
-      return "Standard";
-    }
+/**
+ * Piltover's Variant Type. Overnumbered wins over a promo marker (their
+ * `OGN-309` is a promo of ours yet types as Overnumbered) and a promo marker
+ * wins over the art variant (their `OGN-089b` is alt art yet types as Promo).
+ * @returns One of Piltover's Variant Type values.
+ */
+function piltoverVariantType(printing: Printing): string {
+  if (printing.artVariant === WellKnown.artVariant.OVERNUMBERED) {
+    return "Overnumbered";
   }
+  if (printing.markers.some((marker) => marker.slug === PROMO_MARKER)) {
+    return "Promo";
+  }
+  if (printing.artVariant === WellKnown.artVariant.ALTART) {
+    return "Alt Art";
+  }
+  if (printing.artVariant === WellKnown.artVariant.ULTIMATE) {
+    return "Ultimate";
+  }
+  return "Standard";
 }
 
 /**
- * Derives a single alphabetic promo suffix token for a Variant Number from a
- * marker label (e.g. "Nexus Night" → "NexusNight"). Piltover's variant-number
- * grammar only allows letters in the suffix, so non-letters are stripped.
- * @returns A letters-only token, or "Promo" when nothing remains.
+ * Piltover's Variant Label is editorial text of theirs ("OGN Rune", "OGN Foil",
+ * "Arcane Box Promo") that mixes set prefix, card type, finish and promo
+ * channel under no single rule, so it cannot be reconstructed. This writes the
+ * closest thing our own data supports: the variant type, named by the promo's
+ * markers where it has them, with signed copies marked as they mark them.
+ * @returns The Variant Label cell.
  */
-function promoSuffixToken(label: string): string {
-  const token = label.replaceAll(/[^A-Za-z]/gu, "");
-  return token || "Promo";
+function piltoverVariantLabel(printing: Printing, variantType: string): string {
+  const markerLabels = printing.markers.map((marker) => marker.label).join(" ");
+  const base = variantType === "Promo" && markerLabels ? markerLabels : variantType;
+  return printing.isSigned ? `${base} Signed` : base;
 }
 
 /**
  * Generates a CSV string in Piltover Archive's format from stacked copy
- * entries. The output round-trips through {@link parseImportData}: finish is
- * encoded as a `-Foil` suffix on the Variant Number, art variant as the short
- * code's letter/`*` modifier, and promos as an extra `-Label` suffix.
+ * entries. Their Variant Number is our short code verbatim, including the
+ * alt-art letter and the `*` that marks a signed printing, so nothing is
+ * encoded into it: finish rides in the `Foil` column and promos in the Variant
+ * Type, exactly as their own export writes them.
  *
- * Cards whose rarity is always foil (rare/epic/showcase) get no `-Foil` suffix
- * or label — Piltover Archive implies the finish from the rarity and rejects
- * the redundant marker. The importer infers foil the same way, so the round
- * trip is preserved.
+ * Every text cell is the stored display label, so an admin rename follows the
+ * export. `Grading Label` is left to them — it is their rendering of company
+ * plus value ("PSA 9 MINT"), and no grade-name table of ours would stay right.
  *
- * With a `copiesById` lookup, a printing exports one row per condition
- * (ADR-038). Unrecorded and graded copies fall back to "NM" because the
- * format requires a condition value.
- * @returns CSV text with Piltover Archive headers and one row per printing+condition.
+ * With a `copiesById` lookup a printing exports one row per distinct copy
+ * metadata (ADR-038), so a graded copy stays its own row instead of merging
+ * into the raw ones.
+ * @returns CSV text with Piltover Archive headers, one row per printing+metadata.
  */
 export function generatePiltoverArchiveCSV(
   stacks: StackedEntry[],
+  labels: CsvExportLabels,
   copiesById?: ReadonlyMap<string, CopyResponse>,
 ): string {
   const lines: string[] = [PILTOVER_HEADERS.join(",")];
 
   for (const stack of stacks) {
     const { printing } = stack;
-    // Only mark foil explicitly when the rarity doesn't already imply it.
-    const markFoil =
-      printing.finish === WellKnown.finish.FOIL && !isAlwaysFoilRarity(printing.rarity);
-    const [primaryMarker] = printing.markers;
+    const variantType = piltoverVariantType(printing);
+    const identity = [
+      printing.shortCode,
+      straightenApostrophes(legendDisplayName(printing.card)),
+      labels.sets[printing.setSlug],
+      printing.shortCode.split("-")[0] ?? "",
+      labels.rarities[printing.rarity],
+      variantType,
+      piltoverVariantLabel(printing, variantType),
+      // Their format knows only foil or not; metal and metal-deluxe are foil to them.
+      printing.finish === WellKnown.finish.NORMAL ? "false" : "true",
+    ];
 
-    let variantNumber = printing.shortCode;
-    if (primaryMarker) {
-      variantNumber += `-${promoSuffixToken(primaryMarker.label)}`;
-    }
-    if (markFoil) {
-      variantNumber += "-Foil";
-    }
-
-    const labelParts = printing.markers.map((marker) => marker.label);
-    if (markFoil) {
-      labelParts.push("Foil");
-    }
-
-    const setPrefix = printing.shortCode.split("-")[0] ?? "";
-
-    // One row per condition. Piltover's format has no grading concept, so
-    // graded copies export under the NM fallback like unrecorded ones.
-    const byCondition = new Map<string, number>();
     for (const group of groupStackByMetadata(stack.copyIds, copiesById)) {
-      const code = piltoverConditionCode(group.copy?.condition ?? null);
-      byCondition.set(code, (byCondition.get(code) ?? 0) + group.quantity);
-    }
-
-    for (const [conditionCode, quantity] of byCondition) {
+      const copy = group.copy;
+      const grader = copy?.grader ?? null;
+      const grade = copy?.grade ?? null;
+      const graded = grader !== null && grade !== null;
+      const condition = graded ? null : (copy?.condition ?? null);
       const row = [
-        variantNumber,
-        straightenApostrophes(legendDisplayName(printing.card)),
-        titleCaseSlug(printing.setSlug),
-        setPrefix,
-        titleCaseSlug(printing.rarity),
-        piltoverVariantType(printing.artVariant),
-        labelParts.join(" "),
-        String(quantity),
-        printing.language,
-        conditionCode,
+        ...identity,
+        String(group.quantity),
+        languageNameForCode(printing.language),
+        condition === null ? "" : labels.conditions[condition],
+        graded ? labels.graders[grader] : "",
+        graded ? String(grade) : "",
+        "",
+        copy?.notesPublic ?? "",
       ].map((field) => escapeField(field));
       lines.push(row.join(","));
     }
@@ -341,6 +369,7 @@ interface RiftManaRow {
  */
 export function generateRiftManaCSV(
   stacks: StackedEntry[],
+  labels: CsvExportLabels,
   copiesById?: ReadonlyMap<string, CopyResponse>,
 ): string {
   const rows = new Map<string, RiftManaRow>();
@@ -354,9 +383,9 @@ export function generateRiftManaCSV(
       row = {
         cardName: straightenApostrophes(legendDisplayName(printing.card)),
         cardId,
-        set: titleCaseSlug(printing.setSlug),
+        set: labels.sets[printing.setSlug],
         color: printing.card.domains.join(" / "),
-        rarity: titleCaseSlug(printing.rarity),
+        rarity: labels.rarities[printing.rarity],
         language: languageNameForCode(printing.language),
         normalQty: 0,
         foilQty: 0,
@@ -455,7 +484,7 @@ interface RiftCoreRow {
  * one row.
  * @returns CSV text with the RiftCore preamble, headers, and one row per card.
  */
-export function generateRiftCoreCSV(stacks: StackedEntry[]): string {
+export function generateRiftCoreCSV(stacks: StackedEntry[], labels: CsvExportLabels): string {
   const rows = new Map<string, RiftCoreRow>();
 
   for (const stack of stacks) {
@@ -466,10 +495,10 @@ export function generateRiftCoreCSV(stacks: StackedEntry[]): string {
       row = {
         cardId,
         cardName: straightenApostrophes(legendDisplayName(printing.card)),
-        set: titleCaseSlug(printing.setSlug),
+        set: labels.sets[printing.setSlug],
         cardNumber: printing.shortCode.split("-")[1] ?? "",
         type: printing.card.types.join(" / "),
-        rarity: titleCaseSlug(printing.rarity),
+        rarity: labels.rarities[printing.rarity],
         domain: printing.card.domains.join(" / "),
         standardQty: 0,
         foilQty: 0,
@@ -515,10 +544,18 @@ export const CSV_EXPORT_FORMATS: Record<
   {
     label: string;
     filenamePrefix: string;
-    generate: (stacks: StackedEntry[], copiesById?: ReadonlyMap<string, CopyResponse>) => string;
+    generate: (
+      stacks: StackedEntry[],
+      labels: CsvExportLabels,
+      copiesById?: ReadonlyMap<string, CopyResponse>,
+    ) => string;
   }
 > = {
-  openrift: { label: "OpenRift CSV", filenamePrefix: "openrift", generate: generateExportCSV },
+  openrift: {
+    label: "OpenRift CSV",
+    filenamePrefix: "openrift",
+    generate: (stacks, _labels, copiesById) => generateExportCSV(stacks, copiesById),
+  },
   piltover: {
     label: "Piltover Archive CSV",
     filenamePrefix: "piltover",
@@ -528,7 +565,7 @@ export const CSV_EXPORT_FORMATS: Record<
   riftcore: {
     label: "RiftCore CSV",
     filenamePrefix: "riftcore",
-    generate: (stacks) => generateRiftCoreCSV(stacks),
+    generate: (stacks, labels) => generateRiftCoreCSV(stacks, labels),
   },
 };
 

@@ -1,5 +1,5 @@
-import type { RegenerateImagesCheckpoint, RehostImageResponse } from "@openrift/shared";
-import { regenerateImagesCheckpointSchema } from "@openrift/shared/contracts/admin/job-results";
+import type { RehostImageResponse } from "@openrift/shared";
+import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -32,15 +32,6 @@ import {
 } from "@/lib/missing-images";
 
 const REGENERATE_KIND = "images.regenerate";
-
-/**
- * Type guard for reading `job_runs.result` (typed `unknown`) as a checkpoint.
- * Backed by the shared schema, so the guard and the type can't drift.
- * @returns True when the value matches the checkpoint schema.
- */
-function isRegenerateCheckpoint(value: unknown): value is RegenerateImagesCheckpoint {
-  return regenerateImagesCheckpointSchema.safeParse(value).success;
-}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -120,7 +111,7 @@ function RegenerateJobStatus({
 }: {
   run: { status: "running" | "succeeded" | "failed"; errorMessage: string | null; result: unknown };
 }) {
-  const checkpoint = isRegenerateCheckpoint(run.result) ? run.result : null;
+  const checkpoint = isRegenerateImagesCheckpoint(run.result) ? run.result : null;
   if (!checkpoint) {
     if (run.status === "failed") {
       return (
@@ -223,7 +214,7 @@ function ManageSection() {
   // A failed run with unprocessed items is auto-resumable from the server side;
   // surface that as a "Resume" label so the user knows what'll happen.
   const resumableCheckpoint =
-    latestRegenRun?.status === "failed" && isRegenerateCheckpoint(latestRegenRun.result)
+    latestRegenRun?.status === "failed" && isRegenerateImagesCheckpoint(latestRegenRun.result)
       ? latestRegenRun.result
       : null;
   const canResume =

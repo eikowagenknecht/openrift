@@ -1,17 +1,14 @@
+import type { CardStatLabels } from "@openrift/shared";
+import { labelMap } from "@openrift/shared";
+
 import type { Repos } from "../deps.js";
-import type { ChatEnumLabels } from "../lib/chat-presenters.js";
 import type { CardLookupIndex } from "./card-lookup-index.js";
 import { createCardLookupIndexLoader } from "./card-lookup-index.js";
 import { createContentAddressedCache } from "./catalog-assembly.js";
 
 export interface ChatCardIndex {
   index: CardLookupIndex;
-  labels: ChatEnumLabels;
-}
-
-/** @returns A slug → label map for a reference table's rows. */
-function labelMap(rows: readonly { slug: string; label: string }[]): Record<string, string> {
-  return Object.fromEntries(rows.map((row) => [row.slug, row.label]));
+  labels: CardStatLabels;
 }
 
 /**

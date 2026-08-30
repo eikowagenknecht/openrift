@@ -138,7 +138,7 @@ const VERTICAL_TITLE_MAX_CHARS = 32;
 // Re-exported so the routes, the oEmbed handler, and the tests keep importing
 // the deck image's public surface from one module.
 export type { DeckImageCard, DeckImageCardRef, DeckImageInput } from "./deck-image-parts.js";
-export { formatLabelFromSlug, truncateTitle } from "./deck-image-parts.js";
+export { truncateTitle } from "./deck-image-parts.js";
 
 /** Honors the pinned cover printing the same way the web resolves it. */
 export async function resolveCoverImageId(

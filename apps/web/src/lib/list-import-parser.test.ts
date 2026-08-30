@@ -112,8 +112,8 @@ describe("parseListImport", () => {
 
   it("routes a Piltover Archive CSV through the rich parser, preserving printing detail", () => {
     const csv = [
-      "Variant Number,Card Name,Set Prefix,Rarity,Variant Label,Quantity,Language",
-      "OGN-001-Foil,Blazing Scorcher,OGN,common,Foil,2,EN",
+      "Variant Number,Card Name,Set Prefix,Rarity,Variant Label,Foil,Quantity,Language",
+      "OGN-001,Blazing Scorcher,OGN,common,Standard,true,2,EN",
     ].join("\n");
     const result = parseListImport(csv);
     expect(result.errors).toEqual([]);

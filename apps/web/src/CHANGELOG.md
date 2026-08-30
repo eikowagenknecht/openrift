@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-30
+
+### Highlights
+
+- fix(Collection): **Piltover Archive import and export rebuilt** — imports now read their Foil column, grading and notes instead of guessing from the card's rarity, a graded copy no longer merges into the ungraded ones beside it, and exports write their real format so the file goes back where it came from.
+
+### Other
+
+- fix(Collection): **Finish names in shared lists** — a list copied as text guessed the finish name from its internal id, writing "Metal-deluxe", and now uses the same name the rest of the app shows.
+- fix(Collection): **Set and rarity names in CSV exports** — exports wrote the internal set id ("OGN") instead of the set name ("Origins").
+
 ## 2026-08-29
 
 ### Highlights

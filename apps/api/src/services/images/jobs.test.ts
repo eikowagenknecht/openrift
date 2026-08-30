@@ -12,7 +12,6 @@ import {
   resetImageMocks,
 } from "../../test/image-mocks.js";
 import {
-  isRegenerateCheckpoint,
   regenerateImagesBatch,
   rehostImageFile,
   rehostImages,
@@ -645,25 +644,5 @@ describe("runRegenerateImagesJob", () => {
     // First batch (10) ran; cancel checked after; second batch did not start.
     expect(final.processed).toBe(10);
     expect(final.cancelRequested).toBe(true);
-  });
-
-  it("isRegenerateCheckpoint accepts the canonical shape and rejects partial values", () => {
-    const ok = {
-      snapshot: [],
-      totalFiles: 0,
-      lastProcessedIndex: -1,
-      processed: 0,
-      regenerated: 0,
-      failed: 0,
-      errors: [],
-      resumedFromRunId: null,
-      cancelRequested: false,
-      skipExisting: false,
-    };
-    expect(isRegenerateCheckpoint(ok)).toBe(true);
-    expect(isRegenerateCheckpoint(null)).toBe(false);
-    expect(isRegenerateCheckpoint({})).toBe(false);
-    expect(isRegenerateCheckpoint({ ...ok, snapshot: "not-an-array" })).toBe(false);
-    expect(isRegenerateCheckpoint({ ...ok, cancelRequested: "no" })).toBe(false);
   });
 });

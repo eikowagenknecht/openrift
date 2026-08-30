@@ -18,8 +18,8 @@ vi.mock("../../services/share-image.js", () => ({
   ),
 }));
 
-// Mock only the heavy renderer; keep buildDeckImageCards/formatLabelFromSlug real
-// so the route's enrichment data flow is exercised.
+// Mock only the heavy renderer; keep buildDeckImageCards real so the route's
+// enrichment data flow is exercised.
 vi.mock("../../services/deck-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof DeckImageModule>()),
   renderDeckImage: vi.fn(() =>

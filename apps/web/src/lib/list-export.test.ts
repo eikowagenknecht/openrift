@@ -289,7 +289,7 @@ describe("withoutReservedCopies", () => {
 
   it("drops the reserved copy from the share text and the Cardmarket block", () => {
     const kept = withoutReservedCopies(binder);
-    expect(formatListShareText("Binder", "copy", kept, null)).toContain("2x Cleave · OGN-004");
+    expect(formatListShareText("Binder", "copy", kept, null, {})).toContain("2x Cleave · OGN-004");
     expect(
       formatCardmarketWants(kept.map((entry) => ({ name: entry.cardName, quantity: 1 }))),
     ).toBe("2x Cleave");
@@ -318,6 +318,7 @@ describe("withoutReservedCopies", () => {
 
 describe("formatListShareText", () => {
   const SHARE_URL = "https://openrift.app/lists/share/tok123";
+  const FINISH_LABELS = { normal: "Normal", foil: "Foil", "metal-deluxe": "Metal Deluxe" };
 
   it("renders a card-kind header, link, blank line, then a line per entry", () => {
     const output = formatListShareText(
@@ -325,6 +326,7 @@ describe("formatListShareText", () => {
       "card",
       [cardEntry("e1", "c1", "Teemo, Scout", 1), cardEntry("e2", "c2", "Jinx, Rebel", 2)],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(output).toBe(
       `Holiday Targets (2 cards)\n${SHARE_URL}\n\n1x Teemo, Scout\n2x Jinx, Rebel`,
@@ -341,6 +343,7 @@ describe("formatListShareText", () => {
         printingEntry("e3", "Disintegrate", 1, { shortCode: "OGN-050", language: "SC" }),
       ],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(output).toBe(
       `My Printings (3 printings)\n${SHARE_URL}\n\n2x Cleave · OGN-004\n1x Cleave · OGN-004 · Foil\n1x Disintegrate · OGN-050 · SC`,
@@ -353,6 +356,7 @@ describe("formatListShareText", () => {
       "printing",
       [printingEntry("e1", "Teemo, Scout", 1, { shortCode: "OGN-001" })],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(output.startsWith("Singles (1 printing)\n")).toBe(true);
   });
@@ -366,6 +370,7 @@ describe("formatListShareText", () => {
         printingEntry("e2", "Jinx, Rebel", 1, { shortCode: "OGN-002" }),
       ],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(output.startsWith("Binder (2 printings)\n")).toBe(true);
   });
@@ -376,12 +381,27 @@ describe("formatListShareText", () => {
       "card",
       [cardEntry("e1", "c1", "Kai’Sa, Survivor", 3)],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(output).toContain("3x Kai'Sa, Survivor");
   });
 
   it("omits the link line when the list isn't shared (shareUrl null)", () => {
-    expect(formatListShareText("Empty", "card", [], null)).toBe("Empty (0 cards)\n");
+    expect(formatListShareText("Empty", "card", [], null, FINISH_LABELS)).toBe("Empty (0 cards)\n");
+  });
+
+  it("names a finish by its stored label, not a cased slug", () => {
+    const output = formatListShareText(
+      "Mixed",
+      "printing",
+      [
+        printingEntry("e1", "Cleave", 1, { shortCode: "OGN-004" }),
+        printingEntry("e2", "Cleave", 1, { shortCode: "OGN-004", finish: "metal-deluxe" }),
+      ],
+      SHARE_URL,
+      FINISH_LABELS,
+    );
+    expect(output).toContain("1x Cleave · OGN-004 · Metal Deluxe");
   });
 
   it("shows 'Foil' only when the card also has a non-foil version in the list", () => {
@@ -393,6 +413,7 @@ describe("formatListShareText", () => {
         printingEntry("e2", "Cleave", 1, { shortCode: "OGN-004", finish: "foil" }),
       ],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(withCounterpart).toContain("1x Cleave · OGN-004 · Foil");
 
@@ -404,6 +425,7 @@ describe("formatListShareText", () => {
         printingEntry("e2", "Cleave", 1, { shortCode: "OGN-117", finish: "foil" }),
       ],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(foilOnly).not.toContain(" · Foil");
   });
@@ -419,6 +441,7 @@ describe("formatListShareText", () => {
         copyEntry("e4", "Disintegrate", { printingId: "p2", shortCode: "OGN-050" }),
       ],
       SHARE_URL,
+      FINISH_LABELS,
     );
     expect(output).toContain("3x Cleave · OGN-004");
     expect(output).toContain("1x Disintegrate · OGN-050");
@@ -440,7 +463,7 @@ describe("formatListShareText", () => {
         tradeOverride: { pricePref: "cm_lowest", priceAbsoluteCents: null, tradeType: "money" },
       },
     ];
-    const output = formatListShareText("Trades", "printing", entries, SHARE_URL, {
+    const output = formatListShareText("Trades", "printing", entries, SHARE_URL, FINISH_LABELS, {
       tradeDefaults: { pricePref: null, priceAbsoluteCents: null, tradeType: "money" },
       currency: "USD",
       ctPriceFor: (printingId) => (printingId === "p-e2" ? 4.5 : undefined),

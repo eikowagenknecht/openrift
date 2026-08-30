@@ -146,15 +146,67 @@ export function parseImportData(text: string): ParseResult {
  * Parses a Piltover Archive CSV export.
  *
  * Columns: Variant Number, Card Name, Set, Set Prefix, Rarity, Variant Type,
- *          Variant Label, Quantity, Language, Condition, ...
+ *          Variant Label, Foil, Quantity, Language, Condition,
+ *          Grading Company, Grading Value, Grading Label, Notes
  *
- * Foil is encoded as `-Foil` suffix on Variant Number, or "Foil" in Variant Label.
- * Alt art is encoded as a letter suffix (e.g. `a`) or Variant Type = "Alt Art".
- * Duplicate rows of the same variant AND condition are summed; rows that
- * differ only in condition stay separate so each imports with its condition
- * recorded (ADR-038).
+ * The Variant Number is the short code as we store it, letter suffix and
+ * signed `*` included, so only the promo/foil-free part needs parsing. Finish
+ * comes from the `Foil` column alone — the rarity no longer has to imply it.
+ *
+ * Rows are summed only when their variant AND their whole copy metadata match,
+ * so a graded copy never merges into the raw ones (ADR-038).
  * @returns Parsed entries and any parse errors.
  */
+/**
+ * Copy metadata from Piltover's grading and notes columns. Grading needs both a
+ * company and a finite value, and excludes a condition the way our own contract
+ * does — their graded rows leave Condition blank for the same reason.
+ * `Grading Label` is skipped: it is their rendering of the other two.
+ * @returns The metadata, or undefined when the row carries none.
+ */
+/**
+ * The art variant a Piltover row describes. Their columns name it, so they win
+ * over the variant number's modifier: a `*` there marks a *signed* printing
+ * (which stays in the short code) and says nothing about the art, so only the
+ * letter suffix implies alt art.
+ *
+ * The label is read before the type because it is the finer of the two: their
+ * one Ultimate card types as `Overnumbered` and is only named Ultimate there.
+ * @returns The art variant to match on.
+ */
+function piltoverArtVariant(
+  variantType: string,
+  variantLabel: string,
+  fromModifier?: ArtVariant,
+): ArtVariant {
+  if (variantLabel.trim().toLowerCase() === "ultimate") {
+    return WellKnown.artVariant.ULTIMATE;
+  }
+  if (variantType.trim().toLowerCase().startsWith("overnumbered")) {
+    return WellKnown.artVariant.OVERNUMBERED;
+  }
+  if (fromModifier === undefined || fromModifier === WellKnown.artVariant.OVERNUMBERED) {
+    return WellKnown.artVariant.NORMAL;
+  }
+  return fromModifier;
+}
+
+function parsePiltoverMetadata(record: Record<string, string>): ImportCopyMetadata | undefined {
+  const grader = record["Grading Company"]?.trim().toLowerCase() || undefined;
+  const gradeRaw = record["Grading Value"]?.trim();
+  const grade = gradeRaw ? Number(gradeRaw) : Number.NaN;
+  const graded = grader !== undefined && Number.isFinite(grade);
+  const condition = graded ? undefined : conditionSlugFromSource(record["Condition"]);
+  const notesPublic = record["Notes"]?.trim() || undefined;
+
+  const metadata: ImportCopyMetadata = {
+    ...(condition && { condition }),
+    ...(graded && { grader, grade }),
+    ...(notesPublic && { notesPublic }),
+  };
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
 function parsePiltoverArchive(text: string): ParseResult {
   const records = parseCSVWithHeaders(text);
   const errors: string[] = [];
@@ -169,7 +221,7 @@ function parsePiltoverArchive(text: string): ParseResult {
   }
 
   // Validate required columns exist
-  const required = ["Variant Number", "Card Name", "Quantity"];
+  const required = ["Variant Number", "Card Name", "Quantity", "Foil"];
   const firstRecord = records[0];
   for (const col of required) {
     if (!(col in firstRecord)) {
@@ -198,15 +250,10 @@ function parsePiltoverArchive(text: string): ParseResult {
     rowCount++;
 
     const parsed = parsePiltoverVariantNumber(variantNumber);
-
-    // Finish: check the -Foil suffix, Variant Label, and rarity (rare/epic/showcase are always foil)
-    const rarity = record["Rarity"]?.trim() ?? "";
-    const alwaysFoilRarity = isAlwaysFoilRarity(rarity);
-    const hasFoilSuffix = parsed?.hasFoilSuffix ?? variantNumber.endsWith("-Foil");
-    const finish: Finish =
-      hasFoilSuffix || variantLabel.toLowerCase().includes("foil") || alwaysFoilRarity
-        ? WellKnown.finish.FOIL
-        : WellKnown.finish.NORMAL;
+    const variantType = record["Variant Type"]?.trim() ?? "";
+    const finish: Finish = /^(?:true|yes|1)$/iu.test(record["Foil"]?.trim() ?? "")
+      ? WellKnown.finish.FOIL
+      : WellKnown.finish.NORMAL;
 
     const rawFields = buildRawFields({
       "Source Code": variantNumber,
@@ -217,30 +264,33 @@ function parsePiltoverArchive(text: string): ParseResult {
       "Variant Label": variantLabel,
       Language: record["Language"],
       Condition: record["Condition"],
+      "Grading Company": record["Grading Company"],
+      "Grading Value": record["Grading Value"],
+      Notes: record["Notes"],
     });
 
-    const condition = conditionSlugFromSource(record["Condition"]);
+    const metadata = parsePiltoverMetadata(record);
     const entry: ImportEntry = {
       setPrefix: parsed?.setPrefix ?? record["Set Prefix"]?.trim() ?? "",
       finish,
-      artVariant: parsed?.artVariant ?? WellKnown.artVariant.NORMAL,
+      artVariant: piltoverArtVariant(variantType, variantLabel, parsed?.artVariant),
       quantity,
       cardName,
       sourceCode: parsed?.shortCode ?? variantNumber,
-      isPromo: parsed?.promoSuffix ? true : undefined,
+      isPromo: variantType.toLowerCase() === "promo" ? true : undefined,
       language: languageCodeFromSource(record["Language"]),
-      metadata: condition ? { condition } : undefined,
+      metadata,
       rawFields,
     };
 
-    // Aggregate duplicates. Include the raw promo suffix so rows with
-    // different promo variants (e.g. "-Nexus" vs "-Launch") stay separate,
-    // the language so EN and SC printings of the same variant aren't merged,
-    // and the condition so each condition imports as its own entry (ADR-038).
+    // Aggregate duplicates. The promo suffix is part of the key because it is
+    // stripped from the short code, and `OGN-263` and `OGN-263-Worlds` are two
+    // different printings that would otherwise pool. So is the metadata, so
+    // that a PSA 9 is never summed into the raw copies beside it (ADR-038).
     const promoKey = parsed?.promoSuffix?.toLowerCase() ?? "";
     const languageKey = entry.language ?? "";
-    const conditionKey = condition ?? "";
-    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}::${languageKey}::${conditionKey}`;
+    const metadataKey = JSON.stringify(metadata ?? null);
+    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}::${languageKey}::${metadataKey}`;
     const existing = aggregated.get(key);
     if (existing) {
       existing.quantity += entry.quantity;

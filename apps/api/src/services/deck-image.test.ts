@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { defaultIo } from "../io.js";
 import type { DeckImageCard } from "./deck-image.js";
-import { formatLabelFromSlug, renderDeckImage, truncateTitle } from "./deck-image.js";
+import { renderDeckImage, truncateTitle } from "./deck-image.js";
 
 // Exercises the real pipeline (font load + glyph rasterize + QR + satori +
 // sharp). No DB or media: a null imageId falls back to a name-only tile, which
@@ -212,13 +212,6 @@ describe("renderDeckImage (vertical)", () => {
     expect(meta.width).toBe(2160);
     expect(meta.height).toBe(3840);
   }, 30_000); // 2160×3840 is the heaviest canvas here; generous for cold CI.
-});
-
-describe("formatLabelFromSlug", () => {
-  it("capitalizes and de-hyphenates a format slug", () => {
-    expect(formatLabelFromSlug("constructed")).toBe("Constructed");
-    expect(formatLabelFromSlug("custom-region")).toBe("Custom region");
-  });
 });
 
 describe("truncateTitle", () => {

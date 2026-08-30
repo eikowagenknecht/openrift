@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { priceRefreshResponseSchema, regenerateImagesCheckpointSchema } from "./job-results.js";
+import {
+  isRegenerateImagesCheckpoint,
+  priceRefreshResponseSchema,
+  regenerateImagesCheckpointSchema,
+} from "./job-results.js";
 
 describe("regenerateImagesCheckpointSchema", () => {
   const valid = {
@@ -28,6 +32,15 @@ describe("regenerateImagesCheckpointSchema", () => {
   it("rejects null and primitives", () => {
     expect(regenerateImagesCheckpointSchema.safeParse(null).success).toBe(false);
     expect(regenerateImagesCheckpointSchema.safeParse("done").success).toBe(false);
+  });
+
+  it("narrows a job_runs.result payload through the guard", () => {
+    expect(isRegenerateImagesCheckpoint(valid)).toBe(true);
+    expect(isRegenerateImagesCheckpoint(null)).toBe(false);
+    expect(isRegenerateImagesCheckpoint({})).toBe(false);
+    expect(isRegenerateImagesCheckpoint({ ...valid, snapshot: "not-an-array" })).toBe(false);
+    expect(isRegenerateImagesCheckpoint({ ...valid, cancelRequested: "no" })).toBe(false);
+    expect(isRegenerateImagesCheckpoint({ ...valid, resumedFromRunId: 7 })).toBe(false);
   });
 });
 

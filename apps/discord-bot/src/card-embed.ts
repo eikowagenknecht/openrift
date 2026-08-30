@@ -1,9 +1,11 @@
 import type { Marketplace, MarketplaceInfoResponse } from "@openrift/shared";
 import {
   findStandardArtFallback,
+  formatCents,
   imageUrl,
   legendDisplayName,
   MARKETPLACE_LINKS,
+  truncateWithEllipsis,
   WellKnown,
 } from "@openrift/shared";
 import type { APIEmbed, APIEmbedField } from "discord.js";
@@ -115,7 +117,7 @@ function tradelistField(
   }
   return {
     name: tradelists.groupName ? `On tradelists in ${tradelists.groupName}` : "On tradelists",
-    value: truncate(lines.join("\n"), FIELD_LIMIT),
+    value: truncateWithEllipsis(lines.join("\n"), FIELD_LIMIT),
   };
 }
 
@@ -125,9 +127,6 @@ function tradelistField(
  *
  * @returns The formatted amount, e.g. `$4.52`.
  */
-export function formatCents(cents: number, currency: "USD" | "EUR"): string {
-  return new Intl.NumberFormat("en", { style: "currency", currency }).format(cents / 100);
-}
 
 /**
  * Builds the marketplace link for one price field: the product page (with the
@@ -240,10 +239,6 @@ export function printingFooter(printing: CatalogPrinting, snapshot: CatalogSnaps
   return parts.join(" · ");
 }
 
-export function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
-}
-
 /**
  * The errata's source and effective month, mirroring the site's `ErrataNotice`
  * header and linked when the errata has a source URL.
@@ -313,7 +308,7 @@ export function cardTextFields(
       formatCardText(rulesText, emojis),
       ...(corrected && errata ? [errataNote(errata)] : []),
     ].join("\n");
-    fields.push({ name: "Rules text", value: truncate(value, FIELD_LIMIT) });
+    fields.push({ name: "Rules text", value: truncateWithEllipsis(value, FIELD_LIMIT) });
   }
 
   const effectText = errata?.correctedEffectText ?? printing?.printedEffectText;
@@ -326,7 +321,7 @@ export function cardTextFields(
       ...(corrected && errata ? [errataNote(errata)] : []),
       ...(mightBonus === null ? [] : [`**Might bonus** +${mightBonus}`]),
     ].join("\n");
-    fields.push({ name: "Effect text", value: truncate(value, FIELD_LIMIT) });
+    fields.push({ name: "Effect text", value: truncateWithEllipsis(value, FIELD_LIMIT) });
   }
 
   return fields;

@@ -1,5 +1,10 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
-import { formatDayTime, marketplaceCarriesLanguage, WellKnown } from "@openrift/shared";
+import {
+  formatCents,
+  formatDayTime,
+  marketplaceCarriesLanguage,
+  WellKnown,
+} from "@openrift/shared";
 import { formatPrintingLabel, normalizeNameForIdentity } from "@openrift/shared/utils";
 import {
   AlertTriangleIcon,
@@ -44,7 +49,7 @@ import type {
   UnifiedMappingGroup,
   UnifiedMappingPrinting,
 } from "./price-mappings-types";
-import { formatCents, ProductLink } from "./price-mappings-utils";
+import { ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 import type { ProductSuggestion } from "./suggest-mapping";
 import { productSuggestionKey, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";

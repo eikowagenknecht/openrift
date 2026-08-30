@@ -4,23 +4,29 @@ import { makePrinting as stubPrinting } from "./test-factories.js";
 import type { CardType, Printing } from "./types/index";
 import {
   boundsOf,
+  capitalize,
   compareCardDisplayName,
   compareWithLanguagePreference,
   deckIdentityLabels,
   deduplicateByCard,
+  formatCents,
   formatPrintingLabel,
   centsToDollars,
   emptyToNull,
   getOrientation,
   cardSearchAltNames,
+  labelMap,
   legendDisplayName,
   mostCommonValue,
   normalizeNameForIdentity,
   preferredPrinting,
+  sentenceCaseSlug,
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
+  titleCaseSlug,
   toCents,
   trimToNull,
+  truncateWithEllipsis,
   unique,
 } from "./utils";
 
@@ -685,5 +691,94 @@ describe("preferredPrinting", () => {
 
   it("returns undefined for empty array", () => {
     expect(preferredPrinting([], ["EN"])).toBeUndefined();
+  });
+});
+
+describe("capitalize", () => {
+  it("uppercases the first character", () => {
+    expect(capitalize("regions")).toBe("Regions");
+  });
+
+  it("leaves an empty string alone", () => {
+    expect(capitalize("")).toBe("");
+  });
+});
+
+describe("sentenceCaseSlug", () => {
+  it("capitalizes only the first word", () => {
+    expect(sentenceCaseSlug("constructed")).toBe("Constructed");
+    expect(sentenceCaseSlug("custom-region")).toBe("Custom region");
+  });
+
+  it("treats underscores as word separators too", () => {
+    expect(sentenceCaseSlug("custom_region")).toBe("Custom region");
+  });
+
+  it("drops empty segments from a doubled or trailing separator", () => {
+    expect(sentenceCaseSlug("custom--region-")).toBe("Custom region");
+  });
+});
+
+describe("titleCaseSlug", () => {
+  it("capitalizes every word of a hyphenated slug", () => {
+    expect(titleCaseSlug("proving-grounds")).toBe("Proving Grounds");
+  });
+
+  // The finish slugs are hyphenated, so an underscore-only split rendered
+  // WellKnown.finish.METAL_DELUXE as "Metal-deluxe" on list exports.
+  it("capitalizes every word of an underscored slug", () => {
+    expect(titleCaseSlug("rainbow_foil")).toBe("Rainbow Foil");
+    expect(titleCaseSlug("metal-deluxe")).toBe("Metal Deluxe");
+  });
+
+  it("returns an empty string for an empty slug", () => {
+    expect(titleCaseSlug("")).toBe("");
+  });
+});
+
+describe("truncateWithEllipsis", () => {
+  it("leaves text within the budget untouched", () => {
+    expect(truncateWithEllipsis("Yasuo", 10)).toBe("Yasuo");
+    expect(truncateWithEllipsis("Yasuo", 5)).toBe("Yasuo");
+  });
+
+  it("counts the ellipsis against the budget", () => {
+    expect(truncateWithEllipsis("Yasuo", 4)).toBe("Yas…");
+  });
+
+  it("trims trailing space before the ellipsis", () => {
+    expect(truncateWithEllipsis("Yasuo Unforgiven", 7)).toBe("Yasuo…");
+  });
+
+  it("returns an empty string for a non-positive budget", () => {
+    expect(truncateWithEllipsis("Yasuo", 0)).toBe("");
+    expect(truncateWithEllipsis("Yasuo", -1)).toBe("");
+  });
+});
+
+describe("labelMap", () => {
+  it("keys rows by slug in input order", () => {
+    const map = labelMap([
+      { slug: "foil", label: "Foil" },
+      { slug: "metal-deluxe", label: "Metal Deluxe" },
+    ]);
+    expect(map).toEqual({ foil: "Foil", "metal-deluxe": "Metal Deluxe" });
+    expect(Object.keys(map)).toEqual(["foil", "metal-deluxe"]);
+  });
+
+  it("returns an empty object for no rows", () => {
+    expect(labelMap([])).toEqual({});
+  });
+});
+
+describe("formatCents", () => {
+  it("renders minor units as major-unit currency", () => {
+    expect(formatCents(452, "USD")).toBe("$4.52");
+    expect(formatCents(380, "EUR")).toBe("€3.80");
+    expect(formatCents(0, "USD")).toBe("$0.00");
+  });
+
+  it("groups thousands and keeps two decimals", () => {
+    expect(formatCents(123_456, "USD")).toBe("$1,234.56");
   });
 });

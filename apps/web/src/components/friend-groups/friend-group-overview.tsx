@@ -1,5 +1,5 @@
 import type { FriendGroupDetailResponse } from "@openrift/shared";
-import { formatDayTimeLocal } from "@openrift/shared";
+import { capitalize, formatDayTimeLocal } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, FolderIcon, HeartIcon, TrophyIcon, UsersIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
@@ -15,7 +15,7 @@ import { useGroupBoxWants } from "@/hooks/use-friend-groups";
 import { useGroupTournaments } from "@/hooks/use-tournaments";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { compareTournamentsForList, partitionTournaments } from "@/lib/tournament-display";
-import { capitalize, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 import { FriendGroupActivityFeed } from "./friend-group-activity-feed";
 import { isAdmin } from "./friend-group-shell";

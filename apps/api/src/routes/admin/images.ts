@@ -1,6 +1,7 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type { RegenerateImagesCheckpoint } from "@openrift/shared";
 import { adminImagesContract } from "@openrift/shared/contracts/admin/images";
+import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
@@ -14,7 +15,6 @@ import {
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
-  isRegenerateCheckpoint,
   migrateImageDirectories,
   rehostImages,
   runRegenerateImagesJob,
@@ -52,7 +52,7 @@ export const adminImagesRouter = {
       const prior = await repos.jobRuns.findLatestForResume(REGENERATE_IMAGES_KIND);
       if (
         prior?.status === "failed" &&
-        isRegenerateCheckpoint(prior.result) &&
+        isRegenerateImagesCheckpoint(prior.result) &&
         prior.result.lastProcessedIndex < prior.result.totalFiles - 1
       ) {
         resumeFrom = { runId: prior.id, checkpoint: prior.result };
@@ -86,7 +86,7 @@ export const adminImagesRouter = {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "No regenerate-images job is running");
     }
     const current = await jobRuns.getResult(running.id);
-    if (!isRegenerateCheckpoint(current)) {
+    if (!isRegenerateImagesCheckpoint(current)) {
       // Job started but hasn't written its first checkpoint yet — nothing to
       // flag. The caller can retry once progress shows up.
       throw new AppError(

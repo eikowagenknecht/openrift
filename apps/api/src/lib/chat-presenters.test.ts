@@ -1,11 +1,12 @@
+import type { CardStatLabels } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import type { ChatCard, ChatEnumLabels } from "./chat-presenters.js";
+import type { ChatCard } from "./chat-presenters.js";
 import { chatCardLine, chatErrorLine, chatMissLine, chatUsageLine } from "./chat-presenters.js";
 
 const SITE = "https://openrift.app";
 
-const labels: ChatEnumLabels = {
+const labels: CardStatLabels = {
   cardTypes: { unit: "Unit", spell: "Spell", battlefield: "Battlefield" },
   superTypes: { legend: "Legend", champion: "Champion" },
   domains: { fury: "Fury", mind: "Mind" },

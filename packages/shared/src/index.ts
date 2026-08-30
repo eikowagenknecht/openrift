@@ -53,6 +53,8 @@ export { effectiveTournamentState } from "./tournament-lifecycle.js";
 export type { EffectiveTournamentState } from "./tournament-lifecycle.js";
 
 export {
+  CARD_TRADE_LIVE_PHASES,
+  cardTradeLivePhaseRank,
   cardTradeState,
   isLiveCardTradeStatus,
   isTradedCardTrade,
@@ -130,20 +132,26 @@ export type {
 export {
   extractCardIdFromShortCode,
   formatPrintingLabel,
+  capitalize,
   cardSearchAltNames,
   centsToDollars,
   compareCardDisplayName,
   deckIdentityLabels,
   deduplicateByCard,
+  formatCents,
   getOrientation,
+  labelMap,
   legendDisplayName,
   preferredPrinting,
   mostCommonValue,
   normalizeNameForIdentity,
+  sentenceCaseSlug,
   slugifyName,
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
+  titleCaseSlug,
   trimToNull,
+  truncateWithEllipsis,
 } from "./utils.js";
 
 export type { CardNameParts } from "./utils.js";

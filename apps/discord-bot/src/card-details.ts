@@ -1,13 +1,7 @@
-import { describeCardStats, legendDisplayName } from "@openrift/shared";
+import { describeCardStats, legendDisplayName, truncateWithEllipsis } from "@openrift/shared";
 import type { APIEmbed, APIEmbedField } from "discord.js";
 
-import {
-  cardTextFields,
-  EMBED_COLOR,
-  FIELD_LIMIT,
-  printingFooter,
-  truncate,
-} from "./card-embed.js";
+import { cardTextFields, EMBED_COLOR, FIELD_LIMIT, printingFooter } from "./card-embed.js";
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot } from "./catalog-cache.js";
 import type { GlyphEmojis } from "./glyph-emoji.js";
 import { NO_GLYPH_EMOJIS } from "./glyph-emoji.js";
@@ -65,7 +59,7 @@ export function parseDetailsCustomId(
  * @returns The label, within Discord's length limit.
  */
 export function detailsLabel(cardName: string, multiple: boolean): string {
-  return multiple ? truncate(`Details: ${cardName}`, LABEL_LIMIT) : "Details";
+  return multiple ? truncateWithEllipsis(`Details: ${cardName}`, LABEL_LIMIT) : "Details";
 }
 
 /**
@@ -84,7 +78,7 @@ function banField(card: CatalogCard): APIEmbedField | null {
   );
   return {
     name: card.bans.length === 1 ? "Ban" : "Bans",
-    value: truncate(lines.join("\n"), FIELD_LIMIT),
+    value: truncateWithEllipsis(lines.join("\n"), FIELD_LIMIT),
   };
 }
 

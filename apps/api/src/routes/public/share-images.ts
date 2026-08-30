@@ -1,4 +1,5 @@
 import { aspectFromQuery, ERROR_CODES, qrFromQuery } from "@openrift/shared";
+import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";
 import { bodyLimit } from "hono/body-limit";
@@ -9,7 +10,6 @@ import { renderCollectionImage } from "../../services/collection-image.js";
 import {
   buildDeckImageCards,
   buildDeckImageCardsFromRefs,
-  formatLabelFromSlug,
   renderDeckImage,
   resolveCoverImageId,
 } from "../../services/deck-image.js";
@@ -229,7 +229,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       {
         deckName: found.deck.name,
         ownerName: found.ownerName ?? "Anonymous",
-        formatLabel: formatLabelFromSlug(found.deck.format),
+        formatLabel: sentenceCaseSlug(found.deck.format),
         cards,
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl,
@@ -319,7 +319,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
           typeof body?.ownerName === "string" && body.ownerName
             ? body.ownerName.slice(0, MAX_RENDER_TEXT_LENGTH)
             : undefined,
-        formatLabel: formatLabelFromSlug(
+        formatLabel: sentenceCaseSlug(
           typeof body?.format === "string"
             ? body.format.slice(0, MAX_RENDER_TEXT_LENGTH)
             : "constructed",

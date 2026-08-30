@@ -35,6 +35,29 @@ const LIVE_CARD_TRADE_STATUSES = ["pending", "reserved"] as const;
 export const TRADED_CARD_TRADE_STATUSES = ["reserved", "completed"] as const;
 
 /**
+ * Live-trade phases from least to most committed. `asked` is a bid nobody has
+ * acted on, `offered` already consumes the giver's supply, and `reserved` has
+ * physical copies pinned. The server sorts annotations along this ladder and
+ * clients that can only show one marker per card collapse along it, so the
+ * order is part of the contract: `cardTradeLivePhaseSchema` is built from this
+ * tuple rather than repeating it.
+ *
+ * The ladder stops at `reserved`. Settling is per side, and a side that has
+ * settled has nothing left to annotate, so a `traded` rung would have no rows
+ * to carry.
+ */
+export const CARD_TRADE_LIVE_PHASES = ["asked", "offered", "reserved"] as const;
+
+/**
+ * How committed a phase is.
+ * @param phase The phase.
+ * @returns Its index on the ladder; higher wins a collapse.
+ */
+export function cardTradeLivePhaseRank(phase: (typeof CARD_TRADE_LIVE_PHASES)[number]): number {
+  return CARD_TRADE_LIVE_PHASES.indexOf(phase);
+}
+
+/**
  * Whether a trade is still moving.
  * @param status The trade's status.
  * @returns True for `pending` and `reserved`.

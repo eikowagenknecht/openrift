@@ -22,6 +22,10 @@ vi.mock("@/hooks/use-lists", () => ({
   useUnshareList: () => ({ mutate: unshareMutate, isPending: false }),
 }));
 
+vi.mock("@/hooks/use-enums", () => ({
+  useEnumOrders: () => ({ labels: { finishes: { normal: "Normal", foil: "Foil" } } }),
+}));
+
 vi.mock("@/lib/site-config", () => ({
   getSiteUrl: () => "https://openrift.test",
 }));

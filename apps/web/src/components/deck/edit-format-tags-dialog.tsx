@@ -1,3 +1,4 @@
+import { capitalize } from "@openrift/shared";
 import { useState } from "react";
 
 import { TagMultiSelect } from "@/components/deck/format-tag-multi-select";
@@ -14,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useUpdateDeck } from "@/hooks/use-decks";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
-import { capitalize } from "@/lib/utils";
 
 interface Props {
   deckId: string;
