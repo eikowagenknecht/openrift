@@ -291,13 +291,13 @@ describe("MetaEventPage standings", () => {
     expect(within(standingsRow("Bo")).getByText("T8")).toBeInTheDocument();
   });
 
-  it("derives the record from wins, losses, and draws", () => {
+  it("derives the record from wins, losses, and draws, always as all three parts", () => {
     renderEvent({}, [
       player({ id: "p-1", playerName: "Ana", wins: 6, losses: 1, draws: null }),
       player({ id: "p-2", playerName: "Bo", wins: 5, losses: 1, draws: 1 }),
     ]);
 
-    expect(within(standingsRow("Ana")).getByText("6-1")).toBeInTheDocument();
+    expect(within(standingsRow("Ana")).getByText("6-1-0")).toBeInTheDocument();
     expect(within(standingsRow("Bo")).getByText("5-1-1")).toBeInTheDocument();
   });
 

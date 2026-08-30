@@ -40,10 +40,31 @@ const MEDAL_CLASS: Record<number, string> = {
   3: "bg-amber-800/45 text-foreground dark:bg-amber-800/60",
 };
 
+// Over artwork the wash a plate sits on is the card, not the page, so the
+// translucent silver and bronze turn to mud and their theme-following
+// foregrounds can land on their own background. Gold was already opaque and
+// carries over unchanged; the other two are restated as fixed pairs, which is
+// also right in both themes because the art does not change with them.
+const MEDAL_ON_ART_CLASS: Record<number, string> = {
+  1: MEDAL_CLASS[1],
+  2: "bg-zinc-300 text-zinc-900",
+  3: "bg-amber-700 text-amber-50",
+};
+
 /** @returns The medal tint for a rank, falling back to the neutral chip. */
-function medalClass(rank: number): string {
+function medalClass(rank: number, variant: MedalVariant): string {
+  if (variant === "onArt") {
+    return MEDAL_ON_ART_CLASS[rank] ?? "bg-zinc-800 text-zinc-100";
+  }
   return MEDAL_CLASS[rank] ?? "bg-muted text-muted-foreground";
 }
+
+/**
+ * Where a medal is sitting. `onArt` is the overlay a deck tile or winner card
+ * pins over its splash crop: an opaque plate with a shadow, so the numeral holds
+ * against whatever the artwork puts behind it.
+ */
+export type MedalVariant = "flat" | "onArt";
 
 /**
  * The display order for a row of seats: the winner is centered and the
@@ -69,16 +90,27 @@ const COLUMNS_CLASS: Record<number, string> = {
 
 /**
  * The rank chip: gold, silver, bronze, then a neutral tint. Exported so the
- * standings table can medal its top three from the same tints as the throne.
+ * standings table can medal its top three from the same tints as the throne,
+ * and so the archive's tiles can pin one over card art with `variant="onArt"`.
  *
  * @returns The medal element.
  */
-export function Medal({ rank, className }: { rank: number; className?: string }) {
+export function Medal({
+  rank,
+  variant = "flat",
+  className,
+}: {
+  rank: number;
+  variant?: MedalVariant;
+  className?: string;
+}) {
   return (
     <span
+      data-slot="medal"
       className={cn(
         "font-heading text-2xs flex size-5 shrink-0 items-center justify-center rounded-full font-bold tabular-nums",
-        medalClass(rank),
+        medalClass(rank, variant),
+        variant === "onArt" && "shadow-md ring-1 ring-black/20",
         className,
       )}
     >

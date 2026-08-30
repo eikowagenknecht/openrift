@@ -36,9 +36,13 @@ export function formatRank(rank: number, rankIsTier: boolean): string {
 }
 
 /**
- * A player's match record as "W-L-D", or "W-L" when the source published no draw
- * count. Null when it published no record at all, which the display then leaves
- * out rather than printing zeroes it cannot vouch for.
+ * A player's match record, always as the full "14-1-0". A source that publishes
+ * no draw column ran no draws to report, so the missing count prints as zero
+ * rather than shortening the record: a column mixing "5-1" and "5-1-0" reads as
+ * two different kinds of number.
+ *
+ * Null when the source published no record at all, which the display leaves out
+ * rather than inventing a 0-0-0.
  */
 export function formatRecord(
   wins: number | null,
@@ -48,10 +52,38 @@ export function formatRecord(
   if (wins === null || losses === null) {
     return null;
   }
-  if (draws === null) {
-    return `${wins}-${losses}`;
+  return `${wins}-${losses}-${draws ?? 0}`;
+}
+
+/** A legend's name split into the two halves the archive prints separately. */
+export interface LegendNameParts {
+  /** The champion the legend is named for, or the whole name when it has none. */
+  champion: string;
+  /** The legend card's own title, null for a legend with no champion tag. */
+  title: string | null;
+}
+
+/**
+ * Undoes `legendDisplayName`'s join so the identity unit can weight the two
+ * halves differently ("Lux · Lady of Luminosity"). The API sends the composed
+ * form, and re-deriving it would need the card's tags, which the archive's
+ * denormalized card refs do not carry.
+ *
+ * Splits on the first ", " only, which is where the composer put it.
+ *
+ * The split cannot tell a composed name from an untagged legend whose printed
+ * name happens to carry a comma, and would read such a name as champion plus
+ * title. Nothing in the catalogue is that card: every Legend is champion-tagged,
+ * and the only four printed with a comma are the ", Starter" qualifiers, which
+ * `legendDisplayName` trims before it ever composes. The behaviour is pinned by
+ * a test so a change in either of those facts fails loudly.
+ */
+export function splitLegendName(name: string): LegendNameParts {
+  const at = name.indexOf(", ");
+  if (at === -1) {
+    return { champion: name, title: null };
   }
-  return `${wins}-${losses}-${draws}`;
+  return { champion: name.slice(0, at), title: name.slice(at + 2) };
 }
 
 /**

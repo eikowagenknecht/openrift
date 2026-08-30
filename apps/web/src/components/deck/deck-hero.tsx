@@ -11,7 +11,7 @@ import {
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
-import { DomainIcon } from "@/components/deck/deck-tile";
+import { DomainIcon } from "@/components/deck/domain-icon";
 import { Button } from "@/components/ui/button";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

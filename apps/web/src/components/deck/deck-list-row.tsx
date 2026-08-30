@@ -19,8 +19,8 @@ import { DeckFolderChips } from "./deck-folder-chips";
 import { DeckFormatText } from "./deck-format-badge";
 import { DeckIdentityLine } from "./deck-identity-line";
 import { DeckMetaLine } from "./deck-meta-line";
-import { DomainIcon } from "./deck-tile";
 import { DraftBadge, VariantCountToggle } from "./deck-variant-controls";
+import { DomainIcon } from "./domain-icon";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 

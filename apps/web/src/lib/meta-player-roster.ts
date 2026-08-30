@@ -280,7 +280,7 @@ export function compareRosterFields(
  * A standings row's record as the roster cells print it.
  *
  * @param row - Anything carrying the three counts.
- * @returns "5-1" / "5-1-2", or null when the source published no record.
+ * @returns "5-1-2", or null when the source published no record.
  */
 export function rosterRecord(row: {
   wins: number | null;

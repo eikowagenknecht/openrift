@@ -244,8 +244,8 @@ describe("candidateCardCount", () => {
 });
 
 describe("rosterRecord", () => {
-  it("renders wins and losses, and draws when there are any", () => {
-    expect(rosterRecord({ wins: 6, losses: 1, draws: null })).toBe("6-1");
+  it("renders all three parts, counting an unpublished draw column as none", () => {
+    expect(rosterRecord({ wins: 6, losses: 1, draws: null })).toBe("6-1-0");
     expect(rosterRecord({ wins: 6, losses: 1, draws: 2 })).toBe("6-1-2");
   });
 

@@ -18,7 +18,7 @@
     "apps/web": {
       "entry": ["src/routes/**/*.tsx", "src/components/cards/card-detail/index.tsx"],
       "ignore": ["src/components/ui/**", "public/sw.js"],
-      "ignoreDependencies": ["@tanstack/router-cli", "@tanstack/router-plugin"]
+      "ignoreDependencies": ["@tanstack/router-cli", "@tanstack/router-plugin", "flag-icons"]
     },
     "packages/shared": {},
     "packages/e2e": {

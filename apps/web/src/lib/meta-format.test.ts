@@ -6,6 +6,7 @@ import {
   formatRecord,
   metaEventCounts,
   recordSortValue,
+  splitLegendName,
   standingsGaps,
 } from "./meta-format";
 
@@ -41,20 +42,63 @@ describe("formatRank", () => {
 });
 
 describe("formatRecord", () => {
-  it("renders wins and losses", () => {
-    expect(formatRecord(5, 1, null)).toBe("5-1");
-    expect(formatRecord(0, 3, null)).toBe("0-3");
-  });
-
-  it("always shows a known draw count, zero included", () => {
+  it("always renders all three parts", () => {
     expect(formatRecord(5, 1, 2)).toBe("5-1-2");
     expect(formatRecord(5, 1, 0)).toBe("5-1-0");
+    expect(formatRecord(14, 1, 0)).toBe("14-1-0");
+  });
+
+  it("counts an unpublished draw column as no draws", () => {
+    expect(formatRecord(5, 1, null)).toBe("5-1-0");
+    expect(formatRecord(0, 3, null)).toBe("0-3-0");
   });
 
   it("renders nothing without both wins and losses", () => {
     expect(formatRecord(null, null, null)).toBeNull();
     expect(formatRecord(5, null, null)).toBeNull();
     expect(formatRecord(null, 1, 0)).toBeNull();
+  });
+});
+
+describe("splitLegendName", () => {
+  it("splits the composed name into champion and title", () => {
+    expect(splitLegendName("Lux, Lady of Luminosity")).toEqual({
+      champion: "Lux",
+      title: "Lady of Luminosity",
+    });
+  });
+
+  it("splits on the first comma only, so a title may hold its own", () => {
+    expect(splitLegendName("Azir, Emperor of the Sands, Ascended")).toEqual({
+      champion: "Azir",
+      title: "Emperor of the Sands, Ascended",
+    });
+  });
+
+  it("treats an untagged legend as all champion", () => {
+    expect(splitLegendName("Emperor of the Sands")).toEqual({
+      champion: "Emperor of the Sands",
+      title: null,
+    });
+  });
+
+  it("does not split on a comma with no space after it", () => {
+    expect(splitLegendName("Lux,Lady")).toEqual({ champion: "Lux,Lady", title: null });
+  });
+
+  // Known limitation, safe on today's data: every catalogue Legend is
+  // champion-tagged, and the four printed with a comma carry the ", Starter"
+  // qualifier that legendDisplayName trims before composing. An untagged Legend
+  // whose printed name kept a comma would reach here and be read as a pair.
+  it("reads an untagged comma name as a pair, which the composer never produces", () => {
+    expect(splitLegendName("Dark Child, Starter")).toEqual({
+      champion: "Dark Child",
+      title: "Starter",
+    });
+  });
+
+  it("has no halves to find in an empty name", () => {
+    expect(splitLegendName("")).toEqual({ champion: "", title: null });
   });
 });
 

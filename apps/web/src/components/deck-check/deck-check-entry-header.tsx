@@ -20,7 +20,8 @@ import { useState } from "react";
 import { EntryStateBadge } from "@/components/deck-check/deck-check-event-page";
 import { DeckDomainBar } from "@/components/deck/deck-domain-bar";
 import { FormatStateBadge } from "@/components/deck/deck-format-badge";
-import { DomainIcon, FannedPreview, typeCountSummary } from "@/components/deck/deck-tile";
+import { FannedPreview, typeCountSummary } from "@/components/deck/deck-tile";
+import { DomainIcon } from "@/components/deck/domain-icon";
 import {
   PageTopBar,
   PageTopBarActions,

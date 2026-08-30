@@ -65,6 +65,9 @@ import {
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
+import { MetaIdentity } from "@/components/meta/meta-identity";
+import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
+import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { ShareLinkRow } from "@/components/share/share-link-row";
 import { SharedTradeStatusChip, TradeStatusChip } from "@/components/trades/trade-status-chip";
 import {
@@ -131,6 +134,7 @@ import {
 } from "@/components/ui/context-menu";
 import { CopyField } from "@/components/ui/copy-field";
 import { CountPill, CountPillButton } from "@/components/ui/count-pill";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -168,7 +172,7 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import { PickerGroup, PickerList, PickerRow } from "@/components/ui/picker-list";
 import type { PodiumSeat } from "@/components/ui/podium";
-import { Podium } from "@/components/ui/podium";
+import { Medal, Podium } from "@/components/ui/podium";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Progress } from "@/components/ui/progress";
@@ -221,6 +225,9 @@ import {
   useElementSpec,
 } from "@/hooks/use-element-spec";
 import { useLanguageList } from "@/hooks/use-enums";
+import { useMetaEras } from "@/hooks/use-meta-eras";
+import { formatRecord } from "@/lib/meta-format";
+import type { MetaScope } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const BUTTON_VARIANTS = [
@@ -280,6 +287,7 @@ const SECTIONS = [
   { id: "overlays", title: "Overlays", Component: OverlaysSection },
   { id: "feedback", title: "Feedback & status", Component: FeedbackSection },
   { id: "layout", title: "Layout & data", Component: LayoutSection },
+  { id: "meta-archive", title: "Meta archive", Component: MetaArchiveSection },
   { id: "composites", title: "Composites", Component: CompositesSection },
 ] as const;
 
@@ -839,6 +847,23 @@ function BadgesChipsSection() {
           <DateLeaf month="AUG" day="8" />
         </Swatch>
       </SwatchRow>
+      <SwatchRow
+        label="CountryFlag"
+        hint="Vendored flag-icons SVG plus the ISO code. The name comes from Intl.DisplayNames pinned to en and reaches assistive tech through the image alt, so the code text beside it is aria-hidden. A code the package ships no flag for falls back to the code plate alone rather than a broken image."
+      >
+        <Swatch label="default">
+          <CountryFlag code="de" />
+        </Swatch>
+        <Swatch label="sm">
+          <CountryFlag code="jp" size="sm" />
+        </Swatch>
+        <Swatch label="no code">
+          <CountryFlag code="fr" showCode={false} />
+        </Swatch>
+        <Swatch label="no flag" colors>
+          <CountryFlag code="uk" />
+        </Swatch>
+      </SwatchRow>
       <DemoRow
         label="Language chips (LanguageChip)"
         hint="Colored code chip for a printing's language. Colors are admin-managed in the languages taxonomy; unset languages fall back to neutral gray. Foreground is WCAG-contrast."
@@ -1350,6 +1375,23 @@ function TilesSection() {
           <Podium seats={[]} emptyLabel="The throne fills after round 1 is finalized." />
         </div>
       </DemoRow>
+      <SwatchRow
+        label="Medal"
+        hint="The rank chip the throne and the standings table share. The on-art variant is the overlay for a tile's splash crop: opaque plate, shadow, and fixed colors in both themes, because it sits on artwork rather than on the page."
+      >
+        {[1, 2, 3, 9].map((rank) => (
+          <Swatch key={`flat-${rank}`} label={`flat ${rank}`} colors>
+            <Medal rank={rank} />
+          </Swatch>
+        ))}
+        {[1, 2, 3, 9].map((rank) => (
+          <Swatch key={`on-art-${rank}`} label={`onArt ${rank}`} colors>
+            <span className="flex items-center justify-center rounded-md bg-[linear-gradient(120deg,#5b3f8f,#2b6f6a)] p-2">
+              <Medal rank={rank} variant="onArt" />
+            </span>
+          </Swatch>
+        ))}
+      </SwatchRow>
       <DemoRow label="UserAvatarStack">
         <div className="flex flex-wrap items-center gap-6">
           <UserAvatarStack members={STACK_MEMBERS.slice(0, 3)} size="sm" />
@@ -2101,6 +2143,82 @@ function toggleDemoScope(scope: SearchField[], field: SearchField): SearchField[
   }
   const next = scope.filter((entry) => entry !== field);
   return next.length > 0 ? next : scope;
+}
+
+const DEMO_LEGEND = "Lux, Lady of Luminosity";
+
+function MetaArchiveSection() {
+  const [scope, setScope] = useState<MetaScope>({});
+  // The live eras, not a fixture: the dropdown is only reviewable if it shows
+  // the set boundaries the archive will actually offer.
+  const eras = useMetaEras();
+  return (
+    <DemoSection
+      id="meta-archive"
+      title="Meta archive"
+      note="The archive's shared identity pieces. Every /meta surface composes these rather than rolling its own: one tier badge, one identity unit, one scope bar."
+      docs="components/meta/"
+    >
+      <SwatchRow
+        label="MetaTierBadge"
+        hint="Gold is the archive's colour for winning, so only Premier carries the accent hairline. Competitive's teal is written out for both themes because the dark primary is amber and a themed outline would land back on the Premier gold."
+      >
+        {(["premier", "competitive", "store", "casual"] as const).map((tier) => (
+          <Swatch key={tier} label={tier} colors>
+            <MetaTierBadge tier={tier} />
+          </Swatch>
+        ))}
+      </SwatchRow>
+
+      <DemoRow
+        label="MetaIdentity"
+        hint="Champion name, legend card title, domain runes. The card title always renders — the compact top-8 bracket is the one surface allowed to drop it. Pass a slug to link the champion; omit it inside a wrapper that is itself a link."
+        className="items-start gap-6"
+      >
+        <Demo name="row" hint="Bylines and headers.">
+          <MetaIdentity name={DEMO_LEGEND} domains={["order", "calm"]} />
+        </Demo>
+        <Demo name="stacked" hint="Two-line table cell.">
+          <MetaIdentity name={DEMO_LEGEND} domains={["order", "calm"]} layout="stacked" />
+        </Demo>
+        <Demo name="tile" hint="Deck tiles and winner cards.">
+          <MetaIdentity name={DEMO_LEGEND} domains={["order", "calm"]} layout="tile" />
+        </Demo>
+        <Demo name="championOnly" hint="The compact bracket, and nowhere else.">
+          <MetaIdentity name={DEMO_LEGEND} championOnly />
+        </Demo>
+        <Demo name="linked" hint="Links the champion at its card page.">
+          <MetaIdentity name={DEMO_LEGEND} slug="lady-of-luminosity" />
+        </Demo>
+        <Demo name="untagged" hint="A legend with no champion is all champion.">
+          <MetaIdentity name="Emperor of the Sands" />
+        </Demo>
+      </DemoRow>
+
+      <DemoRow
+        label="MetaScopeBar"
+        hint="One bar on every archive page: era (set eras derived from release dates, plus all time and a custom range), format, tier, country. The URL wiring lives in useMetaScope; the bar itself is controlled. The country select only appears once there is more than one to choose between."
+        className="flex-col items-stretch gap-3"
+      >
+        <MetaScopeBar
+          scope={scope}
+          setScope={(patch) => setScope((prev) => ({ ...prev, ...patch }))}
+          clearScope={() => setScope({})}
+          eras={eras}
+          countries={["de", "jp", "us"]}
+        />
+        <p className="text-muted-foreground text-2xs font-mono">{JSON.stringify(scope)}</p>
+      </DemoRow>
+
+      <DemoRow
+        label="formatRecord"
+        hint="Records always render all three parts. A source with no draw column ran no draws, and a column mixing 5-1 with 5-1-0 reads as two different kinds of number."
+      >
+        <span className="font-heading tabular-nums">{formatRecord(14, 1, 0)}</span>
+        <span className="font-heading tabular-nums">{formatRecord(5, 1, null)}</span>
+      </DemoRow>
+    </DemoSection>
+  );
 }
 
 function CompositesSection() {

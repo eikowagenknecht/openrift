@@ -10,7 +10,7 @@ vi.mock("@/hooks/use-enums", () => ({
 }));
 vi.mock("@/hooks/use-domain-colors", () => ({ useDomainColors: () => ({ fury: "#f00" }) }));
 
-const { DomainIcon } = await import("./deck-tile");
+const { DomainIcon } = await import("./domain-icon");
 const { DeckDomainBar } = await import("./deck-domain-bar");
 
 describe("DomainIcon", () => {
