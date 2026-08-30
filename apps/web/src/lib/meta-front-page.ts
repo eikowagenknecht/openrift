@@ -1,7 +1,7 @@
 import type { MetaDeckSummary, MetaEventSummary } from "@openrift/shared";
 
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
-import { resolveScopeRange } from "@/lib/meta-scope";
+import { scopeMatches } from "@/lib/meta-scope-match";
 
 /** What the front page narrows its three lists by. */
 export interface MetaFrontFilter {
@@ -27,27 +27,13 @@ export function filterMetaEvents(
   events: readonly MetaEventSummary[],
   filter: MetaFrontFilter,
 ): MetaEventSummary[] {
-  const range = resolveScopeRange(filter.scope, filter.eras);
   const needle = filter.search?.trim().toLowerCase() ?? "";
 
-  return events.filter((event) => {
-    if (range.from !== undefined && event.eventDate < range.from) {
-      return false;
-    }
-    if (range.to !== undefined && event.eventDate > range.to) {
-      return false;
-    }
-    if (filter.scope.format !== undefined && event.format !== filter.scope.format) {
-      return false;
-    }
-    if (filter.scope.tier !== undefined && event.tier !== filter.scope.tier) {
-      return false;
-    }
-    if (filter.scope.country !== undefined && event.country !== filter.scope.country) {
-      return false;
-    }
-    return needle === "" || matchesSearch(event, needle);
-  });
+  return events.filter(
+    (event) =>
+      (needle === "" || matchesSearch(event, needle)) &&
+      scopeMatches(event, filter.scope, filter.eras),
+  );
 }
 
 /**

@@ -143,33 +143,42 @@ describe("formatCompactUtcStamp", () => {
 });
 
 describe("dateLeafParts", () => {
-  it("splits a date into an uppercase month and a bare day", () => {
-    expect(dateLeafParts(new Date(2026, 7, 15))).toEqual({ month: "AUG", day: "15" });
+  it("splits a date into an uppercase month, a bare day and the year", () => {
+    expect(dateLeafParts(new Date(2026, 7, 15))).toEqual({
+      month: "AUG",
+      day: "15",
+      year: "2026",
+    });
   });
 
   it("does not pad the day", () => {
-    expect(dateLeafParts(new Date(2026, 0, 5))).toEqual({ month: "JAN", day: "5" });
+    expect(dateLeafParts(new Date(2026, 0, 5))).toEqual({ month: "JAN", day: "5", year: "2026" });
   });
 
   it("returns empty parts for unparseable input", () => {
-    expect(dateLeafParts("nope")).toEqual({ month: "", day: "" });
+    expect(dateLeafParts("nope")).toEqual({ month: "", day: "", year: "" });
   });
 });
 
 describe("dateLeafPartsUtc", () => {
   it("splits a date-only day without shifting it into the day before", () => {
-    expect(dateLeafPartsUtc("2026-08-01")).toEqual({ month: "AUG", day: "1" });
+    expect(dateLeafPartsUtc("2026-08-01")).toEqual({ month: "AUG", day: "1", year: "2026" });
   });
 
   it("takes the UTC day of a full instant, not the viewer's", () => {
     expect(dateLeafPartsUtc(new Date("2026-01-01T02:30:00.000Z"))).toEqual({
       month: "JAN",
       day: "1",
+      year: "2026",
     });
   });
 
+  it("takes the UTC year too, so a New Year instant does not report the year before", () => {
+    expect(dateLeafPartsUtc(new Date("2027-01-01T00:30:00.000Z")).year).toBe("2027");
+  });
+
   it("returns empty parts for unparseable input", () => {
-    expect(dateLeafPartsUtc("nope")).toEqual({ month: "", day: "" });
+    expect(dateLeafPartsUtc("nope")).toEqual({ month: "", day: "", year: "" });
   });
 });
 

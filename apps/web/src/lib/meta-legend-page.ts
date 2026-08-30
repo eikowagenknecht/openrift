@@ -1,5 +1,9 @@
 import type { MetaDeckSummary, MetaLegendFinish, MetaLegendSummary } from "@openrift/shared";
 
+import { normalizeCountryCode } from "@/lib/country";
+import type { MetaEra, MetaScope } from "@/lib/meta-scope";
+import { scopeMatches } from "@/lib/meta-scope-match";
+
 /**
  * Which slice of a legend's record the finishes section is showing.
  *
@@ -44,6 +48,21 @@ export function metaLegendCounts(
   };
 }
 
+/** What the legend page's scope bar narrows both of its lists by. */
+export interface MetaLegendScope {
+  scope: MetaScope;
+  /** The eras the scope's era key is resolved against. */
+  eras: readonly MetaEra[];
+}
+
+/** The legend's finishes inside the scope bar's selection. */
+export function filterLegendFinishes(
+  finishes: readonly MetaLegendFinish[],
+  filter: MetaLegendScope,
+): MetaLegendFinish[] {
+  return finishes.filter((finish) => scopeMatches(finish.event, filter.scope, filter.eras));
+}
+
 /**
  * The archived decks filed under one legend, in the payload's own order.
  *
@@ -56,6 +75,38 @@ export function metaLegendDecks(
   legendCardId: string,
 ): MetaDeckSummary[] {
   return decks.filter((deck) => deck.legendCardId === legendCardId);
+}
+
+/** Those decks inside the scope bar's selection, which is what the grid renders. */
+export function filterLegendDecks(
+  decks: readonly MetaDeckSummary[],
+  filter: MetaLegendScope,
+): MetaDeckSummary[] {
+  return decks.filter((deck) => scopeMatches(deck.event, filter.scope, filter.eras));
+}
+
+/**
+ * The country codes the scope bar should offer, which is the set this legend's
+ * record covers. Uppercase ISO codes, alphabetical; an event whose venue no
+ * source named contributes none.
+ *
+ * Both lists feed it: a country reachable only through an archived list is still
+ * a country the reader can scope to. Read off the whole record rather than the
+ * scoped slice, so picking a country never removes the others from the control
+ * that picked it.
+ */
+export function metaLegendCountries(
+  finishes: readonly MetaLegendFinish[],
+  decks: readonly MetaDeckSummary[],
+): string[] {
+  const codes = new Set<string>();
+  for (const event of [...finishes, ...decks].map((entry) => entry.event)) {
+    const code = normalizeCountryCode(event.country);
+    if (code !== null) {
+      codes.add(code.toUpperCase());
+    }
+  }
+  return [...codes].sort((left, right) => left.localeCompare(right));
 }
 
 /**

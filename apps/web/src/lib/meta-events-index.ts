@@ -4,7 +4,7 @@ import { normalizeCountryCode } from "@/lib/country";
 import type { MetaEventIndexSort, MetaEventIndexSortDirection } from "@/lib/meta-events-search";
 import { DEFAULT_EVENT_DIRECTION, DEFAULT_EVENT_SORT } from "@/lib/meta-events-search";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
-import { resolveScopeRange } from "@/lib/meta-scope";
+import { scopeMatches } from "@/lib/meta-scope-match";
 
 /**
  * Premier first, casual last. Ascending puts the events that count for most at
@@ -43,27 +43,12 @@ export function filterMetaEvents(
   filter: { query?: string; scope: MetaScope; eras: readonly MetaEra[] },
 ): MetaEventSummary[] {
   const needle = (filter.query ?? "").trim().toLowerCase();
-  const range = resolveScopeRange(filter.scope, filter.eras);
-  const country = normalizeCountryCode(filter.scope.country);
 
-  return events.filter((event) => {
-    if (needle !== "" && !matchesText(event, needle)) {
-      return false;
-    }
-    if (filter.scope.format !== undefined && event.format !== filter.scope.format) {
-      return false;
-    }
-    if (filter.scope.tier !== undefined && event.tier !== filter.scope.tier) {
-      return false;
-    }
-    if (country !== null && normalizeCountryCode(event.country) !== country) {
-      return false;
-    }
-    if (range.from !== undefined && event.eventDate < range.from) {
-      return false;
-    }
-    return range.to === undefined || event.eventDate <= range.to;
-  });
+  return events.filter(
+    (event) =>
+      (needle === "" || matchesText(event, needle)) &&
+      scopeMatches(event, filter.scope, filter.eras),
+  );
 }
 
 function matchesText(event: MetaEventSummary, needle: string): boolean {

@@ -127,6 +127,31 @@ describe("filterMetaEvents", () => {
     expect(kept.map((row) => row.id)).toEqual(["in"]);
   });
 
+  it("keeps an event standing on either bound of a custom range", () => {
+    const events = [
+      event({ id: "on-from", eventDate: "2026-03-01" }),
+      event({ id: "on-to", eventDate: "2026-03-31" }),
+      event({ id: "day-after", eventDate: "2026-04-01" }),
+      event({ id: "day-before", eventDate: "2026-02-28" }),
+    ];
+    const kept = filterMetaEvents(events, {
+      scope: { era: ERA_CUSTOM, from: "2026-03-01", to: "2026-03-31" },
+      eras: ERAS,
+    });
+    expect(kept.map((row) => row.id)).toEqual(["on-from", "on-to"]);
+  });
+
+  it("matches a country whichever case either side arrives in", () => {
+    const events = [event({ id: "spain", country: "es" }), event({ id: "italy", country: "IT" })];
+    expect(
+      filterMetaEvents(events, { scope: { country: "ES" }, eras: ERAS }).map((row) => row.id),
+    ).toEqual(["spain"]);
+  });
+
+  it("ignores a country code the list cannot resolve rather than emptying the page", () => {
+    expect(filterMetaEvents([event()], { scope: { country: "??" }, eras: ERAS })).toHaveLength(1);
+  });
+
   it("narrows by format, tier and country together", () => {
     const events = [
       event({ id: "match", format: "standard", tier: "premier", country: "ES" }),

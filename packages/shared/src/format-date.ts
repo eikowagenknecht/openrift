@@ -153,35 +153,50 @@ export function formatCompactUtcStamp(input: Date | string): string {
   return `${yyyy}${mm}${dd}-${hh}${mi}`;
 }
 
-/**
- * The two lines of a calendar-leaf tile, in the VIEWER's timezone (the tile
- * marks "which day is this for me"). Same SSR caveat as
- * {@link formatDayTimeLocal}.
- *
- * @returns The uppercase short month and the day of month, e.g. `AUG` / `15`.
- */
-export function dateLeafParts(input: Date | string): { month: string; day: string } {
-  const date = toDate(input);
-  if (date === null) {
-    return { month: "", day: "" };
-  }
-  return { month: MONTH_ABBREVIATIONS[date.getMonth()], day: String(date.getDate()) };
+/** The lines a calendar-leaf tile can draw. A tile renders the year only where the archive spans several. */
+export interface DateLeafParts {
+  month: string;
+  day: string;
+  year: string;
 }
 
 /**
- * The same two lines in UTC, for a tile marking a calendar day that belongs to
+ * The lines of a calendar-leaf tile, in the VIEWER's timezone (the tile
+ * marks "which day is this for me"). Same SSR caveat as
+ * {@link formatDayTimeLocal}.
+ *
+ * @returns The uppercase short month, the day of month and the year, e.g. `AUG` / `15` / `2026`.
+ */
+export function dateLeafParts(input: Date | string): DateLeafParts {
+  const date = toDate(input);
+  if (date === null) {
+    return { month: "", day: "", year: "" };
+  }
+  return {
+    month: MONTH_ABBREVIATIONS[date.getMonth()],
+    day: String(date.getDate()),
+    year: String(date.getFullYear()),
+  };
+}
+
+/**
+ * The same lines in UTC, for a tile marking a calendar day that belongs to
  * an event rather than to the viewer. A tournament was held on one day
  * everywhere, so reading `2026-08-01` on a negative offset must not print JUL
  * 31, and SSR must not disagree with the browser about which day it was.
  *
- * @returns The uppercase short month and the day of month, e.g. `AUG` / `15`.
+ * @returns The uppercase short month, the day of month and the year, e.g. `AUG` / `15` / `2026`.
  */
-export function dateLeafPartsUtc(input: Date | string): { month: string; day: string } {
+export function dateLeafPartsUtc(input: Date | string): DateLeafParts {
   const date = toDate(input);
   if (date === null) {
-    return { month: "", day: "" };
+    return { month: "", day: "", year: "" };
   }
-  return { month: MONTH_ABBREVIATIONS[date.getUTCMonth()], day: String(date.getUTCDate()) };
+  return {
+    month: MONTH_ABBREVIATIONS[date.getUTCMonth()],
+    day: String(date.getUTCDate()),
+    year: String(date.getUTCFullYear()),
+  };
 }
 
 /** Tuning for {@link formatRelativeTime}. */

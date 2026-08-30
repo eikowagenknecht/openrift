@@ -133,6 +133,19 @@ describe("MetaEventsPage", () => {
     expect(rowNames()).toEqual(["Nexus Night"]);
   });
 
+  it("dates a row by month, day and year, so a multi-year archive reads unambiguously", () => {
+    renderPage([event({ eventDate: "2026-08-29" })]);
+    // One tile per layout: the column row and the phone card are both in the DOM.
+    expect(screen.getAllByText("AUG")).toHaveLength(2);
+    expect(screen.getAllByText("2026")).toHaveLength(2);
+  });
+
+  it("announces the date once, with the tile itself hidden from assistive tech", () => {
+    renderPage([event({ eventDate: "2026-08-29" })]);
+    expect(screen.getAllByText("2026-08-29")).toHaveLength(1);
+    expect(screen.getAllByText("2026")[0].closest("[aria-hidden]")).not.toBeNull();
+  });
+
   it("names the winner of each event inline", () => {
     renderPage([event({ winners: [winner("A. Gruber")] })]);
     expect(screen.getAllByText("A. Gruber").length).toBeGreaterThan(0);

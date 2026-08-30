@@ -838,13 +838,16 @@ function BadgesChipsSection() {
       </SwatchRow>
       <SwatchRow
         label="DateLeaf"
-        hint="Calendar-leaf date block anchoring event rows and heroes. Pass preformatted month/day parts."
+        hint="Calendar-leaf date block anchoring event rows and heroes. Pass preformatted month/day parts, plus the year on a surface that spans several."
       >
         <Swatch label="sm">
           <DateLeaf month="JUL" day="13" size="sm" />
         </Swatch>
         <Swatch label="default">
           <DateLeaf month="AUG" day="8" />
+        </Swatch>
+        <Swatch label="with year">
+          <DateLeaf month="AUG" day="8" year="2026" size="sm" />
         </Swatch>
       </SwatchRow>
       <SwatchRow

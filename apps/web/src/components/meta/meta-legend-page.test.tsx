@@ -1,10 +1,15 @@
 import type { MetaDeckSummary, MetaLegendDetailResponse } from "@openrift/shared";
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   legend: {} as MetaLegendDetailResponse,
   decks: [] as MetaDeckSummary[],
+  search: {} as Record<string, unknown>,
+  navigated: [] as Record<string, unknown>[],
+  replaced: [] as (boolean | undefined)[],
+  countries: [] as readonly string[],
 }));
 
 vi.mock("@tanstack/react-router", () => {
@@ -30,7 +35,22 @@ vi.mock("@tanstack/react-router", () => {
     );
   }
   return {
-    getRouteApi: () => ({ useParams: () => ({ slug: "kennen-heart-of-the-tempest" }) }),
+    getRouteApi: () => ({
+      useParams: () => ({ slug: "kennen-heart-of-the-tempest" }),
+      useSearch: () => captured.search,
+      useNavigate:
+        () =>
+        ({
+          search,
+          replace,
+        }: {
+          search: (prev: Record<string, unknown>) => Record<string, unknown>;
+          replace?: boolean;
+        }) => {
+          captured.navigated.push(search(captured.search));
+          captured.replaced.push(replace);
+        },
+    }),
     Link: Anchor,
     createLink: () => Anchor,
   };
@@ -51,6 +71,35 @@ vi.mock("@/hooks/use-enums", () => ({
 
 vi.mock("@/hooks/use-domain-colors", () => ({ useDomainColors: () => ({}) }));
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => null }));
+vi.mock("@/hooks/use-meta-eras", () => ({
+  useMetaEras: () => [
+    { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
+    { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
+  ],
+}));
+vi.mock("@/components/meta/meta-scope-bar", () => ({
+  MetaScopeBar: ({
+    countries,
+    setScope,
+    clearScope,
+  }: {
+    countries?: readonly string[];
+    setScope: (patch: Record<string, unknown>) => void;
+    clearScope: () => void;
+  }) => {
+    captured.countries = countries ?? [];
+    return (
+      <div>
+        <button type="button" onClick={() => setScope({ tier: "premier" })}>
+          Scope to premier
+        </button>
+        <button type="button" onClick={clearScope}>
+          Reset scope
+        </button>
+      </div>
+    );
+  },
+}));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MetaLegendPage } from "./meta-legend-page";
@@ -64,7 +113,15 @@ const LEGEND = {
   archiveSlug: "kennen-heart-of-the-tempest",
 };
 
-function finish(rank: number, shareToken: string | null, playerId: string, eventSlug?: string) {
+type EventOverrides = Partial<MetaLegendDetailResponse["finishes"][number]["event"]>;
+
+function finish(
+  rank: number,
+  shareToken: string | null,
+  playerId: string,
+  eventSlug?: string,
+  event?: EventOverrides,
+) {
   return {
     playerId,
     rank,
@@ -83,11 +140,16 @@ function finish(rank: number, shareToken: string | null, playerId: string, event
       tier: "competitive" as const,
       country: "FR",
       playerCount: 186,
+      ...event,
     },
   };
 }
 
-function deck(deckId: string, legendCardId: string | null): MetaDeckSummary {
+function deck(
+  deckId: string,
+  legendCardId: string | null,
+  event?: Partial<MetaDeckSummary["event"]>,
+): MetaDeckSummary {
   return {
     playerId: `p-${deckId}`,
     deckId,
@@ -116,15 +178,41 @@ function deck(deckId: string, legendCardId: string | null): MetaDeckSummary {
       format: "constructed",
       tier: "competitive",
       country: "FR",
+      ...event,
     },
   };
 }
 
-function renderPage(finishes: MetaLegendDetailResponse["finishes"], decks: MetaDeckSummary[] = []) {
+function renderPage(
+  finishes: MetaLegendDetailResponse["finishes"],
+  decks: MetaDeckSummary[] = [],
+  search: Record<string, unknown> = {},
+) {
   captured.legend = { slug: "kennen-heart-of-the-tempest", legend: LEGEND, finishes };
   captured.decks = decks;
-  render(<MetaLegendPage />);
+  captured.search = search;
+  captured.navigated = [];
+  const view = render(<MetaLegendPage />);
+  return {
+    /** Re-renders under new URL params, the way a navigate would. */
+    navigateTo(next: Record<string, unknown>) {
+      captured.search = next;
+      view.rerender(<MetaLegendPage />);
+    },
+  };
 }
+
+/** @returns The counter's number, read off the label it sits above. */
+function counterValue(label: string): string {
+  return (screen.getByText(label).previousSibling as HTMLElement).textContent ?? "";
+}
+
+beforeEach(() => {
+  captured.search = {};
+  captured.navigated = [];
+  captured.replaced = [];
+  captured.countries = [];
+});
 
 describe("MetaLegendPage", () => {
   it("counts wins, finishes and the lists the grid renders", () => {
@@ -137,12 +225,9 @@ describe("MetaLegendPage", () => {
       [deck("tok-a", "card-kennen"), deck("other", "card-azir")],
     );
 
-    const wins = screen.getByText("event wins").previousSibling as HTMLElement;
-    expect(wins.textContent).toBe("2");
-    const finishes = screen.getByText("archived finishes").previousSibling as HTMLElement;
-    expect(finishes.textContent).toBe("3");
-    const lists = screen.getByText("decklists").previousSibling as HTMLElement;
-    expect(lists.textContent).toBe("1");
+    expect(counterValue("event wins")).toBe("2");
+    expect(counterValue("archived finishes")).toBe("3");
+    expect(counterValue("decklists")).toBe("1");
   });
 
   it("shows only the decklists filed under this legend", () => {
@@ -155,6 +240,86 @@ describe("MetaLegendPage", () => {
   it("drops the decklist section for a legend with no list on file", () => {
     renderPage([finish(4, null, "a")]);
     expect(screen.queryByText("Archived decklists")).not.toBeInTheDocument();
+  });
+
+  it("narrows the finishes, the decklists and the counters to one scope", () => {
+    renderPage(
+      [
+        finish(1, "tok-a", "a", "worlds", { tier: "premier", eventDate: "2026-08-20" }),
+        finish(3, "tok-b", "b", "store-night", { tier: "store", eventDate: "2026-03-02" }),
+      ],
+      [
+        deck("tok-a", "card-kennen", { slug: "worlds", tier: "premier" }),
+        deck("tok-b", "card-kennen", { slug: "store-night", tier: "store" }),
+      ],
+      { tier: "premier" },
+    );
+
+    expect(counterValue("event wins")).toBe("1");
+    expect(counterValue("archived finishes")).toBe("1");
+    expect(counterValue("decklists")).toBe("1");
+    expect(screen.getAllByText("Pilot a").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Pilot b")).toHaveLength(0);
+    const grid = screen.getByRole("heading", { name: "Archived decklists" })
+      .parentElement as HTMLElement;
+    expect(within(grid).getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("keeps offering every country the record covers, not only the scoped slice", () => {
+    renderPage(
+      [
+        finish(1, null, "a", "worlds", { country: "FR", tier: "premier" }),
+        finish(2, null, "b", "store-night", { country: "DE", tier: "store" }),
+      ],
+      [deck("tok-c", "card-kennen", { slug: "tokyo-open", country: "JP" })],
+      { tier: "premier" },
+    );
+    expect(captured.countries).toEqual(["DE", "FR", "JP"]);
+  });
+
+  it("says the scope holds no list rather than dropping the decklist section", () => {
+    renderPage(
+      [finish(1, "tok-a", "a", "store-night", { tier: "store" })],
+      [deck("tok-a", "card-kennen", { slug: "store-night", tier: "store" })],
+      { tier: "premier" },
+    );
+    expect(screen.getByRole("heading", { name: "Archived decklists" })).toBeInTheDocument();
+    expect(
+      screen.getByText("No list on this legend's record falls in this scope."),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing falls in the scope rather than nothing is on record", () => {
+    renderPage([finish(1, null, "a")], [], { tier: "premier" });
+    expect(
+      screen.getByText("No finish on this legend's record falls in this scope."),
+    ).toBeInTheDocument();
+  });
+
+  it("writes a scope choice to the URL without stacking a history entry per dropdown", async () => {
+    renderPage([finish(1, null, "a")]);
+    await userEvent.click(screen.getByRole("button", { name: "Scope to premier" }));
+    expect(captured.navigated.at(-1)).toMatchObject({ tier: "premier" });
+    expect(captured.replaced.at(-1)).toBe(true);
+  });
+
+  it("collapses an expanded record back to the best finishes once the scope changes", async () => {
+    const many = Array.from({ length: 8 }, (_, index) =>
+      finish(index + 1, null, `p${String(index)}`, `event-${String(index)}`),
+    );
+    const page = renderPage(many);
+    await userEvent.click(screen.getByRole("button", { name: "Show all 8 finishes" }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(8);
+
+    page.navigateTo({ tier: "competitive" });
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+  });
+
+  it("drops every facet on reset", async () => {
+    renderPage([finish(1, null, "a")], [], { era: "vendetta", tier: "premier", country: "FR" });
+    await userEvent.click(screen.getByRole("button", { name: "Reset scope" }));
+    expect(captured.navigated.at(-1)).toEqual({});
   });
 
   it("trails back through the archive to this legend", () => {

@@ -5,8 +5,10 @@ import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message
 import { Skeleton } from "@/components/ui/skeleton";
 import { initQueryOptions } from "@/hooks/use-init";
 import { metaDecksQueryOptions, metaLegendQueryOptions } from "@/hooks/use-meta";
+import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { metaLegendSearchSchema } from "@/lib/meta-legends-search";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
@@ -25,6 +27,7 @@ import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
  * never changes. A legend with no champion tag keys on its card slug alone.
  */
 export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
+  validateSearch: metaLegendSearchSchema,
   head: ({ loaderData, params }) => {
     const siteUrl = getSiteUrl();
     const path = `/meta/legends/${params.slug}`;
@@ -60,10 +63,13 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
       // The archive's whole deck payload backs the decklist grid: it is one
       // cached response the rest of the archive already holds, and narrowing it
       // by legend client-side is how every other archive surface filters it.
+      // The set list is here for the scope bar's eras, which are derived from
+      // set release dates rather than stored.
       const [legend] = await Promise.all([
         context.queryClient.ensureQueryData(metaLegendQueryOptions(params.slug)),
         context.queryClient.ensureQueryData(initQueryOptions),
         context.queryClient.ensureQueryData(metaDecksQueryOptions),
+        context.queryClient.ensureQueryData(publicSetListQueryOptions),
       ]);
       return legend;
     } catch (error) {

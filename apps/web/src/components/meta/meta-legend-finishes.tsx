@@ -138,8 +138,18 @@ function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit:
  * "Best" leads with the placings; "All" is the record in the order it happened
  * and grows a page at a time. Both views hold the same rows, so the count beside
  * the toggle is always the number the list can reach.
+ *
+ * The rows arrive already narrowed by the page's scope bar; `narrowed` only
+ * decides which empty state to write, since "nothing on record" and "nothing in
+ * this scope" are different facts about the archive.
  */
-export function MetaLegendFinishes({ finishes }: { finishes: readonly MetaLegendFinish[] }) {
+export function MetaLegendFinishes({
+  finishes,
+  narrowed = false,
+}: {
+  finishes: readonly MetaLegendFinish[];
+  narrowed?: boolean;
+}) {
   const canSubmit = useUserId() !== null;
   const [view, setView] = useState<MetaFinishesView>("best");
   const [shown, setShown] = useState(FINISH_PAGE_SIZE);
@@ -158,7 +168,9 @@ export function MetaLegendFinishes({ finishes }: { finishes: readonly MetaLegend
         <Empty>
           <EmptyHeader>
             <EmptyDescription>
-              No archived event has this legend on its standings yet.
+              {narrowed
+                ? "No finish on this legend's record falls in this scope."
+                : "No archived event has this legend on its standings yet."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

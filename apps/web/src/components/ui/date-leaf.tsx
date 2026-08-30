@@ -5,18 +5,24 @@ interface DateLeafProps {
   month: string;
   /** Day-of-month label, e.g. "13". */
   day: string;
+  /**
+   * Year label, e.g. "2026". Omitted where every date on the surface is recent
+   * enough for the month and day to place it; passed where a list spans years.
+   */
+  year?: string;
   size?: "sm" | "default";
   className?: string;
 }
 
 /**
- * A calendar-leaf date block: a small uppercase month over a large day number.
- * Used wherever a date is the visual anchor of a row or card (event heroes,
- * timeline rows). Purely presentational — pass preformatted parts.
+ * A calendar-leaf date block: a small uppercase month over a large day number,
+ * optionally over the year. Used wherever a date is the visual anchor of a row
+ * or card (event heroes, timeline rows). Purely presentational — pass
+ * preformatted parts.
  *
  * @returns The date leaf element.
  */
-export function DateLeaf({ month, day, size = "default", className }: DateLeafProps) {
+export function DateLeaf({ month, day, year, size = "default", className }: DateLeafProps) {
   return (
     <div
       data-slot="date-leaf"
@@ -37,6 +43,9 @@ export function DateLeaf({ month, day, size = "default", className }: DateLeafPr
       >
         {day}
       </span>
+      {year !== undefined && (
+        <span className="text-muted-foreground text-2xs leading-none tabular-nums">{year}</span>
+      )}
     </div>
   );
 }

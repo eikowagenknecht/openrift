@@ -2,11 +2,22 @@ import type { MetaDeckSummary, MetaLegendFinish, MetaLegendSummary } from "@open
 import { describe, expect, it } from "vitest";
 
 import {
+  filterLegendDecks,
+  filterLegendFinishes,
   filterLegends,
   metaLegendCounts,
+  metaLegendCountries,
   metaLegendDecks,
   sortLegendFinishes,
 } from "@/lib/meta-legend-page";
+import type { MetaEra } from "@/lib/meta-scope";
+
+const ERAS: MetaEra[] = [
+  { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
+  { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
+];
+
+const ALL_TIME = { scope: {}, eras: ERAS };
 
 type FinishOverrides = Partial<Omit<MetaLegendFinish, "event">> & {
   event?: Partial<MetaLegendFinish["event"]>;
@@ -134,6 +145,133 @@ describe("metaLegendDecks", () => {
 
   it("never matches a deck whose legend zone is empty", () => {
     expect(metaLegendDecks([deck({ legendCardId: null })], "legend-1")).toEqual([]);
+  });
+});
+
+describe("filterLegendDecks", () => {
+  it("keeps every deck when nothing narrows them", () => {
+    expect(filterLegendDecks([deck(), deck({ deckId: "d2" })], ALL_TIME)).toHaveLength(2);
+  });
+
+  it("drops a deck whose event falls outside the scope", () => {
+    const inside = deck({ deckId: "in", event: { eventDate: "2026-08-20" } });
+    const outside = deck({ deckId: "out", event: { eventDate: "2026-03-02" } });
+    const kept = filterLegendDecks([inside, outside], { scope: { era: "vendetta" }, eras: ERAS });
+    expect(kept.map((entry) => entry.deckId)).toEqual(["in"]);
+  });
+
+  it("narrows by tier, format and country the same way the finishes do", () => {
+    const decks = [
+      deck({ deckId: "a", event: { tier: "premier", country: "FR" } }),
+      deck({ deckId: "b", event: { tier: "store", country: "DE" } }),
+    ];
+    expect(
+      filterLegendDecks(decks, { scope: { tier: "premier" }, eras: ERAS }).map(
+        (entry) => entry.deckId,
+      ),
+    ).toEqual(["a"]);
+    expect(
+      filterLegendDecks(decks, { scope: { country: "de" }, eras: ERAS }).map(
+        (entry) => entry.deckId,
+      ),
+    ).toEqual(["b"]);
+    expect(filterLegendDecks(decks, { scope: { format: "limited" }, eras: ERAS })).toEqual([]);
+  });
+});
+
+describe("filterLegendFinishes", () => {
+  const premier = finish({
+    playerId: "p1",
+    event: { slug: "worlds", tier: "premier", country: "FR", eventDate: "2026-08-20" },
+  });
+  const store = finish({
+    playerId: "p2",
+    event: { slug: "store-night", tier: "store", country: "DE", eventDate: "2026-03-02" },
+  });
+
+  it("keeps the whole record when nothing narrows it", () => {
+    expect(filterLegendFinishes([premier, store], ALL_TIME)).toHaveLength(2);
+  });
+
+  it("keeps only the finishes inside the chosen era", () => {
+    const kept = filterLegendFinishes([premier, store], { scope: { era: "origins" }, eras: ERAS });
+    expect(kept.map((entry) => entry.playerId)).toEqual(["p2"]);
+  });
+
+  it("reads a custom range as an inclusive window", () => {
+    const scope = { era: "custom", from: "2026-08-20", to: "2026-08-20" };
+    expect(
+      filterLegendFinishes([premier, store], { scope, eras: ERAS }).map((entry) => entry.playerId),
+    ).toEqual(["p1"]);
+  });
+
+  it("narrows by tier, format and country", () => {
+    expect(
+      filterLegendFinishes([premier, store], { scope: { tier: "premier" }, eras: ERAS }).map(
+        (entry) => entry.playerId,
+      ),
+    ).toEqual(["p1"]);
+    expect(
+      filterLegendFinishes([premier, store], { scope: { country: "fr" }, eras: ERAS }).map(
+        (entry) => entry.playerId,
+      ),
+    ).toEqual(["p1"]);
+    expect(
+      filterLegendFinishes([premier, store], { scope: { format: "draft" }, eras: ERAS }),
+    ).toEqual([]);
+  });
+
+  it("treats an era the set list no longer knows as no narrowing", () => {
+    expect(
+      filterLegendFinishes([premier, store], { scope: { era: "retired-set" }, eras: ERAS }),
+    ).toHaveLength(2);
+  });
+
+  it("leaves the caller's array alone and handles an empty record", () => {
+    const input = [premier, store];
+    filterLegendFinishes(input, { scope: { tier: "premier" }, eras: ERAS });
+    expect(input).toHaveLength(2);
+    expect(filterLegendFinishes([], { scope: { tier: "premier" }, eras: ERAS })).toEqual([]);
+  });
+});
+
+describe("metaLegendCountries", () => {
+  it("offers each country the record covers once, alphabetically", () => {
+    expect(
+      metaLegendCountries(
+        [
+          finish({ playerId: "a", event: { country: "it" } }),
+          finish({ playerId: "b", event: { country: "AT" } }),
+          finish({ playerId: "c", event: { country: "IT" } }),
+        ],
+        [],
+      ),
+    ).toEqual(["AT", "IT"]);
+  });
+
+  it("offers a country only an archived list reaches", () => {
+    expect(
+      metaLegendCountries(
+        [finish({ event: { country: "AT" } })],
+        [deck({ event: { country: "JP" } })],
+      ),
+    ).toEqual(["AT", "JP"]);
+  });
+
+  it("offers nothing for events no source gave a venue", () => {
+    expect(
+      metaLegendCountries(
+        [
+          finish({ playerId: "a", event: { country: null } }),
+          finish({ playerId: "b", event: { country: "??" } }),
+        ],
+        [deck({ event: { country: null } })],
+      ),
+    ).toEqual([]);
+  });
+
+  it("offers nothing for an empty record", () => {
+    expect(metaLegendCountries([], [])).toEqual([]);
   });
 });
 
