@@ -115,8 +115,21 @@ try {
   console.log(`\nRunning ${PARALLEL_FILES.length} test files in parallel...`);
   const parallelCoverageDir =
     coverageArgs.length > 0 ? ["--coverage-dir=./coverage/integration-parallel"] : [];
+  // Same 60s as the migrations spawn below, for the same reason: enum-checks
+  // applies every migration through setupTestDb in beforeAll, which passed
+  // bun's 5s default once the migration count grew and then failed whenever the
+  // machine was busy. The batch shares one database across 118 files, so bun's
+  // default is too tight a budget for anything DB-bound under contention.
   const parallelResult = Bun.spawnSync(
-    ["bun", "test", ...coverageArgs, ...parallelCoverageDir, ...PARALLEL_FILES],
+    [
+      "bun",
+      "test",
+      "--timeout",
+      "60000",
+      ...coverageArgs,
+      ...parallelCoverageDir,
+      ...PARALLEL_FILES,
+    ],
     {
       cwd: repoRoot,
       env,
