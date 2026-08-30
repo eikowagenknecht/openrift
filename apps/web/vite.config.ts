@@ -324,6 +324,23 @@ export default defineConfig(({ mode, command }) => {
                 test: /node_modules\/sonner/u,
                 name: "sonner",
               },
+              // Icons are imported one module per icon, so without this every
+              // icon reachable from two routes became its own ~500 byte chunk
+              // (126 of them, 65 KB total). The whole set is small enough that
+              // one shared chunk costs less than the requests it replaces.
+              //
+              // Grouping app source the same way does NOT pay off, and was
+              // measured: src/lib, src/hooks, src/stores and src/components/ui
+              // as groups cut the chunk count further but forced route-specific
+              // code into a chunk every route loads, costing 150-250 KB brotli
+              // on first load per route. Same for the `?tsr-split=` boundary
+              // stubs: 121 tiny files, but merging them drags every route's
+              // error-component dependencies everywhere. Re-measure before
+              // adding any group below this line.
+              {
+                test: /node_modules\/lucide-react/u,
+                name: "lucide",
+              },
             ],
           },
         },
