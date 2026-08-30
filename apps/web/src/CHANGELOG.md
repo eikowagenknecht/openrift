@@ -8,6 +8,7 @@
 
 ### Other
 
+- fix(Tournaments): **Invite links open when signed out** — a join or staff-invite link crashed for anyone not already signed in, instead of showing the event and a sign-in button.
 - fix(Collection): **Finish names in shared lists** — a list copied as text guessed the finish name from its internal id, writing "Metal-deluxe", and now uses the same name the rest of the app shows.
 - fix(Collection): **Set and rarity names in CSV exports** — exports wrote the internal set id ("OGN") instead of the set name ("Origins").
 

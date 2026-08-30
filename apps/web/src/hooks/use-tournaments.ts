@@ -17,7 +17,7 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { useRequiredUserId } from "@/lib/auth-session";
+import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { openRoundRefetchInterval } from "@/lib/open-round-polling";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -500,22 +500,31 @@ export function useDissolveTeam() {
   return useParticipantMutation<{ id: string; teamId: string }>((data) => dissolveTeamFn({ data }));
 }
 
+// The two landing pages these drive sit outside `_authenticated`, so both hooks
+// render for signed-out visitors and must not require a session. The user id is
+// only an invalidation key here; the mutations themselves are rejected by the
+// API without one.
 export function useRequestJoinTournament() {
-  const userId = useRequiredUserId();
+  const userId = useUserId();
   return useMutationWithInvalidation<PublicTournamentJoinResponse, { token: string }>({
     mutationFn: (data) => requestJoinFn({ data: data.token }),
-    invalidates: () => [queryKeys.tournaments.all(userId)],
+    invalidates: () => (userId ? [queryKeys.tournaments.all(userId)] : []),
   });
 }
 
 export function useClaimStaffInvite() {
-  const userId = useRequiredUserId();
+  const userId = useUserId();
   return useMutationWithInvalidation({
     mutationFn: (token: string) => claimStaffInviteFn({ data: token }),
-    invalidates: (_token, result) => [
-      queryKeys.tournaments.all(userId),
-      ...(result ? [queryKeys.tournaments.detail(userId, result.tournamentId)] : []),
-    ],
+    invalidates: (_token, result) => {
+      if (!userId) {
+        return [];
+      }
+      return [
+        queryKeys.tournaments.all(userId),
+        ...(result ? [queryKeys.tournaments.detail(userId, result.tournamentId)] : []),
+      ];
+    },
   });
 }
 
