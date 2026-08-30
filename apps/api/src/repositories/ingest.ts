@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
@@ -30,6 +31,30 @@ export function ingestRepo(db: Db) {
 
     allCardNameAliases(): Promise<{ normName: string; cardId: string }[]> {
       return db.selectFrom("cardNameAliases").select(["normName", "cardId"]).execute();
+    },
+
+    /** The whole catalog as `inferChosenChampion` reads it: one row per card. */
+    allCardChampionFacts(): Promise<
+      { id: string; tags: string[]; isChampion: boolean; maxCopiesOverride: number | null }[]
+    > {
+      return db
+        .selectFrom("cards")
+        .select((eb) => [
+          "cards.id",
+          "cards.tags",
+          "cards.maxCopiesOverride",
+          eb
+            .exists(
+              eb
+                .selectFrom("cardSuperTypes")
+                .select("cardSuperTypes.cardId")
+                .whereRef("cardSuperTypes.cardId", "=", "cards.id")
+                .where("cardSuperTypes.superTypeSlug", "=", WellKnown.superType.CHAMPION),
+            )
+            .$castTo<boolean>()
+            .as("isChampion"),
+        ])
+        .execute();
     },
 
     allPrintingKeys(): Promise<

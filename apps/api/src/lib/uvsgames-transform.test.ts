@@ -37,6 +37,47 @@ function registration(overrides: Record<string, unknown> = {}): Record<string, u
   };
 }
 
+/**
+ * A deck section as the source writes one: the zone is named by `section_type`,
+ * each line nests its card, and a section with nothing in it is still sent.
+ */
+function section(
+  sectionType: string,
+  cards: { name: string; quantity: number; type?: string }[],
+): Record<string, unknown> {
+  return {
+    id: `section-${sectionType}`,
+    name: sectionType,
+    section_type: sectionType,
+    sort_order: 0,
+    card_count: cards.length,
+    cards: cards.map((card, index) => ({
+      id: `line-${sectionType}-${index}`,
+      quantity: card.quantity,
+      foil: false,
+      sort_order: index,
+      card: { id: `card-${card.name}`, name: card.name, type: card.type ?? "Spell" },
+    })),
+  };
+}
+
+/** The shape all but a few dozen real lists have: no legend, champion or battlefields. */
+function mainDeckOnlyDeck(): Record<string, unknown> {
+  return {
+    id: "deck-1",
+    name: "Rengar, Pridestalker",
+    format: "Constructed",
+    sections: [
+      section("main", [{ name: "Punch First", quantity: 39 }]),
+      section("rune_pool", [{ name: "Body Rune", quantity: 12, type: "Rune" }]),
+      section("sideboard", [{ name: "Brittle Steel", quantity: 8 }]),
+      section("champion", []),
+      section("legend", []),
+      section("battlefield", []),
+    ],
+  };
+}
+
 function raw(overrides: Partial<UvsDeepFetchRaw> = {}): UvsDeepFetchRaw {
   return {
     detail: { name: "Summoner Skirmish Regional" },
@@ -332,13 +373,13 @@ describe("transformUvsEvent", () => {
         decks: {
           "deck-1": {
             sections: [
-              { type: "legend", cards: [{ name: "Jinx", quantity: 1 }] },
-              { type: "champion", cards: [{ card: { name: "Vi" }, quantity: 1 }] },
-              { type: "rune_pool", cards: [{ name: "Fury Rune", count: 12 }] },
-              { type: "main", cards: [{ name: "Get Excited", quantity: 3 }] },
-              { type: "battlefield", cards: [{ name: "Zaun Alley" }] },
-              { type: "sideboard", cards: [{ name: "Riot Police", quantity: 2 }] },
-              { type: "mystery_zone", cards: [{ name: "Unknown Thing", quantity: 1 }] },
+              section("legend", [{ name: "Jinx", quantity: 1, type: "Legend" }]),
+              section("champion", [{ name: "Vi", quantity: 1, type: "Unit" }]),
+              section("rune_pool", [{ name: "Fury Rune", quantity: 12, type: "Rune" }]),
+              section("main", [{ name: "Get Excited", quantity: 39 }]),
+              section("battlefield", [{ name: "Zaun Alley", quantity: 3, type: "Battlefield" }]),
+              section("sideboard", [{ name: "Riot Police", quantity: 2 }]),
+              section("mystery_zone", [{ name: "Unknown Thing", quantity: 1 }]),
             ],
           },
         },
@@ -351,11 +392,130 @@ describe("transformUvsEvent", () => {
       { name: "Jinx", zone: "legend", quantity: 1 },
       { name: "Vi", zone: "champion", quantity: 1 },
       { name: "Fury Rune", zone: "runes", quantity: 12 },
-      { name: "Get Excited", zone: "main", quantity: 3 },
-      { name: "Zaun Alley", zone: "battlefield", quantity: 1 },
+      { name: "Get Excited", zone: "main", quantity: 39 },
+      { name: "Zaun Alley", zone: "battlefield", quantity: 3 },
       { name: "Riot Police", zone: "sideboard", quantity: 2 },
       { name: "Unknown Thing", zone: "main", quantity: 1 },
     ]);
+  });
+
+  it("keeps the rune pool and the sideboard out of the main deck", () => {
+    const { event } = transformUvsEvent(
+      FACTS,
+      raw({
+        registrations: [registration({ deck_id: "deck-1" })],
+        decks: { "deck-1": mainDeckOnlyDeck() },
+      }),
+    );
+
+    expect(event.players[0].cards).toEqual([
+      { name: "Punch First", zone: "main", quantity: 39 },
+      { name: "Body Rune", zone: "runes", quantity: 12 },
+      { name: "Brittle Steel", zone: "sideboard", quantity: 8 },
+    ]);
+  });
+
+  it("marks a list the source never gave a champion or battlefields as partial", () => {
+    const { event } = transformUvsEvent(
+      FACTS,
+      raw({
+        registrations: [registration({ deck_id: "deck-1" })],
+        decks: { "deck-1": mainDeckOnlyDeck() },
+      }),
+    );
+
+    expect(event.players[0].listStatus).toBe("partial");
+  });
+
+  it("reads the older shape, which names its sections and types nothing", () => {
+    const { event } = transformUvsEvent(
+      FACTS,
+      raw({
+        registrations: [registration({ deck_id: "deck-1" })],
+        decks: {
+          "deck-1": {
+            sections: [
+              { name: "Main Deck", cards: [{ card: { name: "Punch First" }, quantity: 39 }] },
+              { name: "Rune Pool", cards: [{ card: { name: "Body Rune" }, quantity: 12 }] },
+              { name: "Sideboard", cards: [{ card: { name: "Brittle Steel" }, quantity: 8 }] },
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(event.players[0].cards).toEqual([
+      { name: "Punch First", zone: "main", quantity: 39 },
+      { name: "Body Rune", zone: "runes", quantity: 12 },
+      { name: "Brittle Steel", zone: "sideboard", quantity: 8 },
+    ]);
+  });
+
+  it("files a battlefield the source left in the main deck under its own zone", () => {
+    const { event } = transformUvsEvent(
+      FACTS,
+      raw({
+        registrations: [registration({ deck_id: "deck-1" })],
+        decks: {
+          "deck-1": {
+            sections: [
+              section("main", [
+                { name: "Punch First", quantity: 38 },
+                { name: "Zaun Alley", quantity: 1, type: "Battlefield" },
+              ]),
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(event.players[0].cards).toEqual([
+      { name: "Punch First", zone: "main", quantity: 38 },
+      { name: "Zaun Alley", zone: "battlefield", quantity: 1 },
+    ]);
+  });
+
+  it("keeps the Chosen Champion in its own zone, though the card is a Unit", () => {
+    const { event } = transformUvsEvent(
+      FACTS,
+      raw({
+        registrations: [registration({ deck_id: "deck-1" })],
+        decks: {
+          "deck-1": {
+            sections: [section("champion", [{ name: "Vi", quantity: 1, type: "Unit" }])],
+          },
+        },
+      }),
+    );
+
+    expect(event.players[0].cards).toEqual([{ name: "Vi", zone: "champion", quantity: 1 }]);
+  });
+
+  it("counts the legend the standings named toward a complete list", () => {
+    const decks = {
+      "deck-1": {
+        sections: [
+          section("main", [{ name: "Punch First", quantity: 39 }]),
+          section("rune_pool", [{ name: "Body Rune", quantity: 12, type: "Rune" }]),
+          section("champion", [{ name: "Vi", quantity: 1, type: "Unit" }]),
+          section("battlefield", [{ name: "Zaun Alley", quantity: 3, type: "Battlefield" }]),
+        ],
+      },
+    };
+    const registrations = [registration({ id: 900, deck_id: "deck-1" })];
+
+    const without = transformUvsEvent(FACTS, raw({ registrations, decks }));
+    const withLegend = transformUvsEvent(
+      FACTS,
+      raw({
+        registrations,
+        decks,
+        roundStandings: [{ user_event_status: { id: 900, deck_defining_card: { name: "Jinx" } } }],
+      }),
+    );
+
+    expect(without.event.players[0].listStatus).toBe("partial");
+    expect(withLegend.event.players[0].listStatus).toBe("full");
   });
 
   it("leaves a player standings-only when their deck could not be read", () => {
@@ -895,11 +1055,15 @@ describe("unfetchedDeckIds", () => {
 describe("readDeckLines", () => {
   it("returns null for a deck with no readable card line", () => {
     expect(readDeckLines(null)).toBeNull();
-    expect(readDeckLines({ sections: [{ type: "main", cards: [{ quantity: 2 }] }] })).toBeNull();
+    expect(
+      readDeckLines({ sections: [{ section_type: "main", cards: [{ quantity: 2 }] }] }),
+    ).toBeNull();
   });
 
   it("defaults a missing quantity to one copy", () => {
-    const lines = readDeckLines({ sections: [{ type: "main", cards: [{ name: "Poro" }] }] });
+    const lines = readDeckLines({
+      sections: [{ section_type: "main", cards: [{ name: "Poro" }] }],
+    });
 
     expect(lines?.cards).toEqual([{ name: "Poro", zone: "main", quantity: 1 }]);
   });

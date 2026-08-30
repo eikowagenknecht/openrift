@@ -30,13 +30,14 @@ import type { Transact } from "../deps.js";
 import { isValidIsoDate } from "../lib/iso-date.js";
 import type { MetaDeckCardEntry } from "../lib/meta-candidate-diff.js";
 import {
-  collapseCardEntries,
   diffMetaEvent,
   diffMetaPlayer,
   hasPlayerDiff,
+  metaDeckCardEntries,
   normalize,
   resolveMetaPlayerCards,
 } from "../lib/meta-candidate-diff.js";
+import { inferChosenChampion } from "../lib/meta-chosen-champion.js";
 import type { LiveMetaPlayerRow } from "../repositories/meta.js";
 import type { CardNameIndex } from "./candidate-links.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
@@ -352,22 +353,6 @@ function sourceCards(cards: readonly CandidateMetaDeckCard[] | null) {
   }));
 }
 
-/**
- * The resolved rows a diff against a live deck compares, dropping unresolved
- * ones and summing rows that landed on the same card and zone — the same
- * collapse the accept path applies before writing `deck_cards`, so an accepted
- * list reads as in sync afterwards.
- */
-function resolvedCardEntries(cards: readonly CandidateMetaDeckCard[] | null): MetaDeckCardEntry[] {
-  const entries: MetaDeckCardEntry[] = [];
-  for (const card of cards ?? []) {
-    if (card.cardId !== null) {
-      entries.push({ cardId: card.cardId, zone: card.zone, quantity: card.quantity });
-    }
-  }
-  return collapseCardEntries(entries);
-}
-
 function resolveCards(
   index: CardNameIndex,
   player: MetaIngestEventPlayer,
@@ -488,12 +473,15 @@ export async function ingestMetaCandidates(
 
     const eventKeys = deduped.map((event) => event.externalId);
 
-    const [existingEvents, ignoredEventIds, ignoredPlayerKeys, nameIndex] = await Promise.all([
-      repo.eventsBySourceKeys(provider, eventKeys),
-      repo.ignoredEventIds(provider),
-      repo.ignoredPlayerKeys(provider),
-      loadCardNameIndex(repos.ingest),
-    ]);
+    const [existingEvents, ignoredEventIds, ignoredPlayerKeys, nameIndex, championRows] =
+      await Promise.all([
+        repo.eventsBySourceKeys(provider, eventKeys),
+        repo.ignoredEventIds(provider),
+        repo.ignoredPlayerKeys(provider),
+        loadCardNameIndex(repos.ingest),
+        repos.ingest.allCardChampionFacts(),
+      ]);
+    const championFacts = new Map(championRows.map((row) => [row.id, row]));
 
     const existingEventByKey = new Map(existingEvents.map((row) => [row.externalId, row]));
     const ignoredEvents = new Set(ignoredEventIds);
@@ -625,9 +613,12 @@ export async function ingestMetaCandidates(
           });
         }
 
+        const legendCardId = resolveName(nameIndex, player.legendName);
         const resolvedNames = {
-          legendCardId: resolveName(nameIndex, player.legendName),
-          championCardId: resolveName(nameIndex, player.championName),
+          legendCardId,
+          championCardId:
+            resolveName(nameIndex, player.championName) ??
+            inferChosenChampion(cards ?? [], legendCardId, championFacts),
         };
         const values = { ...playerFields(player), ...resolvedNames };
 
@@ -763,7 +754,7 @@ function hasAnyPlayerChange(
         // A source that publishes standings only is not proposing to strip a
         // list another source already contributed, so the live status stands in.
         listStatus: cards === null ? livePlayer.listStatus : player.listStatus,
-        cards: cards === null ? liveCards : resolvedCardEntries(cards),
+        cards: cards === null ? liveCards : metaDeckCardEntries({ cards, ...resolvedNames }),
       },
     ),
   );

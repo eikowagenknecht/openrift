@@ -867,6 +867,8 @@ describe("acceptCandidatePlayer", () => {
     const { repos, stubs } = harness({
       event: candidateEvent({ metaEventId: LIVE_EVENT_ID }),
       player: candidatePlayer({
+        legendCardId: null,
+        legendName: null,
         cards: [
           { name: "Shock", zone: "main", quantity: 2, cardId: "card-shock" },
           { name: "shock", zone: "main", quantity: 1, cardId: "card-shock" },
@@ -878,6 +880,46 @@ describe("acceptCandidatePlayer", () => {
     expect(stubs.createPlayer.mock.calls[0][0].deck.cards).toEqual([
       { cardId: "card-shock", zone: "main", quantity: 3, preferredPrintingId: null },
     ]);
+  });
+
+  it("files the legend the source published beside the list into the deck", async () => {
+    const { repos, stubs } = harness({
+      event: candidateEvent({ metaEventId: LIVE_EVENT_ID }),
+      player: candidatePlayer({
+        cards: [{ name: "Shock", zone: "main", quantity: 3, cardId: "card-shock" }],
+      }),
+    });
+    await acceptCandidatePlayer(repos, CANDIDATE_PLAYER_ID);
+
+    expect(stubs.createPlayer.mock.calls[0][0].deck.cards).toEqual([
+      { cardId: "card-shock", zone: "main", quantity: 3, preferredPrintingId: null },
+      { cardId: "card-azir", zone: "legend", quantity: 1, preferredPrintingId: null },
+    ]);
+  });
+
+  it("leaves the list's own legend alone rather than adding the source's pick beside it", async () => {
+    const { repos, stubs } = harness({
+      event: candidateEvent({ metaEventId: LIVE_EVENT_ID }),
+      player: candidatePlayer({
+        legendCardId: "card-stale",
+        cards: [{ name: "Azir", zone: "legend", quantity: 1, cardId: "card-azir" }],
+      }),
+    });
+    await acceptCandidatePlayer(repos, CANDIDATE_PLAYER_ID);
+
+    expect(stubs.createPlayer.mock.calls[0][0].deck.cards).toEqual([
+      { cardId: "card-azir", zone: "legend", quantity: 1, preferredPrintingId: null },
+    ]);
+  });
+
+  it("gives a standings-only entry no deck, legend or not", async () => {
+    const { repos, stubs } = harness({
+      event: candidateEvent({ metaEventId: LIVE_EVENT_ID }),
+      player: standingsOnlyPlayer(),
+    });
+    await acceptCandidatePlayer(repos, CANDIDATE_PLAYER_ID);
+
+    expect(stubs.createPlayer.mock.calls[0][0].deck).toBeNull();
   });
 
   it("refuses while the entry's event is still unlinked", async () => {

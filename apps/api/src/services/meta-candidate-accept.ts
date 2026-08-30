@@ -26,12 +26,11 @@ import type { CandidateMetaDeckCard } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { assertKnownFormat } from "../lib/deck-format-validation.js";
-import type { MetaDeckCardEntry } from "../lib/meta-candidate-diff.js";
 import {
-  collapseCardEntries,
   diffMetaDeckCards,
   hasCardDiff,
   META_EVENT_NO_CLAIM_FIELDS,
+  metaDeckCardEntries,
   resolveMetaPlayerCards,
 } from "../lib/meta-candidate-diff.js";
 import { defaultMetaDeckName, metaEventSlugCandidates } from "../lib/meta-candidate-naming.js";
@@ -432,24 +431,8 @@ function unresolvedCardNames(cards: readonly CandidateMetaDeckCard[]): string[] 
   return [...new Set(cards.filter((card) => card.cardId === null).map((card) => card.name))];
 }
 
-/**
- * Two source rows can legitimately resolve to the same card and zone — a
- * playset split across lines, or an alias fix mapping two spellings onto one
- * card — and `deck_cards` is unique on `(deck, card, zone)`, so duplicates are
- * summed rather than failing the accept on the second insert.
- */
-function toCardEntries(cards: readonly CandidateMetaDeckCard[]): MetaDeckCardEntry[] {
-  return collapseCardEntries(
-    cards.map((card) => ({
-      cardId: card.cardId as string,
-      zone: card.zone,
-      quantity: card.quantity,
-    })),
-  );
-}
-
-function toDeckCardInputs(cards: readonly CandidateMetaDeckCard[]): MetaDeckCardInput[] {
-  return toCardEntries(cards).map((entry) => ({
+function toDeckCardInputs(player: CandidateMetaPlayerRow): MetaDeckCardInput[] {
+  return metaDeckCardEntries(player).map((entry) => ({
     cardId: entry.cardId,
     zone: entry.zone as MetaDeckCardInput["zone"],
     quantity: entry.quantity,
@@ -656,7 +639,7 @@ async function listMoved(
     return true;
   }
   const liveCards = await repos.metaCandidates.liveDeckCards([live.deckId]);
-  return hasCardDiff(diffMetaDeckCards(liveCards, toCardEntries(player.cards ?? [])));
+  return hasCardDiff(diffMetaDeckCards(liveCards, metaDeckCardEntries(player)));
 }
 
 /**
@@ -672,12 +655,11 @@ async function buildDeckInput(
   liveEvent: { name: string; format: string },
   live: LiveMetaPlayerRow | null,
 ): Promise<MetaArchivedDeckInput> {
-  const cards = player.cards ?? [];
   return {
     name: live?.deckName ?? (await deriveDeckName(repos, player, liveEvent.name)),
     format: liveEvent.format,
     formatConfig: null,
-    cards: toDeckCardInputs(cards),
+    cards: toDeckCardInputs(player),
     listStatus: player.listStatus as Exclude<MetaListStatus, "none">,
   };
 }

@@ -97,6 +97,50 @@ export function resolveMetaPlayerCards(player: {
   };
 }
 
+/**
+ * The archived deck a candidate's list stands for: its own resolved lines, plus
+ * the Legend and Chosen Champion the source published beside the list rather
+ * than inside it.
+ *
+ * uvsgames names every player's legend in the round standings but fills the
+ * list's own Legend section on almost none of them, and that one card decides
+ * the deck's domains — so a list that reaches the archive without it is missing
+ * something the source did tell us. Unresolved lines are dropped, as they must
+ * be: `deck_cards` needs real card ids, and {@link diffMetaDeckCards} compares
+ * on them.
+ *
+ * Ingest and accept both read this, so "would accepting change the deck?" and
+ * "what does accepting write?" cannot drift apart.
+ *
+ * @returns The deck's rows, or none at all for a standings-only entry.
+ */
+export function metaDeckCardEntries(player: {
+  cards: readonly { zone: string; cardId: string | null; quantity: number }[] | null;
+  legendCardId: string | null;
+  championCardId: string | null;
+}): MetaDeckCardEntry[] {
+  if (player.cards === null) {
+    return [];
+  }
+  const entries: MetaDeckCardEntry[] = [];
+  for (const card of player.cards) {
+    if (card.cardId !== null) {
+      entries.push({ cardId: card.cardId, zone: card.zone, quantity: card.quantity });
+    }
+  }
+  const resolved = resolveMetaPlayerCards(player);
+  const seeds = [
+    [WellKnown.deckZone.LEGEND, resolved.legendCardId],
+    [WellKnown.deckZone.CHAMPION, resolved.championCardId],
+  ] as const;
+  for (const [zone, cardId] of seeds) {
+    if (cardId !== null && !entries.some((entry) => entry.zone === zone)) {
+      entries.push({ cardId, zone, quantity: 1 });
+    }
+  }
+  return collapseCardEntries(entries);
+}
+
 export interface MetaDeckCardDiff {
   added: MetaDeckCardEntry[];
   removed: MetaDeckCardEntry[];

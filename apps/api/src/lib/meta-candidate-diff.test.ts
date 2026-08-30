@@ -14,6 +14,7 @@ import {
   hasPlayerDiff,
   metaCandidateState,
   normalize,
+  metaDeckCardEntries,
   resolveMetaPlayerCards,
 } from "./meta-candidate-diff.js";
 
@@ -340,6 +341,79 @@ describe("resolveMetaPlayerCards", () => {
         championCardId: null,
       }),
     ).toEqual({ legendCardId: null, championCardId: null });
+  });
+});
+
+describe("metaDeckCardEntries", () => {
+  it("adds the legend the source named beside a list that carries none", () => {
+    expect(
+      metaDeckCardEntries({
+        cards: [{ zone: "main", cardId: SHOCK, quantity: 3 }],
+        legendCardId: YASUO,
+        championCardId: null,
+      }),
+    ).toEqual([
+      { cardId: SHOCK, zone: "main", quantity: 3 },
+      { cardId: YASUO, zone: "legend", quantity: 1 },
+    ]);
+  });
+
+  it("leaves a list that fills its own legend zone untouched", () => {
+    expect(
+      metaDeckCardEntries({
+        cards: [
+          { zone: "legend", cardId: AZIR, quantity: 1 },
+          { zone: "main", cardId: SHOCK, quantity: 3 },
+        ],
+        legendCardId: YASUO,
+        championCardId: null,
+      }),
+    ).toEqual([
+      { cardId: AZIR, zone: "legend", quantity: 1 },
+      { cardId: SHOCK, zone: "main", quantity: 3 },
+    ]);
+  });
+
+  it("gives a standings-only entry no rows, though the source named its legend", () => {
+    expect(metaDeckCardEntries({ cards: null, legendCardId: YASUO, championCardId: VI })).toEqual(
+      [],
+    );
+  });
+
+  it("drops a line whose name matched nothing", () => {
+    expect(
+      metaDeckCardEntries({
+        cards: [
+          { zone: "main", cardId: SHOCK, quantity: 3 },
+          { zone: "main", cardId: null, quantity: 2 },
+        ],
+        legendCardId: null,
+        championCardId: null,
+      }),
+    ).toEqual([{ cardId: SHOCK, zone: "main", quantity: 3 }]);
+  });
+
+  it("sums two lines that resolved to the same card and zone", () => {
+    expect(
+      metaDeckCardEntries({
+        cards: [
+          { zone: "main", cardId: SHOCK, quantity: 2 },
+          { zone: "main", cardId: SHOCK, quantity: 1 },
+        ],
+        legendCardId: null,
+        championCardId: null,
+      }),
+    ).toEqual([{ cardId: SHOCK, zone: "main", quantity: 3 }]);
+  });
+
+  it("seeds the legend from the source when the list's own legend line matched nothing", () => {
+    expect(
+      metaDeckCardEntries({
+        cards: [{ zone: "legend", cardId: null, quantity: 1 }],
+        legendCardId: YASUO,
+        championCardId: null,
+      }),
+    ).toEqual([{ cardId: YASUO, zone: "legend", quantity: 1 }]);
   });
 });
 

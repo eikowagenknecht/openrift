@@ -1,4 +1,4 @@
-import { META_ENTRY_STATUSES, WellKnown } from "@openrift/shared";
+import { META_ENTRY_STATUSES, REQUIRED_ZONES, WellKnown, ZONE_EXPECTED } from "@openrift/shared";
 import type {
   MetaEntryStatus,
   MetaEventTier,
@@ -73,7 +73,7 @@ interface UvsPlayerIdentity {
   displayName: string;
 }
 
-/** Source section type → `WellKnown.deckZone`. Anything else lands in the main deck. */
+/** Source section key → `WellKnown.deckZone`. Anything else lands in the main deck. */
 const ZONE_BY_SECTION: Readonly<Record<string, string>> = {
   main: WellKnown.deckZone.MAIN,
   main_deck: WellKnown.deckZone.MAIN,
@@ -83,6 +83,20 @@ const ZONE_BY_SECTION: Readonly<Record<string, string>> = {
   champion: WellKnown.deckZone.CHAMPION,
   rune_pool: WellKnown.deckZone.RUNES,
   runes: WellKnown.deckZone.RUNES,
+  battlefield: WellKnown.deckZone.BATTLEFIELD,
+  battlefields: WellKnown.deckZone.BATTLEFIELD,
+};
+
+/**
+ * Where a card belongs when the source filed it in the main deck but typed it
+ * as something the main deck cannot hold. The source's own vocabulary, not the
+ * catalog's, because the transform is pure and never sees a resolved card.
+ * Only main-deck lines consult it: a Champion is a Unit, so a section that
+ * names its zone outright is always the better authority.
+ */
+const ZONE_BY_CARD_TYPE: Readonly<Record<string, string>> = {
+  legend: WellKnown.deckZone.LEGEND,
+  rune: WellKnown.deckZone.RUNES,
   battlefield: WellKnown.deckZone.BATTLEFIELD,
 };
 
@@ -485,9 +499,30 @@ interface DeckLines {
 }
 
 /**
- * One fetched decklist as ingest card lines. Section shape has moved around, so
- * the section list, its type, and each entry's name and quantity are all probed
- * rather than destructured.
+ * The zone one deck section stands for. The source names it in `section_type`
+ * (`main`, `rune_pool`, `battlefield`) on today's shape and in `name` alone
+ * (`Main Deck`, `Rune Pool`, `Battlefields`) on the older one, so all three
+ * keys are probed and the first recognised spelling wins. An unknown key is a
+ * section shape nobody has seen, whose cards are worth more in the main deck
+ * than dropped.
+ */
+function sectionZone(section: Json | null): string {
+  for (const raw of [section?.section_type, section?.type, section?.name]) {
+    const key = text(raw)
+      ?.toLowerCase()
+      .replaceAll(/[\s-]+/gu, "_");
+    const zone = key === undefined || key === null ? undefined : ZONE_BY_SECTION[key];
+    if (zone !== undefined) {
+      return zone;
+    }
+  }
+  return WellKnown.deckZone.MAIN;
+}
+
+/**
+ * One fetched decklist as ingest card lines. The source publishes no schema, so
+ * the section list, the key naming each section, and each entry's name and
+ * quantity are all probed rather than destructured.
  */
 export function readDeckLines(deck: unknown): DeckLines | null {
   const row = record(deck);
@@ -502,14 +537,17 @@ export function readDeckLines(deck: unknown): DeckLines | null {
 
   for (const rawSection of array(sections)) {
     const section = record(rawSection);
-    const type = text(section?.type)?.toLowerCase() ?? "";
-    const zone = ZONE_BY_SECTION[type] ?? WellKnown.deckZone.MAIN;
+    const sectionSlot = sectionZone(section);
     for (const rawEntry of array(section?.cards ?? section?.entries)) {
       const entry = record(rawEntry);
-      const name = text(entry?.name) ?? text(record(entry?.card)?.name) ?? text(entry?.card_name);
+      const card = record(entry?.card);
+      const name = text(entry?.name) ?? text(card?.name) ?? text(entry?.card_name);
       if (name === null) {
         continue;
       }
+      const byType = ZONE_BY_CARD_TYPE[text(card?.type)?.toLowerCase() ?? ""];
+      const zone =
+        sectionSlot === WellKnown.deckZone.MAIN && byType !== undefined ? byType : sectionSlot;
       const quantity = positive(entry?.quantity) ?? positive(entry?.count) ?? 1;
       cards.push({ name, zone, quantity });
       if (zone === WellKnown.deckZone.CHAMPION && championName === null) {
@@ -519,6 +557,39 @@ export function readDeckLines(deck: unknown): DeckLines | null {
   }
 
   return cards.length === 0 ? null : { cards, championName };
+}
+
+/**
+ * Whether a list is the whole record of what was played, or only the part the
+ * source published.
+ *
+ * uvsgames fills the Legend, Chosen Champion and Battlefields sections on a few
+ * dozen of its several thousand lists and leaves them empty on the rest, so
+ * `full` is earned per list rather than granted to every list that parsed. The
+ * marker is what turns the deck page's missing zones into dashed "Unknown"
+ * slots instead of zones the player is shown as having left empty.
+ *
+ * The standings legend counts as held: the accept path files it into the list's
+ * own Legend zone when the list carries none.
+ *
+ * The targets are the constructed baselines rather than `zoneExpected`, because
+ * a candidate's format is still the source's unmapped string here.
+ */
+function listStatusFor(
+  cards: NonNullable<MetaIngestEventPlayer["cards"]>,
+  standingsLegend: string | null,
+): "full" | "partial" {
+  const held = new Map<string, number>();
+  for (const card of cards) {
+    held.set(card.zone, (held.get(card.zone) ?? 0) + card.quantity);
+  }
+  if (standingsLegend !== null) {
+    held.set(WellKnown.deckZone.LEGEND, Math.max(held.get(WellKnown.deckZone.LEGEND) ?? 0, 1));
+  }
+  const complete = REQUIRED_ZONES.every(
+    (zone) => (held.get(zone) ?? 0) >= (ZONE_EXPECTED[zone] ?? 0),
+  );
+  return complete ? "full" : "partial";
 }
 
 /**
@@ -598,7 +669,11 @@ export function transformUvsEvent(facts: UvsEventFacts, raw: UvsDeepFetchRaw): U
     players.push(
       lines === null
         ? { ...scalars, cards: null, listStatus: "none" }
-        : { ...scalars, cards: lines.cards, listStatus: "full" },
+        : {
+            ...scalars,
+            cards: lines.cards,
+            listStatus: listStatusFor(lines.cards, scalars.legendName),
+          },
     );
   }
 
