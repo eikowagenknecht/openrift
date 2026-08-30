@@ -9,14 +9,7 @@ import { metaScopeSearchSchema } from "@/lib/meta-scope";
 // at module scope.
 
 /** The columns the tournament index can be ordered by. */
-export const META_EVENT_INDEX_SORTS = [
-  "date",
-  "name",
-  "tier",
-  "country",
-  "players",
-  "decks",
-] as const;
+const META_EVENT_INDEX_SORTS = ["date", "name", "tier", "country", "players", "decks"] as const;
 
 export type MetaEventIndexSort = (typeof META_EVENT_INDEX_SORTS)[number];
 
@@ -41,5 +34,3 @@ export const metaEventsSearchSchema = metaScopeSearchSchema.extend({
   by: z.enum(META_EVENT_INDEX_SORTS).optional().catch(undefined),
   dir: z.enum(["asc", "desc"]).optional().catch(undefined),
 });
-
-export type MetaEventsSearch = z.infer<typeof metaEventsSearchSchema>;
