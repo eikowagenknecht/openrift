@@ -23,6 +23,7 @@ beforeEach(() => {
       tradeRequestCadence: "5min",
       cardSubmissions: false,
       groupJoinRequests: true,
+      groupApprovals: true,
     },
     isLoading: false,
     isSaving: false,

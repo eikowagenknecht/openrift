@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { GroupJoinRequestEmailInput } from "./group-emails.js";
-import { buildGroupJoinRequestEmail } from "./group-emails.js";
+import type { GroupApprovedEmailInput, GroupJoinRequestEmailInput } from "./group-emails.js";
+import { buildGroupApprovedEmail, buildGroupJoinRequestEmail } from "./group-emails.js";
 
 const INPUT: GroupJoinRequestEmailInput = {
   recipientName: "Riven",
@@ -51,5 +51,62 @@ describe("buildGroupJoinRequestEmail", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("Rift &amp; Co");
+  });
+});
+
+const APPROVED: GroupApprovedEmailInput = {
+  recipientName: "Garen",
+  groupName: "Summoner Skirmish",
+  groupUrl: "https://openrift.app/groups/summoner-skirmish",
+  manageUrl: "https://openrift.app/groups/summoner-skirmish/manage",
+  unsubscribeUrl: "https://openrift.app/unsubscribe?token=abc",
+};
+
+describe("buildGroupApprovedEmail", () => {
+  it("names the group in the subject and greets the new member", () => {
+    const { subject, html } = buildGroupApprovedEmail(APPROVED);
+
+    expect(subject).toBe("You're in: Summoner Skirmish");
+    expect(html).toContain("Hi Garen,");
+    expect(html).toContain("Summoner Skirmish");
+  });
+
+  it("falls back to a bare greeting when the member has no name", () => {
+    const { html } = buildGroupApprovedEmail({ ...APPROVED, recipientName: null });
+
+    expect(html).toContain("Hi,");
+  });
+
+  it("says what the group is for, so the mail is a reason to come back", () => {
+    const { html } = buildGroupApprovedEmail(APPROVED);
+
+    expect(html).toContain("wishlist");
+    expect(html).toContain("Trade matches");
+  });
+
+  it("links both the group and the manage page, where sharing is chosen", () => {
+    const { html } = buildGroupApprovedEmail(APPROVED);
+
+    expect(html).toContain('href="https://openrift.app/groups/summoner-skirmish"');
+    expect(html).toContain('href="https://openrift.app/groups/summoner-skirmish/manage"');
+    expect(html).toContain("Nothing of yours is visible yet");
+  });
+
+  it("carries its own unsubscribe channel, separate from join requests", () => {
+    const { html } = buildGroupApprovedEmail(APPROVED);
+
+    expect(html).toContain('href="https://openrift.app/unsubscribe?token=abc"');
+    expect(html).toContain("Group welcome emails");
+    expect(html).not.toContain("Group join requests");
+  });
+
+  it("escapes a group name that contains markup", () => {
+    const { html } = buildGroupApprovedEmail({
+      ...APPROVED,
+      groupName: "<script>alert(1)</script>",
+    });
+
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
   });
 });

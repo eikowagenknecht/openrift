@@ -103,6 +103,7 @@ describe("useEmailNotifications", () => {
       tradeRequestCadence: "30min",
       cardSubmissions: false,
       groupJoinRequests: true,
+      groupApprovals: true,
     });
   });
 
@@ -118,6 +119,7 @@ describe("useEmailNotifications", () => {
       tradeRequestCadence: "5min",
       cardSubmissions: false,
       groupJoinRequests: true,
+      groupApprovals: true,
     });
   });
 

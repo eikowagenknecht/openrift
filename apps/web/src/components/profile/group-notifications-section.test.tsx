@@ -23,6 +23,7 @@ beforeEach(() => {
       tradeRequestCadence: "5min",
       cardSubmissions: false,
       groupJoinRequests: true,
+      groupApprovals: true,
     },
     isLoading: false,
     isSaving: false,
@@ -68,6 +69,34 @@ describe("GroupNotificationsSection", () => {
     expect(screen.getByRole("switch", { name: "Join requests" })).toHaveAttribute(
       "aria-disabled",
       "true",
+    );
+  });
+
+  it("renders the welcome switch on, since that channel is opt-out too", () => {
+    render(<GroupNotificationsSection />);
+    expect(screen.getByRole("switch", { name: "Welcome to a group" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  it("turning the welcome off calls setChannel with groupApprovals", async () => {
+    render(<GroupNotificationsSection />);
+    await userEvent.click(screen.getByRole("switch", { name: "Welcome to a group" }));
+    expect(setChannel).toHaveBeenCalledWith("groupApprovals", false);
+  });
+
+  it("the two switches move independently", async () => {
+    hookValue = { ...hookValue, gates: { ...hookValue.gates, groupApprovals: false } };
+    render(<GroupNotificationsSection />);
+
+    expect(screen.getByRole("switch", { name: "Join requests" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("switch", { name: "Welcome to a group" })).toHaveAttribute(
+      "aria-checked",
+      "false",
     );
   });
 });

@@ -6,7 +6,7 @@
  * stay on-brand and consistent.
  */
 
-const BRAND = "#24705f";
+export const BRAND = "#24705f";
 const TEXT = "#18181b";
 export const MUTED_TEXT = "#71717a";
 const MUTED = MUTED_TEXT;

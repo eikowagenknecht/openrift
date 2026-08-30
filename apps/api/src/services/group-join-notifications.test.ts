@@ -2,8 +2,11 @@ import type { Logger } from "@openrift/shared/logger";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";
-import type { GroupJoinRequest } from "./group-join-notifications.js";
-import { notifyAdminsOfGroupJoinRequest } from "./group-join-notifications.js";
+import type { GroupApproval, GroupJoinRequest } from "./group-join-notifications.js";
+import {
+  notifyAdminsOfGroupJoinRequest,
+  notifyMemberOfGroupApproval,
+} from "./group-join-notifications.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 
 const OWNER = { userId: "owner-1", email: "owner@example.com", name: "Riven" };
@@ -127,6 +130,116 @@ describe("notifyAdminsOfGroupJoinRequest", () => {
 
     await expect(notifyAdminsOfGroupJoinRequest(repos, REQUEST, deps)).resolves.toBeUndefined();
     expect(sendEmail).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledTimes(1);
+  });
+});
+
+const APPROVAL: GroupApproval = {
+  groupId: "group-1",
+  groupSlug: "summoner-skirmish",
+  groupName: "Summoner Skirmish",
+  memberUserId: "user-1",
+};
+
+function makeApprovalRepos(
+  context: {
+    email: string;
+    emailVerified: boolean;
+    name: string | null;
+    emailNotifications: Record<string, unknown>;
+  } | null = {
+    email: "joiner@example.com",
+    emailVerified: true,
+    name: "Garen",
+    emailNotifications: {},
+  },
+) {
+  const getEmailNotificationContext = vi.fn().mockResolvedValue(context ?? undefined);
+  const repos = { userPreferences: { getEmailNotificationContext } } as unknown as Repos;
+  return { repos, getEmailNotificationContext };
+}
+
+describe("notifyMemberOfGroupApproval", () => {
+  it("welcomes the approved member, since approval is otherwise silent", async () => {
+    const { repos } = makeApprovalRepos();
+    const { deps, sendEmail } = makeDeps();
+
+    await notifyMemberOfGroupApproval(repos, APPROVAL, deps);
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const [args] = sendEmail.mock.calls[0];
+    expect(args.to).toBe("joiner@example.com");
+    expect(args.subject).toContain("Summoner Skirmish");
+    expect(args.html).toContain("Hi Garen,");
+    expect(args.html).toContain("https://openrift.app/groups/summoner-skirmish/manage");
+    expect(args.listUnsubscribeUrl).toContain("/unsubscribe/one-click");
+  });
+
+  it("sends by default, because the channel is opt-out", async () => {
+    const { repos } = makeApprovalRepos({
+      email: "joiner@example.com",
+      emailVerified: true,
+      name: null,
+      emailNotifications: { groupJoinRequests: false },
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await notifyMemberOfGroupApproval(repos, APPROVAL, deps);
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends nothing when the member opted out of welcome emails", async () => {
+    const { repos } = makeApprovalRepos({
+      email: "joiner@example.com",
+      emailVerified: true,
+      name: "Garen",
+      emailNotifications: { groupApprovals: false },
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await notifyMemberOfGroupApproval(repos, APPROVAL, deps);
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing to an unverified address", async () => {
+    const { repos } = makeApprovalRepos({
+      email: "joiner@example.com",
+      emailVerified: false,
+      name: "Garen",
+      emailNotifications: {},
+    });
+    const { deps, sendEmail } = makeDeps();
+
+    await notifyMemberOfGroupApproval(repos, APPROVAL, deps);
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when the member has no preferences context at all", async () => {
+    const { repos } = makeApprovalRepos(null);
+    const { deps, sendEmail } = makeDeps();
+
+    await notifyMemberOfGroupApproval(repos, APPROVAL, deps);
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing when no email deps are wired (SMTP-less env)", async () => {
+    const { repos, getEmailNotificationContext } = makeApprovalRepos();
+
+    await notifyMemberOfGroupApproval(repos, APPROVAL);
+
+    expect(getEmailNotificationContext).not.toHaveBeenCalled();
+  });
+
+  it("never throws when the send fails, so an approval still stands", async () => {
+    const { repos } = makeApprovalRepos();
+    const sendEmail = vi.fn().mockRejectedValue(new Error("smtp down"));
+    const { deps, error } = makeDeps(sendEmail);
+
+    await expect(notifyMemberOfGroupApproval(repos, APPROVAL, deps)).resolves.toBeUndefined();
     expect(error).toHaveBeenCalledTimes(1);
   });
 });

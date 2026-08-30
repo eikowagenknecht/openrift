@@ -31,6 +31,9 @@ export const emailNotificationPreferenceSchema = z
     // Stored for anyone — the send side only reads it for the admins of the
     // group the request landed in.
     groupJoinRequests: z.boolean().optional(),
+    // Group-member channel: an admin approved your request to join. Sent to the
+    // requester, so unlike `groupJoinRequests` it is read for any member.
+    groupApprovals: z.boolean().optional(),
   })
   .openapi("EmailNotificationPreference");
 

@@ -99,7 +99,10 @@ import { assembleRuleCatalog, createContentAddressedCache } from "./services/cat
 import { clearCollection, deleteCollection, resetCollections } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies, updateCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
-import { notifyAdminsOfGroupJoinRequest } from "./services/group-join-notifications.js";
+import {
+  notifyAdminsOfGroupJoinRequest,
+  notifyMemberOfGroupApproval,
+} from "./services/group-join-notifications.js";
 import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
@@ -253,6 +256,7 @@ export interface Services {
   rematchMetaCandidates: typeof rematchMetaCandidates;
   notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
   notifyAdminsOfGroupJoinRequest: typeof notifyAdminsOfGroupJoinRequest;
+  notifyMemberOfGroupApproval: typeof notifyMemberOfGroupApproval;
   importErrata: typeof importErrata;
   createTrade: typeof createTrade;
   listTradeCopyOptions: typeof listTradeCopyOptions;
@@ -475,6 +479,7 @@ export const services: Services = {
   rematchMetaCandidates,
   notifyAdminsOfCardSubmission,
   notifyAdminsOfGroupJoinRequest,
+  notifyMemberOfGroupApproval,
   importErrata,
   createTrade,
   listTradeCopyOptions,
@@ -495,8 +500,8 @@ export const services: Services = {
 /**
  * Builds the services object, binding the transactional-email deps into the
  * services that send from the request path — `createTrade` (ADR-030),
- * `notifyAdminsOfCardSubmission` (ADR-036) and `notifyAdminsOfGroupJoinRequest`
- * — so route handlers keep their plain `(repos, input)` calls. When `emailDeps`
+ * `notifyAdminsOfCardSubmission` (ADR-036) and the two group notifications —
+ * so route handlers keep their plain `(repos, input)` calls. When `emailDeps`
  * is absent (e.g. SMTP unconfigured, or in tests that don't assert mail) they
  * simply skip their best-effort email.
  * @returns A {@link Services} object wired with the given email deps.
@@ -512,5 +517,7 @@ export function createServices(emailDeps?: TradeEmailDeps): Services {
       notifyAdminsOfCardSubmission(repos, submission, emailDeps),
     notifyAdminsOfGroupJoinRequest: (repos, request) =>
       notifyAdminsOfGroupJoinRequest(repos, request, emailDeps),
+    notifyMemberOfGroupApproval: (repos, approval) =>
+      notifyMemberOfGroupApproval(repos, approval, emailDeps),
   };
 }

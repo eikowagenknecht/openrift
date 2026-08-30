@@ -2,6 +2,7 @@ import type { EmailNotificationChannel, EmailNotificationPreference } from "@ope
 import {
   EMAIL_NOTIFICATION_CHANNEL_LABELS,
   isCardSubmissionEmailEnabled,
+  isGroupApprovalEmailEnabled,
   isGroupJoinRequestEmailEnabled,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
@@ -28,7 +29,7 @@ export interface UnsubscribeResult {
 /**
  * Whether the channel is already in its "off" state, honouring the per-channel
  * defaults (`tradeMatches` and `cardSubmissions` are opt-in; the two other trade
- * channels and `groupJoinRequests` are opt-out). Used so the confirmation page
+ * channels and both group channels are opt-out). Used so the confirmation page
  * can say "already unsubscribed" instead of implying a change.
  * @returns true if the channel currently delivers no mail.
  */
@@ -48,6 +49,9 @@ function isChannelOff(
     }
     case "groupJoinRequests": {
       return !isGroupJoinRequestEmailEnabled(prefs);
+    }
+    case "groupApprovals": {
+      return !isGroupApprovalEmailEnabled(prefs);
     }
     default: {
       return !isTradeRequestEmailEnabled(prefs);

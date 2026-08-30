@@ -6,6 +6,7 @@ import type {
 import {
   getTradeRequestEmailCadence,
   isCardSubmissionEmailEnabled,
+  isGroupApprovalEmailEnabled,
   isGroupJoinRequestEmailEnabled,
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
@@ -26,6 +27,8 @@ export interface EmailNotificationGates {
   cardSubmissions: boolean;
   /** Group join-request alert — opt-out, so on unless explicitly disabled. */
   groupJoinRequests: boolean;
+  /** Group approval welcome — opt-out, so on unless explicitly disabled. */
+  groupApprovals: boolean;
 }
 
 /**
@@ -44,6 +47,7 @@ export function resolveEmailNotificationGates(
     tradeRequestCadence: getTradeRequestEmailCadence(prefs),
     cardSubmissions: isCardSubmissionEmailEnabled(prefs),
     groupJoinRequests: isGroupJoinRequestEmailEnabled(prefs),
+    groupApprovals: isGroupApprovalEmailEnabled(prefs),
   };
 }
 

@@ -466,6 +466,16 @@ export const friendGroupsRouter = {
       await repos.friendGroups.addMember(group.id, targetUserId, "member");
       await repos.friendGroups.deleteInvite(group.id, targetUserId);
     });
+
+    // After the commit and outside the transaction: approval is otherwise
+    // silent, and the service swallows its own errors so a mail failure can
+    // never fail an approval that already landed.
+    await context.services.notifyMemberOfGroupApproval(context.repos, {
+      groupId: group.id,
+      groupSlug: group.slug,
+      groupName: group.name,
+      memberUserId: targetUserId,
+    });
   }),
 
   declineInvite: os.declineInvite.handler(async ({ input, context }): Promise<void> => {

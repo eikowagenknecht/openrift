@@ -15,6 +15,7 @@ describe("resolveEmailNotificationGates", () => {
       tradeRequestCadence: "5min", // default cadence
       cardSubmissions: false, // admin alert is opt-in
       groupJoinRequests: true, // group join alert is opt-out
+      groupApprovals: true, // group welcome is opt-out
     });
     expect(resolveEmailNotificationGates({})).toEqual({
       tradeMatches: false,
@@ -23,6 +24,7 @@ describe("resolveEmailNotificationGates", () => {
       tradeRequestCadence: "5min",
       cardSubmissions: false,
       groupJoinRequests: true,
+      groupApprovals: true,
     });
   });
 
@@ -36,6 +38,11 @@ describe("resolveEmailNotificationGates", () => {
       false,
     );
     expect(resolveEmailNotificationGates({ groupJoinRequests: true }).groupJoinRequests).toBe(true);
+  });
+
+  it("the group welcome email is off only when explicitly false", () => {
+    expect(resolveEmailNotificationGates({ groupApprovals: false }).groupApprovals).toBe(false);
+    expect(resolveEmailNotificationGates({ groupApprovals: true }).groupApprovals).toBe(true);
   });
 
   it("digest is on only when explicitly true", () => {

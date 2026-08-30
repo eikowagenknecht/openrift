@@ -127,6 +127,7 @@ function makeApp(overrides: {
   };
 
   const notifyAdminsOfGroupJoinRequest = vi.fn(() => Promise.resolve());
+  const notifyMemberOfGroupApproval = vi.fn(() => Promise.resolve());
 
   const app = new Hono<{ Variables: Variables }>();
   app.use("*", async (c, next) => {
@@ -142,7 +143,7 @@ function makeApp(overrides: {
     };
     c.set("user", (overrides.user ?? { id: USER_ID }) as never);
     c.set("repos", repos as never);
-    c.set("services", { notifyAdminsOfGroupJoinRequest } as never);
+    c.set("services", { notifyAdminsOfGroupJoinRequest, notifyMemberOfGroupApproval } as never);
     // Test transact just runs the callback against the same mock repos.
     c.set("transact", (async (fn: (r: typeof repos) => unknown) => fn(repos)) as never);
     await next();
@@ -165,6 +166,7 @@ function makeApp(overrides: {
     marketplace,
     userPreferences,
     notifyAdminsOfGroupJoinRequest,
+    notifyMemberOfGroupApproval,
   };
 }
 
@@ -337,6 +339,51 @@ describe("friend-groups route", () => {
     });
     expect(res.status).toBe(202);
     expect(notifyAdminsOfGroupJoinRequest).not.toHaveBeenCalled();
+  });
+
+  it("POST accept adds the member and welcomes them by email", async () => {
+    const addMember = vi.fn();
+    const deleteInvite = vi.fn();
+    const { app, notifyMemberOfGroupApproval } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getInvite: vi.fn(() => Promise.resolve({ groupId: GROUP_ID, userId: "joiner-1" })),
+        getMembership: vi.fn(() => Promise.resolve(ownerMembership)),
+        addMember,
+        deleteInvite,
+      },
+    });
+
+    const res = await app.request("/api/v1/friend-groups/playgroup/invites/joiner-1/accept", {
+      method: "POST",
+    });
+
+    expect(res.status).toBe(204);
+    expect(addMember).toHaveBeenCalledWith(GROUP_ID, "joiner-1", "member");
+    expect(deleteInvite).toHaveBeenCalledWith(GROUP_ID, "joiner-1");
+    expect(notifyMemberOfGroupApproval).toHaveBeenCalledWith(expect.anything(), {
+      groupId: GROUP_ID,
+      groupSlug: "playgroup",
+      groupName: "Tuesday Crew",
+      memberUserId: "joiner-1",
+    });
+  });
+
+  it("POST accept by a non-admin is rejected and welcomes nobody", async () => {
+    const { app, notifyMemberOfGroupApproval } = makeApp({
+      friendGroups: {
+        getBySlug: vi.fn(() => Promise.resolve(group)),
+        getInvite: vi.fn(() => Promise.resolve({ groupId: GROUP_ID, userId: "joiner-1" })),
+        getMembership: vi.fn(() => Promise.resolve(memberMembership)),
+      },
+    });
+
+    const res = await app.request("/api/v1/friend-groups/playgroup/invites/joiner-1/accept", {
+      method: "POST",
+    });
+
+    expect(res.status).toBe(403);
+    expect(notifyMemberOfGroupApproval).not.toHaveBeenCalled();
   });
 
   it("POST /join rejects existing members with 409", async () => {

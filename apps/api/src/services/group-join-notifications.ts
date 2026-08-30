@@ -1,5 +1,7 @@
+import { isGroupApprovalEmailEnabled } from "@openrift/shared/types";
+
 import type { Repos } from "../deps.js";
-import { buildGroupJoinRequestEmail } from "../emails/group-emails.js";
+import { buildGroupApprovedEmail, buildGroupJoinRequestEmail } from "../emails/group-emails.js";
 import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
 import type { TradeEmailDeps } from "./trade-notifications.js";
 
@@ -18,6 +20,15 @@ export interface GroupJoinRequest {
  */
 function membersUrl(appBaseUrl: string, groupSlug: string): string {
   return `${appBaseUrl}/groups/${encodeURIComponent(groupSlug)}/members`;
+}
+
+function groupUrl(appBaseUrl: string, groupSlug: string): string {
+  return `${appBaseUrl}/groups/${encodeURIComponent(groupSlug)}`;
+}
+
+/** The manage tab, where the new member picks what the group may see. */
+function manageUrl(appBaseUrl: string, groupSlug: string): string {
+  return `${appBaseUrl}/groups/${encodeURIComponent(groupSlug)}/manage`;
 }
 
 /**
@@ -86,6 +97,70 @@ export async function notifyAdminsOfGroupJoinRequest(
     deps.log.error(
       { err: error, groupId: request.groupId },
       "Failed to notify admins of a group join request",
+    );
+  }
+}
+
+/** What the route knows about a join request an admin just approved. */
+export interface GroupApproval {
+  groupId: string;
+  groupSlug: string;
+  groupName: string;
+  /** The requester who is now a member, and who receives the welcome. */
+  memberUserId: string;
+}
+
+/**
+ * Welcomes a member whose join request was just approved, since approval is
+ * otherwise silent: the requester learns of it only by returning to the site.
+ *
+ * Opt-out and default on, because they asked to join and have been waiting for
+ * an answer. Same shape as {@link notifyAdminsOfGroupJoinRequest}: best-effort,
+ * never throws, and the caller invokes it after the membership has committed
+ * and outside the transaction.
+ */
+export async function notifyMemberOfGroupApproval(
+  repos: Repos,
+  approval: GroupApproval,
+  deps?: TradeEmailDeps,
+): Promise<void> {
+  if (deps === undefined) {
+    return;
+  }
+
+  try {
+    const context = await repos.userPreferences.getEmailNotificationContext(approval.memberUserId);
+    if (context === undefined || !context.emailVerified) {
+      return;
+    }
+    if (!isGroupApprovalEmailEnabled(context.emailNotifications)) {
+      return;
+    }
+
+    const { pageUrl, oneClickUrl } = buildUnsubscribeUrls(
+      deps.appBaseUrl,
+      deps.unsubscribeSecret,
+      approval.memberUserId,
+      "groupApprovals",
+    );
+    const { subject, html } = buildGroupApprovedEmail({
+      recipientName: context.name,
+      groupName: approval.groupName,
+      groupUrl: groupUrl(deps.appBaseUrl, approval.groupSlug),
+      manageUrl: manageUrl(deps.appBaseUrl, approval.groupSlug),
+      unsubscribeUrl: pageUrl,
+    });
+
+    await deps.sendEmail({
+      to: context.email,
+      subject,
+      html,
+      listUnsubscribeUrl: oneClickUrl,
+    });
+  } catch (error) {
+    deps.log.error(
+      { err: error, groupId: approval.groupId, memberUserId: approval.memberUserId },
+      "Failed to send a group approval email",
     );
   }
 }
