@@ -111,14 +111,3 @@ export function metaDecksForEvents(
     })
     .slice(0, limit);
 }
-
-/**
- * Each event's tier, keyed by slug, so a deck tile can show how much the
- * tournament it came from counted for. The deck payload denormalizes the
- * event's name, date and format but not its tier.
- */
-export function metaTiersByEventSlug(
-  events: readonly MetaEventSummary[],
-): Map<string, MetaEventSummary["tier"]> {
-  return new Map(events.map((event) => [event.slug, event.tier]));
-}

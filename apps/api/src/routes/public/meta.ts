@@ -1,4 +1,5 @@
 import type {
+  MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
   MetaEventDetailResponse,
@@ -13,6 +14,7 @@ import { implement } from "@orpc/server";
 import type { Repos } from "../../deps.js";
 import {
   archiveLegendSlug,
+  toMetaDeckCardIndex,
   toMetaDeckContext,
   toMetaDeckSummary,
   toMetaEventDetail,
@@ -135,6 +137,11 @@ export const metaRouter = {
     const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(deckRows));
 
     return { decks: deckRows.map((row) => toMetaDeckSummary(row, images)) };
+  }),
+
+  deckCards: os.deckCards.handler(async ({ context }): Promise<MetaDeckCardIndexResponse> => {
+    const { meta } = context.repos;
+    return toMetaDeckCardIndex(await meta.allDeckCards());
   }),
 
   deck: os.deck.handler(async ({ input, context, errors }): Promise<MetaDeckDetailResponse> => {

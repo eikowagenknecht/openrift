@@ -53,6 +53,7 @@ export const queryKeys = {
     events: ["meta", "events"] as const,
     event: (slug: string) => ["meta", "events", slug] as const,
     decks: ["meta", "decks"] as const,
+    deckCards: ["meta", "deck-cards"] as const,
     deck: (token: string) => ["meta", "decks", token] as const,
     legends: ["meta", "legends"] as const,
     legend: (slug: string) => ["meta", "legends", slug] as const,

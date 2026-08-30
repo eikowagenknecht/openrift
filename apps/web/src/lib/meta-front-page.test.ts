@@ -6,7 +6,6 @@ import {
   latestMetaWinners,
   metaDecksForEvents,
   metaEventCountries,
-  metaTiersByEventSlug,
 } from "@/lib/meta-front-page";
 import type { MetaEra } from "@/lib/meta-scope";
 import { ERA_ALL, ERA_CUSTOM } from "@/lib/meta-scope";
@@ -46,6 +45,7 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
     legendCardId: "legend-1",
     legendName: "Kennen, Heart of the Tempest",
     legendSlug: "kennen",
+    legendArchiveSlug: null,
     legendImageId: "img-1",
     championCardId: null,
     championName: null,
@@ -61,6 +61,8 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
       name: "Summoner Skirmish",
       eventDate: "2026-08-15",
       format: "standard",
+      tier: "store",
+      country: "DE",
     },
     ...overrides,
   };
@@ -243,6 +245,8 @@ describe("metaDecksForEvents", () => {
           name: "Other",
           eventDate: "2026-08-16",
           format: "standard",
+          tier: "store",
+          country: "DE",
         },
       }),
     ];
@@ -250,8 +254,15 @@ describe("metaDecksForEvents", () => {
   });
 
   it("orders by newest event, then best finish within a day", () => {
-    const older = { slug: "older", name: "Older", eventDate: "2026-08-01", format: "standard" };
-    const newer = { slug: "newer", name: "Newer", eventDate: "2026-08-20", format: "standard" };
+    const older = {
+      slug: "older",
+      name: "Older",
+      eventDate: "2026-08-01",
+      format: "standard",
+      tier: "store" as const,
+      country: "DE",
+    };
+    const newer = { ...older, slug: "newer", name: "Newer", eventDate: "2026-08-20" };
     const decks = [
       deck({ deckId: "old-first", rank: 1, event: older }),
       deck({ deckId: "new-fourth", rank: 4, event: newer }),
@@ -272,20 +283,5 @@ describe("metaDecksForEvents", () => {
 
   it("returns nothing when the scope holds no events", () => {
     expect(metaDecksForEvents([deck()], [], 10)).toEqual([]);
-  });
-});
-
-describe("metaTiersByEventSlug", () => {
-  it("keys each event's tier by its slug", () => {
-    const map = metaTiersByEventSlug([
-      event({ slug: "premier-event", tier: "premier" }),
-      event({ slug: "store-event", tier: "store" }),
-    ]);
-    expect(map.get("premier-event")).toBe("premier");
-    expect(map.get("store-event")).toBe("store");
-  });
-
-  it("has no entry for an event outside the list", () => {
-    expect(metaTiersByEventSlug([event()]).get("missing")).toBeUndefined();
   });
 });

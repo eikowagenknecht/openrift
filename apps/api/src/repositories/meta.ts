@@ -128,6 +128,15 @@ export interface MetaDeckSummaryRow {
   eventName: string;
   eventDate: string;
   eventFormat: string;
+  eventTier: MetaEventTier;
+  eventCountry: string | null;
+}
+
+/** How many of one card an archived list holds, summed across its zones. */
+export interface MetaDeckCardRow {
+  deckId: string;
+  cardId: string;
+  quantity: number;
 }
 
 /**
@@ -183,6 +192,8 @@ export interface MetaDeckContextRow {
   eventName: string;
   eventDate: string;
   eventFormat: string;
+  eventTier: MetaEventTier;
+  eventCountry: string | null;
 }
 
 /** One standings row in the admin's event management table. */
@@ -767,6 +778,8 @@ export function metaRepo(db: Kysely<Database>) {
             "me.name as eventName",
             "me.eventDate",
             "me.format as eventFormat",
+            "me.tier as eventTier",
+            "me.country as eventCountry",
           ])
           // A deck is minted with its permalink, so this only ever narrows the
           // type; a token cleared by hand would leave a row with no page anyway.
@@ -847,6 +860,44 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
+     * What every archived list holds, for the browser's collection overlay.
+     * Unpaginated like {@link allDeckSummaries} and for the same reason.
+     *
+     * Zones are summed away: the overlay asks whether the reader owns the card,
+     * and a copy sitting in the rune deck rather than the main deck is still a
+     * copy they need.
+     */
+    async allDeckCards(): Promise<MetaDeckCardRow[]> {
+      const rows = await db
+        .selectFrom("deckCards as dc")
+        .select(({ fn }) => [
+          "dc.deckId",
+          "dc.cardId",
+          fn.sum<string>("dc.quantity").as("quantity"),
+        ])
+        // An `exists` rather than a join, so the quantities stay the deck's own
+        // however many standings rows reference it. `uq_meta_event_players_deck`
+        // caps that at one today, and a join would silently double every
+        // quantity the day it does not.
+        .where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("metaEventPlayers as p")
+              .select(sql.lit(1).as("x"))
+              .whereRef("p.deckId", "=", "dc.deckId"),
+          ),
+        )
+        .groupBy(["dc.deckId", "dc.cardId"])
+        .orderBy("dc.deckId")
+        .execute();
+      return rows.map((row) => ({
+        deckId: row.deckId,
+        cardId: row.cardId,
+        quantity: Number(row.quantity),
+      }));
+    },
+
+    /**
      * Guard for the share-token rotate path: an archived deck's token is its
      * permalink, so rotation must be refused while a standings row points at it.
      */
@@ -877,6 +928,8 @@ export function metaRepo(db: Kysely<Database>) {
           "me.name as eventName",
           "me.eventDate",
           "me.format as eventFormat",
+          "me.tier as eventTier",
+          "me.country as eventCountry",
         ])
         .where("p.deckId", "=", deckId)
         .executeTakeFirst();

@@ -52,6 +52,7 @@ function deck({ event, ...overrides }: DeckOverrides = {}): MetaDeckSummary {
     legendCardId: "legend-1",
     legendName: "Kennen, Heart of the Tempest",
     legendSlug: "heart-of-the-tempest",
+    legendArchiveSlug: null,
     legendImageId: null,
     championCardId: null,
     championName: null,
@@ -68,6 +69,8 @@ function deck({ event, ...overrides }: DeckOverrides = {}): MetaDeckSummary {
       name: "Summoner Skirmish",
       eventDate: "2026-08-01",
       format: "constructed",
+      tier: "store",
+      country: "DE",
       ...event,
     },
   };

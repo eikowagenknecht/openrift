@@ -32,7 +32,6 @@ import {
   latestMetaWinners,
   metaDecksForEvents,
   metaEventCountries,
-  metaTiersByEventSlug,
 } from "@/lib/meta-front-page";
 import type { MetaScope } from "@/lib/meta-scope";
 import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
@@ -125,7 +124,6 @@ export function MetaFrontPage() {
   const allEvents = eventsData.events;
   const events = filterMetaEvents(allEvents, { scope: search, eras, search: search.q });
   const decks = metaDecksForEvents(decksData.decks, events, NEWEST_DECK_LIMIT);
-  const tiers = metaTiersByEventSlug(events);
   const winners = latestMetaWinners(events, WINNER_LIMIT);
   const playerResults = events.reduce((total, event) => total + event.playerRowCount, 0);
   const deckResults = events.reduce((total, event) => total + event.deckCount, 0);
@@ -234,7 +232,7 @@ export function MetaFrontPage() {
                     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                       {decks.map((deck) => (
                         <li key={deck.deckId}>
-                          <MetaArchiveDeckTile deck={deck} tier={tiers.get(deck.event.slug)} />
+                          <MetaArchiveDeckTile deck={deck} />
                         </li>
                       ))}
                     </ul>

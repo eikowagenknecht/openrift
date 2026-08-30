@@ -98,6 +98,7 @@ function deck(deckId: string, legendCardId: string | null): MetaDeckSummary {
     legendCardId,
     legendName: "Kennen, Heart of the Tempest",
     legendSlug: "heart-of-the-tempest",
+    legendArchiveSlug: null,
     legendImageId: null,
     championCardId: null,
     championName: null,
@@ -113,6 +114,8 @@ function deck(deckId: string, legendCardId: string | null): MetaDeckSummary {
       name: "City Challenge Lyon",
       eventDate: "2026-08-09",
       format: "constructed",
+      tier: "competitive",
+      country: "FR",
     },
   };
 }

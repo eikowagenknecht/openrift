@@ -135,6 +135,9 @@ const metaDeckEventSchema = z.object({
   name: z.string(),
   eventDate: isoDate,
   format: deckFormatSchema,
+  tier: metaEventTierSchema,
+  /** ISO 3166-1 alpha-2 of the venue, null when no source told us. */
+  country: z.string().nullable(),
 });
 
 /**
@@ -237,6 +240,13 @@ export const metaDeckSummarySchema = z
     legendCardId: z.string().nullable(),
     legendName: z.string().nullable(),
     legendSlug: z.string().nullable(),
+    /**
+     * The legend's archive page key, composed here rather than at the tile: the
+     * key needs the champion tag, and a caller holding only the display name
+     * cannot tell a composed legend name from a champion unit's printed one.
+     * Null for a deck whose legend zone the archive holds nothing for.
+     */
+    legendArchiveSlug: z.string().nullable(),
     legendImageId: z.string().nullable(),
     championCardId: z.string().nullable(),
     championName: z.string().nullable(),
@@ -270,6 +280,30 @@ export const metaEventDetailResponseSchema = z
 export const metaDeckListResponseSchema = z
   .object({ decks: z.array(metaDeckSummarySchema) })
   .openapi("MetaDeckListResponse");
+
+/**
+ * What every archived list is made of, as the browser's collection overlay needs
+ * it: which cards, and how many of each.
+ *
+ * Card ids are pooled in `cards` and referenced by position because the archive
+ * holds tens of thousands of deck-card rows over a few hundred distinct cards,
+ * and repeating a uuid per row multiplies the payload by roughly eight. `entries`
+ * is a flat run of `[cardIndex, quantity]` pairs for the same reason.
+ *
+ * Quantities are summed across zones: a card is owned or not, and which zone a
+ * copy is destined for does not change how many the reader needs.
+ */
+export const metaDeckCardIndexResponseSchema = z
+  .object({
+    cards: z.array(z.string()),
+    decks: z.array(
+      z.object({
+        deckId: z.string(),
+        entries: z.array(z.number().int().nonnegative()),
+      }),
+    ),
+  })
+  .openapi("MetaDeckCardIndexResponse");
 
 /**
  * The public share-deck payload plus the archive's own panel. Structurally the
@@ -427,6 +461,11 @@ export const metaContract = {
     .route({ method: "GET", path: `${BASE}/decks`, tags: [TAG] })
     .meta({ auth: "public", cache: "medium", etag: true })
     .output(metaDeckListResponseSchema),
+
+  deckCards: oc
+    .route({ method: "GET", path: `${BASE}/deck-cards`, tags: [TAG] })
+    .meta({ auth: "public", cache: "medium", etag: true })
+    .output(metaDeckCardIndexResponseSchema),
 
   deck: oc
     .route({ method: "GET", path: `${BASE}/decks/{token}`, tags: [TAG] })

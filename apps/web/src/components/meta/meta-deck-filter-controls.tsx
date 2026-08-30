@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
+
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
+import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { DatePicker } from "@/components/ui/date-picker";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,28 +13,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
+import { countryLabel } from "@/lib/country";
 import type { MetaDeckFilterCounts, MetaDeckFilterOptions } from "@/lib/meta-deck-filters";
 import { META_FINISH_OPTIONS, hasActiveMetaDeckFilters } from "@/lib/meta-deck-filters";
+import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
+import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 
 /** The finish select's "no bound" value — an empty string clears the param. */
 const ANY_FINISH = "";
 
+const BUILDABLE_SWITCH_ID = "meta-decks-buildable";
+
 /**
- * The deck browser's controls. Every axis is derived from the archive itself,
- * so a control never offers a value nothing was played in.
- * @returns The control row.
+ * The deck browser's controls: the archive-wide scope bar, then the axes only a
+ * deck list has. Every option is derived from the archive itself, so a control
+ * never offers a value nothing was played in.
  */
 export function MetaDeckFilterControls({
   options,
   counts,
+  eras,
+  showCollectionFilter,
 }: {
   options: MetaDeckFilterOptions;
   counts: MetaDeckFilterCounts;
+  eras: readonly MetaEra[];
+  /** Offered only once a collection is loaded — there is nothing to compare against otherwise. */
+  showCollectionFilter: boolean;
 }) {
   const filters = useMetaDeckFilters();
-  const { labels: formatLabels } = useDeckFormatList();
 
   const finishItems: Record<string, string> = { [ANY_FINISH]: "Any finish" };
   for (const option of META_FINISH_OPTIONS) {
@@ -39,83 +52,75 @@ export function MetaDeckFilterControls({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {options.formats.length > 1 && (
-        <MultiSelectCombobox
-          label="Format"
-          triggerStyle="chip"
-          options={options.formats.map((slug) => ({
-            value: slug,
-            label: formatLabels[slug] ?? slug,
-          }))}
-          selected={filters.formats}
-          onChange={(next) => filters.setFormats(next)}
-          counts={counts.formats}
-        />
-      )}
-
-      {options.events.length > 1 && (
-        <MultiSelectCombobox
-          label="Event"
-          triggerStyle="chip"
-          options={options.events}
-          selected={filters.events}
-          onChange={(next) => filters.setEvents(next)}
-          counts={counts.events}
-        />
-      )}
-
-      {options.legends.length > 1 && (
-        <MultiSelectCombobox
-          label="Legend"
-          triggerStyle="chip"
-          options={options.legends}
-          selected={filters.legends}
-          onChange={(next) => filters.setLegends(next)}
-          counts={counts.legends}
-        />
-      )}
-
-      <Select
-        value={filters.maxRank === null ? ANY_FINISH : String(filters.maxRank)}
-        onValueChange={(value) => {
-          const next = (value as string | null) ?? ANY_FINISH;
-          filters.setMaxRank(next === ANY_FINISH ? null : Number(next));
-        }}
-        items={finishItems}
-      >
-        <SelectTrigger className="w-36" aria-label="Finish">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(finishItems).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <DatePicker
-        value={filters.dateFrom ?? ""}
-        onChange={(iso) => filters.setDateFrom(iso)}
-        onClear={() => filters.setDateFrom(null)}
-        placeholder="From"
-        className="w-40"
-      />
-      <DatePicker
-        value={filters.dateTo ?? ""}
-        onChange={(iso) => filters.setDateTo(iso)}
-        onClear={() => filters.setDateTo(null)}
-        placeholder="To"
-        className="w-40"
+    <div className="flex flex-col gap-2">
+      <MetaScopeBar
+        scope={filters.scope}
+        setScope={filters.setScope}
+        clearScope={filters.clearScope}
+        eras={eras}
+        countries={options.countries}
       />
 
-      {hasActiveMetaDeckFilters(filters) && (
-        <Button type="button" variant="ghost" size="sm" onClick={() => filters.clearAllFilters()}>
-          Reset filters
-        </Button>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {options.events.length > 1 && (
+          <MultiSelectCombobox
+            label="Event"
+            triggerStyle="chip"
+            options={options.events}
+            selected={filters.events}
+            onChange={(next) => filters.setEvents(next)}
+            counts={counts.events}
+          />
+        )}
+
+        {options.legends.length > 1 && (
+          <MultiSelectCombobox
+            label="Legend"
+            triggerStyle="chip"
+            options={options.legends}
+            selected={filters.legends}
+            onChange={(next) => filters.setLegends(next)}
+            counts={counts.legends}
+          />
+        )}
+
+        <Select
+          value={filters.maxRank === null ? ANY_FINISH : String(filters.maxRank)}
+          onValueChange={(value) => {
+            const next = (value as string | null) ?? ANY_FINISH;
+            filters.setMaxRank(next === ANY_FINISH ? null : Number(next));
+          }}
+          items={finishItems}
+        >
+          <SelectTrigger className="w-36" aria-label="Finish">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(finishItems).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {showCollectionFilter && (
+          <div className="flex items-center gap-2">
+            <Switch
+              id={BUILDABLE_SWITCH_ID}
+              checked={filters.buildable}
+              onCheckedChange={(checked) => filters.setBuildable(checked)}
+            />
+            <Label htmlFor={BUILDABLE_SWITCH_ID}>Mostly buildable</Label>
+          </div>
+        )}
+
+        {hasActiveMetaDeckFilters(filters) && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => filters.clearAllFilters()}>
+            Reset filters
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -123,24 +128,22 @@ export function MetaDeckFilterControls({
 /**
  * The browser's active-filter chips, mirroring the deck list's strip so a
  * narrowed archive reads the same as a narrowed deck list.
- * @returns The chip strip, or null when nothing is filtered.
  */
-export function MetaDeckActiveFilters({ options }: { options: MetaDeckFilterOptions }) {
+export function MetaDeckActiveFilters({
+  options,
+  eras,
+}: {
+  options: MetaDeckFilterOptions;
+  eras: readonly MetaEra[];
+}) {
   const filters = useMetaDeckFilters();
   const { labels: formatLabels } = useDeckFormatList();
 
-  if (!hasActiveMetaDeckFilters(filters)) {
-    return null;
-  }
-
   const eventLabels = new Map(options.events.map((entry) => [entry.value, entry.label]));
   const legendLabels = new Map(options.legends.map((entry) => [entry.value, entry.label]));
+  const eraLabels = new Map(eras.map((era) => [era.id, era.label]));
   const finishLabel = META_FINISH_OPTIONS.find((option) => option.value === filters.maxRank)?.label;
 
-  /**
-   * One chip.
-   * @returns The chip.
-   */
   const chip = (key: string, label: string, onRemove: () => void) => (
     <Badge key={key} variant="secondary" className="gap-1">
       <span>{label}</span>
@@ -148,27 +151,73 @@ export function MetaDeckActiveFilters({ options }: { options: MetaDeckFilterOpti
     </Badge>
   );
 
+  const chips = [
+    ...scopeChips(filters.scope, filters.setScope, { formatLabels, eraLabels }, chip),
+    ...filters.events.map((slug) =>
+      chip(`event-${slug}`, eventLabels.get(slug) ?? slug, () => filters.toggleEvent(slug)),
+    ),
+    ...filters.legends.map((cardId) =>
+      chip(`legend-${cardId}`, legendLabels.get(cardId) ?? cardId, () =>
+        filters.toggleLegend(cardId),
+      ),
+    ),
+  ];
+  if (finishLabel !== undefined) {
+    chips.push(chip("finish", finishLabel, () => filters.setMaxRank(null)));
+  }
+  if (filters.buildable) {
+    chips.push(chip("buildable", "Mostly buildable", () => filters.setBuildable(false)));
+  }
+
+  // A scope narrowed by a custom date range alone names nothing, and a strip
+  // holding only its own "Clear all" reads as a bug.
+  if (chips.length === 0) {
+    return null;
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {filters.formats.map((slug) =>
-        chip(`format-${slug}`, formatLabels[slug] ?? slug, () => filters.toggleFormat(slug)),
-      )}
-      {filters.events.map((slug) =>
-        chip(`event-${slug}`, eventLabels.get(slug) ?? slug, () => filters.toggleEvent(slug)),
-      )}
-      {filters.legends.map((cardId) =>
-        chip(`legend-${cardId}`, legendLabels.get(cardId) ?? cardId, () =>
-          filters.toggleLegend(cardId),
-        ),
-      )}
-      {finishLabel !== undefined && chip("finish", finishLabel, () => filters.setMaxRank(null))}
-      {filters.dateFrom !== null &&
-        chip("from", `From ${filters.dateFrom}`, () => filters.setDateFrom(null))}
-      {filters.dateTo !== null && chip("to", `To ${filters.dateTo}`, () => filters.setDateTo(null))}
-
+      {chips}
       <Button type="button" variant="ghost" size="sm" onClick={() => filters.clearAllFilters()}>
         Clear all
       </Button>
     </div>
   );
 }
+
+/**
+ * Chips for the scope facets whose stored value is a code rather than a word: a
+ * reader scanning the strip should see "Vendetta", "Standard", "Premier" and
+ * "Germany", not `vendetta`, `standard`, `premier` and `DE`.
+ */
+function scopeChips(
+  scope: MetaScope,
+  setScope: (patch: Partial<MetaScope>) => void,
+  labels: { formatLabels: Record<string, string>; eraLabels: ReadonlyMap<string, string> },
+  chip: (key: string, label: string, onRemove: () => void) => ReactNode,
+): ReactNode[] {
+  const chips: ReactNode[] = [];
+  const era = scope.era === undefined ? undefined : labels.eraLabels.get(scope.era);
+  if (era !== undefined) {
+    chips.push(
+      chip("era", era, () => setScope({ era: undefined, from: undefined, to: undefined })),
+    );
+  }
+  const format = scope.format === undefined ? undefined : labels.formatLabels[scope.format];
+  if (format !== undefined) {
+    chips.push(chip("format", format, () => setScope({ format: undefined })));
+  }
+  const tier = scope.tier;
+  const tierLabel =
+    tier === undefined ? undefined : META_EVENT_TIER_LABELS[tier as MetaEventTierKey];
+  if (tierLabel !== undefined) {
+    chips.push(chip("tier", tierLabel, () => setScope({ tier: undefined })));
+  }
+  const country = scope.country === undefined ? null : countryLabel(scope.country);
+  if (country !== null) {
+    chips.push(chip("country", country, () => setScope({ country: undefined })));
+  }
+  return chips;
+}
+
+type MetaEventTierKey = keyof typeof META_EVENT_TIER_LABELS;

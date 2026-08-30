@@ -27,6 +27,7 @@ import type {
   metaSubmissionSchema,
 } from "../../contracts/meta-submissions.js";
 import type {
+  metaDeckCardIndexResponseSchema,
   metaDeckDetailResponseSchema,
   metaDeckListResponseSchema,
   metaDeckSummarySchema,
@@ -85,6 +86,9 @@ export type MetaEventDetailResponse = z.infer<typeof metaEventDetailResponseSche
 
 /** GET /meta/decks — every archived deck, unfiltered; the client narrows it. */
 export type MetaDeckListResponse = z.infer<typeof metaDeckListResponseSchema>;
+
+/** GET /meta/deck-cards — what every archived list holds, pooled by card id. */
+export type MetaDeckCardIndexResponse = z.infer<typeof metaDeckCardIndexResponseSchema>;
 
 /** GET /meta/decks/{token} — the public share-deck payload plus the archive panel. */
 export type MetaDeckDetailResponse = z.infer<typeof metaDeckDetailResponseSchema>;

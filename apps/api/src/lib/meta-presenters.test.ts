@@ -19,6 +19,7 @@ import {
   toAdminMetaEvent,
   toAdminMetaPlayer,
   toAdminMetaSubmission,
+  toMetaDeckCardIndex,
   toMetaDeckContext,
   toMetaDeckSummary,
   toMetaEventDetail,
@@ -104,6 +105,8 @@ function deckRow(overrides: Partial<MetaDeckSummaryRow> = {}): MetaDeckSummaryRo
     eventName: "Summoner Skirmish Berlin",
     eventDate: "2026-08-01",
     eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
     ...overrides,
   };
 }
@@ -536,6 +539,38 @@ describe("toMetaEventPlayer", () => {
   });
 });
 
+describe("toMetaDeckCardIndex", () => {
+  it("pools card ids and points each deck at them by position", () => {
+    expect(
+      toMetaDeckCardIndex([
+        { deckId: "deck-1", cardId: "card-a", quantity: 3 },
+        { deckId: "deck-1", cardId: "card-b", quantity: 1 },
+        { deckId: "deck-2", cardId: "card-b", quantity: 2 },
+      ]),
+    ).toEqual({
+      cards: ["card-a", "card-b"],
+      decks: [
+        { deckId: "deck-1", entries: [0, 3, 1, 1] },
+        { deckId: "deck-2", entries: [1, 2] },
+      ],
+    });
+  });
+
+  it("keeps a deck whose rows arrive apart as one entry", () => {
+    const index = toMetaDeckCardIndex([
+      { deckId: "deck-1", cardId: "card-a", quantity: 1 },
+      { deckId: "deck-2", cardId: "card-a", quantity: 1 },
+      { deckId: "deck-1", cardId: "card-b", quantity: 4 },
+    ]);
+    expect(index.decks).toHaveLength(2);
+    expect(index.decks[0]).toEqual({ deckId: "deck-1", entries: [0, 1, 1, 4] });
+  });
+
+  it("returns an empty index for an archive with no lists", () => {
+    expect(toMetaDeckCardIndex([])).toEqual({ cards: [], decks: [] });
+  });
+});
+
 describe("toMetaDeckSummary", () => {
   it("attaches the artwork resolved for each zone's card", () => {
     const summary = toMetaDeckSummary(deckRow(), IMAGES);
@@ -549,7 +584,33 @@ describe("toMetaDeckSummary", () => {
       name: "Summoner Skirmish Berlin",
       eventDate: "2026-08-01",
       format: "constructed",
+      tier: "store",
+      country: "DE",
     });
+  });
+
+  it("composes the legend's archive key server-side, champion tag included", () => {
+    const summary = toMetaDeckSummary(
+      deckRow({ legendName: "Loose Cannon", legendSlug: "loose-cannon", legendTags: ["Jinx"] }),
+      IMAGES,
+    );
+    expect(summary.legendArchiveSlug).toBe("jinx-loose-cannon");
+  });
+
+  it("keys an untagged legend by its card slug alone", () => {
+    expect(toMetaDeckSummary(deckRow(), IMAGES).legendArchiveSlug).toBe("jinx");
+  });
+
+  it("leaves the archive key null for a deck whose legend zone is empty", () => {
+    const summary = toMetaDeckSummary(
+      deckRow({ legendCardId: null, legendName: null, legendSlug: null }),
+      IMAGES,
+    );
+    expect(summary.legendArchiveSlug).toBeNull();
+  });
+
+  it("carries an event whose country no source published", () => {
+    expect(toMetaDeckSummary(deckRow({ eventCountry: null }), IMAGES).event.country).toBeNull();
   });
 
   it("leaves a zone's image null when the deck has no card there", () => {
@@ -641,6 +702,8 @@ describe("toMetaDeckContext", () => {
     eventName: "Summoner Skirmish Berlin",
     eventDate: "2026-08-01",
     eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
   };
 
   it("nests the event, keeps an absent draw count null, and credits nobody by default", () => {
@@ -650,6 +713,8 @@ describe("toMetaDeckContext", () => {
         name: "Summoner Skirmish Berlin",
         eventDate: "2026-08-01",
         format: "constructed",
+        tier: "store",
+        country: "DE",
       },
       listStatus: "full",
       playerName: "Nova",

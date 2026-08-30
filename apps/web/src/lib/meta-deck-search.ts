@@ -4,22 +4,25 @@ import { z } from "zod";
 import { metaScopeSearchSchema } from "@/lib/meta-scope";
 
 /**
- * Search-param schema for the meta deck browser (ADR-014). Mirrors the deck
- * list's conventions: every field is optional and `.catch`es to undefined, so a
- * stale bookmark loses the bad value instead of crashing the route.
+ * Search-param schema for the meta deck browser (ADR-014): the archive-wide
+ * scope every page shares, plus the browser's own axes. Every field is optional
+ * and `.catch`es to undefined, so a stale bookmark loses the bad value instead
+ * of crashing the route.
  */
-export const metaDeckSearchSchema = z.object({
-  /** Deck-format slugs, matched as a union. Absent or empty means every format. */
-  formats: z.array(z.string()).optional().catch(undefined),
+export const metaDeckSearchSchema = metaScopeSearchSchema.extend({
   /** Event slugs, matched as a union. */
   events: z.array(z.string()).optional().catch(undefined),
   /** Legend card ids, matched as a union. */
   legends: z.array(z.string()).optional().catch(undefined),
   /** The worst finish still shown, as a rank bound (1, 4, 8, 16). */
   finish: z.number().int().positive().optional().catch(undefined),
-  /** Inclusive event-date bounds, as date-only strings. */
-  from: z.string().optional().catch(undefined),
-  to: z.string().optional().catch(undefined),
+  /**
+   * Opens every archived list. Absent is the curated view — one tile per legend
+   * per event — which is what the browser opens on.
+   */
+  all: z.boolean().optional().catch(undefined),
+  /** Keeps the lists the reader can mostly build from their own collection. */
+  buildable: z.boolean().optional().catch(undefined),
 });
 
 export type MetaDeckSearch = z.infer<typeof metaDeckSearchSchema>;

@@ -131,6 +131,7 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
     legendCardId: "card-azir",
     legendName: "Azir, Emperor of the Sands",
     legendSlug: "azir-emperor-of-the-sands",
+    legendArchiveSlug: null,
     legendImageId: null,
     championCardId: null,
     championName: null,
@@ -146,6 +147,8 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
       name: "Regional Qualifier Barcelona",
       eventDate: "2026-08-23",
       format: "standard",
+      tier: "store",
+      country: "DE",
     },
     ...overrides,
   };
@@ -286,6 +289,8 @@ describe("MetaFrontPage", () => {
           name: "Store Night",
           eventDate: "2026-08-24",
           format: "standard",
+          tier: "store",
+          country: "DE",
         },
       }),
     ];
@@ -361,6 +366,8 @@ describe("MetaFrontPage", () => {
           name: "Store Night",
           eventDate: "2026-08-24",
           format: "standard",
+          tier: "store",
+          country: "DE",
         },
       }),
     ];

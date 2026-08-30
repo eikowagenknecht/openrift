@@ -721,6 +721,44 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(decks[1].wins).toBe(3);
     });
 
+    it("reports each archived list's cards, summed across its zones", async () => {
+      const eventId = await seedEvent(repo, "mta-deck-cards");
+      const { deckId } = await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Carded",
+        rank: 1,
+      });
+
+      const all = await repo.allDeckCards();
+      const rows = all.filter((row) => row.deckId === deckId);
+      expect(new Map(rows.map((row) => [row.cardId, row.quantity]))).toEqual(
+        new Map([
+          [legendCardId, 1],
+          [championCardId, 3],
+          [spellCardId, 3],
+        ]),
+      );
+    });
+
+    it("holds one standings row per deck, which is what keeps the card index unfanned", async () => {
+      const eventId = await seedEvent(repo, "mta-deck-cards-unique");
+      const { deckId } = await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Owner",
+        rank: 1,
+      });
+      const otherId = await seedDecklessPlayer(repo, eventId, {
+        playerName: "MTA Claimant",
+        rank: 2,
+      });
+
+      await expect(
+        db
+          .updateTable("metaEventPlayers")
+          .set({ deckId, listStatus: "full" })
+          .where("id", "=", otherId)
+          .execute(),
+      ).rejects.toThrow();
+    });
+
     it("returns the standings context for one deck, and nothing for a foreign deck", async () => {
       const eventId = await seedEvent(repo, "mta-context", { name: "MTA Context" });
       const { playerId, deckId } = await seedListedPlayer(repo, eventId, {
@@ -746,6 +784,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
         eventName: "MTA Context",
         eventDate: "2026-08-01",
         eventFormat: FORMAT,
+        eventTier: "store",
+        eventCountry: null,
       });
       expect(await repo.contextForDeck(crypto.randomUUID())).toBeUndefined();
     });

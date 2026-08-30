@@ -37,44 +37,50 @@ describe("useMetaDeckFilters", () => {
   it("defaults every axis to its widest value", () => {
     const { result } = renderHook(() => useMetaDeckFilters());
     expect(result.current).toMatchObject({
-      formats: [],
+      scope: {},
       events: [],
       legends: [],
       maxRank: null,
-      dateFrom: null,
-      dateTo: null,
+      showAll: false,
+      buildable: false,
     });
   });
 
   it("reads the filters out of the URL", () => {
     mockSearch = {
-      formats: ["standard"],
+      format: "standard",
+      tier: "premier",
+      country: "DE",
       events: ["rift-open"],
       legends: ["card-jinx"],
       finish: 8,
-      from: "2026-01-01",
-      to: "2026-12-31",
+      all: true,
+      buildable: true,
     };
     const { result } = renderHook(() => useMetaDeckFilters());
     expect(result.current).toMatchObject({
-      formats: ["standard"],
       events: ["rift-open"],
       legends: ["card-jinx"],
       maxRank: 8,
-      dateFrom: "2026-01-01",
-      dateTo: "2026-12-31",
+      showAll: true,
+      buildable: true,
+    });
+    expect(result.current.scope).toMatchObject({
+      format: "standard",
+      tier: "premier",
+      country: "DE",
     });
   });
 
   it("adds a value on the first toggle and removes it on the second", () => {
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.toggleFormat("standard");
-    expect(resultingSearch()).toEqual({ formats: ["standard"] });
+    result.current.toggleEvent("rift-open");
+    expect(resultingSearch()).toEqual({ events: ["rift-open"] });
 
-    mockSearch = { formats: ["standard"] };
+    mockSearch = { events: ["rift-open"] };
     const second = renderHook(() => useMetaDeckFilters());
-    second.result.current.toggleFormat("standard");
-    // An empty array is dropped, not written as `formats=[]`.
+    second.result.current.toggleEvent("rift-open");
+    // An empty array is dropped, not written as `events=[]`.
     expect(resultingSearch()).toEqual({});
   });
 
@@ -98,31 +104,49 @@ describe("useMetaDeckFilters", () => {
     expect(resultingSearch()).toEqual({ finish: 16 });
   });
 
-  it("drops an empty date instead of writing it", () => {
-    mockSearch = { from: "2026-01-01" };
+  it("merges a scope patch and drops the facets it clears", () => {
+    mockSearch = { tier: "premier", country: "DE" };
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.setDateFrom(null);
+    result.current.setScope({ country: undefined });
+    expect(resultingSearch()).toEqual({ tier: "premier" });
+  });
+
+  it("keeps the browser's own axes when the scope is reset", () => {
+    mockSearch = { tier: "premier", legends: ["card-lux"] };
+    const { result } = renderHook(() => useMetaDeckFilters());
+    result.current.clearScope();
+    expect(resultingSearch()).toEqual({ legends: ["card-lux"] });
+  });
+
+  it("writes the curated default as an absent param rather than false", () => {
+    mockSearch = { all: true };
+    const { result } = renderHook(() => useMetaDeckFilters());
+    result.current.setShowAll(false);
     expect(resultingSearch()).toEqual({});
+
+    const opened = renderHook(() => useMetaDeckFilters());
+    opened.result.current.setShowAll(true);
+    expect(resultingSearch()).toEqual({ all: true });
   });
 
-  it("replaces a whole selection through the multi-select handler", () => {
-    mockSearch = { formats: ["standard"] };
+  it("writes the collection filter the same way", () => {
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.setFormats(["legacy", "standard"]);
-    expect(resultingSearch()).toEqual({ formats: ["legacy", "standard"] });
+    result.current.setBuildable(true);
+    expect(resultingSearch()).toEqual({ buildable: true });
   });
 
-  it("clears every axis at once", () => {
+  it("clears every filter at once, leaving the curation as it was", () => {
     mockSearch = {
-      formats: ["standard"],
+      tier: "premier",
+      country: "DE",
       events: ["rift-open"],
       legends: ["card-jinx"],
       finish: 8,
-      from: "2026-01-01",
-      to: "2026-12-31",
+      buildable: true,
+      all: true,
     };
     const { result } = renderHook(() => useMetaDeckFilters());
     result.current.clearAllFilters();
-    expect(resultingSearch()).toEqual({});
+    expect(resultingSearch()).toEqual({ all: true });
   });
 });

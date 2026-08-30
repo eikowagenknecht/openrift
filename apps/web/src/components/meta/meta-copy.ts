@@ -4,7 +4,7 @@
  * A route's non-lazy `*.tsx` runs on every page load (the router builds the
  * whole tree up front), so a value import from a page component drags that
  * component's entire graph into the initial bundle. `meta_.decks.tsx` importing
- * this string from `meta-deck-browser-page` pulled `MetaDeckCard` → `DeckTile` →
+ * this string from `meta-deck-browser-page` pulled the deck tile → `DeckTile` →
  * `DeckActionsMenu` → the PDF and html2canvas export dialogs into every visit,
  * /cards included: ~25 extra chunks and ~650 KB of JS nobody on that page can
  * use. Strings the `head` needs live here; the pages import them from here too.
@@ -16,7 +16,7 @@ export const META_DESCRIPTION =
 
 /** Shared by the /meta/decks description, the JSON-LD, and the visible page intro. */
 export const META_DECKS_DESCRIPTION =
-  "Every decklist in the Riftbound meta archive, filterable by format, event, legend, and finish.";
+  "Every decklist in the Riftbound meta archive, filterable by era, format, tier, country, event, legend and finish.";
 
 /** Shared by the /meta/events description, the JSON-LD, and the visible page intro. */
 export const META_EVENTS_DESCRIPTION =

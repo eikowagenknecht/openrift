@@ -1,4 +1,5 @@
 import type {
+  MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
   MetaEventDetailResponse,
@@ -88,6 +89,30 @@ export const metaDecksQueryOptions = queryOptions({
 
 export function useMetaDecks() {
   return useSuspenseQuery(metaDecksQueryOptions);
+}
+
+const fetchMetaDeckCards = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<MetaDeckCardIndexResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "meta", "deck-cards"],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).deckCards(),
+    }),
+  );
+
+/**
+ * What every archived list is made of, for the browser's collection overlay.
+ * Fetched on its own rather than folded into the deck payload: it is several
+ * times the size, and only a signed-in reader has anything to compare it against.
+ */
+const metaDeckCardsQueryOptions = queryOptions({
+  queryKey: queryKeys.meta.deckCards,
+  queryFn: () => fetchMetaDeckCards(),
+  staleTime: 5 * 60 * 1000,
+});
+
+export function useMetaDeckCards() {
+  return useSuspenseQuery(metaDeckCardsQueryOptions);
 }
 
 const fetchMetaDeck = createServerFn({ method: "GET" })

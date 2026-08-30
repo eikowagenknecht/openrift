@@ -1,6 +1,7 @@
 import type {
   AdminMetaEvent,
   AdminMetaPlayer,
+  MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
   MetaDeckSummary,
   MetaEventDetail,
@@ -22,6 +23,7 @@ import type {
   AdminMetaPlayerRow,
   MetaArchiveLegendRow,
   MetaContributorRow,
+  MetaDeckCardRow,
   MetaDeckContextRow,
   MetaDeckSummaryRow,
   MetaLegendFinishRow,
@@ -292,6 +294,7 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
     legendCardId: row.legendCardId,
     legendName: legendLabel(row),
     legendSlug: row.legendSlug,
+    legendArchiveSlug: rowLegendArchiveSlug(row),
     legendImageId: row.legendCardId === null ? null : (images.get(row.legendCardId) ?? null),
     championCardId: row.championCardId,
     championName: row.championName,
@@ -307,6 +310,8 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
       name: row.eventName,
       eventDate: row.eventDate,
       format: row.eventFormat,
+      tier: row.eventTier,
+      country: row.eventCountry,
     },
   };
 }
@@ -374,6 +379,40 @@ export function toMetaLegendFinish(row: MetaLegendFinishRow): MetaLegendFinish {
 }
 
 /**
+ * Pools the archive's deck-card rows into the browser's card index: one array of
+ * distinct card ids, and per deck a flat run of `[cardIndex, quantity]` pairs.
+ *
+ * Rows are expected grouped by deck, which is the order the repo returns them
+ * in; a deck whose rows arrive split would present as two entries, so the
+ * grouping is done by id rather than by adjacency.
+ */
+export function toMetaDeckCardIndex(rows: readonly MetaDeckCardRow[]): MetaDeckCardIndexResponse {
+  const cardIndexes = new Map<string, number>();
+  const cards: string[] = [];
+  const byDeck = new Map<string, number[]>();
+
+  for (const row of rows) {
+    let index = cardIndexes.get(row.cardId);
+    if (index === undefined) {
+      index = cards.length;
+      cardIndexes.set(row.cardId, index);
+      cards.push(row.cardId);
+    }
+    const entries = byDeck.get(row.deckId);
+    if (entries === undefined) {
+      byDeck.set(row.deckId, [index, row.quantity]);
+      continue;
+    }
+    entries.push(index, row.quantity);
+  }
+
+  return {
+    cards,
+    decks: [...byDeck].map(([deckId, entries]) => ({ deckId, entries })),
+  };
+}
+
+/**
  * The archive panel appended to the public share-deck payload on an archived
  * deck's page.
  *
@@ -393,6 +432,8 @@ export function toMetaDeckContext(
       name: row.eventName,
       eventDate: row.eventDate,
       format: row.eventFormat,
+      tier: row.eventTier,
+      country: row.eventCountry,
     },
     listStatus: row.listStatus,
     playerName: row.playerName,
