@@ -1,10 +1,11 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
 import type { DeckZone } from "@openrift/shared";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
+import { sessionQueryOptions } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { queueCardsSearchSchema } from "@/lib/presentation-queue-search";
 import { filterSearchSchema } from "@/lib/search-schemas";
@@ -99,6 +100,21 @@ export const Route = createFileRoute("/_app/stage")({
       noIndex: true,
     }),
   validateSearch: stageSearchSchema,
+  // Only `?tier=` needs a session; the queue builder, a deck walk and a shared
+  // ranking all run signed out. Sign-in returns to this exact URL, so a lapsed
+  // session resumes on the same list, position and preset.
+  beforeLoad: async ({ context, location, search }) => {
+    if (search.tier === undefined) {
+      return;
+    }
+    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    if (!session?.user) {
+      throw redirect({
+        to: "/login",
+        search: { redirect: location.href || undefined, email: undefined },
+      });
+    }
+  },
   loader: async ({ context }) => {
     // Both the deck walk and the ad-hoc queue resolve their cards against the
     // catalog, and the stage reads zone labels off /init.

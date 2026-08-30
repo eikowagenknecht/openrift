@@ -3,13 +3,34 @@ import { readFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { isRedirect } from "@tanstack/react-router";
+import { describe, expect, it, vi } from "vitest";
 
 import { Route } from "./stage";
 
 const validateSearch = Route.options.validateSearch as unknown as {
   parse: (search: Record<string, unknown>) => Record<string, unknown>;
 };
+
+type SessionUser = { user: { id: string } } | null;
+
+const beforeLoad = Route.options.beforeLoad as unknown as (args: {
+  context: { queryClient: { ensureQueryData: () => Promise<SessionUser> } };
+  location: { href: string };
+  search: Record<string, unknown>;
+}) => Promise<void>;
+
+function runGuard(search: Record<string, unknown>, session: SessionUser, href = "/stage") {
+  const ensureQueryData = vi.fn().mockResolvedValue(session);
+  return {
+    ensureQueryData,
+    result: beforeLoad({
+      context: { queryClient: { ensureQueryData } },
+      location: { href },
+      search,
+    }),
+  };
+}
 
 // Regression: the queue builder's card browser calls `useFilterValues`, which
 // throws ("useFilterSearch must be used within a <FilterSearchProvider>")
@@ -70,5 +91,54 @@ describe("/stage mode", () => {
   // show instead of failing the route, which is the right way to lose a param.
   it.each(["rank", "nonsense", ""])("falls back to presenting for %o", (mode) => {
     expect(validateSearch.parse({ tier: "list-1", mode }).mode).toBeUndefined();
+  });
+});
+
+// `?tier=` presents a list the API serves only to its owner, so the branch
+// resolves it through useTierList -> useRequiredUserId, which throws without a
+// session. The stage itself is public, so the guard has to gate that one param
+// instead of the route.
+describe("/stage owned tier-list guard", () => {
+  it("redirects a signed-out visitor to sign in", async () => {
+    const { result } = runGuard({ tier: "list-1" }, null);
+
+    await expect(result).rejects.toSatisfy(isRedirect);
+  });
+
+  it("returns to the stage URL after signing in", async () => {
+    const { result } = runGuard({ tier: "list-1" }, null, "/stage?tier=list-1&i=4&preset=p-1");
+
+    const thrown: unknown = await result.catch((error: unknown) => error);
+
+    expect(thrown).toMatchObject({
+      options: {
+        to: "/login",
+        search: { redirect: "/stage?tier=list-1&i=4&preset=p-1" },
+      },
+    });
+  });
+
+  it("lets the owner through", async () => {
+    const { result } = runGuard({ tier: "list-1" }, { user: { id: "user-1" } });
+
+    await expect(result).resolves.toBeUndefined();
+  });
+
+  it("leaves the shared-ranking branch public", async () => {
+    const { ensureQueryData, result } = runGuard({ tierShare: "tok" }, null);
+
+    await expect(result).resolves.toBeUndefined();
+    expect(ensureQueryData).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the queue builder", {}],
+    ["a deck walk", { deck: "deck-1" }],
+    ["an ad-hoc queue", { cards: ["p-1", "p-2"] }],
+  ])("leaves %s public", async (_label, search) => {
+    const { ensureQueryData, result } = runGuard(search, null);
+
+    await expect(result).resolves.toBeUndefined();
+    expect(ensureQueryData).not.toHaveBeenCalled();
   });
 });
