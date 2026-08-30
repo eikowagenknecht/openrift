@@ -65,7 +65,7 @@ export interface UvsTransformResult {
 }
 
 /** One player as the source's registration names them. */
-export interface UvsPlayerIdentity {
+interface UvsPlayerIdentity {
   /** The registration id, which is the staged row's `external_id`. */
   registrationId: string;
   /** The source's global user id. */
@@ -175,7 +175,7 @@ export function completedRounds(detail: unknown): UvsRoundMeta[] {
 }
 
 /** One staged match, as `candidate_meta_matches` stores it minus the event FK. */
-export interface UvsMatchProjection {
+interface UvsMatchProjection {
   /** The source's own match id, and the staged row's key. */
   sourceMatchId: string;
   roundId: string;

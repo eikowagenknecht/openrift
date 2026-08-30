@@ -34,7 +34,7 @@ const SYNC_LOOKBACK_DAYS = 7;
 const FUTURE_HORIZON_DAYS = 730;
 const BACKFILL_CHUNK_DAYS = 14;
 /** The first day the backfill asks about, comfortably before the CN launch. */
-export const ARCHIVE_START = new Date("2025-06-01T00:00:00Z");
+const ARCHIVE_START = new Date("2025-06-01T00:00:00Z");
 
 /** How long a refusal stands the source down. */
 const COOLDOWN_HOURS = 6;
