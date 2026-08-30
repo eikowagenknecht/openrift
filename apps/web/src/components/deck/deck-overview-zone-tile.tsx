@@ -30,6 +30,34 @@ import { zoneEmptyReadOnlyLabel } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 import type { CollapsibleDeckSection } from "@/stores/deck-builder-ui-store";
 
+/**
+ * Above this many missing cards the slots collapse to one counted tile: three
+ * blanks read as three cards nobody knows, forty read as a wall.
+ */
+const MAX_UNKNOWN_SLOTS = 3;
+
+/**
+ * Where the cards an archived list never published would sit: dashed blanks at
+ * thumbnail size, one per missing card until there are too many to draw.
+ * @returns The blank slots.
+ */
+function UnknownSlots({ count, isLandscape }: { count: number; isLandscape: boolean }) {
+  const slots = count <= MAX_UNKNOWN_SLOTS ? count : 1;
+  const label = slots === count ? "Unknown" : `${count} unknown`;
+  return Array.from({ length: slots }, (_, index) => (
+    <div
+      key={index}
+      style={isLandscape ? LANDSCAPE_THUMB_STYLE : PORTRAIT_THUMB_STYLE}
+      className={cn(
+        isLandscape ? LANDSCAPE_THUMB_CLASS : PORTRAIT_THUMB_CLASS,
+        "text-muted-foreground flex shrink-0 items-center justify-center rounded-md border border-dashed px-2 text-center text-xs",
+      )}
+    >
+      {label}
+    </div>
+  ));
+}
+
 export interface ZoneTileProps {
   deckId: string;
   /** Deck card key → collection-status band; empty when bands are off. */
@@ -57,6 +85,12 @@ export interface ZoneTileProps {
   allCards: DeckBuilderCard[];
   expected: number | undefined;
   emptyHint: string;
+  /**
+   * Cards this zone is short by that nobody ever published — an archived list
+   * the source cut off, not a zone its player left empty. Renders as dashed
+   * "Unknown" slots where the missing cards would sit.
+   */
+  unknownCount?: number;
   /** Sections currently collapsed to their header row (zones and the tokens band). */
   collapsedZones: ReadonlySet<CollapsibleDeckSection>;
   /** Toggles a zone's collapsed state (wired to the builder UI store). */
@@ -97,6 +131,7 @@ export function ZoneTile({
   allCards,
   expected,
   emptyHint,
+  unknownCount = 0,
   collapsedZones,
   onToggleCollapsed,
   zoneViolations,
@@ -121,6 +156,8 @@ export function ZoneTile({
   // (curve order by default); single-card zones keep the API-provided order
   // (alphabetical by card name within the zone), matching the sidebar.
   const groups = GROUPED_ZONES.has(zone) ? groupCards(cards) : null;
+  const unknownSlots =
+    unknownCount > 0 ? <UnknownSlots count={unknownCount} isLandscape={isLandscape} /> : null;
 
   // Drop-target wiring — the same hook the sidebar's zone sections use, so the
   // two reject the same drags (copy limit, battlefield dedupe, 12-rune cap,
@@ -215,22 +252,32 @@ export function ZoneTile({
                 : "text-muted-foreground",
           )}
         >
-          {quantity}
-          {expected !== undefined && `/${expected}`}
-          {/* "· N more" only for zones with a real target (the sideboard's
-              figure is a cap, not a goal) and only once building has started —
-              empty zones already carry their hint. */}
-          {expected !== undefined &&
-            zone !== WellKnown.deckZone.SIDEBOARD &&
-            quantity > 0 &&
-            quantity < expected && (
-              <span className="text-muted-foreground/70"> · {expected - quantity} more</span>
-            )}
+          {unknownCount > 0 && expected !== undefined ? (
+            // The slots below already stand for the missing cards, so the
+            // count says how far the record got rather than restating them.
+            `${quantity} of ${expected} known`
+          ) : (
+            <>
+              {quantity}
+              {expected !== undefined && `/${expected}`}
+              {/* "· N more" only for zones with a real target (the sideboard's
+                  figure is a cap, not a goal) and only once building has
+                  started — empty zones already carry their hint. */}
+              {expected !== undefined &&
+                zone !== WellKnown.deckZone.SIDEBOARD &&
+                quantity > 0 &&
+                quantity < expected && (
+                  <span className="text-muted-foreground/70"> · {expected - quantity} more</span>
+                )}
+            </>
+          )}
         </span>
       </div>
 
       {collapsed ? null : isEmpty ? (
-        zone === WellKnown.deckZone.RUNES || readOnly || !onClick ? (
+        unknownSlots ? (
+          <div className="flex flex-wrap items-center gap-1.5">{unknownSlots}</div>
+        ) : zone === WellKnown.deckZone.RUNES || readOnly || !onClick ? (
           // Runes fills itself when a Legend is set, so the primary path
           // isn't "click this button" — mirror the CTA styling minus the
           // icon and interactivity; the clickable header covers the rare
@@ -286,27 +333,33 @@ export function ZoneTile({
                 <span className="text-muted-foreground text-xs">Add</span>
               </Button>
             )}
+          {unknownSlots}
         </div>
       ) : groups ? (
-        <GroupedThumbs
-          deckId={deckId}
-          bandByCardKey={bandByCardKey}
-          priceTextByCardKey={priceTextByCardKey}
-          addRoomByCardKey={addRoomByCardKey}
-          resolveHoverPrintingId={resolveHoverPrintingId}
-          showAllCopies={showAllCopies}
-          statsFocus={statsFocus}
-          zone={zone}
-          groups={groups}
-          sortCards={sortCards}
-          groupBy={groupBy}
-          stacked={stacked}
-          isLandscape={isLandscape}
-          onHoverCard={hoverCard}
-          getThumbnail={getThumbnail}
-          readOnly={readOnly}
-          onCardClick={onCardClick}
-        />
+        <>
+          <GroupedThumbs
+            deckId={deckId}
+            bandByCardKey={bandByCardKey}
+            priceTextByCardKey={priceTextByCardKey}
+            addRoomByCardKey={addRoomByCardKey}
+            resolveHoverPrintingId={resolveHoverPrintingId}
+            showAllCopies={showAllCopies}
+            statsFocus={statsFocus}
+            zone={zone}
+            groups={groups}
+            sortCards={sortCards}
+            groupBy={groupBy}
+            stacked={stacked}
+            isLandscape={isLandscape}
+            onHoverCard={hoverCard}
+            getThumbnail={getThumbnail}
+            readOnly={readOnly}
+            onCardClick={onCardClick}
+          />
+          {unknownSlots && (
+            <div className="flex flex-wrap items-center gap-1.5">{unknownSlots}</div>
+          )}
+        </>
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
           {expandCopies(cards, showAllCopies).map(({ card, copyIndex }) => {
@@ -354,6 +407,7 @@ export function ZoneTile({
                 <span className="text-muted-foreground text-xs">Add</span>
               </Button>
             )}
+          {unknownSlots}
         </div>
       )}
     </div>

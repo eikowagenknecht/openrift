@@ -172,6 +172,12 @@ interface DeckOverviewProps {
    */
   notice?: React.ReactNode;
   /**
+   * Per zone, cards the list's source never published. Archive surfaces pass
+   * it so a zone the record stops short of renders dashed "Unknown" slots
+   * rather than reading as one the player left empty.
+   */
+  unknownZoneCounts?: ReadonlyMap<DeckZone, number>;
+  /**
    * The deck's server-stored draw-odds settings, forwarded to the test bench.
    * Omit for browser-local decks.
    */
@@ -207,6 +213,7 @@ export function DeckOverview({
   heroByline,
   heroActions,
   notice,
+  unknownZoneCounts,
   oddsConfig,
   onSaveOddsConfig,
 }: DeckOverviewProps) {
@@ -533,6 +540,7 @@ export function DeckOverview({
       allCards={cards}
       expected={zoneExpected(zone, deck.format)}
       emptyHint={zoneEmptyHint(zone, deck.format)}
+      unknownCount={unknownZoneCounts?.get(zone) ?? 0}
       format={deck.format}
       zoneViolations={violations.filter(
         (violation) => violation.zone === zone && !violation.cardId,

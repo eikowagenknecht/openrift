@@ -321,7 +321,11 @@ export function DeckHero({
       <div className="relative flex items-center gap-4 p-4 sm:gap-6 sm:p-5">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="min-w-0">
-            <div className="flex min-w-0 items-baseline gap-2">
+            {/* Wraps because a byline can be a whole line of its own: the
+                archive's is a finish, a player, a record, an event and a date,
+                and holding it beside the name on a phone would squeeze the name
+                to nothing. A short one ("by Alice") still sits inline. */}
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <p className="font-heading truncate text-2xl font-bold">{name}</p>
               {/* The domains ride with the name, not on a row of their own.
                   `self-center` because the row aligns on the text baseline,
@@ -333,7 +337,7 @@ export function DeckHero({
                   ))}
                 </span>
               )}
-              {byline && <span className="text-muted-foreground shrink-0 text-sm">{byline}</span>}
+              {byline && <span className="text-muted-foreground min-w-0 text-sm">{byline}</span>}
             </div>
             {(legend || champion) && (
               <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">

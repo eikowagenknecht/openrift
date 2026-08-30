@@ -1,4 +1,4 @@
-import type { PublicDeckCardResponse, PublicDeckDetailResponse } from "@openrift/shared";
+import type { DeckZone, PublicDeckCardResponse, PublicDeckDetailResponse } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { Suspense, useEffect, useRef, useState } from "react";
 
@@ -8,6 +8,7 @@ import { DeckOwnershipBridge } from "@/components/deck/deck-ownership-bridge";
 import { DeckPlanView } from "@/components/deck/deck-plan-view";
 import type { HoverOrigin } from "@/components/deck/hovered-card-preview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
+import { useMeasuredHeight } from "@/components/layout/page-top-bar";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { CardDetailSkeleton, SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -74,10 +75,19 @@ interface PublicDeckSurfaceProps {
   returnPath: string;
   /** Rendered next to the deck name: the owner, or the archive's event facts. */
   heroByline: React.ReactNode;
-  /** The copy / fork CTA under the status chips. */
-  heroActions: React.ReactNode;
+  /** The copy / fork CTA under the status chips, for a page with no top bar. */
+  heroActions?: React.ReactNode;
+  /**
+   * A sticky bar above the page, for a caller whose page needs a breadcrumb and
+   * a title row (the archive). The share page has neither and passes nothing.
+   */
+  topBar?: React.ReactNode;
   /** Optional callout between the hero and the tab strip. */
   notice?: React.ReactNode;
+  /** Credits and correction links, rendered below the deck. */
+  footer?: React.ReactNode;
+  /** Forwarded to the overview: per zone, cards this list's source never published. */
+  unknownZoneCounts?: ReadonlyMap<DeckZone, number>;
 }
 
 /**
@@ -87,16 +97,23 @@ interface PublicDeckSurfaceProps {
  * they differ only in where the payload came from and what the hero says, so
  * those are props and everything else lives here.
  *
- * No page top bar on purpose: the hero already carries the deck's name and
- * status, so the page opens straight with it.
+ * No page top bar of its own: the hero already carries the deck's name and
+ * status, so the share page opens straight with it. A caller that needs one
+ * anyway — the archive, whose breadcrumb walks back to the event — hands it in
+ * as `topBar`.
  *
  * @returns The public deck surface.
  */
-export function PublicDeckSurface(props: PublicDeckSurfaceProps) {
+export function PublicDeckSurface({ topBar, ...props }: PublicDeckSurfaceProps) {
+  // Everything sticky below the bar offsets past it, so the bar is measured
+  // rather than assumed. Zero without one, which is the share page.
+  const [barEl, setBarEl] = useState<HTMLDivElement | null>(null);
+  const barHeight = useMeasuredHeight(barEl);
   return (
     <FilterSearchProvider value={EMPTY_FILTER_SEARCH}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <PublicDeckContent {...props} />
+        {topBar ? <div ref={setBarEl}>{topBar}</div> : null}
+        <PublicDeckContent {...props} topBarHeight={barHeight} />
       </div>
     </FilterSearchProvider>
   );
@@ -109,7 +126,10 @@ function PublicDeckContent({
   heroByline,
   heroActions,
   notice,
-}: PublicDeckSurfaceProps) {
+  footer,
+  unknownZoneCounts,
+  topBarHeight,
+}: PublicDeckSurfaceProps & { topBarHeight: number }) {
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const isMobile = useIsMobile();
@@ -206,7 +226,7 @@ function PublicDeckContent({
 
       <div
         className="@container flex items-stretch gap-6"
-        style={{ "--sticky-top": `${headerHeight}px` } as React.CSSProperties}
+        style={{ "--sticky-top": `${headerHeight + topBarHeight}px` } as React.CSSProperties}
       >
         <div className="min-w-0 flex-1">
           <DeckOverview
@@ -244,6 +264,7 @@ function PublicDeckContent({
               ) : undefined
             }
             notice={notice}
+            unknownZoneCounts={unknownZoneCounts}
             heroByline={heroByline}
             heroActions={heroActions}
           />
@@ -257,6 +278,8 @@ function PublicDeckContent({
           </Suspense>
         )}
       </div>
+
+      {footer}
 
       {/* Every viewport: the overlay component picks the drawer or the dialog.
           Gating this on isMobile left desktop clicks selecting a card with

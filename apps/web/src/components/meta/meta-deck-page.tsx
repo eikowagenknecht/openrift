@@ -1,22 +1,115 @@
+import type { DeckFormat, DeckZone, MetaDeckDetailResponse } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CopyIcon, InfoIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, GitForkIcon, InfoIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import { PublicDeckSurface } from "@/components/deck/public-deck-surface";
+import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { MetaContributors } from "@/components/meta/meta-contributors";
+import { MetaDeckArchiveBar } from "@/components/meta/meta-deck-archive-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useCloneSharedDeck } from "@/hooks/use-decks";
+import { Medal } from "@/components/ui/podium";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { useCloneSharedDeck, useEncodeDeckCards } from "@/hooks/use-decks";
 import { useMetaDeck } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
+import { toEncodeDeckCards } from "@/lib/deck-encode-input";
+import {
+  archivedDeckIdentity,
+  describeIncompleteList,
+  medalRank,
+  unknownZoneCounts,
+} from "@/lib/meta-deck-archive";
 import { formatRank, formatRecord } from "@/lib/meta-format";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
+/** Module scope so the copy handler's `try` stays branch-free (React Compiler). */
+function reportEncodeWarnings(warnings: readonly string[]): void {
+  if (warnings.length > 0) {
+    toast.warning("The deck code left some cards out.", { description: warnings.join(" ") });
+  }
+}
+
+/**
+ * The archive's byline for one entry: the finish, who played it, their record,
+ * and the tournament it was played at. Never an account owner — the archive
+ * credits a player for the result and a contributor for the typing, and those
+ * are two different lines.
+ * @returns The byline.
+ */
+function MetaDeckByline({ meta }: { meta: MetaDeckDetailResponse["meta"] }) {
+  const medal = medalRank(meta.rank, meta.rankIsTier);
+  const record = formatRecord(meta.wins, meta.losses, meta.draws);
+  return (
+    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+      {medal === null ? formatRank(meta.rank, meta.rankIsTier) : <Medal rank={medal} />}
+      <span className="text-foreground font-medium">{meta.playerName}</span>
+      {record !== null && <span className="tabular-nums">{record}</span>}
+      <span aria-hidden>·</span>
+      <Link to="/meta/$slug" params={{ slug: meta.event.slug }} className="hover:underline">
+        {meta.event.name}
+      </Link>
+      {/* The date is the first fact to go: the byline shares its row with the
+          deck name, which phones need the width for. */}
+      <span aria-hidden className="hidden sm:inline">
+        ·
+      </span>
+      <span className="hidden sm:inline">{formatDay(meta.event.eventDate)}</span>
+    </span>
+  );
+}
+
+/**
+ * What the page says about the record itself: which parts of the list the
+ * archive holds, and the way to fill in the rest.
+ * @returns The callout, or null for a list with nothing missing.
+ */
+function MetaDeckNotice({
+  eventSlug,
+  format,
+  unknown,
+  isLoggedIn,
+}: {
+  eventSlug: string;
+  format: DeckFormat;
+  unknown: ReadonlyMap<DeckZone, number>;
+  isLoggedIn: boolean;
+}) {
+  const missing = describeIncompleteList(format, unknown);
+  if (missing === null) {
+    return null;
+  }
+  return (
+    <Alert variant="info">
+      <InfoIcon />
+      <AlertTitle>This list is incomplete</AlertTitle>
+      <AlertDescription className="flex flex-col items-start gap-2">
+        <span>
+          {missing}
+          {/* The hero's chip counts the deck the archive holds, which on a
+              partial list is not the deck that was played. It has no way to
+              say so itself, so the qualification lives here. */}
+          {isLoggedIn && " Your collection is compared against the known cards only."}
+        </span>
+        <Button
+          variant="secondary"
+          size="sm"
+          render={<Link to="/meta/$slug/submit" params={{ slug: eventSlug }} />}
+        >
+          Know the missing cards? Complete it
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 /**
  * `/meta/decks/$token` — one archived deck, rendered through the same surface
- * the public share page uses. The archive never shows an account owner: the
- * hero byline carries the finish, the player, the record, and the event
- * instead (ADR-014).
+ * the public share page uses, with the archive's own frame around it: a trail
+ * back to the event, the result the list scored, and the ways to fork it or
+ * correct it.
  * @returns The archived deck page.
  */
 export function MetaDeckPage({ token }: { token: string }) {
@@ -24,6 +117,8 @@ export function MetaDeckPage({ token }: { token: string }) {
   const userId = useUserId();
   const isLoggedIn = userId !== null;
   const cloneMutation = useCloneSharedDeck();
+  const encodeMutation = useEncodeDeckCards();
+  const { copied, copy } = useCopyToClipboard();
   const navigate = useNavigate();
 
   // Fork, per ADR-014: signed in duplicates the deck server-side, signed out
@@ -61,70 +156,85 @@ export function MetaDeckPage({ token }: { token: string }) {
     }
   };
 
-  // A standings-only entry has no page at all, so "partial" is the only status
-  // the incomplete-list callout ever fires on.
-  const isPartial = data.meta.listStatus === "partial";
-  const record = formatRecord(data.meta.wins, data.meta.losses, data.meta.draws);
-  const contributors = data.meta.contributors;
-  // Both belong directly under the hero, with the archive's own facts: the
-  // byline carries finish, player, record and event, and this carries who typed
-  // the list in. They share one slot, and one flex child, because the page's
-  // frame spaces its children six apart — far too much between a callout and
-  // the caption under it.
-  const notice =
-    isPartial || contributors.length > 0 ? (
-      <div className="flex flex-col gap-2">
-        {isPartial && (
-          <Alert variant="info">
-            <InfoIcon />
-            <AlertTitle>This list is incomplete</AlertTitle>
-            <AlertDescription>
-              The source published the main deck but not the rest, so the battlefields, runes, and
-              sideboard you see may be missing cards the player actually played.
-            </AlertDescription>
-          </Alert>
-        )}
-        <MetaContributors contributors={contributors} />
-      </div>
-    ) : undefined;
+  // The archived deck has no server row the viewer may export, so the code
+  // comes from the public stateless encoder — the same codecs the owner's
+  // export runs.
+  const encodeCards = toEncodeDeckCards(data.cards);
+  const handleCopyCode = async () => {
+    try {
+      const encoded = await encodeMutation.mutateAsync({ cards: encodeCards });
+      await copy(encoded.code);
+      // A partial list is exactly where a code comes back short, and the
+      // clipboard write is not a mutation the global handler ever sees.
+      reportEncodeWarnings(encoded.warnings);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  };
+
+  const unknown = unknownZoneCounts(data.cards, data.deck.format, data.meta.listStatus);
+  const forkLabel = isLoggedIn ? "Fork to my decks" : "Open in deck builder";
 
   return (
     <PublicDeckSurface
       data={data}
       isLoggedIn={isLoggedIn}
       returnPath={`/meta/decks/${token}`}
-      notice={notice}
-      // The archive's byline: never the account that owns the row. It carries
-      // the whole event context, since the page shows nothing above the hero.
-      heroByline={
-        <>
-          {formatRank(data.meta.rank, data.meta.rankIsTier)} · {data.meta.playerName}
-          {record !== null && ` (${record})`} ·{" "}
+      topBar={
+        <MetaDeckArchiveBar
+          event={data.meta.event}
+          identity={archivedDeckIdentity(data.cards)}
+          deckName={data.deck.name}
+          listStatus={data.meta.listStatus}
+          actions={
+            <>
+              <PageTopBarButton onClick={handleCopyCode} disabled={encodeMutation.isPending}>
+                {copied ? <CheckIcon /> : <CopyIcon />}
+                {/* Kept in the accessibility tree on phones, where the bar has
+                    room for the icon alone. */}
+                <span className="sr-only sm:not-sr-only">
+                  {copied ? "Copied" : "Copy deck code"}
+                </span>
+              </PageTopBarButton>
+              <PageTopBarPrimaryButton
+                onClick={handleFork}
+                disabled={cloneMutation.isPending}
+                aria-label={cloneMutation.isPending ? "Copying…" : forkLabel}
+              >
+                <GitForkIcon />
+                <span className="hidden sm:inline">
+                  {cloneMutation.isPending ? "Copying…" : forkLabel}
+                </span>
+                <span className="sm:hidden">{cloneMutation.isPending ? "Copying…" : "Fork"}</span>
+              </PageTopBarPrimaryButton>
+            </>
+          }
+        />
+      }
+      // Empty side zones on a partial list are holes in the record, not zones
+      // the player left empty, so they keep their slots and say so.
+      unknownZoneCounts={unknown}
+      notice={
+        <MetaDeckNotice
+          eventSlug={data.meta.event.slug}
+          format={data.deck.format}
+          unknown={unknown}
+          isLoggedIn={isLoggedIn}
+        />
+      }
+      footer={
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <MetaContributors contributors={data.meta.contributors} />
           <Link
-            to="/meta/$slug"
+            to="/meta/$slug/submit"
             params={{ slug: data.meta.event.slug }}
-            className="hover:underline"
+            className="text-primary ml-auto text-sm hover:underline"
           >
-            {data.meta.event.name}
+            Something wrong? Suggest a correction
           </Link>
-          {/* The date is the first fact to go: the byline shares its row with
-              the deck name, which phones need the width for. */}
-          <span className="hidden sm:inline">
-            {" · "}
-            {formatDay(data.meta.event.eventDate)}
-          </span>
-        </>
+        </div>
       }
-      heroActions={
-        <Button onClick={handleFork} disabled={cloneMutation.isPending}>
-          <CopyIcon />
-          {cloneMutation.isPending
-            ? "Copying…"
-            : isLoggedIn
-              ? "Fork to my decks"
-              : "Open in deck builder"}
-        </Button>
-      }
+      heroByline={<MetaDeckByline meta={data.meta} />}
     />
   );
 }
