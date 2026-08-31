@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
-import { adminReq, createTestContext, req, seedTestUser } from "../../test/integration-context.js";
+import { adminReq, createTestContext, seedTestUser } from "../../test/integration-context.js";
 import type { JsonBody } from "../../test/read-json.js";
 import { readJson } from "../../test/read-json.js";
 
@@ -104,7 +104,7 @@ afterAll(async () => {
 describe.skipIf(!ctx)("meta overlay review", () => {
   it("refuses a non-admin", async () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-    const response = await ctx!.app.fetch(req("GET", "/meta/overlays"));
+    const response = await ctx!.app.fetch(adminReq("GET", "/meta/overlays"));
 
     expect(response.status).toBe(403);
   });
@@ -296,8 +296,11 @@ describe.skipIf(!ctx)("meta overlay review", () => {
     const body = await readJson(response);
 
     expect(response.status).toBe(200);
-    // The push provider has no crawler, so it feeds a citation but no mirror.
-    expect(body.sources).toEqual([]);
+    // The push provider has no crawler, so its citation is listed with nothing
+    // to read behind it rather than left out of the drift view entirely.
+    expect(body.sources).toMatchObject([
+      { provider: PROVIDER, externalId: "mcd-1", hasMirror: false },
+    ]);
     expect((body.fields as { field: string }[]).map((row) => row.field)).toContain("name");
   });
 

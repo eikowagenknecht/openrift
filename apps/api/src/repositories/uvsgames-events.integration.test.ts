@@ -416,6 +416,7 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
           registrationId: "mtc-cover-p3",
           playerName: "MTC Vi",
           rank: 3,
+          legendName: "MTC Legend",
           fetchedAt,
         },
       ])
