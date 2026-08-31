@@ -89,17 +89,16 @@ export const metaCatalogRowSchema = z
     nextCheckAt: isoDateTime.nullable(),
     checkStage: z.number().int(),
     triage: triageSchema,
-    candidateEventId: z.string().nullable(),
     metaEventId: z.string().nullable(),
     metaEventSlug: z.string().nullable(),
     /** When the last deep fetch landed; null before the first fetch. */
     fetchedAt: isoDateTime.nullable(),
-    /** Standings rows the fetch staged; null while no candidate row exists. */
-    stagedPlayerCount: z.number().int().nullable(),
-    /** The staged rows whose legend is known. */
-    stagedLegendCount: z.number().int().nullable(),
+    /** Standings rows this source's mirror holds; null before the first fetch. */
+    stagedPlayerCount: z.number().int().nonnegative(),
+    /** The mirrored rows whose legend is known. */
+    stagedLegendCount: z.number().int().nonnegative(),
     /** The staged rows carrying a card list. */
-    stagedDeckCount: z.number().int().nullable(),
+    stagedDeckCount: z.number().int().nonnegative(),
     /** The source's own page for the event, which becomes its citation URL. */
     sourceUrl: z.string(),
   })
@@ -159,7 +158,6 @@ export const playloltcgCatalogRowSchema = z
     playerCount: z.number().int().nullable(),
     startAt: isoDate.nullable(),
     triage: triageSchema,
-    candidateEventId: z.string().nullable(),
     metaEventId: z.string().nullable(),
     metaEventSlug: z.string().nullable(),
     /** When the last deep fetch landed; null before the first fetch. */
@@ -201,9 +199,7 @@ export const acceptedCatalogEventSchema = z
   .object({
     metaEventId: z.string(),
     slug: z.string(),
-    /** The candidate the accept linked, which the review screen opens. */
-    candidateEventId: z.string(),
-    /** False when the candidate was already linked and the accept applied a diff. */
+    /** False when the key already fed a live event and this was a re-promote. */
     created: z.boolean(),
   })
   .openapi("AcceptedCatalogEvent");
@@ -356,8 +352,8 @@ export const metaSyncCancelResultSchema = z
  *
  * The catalogue is a mirror of the source's own listing, so nothing here edits
  * an event's data: the two actions are `accept` (create the live event and its
- * linked candidate, then queue the deep fetch) and `dismiss` (write the ignore
- * key). Everything downstream of an accept is the shared candidate review.
+ * citation, then queue the deep fetch) and `dismiss` (write the ignore key).
+ * Everything downstream of an accept is promotion.
  *
  * Domain codes: `accept` → NOT_FOUND for an unknown key, BAD_REQUEST when the
  * source's format maps to nothing and none was supplied, CONFLICT when no free

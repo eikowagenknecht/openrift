@@ -114,7 +114,7 @@ const resolveMetaSubmissionSchema = z.object({
  * ever reach `accepted`, and a contributor whose list was turned down would
  * read "pending" forever.
  *
- * Resolving leaves the staged candidate row in place on purpose, so
+ * Resolving leaves the overlay in place on purpose, so
  * {@link adminMetaSubmissionsContract.reopen} can genuinely undo a misclick
  * rather than apologising for a deleted decklist.
  *
@@ -124,11 +124,11 @@ const resolveMetaSubmissionSchema = z.object({
  * disagreeing.
  */
 export const adminMetaSubmissionsContract = {
-  forCandidatePlayer: authedRoute
-    .route({ method: "GET", path: `${BASE}/by-candidate-player/{candidatePlayerId}`, tags: [TAG] })
-    .input(z.object({ candidatePlayerId: z.uuid() }))
-    // Null rather than a 404: a provider's candidate row is simply not a
-    // submission, which the review screen asks about for every row it renders.
+  forPlayerOverlay: authedRoute
+    .route({ method: "GET", path: `${BASE}/by-player-overlay/{playerOverlayId}`, tags: [TAG] })
+    .input(z.object({ playerOverlayId: z.uuid() }))
+    // Null rather than a 404: a provider's overlay is simply not a submission,
+    // which the review screen asks about for every row it renders.
     .output(z.object({ submission: adminMetaSubmissionSchema.nullable() })),
 
   eventCorrections: authedRoute

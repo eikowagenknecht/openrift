@@ -359,6 +359,22 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Canonical names for a batch of card ids. Missing ids are simply absent,
+     * so a caller validating input can compare sizes.
+     */
+    async cardNamesByIds(cardIds: readonly string[]): Promise<Map<string, string>> {
+      if (cardIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("cards")
+        .select(["id", "name"])
+        .where("id", "in", [...cardIds])
+        .execute();
+      return new Map(rows.map((row) => [row.id, row.name]));
+    },
+
     cardBans(): Promise<CatalogCardBanRow[]> {
       return selectCardBans(db).execute();
     },

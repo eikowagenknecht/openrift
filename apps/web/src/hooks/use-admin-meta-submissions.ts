@@ -18,25 +18,22 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 // and the contributor's credit in one go — so everything here is the other
 // outcome: the ledger row an admin stamps by hand, which is the only thing a
 // declined contributor ever hears back.
-//
-// A submission stages one candidate standings row, so the roster row a resolve
-// comes from is a candidate player, not a candidate deck.
 
 /**
  * Resolving changes no live archive row, so only the queue and this row go
  * stale — the archived decks and the public pages are untouched by an outcome.
  *
- * @param candidatePlayerId - The roster row the write came from, or null for a
- *   correction to an event's facts, which stages no row to come from.
+ * @param playerOverlayId - The standings overlay the write came from, or null
+ *   for a correction to an event's facts, which stages no overlay.
  * @returns The query keys to invalidate.
  */
-function submissionKeys(candidatePlayerId: string | null) {
-  if (candidatePlayerId === null) {
+function submissionKeys(playerOverlayId: string | null) {
+  if (playerOverlayId === null) {
     return [queryKeys.admin.meta.eventCorrections] as const;
   }
   return [
-    queryKeys.admin.meta.submissionForPlayer(candidatePlayerId),
-    queryKeys.admin.meta.candidates,
+    queryKeys.admin.meta.submissionForPlayerOverlay(playerOverlayId),
+    queryKeys.admin.meta.overlays,
   ] as const;
 }
 
@@ -63,32 +60,35 @@ export function useMetaEventCorrections() {
   });
 }
 
-const fetchSubmissionForCandidatePlayer = createServerFn({ method: "GET" })
-  .validator((input: { candidatePlayerId: string }) => input)
+const fetchSubmissionForPlayerOverlay = createServerFn({ method: "GET" })
+  .validator((input: { playerOverlayId: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<{ submission: AdminMetaSubmission | null }> =>
-    apiOrpcClient(adminMetaSubmissionsContract, context.cookie).forCandidatePlayer({
-      candidatePlayerId: data.candidatePlayerId,
+    apiOrpcClient(adminMetaSubmissionsContract, context.cookie).forPlayerOverlay({
+      playerOverlayId: data.playerOverlayId,
     }),
   );
 
 /**
- * The ledger row behind one candidate standings row, or null when that row is a
+ * The ledger row behind one standings overlay, or null when that overlay is a
  * provider's rather than a person's.
  *
- * Null is the answer, not an error: the roster asks this about every row it
- * opens, and most of them are scraped. The null is what decides whether a
- * resolve control renders at all — the candidate row's own `submittedByUserId`
- * is a hint, but it goes null if the contributor deletes their account, and a
- * submission that outlives its submitter still needs resolving.
+ * Null is the answer, not an error: the queue asks this about every row it
+ * renders, and most of them are scraped. The null is what decides whether a
+ * resolve control renders at all — the overlay's own `submittedBy` is a hint,
+ * but it goes null if the contributor deletes their account, and a submission
+ * that outlives its submitter still needs resolving.
  *
- * @param candidatePlayerId - The candidate standings row being reviewed.
+ * @param playerOverlayId - The standings overlay being reviewed.
+ * @param enabled - False for an overlay that cannot carry a submission, so a
+ *   provider's queue row costs no request.
  * @returns The query holding the submission, or null when there is none.
  */
-export function useMetaSubmissionForCandidatePlayer(candidatePlayerId: string) {
+export function useMetaSubmissionForPlayerOverlay(playerOverlayId: string, enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.submissionForPlayer(candidatePlayerId),
-    queryFn: () => fetchSubmissionForCandidatePlayer({ data: { candidatePlayerId } }),
+    queryKey: queryKeys.admin.meta.submissionForPlayerOverlay(playerOverlayId),
+    queryFn: () => fetchSubmissionForPlayerOverlay({ data: { playerOverlayId } }),
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -109,14 +109,14 @@ export type ResolveMetaSubmissionInput = Omit<
 > & {
   submissionId: string;
   /**
-   * Scopes the cache invalidation to the roster row this was resolved from.
-   * Null for a correction to an event's facts, which has no roster row.
+   * Scopes the cache invalidation to the overlay this was resolved from. Null
+   * for a correction to an event's facts, which stages no overlay.
    */
-  candidatePlayerId: string | null;
+  playerOverlayId: string | null;
 };
 
 const resolveMetaSubmissionFn = createServerFn({ method: "POST" })
-  .validator((input: Omit<ResolveMetaSubmissionInput, "candidatePlayerId">) => input)
+  .validator((input: Omit<ResolveMetaSubmissionInput, "playerOverlayId">) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<MetaSubmissionWriteResult> => {
     const { error } = await safe(
@@ -153,7 +153,7 @@ export function useResolveMetaSubmission() {
           note: vars.note,
         },
       }),
-    invalidates: (vars) => submissionKeys(vars.candidatePlayerId),
+    invalidates: (vars) => submissionKeys(vars.playerOverlayId),
   });
 }
 
@@ -176,18 +176,18 @@ const reopenMetaSubmissionFn = createServerFn({ method: "POST" })
   });
 
 /**
- * Puts a resolved submission back to pending. Resolving leaves the staged
- * candidate row in place, so this genuinely undoes a misclick rather than
- * apologising for a deleted decklist.
+ * Puts a resolved submission back to pending. Resolving leaves the overlay in
+ * place, so this genuinely undoes a misclick rather than apologising for a
+ * deleted decklist.
  *
  * @returns The mutation.
  */
 export function useReopenMetaSubmission() {
   return useMutationWithInvalidation<
     MetaSubmissionWriteResult,
-    { submissionId: string; candidatePlayerId: string | null }
+    { submissionId: string; playerOverlayId: string | null }
   >({
     mutationFn: (vars) => reopenMetaSubmissionFn({ data: { submissionId: vars.submissionId } }),
-    invalidates: (vars) => submissionKeys(vars.candidatePlayerId),
+    invalidates: (vars) => submissionKeys(vars.playerOverlayId),
   });
 }

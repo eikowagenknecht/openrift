@@ -20,7 +20,6 @@ import type {
 } from "@openrift/shared/contracts/admin/meta-submissions";
 import type { CardType } from "@openrift/shared/types";
 
-import type { MetaEventSourceLinkRow } from "../repositories/meta-candidates.js";
 import type {
   MetaEventCorrectionRow,
   MetaSubmissionRow,
@@ -455,7 +454,7 @@ export function toMetaDeckContext(
 
 export function toAdminMetaEvent(
   row: MetaEventWithCounts,
-  sources: readonly MetaEventSourceLinkRow[],
+  sources: readonly MetaEventSourceRow[],
 ): AdminMetaEvent {
   return {
     id: row.id,
@@ -472,13 +471,19 @@ export function toAdminMetaEvent(
     playerRowCount: row.playerRowCount,
     deckCount: row.deckCount,
     sources: sources.map((source) => ({
-      candidateEventId: source.candidateEventId,
+      id: source.id,
+      externalId: source.externalId,
       provider: source.provider,
+      priority: source.priority,
     })),
   };
 }
 
-export function toAdminMetaPlayer(row: AdminMetaPlayerRow): AdminMetaPlayer {
+/**
+ * Everything but `claimedFields`, which is overlay state rather than row
+ * state: the route joins it in from the accepted overlays.
+ */
+export function toAdminMetaPlayer(row: AdminMetaPlayerRow): Omit<AdminMetaPlayer, "claimedFields"> {
   return {
     id: row.id,
     rank: row.rank,

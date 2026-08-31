@@ -17,14 +17,14 @@ const mockMeta = {
   createEvent: vi.fn(),
   adminPlayersForEvent: vi.fn(),
   createPlayer: vi.fn(),
-  updatePlayer: vi.fn(),
-  setPlayerDeck: vi.fn(),
-  clearPlayerDeck: vi.fn(),
+  renamePlayerDeck: vi.fn(),
   deletePlayer: vi.fn(),
   sourcesForEvent: vi.fn(),
   insertEventSource: vi.fn(),
   deleteEventSource: vi.fn(),
 };
+
+const mockMetaOverlays = { acceptedPlayerOverlays: vi.fn() };
 
 const mockDeckFormats = { getBySlug: vi.fn() };
 const mockCustomTags = { listBySlugs: vi.fn() };
@@ -41,6 +41,7 @@ app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
   c.set("repos", {
     meta: mockMeta,
+    metaOverlays: mockMetaOverlays,
     deckFormats: mockDeckFormats,
     customTags: mockCustomTags,
   } as never);
@@ -136,15 +137,6 @@ function createPlayer(body: unknown) {
   });
 }
 
-/** @returns The response to a standings-row PATCH. */
-function updatePlayer(body: unknown) {
-  return app.request(`/api/admin/v1/meta/players/${PLAYER_ID}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
 beforeEach(() => {
   vi.resetAllMocks();
   mockDeckFormats.getBySlug.mockResolvedValue({ slug: "constructed" });
@@ -191,6 +183,7 @@ describe("POST /meta/events", () => {
 describe("GET /meta/events/{id}/players", () => {
   it("lists the whole standings table, deckless entries included", async () => {
     mockMeta.eventById.mockResolvedValue(eventRow({ playerRowCount: 2, deckCount: 1 }));
+    mockMetaOverlays.acceptedPlayerOverlays.mockResolvedValue([]);
     mockMeta.adminPlayersForEvent.mockResolvedValue([
       playerRow({
         listStatus: "partial",
@@ -227,6 +220,41 @@ describe("GET /meta/events/{id}/players", () => {
       deckFormat: null,
       cardCount: 0,
     });
+    expect(json.players[0].claimedFields).toEqual([]);
+  });
+
+  it("reports which fields accepted overlays own, per row", async () => {
+    mockMeta.eventById.mockResolvedValue(eventRow({ playerRowCount: 1, deckCount: 0 }));
+    mockMeta.adminPlayersForEvent.mockResolvedValue([playerRow()]);
+    mockMetaOverlays.acceptedPlayerOverlays.mockResolvedValue([
+      { metaEventPlayerId: PLAYER_ID, claimedFields: ["rank", "wins"] },
+      { metaEventPlayerId: PLAYER_ID, claimedFields: ["wins", "cards"] },
+      { metaEventPlayerId: null, claimedFields: ["playerName"] },
+    ]);
+
+    const res = await app.request(`/api/admin/v1/meta/events/${EVENT_ID}/players`);
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.players[0].claimedFields.toSorted()).toEqual(["cards", "rank", "wins"]);
+  });
+
+  it("keeps one row's claims off another row on the same event", async () => {
+    const otherId = "a1000000-0001-4000-a000-0000000000ff";
+    mockMeta.eventById.mockResolvedValue(eventRow({ playerRowCount: 2, deckCount: 0 }));
+    mockMeta.adminPlayersForEvent.mockResolvedValue([
+      playerRow(),
+      playerRow({ id: otherId, rank: 2 }),
+    ]);
+    mockMetaOverlays.acceptedPlayerOverlays.mockResolvedValue([
+      { metaEventPlayerId: otherId, claimedFields: ["wins"] },
+    ]);
+
+    const res = await app.request(`/api/admin/v1/meta/events/${EVENT_ID}/players`);
+
+    const json = await readJson(res);
+    expect(json.players[0].claimedFields).toEqual([]);
+    expect(json.players[1].claimedFields).toEqual(["wins"]);
   });
 
   it("404s for an unknown event", async () => {
@@ -342,74 +370,6 @@ describe("POST /meta/players", () => {
   });
 });
 
-describe("PATCH /meta/players/{id}", () => {
-  it("writes only the named scalars and leaves the list alone", async () => {
-    mockMeta.updatePlayer.mockResolvedValue(true);
-
-    const res = await updatePlayer({ rank: 3, rankIsTier: true, wins: null });
-
-    expect(res.status).toBe(204);
-    expect(mockMeta.updatePlayer).toHaveBeenCalledWith(PLAYER_ID, {
-      rank: 3,
-      rankIsTier: true,
-      wins: null,
-    });
-    expect(mockMeta.setPlayerDeck).not.toHaveBeenCalled();
-    expect(mockMeta.clearPlayerDeck).not.toHaveBeenCalled();
-  });
-
-  it("detaches and deletes the list on an explicit null", async () => {
-    mockMeta.updatePlayer.mockResolvedValue(true);
-    mockMeta.clearPlayerDeck.mockResolvedValue(true);
-
-    const res = await updatePlayer({ list: null });
-
-    expect(res.status).toBe(204);
-    expect(mockMeta.clearPlayerDeck).toHaveBeenCalledWith(PLAYER_ID);
-    expect(mockMeta.setPlayerDeck).not.toHaveBeenCalled();
-  });
-
-  it("replaces the list when one is given", async () => {
-    mockMeta.updatePlayer.mockResolvedValue(true);
-    mockMeta.setPlayerDeck.mockResolvedValue({ deckId: DECK_ID });
-
-    const res = await updatePlayer({ list: listBody() });
-
-    expect(res.status).toBe(204);
-    expect(mockMeta.setPlayerDeck).toHaveBeenCalledWith(
-      PLAYER_ID,
-      expect.objectContaining({ name: "Renata Control", listStatus: "full" }),
-      expect.any(String),
-    );
-  });
-
-  it("404s a move onto an event that does not exist", async () => {
-    mockMeta.eventById.mockResolvedValue(undefined);
-
-    const res = await updatePlayer({ eventId: EVENT_ID });
-
-    expect(res.status).toBe(404);
-    expect(mockMeta.updatePlayer).not.toHaveBeenCalled();
-  });
-
-  it("404s an unknown standings row", async () => {
-    mockMeta.updatePlayer.mockResolvedValue(false);
-
-    const res = await updatePlayer({ rank: 3 });
-
-    expect(res.status).toBe(404);
-  });
-
-  it("404s when the row vanished before its list could be written", async () => {
-    mockMeta.updatePlayer.mockResolvedValue(true);
-    mockMeta.setPlayerDeck.mockResolvedValue(undefined);
-
-    const res = await updatePlayer({ list: listBody() });
-
-    expect(res.status).toBe(404);
-  });
-});
-
 describe("DELETE /meta/players/{id}", () => {
   it("removes a standings row", async () => {
     mockMeta.deletePlayer.mockResolvedValue(true);
@@ -424,6 +384,42 @@ describe("DELETE /meta/players/{id}", () => {
     mockMeta.deletePlayer.mockResolvedValue(false);
 
     const res = await app.request(`/api/admin/v1/meta/players/${PLAYER_ID}`, { method: "DELETE" });
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /meta/players/{id}/deck-name", () => {
+  function rename(name: string) {
+    return app.request(`/api/admin/v1/meta/players/${PLAYER_ID}/deck-name`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  it("renames the standings row's deck, trimming what it was sent", async () => {
+    mockMeta.renamePlayerDeck.mockResolvedValue(true);
+
+    const res = await rename("  Yasuo Control  ");
+
+    expect(res.status).toBe(204);
+    expect(mockMeta.renamePlayerDeck).toHaveBeenCalledWith(PLAYER_ID, "Yasuo Control");
+  });
+
+  it("refuses a name that is nothing but whitespace", async () => {
+    const res = await rename("   ");
+
+    // The trim runs before the length check, so this fails `min(1)` instead
+    // of arriving at the repo as a deck named with blanks.
+    expect(res.status).toBe(400);
+    expect(mockMeta.renamePlayerDeck).not.toHaveBeenCalled();
+  });
+
+  it("404s a standings row with no deck to rename", async () => {
+    mockMeta.renamePlayerDeck.mockResolvedValue(false);
+
+    const res = await rename("Yasuo Control");
 
     expect(res.status).toBe(404);
   });

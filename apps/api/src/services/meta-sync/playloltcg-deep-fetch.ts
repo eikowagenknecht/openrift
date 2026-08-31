@@ -1,18 +1,15 @@
-import type { MetaIngestEventPlayer } from "@openrift/shared";
 import { inferZone, WellKnown } from "@openrift/shared";
+import type { Insertable } from "kysely";
 
-import type { CandidateMetaEventRaw } from "../../db/index.js";
+import type { PlayloltcgEventStandingsTable } from "../../db/index.js";
 import {
   PLAYLOLTCG_PROVIDER,
-  playloltcgEventUrl,
   projectDeckCard,
   normalizeCardNo,
   referencedDeckIds,
-  storedDecks,
 } from "../../lib/playloltcg-catalog.js";
 import type { PlayloltcgListRow } from "../../repositories/playloltcg-events.js";
-import { ingestMetaCandidates } from "../ingest-meta-candidates.js";
-import { autoAcceptPlayloltcgPlayers } from "./playloltcg-accept.js";
+import { promoteMetaEvent } from "../meta-promote.js";
 import { PlayloltcgBlockedError } from "./playloltcg-client.js";
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 import { clock } from "./playloltcg-deps.js";
@@ -32,9 +29,6 @@ import { clock } from "./playloltcg-deps.js";
 const MAX_DECK_FETCHES = 400;
 const STANDINGS_PAGE_SIZE = 1000;
 const MAX_STANDINGS_PAGES = 50;
-
-/** Chinese all-players placement is a real ranking, not a cut tier. */
-const RANK_IS_TIER = false;
 
 export interface PlayloltcgDeepFetchResult {
   activityShopId: number;
@@ -174,16 +168,20 @@ async function readDeck(
  * an event runs, so a body already held is never requested again and each pass
  * only closes the gap, capped. A field wider than the cap leaves the rest for
  * the next ladder visit, which is what the error line announces.
+ *
+ * Missing is derived from the standings just read, not the mirror's previous
+ * pass: on a first visit the mirror holds no standings yet, and reading the
+ * gap from it would fetch nothing.
  */
 async function fetchDecks(
   deps: PlayloltcgSyncDeps,
   activityShopId: number,
   standings: readonly Record<string, unknown>[],
-  known: Record<string, unknown>,
+  held: ReadonlySet<string>,
   errors: string[],
 ): Promise<Record<string, unknown>> {
-  const decks: Record<string, unknown> = { ...known };
-  const missing = referencedDeckIds(standings).filter((id) => !Object.hasOwn(decks, id));
+  const decks: Record<string, unknown> = {};
+  const missing = referencedDeckIds(standings).filter((id) => !held.has(id));
   if (missing.length > MAX_DECK_FETCHES) {
     errors.push(
       `Event ${activityShopId} is missing ${missing.length} decks; read the first ${MAX_DECK_FETCHES}, the rest follow on the next recheck.`,
@@ -205,10 +203,6 @@ function deckCards(decks: Record<string, unknown>, cardGroupId: number): unknown
 
 function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function day(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 /**
@@ -235,22 +229,25 @@ function playerKey(
   return `n${playerName}#${occurrence}`;
 }
 
+interface PlayloltcgDeckLine {
+  lineNumber: number;
+  zone: string;
+  quantity: number;
+  cardName: string;
+}
+
 /**
- * Turns one deck body into ingest card lines plus the legend and champion names,
- * every card resolved through the bridge to its canonical name and its zone
- * inferred from our catalog type rather than the source's category vocabulary.
+ * One deck's lines for the mirror, with the name the source published.
+ *
+ * The catalog bridge is consulted only to place a card in its zone, never to
+ * rewrite its name: the mirror stores what the source said, and promotion is
+ * what matches it.
  */
-function buildDeck(
+function projectPlayloltcgDeckLines(
   cards: readonly unknown[],
   bridge: Map<string, { cardId: string; name: string; type: string }>,
-): {
-  cards: NonNullable<MetaIngestEventPlayer["cards"]>;
-  legendName: string | null;
-  championName: string | null;
-} {
-  const lines: NonNullable<MetaIngestEventPlayer["cards"]> = [];
-  let legendName: string | null = null;
-  let championName: string | null = null;
+): PlayloltcgDeckLine[] {
+  const lines: PlayloltcgDeckLine[] = [];
   for (const raw of cards) {
     const card = projectDeckCard(raw);
     if (card === null) {
@@ -265,21 +262,20 @@ function buildDeck(
         : card.isLegend
           ? WellKnown.deckZone.LEGEND
           : WellKnown.deckZone.MAIN;
-    lines.push({ name, zone, quantity: card.cardCount });
-    if (zone === WellKnown.deckZone.LEGEND && legendName === null) {
-      legendName = name;
-    }
-    if (card.isMainHero && championName === null) {
-      championName = name;
-    }
+    lines.push({ lineNumber: lines.length, zone, quantity: card.cardCount, cardName: name });
   }
-  return { cards: lines, legendName, championName };
+  return lines;
+}
+
+/** The legend a deck's lines imply, for the standings row's own column. */
+function legendFromLines(lines: readonly { zone: string; cardName: string }[]): string | null {
+  return lines.find((line) => line.zone === WellKnown.deckZone.LEGEND)?.cardName ?? null;
 }
 
 /**
- * Pulls one event and stages it as a candidate. Individual failures are
- * collected, not thrown: a deck body that 404s still leaves a full standings
- * table worth archiving.
+ * Pulls one event into this source's mirror, then promotes it. Individual
+ * failures are collected, not thrown: a deck body that 404s still leaves a full
+ * standings table worth archiving.
  */
 export async function playloltcgDeepFetch(
   deps: PlayloltcgSyncDeps,
@@ -298,11 +294,7 @@ export async function playloltcgDeepFetch(
     });
   }
 
-  // Read before the deck crawl: the stored raw says which bodies are already
-  // held, and the ingest below may create the candidate this reads.
-  const [staged] = await deps.repos.metaCandidates.eventsBySourceKeys(PLAYLOLTCG_PROVIDER, [
-    externalId,
-  ]);
+  const held = await deps.repos.playloltcgResults.heldDeckIds(activityShopId);
   const standings = await readStandings(deps, activityShopId, errors);
   if (standings === null) {
     return {
@@ -319,13 +311,10 @@ export async function playloltcgDeepFetch(
     };
   }
 
-  const deckBodies = await fetchDecks(
-    deps,
-    activityShopId,
-    standings,
-    storedDecks(staged?.raw),
-    errors,
-  );
+  const deckBodies = await fetchDecks(deps, activityShopId, standings, held, errors);
+  // Lines the mirror already holds, so a row whose deck was fetched on an
+  // earlier pass keeps its legend instead of losing it to an empty body.
+  const heldLines = await deps.repos.playloltcgResults.decklistCards(activityShopId);
   // Every card the held bodies name, resolved through the bridge in one lookup
   // so the per-deck loop below is pure.
   const shortCodes = Object.values(deckBodies)
@@ -336,7 +325,7 @@ export async function playloltcgDeepFetch(
 
   let decks = 0;
   const seenNames = new Map<string, number>();
-  const players: MetaIngestEventPlayer[] = [];
+  const rows: Insertable<PlayloltcgEventStandingsTable>[] = [];
   for (const s of standings) {
     const rank = num(s.finalRanking);
     const rawName = typeof s.name === "string" ? s.name.trim() : "";
@@ -345,62 +334,48 @@ export async function playloltcgDeepFetch(
     }
     const playerName = rawName.slice(0, 80);
     const cardGroupId = num(s.cardGroupId) ?? 0;
-    const body = cardGroupId > 0 ? deckCards(deckBodies, cardGroupId) : [];
-    const deck = body.length > 0 ? buildDeck(body, bridge) : null;
-    if (deck !== null) {
+    const sourceDeckId = cardGroupId > 0 ? String(cardGroupId) : null;
+    const body = sourceDeckId === null ? [] : deckCards(deckBodies, cardGroupId);
+    let lines: PlayloltcgDeckLine[] = [];
+    if (body.length > 0) {
       decks++;
+      lines = projectPlayloltcgDeckLines(body, bridge);
+      await deps.repos.playloltcgResults.putDecklist(
+        {
+          sourceDeckId: sourceDeckId as string,
+          activityShopId,
+          fetchStatus: "fetched",
+          fetchedAt: clock(deps),
+        },
+        lines,
+      );
+    } else if (sourceDeckId !== null) {
+      lines = heldLines.get(sourceDeckId) ?? [];
     }
-    const base = {
-      externalId: playerKey(s, playerName, seenNames),
+    const userId = num(s.userId);
+    rows.push({
+      activityShopId,
+      playerKey: playerKey(s, playerName, seenNames),
+      sourceUserId: userId !== null && Number.isInteger(userId) && userId > 0 ? userId : null,
       playerName,
       rank,
-      rankIsTier: RANK_IS_TIER,
       wins: num(s.winCount),
       losses: null,
       draws: null,
-      // The feed publishes a placement and a win count, nothing the standings
-      // were sorted by and no status.
-      matchPoints: null,
-      opponentMatchWinPct: null,
-      gameWinPct: null,
-      opponentGameWinPct: null,
-      entryStatus: null,
-      legendName: deck?.legendName ?? null,
-      championName: deck?.championName ?? null,
-    };
-    players.push(
-      deck === null
-        ? { ...base, cards: null, listStatus: "none" }
-        : { ...base, cards: deck.cards, listStatus: "full" },
-    );
+      legendName: legendFromLines(lines),
+      sourceDeckId,
+      fetchedAt: clock(deps),
+    });
   }
 
-  const eventDate = row.startAt ?? day(clock(deps));
-  const ingest = await ingestMetaCandidates(deps.transact, PLAYLOLTCG_PROVIDER, [
-    {
-      externalId,
-      name: row.name.slice(0, 120),
-      eventDate,
-      format: WellKnown.deckFormat.CONSTRUCTED,
-      playerCount: row.playerCount === null || row.playerCount === 0 ? null : row.playerCount,
-      organizer: (detail.shopName ?? row.shopDisplayName)?.slice(0, 120) ?? null,
-      sourceUrl: playloltcgEventUrl(activityShopId),
-      notes: null,
-      // playloltcg is the Chinese line, so every event is CN; the venue city is
-      // the location, and tier is left for a human (activityType is too blunt).
-      tier: null,
-      country: "CN",
-      location: (row.city ?? row.address)?.slice(0, 120) ?? null,
-      extraData: null,
-      players,
-    },
-  ]);
-  errors.push(...ingest.errors);
+  await deps.repos.playloltcgResults.replaceStandings(activityShopId, rows);
+
+  const source = await deps.repos.meta.sourceByKey(PLAYLOLTCG_PROVIDER, externalId);
 
   const result: PlayloltcgDeepFetchResult = {
     activityShopId,
     requests: deps.client.requests - before,
-    players: players.length,
+    players: rows.length,
     decks,
     acceptedPlayers: 0,
     skippedPlayers: 0,
@@ -410,23 +385,11 @@ export async function playloltcgDeepFetch(
     errors,
   };
 
-  const [candidate] = await deps.repos.metaCandidates.eventsBySourceKeys(PLAYLOLTCG_PROVIDER, [
-    externalId,
-  ]);
-  if (candidate === undefined) {
-    return result;
-  }
-  const raw: CandidateMetaEventRaw = { standings, decks: deckBodies };
-  await deps.repos.metaCandidates.updateEvent(candidate.id, { raw, fetchedAt: clock(deps) });
-
-  if (candidate.metaEventId !== null) {
-    const accepted = await autoAcceptPlayloltcgPlayers(deps, candidate.id, candidate.metaEventId);
-    result.acceptedPlayers = accepted.accepted;
-    result.skippedPlayers = accepted.skipped;
-    errors.push(...accepted.errors);
-    if (accepted.skipped > 0) {
-      await deps.repos.metaCandidates.setEventCheckedAt(candidate.id, null);
-    }
+  if (source !== undefined) {
+    const promoted = await promoteMetaEvent(deps.repos, source.metaEventId);
+    result.acceptedPlayers = promoted.players;
+    result.skippedPlayers = promoted.unresolvedNames.length;
+    errors.push(...promoted.errors);
   }
 
   return result;

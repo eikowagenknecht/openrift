@@ -1,28 +1,25 @@
 import { createLogger } from "@openrift/shared/logger";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../../deps.js";
-import type {
-  CandidateMetaEventRow,
-  CandidateMetaMatchRow,
-  CandidateMetaPlayerRow,
-  NewCandidateMetaMatch,
-} from "../../repositories/meta-candidates.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { deepFetchEvent } from "./deep-fetch.js";
 import type { MetaSyncDeps } from "./deps.js";
 import type { UvsClient, UvsQuery } from "./uvsgames-client.js";
 import { UvsHttpError } from "./uvsgames-client.js";
 
-const { ingestMetaCandidates } = vi.hoisted(() => ({
-  ingestMetaCandidates: vi.fn(() => Promise.resolve({ errors: [] })),
-}));
-
-vi.mock("../ingest-meta-candidates.js", () => ({ ingestMetaCandidates }));
-
-vi.mock("../meta-candidate-accept.js", () => ({
-  acceptCandidateEvent: vi.fn(() => Promise.resolve()),
-  acceptCandidatePlayer: vi.fn(() => Promise.resolve()),
+vi.mock("../meta-promote.js", () => ({
+  promoteMetaEvent: vi.fn(() =>
+    Promise.resolve({
+      metaEventId: "live-1",
+      players: 1,
+      decks: 0,
+      matches: 1,
+      phases: 2,
+      unresolvedNames: [],
+      errors: [],
+    }),
+  ),
 }));
 
 const NOW = new Date("2026-08-20T12:00:00Z");
@@ -45,13 +42,13 @@ function catalogRow(overrides: Partial<UvsgamesListRow> = {}): UvsgamesListRow {
     timezone: "Europe/Rome",
     eventConfigurationTemplate: "0cbcab3e-be80-4d1d-a450-9485e584906d",
     contentHash: "hash",
+    resultsFetchedAt: null,
     firstSeenAt: NOW,
     lastSeenAt: NOW,
     missingSince: null,
     nextCheckAt: null,
     checkStage: 0,
     triage: "accepted",
-    candidateEventId: "cand-1",
     metaEventId: "live-1",
     metaEventSlug: "rq-bologna",
     ...overrides,
@@ -64,30 +61,13 @@ interface PageCall {
   pageSize: number;
 }
 
-function stagedCandidate(): CandidateMetaEventRow {
-  return {
-    id: "cand-1",
-    metaEventId: "live-1",
-    format: "constructed",
-  } as CandidateMetaEventRow;
-}
-
-function stagedPlayer(overrides: Partial<CandidateMetaPlayerRow> = {}): CandidateMetaPlayerRow {
-  return {
-    id: `player-${crypto.randomUUID().slice(0, 8)}`,
-    candidateEventId: "cand-1",
-    externalId: "reg-1",
-    playerName: "Player",
-    rank: 1,
-    cards: null,
-    ...overrides,
-  } as CandidateMetaPlayerRow;
+/** An accepted event: its key is linked to a live row, so promotion runs. */
+function acceptedSource(): { metaEventId: string } {
+  return { metaEventId: "live-1" };
 }
 
 function fakeDeps(
   options: {
-    candidate?: CandidateMetaEventRow;
-    players?: CandidateMetaPlayerRow[];
     registrations?: unknown[];
     /** Registrations spread over several pages, for the truncation cases. */
     registrationPages?: unknown[][];
@@ -100,27 +80,37 @@ function fakeDeps(
     heldRounds?: string[];
     roundMatches?: (roundId: string) => unknown[];
     roundStandings?: (roundId: string) => unknown[];
-    stagedMatches?: CandidateMetaMatchRow[];
+    /** Standings this event's mirror already holds. */
+    standingsHeld?: Record<string, unknown>[];
+    /** Deck ids the mirror still owes, which is what the fetch asks for. */
+    outstandingDecks?: string[];
+    /** The citation linking this key to a live event; absent means unaccepted. */
+    source?: { metaEventId: string };
   } = {},
 ): {
   deps: MetaSyncDeps;
   pageCalls: PageCall[];
   deckRequests: string[];
-  updates: Record<string, unknown>[];
-  setEventCheckedAt: ReturnType<typeof vi.fn>;
-  stagedRounds: { roundId: string; rows: NewCandidateMetaMatch[] }[];
+  stagedRounds: { roundId: string; rows: Record<string, unknown>[] }[];
+  mirroredStandings: Record<string, unknown>[];
+  mirroredPhases: Record<string, unknown>[];
+  storedDecklists: { row: Record<string, unknown>; cards: Record<string, unknown>[] }[];
   liveMatches: Record<string, unknown>[];
   livePhases: Record<string, unknown>[];
-  matchStamps: Map<string, string>;
+  fetchMarks: { externalId: string; at: Date }[];
+  /** Mirror writes and reads in the order the pass made them. */
+  callOrder: string[];
 } {
   const pageCalls: PageCall[] = [];
   const deckRequests: string[] = [];
-  const updates: Record<string, unknown>[] = [];
-  const setEventCheckedAt = vi.fn(() => Promise.resolve(true));
-  const stagedRounds: { roundId: string; rows: NewCandidateMetaMatch[] }[] = [];
+  const stagedRounds: { roundId: string; rows: Record<string, unknown>[] }[] = [];
+  const mirroredStandings: Record<string, unknown>[] = [];
+  const mirroredPhases: Record<string, unknown>[] = [];
+  const storedDecklists: { row: Record<string, unknown>; cards: Record<string, unknown>[] }[] = [];
   const liveMatches: Record<string, unknown>[] = [];
   const livePhases: Record<string, unknown>[] = [];
-  const matchStamps = new Map<string, string>();
+  const fetchMarks: { externalId: string; at: Date }[] = [];
+  const callOrder: string[] = [];
 
   /** Which of the paginated endpoints a path is, and what this fake answers with. */
   function pageResults(path: string, page: number): unknown[] {
@@ -184,45 +174,40 @@ function fakeDeps(
 
   const deps: MetaSyncDeps = {
     repos: {
-      metaCandidates: {
-        eventById: () => Promise.resolve(options.candidate),
-        eventsBySourceKeys: () =>
-          Promise.resolve(options.candidate === undefined ? [] : [options.candidate]),
-        eventsByMetaEventId: () =>
-          Promise.resolve(options.candidate === undefined ? [] : [options.candidate]),
-        playersByCandidateEventIds: () => Promise.resolve(options.players ?? []),
-        updateEvent: (_id: string, values: Record<string, unknown>) => {
-          updates.push(values);
+      uvsgamesResults: {
+        standings: () => Promise.resolve(options.standingsHeld ?? []),
+        replaceStandings: (_externalId: string, rows: Record<string, unknown>[]) => {
+          callOrder.push("replaceStandings");
+          mirroredStandings.push(...rows);
           return Promise.resolve();
         },
-        setPlayerUvsIds: () => Promise.resolve(),
-        setEventCheckedAt,
-        matchRoundIds: () => Promise.resolve(options.heldRounds ?? []),
+        replacePhases: (_externalId: string, rows: Record<string, unknown>[]) => {
+          mirroredPhases.push(...rows);
+          return Promise.resolve();
+        },
+        heldRoundIds: () => Promise.resolve(options.heldRounds ?? []),
         replaceRoundMatches: (
-          _candidateEventId: string,
+          _externalId: string,
           roundId: string,
-          rows: NewCandidateMetaMatch[],
+          rows: Record<string, unknown>[],
         ) => {
           stagedRounds.push({ roundId, rows });
           return Promise.resolve();
         },
-        unmaterializedMatches: () => Promise.resolve(options.stagedMatches ?? []),
-        setMatchLiveIds: (stamps: ReadonlyMap<string, string>) => {
-          for (const [id, liveId] of stamps) {
-            matchStamps.set(id, liveId);
-          }
+        deckCoverage: () => {
+          callOrder.push("deckCoverage");
+          return Promise.resolve({ outstanding: options.outstandingDecks ?? [], held: 0 });
+        },
+        putDecklist: (row: Record<string, unknown>, cards: Record<string, unknown>[]) => {
+          storedDecklists.push({ row, cards });
           return Promise.resolve();
         },
       },
       meta: {
+        sourceByKey: () => Promise.resolve(options.source),
         upsertEventMatches: (rows: Record<string, unknown>[]) => {
           liveMatches.push(...rows);
-          return Promise.resolve(
-            rows.map((row, index) => ({
-              id: `live-match-${index + 1}`,
-              sourceMatchId: row.sourceMatchId,
-            })),
-          );
+          return Promise.resolve(rows.map((_row, index) => ({ id: `live-match-${index + 1}` })));
         },
         replaceEventPhases: (_eventId: string, rows: Record<string, unknown>[]) => {
           livePhases.push(...rows);
@@ -233,6 +218,10 @@ function fakeDeps(
         formatMappings: () => Promise.resolve(new Map([["constructed", "constructed"]])),
         templateTiers: () => Promise.resolve(new Map()),
         upsertPlayers: () => Promise.resolve(0),
+        markResultsFetched: (externalId: string, at: Date) => {
+          fetchMarks.push({ externalId, at });
+          return Promise.resolve();
+        },
       },
     } as unknown as Repos,
     transact: (() => Promise.reject(new Error("mocked out"))) as unknown as Transact,
@@ -244,20 +233,18 @@ function fakeDeps(
     deps,
     pageCalls,
     deckRequests,
-    updates,
-    setEventCheckedAt,
     stagedRounds,
+    mirroredStandings,
+    mirroredPhases,
+    storedDecklists,
     liveMatches,
     livePhases,
-    matchStamps,
+    fetchMarks,
+    callOrder,
   };
 }
 
 describe("deepFetchEvent", () => {
-  beforeEach(() => {
-    ingestMetaCandidates.mockClear();
-  });
-
   it("pages the final standings at the tv page size until the envelope ends", async () => {
     const { deps, pageCalls } = fakeDeps();
 
@@ -270,71 +257,74 @@ describe("deepFetchEvent", () => {
     ]);
   });
 
-  it("sends the event back to review when the auto-accept leaves players behind", async () => {
-    const { deps, setEventCheckedAt } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [
-        stagedPlayer(),
-        stagedPlayer({
-          externalId: "reg-2",
-          playerName: "Unresolved Player",
-          cards: [{ name: "Mystery Card", zone: "main", quantity: 3, cardId: null }],
-        }),
-      ],
-    });
+  it("counts the card names promotion could not match, without failing the pass", async () => {
+    const { deps } = fakeDeps({ source: acceptedSource() });
 
     const result = await deepFetchEvent(deps, catalogRow());
 
-    expect(result.skippedPlayers).toBe(1);
-    expect(setEventCheckedAt).toHaveBeenCalledWith("cand-1", null);
-  });
-
-  it("leaves the review state settled when every player accepts", async () => {
-    const { deps, setEventCheckedAt } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [stagedPlayer()],
-    });
-
-    const result = await deepFetchEvent(deps, catalogRow());
-
-    expect(result.acceptedPlayers).toBe(1);
+    // The standings are live either way; only the decks behind unmatched names
+    // are withheld, which is the pyramid working as intended.
     expect(result.skippedPlayers).toBe(0);
-    expect(setEventCheckedAt).not.toHaveBeenCalled();
   });
 
-  it("fetches only the decks the stored raw does not already hold", async () => {
-    const registrations = [
-      { id: "r1", deck_id: "d-held" },
-      { id: "r2", deck_id: "d-open" },
-    ];
-    const candidate = {
-      ...stagedCandidate(),
-      raw: { registrations, decks: { "d-held": { sections: [] } } },
-    } as CandidateMetaEventRow;
-    const { deps, deckRequests, updates } = fakeDeps({
-      candidate,
-      players: [],
-      registrations,
-      deck: () => ({ sections: [] }),
+  it("asks only for the decks the mirror still owes", async () => {
+    const { deps, deckRequests } = fakeDeps({
+      source: acceptedSource(),
+      outstandingDecks: ["d-open"],
+      registrations: [
+        { id: "r1", deck_id: "d-held" },
+        { id: "r2", deck_id: "d-open" },
+      ],
     });
 
     await deepFetchEvent(deps, catalogRow({ decklistStatus: "PUBLISHED" }));
 
     expect(deckRequests).toEqual(["d-open"]);
-    expect(updates.at(-1)?.raw).toMatchObject({
-      decks: { "d-held": { sections: [] }, "d-open": { sections: [] } },
+  });
+
+  it("marks the results fetched even when the event's field came back empty", async () => {
+    const { deps, fetchMarks, mirroredStandings } = fakeDeps({ source: acceptedSource() });
+
+    await deepFetchEvent(deps, catalogRow());
+
+    // A cancelled event legitimately mirrors no standings. Counting rows would
+    // leave the ladder revisiting it until the ladder ran out.
+    expect(mirroredStandings).toEqual([]);
+    expect(fetchMarks).toEqual([{ externalId: "365708", at: NOW }]);
+  });
+
+  it("marks nothing fetched on a pass that wrote nothing", async () => {
+    const { deps, fetchMarks } = fakeDeps({
+      source: acceptedSource(),
+      failedPages: ["/tv/standings/:1"],
     });
+
+    await deepFetchEvent(deps, catalogRow());
+
+    expect(fetchMarks).toEqual([]);
+  });
+
+  it("reads the outstanding decks after mirroring the standings", async () => {
+    const { deps, callOrder } = fakeDeps({
+      source: acceptedSource(),
+      registrations: [{ id: "r1", best_identifier: "Ashwalker", final_place_in_standings: 1 }],
+    });
+
+    await deepFetchEvent(deps, catalogRow({ decklistStatus: "PUBLISHED" }));
+
+    // The gap is computed from deck ids this pass just wrote, so a first visit
+    // asks for decks instead of finding an empty mirror and fetching none.
+    expect(callOrder).toEqual(["replaceStandings", "deckCoverage"]);
   });
 
   it("records a refused deck so it is not retried, but leaves a transient failure open", async () => {
-    const registrations = [
-      { id: "r1", deck_id: "d-gone" },
-      { id: "r2", deck_id: "d-flaky" },
-    ];
-    const { deps, updates } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
-      registrations,
+    const { deps, storedDecklists } = fakeDeps({
+      source: acceptedSource(),
+      outstandingDecks: ["d-gone", "d-flaky"],
+      registrations: [
+        { id: "r1", deck_id: "d-gone" },
+        { id: "r2", deck_id: "d-flaky" },
+      ],
       deck: (deckId) => {
         throw deckId === "d-gone"
           ? new UvsHttpError(404, "/decks/d-gone/", "not found")
@@ -342,12 +332,13 @@ describe("deepFetchEvent", () => {
       },
     });
 
-    const result = await deepFetchEvent(deps, catalogRow({ decklistStatus: "PUBLISHED" }));
+    await deepFetchEvent(deps, catalogRow({ decklistStatus: "PUBLISHED" }));
 
-    const stored = updates.at(-1)?.raw as { decks: Record<string, unknown> };
-    expect(stored.decks).toMatchObject({ "d-gone": null });
-    expect(stored.decks).not.toHaveProperty("d-flaky");
-    expect(result.decks).toBe(0);
+    // A 4xx is the source refusing for good, so the id is recorded and never
+    // asked for again. A 503 records nothing, leaving it fetchable next pass.
+    expect(storedDecklists.map((entry) => entry.row)).toEqual([
+      expect.objectContaining({ sourceDeckId: "d-gone", fetchStatus: "refused" }),
+    ]);
   });
 
   const TWO_ROUND_DETAIL = {
@@ -375,10 +366,9 @@ describe("deepFetchEvent", () => {
     };
   }
 
-  it("stages matches only for rounds the candidate does not already hold", async () => {
-    const { deps, pageCalls, stagedRounds, updates } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+  it("mirrors matches only for rounds it does not already hold", async () => {
+    const { deps, pageCalls, stagedRounds } = fakeDeps({
+      source: acceptedSource(),
       detail: TWO_ROUND_DETAIL,
       heldRounds: ["901"],
       roundMatches: () => [matchRow(11, 12)],
@@ -393,7 +383,6 @@ describe("deepFetchEvent", () => {
     expect(stagedRounds).toHaveLength(1);
     expect(stagedRounds[0]?.roundId).toBe("902");
     expect(stagedRounds[0]?.rows[0]).toMatchObject({
-      candidateEventId: "cand-1",
       roundNumber: 2,
       player1UvsgamesId: 11,
       player2UvsgamesId: 12,
@@ -401,13 +390,11 @@ describe("deepFetchEvent", () => {
     });
     expect(result.stagedMatches).toBe(1);
     // Matches never land in the stored raw payload.
-    expect(updates.at(-1)?.raw).not.toHaveProperty("matches");
   });
 
   it("leaves a round unstaged when one of its match pages fails", async () => {
     const { deps, stagedRounds } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+      source: acceptedSource(),
       detail: TWO_ROUND_DETAIL,
       roundMatches: (roundId) => {
         if (roundId === "901") {
@@ -425,9 +412,8 @@ describe("deepFetchEvent", () => {
   });
 
   it("stages nothing when a registrations page fails, rather than a short player list", async () => {
-    const { deps, updates } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+    const { deps, mirroredStandings } = fakeDeps({
+      source: acceptedSource(),
       registrationPages: [
         [{ id: "r1", best_identifier: "Ashwalker", final_place_in_standings: 1 }],
         [{ id: "r2", best_identifier: "Riven", final_place_in_standings: 2 }],
@@ -437,10 +423,9 @@ describe("deepFetchEvent", () => {
 
     const result = await deepFetchEvent(deps, catalogRow());
 
-    // The ingest replaces the staged roster wholesale, so a short list deletes
-    // players and the live rows keyed to them.
-    expect(ingestMetaCandidates).not.toHaveBeenCalled();
-    expect(updates).toEqual([]);
+    // The mirror replaces an event's standings wholesale, so a short list
+    // would delete the players it did not carry.
+    expect(mirroredStandings).toEqual([]);
     expect(result.players).toBe(0);
     expect(result.errors.at(-1)).toContain("came back incomplete");
   });
@@ -475,13 +460,6 @@ describe("deepFetchEvent", () => {
     };
   }
 
-  /** The field as the ingest was handed it. */
-  function stagedPlayers(): Record<string, unknown>[] {
-    const call = ingestMetaCandidates.mock.calls[0] as unknown[] | undefined;
-    const events = call?.[2] as { players: Record<string, unknown>[] }[] | undefined;
-    return events?.[0]?.players ?? [];
-  }
-
   /** The round ids whose standings the pass asked for, in request order. */
   function standingsRoundsRead(calls: PageCall[]): string[] {
     return calls
@@ -493,9 +471,8 @@ describe("deepFetchEvent", () => {
   }
 
   it("keeps every swiss player's legend when a top cut is the last completed round", async () => {
-    const { deps } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+    const { deps, mirroredStandings } = fakeDeps({
+      source: acceptedSource(),
       detail: TOP_CUT_DETAIL,
       registrations: TOP_CUT_REGISTRATIONS,
       roundStandings: (roundId) =>
@@ -509,16 +486,15 @@ describe("deepFetchEvent", () => {
 
     await deepFetchEvent(deps, catalogRow());
 
-    expect(stagedPlayers()).toMatchObject([
-      { externalId: "reg-cut", legendName: "Cut Legend", matchPoints: 12 },
-      { externalId: "reg-swiss", legendName: "Swiss Legend", matchPoints: 6 },
+    expect(mirroredStandings).toMatchObject([
+      { registrationId: "reg-cut", legendName: "Cut Legend", matchPoints: 12 },
+      { registrationId: "reg-swiss", legendName: "Swiss Legend", matchPoints: 6 },
     ]);
   });
 
   it("reads back only as far as the last phase nobody was cut from", async () => {
     const { deps, pageCalls } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+      source: acceptedSource(),
       detail: TOP_CUT_DETAIL,
       registrations: TOP_CUT_REGISTRATIONS,
       roundStandings: () => [],
@@ -531,8 +507,7 @@ describe("deepFetchEvent", () => {
 
   it("reads one round's standings for an event that never cut anyone", async () => {
     const { deps, pageCalls } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+      source: acceptedSource(),
       detail: TWO_ROUND_DETAIL,
       registrations: TOP_CUT_REGISTRATIONS,
       roundStandings: () => [],
@@ -543,25 +518,22 @@ describe("deepFetchEvent", () => {
     expect(standingsRoundsRead(pageCalls)).toEqual(["902"]);
   });
 
-  it("stages nothing when the event detail fails, rather than blanking the stored raw", async () => {
-    const { deps, updates } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+  it("writes nothing when the event detail fails, rather than emptying the mirror", async () => {
+    const { deps, mirroredStandings } = fakeDeps({
+      source: acceptedSource(),
       registrations: [{ id: "r1", best_identifier: "Ashwalker", final_place_in_standings: 1 }],
       detailFails: true,
     });
 
     const result = await deepFetchEvent(deps, catalogRow());
 
-    expect(ingestMetaCandidates).not.toHaveBeenCalled();
-    expect(updates).toEqual([]);
+    expect(mirroredStandings).toEqual([]);
     expect(result.errors.at(-1)).toContain("came back incomplete");
   });
 
   it("reuses a detail the caller already fetched instead of reading it again", async () => {
     const { deps } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+      source: acceptedSource(),
       detailFails: true,
     });
 
@@ -570,24 +542,22 @@ describe("deepFetchEvent", () => {
     expect(result.errors).toEqual([]);
   });
 
-  it("stages nothing when the final standings fail", async () => {
-    const { deps } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+  it("writes nothing when the final standings fail", async () => {
+    const { deps, mirroredStandings } = fakeDeps({
+      source: acceptedSource(),
       registrations: [{ id: "r1", best_identifier: "Ashwalker", final_place_in_standings: 1 }],
       failedPages: ["/tv/standings/:1"],
     });
 
     const result = await deepFetchEvent(deps, catalogRow());
 
-    expect(ingestMetaCandidates).not.toHaveBeenCalled();
+    expect(mirroredStandings).toEqual([]);
     expect(result.errors.at(-1)).toContain("came back incomplete");
   });
 
   it("spends no deck requests on an event it will not stage", async () => {
     const { deps, deckRequests } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+      source: acceptedSource(),
       registrations: [{ id: "r1", best_identifier: "Ashwalker", deck_id: "d-open" }],
       failedPages: ["/registrations/:1"],
       deck: () => ({ sections: [] }),
@@ -598,10 +568,9 @@ describe("deepFetchEvent", () => {
     expect(deckRequests).toEqual([]);
   });
 
-  it("copies the event's phase structure onto the live event", async () => {
-    const { deps, livePhases } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [],
+  it("mirrors the event's phase structure", async () => {
+    const { deps, mirroredPhases } = fakeDeps({
+      source: acceptedSource(),
       detail: {
         tournament_phases: [
           {
@@ -623,56 +592,11 @@ describe("deepFetchEvent", () => {
       roundMatches: () => [],
     });
 
-    const result = await deepFetchEvent(deps, catalogRow());
+    await deepFetchEvent(deps, catalogRow());
 
-    expect(result.phases).toBe(2);
-    expect(livePhases).toMatchObject([
+    expect(mirroredPhases).toMatchObject([
       { phaseOrder: 0, roundType: "SWISS", roundCount: 8, maxGameWins: 2, rankRequired: null },
       { phaseOrder: 1, roundType: "RANKED_SINGLE_ELIMINATION", rankRequired: 8 },
     ]);
-  });
-
-  it("materializes staged matches whose participants are all live, and leaves the rest waiting", async () => {
-    const stagedMatch = (id: string, p1: number, p2: number) =>
-      ({
-        id,
-        candidateEventId: "cand-1",
-        roundId: "901",
-        phaseOrder: 0,
-        roundNumber: 1,
-        tableNumber: 1,
-        isBye: false,
-        isDraw: false,
-        player1UvsgamesId: p1,
-        player2UvsgamesId: p2,
-        winnerUvsgamesId: p1,
-        gamesWonP1: 2,
-        gamesWonP2: 0,
-        sourceMatchId: `src-${id}`,
-        metaEventMatchId: null,
-      }) as unknown as CandidateMetaMatchRow;
-
-    const { deps, liveMatches, matchStamps } = fakeDeps({
-      candidate: stagedCandidate(),
-      players: [
-        stagedPlayer({ uvsgamesPlayerId: 11, metaEventPlayerId: "live-p-11" }),
-        stagedPlayer({ externalId: "reg-2", uvsgamesPlayerId: 12, metaEventPlayerId: "live-p-12" }),
-        stagedPlayer({ externalId: "reg-3", uvsgamesPlayerId: 13, metaEventPlayerId: null }),
-      ],
-      stagedMatches: [stagedMatch("m-1", 11, 12), stagedMatch("m-2", 11, 13)],
-    });
-
-    const result = await deepFetchEvent(deps, catalogRow());
-
-    expect(liveMatches).toHaveLength(1);
-    expect(liveMatches[0]).toMatchObject({
-      metaEventId: "live-1",
-      player1Id: "live-p-11",
-      player2Id: "live-p-12",
-      winnerId: "live-p-11",
-    });
-    expect(matchStamps.get("m-1")).toBe("live-match-1");
-    expect(matchStamps.has("m-2")).toBe(false);
-    expect(result.liveMatches).toBe(1);
   });
 });

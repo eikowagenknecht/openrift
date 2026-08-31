@@ -18,13 +18,13 @@ import { AdminPager } from "@/components/admin/admin-pager";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { MetaAutoAcceptDialog } from "@/components/admin/meta-auto-accept-dialog";
-import { ConfirmActionButton } from "@/components/admin/meta-candidate-shared";
 import { CatalogFilters } from "@/components/admin/meta-catalog-filters";
 import {
   MetaCatalogAcceptDialog,
   announceSyncTrigger,
 } from "@/components/admin/meta-catalog-shared";
 import { MetaCoverageChips } from "@/components/admin/meta-coverage-chips";
+import { ConfirmActionButton } from "@/components/admin/meta-review-shared";
 import { MetaSourceVocabularyDialog } from "@/components/admin/meta-source-vocabulary-dialog";
 import { urlTriage } from "@/components/admin/meta-triage-filter";
 import { PageTopBarButton } from "@/components/layout/page-top-bar";

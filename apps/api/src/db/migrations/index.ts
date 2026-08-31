@@ -217,6 +217,9 @@ import * as m268 from "./268-meta-event-matches.js";
 import * as m269 from "./269-meta-phases-and-tiebreakers.js";
 import * as m270 from "./270-playloltcg-event-key-integer.js";
 import * as m271 from "./271-meta-submission-kinds.js";
+import * as m272 from "./272-meta-two-tier.js";
+import * as m273 from "./273-meta-two-tier-repairs.js";
+import * as m274 from "./274-player-overlay-printings.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -493,4 +496,7 @@ export const migrations: Record<string, Migration> = {
   "269-meta-phases-and-tiebreakers": m269,
   "270-playloltcg-event-key-integer": m270,
   "271-meta-submission-kinds": m271,
+  "272-meta-two-tier": m272,
+  "273-meta-two-tier-repairs": m273,
+  "274-player-overlay-printings": m274,
 };

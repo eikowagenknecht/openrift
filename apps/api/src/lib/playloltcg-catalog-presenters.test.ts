@@ -29,7 +29,6 @@ function listRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListRow 
     lastSeenAt: new Date("2026-08-20T12:00:00Z"),
     missingSince: null,
     triage: "accepted",
-    candidateEventId: "cand-1",
     metaEventId: "live-1",
     metaEventSlug: "shenzhen-legend-challenge",
     shopDisplayName: "卡之域卡牌 深圳",

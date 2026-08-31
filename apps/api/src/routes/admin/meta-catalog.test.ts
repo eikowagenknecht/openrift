@@ -12,11 +12,11 @@ import { adminMetaCatalogRouter } from "./meta-catalog";
 // Mocked services
 // ---------------------------------------------------------------------------
 
-const { acceptPlayloltcgEvent, backfillCatalog, reclassifyMetaEvents, runJobAsync } = vi.hoisted(
+const { acceptPlayloltcgEvent, backfillCatalog, repromoteMetaEvents, runJobAsync } = vi.hoisted(
   () => ({
     acceptPlayloltcgEvent: vi.fn(),
     backfillCatalog: vi.fn(() => Promise.resolve({})),
-    reclassifyMetaEvents: vi.fn(() => Promise.resolve({ updated: 0 })),
+    repromoteMetaEvents: vi.fn(() => Promise.resolve({ events: 0, failed: 0, errors: [] })),
     runJobAsync: vi.fn(
       (
         _deps: unknown,
@@ -44,7 +44,7 @@ vi.mock("../../services/run-job.js", async (importOriginal) => ({
   runJobAsync,
 }));
 
-vi.mock("../../services/meta-reclassify.js", () => ({ reclassifyMetaEvents }));
+vi.mock("../../services/meta-repromote.js", () => ({ repromoteMetaEvents }));
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -75,7 +75,7 @@ const mockPlayloltcgEvents = {
 };
 
 const mockMeta = { archiveOverview: vi.fn() };
-const mockMetaCandidates = { ignoreEvent: vi.fn() };
+const mockMetaOverlays = { ignoreEvent: vi.fn(), unignoreEvent: vi.fn() };
 
 const mockDeckFormats = { getBySlug: vi.fn() };
 const mockAdminEvents = { insert: vi.fn() };
@@ -91,7 +91,7 @@ app.use("*", async (c, next) => {
     uvsgamesEvents: mockUvsgamesEvents,
     playloltcgEvents: mockPlayloltcgEvents,
     meta: mockMeta,
-    metaCandidates: mockMetaCandidates,
+    metaOverlays: mockMetaOverlays,
     deckFormats: mockDeckFormats,
     adminEvents: mockAdminEvents,
   } as never);
@@ -389,7 +389,7 @@ describe("catalogue templates", () => {
     const res = await patchTemplate({ templateId: TEMPLATE_ID, watched: true });
 
     expect(res.status).toBe(404);
-    expect(reclassifyMetaEvents).not.toHaveBeenCalled();
+    expect(repromoteMetaEvents).not.toHaveBeenCalled();
   });
 
   it("leaves the events alone when only the watch flag moves", async () => {
@@ -399,7 +399,7 @@ describe("catalogue templates", () => {
 
     expect(res.status).toBe(200);
     expect(mockUvsgamesEvents.updateTemplate).toHaveBeenCalledWith(TEMPLATE_ID, { watched: false });
-    expect(reclassifyMetaEvents).not.toHaveBeenCalled();
+    expect(repromoteMetaEvents).not.toHaveBeenCalled();
   });
 
   it("writes no audit row for a patch that names neither field", async () => {
@@ -409,7 +409,7 @@ describe("catalogue templates", () => {
 
     expect(res.status).toBe(200);
     expect(mockAdminEvents.insert).not.toHaveBeenCalled();
-    expect(reclassifyMetaEvents).not.toHaveBeenCalled();
+    expect(repromoteMetaEvents).not.toHaveBeenCalled();
   });
 
   it("reclassifies the template's events when its tier is un-mapped back to null", async () => {
@@ -419,7 +419,7 @@ describe("catalogue templates", () => {
 
     expect(res.status).toBe(200);
     expect(mockUvsgamesEvents.updateTemplate).toHaveBeenCalledWith(TEMPLATE_ID, { tier: null });
-    expect(reclassifyMetaEvents).toHaveBeenCalledWith(
+    expect(repromoteMetaEvents).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ templateId: TEMPLATE_ID }),
     );
@@ -515,7 +515,6 @@ describe("playloltcg catalogue", () => {
       playerCount: 24,
       startAt: "2026-08-15",
       triage: "new",
-      candidateEventId: null,
       metaEventId: null,
       metaEventSlug: null,
       fetchedAt: null,
@@ -549,7 +548,6 @@ describe("playloltcg catalogue", () => {
     acceptPlayloltcgEvent.mockResolvedValue({
       metaEventId: "live-1",
       slug: "nexus-night-shanghai",
-      candidateEventId: "cand-1",
       created: true,
     });
 
@@ -563,7 +561,6 @@ describe("playloltcg catalogue", () => {
     expect(await readJson(res)).toEqual({
       metaEventId: "live-1",
       slug: "nexus-night-shanghai",
-      candidateEventId: "cand-1",
       created: true,
     });
     expect(mockAdminEvents.insert).toHaveBeenCalledWith(
@@ -594,7 +591,7 @@ describe("playloltcg catalogue", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(mockMetaCandidates.ignoreEvent).toHaveBeenCalledWith("playloltcg", String(SHOP_ID));
+    expect(mockMetaOverlays.ignoreEvent).toHaveBeenCalledWith("playloltcg", String(SHOP_ID));
   });
 
   it("404s a dismiss for a key the mirror does not carry", async () => {
@@ -607,6 +604,6 @@ describe("playloltcg catalogue", () => {
     });
 
     expect(res.status).toBe(404);
-    expect(mockMetaCandidates.ignoreEvent).not.toHaveBeenCalled();
+    expect(mockMetaOverlays.ignoreEvent).not.toHaveBeenCalled();
   });
 });

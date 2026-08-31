@@ -43,6 +43,7 @@ import {
   metaCreditVisibilitySchema,
   metaEventTierSchema,
   metaListStatusSchema,
+  metaOverlayStatusSchema,
   metaSubmissionKindSchema,
   metaSubmissionReasonSchema,
   metaSubmissionStatusSchema,
@@ -50,7 +51,14 @@ import {
   podRoundStatusSchema,
   tradeTypeResponseSchema,
 } from "@openrift/shared/response-schemas";
-import { marketplaceEnum, META_ENTRY_STATUSES, TRADE_PRICE_PREFS } from "@openrift/shared/types";
+import {
+  marketplaceEnum,
+  META_ENTRY_STATUSES,
+  META_EVENT_OVERLAY_FIELDS,
+  META_PLAYER_OVERLAY_FIELDS,
+  META_SOURCE_FETCH_STATUSES,
+  TRADE_PRICE_PREFS,
+} from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -70,9 +78,6 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * is unique per table.
  */
 const ENUM_CHECKS: Record<string, readonly string[]> = {
-  chk_candidate_meta_events_tier: metaEventTierSchema.options,
-  chk_candidate_meta_players_entry_status: META_ENTRY_STATUSES,
-  chk_candidate_meta_players_list_status: metaListStatusSchema.options,
   chk_card_submissions_kind: cardSubmissionKindSchema.options,
   chk_card_submissions_reason: cardSubmissionReasonSchema.options,
   chk_card_submissions_status: cardSubmissionStatusSchema.options,
@@ -102,6 +107,11 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_marketplace_groups_marketplace: marketplaceEnum.options,
   chk_marketplace_ignored_products_marketplace: marketplaceEnum.options,
   chk_marketplace_products_marketplace: marketplaceEnum.options,
+  chk_meta_event_overlays_status: metaOverlayStatusSchema.options,
+  chk_meta_event_overlays_tier: metaEventTierSchema.options,
+  chk_meta_event_player_overlays_entry_status: META_ENTRY_STATUSES,
+  chk_meta_event_player_overlays_list_status: metaListStatusSchema.options,
+  chk_meta_event_player_overlays_status: metaOverlayStatusSchema.options,
   chk_meta_event_players_entry_status: META_ENTRY_STATUSES,
   chk_meta_event_players_list_status: metaListStatusSchema.options,
   chk_meta_events_tier: metaEventTierSchema.options,
@@ -109,6 +119,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_meta_submissions_reason: metaSubmissionReasonSchema.options,
   chk_meta_submissions_status: metaSubmissionStatusSchema.options,
   chk_organization_members_role: organizationRoleSchema.options,
+  chk_playloltcg_decklists_fetch_status: META_SOURCE_FETCH_STATUSES,
   chk_pod_rounds_status: podRoundStatusSchema.options,
   chk_pods_result_status: podResultStatusSchema.options,
   chk_printing_events_status: printingEventStatusSchema.options,
@@ -132,6 +143,8 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_tournaments_status: tournamentStatusSchema.options,
   chk_user_contact_methods_type: CONTACT_METHOD_TYPES,
   chk_users_meta_credit_visibility: metaCreditVisibilitySchema.options,
+  chk_uvsgames_decklists_fetch_status: META_SOURCE_FETCH_STATUSES,
+  chk_uvsgames_event_standings_entry_status: META_ENTRY_STATUSES,
   chk_uvsgames_event_templates_tier: metaEventTierSchema.options,
 };
 
@@ -148,6 +161,17 @@ const COMPOUND_CHECKS = new Set([
   // itself is covered by chk_card_trades_status above.
   "chk_card_trades_closed_shape",
 ]);
+
+/**
+ * Array-subset CHECKs (`col <@ ARRAY[...]`): an array column constrained to a
+ * vocabulary rather than a scalar one. The overlays' claimed-field masks live
+ * here, so a field added to the zod enum without a migration (or the reverse)
+ * fails this test the same way a scalar enum would.
+ */
+const SUBSET_CHECKS: Record<string, readonly string[]> = {
+  chk_meta_event_overlays_claimed_fields_known: META_EVENT_OVERLAY_FIELDS,
+  chk_meta_event_player_overlays_claimed_fields_known: META_PLAYER_OVERLAY_FIELDS,
+};
 
 /** A plain `col = ANY (ARRAY['a'::text, 'b'::text])`, optionally NULL-guarded. */
 const SIMPLE_ENUM_CHECK =
@@ -172,6 +196,7 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
   let db: Kysely<Database>;
   let teardown: () => Promise<void>;
   let checks: CheckRow[];
+  let subsetChecks: CheckRow[];
 
   beforeAll(async () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by describe.skipIf
@@ -183,11 +208,19 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
       WHERE c.contype = 'c' AND n.nspname = 'public'
       ORDER BY c.conname
     `.execute(db);
-    // Only enum-shaped CHECKs are in scope: `col = ANY (ARRAY[...])`. The
-    // ::text requirement drops the numeric enumerations (pod sizes, image
-    // rotations), which have no string union to drift against.
+    // Only enum-shaped CHECKs are in scope: `col = ANY (ARRAY[...])`. Requiring
+    // the literal array drops the overlays' per-column claim CHECKs, which test
+    // a literal against an array *column* (`'name'::text = ANY (claimed_fields)`)
+    // and have no vocabulary to compare. The ::text requirement drops the
+    // numeric enumerations (pod sizes, image rotations).
     checks = result.rows.filter(
-      (row) => row.definition.includes("= ANY (") && row.definition.includes("'::text"),
+      (row) =>
+        (row.definition.includes("= ANY (ARRAY[") || row.definition.includes("= ANY ((ARRAY[")) &&
+        row.definition.includes("'::text"),
+    );
+    // Array-subset vocabularies (`col <@ ARRAY[...]`) take the other branch.
+    subsetChecks = result.rows.filter(
+      (row) => row.definition.includes("<@ ARRAY[") && row.definition.includes("'::text"),
     );
   });
 
@@ -212,6 +245,33 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
       (name) => !live.has(name),
     );
     expect(stale).toEqual([]);
+  });
+
+  it("registers every array-subset CHECK and matches its vocabulary", () => {
+    const unregistered = subsetChecks
+      .map((row) => row.conname)
+      .filter((name) => !(name in SUBSET_CHECKS));
+    expect(unregistered).toEqual([]);
+
+    const stale = Object.keys(SUBSET_CHECKS).filter(
+      (name) => !subsetChecks.some((row) => row.conname === name),
+    );
+    expect(stale).toEqual([]);
+
+    const mismatches: { constraint: string; db: string[]; ts: string[] }[] = [];
+    for (const row of subsetChecks) {
+      const expected = SUBSET_CHECKS[row.conname];
+      if (!expected) {
+        continue;
+      }
+      const body = row.definition.slice(row.definition.indexOf("<@ ARRAY["));
+      const actual = parseArrayLiterals(body).toSorted();
+      const wanted = [...expected].toSorted();
+      if (actual.join("\0") !== wanted.join("\0")) {
+        mismatches.push({ constraint: row.conname, db: actual, ts: wanted });
+      }
+    }
+    expect(mismatches).toEqual([]);
   });
 
   it("matches each CHECK's permitted values against its TypeScript union", () => {

@@ -1,6 +1,8 @@
 import type { AdminMetaPlayer } from "@openrift/shared";
-import { ExternalLinkIcon } from "lucide-react";
+import type { MetaPlayerOverlayField } from "@openrift/shared/types";
+import { ExternalLinkIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
@@ -15,15 +17,18 @@ import {
 import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   useAdminMetaEvent,
   useAdminMetaEventPlayers,
   useDeleteMetaPlayer,
 } from "@/hooks/use-admin-meta";
+import { useReleasePlayerOverlayField } from "@/hooks/use-admin-meta-overlays";
 import {
   formatRank,
   formatRankRuns,
   formatRecord,
+  metaPlayerClaimChips,
   recordSortValue,
   standingsGaps,
 } from "@/lib/meta-format";
@@ -78,6 +83,57 @@ function DeckCell({ row }: AdminCellSlotProps<AdminMetaPlayer>) {
   );
 }
 
+/**
+ * The fields accepted overlays own for this row, each with the release that
+ * hands it back. Mirrors the drift panel's un-claim: no confirmation, because
+ * re-editing the row claims it again.
+ *
+ * @returns The claim chips, or nothing for a row the sources still decide.
+ */
+function ClaimedFields({ player }: { player: AdminMetaPlayer }) {
+  const release = useReleasePlayerOverlayField();
+  const chips = metaPlayerClaimChips(player.claimedFields);
+
+  async function handleRelease(field: MetaPlayerOverlayField): Promise<void> {
+    try {
+      await release.mutateAsync({ id: player.id, field });
+    } catch {
+      // Reported by the global mutation error toast.
+      return;
+    }
+    toast.success("Released. The sources decide this again.");
+  }
+
+  if (chips.length === 0) {
+    return null;
+  }
+
+  return (
+    <span className="flex flex-wrap gap-1">
+      {chips.map((chip) => (
+        <Badge key={chip.field} variant="outline">
+          <LockIcon className="size-3" />
+          {chip.label}
+          <ChipRemoveButton
+            aria-label={`Hand ${chip.label} back to the sources`}
+            disabled={release.isPending}
+            onClick={() => {
+              void handleRelease(chip.field);
+            }}
+          />
+        </Badge>
+      ))}
+    </span>
+  );
+}
+
+function ClaimedFieldsCell({ row }: AdminCellSlotProps<AdminMetaPlayer>) {
+  if (!row) {
+    return null;
+  }
+  return <ClaimedFields player={row} />;
+}
+
 const columns: AdminColumnDef<AdminMetaPlayer>[] = [
   { header: "Finish", width: "w-20", sortValue: (player) => player.rank, cell: <FinishCell /> },
   { header: "Player", sortValue: (player) => player.playerName, cell: <PlayerCell /> },
@@ -89,6 +145,11 @@ const columns: AdminColumnDef<AdminMetaPlayer>[] = [
   },
   { header: "Legend", sortValue: (player) => player.legendName, cell: <LegendCell /> },
   { header: "Deck", sortValue: (player) => player.deckName, cell: <DeckCell /> },
+  {
+    header: "Claimed",
+    sortValue: (player) => player.claimedFields.length,
+    cell: <ClaimedFieldsCell />,
+  },
 ];
 
 function PlayerRowActions({

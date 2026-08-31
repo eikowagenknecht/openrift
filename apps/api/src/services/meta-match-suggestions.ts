@@ -220,10 +220,15 @@ export function scorePlayerMatch(
  */
 export async function suggestMetaEventMatches(
   repos: Repos,
-  candidateEventId: string,
+  eventOverlayId: string,
 ): Promise<MetaEventMatchSuggestion[]> {
-  const candidate = await repos.metaCandidates.eventById(candidateEventId);
+  const candidate = await repos.metaOverlays.eventOverlayById(eventOverlayId);
   if (candidate === undefined || candidate.metaEventId !== null) {
+    return [];
+  }
+  // A proposal that names neither a date nor a format cannot be scored: both
+  // are hard gates, so there is nothing to rank against.
+  if (candidate.eventDate === null || candidate.format === null || candidate.name === null) {
     return [];
   }
   // Only an event inside the date window can score at all, so the ranking reads
@@ -235,7 +240,10 @@ export async function suggestMetaEventMatches(
     },
     { limit: MAX_WINDOW_EVENTS, offset: 0 },
   );
-  return rankEventMatches(candidate, rows);
+  return rankEventMatches(
+    { name: candidate.name, eventDate: candidate.eventDate, format: candidate.format },
+    rows,
+  );
 }
 
 export function rankEventMatches(
@@ -266,24 +274,27 @@ export function rankEventMatches(
  */
 export async function suggestMetaPlayerMatches(
   repos: Repos,
-  candidatePlayerId: string,
+  playerOverlayId: string,
 ): Promise<MetaPlayerMatchSuggestion[]> {
-  const candidate = await repos.metaCandidates.playerById(candidatePlayerId);
+  const candidate = await repos.metaOverlays.playerOverlayById(playerOverlayId);
   if (candidate === undefined || candidate.metaEventPlayerId !== null) {
     return [];
   }
 
   let metaEventId = candidate.metaEventId;
-  if (metaEventId === null && candidate.candidateEventId !== null) {
-    const parent = await repos.metaCandidates.eventById(candidate.candidateEventId);
+  if (metaEventId === null && candidate.eventOverlayId !== null) {
+    const parent = await repos.metaOverlays.eventOverlayById(candidate.eventOverlayId);
     metaEventId = parent?.metaEventId ?? null;
   }
   if (metaEventId === null) {
     return [];
   }
 
+  if (candidate.playerName === null || candidate.rank === null) {
+    return [];
+  }
   const players = await repos.meta.adminPlayersForEvent(metaEventId);
-  return rankPlayerMatches(candidate, players);
+  return rankPlayerMatches({ playerName: candidate.playerName, rank: candidate.rank }, players);
 }
 
 export function rankPlayerMatches(

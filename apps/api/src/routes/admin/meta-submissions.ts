@@ -58,15 +58,13 @@ async function requireUnsettled(
  * `accepted`, and a contributor whose list was turned down reads "pending"
  * forever.
  *
- * Resolving does not delete the staged candidate row. That is what lets
+ * Resolving does not delete the overlay. That is what lets
  * {@link adminMetaSubmissionsRouter.reopen} actually undo a misclick, and the
  * cost of the alternative is somebody's decklist gone on one wrong button.
  */
 export const adminMetaSubmissionsRouter = {
-  forCandidatePlayer: os.forCandidatePlayer.handler(async ({ input, context }) => {
-    const submission = await context.repos.metaSubmissions.byCandidatePlayerId(
-      input.candidatePlayerId,
-    );
+  forPlayerOverlay: os.forPlayerOverlay.handler(async ({ input, context }) => {
+    const submission = await context.repos.metaSubmissions.byPlayerOverlayId(input.playerOverlayId);
     return { submission: submission === null ? null : toAdminMetaSubmission(submission) };
   }),
 

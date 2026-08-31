@@ -52,14 +52,13 @@ export type PlayloltcgTriage = "new" | "accepted" | "dismissed";
 
 export interface PlayloltcgListRow extends PlayloltcgEventRow {
   triage: PlayloltcgTriage;
-  candidateEventId: string | null;
   metaEventId: string | null;
   metaEventSlug: string | null;
   /** The linked shop's current name over the row's own fallback. */
   shopDisplayName: string | null;
   nextCheckAt: Date | null;
   checkStage: number;
-  /** When the deep fetch last landed; null before the first fetch or with no candidate. */
+  /** When the deep fetch last landed; null before the first fetch. */
   fetchedAt: Date | null;
 }
 
@@ -81,19 +80,19 @@ type SqlBool = boolean;
 export function playloltcgEventsRepo(db: Kysely<Database>) {
   /**
    * Joined once and reused by the reads, so they can never disagree about what
-   * "accepted" means. The candidate side is provider-keyed on the event id as
-   * text (the shared candidate tables store `external_id` as text).
+   * "accepted" means. The citation side is provider-keyed on the event id as
+   * text (`meta_event_sources.external_id` is text).
    */
   function triagedQuery() {
     return db
       .selectFrom("playloltcgEvents as c")
-      .leftJoin("candidateMetaEvents as ce", (join) =>
+      .leftJoin("metaEventSources as src", (join) =>
         join
-          .on("ce.provider", "=", PLAYLOLTCG_PROVIDER)
-          .on(sql<SqlBool>`ce.external_id = c.activity_shop_id::text`),
+          .on("src.provider", "=", PLAYLOLTCG_PROVIDER)
+          .on(sql<SqlBool>`src.external_id = c.activity_shop_id::text`),
       )
-      .leftJoin("metaEvents as me", "me.id", "ce.metaEventId")
-      .leftJoin("ignoredCandidateMetaEvents as i", (join) =>
+      .leftJoin("metaEvents as me", "me.id", "src.metaEventId")
+      .leftJoin("ignoredMetaSourceEvents as i", (join) =>
         join
           .on("i.provider", "=", PLAYLOLTCG_PROVIDER)
           .on(sql<SqlBool>`i.external_id = c.activity_shop_id::text`),
@@ -110,21 +109,29 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
 
   const triage = sql<PlayloltcgTriage>`case
     when i.provider is not null then 'dismissed'
-    when ce.meta_event_id is not null then 'accepted'
+    when src.meta_event_id is not null then 'accepted'
     else 'new'
   end`;
 
-  const isNew = sql<SqlBool>`i.provider is null and ce.meta_event_id is null`;
-  const accepted = sql<SqlBool>`i.provider is null and ce.meta_event_id is not null`;
+  const fetchedAt = sql<Date | null>`(
+    select max(st.fetched_at) from playloltcg_event_standings st
+     where st.activity_shop_id = c.activity_shop_id
+  )`;
+  const notFetched = sql<SqlBool>`not exists (
+    select 1 from playloltcg_event_standings st
+     where st.activity_shop_id = c.activity_shop_id
+  )`;
+
+  const isNew = sql<SqlBool>`i.provider is null and src.meta_event_id is null`;
+  const accepted = sql<SqlBool>`i.provider is null and src.meta_event_id is not null`;
 
   function listSelect() {
     return triagedQuery()
       .selectAll("c")
       .select([
         triage.as("triage"),
-        "ce.id as candidateEventId",
-        "ce.metaEventId as metaEventId",
-        "ce.fetchedAt as fetchedAt",
+        "src.metaEventId as metaEventId",
+        fetchedAt.as("fetchedAt"),
         "me.slug as metaEventSlug",
         ...joinedColumns,
       ]);
@@ -393,13 +400,13 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
           sql<string>`count(*) filter (where c.status = ${PLAYLOLTCG_STATUS_FINISHED})`.as(
             "completed",
           ),
-          sql<string>`count(*) filter (where ce.fetched_at is not null)`.as("decklistPublished"),
+          sql<string>`count(*) filter (where not (${notFetched}))`.as("decklistPublished"),
           sql<string>`count(*) filter (where c.missing_since is not null)`.as("missing"),
           sql<string>`count(*) filter (where ck.next_check_at is not null and ck.next_check_at <= now())`.as(
             "dueRecheck",
           ),
           sql<string>`count(*) filter (where ck.next_check_at is not null)`.as("queued"),
-          sql<string>`count(*) filter (where (${accepted}) and ce.fetched_at is null)`.as(
+          sql<string>`count(*) filter (where (${accepted}) and (${notFetched}))`.as(
             "acceptedAwaitingResults",
           ),
           sql<string>`count(*) filter (where (${accepted}) and c.missing_since is not null)`.as(
@@ -424,10 +431,10 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
     async triageCounts(): Promise<PlayloltcgTriageCounts> {
       const row = await triagedQuery()
         .select([
-          sql<number>`count(*) filter (where i.provider is null and ce.meta_event_id is null)::int`.as(
+          sql<number>`count(*) filter (where i.provider is null and src.meta_event_id is null)::int`.as(
             "new",
           ),
-          sql<number>`count(*) filter (where i.provider is null and ce.meta_event_id is not null)::int`.as(
+          sql<number>`count(*) filter (where i.provider is null and src.meta_event_id is not null)::int`.as(
             "accepted",
           ),
           sql<number>`count(*) filter (where i.provider is not null)::int`.as("dismissed"),

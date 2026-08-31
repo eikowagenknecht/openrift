@@ -25,7 +25,7 @@ import {
 } from "@/hooks/use-admin-meta";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { urlTableSort, useUrlTableFilters } from "@/hooks/use-url-table-filters";
-import { candidateProviderDisplay } from "@/lib/meta-candidate-review";
+import { sourceProviderDisplay } from "@/lib/meta-source-review";
 import { Route } from "@/routes/_app/_authenticated/admin/meta";
 
 function NameCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
@@ -92,18 +92,11 @@ function SourcesCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
   return (
     <div className="flex flex-wrap gap-1">
       {row.sources.map((source) => {
-        const provider = candidateProviderDisplay(source.provider);
+        const provider = sourceProviderDisplay(source.provider ?? "manual");
         return (
-          <Badge
-            key={source.candidateEventId}
-            variant={provider.variant}
-            render={
-              <Link
-                to="/admin/meta/candidates/$candidateId"
-                params={{ candidateId: source.candidateEventId }}
-              />
-            }
-          >
+          // Ordered by priority: the last badge is the source that wins a field
+          // two of them both publish.
+          <Badge key={source.id} variant={provider.variant}>
             {provider.label}
           </Badge>
         );
@@ -219,10 +212,8 @@ export function MetaEventsPage() {
       /* Reported by the global mutation error toast. */
       return;
     }
-    const kept = summary.keptManual > 0 ? `, kept ${summary.keptManual} hand-set values` : "";
-    toast.success(
-      `Reclassified ${summary.candidates} candidates and ${summary.liveEvents} live events${kept}.`,
-    );
+    const failed = summary.failed > 0 ? `, ${summary.failed} could not be promoted` : "";
+    toast.success(`Re-promoted ${summary.events} events${failed}.`);
   }
 
   const total = data.total;

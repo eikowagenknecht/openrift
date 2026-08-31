@@ -42,12 +42,19 @@ export type {
   // Meta archive catalogue sync
   UvsgamesEventsTable,
   PlayloltcgEventsTable,
-  // Meta archive candidate ingest
-  CandidateMetaDeckCard,
-  CandidateMetaEventRaw,
-  CandidateMetaPlayersTable,
-  CandidateMetaMatchesTable,
-  CandidateMetaEventsTable,
+  // Meta archive source mirrors (ADR-014 rev 3)
+  UvsgamesEventStandingsTable,
+  UvsgamesEventPhasesTable,
+  UvsgamesEventMatchesTable,
+  UvsgamesDecklistsTable,
+  UvsgamesDecklistCardsTable,
+  PlayloltcgEventStandingsTable,
+  PlayloltcgDecklistsTable,
+  PlayloltcgDecklistCardsTable,
+  // Meta archive overlays
+  MetaEventOverlaysTable,
+  MetaEventPlayerOverlaysTable,
+  MetaEventPlayerOverlayCardsTable,
   // Meta archive multi-source
   MetaEventSourcesTable,
   MetaSubmissionsTable,

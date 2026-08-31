@@ -117,7 +117,7 @@ const acceptInvalidates = [
   queryKeys.admin.meta.catalogue,
   queryKeys.admin.meta.syncStatus.prefix,
   queryKeys.admin.meta.events,
-  queryKeys.admin.meta.candidates,
+  queryKeys.admin.meta.overlays,
   queryKeys.meta.all,
 ] as const;
 
@@ -150,7 +150,7 @@ const dismissCatalogEventFn = createServerFn({ method: "POST" })
 export function useDismissCatalogEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { externalId: string }) => dismissCatalogEventFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.catalogue, queryKeys.admin.meta.ignored],
+    invalidates: [queryKeys.admin.meta.catalogue, queryKeys.admin.meta.ignoredSources],
   });
 }
 
@@ -169,7 +169,7 @@ const undismissCatalogEventFn = createServerFn({ method: "POST" })
 export function useUndismissCatalogEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { externalId: string }) => undismissCatalogEventFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.catalogue, queryKeys.admin.meta.ignored],
+    invalidates: [queryKeys.admin.meta.catalogue, queryKeys.admin.meta.ignoredSources],
   });
 }
 

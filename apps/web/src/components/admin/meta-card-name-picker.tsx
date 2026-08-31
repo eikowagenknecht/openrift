@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { CardPickerButton } from "@/components/cards/card-picker-button";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
-import { useResolveMetaCandidateName } from "@/hooks/use-admin-meta-candidates";
+import { useResolveMetaOverlayName } from "@/hooks/use-admin-meta-overlays";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 
 /**
@@ -20,7 +20,7 @@ import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
  * @returns The "Link card" trigger and its card picker.
  */
 export function MetaCardNamePicker({ name }: { name: string }) {
-  const resolveName = useResolveMetaCandidateName();
+  const resolveName = useResolveMetaOverlayName();
   const [search, setSearch] = useState("");
   const results = useCatalogCardSearch(search);
 
@@ -30,7 +30,7 @@ export function MetaCardNamePicker({ name }: { name: string }) {
     let resolved = 0;
     try {
       const result = await resolveName.mutateAsync({ name, cardId });
-      resolved = result.resolved;
+      resolved = result.updated;
     } catch {
       // Reported by the global mutation error toast.
       return;

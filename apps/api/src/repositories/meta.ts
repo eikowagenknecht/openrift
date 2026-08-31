@@ -202,7 +202,7 @@ export interface AdminMetaPlayerRow extends MetaEventPlayerRow {
   cardCount: number;
 }
 
-/** A live standings row as the candidate pipeline compares against it. */
+/** A live standings row as the review queue compares against it. */
 export interface LiveMetaPlayerRow {
   id: string;
   metaEventId: string;
@@ -236,8 +236,8 @@ export type MetaEventSourceRow = Selectable<MetaEventSourcesTable>;
 
 /**
  * `provider` and `externalId` are null together for a hand-entered citation (a
- * VOD, a photo of the standings board); a provider row carries the candidate's
- * key so unlinking can find it.
+ * VOD, a photo of the standings board); a provider row carries the source's
+ * key so promotion and unlinking can find it.
  */
 export interface MetaEventSourceInput {
   metaEventId: string;
@@ -314,13 +314,14 @@ export interface MetaEventPlayerInput {
   entryStatus?: MetaEntryStatus | null;
   legendCardId: string | null;
   championCardId: string | null;
+  /** The promotion identity this row is filed under; null for hand-entered rows. */
+  sourceIdentity?: string | null;
   /** Null leaves the entry standings-only, which is what most of a field is. */
   deck: MetaArchivedDeckInput | null;
 }
 
 /** Scalar columns only — the deck moves through `setPlayerDeck` / `clearPlayerDeck`. */
 export interface MetaEventPlayerPatch {
-  eventId?: string;
   rank?: number;
   rankIsTier?: boolean;
   playerName?: string | null;
@@ -335,6 +336,7 @@ export interface MetaEventPlayerPatch {
   entryStatus?: MetaEntryStatus | null;
   legendCardId?: string | null;
   championCardId?: string | null;
+  sourceIdentity?: string | null;
 }
 
 /**
@@ -556,6 +558,43 @@ export function metaRepo(db: Kysely<Database>) {
     return row.id;
   }
 
+  function deckCardKey(card: {
+    cardId: string;
+    zone: string;
+    quantity: number;
+    preferredPrintingId: string | null;
+  }): string {
+    return `${card.cardId} ${card.zone} ${card.quantity} ${card.preferredPrintingId ?? ""}`;
+  }
+
+  function sameDeckCards(
+    existing: readonly {
+      cardId: string;
+      zone: string;
+      quantity: number;
+      preferredPrintingId: string | null;
+    }[],
+    incoming: readonly MetaDeckCardInput[],
+  ): boolean {
+    if (existing.length !== incoming.length) {
+      return false;
+    }
+    const held = new Map<string, number>();
+    for (const card of existing) {
+      const key = deckCardKey(card);
+      held.set(key, (held.get(key) ?? 0) + 1);
+    }
+    for (const card of incoming) {
+      const key = deckCardKey(card);
+      const left = held.get(key) ?? 0;
+      if (left === 0) {
+        return false;
+      }
+      held.set(key, left - 1);
+    }
+    return true;
+  }
+
   return {
     /**
      * Every archived event, unpaged. The public `/meta` list is the only caller
@@ -659,6 +698,62 @@ export function metaRepo(db: Kysely<Database>) {
 
     playerById(id: string): Promise<MetaEventPlayerRow | undefined> {
       return playerQuery().where("p.id", "=", id).executeTakeFirst();
+    },
+
+    /** Which event a standings row sits under, for a caller holding only its id. */
+    async eventIdForPlayer(playerId: string): Promise<string | undefined> {
+      const row = await db
+        .selectFrom("metaEventPlayers")
+        .select("metaEventId")
+        .where("id", "=", playerId)
+        .executeTakeFirst();
+      return row?.metaEventId;
+    },
+
+    /**
+     * The standings rows as stored, without the display resolution
+     * {@link standingsForEvent} applies.
+     *
+     * Promotion needs the raw columns: `playerName` NULL where the source names
+     * the player, and the source key it reconciles identity on. The read query
+     * coalesces both away, which is right for rendering and wrong for deciding
+     * whether a row already exists.
+     */
+    rawStandingsForEvent(eventId: string): Promise<Selectable<MetaEventPlayersTable>[]> {
+      return db
+        .selectFrom("metaEventPlayers")
+        .selectAll()
+        .where("metaEventId", "=", eventId)
+        .orderBy("rank", "asc")
+        .execute();
+    },
+
+    /**
+     * Each standings row's rendered name beside its rank, for matching an
+     * event-anchored overlay onto the row it describes. The name resolution is
+     * the same one every read surface uses, so an overlay matches what the
+     * submitter actually saw.
+     */
+    async standingsNamesForEvent(
+      eventId: string,
+    ): Promise<{ id: string; name: string; rank: number }[]> {
+      return await db
+        .selectFrom("metaEventPlayers as p")
+        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+        .select(["p.id", "p.rank"])
+        .select(resolvedPlayerName.as("name"))
+        .where("p.metaEventId", "=", eventId)
+        .execute();
+    },
+
+    /** A batch of full event rows, for list surfaces that would otherwise loop {@link eventById}. */
+    async eventsByIds(ids: readonly string[]): Promise<MetaEventWithCounts[]> {
+      if (ids.length === 0) {
+        return [];
+      }
+      return await eventQuery()
+        .where("metaEvents.id", "in", [...ids])
+        .execute();
     },
 
     /** The event's phase structure in play order; empty when no source published it. */
@@ -946,7 +1041,7 @@ export function metaRepo(db: Kysely<Database>) {
       eventsWithDecklists: number;
       decks: number;
     }> {
-      // When a provider is given, count only events a candidate of that provider
+      // When a provider is given, count only events that provider's citation
       // links, so the per-source funnel's "Published" is the archive this source
       // fed. The decks count follows the same restriction.
       let base = db.selectFrom("metaEvents as e");
@@ -954,9 +1049,9 @@ export function metaRepo(db: Kysely<Database>) {
         base = base.where((eb) =>
           eb.exists(
             eb
-              .selectFrom("candidateMetaEvents as ce")
-              .whereRef("ce.metaEventId", "=", "e.id")
-              .where("ce.provider", "=", provider),
+              .selectFrom("metaEventSources as src")
+              .whereRef("src.metaEventId", "=", "e.id")
+              .where("src.provider", "=", provider),
           ),
         );
       }
@@ -979,8 +1074,8 @@ export function metaRepo(db: Kysely<Database>) {
             : sql<string>`(
                 select count(*) from meta_event_players p
                 where p.deck_id is not null and exists (
-                  select 1 from candidate_meta_events ce
-                  where ce.meta_event_id = p.meta_event_id and ce.provider = ${provider}
+                  select 1 from meta_event_sources src
+                  where src.meta_event_id = p.meta_event_id and src.provider = ${provider}
                 )
               )`.as("decks"),
         ])
@@ -1193,6 +1288,7 @@ export function metaRepo(db: Kysely<Database>) {
             entryStatus: input.entryStatus ?? null,
             legendCardId: input.legendCardId,
             championCardId: input.championCardId,
+            sourceIdentity: input.sourceIdentity ?? null,
           })
           .returning("id")
           .executeTakeFirstOrThrow();
@@ -1208,9 +1304,6 @@ export function metaRepo(db: Kysely<Database>) {
 
     async updatePlayer(id: string, patch: MetaEventPlayerPatch): Promise<boolean> {
       const updates: Updateable<MetaEventPlayersTable> = {};
-      if (patch.eventId !== undefined) {
-        updates.metaEventId = patch.eventId;
-      }
       if (patch.rank !== undefined) {
         updates.rank = patch.rank;
       }
@@ -1253,6 +1346,9 @@ export function metaRepo(db: Kysely<Database>) {
       if (patch.championCardId !== undefined) {
         updates.championCardId = patch.championCardId;
       }
+      if (patch.sourceIdentity !== undefined) {
+        updates.sourceIdentity = patch.sourceIdentity;
+      }
 
       if (Object.keys(updates).length === 0) {
         const row = await db
@@ -1276,16 +1372,22 @@ export function metaRepo(db: Kysely<Database>) {
      * minted with the deck and never rotated afterwards, so `shareToken` is
      * only written when the deck is created — a replacement keeps the token the
      * published links already use.
+     *
+     * `preserveName` keeps the existing deck's name (a maintainer rename must
+     * survive a re-promote); the input name is still used when the deck is
+     * created. An unchanged card list is left alone rather than deleted and
+     * reinserted, so a re-promote of an unmoved list writes nothing.
      */
     setPlayerDeck(
       playerId: string,
       deck: MetaArchivedDeckInput,
       shareToken: string,
+      options?: { preserveName?: boolean },
     ): Promise<{ deckId: string } | undefined> {
       return db.transaction().execute(async (trx) => {
         const player = await trx
           .selectFrom("metaEventPlayers")
-          .select("deckId")
+          .select(["deckId", "listStatus"])
           .where("id", "=", playerId)
           .executeTakeFirst();
         if (!player) {
@@ -1297,29 +1399,69 @@ export function metaRepo(db: Kysely<Database>) {
           return { deckId };
         }
 
-        await trx
-          .updateTable("decks")
-          .set({
-            name: deck.name,
-            format: deck.format,
-            formatConfig: deck.formatConfig,
-            updatedAt: sql`now()`,
-          })
+        const current = await trx
+          .selectFrom("decks")
+          .select(["name", "format", "formatConfig"])
           .where("id", "=", player.deckId)
+          .executeTakeFirst();
+        const name = options?.preserveName === true ? (current?.name ?? deck.name) : deck.name;
+        if (current === undefined || current.name !== name || current.format !== deck.format) {
+          await trx
+            .updateTable("decks")
+            .set({
+              name,
+              format: deck.format,
+              formatConfig: deck.formatConfig,
+              updatedAt: sql`now()`,
+            })
+            .where("id", "=", player.deckId)
+            .execute();
+        }
+
+        const existing = await trx
+          .selectFrom("deckCards")
+          .select(["cardId", "zone", "quantity", "preferredPrintingId"])
+          .where("deckId", "=", player.deckId)
           .execute();
-        await trx.deleteFrom("deckCards").where("deckId", "=", player.deckId).execute();
-        await trx
-          .insertInto("deckCards")
-          .values(deck.cards.map((card) => ({ deckId: player.deckId as string, ...card })))
-          .execute();
-        await trx
-          .updateTable("metaEventPlayers")
-          .set({ listStatus: deck.listStatus })
-          .where("id", "=", playerId)
-          .execute();
+        if (!sameDeckCards(existing, deck.cards)) {
+          await trx.deleteFrom("deckCards").where("deckId", "=", player.deckId).execute();
+          await trx
+            .insertInto("deckCards")
+            .values(deck.cards.map((card) => ({ deckId: player.deckId as string, ...card })))
+            .execute();
+        }
+        if (player.listStatus !== deck.listStatus) {
+          await trx
+            .updateTable("metaEventPlayers")
+            .set({ listStatus: deck.listStatus })
+            .where("id", "=", playerId)
+            .execute();
+        }
 
         return { deckId: player.deckId };
       });
+    },
+
+    /**
+     * Renames a standings row's archived deck. Durable by construction:
+     * promotion preserves an existing deck's name, so a rename is curation of
+     * the derived artifact rather than a fight with the sources.
+     */
+    async renamePlayerDeck(playerId: string, name: string): Promise<boolean> {
+      const player = await db
+        .selectFrom("metaEventPlayers")
+        .select("deckId")
+        .where("id", "=", playerId)
+        .executeTakeFirst();
+      if (!player || player.deckId === null) {
+        return false;
+      }
+      await db
+        .updateTable("decks")
+        .set({ name, updatedAt: sql`now()` })
+        .where("id", "=", player.deckId)
+        .execute();
+      return true;
     },
 
     /**
@@ -1378,6 +1520,60 @@ export function metaRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * The live event a source key already feeds, if any. This is the only link
+     * between a mirror and live, so accept and promotion both resolve through
+     * it rather than keeping a second pointer of their own.
+     */
+    sourceByKey(provider: string, externalId: string): Promise<MetaEventSourceRow | undefined> {
+      return db
+        .selectFrom("metaEventSources")
+        .selectAll()
+        .where("provider", "=", provider)
+        .where("externalId", "=", externalId)
+        .executeTakeFirst();
+    },
+
+    /** {@link sourceByKey} over a batch, for the scoped re-promote pass. */
+    async sourcesByKeys(
+      provider: string,
+      externalIds: readonly string[],
+    ): Promise<MetaEventSourceRow[]> {
+      if (externalIds.length === 0) {
+        return [];
+      }
+      return await db
+        .selectFrom("metaEventSources")
+        .selectAll()
+        .where("provider", "=", provider)
+        .where("externalId", "in", [...externalIds])
+        .execute();
+    },
+
+    /** Citations for a page of events, in one round trip for the admin list. */
+    async sourcesForEvents(eventIds: readonly string[]): Promise<MetaEventSourceRow[]> {
+      if (eventIds.length === 0) {
+        return [];
+      }
+      return await db
+        .selectFrom("metaEventSources")
+        .selectAll()
+        .where("metaEventId", "in", [...eventIds])
+        .orderBy("priority", "asc")
+        .orderBy("createdAt", "asc")
+        .execute();
+    },
+
+    /** Reorders one citation, which is how a reviewer picks the winning source. */
+    async setEventSourcePriority(id: string, priority: number): Promise<boolean> {
+      const result = await db
+        .updateTable("metaEventSources")
+        .set({ priority })
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows) > 0;
+    },
+
     insertEventSource(input: MetaEventSourceInput): Promise<MetaEventSourceRow> {
       return db
         .insertInto("metaEventSources")
@@ -1395,8 +1591,8 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Removes a provider's citation by its source key, which is what unlinking
-     * a candidate has to work with: it knows the key, not the row id.
+     * Removes a provider's citation by its source key, for callers that hold
+     * the key rather than the row id.
      */
     async deleteEventSourceByKey(provider: string, externalId: string): Promise<boolean> {
       const result = await db

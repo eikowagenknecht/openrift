@@ -3,11 +3,9 @@ import type { AdminMetaEvent } from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
 import type { MetaListStatus } from "@openrift/shared/types";
 import { implement } from "@orpc/server";
-import type { Updateable } from "kysely";
 
-import type { MetaEventsTable } from "../../db/index.js";
 import { AppError } from "../../errors.js";
-import { assertFound, assertSlugAvailable } from "../../lib/assertions.js";
+import { assertExisted, assertFound, assertSlugAvailable } from "../../lib/assertions.js";
 import { assertKnownFormat, validateFormatConfig } from "../../lib/deck-format-validation.js";
 import { classifyMetaEventTier } from "../../lib/meta-event-classify.js";
 import {
@@ -17,36 +15,11 @@ import {
 } from "../../lib/meta-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { buildPatchUpdates } from "../../patch.js";
-import type { FieldMapping } from "../../patch.js";
 import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../../repositories/meta.js";
-import { createMetaEventPlayer, setMetaPlayerList } from "../../services/meta-event-players.js";
-import { reclassifyMetaEvents } from "../../services/meta-reclassify.js";
+import { createMetaEventPlayer } from "../../services/meta-event-players.js";
+import { repromoteMetaEvents } from "../../services/meta-repromote.js";
 
 const os = implement(adminMetaContract).$context<ApiContext>().use(requireAuthedUser);
-
-/** Body field → column for the event PATCH. Only present fields are written. */
-const EVENT_FIELDS: FieldMapping<Updateable<MetaEventsTable>> = {
-  slug: "slug",
-  name: "name",
-  eventDate: "eventDate",
-  format: "format",
-  playerCount: "playerCount",
-  organizer: "organizer",
-  notes: "notes",
-  tier: "tier",
-  country: "country",
-  location: "location",
-};
-
-// Turns a repository's "did the row exist" boolean into the 404 the contract
-// declares. The write methods report existence rather than returning the row,
-// because none of these responses carry one back.
-function assertExisted(existed: boolean, message: string): void {
-  if (!existed) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, message);
-  }
-}
 
 // Normalizes the contract's optional `preferredPrintingId` to the column's
 // explicit null, so the repo never has to reason about an absent key.
@@ -139,9 +112,7 @@ export const adminMetaRouter = {
       { limit, offset: (page - 1) * limit },
       { sort: input.sort, direction: input.direction },
     );
-    const sources = await context.repos.metaCandidates.sourcesByMetaEventIds(
-      rows.map((row) => row.id),
-    );
+    const sources = await context.repos.meta.sourcesForEvents(rows.map((row) => row.id));
     const sourcesByEvent = Map.groupBy(sources, (source) => source.metaEventId);
     return {
       events: rows.map((row) => toAdminMetaEvent(row, sourcesByEvent.get(row.id) ?? [])),
@@ -154,7 +125,7 @@ export const adminMetaRouter = {
   getEvent: os.getEvent.handler(async ({ input, context }): Promise<AdminMetaEvent> => {
     const row = await context.repos.meta.eventById(input.id);
     assertFound(row, "Event not found");
-    const sources = await context.repos.metaCandidates.sourcesByMetaEventIds([row.id]);
+    const sources = await context.repos.meta.sourcesForEvent(row.id);
     return toAdminMetaEvent(row, sources);
   }),
 
@@ -179,37 +150,52 @@ export const adminMetaRouter = {
     return toAdminMetaEvent(row, []);
   }),
 
+  // Slug only: every data field moves through the overlay layer, so a
+  // re-promote can never silently revert an admin's edit.
   updateEvent: os.updateEvent.handler(async ({ input, context }): Promise<void> => {
-    const { meta, deckFormats } = context.repos;
-    const { id, ...body } = input;
-
-    if (body.format !== undefined) {
-      await assertKnownFormat(deckFormats, body.format);
+    const { meta } = context.repos;
+    const clash = await meta.eventBySlug(input.slug);
+    if (clash && clash.id !== input.id) {
+      throw new AppError(409, ERROR_CODES.CONFLICT, `Event "${input.slug}" already exists`);
     }
-    if (body.slug !== undefined) {
-      const clash = await meta.eventBySlug(body.slug);
-      if (clash && clash.id !== id) {
-        throw new AppError(409, ERROR_CODES.CONFLICT, `Event "${body.slug}" already exists`);
-      }
-    }
-
-    const updates = buildPatchUpdates<Updateable<MetaEventsTable>>(body, EVENT_FIELDS);
-    assertExisted(await meta.updateEvent(id, updates), "Event not found");
+    assertExisted(await meta.updateEvent(input.id, { slug: input.slug }), "Event not found");
   }),
 
   deleteEvent: os.deleteEvent.handler(async ({ input, context }): Promise<void> => {
     assertExisted(await context.repos.meta.deleteEvent(input.id), "Event not found");
   }),
 
+  // Named for the button ("Reapply rules"), but under the derive-live model it
+  // is simply promotion run again: the rules live there, and an accepted
+  // overlay still wins whatever it claims.
   reclassifyEvents: os.reclassifyEvents.handler(({ context }) =>
-    reclassifyMetaEvents(context.repos, { transact: context.transact }),
+    repromoteMetaEvents(context.repos),
   ),
 
   eventPlayers: os.eventPlayers.handler(async ({ input, context }) => {
-    const { meta } = context.repos;
+    const { meta, metaOverlays } = context.repos;
     assertFound(await meta.eventById(input.id), "Event not found");
-    const rows = await meta.adminPlayersForEvent(input.id);
-    return { players: rows.map((row) => toAdminMetaPlayer(row)) };
+    const [rows, overlays] = await Promise.all([
+      meta.adminPlayersForEvent(input.id),
+      metaOverlays.acceptedPlayerOverlays(input.id),
+    ]);
+    const claimsByPlayer = new Map<string, Set<string>>();
+    for (const overlay of overlays) {
+      if (overlay.metaEventPlayerId === null) {
+        continue;
+      }
+      const claims = claimsByPlayer.get(overlay.metaEventPlayerId) ?? new Set<string>();
+      for (const field of overlay.claimedFields) {
+        claims.add(field);
+      }
+      claimsByPlayer.set(overlay.metaEventPlayerId, claims);
+    }
+    return {
+      players: rows.map((row) => ({
+        ...toAdminMetaPlayer(row),
+        claimedFields: [...(claimsByPlayer.get(row.id) ?? [])],
+      })),
+    };
   }),
 
   createPlayer: os.createPlayer.handler(async ({ input, context }) => {
@@ -218,8 +204,8 @@ export const adminMetaRouter = {
     const deck = input.list === null ? null : await toDeckInput(context.repos, input.list);
     const zones = zoneCardIds(deck);
 
-    // Shared with the candidate accept path, so the synthetic owner, the
-    // public flag, and the share token are stamped in exactly one place.
+    // Shared with promotion, so the synthetic owner, the public flag, and the
+    // share token are stamped in exactly one place.
     const result = await createMetaEventPlayer(meta, {
       eventId: input.eventId,
       rank: input.rank,
@@ -237,42 +223,15 @@ export const adminMetaRouter = {
     return result;
   }),
 
-  updatePlayer: os.updatePlayer.handler(async ({ input, context }): Promise<void> => {
-    const { meta } = context.repos;
-    const { id, list, ...rest } = input;
+  // There is no player PATCH: every standings-row correction goes through
+  // `writePlayerOverlayFields`, so a re-promote can never silently revert it.
+  // The deck's name is the one exception — see the contract for why.
 
-    // A moved row's target event must exist, or the FK violation would surface
-    // as a 500 instead of the contract's 404.
-    if (rest.eventId !== undefined) {
-      assertFound(await meta.eventById(rest.eventId), "Event not found");
-    }
-
-    // Built before the scalar write so an unknown format is a 400 with nothing
-    // half-applied behind it.
-    const deck =
-      list === undefined || list === null ? null : await toDeckInput(context.repos, list);
-    const zones = zoneCardIds(deck);
-
-    const existed = await meta.updatePlayer(id, {
-      ...rest,
-      ...(zones.legendCardId === null ? {} : { legendCardId: zones.legendCardId }),
-      ...(zones.championCardId === null ? {} : { championCardId: zones.championCardId }),
-    });
-    assertExisted(existed, "Standings row not found");
-
-    if (list === undefined) {
-      return;
-    }
-    if (deck === null) {
-      // Clears the reference before deleting the deck: `deck_id` is ON DELETE
-      // RESTRICT, so a standings row never disappears with its list.
-      assertExisted(await meta.clearPlayerDeck(id), "Standings row not found");
-      return;
-    }
-    // Through the service, not the repo: giving an entry a list is what mints
-    // its permalink, and the candidate accept path has to do the same thing.
-    const written = await setMetaPlayerList(meta, id, deck);
-    assertFound(written, "Standings row not found");
+  renamePlayerDeck: os.renamePlayerDeck.handler(async ({ input, context }): Promise<void> => {
+    assertExisted(
+      await context.repos.meta.renamePlayerDeck(input.id, input.name),
+      "No deck on that standings row",
+    );
   }),
 
   deletePlayer: os.deletePlayer.handler(async ({ input, context }): Promise<void> => {
@@ -294,9 +253,9 @@ export const adminMetaRouter = {
     const { meta } = context.repos;
     assertFound(await meta.eventById(input.id), "Event not found");
 
-    // Hand-entered, so the key stays null: a provider's citation is written by
-    // linking that provider's candidate, and one typed in here would either
-    // collide with that unique key or outlive the link that owns it.
+    // Hand-entered, so the key stays null: a provider's citation is written
+    // when its event is accepted, and one typed in here would either collide
+    // with that unique key or outlive the link that owns it.
     const row = await meta.insertEventSource({
       metaEventId: input.id,
       provider: null,

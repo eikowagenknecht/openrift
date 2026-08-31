@@ -13,7 +13,7 @@ import { adminMetaSubmissionsRouter } from "./meta-submissions";
 const mockSubmissions = {
   listPendingEventCorrections: vi.fn(),
   byId: vi.fn(),
-  byCandidatePlayerId: vi.fn(),
+  byPlayerOverlayId: vi.fn(),
   resolve: vi.fn(),
   reopen: vi.fn(),
 };
@@ -22,7 +22,7 @@ const mockAdminEvents = { insert: vi.fn() };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const SUBMISSION_ID = "b0000000-0001-4000-a000-000000000001";
-const CANDIDATE_PLAYER_ID = "c0000000-0001-4000-a000-000000000001";
+const PLAYER_OVERLAY_ID = "c0000000-0001-4000-a000-000000000001";
 
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
@@ -39,7 +39,7 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
     userId: "user-7",
     provider: "usersubmission",
     externalId: "2026-08-18--user-7--abcd1234",
-    candidateMetaPlayerId: CANDIDATE_PLAYER_ID,
+    playerOverlayId: PLAYER_OVERLAY_ID,
     metaEventId: "d0000000-0001-4000-a000-000000000001",
     eventName: "Summoner Skirmish",
     playerName: "Renata",
@@ -71,12 +71,12 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("GET /meta/submissions/by-candidate-player/{candidatePlayerId}", () => {
+describe("GET /meta/submissions/by-player-overlay/{playerOverlayId}", () => {
   it("returns the ledger row behind a submitted deck", async () => {
-    mockSubmissions.byCandidatePlayerId.mockResolvedValue(ledgerRow());
+    mockSubmissions.byPlayerOverlayId.mockResolvedValue(ledgerRow());
 
     const res = await app.request(
-      `/api/admin/v1/meta/submissions/by-candidate-player/${CANDIDATE_PLAYER_ID}`,
+      `/api/admin/v1/meta/submissions/by-player-overlay/${PLAYER_OVERLAY_ID}`,
     );
 
     expect(res.status).toBe(200);
@@ -97,13 +97,13 @@ describe("GET /meta/submissions/by-candidate-player/{candidatePlayerId}", () => 
     });
   });
 
-  it("answers null for a provider's candidate row rather than 404ing", async () => {
+  it("answers null for a provider's overlay rather than 404ing", async () => {
     // The review screen asks for every row it renders, and most rows are
-    // scraped standings with no submission behind them.
-    mockSubmissions.byCandidatePlayerId.mockResolvedValue(null);
+    // mirrored standings with no submission behind them.
+    mockSubmissions.byPlayerOverlayId.mockResolvedValue(null);
 
     const res = await app.request(
-      `/api/admin/v1/meta/submissions/by-candidate-player/${CANDIDATE_PLAYER_ID}`,
+      `/api/admin/v1/meta/submissions/by-player-overlay/${PLAYER_OVERLAY_ID}`,
     );
 
     expect(res.status).toBe(200);
@@ -272,7 +272,7 @@ describe("GET /meta/submissions/event-corrections", () => {
         submission: ledgerRow({
           kind: "event_correction",
           playerName: null,
-          candidateMetaPlayerId: null,
+          playerOverlayId: null,
           fieldEdits: { playerCount: 48 },
         }),
         event,
@@ -296,7 +296,7 @@ describe("GET /meta/submissions/event-corrections", () => {
         submission: ledgerRow({
           kind: "event_correction",
           playerName: null,
-          candidateMetaPlayerId: null,
+          playerOverlayId: null,
           fieldEdits: null,
         }),
         event: null,
@@ -327,7 +327,7 @@ describe("GET /meta/submissions/event-corrections", () => {
       submission: ledgerRow({
         kind: "event_correction",
         playerName: null,
-        candidateMetaPlayerId: null,
+        playerOverlayId: null,
         fieldEdits: {},
       }),
       event,

@@ -9,6 +9,7 @@ import {
   META_ENTRY_STATUSES,
   META_EVENT_TIERS,
   META_LIST_STATUSES,
+  META_OVERLAY_STATUSES,
   META_SUBMISSION_KINDS,
   META_SUBMISSION_REASONS,
   META_SUBMISSION_STATUSES,
@@ -98,6 +99,8 @@ export const metaEventTierSchema = z.enum(META_EVENT_TIERS);
  * away. Built from the same constant as the `MetaEntryStatus` type.
  */
 export const metaEntryStatusSchema = z.enum(META_ENTRY_STATUSES);
+
+export const metaOverlayStatusSchema = z.enum(META_OVERLAY_STATUSES);
 
 /**
  * Whether a contributor's name appears on the archive pages they contributed

@@ -1,22 +1,20 @@
 /**
  * Ingest one signed-in user's decklist submission to the meta archive.
  *
- * A submission is not an upload: `ingestMetaCandidates` replaces every standings
- * row of each event it names, and all submissions share one provider, so a
- * batch ingest of one list would wipe every other person's pending
- * contribution. This inserts exactly one candidate row under a per-submission
- * external id and deletes nothing. Everything downstream — the review queue, accept, the
- * ignore lists — is the machinery that already exists.
+ * A submission is an overlay, never a source mirror. A re-fetch replaces a
+ * mirrored event's whole field (`replaceStandings`), so a contribution written
+ * there would be wiped by the next recheck. Overlays are keyed per submission
+ * and only review touches them.
  *
- * Two things are worth knowing about the shape:
+ * `chk_meta_event_player_overlays_target` permits exactly one anchor, which is
+ * what shapes the two cases:
  *
- *   - A submission against an event the archive already has hangs its candidate
- *     row off that *live* event, so no placeholder candidate event is invented
- *     for it. `candidate_meta_players` has a CHECK for exactly that.
- *   - A submission that proposes an event the archive does not have needs
- *     somewhere for the row to hang, and the same CHECK leaves one option: a
- *     real candidate event under this provider, carrying the fields the person
- *     typed. It is a proposal in the queue like any other, not a placeholder.
+ *   - Against an event the archive already has, the player overlay anchors on
+ *     that live event and no event overlay is created.
+ *   - Proposing an event the archive lacks, the player overlay anchors on an
+ *     event overlay carrying the fields the person typed. Accepting that mints
+ *     the live event and adopts the entries hanging off it, so both are
+ *     reviewed as one thing.
  */
 import { ERROR_CODES, formatCompactUtcStamp, WellKnown } from "@openrift/shared";
 // One definition of the reserved provider string, on the wire side: the
@@ -29,7 +27,6 @@ import type {
   MetaSubmissionKind,
 } from "@openrift/shared/types";
 
-import type { CandidateMetaDeckCard } from "../db/index.js";
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import { isValidIsoDate } from "../lib/iso-date.js";
@@ -98,7 +95,7 @@ export type MetaSubmissionResult =
   | {
       status: "ok";
       submissionId: string;
-      candidatePlayerId: string;
+      playerOverlayId: string;
       /**
        * Card names that matched nothing. The submission is still staged: an
        * unmatched name is usually a spelling the catalog needs an alias for,
@@ -247,7 +244,7 @@ export function submitMetaEventCorrection(
       userId: args.userId,
       provider: META_USER_SUBMISSION_PROVIDER,
       externalId: buildMetaSubmissionExternalId(args.userId, args.now),
-      candidateMetaPlayerId: null,
+      playerOverlayId: null,
       metaEventId: args.metaEventId,
       eventName: event.name,
       playerName: null,
@@ -265,9 +262,9 @@ export function submitMetaEventCorrection(
 /**
  * Stage one user's decklist submission and record its ledger row.
  *
- * The whole thing runs in one transaction: the candidate deck and the ledger
- * row are the same fact, and a submission the contributor can see but no admin
- * can review (or the reverse) is worse than no submission.
+ * The whole thing runs in one transaction: the overlay and the ledger row are
+ * the same fact, and a submission the contributor can see but no admin can
+ * review (or the reverse) is worse than no submission.
  */
 export function submitMetaDeck(
   transact: Transact,
@@ -301,73 +298,89 @@ export function submitMetaDeck(
     // pipeline applies here too and a submission links exactly where a provider
     // upload of the same list would.
     const index = await loadCardNameIndex(repos.ingest);
-    const cards: CandidateMetaDeckCard[] = args.cards.map((card) => ({
-      name: card.name,
+    const cards = args.cards.map((card, lineNumber) => ({
+      lineNumber,
       zone: card.zone,
       quantity: card.quantity,
+      cardName: card.name,
       cardId: resolveCardIdByName(index, card.name),
     }));
 
     const externalId = buildMetaSubmissionExternalId(args.userId, args.now);
     const proposed = args.proposedEvent;
 
-    let candidateEventId: string | null = null;
+    let eventOverlayId: string | null = null;
     // The name the ledger keeps, so a row still reads right when the target
     // event is renamed, or was never created at all.
     let eventName: string;
     if (proposed === null) {
-      // Validation guarantees the other half is set, and the lookup above
-      // guarantees it resolved.
-      eventName = target?.name ?? "";
+      if (target === undefined) {
+        // Validation requires an event or a proposal, so this is a client
+        // constructing its own payload.
+        throw new AppError(400, ERROR_CODES.BAD_REQUEST, "A submission needs an event.");
+      }
+      eventName = target.name;
     } else {
       eventName = proposed.name;
-      candidateEventId = await repos.metaCandidates.insertEvent({
+      // A proposed event is an overlay with no live target. Accepting it mints
+      // the live row and adopts the players hanging off it, so the event and
+      // its entry are reviewed and accepted as one thing.
+      eventOverlayId = await repos.metaOverlays.insertEventOverlay({
         provider: META_USER_SUBMISSION_PROVIDER,
         externalId,
+        metaEventId: null,
         name: proposed.name,
         eventDate: proposed.eventDate,
         format: proposed.format,
         playerCount: proposed.playerCount,
         organizer: proposed.organizer,
-        sourceUrl: proposed.sourceUrl,
         notes: null,
-        extraData: null,
-        metaEventId: null,
-        // Unreviewed by definition: a submission is exactly the thing an admin
-        // has not looked at yet.
-        checkedAt: null,
+        tier: null,
+        country: null,
+        location: null,
+        claimedFields: ["name", "eventDate", "format", "playerCount", "organizer"],
+        submittedByUserId: args.userId,
+        submissionNote: args.note,
       });
     }
 
-    const candidatePlayerId = await repos.metaCandidates.insertPlayer({
-      candidateEventId,
-      metaEventId: candidateEventId === null ? args.metaEventId : null,
-      externalId,
-      playerName: args.playerName,
-      rank: args.rank,
-      rankIsTier: args.rankIsTier,
-      wins: args.wins,
-      losses: args.losses,
-      draws: args.draws,
-      // The legend and champion come from the list's own zones at accept, so a
-      // submission never names them separately.
-      legendName: null,
-      legendCardId: null,
-      championName: null,
-      championCardId: null,
+    const playerOverlayId = await repos.metaOverlays.insertPlayerOverlay(
+      {
+        eventOverlayId,
+        metaEventId: eventOverlayId === null ? args.metaEventId : null,
+        metaEventPlayerId: null,
+        playerName: args.playerName,
+        rank: args.rank,
+        rankIsTier: args.rankIsTier,
+        wins: args.wins,
+        losses: args.losses,
+        draws: args.draws,
+        // The legend and champion come from the list's own zones at promotion,
+        // so a submission never names them separately.
+        legendCardId: null,
+        championCardId: null,
+        listStatus: args.listStatus,
+        claimedFields: [
+          "playerName",
+          "rank",
+          "rankIsTier",
+          "wins",
+          "losses",
+          "draws",
+          "listStatus",
+          "cards",
+        ],
+        submittedByUserId: args.userId,
+        submissionNote: args.note,
+      },
       cards,
-      listStatus: args.listStatus,
-      metaEventPlayerId: null,
-      submittedByUserId: args.userId,
-      submissionNote: args.note,
-      checkedAt: null,
-    });
+    );
 
     const submissionId = await repos.metaSubmissions.insert({
       userId: args.userId,
       provider: META_USER_SUBMISSION_PROVIDER,
       externalId,
-      candidateMetaPlayerId: candidatePlayerId,
+      playerOverlayId,
       metaEventId: args.metaEventId,
       eventName,
       playerName: args.playerName,
@@ -378,8 +391,8 @@ export function submitMetaDeck(
     return {
       status: "ok",
       submissionId,
-      candidatePlayerId,
-      unresolvedNames: [...new Set(cards.filter((c) => c.cardId === null).map((c) => c.name))],
+      playerOverlayId,
+      unresolvedNames: [...new Set(cards.filter((c) => c.cardId === null).map((c) => c.cardName))],
     };
   });
 }

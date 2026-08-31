@@ -3,7 +3,9 @@ import { META_EVENT_TIERS } from "@openrift/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MetaEventDriftPanel } from "@/components/admin/meta-event-drift-panel";
 import { MetaEventSourcesEditor } from "@/components/admin/meta-event-sources-editor";
+import { ReviewDisclosure } from "@/components/admin/meta-review-shared";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -26,16 +28,21 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateMetaEvent, useUpdateMetaEvent } from "@/hooks/use-admin-meta";
+import { useWriteMetaEventOverlayFields } from "@/hooks/use-admin-meta-overlays";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import type { MetaEventDraft } from "@/lib/admin-meta-draft";
+import type { MetaEventBody, MetaEventDraft } from "@/lib/admin-meta-draft";
 import {
   EMPTY_META_EVENT_DRAFT,
   metaEventDraftToBody,
+  metaEventOverlayEdits,
   metaEventToDraft,
   validateMetaEventDraft,
 } from "@/lib/admin-meta-draft";
 import { errorText } from "@/lib/error-text";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
+
+/** Ties the footer's submit to the form it no longer sits inside. */
+const FORM_ID = "meta-event-form";
 
 interface MetaEventDialogProps {
   /** The event being edited. Omitted when the dialog creates a new one. */
@@ -47,22 +54,40 @@ interface MetaEventDialogProps {
  * The create / edit form for an archived event. The event list mounts it only
  * while it is open, so the draft starts fresh on every open.
  *
+ * Editing splits in two, because the archive's own facts are no longer a PATCH:
+ * the slug is identity and goes through `updateEvent`, and every data field is
+ * claimed as an overlay so a re-promote cannot silently revert it. Changing
+ * both in one save is two calls, the slug first — a failed rename should not
+ * leave a claim behind.
+ *
  * @returns The event dialog.
  */
 export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
   const { formats, labels: formatLabels } = useDeckFormatList();
   const createEvent = useCreateMetaEvent();
   const updateEvent = useUpdateMetaEvent();
+  const writeOverlay = useWriteMetaEventOverlayFields();
 
   const [draft, setDraft] = useState<MetaEventDraft>(() =>
     event ? metaEventToDraft(event) : { ...EMPTY_META_EVENT_DRAFT, format: formats[0]?.slug ?? "" },
   );
   const [formError, setFormError] = useState("");
+  const [driftOpen, setDriftOpen] = useState(false);
 
-  const isPending = createEvent.isPending || updateEvent.isPending;
+  const isPending = createEvent.isPending || updateEvent.isPending || writeOverlay.isPending;
 
   function set<TKey extends keyof MetaEventDraft>(key: TKey, value: MetaEventDraft[TKey]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function saveEdit(current: AdminMetaEvent, body: MetaEventBody): Promise<void> {
+    if (body.slug !== current.slug) {
+      await updateEvent.mutateAsync({ id: current.id, slug: body.slug });
+    }
+    const edits = metaEventOverlayEdits(current, body);
+    if (edits.length > 0) {
+      await writeOverlay.mutateAsync({ id: current.id, edits });
+    }
   }
 
   async function handleSubmit() {
@@ -75,9 +100,7 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
     const body = metaEventDraftToBody(draft);
     // The branch is resolved before the try: the compiler bails on a
     // conditional inside one, and a `finally` is not lowerable either.
-    const save = event
-      ? () => updateEvent.mutateAsync({ id: event.id, ...body })
-      : () => createEvent.mutateAsync(body);
+    const save = event ? () => saveEdit(event, body) : () => createEvent.mutateAsync(body);
     const successMessage = event ? `Updated "${body.name}"` : `Created "${body.name}"`;
     try {
       await save();
@@ -93,7 +116,7 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-xl">
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm id={FORM_ID} onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{event ? "Edit event" : "New event"}</DialogTitle>
             <DialogDescription>
@@ -235,22 +258,31 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
             </div>
           </div>
 
-          {/* Citations replaced the old single source link (ADR-014). They are
-              their own rows, written and deleted on their own, so they live
-              beside the form rather than inside its save. */}
-          {event && <MetaEventSourcesEditor eventId={event.id} />}
-
           {formError && <p className="text-destructive text-sm">{formError}</p>}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {event ? "Save" : "Create event"}
-            </Button>
-          </DialogFooter>
         </DialogForm>
+
+        {/* Citations replaced the old single source link (ADR-014). They are
+            their own rows, written and deleted on their own, so they live
+            beside the form rather than inside its save. Both they and the
+            drift panel below carry their own inputs and their own submits, so
+            they stay outside the form element: nested there, Enter in one of
+            their fields would save the event instead. */}
+        {event && <MetaEventSourcesEditor eventId={event.id} />}
+
+        {event && (
+          <ReviewDisclosure title="Source drift" onOpenChange={setDriftOpen}>
+            <MetaEventDriftPanel metaEventId={event.id} enabled={driftOpen} />
+          </ReviewDisclosure>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={FORM_ID} disabled={isPending}>
+            {event ? "Save" : "Create event"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -6,6 +6,7 @@ import {
   formatRecord,
   joinNames,
   metaEventCounts,
+  metaPlayerClaimChips,
   metaShownLabel,
   recordSortValue,
   splitLegendName,
@@ -235,5 +236,35 @@ describe("formatRankRuns", () => {
 
   it("says nothing for no ranks at all", () => {
     expect(formatRankRuns([])).toBe("");
+  });
+});
+
+describe("metaPlayerClaimChips", () => {
+  it("gives an unclaimed row no chips", () => {
+    expect(metaPlayerClaimChips([])).toEqual([]);
+  });
+
+  it("names a claimed field in the reader's words, not the column's", () => {
+    expect(metaPlayerClaimChips(["rank"])).toEqual([{ field: "rank", label: "Finish" }]);
+  });
+
+  it("collapses a list and its status into one chip, since they release together", () => {
+    expect(metaPlayerClaimChips(["cards", "listStatus"])).toEqual([
+      { field: "cards", label: "Decklist" },
+    ]);
+  });
+
+  it("stands in for the pair when only the status is claimed", () => {
+    expect(metaPlayerClaimChips(["listStatus"])).toEqual([{ field: "cards", label: "Decklist" }]);
+  });
+
+  it("orders chips the same way whatever order they arrive in", () => {
+    const forward = metaPlayerClaimChips(["rank", "playerName", "wins"]);
+    expect(forward).toEqual(metaPlayerClaimChips(["wins", "rank", "playerName"]));
+    expect(forward.map((chip) => chip.field)).toEqual(["playerName", "rank", "wins"]);
+  });
+
+  it("drops a field it has no label for rather than printing a slug", () => {
+    expect(metaPlayerClaimChips(["somethingNew"])).toEqual([]);
   });
 });

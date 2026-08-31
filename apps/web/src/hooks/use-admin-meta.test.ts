@@ -71,7 +71,7 @@ describe("reclassifyInvalidates", () => {
     expect(reclassifyInvalidates).toEqual(
       expect.arrayContaining([
         queryKeys.admin.meta.events,
-        queryKeys.admin.meta.candidates,
+        queryKeys.admin.meta.overlays,
         queryKeys.admin.meta.catalogue,
         queryKeys.meta.all,
       ]),

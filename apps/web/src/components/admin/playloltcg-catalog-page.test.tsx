@@ -98,7 +98,6 @@ function makeRow(overrides: Partial<PlayloltcgCatalogRow> = {}): PlayloltcgCatal
     playerCount: 32,
     startAt: "2026-08-15",
     triage: "new",
-    candidateEventId: null,
     metaEventId: null,
     metaEventSlug: null,
     fetchedAt: null,

@@ -3,7 +3,6 @@ import { ERROR_CODES } from "@openrift/shared";
 import { AppError } from "../../errors.js";
 import type { MetaAutoAcceptRule } from "../../lib/meta-auto-accept.js";
 import { autoAcceptRule } from "../../lib/meta-auto-accept.js";
-import { classifyMetaEventTier, countryFromAddress } from "../../lib/meta-event-classify.js";
 import {
   mapSourceFormat,
   UVSGAMES_PROVIDER,
@@ -11,7 +10,7 @@ import {
   venueLocalDay,
 } from "../../lib/uvsgames-catalog.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
-import { acceptCandidateEvent, acceptCandidatePlayer } from "../meta-candidate-accept.js";
+import { promoteNewEvent } from "../meta-promote.js";
 import type { MetaSyncDeps } from "./deps.js";
 import { clock, errorText } from "./deps.js";
 
@@ -19,15 +18,15 @@ import { clock, errorText } from "./deps.js";
  * Turning a catalogue row into a live event, by hand from the triage list or by
  * rule during a sync run.
  *
- * Both paths go through the existing accept: the catalogue row only supplies the
- * candidate that accept needs, so linking, citations, and the per-field review
- * downstream all behave exactly as they do for a pushed candidate.
+ * Both paths mint the live row and its citation, then promote. Everything the
+ * event will ever hold comes from promotion reading this source's mirror, so
+ * accept carries only what a live row cannot be created without: a name, a
+ * date, and a format the archive recognises.
  */
 
 export interface AcceptedCatalogEvent {
   metaEventId: string;
   slug: string;
-  candidateEventId: string;
   created: boolean;
 }
 
@@ -35,53 +34,6 @@ export interface MetaAutoAcceptSummary {
   accepted: number;
   /** One line per rule match that could not be accepted, with the reason. */
   errors: string[];
-}
-
-/**
- * The candidate the accept path operates on. An event the archive has never
- * seen gets a shell built from the catalogue projection; one a deep fetch
- * already staged is used as it stands, because that row carries the full
- * standings and this must not replace them with a header.
- */
-async function ensureCandidate(
-  deps: MetaSyncDeps,
-  row: UvsgamesListRow,
-  format: string,
-): Promise<string> {
-  const [existing] = await deps.repos.metaCandidates.eventsBySourceKeys(UVSGAMES_PROVIDER, [
-    row.externalId,
-  ]);
-  if (existing !== undefined) {
-    if (existing.format !== format) {
-      await deps.repos.metaCandidates.updateEvent(existing.id, { format });
-    }
-    return existing.id;
-  }
-  const templateTiers = await deps.repos.uvsgamesEvents.templateTiers();
-  const playerCount = row.playerCount === null || row.playerCount === 0 ? null : row.playerCount;
-  const location = row.location === null ? null : row.location.trim().slice(0, 500) || null;
-  return await deps.repos.metaCandidates.insertEvent({
-    provider: UVSGAMES_PROVIDER,
-    externalId: row.externalId,
-    name: row.name.slice(0, 120),
-    eventDate: venueLocalDay(row.startAt, row.timezone),
-    format,
-    playerCount,
-    organizer: row.storeDisplayName === null ? null : row.storeDisplayName.slice(0, 120),
-    sourceUrl: uvsgamesEventUrl(row.externalId),
-    notes: null,
-    tier: classifyMetaEventTier({
-      templateTier:
-        row.eventConfigurationTemplate === null
-          ? null
-          : (templateTiers.get(row.eventConfigurationTemplate) ?? null),
-      playerCount,
-    }),
-    country: countryFromAddress(location),
-    location,
-    metaEventId: null,
-    extraData: null,
-  });
 }
 
 /**
@@ -99,7 +51,7 @@ export async function acceptCatalogEvent(
 ): Promise<AcceptedCatalogEvent> {
   const mappings = options?.formatMappings ?? (await deps.repos.uvsgamesEvents.formatMappings());
   // The source's own vocabulary is never used raw: an unmapped value would only
-  // fail the archive's format check deep inside accept, with a worse message.
+  // fail the archive's format check deep inside promotion, with a worse message.
   const format = options?.format ?? mapSourceFormat(mappings, row.eventFormat) ?? "";
   if (format === "") {
     throw new AppError(
@@ -109,13 +61,18 @@ export async function acceptCatalogEvent(
     );
   }
 
-  const candidateEventId = await ensureCandidate(deps, row, format);
-  const accepted = await acceptCandidateEvent(deps.repos, candidateEventId);
+  const promoted = await promoteNewEvent(deps.repos, UVSGAMES_PROVIDER, row.externalId, {
+    name: row.name.slice(0, 120),
+    eventDate: venueLocalDay(row.startAt, row.timezone),
+    format,
+    sourceUrl: uvsgamesEventUrl(row.externalId),
+  });
+
   await deps.repos.uvsgamesEvents.setRecheck(row.externalId, {
     nextCheckAt: clock(deps),
     checkStage: 0,
   });
-  return { ...accepted, candidateEventId };
+  return promoted;
 }
 
 /**
@@ -189,72 +146,5 @@ async function tryAutoAccept(
     // One event failing to accept — a slug that cannot be freed, a format the
     // reference table lost — must not stop the sweep over the rest of the page.
     return errorText(error, `Auto-accept "${row.name}" (${row.externalId})`);
-  }
-}
-
-export interface MetaPlayerAcceptSummary {
-  accepted: number;
-  skipped: number;
-  errors: string[];
-}
-
-/**
- * Files the standings a deep fetch just staged, for an event whose data the
- * archive takes wholesale.
- *
- * Two guards. An event fed by a second source is left to the human queue, since
- * taking everything from one source there silently reverts the other's curated
- * values. And a player whose list carries a name that matched no card is skipped:
- * standings are the source's own published result and safe to file unreviewed,
- * but a decklist with a hole in it is not.
- */
-export async function autoAcceptFetchedPlayers(
-  deps: MetaSyncDeps,
-  candidateEventId: string,
-  metaEventId: string,
-): Promise<MetaPlayerAcceptSummary> {
-  const linked = await deps.repos.metaCandidates.eventsByMetaEventId(metaEventId);
-  if (linked.some((row) => row.id !== candidateEventId)) {
-    return { accepted: 0, skipped: 0, errors: [] };
-  }
-
-  const players = await deps.repos.metaCandidates.playersByCandidateEventIds([candidateEventId]);
-  const summary: MetaPlayerAcceptSummary = { accepted: 0, skipped: 0, errors: [] };
-
-  for (const player of players) {
-    const unresolved = (player.cards ?? []).some((card) => card.cardId === null);
-    if (unresolved) {
-      summary.skipped++;
-      continue;
-    }
-    const outcome = await tryAcceptPlayer(deps, player.id, player.playerName);
-    if (outcome === null) {
-      summary.accepted++;
-    } else {
-      summary.skipped++;
-      summary.errors.push(outcome);
-    }
-  }
-
-  return summary;
-}
-
-async function tryAcceptPlayer(
-  deps: MetaSyncDeps,
-  candidatePlayerId: string,
-  playerName: string,
-): Promise<string | null> {
-  try {
-    // A legend the matcher does not know still leaves a real standings row —
-    // who played and how they finished — which is the whole point of the
-    // pyramid. The gap shows up as a legend-less row, not as a missing player.
-    await acceptCandidatePlayer(deps.repos, candidatePlayerId, {
-      allowUnresolvedLegend: true,
-      // The deep fetch materializes matches once after the whole field.
-      skipMatchMaterialization: true,
-    });
-    return null;
-  } catch (error) {
-    return errorText(error, `Accept "${playerName}"`);
   }
 }

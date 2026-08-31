@@ -34,9 +34,7 @@ function submission(overrides: Partial<AdminMetaSubmission> = {}): AdminMetaSubm
 }
 
 function renderResolve(overrides: Partial<AdminMetaSubmission> = {}) {
-  render(
-    <MetaSubmissionResolve submission={submission(overrides)} candidatePlayerId="cand-deck-1" />,
-  );
+  render(<MetaSubmissionResolve submission={submission(overrides)} playerOverlayId="overlay-1" />);
 }
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
@@ -83,7 +81,7 @@ describe("MetaSubmissionResolve", () => {
     await user.click(screen.getByRole("button", { name: "Send outcome" }));
     expect(captured.resolve).toHaveBeenCalledWith({
       submissionId: "sub-1",
-      candidatePlayerId: "cand-deck-1",
+      playerOverlayId: "overlay-1",
       status: "already_correct",
       reason: "already_correct",
       note: null,
@@ -182,7 +180,7 @@ describe("MetaSubmissionResolve", () => {
     await user.click(screen.getByRole("button", { name: "Reopen" }));
     expect(captured.reopen).toHaveBeenCalledWith({
       submissionId: "sub-1",
-      candidatePlayerId: "cand-deck-1",
+      playerOverlayId: "overlay-1",
     });
   });
 

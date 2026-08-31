@@ -357,26 +357,23 @@ export const queryKeys = {
       // The event's citation list. Nested under `events` so an event write that
       // invalidates the list refetches the citations of whichever event is open.
       eventSources: (eventId: string) => ["admin", "meta", "events", eventId, "sources"] as const,
-      // The candidate review queue (ADR-014). `candidate` nests under
-      // `candidates` on purpose, so invalidating the queue also refetches any
-      // open detail.
-      candidates: ["admin", "meta", "candidates"] as const,
-      candidate: (candidateId: string) => ["admin", "meta", "candidates", candidateId] as const,
-      // Ranked link targets for an unlinked candidate. Under `candidates` for
-      // the same reason: linking one is what makes its suggestions stale.
-      eventSuggestions: (candidateId: string) =>
-        ["admin", "meta", "candidates", candidateId, "match-suggestions"] as const,
-      playerSuggestions: (candidatePlayerId: string) =>
-        ["admin", "meta", "candidate-players", candidatePlayerId, "match-suggestions"] as const,
-      // The ledger row behind one candidate standings row (ADR-014's user
-      // submissions). Null for a provider's row, which is an answer and gets
-      // cached as one.
-      submissionForPlayer: (candidatePlayerId: string) =>
-        ["admin", "meta", "candidate-players", candidatePlayerId, "submission"] as const,
-      // Corrections to an event's own facts. They stage no candidate row, so
-      // they hang off nothing and are listed on their own.
+      // The overlay review queue (ADR-014 revision 3). The suggestion keys nest
+      // under it on purpose, so settling an overlay also refetches the ranked
+      // targets that settling invalidates.
+      overlays: ["admin", "meta", "overlays"] as const,
+      eventSuggestions: (overlayId: string) =>
+        ["admin", "meta", "overlays", overlayId, "event-suggestions"] as const,
+      playerSuggestions: (overlayId: string) =>
+        ["admin", "meta", "overlays", overlayId, "player-suggestions"] as const,
+      // The ledger row behind one standings overlay (ADR-014's user
+      // submissions). Null for a provider's overlay, which is an answer and
+      // gets cached as one.
+      submissionForPlayerOverlay: (overlayId: string) =>
+        ["admin", "meta", "overlays", overlayId, "submission"] as const,
+      // Corrections to an event's own facts. They stage no overlay row, so they
+      // hang off nothing and are listed on their own.
       eventCorrections: ["admin", "meta", "event-corrections"] as const,
-      ignored: ["admin", "meta", "ignored-candidates"] as const,
+      ignoredSources: ["admin", "meta", "ignored-sources"] as const,
       // The catalogue mirror and its sync controls (ADR-014). `catalogue` is
       // the prefix every filtered page sits under, so accepting or dismissing
       // one row refetches whichever page is on screen without knowing its

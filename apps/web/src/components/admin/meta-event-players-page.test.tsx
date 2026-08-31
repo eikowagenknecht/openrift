@@ -1,12 +1,16 @@
 import type { AdminMetaPlayer } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   players: [] as unknown[],
   playerCount: null as number | null,
+  released: [] as { id: string; field: string }[],
 }));
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children?: ReactNode }) => <a href="/admin/meta">{children}</a>,
@@ -37,6 +41,16 @@ vi.mock("@/hooks/use-admin-meta", () => ({
   useDeleteMetaPlayer: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+vi.mock("@/hooks/use-admin-meta-overlays", () => ({
+  useReleasePlayerOverlayField: () => ({
+    mutateAsync: (input: { id: string; field: string }) => {
+      captured.released.push(input);
+      return Promise.resolve({ metaEventId: "event-1", created: false });
+    },
+    isPending: false,
+  }),
+}));
+
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MetaEventPlayersPage } from "./meta-event-players-page";
 
@@ -59,6 +73,7 @@ function player(overrides: Partial<AdminMetaPlayer> = {}): AdminMetaPlayer {
     deckName: "Chaos Engine",
     deckFormat: "standard",
     cardCount: 40,
+    claimedFields: [],
     ...overrides,
   };
 }
@@ -68,6 +83,7 @@ describe("MetaEventPlayersPage", () => {
     vi.clearAllMocks();
     captured.players = [player()];
     captured.playerCount = null;
+    captured.released = [];
   });
 
   it("keeps a way back to the event list and out to the public page", () => {
@@ -131,5 +147,45 @@ describe("MetaEventPlayersPage", () => {
     render(<MetaEventPlayersPage eventId="event-1" />);
     expect(screen.getByText("2 standings archived")).toBeInTheDocument();
     expect(screen.queryByText(/Missing/u)).not.toBeInTheDocument();
+  });
+
+  it("names the fields an overlay owns for the row", () => {
+    captured.players = [player({ claimedFields: ["rank", "cards", "listStatus"] })];
+
+    render(<MetaEventPlayersPage eventId="event-1" />);
+
+    expect(
+      screen.getByRole("button", { name: "Hand Finish back to the sources" }),
+    ).toBeInTheDocument();
+    // The list and its status claim as one, so they release as one chip.
+    expect(screen.getAllByRole("button", { name: /Decklist back to the sources/u })).toHaveLength(
+      1,
+    );
+  });
+
+  it("leaves a row the sources still decide with nothing to release", () => {
+    render(<MetaEventPlayersPage eventId="event-1" />);
+
+    expect(screen.queryByRole("button", { name: /back to the sources/u })).not.toBeInTheDocument();
+  });
+
+  it("hands a claimed field back to the sources", async () => {
+    captured.players = [player({ id: "p9", claimedFields: ["playerName"] })];
+
+    render(<MetaEventPlayersPage eventId="event-1" />);
+    await userEvent.click(screen.getByRole("button", { name: "Hand Name back to the sources" }));
+
+    expect(captured.released).toEqual([{ id: "p9", field: "playerName" }]);
+  });
+
+  it("releases the pair when the decklist chip is dismissed", async () => {
+    captured.players = [player({ id: "p8", claimedFields: ["listStatus", "cards"] })];
+
+    render(<MetaEventPlayersPage eventId="event-1" />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Hand Decklist back to the sources" }),
+    );
+
+    expect(captured.released).toEqual([{ id: "p8", field: "cards" }]);
   });
 });

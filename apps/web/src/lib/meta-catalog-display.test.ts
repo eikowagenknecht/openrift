@@ -1,3 +1,4 @@
+import type { MetaOverlayQueueRow } from "@openrift/shared";
 import type { MetaSyncStatus } from "@openrift/shared/contracts/admin/meta-catalog";
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +11,7 @@ import {
   coverageWarning,
   formatRunDuration,
   metaSyncAlerts,
+  overlayCountsForProvider,
   runningRunId,
   summarizeRunResult,
   syncTriggerAnnouncement,
@@ -463,5 +465,75 @@ describe("metaSyncAlerts", () => {
       message: "5 card names across staged decks match no live card.",
       target: "review",
     });
+  });
+});
+
+describe("overlayCountsForProvider", () => {
+  function overlay(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueueRow {
+    return {
+      id: "overlay-1",
+      kind: "player",
+      status: "pending",
+      provider: "uvsgames",
+      sourceEventExternalId: "evt-1",
+      sourcePlayerExternalId: "evt-1-p1",
+      metaEventPlayerId: "row-1",
+      metaEventId: "event-1",
+      metaEventName: "Summoner Skirmish",
+      proposedName: null,
+      playerName: "Ashe Main",
+      submittedBy: null,
+      submissionNote: null,
+      changes: [],
+      cards: [],
+      unresolvedNames: [],
+      createdAt: "2026-08-20T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("counts nothing on an empty queue", () => {
+    expect(overlayCountsForProvider([], "uvsgames")).toEqual({
+      pendingReview: 0,
+      unresolvedCards: 0,
+    });
+  });
+
+  it("drops the other source's rows, so the two tabs stop reporting one number", () => {
+    const rows = [
+      overlay({ id: "a" }),
+      overlay({ id: "b", provider: "playloltcg", unresolvedNames: ["X"] }),
+    ];
+
+    expect(overlayCountsForProvider(rows, "uvsgames")).toEqual({
+      pendingReview: 1,
+      unresolvedCards: 0,
+    });
+    expect(overlayCountsForProvider(rows, "playloltcg")).toEqual({
+      pendingReview: 1,
+      unresolvedCards: 1,
+    });
+  });
+
+  it("counts a person's overlay on both tabs, since it names no source", () => {
+    const rows = [overlay({ id: "c", provider: null, unresolvedNames: ["X", "Y"] })];
+
+    expect(overlayCountsForProvider(rows, "uvsgames")).toEqual({
+      pendingReview: 1,
+      unresolvedCards: 2,
+    });
+    expect(overlayCountsForProvider(rows, "playloltcg")).toEqual({
+      pendingReview: 1,
+      unresolvedCards: 2,
+    });
+  });
+
+  it("sums the unmatched names across the rows it keeps", () => {
+    const rows = [
+      overlay({ id: "a", unresolvedNames: ["X", "Y"] }),
+      overlay({ id: "b", unresolvedNames: ["Z"] }),
+    ];
+
+    expect(overlayCountsForProvider(rows, "uvsgames").unresolvedCards).toBe(3);
   });
 });

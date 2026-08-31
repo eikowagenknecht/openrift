@@ -130,13 +130,12 @@ function makeRow(overrides: Partial<MetaCatalogRow> = {}): MetaCatalogRow {
     nextCheckAt: null,
     checkStage: 0,
     triage: "new",
-    candidateEventId: null,
     metaEventId: null,
     metaEventSlug: null,
     fetchedAt: null,
-    stagedPlayerCount: null,
-    stagedLegendCount: null,
-    stagedDeckCount: null,
+    stagedPlayerCount: 0,
+    stagedLegendCount: 0,
+    stagedDeckCount: 0,
     sourceUrl: "https://example.test/events/evt-1",
     ...overrides,
   };
@@ -172,7 +171,6 @@ describe("MetaCatalogPage", () => {
     captured.accept.mockResolvedValue({
       metaEventId: "event-1",
       slug: "summoner-skirmish-2026",
-      candidateEventId: "cand-1",
       created: true,
     });
     captured.fetchEvent.mockResolvedValue({

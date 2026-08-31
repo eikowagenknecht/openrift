@@ -49,7 +49,6 @@ export function toMetaCatalogRow(
     nextCheckAt: row.nextCheckAt?.toISOString() ?? null,
     checkStage: row.checkStage,
     triage: row.triage,
-    candidateEventId: row.candidateEventId,
     metaEventId: row.metaEventId,
     metaEventSlug: row.metaEventSlug,
     fetchedAt: row.fetchedAt?.toISOString() ?? null,

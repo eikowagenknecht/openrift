@@ -53,7 +53,7 @@ const acceptInvalidates = [
   queryKeys.admin.meta.playloltcgCatalogue,
   queryKeys.admin.meta.syncStatus.prefix,
   queryKeys.admin.meta.events,
-  queryKeys.admin.meta.candidates,
+  queryKeys.admin.meta.overlays,
   queryKeys.meta.all,
 ] as const;
 

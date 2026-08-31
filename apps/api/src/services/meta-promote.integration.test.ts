@@ -1,0 +1,546 @@
+import type { Insertable } from "kysely";
+import { afterAll, describe, expect, it } from "vitest";
+
+import type { MetaEventPlayerOverlaysTable, PlayloltcgEventStandingsTable } from "../db/index.js";
+import type { Repos } from "../deps.js";
+import { createRepos } from "../deps.js";
+import { META_ARCHIVE_USER_ID, metaRepo } from "../repositories/meta.js";
+import { createDbContext, syncCardCardTypes } from "../test/integration-context.js";
+import { promoteMetaEvent } from "./meta-promote.js";
+
+// Uses the prefix MPI- / mpi- for everything it creates, and shop ids well
+// clear of the source's own id space. Each case takes its own shop id, since
+// the mirror keys an event on it and the file's cases seed different fields.
+
+const ctx = createDbContext(crypto.randomUUID());
+
+const SHOP_ID_BASE = 990_400;
+let nextShopId = SHOP_ID_BASE;
+
+const createdEventIds: string[] = [];
+const createdShopIds: number[] = [];
+const createdDeckIds: string[] = [];
+const createdCardIds: string[] = [];
+let spellCardId: string;
+
+let repos: Repos;
+
+function takeShopId(): number {
+  nextShopId++;
+  createdShopIds.push(nextShopId);
+  return nextShopId;
+}
+
+if (ctx) {
+  const { db } = ctx;
+  repos = createRepos(db);
+
+  const [spell] = await db
+    .insertInto("cards")
+    .values({
+      name: "MPI Spell",
+      slug: "mpi-spell",
+      type: "spell",
+      normName: "mpispell",
+      keywords: [],
+      tags: [],
+    })
+    .returning("id")
+    .execute();
+  spellCardId = spell.id;
+  createdCardIds.push(spell.id);
+  await syncCardCardTypes(db);
+
+  afterAll(async () => {
+    // Events first: `meta_event_players.deck_id` is ON DELETE RESTRICT, so the
+    // archived decks are only free once the event has cascaded its rows.
+    await db.deleteFrom("metaEvents").where("id", "in", createdEventIds).execute();
+    await db.deleteFrom("decks").where("id", "in", createdDeckIds).execute();
+    await db
+      .deleteFrom("playloltcgDecklistCards")
+      .where("sourceDeckId", "like", "mpi-deck-%")
+      .execute();
+    await db
+      .deleteFrom("playloltcgDecklists")
+      .where("activityShopId", "in", createdShopIds)
+      .execute();
+    await db
+      .deleteFrom("playloltcgEventStandings")
+      .where("activityShopId", "in", createdShopIds)
+      .execute();
+    await db.deleteFrom("playloltcgEvents").where("activityShopId", "in", createdShopIds).execute();
+    await db.deleteFrom("cards").where("id", "in", createdCardIds).execute();
+  });
+}
+
+describe.skipIf(!ctx)("promoteMetaEvent", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { db } = ctx!;
+  const repo = metaRepo(db);
+
+  /** A live event carrying every field a re-promote could otherwise blank. */
+  async function seedLiveEvent(slug: string): Promise<string> {
+    const event = await repo.createEvent({
+      slug,
+      name: "MPI Summoner Skirmish",
+      eventDate: "2026-08-15",
+      format: "constructed",
+      playerCount: 41,
+      organizer: "MPI Card Bazaar",
+      notes: "Hand entered from the organizer's post.",
+      tier: "competitive",
+      country: "DE",
+      location: "Berlin",
+    });
+    createdEventIds.push(event.id);
+    return event.id;
+  }
+
+  async function cite(
+    metaEventId: string,
+    provider: string | null,
+    externalId: string | null,
+  ): Promise<void> {
+    await repo.insertEventSource({
+      metaEventId,
+      provider,
+      externalId,
+      label: provider ?? "Submission",
+      sourceUrl: null,
+    });
+  }
+
+  async function seedStandingsOnlyPlayer(
+    metaEventId: string,
+    playerName: string,
+    rank: number,
+  ): Promise<string> {
+    const created = await repo.createPlayer(
+      {
+        eventId: metaEventId,
+        rank,
+        rankIsTier: false,
+        playerName,
+        wins: null,
+        losses: null,
+        draws: null,
+        legendCardId: null,
+        championCardId: null,
+        deck: null,
+      },
+      null,
+    );
+    if (created === undefined) {
+      throw new Error("seedStandingsOnlyPlayer: event not found");
+    }
+    return created.metaEventPlayerId;
+  }
+
+  describe("event fields", () => {
+    it("keeps every field of an event no source describes", async () => {
+      const metaEventId = await seedLiveEvent("mpi-no-sources");
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      // The re-promote used to rebuild the row from nothing, blanking the
+      // columns only a human had ever filled in.
+      expect(await repo.eventById(metaEventId)).toMatchObject({
+        name: "MPI Summoner Skirmish",
+        playerCount: 41,
+        organizer: "MPI Card Bazaar",
+        notes: "Hand entered from the organizer's post.",
+        tier: "competitive",
+        country: "DE",
+        location: "Berlin",
+      });
+    });
+
+    it("keeps them when the only citation is a keyless submission", async () => {
+      const metaEventId = await seedLiveEvent("mpi-keyless-citation");
+      await cite(metaEventId, null, null);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      expect(await repo.eventById(metaEventId)).toMatchObject({
+        organizer: "MPI Card Bazaar",
+        playerCount: 41,
+        location: "Berlin",
+      });
+    });
+
+    it("keeps them when a cited mirror no longer holds the key", async () => {
+      const metaEventId = await seedLiveEvent("mpi-orphan-citation");
+      await cite(metaEventId, "uvsgames", "mpi-uvs-never-mirrored");
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      expect(await repo.eventById(metaEventId)).toMatchObject({
+        organizer: "MPI Card Bazaar",
+        notes: "Hand entered from the organizer's post.",
+        country: "DE",
+      });
+    });
+  });
+
+  describe("standings identity", () => {
+    async function seedMirroredEvent(
+      slug: string,
+      standings: readonly Omit<Insertable<PlayloltcgEventStandingsTable>, "activityShopId">[],
+    ): Promise<{ metaEventId: string; activityShopId: number }> {
+      const activityShopId = takeShopId();
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rune Cup",
+          startAt: "2026-08-20",
+          playerCount: standings.length,
+          shopName: "MPI Card Bazaar",
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values(standings.map((row) => ({ ...row, activityShopId })))
+        .execute();
+
+      const metaEventId = await seedLiveEvent(slug);
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      return { metaEventId, activityShopId };
+    }
+
+    const TWO_PLAYERS = [
+      { playerKey: "u5001", sourceUserId: 5001, playerName: "MPI Ashe", rank: 1, wins: 4 },
+      { playerKey: "nMPI Riven#1", playerName: "MPI Riven", rank: 2, wins: 3 },
+    ];
+
+    it("files a mirrored player under the source key, and re-promotes onto the same row", async () => {
+      const { metaEventId } = await seedMirroredEvent("mpi-playloltcg-twice", TWO_PLAYERS);
+
+      await promoteMetaEvent(repos, metaEventId);
+      const first = await repo.rawStandingsForEvent(metaEventId);
+      await promoteMetaEvent(repos, metaEventId);
+      const second = await repo.rawStandingsForEvent(metaEventId);
+
+      expect(first).toHaveLength(2);
+      expect(first.map((row) => row.sourceIdentity).toSorted()).toEqual([
+        "pnMPI Riven#1",
+        "pu5001",
+      ]);
+      // Identity is load-bearing: decks, matches and share tokens hang off it,
+      // so a second promote has to land on the rows the first one wrote.
+      expect(second.map((row) => row.id).toSorted()).toEqual(first.map((row) => row.id).toSorted());
+    });
+
+    it("does not fork a row when the source renames the player behind the key", async () => {
+      const { metaEventId, activityShopId } = await seedMirroredEvent(
+        "mpi-playloltcg-rename",
+        TWO_PLAYERS,
+      );
+      await promoteMetaEvent(repos, metaEventId);
+      const before = await repo.rawStandingsForEvent(metaEventId);
+
+      await db
+        .updateTable("playloltcgEventStandings")
+        .set({ playerName: "MPI Ashe Renamed" })
+        .where("activityShopId", "=", activityShopId)
+        .where("playerKey", "=", "u5001")
+        .execute();
+      await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after).toHaveLength(2);
+      expect(after.map((row) => row.id).toSorted()).toEqual(before.map((row) => row.id).toSorted());
+      expect(after.find((row) => row.sourceIdentity === "pu5001")?.playerName).toBe(
+        "MPI Ashe Renamed",
+      );
+    });
+
+    it("adopts a row written before the identity column existed instead of duplicating it", async () => {
+      const { metaEventId } = await seedMirroredEvent("mpi-playloltcg-legacy", [TWO_PLAYERS[0]]);
+      // What a pre-repair promote left behind: the name it derived identity
+      // from, and no stored key.
+      const legacyId = await seedStandingsOnlyPlayer(metaEventId, "MPI Ashe", 9);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({ id: legacyId, sourceIdentity: "pu5001", rank: 1 });
+    });
+
+    it("lets only one standing claim a legacy row, so a shared name cannot flip its key", async () => {
+      const { metaEventId } = await seedMirroredEvent("mpi-playloltcg-legacy-shared", [
+        { playerKey: "nMPI Twins#1", playerName: "MPI Twins", rank: 3 },
+        { playerKey: "nMPI Twins#2", playerName: "MPI Twins", rank: 4 },
+      ]);
+      const legacyId = await seedStandingsOnlyPlayer(metaEventId, "MPI Twins", 9);
+
+      await promoteMetaEvent(repos, metaEventId);
+      const first = await repo.rawStandingsForEvent(metaEventId);
+      await promoteMetaEvent(repos, metaEventId);
+      const second = await repo.rawStandingsForEvent(metaEventId);
+
+      // Both standings share the legacy identity "n mpi twins". Letting each
+      // stamp the row in turn keyed it by whichever ran last, and the loser
+      // then inserted a duplicate on the next promote.
+      expect(first).toHaveLength(2);
+      expect(first.some((row) => row.id === legacyId)).toBe(true);
+      expect(second.map((row) => row.id).toSorted()).toEqual(first.map((row) => row.id).toSorted());
+    });
+
+    it("keeps a maintainer's deck rename across a re-promote of the same list", async () => {
+      const activityShopId = takeShopId();
+      const sourceDeckId = `mpi-deck-${activityShopId}`;
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rune Cup",
+          startAt: "2026-08-20",
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgDecklists")
+        .values({ sourceDeckId, activityShopId, fetchStatus: "fetched" })
+        .execute();
+      await db
+        .insertInto("playloltcgDecklistCards")
+        .values({ sourceDeckId, lineNumber: 0, zone: "main", quantity: 3, cardName: "MPI Spell" })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values({
+          activityShopId,
+          playerKey: "u5002",
+          playerName: "MPI Zed",
+          rank: 1,
+          sourceDeckId,
+        })
+        .execute();
+
+      const metaEventId = await seedLiveEvent("mpi-deck-rename");
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+
+      await promoteMetaEvent(repos, metaEventId);
+      const [player] = await repo.rawStandingsForEvent(metaEventId);
+      const deckId = player.deckId as string;
+      createdDeckIds.push(deckId);
+      await db
+        .updateTable("decks")
+        .set({ name: "MPI Curated Name" })
+        .where("id", "=", deckId)
+        .execute();
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const deck = await db
+        .selectFrom("decks")
+        .select("name")
+        .where("id", "=", deckId)
+        .executeTakeFirst();
+      const cards = await db
+        .selectFrom("deckCards")
+        .select(["cardId", "quantity"])
+        .where("deckId", "=", deckId)
+        .execute();
+      expect(deck?.name).toBe("MPI Curated Name");
+      expect(cards).toEqual([{ cardId: spellCardId, quantity: 3 }]);
+    });
+  });
+
+  describe("player overlays", () => {
+    async function acceptedPlayerOverlay(
+      values: Omit<
+        Insertable<MetaEventPlayerOverlaysTable>,
+        "status" | "acceptedAt" | "submittedByUserId"
+      >,
+    ): Promise<string> {
+      return await repos.metaOverlays.insertPlayerOverlay(
+        {
+          ...values,
+          status: "accepted",
+          acceptedAt: new Date("2026-08-22T00:00:00Z"),
+          submittedByUserId: META_ARCHIVE_USER_ID,
+        },
+        [],
+      );
+    }
+
+    it("applies a rename without forking the row it renames", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-rename");
+      const activityShopId = takeShopId();
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rune Cup",
+          startAt: "2026-08-20",
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values({ activityShopId, playerKey: "u5003", playerName: "MPI Typo", rank: 1 })
+        .execute();
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      await promoteMetaEvent(repos, metaEventId);
+      const [seeded] = await repo.rawStandingsForEvent(metaEventId);
+
+      await acceptedPlayerOverlay({
+        metaEventPlayerId: seeded.id,
+        playerName: "MPI Corrected",
+        claimedFields: ["playerName"],
+      });
+      await promoteMetaEvent(repos, metaEventId);
+      await promoteMetaEvent(repos, metaEventId);
+
+      // The source still publishes "MPI Typo" every pass, so the rename has to
+      // survive on the same row rather than minting a second one beside it.
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({ id: seeded.id, playerName: "MPI Corrected" });
+    });
+
+    it("matches an event-anchored overlay onto the row it names, and writes the link back", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-match");
+      const playerId = await seedStandingsOnlyPlayer(metaEventId, "MPI Sett", 4);
+      const overlayId = await acceptedPlayerOverlay({
+        metaEventId,
+        playerName: "mpi sett",
+        wins: 6,
+        claimedFields: ["playerName", "wins"],
+      });
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({ id: playerId, wins: 6 });
+      // Written back, so the next promote applies it without re-matching.
+      expect(await repos.metaOverlays.playerOverlayById(overlayId)).toMatchObject({
+        metaEventPlayerId: playerId,
+        metaEventId: null,
+      });
+    });
+
+    it("breaks a shared name on the rank the overlay claims", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-shared-name");
+      const first = await seedStandingsOnlyPlayer(metaEventId, "MPI Twin", 1);
+      const second = await seedStandingsOnlyPlayer(metaEventId, "MPI Twin", 2);
+      await acceptedPlayerOverlay({
+        metaEventId,
+        playerName: "MPI Twin",
+        rank: 2,
+        wins: 5,
+        claimedFields: ["playerName", "rank", "wins"],
+      });
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after.find((row) => row.id === second)?.wins).toBe(5);
+      expect(after.find((row) => row.id === first)?.wins).toBeNull();
+    });
+
+    it("mints a row for an event-anchored overlay naming nobody the event lists", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-mint");
+      const overlayId = await acceptedPlayerOverlay({
+        metaEventId,
+        playerName: "MPI Newcomer",
+        rank: 7,
+        claimedFields: ["playerName", "rank"],
+      });
+
+      const result = await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({ playerName: "MPI Newcomer", rank: 7 });
+      expect(result.players).toBe(1);
+      const overlay = await repos.metaOverlays.playerOverlayById(overlayId);
+      expect(overlay?.metaEventPlayerId).toBe(after[0].id);
+    });
+
+    it("mints only once, however often the event is promoted again", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-mint-twice");
+      await acceptedPlayerOverlay({
+        metaEventId,
+        playerName: "MPI Returning",
+        rank: 3,
+        claimedFields: ["playerName", "rank"],
+      });
+
+      await promoteMetaEvent(repos, metaEventId);
+      await promoteMetaEvent(repos, metaEventId);
+
+      expect(await repo.rawStandingsForEvent(metaEventId)).toHaveLength(1);
+    });
+
+    it("reports an accepted overlay it can neither match nor mint", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-stranded");
+      await acceptedPlayerOverlay({
+        metaEventId,
+        playerName: "MPI Ghost",
+        claimedFields: ["playerName"],
+      });
+
+      const result = await promoteMetaEvent(repos, metaEventId);
+
+      // Silence would read as data loss: the overlay is accepted and lands
+      // nowhere at all.
+      expect(await repo.rawStandingsForEvent(metaEventId)).toEqual([]);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain("MPI Ghost");
+    });
+
+    it("applies overlays to an event whose sources hold no standings at all", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-no-sources");
+      const playerId = await seedStandingsOnlyPlayer(metaEventId, "MPI Solo", 1);
+      await acceptedPlayerOverlay({
+        metaEventPlayerId: playerId,
+        wins: 3,
+        losses: 1,
+        claimedFields: ["wins", "losses"],
+      });
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      // The overlay pass runs whether or not a mirror produced a field, so a
+      // hand-entered event's corrections still land.
+      expect(await repo.rawStandingsForEvent(metaEventId)).toMatchObject([
+        { id: playerId, wins: 3, losses: 1 },
+      ]);
+    });
+
+    it("ignores a pending overlay until it is accepted", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-pending");
+      const playerId = await seedStandingsOnlyPlayer(metaEventId, "MPI Waiting", 1);
+      const overlayId = await repos.metaOverlays.insertPlayerOverlay(
+        {
+          metaEventPlayerId: playerId,
+          wins: 9,
+          claimedFields: ["wins"],
+          submittedByUserId: META_ARCHIVE_USER_ID,
+        },
+        [],
+      );
+
+      await promoteMetaEvent(repos, metaEventId);
+      const unapplied = await repo.rawStandingsForEvent(metaEventId);
+
+      await repos.metaOverlays.setPlayerOverlayStatus(overlayId, "accepted", new Date());
+      await promoteMetaEvent(repos, metaEventId);
+      const applied = await repo.rawStandingsForEvent(metaEventId);
+
+      expect(unapplied[0]?.wins).toBeNull();
+      expect(applied[0]?.wins).toBe(9);
+    });
+  });
+});

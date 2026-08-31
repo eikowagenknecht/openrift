@@ -1,0 +1,412 @@
+import type { MetaIngestEvent, MetaIngestEventPlayer } from "@openrift/shared";
+import type {
+  MetaEntryStatus,
+  MetaEventOverlayField,
+  MetaEventTier,
+  MetaPlayerOverlayField,
+} from "@openrift/shared/types";
+import {
+  META_ENTRY_STATUSES,
+  META_EVENT_OVERLAY_FIELDS,
+  META_EVENT_TIERS,
+} from "@openrift/shared/types";
+
+import type { Repos } from "../deps.js";
+import type { MetaEventOverlayRow, MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
+import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
+
+/**
+ * The push endpoint's ingest (ADR-014 revision 3).
+ *
+ * A push provider has no crawler, so it has no mirror to promote from. Its
+ * payload becomes overlays instead: one event overlay keyed `(provider,
+ * externalId)` and one player overlay per standings row keyed
+ * `(provider, sourcePlayerKey)`, so a re-upload updates both rather than
+ * duplicating either.
+ *
+ * A re-upload that changes nothing is left entirely alone; one that does
+ * re-opens review, because a producer that changed its mind must not have the
+ * old decision stand. Everything else stays `pending`: these are proposals,
+ * and the ADR's curation rule only exempts the official source's own published
+ * standings under an admin-set auto-accept rule, which is a fetcher path and
+ * not this one.
+ *
+ * Card names are resolved here so the reviewer sees what will and will not
+ * match, but an unresolved name is recorded rather than rejected: the row still
+ * carries the name the producer wrote, and promotion re-resolves it if an alias
+ * lands later.
+ */
+
+export interface MetaIngestUnresolved {
+  eventExternalId: string;
+  playerExternalId: string;
+  names: string[];
+}
+
+export interface MetaIngestEventDetail {
+  externalId: string;
+  name: string;
+}
+
+export interface MetaIngestResult {
+  provider: string;
+  newEvents: number;
+  updatedEvents: number;
+  unchangedEvents: number;
+  newPlayers: number;
+  updatedPlayers: number;
+  unchangedPlayers: number;
+  ignoredSkipped: number;
+  errors: string[];
+  newEventDetails: MetaIngestEventDetail[];
+  updatedEventDetails: MetaIngestEventDetail[];
+  unresolvedCards: MetaIngestUnresolved[];
+}
+
+/**
+ * External ids may contain any character the producer likes, so composite keys
+ * join on a NUL, which none can contain.
+ */
+const KEY_SEPARATOR = "\u0000";
+
+function asTier(value: string | null): MetaEventTier | null {
+  return value !== null && (META_EVENT_TIERS as readonly string[]).includes(value)
+    ? (value as MetaEventTier)
+    : null;
+}
+
+function asEntryStatus(value: string | null): MetaEntryStatus | null {
+  return value !== null && (META_ENTRY_STATUSES as readonly string[]).includes(value)
+    ? (value as MetaEntryStatus)
+    : null;
+}
+
+function playerClaims(player: MetaIngestEventPlayer): MetaPlayerOverlayField[] {
+  const claims: MetaPlayerOverlayField[] = [
+    "playerName",
+    "rank",
+    "rankIsTier",
+    "wins",
+    "losses",
+    "draws",
+    "matchPoints",
+    "opponentMatchWinPct",
+    "gameWinPct",
+    "opponentGameWinPct",
+    "entryStatus",
+    "legendCardId",
+    "championCardId",
+  ];
+  if (player.cards !== null) {
+    claims.push("listStatus", "cards");
+  }
+  return claims;
+}
+
+export async function ingestMetaOverlays(
+  repos: Repos,
+  provider: string,
+  events: readonly MetaIngestEvent[],
+  submittedByUserId: string,
+): Promise<MetaIngestResult> {
+  if (provider.trim() === "") {
+    throw new Error("provider name must not be empty");
+  }
+
+  const result: MetaIngestResult = {
+    provider,
+    newEvents: 0,
+    updatedEvents: 0,
+    unchangedEvents: 0,
+    newPlayers: 0,
+    updatedPlayers: 0,
+    unchangedPlayers: 0,
+    ignoredSkipped: 0,
+    errors: [],
+    newEventDetails: [],
+    updatedEventDetails: [],
+    unresolvedCards: [],
+  };
+
+  const [ignoredEvents, ignoredPlayers, cardIndex] = await Promise.all([
+    repos.metaOverlays.ignoredEventIds(provider),
+    repos.metaOverlays.ignoredPlayerKeys(provider),
+    loadCardNameIndex(repos.ingest),
+  ]);
+  const ignoredEventKeys = new Set(ignoredEvents);
+  const ignoredPlayerKeys = new Set(
+    ignoredPlayers.map((key) => `${key.eventExternalId}${KEY_SEPARATOR}${key.externalId}`),
+  );
+
+  const existing = await repos.metaOverlays.eventOverlaysBySourceKeys(
+    provider,
+    events.map((event) => event.externalId),
+  );
+  const existingByKey = new Map(existing.map((row) => [row.externalId ?? "", row]));
+  const priorPlayers = await repos.metaOverlays.playerOverlaysBySourceKeys(
+    provider,
+    events.flatMap((event) =>
+      event.players.map((player) => playerSourceKey(event.externalId, player.externalId)),
+    ),
+  );
+  const priorPlayersByKey = new Map(priorPlayers.map((row) => [row.sourcePlayerKey ?? "", row]));
+  const priorCards = await repos.metaOverlays.cardsByOverlayIds(priorPlayers.map((row) => row.id));
+
+  for (const event of events) {
+    if (ignoredEventKeys.has(event.externalId)) {
+      result.ignoredSkipped++;
+      continue;
+    }
+
+    const values = {
+      provider,
+      externalId: event.externalId,
+      name: event.name,
+      eventDate: event.eventDate,
+      format: event.format,
+      playerCount: event.playerCount,
+      organizer: event.organizer,
+      notes: event.notes,
+      tier: asTier(event.tier),
+      country: event.country,
+      location: event.location,
+      // An uploaded event claims every field the schema fills in, which is all
+      // of them: the producer is describing a whole event, not patching one.
+      claimedFields: [...META_EVENT_OVERLAY_FIELDS],
+      submittedByUserId,
+    };
+
+    const prior = existingByKey.get(event.externalId);
+    let eventOverlayId: string;
+    if (prior === undefined) {
+      eventOverlayId = await repos.metaOverlays.insertEventOverlay(values);
+      result.newEvents++;
+      result.newEventDetails.push({ externalId: event.externalId, name: event.name });
+    } else if (sameEventPayload(prior, values)) {
+      eventOverlayId = prior.id;
+      result.unchangedEvents++;
+    } else {
+      // A re-upload that moved something restates the whole event, so it also
+      // re-opens review: a producer that changed its mind must not have the
+      // old decision stand.
+      await repos.metaOverlays.updateEventOverlay(prior.id, {
+        ...values,
+        status: "pending",
+        acceptedAt: null,
+      });
+      eventOverlayId = prior.id;
+      result.updatedEvents++;
+      result.updatedEventDetails.push({ externalId: event.externalId, name: event.name });
+    }
+
+    await ingestPlayers(repos, {
+      event,
+      eventOverlayId,
+      metaEventId: prior?.metaEventId ?? null,
+      provider,
+      submittedByUserId,
+      cardIndex,
+      ignoredPlayerKeys,
+      priorPlayersByKey,
+      priorCards,
+      result,
+    });
+  }
+
+  return result;
+}
+
+function playerSourceKey(eventExternalId: string, playerExternalId: string): string {
+  return `${eventExternalId}${KEY_SEPARATOR}${playerExternalId}`;
+}
+
+/** The two provider keys back out of a stored {@link playerSourceKey}. */
+export function splitSourcePlayerKey(key: string | null): {
+  eventExternalId: string | null;
+  playerExternalId: string | null;
+} {
+  if (key === null) {
+    return { eventExternalId: null, playerExternalId: null };
+  }
+  const cut = key.indexOf(KEY_SEPARATOR);
+  if (cut === -1) {
+    return { eventExternalId: null, playerExternalId: null };
+  }
+  return {
+    eventExternalId: key.slice(0, cut),
+    playerExternalId: key.slice(cut + KEY_SEPARATOR.length),
+  };
+}
+
+const EVENT_COMPARE_COLUMNS = [
+  "name",
+  "eventDate",
+  "format",
+  "playerCount",
+  "organizer",
+  "notes",
+  "tier",
+  "country",
+  "location",
+] as const satisfies readonly MetaEventOverlayField[];
+
+function sameEventPayload(prior: MetaEventOverlayRow, values: Record<string, unknown>): boolean {
+  return EVENT_COMPARE_COLUMNS.every((column) => prior[column] === values[column]);
+}
+
+interface OverlayCardLine {
+  lineNumber: number;
+  zone: string;
+  quantity: number;
+  cardName: string;
+  cardId: string | null;
+}
+
+interface PlayerIngestContext {
+  event: MetaIngestEvent;
+  eventOverlayId: string;
+  /** Set once the event overlay has been accepted, so players target live. */
+  metaEventId: string | null;
+  provider: string;
+  submittedByUserId: string;
+  cardIndex: Awaited<ReturnType<typeof loadCardNameIndex>>;
+  ignoredPlayerKeys: ReadonlySet<string>;
+  priorPlayersByKey: ReadonlyMap<string, MetaPlayerOverlayRow>;
+  priorCards: ReadonlyMap<string, readonly OverlayCardLine[]>;
+  result: MetaIngestResult;
+}
+
+const PLAYER_COMPARE_COLUMNS = [
+  "playerName",
+  "rank",
+  "rankIsTier",
+  "wins",
+  "losses",
+  "draws",
+  "matchPoints",
+  "opponentMatchWinPct",
+  "gameWinPct",
+  "opponentGameWinPct",
+  "entryStatus",
+  "legendCardId",
+  "championCardId",
+  "listStatus",
+] as const;
+
+function samePlayerPayload(
+  prior: MetaPlayerOverlayRow,
+  values: Record<string, unknown>,
+  priorLines: readonly OverlayCardLine[],
+  lines: readonly OverlayCardLine[],
+): boolean {
+  if (!PLAYER_COMPARE_COLUMNS.every((column) => prior[column] === values[column])) {
+    return false;
+  }
+  if (priorLines.length !== lines.length) {
+    return false;
+  }
+  return lines.every((line, index) => {
+    const held = priorLines[index];
+    return (
+      held !== undefined &&
+      held.zone === line.zone &&
+      held.quantity === line.quantity &&
+      held.cardName === line.cardName &&
+      held.cardId === line.cardId
+    );
+  });
+}
+
+async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<void> {
+  for (const player of ctx.event.players) {
+    const key = playerSourceKey(ctx.event.externalId, player.externalId);
+    if (ctx.ignoredPlayerKeys.has(key)) {
+      ctx.result.ignoredSkipped++;
+      continue;
+    }
+
+    const unresolved: string[] = [];
+    const legendCardId =
+      player.legendName === null ? null : resolveCardIdByName(ctx.cardIndex, player.legendName);
+    if (player.legendName !== null && legendCardId === null) {
+      unresolved.push(player.legendName);
+    }
+    const championCardId =
+      player.championName === null ? null : resolveCardIdByName(ctx.cardIndex, player.championName);
+    if (player.championName !== null && championCardId === null) {
+      unresolved.push(player.championName);
+    }
+
+    const cards: OverlayCardLine[] = (player.cards ?? []).map((card, index) => {
+      const cardId = resolveCardIdByName(ctx.cardIndex, card.name);
+      if (cardId === null) {
+        unresolved.push(card.name);
+      }
+      return {
+        lineNumber: index,
+        zone: card.zone,
+        quantity: card.quantity,
+        cardName: card.name,
+        cardId,
+      };
+    });
+
+    const values = {
+      playerName: player.playerName,
+      rank: player.rank,
+      rankIsTier: player.rankIsTier,
+      wins: player.wins,
+      losses: player.losses,
+      draws: player.draws,
+      matchPoints: player.matchPoints,
+      opponentMatchWinPct: player.opponentMatchWinPct,
+      gameWinPct: player.gameWinPct,
+      opponentGameWinPct: player.opponentGameWinPct,
+      entryStatus: asEntryStatus(player.entryStatus),
+      legendCardId,
+      championCardId,
+      // The mask CHECK refuses an unclaimed value, and a standings-only row
+      // claims no list, so its status column stays NULL rather than "none".
+      listStatus: player.cards === null ? null : player.listStatus,
+      claimedFields: playerClaims(player),
+      submittedByUserId: ctx.submittedByUserId,
+    };
+
+    const prior = ctx.priorPlayersByKey.get(key);
+    if (prior === undefined) {
+      await repos.metaOverlays.insertPlayerOverlay(
+        {
+          // A player hangs off the live event once one exists, and off the
+          // proposal until then, so accepting the event carries its field along.
+          metaEventId: ctx.metaEventId,
+          eventOverlayId: ctx.metaEventId === null ? ctx.eventOverlayId : null,
+          metaEventPlayerId: null,
+          provider: ctx.provider,
+          sourcePlayerKey: key,
+          ...values,
+        },
+        cards,
+      );
+      ctx.result.newPlayers++;
+    } else if (samePlayerPayload(prior, values, ctx.priorCards.get(prior.id) ?? [], cards)) {
+      ctx.result.unchangedPlayers++;
+    } else {
+      // The anchor is left alone: a row already linked to a live entry keeps
+      // its link, and re-opening review is what protects the live value.
+      await repos.metaOverlays.updatePlayerOverlay(
+        prior.id,
+        { ...values, status: "pending", acceptedAt: null },
+        cards,
+      );
+      ctx.result.updatedPlayers++;
+    }
+
+    if (unresolved.length > 0) {
+      ctx.result.unresolvedCards.push({
+        eventExternalId: ctx.event.externalId,
+        playerExternalId: player.externalId,
+        names: [...new Set(unresolved)],
+      });
+    }
+  }
+}

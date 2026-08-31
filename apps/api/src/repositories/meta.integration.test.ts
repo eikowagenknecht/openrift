@@ -2,10 +2,9 @@ import type { MetaCreditVisibility, MetaListStatus } from "@openrift/shared/type
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { Repos } from "../deps.js";
-import { materializeCandidateMatches } from "../services/meta-event-matches.js";
-import { suggestMetaEventMatches } from "../services/meta-match-suggestions.js";
+import { createRepos } from "../deps.js";
+import { promoteMetaEvent } from "../services/meta-promote.js";
 import { createDbContext } from "../test/integration-context.js";
-import { metaCandidatesRepo } from "./meta-candidates.js";
 import type {
   MetaArchivedDeckInput,
   MetaDeckCardInput,
@@ -967,6 +966,29 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(after.eventsWithDecklists).toBe(before.eventsWithDecklists + 1);
     });
 
+    it("counts only the events a given provider's citation links", async () => {
+      const provider = `mta-src-${crypto.randomUUID().slice(0, 8)}`;
+      const sourced = await seedEvent(repo, `mta-funnel-sourced-${provider}`);
+      const unsourced = await seedEvent(repo, `mta-funnel-unsourced-${provider}`);
+      await repo.insertEventSource({
+        metaEventId: sourced,
+        provider,
+        externalId: provider,
+        label: "MTA Source",
+        sourceUrl: null,
+      });
+      await seedListedPlayer(repo, sourced, { playerName: "MTA Sourced", rank: 1 });
+      await seedListedPlayer(repo, unsourced, { playerName: "MTA Unsourced", rank: 1 });
+
+      const overview = await repo.archiveOverview(provider);
+      expect(overview).toEqual({
+        events: 1,
+        eventsWithStandings: 1,
+        eventsWithDecklists: 1,
+        decks: 1,
+      });
+    });
+
     it("reports an empty scope as zero rather than failing", async () => {
       const scope = { dateFrom: "1999-01-01", dateTo: "1999-12-31" };
       expect(await repo.playerCountInScope(scope)).toBe(0);
@@ -991,10 +1013,9 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(await repo.updateEvent(crypto.randomUUID(), { name: "MTA Ghost" })).toBe(false);
     });
 
-    it("moves a standings row to another event and rewrites its scalars", async () => {
-      const from = await seedEvent(repo, "mta-move-from");
-      const to = await seedEvent(repo, "mta-move-to");
-      const { playerId, deckId } = await seedListedPlayer(repo, from, {
+    it("rewrites a standings row's scalars", async () => {
+      const eventId = await seedEvent(repo, "mta-rewrite-scalars");
+      const { playerId, deckId } = await seedListedPlayer(repo, eventId, {
         playerName: "MTA Mover",
         rank: 4,
         rankIsTier: true,
@@ -1002,7 +1023,6 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
       expect(
         await repo.updatePlayer(playerId, {
-          eventId: to,
           rank: 1,
           rankIsTier: false,
           playerName: "MTA Moved",
@@ -1014,7 +1034,6 @@ describe.skipIf(!ctx)("metaRepo", () => {
       ).toBe(true);
 
       const context = await repo.contextForDeck(deckId);
-      expect(context?.eventSlug).toBe("mta-move-to");
       expect(context?.rank).toBe(1);
       expect(context?.rankIsTier).toBe(false);
       expect(context?.playerName).toBe("MTA Moved");
@@ -1163,6 +1182,84 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(after?.deckName).toBe("MTA Corrected");
       // Links already published to this deck have to keep working.
       expect(after?.shareToken).toBe(before?.shareToken);
+    });
+
+    it("rewrites nothing when the same list is written again", async () => {
+      const eventId = await seedEvent(repo, "mta-rewrite-same-list");
+      const opts = { playerName: "MTA Unchanged", rank: 1 };
+      const { playerId, deckId } = await seedListedPlayer(repo, eventId, opts);
+      const before = await db
+        .selectFrom("deckCards")
+        .select("id")
+        .where("deckId", "=", deckId)
+        .orderBy("id", "asc")
+        .execute();
+      const deckBefore = await db
+        .selectFrom("decks")
+        .select("updatedAt")
+        .where("id", "=", deckId)
+        .executeTakeFirst();
+
+      await repo.setPlayerDeck(playerId, deckInput(opts, "full"), "mtaunchanged");
+
+      // A re-promote runs over every event's whole field, so writing an
+      // identical list would churn every card row in the archive each pass.
+      const after = await db
+        .selectFrom("deckCards")
+        .select("id")
+        .where("deckId", "=", deckId)
+        .orderBy("id", "asc")
+        .execute();
+      const deckAfter = await db
+        .selectFrom("decks")
+        .select("updatedAt")
+        .where("id", "=", deckId)
+        .executeTakeFirst();
+      expect(after).toEqual(before);
+      expect(deckAfter?.updatedAt).toEqual(deckBefore?.updatedAt);
+    });
+
+    it("keeps a curated deck name when the caller asks for it", async () => {
+      const eventId = await seedEvent(repo, "mta-preserve-deck-name");
+      const opts = { playerName: "MTA Renamed", rank: 1 };
+      const { playerId, deckId } = await seedListedPlayer(repo, eventId, opts);
+      await db
+        .updateTable("decks")
+        .set({ name: "MTA Curated Name" })
+        .where("id", "=", deckId)
+        .execute();
+
+      await repo.setPlayerDeck(playerId, deckInput(opts, "full"), "mtapreserve1", {
+        preserveName: true,
+      });
+      const preserved = await repo.playerById(playerId);
+      await repo.setPlayerDeck(playerId, deckInput(opts, "full"), "mtapreserve1");
+
+      const overwritten = await repo.playerById(playerId);
+
+      expect(preserved?.deckName).toBe("MTA Curated Name");
+      // Without the flag the caller's name is the name, which is what the
+      // admin's own edit means.
+      expect(overwritten?.deckName).toBe("MTA Renamed Deck");
+    });
+
+    it("renames an attached deck, and reports a row that has none to rename", async () => {
+      const eventId = await seedEvent(repo, "mta-rename-deck");
+      const opts = { playerName: "MTA Namer", rank: 1 };
+      const { playerId } = await seedListedPlayer(repo, eventId, opts);
+      const decklessId = await seedDecklessPlayer(repo, eventId, {
+        playerName: "MTA Deckless",
+        rank: 2,
+      });
+
+      expect(await repo.renamePlayerDeck(playerId, "MTA Chosen Name")).toBe(true);
+      // Not an error: an entry with no list has no name to carry, so the
+      // caller learns nothing was written rather than throwing.
+      expect(await repo.renamePlayerDeck(decklessId, "MTA Chosen Name")).toBe(false);
+      expect(await repo.renamePlayerDeck(crypto.randomUUID(), "MTA Chosen Name")).toBe(false);
+
+      const row = await repo.playerById(playerId);
+      expect(row?.deckName).toBe("MTA Chosen Name");
     });
 
     it("reports a list written against a standings row that doesn't exist", async () => {
@@ -1514,599 +1611,240 @@ describe.skipIf(!ctx)("metaRepo", () => {
   });
 });
 
-describe.skipIf(!ctx)("event matches", () => {
+describe.skipIf(!ctx)("promotion", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { db } = ctx!;
   const repo = metaRepo(db);
-  const candidates = metaCandidatesRepo(db);
 
-  const PROVIDER = "mta-matches";
+  const EXTERNAL_ID = "mta-promote-1";
   const UVS_A = 990_201;
   const UVS_B = 990_202;
-  const UVS_C = 990_203;
+  /** A seat the mirror knows before any standings row names them. */
+  const UVS_LATE = 990_203;
+  let repos: Repos;
+  let metaEventId: string;
 
   afterAll(async () => {
-    // Candidates first: their match rows FK the uvs players without a cascade.
-    await db.deleteFrom("candidateMetaEvents").where("provider", "=", PROVIDER).execute();
-    await db.deleteFrom("uvsgamesPlayers").where("id", "in", [UVS_A, UVS_B, UVS_C]).execute();
+    // The live rows go first: `meta_event_players.uvsgames_player_id` has no
+    // ON DELETE, so a mirrored player cannot be removed while one cites it.
+    if (metaEventId !== undefined) {
+      await db.deleteFrom("metaEvents").where("id", "=", metaEventId).execute();
+    }
+    await db.deleteFrom("uvsgamesEventMatches").where("externalId", "=", EXTERNAL_ID).execute();
+    await db.deleteFrom("uvsgamesEventStandings").where("externalId", "=", EXTERNAL_ID).execute();
+    await db.deleteFrom("uvsgamesEvents").where("externalId", "=", EXTERNAL_ID).execute();
+    await db.deleteFrom("uvsgamesPlayers").where("id", "in", [UVS_A, UVS_B, UVS_LATE]).execute();
   });
 
-  async function seedField(slug: string): Promise<{
-    eventId: string;
-    candidateEventId: string;
-    liveByUvsId: Map<number, string>;
-  }> {
+  /**
+   * One accepted event whose mirror holds two players and the match between
+   * them, which is the smallest shape that exercises every promotion step.
+   */
+  async function seedMirror(): Promise<void> {
+    repos = createRepos(db);
+
     await db
       .insertInto("uvsgamesPlayers")
       .values([
-        { id: UVS_A, displayName: "MTA Seat A" },
-        { id: UVS_B, displayName: "MTA Seat B" },
-        { id: UVS_C, displayName: "MTA Seat C" },
+        { id: UVS_A, displayName: "MTA Ashe" },
+        { id: UVS_B, displayName: "MTA Riven" },
       ])
       .onConflict((oc) => oc.column("id").doNothing())
       .execute();
 
-    const eventId = await seedEvent(repo, slug);
-    const candidateEventId = await candidates.insertEvent({
-      provider: PROVIDER,
-      externalId: slug,
-      name: `MTA ${slug}`,
-      eventDate: "2026-08-01",
-      format: FORMAT,
-      playerCount: 3,
-      organizer: null,
-      sourceUrl: null,
-      notes: null,
-      tier: null,
-      country: null,
-      location: null,
-      metaEventId: eventId,
-    });
-
-    const liveByUvsId = new Map<number, string>();
-    for (const [index, uvsId] of [UVS_A, UVS_B, UVS_C].entries()) {
-      const liveId = await seedDecklessPlayer(repo, eventId, {
-        playerName: `MTA Seat ${uvsId}`,
-        rank: index + 1,
-      });
-      await candidates.insertPlayer({
-        candidateEventId,
-        externalId: `reg-${uvsId}`,
-        playerName: `MTA Seat ${uvsId}`,
-        rank: index + 1,
-        uvsgamesPlayerId: uvsId,
-        metaEventPlayerId: liveId,
-      });
-      liveByUvsId.set(uvsId, liveId);
-    }
-    return { eventId, candidateEventId, liveByUvsId };
-  }
-
-  function stagedMatch(
-    candidateEventId: string,
-    roundId: string,
-    p1: number,
-    p2: number | null,
-    overrides: Partial<{
-      roundNumber: number;
-      tableNumber: number | null;
-      winner: number | null;
-    }> = {},
-  ) {
-    return {
-      candidateEventId,
-      // The source's own key: distinct per seat pairing within the round.
-      sourceMatchId: `${roundId}-${p1}-${p2 ?? "bye"}`,
-      roundId,
-      phaseOrder: 0,
-      roundNumber: overrides.roundNumber ?? 1,
-      tableNumber: overrides.tableNumber === undefined ? 1 : overrides.tableNumber,
-      isBye: p2 === null,
-      isDraw: false,
-      player1UvsgamesId: p1,
-      player2UvsgamesId: p2,
-      winnerUvsgamesId: overrides.winner === undefined ? p1 : overrides.winner,
-      gamesWonP1: 2,
-      gamesWonP2: p2 === null ? null : 0,
-    };
-  }
-
-  it("stages, materializes, and stamps a round of matches", async () => {
-    const { eventId, candidateEventId, liveByUvsId } = await seedField("mta-matches-flow");
-
-    await candidates.replaceRoundMatches(candidateEventId, "r1", [
-      stagedMatch(candidateEventId, "r1", UVS_A, UVS_B),
-      stagedMatch(candidateEventId, "r1", UVS_C, null, { tableNumber: null }),
-    ]);
-    expect(await candidates.matchRoundIds(candidateEventId)).toEqual(["r1"]);
-    expect(await candidates.unmaterializedMatches(candidateEventId)).toHaveLength(2);
-
-    const summary = await materializeCandidateMatches(
-      { meta: repo, metaCandidates: candidates },
-      candidateEventId,
-      eventId,
-    );
-    expect(summary).toEqual({ materialized: 2, waiting: 0 });
-
-    const live = await repo.matchesForEvent(eventId);
-    expect(live).toHaveLength(2);
-    expect(live[0]).toMatchObject({
-      player1Id: liveByUvsId.get(UVS_A),
-      player2Id: liveByUvsId.get(UVS_B),
-      winnerId: liveByUvsId.get(UVS_A),
-      isBye: false,
-    });
-    expect(live[1]).toMatchObject({
-      player1Id: liveByUvsId.get(UVS_C),
-      player2Id: null,
-      isBye: true,
-      tableNumber: null,
-    });
-    expect(await candidates.unmaterializedMatches(candidateEventId)).toHaveLength(0);
-  });
-
-  it("answers the write with each row's live id beside its source match id", async () => {
-    const { eventId, candidateEventId, liveByUvsId } = await seedField("mta-matches-returning");
-
-    await candidates.replaceRoundMatches(candidateEventId, "r1", [
-      stagedMatch(candidateEventId, "r1", UVS_A, UVS_B),
-      stagedMatch(candidateEventId, "r1", UVS_C, null, { roundNumber: 2, tableNumber: null }),
-    ]);
-    const staged = await candidates.unmaterializedMatches(candidateEventId);
-
-    const written = await repo.upsertEventMatches(
-      staged.map((match) => ({
-        metaEventId: eventId,
-        sourceMatchId: match.sourceMatchId,
-        sourceRoundId: match.roundId,
-        phaseOrder: match.phaseOrder,
-        roundNumber: match.roundNumber,
-        tableNumber: match.tableNumber,
-        isBye: match.isBye,
-        isDraw: match.isDraw,
-        player1Id: liveByUvsId.get(match.player1UvsgamesId) as string,
-        player2Id:
-          match.player2UvsgamesId === null
-            ? null
-            : (liveByUvsId.get(match.player2UvsgamesId) as string),
-        winnerId: null,
-        gamesWonP1: match.gamesWonP1,
-        gamesWonP2: match.gamesWonP2,
-      })),
-    );
-
-    expect(written).toHaveLength(2);
-    const bySource = new Map(written.map((row) => [row.sourceMatchId, row.id]));
-    expect(bySource.has(`r1-${UVS_A}-${UVS_B}`)).toBe(true);
-    expect(bySource.has(`r1-${UVS_C}-bye`)).toBe(true);
-    expect(new Set(bySource.values()).size).toBe(2);
-  });
-
-  it("leaves a match waiting while a participant has no live row, then completes it", async () => {
-    const { eventId, candidateEventId } = await seedField("mta-matches-waiting");
-    const [pending] = await candidates.playersByCandidateEventIds([candidateEventId]);
-    if (pending === undefined) {
-      throw new Error("no candidate players staged");
-    }
-    await candidates.updatePlayer(pending.id, { metaEventPlayerId: null });
-    const pendingUvsId = pending.uvsgamesPlayerId as number;
-    const otherUvsId = [UVS_A, UVS_B, UVS_C].find((id) => id !== pendingUvsId) as number;
-
-    await candidates.replaceRoundMatches(candidateEventId, "r1", [
-      stagedMatch(candidateEventId, "r1", pendingUvsId, otherUvsId, { winner: otherUvsId }),
-    ]);
-
-    const first = await materializeCandidateMatches(
-      { meta: repo, metaCandidates: candidates },
-      candidateEventId,
-      eventId,
-    );
-    expect(first).toEqual({ materialized: 0, waiting: 1 });
-    expect(await repo.matchesForEvent(eventId)).toHaveLength(0);
-
-    const liveId = await seedDecklessPlayer(repo, eventId, {
-      playerName: "MTA Late Accept",
-      rank: 9,
-    });
-    await candidates.updatePlayer(pending.id, { metaEventPlayerId: liveId });
-
-    const second = await materializeCandidateMatches(
-      { meta: repo, metaCandidates: candidates },
-      candidateEventId,
-      eventId,
-    );
-    expect(second).toEqual({ materialized: 1, waiting: 0 });
-    expect(await repo.matchesForEvent(eventId)).toHaveLength(1);
-  });
-
-  it("replaces a refetched round wholesale, live rows included", async () => {
-    const { eventId, candidateEventId } = await seedField("mta-matches-replace");
-
-    await candidates.replaceRoundMatches(candidateEventId, "r1", [
-      stagedMatch(candidateEventId, "r1", UVS_A, UVS_B),
-    ]);
-    await materializeCandidateMatches(
-      { meta: repo, metaCandidates: candidates },
-      candidateEventId,
-      eventId,
-    );
-    expect(await repo.matchesForEvent(eventId)).toHaveLength(1);
-
-    await candidates.replaceRoundMatches(candidateEventId, "r1", [
-      stagedMatch(candidateEventId, "r1", UVS_A, UVS_C, { tableNumber: 2 }),
-    ]);
-
-    // The replaced generation took its live row with it; the new one waits.
-    expect(await repo.matchesForEvent(eventId)).toHaveLength(0);
-    const staged = await candidates.unmaterializedMatches(candidateEventId);
-    expect(staged).toHaveLength(1);
-    expect(staged[0]?.player2UvsgamesId).toBe(UVS_C);
-  });
-
-  it("takes the live matches when a player row goes, and the staging survives unstamped", async () => {
-    const { eventId, candidateEventId, liveByUvsId } = await seedField("mta-matches-cascade");
-
-    await candidates.replaceRoundMatches(candidateEventId, "r1", [
-      stagedMatch(candidateEventId, "r1", UVS_A, UVS_B),
-    ]);
-    await materializeCandidateMatches(
-      { meta: repo, metaCandidates: candidates },
-      candidateEventId,
-      eventId,
-    );
-
-    await db
-      .deleteFrom("metaEventPlayers")
-      .where("id", "=", liveByUvsId.get(UVS_B) as string)
-      .execute();
-
-    expect(await repo.matchesForEvent(eventId)).toHaveLength(0);
-    const staged = await candidates.unmaterializedMatches(candidateEventId);
-    expect(staged).toHaveLength(1);
-    expect(staged[0]?.metaEventMatchId).toBeNull();
-  });
-
-  it("holds the match shape by CHECK: a bye has one seat and a winner is a participant", async () => {
-    const { eventId, liveByUvsId } = await seedField("mta-matches-checks");
-    const p1 = liveByUvsId.get(UVS_A) as string;
-    const p2 = liveByUvsId.get(UVS_B) as string;
-    const outsider = liveByUvsId.get(UVS_C) as string;
-
-    await expect(
-      db
-        .insertInto("metaEventMatches")
-        .values({
-          metaEventId: eventId,
-          roundNumber: 1,
-          player1Id: p1,
-          player2Id: null,
-          isBye: false,
-        })
-        .execute(),
-    ).rejects.toThrow(/chk_meta_event_matches_bye/u);
-
-    await expect(
-      db
-        .insertInto("metaEventMatches")
-        .values({
-          metaEventId: eventId,
-          roundNumber: 1,
-          player1Id: p1,
-          player2Id: p2,
-          winnerId: outsider,
-        })
-        .execute(),
-    ).rejects.toThrow(/chk_meta_event_matches_winner/u);
-  });
-});
-
-describe.skipIf(!ctx)("staged candidates the source identifies", () => {
-  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const { db } = ctx!;
-  const repo = metaRepo(db);
-  const candidates = metaCandidatesRepo(db);
-
-  const SOURCE_PROVIDER = "uvsgames";
-  const OWN_PROVIDER = "mta-staging";
-  const MIRROR_KEY = "mta-cls-1";
-  const TEMPLATE_ID = "mta-cls-template";
-  const UVS_IDS = [990_301, 990_302, 990_303];
-
-  afterAll(async () => {
-    await db
-      .deleteFrom("candidateMetaEvents")
-      .where("provider", "in", [SOURCE_PROVIDER, OWN_PROVIDER])
-      .where("externalId", "in", [MIRROR_KEY, "mta-staging-1", "mta-staging-2", "mta-staging-3"])
-      .execute();
-    await db.deleteFrom("uvsgamesEvents").where("externalId", "=", MIRROR_KEY).execute();
-    await db.deleteFrom("uvsgamesEventTemplates").where("templateId", "=", TEMPLATE_ID).execute();
-    await db.deleteFrom("uvsgamesPlayers").where("id", "in", UVS_IDS).execute();
-  });
-
-  it("stamps every staged player's source id in one write", async () => {
-    const candidateEventId = await candidates.insertEvent({
-      provider: OWN_PROVIDER,
-      externalId: "mta-staging-1",
-      name: "MTA Staging Field",
-      eventDate: "2026-08-01",
-      format: FORMAT,
-      playerCount: 3,
-      organizer: null,
-      sourceUrl: null,
-      notes: null,
-      tier: null,
-      country: null,
-      location: null,
-      metaEventId: null,
-    });
-    await db
-      .insertInto("uvsgamesPlayers")
-      .values(UVS_IDS.map((id) => ({ id, displayName: `MTA Staged ${id}` })))
-      .onConflict((oc) => oc.column("id").doNothing())
-      .execute();
-    for (const [index, uvsId] of UVS_IDS.entries()) {
-      await candidates.insertPlayer({
-        candidateEventId,
-        externalId: `reg-${uvsId}`,
-        playerName: `MTA Staged ${uvsId}`,
-        rank: index + 1,
-      });
-    }
-
-    const stamped = await candidates.setPlayerUvsIds(
-      candidateEventId,
-      new Map([
-        ...UVS_IDS.map((uvsId) => [`reg-${uvsId}`, uvsId] as const),
-        // A registration this event never staged stamps nothing.
-        ["reg-unknown", 990_399] as const,
-      ]),
-    );
-
-    expect(stamped).toBe(3);
-    const players = await candidates.playersByCandidateEventIds([candidateEventId]);
-    expect(players.map((player) => player.uvsgamesPlayerId).toSorted()).toEqual(UVS_IDS);
-  });
-
-  it("writes the recomputed classification onto a batch of candidates", async () => {
-    const staged = async (externalId: string): Promise<string> =>
-      await candidates.insertEvent({
-        provider: OWN_PROVIDER,
-        externalId,
-        name: `MTA ${externalId}`,
-        eventDate: "2026-08-01",
-        format: FORMAT,
-        playerCount: 200,
-        organizer: null,
-        sourceUrl: null,
-        notes: null,
-        tier: null,
-        country: null,
-        location: null,
-        metaEventId: null,
-      });
-    const promoted = await staged("mta-staging-2");
-    const cleared = await staged("mta-staging-3");
-    await candidates.setClassifications([
-      { id: cleared, tier: "casual", country: "DE", location: "Kartenstrasse 1, Berlin" },
-    ]);
-
-    await candidates.setClassifications([
-      { id: promoted, tier: "premier", country: "FR", location: "Rue Piltover 2, Paris" },
-      // Every field travels, so a rule that now derives nothing clears the row.
-      { id: cleared, tier: "store", country: null, location: null },
-    ]);
-
-    const rows = await db
-      .selectFrom("candidateMetaEvents")
-      .select(["id", "tier", "country", "location"])
-      .where("id", "in", [promoted, cleared])
-      .execute();
-    expect(rows.find((row) => row.id === promoted)).toMatchObject({
-      tier: "premier",
-      country: "FR",
-      location: "Rue Piltover 2, Paris",
-    });
-    expect(rows.find((row) => row.id === cleared)).toMatchObject({
-      tier: "store",
-      country: null,
-      location: null,
-    });
-  });
-
-  it("names cards by id, skipping the ids no card carries", async () => {
-    const names = await candidates.cardNamesByIds([legendCardId, crypto.randomUUID()]);
-
-    expect(names.get(legendCardId)).toBe("MTA Legend");
-    expect(names.size).toBe(1);
-    expect(await candidates.cardNamesByIds([])).toEqual(new Map());
-  });
-
-  it("joins the source facts and the live values the reclassify pass compares", async () => {
-    await db
-      .insertInto("uvsgamesEventTemplates")
-      .values({ templateId: TEMPLATE_ID, sourceName: "MTA Series", tier: "competitive" })
-      .execute();
     await db
       .insertInto("uvsgamesEvents")
       .values({
-        externalId: MIRROR_KEY,
-        name: "MTA Classified Event",
-        // Clear of the window `uvsgames-events.integration.test.ts` sweeps with
-        // `markMissing`, so this row cannot land in that file's counts.
-        startAt: new Date("2026-11-05T18:00:00Z"),
+        externalId: EXTERNAL_ID,
+        name: "MTA Promotion Cup",
+        startAt: new Date("2026-08-15T09:00:00Z"),
         displayStatus: "complete",
-        playerCount: 64,
         eventFormat: "Constructed",
-        location: "Kartenstrasse 1, 10115, DE",
-        timezone: "UTC",
-        eventConfigurationTemplate: TEMPLATE_ID,
-        contentHash: "mta-cls-hash",
-        firstSeenAt: new Date("2026-08-01T00:00:00Z"),
-        lastSeenAt: new Date("2026-08-01T00:00:00Z"),
+        playerCount: 2,
+        contentHash: "mta-hash",
+        lastSeenAt: new Date("2026-08-16T00:00:00Z"),
       })
       .execute();
-    const eventId = await seedEvent(repo, "mta-cls-live");
-    const candidateEventId = await candidates.insertEvent({
-      provider: SOURCE_PROVIDER,
-      externalId: MIRROR_KEY,
-      name: "MTA Classified Event",
-      eventDate: "2026-08-01",
-      format: FORMAT,
-      playerCount: 64,
+
+    await db
+      .insertInto("uvsgamesFormatMappings")
+      .values({ sourceFormat: "constructed", mappedFormat: "constructed" })
+      .onConflict((oc) => oc.column("sourceFormat").doNothing())
+      .execute();
+
+    const live = await repo.createEvent({
+      slug: "mta-promotion-cup",
+      name: "MTA Promotion Cup",
+      eventDate: "2026-08-15",
+      format: "constructed",
+      playerCount: null,
       organizer: null,
-      sourceUrl: null,
       notes: null,
       tier: "store",
       country: null,
       location: null,
-      metaEventId: eventId,
-      // Keeps the row out of the mirror's awaiting-results count, which another
-      // file asserts exactly.
-      fetchedAt: new Date("2026-08-02T00:00:00Z"),
     });
+    metaEventId = live.id;
 
-    const rows = await candidates.classificationRows({ templateId: TEMPLATE_ID, limit: 50 });
-
-    expect(rows).toEqual([
-      {
-        candidateEventId,
-        name: "MTA Classified Event",
-        playerCount: 64,
-        tier: "store",
-        country: null,
-        location: null,
-        sourceLocation: "Kartenstrasse 1, 10115, DE",
-        templateTier: "competitive",
-        metaEventId: eventId,
-        liveTier: "store",
-        liveCountry: null,
-        liveLocation: null,
-      },
-    ]);
-  });
-});
-
-describe.skipIf(!ctx)("the archive funnel one source fed", () => {
-  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const { db } = ctx!;
-  const repo = metaRepo(db);
-  const candidates = metaCandidatesRepo(db);
-  const PROVIDER = "mta-funnel-source";
-
-  afterAll(async () => {
-    await db.deleteFrom("candidateMetaEvents").where("provider", "=", PROVIDER).execute();
-  });
-
-  it("counts only the events and decks a candidate of that provider links", async () => {
-    expect(await repo.archiveOverview(PROVIDER)).toEqual({
-      events: 0,
-      eventsWithStandings: 0,
-      eventsWithDecklists: 0,
-      decks: 0,
-    });
-
-    const linked = await seedEvent(repo, "mta-provider-linked");
-    await seedListedPlayer(repo, linked, { playerName: "MTA Provider One", rank: 1 });
-    await seedDecklessPlayer(repo, linked, { playerName: "MTA Provider Two", rank: 2 });
-    // Archived, but fed by nobody: the whole-archive overview counts it and the
-    // provider-scoped one does not.
-    const unlinked = await seedEvent(repo, "mta-provider-unlinked");
-    await seedListedPlayer(repo, unlinked, { playerName: "MTA Provider Three", rank: 1 });
-
-    await candidates.insertEvent({
-      provider: PROVIDER,
-      externalId: "mta-provider-1",
-      name: "MTA Provider Linked",
-      eventDate: "2026-08-01",
-      format: FORMAT,
-      playerCount: 2,
-      organizer: null,
+    await repo.insertEventSource({
+      metaEventId,
+      provider: "uvsgames",
+      externalId: EXTERNAL_ID,
+      label: "uvsgames",
       sourceUrl: null,
-      notes: null,
-      tier: null,
-      country: null,
-      location: null,
-      metaEventId: linked,
     });
 
-    expect(await repo.archiveOverview(PROVIDER)).toEqual({
-      events: 1,
-      eventsWithStandings: 1,
-      eventsWithDecklists: 1,
-      decks: 1,
-    });
-  });
-});
+    await db
+      .insertInto("uvsgamesEventStandings")
+      .values([
+        {
+          externalId: EXTERNAL_ID,
+          registrationId: "r1",
+          uvsgamesPlayerId: UVS_A,
+          rank: 1,
+          wins: 1,
+        },
+        {
+          externalId: EXTERNAL_ID,
+          registrationId: "r2",
+          uvsgamesPlayerId: UVS_B,
+          rank: 2,
+          wins: 0,
+        },
+      ])
+      .execute();
 
-describe.skipIf(!ctx)("suggested links for an unlinked candidate", () => {
-  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
-  const { db } = ctx!;
-  const repo = metaRepo(db);
-  const candidates = metaCandidatesRepo(db);
-  const PROVIDER = "mta-suggest";
+    await db
+      .insertInto("uvsgamesEventMatches")
+      .values({
+        externalId: EXTERNAL_ID,
+        roundId: "901",
+        sourceMatchId: "m-901-1",
+        roundNumber: 1,
+        player1UvsgamesId: UVS_A,
+        player2UvsgamesId: UVS_B,
+        winnerUvsgamesId: UVS_A,
+      })
+      .execute();
+  }
 
-  afterAll(async () => {
-    await db.deleteFrom("candidateMetaEvents").where("provider", "=", PROVIDER).execute();
-  });
+  it("writes the field and its pairings from the mirror", async () => {
+    await seedMirror();
 
-  it("reads only the archive's date window, so an event outside it cannot be offered", async () => {
-    const near = await seedEvent(repo, "mta-suggest-near", {
-      eventDate: "2026-06-13",
-      name: "MTA Summoner Skirmish",
-    });
-    const far = await seedEvent(repo, "mta-suggest-far", {
-      eventDate: "2026-07-25",
-      name: "MTA Summoner Skirmish",
-    });
-    const candidateEventId = await candidates.insertEvent({
-      provider: PROVIDER,
-      externalId: "mta-suggest-1",
-      name: "MTA Summoner Skirmish",
-      eventDate: "2026-06-12",
-      format: FORMAT,
-      playerCount: 32,
-      organizer: null,
-      sourceUrl: null,
-      notes: null,
-      tier: null,
-      country: null,
-      location: null,
-      metaEventId: null,
-    });
+    const result = await promoteMetaEvent(repos, metaEventId);
 
-    const suggestions = await suggestMetaEventMatches(
-      { meta: repo, metaCandidates: candidates } as unknown as Repos,
-      candidateEventId,
-    );
-
-    const ids = suggestions.map((suggestion) => suggestion.metaEventId);
-    expect(ids).toContain(near);
-    expect(ids).not.toContain(far);
+    expect(result.players).toBe(2);
+    expect(result.matches).toBe(1);
+    const players = await repo.rawStandingsForEvent(metaEventId);
+    expect(players.map((row) => row.uvsgamesPlayerId).toSorted()).toEqual([UVS_A, UVS_B]);
   });
 
-  it("offers nothing for a candidate that is already linked", async () => {
-    const eventId = await seedEvent(repo, "mta-suggest-linked", { eventDate: "2026-06-13" });
-    const candidateEventId = await candidates.insertEvent({
-      provider: PROVIDER,
-      externalId: "mta-suggest-2",
-      name: "MTA Summoner Skirmish",
-      eventDate: "2026-06-12",
-      format: FORMAT,
-      playerCount: 32,
-      organizer: null,
-      sourceUrl: null,
-      notes: null,
-      tier: null,
-      country: null,
-      location: null,
-      metaEventId: eventId,
+  it("is idempotent: a second run keeps every live id and value", async () => {
+    const before = await repo.rawStandingsForEvent(metaEventId);
+
+    await promoteMetaEvent(repos, metaEventId);
+
+    const after = await repo.rawStandingsForEvent(metaEventId);
+    // Identity is load-bearing: decks, matches and share tokens hang off it.
+    expect(after.map((row) => row.id).toSorted()).toEqual(before.map((row) => row.id).toSorted());
+    expect(after.map((row) => row.rank).toSorted()).toEqual([1, 2]);
+  });
+
+  it("keeps a player's live row when the source re-ranks them", async () => {
+    const before = await repo.rawStandingsForEvent(metaEventId);
+    const beforeById = new Map(before.map((row) => [row.uvsgamesPlayerId, row.id]));
+
+    await db
+      .updateTable("uvsgamesEventStandings")
+      .set({ rank: 2 })
+      .where("externalId", "=", EXTERNAL_ID)
+      .where("registrationId", "=", "r1")
+      .execute();
+    await db
+      .updateTable("uvsgamesEventStandings")
+      .set({ rank: 1 })
+      .where("externalId", "=", EXTERNAL_ID)
+      .where("registrationId", "=", "r2")
+      .execute();
+
+    await promoteMetaEvent(repos, metaEventId);
+
+    const after = await repo.rawStandingsForEvent(metaEventId);
+    expect(new Map(after.map((row) => [row.uvsgamesPlayerId, row.id]))).toEqual(beforeById);
+    expect(after.find((row) => row.uvsgamesPlayerId === UVS_A)?.rank).toBe(2);
+  });
+
+  it("carries the source's own match id through, so a re-promote upserts one pairing", async () => {
+    const first = await repo.matchesForEvent(metaEventId);
+
+    const promoted = await promoteMetaEvent(repos, metaEventId);
+
+    const second = await repo.matchesForEvent(metaEventId);
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ sourceMatchId: "m-901-1", sourceRoundId: "901" });
+    // The live upsert keys on (event, source match id): without the id flowing
+    // through, every pass would insert the round's pairings again.
+    expect(promoted.matches).toBe(1);
+    expect(second.map((row) => row.id)).toEqual(first.map((row) => row.id));
+  });
+
+  it("promotes a pairing again once both its players have live rows", async () => {
+    await db
+      .insertInto("uvsgamesPlayers")
+      .values({ id: UVS_LATE, displayName: "MTA Late Add" })
+      .execute();
+    await db
+      .insertInto("uvsgamesEventMatches")
+      .values({
+        externalId: EXTERNAL_ID,
+        roundId: "902",
+        sourceMatchId: "m-902-1",
+        roundNumber: 2,
+        player1UvsgamesId: UVS_A,
+        // No standings row names this seat yet, so the pairing cannot promote.
+        player2UvsgamesId: UVS_LATE,
+      })
+      .execute();
+
+    const withoutOpponent = await promoteMetaEvent(repos, metaEventId);
+    expect(withoutOpponent.matches).toBe(1);
+
+    await db
+      .insertInto("uvsgamesEventStandings")
+      .values({
+        externalId: EXTERNAL_ID,
+        registrationId: "r3",
+        uvsgamesPlayerId: UVS_LATE,
+        rank: 3,
+      })
+      .execute();
+
+    // No stamped-back link and no retry queue: the next promote simply picks
+    // it up now that both seats resolve.
+    const promoted = await promoteMetaEvent(repos, metaEventId);
+    expect(promoted.matches).toBe(2);
+  });
+
+  it("lets an accepted overlay win the field it claims, and ignores a pending one", async () => {
+    const pending = await repos.metaOverlays.insertEventOverlay({
+      metaEventId,
+      name: "Never Applied",
+      claimedFields: ["name"],
+      submittedByUserId: META_ARCHIVE_USER_ID,
     });
 
-    expect(
-      await suggestMetaEventMatches(
-        { meta: repo, metaCandidates: candidates } as unknown as Repos,
-        candidateEventId,
-      ),
-    ).toEqual([]);
+    await promoteMetaEvent(repos, metaEventId);
+    const unapplied = await repo.eventById(metaEventId);
+    expect(unapplied?.name).toBe("MTA Promotion Cup");
+
+    await repos.metaOverlays.setEventOverlayStatus(pending, "accepted", new Date());
+    await promoteMetaEvent(repos, metaEventId);
+
+    // And it survives the next promote, which is the whole point of the mask.
+    await promoteMetaEvent(repos, metaEventId);
+    const applied = await repo.eventById(metaEventId);
+    expect(applied?.name).toBe("Never Applied");
+
+    await db.deleteFrom("metaEventOverlays").where("id", "=", pending).execute();
   });
 });

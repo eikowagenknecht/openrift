@@ -1,20 +1,15 @@
 import type { z } from "zod";
 
 import type {
-  acceptedMetaEventSchema,
-  acceptedMetaEventWithPlayersSchema,
-  acceptedMetaPlayerSchema,
   adminMetaEventListResponseSchema,
   adminMetaEventSchema,
   adminMetaEventSourceSchema,
   adminMetaPlayerSchema,
-  metaCandidateDetailSchema,
-  metaCandidatePlayerSchema,
-  metaCandidateQueueRowSchema,
-  metaCandidateSourceSchema,
-  metaEventLinkResultSchema,
+  metaEventDriftSchema,
+  metaOverlayDetailSchema,
+  metaOverlayQueueRowSchema,
+  metaOverlayReviewResultSchema,
   metaEventMatchSuggestionSchema,
-  metaPlayerLinkResultSchema,
   metaPlayerMatchSuggestionSchema,
   metaUploadResponseSchema,
   metaUploadSchema,
@@ -119,7 +114,7 @@ export type AdminMetaEventList = z.infer<typeof adminMetaEventListResponseSchema
 /** Admin standings row for one event's management table. */
 export type AdminMetaPlayer = z.infer<typeof adminMetaPlayerSchema>;
 
-// ── Candidate ingest (ADR-014) ───────────────────────────────────────────────
+// ── Overlay ingest (ADR-014) ─────────────────────────────────────────────────
 
 /**
  * The upload body external tooling posts. `z.input` rather than `z.infer`
@@ -134,45 +129,28 @@ export type MetaIngestEvent = z.infer<typeof metaUploadSchema>["events"][number]
 /** One player of {@link MetaIngestEvent}. */
 export type MetaIngestEventPlayer = MetaIngestEvent["players"][number];
 
-/** POST /admin/meta/upload — what the upload staged, changed, and could not match. */
+/** POST /admin/meta/upload — what the upload wrote, updated, and could not match. */
 export type MetaUploadResponse = z.infer<typeof metaUploadResponseSchema>;
 
-/** One row of the candidate review queue. */
-export type MetaCandidateQueueRow = z.infer<typeof metaCandidateQueueRowSchema>;
+/** One row of the overlay review queue. */
+export type MetaOverlayQueueRow = z.infer<typeof metaOverlayQueueRowSchema>;
 
-/** One candidate standings row with its resolution status and its diff against live. */
-export type MetaCandidatePlayer = z.infer<typeof metaCandidatePlayerSchema>;
+/** The outcome of settling one overlay: the live event it landed on, if any. */
+export type MetaOverlayReviewResult = z.infer<typeof metaOverlayReviewResultSchema>;
 
-/** GET /admin/meta/candidates/{id} — the event, its diff, and all its standings. */
-export type MetaCandidateDetail = z.infer<typeof metaCandidateDetailSchema>;
-
-/** The result of accepting one candidate event. */
-export type AcceptedMetaEventResponse = z.infer<typeof acceptedMetaEventSchema>;
-
-/** The result of accepting one candidate standings row. */
-export type AcceptedMetaPlayerResponse = z.infer<typeof acceptedMetaPlayerSchema>;
-
-/** The result of accepting a candidate event together with its ready standings. */
-export type AcceptedMetaEventWithPlayersResponse = z.infer<
-  typeof acceptedMetaEventWithPlayersSchema
->;
+/** GET /admin/meta/overlays/{id} — one overlay, event or player kind. */
+export type MetaOverlayDetail = z.infer<typeof metaOverlayDetailSchema>;
 
 /** One citation as the admin event editor lists it. */
 export type AdminMetaEventSource = z.infer<typeof adminMetaEventSourceSchema>;
 
-/** One source's version of a candidate event, with the standings it holds. */
-export type MetaCandidateSource = z.infer<typeof metaCandidateSourceSchema>;
+/** The per-field live-vs-sources comparison for one event. */
+export type MetaEventDrift = z.infer<typeof metaEventDriftSchema>;
 
-/** Where a link, relink, or unlink left a candidate event. */
-export type MetaEventLinkResult = z.infer<typeof metaEventLinkResultSchema>;
-
-/** Where a link, relink, or unlink left a candidate standings row. */
-export type MetaPlayerLinkResult = z.infer<typeof metaPlayerLinkResultSchema>;
-
-/** One ranked live event proposed for an unlinked candidate event. */
+/** One ranked live event a proposed overlay might duplicate. */
 export type MetaEventMatchSuggestion = z.infer<typeof metaEventMatchSuggestionSchema>;
 
-/** One ranked live standings row proposed for an unlinked candidate player. */
+/** One ranked live standings row an unanchored player overlay might describe. */
 export type MetaPlayerMatchSuggestion = z.infer<typeof metaPlayerMatchSuggestionSchema>;
 
 // ── User submissions (ADR-014, ADR-036) ──────────────────────────────────────

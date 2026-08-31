@@ -1,4 +1,4 @@
-import type { MetaCandidateQueueRow } from "@openrift/shared";
+import type { MetaOverlayQueueRow } from "@openrift/shared";
 import type { MetaSyncStatus } from "@openrift/shared/contracts/admin/meta-catalog";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   status: null as unknown,
-  candidates: [] as unknown[],
+  overlays: [] as unknown[],
   /** What the router would hand a functional `search`, i.e. the URL as it stands. */
   prevSearch: {} as Record<string, unknown>,
   run: vi.fn(),
@@ -57,8 +57,8 @@ vi.mock("@/hooks/use-admin-meta-catalog", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-admin-meta-candidates", () => ({
-  useAdminMetaCandidates: () => ({ data: { candidates: captured.candidates } }),
+vi.mock("@/hooks/use-admin-meta-overlays", () => ({
+  useAdminMetaOverlays: () => ({ data: { overlays: captured.overlays } }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({
@@ -131,22 +131,25 @@ function runningRun(kind: string): MetaSyncStatus["runs"][number] {
   };
 }
 
-function candidate(overrides: Partial<MetaCandidateQueueRow> = {}): MetaCandidateQueueRow {
+function overlay(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueueRow {
   return {
-    id: "candidate-1",
+    id: "overlay-1",
+    kind: "player",
+    status: "pending",
     provider: "uvsgames",
-    externalId: "evt-1",
-    name: "Summoner Skirmish",
-    eventDate: "2026-08-15",
-    format: "standard",
-    playerRowCount: 8,
-    unacceptedPlayerCount: 8,
-    state: "new",
-    unresolvedCardCount: 0,
-    linkedSourceCount: 1,
-    checkedAt: null,
-    metaEventId: null,
-    metaEventSlug: null,
+    sourceEventExternalId: "evt-1",
+    sourcePlayerExternalId: "evt-1-p1",
+    metaEventPlayerId: "row-1",
+    metaEventId: "event-1",
+    metaEventName: "Summoner Skirmish",
+    proposedName: null,
+    playerName: "Ashe Main",
+    submittedBy: "user-1",
+    submissionNote: null,
+    changes: [],
+    cards: [],
+    unresolvedNames: [],
+    createdAt: "2026-08-20T00:00:00.000Z",
     ...overrides,
   };
 }
@@ -167,7 +170,7 @@ describe("MetaAdminOverviewPage", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, now: NOW });
     captured.prevSearch = {};
     captured.status = status;
-    captured.candidates = [candidate(), candidate({ id: "candidate-2", checkedAt: "2026-08-20" })];
+    captured.overlays = [overlay(), overlay({ id: "overlay-2" })];
     captured.run.mockResolvedValue({
       status: "running",
       runId: "run-9",
@@ -186,10 +189,26 @@ describe("MetaAdminOverviewPage", () => {
     expect(stage("Untriaged")).toHaveTextContent("30");
     expect(stage("Untriaged")).toHaveTextContent("of 266,000 catalogued");
     expect(stage("Awaiting results")).toHaveTextContent("17");
-    expect(stage("Needs review")).toHaveTextContent("1");
+    // Both overlays are pending: the queue has no settled state to filter by.
+    expect(stage("Needs review")).toHaveTextContent("2");
     expect(stage("Needs review")).toHaveTextContent("0 unmatched card names");
     expect(stage("Published")).toHaveTextContent("480");
     expect(stage("Published")).toHaveTextContent("2,600 decks · 310 of 1,200 events with lists");
+  });
+
+  it("counts only the overlays the open source's tab is about", () => {
+    captured.overlays = [
+      overlay(),
+      overlay({ id: "overlay-2", provider: "playloltcg", unresolvedNames: ["A"] }),
+      overlay({ id: "overlay-3", provider: null }),
+    ];
+
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    // The scraped playloltcg row belongs to the other tab; the person's
+    // overlay names no source and shows on both.
+    expect(stage("Needs review")).toHaveTextContent("2");
+    expect(stage("Needs review")).toHaveTextContent("0 unmatched card names");
   });
 
   it("sends a stage straight to the rows it counted", () => {
@@ -233,14 +252,14 @@ describe("MetaAdminOverviewPage", () => {
 
   it("says so plainly when nothing is wrong", () => {
     captured.status = statusWith({ acceptedMissing: 0, dueRecheck: 3 });
-    captured.candidates = [candidate()];
+    captured.overlays = [overlay()];
     render(<MetaAdminOverviewPage source="uvsgames" />);
     expect(screen.getByText("Sync looks healthy.")).toBeInTheDocument();
   });
 
   it("raises the events that vanished from the source and the unmatched card names", () => {
     captured.status = statusWith({ acceptedMissing: 2 });
-    captured.candidates = [candidate({ unresolvedCardCount: 5 })];
+    captured.overlays = [overlay({ unresolvedNames: ["A", "B", "C", "D", "E"] })];
     render(<MetaAdminOverviewPage source="uvsgames" />);
 
     expect(

@@ -66,7 +66,7 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
     userId: USER_ID,
     provider: "usersubmission",
     externalId: "2026-08-18--user--abcd1234",
-    candidateMetaPlayerId: "d0000000-0001-4000-a000-000000000001",
+    playerOverlayId: "d0000000-0001-4000-a000-000000000001",
     metaEventId: EVENT_ID,
     eventName: "Summoner Skirmish",
     playerName: "Renata",

@@ -136,6 +136,105 @@ export type MetaEventTier = "premier" | "competitive" | "store" | "casual";
 export const META_EVENT_TIERS = ["premier", "competitive", "store", "casual"] as const;
 
 /**
+ * Whether a source served a decklist when the fetcher asked for it.
+ *
+ * A published list never changes, so either outcome is final: `refused` records
+ * that the id was tried and came back unreadable, which is what stops the next
+ * pass asking again.
+ */
+export type MetaSourceFetchStatus = "fetched" | "refused";
+
+/** The {@link MetaSourceFetchStatus} values. */
+export const META_SOURCE_FETCH_STATUSES = ["fetched", "refused"] as const;
+
+/**
+ * Where an overlay sits in review. An admin's correction is written straight to
+ * `accepted`; a user's submission starts `pending`.
+ *
+ * Only `accepted` overlays are applied, so a pending one changes nothing a
+ * reader sees, and rejecting is a status change rather than a delete.
+ */
+export type MetaOverlayStatus = "pending" | "accepted" | "rejected";
+
+/** The {@link MetaOverlayStatus} values. */
+export const META_OVERLAY_STATUSES = ["pending", "accepted", "rejected"] as const;
+
+/**
+ * The event fields an overlay can claim.
+ *
+ * `slug` is absent on purpose: it is minted at promotion and renaming is its
+ * own action, not a patch. So is `sourceUrl`, which lives in
+ * `meta_event_sources` as that provider's citation.
+ */
+export type MetaEventOverlayField =
+  | "name"
+  | "eventDate"
+  | "format"
+  | "playerCount"
+  | "organizer"
+  | "notes"
+  | "tier"
+  | "country"
+  | "location";
+
+/** The {@link MetaEventOverlayField} values. Mirrored by a CHECK on the table. */
+export const META_EVENT_OVERLAY_FIELDS = [
+  "name",
+  "eventDate",
+  "format",
+  "playerCount",
+  "organizer",
+  "notes",
+  "tier",
+  "country",
+  "location",
+] as const;
+
+/**
+ * The standings fields an overlay can claim.
+ *
+ * `cards` claims the overlay's card-line rows rather than a column, so it is
+ * the one value here with no matching column and no generated consistency
+ * CHECK. `deckId` is absent: a deck is built by promotion from the claimed
+ * lines, never pointed at directly.
+ */
+export type MetaPlayerOverlayField =
+  | "playerName"
+  | "rank"
+  | "rankIsTier"
+  | "wins"
+  | "losses"
+  | "draws"
+  | "matchPoints"
+  | "opponentMatchWinPct"
+  | "gameWinPct"
+  | "opponentGameWinPct"
+  | "entryStatus"
+  | "legendCardId"
+  | "championCardId"
+  | "listStatus"
+  | "cards";
+
+/** The {@link MetaPlayerOverlayField} values. Mirrored by a CHECK on the table. */
+export const META_PLAYER_OVERLAY_FIELDS = [
+  "playerName",
+  "rank",
+  "rankIsTier",
+  "wins",
+  "losses",
+  "draws",
+  "matchPoints",
+  "opponentMatchWinPct",
+  "gameWinPct",
+  "opponentGameWinPct",
+  "entryStatus",
+  "legendCardId",
+  "championCardId",
+  "listStatus",
+  "cards",
+] as const;
+
+/**
  * The columns the admin live event list can be ordered by. The list is paged on
  * the server, so a sort has to travel with the query rather than reorder the
  * page that happens to be on screen.
@@ -156,8 +255,8 @@ export const META_EVENT_SORT_DIRECTIONS = ["asc", "desc"] as const;
 export const META_CATALOG_PROVIDERS = ["uvsgames", "playloltcg"] as const;
 
 /**
- * Triage state, derived from the candidate link and the ignore table rather than
- * stored: `new` means no candidate links the key and it is not ignored.
+ * Triage state, derived from the citation and the ignore table rather than
+ * stored: `new` means no live event cites the key and it is not ignored.
  */
 export const META_CATALOG_TRIAGE = ["new", "accepted", "dismissed"] as const;
 

@@ -60,8 +60,8 @@ function harness(
     resolvedCardIds?: Record<string, string>;
   } = {},
 ): Harness {
-  const insertEvent = vi.fn().mockResolvedValue("candidate-event-1");
-  const insertPlayer = vi.fn().mockResolvedValue("candidate-player-1");
+  const insertEvent = vi.fn().mockResolvedValue("event-overlay-1");
+  const insertPlayer = vi.fn().mockResolvedValue("player-overlay-1");
   const insertSubmission = vi.fn().mockResolvedValue("submission-1");
   const resolved = options.resolvedCardIds ?? { Azir: "card-azir", Shock: "card-shock" };
 
@@ -82,7 +82,7 @@ function harness(
           options.eventName === undefined ? undefined : { id: EVENT_ID, name: options.eventName },
         ),
     },
-    metaCandidates: { insertEvent, insertPlayer },
+    metaOverlays: { insertEventOverlay: insertEvent, insertPlayerOverlay: insertPlayer },
     metaSubmissions: {
       countPendingByUser: vi.fn().mockResolvedValue(options.pending ?? 0),
       insert: insertSubmission,
@@ -210,21 +210,21 @@ describe("submitMetaDeck", () => {
     const h = harness({ eventName: "Summoner Skirmish Berlin" });
     const result = await submitMetaDeck(h.transact, args());
 
-    expect(result).toMatchObject({ status: "ok", candidatePlayerId: "candidate-player-1" });
+    expect(result).toMatchObject({ status: "ok", playerOverlayId: "player-overlay-1" });
     expect(h.insertEvent).not.toHaveBeenCalled();
     expect(h.insertPlayer).toHaveBeenCalledWith(
       expect.objectContaining({
-        candidateEventId: null,
+        eventOverlayId: null,
         metaEventId: EVENT_ID,
         submittedByUserId: "user-1",
         metaEventPlayerId: null,
-        checkedAt: null,
       }),
+      expect.anything(),
     );
     expect(h.insertSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: META_USER_SUBMISSION_PROVIDER,
-        candidateMetaPlayerId: "candidate-player-1",
+        playerOverlayId: "player-overlay-1",
         metaEventId: EVENT_ID,
         eventName: "Summoner Skirmish Berlin",
       }),
@@ -245,6 +245,7 @@ describe("submitMetaDeck", () => {
         draws: 0,
         listStatus: "full",
       }),
+      expect.anything(),
     );
   });
 
@@ -253,12 +254,8 @@ describe("submitMetaDeck", () => {
     await submitMetaDeck(h.transact, args());
 
     expect(h.insertPlayer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        legendName: null,
-        legendCardId: null,
-        championName: null,
-        championCardId: null,
-      }),
+      expect.objectContaining({ legendCardId: null, championCardId: null }),
+      expect.anything(),
     );
   });
 
@@ -266,9 +263,10 @@ describe("submitMetaDeck", () => {
     const h = harness({ eventName: "Summoner Skirmish Berlin" });
     await submitMetaDeck(h.transact, args());
 
-    expect(h.insertPlayer.mock.calls[0][0].cards).toEqual([
-      { name: "Azir", zone: "legend", quantity: 1, cardId: "card-azir" },
-      { name: "Shock", zone: "main", quantity: 3, cardId: "card-shock" },
+    // Card lines are rows now, so they arrive as the insert's second argument.
+    expect(h.insertPlayer.mock.calls[0][1]).toEqual([
+      { lineNumber: 0, cardName: "Azir", zone: "legend", quantity: 1, cardId: "card-azir" },
+      { lineNumber: 1, cardName: "Shock", zone: "main", quantity: 3, cardId: "card-shock" },
     ]);
   });
 
@@ -302,11 +300,11 @@ describe("submitMetaDeck", () => {
         provider: META_USER_SUBMISSION_PROVIDER,
         name: "Summoner Skirmish Zaun",
         metaEventId: null,
-        checkedAt: null,
       }),
     );
     expect(h.insertPlayer).toHaveBeenCalledWith(
-      expect.objectContaining({ candidateEventId: "candidate-event-1", metaEventId: null }),
+      expect.objectContaining({ eventOverlayId: "event-overlay-1", metaEventId: null }),
+      expect.anything(),
     );
     // The ledger keeps the submitter's own name for the event, since there is
     // no live row to read one from.
@@ -355,7 +353,7 @@ describe("submitMetaEventCorrection", () => {
     expect(h.insertSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "event_correction",
-        candidateMetaPlayerId: null,
+        playerOverlayId: null,
         playerName: null,
         metaEventId: EVENT_ID,
         eventName: "Summoner Skirmish Berlin",

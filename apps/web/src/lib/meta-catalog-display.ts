@@ -1,4 +1,5 @@
 import { formatRelativeTime } from "@openrift/shared";
+import type { MetaOverlayQueueRow } from "@openrift/shared";
 import type {
   MetaCatalogRow,
   MetaCatalogTriage,
@@ -304,13 +305,44 @@ const RECENT_FAILURE_MS = 24 * 60 * 60 * 1000;
 /** One recheck batch's worth. More than this and the ladder is falling behind. */
 const DUE_RECHECK_LIMIT = 40;
 
+/** The queue counts the overview's funnel and its alerts read. */
+export interface OverlayProviderCounts {
+  pendingReview: number;
+  unresolvedCards: number;
+}
+
+/**
+ * The overlay queue narrowed to one source.
+ *
+ * The queue itself is cross-source, but the overview is a per-source screen, so
+ * counting the whole queue on every tab made both tabs report the same number
+ * and fed the alerts a figure neither source could act on. An overlay a person
+ * sent carries no provider, and it belongs on the tab of the source whose event
+ * it patches — which the queue row does not name — so those count on every tab
+ * rather than on none.
+ *
+ * @param overlays - The whole review queue.
+ * @param provider - The source tab doing the asking.
+ * @returns The pending and unmatched-name counts for that tab.
+ */
+export function overlayCountsForProvider(
+  overlays: readonly MetaOverlayQueueRow[],
+  provider: MetaSource,
+): OverlayProviderCounts {
+  const rows = overlays.filter((row) => row.provider === null || row.provider === provider);
+  return {
+    pendingReview: rows.length,
+    unresolvedCards: rows.reduce((sum, row) => sum + row.unresolvedNames.length, 0),
+  };
+}
+
 /**
  * What the overview should be shouting about, newest concern first. Everything
  * here is derived rather than stored, so the panel has no state of its own to
  * keep in step with the counters.
  *
  * @param status - The sync status the panel is showing.
- * @param unresolvedCardCount - Unmatched card names across every candidate.
+ * @param unresolvedCardCount - Unmatched card names on this source's overlays.
  * @param now - The instant to measure staleness against.
  * @returns The active alerts, empty when the sync is healthy.
  */

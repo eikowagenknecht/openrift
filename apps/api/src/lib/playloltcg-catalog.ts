@@ -1,8 +1,6 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
 import { createHash } from "node:crypto";
 
-import type { CandidateMetaEventRaw } from "../db/index.js";
-
 /**
  * Reading the Chinese app's shop, event and deck payloads into the slim shapes
  * `playloltcg_*` stores (ADR-014, second source). The source publishes no schema
@@ -289,14 +287,7 @@ export function projectDeckCard(raw: unknown): PlayloltcgDeckCard | null {
   };
 }
 
-/** The deck bodies a stored raw payload already holds, keyed by `cardGroupId`. */
-export function storedDecks(
-  raw: CandidateMetaEventRaw | null | undefined,
-): Record<string, unknown> {
-  return record(raw?.decks) ?? {};
-}
-
-/** The `cardGroupId`s a standings table points at, as the raw payload keys them. */
+/** The `cardGroupId`s a standings table points at, as the mirror keys its decks. */
 export function referencedDeckIds(standings: readonly unknown[]): string[] {
   const ids = new Set<string>();
   for (const row of standings) {
@@ -306,11 +297,4 @@ export function referencedDeckIds(standings: readonly unknown[]): string[] {
     }
   }
   return [...ids];
-}
-
-/** The referenced deck bodies a stored raw payload is still missing. */
-export function unfetchedDeckIds(raw: CandidateMetaEventRaw | null | undefined): string[] {
-  const decks = storedDecks(raw);
-  const standings = Array.isArray(raw?.standings) ? raw.standings : [];
-  return referencedDeckIds(standings).filter((id) => !Object.hasOwn(decks, id));
 }

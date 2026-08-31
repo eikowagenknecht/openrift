@@ -25,6 +25,8 @@ vi.mock("./deep-fetch.js", () => ({
 
 const NOW = new Date("2026-08-20T12:00:00Z");
 const HOUR_MS = 60 * 60 * 1000;
+/** When an earlier pass completed this event's results fetch. */
+const FETCHED_AT = new Date("2026-08-19T18:00:00Z");
 
 function dueRow(overrides: Partial<UvsgamesListRow> = {}): UvsgamesListRow {
   return {
@@ -44,13 +46,13 @@ function dueRow(overrides: Partial<UvsgamesListRow> = {}): UvsgamesListRow {
     timezone: "UTC",
     eventConfigurationTemplate: null,
     contentHash: "hash",
+    resultsFetchedAt: null,
     firstSeenAt: NOW,
     lastSeenAt: NOW,
     missingSince: null,
     nextCheckAt: NOW,
     checkStage: 0,
     triage: "accepted",
-    candidateEventId: "cand-1",
     metaEventId: "live-1",
     metaEventSlug: "mtc-regional",
     ...overrides,
@@ -66,8 +68,13 @@ interface RecheckWrite {
 function fakeDeps(options: {
   due: UvsgamesListRow[];
   detail: (externalId: string) => unknown;
-  candidate?: { id: string; metaEventId: string | null; fetchedAt: Date | null };
-  players?: { id: string; metaEventPlayerId: string | null; cards: unknown }[];
+  /** Standings this event's mirror already holds. */
+  mirroredStandings?: Record<string, unknown>[];
+  /** Deck ids the mirror still owes. */
+  outstandingDecks?: string[];
+  /** Live standings, for the promotion-lag check. */
+  livePlayers?: Record<string, unknown>[];
+  source?: { metaEventId: string };
   /** The run row the pass reads its Stop flag back out of. */
   stored?: Record<string, unknown>;
   /** Template ids an admin is watching, which earn the quarter-hourly poll. */
@@ -99,12 +106,15 @@ function fakeDeps(options: {
     formatMappings: () => Promise.resolve(new Map<string, string>()),
   };
 
-  const metaCandidates = {
-    eventsBySourceKeys: () =>
-      Promise.resolve([
-        options.candidate ?? { id: "cand-1", metaEventId: "live-1", fetchedAt: null },
-      ]),
-    playersByCandidateEventIds: () => Promise.resolve(options.players ?? []),
+  // Every "have we got this yet" the ladder asks is a mirror query now.
+  const uvsgamesResults = {
+    standings: () => Promise.resolve(options.mirroredStandings ?? []),
+    deckCoverage: () => Promise.resolve({ outstanding: options.outstandingDecks ?? [], held: 0 }),
+  };
+
+  const meta = {
+    sourceByKey: () => Promise.resolve(options.source ?? { metaEventId: "live-1" }),
+    rawStandingsForEvent: () => Promise.resolve(options.livePlayers ?? []),
   };
 
   const progress: unknown[] = [];
@@ -120,7 +130,7 @@ function fakeDeps(options: {
   };
 
   const deps: MetaSyncDeps = {
-    repos: { uvsgamesEvents, metaCandidates, jobRuns } as unknown as Repos,
+    repos: { uvsgamesEvents, uvsgamesResults, meta, jobRuns } as unknown as Repos,
     transact: (() => Promise.reject(new Error("no writes here"))) as unknown as Transact,
     client,
     log: createLogger("test"),
@@ -211,16 +221,14 @@ describe("processRechecks", () => {
     expect(writes[0].nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
   });
 
-  it("pulls results again while staged players still wait on their accept", async () => {
+  it("pulls results again while the live rows lag the mirror", async () => {
     const { deps } = fakeDeps({
-      due: [dueRow({ displayStatus: "complete", checkStage: 2 })],
+      due: [dueRow({ displayStatus: "complete", checkStage: 2, resultsFetchedAt: FETCHED_AT })],
       detail: () =>
         detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
-      candidate: { id: "cand-1", metaEventId: "live-1", fetchedAt: NOW },
-      players: [
-        { id: "p1", metaEventPlayerId: "row-1", cards: null },
-        { id: "p2", metaEventPlayerId: null, cards: null },
-      ],
+      // Two mirrored standings, one live row: promotion has work left.
+      mirroredStandings: [{ registrationId: "reg-1" }, { registrationId: "reg-2" }],
+      livePlayers: [{ id: "row-1" }],
     });
 
     const result = await processRechecks(deps);
@@ -229,18 +237,47 @@ describe("processRechecks", () => {
     expect(vi.mocked(deepFetchEvent)).toHaveBeenCalled();
   });
 
-  it("does not refetch a settled event just for having staged players", async () => {
+  it("does not refetch an event whose live rows already match its mirror", async () => {
     const { deps } = fakeDeps({
-      due: [dueRow({ displayStatus: "complete", checkStage: 2 })],
+      due: [dueRow({ displayStatus: "complete", checkStage: 2, resultsFetchedAt: FETCHED_AT })],
       detail: () =>
         detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
-      candidate: { id: "cand-1", metaEventId: "live-1", fetchedAt: NOW },
-      players: [{ id: "p1", metaEventPlayerId: "row-1", cards: null }],
+      // Promotion has caught up: one mirrored standing, one live row.
+      mirroredStandings: [{ registrationId: "reg-1" }],
+      livePlayers: [{ id: "row-1" }],
     });
 
     const result = await processRechecks(deps);
 
     expect(result.fetched).toBe(0);
+  });
+
+  it("stops revisiting a completed event whose field was empty, once it has been fetched", async () => {
+    const { deps } = fakeDeps({
+      due: [dueRow({ displayStatus: "complete", checkStage: 2, resultsFetchedAt: FETCHED_AT })],
+      detail: () =>
+        detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
+      // A cancelled event: the fetch completed and mirrored nobody. Reading
+      // "fetched" off the row count would revisit it to the end of the ladder.
+      mirroredStandings: [],
+    });
+
+    const result = await processRechecks(deps);
+
+    expect(result.fetched).toBe(0);
+  });
+
+  it("pulls the results of a completed event nothing has fetched yet", async () => {
+    const { deps } = fakeDeps({
+      due: [dueRow({ displayStatus: "complete", checkStage: 2 })],
+      detail: () =>
+        detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
+      mirroredStandings: [],
+    });
+
+    const result = await processRechecks(deps);
+
+    expect(result.fetched).toBe(1);
   });
 
   it("reports an empty queue as a no-op run", async () => {

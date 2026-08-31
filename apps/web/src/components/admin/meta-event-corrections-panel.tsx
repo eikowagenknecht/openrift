@@ -76,7 +76,7 @@ function CorrectionCard({ correction }: { correction: AdminMetaEventCorrection }
       )}
 
       <div className="mt-2 border-t pt-2">
-        <MetaSubmissionResolve submission={submission} candidatePlayerId={null} />
+        <MetaSubmissionResolve submission={submission} playerOverlayId={null} />
       </div>
     </div>
   );

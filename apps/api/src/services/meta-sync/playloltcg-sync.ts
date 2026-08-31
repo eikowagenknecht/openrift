@@ -1,10 +1,8 @@
 import { DECKLIST_PUBLISHED, nextRecheck } from "../../lib/meta-recheck-schedule.js";
 import {
-  PLAYLOLTCG_PROVIDER,
   PLAYLOLTCG_STATUS_IN_PROGRESS,
   projectEventRow,
   projectShopRow,
-  unfetchedDeckIds,
 } from "../../lib/playloltcg-catalog.js";
 import type { PlayloltcgUpsertInput } from "../../repositories/playloltcg-events.js";
 import { runCancelRequested, writeRunHeartbeat } from "./crawl-checkpoint.js";
@@ -311,9 +309,7 @@ export async function processPlayloltcgRechecks(
           name: detail.shopName ?? row.shopName ?? String(detail.shopId),
         });
       }
-      const [candidate] = await deps.repos.metaCandidates.eventsBySourceKeys(PLAYLOLTCG_PROVIDER, [
-        String(row.activityShopId),
-      ]);
+      const coverage = await deps.repos.playloltcgResults.deckCoverage(row.activityShopId);
       // The same ladder as uvsgames, through the shared decision. The source's
       // `isPublishResult` is its "complete", since results are final once it is
       // set, and it publishes standings and decks in one act, so the decklists
@@ -325,7 +321,7 @@ export async function processPlayloltcgRechecks(
         startAt: startInstant(row.startAt, now),
         decklistStatus: detail.isPublishResult ? DECKLIST_PUBLISHED : null,
         fetched: row.fetchedAt !== null,
-        decksComplete: unfetchedDeckIds(candidate?.raw).length === 0,
+        decksComplete: coverage.outstanding.length === 0,
         playersPending: false,
         watched: false,
       });

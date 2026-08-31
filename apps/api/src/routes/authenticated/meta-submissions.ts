@@ -25,7 +25,7 @@ const os = implement(metaSubmissionsContract).$context<ApiContext>().use(require
  * Hono middleware on the `/api/v1/meta` prefix: the archive's reads live on that
  * same prefix and are anonymous, so a prefix gate would 401 every public page.
  *
- * Nothing here writes a live row. A submission stages one candidate standings
+ * Nothing here writes a live row. A submission stages one proposed standings
  * row and one ledger row, and an admin accept is what makes any of it public.
  */
 export const metaSubmissionsRouter = {

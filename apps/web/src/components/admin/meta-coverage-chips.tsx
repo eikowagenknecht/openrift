@@ -83,9 +83,9 @@ export function MetaCoverageChips({ row, now }: { row: MetaCoverageRow; now?: Da
   }
 
   const fetched = row.fetchedAt !== null;
-  const players = row.stagedPlayerCount ?? 0;
-  const legends = row.stagedLegendCount ?? 0;
-  const decks = row.stagedDeckCount ?? 0;
+  const players = row.stagedPlayerCount;
+  const legends = row.stagedLegendCount;
+  const decks = row.stagedDeckCount;
   const decklistsPublished = row.decklistStatus === "PUBLISHED";
   const hint = coverageRecheckHint(row, at);
 

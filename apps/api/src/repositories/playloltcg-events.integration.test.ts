@@ -33,7 +33,6 @@ const DETAIL_SHOP_ID = 990_101;
 const SEEN = new Date("2026-08-20T12:00:00Z");
 
 const createdEventIds: string[] = [];
-const createdCandidateIds: string[] = [];
 
 function row(overrides: Partial<PlayloltcgUpsertInput> = {}): PlayloltcgUpsertInput {
   return {
@@ -77,21 +76,32 @@ async function seedAcceptedCandidate(
     .executeTakeFirstOrThrow();
   createdEventIds.push(live.id);
 
-  const candidate = await ctx!.db
-    .insertInto("candidateMetaEvents")
+  await ctx!.db
+    .insertInto("metaEventSources")
     .values({
+      metaEventId: live.id,
       provider: PLAYLOLTCG_PROVIDER,
       externalId: String(activityShopId),
-      name: `PLT ${activityShopId}`,
-      eventDate: "2026-08-15",
-      format: "freeform",
-      metaEventId: live.id,
-      fetchedAt: values.fetchedAt ?? null,
+      label: PLAYLOLTCG_PROVIDER,
+      sourceUrl: null,
     })
-    .returning("id")
-    .executeTakeFirstOrThrow();
-  createdCandidateIds.push(candidate.id);
-  return candidate.id;
+    .execute();
+
+  // A fetched event is one whose mirror holds standings; there is no column
+  // saying so any more.
+  if (values.fetchedAt !== null && values.fetchedAt !== undefined) {
+    await ctx!.db
+      .insertInto("playloltcgEventStandings")
+      .values({
+        activityShopId,
+        playerKey: "u1",
+        playerName: "Seeded",
+        rank: 1,
+        fetchedAt: values.fetchedAt,
+      })
+      .execute();
+  }
+  return live.id;
 }
 
 afterAll(async () => {
@@ -102,16 +112,17 @@ afterAll(async () => {
     .deleteFrom("playloltcgEventChecks")
     .where("activityShopId", "in", ALL_KEYS)
     .execute();
+  await ctx.db
+    .deleteFrom("playloltcgEventStandings")
+    .where("activityShopId", "in", ALL_KEYS)
+    .execute();
   await ctx.db.deleteFrom("playloltcgEvents").where("activityShopId", "in", ALL_KEYS).execute();
   await ctx.db.deleteFrom("playloltcgShops").where("id", "=", DETAIL_SHOP_ID).execute();
   await ctx.db
-    .deleteFrom("ignoredCandidateMetaEvents")
+    .deleteFrom("ignoredMetaSourceEvents")
     .where("provider", "=", PLAYLOLTCG_PROVIDER)
     .where("externalId", "in", ALL_KEYS.map(String))
     .execute();
-  if (createdCandidateIds.length > 0) {
-    await ctx.db.deleteFrom("candidateMetaEvents").where("id", "in", createdCandidateIds).execute();
-  }
   if (createdEventIds.length > 0) {
     await ctx.db.deleteFrom("metaEvents").where("id", "in", createdEventIds).execute();
   }
@@ -191,7 +202,7 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
     );
     await seedAcceptedCandidate(KEYS.live);
     await ctx!.db
-      .insertInto("ignoredCandidateMetaEvents")
+      .insertInto("ignoredMetaSourceEvents")
       .values({ provider: PLAYLOLTCG_PROVIDER, externalId: String(KEYS.out) })
       .execute();
 

@@ -1,6 +1,5 @@
 import { nextRecheck } from "../../lib/meta-recheck-schedule.js";
 import { projectCatalogRow, UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
-import { unfetchedDeckIds } from "../../lib/uvsgames-transform.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { runCancelRequested, writeRunHeartbeat } from "./crawl-checkpoint.js";
 import { deepFetchEvent } from "./deep-fetch.js";
@@ -187,13 +186,12 @@ async function refreshStatus(
   }
   await deps.repos.uvsgamesEvents.upsertBatch([projection], now);
 
-  const [candidate] = await deps.repos.metaCandidates.eventsBySourceKeys(UVSGAMES_PROVIDER, [
-    row.externalId,
+  // Every "have we got this yet" question the ladder asks is a mirror query
+  // now, where it used to walk the staged raw payload in application code.
+  const [standings, coverage] = await Promise.all([
+    deps.repos.uvsgamesResults.standings(row.externalId),
+    deps.repos.uvsgamesResults.deckCoverage(row.externalId),
   ]);
-  const players =
-    candidate === undefined
-      ? []
-      : await deps.repos.metaCandidates.playersByCandidateEventIds([candidate.id]);
 
   return {
     row: { ...row, ...projection },
@@ -202,13 +200,29 @@ async function refreshStatus(
     displayStatus: projection.displayStatus,
     startAt: projection.startAt,
     decklistStatus: projection.decklistStatus,
-    fetched: candidate !== undefined && candidate.fetchedAt !== null,
-    decksComplete: unfetchedDeckIds(candidate?.raw).length === 0,
+    // The completion marker, not "the mirror holds rows": a cancelled event
+    // legitimately has zero standings and must still count as fetched.
+    fetched: row.resultsFetchedAt !== null,
+    decksComplete: coverage.outstanding.length === 0,
+    // A standing the mirror holds but no live row carries is work promotion
+    // has not finished, which is what keeps the ladder visiting.
     playersPending:
-      candidate !== undefined &&
-      candidate.metaEventId !== null &&
-      players.some((player) => player.metaEventPlayerId === null),
+      standings.length > 0 && (await liveLagsMirror(deps, row.externalId, standings.length)),
   };
+}
+
+/** Whether the live event carries fewer standings rows than the mirror holds. */
+async function liveLagsMirror(
+  deps: MetaSyncDeps,
+  externalId: string,
+  mirrored: number,
+): Promise<boolean> {
+  const source = await deps.repos.meta.sourceByKey(UVSGAMES_PROVIDER, externalId);
+  if (source === undefined) {
+    return false;
+  }
+  const live = await deps.repos.meta.rawStandingsForEvent(source.metaEventId);
+  return live.length < mirrored;
 }
 
 async function readDetail(

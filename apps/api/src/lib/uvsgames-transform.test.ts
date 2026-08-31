@@ -1,28 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type { UvsDeepFetchRaw, UvsEventFacts } from "./uvsgames-transform.js";
+import type { UvsDeepFetchResponses } from "./uvsgames-transform.js";
 import {
   completedRounds,
   projectPhases,
   projectRoundMatches,
   readDeckLines,
   referencedDeckIds,
-  storedDecks,
-  transformUvsEvent,
-  unfetchedDeckIds,
+  projectUvsStandings,
 } from "./uvsgames-transform.js";
-
-const FACTS: UvsEventFacts = {
-  externalId: "4821",
-  name: "Summoner Skirmish Regional",
-  startAt: new Date("2026-08-16T00:00:00Z"),
-  timezone: "America/New_York",
-  eventFormat: "CONSTRUCTED",
-  playerCount: 3,
-  storeName: "The Rift Room",
-  location: "12 Nexus Ave, Portland, OR, 97201, US",
-  templateTier: "store",
-};
 
 function registration(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -41,289 +27,20 @@ function registration(overrides: Record<string, unknown> = {}): Record<string, u
  * A deck section as the source writes one: the zone is named by `section_type`,
  * each line nests its card, and a section with nothing in it is still sent.
  */
-function section(
-  sectionType: string,
-  cards: { name: string; quantity: number; type?: string }[],
-): Record<string, unknown> {
-  return {
-    id: `section-${sectionType}`,
-    name: sectionType,
-    section_type: sectionType,
-    sort_order: 0,
-    card_count: cards.length,
-    cards: cards.map((card, index) => ({
-      id: `line-${sectionType}-${index}`,
-      quantity: card.quantity,
-      foil: false,
-      sort_order: index,
-      card: { id: `card-${card.name}`, name: card.name, type: card.type ?? "Spell" },
-    })),
-  };
-}
-
 /** The shape all but a few dozen real lists have: no legend, champion or battlefields. */
-function mainDeckOnlyDeck(): Record<string, unknown> {
-  return {
-    id: "deck-1",
-    name: "Rengar, Pridestalker",
-    format: "Constructed",
-    sections: [
-      section("main", [{ name: "Punch First", quantity: 39 }]),
-      section("rune_pool", [{ name: "Body Rune", quantity: 12, type: "Rune" }]),
-      section("sideboard", [{ name: "Brittle Steel", quantity: 8 }]),
-      section("champion", []),
-      section("legend", []),
-      section("battlefield", []),
-    ],
-  };
-}
-
-function raw(overrides: Partial<UvsDeepFetchRaw> = {}): UvsDeepFetchRaw {
+function raw(overrides: Partial<UvsDeepFetchResponses> = {}): UvsDeepFetchResponses {
   return {
     detail: { name: "Summoner Skirmish Regional" },
     registrations: [registration()],
     standings: [],
     roundStandings: [],
-    decks: {},
     ...overrides,
   };
 }
 
-describe("transformUvsEvent", () => {
-  it("builds the event header from the catalogue facts", () => {
-    const { event } = transformUvsEvent(FACTS, raw());
-
-    expect(event).toMatchObject({
-      externalId: "4821",
-      name: "Summoner Skirmish Regional",
-      // 00:00 UTC is still the previous day at the venue.
-      eventDate: "2026-08-15",
-      format: "constructed",
-      playerCount: 3,
-      organizer: "The Rift Room",
-      sourceUrl: "https://locator.riftbound.uvsgames.com/events/4821",
-      notes: null,
-      // The mapped template tier, whatever the free-text name says.
-      tier: "store",
-      country: "US",
-      location: "12 Nexus Ave, Portland, OR, 97201, US",
-    });
-  });
-
-  it("falls back to the player-count placeholder when the template is unmapped", () => {
-    const { event } = transformUvsEvent(
-      { ...FACTS, templateTier: null, playerCount: 2224 },
-      raw({ detail: { name: "Riftbound Regional Qualifier - Portland" } }),
-    );
-    expect(event.tier).toBe("competitive");
-  });
-
-  it("stores null for an address no country can be read from", () => {
-    const { event } = transformUvsEvent({ ...FACTS, location: "Somewhere on Runeterra" }, raw());
-    expect(event.country).toBeNull();
-    expect(event.location).toBe("Somewhere on Runeterra");
-  });
-
-  it("keeps an unmapped source format verbatim so the review screen can report it", () => {
-    const { event } = transformUvsEvent({ ...FACTS, eventFormat: "SEALED" }, raw());
-
-    expect(event.format).toBe("sealed");
-  });
-
-  it("maps a registration's record and placement onto a standings row", () => {
-    const { event } = transformUvsEvent(FACTS, raw());
-
-    expect(event.players).toEqual([
-      {
-        externalId: "900",
-        playerName: "Ashwalker",
-        rank: 1,
-        rankIsTier: false,
-        wins: 5,
-        losses: 1,
-        draws: 0,
-        matchPoints: null,
-        opponentMatchWinPct: null,
-        gameWinPct: null,
-        opponentGameWinPct: null,
-        entryStatus: null,
-        legendName: null,
-        championName: null,
-        cards: null,
-        listStatus: "none",
-      },
-    ]);
-  });
-
-  it("takes the match points and tiebreakers from the round standings", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        roundStandings: [
-          {
-            match_points: 21,
-            opponent_match_win_percentage: 0.65382653,
-            game_win_percentage: 0.77777778,
-            opponent_game_win_percentage: 0.64397379,
-            user_event_status: { id: 900, deck_defining_card: { name: "Jinx" } },
-          },
-        ],
-      }),
-    );
-
-    expect(event.players[0]).toMatchObject({
-      matchPoints: 21,
-      opponentMatchWinPct: 0.65382653,
-      gameWinPct: 0.77777778,
-      opponentGameWinPct: 0.64397379,
-    });
-  });
-
-  it("drops a tiebreaker the source reports outside 0..1", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        roundStandings: [
-          {
-            game_win_percentage: 1.5,
-            opponent_game_win_percentage: 0.5,
-            user_event_status: { id: 900 },
-          },
-        ],
-      }),
-    );
-
-    expect(event.players[0].gameWinPct).toBeNull();
-    expect(event.players[0].opponentGameWinPct).toBe(0.5);
-  });
-
-  it("lowers the registration status into the archive's vocabulary", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [
-          registration({ registration_status: "DROPPED" }),
-          registration({ id: 901, best_identifier: "Riverspeaker", final_place_in_standings: 2 }),
-          registration({
-            id: 902,
-            best_identifier: "Zaunite",
-            final_place_in_standings: 3,
-            registration_status: "SOMETHING_NEW",
-          }),
-        ],
-      }),
-    );
-
-    expect(event.players.map((player) => player.entryStatus)).toEqual(["dropped", null, null]);
-  });
-
-  it("falls back to the registration's own match points when no standings row exists", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({ registrations: [registration({ total_match_points: 15 })] }),
-    );
-
-    expect(event.players[0].matchPoints).toBe(15);
-  });
-
-  it("stores no records for a field that tracked no matches", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [
-          registration({ matches_won: 0, matches_drawn: 1, matches_lost: 0 }),
-          registration({
-            id: 901,
-            best_identifier: "Riverspeaker",
-            matches_won: 0,
-            matches_lost: 0,
-            matches_drawn: 1,
-            final_place_in_standings: 2,
-          }),
-          registration({
-            id: 902,
-            best_identifier: "Zaunite",
-            matches_won: 0,
-            matches_lost: 0,
-            matches_drawn: 1,
-            final_place_in_standings: 3,
-          }),
-        ],
-      }),
-    );
-
-    for (const player of event.players) {
-      expect([player.wins, player.losses, player.draws]).toEqual([null, null, null]);
-    }
-  });
-
-  it("keeps records once any player won or lost a match", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [
-          registration({ matches_won: 1, matches_lost: 0, matches_drawn: 0 }),
-          registration({
-            id: 901,
-            best_identifier: "Riverspeaker",
-            matches_won: 0,
-            matches_lost: 0,
-            matches_drawn: 1,
-            final_place_in_standings: 2,
-          }),
-          registration({
-            id: 902,
-            best_identifier: "Zaunite",
-            matches_won: 0,
-            matches_lost: 1,
-            matches_drawn: 0,
-            final_place_in_standings: 3,
-          }),
-        ],
-      }),
-    );
-
-    expect(event.players.map((player) => player.draws)).toEqual([0, 1, 0]);
-  });
-
-  it("keeps a two-player field's genuinely drawn record", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [
-          registration({ matches_won: 0, matches_lost: 0, matches_drawn: 1 }),
-          registration({
-            id: 901,
-            best_identifier: "Riverspeaker",
-            matches_won: 0,
-            matches_lost: 0,
-            matches_drawn: 1,
-            final_place_in_standings: 2,
-          }),
-        ],
-      }),
-    );
-
-    expect(event.players.map((player) => player.draws)).toEqual([1, 1]);
-  });
-
-  it("joins the legend from the last completed round's standings", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        roundStandings: [
-          { user_event_status: { id: 900, deck_defining_card: { name: "Jinx" } } },
-          { user_event_status: { id: 901, deck_defining_card: { name: "Viktor" } } },
-        ],
-      }),
-    );
-
-    expect(event.players[0].legendName).toBe("Jinx");
-  });
-
+describe("projectUvsStandings", () => {
   it("drops a registration with no name or no placement, and counts it", () => {
-    const { event, dropped } = transformUvsEvent(
-      FACTS,
+    const { standings, dropped } = projectUvsStandings(
       raw({
         registrations: [
           registration(),
@@ -333,25 +50,12 @@ describe("transformUvsEvent", () => {
       }),
     );
 
-    expect(event.players).toHaveLength(1);
+    expect(standings).toHaveLength(1);
     expect(dropped).toBe(2);
   });
 
-  it("fills a missing placement from the tv standings when the name is unambiguous", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ final_place_in_standings: null })],
-        standings: [{ rank: 4, tv_display_name: "ashwalker" }],
-      }),
-    );
-
-    expect(event.players[0].rank).toBe(4);
-  });
-
   it("refuses a tv-standings rank when the display name is not unique", () => {
-    const { event, dropped } = transformUvsEvent(
-      FACTS,
+    const { standings, dropped } = projectUvsStandings(
       raw({
         registrations: [registration({ final_place_in_standings: null })],
         standings: [
@@ -361,218 +65,14 @@ describe("transformUvsEvent", () => {
       }),
     );
 
-    expect(event.players).toHaveLength(0);
+    expect(standings).toHaveLength(0);
     expect(dropped).toBe(1);
   });
-
-  it("attaches a published decklist with its zones mapped", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: {
-          "deck-1": {
-            sections: [
-              section("legend", [{ name: "Jinx", quantity: 1, type: "Legend" }]),
-              section("champion", [{ name: "Vi", quantity: 1, type: "Unit" }]),
-              section("rune_pool", [{ name: "Fury Rune", quantity: 12, type: "Rune" }]),
-              section("main", [{ name: "Get Excited", quantity: 39 }]),
-              section("battlefield", [{ name: "Zaun Alley", quantity: 3, type: "Battlefield" }]),
-              section("sideboard", [{ name: "Riot Police", quantity: 2 }]),
-              section("mystery_zone", [{ name: "Unknown Thing", quantity: 1 }]),
-            ],
-          },
-        },
-      }),
-    );
-
-    expect(event.players[0].listStatus).toBe("full");
-    expect(event.players[0].championName).toBe("Vi");
-    expect(event.players[0].cards).toEqual([
-      { name: "Jinx", zone: "legend", quantity: 1 },
-      { name: "Vi", zone: "champion", quantity: 1 },
-      { name: "Fury Rune", zone: "runes", quantity: 12 },
-      { name: "Get Excited", zone: "main", quantity: 39 },
-      { name: "Zaun Alley", zone: "battlefield", quantity: 3 },
-      { name: "Riot Police", zone: "sideboard", quantity: 2 },
-      { name: "Unknown Thing", zone: "main", quantity: 1 },
-    ]);
-  });
-
-  it("keeps the rune pool and the sideboard out of the main deck", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: { "deck-1": mainDeckOnlyDeck() },
-      }),
-    );
-
-    expect(event.players[0].cards).toEqual([
-      { name: "Punch First", zone: "main", quantity: 39 },
-      { name: "Body Rune", zone: "runes", quantity: 12 },
-      { name: "Brittle Steel", zone: "sideboard", quantity: 8 },
-    ]);
-  });
-
-  it("marks a list the source never gave a champion or battlefields as partial", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: { "deck-1": mainDeckOnlyDeck() },
-      }),
-    );
-
-    expect(event.players[0].listStatus).toBe("partial");
-  });
-
-  it("reads the older shape, which names its sections and types nothing", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: {
-          "deck-1": {
-            sections: [
-              { name: "Main Deck", cards: [{ card: { name: "Punch First" }, quantity: 39 }] },
-              { name: "Rune Pool", cards: [{ card: { name: "Body Rune" }, quantity: 12 }] },
-              { name: "Sideboard", cards: [{ card: { name: "Brittle Steel" }, quantity: 8 }] },
-            ],
-          },
-        },
-      }),
-    );
-
-    expect(event.players[0].cards).toEqual([
-      { name: "Punch First", zone: "main", quantity: 39 },
-      { name: "Body Rune", zone: "runes", quantity: 12 },
-      { name: "Brittle Steel", zone: "sideboard", quantity: 8 },
-    ]);
-  });
-
-  it("files a battlefield the source left in the main deck under its own zone", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: {
-          "deck-1": {
-            sections: [
-              section("main", [
-                { name: "Punch First", quantity: 38 },
-                { name: "Zaun Alley", quantity: 1, type: "Battlefield" },
-              ]),
-            ],
-          },
-        },
-      }),
-    );
-
-    expect(event.players[0].cards).toEqual([
-      { name: "Punch First", zone: "main", quantity: 38 },
-      { name: "Zaun Alley", zone: "battlefield", quantity: 1 },
-    ]);
-  });
-
-  it("keeps the Chosen Champion in its own zone, though the card is a Unit", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: {
-          "deck-1": {
-            sections: [section("champion", [{ name: "Vi", quantity: 1, type: "Unit" }])],
-          },
-        },
-      }),
-    );
-
-    expect(event.players[0].cards).toEqual([{ name: "Vi", zone: "champion", quantity: 1 }]);
-  });
-
-  it("counts the legend the standings named toward a complete list", () => {
-    const decks = {
-      "deck-1": {
-        sections: [
-          section("main", [{ name: "Punch First", quantity: 39 }]),
-          section("rune_pool", [{ name: "Body Rune", quantity: 12, type: "Rune" }]),
-          section("champion", [{ name: "Vi", quantity: 1, type: "Unit" }]),
-          section("battlefield", [{ name: "Zaun Alley", quantity: 3, type: "Battlefield" }]),
-        ],
-      },
-    };
-    const registrations = [registration({ id: 900, deck_id: "deck-1" })];
-
-    const without = transformUvsEvent(FACTS, raw({ registrations, decks }));
-    const withLegend = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations,
-        decks,
-        roundStandings: [{ user_event_status: { id: 900, deck_defining_card: { name: "Jinx" } } }],
-      }),
-    );
-
-    expect(without.event.players[0].listStatus).toBe("partial");
-    expect(withLegend.event.players[0].listStatus).toBe("full");
-  });
-
-  it("leaves a player standings-only when their deck could not be read", () => {
-    const { event, unreadableDecks } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: { "deck-1": { sections: [] } },
-      }),
-    );
-
-    expect(event.players[0].cards).toBeNull();
-    expect(event.players[0].listStatus).toBe("none");
-    expect(unreadableDecks).toBe(1);
-  });
-
-  it("does not count a deck the source refused as unreadable", () => {
-    const { event, unreadableDecks } = transformUvsEvent(
-      FACTS,
-      raw({
-        registrations: [registration({ deck_id: "deck-1" })],
-        decks: { "deck-1": null },
-      }),
-    );
-
-    expect(event.players[0].cards).toBeNull();
-    expect(event.players[0].listStatus).toBe("none");
-    expect(unreadableDecks).toBe(0);
-  });
 });
 
-describe("transformUvsEvent name lengths", () => {
-  const LONG = "N".repeat(200);
-
-  it("truncates the standings name, which the ingest would reject rather than trim", () => {
-    const { event } = transformUvsEvent(
-      FACTS,
-      raw({ registrations: [registration({ best_identifier: LONG })] }),
-    );
-
-    expect(event.players[0].playerName).toHaveLength(80);
-  });
-
-  it("leaves the identity name whole, since the player upsert is what bounds it", () => {
-    const { players } = transformUvsEvent(
-      FACTS,
-      raw({ registrations: [registration({ best_identifier: LONG, user: { id: 41 } })] }),
-    );
-
-    expect(players[0].displayName).toBe(LONG);
-  });
-});
-
-describe("transformUvsEvent player identities", () => {
+describe("projectUvsStandings player identities", () => {
   it("names the source's user behind each registration, keyed by the staged row's id", () => {
-    const { players } = transformUvsEvent(
-      FACTS,
+    const { players } = projectUvsStandings(
       raw({
         registrations: [
           registration({ id: 900, best_identifier: "Ashwalker", user: { id: 41 } }),
@@ -593,8 +93,7 @@ describe("transformUvsEvent player identities", () => {
   });
 
   it("takes the registration's own handle as the display name, not the standings name", () => {
-    const { players } = transformUvsEvent(
-      FACTS,
+    const { players } = projectUvsStandings(
       raw({
         registrations: [registration({ best_identifier: "Ashwalker", user: { id: 41 } })],
         standings: [{ tv_display_name: "Real Name", rank: 1 }],
@@ -606,44 +105,24 @@ describe("transformUvsEvent player identities", () => {
 
   it("still stages the standings row for a registration the source gives no usable user id", () => {
     for (const user of [undefined, {}, { id: 0 }, { id: -1 }, { id: 4.5 }, { id: "41" }]) {
-      const { event, players } = transformUvsEvent(
-        FACTS,
+      const { standings, players } = projectUvsStandings(
         raw({ registrations: [registration({ user })] }),
       );
 
       expect(players).toEqual([]);
-      expect(event.players).toHaveLength(1);
+      expect(standings).toHaveLength(1);
     }
   });
 
   it("has no identity for a registration that was dropped for want of a placement", () => {
-    const { event, players } = transformUvsEvent(
-      FACTS,
+    const { standings, players } = projectUvsStandings(
       raw({
         registrations: [registration({ final_place_in_standings: null, user: { id: 41 } })],
       }),
     );
 
     expect(players).toEqual([]);
-    expect(event.players).toEqual([]);
-  });
-});
-
-describe("storedDecks", () => {
-  it("hands back the stored map, refusal markers included", () => {
-    expect(storedDecks({ decks: { held: { sections: [] }, refused: null } })).toEqual({
-      held: { sections: [] },
-      refused: null,
-    });
-  });
-
-  it("is empty for anything that is not a plain object", () => {
-    expect(storedDecks(null)).toEqual({});
-    expect(storedDecks(undefined)).toEqual({});
-    expect(storedDecks({})).toEqual({});
-    expect(storedDecks({ decks: [] })).toEqual({});
-    expect(storedDecks({ decks: "junk" })).toEqual({});
-    expect(storedDecks({ decks: null })).toEqual({});
+    expect(standings).toEqual([]);
   });
 });
 
@@ -1032,23 +511,6 @@ describe("referencedDeckIds", () => {
         "junk",
       ]),
     ).toEqual(["a", "b"]);
-  });
-});
-
-describe("unfetchedDeckIds", () => {
-  it("returns the referenced ids with no stored entry, counting refusals as held", () => {
-    const ids = unfetchedDeckIds({
-      registrations: [{ deck_id: "held" }, { deck_id: "refused" }, { deck_id: "open" }, {}],
-      decks: { held: { sections: [] }, refused: null },
-    });
-
-    expect(ids).toEqual(["open"]);
-  });
-
-  it("is empty for a candidate that has never been fetched", () => {
-    expect(unfetchedDeckIds(null)).toEqual([]);
-    expect(unfetchedDeckIds(undefined)).toEqual([]);
-    expect(unfetchedDeckIds({ registrations: "junk", decks: "junk" })).toEqual([]);
   });
 });
 

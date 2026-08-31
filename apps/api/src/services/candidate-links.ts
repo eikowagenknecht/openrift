@@ -11,10 +11,11 @@
  * `public_code` or without a rarity stayed permanently unlinked. Keeping the
  * key and the gate here is what stops that recurring.
  *
- * The name→card half is also what the meta archive's deck ingest resolves
- * against (`ingest-meta-candidates.ts`), so an alias added once applies to
- * every pipeline. That consumer needs no printing lookups, hence the narrower
- * {@link CardNameIndex} it loads instead of the full index.
+ * The name→card half is also what the meta archive's promotion and overlay
+ * ingest resolve against (`meta-promote.ts`, `ingest-meta-overlays.ts`), so an
+ * alias added once applies to every pipeline. Those consumers need no printing
+ * lookups, hence the narrower {@link CardNameIndex} they load instead of the
+ * full index.
  */
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 

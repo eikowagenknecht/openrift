@@ -37,7 +37,7 @@ describe("MetaCoverageChips", () => {
   it("calls the standings pending until a fetch has landed", () => {
     render(
       <MetaCoverageChips
-        row={row({ fetchedAt: null, stagedPlayerCount: null, stagedDeckCount: null })}
+        row={row({ fetchedAt: null, stagedPlayerCount: 0, stagedDeckCount: 0 })}
         now={NOW}
       />,
     );

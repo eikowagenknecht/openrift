@@ -29,6 +29,7 @@ function row(overrides: Partial<UvsgamesCoverageRow> = {}): UvsgamesCoverageRow 
     location: "Piltover, Valoran",
     timezone: "America/New_York",
     contentHash: "abc",
+    resultsFetchedAt: null,
     eventConfigurationTemplate: null,
     firstSeenAt: new Date("2026-08-01T00:00:00Z"),
     lastSeenAt: new Date("2026-08-20T00:00:00Z"),
@@ -36,13 +37,12 @@ function row(overrides: Partial<UvsgamesCoverageRow> = {}): UvsgamesCoverageRow 
     nextCheckAt: null,
     checkStage: 0,
     triage: "new",
-    candidateEventId: null,
     metaEventId: null,
     metaEventSlug: null,
     fetchedAt: null,
-    stagedPlayerCount: null,
-    stagedLegendCount: null,
-    stagedDeckCount: null,
+    stagedPlayerCount: 0,
+    stagedLegendCount: 0,
+    stagedDeckCount: 0,
     ...overrides,
   };
 }
@@ -93,7 +93,6 @@ describe("toMetaCatalogRow", () => {
     const presented = toMetaCatalogRow(
       row({
         triage: "accepted",
-        candidateEventId: "cand-1",
         metaEventId: "live-1",
         metaEventSlug: "summoner-skirmish-regional-2026-08-15",
         nextCheckAt: new Date("2026-08-21T00:00:00Z"),
@@ -104,7 +103,6 @@ describe("toMetaCatalogRow", () => {
 
     expect(presented).toMatchObject({
       triage: "accepted",
-      candidateEventId: "cand-1",
       metaEventId: "live-1",
       metaEventSlug: "summoner-skirmish-regional-2026-08-15",
       nextCheckAt: "2026-08-21T00:00:00.000Z",
@@ -116,7 +114,6 @@ describe("toMetaCatalogRow", () => {
     const presented = toMetaCatalogRow(
       row({
         triage: "accepted",
-        candidateEventId: "cand-1",
         metaEventId: "live-1",
         fetchedAt: new Date("2026-08-19T04:00:00Z"),
         stagedPlayerCount: 128,
@@ -134,12 +131,12 @@ describe("toMetaCatalogRow", () => {
     });
   });
 
-  it("keeps the staged counts null for a row no candidate stages", () => {
+  it("counts a row nothing was fetched for as zero, and dates it never", () => {
     expect(toMetaCatalogRow(row(), VOCABULARY)).toMatchObject({
       fetchedAt: null,
-      stagedPlayerCount: null,
-      stagedLegendCount: null,
-      stagedDeckCount: null,
+      stagedPlayerCount: 0,
+      stagedLegendCount: 0,
+      stagedDeckCount: 0,
     });
   });
 
@@ -147,7 +144,6 @@ describe("toMetaCatalogRow", () => {
     const presented = toMetaCatalogRow(
       row({
         triage: "accepted",
-        candidateEventId: "cand-1",
         metaEventId: "live-1",
         fetchedAt: new Date("2026-08-19T04:00:00Z"),
         stagedPlayerCount: 0,

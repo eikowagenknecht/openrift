@@ -93,7 +93,6 @@ function dueRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListRow {
     lastSeenAt: NOW,
     missingSince: null,
     triage: "accepted",
-    candidateEventId: "cand-1",
     metaEventId: "live-1",
     metaEventSlug: "shenzhen-1",
     shopDisplayName: "卡之域卡牌 深圳",
@@ -109,7 +108,8 @@ function fakeDeps(options: {
   pages?: Record<string, { items: unknown[]; total: number }[]>;
   blockOn?: string;
   due?: PlayloltcgListRow[];
-  candidateRaw?: unknown;
+  /** Deck ids the mirror still owes, which is what holds the ladder open. */
+  outstandingDecks?: string[];
   priorResult?: unknown;
 }): {
   deps: PlayloltcgSyncDeps;
@@ -140,6 +140,10 @@ function fakeDeps(options: {
     },
   } as unknown as PlayloltcgClient;
 
+  const playloltcgResults = {
+    deckCoverage: () => Promise.resolve({ outstanding: options.outstandingDecks ?? [], held: 0 }),
+  };
+
   const playloltcgEvents = {
     upsertShops: () => Promise.resolve(0),
     upsertBatch: () => Promise.resolve({ inserted: [], changed: [], unchanged: [] }),
@@ -158,9 +162,7 @@ function fakeDeps(options: {
   const deps: PlayloltcgSyncDeps = {
     repos: {
       playloltcgEvents,
-      metaCandidates: {
-        eventsBySourceKeys: () => Promise.resolve([{ id: "cand-1", raw: options.candidateRaw }]),
-      },
+      playloltcgResults,
       jobRuns: {
         findLatestForResume: () => Promise.resolve({ result: options.priorResult ?? null }),
         updateResult: () => Promise.resolve(),
@@ -306,7 +308,7 @@ describe("processPlayloltcgRechecks", () => {
   it("revisits a fetched event whose deck bodies are not all held", async () => {
     const { deps } = fakeDeps({
       due: [dueRow({ checkStage: 1, fetchedAt: NOW })],
-      candidateRaw: { standings: [{ cardGroupId: 5 }], decks: {} },
+      outstandingDecks: ["5"],
     });
 
     const result = await processPlayloltcgRechecks(deps);
@@ -317,7 +319,7 @@ describe("processPlayloltcgRechecks", () => {
   it("leaves a fetched event with every deck held alone", async () => {
     const { deps } = fakeDeps({
       due: [dueRow({ checkStage: 1, fetchedAt: NOW })],
-      candidateRaw: { standings: [{ cardGroupId: 5 }], decks: { "5": [] } },
+      outstandingDecks: [],
     });
 
     const result = await processPlayloltcgRechecks(deps);

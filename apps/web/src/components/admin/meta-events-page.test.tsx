@@ -104,7 +104,7 @@ function event(overrides: Partial<AdminMetaEvent> = {}): AdminMetaEvent {
     location: null,
     playerRowCount: 64,
     deckCount: 12,
-    sources: [{ candidateEventId: "candidate-1", provider: "uvsgames" }],
+    sources: [{ id: "src-1", provider: "uvsgames", externalId: "source-1", priority: 0 }],
     ...overrides,
   };
 }
@@ -118,13 +118,12 @@ describe("MetaEventsPage", () => {
     searchStore.seed({});
   });
 
-  it("leads each live row back to the candidate it was built from", () => {
+  it("names each live row's sources, since the link is the citation now", () => {
     render(<MetaEventsPage />);
-    const source = screen.getByText("uvsgames");
-    expect(source.closest("a")).toHaveAttribute(
-      "data-params",
-      JSON.stringify({ candidateId: "candidate-1" }),
-    );
+
+    // A badge rather than a link: there is no candidate page to open, and
+    // drift lives on the event's own dialog.
+    expect(screen.getByText("uvsgames")).toBeInTheDocument();
   });
 
   it("offers each live row a way out to its public archive page", () => {
@@ -150,8 +149,8 @@ describe("MetaEventsPage", () => {
     captured.events = [
       event({
         sources: [
-          { candidateEventId: "candidate-1", provider: "uvsgames" },
-          { candidateEventId: "candidate-2", provider: "usersubmission" },
+          { id: "src-1", provider: "uvsgames", externalId: "source-1", priority: 0 },
+          { id: "src-2", provider: "usersubmission", externalId: "source-2", priority: 0 },
         ],
       }),
     ];

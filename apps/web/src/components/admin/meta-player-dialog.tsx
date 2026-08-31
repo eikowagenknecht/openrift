@@ -28,14 +28,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { MetaPlayerListInput } from "@/hooks/use-admin-meta";
-import { useCreateMetaPlayer, useUpdateMetaPlayer } from "@/hooks/use-admin-meta";
+import { useCreateMetaPlayer, useRenamePlayerDeck } from "@/hooks/use-admin-meta";
+import { useWritePlayerOverlayFields } from "@/hooks/use-admin-meta-overlays";
 import { useCards } from "@/hooks/use-cards";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import type { MetaPlayerDraft } from "@/lib/admin-meta-draft";
 import {
   RANK_PRESETS,
+  metaPlayerDeckRename,
+  metaPlayerOverlayFields,
+  metaPlayerOverlayList,
   metaPlayerRank,
   metaPlayerRecordPart,
   metaPlayerToDraft,
@@ -169,7 +172,8 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
   const { formats, labels: formatLabels } = useDeckFormatList();
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const createPlayer = useCreateMetaPlayer();
-  const updatePlayer = useUpdateMetaPlayer();
+  const writeOverlay = useWritePlayerOverlayFields();
+  const renameDeck = useRenamePlayerDeck();
 
   const [draft, setDraft] = useState<MetaPlayerDraft>(() =>
     player
@@ -192,7 +196,7 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
   const [parsed, setParsed] = useState<ParseResult | null>(null);
   const [formError, setFormError] = useState("");
 
-  const isPending = createPlayer.isPending || updatePlayer.isPending;
+  const isPending = createPlayer.isPending || writeOverlay.isPending || renameDeck.isPending;
   const wantsList = draft.listStatus !== "none";
   /** True when the stored row already has a deck the save can leave alone. */
   const hasStoredList = player !== undefined && player.listStatus !== "none";
@@ -230,6 +234,23 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
     });
   }
 
+  /**
+   * Claims only what moved, so an edit that touched the finish never takes the
+   * name out of the sources' hands as a side effect. A rename with no new list
+   * is its own call: the deck name is a durable write, not a claim.
+   */
+  async function saveEdit(current: AdminMetaPlayer, cards: ImportedDeckCard[]): Promise<void> {
+    const fields = metaPlayerOverlayFields(current, draft);
+    const list = metaPlayerOverlayList(current, draft, cards);
+    if (Object.keys(fields).length > 0 || list !== undefined) {
+      await writeOverlay.mutateAsync({ id: current.id, fields, list });
+    }
+    const deckName = metaPlayerDeckRename(current, draft, cards);
+    if (deckName !== null) {
+      await renameDeck.mutateAsync({ id: current.id, eventId, name: deckName });
+    }
+  }
+
   async function handleSubmit() {
     const problem = validateMetaPlayerDraft(draft);
     if (problem) {
@@ -248,42 +269,31 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
       return;
     }
 
-    // `list` has three meanings and the branch is settled before the try/catch,
-    // since the React Compiler bails on a conditional inside one: an object
-    // replaces the deck, `null` detaches and deletes it, and `undefined` leaves
-    // a stored list exactly as it is.
-    let list: MetaPlayerListInput | null | undefined;
-    if (!wantsList) {
-      list = null;
-    } else if (cards.length > 0) {
-      list = {
-        name: draft.deckName.trim(),
-        format: draft.deckFormat.trim(),
-        cards,
-        listStatus: draft.listStatus === "partial" ? "partial" : "full",
-      };
-    }
-
-    const scalars = {
-      playerName: draft.playerName.trim(),
-      rank,
-      rankIsTier: draft.rankIsTier,
-      wins: metaPlayerRecordPart(draft.wins),
-      losses: metaPlayerRecordPart(draft.losses),
-      draws: metaPlayerRecordPart(draft.draws),
-      legendCardId: draft.legendCardId,
-      championCardId: draft.championCardId,
-    };
-
+    // Creating still writes the whole row: there is nothing there yet to leave
+    // alone.
     const save: () => Promise<unknown> = player
-      ? () =>
-          updatePlayer.mutateAsync({
-            id: player.id,
+      ? () => saveEdit(player, cards)
+      : () =>
+          createPlayer.mutateAsync({
             eventId,
-            ...scalars,
-            ...(list === undefined ? {} : { list }),
-          })
-      : () => createPlayer.mutateAsync({ eventId, ...scalars, list: list ?? null });
+            playerName: draft.playerName.trim(),
+            rank,
+            rankIsTier: draft.rankIsTier,
+            wins: metaPlayerRecordPart(draft.wins),
+            losses: metaPlayerRecordPart(draft.losses),
+            draws: metaPlayerRecordPart(draft.draws),
+            legendCardId: draft.legendCardId,
+            championCardId: draft.championCardId,
+            list:
+              wantsList && cards.length > 0
+                ? {
+                    name: draft.deckName.trim(),
+                    format: draft.deckFormat.trim(),
+                    cards,
+                    listStatus: draft.listStatus === "partial" ? "partial" : "full",
+                  }
+                : null,
+          });
 
     const successMessage = player
       ? `Updated ${draft.playerName.trim()}`
@@ -421,7 +431,7 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
                 }}
                 items={LIST_STATUS_LABELS}
               >
-                <SelectTrigger id="meta-player-status" className="mb-0 w-full">
+                <SelectTrigger id="meta-player-status" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -434,7 +444,8 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
               </Select>
               {hasStoredList && !wantsList && (
                 <p className="text-muted-foreground text-sm">
-                  Saving removes the archived deck and its permalink.
+                  Saving removes the archived deck and its permalink, and keeps it removed even if a
+                  source publishes the list again.
                 </p>
               )}
             </div>
@@ -451,7 +462,7 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
               </div>
             )}
 
-            {wantsList && !hasStoredList && (
+            {wantsList && player === undefined && (
               <div className="space-y-1.5">
                 <Label htmlFor="meta-player-deck-format">Format</Label>
                 <Select
@@ -463,7 +474,7 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
                   }}
                   items={formatLabels}
                 >
-                  <SelectTrigger id="meta-player-deck-format" className="mb-0 w-full">
+                  <SelectTrigger id="meta-player-deck-format" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

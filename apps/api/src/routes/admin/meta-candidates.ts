@@ -1,135 +1,165 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { MetaCandidatePlayer } from "@openrift/shared";
+import type {
+  MetaEventDrift,
+  MetaOverlayQueueRow,
+  MetaOverlayReviewResult,
+} from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
-import { normalizeNameForIdentity } from "@openrift/shared/utils";
+import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types";
 import { implement } from "@orpc/server";
 
-import { AppError } from "../../errors.js";
-import type { MetaPlayerDiff } from "../../lib/meta-candidate-diff.js";
-import {
-  collapseCardEntries,
-  diffMetaEvent,
-  diffMetaPlayer,
-  resolveMetaPlayerCards,
-} from "../../lib/meta-candidate-diff.js";
-import {
-  toMetaCandidateDetail,
-  toMetaCandidatePlayer,
-  toMetaCandidateQueueRow,
-  toMetaCandidateSource,
-  unresolvedCardNames,
-} from "../../lib/meta-candidate-presenters.js";
+import { assertExisted } from "../../lib/assertions.js";
+import { PLAYLOLTCG_PROVIDER } from "../../lib/playloltcg-catalog.js";
+import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import type { CandidateMetaPlayerRow } from "../../repositories/meta-candidates.js";
-import { MAX_EVENT_MATCH_DAY_DELTA } from "../../services/meta-match-suggestions.js";
+import type {
+  MetaEventOverlayRow,
+  MetaOverlayCardRow,
+  MetaPlayerOverlayRow,
+} from "../../repositories/meta-overlays.js";
+import { ingestMetaOverlays, splitSourcePlayerKey } from "../../services/ingest-meta-overlays.js";
+import {
+  MAX_EVENT_MATCH_DAY_DELTA,
+  suggestMetaEventMatches,
+  suggestMetaPlayerMatches,
+} from "../../services/meta-match-suggestions.js";
+import {
+  acceptMetaEventOverlay,
+  acceptMetaPlayerOverlay,
+  linkMetaPlayerOverlay,
+  rejectMetaOverlay,
+  releaseEventOverlayField,
+  releaseMetaPlayerOverlayField,
+  writeEventOverlayFields,
+  writeMetaPlayerOverlayFields,
+} from "../../services/meta-overlay-review.js";
+import { sourceEventFacts } from "../../services/meta-promote.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 
-const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
-
 /**
- * Unresolved rows are dropped, and rows that landed on the same card and zone
- * are summed — the accept path folds them the same way before writing
- * `deck_cards`, so without the collapse an accepted list would keep reading as
- * changed against the row it just wrote.
- */
-function resolvedEntries(player: CandidateMetaPlayerRow) {
-  return collapseCardEntries(
-    (player.cards ?? [])
-      .filter((card) => card.cardId !== null)
-      .map((card) => ({ cardId: card.cardId as string, zone: card.zone, quantity: card.quantity })),
-  );
-}
-
-/**
- * One lookup per distinct submitter, not a join: a provider's rows carry no
- * submitter at all, and an event's roster holds a handful of contributors at
- * most. Absent entries mean the account is gone.
- */
-async function resolveSubmitterNames(
-  users: ApiContext["repos"]["users"],
-  players: readonly CandidateMetaPlayerRow[],
-): Promise<Map<string, string | null>> {
-  const ids = [
-    ...new Set(
-      players.map((player) => player.submittedByUserId).filter((id): id is string => id !== null),
-    ),
-  ];
-  const rows = await Promise.all(ids.map((id) => users.findById(id)));
-  return new Map(rows.filter((row) => row !== undefined).map((row) => [row.id, row.name] as const));
-}
-
-/**
- * Tells the multi-source overwrite refusal apart from the other 409 the accept
- * can produce (no free slug for a new event's name). Both arrive as
- * `AppError(409, CONFLICT)` and the UI owes them opposite responses: a slug
- * collision is a dead end, while an unconfirmed overwrite is answered by
- * retrying with `overwriteAll`. The two cannot both happen to one candidate —
- * a slug is only minted on the unlinked path, and only a linked candidate can
- * overwrite another source — so the link is what separates them. Returns the
- * refusal to re-label, or null to rethrow the original.
- */
-async function overwriteRefusal(
-  repos: ApiContext["repos"],
-  candidateEventId: string,
-  error: unknown,
-): Promise<AppError | null> {
-  if (!(error instanceof AppError)) {
-    return null;
-  }
-  if (error.status !== 409 || error.code !== ERROR_CODES.CONFLICT) {
-    return null;
-  }
-  const candidate = await repos.metaCandidates.eventById(candidateEventId);
-  if (candidate === undefined || candidate.metaEventId === null) {
-    return null;
-  }
-  return error;
-}
-
-function assertExisted(existed: boolean, message: string): void {
-  if (!existed) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, message);
-  }
-}
-
-/**
- * The meta archive's candidate ingest and review queue, on the same
- * `/api/admin/v1/meta` prefix the Hono `requireAdmin` middleware gates. The
- * upload endpoint needs no extra auth work: an `x-api-key` from the maintainer's
- * tooling resolves to an admin session through better-auth, so the prefix check
- * already covers script callers.
+ * The overlay queue, the drift view, and the push endpoint (ADR-014 revision 3),
+ * on the same `/api/admin/v1/meta` prefix the Hono `requireAdmin` middleware
+ * gates. The upload endpoint needs no extra auth work: an `x-api-key` from the
+ * maintainer's tooling resolves to an admin session through better-auth, so
+ * the prefix check already covers script callers.
  *
- * The queue and the detail view both compute their diffs here rather than
- * storing them: `checked_at` records that a human looked at a row, not that the
- * row matched live, and conflating the two would hide a live edit made after
- * the review.
+ * Reviewing is two jobs. The queue settles what people proposed; drift shows
+ * where the sources and the live row disagree, and its remedies are a source
+ * priority or an overlay. Neither screen writes a field directly, which is what
+ * keeps "who owns this value" answerable from the data rather than from
+ * whichever handler last ran.
  *
  * Admin events are recorded only for the upload, the one action a
  * non-interactive caller performs.
  */
-export const adminMetaCandidatesRouter = {
+
+const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
+
+/** Providers with a crawler, and therefore a mirror promotion can read. */
+const CRAWLED_PROVIDERS = new Set([UVSGAMES_PROVIDER, PLAYLOLTCG_PROVIDER]);
+
+/**
+ * Which linked source the live value came from.
+ *
+ * The last source to publish it, because promotion applies them in priority
+ * order and the highest priority wins. Null when no source published it, which
+ * is what a hand-entered value looks like.
+ */
+function winningSource(
+  sources: readonly { label: string; provider: string | null }[],
+  bySource: readonly (string | null)[],
+  live: string | null,
+): string | null {
+  for (let index = bySource.length - 1; index >= 0; index--) {
+    if (bySource[index] !== null && bySource[index] === live) {
+      return sources[index]?.provider ?? sources[index]?.label ?? null;
+    }
+  }
+  return null;
+}
+
+function display(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return typeof value === "string" ? value : String(value);
+}
+
+/**
+ * The claimed fields of one overlay, each paired with what live holds.
+ *
+ * `from` is read off the live row rather than recomputed, so the reviewer sees
+ * the change they are actually approving rather than what promotion would
+ * produce in isolation.
+ */
+function eventChanges(
+  overlay: MetaEventOverlayRow,
+  live: Record<string, unknown> | null,
+): MetaOverlayQueueRow["changes"] {
+  const values = overlay as unknown as Record<string, unknown>;
+  return overlay.claimedFields.map((field) => ({
+    field,
+    from: display(live?.[field] ?? null),
+    to: display(values[field] ?? null),
+  }));
+}
+
+function playerChanges(
+  overlay: MetaPlayerOverlayRow,
+  live: Record<string, unknown> | null,
+): MetaOverlayQueueRow["changes"] {
+  const values = overlay as unknown as Record<string, unknown>;
+  return overlay.claimedFields
+    .filter((field) => field !== "cards")
+    .map((field) => ({
+      field,
+      from: display(live?.[field] ?? null),
+      to: display(values[field] ?? null),
+    }));
+}
+
+function playerSourceIds(overlay: MetaPlayerOverlayRow): {
+  sourceEventExternalId: string | null;
+  sourcePlayerExternalId: string | null;
+} {
+  const split = splitSourcePlayerKey(overlay.sourcePlayerKey);
+  return {
+    sourceEventExternalId: split.eventExternalId,
+    sourcePlayerExternalId: split.playerExternalId,
+  };
+}
+
+function toCardRows(cards: readonly MetaOverlayCardRow[]): MetaOverlayQueueRow["cards"] {
+  return cards.map((card) => ({
+    lineNumber: card.lineNumber,
+    zone: card.zone,
+    quantity: card.quantity,
+    cardName: card.cardName,
+    cardId: card.cardId,
+  }));
+}
+
+export const adminMetaCandidatesRouter = os.router({
   upload: os.upload.handler(async ({ input, context }) => {
-    const provider = input.provider.trim();
-    const result = await context.services.ingestMetaCandidates(
-      context.transact,
-      provider,
+    const result = await ingestMetaOverlays(
+      context.repos,
+      input.provider,
       input.events,
+      context.userId,
     );
 
     // Counts only — the detail arrays are unbounded.
     await recordAdminEvent(context.repos, context.userId, {
-      action: "meta-candidates.upload",
+      action: "meta-overlays.upload",
       entityType: "upload",
-      entityId: provider,
-      entityLabel: provider,
+      entityId: result.provider,
+      entityLabel: result.provider,
       newValues: {
         newEvents: result.newEvents,
         updatedEvents: result.updatedEvents,
         unchangedEvents: result.unchangedEvents,
         newPlayers: result.newPlayers,
         updatedPlayers: result.updatedPlayers,
-        removedPlayers: result.removedPlayers,
         unchangedPlayers: result.unchangedPlayers,
         ignoredSkipped: result.ignoredSkipped,
         errors: result.errors.length,
@@ -140,426 +170,316 @@ export const adminMetaCandidatesRouter = {
   }),
 
   list: os.list.handler(async ({ context }) => {
-    const { metaCandidates } = context.repos;
-
+    const { metaOverlays, meta } = context.repos;
     const [events, players] = await Promise.all([
-      metaCandidates.listEvents(),
-      metaCandidates.allPlayers(),
+      metaOverlays.pendingEventOverlays(),
+      metaOverlays.pendingPlayerOverlays(),
     ]);
+    const [cardsByOverlay, liveEvents, livePlayers] = await Promise.all([
+      metaOverlays.cardsByOverlayIds(players.map((row: MetaPlayerOverlayRow) => row.id)),
+      meta.eventsByIds(
+        events
+          .map((row: MetaEventOverlayRow) => row.metaEventId)
+          .filter((id): id is string => id !== null),
+      ),
+      meta.livePlayersByIds(
+        players
+          .map((row: MetaPlayerOverlayRow) => row.metaEventPlayerId)
+          .filter((id): id is string => id !== null),
+      ),
+    ]);
+    const liveEventsById = new Map(liveEvents.map((row) => [row.id, row]));
+    const livePlayersById = new Map(livePlayers.map((row) => [row.id, row]));
 
-    const linkedIds = events
-      .map((event) => event.metaEventId)
-      .filter((id): id is string => id !== null);
-    const liveEvents = await metaCandidates.liveEventsByIds(linkedIds);
-    const liveById = new Map(liveEvents.map((row) => [row.id, row]));
-    const playersByEvent = Map.groupBy(players, (player) => player.candidateEventId);
-    // Counted off the queue itself, so a row's source count agrees with the
-    // columns its review screen will show.
-    const siblingsByLiveEvent = Map.groupBy(events, (event) => event.metaEventId);
+    const eventRows: MetaOverlayQueueRow[] = events.map((overlay) => {
+      const live =
+        overlay.metaEventId === null ? null : (liveEventsById.get(overlay.metaEventId) ?? null);
+      return {
+        id: overlay.id,
+        kind: "event",
+        status: overlay.status,
+        provider: overlay.provider,
+        sourceEventExternalId: overlay.externalId,
+        sourcePlayerExternalId: null,
+        metaEventId: overlay.metaEventId,
+        metaEventPlayerId: null,
+        metaEventName: live?.name ?? null,
+        proposedName: overlay.name,
+        playerName: null,
+        submittedBy: overlay.submittedByUserId,
+        submissionNote: overlay.submissionNote,
+        changes: eventChanges(overlay, (live ?? null) as Record<string, unknown> | null),
+        cards: [],
+        unresolvedNames: [],
+        createdAt: overlay.createdAt.toISOString(),
+      };
+    });
+
+    const playerRows: MetaOverlayQueueRow[] = [];
+    for (const overlay of players) {
+      const live =
+        overlay.metaEventPlayerId === null
+          ? null
+          : (livePlayersById.get(overlay.metaEventPlayerId) ?? null);
+      const cards = cardsByOverlay.get(overlay.id) ?? [];
+      playerRows.push({
+        id: overlay.id,
+        kind: "player",
+        status: overlay.status,
+        provider: overlay.provider,
+        ...playerSourceIds(overlay),
+        metaEventId: overlay.metaEventId,
+        metaEventPlayerId: overlay.metaEventPlayerId,
+        metaEventName: null,
+        proposedName: null,
+        playerName: overlay.playerName ?? live?.playerName ?? null,
+        submittedBy: overlay.submittedByUserId,
+        submissionNote: overlay.submissionNote,
+        changes: playerChanges(overlay, (live ?? null) as Record<string, unknown> | null),
+        cards: toCardRows(cards),
+        unresolvedNames: [
+          ...new Set(
+            cards
+              .filter((card: MetaOverlayCardRow) => card.cardId === null)
+              .map((card: MetaOverlayCardRow) => card.cardName),
+          ),
+        ],
+        createdAt: overlay.createdAt.toISOString(),
+      });
+    }
 
     return {
-      candidates: events.map((event) => {
-        const own = playersByEvent.get(event.id) ?? [];
-        const live = event.metaEventId === null ? undefined : liveById.get(event.metaEventId);
-        return toMetaCandidateQueueRow(event, {
-          playerRowCount: own.length,
-          unacceptedPlayerCount: own.filter((player) => player.metaEventPlayerId === null).length,
-          unresolvedCardCount: own.reduce(
-            (total, player) => total + unresolvedCardNames(player.cards).length,
-            0,
-          ),
-          linkedSourceCount:
-            event.metaEventId === null
-              ? 0
-              : (siblingsByLiveEvent.get(event.metaEventId)?.length ?? 0),
-          hasDiff: live !== undefined && diffMetaEvent(live, event).length > 0,
-          metaEventSlug: live?.slug ?? null,
-        });
+      overlays: [...eventRows, ...playerRows].toSorted(
+        (a: MetaOverlayQueueRow, b: MetaOverlayQueueRow) => a.createdAt.localeCompare(b.createdAt),
+      ),
+    };
+  }),
+
+  detail: os.detail.handler(async ({ input, context, errors }) => {
+    const { metaOverlays, meta } = context.repos;
+    const eventOverlay = await metaOverlays.eventOverlayById(input.id);
+    if (eventOverlay !== undefined) {
+      const live =
+        eventOverlay.metaEventId === null ? null : await meta.eventById(eventOverlay.metaEventId);
+      return {
+        id: eventOverlay.id,
+        kind: "event" as const,
+        status: eventOverlay.status,
+        provider: eventOverlay.provider,
+        sourceEventExternalId: eventOverlay.externalId,
+        sourcePlayerExternalId: null,
+        metaEventId: eventOverlay.metaEventId,
+        metaEventPlayerId: null,
+        metaEventName: live?.name ?? null,
+        proposedName: eventOverlay.name,
+        playerName: null,
+        submittedBy: eventOverlay.submittedByUserId,
+        submissionNote: eventOverlay.submissionNote,
+        changes: eventChanges(eventOverlay, (live ?? null) as Record<string, unknown> | null),
+        cards: [],
+        unresolvedNames: [],
+        createdAt: eventOverlay.createdAt.toISOString(),
+      };
+    }
+
+    const playerOverlay = await metaOverlays.playerOverlayById(input.id);
+    if (playerOverlay === undefined) {
+      throw errors.NOT_FOUND();
+    }
+    const live =
+      playerOverlay.metaEventPlayerId === null
+        ? null
+        : await meta.playerById(playerOverlay.metaEventPlayerId);
+    return {
+      id: playerOverlay.id,
+      kind: "player" as const,
+      status: playerOverlay.status,
+      provider: playerOverlay.provider,
+      ...playerSourceIds(playerOverlay),
+      metaEventId: playerOverlay.metaEventId,
+      metaEventPlayerId: playerOverlay.metaEventPlayerId,
+      metaEventName: null,
+      proposedName: null,
+      playerName: playerOverlay.playerName ?? live?.playerName ?? null,
+      submittedBy: playerOverlay.submittedByUserId,
+      submissionNote: playerOverlay.submissionNote,
+      changes: playerChanges(playerOverlay, (live ?? null) as Record<string, unknown> | null),
+      cards: toCardRows(playerOverlay.cards),
+      unresolvedNames: [
+        ...new Set(
+          playerOverlay.cards.filter((card) => card.cardId === null).map((card) => card.cardName),
+        ),
+      ],
+      createdAt: playerOverlay.createdAt.toISOString(),
+    };
+  }),
+
+  /**
+   * What each linked mirror says about one event, beside what live shows.
+   *
+   * A field an accepted overlay claims is marked rather than compared: the
+   * sources no longer decide it, so showing it as a conflict would invite the
+   * reviewer to fix something that is already settled.
+   */
+  drift: os.drift.handler(async ({ input, context, errors }): Promise<MetaEventDrift> => {
+    const { meta, metaOverlays } = context.repos;
+    const live = await meta.eventById(input.id);
+    if (live === undefined) {
+      throw errors.NOT_FOUND();
+    }
+    const linked = await meta.sourcesForEvent(input.id);
+    const sources = linked.toSorted((a, b) => a.priority - b.priority);
+    const overlays = await metaOverlays.acceptedEventOverlays(input.id);
+    const claimed = new Set(overlays.flatMap((overlay) => overlay.claimedFields));
+
+    // Promotion's own view of each source, not the raw mirror columns: a drift
+    // table built from the mirror would disagree with the promote that follows
+    // it, because the mapping and classification happen on the way through.
+    const perSource: (Awaited<ReturnType<typeof sourceEventFacts>> | null)[] = [];
+    for (const source of sources) {
+      perSource.push(
+        source.provider === null || source.externalId === null
+          ? null
+          : await sourceEventFacts(context.repos, source.provider, source.externalId),
+      );
+    }
+
+    const liveValues = live as unknown as Record<string, unknown>;
+    return {
+      metaEventId: input.id,
+      sources: sources.map((source) => ({
+        id: source.id,
+        provider: source.provider,
+        externalId: source.externalId,
+        label: source.label,
+        priority: source.priority,
+        hasMirror: source.provider !== null && CRAWLED_PROVIDERS.has(source.provider),
+      })),
+      fields: META_EVENT_OVERLAY_FIELDS.map((field) => {
+        const liveValue = display(liveValues[field] ?? null);
+        const bySource = perSource.map((facts) => ({
+          value: display(facts?.values[field] ?? null),
+          raw: facts?.raw[field] ?? null,
+        }));
+        return {
+          field,
+          live: liveValue,
+          bySource,
+          claimedByOverlay: claimed.has(field),
+          wonBy: claimed.has(field)
+            ? null
+            : winningSource(
+                sources,
+                bySource.map((cell) => cell.value),
+                liveValue,
+              ),
+        };
       }),
     };
   }),
 
-  detail: os.detail.handler(async ({ input, context }) => {
-    const { meta, metaCandidates, deckFormats, users } = context.repos;
+  writeEventOverlayFields: os.writeEventOverlayFields.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      writeEventOverlayFields(context.repos, input.id, input.edits, context.userId),
+  ),
 
-    const event = await metaCandidates.eventById(input.id);
-    if (event === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate event not found");
-    }
+  releaseEventOverlayField: os.releaseEventOverlayField.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      releaseEventOverlayField(context.repos, input.id, input.field),
+  ),
 
-    // Every candidate describing the same live event, this one included, so the
-    // review screen renders one column per source from a single request.
-    const siblings =
-      event.metaEventId === null
-        ? [event]
-        : await metaCandidates.eventsByMetaEventId(event.metaEventId);
-    const parentById = new Map(siblings.map((row) => [row.id, row]));
-
-    // User submissions hang off the live event directly, so they join the
-    // roster while belonging to no source column.
-    const [sourcePlayers, submitted] = await Promise.all([
-      metaCandidates.playersByCandidateEventIds(siblings.map((row) => row.id)),
-      event.metaEventId === null
-        ? Promise.resolve<CandidateMetaPlayerRow[]>([])
-        : metaCandidates.playersByMetaEventIds([event.metaEventId]),
-    ]);
-    const allPlayers = [...sourcePlayers, ...submitted];
-    const livePlayerIds = allPlayers
-      .map((player) => player.metaEventPlayerId)
-      .filter((id): id is string => id !== null);
-
-    const [livePlayers, format] = await Promise.all([
-      meta.livePlayersByIds(livePlayerIds),
-      deckFormats.getBySlug(event.format),
-    ]);
-    const liveDeckCards = await metaCandidates.liveDeckCards(
-      livePlayers.map((row) => row.deckId).filter((id): id is string => id !== null),
-    );
-
-    // The sources' own live events plus whichever events their linked rows
-    // currently sit under. Those usually coincide; when they don't, the row was
-    // re-parented and accepting it would move it, which the diff has to say.
-    const eventIds = new Set(livePlayers.map((row) => row.metaEventId));
-    for (const sibling of siblings) {
-      if (sibling.metaEventId !== null) {
-        eventIds.add(sibling.metaEventId);
-      }
-    }
-    const liveEvents = await metaCandidates.liveEventsByIds([...eventIds]);
-    const liveEventNames = new Map(liveEvents.map((row) => [row.id, row.name]));
-
-    const live = liveEvents.find((row) => row.id === event.metaEventId);
-    const livePlayerById = new Map(livePlayers.map((row) => [row.id, row]));
-    const liveCardsByDeck = Map.groupBy(liveDeckCards, (row) => row.deckId);
-
-    // One lookup for every card the response names: the candidates' own rows
-    // and whatever only the live side still holds (a removed card).
-    const cardIds = new Set<string>();
-    for (const player of allPlayers) {
-      for (const card of player.cards ?? []) {
-        if (card.cardId !== null) {
-          cardIds.add(card.cardId);
-        }
-      }
-      const resolved = resolveMetaPlayerCards(player);
-      for (const id of [resolved.legendCardId, resolved.championCardId]) {
-        if (id !== null) {
-          cardIds.add(id);
-        }
-      }
-    }
-    for (const row of liveDeckCards) {
-      cardIds.add(row.cardId);
-    }
-    const [cardNames, submitterNames] = await Promise.all([
-      metaCandidates.cardNamesByIds([...cardIds]),
-      resolveSubmitterNames(users, allPlayers),
-    ]);
-
-    function targetEventId(player: CandidateMetaPlayerRow): string | null {
-      if (player.metaEventId !== null) {
-        return player.metaEventId;
-      }
-      const parent =
-        player.candidateEventId === null ? undefined : parentById.get(player.candidateEventId);
-      return parent?.metaEventId ?? null;
-    }
-
-    function presentPlayer(player: CandidateMetaPlayerRow): MetaCandidatePlayer {
-      const livePlayer =
-        player.metaEventPlayerId === null
-          ? undefined
-          : livePlayerById.get(player.metaEventPlayerId);
-      let diff: MetaPlayerDiff | null = null;
-      if (livePlayer !== undefined) {
-        const resolved = resolveMetaPlayerCards(player);
-        diff = diffMetaPlayer(
-          {
-            event: livePlayer.metaEventId,
-            playerName: livePlayer.playerName,
-            rank: livePlayer.rank,
-            rankIsTier: livePlayer.rankIsTier,
-            wins: livePlayer.wins,
-            losses: livePlayer.losses,
-            draws: livePlayer.draws,
-            legendCardId: livePlayer.legendCardId,
-            championCardId: livePlayer.championCardId,
-            listStatus: livePlayer.listStatus,
-            cards: livePlayer.deckId === null ? [] : (liveCardsByDeck.get(livePlayer.deckId) ?? []),
-          },
-          {
-            // Accepting re-parents the live row onto the source's own event, so
-            // a mismatch here is a move the reviewer has to see.
-            event: targetEventId(player),
-            playerName: player.playerName,
-            rank: player.rank,
-            rankIsTier: player.rankIsTier,
-            wins: player.wins,
-            losses: player.losses,
-            draws: player.draws,
-            legendCardId: resolved.legendCardId,
-            championCardId: resolved.championCardId,
-            // A source publishing standings only is not proposing to strip a
-            // list another source contributed, so the live values stand in.
-            listStatus: player.cards === null ? livePlayer.listStatus : player.listStatus,
-            cards:
-              player.cards === null
-                ? livePlayer.deckId === null
-                  ? []
-                  : (liveCardsByDeck.get(livePlayer.deckId) ?? [])
-                : resolvedEntries(player),
-          },
-        );
-      }
-      return toMetaCandidatePlayer(player, {
-        diff,
-        deckId: livePlayer?.deckId ?? null,
-        shareToken: livePlayer?.shareToken ?? null,
-        cardNames,
-        eventNames: liveEventNames,
-        submittedByName:
-          player.submittedByUserId === null
-            ? null
-            : (submitterNames.get(player.submittedByUserId) ?? null),
-      });
-    }
-
-    const playersByParent = Map.groupBy(sourcePlayers, (player) => player.candidateEventId);
-
-    return toMetaCandidateDetail(event, {
-      diff: live === undefined ? null : diffMetaEvent(live, event),
-      formatKnown: format !== undefined,
-      metaEventSlug: live?.slug ?? null,
-      players: (playersByParent.get(event.id) ?? []).map((player) => presentPlayer(player)),
-      sources: siblings.map((sibling) =>
-        toMetaCandidateSource(
-          sibling,
-          (playersByParent.get(sibling.id) ?? []).map((player) => presentPlayer(player)),
-        ),
+  writePlayerOverlayFields: os.writePlayerOverlayFields.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      writeMetaPlayerOverlayFields(
+        context.repos,
+        input.id,
+        { fields: input.fields, list: input.list },
+        context.userId,
       ),
-      submittedPlayers: submitted.map((player) => presentPlayer(player)),
-    });
-  }),
-
-  rematch: os.rematch.handler(({ context }) =>
-    context.services.rematchMetaCandidates(context.repos),
   ),
 
-  // The alias-fix flow in one call: record "this source name means that card"
-  // in card_name_aliases (shared with the card pipeline, so the fix applies to
-  // every future upload from any source), then rematch so the unblocked rows
-  // update immediately.
+  releasePlayerOverlayField: os.releasePlayerOverlayField.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      releaseMetaPlayerOverlayField(context.repos, input.id, input.field),
+  ),
+
+  setSourcePriority: os.setSourcePriority.handler(async ({ input, context }): Promise<void> => {
+    assertExisted(
+      await context.repos.meta.setEventSourcePriority(input.id, input.priority),
+      "Source not found",
+    );
+  }),
+
+  /**
+   * Files a card name against a card, then re-resolves every overlay line
+   * holding it. The alias is what makes the fix stick for the next fetch too.
+   */
   resolveName: os.resolveName.handler(async ({ input, context }) => {
-    const { catalog, catalogMutations } = context.repos;
-
-    // The matcher keys on the normalized form, so a name made only of
-    // punctuation or spacing would store an alias no upload can ever hit.
-    const normName = normalizeNameForIdentity(input.name);
-    if (normName === "") {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "That name normalizes to nothing matchable. Use the name as the source spells it.",
-      );
-    }
-
-    const [card] = await catalog.cardsByIds([input.cardId]);
-    if (card === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
-    }
-
-    await catalogMutations.createNameAliases(normName, input.cardId);
-    return context.services.rematchMetaCandidates(context.repos);
+    const updated = await context.repos.metaOverlays.resolveCardName(input.name, input.cardId);
+    return { updated };
   }),
 
-  acceptEvent: os.acceptEvent.handler(async ({ input, context, errors }) => {
-    try {
-      return await context.services.acceptCandidateEvent(context.repos, input.id, {
-        overwriteAll: input.overwriteAll,
-      });
-    } catch (error) {
-      const refusal = await overwriteRefusal(context.repos, input.id, error);
-      if (refusal !== null) {
-        throw errors.OVERWRITE_NOT_CONFIRMED({ message: refusal.message });
-      }
-      throw error;
-    }
-  }),
-
-  acceptEventWithPlayers: os.acceptEventWithPlayers.handler(async ({ input, context, errors }) => {
-    try {
-      return await context.services.acceptCandidateEventWithPlayers(context.repos, input.id, {
-        overwriteAll: input.overwriteAll,
-        allowUnresolvedLegend: input.allowUnresolvedLegend,
-        resolvedByUserId: context.userId,
-      });
-    } catch (error) {
-      const refusal = await overwriteRefusal(context.repos, input.id, error);
-      if (refusal !== null) {
-        throw errors.OVERWRITE_NOT_CONFIRMED({ message: refusal.message });
-      }
-      throw error;
-    }
-  }),
-
-  acceptPlayer: os.acceptPlayer.handler(({ input, context }) =>
-    context.services.acceptCandidatePlayer(context.repos, input.id, {
-      allowUnresolvedLegend: input.allowUnresolvedLegend,
-      resolvedByUserId: context.userId,
-    }),
+  acceptEventOverlay: os.acceptEventOverlay.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      acceptMetaEventOverlay(context.repos, input.id, input.metaEventId),
   ),
 
-  checkEvent: os.checkEvent.handler(async ({ input, context }): Promise<void> => {
-    const existed = await context.repos.metaCandidates.setEventCheckedAt(
-      input.id,
-      input.checked ? new Date() : null,
-    );
-    assertExisted(existed, "Candidate event not found");
-  }),
+  acceptPlayerOverlay: os.acceptPlayerOverlay.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      acceptMetaPlayerOverlay(context.repos, input.id),
+  ),
 
-  checkPlayer: os.checkPlayer.handler(async ({ input, context }): Promise<void> => {
-    const existed = await context.repos.metaCandidates.setPlayerCheckedAt(
-      input.id,
-      input.checked ? new Date() : null,
-    );
-    assertExisted(existed, "Candidate player not found");
-  }),
+  linkPlayerOverlay: os.linkPlayerOverlay.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      linkMetaPlayerOverlay(context.repos, input.id, input.metaEventPlayerId),
+  ),
+
+  rejectOverlay: os.rejectOverlay.handler(({ input, context }): Promise<MetaOverlayReviewResult> =>
+    rejectMetaOverlay(context.repos, { kind: input.kind, id: input.id }),
+  ),
 
   ignoreEvent: os.ignoreEvent.handler(async ({ input, context }): Promise<void> => {
-    const { metaCandidates } = context.repos;
-    const event = await metaCandidates.eventById(input.id);
-    if (event === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate event not found");
-    }
-    // Writes the ignore key and keeps the staged row. The queue reads join
-    // against the ignore table, so the event drops out of view now and every
-    // later upload skips it — while its link survives, which is what makes an
-    // un-ignore resolve back to the same live event instead of a duplicate.
-    await metaCandidates.ignoreEvent(event.provider, event.externalId);
+    await context.repos.metaOverlays.ignoreEvent(input.provider, input.externalId);
   }),
 
   ignorePlayer: os.ignorePlayer.handler(async ({ input, context }): Promise<void> => {
-    const { metaCandidates } = context.repos;
-    const player = await metaCandidates.playerById(input.id);
-    if (player === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate player not found");
-    }
-    // A user submission hangs off the live event and has no source event to key
-    // an ignore on (the key is `(provider, event external id, external id)`), so
-    // rejecting one is a ledger resolution, not an ignore entry. The verb this
-    // points at is `adminMetaSubmissionsContract.resolve`, which also tells the
-    // contributor what happened — an ignore entry would tell them nothing.
-    if (player.candidateEventId === null) {
-      throw new AppError(
-        400,
-        ERROR_CODES.BAD_REQUEST,
-        "A user submission has no source event to ignore. Resolve its submission instead.",
-      );
-    }
-    const parent = await metaCandidates.eventById(player.candidateEventId);
-    if (parent === undefined) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Candidate event not found");
-    }
-    // The key names the source's event, not the candidate row it hangs off:
-    // player ids restart per event, so ignoring "1" here must not also silence
-    // entry "1" of every other event this provider pushes.
-    await metaCandidates.ignorePlayer(parent.provider, {
-      eventExternalId: parent.externalId,
-      externalId: player.externalId,
+    await context.repos.metaOverlays.ignorePlayer(input.provider, {
+      eventExternalId: input.eventExternalId,
+      externalId: input.externalId,
     });
   }),
 
   listIgnored: os.listIgnored.handler(async ({ context }) => {
-    const { events, players } = await context.repos.metaCandidates.listIgnored();
-    const toRow = (row: { provider: string; externalId: string; createdAt: Date }) => ({
-      provider: row.provider,
-      externalId: row.externalId,
-      createdAt: row.createdAt.toISOString(),
-    });
+    const { events, players } = await context.repos.metaOverlays.listIgnored();
     return {
-      events: events.map((row) => toRow(row)),
-      players: players.map((row) => ({ ...toRow(row), eventExternalId: row.eventExternalId })),
+      events: events.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
+      players: players.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
     };
   }),
 
   unignoreEvent: os.unignoreEvent.handler(async ({ input, context }): Promise<void> => {
-    const removed = await context.repos.metaCandidates.unignoreEvent(
-      input.provider,
-      input.externalId,
+    assertExisted(
+      await context.repos.metaOverlays.unignoreEvent(input.provider, input.externalId),
+      "Not on the ignore list",
     );
-    assertExisted(removed, "Ignore entry not found");
   }),
 
   unignorePlayer: os.unignorePlayer.handler(async ({ input, context }): Promise<void> => {
-    const removed = await context.repos.metaCandidates.unignorePlayer(input.provider, {
-      eventExternalId: input.eventExternalId,
-      externalId: input.externalId,
-    });
-    assertExisted(removed, "Ignore entry not found");
+    assertExisted(
+      await context.repos.metaOverlays.unignorePlayer(input.provider, {
+        eventExternalId: input.eventExternalId,
+        externalId: input.externalId,
+      }),
+      "Not on the ignore list",
+    );
   }),
 
-  // The link services own the whole rule set: a link writes this provider's
-  // citation, a relink moves it, an unlink removes it and takes back the
-  // contributor credit that link earned. None of them writes a field value.
-
-  linkCandidateEvent: os.linkCandidateEvent.handler(({ input, context }) =>
-    context.services.linkCandidateEvent(context.repos, input.id, input.metaEventId),
-  ),
-
-  relinkCandidateEvent: os.relinkCandidateEvent.handler(({ input, context }) =>
-    context.services.relinkCandidateEvent(context.repos, input.id, input.metaEventId),
-  ),
-
-  unlinkCandidateEvent: os.unlinkCandidateEvent.handler(({ input, context }) =>
-    context.services.unlinkCandidateEvent(context.repos, input.id),
-  ),
-
-  linkCandidatePlayer: os.linkCandidatePlayer.handler(({ input, context }) =>
-    context.services.linkCandidatePlayer(context.repos, input.id, input.metaEventPlayerId),
-  ),
-
-  relinkCandidatePlayer: os.relinkCandidatePlayer.handler(({ input, context }) =>
-    context.services.relinkCandidatePlayer(context.repos, input.id, input.metaEventPlayerId),
-  ),
-
-  unlinkCandidatePlayer: os.unlinkCandidatePlayer.handler(({ input, context }) =>
-    context.services.unlinkCandidatePlayer(context.repos, input.id),
-  ),
-
-  // The reviewing admin is passed along because a player accept settles any
-  // submission ledger row behind it, and that row records who resolved it.
-
-  acceptMetaEventField: os.acceptMetaEventField.handler(({ input, context }) =>
-    context.services.acceptMetaEventField(context.repos, {
-      candidateEventId: input.id,
-      field: input.field,
-    }),
-  ),
-
-  acceptMetaPlayerField: os.acceptMetaPlayerField.handler(({ input, context }) =>
-    context.services.acceptMetaPlayerField(
-      context.repos,
-      { candidatePlayerId: input.id, field: input.field },
-      { resolvedByUserId: context.userId },
-    ),
-  ),
-
-  acceptMetaDeckList: os.acceptMetaDeckList.handler(({ input, context }) =>
-    context.services.acceptMetaDeckList(context.repos, input.id, {
-      resolvedByUserId: context.userId,
-    }),
-  ),
-
-  // Suggestions are hints, never actions: an empty list is a normal answer
-  // (already linked, or nothing close enough), so neither of these 404s on a
-  // missing candidate.
-
   eventMatchSuggestions: os.eventMatchSuggestions.handler(async ({ input, context }) => ({
-    suggestions: await context.services.suggestMetaEventMatches(context.repos, input.id),
+    suggestions: await suggestMetaEventMatches(context.repos, input.id),
     windowDays: MAX_EVENT_MATCH_DAY_DELTA,
   })),
 
   playerMatchSuggestions: os.playerMatchSuggestions.handler(async ({ input, context }) => ({
-    suggestions: await context.services.suggestMetaPlayerMatches(context.repos, input.id),
+    suggestions: await suggestMetaPlayerMatches(context.repos, input.id),
   })),
-};
+});

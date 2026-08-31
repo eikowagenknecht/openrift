@@ -37,9 +37,13 @@ import type {
   MarketplaceGroupKind,
   MetaCreditVisibility,
   MetaEventFieldEdits,
+  MetaEventOverlayField,
   MetaEventTier,
   MetaEntryStatus,
   MetaListStatus,
+  MetaOverlayStatus,
+  MetaPlayerOverlayField,
+  MetaSourceFetchStatus,
   MetaSubmissionKind,
   MetaSubmissionReason,
   MetaSubmissionStatus,
@@ -556,7 +560,7 @@ export type AdminEventAction =
   | "ban.delete"
   | "provider.delete-candidates"
   | "candidates.upload"
-  | "meta-candidates.upload"
+  | "meta-overlays.upload"
   | "meta-catalog.accept"
   | "meta-catalog.dismiss"
   | "meta-catalog.undismiss"
@@ -919,6 +923,13 @@ export interface UvsgamesEventsTable {
    * is admin curation, not a constant: see {@link UvsgamesEventTemplatesTable}.
    */
   eventConfigurationTemplate: string | null;
+  /**
+   * When a results deep fetch last completed for this event. This, not "the
+   * mirror holds standings rows", is what the recheck ladder reads: a
+   * cancelled event or one with no placements has zero rows forever and must
+   * still count as fetched.
+   */
+  resultsFetchedAt: Date | null;
 }
 
 /**
@@ -1170,9 +1181,8 @@ export interface MetaEventsTable {
   /** The venue address as the source published it. CHECK: NULL or length 1..500. */
   location: string | null;
   // No source key and no source URL on this row: attribution is
-  // {@link MetaEventSourcesTable}, and the link to a provider is the
-  // candidate-side FK, which is many-to-one so several sources can feed
-  // one event.
+  // {@link MetaEventSourcesTable}, which is many-to-one so several sources
+  // can feed one event.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1233,6 +1243,14 @@ export interface MetaEventPlayersTable {
   /** FK → cards.id ON DELETE SET NULL */
   championCardId: string | null;
   /**
+   * The identity promotion filed this row under (`u<userId>`,
+   * `r<registrationId>`, `p<playerKey>`), UNIQUE with the event where set. A
+   * re-promote matches on it, so an overlay renaming the player cannot change
+   * which row the source updates. NULL for hand-entered rows and rows minted
+   * from overlays. CHECK: NULL or <> ''.
+   */
+  sourceIdentity: string | null;
+  /**
    * UNIQUE FK → decks.id ON DELETE RESTRICT. Deleting an archived deck must
    * not silently take a standings row with it: the admin path clears this and
    * {@link listStatus} first, then deletes the deck.
@@ -1244,8 +1262,6 @@ export interface MetaEventPlayersTable {
    * status can never disagree. See that type for what each state means.
    */
   listStatus: Generated<MetaListStatus>;
-  // No source key on this row: the link is the candidate-side FK, which is
-  // many-to-one so several sources can feed one player row.
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -1335,205 +1351,90 @@ export interface MetaEventPhasesTable {
 }
 
 /**
- * A proposed event, pushed by external tooling and awaiting an admin's accept.
- * `(provider, external_id)` is UNIQUE — the source's own key, which is what
- * makes an upload idempotent and per-event replacing.
+ * What the official source published for one registration, projected.
  *
- * `format` carries whatever the source called it and has no FK: an unknown
- * format is something the review screen reports, not a reason to reject an
- * upload.
+ * Source ids and source vocabulary only: no card is matched, no format mapped
+ * and no tier classified here. Promotion owns all three, which is what lets a
+ * mapping fix be a re-promote rather than a re-fetch.
  */
-export interface CandidateMetaEventsTable {
-  id: Generated<string>;
-  /** CHECK: <> '' — implicit vocabulary, a new string is a new provider */
-  provider: string;
-  /** CHECK: <> '' — the source's stable id for this event */
+export interface UvsgamesEventStandingsTable {
+  /** PK part. FK → uvsgames_events.external_id ON DELETE CASCADE */
   externalId: string;
-  /** CHECK: length 1..120 */
-  name: string;
-  /** `date` column, handed back as `"2026-08-14"` (OID 1082 override in `db/connect.ts`). */
-  eventDate: string;
-  /** CHECK: <> '' — no FK to deck_formats, unlike the live column */
-  format: string;
-  /** CHECK: NULL or > 0 */
-  playerCount: number | null;
-  /** CHECK: NULL or length 1..120 */
-  organizer: string | null;
-  /** CHECK: NULL or length 1..2000 */
-  sourceUrl: string | null;
-  /** CHECK: NULL or length <= 4000 */
-  notes: string | null;
-  /** CHECK: NULL or one of {@link MetaEventsTable.tier}'s vocabulary — null when the producer sent none. */
-  tier: MetaEventTier | null;
-  /** ISO 3166-1 alpha-2. CHECK: NULL or `~ '^[A-Z]{2}$'`. */
-  country: string | null;
-  /** The venue address as the source published it. CHECK: NULL or length 1..500. */
-  location: string | null;
-  /** FK → meta_events.id ON DELETE SET NULL — the live row this was accepted into. */
-  metaEventId: string | null;
-  /**
-   * The latest deep-fetch payload, overwritten on every fetch, so a mapping fix
-   * can be re-run without going back to the source. NULL for push providers.
-   * CHECK: NULL or `jsonb_typeof(raw) = 'object'`.
-   */
-  raw: CandidateMetaEventRaw | null;
-  /** NULL for push providers, which arrive rather than being fetched. */
-  fetchedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
-  /** When an admin last reviewed this row. Reset to NULL whenever an upload changes it. */
-  checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
-  /** Source fields that map to no column of ours. */
-  extraData: unknown | null;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
-}
-
-/**
- * The deep fetch's own responses, kept verbatim under
- * {@link CandidateMetaEventsTable.raw}. The keys are the fetch's five calls;
- * their contents stay `unknown` because the source publishes no schema and the
- * transform, not this type, is what decides they are usable.
- */
-export interface CandidateMetaEventRaw {
-  detail?: unknown;
-  registrations?: unknown;
-  standings?: unknown;
-  roundStandings?: unknown;
-  decks?: unknown;
-}
-
-/** One card row inside {@link CandidateMetaPlayersTable.cards}. */
-export interface CandidateMetaDeckCard {
-  /** The name exactly as the source wrote it — kept even when it resolves. */
-  name: string;
-  /** A `WellKnown.deckZone` value. */
-  zone: string;
-  quantity: number;
-  /** The shared name matcher's verdict; null while the name resolves to nothing. */
-  cardId: string | null;
-}
-
-/**
- * A proposed player entry under a candidate event. Card lists are jsonb
- * rather than a third staging table: they are written whole, read whole, and
- * never queried across rows.
- *
- * `(candidate_event_id, external_id)` is UNIQUE. Player external ids are
- * scoped to their event, which is why the ignore list keys on the source's
- * event id alongside the player's rather than on the provider alone.
- */
-export interface CandidateMetaPlayersTable {
-  id: Generated<string>;
-  /**
-   * FK → candidate_meta_events.id ON DELETE CASCADE. NULL for a user
-   * submission, which targets a live event directly through
-   * {@link metaEventId} rather than inventing a placeholder candidate event.
-   * CHECK: exactly one of the two is set.
-   */
-  candidateEventId: string | null;
-  /** FK → meta_events.id ON DELETE CASCADE. See {@link candidateEventId}. */
-  metaEventId: string | null;
-  /** CHECK: <> '' */
-  externalId: string;
-  /** CHECK: length 1..80 */
-  playerName: string;
-  /** CHECK: >= 1 */
-  rank: number;
-  /** DEFAULT false. See {@link MetaEventPlayersTable.rankIsTier}. */
-  rankIsTier: Generated<boolean>;
+  /** PK part. The source's per-event registration key. CHECK: <> '' */
+  registrationId: string;
+  /** FK → uvsgames_players.id. Null only where the payload names no keyed user. */
+  uvsgamesPlayerId: number | null;
+  /** Set only when {@link uvsgamesPlayerId} is not; a CHECK requires one of the two. */
+  playerName: string | null;
+  /** CHECK: NULL or >= 1. Null while an event is still running. */
+  rank: number | null;
   wins: number | null;
   losses: number | null;
   draws: number | null;
-  /**
-   * The standings columns the source sorts on, kept so a rank can be explained
-   * and checked rather than only displayed. Which tiebreakers apply is the
-   * event's own choice, published alongside the standings; these three are the
-   * ones the official source declares (OMWP, GWP, OGWP).
-   */
+  /** CHECK: NULL or >= 0 */
   matchPoints: number | null;
+  /** CHECK: NULL or between 0 and 1 */
   opponentMatchWinPct: number | null;
+  /** CHECK: NULL or between 0 and 1 */
   gameWinPct: number | null;
+  /** CHECK: NULL or between 0 and 1 */
   opponentGameWinPct: number | null;
-  /**
-   * CHECK: NULL or one of the {@link MetaEntryStatus} values. NULL for a source
-   * that publishes no status, which is every source but the official one.
-   */
+  /** CHECK: NULL or one of the {@link MetaEntryStatus} values. */
   entryStatus: MetaEntryStatus | null;
-  /**
-   * FK → uvsgames_players.id, set by the deep fetch. Null for a pushed or
-   * user-submitted row, which has no identity on the source at all.
-   */
-  uvsgamesPlayerId: number | null;
-  /** The legend name exactly as the source wrote it, kept even when it resolves. */
+  /** The round standings' `deck_defining_card`, as published. Matched at promotion. */
   legendName: string | null;
-  /** FK → cards.id ON DELETE SET NULL — the name matcher's verdict. */
-  legendCardId: string | null;
-  championName: string | null;
-  /** FK → cards.id ON DELETE SET NULL */
-  championCardId: string | null;
-  /**
-   * jsonb array of the source's card lines, NULL for a standings-only row.
-   * CHECK: NULL or `jsonb_typeof(cards) = 'array'`.
-   */
-  cards: CandidateMetaDeckCard[] | null;
-  /**
-   * DEFAULT 'none'. Same CHECK and same vocabulary as
-   * {@link MetaEventPlayersTable.listStatus}, which accepting copies it into.
-   * It is the source's own claim about its payload, never inferred from the
-   * card count.
-   */
-  listStatus: Generated<MetaListStatus>;
-  /** FK → meta_event_players.id ON DELETE SET NULL — the live row this became. */
-  metaEventPlayerId: string | null;
-  /**
-   * FK → users.id ON DELETE SET NULL. Set for the
-   * `usersubmission` provider only; scraped providers leave it NULL. Copied
-   * from `candidate_cards`, and admin-facing: nothing public reads it.
-   */
-  submittedByUserId: string | null;
-  /** What the submitter wrote about their submission. CHECK: <> ''. */
-  submissionNote: string | null;
-  checkedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
+  /** The deck this registration references, if any. FK-free: the deck may be unfetchable. */
+  sourceDeckId: string | null;
+  fetchedAt: CreatedAt;
+}
+
+/** The event's phase structure, read from the detail payload. */
+export interface UvsgamesEventPhasesTable {
+  /** PK part. FK → uvsgames_events.external_id ON DELETE CASCADE */
+  externalId: string;
+  /** PK part. CHECK: >= 0 */
+  phaseOrder: number;
+  name: string | null;
+  /** Source vocabulary, kept raw: `SWISS`, `RANKED_SINGLE_ELIMINATION`. CHECK: <> ''. */
+  roundType: string;
+  /** CHECK: NULL or > 0 */
+  roundCount: number | null;
+  /** CHECK: NULL or > 0 */
+  rankRequired: number | null;
+  /** CHECK: NULL or > 0 */
+  maxGameWins: number | null;
 }
 
 /**
- * A staged match from the deep fetch, parsed on arrival; matches never ride
- * in the candidate's raw payload. Participants reference
- * uvsgames_players because that is how the source keys them; the ordering
- * (by user id) is what makes the per-round unique key deterministic.
+ * One completed round's pairings.
  *
- * {@link metaEventMatchId} is the materialization's stamp. NULL marks a match
- * still waiting for its participants to be accepted live; those rows are the
- * retry queue a later ladder visit picks up without refetching.
+ * Participants are ordered deterministically at parse time (by user id), so
+ * `(external_id, round_id, player1_uvsgames_id)` is a natural key: one row per
+ * round per first-seat player, with a bye keeping its single player in that
+ * seat. That avoids trusting an undocumented source match id.
  */
-export interface CandidateMetaMatchesTable {
-  id: Generated<string>;
+export interface UvsgamesEventMatchesTable {
+  /** PK part. FK → uvsgames_events.external_id ON DELETE CASCADE */
+  externalId: string;
+  /** PK part. The source's round key. CHECK: <> '' */
+  roundId: string;
   /**
-   * FK → candidate_meta_events.id ON DELETE CASCADE. NOT NULL, unlike the
-   * player rows: the deep fetch is the only producer.
-   */
-  candidateEventId: string;
-  /**
-   * The source's own id for this match, and the row's key: UNIQUE with the
-   * event. NOT NULL, because the deep fetch is this tier's only producer and
-   * drops a match the source gave no id for.
+   * The source's own match id, carried through so the live upsert can key on
+   * it. Not part of the PK: the seat key below is what dedupes a re-staged
+   * round. CHECK: <> ''.
    */
   sourceMatchId: string;
-  /**
-   * The source's round key. CHECK: <> ''. A round already staged is never
-   * refetched; a refetched round is replaced wholesale.
-   */
-  roundId: string;
-  /** DEFAULT 0. CHECK: >= 0. */
+  /** DEFAULT 0. CHECK: >= 0 */
   phaseOrder: Generated<number>;
-  /** CHECK: >= 1. */
+  /** CHECK: >= 1 */
   roundNumber: number;
+  /** Null on byes, where the source sends -1. */
   tableNumber: number | null;
-  /** DEFAULT false. CHECK with {@link player2UvsgamesId}: a bye has one player. */
+  /** DEFAULT false. CHECK: true exactly when {@link player2UvsgamesId} is null. */
   isBye: Generated<boolean>;
+  /** DEFAULT false */
   isDraw: Generated<boolean>;
-  /** FK → uvsgames_players.id */
+  /** PK part. FK → uvsgames_players.id */
   player1UvsgamesId: number;
   /** FK → uvsgames_players.id. Null exactly on a bye. */
   player2UvsgamesId: number | null;
@@ -1541,18 +1442,246 @@ export interface CandidateMetaMatchesTable {
   winnerUvsgamesId: number | null;
   gamesWonP1: number | null;
   gamesWonP2: number | null;
-  /** FK → meta_event_matches.id ON DELETE SET NULL — the live row this became. */
-  metaEventMatchId: string | null;
+}
+
+/**
+ * One decklist the source served, or refused to.
+ *
+ * `fetchStatus` is what makes the accumulate-and-never-retry contract a query
+ * rather than a scan: a `refused` deck is never requested again, and an event's
+ * deck coverage is a count against its registrations.
+ */
+export interface UvsgamesDecklistsTable {
+  /** PK. The source's deck id. CHECK: <> '' */
+  sourceDeckId: string;
+  /** FK → uvsgames_events.external_id ON DELETE CASCADE */
+  externalId: string;
+  /** CHECK: 'fetched' | 'refused' */
+  fetchStatus: MetaSourceFetchStatus;
+  fetchedAt: CreatedAt;
+}
+
+/** One line of a fetched decklist, with the card name exactly as published. */
+export interface UvsgamesDecklistCardsTable {
+  /** PK part. FK → uvsgames_decklists.source_deck_id ON DELETE CASCADE */
+  sourceDeckId: string;
+  /** PK part, preserving the published order. CHECK: >= 0 */
+  lineNumber: number;
+  /** CHECK: <> '' */
+  zone: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  /** Never matched here; promotion resolves it. CHECK: <> '' */
+  cardName: string;
+}
+
+/**
+ * The second source's standings.
+ *
+ * `playerKey` cannot be the placement: the source re-ranks provisional
+ * standings into final ones, so a rank-keyed row changes identity between
+ * fetches. It is `u<userId>` where the payload carries one, and otherwise the
+ * player's name numbered among same-name rows, so a shared name still yields
+ * one key per seat.
+ */
+export interface PlayloltcgEventStandingsTable {
+  /** PK part. FK → playloltcg_events.activity_shop_id ON DELETE CASCADE */
+  activityShopId: number;
+  /** PK part. CHECK: <> '' */
+  playerKey: string;
+  sourceUserId: number | null;
+  /** CHECK: length 1..80 */
+  playerName: string;
+  /** CHECK: NULL or >= 1 */
+  rank: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  legendName: string | null;
+  sourceDeckId: string | null;
+  fetchedAt: CreatedAt;
+}
+
+/** See {@link UvsgamesDecklistsTable}; same contract on the second source. */
+export interface PlayloltcgDecklistsTable {
+  /** PK. CHECK: <> '' */
+  sourceDeckId: string;
+  /** FK → playloltcg_events.activity_shop_id ON DELETE CASCADE */
+  activityShopId: number;
+  /** CHECK: 'fetched' | 'refused' */
+  fetchStatus: MetaSourceFetchStatus;
+  fetchedAt: CreatedAt;
+}
+
+/** See {@link UvsgamesDecklistCardsTable}. */
+export interface PlayloltcgDecklistCardsTable {
+  /** PK part. FK → playloltcg_decklists.source_deck_id ON DELETE CASCADE */
+  sourceDeckId: string;
+  /** PK part. CHECK: >= 0 */
+  lineNumber: number;
+  /** CHECK: <> '' */
+  zone: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  /** CHECK: <> '' */
+  cardName: string;
+}
+
+/**
+ * A sparse patch on a live event, applied after promotion.
+ *
+ * Every payload column is nullable and {@link claimedFields} names the ones this
+ * row sets. The mask is not redundant with the nulls: without it, "clear the
+ * organizer" and "say nothing about the organizer" are the same row. A
+ * generated CHECK per column refuses a value that is set without being claimed,
+ * so a silently ignored field cannot be stored.
+ *
+ * An admin's correction and a user's submission are the same shape. What
+ * differs is {@link submittedByUserId} and {@link status}: an admin writes one
+ * already `accepted`, a user's waits for review.
+ */
+export interface MetaEventOverlaysTable {
+  id: Generated<string>;
+  /** FK → meta_events.id ON DELETE CASCADE. NULL proposes a new event. */
+  metaEventId: string | null;
+  /** Set for push providers, NULL for people. UNIQUE with {@link externalId}. */
+  provider: string | null;
+  /** NULL together with {@link provider}; a CHECK ties the two. */
+  externalId: string | null;
+  /** CHECK: NULL or length 1..120 */
+  name: string | null;
+  /** ISO `YYYY-MM-DD`. */
+  eventDate: string | null;
+  /** CHECK: NULL or <> '' */
+  format: string | null;
+  /** CHECK: NULL or > 0 */
+  playerCount: number | null;
+  /** CHECK: NULL or length 1..120 */
+  organizer: string | null;
+  /** CHECK: NULL or length <= 4000 */
+  notes: string | null;
+  /** CHECK: NULL or one of the {@link MetaEventTier} values. */
+  tier: MetaEventTier | null;
+  /** CHECK: NULL or ISO 3166-1 alpha-2. */
+  country: string | null;
+  /** CHECK: NULL or length 1..500 */
+  location: string | null;
+  /** CHECK: non-empty, and every element in {@link MetaEventOverlayField}. */
+  claimedFields: MetaEventOverlayField[];
+  /** DEFAULT 'pending'. CHECK: one of the {@link MetaOverlayStatus} values. */
+  status: Generated<MetaOverlayStatus>;
+  /** FK → users.id. `meta-archive` for anything automation writes. */
+  submittedByUserId: string;
+  /** CHECK: <> '' */
+  submissionNote: string | null;
+  /** CHECK: set exactly when {@link status} is 'accepted'. */
+  acceptedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
 /**
- * A candidate event the admin rejected. Skipped at ingest, so
- * the same key never re-enters the queue. The source key is the identity —
+ * A sparse patch on a live standings row. See {@link MetaEventOverlaysTable}
+ * for how the mask works.
+ *
+ * Exactly one target is set. {@link metaEventPlayerId} patches an existing
+ * standings row, which is what a decklist submission for someone the archive
+ * already lists does. {@link metaEventId} proposes a new player under a live
+ * event. {@link eventOverlayId} proposes one under an event that is itself
+ * still only proposed, which is how a push provider or a user submits a whole
+ * event and its field in one go: accepting the event overlay mints the live row
+ * and these follow it.
+ */
+export interface MetaEventPlayerOverlaysTable {
+  id: Generated<string>;
+  /** FK → meta_event_players.id ON DELETE CASCADE. Patches that row. */
+  metaEventPlayerId: string | null;
+  /** FK → meta_events.id ON DELETE CASCADE. Proposes a new player under it. */
+  metaEventId: string | null;
+  /** FK → meta_event_overlays.id ON DELETE CASCADE. See the note above. */
+  eventOverlayId: string | null;
+  /** CHECK: NULL or length 1..80 */
+  playerName: string | null;
+  /** CHECK: NULL or >= 1 */
+  rank: number | null;
+  rankIsTier: boolean | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  /** CHECK: NULL or >= 0 */
+  matchPoints: number | null;
+  /** CHECK: NULL or between 0 and 1 */
+  opponentMatchWinPct: number | null;
+  /** CHECK: NULL or between 0 and 1 */
+  gameWinPct: number | null;
+  /** CHECK: NULL or between 0 and 1 */
+  opponentGameWinPct: number | null;
+  /** CHECK: NULL or one of the {@link MetaEntryStatus} values. */
+  entryStatus: MetaEntryStatus | null;
+  /** FK → cards.id ON DELETE SET NULL */
+  legendCardId: string | null;
+  /** FK → cards.id ON DELETE SET NULL */
+  championCardId: string | null;
+  /** CHECK: NULL or one of the {@link MetaListStatus} values. */
+  listStatus: MetaListStatus | null;
+  /**
+   * Set with {@link sourcePlayerKey} for push-provider rows (a CHECK ties the
+   * two), so a re-upload updates its rows instead of duplicating them. NULL
+   * for user submissions and admin corrections.
+   */
+  provider: string | null;
+  /**
+   * The provider's own key for the standings row, `<eventExternalId>:<playerExternalId>`.
+   * UNIQUE with {@link provider} where set, and stable across the overlay
+   * being re-anchored when its proposed event is accepted.
+   */
+  sourcePlayerKey: string | null;
+  /** CHECK: non-empty, and every element in {@link MetaPlayerOverlayField}. */
+  claimedFields: MetaPlayerOverlayField[];
+  /** DEFAULT 'pending'. CHECK: one of the {@link MetaOverlayStatus} values. */
+  status: Generated<MetaOverlayStatus>;
+  /** FK → users.id. `meta-archive` for anything automation writes. */
+  submittedByUserId: string;
+  /** CHECK: <> '' */
+  submissionNote: string | null;
+  /** CHECK: set exactly when {@link status} is 'accepted'. */
+  acceptedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * The card list an overlay proposes, claimed by its `cards` field.
+ *
+ * Rows rather than jsonb, so {@link cardId} carries a real foreign key and
+ * "which pending lists hold a name that resolves to nothing" is a query.
+ */
+export interface MetaEventPlayerOverlayCardsTable {
+  /** PK part. FK → meta_event_player_overlays.id ON DELETE CASCADE */
+  overlayId: string;
+  /** PK part, preserving the submitted order. CHECK: >= 0 */
+  lineNumber: number;
+  /** A `WellKnown.deckZone` value. CHECK: <> '' */
+  zone: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  /** What the submitter wrote, kept even once it resolves. CHECK: <> '' */
+  cardName: string;
+  /** FK → cards.id ON DELETE SET NULL. Null while the name matches nothing. */
+  cardId: string | null;
+  /**
+   * FK → printings.id ON DELETE SET NULL. Set by admin edits pasted from a
+   * deck code, so the exact printings survive the overlay layer.
+   */
+  preferredPrintingId: string | null;
+}
+
+/**
+ * A source event the admin dismissed. Skipped at sync and at promotion, so
+ * the same key never re-enters the queue. The source key is the identity:
  * there is no surrogate id.
  */
-interface IgnoredCandidateMetaEventsTable {
+interface IgnoredMetaSourceEventsTable {
   /** PK part. CHECK: <> '' */
   provider: string;
   /** PK part. CHECK: <> '' */
@@ -1561,15 +1690,14 @@ interface IgnoredCandidateMetaEventsTable {
 }
 
 /**
- * A rejected candidate player. Keyed on the source's event id as
- * well as the player's, because player external ids are only unique within
- * their event.
+ * A dismissed source player. Keyed on the source's event id as well as the
+ * player's, because player external ids are only unique within their event.
  *
- * An ignore marks the key and leaves the candidate row in place, live link
+ * An ignore marks the key and leaves the mirror row in place, live link
  * included, so un-ignoring and re-fetching resolves to the same live rows
- * instead of staging a duplicate.
+ * instead of creating a duplicate.
  */
-interface IgnoredCandidateMetaPlayersTable {
+interface IgnoredMetaSourcePlayersTable {
   /** PK part. CHECK: <> '' */
   provider: string;
   /** PK part. The source's id for the player's event. CHECK: <> '' */
@@ -1584,10 +1712,10 @@ interface IgnoredCandidateMetaPlayersTable {
  * a citation, public and printed on the event page. It never carries a user: a
  * contributor is credited through {@link MetaCreditsTable} instead.
  *
- * A provider row is written when that provider's candidate is linked and
- * removed when it is unlinked, so linking a source credits it even when the
- * admin took none of its field values. A hand-entered row leaves the key NULL,
- * for an admin transcribing from a VOD or a photo of the standings board.
+ * A provider row is written when the provider's event is accepted into the
+ * archive, so a linked source is credited even when an overlay overrides every
+ * field it published. A hand-entered row leaves the key NULL, for an admin
+ * transcribing from a VOD or a photo of the standings board.
  */
 export interface MetaEventSourcesTable {
   id: Generated<string>;
@@ -1601,6 +1729,12 @@ export interface MetaEventSourcesTable {
   label: string;
   /** CHECK: NULL or length 1..2000. A back-reference, never a fetch target. */
   sourceUrl: string | null;
+  /**
+   * DEFAULT 0. Promotion applies the linked sources in this order, lowest
+   * first, so the highest number wins any field two sources both hold. Taking
+   * one field from a lower-priority source is an overlay, not a second knob.
+   */
+  priority: Generated<number>;
   createdAt: CreatedAt;
 }
 
@@ -1631,19 +1765,19 @@ interface MetaCreditsTable {
  * are the maintainer's own tooling, and staging's presence semantics suffice.
  *
  * Every FK out of this row is ON DELETE SET NULL except the submitter's, so
- * the ledger keeps reading correctly after the candidate is accepted, the
+ * the ledger keeps reading correctly after the overlay is accepted, the
  * target event is deleted, or the deck is removed.
  */
 export interface MetaSubmissionsTable {
   id: Generated<string>;
   /** FK → users.id ON DELETE CASCADE */
   userId: string;
-  /** CHECK: <> '' — `usersubmission` today, matching the candidate's provider. */
+  /** CHECK: <> '' — `usersubmission` today, matching the overlay's provider. */
   provider: string;
   /** CHECK: <> '' — per-submission id, UNIQUE with {@link provider}. */
   externalId: string;
-  /** FK → candidate_meta_players.id ON DELETE SET NULL */
-  candidateMetaPlayerId: string | null;
+  /** FK → meta_event_player_overlays.id ON DELETE SET NULL — what this submission wrote. */
+  playerOverlayId: string | null;
   /** FK → meta_events.id ON DELETE SET NULL — the event this targets, when it has one. */
   metaEventId: string | null;
   /** What the submitter called the event, so the row still reads without a target. CHECK: length 1..120. */
@@ -2991,19 +3125,27 @@ export interface Database {
   uvsgamesStores: UvsgamesStoresTable;
   uvsgamesPlayers: UvsgamesPlayersTable;
   uvsgamesEventChecks: UvsgamesEventChecksTable;
+  uvsgamesEventStandings: UvsgamesEventStandingsTable;
+  uvsgamesEventPhases: UvsgamesEventPhasesTable;
+  uvsgamesEventMatches: UvsgamesEventMatchesTable;
+  uvsgamesDecklists: UvsgamesDecklistsTable;
+  uvsgamesDecklistCards: UvsgamesDecklistCardsTable;
   playloltcgShops: PlayloltcgShopsTable;
   playloltcgEvents: PlayloltcgEventsTable;
   playloltcgEventChecks: PlayloltcgEventChecksTable;
+  playloltcgEventStandings: PlayloltcgEventStandingsTable;
+  playloltcgDecklists: PlayloltcgDecklistsTable;
+  playloltcgDecklistCards: PlayloltcgDecklistCardsTable;
   metaSyncSettings: MetaSyncSettingsTable;
   metaEvents: MetaEventsTable;
   metaEventPlayers: MetaEventPlayersTable;
   metaEventMatches: MetaEventMatchesTable;
   metaEventPhases: MetaEventPhasesTable;
-  candidateMetaEvents: CandidateMetaEventsTable;
-  candidateMetaPlayers: CandidateMetaPlayersTable;
-  candidateMetaMatches: CandidateMetaMatchesTable;
-  ignoredCandidateMetaEvents: IgnoredCandidateMetaEventsTable;
-  ignoredCandidateMetaPlayers: IgnoredCandidateMetaPlayersTable;
+  metaEventOverlays: MetaEventOverlaysTable;
+  metaEventPlayerOverlays: MetaEventPlayerOverlaysTable;
+  metaEventPlayerOverlayCards: MetaEventPlayerOverlayCardsTable;
+  ignoredMetaSourceEvents: IgnoredMetaSourceEventsTable;
+  ignoredMetaSourcePlayers: IgnoredMetaSourcePlayersTable;
   metaEventSources: MetaEventSourcesTable;
   metaCredits: MetaCreditsTable;
   metaSubmissions: MetaSubmissionsTable;

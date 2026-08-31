@@ -1,4 +1,5 @@
-import type { MetaEventTier, MetaListStatus } from "@openrift/shared";
+import type { MetaEventTier, MetaListStatus, MetaPlayerOverlayField } from "@openrift/shared";
+import { META_PLAYER_OVERLAY_FIELDS } from "@openrift/shared";
 
 /**
  * How much of a player's list the archive holds, in the words the archive uses
@@ -219,6 +220,54 @@ export function metaEventCounts(playerRowCount: number, deckCount: number): stri
     `${playerRowCount} ${playerRowCount === 1 ? "player" : "players"}`,
     `${deckCount} ${deckCount === 1 ? "deck" : "decks"}`,
   ];
+}
+
+/** What a claimed standings field is called on screen, in the reader's words. */
+const META_PLAYER_CLAIM_LABELS: Record<MetaPlayerOverlayField, string> = {
+  playerName: "Name",
+  rank: "Finish",
+  rankIsTier: "Bracket",
+  wins: "Wins",
+  losses: "Losses",
+  draws: "Draws",
+  matchPoints: "Match points",
+  opponentMatchWinPct: "OMW%",
+  gameWinPct: "GW%",
+  opponentGameWinPct: "OGW%",
+  entryStatus: "Entry status",
+  legendCardId: "Legend",
+  championCardId: "Champion",
+  cards: "Decklist",
+  listStatus: "Decklist",
+};
+
+/** One chip on a standings row: what is claimed, and the field a release names. */
+export interface MetaPlayerClaimChip {
+  /** The field to release. `cards` stands for the pair it releases with. */
+  field: MetaPlayerOverlayField;
+  label: string;
+}
+
+/**
+ * The claims a standings row wears, as chips.
+ *
+ * `cards` and `listStatus` collapse into one: a list and its status can never
+ * disagree, so the archive claims and releases them together and showing two
+ * chips would offer a release that is not a separate choice. Anything outside
+ * the overlay's vocabulary is dropped rather than printed raw — a slug in the
+ * table is worse than a missing chip.
+ *
+ * @param claimedFields - The row's `claimedFields`.
+ * @returns The chips to render, in the overlay vocabulary's own order.
+ */
+export function metaPlayerClaimChips(claimedFields: readonly string[]): MetaPlayerClaimChip[] {
+  const fields = new Set<string>(claimedFields);
+  if (fields.has("listStatus")) {
+    fields.add("cards");
+  }
+  return META_PLAYER_OVERLAY_FIELDS.filter(
+    (field) => field !== "listStatus" && fields.has(field),
+  ).map((field) => ({ field, label: META_PLAYER_CLAIM_LABELS[field] }));
 }
 
 function formatOrdinal(value: number): string {

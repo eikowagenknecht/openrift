@@ -3,16 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../../deps.js";
 import type { PlayloltcgListRow } from "../../repositories/playloltcg-events.js";
-import { acceptCandidateEvent } from "../meta-candidate-accept.js";
+import { promoteNewEvent } from "../meta-promote.js";
 import { autoAcceptPlayloltcgEvents } from "./playloltcg-accept.js";
 import type { PlayloltcgClient } from "./playloltcg-client.js";
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 
-vi.mock("../meta-candidate-accept.js", () => ({
-  acceptCandidateEvent: vi.fn(() =>
+vi.mock("../meta-promote.js", () => ({
+  promoteNewEvent: vi.fn(() =>
     Promise.resolve({ metaEventId: "live-1", slug: "shenzhen-1", created: true }),
   ),
-  acceptCandidatePlayer: vi.fn(() => Promise.resolve()),
+  promoteMetaEvent: vi.fn(() => Promise.resolve({ errors: [] })),
 }));
 
 const NOW = new Date("2026-08-30T12:00:00Z");
@@ -43,7 +43,6 @@ function catalogRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListR
     lastSeenAt: NOW,
     missingSince: null,
     triage: "new",
-    candidateEventId: null,
     metaEventId: null,
     metaEventSlug: null,
     shopDisplayName: "卡之域卡牌 深圳",
@@ -104,42 +103,29 @@ function fakeDeps(options: {
 }
 
 describe("autoAcceptPlayloltcgEvents", () => {
-  it("stages tier, country and location, matching what a deep fetch would write", async () => {
-    const { deps, inserted } = fakeDeps({ unaccepted: [catalogRow()], autoAcceptMinPlayers: 16 });
+  it("seeds the live event with the source's name, date and constructed format", async () => {
+    const { deps } = fakeDeps({ unaccepted: [catalogRow()], autoAcceptMinPlayers: 16 });
 
     await autoAcceptPlayloltcgEvents(deps, [109_991]);
 
-    expect(inserted).toHaveLength(1);
-    expect(inserted[0]).toMatchObject({
-      externalId: "109991",
+    expect(vi.mocked(promoteNewEvent).mock.calls[0]?.[3]).toMatchObject({
+      name: "本命传奇挑战",
       eventDate: "2026-08-30",
-      tier: null,
-      country: "CN",
-      location: "深圳市",
-      organizer: "卡之域卡牌 深圳",
+      format: "constructed",
     });
-  });
-
-  it("falls back to the address when the venue has no city", async () => {
-    const { deps, inserted } = fakeDeps({
-      unaccepted: [catalogRow({ city: null })],
-      autoAcceptMinPlayers: 16,
-    });
-
-    await autoAcceptPlayloltcgEvents(deps, [109_991]);
-
-    expect(inserted[0]).toMatchObject({ location: "华强北世纪汇商场6层" });
   });
 
   it("dates an event with no start on the day it is accepted", async () => {
-    const { deps, inserted } = fakeDeps({
+    const { deps } = fakeDeps({
       unaccepted: [catalogRow({ startAt: null })],
       autoAcceptMinPlayers: 16,
     });
 
     await autoAcceptPlayloltcgEvents(deps, [109_991]);
 
-    expect(inserted[0]).toMatchObject({ eventDate: "2026-08-30" });
+    expect(vi.mocked(promoteNewEvent).mock.calls[0]?.[3]).toMatchObject({
+      eventDate: "2026-08-30",
+    });
   });
 
   it("arms the recheck queue at now so the next pass picks the event up", async () => {
@@ -149,7 +135,7 @@ describe("autoAcceptPlayloltcgEvents", () => {
 
     expect(summary.accepted).toBe(1);
     expect(rechecks).toEqual([{ activityShopId: 109_991, nextCheckAt: NOW, checkStage: 0 }]);
-    expect(acceptCandidateEvent).toHaveBeenCalled();
+    expect(promoteNewEvent).toHaveBeenCalled();
   });
 
   it("leaves an event below the threshold, and every event when the rule is off", async () => {

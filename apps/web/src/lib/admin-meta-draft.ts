@@ -1,9 +1,11 @@
 import type {
   AdminMetaEvent,
   AdminMetaPlayer,
+  MetaEventOverlayField,
   MetaEventTier,
   MetaListStatus,
 } from "@openrift/shared";
+import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared";
 import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
@@ -127,6 +129,55 @@ export function metaEventDraftToBody(draft: MetaEventDraft): MetaEventBody {
     location: draft.location.trim() || null,
     notes: draft.notes.trim() || null,
   };
+}
+
+/** One field the admin's correction claims, as the overlay endpoint takes it. */
+export interface MetaEventOverlayEdit {
+  field: MetaEventOverlayField;
+  /** Null clears the field, which the overlay's mask makes expressible. */
+  value: string | null;
+}
+
+/** The event body's fields in the order the overlay endpoint's enum lists them. */
+const OVERLAY_EDIT_VALUES: Record<
+  MetaEventOverlayField,
+  (event: Pick<MetaEventBody, MetaEventOverlayField>) => string | null
+> = {
+  name: (event) => event.name,
+  eventDate: (event) => event.eventDate,
+  format: (event) => event.format,
+  playerCount: (event) => (event.playerCount === null ? null : String(event.playerCount)),
+  organizer: (event) => event.organizer,
+  notes: (event) => event.notes,
+  tier: (event) => event.tier,
+  country: (event) => event.country,
+  location: (event) => event.location,
+};
+
+/**
+ * The fields an edit changed, as overlay claims.
+ *
+ * Only what actually moved is sent: an overlay claiming every field is
+ * indistinguishable from turning the event's sources off, and the slug is not
+ * here at all because no source publishes one — it is renamed through
+ * `updateEvent` instead.
+ *
+ * @param event - The event as it stands.
+ * @param body - The values the form is saving.
+ * @returns One entry per changed field, empty when only the slug moved.
+ */
+export function metaEventOverlayEdits(
+  event: AdminMetaEvent,
+  body: MetaEventBody,
+): MetaEventOverlayEdit[] {
+  const edits: MetaEventOverlayEdit[] = [];
+  for (const field of META_EVENT_OVERLAY_FIELDS) {
+    const next = OVERLAY_EDIT_VALUES[field](body);
+    if (next !== OVERLAY_EDIT_VALUES[field](event)) {
+      edits.push({ field, value: next });
+    }
+  }
+  return edits;
 }
 
 /**
@@ -269,6 +320,139 @@ export function metaPlayerToDraft(player: AdminMetaPlayer, eventFormat: string):
     deckName: player.deckName ?? "",
     deckFormat: player.deckFormat ?? eventFormat,
   };
+}
+
+/**
+ * The scalar half of a standings correction. Every key is optional because a
+ * present one is claimed and an absent one says nothing, so an edit that moved
+ * two fields must not hand the archive the other eleven.
+ *
+ * The tiebreaker columns and `entryStatus` are absent by design: the dialog
+ * does not edit them, so it can never claim them either.
+ */
+export interface MetaPlayerOverlayFields {
+  playerName?: string;
+  rank?: number;
+  rankIsTier?: boolean;
+  wins?: number | null;
+  losses?: number | null;
+  draws?: number | null;
+  legendCardId?: string | null;
+  championCardId?: string | null;
+}
+
+/**
+ * The scalars an edit changed, as overlay claims.
+ *
+ * `rank` is skipped when the field does not read as a positive whole number:
+ * the form refuses that draft before it gets here, so an unparseable one is
+ * never a value worth claiming.
+ *
+ * @param player - The standings row as it stands.
+ * @param draft - The form's current values.
+ * @returns One key per changed scalar, empty when only the list moved.
+ */
+export function metaPlayerOverlayFields(
+  player: AdminMetaPlayer,
+  draft: MetaPlayerDraft,
+): MetaPlayerOverlayFields {
+  const fields: MetaPlayerOverlayFields = {};
+  const playerName = draft.playerName.trim();
+  if (playerName !== player.playerName) {
+    fields.playerName = playerName;
+  }
+  const rank = metaPlayerRank(draft.rank);
+  if (rank !== null && rank !== player.rank) {
+    fields.rank = rank;
+  }
+  if (draft.rankIsTier !== player.rankIsTier) {
+    fields.rankIsTier = draft.rankIsTier;
+  }
+  const wins = metaPlayerRecordPart(draft.wins);
+  if (wins !== player.wins) {
+    fields.wins = wins;
+  }
+  const losses = metaPlayerRecordPart(draft.losses);
+  if (losses !== player.losses) {
+    fields.losses = losses;
+  }
+  const draws = metaPlayerRecordPart(draft.draws);
+  if (draws !== player.draws) {
+    fields.draws = draws;
+  }
+  if (draft.legendCardId !== player.legendCardId) {
+    fields.legendCardId = draft.legendCardId;
+  }
+  if (draft.championCardId !== player.championCardId) {
+    fields.championCardId = draft.championCardId;
+  }
+  return fields;
+}
+
+/**
+ * The list an edit claims: absent leaves the deck alone, an object claims these
+ * cards, and null claims that there is no list at all.
+ *
+ * A rename needs the cards with it, since the endpoint takes no name on its
+ * own, which is why the form only offers the deck-name field alongside a
+ * pasted list.
+ *
+ * @param player - The standings row as it stands.
+ * @param draft - The form's current values.
+ * @param cards - The rows a paste produced, empty when nothing was pasted.
+ * @returns The `list` half of the write, or undefined to say nothing about it.
+ */
+export function metaPlayerOverlayList(
+  player: AdminMetaPlayer,
+  draft: MetaPlayerDraft,
+  cards: readonly ImportedDeckCard[],
+): MetaPlayerOverlayListInput | null | undefined {
+  if (draft.listStatus === "none") {
+    return player.listStatus === "none" ? undefined : null;
+  }
+  if (cards.length === 0) {
+    return undefined;
+  }
+  return {
+    name: draft.deckName.trim(),
+    cards: [...cards],
+    listStatus: draft.listStatus === "partial" ? "partial" : "full",
+  };
+}
+
+/**
+ * The deck rename an edit needs on its own, or null when it needs none.
+ *
+ * A rename is a direct durable write rather than a claim, because promotion
+ * preserves deck names: claiming the field would take the whole list out of
+ * the sources' hands to change a label. A pasted list carries its own name
+ * through the overlay write, so that case is not a rename to send twice.
+ *
+ * @param player - The standings row as it stands.
+ * @param draft - The form's current values.
+ * @param cards - The rows a paste produced, empty when nothing was pasted.
+ * @returns The new deck name, or null when nothing needs renaming.
+ */
+export function metaPlayerDeckRename(
+  player: AdminMetaPlayer,
+  draft: MetaPlayerDraft,
+  cards: readonly ImportedDeckCard[],
+): string | null {
+  if (player.listStatus === "none" || draft.listStatus === "none" || cards.length > 0) {
+    return null;
+  }
+  const name = draft.deckName.trim();
+  if (name === "" || name === player.deckName) {
+    return null;
+  }
+  return name;
+}
+
+/** The list an overlay claims. No `format`: an archived deck's is the event's. */
+export interface MetaPlayerOverlayListInput {
+  name: string;
+  cards: ImportedDeckCard[];
+  listStatus: Exclude<MetaListStatus, "none">;
 }
 
 /**

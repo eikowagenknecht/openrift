@@ -26,7 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAdminMetaCandidates } from "@/hooks/use-admin-meta-candidates";
 import type { MetaSyncTrigger } from "@/hooks/use-admin-meta-catalog";
 import {
   SYNC_STATUS_POLL_MS,
@@ -34,6 +33,7 @@ import {
   useMetaSyncStatus,
   useRunMetaSync,
 } from "@/hooks/use-admin-meta-catalog";
+import { useAdminMetaOverlays } from "@/hooks/use-admin-meta-overlays";
 import type {
   BackfillDisplay,
   MetaSyncAlert,
@@ -44,6 +44,7 @@ import {
   formatRunDuration,
   META_SOURCE_LABELS,
   metaSyncAlerts,
+  overlayCountsForProvider,
   runningRunId,
   summarizeRunResult,
 } from "@/lib/meta-catalog-display";
@@ -609,14 +610,13 @@ function RunsCard({
  */
 export function MetaAdminOverviewPage({ source }: { source: MetaSource }) {
   const { data, refetch, isFetching, dataUpdatedAt } = useMetaSyncStatus(source);
-  const candidates = useAdminMetaCandidates();
+  const overlays = useAdminMetaOverlays();
   const [runsOpen, setRunsOpen] = useState(false);
 
-  // Review and its unresolved cards are the one cross-source queue; scope them
-  // to the selected source by the candidate's own provider.
-  const sourceCandidates = candidates.data.candidates.filter((row) => row.provider === source);
-  const pendingReview = sourceCandidates.filter((row) => row.checkedAt === null).length;
-  const unresolvedCards = sourceCandidates.reduce((sum, row) => sum + row.unresolvedCardCount, 0);
+  const { pendingReview, unresolvedCards } = overlayCountsForProvider(
+    overlays.data.overlays,
+    source,
+  );
   const alerts = data === undefined ? [] : metaSyncAlerts(data, unresolvedCards, new Date());
 
   return (

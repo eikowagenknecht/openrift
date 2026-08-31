@@ -19,7 +19,6 @@ export function toPlayloltcgCatalogRow(row: PlayloltcgListRow): PlayloltcgCatalo
     playerCount: row.playerCount,
     startAt: row.startAt,
     triage: row.triage,
-    candidateEventId: row.candidateEventId,
     metaEventId: row.metaEventId,
     metaEventSlug: row.metaEventSlug,
     fetchedAt: row.fetchedAt?.toISOString() ?? null,

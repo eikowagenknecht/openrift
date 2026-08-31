@@ -15,8 +15,8 @@ export interface MetaSubmissionInsert {
   userId: string;
   provider: string;
   externalId: string;
-  /** Null on an event correction, which stages nothing. */
-  candidateMetaPlayerId: string | null;
+  /** Null on an event correction, which stages no player overlay. */
+  playerOverlayId: string | null;
   /** The live event the submission targets, or null when it proposes one. */
   metaEventId: string | null;
   /** What the submitter called the event, so the row still reads without a target. */
@@ -54,11 +54,11 @@ export interface MetaEventCorrectionRow {
  * The outcome ledger for user decklist submissions to the meta archive,
  * shaped like `card_submissions`.
  *
- * Separate from `candidate_meta_players` because staging is disposable and a
- * contributor's history is not: the candidate row is replaced, ignored or
- * deleted as the queue moves, and the person who sent it still needs to see
- * what happened. Provider uploads write nothing here — those sources are the
- * maintainer's own tooling.
+ * Separate from the overlays because not every submission has one: an event
+ * correction is a set of field edits against a live event and writes no
+ * overlay at all. It is also what the contributor reads, so it snapshots the
+ * event name rather than joining for it. Provider mirrors write nothing here,
+ * those sources being the maintainer's own tooling.
  */
 export function metaSubmissionsRepo(db: Kysely<Database>) {
   return {
@@ -125,7 +125,7 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
           userId: row.userId,
           provider: row.provider,
           externalId: row.externalId,
-          candidateMetaPlayerId: row.candidateMetaPlayerId,
+          playerOverlayId: row.playerOverlayId,
           metaEventId: row.metaEventId,
           eventName: row.eventName,
           playerName: row.playerName,
@@ -170,14 +170,15 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * The submission behind one staging row, or null when the candidate is not
-     * a submission. This is how an accept finds the ledger entry to resolve.
+     * The submission behind one player overlay, or null when the overlay is
+     * not a submission. This is how an accept finds the ledger entry to
+     * resolve.
      */
-    async byCandidatePlayerId(candidateMetaPlayerId: string): Promise<MetaSubmissionRow | null> {
+    async byPlayerOverlayId(playerOverlayId: string): Promise<MetaSubmissionRow | null> {
       const row = await db
         .selectFrom("metaSubmissions")
         .selectAll()
-        .where("candidateMetaPlayerId", "=", candidateMetaPlayerId)
+        .where("playerOverlayId", "=", playerOverlayId)
         .executeTakeFirst();
       return row ?? null;
     },
@@ -275,8 +276,8 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
 
     /**
      * How many of a user's submissions are still awaiting an outcome, for the
-     * per-user cap. Counted on the ledger rather than on `candidate_meta_players`
-     * so purging staging cannot hand a spammer a fresh allowance.
+     * per-user cap. Counted on the ledger rather than on the overlays, which is
+     * the one table every submission kind writes to, corrections included.
      */
     async countPendingByUser(userId: string): Promise<number> {
       const row = await db

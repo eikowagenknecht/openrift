@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_META_EVENT_DRAFT,
   metaEventDraftToBody,
+  metaEventOverlayEdits,
   metaEventToDraft,
+  metaPlayerDeckRename,
+  metaPlayerOverlayFields,
+  metaPlayerOverlayList,
   metaPlayerRank,
   metaPlayerRecordPart,
   metaPlayerToDraft,
@@ -13,6 +17,7 @@ import {
   validateMetaPlayerDraft,
 } from "@/lib/admin-meta-draft";
 import type { MetaEventDraft, MetaPlayerDraft } from "@/lib/admin-meta-draft";
+import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 
 function eventDraft(overrides: Partial<MetaEventDraft> = {}): MetaEventDraft {
   return {
@@ -183,6 +188,68 @@ describe("metaEventToDraft", () => {
   });
 });
 
+describe("metaEventOverlayEdits", () => {
+  function storedEvent(overrides: Partial<AdminMetaEvent> = {}): AdminMetaEvent {
+    return {
+      id: "3f2a",
+      slug: "open-2026",
+      name: "Runeterra Open",
+      eventDate: "2026-08-14",
+      format: "standard",
+      playerCount: 96,
+      organizer: "Riot Games",
+      notes: null,
+      tier: "competitive",
+      country: "DE",
+      location: null,
+      playerRowCount: 64,
+      deckCount: 8,
+      sources: [],
+      ...overrides,
+    };
+  }
+
+  it("claims nothing when the form saved what was already there", () => {
+    const event = storedEvent();
+    expect(metaEventOverlayEdits(event, metaEventDraftToBody(metaEventToDraft(event)))).toEqual([]);
+  });
+
+  it("claims only the fields that moved", () => {
+    const event = storedEvent();
+    const body = metaEventDraftToBody(
+      metaEventToDraft({ ...event, name: "Runeterra Open 2026", playerCount: 128 }),
+    );
+
+    expect(metaEventOverlayEdits(event, body)).toEqual([
+      { field: "name", value: "Runeterra Open 2026" },
+      { field: "playerCount", value: "128" },
+    ]);
+  });
+
+  it("sends null for a field the form cleared, which is what the mask expresses", () => {
+    const event = storedEvent();
+    const body = metaEventDraftToBody(metaEventToDraft({ ...event, organizer: null }));
+
+    expect(metaEventOverlayEdits(event, body)).toEqual([{ field: "organizer", value: null }]);
+  });
+
+  it("leaves the slug out, since no source publishes one", () => {
+    const event = storedEvent();
+    const body = metaEventDraftToBody(metaEventToDraft({ ...event, slug: "open-2027" }));
+
+    expect(metaEventOverlayEdits(event, body)).toEqual([]);
+  });
+
+  it("claims a field the archive never held", () => {
+    const event = storedEvent();
+    const body = metaEventDraftToBody(metaEventToDraft({ ...event, notes: "Swiss into top 8." }));
+
+    expect(metaEventOverlayEdits(event, body)).toEqual([
+      { field: "notes", value: "Swiss into top 8." },
+    ]);
+  });
+});
+
 describe("metaPlayerRank", () => {
   it("reads a whole number", () => {
     expect(metaPlayerRank("8")).toBe(8);
@@ -279,6 +346,7 @@ describe("metaPlayerToDraft", () => {
     deckName: "Yasuo Aggro",
     deckFormat: "standard",
     cardCount: 40,
+    claimedFields: [],
   };
 
   it("loads a stored standings row into the form", () => {
@@ -317,6 +385,225 @@ describe("metaPlayerToDraft", () => {
 
   it("keeps the legend, which a standings-only row is filed under", () => {
     expect(metaPlayerToDraft(stored, "legacy").legendCardId).toBe("legend-1");
+  });
+});
+
+describe("metaPlayerOverlayFields", () => {
+  const stored: AdminMetaPlayer = {
+    id: "p1",
+    rank: 4,
+    rankIsTier: true,
+    playerName: "Rell Enjoyer",
+    wins: 5,
+    losses: 1,
+    draws: null,
+    legendCardId: "legend-1",
+    legendName: "Yasuo",
+    championCardId: null,
+    championName: null,
+    listStatus: "full",
+    deckId: "d1",
+    shareToken: "abc123def456",
+    deckName: "Yasuo Aggro",
+    deckFormat: "standard",
+    cardCount: 40,
+    claimedFields: [],
+  };
+
+  function draftFor(overrides: Partial<MetaPlayerDraft> = {}): MetaPlayerDraft {
+    return { ...metaPlayerToDraft(stored, "standard"), ...overrides };
+  }
+
+  it("claims nothing when the form saved what was already there", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor())).toEqual({});
+  });
+
+  it("claims only the fields that moved", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor({ rank: "2", wins: "6" }))).toEqual({
+      rank: 2,
+      wins: 6,
+    });
+  });
+
+  it("sends null for a record box the form emptied", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor({ losses: "" }))).toEqual({ losses: null });
+  });
+
+  it("claims a cleared legend as null rather than leaving it to the source", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor({ legendCardId: null }))).toEqual({
+      legendCardId: null,
+    });
+  });
+
+  it("trims the name before deciding whether it moved", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor({ playerName: "  Rell Enjoyer  " }))).toEqual(
+      {},
+    );
+  });
+
+  it("skips a rank the form would have refused anyway", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor({ rank: "abc" }))).toEqual({});
+  });
+
+  it("claims the bracket flag on its own", () => {
+    expect(metaPlayerOverlayFields(stored, draftFor({ rankIsTier: false }))).toEqual({
+      rankIsTier: false,
+    });
+  });
+});
+
+describe("metaPlayerOverlayList", () => {
+  const withList: AdminMetaPlayer = {
+    id: "p1",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Rell Enjoyer",
+    wins: null,
+    losses: null,
+    draws: null,
+    legendCardId: null,
+    legendName: null,
+    championCardId: null,
+    championName: null,
+    listStatus: "full",
+    deckId: "d1",
+    shareToken: "abc123def456",
+    deckName: "Yasuo Aggro",
+    deckFormat: "standard",
+    cardCount: 40,
+    claimedFields: [],
+  };
+  const deckless: AdminMetaPlayer = {
+    ...withList,
+    listStatus: "none",
+    deckId: null,
+    shareToken: null,
+    deckName: null,
+    deckFormat: null,
+    cardCount: 0,
+  };
+  const cards: ImportedDeckCard[] = [
+    { cardId: "c1", zone: "main", quantity: 3, preferredPrintingId: null },
+  ];
+
+  function draftFor(player: AdminMetaPlayer, overrides: Partial<MetaPlayerDraft> = {}) {
+    return { ...metaPlayerToDraft(player, "standard"), ...overrides };
+  }
+
+  it("says nothing about a deck the edit did not touch", () => {
+    expect(metaPlayerOverlayList(withList, draftFor(withList), [])).toBeUndefined();
+  });
+
+  it("says nothing when a deckless row stays deckless", () => {
+    expect(metaPlayerOverlayList(deckless, draftFor(deckless), [])).toBeUndefined();
+  });
+
+  it("claims that there is no list when a stored deck is dropped", () => {
+    expect(
+      metaPlayerOverlayList(withList, draftFor(withList, { listStatus: "none" }), []),
+    ).toBeNull();
+  });
+
+  it("claims the pasted cards, without a format the event already owns", () => {
+    expect(metaPlayerOverlayList(withList, draftFor(withList), cards)).toEqual({
+      name: "Yasuo Aggro",
+      cards,
+      listStatus: "full",
+    });
+  });
+
+  it("carries a partial claim through as partial", () => {
+    expect(
+      metaPlayerOverlayList(withList, draftFor(withList, { listStatus: "partial" }), cards)
+        ?.listStatus,
+    ).toBe("partial");
+  });
+
+  it("attaches a first list to a row that had none", () => {
+    const draft = draftFor(deckless, { listStatus: "full", deckName: "Yasuo Aggro" });
+
+    expect(metaPlayerOverlayList(deckless, draft, cards)).toEqual({
+      name: "Yasuo Aggro",
+      cards,
+      listStatus: "full",
+    });
+  });
+});
+
+describe("metaPlayerDeckRename", () => {
+  const withList: AdminMetaPlayer = {
+    id: "p1",
+    rank: 1,
+    rankIsTier: false,
+    playerName: "Rell Enjoyer",
+    wins: null,
+    losses: null,
+    draws: null,
+    legendCardId: null,
+    legendName: null,
+    championCardId: null,
+    championName: null,
+    listStatus: "full",
+    deckId: "d1",
+    shareToken: "abc123def456",
+    deckName: "Yasuo Aggro",
+    deckFormat: "standard",
+    cardCount: 40,
+    claimedFields: [],
+  };
+  const deckless: AdminMetaPlayer = {
+    ...withList,
+    listStatus: "none",
+    deckId: null,
+    shareToken: null,
+    deckName: null,
+    deckFormat: null,
+    cardCount: 0,
+  };
+  const cards: ImportedDeckCard[] = [
+    { cardId: "c1", zone: "main", quantity: 3, preferredPrintingId: null },
+  ];
+
+  function draftFor(player: AdminMetaPlayer, overrides: Partial<MetaPlayerDraft> = {}) {
+    return { ...metaPlayerToDraft(player, "standard"), ...overrides };
+  }
+
+  it("renames a stored deck the form retitled", () => {
+    const draft = draftFor(withList, { deckName: "Yasuo Midrange" });
+
+    expect(metaPlayerDeckRename(withList, draft, [])).toBe("Yasuo Midrange");
+  });
+
+  it("renames nothing when the title did not move", () => {
+    expect(metaPlayerDeckRename(withList, draftFor(withList), [])).toBeNull();
+  });
+
+  it("ignores whitespace either side of an unchanged title", () => {
+    const draft = draftFor(withList, { deckName: "  Yasuo Aggro  " });
+
+    expect(metaPlayerDeckRename(withList, draft, [])).toBeNull();
+  });
+
+  it("leaves a pasted list to carry its own name, so it is not sent twice", () => {
+    const draft = draftFor(withList, { deckName: "Yasuo Midrange" });
+
+    expect(metaPlayerDeckRename(withList, draft, cards)).toBeNull();
+  });
+
+  it("renames nothing on a row with no deck to rename", () => {
+    const draft = draftFor(deckless, { listStatus: "full", deckName: "Yasuo Aggro" });
+
+    expect(metaPlayerDeckRename(deckless, draft, [])).toBeNull();
+  });
+
+  it("renames nothing while the same save is dropping the deck", () => {
+    const draft = draftFor(withList, { listStatus: "none", deckName: "Yasuo Midrange" });
+
+    expect(metaPlayerDeckRename(withList, draft, [])).toBeNull();
+  });
+
+  it("refuses to blank a deck's name", () => {
+    expect(metaPlayerDeckRename(withList, draftFor(withList, { deckName: "  " }), [])).toBeNull();
   });
 });
 

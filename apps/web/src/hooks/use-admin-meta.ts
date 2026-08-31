@@ -222,21 +222,22 @@ export function useCreateMetaEvent() {
 }
 
 const updateMetaEventFn = createServerFn({ method: "POST" })
-  .validator((input: { id: string } & Partial<MetaEventInput>) => input)
+  .validator((input: { id: string; slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await apiOrpcClient(adminMetaContract, context.cookie).updateEvent(data);
   });
 
 /**
- * Updates an event. Fields left out keep their stored value.
+ * Renames an event's slug, which is the only field this endpoint takes: the
+ * archive's own facts are corrected as overlays instead, so a re-promote can
+ * never silently revert an admin's edit.
  *
  * @returns The mutation.
  */
 export function useUpdateMetaEvent() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: { id: string } & Partial<MetaEventInput>) =>
-      updateMetaEventFn({ data: vars }),
+    mutationFn: (vars: { id: string; slug: string }) => updateMetaEventFn({ data: vars }),
     invalidates: [queryKeys.admin.meta.events, queryKeys.meta.all],
   });
 }
@@ -254,7 +255,7 @@ const reclassifyMetaEventsFn = createServerFn({ method: "POST" })
 export const reclassifyInvalidates = [
   queryKeys.admin.meta.catalogue,
   queryKeys.admin.meta.events,
-  queryKeys.admin.meta.candidates,
+  queryKeys.admin.meta.overlays,
   queryKeys.meta.all,
 ] as const;
 
@@ -367,42 +368,29 @@ export function useCreateMetaPlayer() {
   });
 }
 
-/**
- * A standings row's editable fields. `eventId` is not sent — it only scopes the
- * cache invalidation to the list the row is shown in. `list` has three states:
- * absent leaves the deck alone, an object creates or replaces it, and `null`
- * detaches and deletes it.
- */
-export interface UpdateMetaPlayerInput {
-  id: string;
-  eventId: string;
-  playerName?: string;
-  rank?: number;
-  rankIsTier?: boolean;
-  wins?: number | null;
-  losses?: number | null;
-  draws?: number | null;
-  legendCardId?: string | null;
-  championCardId?: string | null;
-  list?: MetaPlayerListInput | null;
-}
-
-const updateMetaPlayerFn = createServerFn({ method: "POST" })
-  .validator((input: Omit<UpdateMetaPlayerInput, "eventId">) => input)
+const renamePlayerDeckFn = createServerFn({ method: "POST" })
+  .validator((input: { id: string; eventId: string; name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    await apiOrpcClient(adminMetaContract, context.cookie).updatePlayer(data);
+    await apiOrpcClient(adminMetaContract, context.cookie).renamePlayerDeck({
+      id: data.id,
+      name: data.name,
+    });
   });
 
 /**
- * Updates a standings row, and its decklist when one is passed.
+ * Renames the deck on one standings row.
+ *
+ * Deliberately not an overlay: promotion preserves deck names, so a rename
+ * survives a re-promote on its own and claiming the field would take the whole
+ * list out of the sources' hands to change a label.
  *
  * @returns The mutation.
  */
-export function useUpdateMetaPlayer() {
+export function useRenamePlayerDeck() {
   return useMutationWithInvalidation({
-    mutationFn: ({ eventId: _eventId, ...rest }: UpdateMetaPlayerInput) =>
-      updateMetaPlayerFn({ data: rest }),
+    mutationFn: (vars: { id: string; eventId: string; name: string }) =>
+      renamePlayerDeckFn({ data: vars }),
     invalidates: (vars) => [
       queryKeys.admin.meta.eventPlayers(vars.eventId),
       queryKeys.admin.meta.events,

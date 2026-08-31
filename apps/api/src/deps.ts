@@ -53,12 +53,13 @@ import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
-import { metaCandidatesRepo } from "./repositories/meta-candidates.js";
+import { metaOverlaysRepo } from "./repositories/meta-overlays.js";
 import { metaSubmissionsRepo } from "./repositories/meta-submissions.js";
 import { metaRepo } from "./repositories/meta.js";
 import { organizationsRepo } from "./repositories/organizations.js";
 import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
 import { playloltcgEventsRepo } from "./repositories/playloltcg-events.js";
+import { playloltcgResultsRepo } from "./repositories/playloltcg-results.js";
 import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingCitationsRepo } from "./repositories/printing-citations.js";
@@ -84,6 +85,7 @@ import { userPreferencesRepo } from "./repositories/user-preferences.js";
 import { userSharesRepo } from "./repositories/user-shares.js";
 import { usersRepo } from "./repositories/users.js";
 import { uvsgamesEventsRepo } from "./repositories/uvsgames-events.js";
+import { uvsgamesResultsRepo } from "./repositories/uvsgames-results.js";
 import { notifyAdminsOfCardSubmission } from "./services/card-submission-notifications.js";
 import {
   acceptTrade,
@@ -106,7 +108,7 @@ import {
 import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
-import { ingestMetaCandidates } from "./services/ingest-meta-candidates.js";
+import { ingestMetaOverlays } from "./services/ingest-meta-overlays.js";
 import { ingestUserSubmission } from "./services/ingest-user-submission.js";
 import { moveListEntries } from "./services/lists.js";
 import {
@@ -119,24 +121,16 @@ import {
 } from "./services/loans.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
 import {
-  acceptCandidateEvent,
-  acceptCandidateEventWithPlayers,
-  acceptCandidatePlayer,
-  acceptMetaDeckList,
-  acceptMetaEventField,
-  acceptMetaPlayerField,
-  linkCandidateEvent,
-  linkCandidatePlayer,
-  relinkCandidateEvent,
-  relinkCandidatePlayer,
-  rematchMetaCandidates,
-  unlinkCandidateEvent,
-  unlinkCandidatePlayer,
-} from "./services/meta-candidate-accept.js";
-import {
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,
 } from "./services/meta-match-suggestions.js";
+import {
+  acceptMetaEventOverlay,
+  acceptMetaPlayerOverlay,
+  rejectMetaOverlay,
+} from "./services/meta-overlay-review.js";
+import { promoteMetaEvent, promoteNewEvent } from "./services/meta-promote.js";
+import { repromoteMetaEvents } from "./services/meta-repromote.js";
 import { submitMetaDeck, submitMetaEventCorrection } from "./services/meta-submission.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
@@ -194,9 +188,11 @@ export interface Repos {
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   meta: ReturnType<typeof metaRepo>;
-  metaCandidates: ReturnType<typeof metaCandidatesRepo>;
+  metaOverlays: ReturnType<typeof metaOverlaysRepo>;
   uvsgamesEvents: ReturnType<typeof uvsgamesEventsRepo>;
+  uvsgamesResults: ReturnType<typeof uvsgamesResultsRepo>;
   playloltcgEvents: ReturnType<typeof playloltcgEventsRepo>;
+  playloltcgResults: ReturnType<typeof playloltcgResultsRepo>;
   metaSubmissions: ReturnType<typeof metaSubmissionsRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   printingCitations: ReturnType<typeof printingCitationsRepo>;
@@ -236,25 +232,18 @@ export interface Services {
   disposeCopies: typeof disposeCopies;
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
-  ingestMetaCandidates: typeof ingestMetaCandidates;
+  ingestMetaOverlays: typeof ingestMetaOverlays;
   ingestUserSubmission: typeof ingestUserSubmission;
-  acceptCandidateEvent: typeof acceptCandidateEvent;
-  acceptCandidateEventWithPlayers: typeof acceptCandidateEventWithPlayers;
-  acceptCandidatePlayer: typeof acceptCandidatePlayer;
-  acceptMetaEventField: typeof acceptMetaEventField;
-  acceptMetaPlayerField: typeof acceptMetaPlayerField;
-  acceptMetaDeckList: typeof acceptMetaDeckList;
-  linkCandidateEvent: typeof linkCandidateEvent;
-  relinkCandidateEvent: typeof relinkCandidateEvent;
-  unlinkCandidateEvent: typeof unlinkCandidateEvent;
-  linkCandidatePlayer: typeof linkCandidatePlayer;
-  relinkCandidatePlayer: typeof relinkCandidatePlayer;
-  unlinkCandidatePlayer: typeof unlinkCandidatePlayer;
+  promoteMetaEvent: typeof promoteMetaEvent;
+  promoteNewEvent: typeof promoteNewEvent;
+  repromoteMetaEvents: typeof repromoteMetaEvents;
+  acceptMetaEventOverlay: typeof acceptMetaEventOverlay;
+  acceptMetaPlayerOverlay: typeof acceptMetaPlayerOverlay;
+  rejectMetaOverlay: typeof rejectMetaOverlay;
   suggestMetaEventMatches: typeof suggestMetaEventMatches;
   suggestMetaPlayerMatches: typeof suggestMetaPlayerMatches;
   submitMetaDeck: typeof submitMetaDeck;
   submitMetaEventCorrection: typeof submitMetaEventCorrection;
-  rematchMetaCandidates: typeof rematchMetaCandidates;
   notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
   notifyAdminsOfGroupJoinRequest: typeof notifyAdminsOfGroupJoinRequest;
   notifyMemberOfGroupApproval: typeof notifyMemberOfGroupApproval;
@@ -404,9 +393,11 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     meta: metaRepo(db),
-    metaCandidates: metaCandidatesRepo(db),
+    metaOverlays: metaOverlaysRepo(db),
     uvsgamesEvents: uvsgamesEventsRepo(db),
+    uvsgamesResults: uvsgamesResultsRepo(db),
     playloltcgEvents: playloltcgEventsRepo(db),
+    playloltcgResults: playloltcgResultsRepo(db),
     metaSubmissions: metaSubmissionsRepo(db),
     printingImages: printingImagesRepo(db),
     printingCitations: printingCitationsRepo(db),
@@ -460,25 +451,18 @@ export const services: Services = {
   disposeCopies,
   getMappingOverview,
   ingestCandidates,
-  ingestMetaCandidates,
+  ingestMetaOverlays,
   ingestUserSubmission,
-  acceptCandidateEvent,
-  acceptCandidateEventWithPlayers,
-  acceptCandidatePlayer,
-  acceptMetaEventField,
-  acceptMetaPlayerField,
-  acceptMetaDeckList,
-  linkCandidateEvent,
-  relinkCandidateEvent,
-  unlinkCandidateEvent,
-  linkCandidatePlayer,
-  relinkCandidatePlayer,
-  unlinkCandidatePlayer,
+  promoteMetaEvent,
+  promoteNewEvent,
+  repromoteMetaEvents,
+  acceptMetaEventOverlay,
+  acceptMetaPlayerOverlay,
+  rejectMetaOverlay,
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,
   submitMetaDeck,
   submitMetaEventCorrection,
-  rematchMetaCandidates,
   notifyAdminsOfCardSubmission,
   notifyAdminsOfGroupJoinRequest,
   notifyMemberOfGroupApproval,

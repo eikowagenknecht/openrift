@@ -3,14 +3,14 @@ import type { MetaSource } from "@openrift/shared/contracts/admin/meta-catalog";
 import { useNavigate } from "@tanstack/react-router";
 
 import { MetaAdminOverviewPage } from "@/components/admin/meta-admin-overview-page";
-import { MetaCandidatesPage } from "@/components/admin/meta-candidates-page";
 import { MetaCatalogPage } from "@/components/admin/meta-catalog-page";
 import { MetaEventsPage } from "@/components/admin/meta-events-page";
+import { MetaOverlaysPage } from "@/components/admin/meta-overlays-page";
 import { PlayloltcgCatalogPage } from "@/components/admin/playloltcg-catalog-page";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useAdminMetaCandidates } from "@/hooks/use-admin-meta-candidates";
+import { useAdminMetaOverlays } from "@/hooks/use-admin-meta-overlays";
 import { META_SOURCE_LABELS } from "@/lib/meta-catalog-display";
 import { Route } from "@/routes/_app/_authenticated/admin/meta";
 
@@ -67,12 +67,12 @@ function tabParam(value: string): (typeof OPT_IN_TABS)[number] | undefined {
  * @returns The tabbed Meta Archive admin page.
  */
 export function MetaAdminPage() {
-  const { data } = useAdminMetaCandidates();
+  const { data } = useAdminMetaOverlays();
   const tab = Route.useSearch({ select: (search) => search.tab ?? "sync" });
   const source = Route.useSearch({ select: (search) => search.source ?? "uvsgames" });
   const navigate = useNavigate({ from: Route.fullPath });
 
-  const pendingCount = data.candidates.filter((row) => row.checkedAt === null).length;
+  const pendingCount = data.overlays.length;
 
   // The source selector shows only on the tabs it drives; Review and Public are
   // cross-source, so a per-source control there would be a lie.
@@ -134,7 +134,7 @@ export function MetaAdminPage() {
         {source === "playloltcg" ? <PlayloltcgCatalogPage /> : <MetaCatalogPage />}
       </TabsContent>
       <TabsContent value="review" className="flex min-h-0 flex-1 flex-col">
-        <MetaCandidatesPage />
+        <MetaOverlaysPage />
       </TabsContent>
       <TabsContent value="public" className="flex min-h-0 flex-1 flex-col">
         <MetaEventsPage />

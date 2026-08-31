@@ -273,7 +273,10 @@ describe("suggestMetaEventMatches", () => {
     const listEvents = vi.fn().mockResolvedValue({ rows, total: rows.length });
     const eventById = vi.fn().mockResolvedValue(candidate);
     return {
-      repos: { meta: { listEvents }, metaCandidates: { eventById } } as unknown as Repos,
+      repos: {
+        meta: { listEvents },
+        metaOverlays: { eventOverlayById: eventById },
+      } as unknown as Repos,
       listEvents,
     };
   }

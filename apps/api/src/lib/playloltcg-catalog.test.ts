@@ -7,7 +7,6 @@ import {
   projectEventRow,
   projectShopRow,
   referencedDeckIds,
-  unfetchedDeckIds,
 } from "./playloltcg-catalog.js";
 
 function eventRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -179,21 +178,6 @@ describe("referencedDeckIds", () => {
         { cardGroupId: 9 },
       ]),
     ).toEqual(["7", "9"]);
-  });
-});
-
-describe("unfetchedDeckIds", () => {
-  it("names only the bodies the stored payload is still missing", () => {
-    const raw = {
-      standings: [{ cardGroupId: 1 }, { cardGroupId: 2 }, { cardGroupId: 3 }],
-      decks: { "1": [{ cardNo: "SFD-195" }], "3": [] },
-    };
-    expect(unfetchedDeckIds(raw)).toEqual(["2"]);
-  });
-
-  it("treats a payload with no standings or no decks as nothing fetched", () => {
-    expect(unfetchedDeckIds(null)).toEqual([]);
-    expect(unfetchedDeckIds({ standings: [{ cardGroupId: 4 }] })).toEqual(["4"]);
   });
 });
 

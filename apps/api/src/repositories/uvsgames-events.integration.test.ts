@@ -47,7 +47,6 @@ const STORE_ID = 990_001;
 const SEEN = new Date("2026-08-20T12:00:00Z");
 
 const createdEventIds: string[] = [];
-const createdCandidateIds: string[] = [];
 const createdCardIds: string[] = [];
 
 function row(overrides: Partial<UvsgamesUpsertInput> = {}): UvsgamesUpsertInput {
@@ -72,7 +71,7 @@ function row(overrides: Partial<UvsgamesUpsertInput> = {}): UvsgamesUpsertInput 
 }
 
 /** A live event and a candidate linking the given catalogue key to it. */
-async function seedAcceptedCandidate(
+async function seedAcceptedEvent(
   externalId: string,
   values: { fetchedAt?: Date } = {},
 ): Promise<string> {
@@ -88,27 +87,41 @@ async function seedAcceptedCandidate(
     .executeTakeFirstOrThrow();
   createdEventIds.push(live.id);
 
-  const candidate = await ctx!.db
-    .insertInto("candidateMetaEvents")
+  await ctx!.db
+    .insertInto("metaEventSources")
     .values({
+      metaEventId: live.id,
       provider: UVSGAMES_PROVIDER,
       externalId,
-      name: `MTC ${externalId}`,
-      eventDate: "2026-08-15",
-      format: "freeform",
-      metaEventId: live.id,
-      fetchedAt: values.fetchedAt ?? null,
+      label: UVSGAMES_PROVIDER,
+      sourceUrl: null,
     })
-    .returning("id")
-    .executeTakeFirstOrThrow();
-  createdCandidateIds.push(candidate.id);
-  return candidate.id;
+    .execute();
+
+  // "Fetched" is a mirror fact now: an event with standings has been read.
+  if (values.fetchedAt !== undefined) {
+    await ctx!.db
+      .insertInto("uvsgamesEventStandings")
+      .values({
+        externalId,
+        registrationId: "reg-1",
+        playerName: "Seeded",
+        rank: 1,
+        fetchedAt: values.fetchedAt,
+      })
+      .execute();
+  }
+  return live.id;
 }
 
 afterAll(async () => {
   if (!ctx) {
     return;
   }
+  await ctx.db
+    .deleteFrom("uvsgamesEventStandings")
+    .where("externalId", "in", EXTERNAL_IDS)
+    .execute();
   await ctx.db.deleteFrom("uvsgamesEvents").where("externalId", "in", EXTERNAL_IDS).execute();
   await ctx.db.deleteFrom("uvsgamesStores").where("id", "=", STORE_ID).execute();
   await ctx.db
@@ -120,13 +133,10 @@ afterAll(async () => {
     .where("sourceFormat", "=", "MTC Sealed")
     .execute();
   await ctx.db
-    .deleteFrom("ignoredCandidateMetaEvents")
+    .deleteFrom("ignoredMetaSourceEvents")
     .where("provider", "=", UVSGAMES_PROVIDER)
     .where("externalId", "in", EXTERNAL_IDS)
     .execute();
-  if (createdCandidateIds.length > 0) {
-    await ctx.db.deleteFrom("candidateMetaEvents").where("id", "in", createdCandidateIds).execute();
-  }
   if (createdEventIds.length > 0) {
     await ctx.db.deleteFrom("metaEvents").where("id", "in", createdEventIds).execute();
   }
@@ -209,22 +219,19 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
       .executeTakeFirstOrThrow();
     createdEventIds.push(live.id);
 
-    const candidate = await ctx!.db
-      .insertInto("candidateMetaEvents")
+    await ctx!.db
+      .insertInto("metaEventSources")
       .values({
+        metaEventId: live.id,
         provider: UVSGAMES_PROVIDER,
         externalId: "mtc-live",
-        name: "MTC Live",
-        eventDate: "2026-08-15",
-        format: "freeform",
-        metaEventId: live.id,
+        label: UVSGAMES_PROVIDER,
+        sourceUrl: null,
       })
-      .returning("id")
-      .executeTakeFirstOrThrow();
-    createdCandidateIds.push(candidate.id);
+      .execute();
 
     await ctx!.db
-      .insertInto("ignoredCandidateMetaEvents")
+      .insertInto("ignoredMetaSourceEvents")
       .values({ provider: UVSGAMES_PROVIDER, externalId: "mtc-out" })
       .execute();
 
@@ -348,8 +355,8 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
       ],
       SEEN,
     );
-    await seedAcceptedCandidate("mtc-wait");
-    await seedAcceptedCandidate("mtc-wait-done", {
+    await seedAcceptedEvent("mtc-wait");
+    await seedAcceptedEvent("mtc-wait-done", {
       fetchedAt: new Date("2026-08-21T06:00:00Z"),
     });
 
@@ -387,35 +394,41 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     createdCardIds.push(legend.id);
 
     const fetchedAt = new Date("2026-08-21T06:00:00Z");
-    const candidateId = await seedAcceptedCandidate("mtc-cover", { fetchedAt });
-    await seedAcceptedCandidate("mtc-empty", { fetchedAt });
+    await seedAcceptedEvent("mtc-cover", { fetchedAt });
+    await seedAcceptedEvent("mtc-empty", { fetchedAt });
 
+    // The coverage counts come off the mirror: three standings, two of which
+    // name a legend, and one deck the fetch actually read.
     await ctx!.db
-      .insertInto("candidateMetaPlayers")
+      .insertInto("uvsgamesEventStandings")
       .values([
         {
-          candidateEventId: candidateId,
-          externalId: "mtc-cover-p1",
-          playerName: "MTC Nova",
-          rank: 1,
-          legendCardId: legend.id,
-          cards: [{ name: "MTC Legend", zone: "legend", quantity: 1, cardId: legend.id }],
-          listStatus: "full",
-        },
-        {
-          candidateEventId: candidateId,
-          externalId: "mtc-cover-p2",
+          externalId: "mtc-cover",
+          registrationId: "mtc-cover-p2",
           playerName: "MTC Ekko",
           rank: 2,
-          legendCardId: legend.id,
+          legendName: "MTC Legend",
+          sourceDeckId: "mtc-deck-1",
+          fetchedAt,
         },
         {
-          candidateEventId: candidateId,
-          externalId: "mtc-cover-p3",
+          externalId: "mtc-cover",
+          registrationId: "mtc-cover-p3",
           playerName: "MTC Vi",
           rank: 3,
+          fetchedAt,
         },
       ])
+      .execute();
+
+    await ctx!.db
+      .insertInto("uvsgamesDecklists")
+      .values({
+        sourceDeckId: "mtc-deck-1",
+        externalId: "mtc-cover",
+        fetchStatus: "fetched",
+        fetchedAt,
+      })
       .execute();
 
     const { rows } = await repo().list({ search: "MTC Coverage" }, { limit: 10, offset: 0 });
@@ -427,10 +440,9 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     });
     expect(staged?.fetchedAt?.toISOString()).toBe(fetchedAt.toISOString());
 
-    // A fetch that staged nothing reports zero; a row no candidate stages at
-    // all reports null.
+    // An event whose fetch read one standings row and no decks.
     expect(rows.find((entry) => entry.externalId === "mtc-empty")).toMatchObject({
-      stagedPlayerCount: 0,
+      stagedPlayerCount: 1,
       stagedLegendCount: 0,
       stagedDeckCount: 0,
     });
@@ -444,9 +456,9 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
       bare.rows.every(
         (entry) =>
           entry.fetchedAt === null &&
-          entry.stagedPlayerCount === null &&
-          entry.stagedLegendCount === null &&
-          entry.stagedDeckCount === null,
+          entry.stagedPlayerCount === 0 &&
+          entry.stagedLegendCount === 0 &&
+          entry.stagedDeckCount === 0,
       ),
     ).toBe(true);
   });
@@ -555,7 +567,7 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
       [row({ externalId: "mtc-acc-gone", name: "MTC Accepted Gone", contentHash: "h-acc-gone" })],
       SEEN,
     );
-    await seedAcceptedCandidate("mtc-acc-gone");
+    await seedAcceptedEvent("mtc-acc-gone");
     await ctx!.db
       .updateTable("uvsgamesEvents")
       .set({ missingSince: SEEN })

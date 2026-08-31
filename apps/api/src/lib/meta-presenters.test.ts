@@ -210,6 +210,7 @@ function sourceRow(overrides: Partial<MetaEventSourceRow> = {}): MetaEventSource
     provider: "uvsgames",
     externalId: "evt-482",
     label: "uvsgames",
+    priority: 0,
     sourceUrl: "https://example.invalid/skirmish",
     createdAt: new Date("2026-08-02T10:00:00.000Z"),
     ...overrides,
@@ -772,23 +773,26 @@ describe("toAdminMetaEvent", () => {
     });
   });
 
-  it("lists the candidates feeding the event, without their live-event key", () => {
+  it("lists the citations feeding the event, in promotion order", () => {
+    const citation = (provider: string, externalId: string, priority: number) => ({
+      id: `src-${externalId}`,
+      metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
+      provider,
+      externalId,
+      label: provider,
+      sourceUrl: null,
+      priority,
+      createdAt: new Date("2026-08-15T00:00:00.000Z"),
+    });
+
     const event = toAdminMetaEvent(eventRow(), [
-      {
-        metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
-        candidateEventId: "cand-1",
-        provider: "uvsgames",
-      },
-      {
-        metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
-        candidateEventId: "cand-2",
-        provider: "usersubmission",
-      },
+      citation("uvsgames", "evt-1", 0),
+      citation("usersubmission", "sub-1", 1),
     ]);
 
     expect(event.sources).toEqual([
-      { candidateEventId: "cand-1", provider: "uvsgames" },
-      { candidateEventId: "cand-2", provider: "usersubmission" },
+      { id: "src-evt-1", provider: "uvsgames", externalId: "evt-1", priority: 0 },
+      { id: "src-sub-1", provider: "usersubmission", externalId: "sub-1", priority: 1 },
     ]);
   });
 });
@@ -858,7 +862,7 @@ function submissionRow(overrides: Partial<MetaSubmissionRow> = {}): MetaSubmissi
     userId: "user-1",
     provider: "usersubmission",
     externalId: "20260815-1200--user-1--abcdef12",
-    candidateMetaPlayerId: "3f7a1c2e-0000-7000-8000-000000000010",
+    playerOverlayId: null,
     metaEventId: "3f7a1c2e-0000-7000-8000-000000000001",
     eventName: "Summoner Skirmish Berlin",
     playerName: "Nova",
@@ -912,7 +916,7 @@ describe("toMetaSubmission", () => {
 
   it("keeps the staging details off the wire", () => {
     const response = toMetaSubmission(submissionRow());
-    expect(response).not.toHaveProperty("candidateMetaPlayerId");
+    expect(response).not.toHaveProperty("playerOverlayId");
     expect(response).not.toHaveProperty("provider");
     expect(response).not.toHaveProperty("externalId");
     expect(response).not.toHaveProperty("userId");
@@ -934,10 +938,10 @@ describe("toAdminMetaSubmission", () => {
     expect(response.resolvedAt).toBe("2026-08-16T09:30:00.000Z");
   });
 
-  it("leaves the submitter's identity to the candidate row beside it", () => {
+  it("leaves the submitter's identity to the overlay beside it", () => {
     const response = toAdminMetaSubmission(submissionRow());
     expect(response).not.toHaveProperty("userId");
-    expect(response).not.toHaveProperty("candidateMetaPlayerId");
+    expect(response).not.toHaveProperty("playerOverlayId");
     expect(response.status).toBe("pending");
     expect(response.createdAt).toBe("2026-08-15T12:00:00.000Z");
   });
@@ -1087,7 +1091,7 @@ describe("toAdminMetaEventCorrection", () => {
       submission: submissionRow({
         kind: "event_correction",
         playerName: null,
-        candidateMetaPlayerId: null,
+        playerOverlayId: null,
         fieldEdits: { playerCount: 48 },
         note: "The results page lists 48 players.",
       }),

@@ -1,66 +1,56 @@
 import { META_ENTRY_STATUSES, REQUIRED_ZONES, WellKnown, ZONE_EXPECTED } from "@openrift/shared";
-import type {
-  MetaEntryStatus,
-  MetaEventTier,
-  MetaIngestEvent,
-  MetaIngestEventPlayer,
-} from "@openrift/shared";
-
-import type { CandidateMetaEventRaw } from "../db/index.js";
-import { classifyMetaEventTier, countryFromAddress } from "./meta-event-classify.js";
-import { uvsgamesEventUrl, venueLocalDay } from "./uvsgames-catalog.js";
+import type { MetaEntryStatus } from "@openrift/shared";
 
 /**
- * Turns one deep fetch's responses into the upload payload the candidate ingest
- * already accepts, so the fetcher and the push endpoint stage identical rows.
+ * Projects one deep fetch's responses into the source mirror's columns
+ * (ADR-014 revision 3).
  *
- * Everything here reads `unknown`. The source publishes no schema, so a field
- * that changed shape must degrade to "we don't know that" rather than throw
+ * This is an allowlist, and that is the storage contract: a field named here
+ * reaches `uvsgames_*`, and everything else is dropped where it is read. No
+ * response body is kept, so a contact detail the source starts publishing
+ * tomorrow cannot land in the database by default.
+ *
+ * Nothing here matches a card, maps a format or classifies a tier. Those are
+ * promotion's job, and keeping them out is what makes a mapping fix a
+ * re-promote instead of a re-crawl.
+ *
+ * Everything reads `unknown`. The source publishes no schema, so a field that
+ * changed shape must degrade to "we don't know that" rather than throw
  * mid-crawl: a player with no name is dropped and counted, an unreadable deck
  * section becomes a standings-only row.
  */
 
-/** The five responses one deep fetch makes, as stored on `candidate_meta_events.raw`. */
-export interface UvsDeepFetchRaw {
+/** The responses one deep fetch makes, held only long enough to project them. */
+export interface UvsDeepFetchResponses {
   detail: unknown;
   registrations: unknown[];
   standings: unknown[];
   roundStandings: unknown[];
-  /**
-   * Keyed by the source's deck id; only populated when the event published its
-   * lists. Decklists are locked once the event runs, so entries accumulate
-   * across fetches and are never requested twice: a `null` entry records a deck
-   * the source refused to serve, kept so the id is not retried every pass.
-   */
-  decks: Record<string, unknown>;
 }
 
-/** The catalogue projection's fields the event payload is built from. */
-export interface UvsEventFacts {
-  externalId: string;
-  name: string;
-  startAt: Date;
-  timezone: string | null;
-  eventFormat: string | null;
-  playerCount: number | null;
-  storeName: string | null;
-  location: string | null;
-  /** The admin-mapped tier of the event's template, resolved by the caller; null when unmapped. */
-  templateTier: MetaEventTier | null;
+/** One row of `uvsgames_event_standings`, minus the event key the caller adds. */
+export interface UvsStandingProjection {
+  registrationId: string;
+  uvsgamesPlayerId: number | null;
+  playerName: string | null;
+  rank: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  matchPoints: number | null;
+  opponentMatchWinPct: number | null;
+  gameWinPct: number | null;
+  opponentGameWinPct: number | null;
+  entryStatus: MetaEntryStatus | null;
+  legendName: string | null;
+  sourceDeckId: string | null;
 }
 
 export interface UvsTransformResult {
-  event: MetaIngestEvent;
+  standings: UvsStandingProjection[];
   /** Registrations with no usable name or placement. Reported, never guessed at. */
   dropped: number;
-  /** Decks whose sections carried no readable card line. */
-  unreadableDecks: number;
-  /**
-   * The player behind each registration, keyed by the registration id the staged
-   * rows carry. It rides beside the event rather than inside it because the
-   * ingest payload is the shared upload shape, which has no place for a
-   * source-specific identity — the deep fetch stamps these on afterwards.
-   */
+  /** The player behind each registration, upserted into `uvsgames_players`. */
   players: UvsPlayerIdentity[];
 }
 
@@ -188,7 +178,7 @@ export function completedRounds(detail: unknown): UvsRoundMeta[] {
   return rounds;
 }
 
-/** One staged match, as `candidate_meta_matches` stores it minus the event FK. */
+/** One mirrored match, as `uvsgames_event_matches` stores it minus the event FK. */
 interface UvsMatchProjection {
   /** The source's own match id, and the staged row's key. */
   sourceMatchId: string;
@@ -370,20 +360,6 @@ export function referencedDeckIds(registrations: readonly unknown[]): string[] {
   return [...ids];
 }
 
-/** The deck entries a stored raw payload already holds, `null` markers included. */
-export function storedDecks(
-  raw: CandidateMetaEventRaw | null | undefined,
-): Record<string, unknown> {
-  return record(raw?.decks) ?? {};
-}
-
-/** Referenced deck ids a stored raw payload has no entry for — the fetch's remaining work. */
-export function unfetchedDeckIds(raw: CandidateMetaEventRaw | null | undefined): string[] {
-  const decks = storedDecks(raw);
-  const registrations = Array.isArray(raw?.registrations) ? raw.registrations : [];
-  return referencedDeckIds(registrations).filter((id) => !Object.hasOwn(decks, id));
-}
-
 /** What the per-round standings say about one registration beyond its rank. */
 interface UvsStandingDetail {
   legendName: string | null;
@@ -493,8 +469,14 @@ function ranksByDisplayName(standings: readonly unknown[]): Map<string, number> 
   return ranks;
 }
 
+interface DeckLine {
+  name: string;
+  zone: string;
+  quantity: number;
+}
+
 interface DeckLines {
-  cards: NonNullable<MetaIngestEventPlayer["cards"]>;
+  cards: DeckLine[];
   championName: string | null;
 }
 
@@ -532,7 +514,7 @@ export function readDeckLines(deck: unknown): DeckLines | null {
   const sections = [row.sections, row.deck_sections, row.card_sections].find((value) =>
     Array.isArray(value),
   );
-  const cards: DeckLines["cards"] = [];
+  const cards: DeckLine[] = [];
   let championName: string | null = null;
 
   for (const rawSection of array(sections)) {
@@ -569,14 +551,14 @@ export function readDeckLines(deck: unknown): DeckLines | null {
  * marker is what turns the deck page's missing zones into dashed "Unknown"
  * slots instead of zones the player is shown as having left empty.
  *
- * The standings legend counts as held: the accept path files it into the list's
- * own Legend zone when the list carries none.
+ * The standings legend counts as held: promotion files it into the list's own
+ * Legend zone when the list carries none.
  *
  * The targets are the constructed baselines rather than `zoneExpected`, because
- * a candidate's format is still the source's unmapped string here.
+ * the mirror's format is still the source's unmapped string here.
  */
-function listStatusFor(
-  cards: NonNullable<MetaIngestEventPlayer["cards"]>,
+export function listStatusFor(
+  cards: readonly DeckLine[],
   standingsLegend: string | null,
 ): "full" | "partial" {
   const held = new Map<string, number>();
@@ -593,25 +575,27 @@ function listStatusFor(
 }
 
 /**
- * The whole event as one upload payload. Players come from the registrations —
- * the only endpoint that is public for every event — with their legend joined
- * from the round standings and their list attached when the organizer published
- * one.
+ * Every registration as a mirror row.
+ *
+ * Players come from the registrations, the only endpoint public for every
+ * event, with the tiebreakers and the legend joined from the round standings
+ * and the deck id kept as the source's own reference. The list behind that id
+ * is projected separately, because a deck is fetched once and a standings row
+ * is re-read on every visit.
  */
-export function transformUvsEvent(facts: UvsEventFacts, raw: UvsDeepFetchRaw): UvsTransformResult {
+export function projectUvsStandings(raw: UvsDeepFetchResponses): UvsTransformResult {
   const standings = standingsByRegistration(raw.roundStandings);
   const ranks = ranksByDisplayName(raw.standings);
 
-  const players: MetaIngestEventPlayer[] = [];
+  const rows: UvsStandingProjection[] = [];
   const identities: UvsPlayerIdentity[] = [];
   let dropped = 0;
-  let unreadableDecks = 0;
 
   for (const rawRegistration of raw.registrations) {
     const registration = record(rawRegistration);
-    const externalId = text(registration?.id);
+    const registrationId = text(registration?.id);
     const playerName = text(registration?.best_identifier);
-    if (externalId === null || playerName === null) {
+    if (registrationId === null || playerName === null) {
       dropped++;
       continue;
     }
@@ -621,38 +605,33 @@ export function transformUvsEvent(facts: UvsEventFacts, raw: UvsDeepFetchRaw): U
       null;
     if (rank === null) {
       // No placement anywhere: a drop, a no-show, or an event the source has
-      // not finalised. Either way there is no standings row to write.
+      // not finalised. Promotion has nothing to file such a row under, so it
+      // is counted and skipped rather than mirrored rankless.
       dropped++;
       continue;
     }
 
-    const userId = record(registration?.user)?.id;
-    if (typeof userId === "number" && Number.isInteger(userId) && userId > 0) {
-      identities.push({ registrationId: externalId, userId, displayName: playerName });
+    const rawUserId = record(registration?.user)?.id;
+    const userId =
+      typeof rawUserId === "number" && Number.isInteger(rawUserId) && rawUserId > 0
+        ? rawUserId
+        : null;
+    if (userId !== null) {
+      identities.push({ registrationId, userId, displayName: playerName });
     }
 
-    const deckId = text(registration?.deck_id);
-    const lines = deckId === null ? null : readDeckLines(raw.decks[deckId]);
-    // A null entry is a deck the source refused, not one it served unreadably.
-    if (
-      deckId !== null &&
-      raw.decks[deckId] !== undefined &&
-      raw.decks[deckId] !== null &&
-      lines === null
-    ) {
-      unreadableDecks++;
-    }
+    const sourceDeckId = text(registration?.deck_id);
 
     // The registrations endpoint carries the record and the status; the
-    // tiebreakers and the legend only exist on the standings row.
-    const standing = standings.get(externalId) ?? null;
-    const scalars = {
-      externalId,
-      // The candidate column CHECKs 1..80.
-      playerName: playerName.slice(0, 80),
+    // tiebreakers and the legend only exist on the round standings row.
+    const standing = standings.get(registrationId) ?? null;
+    rows.push({
+      registrationId,
+      uvsgamesPlayerId: userId,
+      // A keyed player is rendered under `uvsgames_players.display_name`, so
+      // the mirror stores a name only where there is no id to resolve.
+      playerName: userId === null ? playerName.slice(0, 80) : null,
       rank,
-      // The source publishes exact final standings, never cut buckets.
-      rankIsTier: false,
       wins: count(registration?.matches_won),
       losses: count(registration?.matches_lost),
       draws: count(registration?.matches_drawn),
@@ -662,19 +641,8 @@ export function transformUvsEvent(facts: UvsEventFacts, raw: UvsDeepFetchRaw): U
       opponentGameWinPct: standing?.opponentGameWinPct ?? null,
       entryStatus: entryStatus(registration?.registration_status),
       legendName: standing?.legendName ?? null,
-      championName: lines?.championName ?? null,
-    };
-    // The upload shape pairs the list with its status, so the two branches are
-    // separate objects rather than one with a nullable field.
-    players.push(
-      lines === null
-        ? { ...scalars, cards: null, listStatus: "none" }
-        : {
-            ...scalars,
-            cards: lines.cards,
-            listStatus: listStatusFor(lines.cards, scalars.legendName),
-          },
-    );
+      sourceDeckId,
+    });
   }
 
   // A TO who reports no match results still enters placements, and the source
@@ -683,45 +651,40 @@ export function transformUvsEvent(facts: UvsEventFacts, raw: UvsDeepFetchRaw): U
   // record is stored. A two-player field is exempt: one genuinely drawn match
   // is the only real all-draw event.
   const matchesTracked =
-    players.length <= 2 ||
-    players.some((player) => (player.wins ?? 0) > 0 || (player.losses ?? 0) > 0);
+    rows.length <= 2 || rows.some((row) => (row.wins ?? 0) > 0 || (row.losses ?? 0) > 0);
   if (!matchesTracked) {
-    for (const player of players) {
-      player.wins = null;
-      player.losses = null;
-      player.draws = null;
+    for (const row of rows) {
+      row.wins = null;
+      row.losses = null;
+      row.draws = null;
     }
   }
 
-  const detailName = text(record(raw.detail)?.name);
-  const name = (detailName ?? facts.name).slice(0, 120);
-  const location = facts.location === null ? null : facts.location.trim().slice(0, 500) || null;
-  return {
-    event: {
-      externalId: facts.externalId,
-      name,
-      eventDate: venueLocalDay(facts.startAt, facts.timezone),
-      // The source's own vocabulary, lowercased. Resolving it against the
-      // admin's format mappings is the caller's job — this stays a pure
-      // transform — and an unmapped format is stored as the source wrote it:
-      // the candidate column has no FK, and the review screen reporting
-      // "constructed_2v2" beats an event silently filed under the wrong rules.
-      format: facts.eventFormat?.toLowerCase() ?? "unknown",
-      playerCount: facts.playerCount,
-      organizer: facts.storeName === null ? null : facts.storeName.slice(0, 120),
-      sourceUrl: uvsgamesEventUrl(facts.externalId),
-      notes: null,
-      tier: classifyMetaEventTier({
-        templateTier: facts.templateTier,
-        playerCount: facts.playerCount,
-      }),
-      country: countryFromAddress(location),
-      location,
-      extraData: null,
-      players,
-    },
-    dropped,
-    unreadableDecks,
-    players: identities,
-  };
+  return { standings: rows, dropped, players: identities };
+}
+
+/** One fetched decklist as `uvsgames_decklist_cards` rows, in published order. */
+export interface UvsDecklistLineProjection {
+  lineNumber: number;
+  zone: string;
+  quantity: number;
+  cardName: string;
+}
+
+/**
+ * @returns The deck's lines, or null when the payload carried none readable —
+ *   which the caller records as a fetched deck with no lines rather than
+ *   retrying it.
+ */
+export function projectUvsDecklistCards(deck: unknown): UvsDecklistLineProjection[] | null {
+  const lines = readDeckLines(deck);
+  if (lines === null) {
+    return null;
+  }
+  return lines.cards.map((card, index) => ({
+    lineNumber: index,
+    zone: card.zone,
+    quantity: card.quantity,
+    cardName: card.name,
+  }));
 }

@@ -8,16 +8,16 @@ import { normalizeFormatKey, UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.j
 /**
  * The uvsgames listing mirror, the two vocabularies the source publishes, and
  * the sync settings row (ADR-014). The live archive tables stay in `metaRepo`
- * and the staging tables in `metaCandidatesRepo`; this repo owns one source's
+ * and the fetched results in `uvsgamesResultsRepo`; this repo owns one source's
  * crawl bookkeeping.
  *
  * Triage state is derived here rather than stored: an event is "new" when no
- * candidate links its key and it is not ignored. Storing it would mean a second
- * place that can disagree with the candidate tables.
+ * `meta_event_sources` row links its key and it is not ignored. Storing it
+ * would mean a second place that can disagree with the citation table.
  *
- * The mirror has no provider column — it is one source's listing, field for
- * field. The candidate tables it joins against do, because those really are
- * multi-source, so every join here pins {@link UVSGAMES_PROVIDER}.
+ * The mirror has no provider column: it is one source's listing, field for
+ * field. The citation and ignore tables it joins against do, because those
+ * really are multi-source, so every join here pins {@link UVSGAMES_PROVIDER}.
  */
 
 type UvsgamesEventRow = Selectable<UvsgamesEventsTable>;
@@ -50,12 +50,12 @@ export interface UvsgamesUpsertResult {
   unchanged: string[];
 }
 
-/** Triage state, derived from the candidate link and the ignore table. */
+/** Triage state, derived from the citation and the ignore table. */
 export type UvsgamesTriage = "new" | "accepted" | "dismissed";
 
 export interface UvsgamesListRow extends UvsgamesEventRow {
   triage: UvsgamesTriage;
-  candidateEventId: string | null;
+  /** The live event this key feeds, through its citation row. */
   metaEventId: string | null;
   metaEventSlug: string | null;
   /**
@@ -71,17 +71,16 @@ export interface UvsgamesListRow extends UvsgamesEventRow {
 }
 
 /**
- * What the deep fetch staged under the row's candidate. Only the triage list
- * reads it, so the sync paths keep the narrower row and pay for none of it.
- *
- * The counts are null when the row has no candidate at all, which is a
- * different statement from a fetch that staged nothing.
+ * What the deep fetch mirrored for the row. Only the triage list reads it, so
+ * the sync paths keep the narrower row and pay for none of it. The counts are
+ * zero, never null, for a row nothing was fetched for yet; `fetchedAt` is what
+ * says whether a fetch happened.
  */
 export interface UvsgamesCoverageRow extends UvsgamesListRow {
   fetchedAt: Date | null;
-  stagedPlayerCount: number | null;
-  stagedLegendCount: number | null;
-  stagedDeckCount: number | null;
+  stagedPlayerCount: number;
+  stagedLegendCount: number;
+  stagedDeckCount: number;
 }
 
 export interface UvsgamesListFilters {
@@ -180,17 +179,20 @@ function catalogOrderBy(order: UvsgamesListOrder) {
 export function uvsgamesEventsRepo(db: Kysely<Database>) {
   /**
    * Joined once and reused by the list, the counts, and the by-key read, so the
-   * three can never disagree about what "accepted" means. The candidate side
-   * is provider-keyed, so both joins pin this source's own key.
+   * three can never disagree about what "accepted" means. `meta_event_sources`
+   * is the link, and it is provider-keyed, so both joins pin this source's own
+   * key.
    */
   function triagedQuery() {
     return db
       .selectFrom("uvsgamesEvents as c")
-      .leftJoin("candidateMetaEvents as ce", (join) =>
-        join.on("ce.provider", "=", UVSGAMES_PROVIDER).onRef("ce.externalId", "=", "c.externalId"),
+      .leftJoin("metaEventSources as src", (join) =>
+        join
+          .on("src.provider", "=", UVSGAMES_PROVIDER)
+          .onRef("src.externalId", "=", "c.externalId"),
       )
-      .leftJoin("metaEvents as me", "me.id", "ce.metaEventId")
-      .leftJoin("ignoredCandidateMetaEvents as i", (join) =>
+      .leftJoin("metaEvents as me", "me.id", "src.metaEventId")
+      .leftJoin("ignoredMetaSourceEvents as i", (join) =>
         join.on("i.provider", "=", UVSGAMES_PROVIDER).onRef("i.externalId", "=", "c.externalId"),
       )
       .leftJoin("uvsgamesStores as s", "s.id", "c.storeId")
@@ -208,31 +210,39 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
     sql<number>`coalesce(ck.check_stage, 0)`.as("checkStage"),
   ];
 
+  const fetchedAt = sql<Date | null>`(
+    select max(st.fetched_at) from uvsgames_event_standings st
+     where st.external_id = c.external_id
+  )`;
+  const notFetched = sql<SqlBool>`not exists (
+    select 1 from uvsgames_event_standings st where st.external_id = c.external_id
+  )`;
+
   const dismissed = sql<SqlBool>`i.provider is not null`;
-  const accepted = sql<SqlBool>`i.provider is null and ce.meta_event_id is not null`;
+  const accepted = sql<SqlBool>`i.provider is null and src.meta_event_id is not null`;
   const triage = sql<UvsgamesTriage>`case
     when i.provider is not null then 'dismissed'
-    when ce.meta_event_id is not null then 'accepted'
+    when src.meta_event_id is not null then 'accepted'
     else 'new'
   end`;
 
-  const isNew = sql<SqlBool>`i.provider is null and ce.meta_event_id is null`;
+  const isNew = sql<SqlBool>`i.provider is null and src.meta_event_id is null`;
 
-  // Correlated against the joined candidate, so each one is an index lookup on
-  // the page's rows rather than an aggregate over the whole staging table.
-  const stagedPlayerCount = sql<number | null>`case when ce.id is null then null else (
-    select count(*)::int from candidate_meta_players p where p.candidate_event_id = ce.id
-  ) end`;
+  // Correlated against the mirror, so each one is an index lookup on the page's
+  // rows rather than an aggregate over every event the archive has fetched.
+  const stagedPlayerCount = sql<number>`(
+    select count(*)::int from uvsgames_event_standings st where st.external_id = c.external_id
+  )`;
 
-  const stagedLegendCount = sql<number | null>`case when ce.id is null then null else (
-    select count(*)::int from candidate_meta_players p
-     where p.candidate_event_id = ce.id and p.legend_card_id is not null
-  ) end`;
+  const stagedLegendCount = sql<number>`(
+    select count(*)::int from uvsgames_event_standings st
+     where st.external_id = c.external_id and st.legend_name is not null
+  )`;
 
-  const stagedDeckCount = sql<number | null>`case when ce.id is null then null else (
-    select count(*)::int from candidate_meta_players p
-     where p.candidate_event_id = ce.id and p.cards is not null
-  ) end`;
+  const stagedDeckCount = sql<number>`(
+    select count(*)::int from uvsgames_decklists dl
+     where dl.external_id = c.external_id and dl.fetch_status = 'fetched'
+  )`;
 
   /**
    * The table is the row set, not the mirror: the sync writes a row for every
@@ -418,13 +428,22 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return Number(result.numUpdatedRows ?? 0n);
     },
 
+    /** Every mirrored key running one template, for a scoped re-promote. */
+    async externalIdsForTemplate(templateId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("uvsgamesEvents")
+        .select("externalId")
+        .where("eventConfigurationTemplate", "=", templateId)
+        .execute();
+      return rows.map((row) => row.externalId);
+    },
+
     async byKey(externalId: string): Promise<UvsgamesListRow | undefined> {
       const row = await triagedQuery()
         .selectAll("c")
         .select([
           triage.as("triage"),
-          "ce.id as candidateEventId",
-          "ce.metaEventId as metaEventId",
+          "src.metaEventId as metaEventId",
           "me.slug as metaEventSlug",
           ...joinedColumns,
         ])
@@ -444,8 +463,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .selectAll("c")
         .select([
           triage.as("triage"),
-          "ce.id as candidateEventId",
-          "ce.metaEventId as metaEventId",
+          "src.metaEventId as metaEventId",
           "me.slug as metaEventSlug",
           ...joinedColumns,
         ])
@@ -455,6 +473,19 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .limit(limit)
         .execute();
       return rows;
+    },
+
+    /**
+     * Records that a results deep fetch completed, standings or no standings.
+     * The recheck ladder reads this rather than counting mirror rows, because a
+     * cancelled event legitimately has none.
+     */
+    async markResultsFetched(externalId: string, now: Date): Promise<void> {
+      await db
+        .updateTable("uvsgamesEvents")
+        .set({ resultsFetchedAt: now })
+        .where("externalId", "=", externalId)
+        .execute();
     },
 
     /**
@@ -483,8 +514,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .selectAll("c")
         .select([
           triage.as("triage"),
-          "ce.id as candidateEventId",
-          "ce.metaEventId as metaEventId",
+          "src.metaEventId as metaEventId",
           "me.slug as metaEventSlug",
           ...joinedColumns,
         ])
@@ -503,11 +533,10 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .selectAll("c")
         .select([
           triage.as("triage"),
-          "ce.id as candidateEventId",
-          "ce.metaEventId as metaEventId",
+          "src.metaEventId as metaEventId",
           "me.slug as metaEventSlug",
           ...joinedColumns,
-          "ce.fetchedAt as fetchedAt",
+          fetchedAt.as("fetchedAt"),
           stagedPlayerCount.as("stagedPlayerCount"),
           stagedLegendCount.as("stagedLegendCount"),
           stagedDeckCount.as("stagedDeckCount"),
@@ -550,8 +579,8 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         countQuery = countQuery.where("c.missingSince", "is not", null);
       }
       if (filters.awaitingResults === true) {
-        rowQuery = rowQuery.where(accepted).where("ce.fetchedAt", "is", null);
-        countQuery = countQuery.where(accepted).where("ce.fetchedAt", "is", null);
+        rowQuery = rowQuery.where(accepted).where(notFetched);
+        countQuery = countQuery.where(accepted).where(notFetched);
       }
       if (filters.triage !== undefined) {
         const predicate = triagePredicate(filters.triage);
@@ -611,7 +640,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
             "dueRecheck",
           ),
           sql<string>`count(*) filter (where ck.next_check_at is not null)`.as("queued"),
-          sql<string>`count(*) filter (where (${accepted}) and ce.fetched_at is null)`.as(
+          sql<string>`count(*) filter (where (${accepted}) and (${notFetched}))`.as(
             "acceptedAwaitingResults",
           ),
           sql<string>`count(*) filter (where (${accepted}) and c.missing_since is not null)`.as(

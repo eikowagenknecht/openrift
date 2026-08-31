@@ -7,9 +7,9 @@ import type { MetaArchivedDeckInput, MetaEventPlayerInput } from "../repositorie
  * known: the `decks` row under the synthetic archive owner, its cards, and the
  * link, all in the repo's transaction.
  *
- * Both paths that create standings rows go through here — the admin's manual
- * form and the candidate accept — so the owner, the public flag, and the share
- * token are stamped in exactly one place.
+ * Every path that creates standings rows goes through here — the admin's
+ * manual form and promotion alike — so the owner, the public flag, and the
+ * share token are stamped in exactly one place.
  *
  * A standings-only entry gets no token at all: it has no public page, so there
  * is nothing for a permalink to address. It gains one if a list ever lands,
@@ -51,10 +51,10 @@ export async function createMetaEventPlayer(
  * Attaches a decklist to a standings row, or replaces the one already there.
  *
  * Every path that gives an entry a list goes through here — the admin PATCH and
- * the candidate accept alike — because an entry that leaves `"none"` has to
- * gain its permalink in the same step. A page that only exists once the list
- * does is the whole point of withholding the token, and two copies of that rule
- * would eventually disagree.
+ * promotion alike — because an entry that leaves `"none"` has to gain its
+ * permalink in the same step. A page that only exists once the list does is
+ * the whole point of withholding the token, and two copies of that rule would
+ * eventually disagree.
  *
  * A replacement keeps the token the deck already has: it is only ever added,
  * never rotated, so links already published do not rot.
@@ -65,9 +65,10 @@ export function setMetaPlayerList(
   meta: Repos["meta"],
   metaEventPlayerId: string,
   deck: MetaArchivedDeckInput,
+  options?: { preserveName?: boolean },
 ): Promise<{ deckId: string } | undefined> {
   return withUniqueShareToken(
-    (shareToken) => meta.setPlayerDeck(metaEventPlayerId, deck, shareToken),
+    (shareToken) => meta.setPlayerDeck(metaEventPlayerId, deck, shareToken, options),
     { constraint: "decks_share_token_key" },
   );
 }

@@ -1,34 +1,35 @@
 import { DECKLIST_PUBLISHED } from "../../lib/meta-recheck-schedule.js";
-import { mapSourceFormat, UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
-import type { UvsDeepFetchRaw, UvsRoundMeta } from "../../lib/uvsgames-transform.js";
+import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
+import type { UvsDeepFetchResponses, UvsRoundMeta } from "../../lib/uvsgames-transform.js";
 import {
   completedRounds,
   projectPhases,
   projectRoundMatches,
-  referencedDeckIds,
-  storedDecks,
-  transformUvsEvent,
+  projectUvsDecklistCards,
+  projectUvsStandings,
 } from "../../lib/uvsgames-transform.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
-import { ingestMetaCandidates } from "../ingest-meta-candidates.js";
-import { materializeCandidateMatches, syncEventPhases } from "../meta-event-matches.js";
-import { autoAcceptFetchedPlayers } from "./accept.js";
+import { promoteMetaEvent } from "../meta-promote.js";
 import type { MetaSyncDeps } from "./deps.js";
 import { clock, errorText } from "./deps.js";
 import { MAX_PAGE_SIZE, UvsHttpError } from "./uvsgames-client.js";
 
 /**
- * One accepted event's results: the detail, the whole
- * registration list, the final standings, the last completed round's standings
- * for the legend each player played, and every completed round's match list —
- * about five requests plus one per round — plus one request per decklist, and
- * only when the organizer published them.
+ * One accepted event's results: the detail, the whole registration list, the
+ * final standings, the last completed round's standings for the legend each
+ * player played, and every completed round's match list. About five requests
+ * plus one per round, plus one per decklist and only when the organizer
+ * published them.
  *
- * The output is an ordinary candidate, written through the same ingest the push
- * endpoint uses, so review, linking, per-field accept, and diffs are all shared.
- * Matches are parsed straight into `candidate_meta_matches` and never ride in
- * the raw payload; a round already staged is never
- * refetched, the same accumulate-and-never-retry contract the decks follow.
+ * The output is this source's own mirror tables (ADR-014 revision 3). Every
+ * response is projected into named columns as it arrives and then dropped: no
+ * body is stored, so nothing the archive did not ask for can land. Promotion is
+ * what turns any of it into live rows.
+ *
+ * Two things are fetched once and never again, because the source cannot change
+ * them: a completed round's pairings, and a published decklist. Both are
+ * recorded as held so the next pass can tell "already have it" from "not asked
+ * yet" with a query rather than a scan.
  */
 
 /**
@@ -38,6 +39,9 @@ import { MAX_PAGE_SIZE, UvsHttpError } from "./uvsgames-client.js";
  */
 const MAX_DECK_FETCHES = 400;
 
+/** How often a long deck crawl reports progress into its job run. */
+const DECK_HEARTBEAT = 25;
+
 export interface MetaDeepFetchResult {
   externalId: string;
   requests: number;
@@ -45,9 +49,9 @@ export interface MetaDeepFetchResult {
   decks: number;
   /** Registrations with no name or no placement. */
   dropped: number;
-  /** Matches newly staged this pass, across every round fetched. */
+  /** Matches newly mirrored this pass, across every round fetched. */
   stagedMatches: number;
-  /** Staged matches copied onto the live event this pass. */
+  /** Mirror matches promoted onto the live event this pass. */
   liveMatches: number;
   /** Phase rows the live event now carries. */
   phases: number;
@@ -90,7 +94,7 @@ const MAX_PAGES = 100;
 /**
  * Every page of a paginated endpoint, following the envelope's own next
  * pointer, or null when any page failed. A short list is worse than no list:
- * the ingest replaces an event's staged players with what it is handed, so a
+ * the mirror replaces an event's standings with what it is handed, so a
  * missing page would delete the players it did not carry.
  */
 async function allPages(
@@ -169,9 +173,9 @@ function standingsRounds(rounds: readonly UvsRoundMeta[], detail: unknown): UvsR
 
 /**
  * The picked rounds' standings, concatenated in the order they were picked.
- * `transformUvsEvent` keeps the first row it sees per registration, so latest
- * first is what gives a cut player their top-cut row and everyone else their
- * last swiss one.
+ * The projection keeps the first row it sees per registration, so latest first
+ * is what gives a cut player their top-cut row and everyone else their last
+ * swiss one.
  */
 async function readStandings(
   deps: MetaSyncDeps,
@@ -209,10 +213,10 @@ async function readOne(
 }
 
 /**
- * Pulls one event and stages it as a candidate. Failures are collected rather
- * than thrown, since the run has other events to visit, but a read that came
- * back short or failed stops the pass before the ingest: the event keeps what
- * it already has, and the next visit fetches it again.
+ * Pulls one event into this source's mirror, then promotes it. Failures are
+ * collected rather than thrown, since the run has other events to visit, but a
+ * read that came back short or failed stops the pass before anything is
+ * written: the event keeps what it already has, and the next visit refetches.
  *
  * `knownDetail` is the recheck's already-fetched detail row, so a visit that
  * decides to fetch does not read the same URL twice.
@@ -250,130 +254,97 @@ export async function deepFetchEvent(
   const roundStandings = await readStandings(deps, standingsRounds(rounds, detail), errors);
 
   if (detail === null || registrations === null || standings === null || roundStandings === null) {
-    errors.push("The event's player list came back incomplete, so nothing was staged.");
+    errors.push("The event's player list came back incomplete, so nothing was written.");
     return emptyFetchResult(id, deps.client.requests - before, errors);
   }
 
-  // Read before the deck crawl: the stored raw says which decks are already
-  // held, and the staged format guards the ingest below either way.
-  const [staged, formatMappings, templateTiers] = await Promise.all([
-    deps.repos.metaCandidates.eventsBySourceKeys(UVSGAMES_PROVIDER, [id]).then((rows) => rows[0]),
-    deps.repos.uvsgamesEvents.formatMappings(),
-    deps.repos.uvsgamesEvents.templateTiers(),
-  ]);
-
-  const decks = await fetchDecks(deps, row, registrations, storedDecks(staged?.raw), errors, runId);
-
-  const raw: UvsDeepFetchRaw = {
-    detail: sanitizeDetail(detail),
+  const responses: UvsDeepFetchResponses = {
+    detail,
     registrations,
     standings,
     roundStandings,
-    decks,
   };
-  const transformed = transformUvsEvent(
-    {
-      externalId: id,
-      name: row.name,
-      startAt: row.startAt,
-      timezone: row.timezone,
-      eventFormat: row.eventFormat,
-      playerCount: row.playerCount === null || row.playerCount === 0 ? null : row.playerCount,
-      storeName: row.storeDisplayName,
-      location: row.location,
-      templateTier:
-        row.eventConfigurationTemplate === null
-          ? null
-          : (templateTiers.get(row.eventConfigurationTemplate) ?? null),
-    },
-    raw,
+  const projected = projectUvsStandings(responses);
+
+  // Participants first: the standings rows reference them by user id, and a
+  // seat the registrations named still needs its player row.
+  await deps.repos.uvsgamesEvents.upsertPlayers(
+    projected.players.map((player) => ({ id: player.userId, displayName: player.displayName })),
   );
+  await deps.repos.uvsgamesResults.replaceStandings(
+    id,
+    projected.standings.map((standing) => ({
+      ...standing,
+      externalId: id,
+      fetchedAt: clock(deps),
+    })),
+  );
+  // Standings or no standings: a cancelled event's fetch also completed, and
+  // the recheck ladder must not revisit it forever.
+  await deps.repos.uvsgamesEvents.markResultsFetched(id, clock(deps));
 
-  // A fetch must not revert the format an admin picked by hand at accept, which
-  // is the only way an event the source files as something unmappable gets into
-  // the archive at all. The source's own vocabulary wins whenever it maps.
-  const format =
-    mapSourceFormat(formatMappings, row.eventFormat) ?? staged?.format ?? transformed.event.format;
+  const phases = projectPhases(detail);
+  if (phases.length > 0) {
+    await deps.repos.uvsgamesResults.replacePhases(
+      id,
+      phases.map((phase) => ({ ...phase, externalId: id })),
+    );
+  }
 
-  const ingest = await ingestMetaCandidates(deps.transact, UVSGAMES_PROVIDER, [
-    { ...transformed.event, format },
-  ]);
-  errors.push(...ingest.errors);
+  // Read after the standings write, so a first pass sees the deck ids it just
+  // mirrored; decks already held, or already refused, are never requested
+  // twice.
+  const coverage = await deps.repos.uvsgamesResults.deckCoverage(id);
+  const fetchedDecks = await fetchDecks(deps, row, id, coverage.outstanding, errors, runId);
 
+  const stagedMatches = await stageEventMatches(deps, id, rounds, errors);
   const result: MetaDeepFetchResult = {
     ...emptyFetchResult(id, deps.client.requests - before, errors),
-    players: transformed.event.players.length,
-    decks: Object.values(decks).filter((deck) => deck !== null).length,
-    dropped: transformed.dropped,
+    players: projected.standings.length,
+    decks: fetchedDecks,
+    dropped: projected.dropped,
+    stagedMatches,
   };
 
-  // Re-read only when the ingest was the thing that created the row.
-  const [candidate] =
-    staged === undefined
-      ? await deps.repos.metaCandidates.eventsBySourceKeys(UVSGAMES_PROVIDER, [id])
-      : [staged];
-  if (candidate === undefined) {
-    // Only reachable when the key is on the ignore list: ingest skipped it, so
-    // there is nothing to stamp and nothing to accept.
-    return result;
-  }
-  await deps.repos.metaCandidates.updateEvent(candidate.id, { raw, fetchedAt: clock(deps) });
-
-  // The players the registrations named, recorded once and then stamped onto the
-  // rows the ingest just staged. Both halves run after the ingest: the staged
-  // rows have to exist before they can be keyed to a player.
-  await deps.repos.uvsgamesEvents.upsertPlayers(
-    transformed.players.map((player) => ({ id: player.userId, displayName: player.displayName })),
-  );
-  await deps.repos.metaCandidates.setPlayerUvsIds(
-    candidate.id,
-    new Map(transformed.players.map((player) => [player.registrationId, player.userId])),
-  );
-
-  result.stagedMatches = await stageEventMatches(deps, candidate.id, rounds, errors);
-
-  if (candidate.metaEventId !== null) {
-    const accepted = await autoAcceptFetchedPlayers(deps, candidate.id, candidate.metaEventId);
-    result.acceptedPlayers = accepted.accepted;
-    result.skippedPlayers = accepted.skipped;
-    errors.push(...accepted.errors);
-    // A skipped player is work the pipeline left for a human — an unresolved
-    // card name or a failed accept — so the event goes back into the review
-    // queue rather than sitting published-but-partial behind a settled check.
-    // Ignoring the player or fixing the card alias clears it on the next pass.
-    if (accepted.skipped > 0) {
-      await deps.repos.metaCandidates.setEventCheckedAt(candidate.id, null);
-    }
-    const matches = await materializeCandidateMatches(
-      deps.repos,
-      candidate.id,
-      candidate.metaEventId,
-    );
-    result.liveMatches = matches.materialized;
-    result.phases = await syncEventPhases(deps.repos, candidate.metaEventId, raw.detail);
+  // Everything above wrote this source's mirror. Turning it into live rows is
+  // promotion's job, and it is safe to run whether or not this pass changed
+  // anything: it re-reads the mirrors, re-applies the accepted overlays, and
+  // updates the live rows in place.
+  const source = await deps.repos.meta.sourceByKey(UVSGAMES_PROVIDER, id);
+  if (source !== undefined) {
+    const promoted = await promoteMetaEvent(deps.repos, source.metaEventId);
+    result.acceptedPlayers = promoted.players;
+    result.liveMatches = promoted.matches;
+    result.phases = promoted.phases;
+    errors.push(...promoted.errors);
+    // Names the catalog could not match are the reviewer's queue, not a
+    // failure: the standings row is live, only its list is withheld.
+    result.skippedPlayers = promoted.unresolvedNames.length;
   }
 
   return result;
 }
 
 /**
- * Every completed round's matches, staged as `candidate_meta_matches`.
- * Rounds already staged are skipped for good — a completed round's
- * matches are locked — and a round whose pages did not all arrive is not staged
- * at all, so the next visit retries it instead of holding half a round forever.
+ * Every completed round's matches, mirrored as `uvsgames_event_matches`.
  *
- * @returns How many matches were newly staged.
+ * Rounds already held are skipped for good, because a completed round's
+ * pairings are locked at the source. A round whose pages did not all arrive is
+ * not written at all, so the next visit retries it whole instead of leaving
+ * half a round mirrored forever.
+ *
+ * @returns How many matches were newly mirrored.
  */
 async function stageEventMatches(
   deps: MetaSyncDeps,
-  candidateEventId: string,
+  externalId: string,
   rounds: readonly UvsRoundMeta[],
   errors: string[],
 ): Promise<number> {
   if (rounds.length === 0) {
     return 0;
   }
-  const held = new Set(await deps.repos.metaCandidates.matchRoundIds(candidateEventId));
+  const held = new Set(await deps.repos.uvsgamesResults.heldRoundIds(externalId));
   let staged = 0;
   for (const round of rounds) {
     if (held.has(round.roundId)) {
@@ -397,15 +368,15 @@ async function stageEventMatches(
       [...projected.players].map(([id, displayName]) => ({ id, displayName })),
     );
     try {
-      await deps.repos.metaCandidates.replaceRoundMatches(
-        candidateEventId,
+      await deps.repos.uvsgamesResults.replaceRoundMatches(
+        externalId,
         round.roundId,
-        projected.matches.map((match) => ({ candidateEventId, ...match })),
+        projected.matches.map((match) => ({ ...match, externalId })),
       );
     } catch (error) {
       // A refused round (say, a participant no player row could be written
-      // for) stays unstaged, so the next visit retries it whole.
-      errors.push(errorText(error, `Round ${round.roundNumber} staging`));
+      // for) stays unmirrored, so the next visit retries it whole.
+      errors.push(errorText(error, `Round ${round.roundNumber}`));
       continue;
     }
     staged += projected.matches.length;
@@ -447,68 +418,59 @@ async function readRoundMatches(
 }
 
 /**
- * The event detail carries the store's contact email; the archive stores the
- * detail for re-transforms and has no use for an address, so it never lands.
- */
-function sanitizeDetail(detail: unknown): unknown {
-  if (typeof detail !== "object" || detail === null || Array.isArray(detail)) {
-    return detail;
-  }
-  const row = detail as Record<string, unknown>;
-  const store = row.store;
-  if (typeof store !== "object" || store === null || !("email" in store)) {
-    return detail;
-  }
-  const { email: _email, ...cleanStore } = store as Record<string, unknown>;
-  return { ...row, store: cleanStore };
-}
-
-/** How many deck fetches pass between progress writes on a long fetch. */
-const DECK_HEARTBEAT = 25;
-
-/**
- * The individual decklists, which are readable only while the source says they
- * are published. Decklists are locked once the event runs, so entries already
- * held — a deck, or the null recording a refusal — are never requested again:
- * each pass fetches only the gap, capped, until every referenced id has an
- * entry. A deck that fails to load still leaves its player as a standings row.
+ * The decklists this event still owes, up to the per-pass ceiling.
+ *
+ * A published 500-player event would otherwise spend minutes of the weekly
+ * budget in one visit; the remainder is picked up by the next ladder step,
+ * because `outstanding` is recomputed from what the mirror already holds.
  */
 async function fetchDecks(
   deps: MetaSyncDeps,
   row: UvsgamesListRow,
-  registrations: readonly unknown[],
-  known: Record<string, unknown>,
+  externalId: string,
+  outstanding: readonly string[],
   errors: string[],
   runId?: string,
-): Promise<Record<string, unknown>> {
-  const decks: Record<string, unknown> = { ...known };
+): Promise<number> {
   if (row.decklistStatus !== DECKLIST_PUBLISHED) {
-    return decks;
+    return 0;
   }
-  const missing = referencedDeckIds(registrations).filter((id) => !Object.hasOwn(decks, id));
-  const wanted = missing.slice(0, MAX_DECK_FETCHES);
+  const wanted = outstanding.slice(0, MAX_DECK_FETCHES);
   let fetched = 0;
   for (const deckId of wanted) {
     const deck = await readDeck(deps, deckId, errors);
     fetched++;
     if (deck !== SKIPPED) {
-      decks[deckId] = deck;
+      // A refused deck is recorded with no lines rather than left out, which is
+      // what stops the next pass asking again. Same for one the source served
+      // whose sections held nothing readable: it was answered, and re-reading
+      // it would answer the same way.
+      const lines = deck === null ? null : projectUvsDecklistCards(deck);
+      await deps.repos.uvsgamesResults.putDecklist(
+        {
+          sourceDeckId: deckId,
+          externalId,
+          fetchStatus: deck === null ? "refused" : "fetched",
+          fetchedAt: clock(deps),
+        },
+        lines ?? [],
+      );
     }
     if (runId !== undefined && fetched % DECK_HEARTBEAT === 0) {
       await deckHeartbeat(deps, runId, row.externalId, fetched, wanted.length);
     }
   }
-  return decks;
+  return fetched;
 }
 
-/** No entry is written: the failure looked transient, so the id stays fetchable. */
+/** Nothing is recorded: the failure looked transient, so the id stays fetchable. */
 const SKIPPED = Symbol("deck skipped");
 
 /**
- * One decklist, or what its failure means for the stored entry: a 4xx is the
- * source refusing the deck for good and is recorded as a null marker, while a
- * transient failure (the client's retries already exhausted) leaves no entry so
- * the next pass tries again.
+ * One decklist, or what its failure means for the mirror: a 4xx is the source
+ * refusing the deck for good and is recorded as `refused`, while a transient
+ * failure (the client's retries already exhausted) records nothing so the next
+ * pass tries again.
  */
 async function readDeck(deps: MetaSyncDeps, deckId: string, errors: string[]): Promise<unknown> {
   try {

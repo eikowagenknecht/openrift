@@ -20,7 +20,7 @@ import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
-import { reclassifyMetaEvents } from "../../services/meta-reclassify.js";
+import { repromoteMetaEvents } from "../../services/meta-repromote.js";
 import type { MetaSyncDeps, PlayloltcgSyncDeps } from "../../services/meta-sync/index.js";
 import {
   acceptCatalogEvent,
@@ -68,8 +68,8 @@ function playloltcgDeps(context: ApiContext): PlayloltcgSyncDeps {
 /** How many of the selected source's runs the sync panel shows. */
 const STATUS_RUN_LIMIT = 25;
 
-/** The `meta_candidate_events.provider` each catalogued source stages under. */
-const CANDIDATE_PROVIDER: Record<MetaSource, string> = {
+/** The `meta_event_sources.provider` each catalogued source cites itself under. */
+const SOURCE_PROVIDER: Record<MetaSource, string> = {
   uvsgames: UVSGAMES_PROVIDER,
   playloltcg: PLAYLOLTCG_PROVIDER,
 };
@@ -142,13 +142,13 @@ function triggerResult(
 }
 
 /**
- * The catalogue triage list and the sync controls (ADR-014, second revision),
- * mounted under the admin-gated `/api/admin/v1/meta` prefix.
+ * The catalogue triage list and the sync controls (ADR-014), mounted under the
+ * admin-gated `/api/admin/v1/meta` prefix.
  *
  * Accept and dismiss are the only two writes against a catalogue row, and
- * neither edits the mirror: accept hands the row to the shared candidate accept,
- * dismiss writes the ignore key the ingest already honours. Everything else here
- * is either a read or a manual run of a job the crons own.
+ * neither edits the mirror: accept mints the live event and promotes it,
+ * dismiss writes the ignore key the ingest already honours. Everything else
+ * here is either a read or a manual run of a job the crons own.
  */
 export const adminMetaCatalogRouter = {
   list: os.list.handler(async ({ input, context }) => {
@@ -199,7 +199,7 @@ export const adminMetaCatalogRouter = {
 
   dismiss: os.dismiss.handler(async ({ input, context }) => {
     const row = await requireRow(context, input.externalId);
-    await context.repos.metaCandidates.ignoreEvent(UVSGAMES_PROVIDER, row.externalId);
+    await context.repos.metaOverlays.ignoreEvent(UVSGAMES_PROVIDER, row.externalId);
     await recordAdminEvent(context.repos, context.userId, {
       action: "meta-catalog.dismiss",
       entityType: "meta-catalog",
@@ -209,7 +209,7 @@ export const adminMetaCatalogRouter = {
   }),
 
   undismiss: os.undismiss.handler(async ({ input, context }) => {
-    const removed = await context.repos.metaCandidates.unignoreEvent(
+    const removed = await context.repos.metaOverlays.unignoreEvent(
       UVSGAMES_PROVIDER,
       input.externalId,
     );
@@ -249,12 +249,10 @@ export const adminMetaCatalogRouter = {
       });
     }
     // A mapping edit is a rule change for exactly this template's events, so it
-    // reapplies itself; hand-set live values survive the pass as always.
+    // reapplies itself. An accepted overlay still wins whatever it claims,
+    // because promotion applies those after the source either way.
     if (input.tier !== undefined) {
-      await reclassifyMetaEvents(context.repos, {
-        templateId: input.templateId,
-        transact: context.transact,
-      });
+      await repromoteMetaEvents(context.repos, { templateId: input.templateId });
     }
     return toMetaSourceTemplate(row);
   }),
@@ -320,7 +318,7 @@ export const adminMetaCatalogRouter = {
       source === "playloltcg" ? context.repos.playloltcgEvents : context.repos.uvsgamesEvents;
     const [overview, archive, counts, runs] = await Promise.all([
       sourceRepo.syncOverview(),
-      context.repos.meta.archiveOverview(CANDIDATE_PROVIDER[source]),
+      context.repos.meta.archiveOverview(SOURCE_PROVIDER[source]),
       sourceRepo.triageCounts(),
       context.repos.jobRuns.listRecentByKinds(jobKindsForSource(source), STATUS_RUN_LIMIT),
     ]);
@@ -510,7 +508,7 @@ export const adminMetaCatalogRouter = {
     if (row === undefined) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Catalogue event not found");
     }
-    await context.repos.metaCandidates.ignoreEvent(PLAYLOLTCG_PROVIDER, String(row.activityShopId));
+    await context.repos.metaOverlays.ignoreEvent(PLAYLOLTCG_PROVIDER, String(row.activityShopId));
     await recordAdminEvent(context.repos, context.userId, {
       action: "meta-catalog.dismiss",
       entityType: "meta-catalog",
@@ -523,7 +521,7 @@ export const adminMetaCatalogRouter = {
   // found — the admin clicked it to see the result, not to poll for it.
   fetchEvent: os.fetchEvent.handler(async ({ input, context }) => {
     const row = await requireRow(context, input.externalId);
-    if (row.candidateEventId === null || row.metaEventId === null) {
+    if (row.metaEventId === null) {
       throw new AppError(
         400,
         ERROR_CODES.BAD_REQUEST,
