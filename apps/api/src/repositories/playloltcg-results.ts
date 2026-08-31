@@ -16,7 +16,6 @@ import type {
  */
 
 export type PlayloltcgStandingRow = Selectable<PlayloltcgEventStandingsTable>;
-export type PlayloltcgDecklistRow = Selectable<PlayloltcgDecklistsTable>;
 export type PlayloltcgDecklistCardRow = Selectable<PlayloltcgDecklistCardsTable>;
 
 export interface PlayloltcgDeckCoverage {

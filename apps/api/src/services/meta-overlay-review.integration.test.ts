@@ -5,6 +5,7 @@ import { createRepos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { META_ARCHIVE_USER_ID, metaRepo } from "../repositories/meta.js";
 import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integration-context.js";
+import { playerSourceKey } from "./ingest-meta-overlays.js";
 import {
   acceptMetaEventOverlay,
   releaseEventOverlayField,
@@ -709,7 +710,7 @@ describe.skipIf(!ctx)("overlay review", () => {
           rank: 1,
           claimedFields: ["playerName", "rank"],
           provider: "morpush",
-          sourcePlayerKey: "mor-duplicate\u0000p1",
+          sourcePlayerKey: playerSourceKey("mor-duplicate", "p1"),
           submittedByUserId: otherAdminId,
         },
         [],

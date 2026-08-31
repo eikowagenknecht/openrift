@@ -23,7 +23,6 @@ import type {
 export type UvsgamesStandingRow = Selectable<UvsgamesEventStandingsTable>;
 export type UvsgamesPhaseRow = Selectable<UvsgamesEventPhasesTable>;
 export type UvsgamesMatchRow = Selectable<UvsgamesEventMatchesTable>;
-export type UvsgamesDecklistRow = Selectable<UvsgamesDecklistsTable>;
 export type UvsgamesDecklistCardRow = Selectable<UvsgamesDecklistCardsTable>;
 
 /** One event's deck coverage, for the recheck ladder's "are we done here" test. */

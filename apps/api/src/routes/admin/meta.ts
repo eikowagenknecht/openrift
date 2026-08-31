@@ -1,7 +1,7 @@
 import { ERROR_CODES, WellKnown } from "@openrift/shared";
 import type { AdminMetaEvent } from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
-import type { MetaListStatus } from "@openrift/shared/types";
+import type { MetaEventOverlayField, MetaListStatus } from "@openrift/shared/types";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";
@@ -17,9 +17,51 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../../repositories/meta.js";
 import { createMetaEventPlayer } from "../../services/meta-event-players.js";
+import type { MetaEventFieldEdit } from "../../services/meta-overlay-review.js";
+import { writeEventOverlayFields } from "../../services/meta-overlay-review.js";
 import { repromoteMetaEvents } from "../../services/meta-repromote.js";
 
 const os = implement(adminMetaContract).$context<ApiContext>().use(requireAuthedUser);
+
+/**
+ * What a hand-entered event claims, which is exactly what its creator typed.
+ *
+ * A field left out, or sent as an explicit null, claims nothing: the admin said
+ * nothing about it, so a source linked later is still free to decide it. `tier`
+ * is the one field with a computed default, and the default goes on the row
+ * rather than into the claim for the same reason.
+ */
+function creationEdits(input: {
+  name: string;
+  eventDate: string;
+  format: string;
+  playerCount?: number | null;
+  organizer?: string | null;
+  notes?: string | null;
+  tier?: string;
+  country?: string | null;
+  location?: string | null;
+}): MetaEventFieldEdit[] {
+  const edits: MetaEventFieldEdit[] = [
+    { field: "name", value: input.name },
+    { field: "eventDate", value: input.eventDate },
+    { field: "format", value: input.format },
+  ];
+  const optional: [MetaEventOverlayField, string | number | null | undefined][] = [
+    ["playerCount", input.playerCount],
+    ["organizer", input.organizer],
+    ["notes", input.notes],
+    ["tier", input.tier],
+    ["country", input.country],
+    ["location", input.location],
+  ];
+  for (const [field, value] of optional) {
+    if (value !== undefined && value !== null) {
+      edits.push({ field, value: String(value) });
+    }
+  }
+  return edits;
+}
 
 // Normalizes the contract's optional `preferredPrintingId` to the column's
 // explicit null, so the repo never has to reason about an absent key.
@@ -135,19 +177,27 @@ export const adminMetaRouter = {
     await assertKnownFormat(deckFormats, input.format);
     assertSlugAvailable(await meta.eventBySlug(input.slug), input.slug, "Event");
 
+    // The row is minted with identity and the NOT NULL columns only. What the
+    // admin typed is claimed by an overlay instead, the same way a later
+    // correction is, so the live values stay derived from sources plus claims
+    // and releasing one gives it up instead of stranding it on the row.
     const row = await meta.createEvent({
       slug: input.slug,
       name: input.name,
       eventDate: input.eventDate,
       format: input.format,
-      playerCount: input.playerCount ?? null,
-      organizer: input.organizer ?? null,
-      notes: input.notes ?? null,
+      playerCount: null,
+      organizer: null,
+      notes: null,
       tier: input.tier ?? classifyMetaEventTier({ playerCount: input.playerCount ?? null }),
-      country: input.country ?? null,
-      location: input.location ?? null,
+      country: null,
+      location: null,
     });
-    return toAdminMetaEvent(row, []);
+
+    await writeEventOverlayFields(context.repos, row.id, creationEdits(input), context.userId);
+    const promoted = await meta.eventById(row.id);
+    assertFound(promoted, "Event not found");
+    return toAdminMetaEvent(promoted, []);
   }),
 
   // Slug only: every data field moves through the overlay layer, so a

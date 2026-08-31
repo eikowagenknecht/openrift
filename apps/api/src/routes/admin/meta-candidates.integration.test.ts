@@ -4,7 +4,7 @@ import { adminReq, createTestContext, req, seedTestUser } from "../../test/integ
 import type { JsonBody } from "../../test/read-json.js";
 import { readJson } from "../../test/read-json.js";
 
-// Everything this file creates is prefixed mtc- / MTC. The user starts as a
+// Everything this file creates is prefixed mcd- / MCD. The user starts as a
 // non-admin so the 403 case runs before promotion — the isAdmin cache only
 // caches positive results, so a never-admin user always re-checks the DB.
 //
@@ -15,13 +15,14 @@ import { readJson } from "../../test/read-json.js";
 const USER_ID = crypto.randomUUID();
 const ctx = createTestContext(USER_ID);
 
-const PROVIDER = "mtc-provider";
+const PROVIDER = "mcd-provider";
 const FORMAT = "freeform";
 
 let legendCardId: string;
 let mainCardId: string;
 
 const createdMetaEventIds: string[] = [];
+const createdCardIds: string[] = [];
 
 async function seedCard(name: string, normName: string, type: string): Promise<string> {
   const [card] = await ctx!.db
@@ -29,20 +30,21 @@ async function seedCard(name: string, normName: string, type: string): Promise<s
     .values({ name, slug: normName, type, normName, keywords: [], tags: [] })
     .returning("id")
     .execute();
+  createdCardIds.push(card.id);
   return card.id;
 }
 
 function fullList() {
   return [
-    { name: "MTC Legend", zone: "legend", quantity: 1 },
-    { name: "MTC Main", zone: "main", quantity: 3 },
+    { name: "MCD Legend", zone: "legend", quantity: 1 },
+    { name: "MCD Main", zone: "main", quantity: 3 },
   ];
 }
 
 function player(externalId: string, overrides: Record<string, unknown> = {}) {
   return {
     externalId,
-    playerName: "MTC Player",
+    playerName: "MCD Player",
     rank: 1,
     wins: 5,
     losses: 1,
@@ -54,7 +56,7 @@ function player(externalId: string, overrides: Record<string, unknown> = {}) {
 function event(externalId: string, overrides: Record<string, unknown> = {}) {
   return {
     externalId,
-    name: `MTC ${externalId}`,
+    name: `MCD ${externalId}`,
     eventDate: "2026-08-15",
     format: FORMAT,
     players: [player(`${externalId}-p1`)],
@@ -83,8 +85,8 @@ async function queue(): Promise<JsonBody> {
 
 if (ctx) {
   await seedTestUser(ctx.db, { id: USER_ID });
-  legendCardId = await seedCard("MTC Legend", "mtc-legend", "legend");
-  mainCardId = await seedCard("MTC Main", "mtc-main", "unit");
+  legendCardId = await seedCard("MCD Legend", "mcd-legend", "legend");
+  mainCardId = await seedCard("MCD Main", "mcd-main", "unit");
 }
 
 afterAll(async () => {
@@ -96,7 +98,7 @@ afterAll(async () => {
   }
   await ctx.db.deleteFrom("metaEventOverlays").where("provider", "=", PROVIDER).execute();
   await ctx.db.deleteFrom("ignoredMetaSourceEvents").where("provider", "=", PROVIDER).execute();
-  await ctx.db.deleteFrom("cards").where("normName", "like", "mtc-%").execute();
+  await ctx.db.deleteFrom("cards").where("id", "in", createdCardIds).execute();
 });
 
 describe.skipIf(!ctx)("meta overlay review", () => {
@@ -111,7 +113,7 @@ describe.skipIf(!ctx)("meta overlay review", () => {
     // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
     await ctx!.db.insertInto("admins").values({ userId: USER_ID }).execute();
 
-    const response = await upload([event("mtc-1")]);
+    const response = await upload([event("mcd-1")]);
     const body = await readJson(response);
 
     expect(response.status).toBe(200);
@@ -126,10 +128,10 @@ describe.skipIf(!ctx)("meta overlay review", () => {
 
   it("resolves every card name it knows, and reports the ones it does not", async () => {
     const response = await upload([
-      event("mtc-2", {
+      event("mcd-2", {
         players: [
-          player("mtc-2-p1", {
-            cards: [...fullList(), { name: "MTC Missing", zone: "main", quantity: 1 }],
+          player("mcd-2-p1", {
+            cards: [...fullList(), { name: "MCD Missing", zone: "main", quantity: 1 }],
           }),
         ],
       }),
@@ -137,7 +139,7 @@ describe.skipIf(!ctx)("meta overlay review", () => {
     const body = await readJson(response);
 
     expect(body.unresolvedCards).toMatchObject([
-      { eventExternalId: "mtc-2", names: ["MTC Missing"] },
+      { eventExternalId: "mcd-2", names: ["MCD Missing"] },
     ]);
   });
 
@@ -147,13 +149,13 @@ describe.skipIf(!ctx)("meta overlay review", () => {
       (row) => row.unresolvedNames.length > 0,
     );
 
-    expect(withCards?.unresolvedNames).toEqual(["MTC Missing"]);
+    expect(withCards?.unresolvedNames).toEqual(["MCD Missing"]);
   });
 
   it("mints the live event when a proposal is accepted, and files its field under it", async () => {
     const listed = await queue();
     const proposal = (listed.overlays as { id: string; kind: string; proposedName: string }[]).find(
-      (row) => row.kind === "event" && row.proposedName === "MTC mtc-1",
+      (row) => row.kind === "event" && row.proposedName === "MCD mcd-1",
     );
 
     const response = await post(`/meta/overlays/events/${proposal?.id}/accept`);
@@ -205,9 +207,9 @@ describe.skipIf(!ctx)("meta overlay review", () => {
   });
 
   it("drops a dismissed key out of the next upload", async () => {
-    await post("/meta/source-events/ignore", { provider: PROVIDER, externalId: "mtc-3" });
+    await post("/meta/source-events/ignore", { provider: PROVIDER, externalId: "mcd-3" });
 
-    const response = await upload([event("mtc-3")]);
+    const response = await upload([event("mcd-3")]);
     const body = await readJson(response);
 
     expect(body).toMatchObject({ newEvents: 0, ignoredSkipped: 1 });
@@ -215,28 +217,28 @@ describe.skipIf(!ctx)("meta overlay review", () => {
 
   it("lists the dismissed key and takes it back off the list", async () => {
     const listed = await readJson(await get("/meta/ignored"));
-    expect(listed.events).toMatchObject([{ provider: PROVIDER, externalId: "mtc-3" }]);
+    expect(listed.events).toMatchObject([{ provider: PROVIDER, externalId: "mcd-3" }]);
 
     const removed = await post("/meta/source-events/unignore", {
       provider: PROVIDER,
-      externalId: "mtc-3",
+      externalId: "mcd-3",
     });
     expect(removed.status).toBe(200);
 
     const second = await post("/meta/source-events/unignore", {
       provider: PROVIDER,
-      externalId: "mtc-3",
+      externalId: "mcd-3",
     });
     expect(second.status).toBe(404);
   });
 
   it("re-opens review when a provider re-uploads an event it already sent", async () => {
-    await upload([event("mtc-4")]);
+    await upload([event("mcd-4")]);
     const first = await ctx!.db
       .selectFrom("metaEventOverlays")
       .select(["id", "status"])
       .where("provider", "=", PROVIDER)
-      .where("externalId", "=", "mtc-4")
+      .where("externalId", "=", "mcd-4")
       .executeTakeFirstOrThrow();
 
     await ctx!.db
@@ -245,7 +247,7 @@ describe.skipIf(!ctx)("meta overlay review", () => {
       .where("id", "=", first.id)
       .execute();
 
-    const response = await upload([event("mtc-4", { name: "MTC Renamed" })]);
+    const response = await upload([event("mcd-4", { name: "MCD Renamed" })]);
     const body = await readJson(response);
 
     expect(body).toMatchObject({ updatedEvents: 1 });
@@ -256,7 +258,7 @@ describe.skipIf(!ctx)("meta overlay review", () => {
       .executeTakeFirstOrThrow();
     // Same row, so the source key stays unique; back to pending, because the
     // provider changed its mind and the old decision no longer stands.
-    expect(after).toMatchObject({ status: "pending", name: "MTC Renamed" });
+    expect(after).toMatchObject({ status: "pending", name: "MCD Renamed" });
   });
 
   it("refuses an overlay holding a value it does not claim", async () => {
@@ -265,8 +267,8 @@ describe.skipIf(!ctx)("meta overlay review", () => {
         .insertInto("metaEventOverlays")
         .values({
           provider: PROVIDER,
-          externalId: "mtc-mask",
-          name: "MTC Unclaimed",
+          externalId: "mcd-mask",
+          name: "MCD Unclaimed",
           claimedFields: ["tier"],
           submittedByUserId: USER_ID,
         })
@@ -280,7 +282,7 @@ describe.skipIf(!ctx)("meta overlay review", () => {
         .insertInto("metaEventOverlays")
         .values({
           provider: PROVIDER,
-          externalId: "mtc-vocab",
+          externalId: "mcd-vocab",
           claimedFields: ["notAField"] as never,
           submittedByUserId: USER_ID,
         })

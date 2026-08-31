@@ -37,13 +37,13 @@ import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
  * lands later.
  */
 
-export interface MetaIngestUnresolved {
+interface MetaIngestUnresolved {
   eventExternalId: string;
   playerExternalId: string;
   names: string[];
 }
 
-export interface MetaIngestEventDetail {
+interface MetaIngestEventDetail {
   externalId: string;
   name: string;
 }
@@ -62,12 +62,6 @@ export interface MetaIngestResult {
   updatedEventDetails: MetaIngestEventDetail[];
   unresolvedCards: MetaIngestUnresolved[];
 }
-
-/**
- * External ids may contain any character the producer likes, so composite keys
- * join on a NUL, which none can contain.
- */
-const KEY_SEPARATOR = "\u0000";
 
 function asTier(value: string | null): MetaEventTier | null {
   return value !== null && (META_EVENT_TIERS as readonly string[]).includes(value)
@@ -135,7 +129,7 @@ export async function ingestMetaOverlays(
   ]);
   const ignoredEventKeys = new Set(ignoredEvents);
   const ignoredPlayerKeys = new Set(
-    ignoredPlayers.map((key) => `${key.eventExternalId}${KEY_SEPARATOR}${key.externalId}`),
+    ignoredPlayers.map((key) => playerSourceKey(key.eventExternalId, key.externalId)),
   );
 
   const existing = await repos.metaOverlays.eventOverlaysBySourceKeys(
@@ -216,8 +210,16 @@ export async function ingestMetaOverlays(
   return result;
 }
 
-function playerSourceKey(eventExternalId: string, playerExternalId: string): string {
-  return `${eventExternalId}${KEY_SEPARATOR}${playerExternalId}`;
+/**
+ * The composite key one pushed standings row is stored under.
+ *
+ * External ids may contain any character the producer likes, so the halves are
+ * not joined on a separator: PostgreSQL text cannot hold a NUL, and every
+ * character it can hold is one an id is allowed to contain. Length-prefixing
+ * the event id keeps the pair recoverable whatever either half holds.
+ */
+export function playerSourceKey(eventExternalId: string, playerExternalId: string): string {
+  return `${eventExternalId.length}:${eventExternalId}${playerExternalId}`;
 }
 
 /** The two provider keys back out of a stored {@link playerSourceKey}. */
@@ -225,17 +227,20 @@ export function splitSourcePlayerKey(key: string | null): {
   eventExternalId: string | null;
   playerExternalId: string | null;
 } {
+  const unkeyed = { eventExternalId: null, playerExternalId: null };
   if (key === null) {
-    return { eventExternalId: null, playerExternalId: null };
+    return unkeyed;
   }
-  const cut = key.indexOf(KEY_SEPARATOR);
-  if (cut === -1) {
-    return { eventExternalId: null, playerExternalId: null };
+  const cut = key.indexOf(":");
+  if (cut < 1 || !/^\d+$/u.test(key.slice(0, cut))) {
+    return unkeyed;
   }
-  return {
-    eventExternalId: key.slice(0, cut),
-    playerExternalId: key.slice(cut + KEY_SEPARATOR.length),
-  };
+  const start = cut + 1;
+  const end = start + Number(key.slice(0, cut));
+  if (end > key.length) {
+    return unkeyed;
+  }
+  return { eventExternalId: key.slice(start, end), playerExternalId: key.slice(end) };
 }
 
 const EVENT_COMPARE_COLUMNS = [

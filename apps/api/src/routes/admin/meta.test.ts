@@ -6,6 +6,14 @@ import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { adminMetaRouter } from "./meta";
 
+// The overlay write is its own unit, tested against a real database. Here it
+// only has to be observable: the create path's job is to claim exactly what the
+// admin typed, not to prove promotion works.
+vi.mock("../../services/meta-overlay-review.js", () => ({
+  writeEventOverlayFields: vi.fn(),
+}));
+const { writeEventOverlayFields } = await import("../../services/meta-overlay-review.js");
+
 // ---------------------------------------------------------------------------
 // Mock repos
 // ---------------------------------------------------------------------------
@@ -146,6 +154,7 @@ describe("POST /meta/events", () => {
   it("creates an event without any attribution column", async () => {
     mockMeta.eventBySlug.mockResolvedValue(undefined);
     mockMeta.createEvent.mockResolvedValue(eventRow());
+    mockMeta.eventById.mockResolvedValue(eventRow());
 
     const res = await app.request("/api/admin/v1/meta/events", {
       method: "POST",
@@ -168,13 +177,27 @@ describe("POST /meta/events", () => {
       name: "Summoner Skirmish",
       eventDate: "2026-08-01",
       format: "constructed",
-      playerCount: 64,
-      organizer: "LGS Berlin",
+      playerCount: null,
+      organizer: null,
       notes: null,
       tier: "store",
       country: null,
       location: null,
     });
+    // The data the admin typed is a claim, not a column write, so releasing it
+    // later hands the field back instead of stranding the value on the row.
+    expect(writeEventOverlayFields).toHaveBeenCalledWith(
+      expect.anything(),
+      EVENT_ID,
+      [
+        { field: "name", value: "Summoner Skirmish" },
+        { field: "eventDate", value: "2026-08-01" },
+        { field: "format", value: "constructed" },
+        { field: "playerCount", value: "64" },
+        { field: "organizer", value: "LGS Berlin" },
+      ],
+      USER_ID,
+    );
     const json = await readJson(res);
     expect(json.sourceUrl).toBeUndefined();
   });

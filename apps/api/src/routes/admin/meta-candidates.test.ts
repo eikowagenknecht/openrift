@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { playerSourceKey } from "../../services/ingest-meta-overlays.js";
 import type * as MetaPromote from "../../services/meta-promote.js";
 import { promoteMetaEvent } from "../../services/meta-promote.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
@@ -284,7 +285,7 @@ describe("GET /meta/overlays", () => {
 
   it("splits a pushed standings row's key back into the ids a dismiss needs", async () => {
     mockOverlays.pendingPlayerOverlays.mockResolvedValue([
-      playerOverlay({ provider: "somepush", sourcePlayerKey: "evt-9\u0000p1" }),
+      playerOverlay({ provider: "somepush", sourcePlayerKey: playerSourceKey("evt-9", "p1") }),
     ]);
 
     const body = await readJson(await app.request("/api/admin/v1/meta/overlays"));
@@ -381,7 +382,7 @@ describe("GET /meta/overlays/{id}", () => {
     mockOverlays.playerOverlayById.mockResolvedValue(
       playerOverlay({
         provider: "somepush",
-        sourcePlayerKey: "evt-9\u0000p1",
+        sourcePlayerKey: playerSourceKey("evt-9", "p1"),
         metaEventId: null,
         metaEventPlayerId: LIVE_PLAYER_ID,
         cards: [],

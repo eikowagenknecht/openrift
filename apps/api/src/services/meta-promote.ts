@@ -373,32 +373,27 @@ export async function promoteMetaEvent(
 async function promoteEventRow(
   repos: Repos,
   metaEventId: string,
-  live: {
-    name: string;
-    eventDate: string;
-    format: string;
-    playerCount: number | null;
-    organizer: string | null;
-    notes: string | null;
-    tier: MetaEventTier;
-    country: string | null;
-    location: string | null;
-  },
+  /** Only the columns the row cannot hold as NULL, which are the only fallback. */
+  live: { name: string; eventDate: string; format: string; tier: MetaEventTier },
   collected: readonly SourceFacts[],
 ): Promise<void> {
-  // The live row is the base, so an event with no usable source facts — hand
-  // entered, or its mirror gone — keeps every field it has. Later sources win
-  // whole, which is what `priority` orders.
+  // Only the four columns the live row cannot hold as NULL fall back to it,
+  // because they have no empty value to start from. Every other field starts
+  // unset, so one that no source describes and no overlay claims ends up empty
+  // rather than keeping whatever the last promote wrote. That is what makes
+  // releasing a claim give the value up: a hand-entered value is re-supplied
+  // by the creating admin's own overlay, not by the row it was written to.
+  // Later sources win whole, which is what `priority` orders.
   let facts: MetaPromotedEventFacts = {
     name: live.name,
     eventDate: live.eventDate,
     format: live.format,
-    playerCount: live.playerCount,
-    organizer: live.organizer,
-    notes: live.notes,
+    playerCount: null,
+    organizer: null,
+    notes: null,
     tier: live.tier,
-    country: live.country,
-    location: live.location,
+    country: null,
+    location: null,
   };
   for (const source of collected) {
     facts = { ...facts, ...source.event };

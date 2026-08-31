@@ -241,21 +241,29 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
   });
 
   describe("PATCH /admin/meta/events/{id}", () => {
-    it("applies a partial update", async () => {
+    it("renames the slug and leaves every data field alone", async () => {
       const eventId = await createEvent("mtr-patch");
       const res = await app.fetch(
-        adminReq("PATCH", `/meta/events/${eventId}`, { name: "MTR Renamed", notes: null }),
+        adminReq("PATCH", `/meta/events/${eventId}`, { slug: "mtr-patch-renamed" }),
       );
       expect(res.status).toBe(204);
 
       const row = await db
         .selectFrom("metaEvents")
-        .select(["name", "notes", "organizer"])
+        .select(["slug", "name", "organizer"])
         .where("id", "=", eventId)
         .executeTakeFirstOrThrow();
-      expect(row.name).toBe("MTR Renamed");
-      expect(row.notes).toBeNull();
+      expect(row.slug).toBe("mtr-patch-renamed");
+      expect(row.name).toBe("MTR mtr-patch");
       expect(row.organizer).toBe("MTR Organizer");
+    });
+
+    it("refuses a body carrying only a data field, which an overlay owns instead", async () => {
+      const eventId = await createEvent("mtr-patch-data");
+      const res = await app.fetch(
+        adminReq("PATCH", `/meta/events/${eventId}`, { name: "MTR Renamed" }),
+      );
+      expect(res.status).toBe(400);
     });
 
     it("rejects a rename onto another event's slug", async () => {
@@ -277,7 +285,7 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
 
     it("404s for an unknown event", async () => {
       const res = await app.fetch(
-        adminReq("PATCH", `/meta/events/${crypto.randomUUID()}`, { name: "MTR Ghost" }),
+        adminReq("PATCH", `/meta/events/${crypto.randomUUID()}`, { slug: "mtr-ghost" }),
       );
       expect(res.status).toBe(404);
     });
@@ -505,157 +513,7 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
     });
   });
 
-  describe("PATCH / DELETE /admin/meta/players/{id}", () => {
-    it("updates the placement and replaces the cards", async () => {
-      const eventId = await createEvent("mtr-player-patch");
-      const { playerId, deckId } = await createPlayer(eventId);
-
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${playerId}`, {
-          playerName: "MTR Updated",
-          rank: 8,
-          rankIsTier: true,
-          wins: 6,
-          losses: 2,
-          list: listBody({ cards: [{ cardId: mainCardId, zone: "main", quantity: 1 }] }),
-        }),
-      );
-      expect(res.status).toBe(204);
-
-      const row = await db
-        .selectFrom("metaEventPlayers")
-        .select(["playerName", "rank", "rankIsTier", "wins", "losses", "deckId"])
-        .where("id", "=", playerId)
-        .executeTakeFirstOrThrow();
-      expect(row.playerName).toBe("MTR Updated");
-      expect(row.rank).toBe(8);
-      expect(row.rankIsTier).toBe(true);
-      expect([row.wins, row.losses]).toEqual([6, 2]);
-      // Replacing the list keeps the deck it already had.
-      expect(row.deckId).toBe(deckId);
-
-      const cards = await db
-        .selectFrom("deckCards")
-        .select("cardId")
-        .where("deckId", "=", deckId)
-        .execute();
-      expect(cards).toEqual([{ cardId: mainCardId }]);
-    });
-
-    it("leaves the list alone when the body doesn't name it", async () => {
-      const eventId = await createEvent("mtr-list-untouched");
-      const { playerId, shareToken } = await createPlayer(eventId);
-
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${playerId}`, { playerName: "MTR Renamed" }),
-      );
-      expect(res.status).toBe(204);
-
-      const [player] = await adminPlayers(eventId);
-      expect(player.playerName).toBe("MTR Renamed");
-      expect(player.listStatus).toBe("full");
-      expect(player.shareToken).toBe(shareToken);
-    });
-
-    it("mints the permalink when the real list finally arrives", async () => {
-      const eventId = await createEvent("mtr-fill-in");
-      const { playerId, shareToken } = await createPlayer(eventId, { list: null });
-      expect(shareToken).toBeNull();
-
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${playerId}`, { list: listBody() }),
-      );
-      expect(res.status).toBe(204);
-
-      const [player] = await adminPlayers(eventId);
-      expect(player.listStatus).toBe("full");
-      expect(player.deckId).not.toBeNull();
-      expect(player.shareToken).not.toBeNull();
-      createdDeckIds.push(player.deckId);
-    });
-
-    it("mints the permalink for a partial list too", async () => {
-      const eventId = await createEvent("mtr-fill-partial");
-      const { playerId } = await createPlayer(eventId, { list: null });
-
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${playerId}`, {
-          list: listBody({ listStatus: "partial" }),
-        }),
-      );
-      expect(res.status).toBe(204);
-
-      const [player] = await adminPlayers(eventId);
-      expect(player.listStatus).toBe("partial");
-      expect(player.shareToken).not.toBeNull();
-      createdDeckIds.push(player.deckId);
-    });
-
-    it("keeps the permalink stable across a second list", async () => {
-      const eventId = await createEvent("mtr-fill-twice");
-      const { playerId, shareToken } = await createPlayer(eventId);
-
-      // A corrected list must not rotate the token — links already published
-      // to the archived deck have to keep working.
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${playerId}`, {
-          list: listBody({ name: "MTR Corrected" }),
-        }),
-      );
-      expect(res.status).toBe(204);
-
-      const [player] = await adminPlayers(eventId);
-      expect(player.deckName).toBe("MTR Corrected");
-      expect(player.shareToken).toBe(shareToken);
-    });
-
-    it("detaches and deletes the list, leaving the standings row", async () => {
-      const eventId = await createEvent("mtr-detach-list");
-      const { playerId, deckId } = await createPlayer(eventId);
-
-      const res = await app.fetch(adminReq("PATCH", `/meta/players/${playerId}`, { list: null }));
-      expect(res.status).toBe(204);
-
-      const decks = await db.selectFrom("decks").select("id").where("id", "=", deckId).execute();
-      expect(decks).toHaveLength(0);
-
-      const [player] = await adminPlayers(eventId);
-      expect(player.id).toBe(playerId);
-      expect(player.listStatus).toBe("none");
-      expect(player.deckId).toBeNull();
-      expect(player.shareToken).toBeNull();
-    });
-
-    it("moves a standings row to another event", async () => {
-      const from = await createEvent("mtr-move-from");
-      const to = await createEvent("mtr-move-to");
-      const { playerId } = await createPlayer(from, { playerName: "MTR Mover" });
-
-      const res = await app.fetch(adminReq("PATCH", `/meta/players/${playerId}`, { eventId: to }));
-      expect(res.status).toBe(204);
-
-      expect(await adminPlayers(from)).toEqual([]);
-      const [moved] = await adminPlayers(to);
-      expect(moved.id).toBe(playerId);
-    });
-
-    it("404s a move onto an event that doesn't exist", async () => {
-      const eventId = await createEvent("mtr-move-nowhere");
-      const { playerId } = await createPlayer(eventId);
-
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${playerId}`, { eventId: crypto.randomUUID() }),
-      );
-      expect(res.status).toBe(404);
-    });
-
-    it("404s an unknown standings row", async () => {
-      const res = await app.fetch(
-        adminReq("PATCH", `/meta/players/${crypto.randomUUID()}`, { playerName: "MTR Ghost" }),
-      );
-      expect(res.status).toBe(404);
-    });
-
+  describe("DELETE /admin/meta/players/{id}", () => {
     it("deletes a standings row and the deck behind it", async () => {
       const eventId = await createEvent("mtr-player-delete");
       const { playerId, deckId } = await createPlayer(eventId);
@@ -865,6 +723,8 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
         name: "MTR mtr-public-deck",
         eventDate: "2026-08-01",
         format: FORMAT,
+        tier: "store",
+        country: null,
       },
       listStatus: "full",
       playerName: "MTR Detail",

@@ -79,20 +79,37 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
   const repo = metaRepo(db);
 
   /** A live event carrying every field a re-promote could otherwise blank. */
+  /**
+   * A hand-entered event, built the way the admin create route builds one: the
+   * row carries identity and the columns it cannot hold empty, and everything
+   * the human typed is claimed by their accepted overlay.
+   */
   async function seedLiveEvent(slug: string): Promise<string> {
     const event = await repo.createEvent({
       slug,
       name: "MPI Summoner Skirmish",
       eventDate: "2026-08-15",
       format: "constructed",
+      playerCount: null,
+      organizer: null,
+      notes: null,
+      tier: "competitive",
+      country: null,
+      location: null,
+    });
+    createdEventIds.push(event.id);
+    await repos.metaOverlays.insertEventOverlay({
+      metaEventId: event.id,
       playerCount: 41,
       organizer: "MPI Card Bazaar",
       notes: "Hand entered from the organizer's post.",
-      tier: "competitive",
       country: "DE",
       location: "Berlin",
+      claimedFields: ["playerCount", "organizer", "notes", "country", "location"],
+      status: "accepted",
+      acceptedAt: new Date(),
+      submittedByUserId: META_ARCHIVE_USER_ID,
     });
-    createdEventIds.push(event.id);
     return event.id;
   }
 
@@ -142,8 +159,8 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       await promoteMetaEvent(repos, metaEventId);
 
-      // The re-promote used to rebuild the row from nothing, blanking the
-      // columns only a human had ever filled in.
+      // Promotion rebuilds the row from nothing when no source describes it, so
+      // what a human filled in survives only because their overlay claims it.
       expect(await repo.eventById(metaEventId)).toMatchObject({
         name: "MPI Summoner Skirmish",
         playerCount: 41,

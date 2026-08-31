@@ -220,6 +220,7 @@ import * as m271 from "./271-meta-submission-kinds.js";
 import * as m272 from "./272-meta-two-tier.js";
 import * as m273 from "./273-meta-two-tier-repairs.js";
 import * as m274 from "./274-player-overlay-printings.js";
+import * as m275 from "./275-meta-hand-entered-overlays.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -499,4 +500,5 @@ export const migrations: Record<string, Migration> = {
   "272-meta-two-tier": m272,
   "273-meta-two-tier-repairs": m273,
   "274-player-overlay-printings": m274,
+  "275-meta-hand-entered-overlays": m275,
 };

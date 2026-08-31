@@ -29,7 +29,7 @@ export interface UvsDeepFetchResponses {
 }
 
 /** One row of `uvsgames_event_standings`, minus the event key the caller adds. */
-export interface UvsStandingProjection {
+interface UvsStandingProjection {
   registrationId: string;
   uvsgamesPlayerId: number | null;
   playerName: string | null;
