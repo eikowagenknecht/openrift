@@ -30,6 +30,16 @@ const ALL_KEYS = Object.values(KEYS);
 /** The store this file invents, well clear of the source's own id space. */
 const DETAIL_SHOP_ID = 990_101;
 
+// The bulk-write blocks, each sized past postgres's 65534 bind parameters for
+// the write under test: events bind 21 columns a row (so 3120 rows is the
+// ceiling), shops bind 8 (8191), and an id list binds one.
+const BULK_EVENTS_FROM = 1_990_000;
+const BULK_EVENTS_COUNT = 4000;
+const BULK_SHOPS_FROM = 2_000_000;
+const BULK_SHOPS_COUNT = 8200;
+const ABSENT_KEYS_FROM = 3_000_000;
+const OVER_PARAMETER_LIMIT = 70_000;
+
 const SEEN = new Date("2026-08-20T12:00:00Z");
 
 const createdEventIds: string[] = [];
@@ -117,7 +127,17 @@ afterAll(async () => {
     .where("activityShopId", "in", ALL_KEYS)
     .execute();
   await ctx.db.deleteFrom("playloltcgEvents").where("activityShopId", "in", ALL_KEYS).execute();
+  await ctx.db
+    .deleteFrom("playloltcgEvents")
+    .where("activityShopId", ">=", BULK_EVENTS_FROM)
+    .where("activityShopId", "<", BULK_EVENTS_FROM + BULK_EVENTS_COUNT)
+    .execute();
   await ctx.db.deleteFrom("playloltcgShops").where("id", "=", DETAIL_SHOP_ID).execute();
+  await ctx.db
+    .deleteFrom("playloltcgShops")
+    .where("id", ">=", BULK_SHOPS_FROM)
+    .where("id", "<", BULK_SHOPS_FROM + BULK_SHOPS_COUNT)
+    .execute();
   await ctx.db
     .deleteFrom("ignoredMetaSourceEvents")
     .where("provider", "=", PLAYLOLTCG_PROVIDER)
@@ -288,6 +308,70 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
 
     const counts = await repo().triageCounts();
     expect(counts.new + counts.accepted + counts.dismissed).toBeGreaterThan(0);
+  });
+
+  describe("writes wider than one statement can bind", () => {
+    it("upserts a crawl page too wide for a single statement", async () => {
+      const page = Array.from({ length: BULK_EVENTS_COUNT }, (_entry, index) =>
+        row({
+          activityShopId: BULK_EVENTS_FROM + index,
+          name: "批量赛事",
+          contentHash: `h-bulk-${index}`,
+        }),
+      );
+
+      const first = await repo().upsertBatch(page, SEEN);
+      expect(first.inserted).toHaveLength(BULK_EVENTS_COUNT);
+      expect(first.changed).toEqual([]);
+      expect(first.unchanged).toEqual([]);
+
+      const later = new Date(SEEN.getTime() + 60_000);
+      const again = await repo().upsertBatch(page, later);
+      expect(again.unchanged).toHaveLength(BULK_EVENTS_COUNT);
+      expect(again.inserted).toEqual([]);
+
+      // The re-seen path is a second wide write: every unchanged key is bound
+      // into one `last_seen_at` update.
+      const last = await repo().byKey(BULK_EVENTS_FROM + BULK_EVENTS_COUNT - 1);
+      expect(last?.lastSeenAt.getTime()).toBe(later.getTime());
+    });
+
+    it("upserts a store directory too wide for a single statement", async () => {
+      const directory = Array.from({ length: BULK_SHOPS_COUNT }, (_entry, index) => ({
+        id: BULK_SHOPS_FROM + index,
+        name: `店 ${index}`,
+        province: "广东省",
+        city: "深圳市",
+        area: "福田区",
+        address: "华强北世纪汇商场6层",
+        longitude: 114.083809,
+        latitude: 22.541325,
+      }));
+
+      const written = await repo().upsertShops(directory);
+      expect(written).toBe(BULK_SHOPS_COUNT);
+
+      const stored = await ctx!.db
+        .selectFrom("playloltcgShops")
+        .select("name")
+        .where("id", "=", BULK_SHOPS_FROM + BULK_SHOPS_COUNT - 1)
+        .executeTakeFirst();
+      expect(stored?.name).toBe(`店 ${BULK_SHOPS_COUNT - 1}`);
+    });
+
+    it("looks up more keys than one id list can bind", async () => {
+      const keys = [
+        KEYS.fresh,
+        ...Array.from(
+          { length: OVER_PARAMETER_LIMIT },
+          (_entry, index) => ABSENT_KEYS_FROM + index,
+        ),
+      ];
+
+      const unaccepted = await repo().unacceptedByKeys(keys);
+
+      expect(unaccepted.map((entry) => entry.activityShopId)).toContain(KEYS.fresh);
+    });
   });
 
   it("counts finished events and fetched ones as separate figures", async () => {

@@ -77,6 +77,19 @@ export interface PlayloltcgListFilters {
 
 type SqlBool = boolean;
 
+// A crawl page carries up to MAX_PAGE_SIZE (10_000) rows and the event upsert
+// binds 21 columns each, which is 210k parameters against postgres.js's ~65k
+// limit. 1000 keeps the widest write here at 21k.
+const BATCH_SIZE = 1000;
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
+
 export function playloltcgEventsRepo(db: Kysely<Database>) {
   /**
    * Joined once and reused by the reads, so they can never disagree about what
@@ -143,21 +156,23 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       if (shops.length === 0) {
         return 0;
       }
-      await db
-        .insertInto("playloltcgShops")
-        .values(shops.map((shop) => ({ ...shop, name: shop.name.slice(0, 200) })))
-        .onConflict((oc) =>
-          oc.column("id").doUpdateSet((eb) => ({
-            name: eb.ref("excluded.name"),
-            province: eb.ref("excluded.province"),
-            city: eb.ref("excluded.city"),
-            area: eb.ref("excluded.area"),
-            address: eb.ref("excluded.address"),
-            longitude: eb.ref("excluded.longitude"),
-            latitude: eb.ref("excluded.latitude"),
-          })),
-        )
-        .execute();
+      for (const batch of chunk(shops, BATCH_SIZE)) {
+        await db
+          .insertInto("playloltcgShops")
+          .values(batch.map((shop) => ({ ...shop, name: shop.name.slice(0, 200) })))
+          .onConflict((oc) =>
+            oc.column("id").doUpdateSet((eb) => ({
+              name: eb.ref("excluded.name"),
+              province: eb.ref("excluded.province"),
+              city: eb.ref("excluded.city"),
+              area: eb.ref("excluded.area"),
+              address: eb.ref("excluded.address"),
+              longitude: eb.ref("excluded.longitude"),
+              latitude: eb.ref("excluded.latitude"),
+            })),
+          )
+          .execute();
+      }
       return shops.length;
     },
 
@@ -173,54 +188,57 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       if (rows.length === 0) {
         return { inserted: [], changed: [], unchanged: [] };
       }
-      const written = await db
-        .insertInto("playloltcgEvents")
-        .values(rows.map((row) => ({ ...row, lastSeenAt: seenAt, missingSince: null })))
-        .onConflict((oc) =>
-          oc
-            .columns(["activityShopId"])
-            .doUpdateSet((eb) => ({
-              shopName: eb.ref("excluded.shopName"),
-              name: eb.ref("excluded.name"),
-              activityType: eb.ref("excluded.activityType"),
-              activityTypeName: eb.ref("excluded.activityTypeName"),
-              battleMode: eb.ref("excluded.battleMode"),
-              status: eb.ref("excluded.status"),
-              startAt: eb.ref("excluded.startAt"),
-              endAt: eb.ref("excluded.endAt"),
-              playerCount: eb.ref("excluded.playerCount"),
-              maxUser: eb.ref("excluded.maxUser"),
-              fee: eb.ref("excluded.fee"),
-              province: eb.ref("excluded.province"),
-              city: eb.ref("excluded.city"),
-              area: eb.ref("excluded.area"),
-              address: eb.ref("excluded.address"),
-              longitude: eb.ref("excluded.longitude"),
-              latitude: eb.ref("excluded.latitude"),
-              contentHash: eb.ref("excluded.contentHash"),
-              lastSeenAt: eb.ref("excluded.lastSeenAt"),
-              missingSince: eb.ref("excluded.missingSince"),
-            }))
-            .where(
-              sql<SqlBool>`playloltcg_events.content_hash is distinct from excluded.content_hash
-                or playloltcg_events.missing_since is not null`,
-            ),
-        )
-        .returning(["activityShopId", sql<boolean>`(xmax = 0)`.as("inserted")])
-        .execute();
-
       const inserted: number[] = [];
       const changed: number[] = [];
-      for (const row of written) {
-        (row.inserted ? inserted : changed).push(row.activityShopId);
+      for (const batch of chunk(rows, BATCH_SIZE)) {
+        const written = await db
+          .insertInto("playloltcgEvents")
+          .values(batch.map((row) => ({ ...row, lastSeenAt: seenAt, missingSince: null })))
+          .onConflict((oc) =>
+            oc
+              .columns(["activityShopId"])
+              .doUpdateSet((eb) => ({
+                shopName: eb.ref("excluded.shopName"),
+                name: eb.ref("excluded.name"),
+                activityType: eb.ref("excluded.activityType"),
+                activityTypeName: eb.ref("excluded.activityTypeName"),
+                battleMode: eb.ref("excluded.battleMode"),
+                status: eb.ref("excluded.status"),
+                startAt: eb.ref("excluded.startAt"),
+                endAt: eb.ref("excluded.endAt"),
+                playerCount: eb.ref("excluded.playerCount"),
+                maxUser: eb.ref("excluded.maxUser"),
+                fee: eb.ref("excluded.fee"),
+                province: eb.ref("excluded.province"),
+                city: eb.ref("excluded.city"),
+                area: eb.ref("excluded.area"),
+                address: eb.ref("excluded.address"),
+                longitude: eb.ref("excluded.longitude"),
+                latitude: eb.ref("excluded.latitude"),
+                contentHash: eb.ref("excluded.contentHash"),
+                lastSeenAt: eb.ref("excluded.lastSeenAt"),
+                missingSince: eb.ref("excluded.missingSince"),
+              }))
+              .where(
+                sql<SqlBool>`playloltcg_events.content_hash is distinct from excluded.content_hash
+                or playloltcg_events.missing_since is not null`,
+              ),
+          )
+          .returning(["activityShopId", sql<boolean>`(xmax = 0)`.as("inserted")])
+          .execute();
+
+        for (const row of written) {
+          (row.inserted ? inserted : changed).push(row.activityShopId);
+        }
       }
+
       const touched = new Set([...inserted, ...changed]);
       const unchanged = rows.map((row) => row.activityShopId).filter((id) => !touched.has(id));
-      if (unchanged.length > 0) {
+      for (const batch of chunk(unchanged, BATCH_SIZE)) {
         await db
           .updateTable("playloltcgEvents")
           .set({ lastSeenAt: seenAt })
-          .where("activityShopId", "in", unchanged)
+          .where("activityShopId", "in", batch)
           .execute();
       }
       return { inserted, changed, unchanged };
@@ -339,13 +357,13 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
 
     /** The keys a crawl touched that are neither accepted nor dismissed. */
     async unacceptedByKeys(activityShopIds: readonly number[]): Promise<PlayloltcgListRow[]> {
-      if (activityShopIds.length === 0) {
-        return [];
+      const rows: PlayloltcgListRow[] = [];
+      for (const batch of chunk(activityShopIds, BATCH_SIZE)) {
+        rows.push(
+          ...(await listSelect().where("c.activityShopId", "in", batch).where(isNew).execute()),
+        );
       }
-      return await listSelect()
-        .where("c.activityShopId", "in", activityShopIds)
-        .where(isNew)
-        .execute();
+      return rows;
     },
 
     /**
