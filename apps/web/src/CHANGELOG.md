@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-31
+
+### Highlights
+
+- feat(Meta): **Tournament results archive** — a new Meta section collects Riftbound events with their winners, full standings and the top-cut bracket where one was played, scoped by era, format, tier or country.
+- feat(Meta): **Archived decks you can fork** — every published decklist opens as a real deck, shows how many of its cards you already own, and copies into your own decks in one click.
+- feat(Meta): **Contributions and credit** — send in a missing decklist, complete a partial one, or suggest a correction, and get named on the event page if you want to be.
+
+### Other
+
+- feat(Meta): **Every legend's tournament record** — a page per legend listing its archived finishes, the players behind them, and the lists they registered.
+
 ## 2026-08-30
 
 ### Highlights

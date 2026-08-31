@@ -1,4 +1,5 @@
 import type { MetaLegendDetailResponse } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
@@ -9,7 +10,7 @@ import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { metaLegendSearchSchema } from "@/lib/meta-legends-search";
-import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
+import { breadcrumbJsonLd, seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 
@@ -37,11 +38,23 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
     }
     const { legend, finishes } = data;
     const description = `${legend.name} in the Riftbound meta archive: ${finishes.length} archived ${finishes.length === 1 ? "finish" : "finishes"}, the players behind them, and the decklists they registered.`;
+    const ogImage = toAbsoluteUrl(
+      siteUrl,
+      legend.imageId === null ? undefined : imageUrl(legend.imageId, "full"),
+    );
     return {
-      ...seoHead({ siteUrl, title: legend.name, description, path }),
+      ...seoHead({
+        siteUrl,
+        // The card's own page answers the bare legend name; this page is that
+        // legend's tournament record, so the title says which of the two it is.
+        title: `${legend.name} in the Meta Archive`,
+        description,
+        path,
+        ogImage,
+      }),
       scripts: [
         breadcrumbJsonLd(siteUrl, [
-          { name: "Meta", path: "/meta" },
+          { name: "Meta Archive", path: "/meta" },
           { name: "Legends", path: "/meta/legends" },
           { name: legend.name, path },
         ]),

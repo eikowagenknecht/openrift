@@ -1,3 +1,4 @@
+import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { META_ARCHIVE_USER_ID } from "../../repositories/meta.js";
@@ -221,13 +222,10 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
       expect(res.status).toBe(409);
     });
 
-    it.each(["decks", "events", "stats", "new", "admin"])(
-      "rejects the reserved slug %s",
-      async (slug) => {
-        const res = await app.fetch(adminReq("POST", "/meta/events", eventBody(slug)));
-        expect(res.status).toBe(400);
-      },
-    );
+    it.each(RESERVED_META_EVENT_SLUGS)("rejects the reserved slug %s", async (slug) => {
+      const res = await app.fetch(adminReq("POST", "/meta/events", eventBody(slug)));
+      expect(res.status).toBe(400);
+    });
 
     it("rejects a slug that isn't URL-safe", async () => {
       const res = await app.fetch(adminReq("POST", "/meta/events", eventBody("MTR Spaces")));

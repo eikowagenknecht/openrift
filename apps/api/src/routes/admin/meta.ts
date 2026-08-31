@@ -92,8 +92,8 @@ async function toDeckInput(
 /**
  * A list's own legend and champion zones, which win over the standings row's
  * fields whenever a list is given. The archive reads the legend off the
- * standings row, so a pasted decklist has to sync it there or the play-rate
- * stat would file the entry under whatever the form happened to hold.
+ * standings row, so a pasted decklist has to sync it there or the entry would
+ * be filed under whatever the form happened to hold.
  */
 function zoneCardIds(deck: MetaArchivedDeckInput | null): {
   legendCardId: string | null;

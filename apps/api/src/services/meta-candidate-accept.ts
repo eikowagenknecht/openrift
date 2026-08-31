@@ -102,8 +102,8 @@ export interface MetaAcceptOptions {
 export interface MetaPlayerAcceptOptions extends MetaAcceptOptions {
   /**
    * Files a standings-only entry whose legend name matched nothing. Deliberate
-   * admin action, because the alternative is a silent hole in the play-rate
-   * stats. Never covers an entry with a list: an unresolved card name is a
+   * admin action, because the alternative is dropping the row from the
+   * standings. Never covers an entry with a list: an unresolved card name is a
    * missing alias, and the fix is `resolveName`.
    */
   allowUnresolvedLegend?: boolean;
@@ -402,9 +402,9 @@ export async function acceptMetaEventField(
  *
  * The two gates answer different questions. An entry with a list needs every
  * card name resolved, because `deck_cards` needs real card ids. An entry
- * without one needs its legend, because a legend-less row sits in the play-rate
- * stats filed under nothing — but that one is only a warning the admin can wave
- * through, since the archive still knows who played and how they finished.
+ * without one needs its legend, because a legend-less row names no deck at all,
+ * but that one is only a warning the admin can wave through, since the archive
+ * still knows who played and how they finished.
  */
 function playerBlockedReason(
   metaEventId: string | null,

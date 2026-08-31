@@ -334,7 +334,7 @@ export function useIgnoreMetaCandidateEvent() {
 /**
  * Accepting one candidate standings row. `allowUnresolvedLegend` files an entry
  * whose legend name matched nothing: the archive still knows who played and how
- * they finished, and the alternative is a silent hole in the play-rate stats.
+ * they finished, and the alternative is dropping the standings row entirely.
  */
 export interface AcceptMetaPlayerInput {
   id: string;

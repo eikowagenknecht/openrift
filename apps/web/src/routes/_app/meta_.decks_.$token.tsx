@@ -21,13 +21,13 @@ export const Route = createFileRoute("/_app/meta_/decks_/$token")({
       return seoHead({ siteUrl, title: "Archived deck", path, unlisted: true });
     }
     const finish = formatRank(data.meta.rank, data.meta.rankIsTier);
-    const title = `${data.deck.name} — ${finish} at ${data.meta.event.name}`;
+    const title = `${data.deck.name}, ${finish} at ${data.meta.event.name}`;
     const description = `${data.meta.playerName} piloted this ${data.deck.format} deck to ${finish} at ${data.meta.event.name} (${data.meta.event.eventDate}).`;
     return {
       ...seoHead({ siteUrl, title, description, path }),
       scripts: [
         breadcrumbJsonLd(siteUrl, [
-          { name: "Meta", path: "/meta" },
+          { name: "Meta Archive", path: "/meta" },
           { name: data.meta.event.name, path: `/meta/${data.meta.event.slug}` },
           { name: data.deck.name, path },
         ]),

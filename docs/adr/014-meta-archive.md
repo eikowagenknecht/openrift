@@ -11,14 +11,14 @@ date: 2026-08-29
 > - **The standings pyramid** replaces the decks-only data model. The official source exposes the full player list with records for every event, the legend each player piloted for nearly every ran event, and full decklists only for the few events whose organizer publishes them. `meta_event_players` (one row per player) replaces `meta_decks` (one row per known deck), and a deck becomes an optional attachment to a player row. The `archetype` list status dissolves into "player row with a legend and no deck".
 > - **Admin catalogue triage with auto-accept rules.** The admin browses the full catalogue and accepts events into the archive; accept triggers the deep fetch. Rule-gated auto-accept puts big official events live without a click, a scoped exception to "curated, never unreviewed".
 > - **Structured results.** Exact ranks with a tier flag replace `finish_tier`, and win/loss/draw columns replace the free-text record.
-> - **Pairings.** Every completed round's match list is fetched and stored as per-match facts: `candidate_meta_matches` staging, `meta_event_matches` live, keyed to the player rows. The event page gains a round-by-round results view; aggregate matchup statistics stay unbuilt.
+> - **Pairings.** Every completed round's match list is fetched and stored as per-match facts: `candidate_meta_matches` staging, `meta_event_matches` live, keyed to the player rows. The event page gains a top-cut bracket over them.
 > - **A second crawled source.** The official Chinese app (playloltcg) is mirrored and fetched the same way uvsgames is, on its own tables and its own crons, feeding the one candidate pipeline.
 
 ## Context and Problem Statement
 
 Players researching the Riftbound meta currently hop over to riftdecks.com, which carries tournament results and their decklists. The lists there work, but they are decoupled from anything OpenRift knows about you: cards do not link to the catalog, there is no "do I own this?" overlay against your collection, and there is no way to fork a list into your own decks.
 
-OpenRift has a complete decks subsystem (`decks` rows, `deck_cards`, formats, legend/champion zones, share tokens, deck codes, the deck builder) built around per-user ownership. We want a publicly browsable, admin-curated archive of competitive decklists with meta statistics, integrated with the catalog and collection.
+OpenRift has a complete decks subsystem (`decks` rows, `deck_cards`, formats, legend/champion zones, share tokens, deck codes, the deck builder) built around per-user ownership. We want a publicly browsable, admin-curated archive of competitive tournament results and their decklists, integrated with the catalog and collection.
 
 The original decisions were how to model archived decks (separate world vs. reuse `decks`), where event metadata lives, and how several sources describing one tournament land on one event page.
 
@@ -83,7 +83,7 @@ The synthetic user is never rendered. Public surfaces show a player/event byline
 Events have their own page, slug, and permalink. Fields:
 
 - `id uuid`: primary key, uuidv7.
-- `slug text`: URL-safe, `[a-z0-9][a-z0-9-]{2,49}`, unique, mutable with no redirect (same policy as ADR-013 friend groups). Reserved-slug list: `decks`, `events`, `stats`, `new`, `admin`. Auto-accepted events get a generated slug from name + date; the admin can rename it.
+- `slug text`: URL-safe, `[a-z0-9][a-z0-9-]{2,49}`, unique, mutable with no redirect (same policy as ADR-013 friend groups). Reserved-slug list: every name `/meta` spends on a static child, held in `RESERVED_META_EVENT_SLUGS` in the admin contract and shared by the ingest slug generator and the admin form. Auto-accepted events get a generated slug from name + date; the admin can rename it.
 - `name text`: display name, 1–120 chars.
 - `event_date date`: single date. Multi-day events store the start.
 - `format text`: same vocabulary as `decks.format` so filters compose. The fetcher maps the source's format vocabulary; an event whose format doesn't map is never auto-accepted and waits in the queue.
@@ -194,7 +194,7 @@ Staged matches reference `uvsgames_players` directly. Participants are ordered d
 
 The live table `meta_event_matches` hangs off `meta_event_players`, not the source layer, so a hypothetical second pairings source would land the same way standings do. Materialization runs after the player accept: a staged match goes live only when every participant has a live player row (resolved through the candidate players' uvs ids), and the live id is stamped back as `meta_event_match_id`. Unstamped rows are the retry queue; a later ladder visit materializes them without refetching once their players are accepted. Deleting a live player cascades away its live matches while the staged rows survive unstamped, so re-accepting the player restores the matches from staging.
 
-Pairings will be published as per-match facts only, through a round-by-round results view on the event page. That view is the next step on top of the stored matches, not part of this rebuild. Win rates, matchup matrices, and conversion aggregates computed from them are not built; see Will Not Be Built.
+Pairings are published as per-match facts: the event page's top-cut bracket reads the stored matches directly. Events whose top cut was not played keep their matches archived with nothing rendering them.
 
 ### Multi-source events
 
@@ -284,24 +284,31 @@ ALTER TABLE users ADD COLUMN meta_credit_visibility text NOT NULL DEFAULT 'hidde
 
 Rows are always written; the public read joins `users` and drops anyone still on `hidden`. `riot_id` chosen but unset falls back to `name`; `name` unset omits that contributor. The event page prints "Contributed by A, B and 2 others" under the source citations; a deck page prints its own contributor. Plain text, no profile links.
 
-### Meta counts (MVP scope)
+### What the archive publishes
 
-Two counts, live-queried until pressure shows up, filtered by format and date range: **tournament entries archived** (`meta_event_players` rows in scope) and **how many of those carry a decklist** (`list_status` in `partial`, `full`). Both say how much of the field the archive holds. Neither is an aggregate over the results, which is what the policy entry under Will Not Be Built rules out.
+Every public row and number is a fact one tournament published, or a count of what the archive holds: standings (rank, player, record, legend), per-match pairings, decklists, event metadata, and source citations.
+
+The archive counts are live-queried until pressure shows up, scoped by format and date range: **tournament entries archived** (`meta_event_players` rows in scope) and **how many of those carry a decklist** (`list_status` in `partial`, `full`). Both caption the archive's own lists. A legend page counts that legend's archived finishes and decklists the same way, to caption its record.
 
 ### Surfaces
 
 Routes, all SSR public:
 
-- **`/meta`**: the overview page. The two scope counts in a sentence, plus the event list sorted by `event_date desc`. Format and date-range filters drive both.
-- **`/meta/$slug`**: single event page. Metadata header, source citations, contributor line, the decks with known lists ordered by rank, then the full standings table (rank, player, record, legend). A round-by-round results view over the stored matches is the planned next step; the pairings are archived ahead of it.
-- **`/meta/decks`**: cross-event deck browser using the decks-list filter pattern. Filters: format, date range, event multi-select, finish (winner / top 4 / top 8 / top 16 / any), legend.
-- **`/meta/decks/$token`**: single archived deck, reusing the public deck-share surface with the archive's byline (rank, player, record, event link, date) and the fork CTA.
+- **`/meta`**: the archive's front page. The archive counts, the latest winners, the most recent events, the newest decklists, a search box, and the contribute band.
+- **`/meta/events`**: the tournament index. One row per event: date, name, venue, tier, country, format, players, decklist count, and the winner inline.
+- **`/meta/$slug`**: single event page. Metadata header, source citations, contributor line, the podium, the decks with known lists ordered by rank, the full standings table (rank, player, record, legend), and the top-cut bracket with each round's match results.
+- **`/meta/decks`**: cross-event deck browser using the decks-list filter pattern. Filters: format, date range, event, finish (winner / top 4 / top 8 / top 16 / any), legend, tier, country. Opens on the best finish per legend per event, with the full list one click away, and overlays a signed-in reader's collection.
+- **`/meta/decks/$token`**: single archived deck, reusing the public deck-share surface with the archive's byline (rank, player, record, event link, date), the ownership line, and the fork and deck-code actions.
+- **`/meta/legends`**: alphabetical index of every legend the archive holds a result for, with the number of lists on file.
+- **`/meta/legends/$slug`**: one legend's record: its archived finishes, the players behind them, and the lists they registered.
 - **`/meta/$slug/submit`**: signed-in decklist submission against an existing event; proposing a new event is the same form with the event fields shown.
 - **`/settings`**: the credit visibility control, with a preview of the printed line.
 - **`/meta/submissions`**: the submitter's own ledger.
 - **`/admin/meta`**: event list with create/edit, the Candidates review tab, and two additions: a **Catalogue** tab (the triage list above, with the auto-accept rule toggles and the manual full-resync action) and a **Sync** panel showing recent `meta.*` job runs and any stalled state.
 
-The byline for an archived deck everywhere is player + rank + event, never an account owner. Navigation: a "Meta" entry in the main header.
+A scope bar (era, format, tier, country) is shared by every archive page and encoded in the URL. Every name `/meta` spends on a static child is a reserved event slug, so no event can be shadowed by one.
+
+The byline for an archived deck everywhere is player + rank + event, never an account owner. Navigation: a "Meta" entry in the main header, shown only while the flag is on.
 
 ### Candidate ingest
 
@@ -612,8 +619,8 @@ Superseded: `meta_deck_sources` (migration 256, the per-deck source keys). Its j
 - **Version history of source data.** The candidate row keeps the current source version and the live row keeps the curation; that diff is the comparison that matters. No snapshot-per-fetch archive.
 - **Raw catalogue storage.** The catalogue mirror stores the slim projection only; full listing rows for a quarter-million events would cost an order of magnitude more for no read path.
 - **Legacy/v1 source endpoints.** The fetcher uses v2 endpoints exclusively; they expose no emails or real names, and that boundary is load-bearing, not incidental.
-- **Player profiles.** The source's player identity is stored (`uvsgames_players`), but no public surface aggregates across events: no player pages, no claim flow, no leaderboards (which Riot's Riftbound policy explicitly prohibits publishing), no surfacing that a player has an OpenRift account. Contributor credit names whoever entered the data, never who played the deck.
-- **Matchup statistics.** Pairings are stored, and will be published, as per-match facts. Win rates, matchup matrices, and conversion aggregates computed from them are among the statistics Riot's Riftbound policy prohibits publishing.
+- **Player profiles.** The source's player identity is stored (`uvsgames_players`), but no public surface aggregates across events: no player pages, no claim flow, no leaderboards, no surfacing that a player has an OpenRift account. Contributor credit names whoever entered the data, never who played the deck.
+- **Aggregate statistics.** The archive does not build aggregate statistics; it publishes the results themselves.
 - **Trade execution from an archived deck.** Collection integration only.
 
 ## Deferred / Out of Scope
@@ -624,7 +631,7 @@ Superseded: `meta_deck_sources` (migration 256, the per-deck source keys). Its j
 - **Snapshot freezing, forked-from metadata, slug history/redirects.**
 - **Deck-level source citation.**
 - **Contributor totals and a contributors page.**
-- **Trend lines, win-rate analysis, deck-similarity clustering, materialised stat views.**
+- **Deck-similarity clustering.**
 - **Notifications** ("new event", "new deck for your legend").
 - **Region grouping beyond the stored country code, multi-format events, prize/registration metadata.**
 
@@ -663,7 +670,8 @@ Schema-level invariants exercised by integration tests:
 
 Read-path behaviour exercised by vitest tests:
 
-- `/meta`, `/meta/$slug`, `/meta/decks`, and `/meta/decks/$token` all render for an unauthenticated request.
+- `/meta`, `/meta/events`, `/meta/$slug`, `/meta/decks`, `/meta/decks/$token`, `/meta/legends`, and `/meta/legends/$slug` all render for an unauthenticated request.
+- No archive surface renders a percentage, a rate, or a share.
 - The event page renders the full standings table including deckless players, lists every citation row, and names each contributor once.
 - A contributor on `hidden` is absent from the public payload; switching to `name` or `riot_id` reveals every past contribution.
 - "My decks" excludes `meta-archive`-owned decks.

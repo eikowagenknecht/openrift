@@ -70,6 +70,13 @@ describe("metaEventSlugCandidates", () => {
     expect(slugs[0]).toBe("decks-2");
   });
 
+  it("reserves every name a static /meta child owns", () => {
+    for (const name of ["Legends", "Submit", "Submissions"]) {
+      const slugs = metaEventSlugCandidates(name, "no-year-here");
+      expect(slugs).not.toContain(name.toLowerCase());
+    }
+  });
+
   it("keeps every variant inside the column's grammar", () => {
     for (const slug of metaEventSlugCandidates(`${"a".repeat(80)} open`, "2026-08-01")) {
       expect(slug).toMatch(SLUG_PATTERN);

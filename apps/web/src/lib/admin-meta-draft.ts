@@ -4,6 +4,7 @@ import type {
   MetaEventTier,
   MetaListStatus,
 } from "@openrift/shared";
+import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 
@@ -11,9 +12,6 @@ import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 // Every field is held as a string while it is being edited, so the bounds below
 // mirror the ones `packages/shared/src/contracts/admin/meta.ts` enforces — the
 // point is to name the problem in the form instead of surfacing a 400.
-
-/** Slugs the public `/meta` route space spends on its own pages. */
-const RESERVED_META_EVENT_SLUGS = ["decks", "events", "stats", "new", "admin"];
 
 const EVENT_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{2,49}$/u;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;

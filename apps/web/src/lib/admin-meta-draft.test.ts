@@ -69,7 +69,7 @@ describe("validateMetaEventDraft", () => {
   });
 
   it("rejects each reserved slug", () => {
-    for (const slug of ["decks", "events", "stats", "admin"]) {
+    for (const slug of ["decks", "events", "legends", "stats", "submissions", "submit", "admin"]) {
       expect(validateMetaEventDraft(eventDraft({ slug }))).toMatch(/reserved/iu);
     }
   });

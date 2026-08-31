@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_app/meta_/$slug")({
       ...seoHead({ siteUrl, title: event.name, description, path }),
       scripts: [
         breadcrumbJsonLd(siteUrl, [
-          { name: "Meta", path: "/meta" },
+          { name: "Meta Archive", path: "/meta" },
           { name: event.name, path },
         ]),
       ],

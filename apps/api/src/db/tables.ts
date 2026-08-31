@@ -1227,7 +1227,7 @@ export interface MetaEventPlayersTable {
   entryStatus: MetaEntryStatus | null;
   /**
    * FK → cards.id ON DELETE SET NULL. Held here even when a deck exists, so
-   * the play-rate stat reads one column whether or not the list was published.
+   * every surface reads one column whether or not the list was published.
    */
   legendCardId: string | null;
   /** FK → cards.id ON DELETE SET NULL */

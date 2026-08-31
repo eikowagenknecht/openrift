@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/meta")({
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),
-      title: "Riftbound Meta",
+      title: "Riftbound Meta Archive",
       description: META_DESCRIPTION,
       path: "/meta",
     }),

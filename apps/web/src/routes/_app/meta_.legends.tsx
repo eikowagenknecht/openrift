@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/meta_/legends")({
       }),
       scripts: [
         breadcrumbJsonLd(siteUrl, [
-          { name: "Meta", path: "/meta" },
+          { name: "Meta Archive", path: "/meta" },
           { name: "Legends", path: "/meta/legends" },
         ]),
       ],

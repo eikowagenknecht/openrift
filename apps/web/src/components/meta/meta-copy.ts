@@ -12,7 +12,7 @@
 
 /** The /meta page's description, for search results and social cards. */
 export const META_DESCRIPTION =
-  "Decklists from Riftbound tournaments, with the cards and legends they were built on. Every list links into the catalog and shows what you already own.";
+  "Riftbound tournament results: who won each event, the full standings, and the decklists they played. Every list links into the catalog and shows what you already own.";
 
 /** Shared by the /meta/decks description, the JSON-LD, and the visible page intro. */
 export const META_DECKS_DESCRIPTION =

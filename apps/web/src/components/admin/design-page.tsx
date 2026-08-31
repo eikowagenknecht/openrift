@@ -2616,7 +2616,7 @@ function LayoutSection() {
               Tab content renders here.
             </TabsContent>
             <TabsContent value="stats" className="text-muted-foreground text-sm">
-              Win rates, energy curve, domains.
+              Energy curve, domains, formats.
             </TabsContent>
           </Tabs>
         </Demo>

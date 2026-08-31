@@ -3,11 +3,11 @@
  * deck's display name when the source shipped none.
  *
  * Both are pure and both are deliberately conservative — the slug grammar is a
- * CHECK constraint on `meta_events.slug`, and the reserved list is enforced at
- * the contract boundary for hand-entered events, so a candidate that produced
- * an illegal slug would fail at the insert with nothing useful to show the
- * reviewer.
+ * CHECK constraint on `meta_events.slug`, and the reserved list is the contract's
+ * own, so a candidate that produced an illegal slug would fail at the insert
+ * with nothing useful to show the reviewer.
  */
+import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
 import { slugifyName } from "@openrift/shared/utils";
 
 /**
@@ -20,12 +20,7 @@ const MAX_SLUG_LENGTH = 50;
 /** Used when a name slugifies to nothing usable ("???", a purely CJK title). */
 const SLUG_FALLBACK_STEM = "event";
 
-/**
- * Slugs the `/meta` route space spends on its own pages, mirroring
- * `RESERVED_EVENT_SLUGS` in the admin contract. An accepted candidate must not
- * claim one either.
- */
-const RESERVED_SLUGS = new Set(["decks", "events", "stats", "new", "admin"]);
+const RESERVED_SLUGS = new Set(RESERVED_META_EVENT_SLUGS);
 
 /** How many `-2`, `-3`, … variants {@link metaEventSlugCandidates} offers. */
 const MAX_SLUG_VARIANTS = 50;

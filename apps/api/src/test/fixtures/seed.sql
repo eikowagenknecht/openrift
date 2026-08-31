@@ -737,7 +737,7 @@ INSERT INTO printing_images (id, printing_id, image_file_id, face, is_active) VA
 
 -- Card bans
 INSERT INTO card_bans (id, card_id, format_id, banned_at, unbanned_at, reason) VALUES
-  ('019713f0-0000-7000-8000-000000000003', '019cfc3b-038a-7acd-8d1e-ff0cd42a7878', 'freeform', '2025-06-01', NULL, 'Dominated the meta with a 65% win rate in competitive play');
+  ('019713f0-0000-7000-8000-000000000003', '019cfc3b-038a-7acd-8d1e-ff0cd42a7878', 'freeform', '2025-06-01', NULL, 'Overwhelmingly dominant in competitive play');
 
 
 -- Marketplace

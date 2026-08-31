@@ -432,7 +432,7 @@ if (bannedCard) {
     format_id: banFormatId,
     banned_at: "2025-06-01",
     unbanned_at: null,
-    reason: "Dominated the meta with a 65% win rate in competitive play",
+    reason: "Overwhelmingly dominant in competitive play",
   });
 }
 

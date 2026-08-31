@@ -82,7 +82,9 @@ const STATIC_PAGES: StaticPage[] = [
   // should carry the final canonical URL (same rationale as the rules kinds).
   { path: "/promos/EN", priority: "0.6", changefreq: "weekly" },
   { path: "/meta", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
+  { path: "/meta/events", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
   { path: "/meta/decks", priority: "0.5", changefreq: "weekly", featureFlag: "meta" },
+  { path: "/meta/legends", priority: "0.5", changefreq: "weekly", featureFlag: "meta" },
   { path: "/rules", priority: "0.5", changefreq: "monthly" },
   { path: "/help", priority: "0.4", changefreq: "monthly" },
   { path: "/roadmap", priority: "0.3", changefreq: "monthly" },

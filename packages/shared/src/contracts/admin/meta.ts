@@ -21,17 +21,26 @@ const BASE = "/api/admin/v1/meta";
 
 /**
  * Slugs the `/meta` route space already spends on its own pages. An event
- * claiming one would shadow `/meta/decks`, `/meta/stats`, and friends, so they
- * are rejected at the contract boundary rather than left to produce a
- * confusing 404 later.
+ * claiming one would be shadowed by the static route and never reachable, so
+ * they are rejected at the contract boundary rather than left to produce a
+ * confusing 404 later. Add a name here whenever `/meta` gains a static child.
  */
-const RESERVED_EVENT_SLUGS = ["decks", "events", "stats", "new", "admin"];
+export const RESERVED_META_EVENT_SLUGS = [
+  "admin",
+  "decks",
+  "events",
+  "legends",
+  "new",
+  "stats",
+  "submissions",
+  "submit",
+];
 
 const eventSlugSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{2,49}$/u, "Slug must be 3-50 lowercase letters, digits, or hyphens")
-  .refine((slug) => !RESERVED_EVENT_SLUGS.includes(slug), {
-    message: `Reserved slug. Pick another: ${RESERVED_EVENT_SLUGS.join(", ")} are taken`,
+  .refine((slug) => !RESERVED_META_EVENT_SLUGS.includes(slug), {
+    message: `Reserved slug. Pick another: ${RESERVED_META_EVENT_SLUGS.join(", ")} are taken`,
   });
 
 const countrySchema = z
@@ -701,7 +710,7 @@ const acceptMetaEventSchema = z.object({
 /**
  * A standings-only entry whose legend name matched nothing can still be filed —
  * the archive knows who played and how they finished — but only when the admin
- * says so, because the alternative is a silent hole in the play-rate stats.
+ * says so, because the alternative is dropping the row from the standings.
  * An entry with a *list* is never covered by this: an unresolved card name is a
  * missing alias, and the fix is `resolveName`.
  */

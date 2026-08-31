@@ -247,7 +247,7 @@ async function tryAcceptPlayer(
   try {
     // A legend the matcher does not know still leaves a real standings row —
     // who played and how they finished — which is the whole point of the
-    // pyramid. The gap shows up in the play-rate stats, not as a missing player.
+    // pyramid. The gap shows up as a legend-less row, not as a missing player.
     await acceptCandidatePlayer(deps.repos, candidatePlayerId, {
       allowUnresolvedLegend: true,
       // The deep fetch materializes matches once after the whole field.
