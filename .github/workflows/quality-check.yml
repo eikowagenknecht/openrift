@@ -73,6 +73,12 @@ jobs:
       - name: Check override pins
         run: bun run check:override-pins
 
+      # The web image ships .output alone, so a dependency the bundle neither
+      # inlines nor traces into it builds fine and 500s every SSR request at
+      # runtime. Booting the built server is the only thing that catches it.
+      - name: Check SSR bundle boots
+        run: bun run check:ssr-bundle
+
   test:
     if: ${{ !contains(github.event.head_commit.message, 'chore(release):') }}
 

@@ -10,6 +10,7 @@
     "build": "turbo run build",
     "check:asset-types": "bun scripts/check-asset-types.ts",
     "check:override-pins": "bun scripts/check-override-pins.ts",
+    "check:ssr-bundle": "bun scripts/check-ssr-bundle.ts",
     "typecheck": "turbo run typecheck",
     "dev": "DEV_HTTPS=1 bun scripts/dev.ts",
     "dev:http": "bun scripts/dev.ts",

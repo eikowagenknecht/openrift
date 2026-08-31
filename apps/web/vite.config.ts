@@ -201,7 +201,12 @@ export default defineConfig(({ mode, command }) => {
           // calling `require("@opentelemetry/context-async-hooks")` against a
           // directory without it and every request 500d at module load.
           // Bundling the scope removes the runtime lookup entirely.
-          noExternal: [/^@opentelemetry\//u],
+          //
+          // Build only. These packages are CommonJS, and dev's SSR module
+          // runner evaluates an inlined module as ESM, so leaving them
+          // noExternal in dev throws "exports is not defined" on the first
+          // render. Dev serves from real node_modules, where external works.
+          noExternal: command === "build" ? [/^@opentelemetry\//u] : [],
         },
       },
     },
