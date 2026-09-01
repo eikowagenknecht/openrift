@@ -2,6 +2,7 @@ import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, PlayloltcgEventsTable } from "../db/index.js";
+import { keyBatches, rowBatches } from "../lib/bind-batches.js";
 import { PLAYLOLTCG_PROVIDER, PLAYLOLTCG_STATUS_FINISHED } from "../lib/playloltcg-catalog.js";
 
 type PlayloltcgEventRow = Selectable<PlayloltcgEventsTable>;
@@ -95,19 +96,6 @@ export interface PlayloltcgListOrder {
 }
 
 type SqlBool = boolean;
-
-// A crawl page carries up to MAX_PAGE_SIZE (10_000) rows and the event upsert
-// binds 21 columns each, which is 210k parameters against postgres.js's ~65k
-// limit. 1000 keeps the widest write here at 21k.
-const BATCH_SIZE = 1000;
-
-function chunk<T>(items: readonly T[], size: number): T[][] {
-  const batches: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    batches.push(items.slice(i, i + size));
-  }
-  return batches;
-}
 
 const CATALOG_ORDER_COLUMNS = {
   startAt: sql`c.start_at`,
@@ -211,10 +199,12 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       if (shops.length === 0) {
         return 0;
       }
-      for (const batch of chunk(shops, BATCH_SIZE)) {
+      for (const batch of rowBatches(
+        shops.map((shop) => ({ ...shop, name: shop.name.slice(0, 200) })),
+      )) {
         await db
           .insertInto("playloltcgShops")
-          .values(batch.map((shop) => ({ ...shop, name: shop.name.slice(0, 200) })))
+          .values(batch)
           .onConflict((oc) =>
             oc.column("id").doUpdateSet((eb) => ({
               name: eb.ref("excluded.name"),
@@ -245,10 +235,12 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       }
       const inserted: number[] = [];
       const changed: number[] = [];
-      for (const batch of chunk(rows, BATCH_SIZE)) {
+      for (const batch of rowBatches(
+        rows.map((row) => ({ ...row, lastSeenAt: seenAt, missingSince: null })),
+      )) {
         const written = await db
           .insertInto("playloltcgEvents")
-          .values(batch.map((row) => ({ ...row, lastSeenAt: seenAt, missingSince: null })))
+          .values(batch)
           .onConflict((oc) =>
             oc
               .columns(["activityShopId"])
@@ -289,7 +281,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
 
       const touched = new Set([...inserted, ...changed]);
       const unchanged = rows.map((row) => row.activityShopId).filter((id) => !touched.has(id));
-      for (const batch of chunk(unchanged, BATCH_SIZE)) {
+      for (const batch of keyBatches(unchanged)) {
         await db
           .updateTable("playloltcgEvents")
           .set({ lastSeenAt: seenAt })
@@ -428,7 +420,7 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
     /** The keys a crawl touched that are neither accepted nor dismissed. */
     async unacceptedByKeys(activityShopIds: readonly number[]): Promise<PlayloltcgListRow[]> {
       const rows: PlayloltcgListRow[] = [];
-      for (const batch of chunk(activityShopIds, BATCH_SIZE)) {
+      for (const batch of keyBatches(activityShopIds)) {
         rows.push(
           ...(await listSelect().where("c.activityShopId", "in", batch).where(isNew).execute()),
         );

@@ -1948,4 +1948,36 @@ describe.skipIf(!ctx)("promotion", () => {
 
     await db.deleteFrom("metaEventOverlays").where("id", "=", pending).execute();
   });
+
+  // Last in this block: it leaves thousands of pairings on the event, which
+  // every test above reads.
+  it("writes a round-by-round history wider than one statement can bind", async () => {
+    const players = await repo.rawStandingsForEvent(metaEventId);
+    const [first, second] = players;
+    // 13 bound columns a row, against postgres's 65534: a 1000-player Swiss
+    // reaches this, and used to take the whole recheck job down with it.
+    const rows = Array.from({ length: 6000 }, (_entry, index) => ({
+      metaEventId,
+      sourceMatchId: `m-wide-${index}`,
+      sourceRoundId: "903",
+      phaseOrder: 0,
+      roundNumber: 3,
+      tableNumber: index + 1,
+      isBye: false,
+      isDraw: false,
+      player1Id: first.id,
+      player2Id: second.id,
+      winnerId: first.id,
+      gamesWonP1: 2,
+      gamesWonP2: 1,
+    }));
+
+    const written = await repo.upsertEventMatches(rows);
+    expect(written).toHaveLength(rows.length);
+
+    // The conflict target still holds across batch boundaries, so a replayed
+    // materialization refreshes rather than duplicating.
+    const again = await repo.upsertEventMatches(rows);
+    expect(again.map((row) => row.id).toSorted()).toEqual(written.map((row) => row.id).toSorted());
+  });
 });

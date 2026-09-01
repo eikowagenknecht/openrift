@@ -5,7 +5,7 @@ import type { Repos, Transact } from "../../deps.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { deepFetchEvent } from "./deep-fetch.js";
 import type { MetaSyncDeps } from "./deps.js";
-import { processRechecks, RECHECK_BATCH_SIZE } from "./recheck.js";
+import { isRecheckNoop, processRechecks, RECHECK_BATCH_SIZE } from "./recheck.js";
 import type { UvsClient } from "./uvsgames-client.js";
 
 vi.mock("./deep-fetch.js", () => ({
@@ -327,6 +327,46 @@ describe("processRechecks", () => {
     const result = await processRechecks(deps, RECHECK_BATCH_SIZE, "run-1");
 
     expect(result).toMatchObject({ processed: 2, cancelRequested: false });
+  });
+
+  it("keeps the pass alive when one event's fetch throws, and takes it out of the queue", async () => {
+    vi.mocked(deepFetchEvent).mockRejectedValueOnce(
+      new Error("MAX_PARAMETERS_EXCEEDED: Max number of parameters (65534) exceeded"),
+    );
+    const { deps, writes } = fakeDeps({
+      due: [dueRow({ displayStatus: "complete", checkStage: 2 }), dueRow({ externalId: "4822" })],
+      detail: (externalId) =>
+        externalId === "4821"
+          ? detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" })
+          : detailRow({ id: 4822 }),
+      mirroredStandings: [],
+    });
+
+    const result = await processRechecks(deps);
+
+    expect(result.errors[0]).toContain("MAX_PARAMETERS_EXCEEDED");
+    // The failed event is rescheduled rather than left due, and the pass went
+    // on to the row queued behind it.
+    expect(writes).toEqual([
+      { externalId: "4821", nextCheckAt: new Date(NOW.getTime() + HOUR_MS), checkStage: 2 },
+      { externalId: "4822", nextCheckAt: new Date("2026-08-25T09:00:00Z"), checkStage: 0 },
+    ]);
+    expect(result.processed).toBe(1);
+  });
+
+  it("counts a pass that only collected failures as work, not as a no-op run", async () => {
+    vi.mocked(deepFetchEvent).mockRejectedValueOnce(new Error("promotion failed"));
+    const { deps } = fakeDeps({
+      due: [dueRow({ displayStatus: "complete", checkStage: 2 })],
+      detail: () =>
+        detailRow({ display_status: "complete", start_datetime: "2026-08-19T09:00:00Z" }),
+      mirroredStandings: [],
+    });
+
+    const result = await processRechecks(deps);
+
+    expect(result.processed).toBe(0);
+    expect(isRecheckNoop(result)).toBe(false);
   });
 
   it("writes no progress without a run id", async () => {

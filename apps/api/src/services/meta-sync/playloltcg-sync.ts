@@ -9,6 +9,7 @@ import type {
   PlayloltcgUpsertInput,
 } from "../../repositories/playloltcg-events.js";
 import { runCancelRequested, writeRunHeartbeat } from "./crawl-checkpoint.js";
+import { errorText } from "./deps.js";
 import { autoAcceptPlayloltcgEvents } from "./playloltcg-accept.js";
 import { MAX_PAGE_SIZE, PlayloltcgBlockedError } from "./playloltcg-client.js";
 import type { PlayloltcgDeepFetchResult, PlayloltcgDetailFacts } from "./playloltcg-deep-fetch.js";
@@ -82,7 +83,7 @@ export interface PlayloltcgRecheckResult {
 }
 
 export function isPlayloltcgRecheckNoop(result: PlayloltcgRecheckResult): boolean {
-  return result.processed === 0 && !result.blocked;
+  return result.processed === 0 && !result.blocked && result.errors.length === 0;
 }
 
 function day(date: Date): string {
@@ -299,51 +300,7 @@ export async function processPlayloltcgRechecks(
 
   try {
     for (const row of due) {
-      const detailErrors: string[] = [];
-      const detail = await readPlayloltcgDetail(deps, row.activityShopId, detailErrors);
-      record(result.errors, detailErrors);
-      if (detail === null) {
-        await grace(deps, row.activityShopId, now, row.checkStage);
-        continue;
-      }
-      if (detail.shopId !== null) {
-        await deps.repos.playloltcgEvents.linkShopFromDetail(row.activityShopId, {
-          id: detail.shopId,
-          name: detail.shopName ?? row.shopName ?? String(detail.shopId),
-        });
-      }
-      const coverage = await deps.repos.playloltcgResults.deckCoverage(row.activityShopId);
-      // The same ladder as uvsgames, through the shared decision. The source's
-      // `isPublishResult` is its "complete", since results are final once it is
-      // set, and it publishes standings and decks in one act, so the decklists
-      // are published exactly when the results are.
-      const decision = nextRecheck({
-        now,
-        checkStage: row.checkStage,
-        displayStatus: displayStatusOf(detail, row.status),
-        startAt: startInstant(row.startAt, now),
-        decklistStatus: detail.isPublishResult ? DECKLIST_PUBLISHED : null,
-        fetched: row.fetchedAt !== null,
-        decksComplete: coverage.outstanding.length === 0,
-        playersPending: false,
-        watched: false,
-      });
-      if (decision.deepFetch) {
-        const fetched = await playloltcgDeepFetch(deps, row, detail);
-        result.fetched++;
-        result.players += fetched.players;
-        result.acceptedPlayers += fetched.acceptedPlayers;
-        record(result.errors, fetched.errors);
-        if (!fetched.complete) {
-          await grace(deps, row.activityShopId, now, row.checkStage);
-          continue;
-        }
-      }
-      await deps.repos.playloltcgEvents.setRecheck(row.activityShopId, {
-        nextCheckAt: decision.nextCheckAt,
-        checkStage: decision.checkStage,
-      });
-      result.processed++;
+      await visitContained(deps, row, now, result);
     }
   } catch (error) {
     if (error instanceof PlayloltcgBlockedError) {
@@ -355,6 +312,84 @@ export async function processPlayloltcgRechecks(
   }
   result.requests = deps.client.requests;
   return result;
+}
+
+/**
+ * One event's failure is that event's alone. An unhandled throw used to end the
+ * pass before the visit set the next check, so the row stayed due, sorted first
+ * into the next pass, and failed there too while the events behind it went
+ * unvisited. A block still ends the pass: the source is telling the whole crawl
+ * to stop.
+ */
+async function visitContained(
+  deps: PlayloltcgSyncDeps,
+  row: PlayloltcgListRow,
+  now: Date,
+  result: PlayloltcgRecheckResult,
+): Promise<void> {
+  try {
+    await visitPlayloltcgEvent(deps, row, now, result);
+  } catch (error) {
+    if (error instanceof PlayloltcgBlockedError) {
+      throw error;
+    }
+    deps.log.warn({ err: error, activityShopId: row.activityShopId }, "Recheck visit failed");
+    result.errors.push(errorText(error, `Event ${row.activityShopId}`));
+    await grace(deps, row.activityShopId, now, row.checkStage);
+  }
+}
+
+async function visitPlayloltcgEvent(
+  deps: PlayloltcgSyncDeps,
+  row: PlayloltcgListRow,
+  now: Date,
+  result: PlayloltcgRecheckResult,
+): Promise<void> {
+  const detailErrors: string[] = [];
+  const detail = await readPlayloltcgDetail(deps, row.activityShopId, detailErrors);
+  record(result.errors, detailErrors);
+  if (detail === null) {
+    await grace(deps, row.activityShopId, now, row.checkStage);
+    return;
+  }
+  if (detail.shopId !== null) {
+    await deps.repos.playloltcgEvents.linkShopFromDetail(row.activityShopId, {
+      id: detail.shopId,
+      name: detail.shopName ?? row.shopName ?? String(detail.shopId),
+    });
+  }
+  const coverage = await deps.repos.playloltcgResults.deckCoverage(row.activityShopId);
+  // The same ladder as uvsgames, through the shared decision. The source's
+  // `isPublishResult` is its "complete", since results are final once it is
+  // set, and it publishes standings and decks in one act, so the decklists
+  // are published exactly when the results are.
+  const decision = nextRecheck({
+    now,
+    checkStage: row.checkStage,
+    displayStatus: displayStatusOf(detail, row.status),
+    startAt: startInstant(row.startAt, now),
+    decklistStatus: detail.isPublishResult ? DECKLIST_PUBLISHED : null,
+    fetched: row.fetchedAt !== null,
+    decksComplete: coverage.outstanding.length === 0,
+    playersPending: false,
+    watched: false,
+  });
+  if (decision.deepFetch) {
+    const fetched = await playloltcgDeepFetch(deps, row, detail);
+    result.fetched++;
+    result.players += fetched.players;
+    result.acceptedPlayers += fetched.acceptedPlayers;
+    record(result.errors, fetched.errors);
+    if (!fetched.complete) {
+      await grace(deps, row.activityShopId, now, row.checkStage);
+      return;
+    }
+  }
+  await deps.repos.playloltcgEvents.setRecheck(row.activityShopId, {
+    nextCheckAt: decision.nextCheckAt,
+    checkStage: decision.checkStage,
+  });
+  result.processed++;
 }
 
 /**

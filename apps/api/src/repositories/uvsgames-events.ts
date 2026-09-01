@@ -3,6 +3,7 @@ import type { Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type { Database, UvsgamesEventsTable } from "../db/index.js";
+import { keyBatches, rowBatches } from "../lib/bind-batches.js";
 import { normalizeFormatKey, UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
 
 /**
@@ -159,18 +160,6 @@ export interface UvsgamesTemplateInput {
 
 /** The one row `meta_sync_settings` is CHECKed down to. */
 const SETTINGS_ID = 1;
-
-// The auto-accept sweep looks up every key a whole backfill touched, one bind
-// parameter each, so the list outgrows postgres's 65534 ceiling on a long run.
-const BATCH_SIZE = 1000;
-
-function chunk<T>(items: readonly T[], size: number): T[][] {
-  const batches: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    batches.push(items.slice(i, i + size));
-  }
-  return batches;
-}
 
 const CATALOG_ORDER_COLUMNS = {
   startAt: sql`c.start_at`,
@@ -355,47 +344,56 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
             .map((row) => [row.storeId, { id: row.storeId, name: row.storeName }] as const),
         ).values(),
       ] as { id: number; name: string }[];
-      if (stores.length > 0) {
+      for (const batch of rowBatches(
+        stores.map((store) => ({ id: store.id, name: store.name.slice(0, 200) })),
+      )) {
         await db
           .insertInto("uvsgamesStores")
-          .values(stores.map((store) => ({ id: store.id, name: store.name.slice(0, 200) })))
+          .values(batch)
           .onConflict((oc) =>
             oc.column("id").doUpdateSet((eb) => ({ name: eb.ref("excluded.name") })),
           )
           .execute();
       }
 
-      const written = await db
-        .insertInto("uvsgamesEvents")
-        .values(rows.map((row) => ({ ...row, lastSeenAt: seenAt, missingSince: null })))
-        .onConflict((oc) =>
-          oc
-            .columns(["externalId"])
-            .doUpdateSet((eb) => ({
-              name: eb.ref("excluded.name"),
-              startAt: eb.ref("excluded.startAt"),
-              endAtEstimate: eb.ref("excluded.endAtEstimate"),
-              displayStatus: eb.ref("excluded.displayStatus"),
-              decklistStatus: eb.ref("excluded.decklistStatus"),
-              playerCount: eb.ref("excluded.playerCount"),
-              eventType: eb.ref("excluded.eventType"),
-              eventFormat: eb.ref("excluded.eventFormat"),
-              storeName: eb.ref("excluded.storeName"),
-              location: eb.ref("excluded.location"),
-              timezone: eb.ref("excluded.timezone"),
-              storeId: eb.ref("excluded.storeId"),
-              eventConfigurationTemplate: eb.ref("excluded.eventConfigurationTemplate"),
-              contentHash: eb.ref("excluded.contentHash"),
-              lastSeenAt: eb.ref("excluded.lastSeenAt"),
-              missingSince: eb.ref("excluded.missingSince"),
-            }))
-            .where(
-              sql<SqlBool>`uvsgames_events.content_hash is distinct from excluded.content_hash
-                or uvsgames_events.missing_since is not null`,
-            ),
-        )
-        .returning(["externalId", sql<boolean>`(xmax = 0)`.as("inserted")])
-        .execute();
+      const written: { externalId: string; inserted: boolean }[] = [];
+      for (const batch of rowBatches(
+        rows.map((row) => ({ ...row, lastSeenAt: seenAt, missingSince: null })),
+      )) {
+        written.push(
+          ...(await db
+            .insertInto("uvsgamesEvents")
+            .values(batch)
+            .onConflict((oc) =>
+              oc
+                .columns(["externalId"])
+                .doUpdateSet((eb) => ({
+                  name: eb.ref("excluded.name"),
+                  startAt: eb.ref("excluded.startAt"),
+                  endAtEstimate: eb.ref("excluded.endAtEstimate"),
+                  displayStatus: eb.ref("excluded.displayStatus"),
+                  decklistStatus: eb.ref("excluded.decklistStatus"),
+                  playerCount: eb.ref("excluded.playerCount"),
+                  eventType: eb.ref("excluded.eventType"),
+                  eventFormat: eb.ref("excluded.eventFormat"),
+                  storeName: eb.ref("excluded.storeName"),
+                  location: eb.ref("excluded.location"),
+                  timezone: eb.ref("excluded.timezone"),
+                  storeId: eb.ref("excluded.storeId"),
+                  eventConfigurationTemplate: eb.ref("excluded.eventConfigurationTemplate"),
+                  contentHash: eb.ref("excluded.contentHash"),
+                  lastSeenAt: eb.ref("excluded.lastSeenAt"),
+                  missingSince: eb.ref("excluded.missingSince"),
+                }))
+                .where(
+                  sql<SqlBool>`uvsgames_events.content_hash is distinct from excluded.content_hash
+                    or uvsgames_events.missing_since is not null`,
+                ),
+            )
+            .returning(["externalId", sql<boolean>`(xmax = 0)`.as("inserted")])
+            .execute()),
+        );
+      }
 
       const inserted: string[] = [];
       const changed: string[] = [];
@@ -407,11 +405,11 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       // they still have to record that the source repeated them.
       const touched = new Set([...inserted, ...changed]);
       const unchanged = rows.map((row) => row.externalId).filter((id) => !touched.has(id));
-      if (unchanged.length > 0) {
+      for (const batch of keyBatches(unchanged)) {
         await db
           .updateTable("uvsgamesEvents")
           .set({ lastSeenAt: seenAt })
-          .where("externalId", "in", unchanged)
+          .where("externalId", "in", batch)
           .execute();
       }
 
@@ -520,7 +518,7 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
     /** Rows whose triage state may have moved, for the auto-accept sweep. */
     async unacceptedByKeys(externalIds: string[]): Promise<UvsgamesListRow[]> {
       const rows: UvsgamesListRow[] = [];
-      for (const batch of chunk(externalIds, BATCH_SIZE)) {
+      for (const batch of keyBatches(externalIds)) {
         rows.push(
           ...(await triagedQuery()
             .selectAll("c")
@@ -686,18 +684,20 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       if (unique.length === 0) {
         return 0;
       }
-      await db
-        .insertInto("uvsgamesPlayers")
-        .values(
-          unique.map((player) => ({
-            id: player.id,
-            displayName: player.displayName.slice(0, 80),
-          })),
-        )
-        .onConflict((oc) =>
-          oc.column("id").doUpdateSet((eb) => ({ displayName: eb.ref("excluded.displayName") })),
-        )
-        .execute();
+      for (const batch of rowBatches(
+        unique.map((player) => ({
+          id: player.id,
+          displayName: player.displayName.slice(0, 80),
+        })),
+      )) {
+        await db
+          .insertInto("uvsgamesPlayers")
+          .values(batch)
+          .onConflict((oc) =>
+            oc.column("id").doUpdateSet((eb) => ({ displayName: eb.ref("excluded.displayName") })),
+          )
+          .execute();
+      }
       return unique.length;
     },
 
@@ -775,16 +775,20 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       if (templates.length === 0) {
         return 0;
       }
-      const result = await db
-        .insertInto("uvsgamesEventTemplates")
-        .values(templates.map((template) => ({ ...template })))
-        .onConflict((oc) =>
-          oc
-            .column("templateId")
-            .doUpdateSet((eb) => ({ sourceName: eb.ref("excluded.sourceName") })),
-        )
-        .executeTakeFirst();
-      return Number(result.numInsertedOrUpdatedRows ?? 0n);
+      let upserted = 0n;
+      for (const batch of rowBatches(templates.map((template) => ({ ...template })))) {
+        const result = await db
+          .insertInto("uvsgamesEventTemplates")
+          .values(batch)
+          .onConflict((oc) =>
+            oc
+              .column("templateId")
+              .doUpdateSet((eb) => ({ sourceName: eb.ref("excluded.sourceName") })),
+          )
+          .executeTakeFirst();
+        upserted += result.numInsertedOrUpdatedRows ?? 0n;
+      }
+      return Number(upserted);
     },
 
     /**

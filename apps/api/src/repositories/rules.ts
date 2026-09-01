@@ -3,6 +3,7 @@ import { compareRuleNumbers } from "@openrift/shared";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { rowBatches } from "../lib/bind-batches.js";
 
 export function rulesRepo(db: Kysely<Database>) {
   return {
@@ -149,8 +150,12 @@ export function rulesRepo(db: Kysely<Database>) {
       if (rules.length === 0) {
         return 0;
       }
-      const result = await db.insertInto("rules").values(rules).execute();
-      return result.reduce((sum, row) => sum + Number(row.numInsertedOrUpdatedRows ?? 0), 0);
+      let inserted = 0;
+      for (const batch of rowBatches(rules)) {
+        const result = await db.insertInto("rules").values(batch).execute();
+        inserted += result.reduce((sum, row) => sum + Number(row.numInsertedOrUpdatedRows ?? 0), 0);
+      }
+      return inserted;
     },
 
     getVersion(kind: RuleKind, version: string) {

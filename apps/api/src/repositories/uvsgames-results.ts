@@ -8,6 +8,7 @@ import type {
   UvsgamesEventPhasesTable,
   UvsgamesEventStandingsTable,
 } from "../db/index.js";
+import { rowBatches } from "../lib/bind-batches.js";
 
 /**
  * What a uvsgames deep fetch read, as the source published it (ADR-014
@@ -59,11 +60,8 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
           .deleteFrom("uvsgamesEventStandings")
           .where("externalId", "=", externalId)
           .execute();
-        if (rows.length > 0) {
-          await trx
-            .insertInto("uvsgamesEventStandings")
-            .values([...rows])
-            .execute();
+        for (const batch of rowBatches(rows)) {
+          await trx.insertInto("uvsgamesEventStandings").values(batch).execute();
         }
       });
     },
@@ -83,11 +81,8 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
     ): Promise<void> {
       await db.transaction().execute(async (trx) => {
         await trx.deleteFrom("uvsgamesEventPhases").where("externalId", "=", externalId).execute();
-        if (rows.length > 0) {
-          await trx
-            .insertInto("uvsgamesEventPhases")
-            .values([...rows])
-            .execute();
+        for (const batch of rowBatches(rows)) {
+          await trx.insertInto("uvsgamesEventPhases").values(batch).execute();
         }
       });
     },
@@ -129,11 +124,8 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
           .where("externalId", "=", externalId)
           .where("roundId", "=", roundId)
           .execute();
-        if (rows.length > 0) {
-          await trx
-            .insertInto("uvsgamesEventMatches")
-            .values([...rows])
-            .execute();
+        for (const batch of rowBatches(rows)) {
+          await trx.insertInto("uvsgamesEventMatches").values(batch).execute();
         }
       });
     },
@@ -205,11 +197,10 @@ export function uvsgamesResultsRepo(db: Kysely<Database>) {
           .deleteFrom("uvsgamesDecklistCards")
           .where("sourceDeckId", "=", row.sourceDeckId)
           .execute();
-        if (cards.length > 0) {
-          await trx
-            .insertInto("uvsgamesDecklistCards")
-            .values(cards.map((card) => ({ ...card, sourceDeckId: row.sourceDeckId })))
-            .execute();
+        for (const batch of rowBatches(
+          cards.map((card) => ({ ...card, sourceDeckId: row.sourceDeckId })),
+        )) {
+          await trx.insertInto("uvsgamesDecklistCards").values(batch).execute();
         }
       });
     },

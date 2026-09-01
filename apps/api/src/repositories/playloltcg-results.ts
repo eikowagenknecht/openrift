@@ -6,6 +6,7 @@ import type {
   PlayloltcgDecklistsTable,
   PlayloltcgEventStandingsTable,
 } from "../db/index.js";
+import { rowBatches } from "../lib/bind-batches.js";
 
 /**
  * What a playloltcg deep fetch read, as the source published it.
@@ -49,11 +50,8 @@ export function playloltcgResultsRepo(db: Kysely<Database>) {
           .deleteFrom("playloltcgEventStandings")
           .where("activityShopId", "=", activityShopId)
           .execute();
-        if (rows.length > 0) {
-          await trx
-            .insertInto("playloltcgEventStandings")
-            .values([...rows])
-            .execute();
+        for (const batch of rowBatches(rows)) {
+          await trx.insertInto("playloltcgEventStandings").values(batch).execute();
         }
       });
     },
@@ -123,11 +121,10 @@ export function playloltcgResultsRepo(db: Kysely<Database>) {
           .deleteFrom("playloltcgDecklistCards")
           .where("sourceDeckId", "=", row.sourceDeckId)
           .execute();
-        if (cards.length > 0) {
-          await trx
-            .insertInto("playloltcgDecklistCards")
-            .values(cards.map((card) => ({ ...card, sourceDeckId: row.sourceDeckId })))
-            .execute();
+        for (const batch of rowBatches(
+          cards.map((card) => ({ ...card, sourceDeckId: row.sourceDeckId })),
+        )) {
+          await trx.insertInto("playloltcgDecklistCards").values(batch).execute();
         }
       });
     },

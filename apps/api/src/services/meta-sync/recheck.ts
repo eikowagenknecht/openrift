@@ -35,8 +35,9 @@ export interface MetaRecheckResult {
   errors: string[];
 }
 
+/** A pass that visited nothing, and one that only collected failures, are not the same run. */
 export function isRecheckNoop(result: MetaRecheckResult): boolean {
-  return result.processed === 0;
+  return result.processed === 0 && result.errors.length === 0;
 }
 
 export async function processRechecks(
@@ -62,7 +63,7 @@ export async function processRechecks(
   };
 
   for (const row of due) {
-    await visit(deps, row, watched, result, runId);
+    await visitContained(deps, row, watched, result, runId);
     result.requests = deps.client.requests - before;
     if (runId !== undefined) {
       await heartbeat(deps, runId, result);
@@ -75,6 +76,29 @@ export async function processRechecks(
   }
 
   return result;
+}
+
+/**
+ * One event's failure is that event's alone. An unhandled throw used to end the
+ * pass before the visit reached its `setRecheck`, so the row stayed due, sorted
+ * first into the next pass ten minutes later, and failed there too while every
+ * event queued behind it went unvisited. The same hour's grace a failed read
+ * gets is what breaks that loop.
+ */
+async function visitContained(
+  deps: MetaSyncDeps,
+  row: UvsgamesListRow,
+  watched: ReadonlyMap<string, string | null>,
+  result: MetaRecheckResult,
+  runId?: string,
+): Promise<void> {
+  try {
+    await visit(deps, row, watched, result, runId);
+  } catch (error) {
+    deps.log.warn({ err: error, externalId: row.externalId }, "Recheck visit failed");
+    result.errors.push(errorText(error, `Event ${row.externalId}`));
+    await reschedule(deps, row, clock(deps), row.checkStage);
+  }
 }
 
 /**
@@ -121,7 +145,6 @@ async function visit(
     await reschedule(deps, row, now, row.checkStage);
     return;
   }
-  result.processed++;
 
   const decision = nextRecheck({
     now,
@@ -149,6 +172,9 @@ async function visit(
     nextCheckAt: decision.nextCheckAt,
     checkStage: decision.checkStage,
   });
+  // Counted where the visit ends, so a row that threw on the way is a failure
+  // in the run's errors rather than a number saying the pass handled it.
+  result.processed++;
 }
 
 interface RefreshedRow {

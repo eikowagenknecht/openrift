@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { keyBatches, rowBatches } from "../lib/bind-batches.js";
 
 interface IgnoredProductRow {
   level: "product";
@@ -160,11 +161,13 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       if (values.length === 0) {
         return;
       }
-      await db
-        .insertInto("marketplaceIgnoredProducts")
-        .values(values)
-        .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
-        .execute();
+      for (const batch of rowBatches(values)) {
+        await db
+          .insertInto("marketplaceIgnoredProducts")
+          .values(batch)
+          .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
+          .execute();
+      }
     },
 
     /**
@@ -202,25 +205,37 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         language: v.language,
       }));
 
-      await db
-        .insertInto("marketplaceProducts")
-        .values(productSeed)
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
-        )
-        .execute();
+      for (const batch of rowBatches(productSeed)) {
+        await db
+          .insertInto("marketplaceProducts")
+          .values(batch)
+          .onConflict((oc) =>
+            oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+          )
+          .execute();
+      }
 
-      const products = await db
-        .selectFrom("marketplaceProducts")
-        .select(["id", "marketplace", "externalId", "finish", "language"])
-        .where((eb) =>
-          eb.or(
-            values.map((v) =>
-              eb.and([eb("marketplace", "=", v.marketplace), eb("externalId", "=", v.externalId)]),
-            ),
-          ),
-        )
-        .execute();
+      // The re-select binds two parameters per input SKU, so it is batched on
+      // the same input the insert above is.
+      const products = [];
+      for (const batch of keyBatches(values)) {
+        products.push(
+          ...(await db
+            .selectFrom("marketplaceProducts")
+            .select(["id", "marketplace", "externalId", "finish", "language"])
+            .where((eb) =>
+              eb.or(
+                batch.map((v) =>
+                  eb.and([
+                    eb("marketplace", "=", v.marketplace),
+                    eb("externalId", "=", v.externalId),
+                  ]),
+                ),
+              ),
+            )
+            .execute()),
+        );
+      }
 
       const productIdByKey = new Map(products.map((p) => [skuKey(p), p.id]));
 
@@ -237,11 +252,13 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         };
       });
 
-      await db
-        .insertInto("marketplaceIgnoredVariants")
-        .values(rows)
-        .onConflict((oc) => oc.column("marketplaceProductId").doNothing())
-        .execute();
+      for (const batch of rowBatches(rows)) {
+        await db
+          .insertInto("marketplaceIgnoredVariants")
+          .values(batch)
+          .onConflict((oc) => oc.column("marketplaceProductId").doNothing())
+          .execute();
+      }
     },
 
     async deleteIgnoredProducts(marketplace: Marketplace, externalIds: number[]): Promise<number> {

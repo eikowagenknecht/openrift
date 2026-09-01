@@ -28,6 +28,7 @@ import type {
   MetaEventSourcesTable,
   MetaEventsTable,
 } from "../db/index.js";
+import { rowBatches } from "../lib/bind-batches.js";
 
 /**
  * The synthetic account that owns every archived deck. It has no `accounts`
@@ -857,32 +858,43 @@ export function metaRepo(db: Kysely<Database>) {
       if (rows.length === 0) {
         return [];
       }
-      return await db
-        .insertInto("metaEventMatches")
-        .values(rows)
-        .onConflict((oc) =>
-          // The source key, as a partial index, so the conflict target names
-          // its predicate. Every row this path writes carries a source id;
-          // the seat index covers only the rows that do not.
-          oc
-            .columns(["metaEventId", "sourceMatchId"])
-            .where("sourceMatchId", "is not", null)
-            .doUpdateSet((eb) => ({
-              phaseOrder: eb.ref("excluded.phaseOrder"),
-              roundNumber: eb.ref("excluded.roundNumber"),
-              sourceRoundId: eb.ref("excluded.sourceRoundId"),
-              tableNumber: eb.ref("excluded.tableNumber"),
-              isBye: eb.ref("excluded.isBye"),
-              isDraw: eb.ref("excluded.isDraw"),
-              player1Id: eb.ref("excluded.player1Id"),
-              player2Id: eb.ref("excluded.player2Id"),
-              winnerId: eb.ref("excluded.winnerId"),
-              gamesWonP1: eb.ref("excluded.gamesWonP1"),
-              gamesWonP2: eb.ref("excluded.gamesWonP2"),
-            })),
-        )
-        .returning(["id", "sourceMatchId"])
-        .execute();
+      // Every round of a whole event at once: a 1000-player Swiss binds past
+      // one statement's parameter ceiling, so this is batched, and wrapped so
+      // readers still see a whole materialization or none of it.
+      return await db.transaction().execute(async (trx) => {
+        const written: UpsertedMetaEventMatch[] = [];
+        for (const batch of rowBatches(rows)) {
+          written.push(
+            ...(await trx
+              .insertInto("metaEventMatches")
+              .values(batch)
+              .onConflict((oc) =>
+                // The source key, as a partial index, so the conflict target
+                // names its predicate. Every row this path writes carries a
+                // source id; the seat index covers only the rows that do not.
+                oc
+                  .columns(["metaEventId", "sourceMatchId"])
+                  .where("sourceMatchId", "is not", null)
+                  .doUpdateSet((eb) => ({
+                    phaseOrder: eb.ref("excluded.phaseOrder"),
+                    roundNumber: eb.ref("excluded.roundNumber"),
+                    sourceRoundId: eb.ref("excluded.sourceRoundId"),
+                    tableNumber: eb.ref("excluded.tableNumber"),
+                    isBye: eb.ref("excluded.isBye"),
+                    isDraw: eb.ref("excluded.isDraw"),
+                    player1Id: eb.ref("excluded.player1Id"),
+                    player2Id: eb.ref("excluded.player2Id"),
+                    winnerId: eb.ref("excluded.winnerId"),
+                    gamesWonP1: eb.ref("excluded.gamesWonP1"),
+                    gamesWonP2: eb.ref("excluded.gamesWonP2"),
+                  })),
+              )
+              .returning(["id", "sourceMatchId"])
+              .execute()),
+          );
+        }
+        return written;
+      });
     },
 
     /**

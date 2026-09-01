@@ -4,6 +4,7 @@ import { findTokenReferences } from "@openrift/shared/card-tokens";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { rowBatches } from "../lib/bind-batches.js";
 
 interface TokenTextSources {
   errata: { correctedRulesText: string | null; correctedEffectText: string | null } | undefined;
@@ -170,10 +171,10 @@ export function cardTokensRepo(db: Kysely<Database>) {
           tokenCardIds.map((tokenCardId) => ({ cardId, tokenCardId, source: "derived" as const })),
         );
 
-        if (values.length > 0) {
+        for (const batch of rowBatches(values)) {
           await trx
             .insertInto("cardTokens")
-            .values(values)
+            .values(batch)
             .onConflict((oc) => oc.columns(["cardId", "tokenCardId"]).doNothing())
             .execute();
         }

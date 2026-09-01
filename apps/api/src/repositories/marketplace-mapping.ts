@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { rowBatches } from "../lib/bind-batches.js";
 import { imageUrlWithOriginal, joinFrontImage } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
@@ -449,17 +450,24 @@ export function marketplaceMappingRepo(db: Db) {
       // conflict action actually touches it. The column list infers
       // `marketplace_products_sku_key`, which is NULLS NOT DISTINCT, so CM/TCG
       // rows with a NULL language collapse onto the existing row.
-      const products = await db
-        .insertInto("marketplaceProducts")
-        .values(productRows)
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language"]).doUpdateSet({
-            groupId: (eb) => eb.ref("excluded.groupId"),
-            productName: (eb) => eb.ref("excluded.productName"),
-          }),
-        )
-        .returning(["id", "marketplace", "externalId", "finish", "language"])
-        .execute();
+      // Batched: the admin body this runs on is uncapped, and a mapping pass
+      // over a whole set binds past what one statement can carry.
+      const products = [];
+      for (const batch of rowBatches(productRows)) {
+        products.push(
+          ...(await db
+            .insertInto("marketplaceProducts")
+            .values(batch)
+            .onConflict((oc) =>
+              oc.columns(["marketplace", "externalId", "finish", "language"]).doUpdateSet({
+                groupId: (eb) => eb.ref("excluded.groupId"),
+                productName: (eb) => eb.ref("excluded.productName"),
+              }),
+            )
+            .returning(["id", "marketplace", "externalId", "finish", "language"])
+            .execute()),
+        );
+      }
 
       const productIdByKey = new Map(
         products.map((p) => [
@@ -483,17 +491,22 @@ export function marketplaceMappingRepo(db: Db) {
         };
       });
 
-      const variants = await db
-        .insertInto("marketplaceProductVariants")
-        .values(variantRows)
-        .onConflict((oc) =>
-          oc.columns(["marketplaceProductId", "printingId"]).doUpdateSet({
-            // Touch a no-op so RETURNING yields the row on both insert and conflict.
-            updatedAt: sql<Date>`now()`,
-          }),
-        )
-        .returning(["id", "marketplaceProductId", "printingId"])
-        .execute();
+      const variants = [];
+      for (const batch of rowBatches(variantRows)) {
+        variants.push(
+          ...(await db
+            .insertInto("marketplaceProductVariants")
+            .values(batch)
+            .onConflict((oc) =>
+              oc.columns(["marketplaceProductId", "printingId"]).doUpdateSet({
+                // Touch a no-op so RETURNING yields the row on both insert and conflict.
+                updatedAt: sql<Date>`now()`,
+              }),
+            )
+            .returning(["id", "marketplaceProductId", "printingId"])
+            .execute()),
+        );
+      }
 
       const productKeyByProductId = new Map(products.map((p) => [p.id, p]));
 
