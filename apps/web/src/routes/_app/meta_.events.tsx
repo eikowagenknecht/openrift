@@ -18,14 +18,14 @@ export const Route = createFileRoute("/_app/meta_/events")({
     return {
       ...seoHead({
         siteUrl,
-        title: "Archived Riftbound Tournaments",
+        title: "Archived Riftbound Events",
         description: META_EVENTS_DESCRIPTION,
         path: "/meta/events",
       }),
       scripts: [
         breadcrumbJsonLd(siteUrl, [
           { name: "Meta Archive", path: "/meta" },
-          { name: "Tournaments", path: "/meta/events" },
+          { name: "Events", path: "/meta/events" },
         ]),
       ],
     };

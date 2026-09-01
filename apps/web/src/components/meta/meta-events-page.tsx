@@ -102,7 +102,7 @@ export function MetaEventsPage() {
       <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarBack to="/meta" aria-label="Meta archive" />
-          <PageTopBarTitle>Tournaments</PageTopBarTitle>
+          <PageTopBarTitle>Events</PageTopBarTitle>
           <span className="text-muted-foreground shrink-0 tabular-nums">
             {metaShownLabel(events.length, all.length, {
               singular: "archived event",
@@ -119,7 +119,7 @@ export function MetaEventsPage() {
           <EmptyState
             className="py-12"
             icon={TrophyIcon}
-            title="No tournaments archived yet"
+            title="No events archived yet"
             description="Standings and decklists land here as soon as an event is entered."
           />
         ) : (

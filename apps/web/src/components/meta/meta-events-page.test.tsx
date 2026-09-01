@@ -216,7 +216,7 @@ describe("MetaEventsPage", () => {
 
   it("invites the first event when the archive is empty", () => {
     renderPage([]);
-    expect(screen.getByText("No tournaments archived yet")).toBeDefined();
+    expect(screen.getByText("No events archived yet")).toBeDefined();
     expect(screen.queryByRole("button", { name: /players/iu })).toBeNull();
   });
 
