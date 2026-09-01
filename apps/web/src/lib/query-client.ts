@@ -5,6 +5,7 @@ import { sessionQueryOptions } from "./auth-session";
 import { isApiError, isSessionExpiredError } from "./server-fns/api-error";
 import { isStaleServerFnError, reloadIfStaleServerFnError } from "./stale-bundle-reload";
 import { PERSISTENT_ERROR_TOAST } from "./toast";
+import { toastableMessage } from "./toastable-message";
 
 /**
  * The failure path for a mutation: reload on a stale bundle, refetch the
@@ -39,7 +40,10 @@ export function reportMutationError(err: Error, queryClient: QueryClient): void 
   // Mutations are user-triggered actions; a failure that auto-dismisses is easy
   // to miss (an add/remove looks like it worked). Keep it up until the user
   // acknowledges it.
-  toast.error(err.message, PERSISTENT_ERROR_TOAST);
+  toast.error(
+    toastableMessage(err.message, "Something went wrong. Please try again."),
+    PERSISTENT_ERROR_TOAST,
+  );
 }
 
 /**

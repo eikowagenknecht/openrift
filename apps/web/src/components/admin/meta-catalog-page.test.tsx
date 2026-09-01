@@ -284,6 +284,28 @@ describe("MetaCatalogPage", () => {
     expect(captured.toastError).not.toHaveBeenCalled();
   });
 
+  it("says nothing about a fetch that was busy with another event", async () => {
+    const user = userEvent.setup();
+    captured.fetchEvent.mockResolvedValue({
+      status: "already_running",
+      runId: "run-9",
+      message: null,
+      result: null,
+    });
+    setResponse([makeRow({ displayStatus: "complete", decklistStatus: null })]);
+    render(<MetaCatalogPage />);
+
+    await user.click(screen.getByRole("button", { name: /Accept/u }));
+
+    // Accepting queued the event for the recheck ladder, so nothing was lost
+    // and the accept toast is the only thing worth saying.
+    expect(captured.toastSuccess).not.toHaveBeenCalledWith(
+      "Fetch is already running",
+      expect.anything(),
+    );
+    expect(captured.toastError).not.toHaveBeenCalled();
+  });
+
   it("fetches nothing for an event that has not run yet", async () => {
     const user = userEvent.setup();
     setResponse([makeRow({ displayStatus: "upcoming", decklistStatus: null })]);

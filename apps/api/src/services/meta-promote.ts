@@ -18,6 +18,7 @@ import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgam
 import { listStatusFor } from "../lib/uvsgames-transform.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
 import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../repositories/meta.js";
+import { deckCardMergeKey, mergeDeckCards } from "../repositories/meta.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.js";
 
@@ -105,6 +106,13 @@ export interface MetaPromoteResult {
   phases: number;
   /** Card names no catalog entry matched, deduplicated. Reviewer-facing. */
   unresolvedNames: string[];
+  /**
+   * Decklist lines the archive folded into one row, as
+   * `"Card (zone): N lines -> quantity"`, deduplicated. Reviewer-facing: a
+   * source splitting a playset across lines is routine, two different names
+   * collapsing onto one card is worth a look.
+   */
+  mergedLines: string[];
   errors: string[];
 }
 
@@ -121,6 +129,7 @@ function emptyResult(metaEventId: string): MetaPromoteResult {
     matches: 0,
     phases: 0,
     unresolvedNames: [],
+    mergedLines: [],
     errors: [],
   };
 }
@@ -476,6 +485,7 @@ async function promoteStandings(
   const providers = new Set([...merged.values()].map((standing) => standing.provider));
   const deckLines = await loadDeckLines(repos, metaEventId, providers);
   const unresolved = new Set<string>();
+  const mergedLines = new Set<string>();
 
   for (const standing of merged.values()) {
     const legendCardId =
@@ -503,6 +513,7 @@ async function promoteStandings(
       deckLines,
       cardIndex,
       unresolved,
+      mergedLines,
     );
 
     if (existingRow === undefined) {
@@ -560,6 +571,7 @@ async function promoteStandings(
   }
 
   result.unresolvedNames = [...unresolved];
+  result.mergedLines = [...mergedLines];
 }
 
 type SourceDeckLines = Map<string, { zone: string; quantity: number; cardName: string }[]>;
@@ -613,6 +625,7 @@ function buildDeck(
   deckLines: SourceDeckLines,
   cardIndex: Awaited<ReturnType<typeof loadCardNameIndex>>,
   unresolved: Set<string>,
+  mergedLines: Set<string>,
 ): MetaArchivedDeckInput | null {
   if (standing.sourceDeckId === null) {
     return null;
@@ -623,18 +636,27 @@ function buildDeck(
   }
 
   const cards: MetaDeckCardInput[] = [];
+  const sourceNames = new Map<string, Set<string>>();
   for (const line of lines) {
     const cardId = resolveCardIdByName(cardIndex, line.cardName);
     if (cardId === null) {
       unresolved.add(line.cardName);
       return null;
     }
-    cards.push({
+    const card = {
       cardId,
       zone: line.zone as DeckZone,
       quantity: line.quantity,
       preferredPrintingId: null,
-    });
+    };
+    cards.push(card);
+    const key = deckCardMergeKey(card);
+    const names = sourceNames.get(key);
+    if (names === undefined) {
+      sourceNames.set(key, new Set([line.cardName]));
+    } else {
+      names.add(line.cardName);
+    }
   }
 
   const hasLegend = cards.some((card) => card.zone === WellKnown.deckZone.LEGEND);
@@ -647,11 +669,26 @@ function buildDeck(
     });
   }
 
+  const lineCounts = new Map<string, number>();
+  for (const card of cards) {
+    const key = deckCardMergeKey(card);
+    lineCounts.set(key, (lineCounts.get(key) ?? 0) + 1);
+  }
+  const folded = mergeDeckCards(cards);
+  for (const card of folded) {
+    const key = deckCardMergeKey(card);
+    const count = lineCounts.get(key) ?? 1;
+    if (count > 1) {
+      const names = [...(sourceNames.get(key) ?? new Set([card.cardId]))].sort();
+      mergedLines.add(`${names.join(" / ")} (${card.zone}): ${count} lines -> ${card.quantity}`);
+    }
+  }
+
   return {
     name: defaultMetaDeckName(standing.legendName, standing.playerName ?? "", eventName),
     format,
     formatConfig: null,
-    cards,
+    cards: folded,
     listStatus: listStatusFor(
       lines.map((line) => ({ name: line.cardName, zone: line.zone, quantity: line.quantity })),
       standing.legendName,

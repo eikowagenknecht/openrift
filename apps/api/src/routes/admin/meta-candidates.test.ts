@@ -22,6 +22,7 @@ vi.mock("../../services/meta-promote.js", async (importOriginal) => ({
       matches: 0,
       phases: 0,
       unresolvedNames: [],
+      mergedLines: [],
       errors: [],
     }),
   ),
@@ -833,6 +834,7 @@ describe("POST /meta/players/{id}/overlays", () => {
         matches: 0,
         phases: 0,
         unresolvedNames: [],
+        mergedLines: [],
         errors: [],
       });
     });

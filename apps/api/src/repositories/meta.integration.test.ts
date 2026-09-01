@@ -328,6 +328,78 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect([row.wins, row.losses, row.draws]).toEqual([4, 2, 0]);
     });
 
+    // `uq_deck_cards` is NULLS NOT DISTINCT, so the archive's null
+    // `preferred_printing_id` does not separate two lines naming the same card
+    // and zone. A source that splits a playset, or two names resolving to one
+    // card, used to violate the index instead of adding up.
+    it("folds repeated lines into one row, summing quantity", async () => {
+      const eventId = await seedEvent(repo, "mta-merge-create");
+      const created = await repo.createPlayer(
+        playerInput(
+          eventId,
+          { playerName: "MTA Merge", rank: 1 },
+          {
+            name: "MTA Merge Deck",
+            format: FORMAT,
+            formatConfig: null,
+            cards: [
+              { cardId: legendCardId, zone: "legend", quantity: 1, preferredPrintingId: null },
+              { cardId: spellCardId, zone: "main", quantity: 2, preferredPrintingId: null },
+              { cardId: spellCardId, zone: "main", quantity: 1, preferredPrintingId: null },
+            ],
+            listStatus: "full",
+          },
+        ),
+        shareToken(),
+      );
+      if (!created || created.deckId === null) {
+        throw new Error("no list was written");
+      }
+      createdDeckIds.push(created.deckId);
+
+      const cards = await db
+        .selectFrom("deckCards")
+        .select(["cardId", "zone", "quantity"])
+        .where("deckId", "=", created.deckId)
+        .execute();
+
+      expect(cards).toHaveLength(2);
+      expect(cards.find((card) => card.cardId === spellCardId)?.quantity).toBe(3);
+    });
+
+    it("folds repeated lines when replacing an existing list", async () => {
+      const eventId = await seedEvent(repo, "mta-merge-replace");
+      const { playerId, deckId } = await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Replace",
+        rank: 1,
+      });
+
+      await repo.setPlayerDeck(
+        playerId,
+        {
+          name: "MTA Replace Deck",
+          format: FORMAT,
+          formatConfig: null,
+          cards: [
+            { cardId: legendCardId, zone: "legend", quantity: 1, preferredPrintingId: null },
+            { cardId: spellCardId, zone: "main", quantity: 2, preferredPrintingId: null },
+            { cardId: spellCardId, zone: "main", quantity: 2, preferredPrintingId: null },
+          ],
+          listStatus: "full",
+        },
+        shareToken(),
+      );
+
+      const cards = await db
+        .selectFrom("deckCards")
+        .select(["cardId", "zone", "quantity"])
+        .where("deckId", "=", deckId)
+        .execute();
+
+      expect(cards).toHaveLength(2);
+      expect(cards.find((card) => card.cardId === spellCardId)?.quantity).toBe(4);
+    });
+
     it("leaves a standings-only entry with no deck and no permalink", async () => {
       const eventId = await seedEvent(repo, "mta-standings-only");
       const playerId = await seedDecklessPlayer(repo, eventId, {

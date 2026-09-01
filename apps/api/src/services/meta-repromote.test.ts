@@ -7,7 +7,16 @@ import { repromoteMetaEvents } from "./meta-repromote.js";
 vi.mock("./meta-promote.js", () => ({ promoteMetaEvent: vi.fn() }));
 
 function promoted(metaEventId: string, errors: string[] = []) {
-  return { metaEventId, players: 0, decks: 0, matches: 0, phases: 0, unresolvedNames: [], errors };
+  return {
+    metaEventId,
+    players: 0,
+    decks: 0,
+    matches: 0,
+    phases: 0,
+    unresolvedNames: [],
+    mergedLines: [],
+    errors,
+  };
 }
 
 function fakeRepos(options: {

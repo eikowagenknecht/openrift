@@ -234,6 +234,12 @@ function useAcceptFollowUp(): AcceptFollowUp {
       // Reported by the global mutation error toast.
       return;
     }
+    // Accepting already queued this event for the recheck ladder, so a fetch
+    // busy with another event still leaves this one covered. Saying "already
+    // running" here would read as a failure when nothing was lost.
+    if (result.status === "already_running") {
+      return;
+    }
     announceSyncTrigger("Fetch", result);
   }
 

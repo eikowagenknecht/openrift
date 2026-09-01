@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-01
+
+### Other
+
+- fix(Meta): **Decklists that repeat a card** — a list naming the same card on several lines now archives with the quantities added up, instead of failing and leaving the event without its decks.
+- fix(App): **Readable error messages** — a request that times out at the gateway now explains itself instead of showing the server's raw error page.
+
 ## 2026-08-31
 
 ### Highlights

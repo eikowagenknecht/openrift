@@ -43,7 +43,7 @@ import {
   syncPlayloltcgCatalog,
 } from "../../services/meta-sync/index.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
-import { runJobAsync, runJobOutcome } from "../../services/run-job.js";
+import { runJobAsync } from "../../services/run-job.js";
 
 const log = createLogger("meta-sync");
 
@@ -122,23 +122,6 @@ async function startJob<TDeps, TResult>(
     { summarize: (result) => result, classifyNoop },
   );
   return { status: started.status, runId: started.runId, message: null, result: null };
-}
-
-function triggerResult(
-  outcome: Awaited<ReturnType<typeof runJobOutcome<unknown>>>,
-): MetaSyncTriggerResult {
-  if (outcome.status === "succeeded") {
-    return {
-      status: "succeeded",
-      runId: null,
-      message: null,
-      result: outcome.result as Record<string, unknown>,
-    };
-  }
-  if (outcome.status === "already_running") {
-    return { status: "already_running", runId: outcome.runId, message: null, result: null };
-  }
-  return { status: "failed", runId: null, message: outcome.message, result: null };
 }
 
 /**
@@ -517,8 +500,10 @@ export const adminMetaCatalogRouter = {
     });
   }),
 
-  // Five requests and a transform, so this one waits and hands back what it
-  // found — the admin clicked it to see the result, not to poll for it.
+  // Five upstream requests at a 30s timeout each, so waiting for it outlives
+  // the proxy's read timeout: the gateway gives up, turns the dead POST into a
+  // 405, and the run keeps going anyway. It reports its runId instead and the
+  // panel's run list tracks it.
   fetchEvent: os.fetchEvent.handler(async ({ input, context }) => {
     const row = await requireRow(context, input.externalId);
     if (row.metaEventId === null) {
@@ -528,14 +513,8 @@ export const adminMetaCatalogRouter = {
         "Accept this event before fetching its results.",
       );
     }
-    const deps = syncDeps(context);
-    const outcome = await runJobOutcome<unknown>(
-      { repos: context.repos, log },
-      "meta.uvsgames_event_fetch",
-      "admin",
-      (runId) => deepFetchEvent(deps, row, runId),
-      { summarize: (result) => result },
+    return await startJob(context, "meta.uvsgames_event_fetch", syncDeps, (deps, runId) =>
+      deepFetchEvent(deps, row, runId),
     );
-    return triggerResult(outcome);
   }),
 };
