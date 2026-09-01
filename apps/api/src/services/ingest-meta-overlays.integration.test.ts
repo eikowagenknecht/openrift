@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { Repos } from "../deps.js";
 import { createRepos } from "../deps.js";
 import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integration-context.js";
-import { ingestMetaOverlays } from "./ingest-meta-overlays.js";
+import { ingestMetaOverlays, playerSourceKey } from "./ingest-meta-overlays.js";
 
 // Uses the prefix IMO- / imo- for everything it creates, under its own push
 // provider so the ignore lists and the source-key indexes never collide with
@@ -27,19 +27,37 @@ if (ctx) {
   submitterId = submitter.id;
   createdUserIds.push(submitter.id);
 
-  const [spell] = await db
+  const seededCards = await db
     .insertInto("cards")
-    .values({
-      name: "IMO Spell",
-      slug: "imo-spell",
-      type: "spell",
-      normName: "imospell",
-      keywords: [],
-      tags: [],
-    })
-    .returning("id")
+    .values([
+      {
+        name: "IMO Spell",
+        slug: "imo-spell",
+        type: "spell",
+        normName: "imospell",
+        keywords: [],
+        tags: [],
+      },
+      {
+        name: "IMO Champion",
+        slug: "imo-champion",
+        type: "unit",
+        normName: "imochampion",
+        keywords: [],
+        tags: [],
+      },
+      {
+        name: "IMO Legend",
+        slug: "imo-legend",
+        type: "legend",
+        normName: "imolegend",
+        keywords: [],
+        tags: [],
+      },
+    ])
+    .returning(["id", "slug"])
     .execute();
-  createdCardIds.push(spell.id);
+  createdCardIds.push(...seededCards.map((card) => card.id));
   await syncCardCardTypes(db);
 
   afterAll(async () => {
@@ -118,6 +136,42 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
     const after = await playerOverlays();
     expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
     expect(after.map((row) => row.updatedAt)).toEqual(before.map((row) => row.updatedAt));
+  });
+
+  it("reads the legend and champion off the list when the source names neither", async () => {
+    await upload(
+      eventBody({
+        externalId: "imo-evt-zones",
+        players: [
+          {
+            externalId: "pz",
+            playerName: "IMO Zoned",
+            rank: 1,
+            cards: [
+              { name: "IMO Legend", zone: "legend", quantity: 1 },
+              { name: "IMO Champion", zone: "champion", quantity: 1 },
+              { name: "IMO Spell", zone: "main", quantity: 3 },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const [row] = await db
+      .selectFrom("metaEventPlayerOverlays")
+      .selectAll()
+      .where("provider", "=", PROVIDER)
+      .where("sourcePlayerKey", "=", playerSourceKey("imo-evt-zones", "pz"))
+      .execute();
+    const named = await db
+      .selectFrom("cards")
+      .select(["id", "slug"])
+      .where("slug", "in", ["imo-legend", "imo-champion"])
+      .execute();
+    const cardId = (slug: string) => named.find((card) => card.slug === slug)?.id;
+
+    expect(row.legendCardId).toBe(cardId("imo-legend"));
+    expect(row.championCardId).toBe(cardId("imo-champion"));
   });
 
   it("leaves a standings-only row claiming no list status at all", async () => {

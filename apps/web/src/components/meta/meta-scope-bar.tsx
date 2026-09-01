@@ -1,8 +1,17 @@
+import { SlidersHorizontalIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
+import {
+  MultiSelectCombobox,
+  NEUTRAL_HOVER_SCOPE,
+} from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -16,9 +25,10 @@ import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 import type { MetaEra, MetaScope, MetaScopeControls, MetaScopeFacet } from "@/lib/meta-scope";
 import {
   cycleScopeFacet,
+  defaultEraId,
   ERA_ALL,
   ERA_CUSTOM,
-  isScopeNarrowed,
+  isScopeCustomized,
   scopeFacetValues,
 } from "@/lib/meta-scope";
 import { cn } from "@/lib/utils";
@@ -83,7 +93,7 @@ export function MetaScopeBar({
     <div data-slot="meta-scope-bar" className={cn("flex flex-wrap items-center gap-2", className)}>
       <ScopeSelect
         label="Era"
-        value={scope.era ?? ERA_ALL}
+        value={scope.era ?? defaultEraId(eras) ?? ERA_ALL}
         fallback={ERA_ALL}
         items={eraItems}
         className="w-44"
@@ -117,16 +127,6 @@ export function MetaScopeBar({
         </>
       )}
 
-      {formats.length > 1 && (
-        <ScopeFacet
-          label="Format"
-          facet="formats"
-          options={formatOptions}
-          scope={scope}
-          setScope={setScope}
-        />
-      )}
-
       <ScopeFacet
         label="Tier"
         facet="tiers"
@@ -135,19 +135,16 @@ export function MetaScopeBar({
         setScope={setScope}
       />
 
-      {countries.length > 1 && (
-        <ScopeFacet
-          label="Country"
-          facet="countries"
-          options={countryOptions}
-          scope={scope}
-          setScope={setScope}
-        />
-      )}
+      <ScopeFilterMenu
+        scope={scope}
+        setScope={setScope}
+        formats={formats.length > 1 ? formatOptions : []}
+        countries={countries.length > 1 ? countryOptions : []}
+      />
 
       {extras}
 
-      {(isScopeNarrowed(scope) || extrasActive) && (
+      {(isScopeCustomized(scope) || extrasActive) && (
         <Button type="button" variant="ghost" size="sm" onClick={clearScope}>
           Reset
         </Button>
@@ -166,24 +163,92 @@ function ScopeFacet({
   options,
   scope,
   setScope,
+  triggerStyle = "button",
 }: {
   label: string;
   facet: MetaScopeFacet;
   options: readonly { value: string; label: string }[];
   scope: MetaScope;
   setScope: (patch: Partial<MetaScope>) => void;
+  triggerStyle?: "button" | "menu";
 }) {
   const { included, excluded } = scopeFacetValues(scope, facet);
   return (
     <MultiSelectCombobox
       label={label}
-      triggerStyle="button"
+      triggerStyle={triggerStyle}
       options={options}
       selected={[...included]}
       excluded={[...excluded]}
       onCycle={(value) => setScope(cycleScopeFacet(scope, facet, value))}
       searchPlaceholder={`Search ${label.toLowerCase()}…`}
     />
+  );
+}
+
+/** How many values a facet is holding, either bucket. */
+function facetCount(scope: MetaScope, facet: MetaScopeFacet): number {
+  const { included, excluded } = scopeFacetValues(scope, facet);
+  return included.length + excluded.length;
+}
+
+/**
+ * Format and country, one click in. Both are set once and then read rather than
+ * adjusted, so they cost the bar more room than they earn beside the era and
+ * tier a reader actually works with. The count on the trigger is what is picked
+ * inside, the default format included, so a filtered page never looks unfiltered.
+ */
+function ScopeFilterMenu({
+  scope,
+  setScope,
+  formats,
+  countries,
+}: {
+  scope: MetaScope;
+  setScope: (patch: Partial<MetaScope>) => void;
+  formats: readonly { value: string; label: string }[];
+  countries: readonly { value: string; label: string }[];
+}) {
+  if (formats.length === 0 && countries.length === 0) {
+    return null;
+  }
+  const active =
+    (formats.length === 0 ? 0 : facetCount(scope, "formats")) +
+    (countries.length === 0 ? 0 : facetCount(scope, "countries"));
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size="sm" />}
+        aria-label="More filters"
+      >
+        <SlidersHorizontalIcon className="size-4" />
+        Filters
+        {active > 0 && <span className="text-muted-foreground tabular-nums">({active})</span>}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className={NEUTRAL_HOVER_SCOPE}>
+        {formats.length > 0 && (
+          <ScopeFacet
+            label="Format"
+            facet="formats"
+            options={formats}
+            scope={scope}
+            setScope={setScope}
+            triggerStyle="menu"
+          />
+        )}
+        {countries.length > 0 && (
+          <ScopeFacet
+            label="Country"
+            facet="countries"
+            options={countries}
+            scope={scope}
+            setScope={setScope}
+            triggerStyle="menu"
+          />
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

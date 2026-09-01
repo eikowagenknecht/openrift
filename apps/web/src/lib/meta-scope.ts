@@ -50,6 +50,20 @@ export type MetaScope = z.infer<typeof metaScopeSearchSchema>;
 export const ERA_ALL = "all";
 export const ERA_CUSTOM = "custom";
 
+/**
+ * The format an archive page scopes to while the URL names none. Constructed is
+ * what a reader means by "the meta": the sealed and freeform side events of a
+ * weekend are a different game, and they outnumber the main event on any
+ * convention's schedule.
+ *
+ * Absent therefore means this rather than "every format", and an empty
+ * selection is written to the URL rather than dropped, so a reader who wants
+ * everything can get there. The era default works the same way, with the
+ * current set standing in for an absent `era`; {@link ERA_ALL} is how a reader
+ * says all time.
+ */
+export const DEFAULT_SCOPE_FORMATS: readonly string[] = ["constructed"];
+
 /** One selectable stretch of archive time: a set's run, from its release to the next one's. */
 export interface MetaEra {
   /** The set's slug, which is what the URL carries. */
@@ -118,18 +132,28 @@ export function deriveSetEras(sets: readonly EraSet[], today = todayUtc()): Meta
 }
 
 /**
+ * The era a scope with no explicit choice stands for: the current set, which is
+ * the first entry {@link deriveSetEras} returns.
+ *
+ * @returns The era's id, or undefined before any set has released.
+ */
+export function defaultEraId(eras: readonly MetaEra[]): string | undefined {
+  return eras[0]?.id;
+}
+
+/**
  * The date window a scope selection stands for.
  *
  * @returns The window, empty when the scope covers all of time.
  */
 export function resolveScopeRange(scope: MetaScope, eras: readonly MetaEra[]): MetaDateRange {
-  if (scope.era === undefined || scope.era === ERA_ALL) {
+  if (scope.era === ERA_ALL) {
     return {};
   }
   if (scope.era === ERA_CUSTOM) {
     return { from: scope.from, to: scope.to };
   }
-  const era = eras.find((candidate) => candidate.id === scope.era);
+  const era = eras.find((candidate) => candidate.id === (scope.era ?? defaultEraId(eras)));
   if (era === undefined) {
     return {};
   }
@@ -158,14 +182,24 @@ export type MetaScopeFacet = "formats" | "tiers" | "countries";
 /** Every facet, for the callers that walk all three. */
 export const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "countries"];
 
-/** One facet's two buckets, in the order the cycling helpers read them. */
+/**
+ * One facet's two buckets, in the order the cycling helpers read them.
+ *
+ * A format facet the URL says nothing about at all resolves to
+ * {@link DEFAULT_SCOPE_FORMATS}. A URL that carries either format key has been
+ * written by the bar, so it is taken at its word, empty selection included.
+ */
 export function scopeFacetValues(
   scope: MetaScope,
   facet: MetaScopeFacet,
 ): { included: readonly string[]; excluded: readonly string[] } {
   switch (facet) {
     case "formats": {
-      return { included: scope.formats ?? [], excluded: scope.formatsEx ?? [] };
+      const untouched = scope.formats === undefined && scope.formatsEx === undefined;
+      return {
+        included: scope.formats ?? (untouched ? DEFAULT_SCOPE_FORMATS : []),
+        excluded: scope.formatsEx ?? [],
+      };
     }
     case "tiers": {
       return { included: scope.tiers ?? [], excluded: scope.tiersEx ?? [] };
@@ -235,23 +269,38 @@ export function nextScopeSearch(
   patch: Partial<MetaScope>,
 ): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries({ ...prev, ...patch }).filter(([, value]) => {
+    Object.entries({ ...prev, ...patch }).filter(([key, value]) => {
       if (value === undefined || value === "") {
         return false;
       }
-      return !(Array.isArray(value) && value.length === 0);
+      if (Array.isArray(value) && value.length === 0) {
+        // An emptied format survives: absent means constructed, so dropping the
+        // key would hand back the default the reader just turned off.
+        return key === "formats";
+      }
+      return true;
     }),
   );
 }
 
 /**
- * Whether a scope narrows anything at all, for the "N events" framing and the
- * reset control.
+ * Whether the reader has moved the scope off the one every archive page opens
+ * on, which is what the Reset control offers to undo. An explicit all-time era
+ * counts: it is a choice away from the default, not the absence of one.
  */
-export function isScopeNarrowed(scope: MetaScope): boolean {
-  const range = scope.era === ERA_CUSTOM ? [scope.from, scope.to] : [];
-  const dates = [scope.era === ERA_ALL ? undefined : scope.era, ...range];
-  if (dates.some((value) => value !== undefined && value !== "")) {
+export function isScopeCustomized(scope: MetaScope): boolean {
+  return Object.keys(CLEARED_SCOPE).some((key) => scope[key as keyof MetaScope] !== undefined);
+}
+
+/**
+ * Whether a scope holds back any of the archive, defaults included. This is the
+ * question an empty list asks: "nothing in this scope" and "nothing on record"
+ * are different facts, and with a default era and format the unnarrowed page is
+ * already a slice.
+ */
+export function isScopeRestricting(scope: MetaScope, eras: readonly MetaEra[]): boolean {
+  const range = resolveScopeRange(scope, eras);
+  if (range.from !== undefined || range.to !== undefined) {
     return true;
   }
   return META_SCOPE_FACETS.some((facet) => {

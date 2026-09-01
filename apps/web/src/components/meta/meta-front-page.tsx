@@ -156,6 +156,7 @@ export function MetaFrontPage() {
           <>
             <div className="flex flex-col gap-5">
               <div className="flex flex-wrap items-center gap-2">
+                <MetaArchiveSearch value={search.q ?? ""} onCommit={setQuery} />
                 <MetaScopeBar
                   scope={search}
                   setScope={setScope}
@@ -163,7 +164,6 @@ export function MetaFrontPage() {
                   eras={eras}
                   countries={metaEventCountries(allEvents)}
                 />
-                <MetaArchiveSearch value={search.q ?? ""} onCommit={setQuery} />
               </div>
               <MetaArchiveCounts
                 eventCount={events.length}

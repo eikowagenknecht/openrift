@@ -71,10 +71,12 @@ vi.mock("@/hooks/use-enums", () => ({
 
 vi.mock("@/hooks/use-domain-colors", () => ({ useDomainColors: () => ({}) }));
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => null }));
+// Newest first, the way the hook itself orders them: the first is the current
+// set, which is the era an unscoped page opens on.
 vi.mock("@/hooks/use-meta-eras", () => ({
   useMetaEras: () => [
-    { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
     { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
+    { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
   ],
 }));
 vi.mock("@/components/meta/meta-scope-bar", () => ({
@@ -316,6 +318,22 @@ describe("MetaLegendPage", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(5);
   });
 
+  it("replaces the finishes section on a scope change rather than stacking a second copy", () => {
+    const page = renderPage(
+      [
+        finish(1, "tok-a", "a", "worlds", { tier: "premier" }),
+        finish(3, "tok-b", "b", "store-night", { tier: "store" }),
+      ],
+      [deck("tok-a", "card-kennen", { slug: "worlds", tier: "premier" })],
+    );
+
+    page.navigateTo({ tiers: ["premier"] });
+
+    expect(screen.getAllByRole("heading", { name: "Finishes" })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { name: "Archived decklists" })).toHaveLength(1);
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
   it("drops every facet on reset", async () => {
     renderPage([finish(1, null, "a")], [], {
       era: "vendetta",
@@ -326,9 +344,10 @@ describe("MetaLegendPage", () => {
     expect(captured.navigated.at(-1)).toEqual({});
   });
 
-  it("trails back through the archive to this legend", () => {
+  it("trails back through the archive and titles the bar with the legend", () => {
     renderPage([]);
     expect(screen.getByRole("link", { name: "Legends" })).toHaveAttribute("href", "/meta/legends");
+    expect(screen.getByRole("heading", { level: 1, name: "Kennen" })).toBeInTheDocument();
   });
 
   it("publishes no percentage, rate or share", () => {

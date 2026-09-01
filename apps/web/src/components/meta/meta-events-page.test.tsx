@@ -160,9 +160,14 @@ describe("MetaEventsPage", () => {
     expect(screen.getAllByText("A. Gruber and M. Álvarez").length).toBeGreaterThan(0);
   });
 
-  it("says an event is pending rather than counting a field of zero", () => {
-    renderPage([event({ playerRowCount: 0, deckCount: 0 })]);
-    expect(screen.getByText("Results pending")).toBeDefined();
+  it("says a played event holds no results rather than counting a field of zero", () => {
+    renderPage([event({ eventDate: "2026-01-10", playerRowCount: 0, deckCount: 0 })]);
+    expect(screen.getByText("18 players · No results on file")).toBeDefined();
+  });
+
+  it("says an event still to come has not been played yet", () => {
+    renderPage([event({ eventDate: "2099-01-10", playerRowCount: 0, deckCount: 0 })]);
+    expect(screen.getByText("18 players · Not played yet")).toBeDefined();
   });
 
   it("writes the chosen column and direction to the URL", async () => {

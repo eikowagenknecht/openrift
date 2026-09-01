@@ -1,5 +1,5 @@
 import type { MetaEventTier, MetaListStatus, MetaPlayerOverlayField } from "@openrift/shared";
-import { META_PLAYER_OVERLAY_FIELDS } from "@openrift/shared";
+import { META_PLAYER_OVERLAY_FIELDS, todayUtc } from "@openrift/shared";
 
 /**
  * How much of a player's list the archive holds, in the words the archive uses
@@ -203,23 +203,44 @@ export function formatRankRuns(ranks: readonly number[], limit = 6): string {
   return `${runs.slice(0, limit).join(", ")} and ${runs.length - limit} more`;
 }
 
+/** The event fields a row's detail line is built from. */
+export interface MetaCountedEvent {
+  eventDate: string;
+  /** The field size the source published, which can exceed the rows we hold. */
+  playerCount: number | null;
+  playerRowCount: number;
+  deckCount: number;
+}
+
 /**
- * What an event row says it holds. An event whose results have not been fetched
- * yet holds nothing, and "0 players · 0 decks" reads as a broken event rather
- * than a pending one, so it says it is waiting instead.
+ * What an event row says about its field and its results.
  *
- * @param playerRowCount - Standings rows the archive holds for the event.
- * @param deckCount - Those rows with a decklist attached.
- * @returns The count fragments for the row's detail line.
+ * The field size is the source's own number rather than the standings rows the
+ * archive holds: a reader scanning a list wants to know how big the tournament
+ * was, and an event mirrored before it is played publishes a registration count
+ * long before it publishes a single result.
+ *
+ * With no standings on file "0 decks" would read as an event that went badly
+ * rather than one the archive holds nothing for, so the second fragment says
+ * which of the two it is. A played event says what is true today rather than
+ * promising results: most sources publish standings within days or never, so an
+ * event that has none by now is unlikely to grow them. A future date says so
+ * outright, since nothing is missing from it yet.
+ *
+ * @returns The fragments for the row's detail line.
  */
-export function metaEventCounts(playerRowCount: number, deckCount: number): string[] {
-  if (playerRowCount === 0) {
-    return ["Results pending"];
+export function metaEventCounts(event: MetaCountedEvent, today = todayUtc()): string[] {
+  const size = event.playerCount ?? (event.playerRowCount === 0 ? null : event.playerRowCount);
+  const parts: string[] = [];
+  if (size !== null) {
+    parts.push(`${size.toLocaleString("en-US")} ${size === 1 ? "player" : "players"}`);
   }
-  return [
-    `${playerRowCount} ${playerRowCount === 1 ? "player" : "players"}`,
-    `${deckCount} ${deckCount === 1 ? "deck" : "decks"}`,
-  ];
+  if (event.playerRowCount === 0) {
+    parts.push(event.eventDate > today ? "Not played yet" : "No results on file");
+  } else {
+    parts.push(`${event.deckCount} ${event.deckCount === 1 ? "deck" : "decks"}`);
+  }
+  return parts;
 }
 
 /** What a claimed standings field is called on screen, in the reader's words. */

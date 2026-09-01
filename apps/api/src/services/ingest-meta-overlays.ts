@@ -1,4 +1,5 @@
 import type { MetaIngestEvent, MetaIngestEventPlayer } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import type {
   MetaEntryStatus,
   MetaEventOverlayField,
@@ -267,6 +268,11 @@ interface OverlayCardLine {
   cardId: string | null;
 }
 
+/** The card a list files in one singleton zone, resolved. */
+function zoneCardId(cards: readonly OverlayCardLine[], zone: string): string | null {
+  return cards.find((card) => card.zone === zone)?.cardId ?? null;
+}
+
 interface PlayerIngestContext {
   event: MetaIngestEvent;
   eventOverlayId: string;
@@ -331,14 +337,14 @@ async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<vo
     }
 
     const unresolved: string[] = [];
-    const legendCardId =
+    const namedLegendCardId =
       player.legendName === null ? null : resolveCardIdByName(ctx.cardIndex, player.legendName);
-    if (player.legendName !== null && legendCardId === null) {
+    if (player.legendName !== null && namedLegendCardId === null) {
       unresolved.push(player.legendName);
     }
-    const championCardId =
+    const namedChampionCardId =
       player.championName === null ? null : resolveCardIdByName(ctx.cardIndex, player.championName);
-    if (player.championName !== null && championCardId === null) {
+    if (player.championName !== null && namedChampionCardId === null) {
       unresolved.push(player.championName);
     }
 
@@ -355,6 +361,13 @@ async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<vo
         cardId,
       };
     });
+
+    // The list's own zones stand in for the two fields a source rarely names
+    // beside the standings: no adapter publishes a champion, and every archived
+    // list carries one in its champion zone. Without this the deck tiles and
+    // the legend pages read a null the list itself disproves.
+    const legendCardId = namedLegendCardId ?? zoneCardId(cards, WellKnown.deckZone.LEGEND);
+    const championCardId = namedChampionCardId ?? zoneCardId(cards, WellKnown.deckZone.CHAMPION);
 
     const values = {
       playerName: player.playerName,

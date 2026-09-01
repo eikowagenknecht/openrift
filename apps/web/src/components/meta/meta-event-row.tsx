@@ -16,7 +16,7 @@ import { metaEventCounts } from "@/lib/meta-format";
 export function MetaEventRow({ event }: { event: MetaEventSummary }) {
   const leaf = dateLeafPartsUtc(event.eventDate);
   const venue = [event.organizer, event.location].filter(Boolean).join(" · ");
-  const counts = metaEventCounts(event.playerRowCount, event.deckCount);
+  const counts = metaEventCounts(event);
 
   return (
     <Link
@@ -42,8 +42,12 @@ export function MetaEventRow({ event }: { event: MetaEventSummary }) {
 
       <span className="hidden shrink-0 items-center gap-4 sm:flex">
         <MetaTierBadge tier={event.tier} />
-        <CountryFlag code={event.country} size="sm" className="w-14" />
-        <span className="text-muted-foreground w-40 text-right text-xs tabular-nums">
+        {/* The slot holds its width with no flag in it, or an event whose venue
+            no source named would pull the counts column out of line. */}
+        <span className="w-14">
+          <CountryFlag code={event.country} size="sm" />
+        </span>
+        <span className="text-muted-foreground w-44 text-right text-xs tabular-nums">
           {counts.join(" · ")}
         </span>
       </span>

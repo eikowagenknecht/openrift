@@ -42,11 +42,19 @@ function option(name: string) {
   return screen.findByRole("option", { name });
 }
 
+/** Opens the menu that hosts the format and country facets. */
+async function openFilters(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "More filters" }));
+  await screen.findByRole("menu");
+}
+
 /** One value facet's dropdown trigger, which reads as the facet until something is picked. */
 function facet(text: string) {
-  const trigger = screen
-    .getAllByRole("combobox")
-    .find((element) => element.textContent?.trim().startsWith(text));
+  // Inline in the bar the trigger is a combobox; inside the filters menu it is
+  // a menu row, which the combobox renders as a plain button.
+  const trigger = [...screen.getAllByRole("combobox"), ...screen.getAllByRole("button")].find(
+    (element) => element.textContent?.trim().startsWith(text),
+  );
   if (trigger === undefined) {
     throw new Error(`no facet trigger reading "${text}"`);
   }
@@ -54,9 +62,9 @@ function facet(text: string) {
 }
 
 describe("MetaScopeBar", () => {
-  it("opens on all time", () => {
+  it("opens on the current set rather than all time", () => {
     renderBar();
-    expect(screen.getByLabelText("Era")).toHaveTextContent("All time");
+    expect(screen.getByLabelText("Era")).toHaveTextContent("Proving Grounds");
   });
 
   it("offers every era plus the custom range", async () => {
@@ -90,6 +98,7 @@ describe("MetaScopeBar", () => {
 
   it("keeps a picked country the offered set no longer holds, so it can be cleared", async () => {
     const { setScope, user } = renderBar({ scope: { countries: ["br"] } });
+    await openFilters(user);
     await user.click(facet("br"));
     await user.click(await option("br"));
     expect(setScope).toHaveBeenCalledWith({ countries: [], countriesEx: ["br"] });
@@ -115,14 +124,16 @@ describe("MetaScopeBar", () => {
 
   it("names countries rather than printing their codes", async () => {
     const { user } = renderBar();
+    await openFilters(user);
     await user.click(facet("Country"));
     expect(await option("Germany")).toBeInTheDocument();
     expect(await option("Japan")).toBeInTheDocument();
   });
 
-  it("hides the country control when there is nothing to choose between", () => {
-    renderBar({ countries: ["de"] });
-    expect(screen.queryByRole("button", { name: "Country" })).not.toBeInTheDocument();
+  it("hides the country control when there is nothing to choose between", async () => {
+    const { user } = renderBar({ countries: ["de"] });
+    await openFilters(user);
+    expect(screen.queryByText("Country")).not.toBeInTheDocument();
   });
 
   it("offers every tier", async () => {
@@ -159,6 +170,17 @@ describe("MetaScopeBar", () => {
     await user.click(facet("−Premier"));
     await user.click(await option("Premier"));
     expect(setScope).toHaveBeenCalledWith({ tiers: [], tiersEx: [] });
+  });
+
+  it("counts the picks behind the filters button, the default format included", () => {
+    renderBar();
+    expect(screen.getByRole("button", { name: "More filters" })).toHaveTextContent("(1)");
+  });
+
+  it("keeps format and country off the bar itself", () => {
+    renderBar();
+    expect(screen.queryByText("Format")).not.toBeInTheDocument();
+    expect(screen.queryByText("Country")).not.toBeInTheDocument();
   });
 
   it("hides the reset while nothing is narrowed", () => {

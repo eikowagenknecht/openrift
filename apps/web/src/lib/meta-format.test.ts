@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { MetaCountedEvent } from "./meta-format";
 import {
   formatRank,
   formatRankRuns,
@@ -156,16 +157,58 @@ describe("splitLegendName", () => {
 });
 
 describe("metaEventCounts", () => {
-  it("counts the field and the lists behind it", () => {
-    expect(metaEventCounts(64, 8)).toEqual(["64 players", "8 decks"]);
+  const TODAY = "2026-09-01";
+  const event = (over: Partial<MetaCountedEvent>): MetaCountedEvent => ({
+    eventDate: "2026-08-09",
+    playerCount: null,
+    playerRowCount: 0,
+    deckCount: 0,
+    ...over,
   });
 
-  it("says an event with nothing fetched yet is waiting, not empty", () => {
-    expect(metaEventCounts(0, 0)).toEqual(["Results pending"]);
+  it("names the field the source published, not the rows we hold", () => {
+    expect(
+      metaEventCounts(event({ playerCount: 186, playerRowCount: 64, deckCount: 8 }), TODAY),
+    ).toEqual(["186 players", "8 decks"]);
+  });
+
+  it("falls back to the rows on file when no source published a field size", () => {
+    expect(metaEventCounts(event({ playerRowCount: 64, deckCount: 8 }), TODAY)).toEqual([
+      "64 players",
+      "8 decks",
+    ]);
+  });
+
+  it("groups a four-figure field", () => {
+    expect(metaEventCounts(event({ playerCount: 2092, playerRowCount: 2092 }), TODAY)).toEqual([
+      "2,092 players",
+      "0 decks",
+    ]);
+  });
+
+  it("says a played event holds no results, without promising any", () => {
+    expect(metaEventCounts(event({ playerCount: 82 }), TODAY)).toEqual([
+      "82 players",
+      "No results on file",
+    ]);
+  });
+
+  it("says an event still to come has not been played, rather than missing results", () => {
+    expect(metaEventCounts(event({ eventDate: "2026-09-26", playerCount: 195 }), TODAY)).toEqual([
+      "195 players",
+      "Not played yet",
+    ]);
+  });
+
+  it("prints nothing about a field no source has sized", () => {
+    expect(metaEventCounts(event({}), TODAY)).toEqual(["No results on file"]);
   });
 
   it("keeps a one-player event singular, and its deckless field plural", () => {
-    expect(metaEventCounts(1, 0)).toEqual(["1 player", "0 decks"]);
+    expect(metaEventCounts(event({ playerCount: 1, playerRowCount: 1 }), TODAY)).toEqual([
+      "1 player",
+      "0 decks",
+    ]);
   });
 });
 

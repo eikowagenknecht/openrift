@@ -11,7 +11,7 @@ import {
   sortMetaDecks,
 } from "./meta-deck-filters";
 import type { MetaEra } from "./meta-scope";
-import { ERA_CUSTOM } from "./meta-scope";
+import { ERA_ALL, ERA_CUSTOM } from "./meta-scope";
 
 const ERAS: MetaEra[] = [
   { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
@@ -19,7 +19,10 @@ const ERAS: MetaEra[] = [
 ];
 
 const EMPTY: MetaDeckFilterValues = {
-  scope: {},
+  // The scope every case here narrows from is the opened-up one, so an axis
+  // under test is the only thing holding anything back. An absent era and
+  // format mean the current set and constructed, which these fixtures predate.
+  scope: { era: ERA_ALL, formats: [] },
   eras: ERAS,
   events: [],
   legends: [],
@@ -103,20 +106,21 @@ describe("filterMetaDecks", () => {
   });
 
   it("filters by the scope's format", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { formats: ["legacy"] } }))).toEqual([
-      "c",
-    ]);
+    expect(
+      ids(filterMetaDecks(decks, { ...EMPTY, scope: { ...EMPTY.scope, formats: ["legacy"] } })),
+    ).toEqual(["c"]);
   });
 
   it("filters by the event's tier", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { tiers: ["premier"] } }))).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(
+      ids(filterMetaDecks(decks, { ...EMPTY, scope: { ...EMPTY.scope, tiers: ["premier"] } })),
+    ).toEqual(["a", "b"]);
   });
 
   it("filters by country whatever case the code is stored in", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { countries: ["fr"] } }))).toEqual(["c"]);
+    expect(
+      ids(filterMetaDecks(decks, { ...EMPTY, scope: { ...EMPTY.scope, countries: ["fr"] } })),
+    ).toEqual(["c"]);
   });
 
   it("filters by event slug", () => {
@@ -140,22 +144,23 @@ describe("filterMetaDecks", () => {
   });
 
   it("resolves a set era to its own window", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { era: "origins" } }))).toEqual(["c"]);
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { era: "vendetta" } }))).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(
+      ids(filterMetaDecks(decks, { ...EMPTY, scope: { ...EMPTY.scope, era: "origins" } })),
+    ).toEqual(["c"]);
+    expect(
+      ids(filterMetaDecks(decks, { ...EMPTY, scope: { ...EMPTY.scope, era: "vendetta" } })),
+    ).toEqual(["a", "b"]);
   });
 
   it("treats both custom-range bounds as inclusive", () => {
     const exact = filterMetaDecks(decks, {
       ...EMPTY,
-      scope: { era: ERA_CUSTOM, from: "2026-06-15", to: "2026-06-15" },
+      scope: { ...EMPTY.scope, era: ERA_CUSTOM, from: "2026-06-15", to: "2026-06-15" },
     });
     expect(ids(exact)).toEqual(["c"]);
     const open = filterMetaDecks(decks, {
       ...EMPTY,
-      scope: { era: ERA_CUSTOM, from: "2026-07-01" },
+      scope: { ...EMPTY.scope, era: ERA_CUSTOM, from: "2026-07-01" },
     });
     expect(ids(open)).toEqual(["a", "b"]);
   });
@@ -181,7 +186,7 @@ describe("filterMetaDecks", () => {
   it("intersects across axes", () => {
     const result = filterMetaDecks(decks, {
       ...EMPTY,
-      scope: { formats: ["standard"] },
+      scope: { ...EMPTY.scope, formats: ["standard"] },
       maxRank: 4,
       legends: ["card-lux"],
     });
@@ -191,7 +196,7 @@ describe("filterMetaDecks", () => {
   it("returns nothing when the axes cannot overlap", () => {
     const result = filterMetaDecks(decks, {
       ...EMPTY,
-      scope: { formats: ["legacy"] },
+      scope: { ...EMPTY.scope, formats: ["legacy"] },
       maxRank: 1,
     });
     expect(result).toEqual([]);
@@ -283,7 +288,10 @@ describe("metaDeckFilterCounts", () => {
   });
 
   it("counts an axis with the other axes already applied", () => {
-    const counts = metaDeckFilterCounts(decks, { ...EMPTY, scope: { formats: ["standard"] } });
+    const counts = metaDeckFilterCounts(decks, {
+      ...EMPTY,
+      scope: { ...EMPTY.scope, formats: ["standard"] },
+    });
     expect(counts.events.get("rift-open")).toBeUndefined();
     expect(counts.finish.get(8)).toBe(2);
   });
@@ -342,11 +350,17 @@ describe("metaDeckFilterOptions", () => {
 
 describe("hasActiveMetaDeckFilters", () => {
   it("is false for the default state", () => {
-    expect(hasActiveMetaDeckFilters(EMPTY)).toBe(false);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, scope: {} })).toBe(false);
+  });
+
+  it("is true once the reader opens the scope past its default", () => {
+    expect(hasActiveMetaDeckFilters(EMPTY)).toBe(true);
   });
 
   it("is true once any axis is populated", () => {
-    expect(hasActiveMetaDeckFilters({ ...EMPTY, scope: { tiers: ["premier"] } })).toBe(true);
+    expect(
+      hasActiveMetaDeckFilters({ ...EMPTY, scope: { ...EMPTY.scope, tiers: ["premier"] } }),
+    ).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, maxRank: 8 })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, buildable: true })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, events: ["rift-open"] })).toBe(true);

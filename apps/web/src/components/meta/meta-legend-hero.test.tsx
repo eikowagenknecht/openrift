@@ -48,11 +48,11 @@ const legend = {
 };
 
 describe("MetaLegendHero", () => {
-  it("titles the page with the champion and names the legend card beneath it", () => {
+  it("heads the hero with the champion and names the legend card beneath it", () => {
     render(
       <MetaLegendHero legend={legend} counts={{ eventWins: 5, finishes: 214, decklists: 38 }} />,
     );
-    expect(screen.getByRole("heading", { level: 1, name: "Kennen" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Kennen" })).toBeInTheDocument();
     expect(screen.getByText("Heart of the Tempest · Legend")).toBeInTheDocument();
   });
 
@@ -97,7 +97,7 @@ describe("MetaLegendHero", () => {
       />,
     );
     expect(
-      screen.getByRole("heading", { level: 1, name: "Emperor of the Sands" }),
+      screen.getByRole("heading", { level: 2, name: "Emperor of the Sands" }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/· Legend$/u)).not.toBeInTheDocument();
   });

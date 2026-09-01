@@ -3,7 +3,11 @@ import { Link, getRouteApi } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Heading } from "@/components/heading";
-import { TopBarBreadcrumbBar } from "@/components/layout/top-bar-breadcrumb";
+import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import {
+  TopBarBreadcrumbSeparator,
+  TopBarBreadcrumbTrail,
+} from "@/components/layout/top-bar-breadcrumb";
 import { MetaArchiveDeckTile } from "@/components/meta/meta-archive-deck-tile";
 import { MetaLegendFinishes } from "@/components/meta/meta-legend-finishes";
 import { MetaLegendHero } from "@/components/meta/meta-legend-hero";
@@ -21,7 +25,7 @@ import {
   metaLegendDecks,
 } from "@/lib/meta-legend-page";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, isScopeNarrowed, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, isScopeRestricting, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/legends_/$slug");
@@ -99,18 +103,26 @@ export function MetaLegendPage() {
   const counts = metaLegendCounts(finishes, decks);
   const { champion } = splitLegendName(data.legend.name);
   // Remounts both sections whenever the scope changes, so a view a reader opened
-  // on the old slice does not carry into the new one.
+  // on the old slice does not carry into the new one. Each section prefixes it:
+  // two siblings sharing one key leave the first one's DOM behind on the swap.
   const sectionKey = scopeKey(search);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TopBarBreadcrumbBar
-        segments={[
-          { label: "Meta Archive", link: <Link to="/meta" /> },
-          { label: "Legends", link: <Link to="/meta/legends" /> },
-          { label: champion },
-        ]}
-      />
+      <PageTopBarSticky width="capped">
+        <PageTopBar className="gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <TopBarBreadcrumbTrail
+              segments={[
+                { label: "Meta Archive", link: <Link to="/meta" /> },
+                { label: "Legends", link: <Link to="/meta/legends" /> },
+              ]}
+            />
+            <TopBarBreadcrumbSeparator className="hidden sm:inline" />
+            <PageTopBarTitle>{champion}</PageTopBarTitle>
+          </div>
+        </PageTopBar>
+      </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "px-safe flex flex-col gap-8 pt-3 pb-10")}>
         <div className="flex flex-col gap-5">
@@ -125,12 +137,12 @@ export function MetaLegendPage() {
         </div>
 
         <MetaLegendFinishes
-          key={sectionKey}
+          key={`finishes:${sectionKey}`}
           finishes={finishes}
-          narrowed={isScopeNarrowed(search)}
+          narrowed={isScopeRestricting(search, eras)}
         />
 
-        {legendDecks.length > 0 && <ArchivedDecks key={sectionKey} decks={decks} />}
+        {legendDecks.length > 0 && <ArchivedDecks key={`decks:${sectionKey}`} decks={decks} />}
       </div>
     </div>
   );

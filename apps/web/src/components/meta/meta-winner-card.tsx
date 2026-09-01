@@ -94,10 +94,7 @@ export function MetaWinnerCard({ event }: { event: MetaEventWithWinners }) {
         <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs">
           <CountryFlag code={event.country} size="sm" />
           <span className="tabular-nums">
-            {[
-              formatDay(event.eventDate),
-              ...metaEventCounts(event.playerRowCount, event.deckCount),
-            ].join(" · ")}
+            {[formatDay(event.eventDate), ...metaEventCounts(event)].join(" · ")}
           </span>
         </p>
       </CardContent>

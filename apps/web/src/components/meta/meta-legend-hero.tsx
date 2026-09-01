@@ -86,7 +86,8 @@ export function MetaLegendHero({
       <div className="relative flex flex-col gap-3 p-5 pr-[45%] sm:pr-[38%]">
         <div className="flex flex-col gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h1 className="font-heading text-2xl font-bold">
+            {/* h2: the page's h1 is the champion in the top bar. */}
+            <h2 className="font-heading text-2xl font-bold">
               <Link
                 to="/cards/$cardSlug"
                 params={{ cardSlug: legend.slug }}
@@ -94,7 +95,7 @@ export function MetaLegendHero({
               >
                 {champion}
               </Link>
-            </h1>
+            </h2>
             {legend.domains.length > 0 && (
               <span className="flex shrink-0 items-center gap-1">
                 {legend.domains.map((domain) => (

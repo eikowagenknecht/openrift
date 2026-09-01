@@ -76,9 +76,14 @@ export function MetaArchiveDeckTile({
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         <MetaIdentity name={deck.legendName} archiveSlug={deck.legendArchiveSlug} layout="tile" />
 
-        <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs">
-          <span className="truncate">{deck.playerName}</span>
-          {record !== null && <span className="tabular-nums">· {record}</span>}
+        {/* The pilot reads at the legend's weight: a tile answers "who played
+            this", and a name set in the same muted line as the record and the
+            list status disappears into it. */}
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
+          <span className="truncate font-medium">{deck.playerName}</span>
+          {record !== null && (
+            <span className="text-muted-foreground text-xs tabular-nums">{record}</span>
+          )}
           <MetaListStatusBadge listStatus={deck.listStatus} />
         </p>
 

@@ -11,13 +11,17 @@ import {
   sortLegendFinishes,
 } from "@/lib/meta-legend-page";
 import type { MetaEra } from "@/lib/meta-scope";
+import { ERA_ALL } from "@/lib/meta-scope";
 
+// Newest first, as the eras hook returns them; the first is the current set.
 const ERAS: MetaEra[] = [
-  { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
   { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
+  { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
 ];
 
-const ALL_TIME = { scope: {}, eras: ERAS };
+// Opened all the way up: an absent era and format would mean the current set
+// and constructed, which is a scope, not the absence of one.
+const ALL_TIME = { scope: { era: ERA_ALL, formats: [] }, eras: ERAS };
 
 type FinishOverrides = Partial<Omit<MetaLegendFinish, "event">> & {
   event?: Partial<MetaLegendFinish["event"]>;

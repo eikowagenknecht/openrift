@@ -24,7 +24,7 @@ export const EVENT_INDEX_GRID =
 export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
   const leaf = dateLeafPartsUtc(event.eventDate);
   const venue = [event.organizer, event.location].filter(Boolean).join(" · ");
-  const counts = metaEventCounts(event.playerRowCount, event.deckCount);
+  const counts = metaEventCounts(event);
 
   return (
     <Link

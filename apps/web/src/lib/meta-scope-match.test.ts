@@ -4,9 +4,11 @@ import type { MetaEra } from "@/lib/meta-scope";
 import type { ScopedEvent } from "@/lib/meta-scope-match";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
+// Newest first, as the eras hook returns them: the first is the current set,
+// which is the window a scope with no era of its own resolves to.
 const ERAS: MetaEra[] = [
-  { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
   { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
+  { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },
 ];
 
 function event(overrides: Partial<ScopedEvent> = {}): ScopedEvent {
@@ -22,6 +24,11 @@ function event(overrides: Partial<ScopedEvent> = {}): ScopedEvent {
 describe("scopeMatches", () => {
   it("matches everything when the scope narrows nothing", () => {
     expect(scopeMatches(event(), {}, ERAS)).toBe(true);
+  });
+
+  it("holds a bare scope to the current set and constructed play", () => {
+    expect(scopeMatches(event({ eventDate: "2026-07-31" }), {}, ERAS)).toBe(false);
+    expect(scopeMatches(event({ format: "freeform" }), {}, ERAS)).toBe(false);
   });
 
   it("matches an era by its date window, either end inclusive", () => {

@@ -6,10 +6,12 @@ import {
   deriveSetEras,
   ERA_ALL,
   ERA_CUSTOM,
-  isScopeNarrowed,
+  isScopeCustomized,
+  isScopeRestricting,
   metaScopeSearchSchema,
   nextScopeSearch,
   resolveScopeRange,
+  scopeFacetValues,
 } from "./meta-scope";
 
 function set(slug: string, name: string, releasedAt: string | null, main = true): EraSet {
@@ -86,8 +88,12 @@ describe("resolveScopeRange", () => {
     TODAY,
   );
 
-  it("has no bounds without an era", () => {
-    expect(resolveScopeRange({}, eras)).toEqual({});
+  it("opens on the current set when the scope names no era", () => {
+    expect(resolveScopeRange({}, eras)).toEqual({ from: "2026-03-06" });
+  });
+
+  it("has no bounds without an era, before any set has released", () => {
+    expect(resolveScopeRange({}, [])).toEqual({});
   });
 
   it("has no bounds on all time", () => {
@@ -123,25 +129,77 @@ describe("resolveScopeRange", () => {
   });
 });
 
-describe("isScopeNarrowed", () => {
-  it("is false for an empty scope", () => {
-    expect(isScopeNarrowed({})).toBe(false);
+describe("scopeFacetValues", () => {
+  it("scopes an untouched format facet to constructed", () => {
+    expect(scopeFacetValues({}, "formats")).toEqual({
+      included: ["constructed"],
+      excluded: [],
+    });
   });
 
-  it("is false for an explicit all-time era", () => {
-    expect(isScopeNarrowed({ era: ERA_ALL })).toBe(false);
+  it("takes an emptied format facet at its word rather than defaulting it back", () => {
+    expect(scopeFacetValues({ formats: [] }, "formats")).toEqual({ included: [], excluded: [] });
+  });
+
+  it("leaves an excluded format alone instead of defaulting the includes over it", () => {
+    expect(scopeFacetValues({ formatsEx: ["freeform"] }, "formats")).toEqual({
+      included: [],
+      excluded: ["freeform"],
+    });
+  });
+
+  it("defaults nothing on the other two facets", () => {
+    expect(scopeFacetValues({}, "tiers")).toEqual({ included: [], excluded: [] });
+    expect(scopeFacetValues({}, "countries")).toEqual({ included: [], excluded: [] });
+  });
+});
+
+describe("isScopeCustomized", () => {
+  it("is false for an empty scope, which is the default one", () => {
+    expect(isScopeCustomized({})).toBe(false);
+  });
+
+  it("is true for an explicit all-time era, a choice away from the default", () => {
+    expect(isScopeCustomized({ era: ERA_ALL })).toBe(true);
+  });
+
+  it("is true for an emptied format facet", () => {
+    expect(isScopeCustomized({ formats: [] })).toBe(true);
   });
 
   it("is true for any single facet", () => {
-    expect(isScopeNarrowed({ era: "origins" })).toBe(true);
-    expect(isScopeNarrowed({ formats: ["standard"] })).toBe(true);
-    expect(isScopeNarrowed({ tiers: ["premier"] })).toBe(true);
-    expect(isScopeNarrowed({ countries: ["de"] })).toBe(true);
+    expect(isScopeCustomized({ era: "origins" })).toBe(true);
+    expect(isScopeCustomized({ formats: ["standard"] })).toBe(true);
+    expect(isScopeCustomized({ tiers: ["premier"] })).toBe(true);
+    expect(isScopeCustomized({ countries: ["de"] })).toBe(true);
   });
 
   it("counts custom bounds", () => {
-    expect(isScopeNarrowed({ era: ERA_CUSTOM })).toBe(true);
-    expect(isScopeNarrowed({ era: ERA_CUSTOM, from: "2026-01-01" })).toBe(true);
+    expect(isScopeCustomized({ era: ERA_CUSTOM })).toBe(true);
+    expect(isScopeCustomized({ era: ERA_CUSTOM, from: "2026-01-01" })).toBe(true);
+  });
+
+  it("ignores params the scope knows nothing about", () => {
+    expect(isScopeCustomized({ q: "kennen" } as never)).toBe(false);
+  });
+});
+
+describe("isScopeRestricting", () => {
+  const eras = deriveSetEras(
+    [set("origins", "Origins", "2025-10-31"), set("proving", "Proving Grounds", "2026-03-06")],
+    TODAY,
+  );
+
+  it("is true for the default scope, which is already a slice", () => {
+    expect(isScopeRestricting({}, eras)).toBe(true);
+  });
+
+  it("is false once the reader opens it all the way up", () => {
+    expect(isScopeRestricting({ era: ERA_ALL, formats: [] }, eras)).toBe(false);
+  });
+
+  it("is true on all time with a facet still holding values", () => {
+    expect(isScopeRestricting({ era: ERA_ALL, formats: [], tiers: ["premier"] }, eras)).toBe(true);
   });
 });
 
@@ -162,6 +220,10 @@ describe("nextScopeSearch", () => {
   it("drops an emptied facet, so the unnarrowed view keeps a clean URL", () => {
     expect(nextScopeSearch({ countries: ["de"] }, { countries: [] })).toEqual({});
     expect(nextScopeSearch({ era: "origins" }, { era: "" })).toEqual({});
+  });
+
+  it("keeps an emptied format, which absent would read as the default", () => {
+    expect(nextScopeSearch({ formats: ["freeform"] }, { formats: [] })).toEqual({ formats: [] });
   });
 
   it("leaves params the scope knows nothing about alone", () => {

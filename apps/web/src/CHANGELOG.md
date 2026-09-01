@@ -4,11 +4,17 @@
 
 ### Other
 
+- feat(Meta): **The archive opens on the current set** — every archive page now starts on the current set and constructed play, with all time and the other formats still one click away.
+- feat(Meta): **Roomier archive filter bar** — search leads the row like everywhere else, and the format and country pickers moved behind a Filters button.
 - feat(Meta): **Filter the archive by everything but** — format, tier and country now take several picks at once, and a second click on one turns it into "everything except this", the way the card filters work.
 - feat(Meta): **Hide tournaments with nothing in them yet** — the tournament index can narrow to the events that already have decklists, or at least standings, instead of listing every date on file.
 - feat(App): **Front page opens the feature tour** — marketplace prices join the landing highlights, and the tour's five chapters are now linked right from the front page.
 - feat(App): **Roadmap brought up to date** — the Discord bot, tournament results archive, streamer tools, deck variants, and Swiss and 2v2 events are marked shipped, and the page now says how to influence what comes next.
 - feat(App): **Why OpenRift, in prose** — the help article now tells the story without the dated feature comparison table, and points to the feature tour instead.
+- fix(Meta): **Event rows name the field size** — a row now says how many players the source reported and whether an event is still to come or simply has no results on file, and rows with no country keep their columns aligned.
+- fix(Meta): **Archived deck tiles** — a list's chosen champion now shows beside its legend, and the pilot's name is no longer the smallest thing on the tile.
+- fix(Meta): **Duplicated finishes list** — filtering a legend's record left the old copy of its finishes on the page underneath the new one.
+- fix(Meta): **Legend name in the top bar** — a legend's name now sits in the page's title bar, so it stays visible while you scroll its record.
 - fix(Meta): **Clickable deck tiles** — the middle of an archived deck tile did nothing, so opening the list meant hunting for a spot that worked.
 - fix(Meta): **Large events stopped updating** — an event with a few thousand pairings failed to archive its round-by-round results, which also stalled the import for every event queued behind it.
 - fix(Meta): **Big events missing players and decks** — events from the Chinese source were archived with only the first 1,000 finishers and 400 decklists, and now bring in the whole field however large it is.

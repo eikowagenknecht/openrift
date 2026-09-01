@@ -21,7 +21,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     slug: "summoner-skirmish",
     name: "Summoner Skirmish",
     eventDate: "2026-08-15",
-    format: "standard",
+    format: "constructed",
     tier: "store",
     country: "DE",
     location: "Rift Games, Berlin",
@@ -41,7 +41,7 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
     shareToken: "aB3dE5gH7jK9",
     listStatus: "full",
     name: "Kennen Tempo",
-    format: "standard",
+    format: "constructed",
     legendCardId: "legend-1",
     legendName: "Kennen, Heart of the Tempest",
     legendSlug: "kennen",
@@ -60,7 +60,7 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
       slug: "summoner-skirmish",
       name: "Summoner Skirmish",
       eventDate: "2026-08-15",
-      format: "standard",
+      format: "constructed",
       tier: "store",
       country: "DE",
     },
@@ -156,13 +156,13 @@ describe("filterMetaEvents", () => {
 
   it("narrows by format, tier and country together", () => {
     const events = [
-      event({ id: "match", format: "standard", tier: "premier", country: "ES" }),
-      event({ id: "wrong-tier", format: "standard", tier: "store", country: "ES" }),
-      event({ id: "wrong-country", format: "standard", tier: "premier", country: "IT" }),
+      event({ id: "match", format: "constructed", tier: "premier", country: "ES" }),
+      event({ id: "wrong-tier", format: "constructed", tier: "store", country: "ES" }),
+      event({ id: "wrong-country", format: "constructed", tier: "premier", country: "IT" }),
       event({ id: "wrong-format", format: "freeform", tier: "premier", country: "ES" }),
     ];
     const kept = filterMetaEvents(events, {
-      scope: { formats: ["standard"], tiers: ["premier"], countries: ["ES"] },
+      scope: { formats: ["constructed"], tiers: ["premier"], countries: ["ES"] },
       eras: ERAS,
     });
     expect(kept.map((row) => row.id)).toEqual(["match"]);
@@ -271,7 +271,7 @@ describe("metaDecksForEvents", () => {
           slug: "other-event",
           name: "Other",
           eventDate: "2026-08-16",
-          format: "standard",
+          format: "constructed",
           tier: "store",
           country: "DE",
         },
@@ -285,7 +285,7 @@ describe("metaDecksForEvents", () => {
       slug: "older",
       name: "Older",
       eventDate: "2026-08-01",
-      format: "standard",
+      format: "constructed",
       tier: "store" as const,
       country: "DE",
     };

@@ -2,7 +2,7 @@ import type { MetaDeckSummary } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
-import { isScopeNarrowed } from "@/lib/meta-scope";
+import { isScopeCustomized } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
 /**
@@ -266,7 +266,7 @@ export function metaDeckFilterOptions(decks: readonly MetaDeckSummary[]): MetaDe
  */
 export function hasActiveMetaDeckFilters(filters: Omit<MetaDeckFilterValues, "eras">): boolean {
   return (
-    isScopeNarrowed(filters.scope) ||
+    isScopeCustomized(filters.scope) ||
     filters.events.length > 0 ||
     filters.legends.length > 0 ||
     filters.maxRank !== null ||
