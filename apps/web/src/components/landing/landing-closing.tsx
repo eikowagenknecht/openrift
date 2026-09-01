@@ -2,12 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 
 import { Heading } from "@/components/heading";
-import { ClipFrame, cornerClip } from "@/components/marketing/clip-frame";
+import { ClipFrame } from "@/components/marketing/clip-frame";
+import { chapterAnchor, FEATURE_CHAPTERS } from "@/components/marketing/features-chapters";
+import { CHAPTER_TILE_CLASS, ChapterTileBody } from "@/components/marketing/features-hero";
 import { Reveal } from "@/components/marketing/reveal";
 
 import { HeroCtas } from "./hero-ctas";
-
-const ROW_CLIP = cornerClip(12);
 
 const SWITCH_POINTS = [
   "Free and open source. No ads, no paywall.",
@@ -54,20 +54,39 @@ export function LandingClosing() {
         </ClipFrame>
       </Reveal>
 
-      <Reveal>
-        <ClipFrame tone="border" cut={12} className="p-0">
-          <Link
-            to="/features"
-            className="hover:bg-secondary group flex items-center justify-between gap-4 p-5 transition-colors"
-            style={{ clipPath: ROW_CLIP }}
-          >
-            <span className="font-heading font-medium">See everything OpenRift does</span>
-            <ArrowRightIcon
-              aria-hidden="true"
-              className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5"
-            />
-          </Link>
-        </ClipFrame>
+      <Reveal className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4">
+          <Heading level={1} as="h2">
+            And that&apos;s not even half of it
+          </Heading>
+          <span aria-hidden="true" className="bg-border-accent h-px w-8" />
+          <p className="text-muted-foreground max-w-2xl leading-relaxed">
+            The full tour runs five chapters, from your first import to putting cards on stream.
+            Jump into one, or take it from the top.
+          </p>
+        </div>
+        <nav
+          aria-label="Feature tour chapters"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"
+        >
+          {FEATURE_CHAPTERS.map((chapter) => (
+            <ClipFrame key={chapter.id} tone="border" cut={12} className="h-full p-0">
+              <Link to="/features" hash={chapterAnchor(chapter.id)} className={CHAPTER_TILE_CLASS}>
+                <ChapterTileBody chapter={chapter} />
+              </Link>
+            </ClipFrame>
+          ))}
+        </nav>
+        <Link
+          to="/features"
+          className="text-primary group flex items-center gap-1.5 text-sm font-medium"
+        >
+          See everything OpenRift does
+          <ArrowRightIcon
+            aria-hidden="true"
+            className="size-4 transition-transform group-hover:translate-x-0.5"
+          />
+        </Link>
       </Reveal>
 
       <Reveal className="flex flex-col items-center gap-4 text-center">

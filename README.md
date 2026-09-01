@@ -33,16 +33,17 @@ Tournament view:
 
 ## What it does
 
-- **Comprehensive catalog.** The biggest catalog I know of ([dated comparison](https://openrift.app/help/why-openrift)): almost all English cards and promos, plus many Chinese cards. French isn't in yet, unfortunately.
+- **Comprehensive catalog.** The goal is every card and promo in every available language. Today that means English, Chinese, French, and Korean printings, plus around 800 promos tracked down to the stamp and where each one was handed out.
+- **Card scanner.** Point your phone (or webcam) at a card to look it up or add it to your collection. Recognition runs on your own device in under a second, works offline, and has no usage limits.
 - **Accurate price tracking.** Daily prices from TCGplayer, Cardmarket, and CardTrader, side by side, with history charts.
 - **One card, one place.** Collections map to the real world: a deck box, a binder, a card lent to a friend. Each copy lives in exactly one, so the app always mirrors what's actually on your shelf.
 - **Wishlists and tradelists.** Track the cards you want and the spares you'd part with, and share either by link with anyone. Lists can also fill themselves from rules (a playset of every card, every surplus common beyond two playsets) and stay current on their own.
 - **Private groups.** Form a small group with friends or your local game store, with collections owned by the whole group, a view into each member's own collections, and trade matching that surfaces who has the cards you're after. My play group runs a shared "bulk box" of spare cards this way: take a card home, mark it in OpenRift, and it moves from the group pool into your own collection. No other Riftbound site does this.
 - **Your decks, your rules.** Validate against official and custom formats, or build freeform with no limits at all. Energy curves, deck codes, per-matchup plans, and a list of what you're still missing so you can proxy or buy the rest. Start building without signing in, and share a deck as a link that unfurls into a full visual decklist.
-- **A full toolbox.** Pack opener, card designer, tournament tools, and a searchable rules reference are all built in with more to come.
+- **A full toolbox.** Tournament tools (Swiss, pods, and 2v2, with deck checks and judges), a tournament results archive, a Discord bot, streamer tools (a card stage for OBS, tier lists, chat-bot lookups), a pack opener, a card designer, and a searchable rules reference are all built in, with more to come.
 - **Private and open.** Zero third-party trackers, just cookie-free Umami analytics. Open source under AGPL-3.0, with import and export options, so your data is never locked in.
 
-There is plenty more on the public [roadmap](https://openrift.app/roadmap) and I like to get feedback about what would make this app even better for **you**.
+The full tour of everything the app does lives at [openrift.app/features](https://openrift.app/features), and the [roadmap](https://openrift.app/roadmap) shows how it got here. I like to get feedback about what would make this app even better for **you**.
 
 ## What it doesn't do
 
@@ -52,7 +53,7 @@ Some things are left out on purpose, each for a reason.
 - **No forums**, because moderation is a full-time job I don't have time for.
 - **No AI** deck suggestions, because as good as AI is at some things, deck-building today isn't one of them.
 
-For where OpenRift stands against the alternatives, and what it has today versus what it doesn't, see the [honest comparison](https://openrift.app/help/why-openrift).
+For the story behind the app, what only OpenRift has, and where it's honestly still catching up, see [Why OpenRift?](https://openrift.app/help/why-openrift).
 
 ## Why
 

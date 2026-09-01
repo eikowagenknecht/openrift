@@ -9,12 +9,14 @@ import {
   FileWarningIcon,
   FolderSyncIcon,
   Gamepad2Icon,
+  GitBranchIcon,
   HandHeartIcon,
   HeartIcon,
   LayersIcon,
   LibraryIcon,
   ListChecksIcon,
   MedalIcon,
+  MonitorPlayIcon,
   PackageOpenIcon,
   PaletteIcon,
   PieChartIcon,
@@ -25,7 +27,6 @@ import {
   ScrollTextIcon,
   Share2Icon,
   ShuffleIcon,
-  SmartphoneIcon,
   SwordsIcon,
   TrophyIcon,
   UploadIcon,
@@ -41,6 +42,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 interface RoadmapItem {
@@ -52,26 +54,38 @@ interface RoadmapItem {
 }
 
 const roadmapItems: RoadmapItem[] = [
-  // Upcoming
   {
-    title: "Tournament Decks",
-    description: "Browse tournament-winning decklists.",
+    title: "Tournament Results Archive",
+    description:
+      "Archived Riftbound events with winners, full standings, top-cut brackets, and decklists you can fork into your own.",
     icon: <TrophyIcon className="size-4" />,
-    done: false,
+    done: true,
+    date: "Aug 2026",
+  },
+  {
+    title: "Streamer Tools",
+    description:
+      "The Stage for showing cards full-screen or as an OBS overlay, tier list boards, and card lookups for your chat bot.",
+    icon: <MonitorPlayIcon className="size-4" />,
+    done: true,
+    date: "Aug 2026",
   },
   {
     title: "Discord Card Bot",
-    description: "Look up cards, prices, and rulings directly in Discord.",
+    description:
+      "Card, deck, and rule lookups in your own server, including [[card name]] mentions with prices and links.",
     icon: <BotIcon className="size-4" />,
-    done: false,
+    done: true,
+    date: "Aug 2026",
   },
   {
-    title: "Mobile App",
-    description: "Native mobile app for iOS and Android.",
-    icon: <SmartphoneIcon className="size-4" />,
-    done: false,
+    title: "Deck Variants",
+    description:
+      "Fork a deck to try a change without losing the build that works, on a small graph of what each variant adds and cuts.",
+    icon: <GitBranchIcon className="size-4" />,
+    done: true,
+    date: "Aug 2026",
   },
-  // Done
   {
     title: "Card Scanner",
     description:
@@ -79,6 +93,14 @@ const roadmapItems: RoadmapItem[] = [
     icon: <ScanLineIcon className="size-4" />,
     done: true,
     date: "Aug 2026",
+  },
+  {
+    title: "Swiss & 2v2 Events",
+    description:
+      "Swiss pairings with optional regions, and fixed-team 2v2 tournaments alongside the free-for-all pods.",
+    icon: <SwordsIcon className="size-4" />,
+    done: true,
+    date: "Jul 2026",
   },
   {
     title: "Card Lending",
@@ -289,6 +311,29 @@ export function RoadmapPage() {
         </PageTopBar>
       </PageTopBarSticky>
       <div className={cn(PAGE_WIDTH.capped, "pt-3", PAGE_PADDING_NO_TOP)}>
+        <p className="text-muted-foreground max-w-prose pb-4">
+          What ships next grows out of player feedback rather than a long-term plan: most of the
+          features below started as requests from people using the app. If something is missing for
+          you, say so on{" "}
+          <a
+            href={SOCIAL_LINKS.discordInvite}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            Discord
+          </a>{" "}
+          or{" "}
+          <a
+            href={SOCIAL_LINKS.githubIssues}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            GitHub
+          </a>
+          .
+        </p>
         <ol className="relative">
           {roadmapItems.map((item, i) => {
             const isFirst = i === 0;

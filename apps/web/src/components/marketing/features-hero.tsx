@@ -53,22 +53,34 @@ function CardFlourish({ urls }: { urls: string[] }) {
   );
 }
 
+/** Shared by the hero's same-page tiles and the landing's cross-page teaser. */
+export const CHAPTER_TILE_CLASS =
+  "hover:bg-secondary focus-visible:ring-ring flex h-full flex-col gap-1.5 p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset";
+
+export function ChapterTileBody({ chapter }: { chapter: FeatureChapter }) {
+  return (
+    <>
+      <span className="flex items-center gap-2">
+        <span className="text-primary font-heading text-xs font-semibold">{chapter.number}</span>
+        <chapter.icon className="text-primary size-4" aria-hidden="true" />
+      </span>
+      <span className="font-heading leading-tight font-medium">{chapter.title}</span>
+      <span className="text-muted-foreground line-clamp-2 text-xs">
+        {chapter.features.map((feature) => feature.label).join(" · ")}
+      </span>
+    </>
+  );
+}
+
 function ChapterTile({ chapter }: { chapter: FeatureChapter }) {
   return (
     <ClipFrame tone="border" cut={12} className="h-full p-0">
       <a
         href={`#${chapterAnchor(chapter.id)}`}
         onClick={smoothAnchorClick}
-        className="hover:bg-secondary focus-visible:ring-ring flex h-full flex-col gap-1.5 p-3 transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+        className={CHAPTER_TILE_CLASS}
       >
-        <span className="flex items-center gap-2">
-          <span className="text-primary font-heading text-xs font-semibold">{chapter.number}</span>
-          <chapter.icon className="text-primary size-4" aria-hidden="true" />
-        </span>
-        <span className="font-heading leading-tight font-medium">{chapter.title}</span>
-        <span className="text-muted-foreground line-clamp-2 text-xs">
-          {chapter.features.map((feature) => feature.label).join(" · ")}
-        </span>
+        <ChapterTileBody chapter={chapter} />
       </a>
     </ClipFrame>
   );

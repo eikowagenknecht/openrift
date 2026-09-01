@@ -148,7 +148,7 @@ test.describe("/roadmap", () => {
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
-      "Planned features and upcoming improvements for OpenRift.",
+      "Every feature OpenRift has shipped so far, and how to shape what comes next.",
     );
   });
 });

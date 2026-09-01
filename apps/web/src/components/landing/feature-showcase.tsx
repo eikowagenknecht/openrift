@@ -7,7 +7,7 @@ import { ScanVignette } from "@/components/marketing/scan-vignette";
 import type { LandingThumbnailCard } from "@/lib/landing-thumbnails";
 import { cn } from "@/lib/utils";
 
-import { DeckVignette, GroupsVignette, ListsVignette } from "./landing-vignettes";
+import { GroupsVignette, ListsVignette, PricesVignette } from "./landing-vignettes";
 
 /**
  * The landing page's four differentiator sections: what OpenRift does that a
@@ -52,12 +52,12 @@ export function FeatureShowcase({
       vignette: <GroupsVignette thumbnailUrls={thumbnailUrls} />,
     },
     {
-      title: "Decks, checked as you build",
+      title: "Know what your cards are worth",
       description:
-        "Legality against the official rules, energy curves, matchup plans, and deck codes you can share anywhere.",
-      cta: "Open the deck builder",
-      to: "/decks",
-      vignette: <DeckVignette />,
+        "Daily prices from TCGplayer, Cardmarket, and CardTrader side by side on every printing, with history charts and your collection's value tracked over time.",
+      cta: "Open the catalog",
+      to: "/cards",
+      vignette: <PricesVignette />,
     },
   ] as const;
 

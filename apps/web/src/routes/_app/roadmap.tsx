@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_app/roadmap")({
     seoHead({
       siteUrl: getSiteUrl(),
       title: "Roadmap",
-      description: "Planned features and upcoming improvements for OpenRift.",
+      description: "Every feature OpenRift has shipped so far, and how to shape what comes next.",
       path: "/roadmap",
     }),
 });

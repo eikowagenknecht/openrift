@@ -4,6 +4,9 @@
 
 ### Other
 
+- feat(App): **Front page opens the feature tour** — marketplace prices join the landing highlights, and the tour's five chapters are now linked right from the front page.
+- feat(App): **Roadmap brought up to date** — the Discord bot, tournament results archive, streamer tools, deck variants, and Swiss and 2v2 events are marked shipped, and the page now says how to influence what comes next.
+- feat(App): **Why OpenRift, in prose** — the help article now tells the story without the dated feature comparison table, and points to the feature tour instead.
 - fix(Meta): **Decklists that repeat a card** — a list naming the same card on several lines now archives with the quantities added up, instead of failing and leaving the event without its decks.
 - fix(App): **Readable error messages** — a request that times out at the gateway now explains itself instead of showing the server's raw error page.
 
