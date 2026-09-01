@@ -1,5 +1,5 @@
 import { formatDayTime } from "@openrift/shared";
-import type { MetaSyncSettings } from "@openrift/shared/contracts/admin/meta-catalog";
+import type { MetaSource, MetaSyncSettings } from "@openrift/shared/contracts/admin/meta-catalog";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useMetaSyncSettings, useUpdateMetaSyncSettings } from "@/hooks/use-admin-meta-catalog";
+import { META_SOURCE_LABELS } from "@/lib/meta-catalog-display";
 
 /** The auto-accept rule form's editable shape. */
 interface RulesDraft {
@@ -35,10 +36,30 @@ function toDraft(settings: MetaSyncSettings): RulesDraft {
   };
 }
 
+/**
+ * What each source's crawl actually consults. Only uvsgames has templates and a
+ * format mapping, so the other two rules would be dead switches on the second
+ * source's tab rather than settings it ignores quietly.
+ */
+const SOURCE_INTRO: Record<MetaSource, string> = {
+  uvsgames:
+    "When a crawl sees an event matching any rule below, it is accepted automatically: the live event is created and its UVS Games standings are fetched and published without review. Events you dismissed never auto-accept, whatever they match.",
+  playloltcg:
+    "When a crawl sees an event matching the rule below, it is accepted automatically: the live event is created and its Play LoL TCG standings are fetched and published without review. Events you dismissed never auto-accept. This source publishes no event templates, so field size is the only rule it can be judged on.",
+};
+
+/** The other source the one shared rule also governs. */
+const OTHER_SOURCE: Record<MetaSource, MetaSource> = {
+  uvsgames: "playloltcg",
+  playloltcg: "uvsgames",
+};
+
 function AutoAcceptForm({
+  source,
   settings,
   onClose,
 }: {
+  source: MetaSource;
   settings: MetaSyncSettings;
   onClose: () => void;
 }) {
@@ -67,11 +88,7 @@ function AutoAcceptForm({
     <DialogForm onSubmit={save}>
       <DialogHeader>
         <DialogTitle>Auto-accept rules</DialogTitle>
-        <DialogDescription>
-          When a crawl sees an event matching any rule below, it is accepted automatically: the live
-          event is created and its uvsgames standings are fetched and published without review.
-          Events you dismissed never auto-accept, whatever they match.
-        </DialogDescription>
+        <DialogDescription>{SOURCE_INTRO[source]}</DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
@@ -98,30 +115,39 @@ function AutoAcceptForm({
         {draft.minPlayersEnabled && !playerCountValid && (
           <p className="text-destructive">Enter a whole number of players above zero.</p>
         )}
-        <div className="flex items-center gap-3">
-          <Switch
-            id="meta-auto-accept-official"
-            checked={draft.official}
-            onCheckedChange={(checked: boolean) =>
-              setDraft((prev) => ({ ...prev, official: checked }))
-            }
-          />
-          <Label htmlFor="meta-auto-accept-official">
-            Runs on a template you watch (set those under Templates &amp; formats)
-          </Label>
-        </div>
-        <div className="flex items-center gap-3">
-          <Switch
-            id="meta-auto-accept-notable"
-            checked={draft.notable}
-            onCheckedChange={(checked: boolean) =>
-              setDraft((prev) => ({ ...prev, notable: checked }))
-            }
-          />
-          <Label htmlFor="meta-auto-accept-notable">
-            Name matches the notable vocabulary (regional, qualifier, championship, invitational)
-          </Label>
-        </div>
+        <p className="text-muted-foreground">
+          Both catalogues read this threshold, so a change here also governs{" "}
+          {META_SOURCE_LABELS[OTHER_SOURCE[source]]}.
+        </p>
+        {source === "uvsgames" && (
+          <>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="meta-auto-accept-official"
+                checked={draft.official}
+                onCheckedChange={(checked: boolean) =>
+                  setDraft((prev) => ({ ...prev, official: checked }))
+                }
+              />
+              <Label htmlFor="meta-auto-accept-official">
+                Runs on a template you watch (set those under Templates &amp; formats)
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="meta-auto-accept-notable"
+                checked={draft.notable}
+                onCheckedChange={(checked: boolean) =>
+                  setDraft((prev) => ({ ...prev, notable: checked }))
+                }
+              />
+              <Label htmlFor="meta-auto-accept-notable">
+                Name matches the notable vocabulary (regional, qualifier, championship,
+                invitational)
+              </Label>
+            </div>
+          </>
+        )}
         <p className="text-muted-foreground">Last changed {formatDayTime(settings.updatedAt)}.</p>
       </div>
 
@@ -144,7 +170,13 @@ function AutoAcceptForm({
  *
  * @returns The auto-accept rules dialog.
  */
-export function MetaAutoAcceptDialog({ onClose }: { onClose: () => void }) {
+export function MetaAutoAcceptDialog({
+  source,
+  onClose,
+}: {
+  source: MetaSource;
+  onClose: () => void;
+}) {
   const { data } = useMetaSyncSettings();
 
   return (
@@ -158,7 +190,7 @@ export function MetaAutoAcceptDialog({ onClose }: { onClose: () => void }) {
             <p className="text-muted-foreground">Loading the rules…</p>
           </>
         ) : (
-          <AutoAcceptForm settings={data} onClose={onClose} />
+          <AutoAcceptForm source={source} settings={data} onClose={onClose} />
         )}
       </DialogContent>
     </Dialog>

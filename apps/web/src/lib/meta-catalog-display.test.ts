@@ -1,5 +1,8 @@
 import type { MetaOverlayQueueRow } from "@openrift/shared";
-import type { MetaSyncStatus } from "@openrift/shared/contracts/admin/meta-catalog";
+import type {
+  MetaSyncStatus,
+  PlayloltcgCatalogRow,
+} from "@openrift/shared/contracts/admin/meta-catalog";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,6 +15,9 @@ import {
   formatRunDuration,
   metaSyncAlerts,
   overlayCountsForProvider,
+  PLAYLOLTCG_STATUS_CHOICES,
+  playloltcgCoverageRow,
+  playloltcgStatusDisplay,
   runningRunId,
   summarizeRunResult,
   syncTriggerAnnouncement,
@@ -25,6 +31,75 @@ describe("catalogStatusDisplay", () => {
 
   it("shows a status it has never seen verbatim rather than dropping it", () => {
     expect(catalogStatusDisplay("cancelled")).toEqual({ label: "cancelled", variant: "outline" });
+  });
+});
+
+describe("playloltcgStatusDisplay", () => {
+  it("names each step of the source's lifecycle", () => {
+    expect(playloltcgStatusDisplay(1)?.label).toBe("Reg open");
+    expect(playloltcgStatusDisplay(4)).toEqual({ label: "In progress", variant: "warning" });
+    expect(playloltcgStatusDisplay(5)).toEqual({ label: "Finished", variant: "success" });
+  });
+
+  it("says nothing about a step outside the five the source documents", () => {
+    expect(playloltcgStatusDisplay(9)).toBeUndefined();
+    expect(playloltcgStatusDisplay(null)).toBeUndefined();
+  });
+
+  it("offers the whole lifecycle as filter choices, in the order it runs", () => {
+    expect(PLAYLOLTCG_STATUS_CHOICES.map((choice) => choice.value)).toEqual([
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+    ]);
+  });
+});
+
+describe("playloltcgCoverageRow", () => {
+  function catalogRow(overrides: Partial<PlayloltcgCatalogRow> = {}): PlayloltcgCatalogRow {
+    return {
+      activityShopId: 4021,
+      name: "Summoner Skirmish",
+      shopName: "Piltover Games",
+      city: "Zaun",
+      status: 5,
+      battleMode: "1v1",
+      playerCount: 32,
+      startAt: "2026-08-15",
+      triage: "accepted",
+      metaEventId: "event-1",
+      metaEventSlug: "summoner-skirmish",
+      fetchedAt: "2026-08-16T00:00:00.000Z",
+      missingSince: null,
+      nextCheckAt: "2026-08-17T00:00:00.000Z",
+      stagedPlayerCount: 32,
+      stagedLegendCount: 30,
+      stagedDeckCount: 8,
+      sourceUrl: "https://example.test/activity/4021",
+      ...overrides,
+    };
+  }
+
+  it("maps the lifecycle onto the three statuses the chips speak", () => {
+    expect(playloltcgCoverageRow(catalogRow({ status: 2 })).displayStatus).toBe("upcoming");
+    expect(playloltcgCoverageRow(catalogRow({ status: 4 })).displayStatus).toBe("inProgress");
+    expect(playloltcgCoverageRow(catalogRow({ status: 5 })).displayStatus).toBe("complete");
+  });
+
+  it("treats a step it does not know as not yet run, rather than as finished", () => {
+    expect(playloltcgCoverageRow(catalogRow({ status: null })).displayStatus).toBe("upcoming");
+    expect(playloltcgCoverageRow(catalogRow({ status: 9 })).displayStatus).toBe("upcoming");
+  });
+
+  it("reads the start as an instant, and keeps a missing day missing", () => {
+    expect(playloltcgCoverageRow(catalogRow()).startAt).toBe("2026-08-15T00:00:00.000Z");
+    expect(playloltcgCoverageRow(catalogRow({ startAt: null })).startAt).toBeNull();
+  });
+
+  it("says nothing about published decklists, which the source never publishes", () => {
+    expect(playloltcgCoverageRow(catalogRow()).decklistStatus).toBeNull();
   });
 });
 

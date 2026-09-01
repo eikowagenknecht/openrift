@@ -98,6 +98,9 @@ function dueRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListRow {
     shopDisplayName: "卡之域卡牌 深圳",
     nextCheckAt: NOW,
     checkStage: 0,
+    stagedPlayerCount: 0,
+    stagedLegendCount: 0,
+    stagedDeckCount: 0,
     fetchedAt: null,
     ...overrides,
   };

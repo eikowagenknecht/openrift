@@ -60,6 +60,12 @@ export interface PlayloltcgListRow extends PlayloltcgEventRow {
   checkStage: number;
   /** When the deep fetch last landed; null before the first fetch. */
   fetchedAt: Date | null;
+  /** Standings rows this source's mirror holds; zero before the first fetch. */
+  stagedPlayerCount: number;
+  /** The mirrored rows whose legend is known. */
+  stagedLegendCount: number;
+  /** The staged decks the fetch actually got back. */
+  stagedDeckCount: number;
 }
 
 export interface PlayloltcgTriageCounts {
@@ -73,6 +79,19 @@ export interface PlayloltcgListFilters {
   status?: number;
   triage?: PlayloltcgTriage;
   minPlayers?: number;
+  /** Inclusive `YYYY-MM-DD` bounds on `start_at`, which is a date column. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** True keeps only rows a covering crawl stopped returning. */
+  missing?: boolean;
+  /** True keeps only accepted rows whose results were never fetched. */
+  awaitingResults?: boolean;
+}
+
+/** How one page of the catalogue is ordered. Defaults to newest events first. */
+export interface PlayloltcgListOrder {
+  sort?: "startAt" | "name" | "playerCount";
+  direction?: "asc" | "desc";
 }
 
 type SqlBool = boolean;
@@ -88,6 +107,22 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
     batches.push(items.slice(i, i + size));
   }
   return batches;
+}
+
+const CATALOG_ORDER_COLUMNS = {
+  startAt: sql`c.start_at`,
+  name: sql`lower(c.name)`,
+  playerCount: sql`c.player_count`,
+};
+
+/**
+ * How one page of the list is ordered. Nulls sort last whichever way the column
+ * runs: an event the source gave no player count is not the answer to "biggest
+ * first", and it is not the answer to "smallest first" either.
+ */
+function catalogOrderBy(order: PlayloltcgListOrder) {
+  const column = CATALOG_ORDER_COLUMNS[order.sort ?? "startAt"];
+  return order.direction === "asc" ? sql`${column} asc nulls last` : sql`${column} desc nulls last`;
 }
 
 export function playloltcgEventsRepo(db: Kysely<Database>) {
@@ -135,6 +170,23 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
      where st.activity_shop_id = c.activity_shop_id
   )`;
 
+  // Correlated against the mirror, so each one is an index lookup on the page's
+  // rows rather than an aggregate over every event the archive has fetched.
+  const stagedPlayerCount = sql<number>`(
+    select count(*)::int from playloltcg_event_standings st
+     where st.activity_shop_id = c.activity_shop_id
+  )`;
+
+  const stagedLegendCount = sql<number>`(
+    select count(*)::int from playloltcg_event_standings st
+     where st.activity_shop_id = c.activity_shop_id and st.legend_name is not null
+  )`;
+
+  const stagedDeckCount = sql<number>`(
+    select count(*)::int from playloltcg_decklists dl
+     where dl.activity_shop_id = c.activity_shop_id and dl.fetch_status = 'fetched'
+  )`;
+
   const isNew = sql<SqlBool>`i.provider is null and src.meta_event_id is null`;
   const accepted = sql<SqlBool>`i.provider is null and src.meta_event_id is not null`;
 
@@ -146,6 +198,9 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         "src.metaEventId as metaEventId",
         fetchedAt.as("fetchedAt"),
         "me.slug as metaEventSlug",
+        stagedPlayerCount.as("stagedPlayerCount"),
+        stagedLegendCount.as("stagedLegendCount"),
+        stagedDeckCount.as("stagedDeckCount"),
         ...joinedColumns,
       ]);
   }
@@ -290,10 +345,11 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       return await listSelect().where("c.activityShopId", "=", activityShopId).executeTakeFirst();
     },
 
-    /** The catalogue triage list: filtered, triaged, newest first, paginated. */
+    /** The catalogue triage list: filtered, triaged, ordered, paginated. */
     async list(
       filters: PlayloltcgListFilters,
       pagination: { limit: number; offset: number },
+      order: PlayloltcgListOrder = {},
     ): Promise<{ rows: PlayloltcgListRow[]; total: number }> {
       const applyFilters = <T extends ReturnType<typeof triagedQuery>>(q: T): T => {
         let base = q;
@@ -309,6 +365,18 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         if (filters.minPlayers !== undefined) {
           base = base.where("c.playerCount", ">=", filters.minPlayers) as T;
         }
+        if (filters.dateFrom !== undefined) {
+          base = base.where("c.startAt", ">=", filters.dateFrom) as T;
+        }
+        if (filters.dateTo !== undefined) {
+          base = base.where("c.startAt", "<=", filters.dateTo) as T;
+        }
+        if (filters.missing === true) {
+          base = base.where("c.missingSince", "is not", null) as T;
+        }
+        if (filters.awaitingResults === true) {
+          base = base.where(accepted).where(notFetched) as T;
+        }
         if (filters.triage === "new") {
           base = base.where(isNew) as T;
         } else if (filters.triage === "accepted") {
@@ -320,7 +388,9 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       };
 
       const rows = await applyFilters(listSelect())
-        .orderBy("c.startAt", "desc")
+        .orderBy(catalogOrderBy(order))
+        // Ties on the sort column are common (a locals night files every store
+        // on the same day), so the key breaks them and keeps paging stable.
         .orderBy("c.activityShopId", "desc")
         .limit(pagination.limit)
         .offset(pagination.offset)

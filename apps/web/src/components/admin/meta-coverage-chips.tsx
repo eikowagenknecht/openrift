@@ -8,19 +8,24 @@ import { Badge } from "@/components/ui/badge";
 // (ADR-014). The counts are staged, not archived: they say what the last deep
 // fetch found, which is the thing the recheck ladder is chasing.
 
-/** The staged coverage fields, so the chips can be rendered from a bare row. */
-export type MetaCoverageRow = Pick<
-  MetaCatalogRow,
-  | "triage"
-  | "displayStatus"
-  | "decklistStatus"
-  | "fetchedAt"
-  | "stagedPlayerCount"
-  | "stagedLegendCount"
-  | "stagedDeckCount"
-  | "nextCheckAt"
-  | "startAt"
->;
+/**
+ * The staged coverage fields, so the chips can be rendered from a bare row.
+ * Spelled out rather than picked off {@link MetaCatalogRow}: the second source
+ * publishes neither a display status nor a decklist status, and its start is a
+ * calendar day it may not know, so both tabs meet here rather than each growing
+ * its own chips.
+ */
+export interface MetaCoverageRow {
+  triage: MetaCatalogRow["triage"];
+  displayStatus: string;
+  decklistStatus: string | null;
+  fetchedAt: string | null;
+  stagedPlayerCount: number;
+  stagedLegendCount: number;
+  stagedDeckCount: number;
+  nextCheckAt: string | null;
+  startAt: string | null;
+}
 
 /**
  * Where the recheck ladder has this event. An accepted event is visited hourly
@@ -38,7 +43,7 @@ function coverageRecheckHint(row: MetaCoverageRow, now: Date): string {
   if (row.nextCheckAt === null) {
     return "ladder done";
   }
-  if (new Date(row.startAt).getTime() > now.getTime()) {
+  if (row.startAt !== null && new Date(row.startAt).getTime() > now.getTime()) {
     return `starts ${formatRelativeTime(row.startAt, { now })}`;
   }
   if (row.displayStatus !== "complete") {

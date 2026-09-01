@@ -264,6 +264,16 @@ export const META_CATALOG_TRIAGE = ["new", "accepted", "dismissed"] as const;
 export const META_CATALOG_DISPLAY_STATUSES = ["upcoming", "inProgress", "complete"] as const;
 
 /**
+ * playloltcg's `sortWeight` lifecycle, which stands in for uvsgames'
+ * {@link META_CATALOG_DISPLAY_STATUSES}: 1 registration-open, 2 fully-booked,
+ * 3 scheduled, 4 in-progress, 5 finished. The source can report a step outside
+ * it, which is why the column is not an enum in the database.
+ */
+export const PLAYLOLTCG_STATUSES = [1, 2, 3, 4, 5] as const;
+
+export type PlayloltcgStatus = (typeof PLAYLOLTCG_STATUSES)[number];
+
+/**
  * The columns the catalogue can be ordered by. The list is paged on the server
  * over a six-figure mirror, so a sort has to travel with the query rather than
  * reorder the fifty rows that happen to be on screen.

@@ -18,6 +18,7 @@ export type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 export { acceptPlayloltcgEvent } from "./playloltcg-accept.js";
 export {
   backfillPlayloltcg,
+  fetchPlayloltcgEvent,
   isPlayloltcgRecheckNoop,
   isPlayloltcgSyncNoop,
   playloltcgCoolingDown,
@@ -43,6 +44,7 @@ export const META_JOB_KINDS = [
   "meta.playloltcg_sync",
   "meta.playloltcg_backfill",
   "meta.playloltcg_recheck",
+  "meta.playloltcg_event_fetch",
 ] as const;
 
 export interface MetaSyncEnv {

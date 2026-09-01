@@ -36,6 +36,7 @@ import {
   acceptPlayloltcgEvent,
   backfillPlayloltcg,
   createPlayloltcgSyncDeps,
+  fetchPlayloltcgEvent,
   isPlayloltcgRecheckNoop,
   isPlayloltcgSyncNoop,
   PLAYLOLTCG_RECHECK_BATCH_SIZE,
@@ -462,8 +463,18 @@ export const adminMetaCatalogRouter = {
     const page = input.page ?? 1;
     const [{ rows, total }, counts] = await Promise.all([
       context.repos.playloltcgEvents.list(
-        { search: input.search, triage: input.triage },
+        {
+          search: input.search,
+          triage: input.triage,
+          status: input.status,
+          minPlayers: input.minPlayers,
+          dateFrom: input.dateFrom,
+          dateTo: input.dateTo,
+          missing: input.missing,
+          awaitingResults: input.awaitingResults,
+        },
         { limit, offset: (page - 1) * limit },
+        { sort: input.sort, direction: input.direction },
       ),
       context.repos.playloltcgEvents.triageCounts(),
     ]);
@@ -498,6 +509,36 @@ export const adminMetaCatalogRouter = {
       entityId: `${PLAYLOLTCG_PROVIDER}:${row.activityShopId}`,
       entityLabel: row.name,
     });
+  }),
+
+  playloltcgUndismiss: os.playloltcgUndismiss.handler(async ({ input, context }) => {
+    const externalId = String(input.activityShopId);
+    const removed = await context.repos.metaOverlays.unignoreEvent(PLAYLOLTCG_PROVIDER, externalId);
+    if (!removed) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Ignore entry not found");
+    }
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "meta-catalog.undismiss",
+      entityType: "meta-catalog",
+      entityId: `${PLAYLOLTCG_PROVIDER}:${externalId}`,
+    });
+  }),
+
+  playloltcgFetchEvent: os.playloltcgFetchEvent.handler(async ({ input, context }) => {
+    const row = await context.repos.playloltcgEvents.byKey(input.activityShopId);
+    if (row === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Catalogue event not found");
+    }
+    if (row.metaEventId === null) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        "Accept this event before fetching its results.",
+      );
+    }
+    return await startJob(context, "meta.playloltcg_event_fetch", playloltcgDeps, (deps) =>
+      fetchPlayloltcgEvent(deps, row),
+    );
   }),
 
   // Five upstream requests at a 30s timeout each, so waiting for it outlives

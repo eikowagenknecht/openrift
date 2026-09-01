@@ -294,6 +294,32 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
       expect(ours).toEqual(SORTED_KEYS);
       expect(listed.total).toBeGreaterThanOrEqual(ours.length);
     });
+
+    it("reverses the start day when the reader asks for the oldest first", async () => {
+      const listed = await repo().list(
+        { search: "本命传奇挑战" },
+        { limit: 200, offset: 0 },
+        { sort: "startAt", direction: "asc" },
+      );
+      const ours = listed.rows
+        .map((entry) => entry.activityShopId)
+        .filter((key) => SORTED_KEYS.includes(key as (typeof SORTED_KEYS)[number]));
+
+      expect(ours).toEqual([...SORTED_KEYS].toReversed());
+    });
+
+    it("orders by player count, keeping the events with no count last", async () => {
+      const listed = await repo().list(
+        { search: "本命传奇挑战" },
+        { limit: 200, offset: 0 },
+        { sort: "playerCount", direction: "desc" },
+      );
+      const counts = listed.rows.map((entry) => entry.playerCount);
+      const known = counts.filter((count) => count !== null);
+
+      expect(known).toEqual([...known].toSorted((a, b) => b - a));
+      expect(counts.slice(known.length).every((count) => count === null)).toBe(true);
+    });
   });
 
   it("filters the triage list by status, player count and triage state", async () => {
@@ -308,6 +334,40 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
 
     const counts = await repo().triageCounts();
     expect(counts.new + counts.accepted + counts.dismissed).toBeGreaterThan(0);
+  });
+
+  it("bounds the triage list by start day, both ends included", async () => {
+    const listed = await repo().list(
+      { search: "本命传奇挑战", dateFrom: "2026-09-01", dateTo: "2026-09-01" },
+      { limit: 50, offset: 0 },
+    );
+
+    expect(listed.rows.length).toBeGreaterThan(0);
+    expect(listed.rows.every((entry) => entry.startAt === "2026-09-01")).toBe(true);
+  });
+
+  it("keeps only the rows a covering crawl stopped returning", async () => {
+    const listed = await repo().list({ missing: true }, { limit: 50, offset: 0 });
+
+    expect(listed.rows.every((entry) => entry.missingSince !== null)).toBe(true);
+  });
+
+  it("keeps only accepted rows whose results were never fetched", async () => {
+    const listed = await repo().list({ awaitingResults: true }, { limit: 50, offset: 0 });
+
+    expect(
+      listed.rows.every((entry) => entry.triage === "accepted" && entry.fetchedAt === null),
+    ).toBe(true);
+  });
+
+  it("counts what the mirror staged for each row, so the coverage chips have figures", async () => {
+    const stored = await repo().byKey(KEYS.hashed);
+
+    expect(stored).toMatchObject({
+      stagedPlayerCount: expect.any(Number),
+      stagedLegendCount: expect.any(Number),
+      stagedDeckCount: expect.any(Number),
+    });
   });
 
   describe("writes wider than one statement can bind", () => {

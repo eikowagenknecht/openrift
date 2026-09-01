@@ -22,6 +22,11 @@ export function toPlayloltcgCatalogRow(row: PlayloltcgListRow): PlayloltcgCatalo
     metaEventId: row.metaEventId,
     metaEventSlug: row.metaEventSlug,
     fetchedAt: row.fetchedAt?.toISOString() ?? null,
+    missingSince: row.missingSince?.toISOString() ?? null,
+    nextCheckAt: row.nextCheckAt?.toISOString() ?? null,
+    stagedPlayerCount: row.stagedPlayerCount,
+    stagedLegendCount: row.stagedLegendCount,
+    stagedDeckCount: row.stagedDeckCount,
     sourceUrl: playloltcgEventUrl(row.activityShopId),
   };
 }

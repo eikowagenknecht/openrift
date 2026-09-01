@@ -4,11 +4,14 @@ import {
   projectEventRow,
   projectShopRow,
 } from "../../lib/playloltcg-catalog.js";
-import type { PlayloltcgUpsertInput } from "../../repositories/playloltcg-events.js";
+import type {
+  PlayloltcgListRow,
+  PlayloltcgUpsertInput,
+} from "../../repositories/playloltcg-events.js";
 import { runCancelRequested, writeRunHeartbeat } from "./crawl-checkpoint.js";
 import { autoAcceptPlayloltcgEvents } from "./playloltcg-accept.js";
 import { MAX_PAGE_SIZE, PlayloltcgBlockedError } from "./playloltcg-client.js";
-import type { PlayloltcgDetailFacts } from "./playloltcg-deep-fetch.js";
+import type { PlayloltcgDeepFetchResult, PlayloltcgDetailFacts } from "./playloltcg-deep-fetch.js";
 import { playloltcgDeepFetch, readPlayloltcgDetail } from "./playloltcg-deep-fetch.js";
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 import { clock } from "./playloltcg-deps.js";
@@ -352,6 +355,41 @@ export async function processPlayloltcgRechecks(
   }
   result.requests = deps.client.requests;
   return result;
+}
+
+/**
+ * Pulls one accepted event out of turn, for the catalogue's Fetch now. It reads
+ * the detail the ladder would have read and then deep-fetches whatever the
+ * source has, without touching the recheck queue: a manual pull answers "what
+ * does the source hold right now", and pushing the ladder forward on the back of
+ * it would skip the visit that catches a late correction.
+ *
+ * @param deps - The source's sync dependencies.
+ * @param row - The accepted catalogue row.
+ * @returns The deep fetch's counters, with `complete` false when the detail was unreadable.
+ */
+export async function fetchPlayloltcgEvent(
+  deps: PlayloltcgSyncDeps,
+  row: PlayloltcgListRow,
+): Promise<PlayloltcgDeepFetchResult> {
+  const errors: string[] = [];
+  const detail = await readPlayloltcgDetail(deps, row.activityShopId, errors);
+  if (detail === null) {
+    return {
+      activityShopId: row.activityShopId,
+      requests: deps.client.requests,
+      players: 0,
+      decks: 0,
+      acceptedPlayers: 0,
+      skippedPlayers: 0,
+      shopId: null,
+      publishedResults: false,
+      complete: false,
+      errors,
+    };
+  }
+  const result = await playloltcgDeepFetch(deps, row, detail);
+  return { ...result, errors: [...errors, ...result.errors] };
 }
 
 export interface PlayloltcgBackfillOptions {

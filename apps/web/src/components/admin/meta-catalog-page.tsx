@@ -479,7 +479,7 @@ export function MetaCatalogPage() {
         onConfirm={confirmFormat}
       />
 
-      {rulesOpen && <MetaAutoAcceptDialog onClose={() => setRulesOpen(false)} />}
+      {rulesOpen && <MetaAutoAcceptDialog source="uvsgames" onClose={() => setRulesOpen(false)} />}
       {vocabularyOpen && <MetaSourceVocabularyDialog onClose={() => setVocabularyOpen(false)} />}
     </>
   );

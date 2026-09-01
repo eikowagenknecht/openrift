@@ -35,6 +35,9 @@ function listRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListRow 
     nextCheckAt: new Date("2026-08-31T12:00:00Z"),
     checkStage: 1,
     fetchedAt: new Date("2026-08-30T18:00:00Z"),
+    stagedPlayerCount: 41,
+    stagedLegendCount: 38,
+    stagedDeckCount: 12,
     ...overrides,
   };
 }
@@ -67,5 +70,23 @@ describe("toPlayloltcgCatalogRow", () => {
 
     expect(row.fetchedAt).toBeNull();
     expect(row.triage).toBe("new");
+  });
+
+  it("carries the coverage the catalogue's chips read", () => {
+    const row = toPlayloltcgCatalogRow(listRow());
+
+    expect(row).toMatchObject({
+      stagedPlayerCount: 41,
+      stagedLegendCount: 38,
+      stagedDeckCount: 12,
+      nextCheckAt: "2026-08-31T12:00:00.000Z",
+      missingSince: null,
+    });
+  });
+
+  it("reports when the listing stopped returning the row", () => {
+    const row = toPlayloltcgCatalogRow(listRow({ missingSince: new Date("2026-08-25T00:00:00Z") }));
+
+    expect(row.missingSince).toBe("2026-08-25T00:00:00.000Z");
   });
 });

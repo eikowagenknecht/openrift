@@ -12,31 +12,37 @@ import { adminMetaCatalogRouter } from "./meta-catalog";
 // Mocked services
 // ---------------------------------------------------------------------------
 
-const { acceptPlayloltcgEvent, backfillCatalog, repromoteMetaEvents, runJobAsync } = vi.hoisted(
-  () => ({
-    acceptPlayloltcgEvent: vi.fn(),
-    backfillCatalog: vi.fn(() => Promise.resolve({})),
-    repromoteMetaEvents: vi.fn(() => Promise.resolve({ events: 0, failed: 0, errors: [] })),
-    runJobAsync: vi.fn(
-      (
-        _deps: unknown,
-        _kind: string,
-        _trigger: string,
-        work: (runId: string) => Promise<unknown>,
-      ) => {
-        // The real starter fires the work off and answers with the handle; the
-        // tests want the crawl's arguments, so it runs inline here.
-        void work("run-1");
-        return Promise.resolve({ runId: "run-1", status: "running" as const });
-      },
-    ),
-  }),
-);
+const {
+  acceptPlayloltcgEvent,
+  backfillCatalog,
+  fetchPlayloltcgEvent,
+  repromoteMetaEvents,
+  runJobAsync,
+} = vi.hoisted(() => ({
+  acceptPlayloltcgEvent: vi.fn(),
+  fetchPlayloltcgEvent: vi.fn(() => Promise.resolve({})),
+  backfillCatalog: vi.fn(() => Promise.resolve({})),
+  repromoteMetaEvents: vi.fn(() => Promise.resolve({ events: 0, failed: 0, errors: [] })),
+  runJobAsync: vi.fn(
+    (
+      _deps: unknown,
+      _kind: string,
+      _trigger: string,
+      work: (runId: string) => Promise<unknown>,
+    ) => {
+      // The real starter fires the work off and answers with the handle; the
+      // tests want the crawl's arguments, so it runs inline here.
+      void work("run-1");
+      return Promise.resolve({ runId: "run-1", status: "running" as const });
+    },
+  ),
+}));
 
 vi.mock("../../services/meta-sync/index.js", async (importOriginal) => ({
   ...(await importOriginal<typeof metaSync>()),
   acceptPlayloltcgEvent,
   backfillCatalog,
+  fetchPlayloltcgEvent,
 }));
 
 vi.mock("../../services/run-job.js", async (importOriginal) => ({
@@ -475,7 +481,12 @@ describe("GET /catalogue/sync", () => {
     await app.request(`${BASE}/sync?source=playloltcg`);
 
     expect(mockJobRuns.listRecentByKinds).toHaveBeenCalledWith(
-      ["meta.playloltcg_sync", "meta.playloltcg_backfill", "meta.playloltcg_recheck"],
+      [
+        "meta.playloltcg_sync",
+        "meta.playloltcg_backfill",
+        "meta.playloltcg_recheck",
+        "meta.playloltcg_event_fetch",
+      ],
       expect.any(Number),
     );
   });
@@ -518,6 +529,11 @@ describe("playloltcg catalogue", () => {
       metaEventId: null,
       metaEventSlug: null,
       fetchedAt: null,
+      missingSince: null,
+      nextCheckAt: null,
+      stagedPlayerCount: 0,
+      stagedLegendCount: 0,
+      stagedDeckCount: 0,
       ...overrides,
     };
   }
@@ -538,8 +554,9 @@ describe("playloltcg catalogue", () => {
     });
     expect(body.rows[0].sourceUrl).toContain(String(SHOP_ID));
     expect(mockPlayloltcgEvents.list).toHaveBeenCalledWith(
-      { search: undefined, triage: "new" },
+      expect.objectContaining({ search: undefined, triage: "new" }),
       { limit: 10, offset: 10 },
+      { sort: undefined, direction: undefined },
     );
   });
 
@@ -605,5 +622,100 @@ describe("playloltcg catalogue", () => {
 
     expect(res.status).toBe(404);
     expect(mockMetaOverlays.ignoreEvent).not.toHaveBeenCalled();
+  });
+
+  it("carries every filter and the order down to the mirror query", async () => {
+    mockPlayloltcgEvents.list.mockResolvedValue({ rows: [], total: 0 });
+    mockPlayloltcgEvents.triageCounts.mockResolvedValue({ new: 0, accepted: 0, dismissed: 0 });
+
+    const query = [
+      "search=nexus",
+      "status=5",
+      "minPlayers=16",
+      "dateFrom=2026-08-01",
+      "dateTo=2026-08-31",
+      "missing=true",
+      "awaitingResults=true",
+      "sort=playerCount",
+      "direction=asc",
+    ].join("&");
+    const res = await app.request(`${BASE}/playloltcg/events?${query}`);
+
+    expect(res.status).toBe(200);
+    expect(mockPlayloltcgEvents.list).toHaveBeenCalledWith(
+      {
+        search: "nexus",
+        triage: undefined,
+        status: 5,
+        minPlayers: 16,
+        dateFrom: "2026-08-01",
+        dateTo: "2026-08-31",
+        missing: true,
+        awaitingResults: true,
+      },
+      expect.anything(),
+      { sort: "playerCount", direction: "asc" },
+    );
+  });
+
+  it("rejects a lifecycle step the source does not publish", async () => {
+    const res = await app.request(`${BASE}/playloltcg/events?status=9`);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("removes the ignore key on an undismiss", async () => {
+    mockMetaOverlays.unignoreEvent.mockResolvedValue(true);
+
+    const res = await app.request(`${BASE}/playloltcg/events/undismiss`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityShopId: SHOP_ID }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mockMetaOverlays.unignoreEvent).toHaveBeenCalledWith("playloltcg", String(SHOP_ID));
+    expect(mockAdminEvents.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "meta-catalog.undismiss" }),
+    );
+  });
+
+  it("404s an undismiss for a key that was never dismissed", async () => {
+    mockMetaOverlays.unignoreEvent.mockResolvedValue(false);
+
+    const res = await app.request(`${BASE}/playloltcg/events/undismiss`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityShopId: SHOP_ID }),
+    });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("pulls an accepted event's results out of the ladder's turn", async () => {
+    const row = playloltcgRow({ triage: "accepted", metaEventId: "live-1" });
+    mockPlayloltcgEvents.byKey.mockResolvedValue(row);
+
+    const res = await app.request(`${BASE}/playloltcg/events/fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityShopId: SHOP_ID }),
+    });
+
+    expect(res.status).toBe(202);
+    expect(fetchPlayloltcgEvent).toHaveBeenCalledWith(expect.anything(), row);
+  });
+
+  it("refuses to fetch an event nobody has accepted yet", async () => {
+    mockPlayloltcgEvents.byKey.mockResolvedValue(playloltcgRow());
+
+    const res = await app.request(`${BASE}/playloltcg/events/fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activityShopId: SHOP_ID }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(fetchPlayloltcgEvent).not.toHaveBeenCalled();
   });
 });

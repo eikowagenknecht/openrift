@@ -14,6 +14,8 @@ const captured = vi.hoisted(() => ({
   response: null as unknown,
   accept: vi.fn(),
   dismiss: vi.fn(),
+  undismiss: vi.fn(),
+  fetchEvent: vi.fn(() => Promise.resolve({ status: "running", runId: "run-1" })),
   /** How many times the page asked for the accept mutation, to pin it per page rather than per row. */
   acceptSubscriptions: 0,
 }));
@@ -81,7 +83,13 @@ vi.mock("@/hooks/use-admin-playloltcg-catalog", () => ({
     captured.acceptSubscriptions += 1;
     return { mutate: captured.accept, isPending: false };
   },
-  useDismissPlayloltcgEvent: () => ({ mutate: captured.dismiss, isPending: false }),
+  useDismissPlayloltcgEvent: () => ({
+    mutate: captured.dismiss,
+    mutateAsync: captured.dismiss,
+    isPending: false,
+  }),
+  useUndismissPlayloltcgEvent: () => ({ mutate: captured.undismiss, isPending: false }),
+  useFetchPlayloltcgEvent: () => ({ mutateAsync: captured.fetchEvent, isPending: false }),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
@@ -101,6 +109,11 @@ function makeRow(overrides: Partial<PlayloltcgCatalogRow> = {}): PlayloltcgCatal
     metaEventId: null,
     metaEventSlug: null,
     fetchedAt: null,
+    missingSince: null,
+    nextCheckAt: null,
+    stagedPlayerCount: 0,
+    stagedLegendCount: 0,
+    stagedDeckCount: 0,
     sourceUrl: "https://example.test/activity/4021",
     ...overrides,
   };
@@ -187,12 +200,15 @@ describe("PlayloltcgCatalogPage", () => {
     expect(captured.accept).toHaveBeenCalledWith({ activityShopId: 5510 });
   });
 
-  it("dismisses the row whose button was pressed", async () => {
+  it("asks before dismissing, and dismisses only once confirmed", async () => {
     const user = userEvent.setup();
     render(<PlayloltcgCatalogPage />);
 
-    await user.click(screen.getByRole("button", { name: "Dismiss" }));
+    await user.click(screen.getByRole("button", { name: /Dismiss/u }));
+    expect(captured.dismiss).not.toHaveBeenCalled();
 
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Dismiss" }));
     expect(captured.dismiss).toHaveBeenCalledWith({ activityShopId: 4021 });
   });
 
@@ -218,14 +234,29 @@ describe("PlayloltcgCatalogPage", () => {
     setResponse([makeRow({ triage: "accepted" })]);
     render(<PlayloltcgCatalogPage />);
     expect(screen.getByText("Accepted")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Accept/u })).not.toBeInTheDocument();
   });
 
-  it("offers nothing to dismiss on a row that has already been dropped", () => {
+  it("offers an undismiss on a dismissed row, and nothing to accept", async () => {
+    const user = userEvent.setup();
     setResponse([makeRow({ triage: "dismissed" })]);
     render(<PlayloltcgCatalogPage />);
+
     expect(screen.getByText("Dismissed")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Accept/u })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Undismiss/u }));
+
+    expect(captured.undismiss).toHaveBeenCalledWith({ activityShopId: 4021 });
+  });
+
+  it("fetches an accepted event's results on demand and reports what came back", async () => {
+    const user = userEvent.setup();
+    setResponse([makeRow({ triage: "accepted", metaEventId: "event-1" })]);
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByRole("button", { name: /Fetch now/u }));
+
+    expect(captured.fetchEvent).toHaveBeenCalledWith({ activityShopId: 4021 });
   });
 
   it("opens on the triage bucket the URL named", () => {
@@ -303,6 +334,73 @@ describe("PlayloltcgCatalogPage", () => {
 
     expect(searchStore.get().page).toBeUndefined();
     expect(captured.params).toMatchObject({ page: 1, triage: "accepted" });
+  });
+
+  it("filters on the source's own lifecycle step, not on a status we invented", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByLabelText("Event status"));
+    await user.click(await screen.findByRole("option", { name: "Reg open" }));
+
+    expect(searchStore.get().plStatus).toBe(1);
+    expect(captured.params).toMatchObject({ status: 1 });
+  });
+
+  it("drops the status filter again when any state is picked", async () => {
+    const user = userEvent.setup();
+    searchStore.seed({ plStatus: 5 });
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByLabelText("Event status"));
+    await user.click(await screen.findByRole("option", { name: "Any status" }));
+
+    expect(searchStore.get().plStatus).toBeUndefined();
+    expect(captured.params).toMatchObject({ status: undefined });
+  });
+
+  it("carries the day range and the player floor into the query", () => {
+    searchStore.seed({ dateFrom: "2026-08-01", dateTo: "2026-08-31", minPlayers: 16 });
+    render(<PlayloltcgCatalogPage />);
+    expect(captured.params).toMatchObject({
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+      minPlayers: 16,
+    });
+  });
+
+  it("keeps an off toggle out of the URL rather than writing it false", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+
+    await user.click(screen.getByRole("switch", { name: "Awaiting results" }));
+    expect(searchStore.get().awaitingResults).toBe(true);
+
+    await user.click(screen.getByRole("switch", { name: "Awaiting results" }));
+    expect(searchStore.get().awaitingResults).toBeUndefined();
+  });
+
+  it("orders newest first until a header says otherwise", async () => {
+    const user = userEvent.setup();
+    render(<PlayloltcgCatalogPage />);
+    expect(captured.params).toMatchObject({ sort: "startAt", direction: "desc" });
+
+    await user.click(screen.getByRole("button", { name: /Players/u }));
+
+    expect(searchStore.get()).toMatchObject({ eventSort: "playerCount", eventDir: "desc" });
+    expect(captured.params).toMatchObject({ sort: "playerCount", direction: "desc" });
+  });
+
+  it("says an accepted event is still missing its standings", () => {
+    setResponse([makeRow({ triage: "accepted", metaEventId: "event-1" })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("Standings pending")).toBeInTheDocument();
+  });
+
+  it("flags a row the crawl stopped returning", () => {
+    setResponse([makeRow({ missingSince: "2026-08-20T00:00:00.000Z" })]);
+    render(<PlayloltcgCatalogPage />);
+    expect(screen.getByText("Missing")).toBeInTheDocument();
   });
 
   it("says the catalogue is loading before the first page lands", () => {

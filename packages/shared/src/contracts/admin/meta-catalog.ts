@@ -9,7 +9,9 @@ import {
   META_CATALOG_SORT_DIRECTIONS,
   META_CATALOG_SORTS,
   META_CATALOG_TRIAGE,
+  PLAYLOLTCG_STATUSES,
 } from "../../types/enums.js";
+import type { PlayloltcgStatus } from "../../types/enums.js";
 import { authedRoute } from "../_base.js";
 
 extendZodWithOpenApi(z);
@@ -162,6 +164,16 @@ export const playloltcgCatalogRowSchema = z
     metaEventSlug: z.string().nullable(),
     /** When the last deep fetch landed; null before the first fetch. */
     fetchedAt: isoDateTime.nullable(),
+    /** Set when a covering crawl stopped returning the row; it is never deleted. */
+    missingSince: isoDateTime.nullable(),
+    /** Null once the recheck ladder is exhausted, or while the event is not accepted. */
+    nextCheckAt: isoDateTime.nullable(),
+    /** Standings rows this source's mirror holds; zero before the first fetch. */
+    stagedPlayerCount: z.number().int().nonnegative(),
+    /** The mirrored rows whose legend is known. */
+    stagedLegendCount: z.number().int().nonnegative(),
+    /** The staged decks the fetch actually got back. */
+    stagedDeckCount: z.number().int().nonnegative(),
     /** The source's own page for the event, its citation URL. */
     sourceUrl: z.string(),
   })
@@ -169,7 +181,23 @@ export const playloltcgCatalogRowSchema = z
 
 const playloltcgCatalogListQuerySchema = z.object({
   search: z.string().optional(),
+  /** One step of the sortWeight lifecycle, {@link PLAYLOLTCG_STATUSES}. */
+  status: z.coerce
+    .number()
+    .int()
+    .refine((value): value is PlayloltcgStatus => PLAYLOLTCG_STATUSES.some((s) => s === value))
+    .optional(),
+  minPlayers: z.coerce.number().int().min(0).optional(),
+  /** Inclusive calendar-day bounds; `start_at` is a date column, not an instant. */
+  dateFrom: isoDate.optional(),
+  dateTo: isoDate.optional(),
   triage: triageSchema.optional(),
+  /** True keeps only rows a covering crawl stopped returning. */
+  missing: z.coerce.boolean().optional(),
+  /** True keeps only accepted rows whose results were never fetched. */
+  awaitingResults: z.coerce.boolean().optional(),
+  sort: z.enum(META_CATALOG_SORTS).optional(),
+  direction: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
 });
@@ -503,6 +531,26 @@ export const adminMetaCatalogContract = {
     .route({ method: "POST", path: `${BASE}/playloltcg/events/dismiss`, tags: [TAG] })
     .input(playloltcgKeySchema)
     .errors({ NOT_FOUND: { message: "Catalogue event not found" } }),
+
+  playloltcgUndismiss: authedRoute
+    .route({ method: "POST", path: `${BASE}/playloltcg/events/undismiss`, tags: [TAG] })
+    .input(playloltcgKeySchema)
+    .errors({ NOT_FOUND: { message: "Ignore entry not found" } }),
+
+  /** Pulls one accepted playloltcg event's results now, out of the ladder's turn. */
+  playloltcgFetchEvent: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/playloltcg/events/fetch`,
+      tags: [TAG],
+      successStatus: 202,
+    })
+    .input(playloltcgKeySchema)
+    .errors({
+      NOT_FOUND: { message: "Catalogue event not found" },
+      BAD_REQUEST: { message: "Accept this event before fetching its results" },
+    })
+    .output(metaSyncTriggerResultSchema),
 
   /** Pulls one accepted event's results now, without waiting for its ladder step. */
   fetchEvent: authedRoute

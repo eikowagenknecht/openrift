@@ -6,7 +6,9 @@ import {
   META_CATALOG_TRIAGE,
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
+  PLAYLOLTCG_STATUSES,
 } from "@openrift/shared";
+import type { PlayloltcgStatus } from "@openrift/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -37,6 +39,16 @@ export const metaSearchSchema = z.object({
   // to the admin cards tab, and a name carrying two value sets fails to compile
   // wherever a route spreads the previous search.
   eventStatus: z.enum(META_CATALOG_DISPLAY_STATUSES).optional(),
+  // playloltcg reports its own five-step lifecycle rather than the three
+  // display statuses uvsgames publishes, so the two tabs cannot share one
+  // status param without one of them lying about what it filters on.
+  plStatus: z.coerce
+    .number()
+    .int()
+    .refine((value): value is PlayloltcgStatus =>
+      PLAYLOLTCG_STATUSES.some((status) => status === value),
+    )
+    .optional(),
   eventSort: z.enum(META_CATALOG_SORTS).optional(),
   eventDir: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
   minPlayers: z.coerce.number().int().min(0).optional(),

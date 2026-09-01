@@ -1,13 +1,16 @@
-import { formatRelativeTime } from "@openrift/shared";
-import type { MetaOverlayQueueRow } from "@openrift/shared";
+import { PLAYLOLTCG_STATUSES, formatRelativeTime } from "@openrift/shared";
+import type { MetaOverlayQueueRow, PlayloltcgStatus } from "@openrift/shared";
 import type {
   MetaCatalogRow,
   MetaCatalogTriage,
   MetaSource,
   MetaSyncStatus,
   MetaSyncTriggerResult,
+  PlayloltcgCatalogRow,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { isResumableCheckpoint } from "@openrift/shared/contracts/admin/meta-catalog";
+
+import type { MetaCoverageRow } from "@/components/admin/meta-coverage-chips";
 
 // Pure display helpers for the Meta Archive's catalogue triage and sync panels
 // (ADR-014). Kept out of the components so the source's own vocabulary, the
@@ -42,6 +45,63 @@ const STATUS_DISPLAY: Record<string, CatalogChipDisplay> = {
  */
 export function catalogStatusDisplay(status: string): CatalogChipDisplay {
   return STATUS_DISPLAY[status] ?? { label: status, variant: "outline" };
+}
+
+/** Where each lifecycle step lands in the three statuses the chips speak. */
+const PLAYLOLTCG_COVERAGE_STATUS: Record<PlayloltcgStatus, string> = {
+  1: "upcoming",
+  2: "upcoming",
+  3: "upcoming",
+  4: "inProgress",
+  5: "complete",
+};
+
+const PLAYLOLTCG_STATUS_DISPLAY: Record<PlayloltcgStatus, CatalogChipDisplay> = {
+  1: { label: "Reg open", variant: "outline" },
+  2: { label: "Full", variant: "outline" },
+  3: { label: "Scheduled", variant: "outline" },
+  4: { label: "In progress", variant: "warning" },
+  5: { label: "Finished", variant: "success" },
+};
+
+/**
+ * The chip for playloltcg's `sortWeight` lifecycle. The source can report a step
+ * outside the five it documents, which is why this answers undefined rather than
+ * inventing a label: a number the reader cannot act on is worse than no chip.
+ *
+ * @param status - The source's `sortWeight`, or null when it published none.
+ * @returns The chip's label and tone, or undefined for a step we do not know.
+ */
+export function playloltcgStatusDisplay(status: number | null): CatalogChipDisplay | undefined {
+  return status === null ? undefined : PLAYLOLTCG_STATUS_DISPLAY[status as PlayloltcgStatus];
+}
+
+/** The lifecycle as a filter's options, in the order the source runs through it. */
+export const PLAYLOLTCG_STATUS_CHOICES = PLAYLOLTCG_STATUSES.map((status) => ({
+  value: String(status),
+  label: PLAYLOLTCG_STATUS_DISPLAY[status].label,
+}));
+
+/**
+ * A playloltcg row in the vocabulary the shared coverage chips read. The source
+ * publishes no decklist status: it releases standings and decks in one act, so
+ * "were decks published" is not a question it can answer ahead of the fetch.
+ *
+ * @param row - The catalogue row.
+ * @returns The coverage fields, with the lifecycle mapped onto the chips' three statuses.
+ */
+export function playloltcgCoverageRow(row: PlayloltcgCatalogRow): MetaCoverageRow {
+  return {
+    triage: row.triage,
+    displayStatus: PLAYLOLTCG_COVERAGE_STATUS[row.status as PlayloltcgStatus] ?? "upcoming",
+    decklistStatus: null,
+    fetchedAt: row.fetchedAt,
+    stagedPlayerCount: row.stagedPlayerCount,
+    stagedLegendCount: row.stagedLegendCount,
+    stagedDeckCount: row.stagedDeckCount,
+    nextCheckAt: row.nextCheckAt,
+    startAt: row.startAt === null ? null : `${row.startAt}T00:00:00.000Z`,
+  };
 }
 
 const TRIAGE_DISPLAY: Record<MetaCatalogTriage, CatalogChipDisplay> = {

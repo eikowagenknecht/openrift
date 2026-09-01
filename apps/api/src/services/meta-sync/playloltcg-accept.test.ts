@@ -48,6 +48,9 @@ function catalogRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListR
     shopDisplayName: "卡之域卡牌 深圳",
     nextCheckAt: null,
     checkStage: 0,
+    stagedPlayerCount: 0,
+    stagedLegendCount: 0,
+    stagedDeckCount: 0,
     fetchedAt: null,
     ...overrides,
   };
