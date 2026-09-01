@@ -101,6 +101,15 @@ function TemplateRow({
       <TableCell className="text-right tabular-nums">
         {template.eventCount.toLocaleString()}
       </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {template.avgPlayers === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <span title={`Over ${template.ranEventCount.toLocaleString()} events that have run`}>
+            {template.avgPlayers.toFixed(1)}
+          </span>
+        )}
+      </TableCell>
       <TableCell>
         <span
           className="text-muted-foreground"
@@ -163,9 +172,10 @@ function TemplatesSection() {
         A watched template earns its events a badge on the catalogue, a place in the daily poll, and
         eligibility for the official auto-accept rule. The tier says how much a template&apos;s
         events count for on the public meta page; mapping one reclassifies its events right away,
-        and an unmapped template&apos;s events fall back to a player-count guess. Names come from
-        the source, refreshed on every sync; a template with only an id is one the source has
-        stopped publishing.
+        and an unmapped template&apos;s events fall back to a player-count guess. The average counts
+        only events that have already run, since anything from today on is still taking
+        registrations. Names come from the source, refreshed on every sync; a template with only an
+        id is one the source has stopped publishing.
       </p>
       <div className="overflow-x-auto">
         <Table>
@@ -174,6 +184,7 @@ function TemplatesSection() {
               <TableHead className="w-60">Name</TableHead>
               <TableHead>Sample event</TableHead>
               <TableHead className="w-20 text-right">Events</TableHead>
+              <TableHead className="w-24 text-right">Avg players</TableHead>
               <TableHead className="w-28">Last run</TableHead>
               <TableHead className="w-56">Tier</TableHead>
               <TableHead className="w-24">Watched</TableHead>
@@ -182,7 +193,7 @@ function TemplatesSection() {
           <TableBody>
             {templates.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground h-20 text-center">
+                <TableCell colSpan={7} className="text-muted-foreground h-20 text-center">
                   {data === undefined
                     ? "Loading the templates…"
                     : "No templates yet. Run a catalogue sync to fetch them."}

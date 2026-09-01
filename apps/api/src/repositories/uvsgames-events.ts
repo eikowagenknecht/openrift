@@ -134,6 +134,14 @@ export interface UvsgamesTemplateRow {
   /** The admin-mapped tier; null until an admin maps the template. */
   tier: MetaEventTier | null;
   eventCount: number;
+  /**
+   * Mean players over {@link ranEventCount} alone, so a template whose events
+   * are still filling up is not judged on empty registrations. Null when none
+   * of its events have run yet.
+   */
+  avgPlayers: number | null;
+  /** Events that started before today and published a player count. */
+  ranEventCount: number;
   /** The newest event running it, which is all an unnamed template has. */
   sampleEventName: string | null;
   lastStartAt: Date | null;
@@ -246,6 +254,13 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
   )`;
 
   /**
+   * An event whose attendance is settled: it started before today and the
+   * source published a count. Today's and future events are still taking
+   * registrations, so averaging them in reads every new template as tiny.
+   */
+  const RAN_EVENT = sql`e.player_count is not null and e.start_at < date_trunc('day', now())`;
+
+  /**
    * The table is the row set, not the mirror: the sync writes a row for every
    * template the source publishes, so one the crawl has not met yet still shows
    * up with its name and a count of zero. Events join in for the counts, served
@@ -265,6 +280,10 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         "t.watched",
         "t.tier",
         eb.cast<number>(eb.fn.count("e.externalId"), "integer").as("eventCount"),
+        sql<number | null>`round(avg(e.player_count) filter (where ${RAN_EVENT}), 1)::float8`.as(
+          "avgPlayers",
+        ),
+        sql<number>`(count(*) filter (where ${RAN_EVENT}))::int`.as("ranEventCount"),
         sql<string | null>`(array_agg(e.name order by e.start_at desc))[1]`.as("sampleEventName"),
         eb.fn.max<Date>("e.startAt").as("lastStartAt"),
       ])

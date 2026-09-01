@@ -262,6 +262,10 @@ export const metaSourceTemplateSchema = z
     suggestedTier: metaEventTierSchema.nullable(),
     /** Catalogue events running this template. */
     eventCount: z.number().int().nonnegative(),
+    /** Mean players over {@link ranEventCount}; null until one of its events has run. */
+    avgPlayers: z.number().nullable(),
+    /** Events that started before today and published a player count. */
+    ranEventCount: z.number().int().nonnegative(),
     /** The most recent event's name, which is all an unnamed template has. */
     sampleEventName: z.string().nullable(),
     lastStartAt: isoDateTime.nullable(),

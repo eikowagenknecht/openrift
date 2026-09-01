@@ -72,6 +72,8 @@ export function toMetaSourceTemplate(row: UvsgamesTemplateRow): MetaSourceTempla
     tier: row.tier,
     suggestedTier: suggestTierForTemplateName(row.sourceName),
     eventCount: row.eventCount,
+    avgPlayers: row.avgPlayers,
+    ranEventCount: row.ranEventCount,
     sampleEventName: row.sampleEventName,
     lastStartAt: row.lastStartAt?.toISOString() ?? null,
   };

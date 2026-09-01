@@ -31,6 +31,9 @@ const EXTERNAL_IDS = [
   "mtc-official",
   "mtc-tpl-1",
   "mtc-tpl-2",
+  "mtc-avg-ran",
+  "mtc-avg-unrated",
+  "mtc-avg-upcoming",
   "mtc-fmt-1",
   "mtc-store-1",
   "mtc-store-2",
@@ -126,7 +129,7 @@ afterAll(async () => {
   await ctx.db.deleteFrom("uvsgamesStores").where("id", "=", STORE_ID).execute();
   await ctx.db
     .deleteFrom("uvsgamesEventTemplates")
-    .where("templateId", "in", ["mtc-template-a", "mtc-template-b"])
+    .where("templateId", "in", ["mtc-template-a", "mtc-template-b", "mtc-template-avg"])
     .execute();
   await ctx.db
     .deleteFrom("uvsgamesFormatMappings")
@@ -639,6 +642,50 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
 
       expect(found).toMatchObject({ eventCount: 2, sampleEventName: "MTC Template Newest" });
       expect(found?.lastStartAt?.toISOString()).toBe("2026-08-19T18:00:00.000Z");
+    });
+
+    it("averages the players of events that have run, not the ones still filling up", async () => {
+      const AVG_TEMPLATE = "mtc-template-avg";
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      await repo().upsertTemplates([{ templateId: AVG_TEMPLATE, sourceName: "MTC Averages" }]);
+      await repo().upsertBatch(
+        [
+          row({
+            externalId: "mtc-avg-ran",
+            contentHash: "h-avg-1",
+            startAt: new Date(Date.now() - 30 * DAY_MS),
+            playerCount: 30,
+            eventConfigurationTemplate: AVG_TEMPLATE,
+          }),
+          row({
+            externalId: "mtc-avg-unrated",
+            contentHash: "h-avg-2",
+            startAt: new Date(Date.now() - 20 * DAY_MS),
+            playerCount: null,
+            eventConfigurationTemplate: AVG_TEMPLATE,
+          }),
+          row({
+            externalId: "mtc-avg-upcoming",
+            contentHash: "h-avg-3",
+            startAt: new Date(Date.now() + 30 * DAY_MS),
+            playerCount: 2,
+            eventConfigurationTemplate: AVG_TEMPLATE,
+          }),
+        ],
+        SEEN,
+      );
+
+      const templates = await repo().listTemplates();
+      const found = templates.find((entry) => entry.templateId === AVG_TEMPLATE);
+
+      expect(found).toMatchObject({ eventCount: 3, avgPlayers: 30, ranEventCount: 1 });
+    });
+
+    it("reports no average for a template none of whose events have run", async () => {
+      const templates = await repo().listTemplates();
+      const found = templates.find((entry) => entry.templateId === "mtc-template-b");
+
+      expect(found).toMatchObject({ avgPlayers: null, ranEventCount: 0 });
     });
 
     it("refreshes a renamed template without touching the watch flag", async () => {

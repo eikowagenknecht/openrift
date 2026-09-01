@@ -166,6 +166,8 @@ describe("toMetaSourceTemplate", () => {
       watched: true,
       tier: null,
       eventCount: 12,
+      avgPlayers: 24.5,
+      ranEventCount: 10,
       sampleEventName: "Regional Qualifier Berlin",
       lastStartAt: new Date("2026-08-15T18:00:00Z"),
       ...overrides,
@@ -182,6 +184,8 @@ describe("toMetaSourceTemplate", () => {
       tier: null,
       suggestedTier: "premier",
       eventCount: 12,
+      avgPlayers: 24.5,
+      ranEventCount: 10,
       sampleEventName: "Regional Qualifier Berlin",
       lastStartAt: "2026-08-15T18:00:00.000Z",
     });

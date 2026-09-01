@@ -41,6 +41,8 @@ function template(overrides: Partial<MetaSourceTemplate> = {}): MetaSourceTempla
     tier: null,
     suggestedTier: "premier",
     eventCount: 42,
+    avgPlayers: 24.5,
+    ranEventCount: 40,
     sampleEventName: "Summoner Skirmish Regional Qualifier",
     lastStartAt: "2026-08-15T18:00:00.000Z",
     ...overrides,
@@ -76,6 +78,19 @@ describe("MetaSourceVocabularyDialog", () => {
     expect(screen.getByText("Riftbound Regional Qualifier")).toBeInTheDocument();
     expect(screen.getByText("Summoner Skirmish Regional Qualifier")).toBeInTheDocument();
     expect(screen.getByText("42")).toBeInTheDocument();
+  });
+
+  it("shows the average attendance over the events that have run", () => {
+    open();
+    expect(screen.getByText("24.5")).toHaveAttribute("title", "Over 40 events that have run");
+  });
+
+  it("shows no average for a template whose events are all still ahead", () => {
+    captured.templates = {
+      templates: [template({ avgPlayers: null, ranEventCount: 0 })],
+    };
+    open();
+    expect(screen.queryByText("24.5")).not.toBeInTheDocument();
   });
 
   it("falls back to the raw id for a template the source no longer publishes", () => {
