@@ -295,7 +295,7 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
       expect(listed.total).toBeGreaterThanOrEqual(ours.length);
     });
 
-    it("reverses the start day when the reader asks for the oldest first", async () => {
+    it("reverses the start day but not the key that breaks its ties", async () => {
       const listed = await repo().list(
         { search: "本命传奇挑战" },
         { limit: 200, offset: 0 },
@@ -305,7 +305,9 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
         .map((entry) => entry.activityShopId)
         .filter((key) => SORTED_KEYS.includes(key as (typeof SORTED_KEYS)[number]));
 
-      expect(ours).toEqual([...SORTED_KEYS].toReversed());
+      // The tiebreak stays descending in both directions so a page boundary
+      // lands in the same place, which is what uvsgames does too.
+      expect(ours).toEqual([KEYS.sortA, KEYS.sortC, KEYS.sortB]);
     });
 
     it("orders by player count, keeping the events with no count last", async () => {

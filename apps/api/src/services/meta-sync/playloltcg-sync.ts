@@ -63,7 +63,7 @@ export const PLAYLOLTCG_RECHECK_BATCH_SIZE = 30;
  * for more of the time, which is a trade against a WAF that answers bursts with
  * hours of refusal, not free throughput.
  */
-export const PLAYLOLTCG_DECK_BUDGET = 600;
+const PLAYLOLTCG_DECK_BUDGET = 600;
 
 /**
  * How soon a run returns to an event whose decks outran the budget.
