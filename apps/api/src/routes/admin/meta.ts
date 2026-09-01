@@ -146,6 +146,7 @@ export const adminMetaRouter = {
       {
         search: input.search,
         format: input.format,
+        source: input.source,
         dateFrom: input.dateFrom,
         dateTo: input.dateTo,
         incompleteStandings: input.incompleteStandings,

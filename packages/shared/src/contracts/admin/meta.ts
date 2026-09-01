@@ -14,6 +14,7 @@ import {
   META_EVENT_OVERLAY_FIELDS,
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
+  META_EVENT_SOURCE_FILTERS,
   META_PLAYER_OVERLAY_FIELDS,
 } from "../../types/enums.js";
 import { authedRoute } from "../_base.js";
@@ -101,6 +102,8 @@ const adminMetaEventListQuerySchema = z.object({
   search: z.string().optional(),
   /** A `deck_formats` slug. */
   format: z.string().optional(),
+  /** A provider that feeds the event, or `manual` for events no provider feeds. */
+  source: z.enum(META_EVENT_SOURCE_FILTERS).optional(),
   dateFrom: isoDate.optional(),
   dateTo: isoDate.optional(),
   /** True keeps only events holding fewer standings rows than the reported field. */

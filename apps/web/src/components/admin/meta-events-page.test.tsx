@@ -185,6 +185,7 @@ describe("MetaEventsPage filters, as the query they travel to the server in", ()
       page: 3,
       q: "skirmish",
       liveFormat: "standard",
+      liveSource: "playloltcg",
       dateFrom: "2026-01-01",
       dateTo: "2026-12-31",
       noDecks: true,
@@ -194,6 +195,7 @@ describe("MetaEventsPage filters, as the query they travel to the server in", ()
       page: 3,
       search: "skirmish",
       format: "standard",
+      source: "playloltcg",
       dateFrom: "2026-01-01",
       dateTo: "2026-12-31",
       noDecks: true,
@@ -250,5 +252,18 @@ describe("MetaEventsPage filters, as the query they travel to the server in", ()
     await user.click(await screen.findByRole("option", { name: "Any format" }));
 
     expect(searchStore.get().liveFormat).toBeUndefined();
+  });
+
+  it("narrows to one source and clears the URL when it is set back to any", async () => {
+    const user = userEvent.setup();
+    render(<MetaEventsPage />);
+
+    await user.click(screen.getByRole("combobox", { name: "Source" }));
+    await user.click(await screen.findByRole("option", { name: "Play LoL TCG" }));
+    expect(searchStore.get().liveSource).toBe("playloltcg");
+
+    await user.click(screen.getByRole("combobox", { name: "Source" }));
+    await user.click(await screen.findByRole("option", { name: "Any source" }));
+    expect(searchStore.get().liveSource).toBeUndefined();
   });
 });

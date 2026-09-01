@@ -1,11 +1,26 @@
+import { META_EVENT_SOURCE_FILTERS } from "@openrift/shared";
+import type { MetaEventSourceFilter } from "@openrift/shared";
+
 import { AdminFilterSelect, AdminFilterSwitch } from "@/components/admin/admin-filters";
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
 import { PageDescription } from "@/components/layout/page-top-bar";
 import { DatePicker } from "@/components/ui/date-picker";
+import { META_SOURCE_LABELS } from "@/lib/meta-catalog-display";
 import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
-/** The "no filter" option, absent from the deck-format slugs. */
+/** The "no filter" option, absent from the deck-format slugs and source keys. */
 const ANY = "any";
+
+const SOURCE_LABELS: Record<MetaEventSourceFilter, string> = {
+  ...META_SOURCE_LABELS,
+  usersubmission: "User submissions",
+  manual: "Manual only",
+};
+
+const SOURCE_OPTIONS = [
+  { value: ANY, label: "Any source" },
+  ...META_EVENT_SOURCE_FILTERS.map((source) => ({ value: source, label: SOURCE_LABELS[source] })),
+];
 
 /**
  * The live archive's filter row, with the count line under it. Every control
@@ -49,6 +64,17 @@ export function EventFilters({
           onChange={(value) => applyFilter({ liveFormat: value === ANY ? undefined : value })}
           options={formatOptions}
           label="Format"
+          className="w-44"
+        />
+        <AdminFilterSelect
+          value={filters.liveSource ?? ANY}
+          onChange={(value) =>
+            applyFilter({
+              liveSource: META_EVENT_SOURCE_FILTERS.find((source) => source === value),
+            })
+          }
+          options={SOURCE_OPTIONS}
+          label="Source"
           className="w-44"
         />
         <DatePicker

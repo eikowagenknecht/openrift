@@ -6,6 +6,7 @@ import type {
   DeckZone,
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
+  MetaEventSourceFilter,
   MetaListStatus,
 } from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
@@ -66,6 +67,7 @@ export interface AdminMetaEventQueryParams {
   page: number;
   search?: string;
   format?: string;
+  source?: MetaEventSourceFilter;
   dateFrom?: string;
   dateTo?: string;
   /** Only ever true or absent — see the note in the fetcher. */
@@ -91,6 +93,7 @@ export function metaEventsParamsFromSearch(search: {
   page?: number;
   q?: string;
   liveFormat?: string;
+  liveSource?: MetaEventSourceFilter;
   dateFrom?: string;
   dateTo?: string;
   incompleteStandings?: boolean;
@@ -102,6 +105,7 @@ export function metaEventsParamsFromSearch(search: {
     page: search.page ?? 1,
     search: search.q,
     format: search.liveFormat,
+    source: search.liveSource,
     dateFrom: search.dateFrom,
     dateTo: search.dateTo,
     incompleteStandings: search.incompleteStandings,
@@ -120,6 +124,7 @@ const fetchMetaEvents = createServerFn({ method: "GET" })
       limit: ADMIN_META_EVENT_PAGE_SIZE,
       search: data.search,
       format: data.format,
+      source: data.source,
       dateFrom: data.dateFrom,
       dateTo: data.dateTo,
       sort: data.sort,

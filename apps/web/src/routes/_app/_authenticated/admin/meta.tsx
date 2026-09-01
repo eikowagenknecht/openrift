@@ -6,6 +6,7 @@ import {
   META_CATALOG_TRIAGE,
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
+  META_EVENT_SOURCE_FILTERS,
   PLAYLOLTCG_STATUSES,
 } from "@openrift/shared";
 import type { PlayloltcgStatus } from "@openrift/shared";
@@ -61,6 +62,9 @@ export const metaSearchSchema = z.object({
   // above: these names live in the same URL as the catalogue's, and the two
   // tables filter different things.
   liveFormat: z.string().optional(),
+  // Unlike `source` above this one has no default: absent means every source,
+  // manual events included, which is what the live archive shows.
+  liveSource: z.enum(META_EVENT_SOURCE_FILTERS).optional(),
   liveSort: z.enum(META_EVENT_SORTS).optional(),
   liveDir: z.enum(META_EVENT_SORT_DIRECTIONS).optional(),
   incompleteStandings: z.boolean().optional(),
@@ -80,6 +84,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/meta")({
     page: search.page,
     q: search.q,
     liveFormat: search.liveFormat,
+    liveSource: search.liveSource,
     dateFrom: search.dateFrom,
     dateTo: search.dateTo,
     incompleteStandings: search.incompleteStandings,

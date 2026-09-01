@@ -255,6 +255,19 @@ export const META_EVENT_SORT_DIRECTIONS = ["asc", "desc"] as const;
 export const META_CATALOG_PROVIDERS = ["uvsgames", "playloltcg"] as const;
 
 /**
+ * The live event list's source filter: the catalogued providers,
+ * `usersubmission` (the provider accepted submissions are cited under), and
+ * `manual` for events no provider feeds.
+ */
+export const META_EVENT_SOURCE_FILTERS = [
+  ...META_CATALOG_PROVIDERS,
+  "usersubmission",
+  "manual",
+] as const;
+
+export type MetaEventSourceFilter = (typeof META_EVENT_SOURCE_FILTERS)[number];
+
+/**
  * Triage state, derived from the citation and the ignore table rather than
  * stored: `new` means no live event cites the key and it is not ignored.
  */

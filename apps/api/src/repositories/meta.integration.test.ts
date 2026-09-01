@@ -677,6 +677,35 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(narrowed.total).toBe(1);
       expect(narrowed.total).toBeLessThan(all.total);
     });
+
+    it("narrows to a provider's events, and manual to events no provider feeds", async () => {
+      // Far-future dates: the manual filter matches every source-less event in
+      // the shared DB, and these two must land on the newest-first page.
+      const sourced = await seedEvent(repo, "mta-page-src-provider", { eventDate: "2031-01-02" });
+      const hand = await seedEvent(repo, "mta-page-src-hand", { eventDate: "2031-01-01" });
+      await repo.insertEventSource({
+        metaEventId: sourced,
+        provider: "uvsgames",
+        externalId: "mta-page-src-evt",
+        label: "uvsgames",
+        sourceUrl: null,
+      });
+      // A citation without a source key does not stop the event being manual.
+      await repo.insertEventSource({
+        metaEventId: hand,
+        provider: null,
+        externalId: null,
+        label: "Twitch VOD",
+        sourceUrl: null,
+      });
+      const mine = [sourced, hand];
+
+      const byProvider = await repo.listEvents({ source: "uvsgames" }, PAGE);
+      const manual = await repo.listEvents({ source: "manual" }, PAGE);
+
+      expect(ours(byProvider.rows, mine)).toEqual([sourced]);
+      expect(ours(manual.rows, mine)).toEqual([hand]);
+    });
   });
 
   describe("reads", () => {

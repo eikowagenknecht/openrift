@@ -5,6 +5,7 @@ import type {
   META_EVENT_SORTS,
   MetaCreditVisibility,
   MetaEntryStatus,
+  MetaEventSourceFilter,
   MetaEventTier,
   MetaListStatus,
 } from "@openrift/shared/types";
@@ -385,6 +386,8 @@ export interface MetaEventFilters {
   /** Matched against the event name and the organizer. */
   search?: string;
   format?: string;
+  /** A provider that feeds the event, or `manual` for events no provider feeds. */
+  source?: MetaEventSourceFilter;
   dateFrom?: string;
   dateTo?: string;
   /** Keeps only events holding fewer standings rows than the reported field. */
@@ -426,6 +429,25 @@ const standingsShort = sql<boolean>`meta_events.player_count is not null
   and c.player_row_count < meta_events.player_count`;
 
 const noDecks = sql<boolean>`c.deck_count = 0`;
+
+/**
+ * The event has a citation from the named provider — or, for `manual`, from no
+ * provider at all: hand-entered citations carry a null provider, so an event
+ * built by hand has no provider row whether or not it has citations.
+ */
+function sourcedBy(source: MetaEventSourceFilter) {
+  return (eb: ExpressionBuilder<Database, "metaEvents">) => {
+    const providerRows = eb
+      .selectFrom("metaEventSources as src")
+      .select("src.id")
+      .whereRef("src.metaEventId", "=", "metaEvents.id")
+      .where("src.provider", "is not", null);
+    if (source === "manual") {
+      return eb.not(eb.exists(providerRows));
+    }
+    return eb.exists(providerRows.where("src.provider", "=", source));
+  };
+}
 
 export function metaRepo(db: Kysely<Database>) {
   /**
@@ -659,6 +681,10 @@ export function metaRepo(db: Kysely<Database>) {
       if (filters.format !== undefined) {
         rowQuery = rowQuery.where("metaEvents.format", "=", filters.format);
         countQuery = countQuery.where("metaEvents.format", "=", filters.format);
+      }
+      if (filters.source !== undefined) {
+        rowQuery = rowQuery.where(sourcedBy(filters.source));
+        countQuery = countQuery.where(sourcedBy(filters.source));
       }
       if (filters.dateFrom !== undefined) {
         rowQuery = rowQuery.where("metaEvents.eventDate", ">=", filters.dateFrom);

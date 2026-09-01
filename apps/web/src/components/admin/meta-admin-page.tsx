@@ -39,6 +39,7 @@ const CLEARED_TABLE_FILTERS = {
   awaitingResults: undefined,
   // Public only.
   liveFormat: undefined,
+  liveSource: undefined,
   liveSort: undefined,
   liveDir: undefined,
   incompleteStandings: undefined,
