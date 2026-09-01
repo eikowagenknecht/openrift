@@ -31,6 +31,7 @@ import type {
   MetaDeckCardRow,
   MetaDeckContextRow,
   MetaDeckSummaryRow,
+  MetaLegendEventRecordRow,
   MetaLegendFinishRow,
   MetaEventMatchRow,
   MetaEventPhaseRow,
@@ -330,10 +331,11 @@ function archiveLegendName(row: MetaArchiveLegendRow): string {
   return legendDisplayName({ name: row.name, types: row.types ?? [], tags: row.tags ?? [] });
 }
 
-export function toMetaLegendSummary(
+/** The identity half of a legend summary, shared with the detail page's header. */
+export function toMetaLegendRef(
   row: MetaArchiveLegendRow,
   images: ImageIds,
-): MetaLegendSummary {
+): Pick<MetaLegendSummary, "slug" | "legend"> {
   const slug = archiveLegendSlug(row);
   return {
     slug,
@@ -345,7 +347,24 @@ export function toMetaLegendSummary(
       domains: row.domains ?? [],
       archiveSlug: slug,
     },
-    deckCount: row.deckCount,
+  };
+}
+
+export function toMetaLegendSummary(
+  row: MetaArchiveLegendRow,
+  images: ImageIds,
+  records: readonly MetaLegendEventRecordRow[],
+): MetaLegendSummary {
+  return {
+    ...toMetaLegendRef(row, images),
+    records: records.map((record) => ({
+      eventSlug: record.eventSlug,
+      bestRank: record.bestRank,
+      rankIsTier: record.rankIsTier,
+      finishes: record.finishes,
+      decklists: record.decklists,
+      won: record.won,
+    })),
   };
 }
 

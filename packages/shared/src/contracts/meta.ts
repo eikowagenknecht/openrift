@@ -392,21 +392,42 @@ export const metaLegendFinishSchema = z
   .openapi("MetaLegendFinish");
 
 /**
- * One legend as the alphabetical index lists it.
+ * One legend's results at one event, folded to what the index needs: its best
+ * placing there and how much of the archive's content sits under it. Facts
+ * about the standings rows on file, never a rate or a share.
  *
- * `deckCount` is a count of archive content — how many lists are on file — and
- * is the only number the index carries. The index is ordered by name and offers
- * no other order: a page that let a reader sort legends by results would be a
- * ranking of legends against each other, which this archive does not publish.
+ * Keyed by the event's slug rather than carrying the event: the index page
+ * already holds the events payload, and joining client-side is what lets the
+ * scope bar narrow this list without a per-filter request (ADR-014).
+ */
+const metaLegendEventRecordSchema = z.object({
+  eventSlug: z.string(),
+  /** The legend's best rank at this event, with `rankIsTier` describing that row. */
+  bestRank: z.number().int(),
+  rankIsTier: z.boolean(),
+  /** Standings rows filed under this legend at this event. */
+  finishes: z.number().int().nonnegative(),
+  /** The subset of those rows with a published list. */
+  decklists: z.number().int().nonnegative(),
+  /** Whether a rank-1 row is among them. */
+  won: z.boolean(),
+});
+
+/**
+ * One legend as the index lists it: who it is, and its per-event records for
+ * the page to fold into scoped counts and a best finish client-side.
  */
 export const metaLegendSummarySchema = z
   .object({
     /** The route key `/meta/legends/{slug}` resolves, e.g. `kennen-heart-of-the-tempest`. */
     slug: z.string(),
     legend: metaCardRefSchema,
-    deckCount: z.number().int().nonnegative(),
+    /** Newest event first. */
+    records: z.array(metaLegendEventRecordSchema),
   })
   .openapi("MetaLegendSummary");
+
+export type MetaLegendEventRecord = z.infer<typeof metaLegendEventRecordSchema>;
 
 export const metaLegendListResponseSchema = z
   .object({ legends: z.array(metaLegendSummarySchema) })

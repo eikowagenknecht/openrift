@@ -22,6 +22,7 @@ const mockMeta = {
   playerCountInScope: vi.fn(),
   deckCountInScope: vi.fn(),
   archiveLegends: vi.fn(),
+  archiveLegendEventRecords: vi.fn(),
   finishesForLegend: vi.fn(),
 };
 
@@ -111,6 +112,7 @@ beforeEach(() => {
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockMeta.contributorsForEvent.mockResolvedValue([]);
   mockMeta.archiveLegends.mockResolvedValue([]);
+  mockMeta.archiveLegendEventRecords.mockResolvedValue([]);
   mockMeta.finishesForLegend.mockResolvedValue([]);
   mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([]);
 });
@@ -482,7 +484,6 @@ function legendRow(overrides: Record<string, unknown> = {}) {
     types: ["legend"],
     tags: ["Kennen"],
     domains: ["chaos", "order"],
-    deckCount: 3,
     ...overrides,
   };
 }
@@ -519,7 +520,6 @@ describe("GET /meta/legends", () => {
         name: "Emperor of the Sands",
         slug: "emperor-of-the-sands",
         tags: ["Azir"],
-        deckCount: 1,
       }),
     ]);
 
@@ -538,14 +538,61 @@ describe("GET /meta/legends", () => {
     });
   });
 
-  it("carries archive content counts and no results number", async () => {
-    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+  it("hands each legend its own event records and nothing of its neighbours'", async () => {
+    const azirId = "f0000000-0001-4000-a000-000000000009";
+    mockMeta.archiveLegends.mockResolvedValue([
+      legendRow(),
+      legendRow({
+        cardId: azirId,
+        name: "Emperor of the Sands",
+        slug: "emperor-of-the-sands",
+        tags: ["Azir"],
+      }),
+    ]);
+    mockMeta.archiveLegendEventRecords.mockResolvedValue([
+      {
+        legendCardId: LEGEND_ID,
+        eventSlug: "summoner-skirmish-2026",
+        bestRank: 4,
+        rankIsTier: false,
+        finishes: 2,
+        decklists: 1,
+        won: false,
+      },
+      {
+        legendCardId: azirId,
+        eventSlug: "regional-lyon",
+        bestRank: 1,
+        rankIsTier: false,
+        finishes: 1,
+        decklists: 1,
+        won: true,
+      },
+    ]);
 
     const res = await app.request("/api/v1/meta/legends");
 
     const json = await readJson(res);
-    expect(json.legends[0].deckCount).toBe(3);
-    expect(Object.keys(json.legends[0])).toEqual(["slug", "legend", "deckCount"]);
+    expect(json.legends[0].records).toEqual([
+      {
+        eventSlug: "regional-lyon",
+        bestRank: 1,
+        rankIsTier: false,
+        finishes: 1,
+        decklists: 1,
+        won: true,
+      },
+    ]);
+    expect(json.legends[1].records).toEqual([
+      {
+        eventSlug: "summoner-skirmish-2026",
+        bestRank: 4,
+        rankIsTier: false,
+        finishes: 2,
+        decklists: 1,
+        won: false,
+      },
+    ]);
   });
 
   it("returns nothing for an archive with no standings yet", async () => {

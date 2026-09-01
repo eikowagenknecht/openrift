@@ -99,6 +99,9 @@ export type MetaLegendFinish = z.infer<typeof metaLegendFinishSchema>;
 /** One legend as the alphabetical index lists it. */
 export type MetaLegendSummary = z.infer<typeof metaLegendSummarySchema>;
 
+/** One legend's folded results at one event, for the index's scoped facts. */
+export type { MetaLegendEventRecord } from "../../contracts/meta.js";
+
 /** GET /meta/legends — every legend the archive holds a result for, by name. */
 export type MetaLegendListResponse = z.infer<typeof metaLegendListResponseSchema>;
 

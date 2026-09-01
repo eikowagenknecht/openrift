@@ -1,6 +1,6 @@
 import type { MetaEventSummary } from "@openrift/shared";
 import { getRouteApi } from "@tanstack/react-router";
-import { ChevronDownIcon, ChevronUpIcon, TrophyIcon } from "lucide-react";
+import { TrophyIcon } from "lucide-react";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -14,10 +14,10 @@ import {
 } from "@/components/layout/page-top-bar";
 import { META_EVENTS_DESCRIPTION } from "@/components/meta/meta-copy";
 import { EVENT_INDEX_GRID, MetaEventIndexRow } from "@/components/meta/meta-event-index-row";
+import { IndexSortButton } from "@/components/meta/meta-index-sort-button";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
-import { Pressable } from "@/components/ui/pressable";
 import {
   Select,
   SelectContent,
@@ -298,36 +298,4 @@ function SortHeader({
   );
 }
 
-function SortButton({
-  column,
-  sort,
-  direction,
-  onSort,
-  align = "start",
-  children,
-}: {
-  column: MetaEventIndexSort;
-  sort: MetaEventIndexSort;
-  direction: MetaEventIndexSortDirection;
-  onSort: (column: MetaEventIndexSort) => void;
-  align?: "start" | "end";
-  children: string;
-}) {
-  const active = sort === column;
-  const Arrow = direction === "asc" ? ChevronUpIcon : ChevronDownIcon;
-  const order = direction === "asc" ? "ascending" : "descending";
-  return (
-    <Pressable
-      className={cn(
-        "hover:text-foreground flex min-w-0 items-center gap-1 rounded-xs",
-        active && "text-foreground",
-        align === "end" && "justify-end",
-      )}
-      aria-label={active ? `${children}, sorted ${order}` : `Sort by ${children.toLowerCase()}`}
-      onClick={() => onSort(column)}
-    >
-      <span className="truncate">{children}</span>
-      {active && <Arrow className="size-3 shrink-0" />}
-    </Pressable>
-  );
-}
+const SortButton = IndexSortButton<MetaEventIndexSort>;

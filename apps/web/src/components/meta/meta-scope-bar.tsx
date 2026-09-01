@@ -177,6 +177,9 @@ function ScopeFacet({
     <MultiSelectCombobox
       label={label}
       triggerStyle={triggerStyle}
+      // The bar's button triggers share the h-8 of the search input and the
+      // era select beside them, not the compact filter bar's h-7.
+      triggerSize="default"
       options={options}
       selected={[...included]}
       excluded={[...excluded]}
@@ -219,7 +222,8 @@ function ScopeFilterMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" />}
+        // Default size, so the trigger shares the bar's h-8 control height.
+        render={<Button variant="outline" />}
         aria-label="More filters"
       >
         <SlidersHorizontalIcon className="size-4" />

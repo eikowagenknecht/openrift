@@ -142,6 +142,12 @@ export interface MultiSelectComboboxProps {
   placeholder?: string;
   /** Extra classes for the `button`-style trigger (e.g. a fixed width). */
   triggerClassName?: string;
+  /**
+   * Height of the `button`-style trigger. "sm" (default) matches the compact
+   * filter bar's toggle groups; "default" matches the h-8 inputs and selects of
+   * the meta archive's scope bar.
+   */
+  triggerSize?: "sm" | "default";
 }
 
 interface MultiSelectFlag {
@@ -276,6 +282,7 @@ export function MultiSelectCombobox({
   fitContent,
   placeholder,
   triggerClassName,
+  triggerSize = "sm",
 }: MultiSelectComboboxProps) {
   const hasGroups = (groups?.length ?? 0) > 0;
   // The primary options ride as section 0; each extra group follows in order.
@@ -557,7 +564,7 @@ export function MultiSelectCombobox({
             // set filter reads as selected, not highlighted.
             <Button
               variant="outline"
-              size="sm"
+              size={triggerSize}
               className={cn(
                 "font-medium [&>svg]:text-current",
                 FILTER_TRIGGER_CLASS,

@@ -152,7 +152,17 @@ export interface MetaArchiveLegendRow {
   types: CardType[] | null;
   tags: string[] | null;
   domains: string[] | null;
-  deckCount: number;
+}
+
+/** One legend's standings rows at one event, folded for the index. */
+export interface MetaLegendEventRecordRow {
+  legendCardId: string;
+  eventSlug: string;
+  bestRank: number;
+  rankIsTier: boolean;
+  finishes: number;
+  decklists: number;
+  won: boolean;
 }
 
 /** One archived standings row as a legend's own page lists it. */
@@ -962,20 +972,38 @@ export function metaRepo(db: Kysely<Database>) {
         .selectFrom("metaEventPlayers as p")
         .innerJoin("cards as lc", "lc.id", "p.legendCardId")
         .leftJoin("mvCardAggregates as mca", "mca.cardId", "lc.id")
-        .leftJoin("decks as d", "d.id", "p.deckId")
-        .select([
-          "lc.id as cardId",
-          "lc.name",
-          "lc.slug",
-          "mca.types",
-          "lc.tags",
-          "mca.domains",
-          // Mirrors what `allDeckSummaries` yields for this legend: a row with
-          // no permalink has no page for the count to promise.
-          sql<number>`count(*) filter (where d.share_token is not null)::int`.as("deckCount"),
-        ])
+        .select(["lc.id as cardId", "lc.name", "lc.slug", "mca.types", "lc.tags", "mca.domains"])
         .groupBy(["lc.id", "lc.name", "lc.slug", "mca.types", "lc.tags", "mca.domains"])
         .orderBy("lc.name", "asc")
+        .execute();
+    },
+
+    /**
+     * Every legend's standings rows folded per event, for the index's scoped
+     * counts and best-finish line. One row per (legend, event) pair, newest
+     * event first.
+     */
+    archiveLegendEventRecords(): Promise<MetaLegendEventRecordRow[]> {
+      return db
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+        .leftJoin("decks as d", "d.id", "p.deckId")
+        .select([
+          sql<string>`p.legend_card_id`.as("legendCardId"),
+          "me.slug as eventSlug",
+          sql<number>`min(p.rank)::int`.as("bestRank"),
+          // The flag belonging to the best-ranked row, not an aggregate of all.
+          sql<boolean>`(array_agg(p.rank_is_tier order by p.rank asc))[1]`.as("rankIsTier"),
+          sql<number>`count(*)::int`.as("finishes"),
+          // Mirrors what `allDeckSummaries` yields for this legend: a row with
+          // no permalink has no page for the count to promise.
+          sql<number>`count(*) filter (where d.share_token is not null)::int`.as("decklists"),
+          sql<boolean>`bool_or(p.rank = 1)`.as("won"),
+        ])
+        .where("p.legendCardId", "is not", null)
+        .groupBy(["p.legendCardId", "me.slug", "me.eventDate"])
+        .orderBy("me.eventDate", "desc")
+        .orderBy("me.slug", "asc")
         .execute();
     },
 

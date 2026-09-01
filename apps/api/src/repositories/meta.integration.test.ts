@@ -724,6 +724,46 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(mine[1].deckCount).toBe(0);
     });
 
+    it("folds a legend's standings per event for the index, newest event first", async () => {
+      const older = await seedEvent(repo, "mta-records-older", { eventDate: "2026-02-01" });
+      const newer = await seedEvent(repo, "mta-records-newer", { eventDate: "2026-11-01" });
+      await seedListedPlayer(repo, newer, { playerName: "MTA Rec Winner", rank: 1 });
+      await seedDecklessPlayer(repo, newer, { playerName: "MTA Rec Fourth", rank: 4 });
+      await seedDecklessPlayer(repo, older, {
+        playerName: "MTA Rec Tier",
+        rank: 8,
+        rankIsTier: true,
+      });
+
+      const allRecords = await repo.archiveLegendEventRecords();
+      const records = allRecords.filter(
+        (row) =>
+          row.legendCardId === legendCardId &&
+          ["mta-records-older", "mta-records-newer"].includes(row.eventSlug),
+      );
+
+      expect(records).toEqual([
+        {
+          legendCardId,
+          eventSlug: "mta-records-newer",
+          bestRank: 1,
+          rankIsTier: false,
+          finishes: 2,
+          decklists: 1,
+          won: true,
+        },
+        {
+          legendCardId,
+          eventSlug: "mta-records-older",
+          bestRank: 8,
+          rankIsTier: true,
+          finishes: 1,
+          decklists: 0,
+          won: false,
+        },
+      ]);
+    });
+
     it("resolves an event by slug with its counts", async () => {
       const eventId = await seedEvent(repo, "mta-by-slug");
       await seedListedPlayer(repo, eventId, { playerName: "MTA Slug", rank: 1 });

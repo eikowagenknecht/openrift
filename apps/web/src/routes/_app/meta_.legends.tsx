@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RouteErrorFallback } from "@/components/error-message";
 import { META_LEGENDS_DESCRIPTION } from "@/components/meta/meta-copy";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaLegendsQueryOptions } from "@/hooks/use-meta";
+import { metaEventsQueryOptions, metaLegendsQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { metaLegendsSearchSchema } from "@/lib/meta-legends-search";
@@ -41,6 +41,8 @@ export const Route = createFileRoute("/_app/meta_/legends")({
     await Promise.all([
       context.queryClient.ensureQueryData(initQueryOptions),
       context.queryClient.ensureQueryData(metaLegendsQueryOptions),
+      // The rows join their records against the events payload client-side.
+      context.queryClient.ensureQueryData(metaEventsQueryOptions),
     ]);
   },
   errorComponent: RouteErrorFallback,

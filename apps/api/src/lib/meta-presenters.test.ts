@@ -955,7 +955,6 @@ function archiveLegendRow(overrides: Partial<MetaArchiveLegendRow> = {}): MetaAr
     types: ["legend"],
     tags: ["Kennen"],
     domains: ["chaos", "order"],
-    deckCount: 3,
     ...overrides,
   };
 }
@@ -987,6 +986,7 @@ describe("toMetaLegendSummary", () => {
     const summary = toMetaLegendSummary(
       archiveLegendRow(),
       new Map([["3f7a1c2e-0000-7000-8000-00000000000e", "img-1"]]),
+      [],
     );
     expect(summary.slug).toBe("kennen-heart-of-the-tempest");
     expect(summary.legend).toEqual({
@@ -997,13 +997,13 @@ describe("toMetaLegendSummary", () => {
       domains: ["chaos", "order"],
       archiveSlug: "kennen-heart-of-the-tempest",
     });
-    expect(summary.deckCount).toBe(3);
   });
 
   it("renders a legend with no artwork and no domains rather than dropping it", () => {
     const summary = toMetaLegendSummary(
       archiveLegendRow({ domains: null, types: null, tags: null }),
       new Map(),
+      [],
     );
     expect(summary.legend.imageId).toBeNull();
     expect(summary.legend.domains).toEqual([]);
@@ -1011,16 +1011,35 @@ describe("toMetaLegendSummary", () => {
     expect(summary.slug).toBe("heart-of-the-tempest");
   });
 
-  it("publishes no results number beside a legend", () => {
-    const summary = toMetaLegendSummary(archiveLegendRow(), new Map());
-    expect(Object.keys(summary)).toEqual(["slug", "legend", "deckCount"]);
+  it("carries each event record as archive facts, dropping the join key", () => {
+    const summary = toMetaLegendSummary(archiveLegendRow(), new Map(), [
+      {
+        legendCardId: "3f7a1c2e-0000-7000-8000-00000000000e",
+        eventSlug: "summoner-skirmish-berlin",
+        bestRank: 2,
+        rankIsTier: true,
+        finishes: 4,
+        decklists: 3,
+        won: false,
+      },
+    ]);
+    expect(summary.records).toEqual([
+      {
+        eventSlug: "summoner-skirmish-berlin",
+        bestRank: 2,
+        rankIsTier: true,
+        finishes: 4,
+        decklists: 3,
+        won: false,
+      },
+    ]);
   });
 });
 
 describe("archiveLegendSlug", () => {
   it("agrees with the slug the summary carries", () => {
     const row = archiveLegendRow();
-    expect(archiveLegendSlug(row)).toBe(toMetaLegendSummary(row, new Map()).slug);
+    expect(archiveLegendSlug(row)).toBe(toMetaLegendSummary(row, new Map(), []).slug);
   });
 
   it("keeps two legends of one champion apart", () => {

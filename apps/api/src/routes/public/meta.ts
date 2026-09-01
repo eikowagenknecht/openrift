@@ -24,6 +24,7 @@ import {
   toMetaEventSummary,
   toMetaEventWinner,
   toMetaLegendFinish,
+  toMetaLegendRef,
   toMetaLegendSummary,
 } from "../../lib/meta-presenters.js";
 import { buildPublicDeckDetail } from "../../lib/public-deck-payload.js";
@@ -172,15 +173,19 @@ export const metaRouter = {
   legends: os.legends.handler(async ({ context }): Promise<MetaLegendListResponse> => {
     const { meta, canonicalPrintings } = context.repos;
 
-    const rows = await meta.archiveLegends();
+    const [rows, records] = await Promise.all([
+      meta.archiveLegends(),
+      meta.archiveLegendEventRecords(),
+    ]);
     const images = await imageIdsForCards(
       canonicalPrintings,
       rows.map((row) => row.cardId),
     );
+    const recordsByLegend = Map.groupBy(records, (record) => record.legendCardId);
 
     return {
       legends: rows
-        .map((row) => toMetaLegendSummary(row, images))
+        .map((row) => toMetaLegendSummary(row, images, recordsByLegend.get(row.cardId) ?? []))
         // By the name a reader sees, so a legend files under its champion. The
         // repo orders by the stored epithet, which would file Azir under E.
         .toSorted((a, b) => a.legend.name.localeCompare(b.legend.name)),
@@ -205,11 +210,11 @@ export const metaRouter = {
         meta.finishesForLegend(row.cardId),
         imageIdsForCards(canonicalPrintings, [row.cardId]),
       ]);
-      const summary = toMetaLegendSummary(row, images);
+      const ref = toMetaLegendRef(row, images);
 
       return {
-        slug: summary.slug,
-        legend: summary.legend,
+        slug: ref.slug,
+        legend: ref.legend,
         finishes: finishes.map((finish) => toMetaLegendFinish(finish)),
       };
     },
