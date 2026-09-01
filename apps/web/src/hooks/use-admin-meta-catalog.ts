@@ -357,8 +357,10 @@ const META_SYNC_TRIGGERS = [
   "runBackfill",
   "restartBackfill",
   "runRecheck",
+  "runAutoAccept",
   "runPlayloltcgSync",
   "runPlayloltcgRecheck",
+  "runPlayloltcgAutoAccept",
   "runPlayloltcgBackfill",
   "restartPlayloltcgBackfill",
 ] as const;

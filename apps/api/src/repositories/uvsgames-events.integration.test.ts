@@ -266,6 +266,14 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     expect(unaccepted.map((entry) => entry.externalId)).toContain("mtc-new");
   });
 
+  it("names every key still awaiting triage, for the backlog sweep", async () => {
+    const keys = await repo().newKeys();
+
+    expect(keys).toContain("mtc-new");
+    expect(keys).not.toContain("mtc-live");
+    expect(keys).not.toContain("mtc-out");
+  });
+
   it("filters and pages the triage list", async () => {
     const filtered = await repo().list(
       { search: "Regional", triage: "new" },

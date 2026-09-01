@@ -417,6 +417,19 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Every key still awaiting triage, newest event first, for the backlog
+     * sweep. Keys rather than rows, so the sweep can page through them.
+     */
+    async newKeys(): Promise<number[]> {
+      const rows = await triagedQuery()
+        .select("c.activityShopId")
+        .where(isNew)
+        .orderBy(sql`c.start_at desc nulls last`)
+        .execute();
+      return rows.map((row) => row.activityShopId);
+    },
+
     /** The keys a crawl touched that are neither accepted nor dismissed. */
     async unacceptedByKeys(activityShopIds: readonly number[]): Promise<PlayloltcgListRow[]> {
       const rows: PlayloltcgListRow[] = [];

@@ -534,6 +534,20 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Every key still awaiting triage, newest event first, for the backlog
+     * sweep. Keys rather than rows: the catalogue holds six figures of them,
+     * and the sweep reads their rows a page at a time.
+     */
+    async newKeys(): Promise<string[]> {
+      const rows = await triagedQuery()
+        .select("c.externalId")
+        .where(isNew)
+        .orderBy("c.startAt", "desc")
+        .execute();
+      return rows.map((row) => row.externalId);
+    },
+
     /** Rows whose triage state may have moved, for the auto-accept sweep. */
     async unacceptedByKeys(externalIds: string[]): Promise<UvsgamesListRow[]> {
       const rows: UvsgamesListRow[] = [];

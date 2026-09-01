@@ -21,9 +21,15 @@ import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { repromoteMetaEvents } from "../../services/meta-repromote.js";
-import type { MetaSyncDeps, PlayloltcgSyncDeps } from "../../services/meta-sync/index.js";
+import type {
+  MetaAutoAcceptSummary,
+  MetaSyncDeps,
+  PlayloltcgAcceptSummary,
+  PlayloltcgSyncDeps,
+} from "../../services/meta-sync/index.js";
 import {
   acceptCatalogEvent,
+  autoAcceptCatalogBacklog,
   backfillCatalog,
   createMetaSyncDeps,
   deepFetchEvent,
@@ -34,6 +40,7 @@ import {
   RECHECK_BATCH_SIZE,
   syncCatalog,
   acceptPlayloltcgEvent,
+  autoAcceptPlayloltcgBacklog,
   backfillPlayloltcg,
   createPlayloltcgSyncDeps,
   fetchPlayloltcgEvent,
@@ -82,6 +89,11 @@ const SOURCE_PROVIDER: Record<MetaSource, string> = {
  */
 function jobKindsForSource(source: MetaSource): string[] {
   return META_JOB_KINDS.filter((kind) => kind.startsWith(`meta.${source}_`));
+}
+
+/** A sweep that accepted nothing and hit no failure did no work. */
+function isAutoAcceptNoop(summary: MetaAutoAcceptSummary | PlayloltcgAcceptSummary): boolean {
+  return summary.accepted === 0 && summary.failed === 0;
 }
 
 function syncDeps(context: ApiContext): MetaSyncDeps {
@@ -415,6 +427,16 @@ export const adminMetaCatalogRouter = {
     ),
   ),
 
+  runAutoAccept: os.runAutoAccept.handler(({ context }) =>
+    startJob(
+      context,
+      "meta.uvsgames_auto_accept",
+      syncDeps,
+      autoAcceptCatalogBacklog,
+      isAutoAcceptNoop,
+    ),
+  ),
+
   runPlayloltcgSync: os.runPlayloltcgSync.handler(({ context }) =>
     startJob(
       context,
@@ -455,6 +477,16 @@ export const adminMetaCatalogRouter = {
       playloltcgDeps,
       (deps, runId) => backfillPlayloltcg(deps, runId),
       isPlayloltcgSyncNoop,
+    ),
+  ),
+
+  runPlayloltcgAutoAccept: os.runPlayloltcgAutoAccept.handler(({ context }) =>
+    startJob(
+      context,
+      "meta.playloltcg_auto_accept",
+      playloltcgDeps,
+      autoAcceptPlayloltcgBacklog,
+      isAutoAcceptNoop,
     ),
   ),
 

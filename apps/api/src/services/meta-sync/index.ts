@@ -6,7 +6,8 @@ import type { MetaSyncDeps } from "./deps.js";
 import { createUvsClient } from "./uvsgames-client.js";
 
 export type { MetaSyncDeps } from "./deps.js";
-export { acceptCatalogEvent } from "./accept.js";
+export { acceptCatalogEvent, autoAcceptCatalogBacklog } from "./accept.js";
+export type { MetaAutoAcceptSummary } from "./accept.js";
 export { backfillCatalog, syncCatalog, isCatalogSyncNoop } from "./catalog-sync.js";
 export type { MetaCatalogSyncResult } from "./catalog-sync.js";
 export { deepFetchEvent } from "./deep-fetch.js";
@@ -15,7 +16,8 @@ export { isRecheckNoop, processRechecks, RECHECK_BATCH_SIZE } from "./recheck.js
 export type { MetaRecheckResult } from "./recheck.js";
 export { createPlayloltcgSyncDeps } from "./playloltcg-deps.js";
 export type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
-export { acceptPlayloltcgEvent } from "./playloltcg-accept.js";
+export { acceptPlayloltcgEvent, autoAcceptPlayloltcgBacklog } from "./playloltcg-accept.js";
+export type { PlayloltcgAcceptSummary } from "./playloltcg-accept.js";
 export {
   backfillPlayloltcg,
   fetchPlayloltcgEvent,
@@ -41,10 +43,12 @@ export const META_JOB_KINDS = [
   "meta.uvsgames_backfill",
   "meta.uvsgames_recheck",
   "meta.uvsgames_event_fetch",
+  "meta.uvsgames_auto_accept",
   "meta.playloltcg_sync",
   "meta.playloltcg_backfill",
   "meta.playloltcg_recheck",
   "meta.playloltcg_event_fetch",
+  "meta.playloltcg_auto_accept",
 ] as const;
 
 export interface MetaSyncEnv {

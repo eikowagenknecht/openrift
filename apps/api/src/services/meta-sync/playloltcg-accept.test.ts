@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Repos, Transact } from "../../deps.js";
 import type { PlayloltcgListRow } from "../../repositories/playloltcg-events.js";
 import { promoteNewEvent } from "../meta-promote.js";
-import { autoAcceptPlayloltcgEvents } from "./playloltcg-accept.js";
+import { autoAcceptPlayloltcgBacklog, autoAcceptPlayloltcgEvents } from "./playloltcg-accept.js";
 import type { PlayloltcgClient } from "./playloltcg-client.js";
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 
@@ -74,7 +74,9 @@ function fakeDeps(options: {
   const rechecks: RecheckWrite[] = [];
 
   const playloltcgEvents = {
-    unacceptedByKeys: () => Promise.resolve(options.unaccepted),
+    unacceptedByKeys: (keys: readonly number[]) =>
+      Promise.resolve(options.unaccepted.filter((row) => keys.includes(row.activityShopId))),
+    newKeys: () => Promise.resolve(options.unaccepted.map((row) => row.activityShopId)),
     setRecheck: (activityShopId: number, values: Omit<RecheckWrite, "activityShopId">) => {
       rechecks.push({ activityShopId, ...values });
       return Promise.resolve();
@@ -154,5 +156,37 @@ describe("autoAcceptPlayloltcgEvents", () => {
     const ruleOff = await autoAcceptPlayloltcgEvents(off.deps, [109_991]);
     expect(ruleOff.accepted).toBe(0);
     expect(off.inserted).toEqual([]);
+  });
+});
+
+describe("autoAcceptPlayloltcgBacklog", () => {
+  it("sweeps every row still awaiting triage, not just one crawl's keys", async () => {
+    const { deps, rechecks } = fakeDeps({
+      unaccepted: [
+        catalogRow({ activityShopId: 1, playerCount: 40 }),
+        catalogRow({ activityShopId: 2, playerCount: 4 }),
+      ],
+      autoAcceptMinPlayers: 16,
+    });
+
+    const summary = await autoAcceptPlayloltcgBacklog(deps);
+
+    expect(summary).toEqual({ considered: 2, accepted: 1, failed: 0, errors: [] });
+    expect(rechecks.map((write) => write.activityShopId)).toEqual([1]);
+  });
+
+  it("does nothing while the threshold is off", async () => {
+    const { deps, inserted } = fakeDeps({
+      unaccepted: [catalogRow()],
+      autoAcceptMinPlayers: null,
+    });
+
+    expect(await autoAcceptPlayloltcgBacklog(deps)).toEqual({
+      considered: 0,
+      accepted: 0,
+      failed: 0,
+      errors: [],
+    });
+    expect(inserted).toEqual([]);
   });
 });

@@ -242,6 +242,14 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
     expect(keys).not.toContain(KEYS.out);
   });
 
+  it("names every key still awaiting triage, for the backlog sweep", async () => {
+    const keys = await repo().newKeys();
+
+    expect(keys).toContain(KEYS.fresh);
+    expect(keys).not.toContain(KEYS.live);
+    expect(keys).not.toContain(KEYS.out);
+  });
+
   it("links an event to the store the detail named, upserting the store first", async () => {
     await repo().upsertBatch([row({ activityShopId: KEYS.linked, contentHash: "h-link" })], SEEN);
 

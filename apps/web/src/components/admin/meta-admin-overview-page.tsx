@@ -1,3 +1,4 @@
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { formatDayTime, formatRelativeTime } from "@openrift/shared";
 import type {
   MetaCancellableJob,
@@ -14,9 +15,20 @@ import { JobStatusBadge } from "@/components/admin/job-status-badge";
 import { announceSyncTrigger } from "@/components/admin/meta-catalog-shared";
 import { RefreshCountdownButton } from "@/components/admin/refresh-countdown-button";
 import { PageDescription } from "@/components/layout/page-top-bar";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogForm } from "@/components/ui/dialog-form";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import {
   Table,
@@ -69,7 +81,23 @@ interface TriggerEntry {
    * so nothing there could answer a Stop.
    */
   stop?: { job: MetaCancellableJob; label: string; description: string };
+  /**
+   * A confirmation step, for a trigger that writes rather than reads. The
+   * crawls only mirror the source, but a backlog sweep mints live archive
+   * events, and nothing takes those back in bulk.
+   */
+  confirm?: { title: string; body: (pending: number | null) => string; action: string };
 }
+
+const AUTO_ACCEPT_DESCRIPTION =
+  "Runs the auto-accept rules over every event still awaiting triage. A sync only judges the events it just crawled, so this is how a rule you just turned on reaches the rest.";
+
+const AUTO_ACCEPT_CONFIRM = {
+  title: "Auto-accept the whole backlog?",
+  body: (pending: number | null) =>
+    `The current rules run over ${pending === null ? "every event" : `all ${pending.toLocaleString()} events`} awaiting triage, and every match becomes a live archive event. Dismissed events are left alone, but nothing takes an accept back in bulk.`,
+  action: "Run the sweep",
+};
 
 /** The manual jobs each source offers, in the order they are usually run. */
 const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
@@ -79,6 +107,12 @@ const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
       label: "Sync the catalogue",
       description: "Crawls the last 7 days and everything upcoming.",
       scheduleKey: "meta.uvsgames_sync",
+    },
+    {
+      trigger: "runAutoAccept",
+      label: "Auto-accept backlog",
+      description: AUTO_ACCEPT_DESCRIPTION,
+      confirm: AUTO_ACCEPT_CONFIRM,
     },
     {
       trigger: "runRecheck",
@@ -99,6 +133,12 @@ const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
       label: "Sync the catalogue",
       description: "Crawls the last 7 days and everything upcoming.",
       scheduleKey: "meta.playloltcg_sync",
+    },
+    {
+      trigger: "runPlayloltcgAutoAccept",
+      label: "Auto-accept backlog",
+      description: AUTO_ACCEPT_DESCRIPTION,
+      confirm: AUTO_ACCEPT_CONFIRM,
     },
     {
       trigger: "runPlayloltcgRecheck",
@@ -334,26 +374,60 @@ function TriggerRow({
   schedules,
   pending,
   disabled,
+  pendingTriage,
   onStart,
 }: {
   entry: TriggerEntry;
   schedules: Record<string, boolean>;
   pending: boolean;
   disabled: boolean;
+  /** Rows awaiting triage, which is what a confirmed sweep would run over. */
+  pendingTriage: number | null;
   onStart: () => void;
 }) {
   const scheduled = entry.scheduleKey === undefined || schedules[entry.scheduleKey] === true;
+  const confirm = entry.confirm;
+  const face = (
+    <>
+      {pending ? <RefreshCwIcon className="animate-spin" /> : <PlayIcon />}
+      {entry.label}
+    </>
+  );
   return (
     <div className="flex items-start gap-3">
-      <Button
-        variant="outline"
-        disabled={disabled}
-        onClick={onStart}
-        className="w-48 shrink-0 justify-start"
-      >
-        {pending ? <RefreshCwIcon className="animate-spin" /> : <PlayIcon />}
-        {entry.label}
-      </Button>
+      {confirm === undefined ? (
+        <Button
+          variant="outline"
+          disabled={disabled}
+          onClick={onStart}
+          className="w-48 shrink-0 justify-start"
+        >
+          {face}
+        </Button>
+      ) : (
+        <AlertDialog>
+          <AlertDialogTrigger
+            disabled={disabled}
+            render={<Button variant="outline" className="w-48 shrink-0 justify-start" />}
+          >
+            {face}
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <DialogForm onSubmit={onStart}>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{confirm.title}</AlertDialogTitle>
+                <AlertDialogDescription>{confirm.body(pendingTriage)}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogPrimitive.Close render={<Button type="submit" />}>
+                  {confirm.action}
+                </AlertDialogPrimitive.Close>
+              </AlertDialogFooter>
+            </DialogForm>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       <div className="text-muted-foreground">
         {entry.description}
         {!scheduled && (
@@ -405,11 +479,13 @@ function TriggersCard({
   schedules,
   runs,
   backfill,
+  pendingTriage,
 }: {
   source: MetaSource;
   schedules: Record<string, boolean>;
   runs: MetaSyncStatus["runs"];
   backfill: BackfillDisplay;
+  pendingTriage: number | null;
 }) {
   const triggers = TRIGGER_GROUPS[source];
   const run = useRunMetaSync();
@@ -476,6 +552,7 @@ function TriggersCard({
               schedules={schedules}
               pending={pending === entry.trigger}
               disabled={run.isPending}
+              pendingTriage={pendingTriage}
               onStart={() => void start(entry.trigger, entry.label)}
             />
           );
@@ -495,6 +572,7 @@ function TriggersCard({
                 schedules={schedules}
                 pending={pending === entry.trigger}
                 disabled={run.isPending}
+                pendingTriage={pendingTriage}
                 onStart={() => void start(entry.trigger, entry.label)}
               />
             ))}
@@ -657,6 +735,7 @@ export function MetaAdminOverviewPage({ source }: { source: MetaSource }) {
         schedules={data?.schedules ?? {}}
         runs={data?.runs ?? []}
         backfill={backfillDisplay(data?.runs ?? [], BACKFILL_KIND[source])}
+        pendingTriage={data?.counts.new ?? null}
       />
       {data !== undefined && (
         <RunsCard runs={data.runs} open={runsOpen} onToggle={() => setRunsOpen(!runsOpen)} />

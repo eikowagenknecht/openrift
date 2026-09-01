@@ -496,6 +496,15 @@ export const adminMetaCatalogContract = {
     .route({ method: "POST", path: `${BASE}/sync/recheck`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
+  /**
+   * Runs the auto-accept rules over every row still awaiting triage, rather
+   * than over the keys one crawl happened to write. This is what applies a rule
+   * turned on today to the events already in the list.
+   */
+  runAutoAccept: authedRoute
+    .route({ method: "POST", path: `${BASE}/sync/auto-accept`, tags: [TAG], successStatus: 202 })
+    .output(metaSyncTriggerResultSchema),
+
   // ── playloltcg (the Chinese source) ──────────────────────────────────────
   runPlayloltcgSync: authedRoute
     .route({ method: "POST", path: `${BASE}/playloltcg/sync`, tags: [TAG], successStatus: 202 })
@@ -503,6 +512,16 @@ export const adminMetaCatalogContract = {
 
   runPlayloltcgRecheck: authedRoute
     .route({ method: "POST", path: `${BASE}/playloltcg/recheck`, tags: [TAG], successStatus: 202 })
+    .output(metaSyncTriggerResultSchema),
+
+  /** The same backlog sweep for playloltcg, where the rule is the threshold. */
+  runPlayloltcgAutoAccept: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/playloltcg/auto-accept`,
+      tags: [TAG],
+      successStatus: 202,
+    })
     .output(metaSyncTriggerResultSchema),
 
   /** Continues the last playloltcg backfill that stopped early, or starts one. */

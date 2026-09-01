@@ -1,7 +1,7 @@
 import { ERROR_CODES } from "@openrift/shared";
 
 import { AppError } from "../../errors.js";
-import type { MetaAutoAcceptRule } from "../../lib/meta-auto-accept.js";
+import type { MetaAutoAcceptRule, MetaAutoAcceptSettings } from "../../lib/meta-auto-accept.js";
 import { autoAcceptRule } from "../../lib/meta-auto-accept.js";
 import {
   mapSourceFormat,
@@ -31,9 +31,27 @@ export interface AcceptedCatalogEvent {
 }
 
 export interface MetaAutoAcceptSummary {
+  /** Rows the rules were run against. */
+  considered: number;
   accepted: number;
-  /** One line per rule match that could not be accepted, with the reason. */
+  /** Rows a rule matched that could not be accepted. */
+  failed: number;
+  /** One line per failure, up to {@link MAX_SWEEP_ERRORS}. */
   errors: string[];
+}
+
+/**
+ * How many keys one page of a sweep reads rows for. The crawl path hands over a
+ * page's worth of keys, but the backlog sweep hands over the whole triage list,
+ * which is six figures of wide rows on the live catalogue.
+ */
+const SWEEP_PAGE = 1000;
+
+/** The most failures one sweep spells out. Past this only the count grows. */
+const MAX_SWEEP_ERRORS = 50;
+
+function emptySummary(): MetaAutoAcceptSummary {
+  return { considered: 0, accepted: 0, failed: 0, errors: [] };
 }
 
 /**
@@ -75,6 +93,73 @@ export async function acceptCatalogEvent(
   return promoted;
 }
 
+interface AutoAcceptVocabulary {
+  settings: MetaAutoAcceptSettings;
+  /** Template ids an admin watches, for the official rule. */
+  watched: ReadonlyMap<string, string | null>;
+  formatMappings: ReadonlyMap<string, string>;
+}
+
+/**
+ * Everything the rules read, in one go. Neither vocabulary moves while a sweep
+ * runs, and a sweep over the whole triage list would otherwise re-read both
+ * once per page.
+ *
+ * @returns Null when no rule is on, which is the common case and worth one
+ * query rather than a walk over the catalogue.
+ */
+async function loadVocabulary(deps: MetaSyncDeps): Promise<AutoAcceptVocabulary | null> {
+  const settings = await deps.repos.uvsgamesEvents.settings();
+  if (
+    settings.autoAcceptMinPlayers === null &&
+    !settings.autoAcceptNotable &&
+    !settings.autoAcceptOfficial
+  ) {
+    return null;
+  }
+  const [watched, formatMappings] = await Promise.all([
+    deps.repos.uvsgamesEvents.watchedTemplates(),
+    deps.repos.uvsgamesEvents.formatMappings(),
+  ]);
+  return { settings, watched, formatMappings };
+}
+
+async function sweep(
+  deps: MetaSyncDeps,
+  vocabulary: AutoAcceptVocabulary,
+  externalIds: readonly string[],
+): Promise<MetaAutoAcceptSummary> {
+  const summary = emptySummary();
+  for (let index = 0; index < externalIds.length; index += SWEEP_PAGE) {
+    const page = externalIds.slice(index, index + SWEEP_PAGE);
+    const rows = await deps.repos.uvsgamesEvents.unacceptedByKeys(page);
+    summary.considered += rows.length;
+    for (const row of rows) {
+      const rule = autoAcceptRule(vocabulary.settings, {
+        name: row.name,
+        playerCount: row.playerCount,
+        isOfficial:
+          row.eventConfigurationTemplate !== null &&
+          vocabulary.watched.has(row.eventConfigurationTemplate),
+        formatMapped: mapSourceFormat(vocabulary.formatMappings, row.eventFormat) !== null,
+      });
+      if (rule === null) {
+        continue;
+      }
+      const outcome = await tryAutoAccept(deps, row, rule, vocabulary.formatMappings);
+      if (outcome === null) {
+        summary.accepted++;
+        continue;
+      }
+      summary.failed++;
+      if (summary.errors.length < MAX_SWEEP_ERRORS) {
+        summary.errors.push(outcome);
+      }
+    }
+  }
+  return summary;
+}
+
 /**
  * The rule-gated accept, run over the keys a crawl just touched. Rows that are
  * already accepted or dismissed never reach this — the repo read excludes both —
@@ -85,47 +170,30 @@ export async function autoAcceptCatalogEvents(
   externalIds: readonly string[],
 ): Promise<MetaAutoAcceptSummary> {
   if (externalIds.length === 0) {
-    return { accepted: 0, errors: [] };
+    return emptySummary();
   }
-  const settings = await deps.repos.uvsgamesEvents.settings();
-  if (
-    settings.autoAcceptMinPlayers === null &&
-    !settings.autoAcceptNotable &&
-    !settings.autoAcceptOfficial
-  ) {
-    return { accepted: 0, errors: [] };
+  const vocabulary = await loadVocabulary(deps);
+  if (vocabulary === null) {
+    return emptySummary();
   }
+  return await sweep(deps, vocabulary, externalIds);
+}
 
-  // Both vocabularies are read once for the whole sweep: a crawl touches
-  // thousands of keys and neither table moves while it runs.
-  const [rows, watched, formatMappings] = await Promise.all([
-    deps.repos.uvsgamesEvents.unacceptedByKeys([...externalIds]),
-    deps.repos.uvsgamesEvents.watchedTemplates(),
-    deps.repos.uvsgamesEvents.formatMappings(),
-  ]);
-  const errors: string[] = [];
-  let accepted = 0;
-
-  for (const row of rows) {
-    const rule = autoAcceptRule(settings, {
-      name: row.name,
-      playerCount: row.playerCount,
-      isOfficial:
-        row.eventConfigurationTemplate !== null && watched.has(row.eventConfigurationTemplate),
-      formatMapped: mapSourceFormat(formatMappings, row.eventFormat) !== null,
-    });
-    if (rule === null) {
-      continue;
-    }
-    const outcome = await tryAutoAccept(deps, row, rule, formatMappings);
-    if (outcome === null) {
-      accepted++;
-    } else {
-      errors.push(outcome);
-    }
+/**
+ * The same rules over every row still awaiting triage, rather than over one
+ * crawl's own keys.
+ *
+ * A crawl only ever judges what it wrote, and the hash gate means an unchanged
+ * row is not written at all, so a rule turned on today never reaches the events
+ * already sitting in the list. This is how those are caught up. It is a job
+ * rather than a request: the catalogue holds six figures of rows.
+ */
+export async function autoAcceptCatalogBacklog(deps: MetaSyncDeps): Promise<MetaAutoAcceptSummary> {
+  const vocabulary = await loadVocabulary(deps);
+  if (vocabulary === null) {
+    return emptySummary();
   }
-
-  return { accepted, errors };
+  return await sweep(deps, vocabulary, await deps.repos.uvsgamesEvents.newKeys());
 }
 
 /** @returns Null when the event went live, or the reason it did not. */

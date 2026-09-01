@@ -15,7 +15,9 @@ import {
 } from "./playloltcg-sync.js";
 
 vi.mock("./playloltcg-accept.js", () => ({
-  autoAcceptPlayloltcgEvents: vi.fn(() => Promise.resolve({ accepted: 0, errors: [] })),
+  autoAcceptPlayloltcgEvents: vi.fn(() =>
+    Promise.resolve({ considered: 0, accepted: 0, failed: 0, errors: [] }),
+  ),
 }));
 
 vi.mock("./playloltcg-deep-fetch.js", () => ({
@@ -243,7 +245,9 @@ describe("syncPlayloltcgCatalog", () => {
 
   it("caps the errors one run collects", async () => {
     vi.mocked(autoAcceptPlayloltcgEvents).mockResolvedValueOnce({
+      considered: 70,
       accepted: 0,
+      failed: 70,
       errors: Array.from({ length: 70 }, (_, index) => `Auto-accept ${index} failed`),
     });
     const { deps } = fakeDeps({});

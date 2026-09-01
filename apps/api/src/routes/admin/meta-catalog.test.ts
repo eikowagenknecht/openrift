@@ -14,12 +14,20 @@ import { adminMetaCatalogRouter } from "./meta-catalog";
 
 const {
   acceptPlayloltcgEvent,
+  autoAcceptCatalogBacklog,
+  autoAcceptPlayloltcgBacklog,
   backfillCatalog,
   fetchPlayloltcgEvent,
   repromoteMetaEvents,
   runJobAsync,
 } = vi.hoisted(() => ({
   acceptPlayloltcgEvent: vi.fn(),
+  autoAcceptCatalogBacklog: vi.fn(() =>
+    Promise.resolve({ considered: 0, accepted: 0, failed: 0, errors: [] }),
+  ),
+  autoAcceptPlayloltcgBacklog: vi.fn(() =>
+    Promise.resolve({ considered: 0, accepted: 0, failed: 0, errors: [] }),
+  ),
   fetchPlayloltcgEvent: vi.fn(() => Promise.resolve({})),
   backfillCatalog: vi.fn(() => Promise.resolve({})),
   repromoteMetaEvents: vi.fn(() => Promise.resolve({ events: 0, failed: 0, errors: [] })),
@@ -41,6 +49,8 @@ const {
 vi.mock("../../services/meta-sync/index.js", async (importOriginal) => ({
   ...(await importOriginal<typeof metaSync>()),
   acceptPlayloltcgEvent,
+  autoAcceptCatalogBacklog,
+  autoAcceptPlayloltcgBacklog,
   backfillCatalog,
   fetchPlayloltcgEvent,
 }));
@@ -223,6 +233,33 @@ describe("POST /catalogue/sync/cancel", () => {
 
     expect(res.status).toBe(400);
     expect(mockJobRuns.findRunning).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /catalogue/sync/auto-accept", () => {
+  it("sweeps each source's backlog under that source's own job kind", async () => {
+    const res = await post("/sync/auto-accept");
+
+    expect(res.status).toBe(202);
+    expect(autoAcceptCatalogBacklog).toHaveBeenCalled();
+    expect(runJobAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      "meta.uvsgames_auto_accept",
+      "admin",
+      expect.any(Function),
+      expect.anything(),
+    );
+
+    await post("/playloltcg/auto-accept");
+
+    expect(autoAcceptPlayloltcgBacklog).toHaveBeenCalled();
+    expect(runJobAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      "meta.playloltcg_auto_accept",
+      "admin",
+      expect.any(Function),
+      expect.anything(),
+    );
   });
 });
 
@@ -490,6 +527,7 @@ describe("GET /catalogue/sync", () => {
         "meta.playloltcg_backfill",
         "meta.playloltcg_recheck",
         "meta.playloltcg_event_fetch",
+        "meta.playloltcg_auto_accept",
       ],
       expect.any(Number),
     );
@@ -504,6 +542,7 @@ describe("GET /catalogue/sync", () => {
         "meta.uvsgames_backfill",
         "meta.uvsgames_recheck",
         "meta.uvsgames_event_fetch",
+        "meta.uvsgames_auto_accept",
       ],
       expect.any(Number),
     );

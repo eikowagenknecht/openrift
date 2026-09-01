@@ -19,8 +19,23 @@ import { clock } from "./playloltcg-deps.js";
  */
 
 export interface PlayloltcgAcceptSummary {
+  /** Rows the threshold was run against. */
+  considered: number;
   accepted: number;
+  /** Rows over the threshold that could not be accepted. */
+  failed: number;
+  /** One line per failure, up to {@link MAX_SWEEP_ERRORS}. */
   errors: string[];
+}
+
+/** How many keys one page of a sweep reads rows for; see the uvsgames note. */
+const SWEEP_PAGE = 1000;
+
+/** The most failures one sweep spells out. Past this only the count grows. */
+const MAX_SWEEP_ERRORS = 50;
+
+function emptySummary(): PlayloltcgAcceptSummary {
+  return { considered: 0, accepted: 0, failed: 0, errors: [] };
 }
 
 export interface AcceptedPlayloltcgEvent {
@@ -61,6 +76,34 @@ export async function acceptPlayloltcgEvent(
   return promoted;
 }
 
+async function sweep(
+  deps: PlayloltcgSyncDeps,
+  threshold: number,
+  activityShopIds: readonly number[],
+): Promise<PlayloltcgAcceptSummary> {
+  const summary = emptySummary();
+  for (let index = 0; index < activityShopIds.length; index += SWEEP_PAGE) {
+    const page = activityShopIds.slice(index, index + SWEEP_PAGE);
+    const rows = await deps.repos.playloltcgEvents.unacceptedByKeys(page);
+    summary.considered += rows.length;
+    for (const row of rows) {
+      if (row.playerCount === null || row.playerCount < threshold) {
+        continue;
+      }
+      try {
+        await acceptPlayloltcgEvent(deps, row);
+        summary.accepted++;
+      } catch (error) {
+        summary.failed++;
+        if (summary.errors.length < MAX_SWEEP_ERRORS) {
+          summary.errors.push(errorText(error, `Auto-accept "${row.name}"`));
+        }
+      }
+    }
+  }
+  return summary;
+}
+
 /**
  * The rule-gated accept over the keys a crawl just touched. Player count only:
  * an event at or above the admin's threshold is accepted, everything else waits
@@ -71,26 +114,29 @@ export async function autoAcceptPlayloltcgEvents(
   activityShopIds: readonly number[],
 ): Promise<PlayloltcgAcceptSummary> {
   if (activityShopIds.length === 0) {
-    return { accepted: 0, errors: [] };
+    return emptySummary();
   }
   const settings = await deps.repos.uvsgamesEvents.settings();
   const threshold = settings.autoAcceptMinPlayers;
   if (threshold === null) {
-    return { accepted: 0, errors: [] };
+    return emptySummary();
   }
+  return await sweep(deps, threshold, activityShopIds);
+}
 
-  const rows = await deps.repos.playloltcgEvents.unacceptedByKeys([...activityShopIds]);
-  const summary: PlayloltcgAcceptSummary = { accepted: 0, errors: [] };
-  for (const row of rows) {
-    if (row.playerCount === null || row.playerCount < threshold) {
-      continue;
-    }
-    try {
-      await acceptPlayloltcgEvent(deps, row);
-      summary.accepted++;
-    } catch (error) {
-      summary.errors.push(errorText(error, `Auto-accept "${row.name}"`));
-    }
+/**
+ * The threshold over every row still awaiting triage, rather than over one
+ * crawl's own keys. A crawl only judges what it wrote, so a threshold lowered
+ * today never reaches the events already in the list; this is how those are
+ * caught up.
+ */
+export async function autoAcceptPlayloltcgBacklog(
+  deps: PlayloltcgSyncDeps,
+): Promise<PlayloltcgAcceptSummary> {
+  const settings = await deps.repos.uvsgamesEvents.settings();
+  const threshold = settings.autoAcceptMinPlayers;
+  if (threshold === null) {
+    return emptySummary();
   }
-  return summary;
+  return await sweep(deps, threshold, await deps.repos.playloltcgEvents.newKeys());
 }

@@ -148,6 +148,11 @@ function AutoAcceptForm({
             </div>
           </>
         )}
+        <p className="text-muted-foreground">
+          Rules are applied as each sync crawls, and a sync only judges the events it just crawled.
+          Events already waiting in the triage list are caught up by the Auto-accept backlog button
+          on the Sync tab.
+        </p>
         <p className="text-muted-foreground">Last changed {formatDayTime(settings.updatedAt)}.</p>
       </div>
 

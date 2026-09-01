@@ -315,6 +315,30 @@ describe("MetaAdminOverviewPage", () => {
     expect(captured.run).toHaveBeenCalledWith({ trigger: "runPlayloltcgRecheck" });
   });
 
+  it("sweeps the backlog from each source's own auto-accept button", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const view = render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    await user.click(screen.getByRole("button", { name: /Auto-accept backlog/u }));
+    await user.click(screen.getByRole("button", { name: /Run the sweep/u }));
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runAutoAccept" });
+
+    view.rerender(<MetaAdminOverviewPage source="playloltcg" />);
+    await user.click(screen.getByRole("button", { name: /Auto-accept backlog/u }));
+    await user.click(screen.getByRole("button", { name: /Run the sweep/u }));
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runPlayloltcgAutoAccept" });
+  });
+
+  it("says how many events a backlog sweep would run over before it starts one", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    render(<MetaAdminOverviewPage source="uvsgames" />);
+
+    await user.click(screen.getByRole("button", { name: /Auto-accept backlog/u }));
+
+    expect(screen.getByText(/all 30 events awaiting triage/u)).toBeInTheDocument();
+    expect(captured.run).not.toHaveBeenCalled();
+  });
+
   it("says a crawl started rather than claiming it finished", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<MetaAdminOverviewPage source="uvsgames" />);

@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Repos, Transact } from "../../deps.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
 import { promoteNewEvent } from "../meta-promote.js";
-import { acceptCatalogEvent, autoAcceptCatalogEvents } from "./accept.js";
+import { acceptCatalogEvent, autoAcceptCatalogBacklog, autoAcceptCatalogEvents } from "./accept.js";
 import type { MetaSyncDeps } from "./deps.js";
 import type { UvsClient } from "./uvsgames-client.js";
 
@@ -107,9 +107,14 @@ function fakeDeps(
         updatedAt: NOW,
       });
     },
-    unacceptedByKeys: () => {
+    unacceptedByKeys: (keys: readonly string[]) => {
       reads.push("unacceptedByKeys");
-      return Promise.resolve(options.unaccepted ?? []);
+      const rows = options.unaccepted ?? [];
+      return Promise.resolve(rows.filter((row) => keys.includes(row.externalId)));
+    },
+    newKeys: () => {
+      reads.push("newKeys");
+      return Promise.resolve((options.unaccepted ?? []).map((row) => row.externalId));
     },
     watchedTemplates: () =>
       Promise.resolve(
@@ -191,14 +196,24 @@ describe("autoAcceptCatalogEvents", () => {
   it("reads nothing for an empty key list", async () => {
     const { deps, reads } = fakeDeps();
 
-    expect(await autoAcceptCatalogEvents(deps, [])).toEqual({ accepted: 0, errors: [] });
+    expect(await autoAcceptCatalogEvents(deps, [])).toEqual({
+      considered: 0,
+      accepted: 0,
+      failed: 0,
+      errors: [],
+    });
     expect(reads).toEqual([]);
   });
 
   it("reads no rows while every rule is switched off", async () => {
     const { deps, reads } = fakeDeps({ unaccepted: [catalogRow()] });
 
-    expect(await autoAcceptCatalogEvents(deps, ["365708"])).toEqual({ accepted: 0, errors: [] });
+    expect(await autoAcceptCatalogEvents(deps, ["365708"])).toEqual({
+      considered: 0,
+      accepted: 0,
+      failed: 0,
+      errors: [],
+    });
     expect(reads).toEqual(["settings"]);
   });
 
@@ -213,7 +228,7 @@ describe("autoAcceptCatalogEvents", () => {
 
     const summary = await autoAcceptCatalogEvents(deps, ["big", "small"]);
 
-    expect(summary).toEqual({ accepted: 1, errors: [] });
+    expect(summary).toEqual({ considered: 2, accepted: 1, failed: 0, errors: [] });
     expect(rechecks.map((write) => write.externalId)).toEqual(["big"]);
   });
 
@@ -223,7 +238,10 @@ describe("autoAcceptCatalogEvents", () => {
       unaccepted: [catalogRow({ playerCount: 200, eventFormat: "Sealed Cube" })],
     });
 
-    expect(await autoAcceptCatalogEvents(deps, ["365708"])).toEqual({ accepted: 0, errors: [] });
+    expect(await autoAcceptCatalogEvents(deps, ["365708"])).toMatchObject({
+      considered: 1,
+      accepted: 0,
+    });
   });
 
   it("accepts an event on a watched template regardless of its field size", async () => {
@@ -249,8 +267,48 @@ describe("autoAcceptCatalogEvents", () => {
     const summary = await autoAcceptCatalogEvents(deps, ["first", "second"]);
 
     expect(summary.accepted).toBe(1);
+    expect(summary.failed).toBe(1);
     expect(summary.errors).toHaveLength(1);
     expect(summary.errors[0]).toContain("slug is taken");
     expect(summary.errors[0]).toContain("first");
+  });
+});
+
+describe("autoAcceptCatalogBacklog", () => {
+  beforeEach(() => {
+    vi.mocked(promoteNewEvent).mockClear();
+    vi.mocked(promoteNewEvent).mockResolvedValue({
+      metaEventId: "live-1",
+      slug: "rq-bologna",
+      created: true,
+    } as never);
+  });
+
+  it("reads no keys while every rule is switched off", async () => {
+    const { deps, reads } = fakeDeps({ unaccepted: [catalogRow()] });
+
+    expect(await autoAcceptCatalogBacklog(deps)).toEqual({
+      considered: 0,
+      accepted: 0,
+      failed: 0,
+      errors: [],
+    });
+    expect(reads).toEqual(["settings"]);
+  });
+
+  it("sweeps the whole triage list rather than one crawl's keys", async () => {
+    const { deps, rechecks, reads } = fakeDeps({
+      settings: { autoAcceptMinPlayers: 64, autoAcceptNotable: false, autoAcceptOfficial: false },
+      unaccepted: [
+        catalogRow({ externalId: "old-big", playerCount: 200 }),
+        catalogRow({ externalId: "old-small", playerCount: 8 }),
+      ],
+    });
+
+    const summary = await autoAcceptCatalogBacklog(deps);
+
+    expect(summary).toEqual({ considered: 2, accepted: 1, failed: 0, errors: [] });
+    expect(rechecks.map((write) => write.externalId)).toEqual(["old-big"]);
+    expect(reads).toContain("newKeys");
   });
 });
