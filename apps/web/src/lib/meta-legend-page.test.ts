@@ -141,7 +141,7 @@ function eventSummary(slug: string, overrides: Partial<MetaEventSummary> = {}): 
     organizer: null,
     playerRowCount: 8,
     deckCount: 2,
-    winners: [],
+    topFinishes: [],
     ...overrides,
   };
 }

@@ -12,7 +12,8 @@ import { metaRouter } from "./meta";
 
 const mockMeta = {
   allEvents: vi.fn(),
-  winnersForEvents: vi.fn(),
+  topFinishesForEvents: vi.fn(),
+  recentActivity: vi.fn(),
   eventBySlug: vi.fn(),
   standingsForEvent: vi.fn(),
   matchesForEvent: vi.fn(),
@@ -105,7 +106,8 @@ function sourceRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  mockMeta.winnersForEvents.mockResolvedValue([]);
+  mockMeta.topFinishesForEvents.mockResolvedValue([]);
+  mockMeta.recentActivity.mockResolvedValue([]);
   mockMeta.standingsForEvent.mockResolvedValue([]);
   mockMeta.matchesForEvent.mockResolvedValue([]);
   mockMeta.phasesForEvent.mockResolvedValue([]);
@@ -424,9 +426,9 @@ describe("GET /meta/events", () => {
     expect(json.events[0].sources).toBeUndefined();
   });
 
-  it("names each event's winner inline, with the legend's artwork", async () => {
+  it("names each event's podium inline, with the legend's artwork", async () => {
     mockMeta.allEvents.mockResolvedValue([eventRow({ playerRowCount: 64, deckCount: 8 })]);
-    mockMeta.winnersForEvents.mockResolvedValue([
+    mockMeta.topFinishesForEvents.mockResolvedValue([
       {
         ...playerRow({ legendCardId: LEGEND_ID, legendName: "Jinx", legendSlug: "jinx" }),
         metaEventId: EVENT_ID,
@@ -437,8 +439,10 @@ describe("GET /meta/events", () => {
     const res = await app.request("/api/v1/meta/events");
 
     const json = await readJson(res);
-    expect(json.events[0].winners).toHaveLength(1);
-    expect(json.events[0].winners[0]).toMatchObject({
+    expect(json.events[0].topFinishes).toHaveLength(1);
+    expect(json.events[0].topFinishes[0]).toMatchObject({
+      rank: 1,
+      rankIsTier: false,
       playerName: "Renata",
       wins: 5,
       losses: 1,
@@ -449,7 +453,7 @@ describe("GET /meta/events", () => {
 
   it("names both players when the source published two first places", async () => {
     mockMeta.allEvents.mockResolvedValue([eventRow()]);
-    mockMeta.winnersForEvents.mockResolvedValue([
+    mockMeta.topFinishesForEvents.mockResolvedValue([
       { ...playerRow({ playerName: "Ashe" }), metaEventId: EVENT_ID },
       {
         ...playerRow({ id: "p0000000-0001-4000-a000-000000000002", playerName: "Zed" }),
@@ -460,9 +464,9 @@ describe("GET /meta/events", () => {
     const res = await app.request("/api/v1/meta/events");
 
     const json = await readJson(res);
-    expect(json.events[0].winners.map((entry: { playerName: string }) => entry.playerName)).toEqual(
-      ["Ashe", "Zed"],
-    );
+    expect(
+      json.events[0].topFinishes.map((entry: { playerName: string }) => entry.playerName),
+    ).toEqual(["Ashe", "Zed"]);
   });
 
   it("names no winner for an event whose standings have not arrived", async () => {
@@ -471,7 +475,54 @@ describe("GET /meta/events", () => {
     const res = await app.request("/api/v1/meta/events");
 
     const json = await readJson(res);
-    expect(json.events[0].winners).toEqual([]);
+    expect(json.events[0].topFinishes).toEqual([]);
+  });
+});
+
+describe("GET /meta/activity", () => {
+  it("prints each burst with its event and an ISO timestamp", async () => {
+    mockMeta.recentActivity.mockResolvedValue([
+      {
+        kind: "decks-added",
+        occurredAt: new Date("2026-08-25T12:00:00.000Z"),
+        count: 8,
+        eventSlug: "summoner-skirmish-2026",
+        eventName: "Summoner Skirmish",
+      },
+      {
+        kind: "event-added",
+        occurredAt: new Date("2026-08-24T09:00:00.000Z"),
+        count: null,
+        eventSlug: "nexus-night",
+        eventName: "Nexus Night",
+      },
+    ]);
+
+    const res = await app.request("/api/v1/meta/activity");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.items).toEqual([
+      {
+        kind: "decks-added",
+        occurredAt: "2026-08-25T12:00:00.000Z",
+        count: 8,
+        event: { slug: "summoner-skirmish-2026", name: "Summoner Skirmish" },
+      },
+      {
+        kind: "event-added",
+        occurredAt: "2026-08-24T09:00:00.000Z",
+        count: null,
+        event: { slug: "nexus-night", name: "Nexus Night" },
+      },
+    ]);
+  });
+
+  it("reports an empty archive as no items", async () => {
+    const res = await app.request("/api/v1/meta/activity");
+
+    expect(res.status).toBe(200);
+    expect(await readJson(res)).toEqual({ items: [] });
   });
 });
 

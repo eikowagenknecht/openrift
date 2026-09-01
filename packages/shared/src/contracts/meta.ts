@@ -4,7 +4,7 @@ import {
   metaEventTierSchema,
   metaListStatusSchema,
 } from "@openrift/shared/response-schemas";
-import { isoDate } from "@openrift/shared/schemas";
+import { isoDate, isoDateTime } from "@openrift/shared/schemas";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
@@ -46,20 +46,24 @@ export const metaCardRefSchema = z
   .openapi("MetaCardRef");
 
 /**
- * Who won one archived event: a rank-1 standings row, as an event list prints it
- * inline. One published result, not a computed standing — an event whose
- * standings the archive does not hold has no winner rather than a guessed one,
- * and a source that published two first places gets both named.
+ * One podium finish of an archived event: a rank ≤ 3 standings row, as an event
+ * list prints it inline. Published results, not computed standings — an event
+ * whose standings the archive does not hold has no finishes rather than guessed
+ * ones, and a source that published two of the same place gets both named.
  */
-export const metaEventWinnerSchema = z
+export const metaEventFinishSchema = z
   .object({
+    /** 1-based standing. Repeats on a tie, and every tied row stands. */
+    rank: z.number().int(),
+    /** True when the source published cut buckets ("Top 4") rather than exact standings. */
+    rankIsTier: z.boolean(),
     playerName: z.string(),
     wins: z.number().int().nullable(),
     losses: z.number().int().nullable(),
     draws: z.number().int().nullable(),
     legend: metaCardRefSchema.nullable(),
   })
-  .openapi("MetaEventWinner");
+  .openapi("MetaEventFinish");
 
 /** An event as it appears in a list: enough for a row, without the long-form fields. */
 export const metaEventSummarySchema = z
@@ -82,8 +86,12 @@ export const metaEventSummarySchema = z
     playerRowCount: z.number().int().nonnegative(),
     /** The subset of those rows with a decklist attached. */
     deckCount: z.number().int().nonnegative(),
-    /** Every rank-1 finish the archive holds, empty until standings are archived. */
-    winners: z.array(metaEventWinnerSchema),
+    /**
+     * The podium the archive holds — every rank ≤ 3 row, best first — empty
+     * until standings are archived. Rank-1 rows are the winners; a tie shares
+     * a rank and every tied row is listed.
+     */
+    topFinishes: z.array(metaEventFinishSchema),
   })
   .openapi("MetaEventSummary");
 
@@ -264,6 +272,33 @@ export const metaDeckSummarySchema = z
 export const metaEventListResponseSchema = z
   .object({ events: z.array(metaEventSummarySchema) })
   .openapi("MetaEventListResponse");
+
+/**
+ * What kind of addition an activity row reports: a new event on record, a batch
+ * of decklists, or a batch of standings rows landing on an existing event.
+ */
+export const metaActivityKindSchema = z.enum(["event-added", "decks-added", "results-added"]);
+
+/**
+ * One recent addition to the archive. Additions are reported as bursts — all
+ * rows of one kind landing on one event within one UTC day are one item — so a
+ * bulk import reads as "118 decklists added", not 118 rows.
+ */
+export const metaActivityItemSchema = z
+  .object({
+    kind: metaActivityKindSchema,
+    /** When the newest row of the burst landed. */
+    occurredAt: isoDateTime,
+    /** Rows in the burst: decklists or standings rows. Null for `event-added`. */
+    count: z.number().int().positive().nullable(),
+    event: z.object({ slug: z.string(), name: z.string() }),
+  })
+  .openapi("MetaActivityItem");
+
+/** Newest first. */
+export const metaActivityResponseSchema = z
+  .object({ items: z.array(metaActivityItemSchema) })
+  .openapi("MetaActivityResponse");
 
 /** The event and its whole standings table, best finish first. */
 export const metaEventDetailResponseSchema = z
@@ -470,6 +505,11 @@ export const metaContract = {
     .route({ method: "GET", path: `${BASE}/events`, tags: [TAG] })
     .meta({ auth: "public", cache: "medium", etag: true })
     .output(metaEventListResponseSchema),
+
+  activity: oc
+    .route({ method: "GET", path: `${BASE}/activity`, tags: [TAG] })
+    .meta({ auth: "public", cache: "short" })
+    .output(metaActivityResponseSchema),
 
   event: oc
     .route({ method: "GET", path: `${BASE}/events/{slug}`, tags: [TAG] })

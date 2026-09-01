@@ -81,7 +81,7 @@ const EVENT: MetaEventSummary = {
   location: null,
   playerRowCount: 64,
   deckCount: 8,
-  winners: [],
+  topFinishes: [],
 };
 
 beforeEach(() => {

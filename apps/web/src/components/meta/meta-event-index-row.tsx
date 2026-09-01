@@ -1,4 +1,4 @@
-import type { MetaEventSummary, MetaEventWinner } from "@openrift/shared";
+import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared";
 import { dateLeafPartsUtc, formatDay, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
@@ -6,7 +6,14 @@ import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
-import { formatRecord, joinNames, metaEventCounts, splitLegendName } from "@/lib/meta-format";
+import {
+  formatRecord,
+  joinNames,
+  metaEventCounts,
+  metaEventEmptyStatus,
+  splitLegendName,
+} from "@/lib/meta-format";
+import { metaEventWinners } from "@/lib/meta-front-page";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,6 +32,8 @@ export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
   const leaf = dateLeafPartsUtc(event.eventDate);
   const venue = [event.organizer, event.location].filter(Boolean).join(" · ");
   const counts = metaEventCounts(event);
+  const winners = metaEventWinners(event);
+  const emptyStatus = metaEventEmptyStatus(event);
 
   return (
     <Link
@@ -45,14 +54,26 @@ export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
         <div>
           <MetaTierBadge tier={event.tier} />
         </div>
-        <CountryFlag code={event.country} size="sm" />
-        <span className="text-muted-foreground text-right text-sm tabular-nums">
-          {event.playerRowCount}
+        {/* The slot always renders, flag or not: each child of the grid takes
+            the next track, so a missing flag would shift every later column. */}
+        <span>
+          <CountryFlag code={event.country} size="sm" />
         </span>
-        <span className="text-muted-foreground text-right text-sm tabular-nums">
-          {event.deckCount}
-        </span>
-        <WinnerCell winners={event.winners} />
+        {emptyStatus === null ? (
+          <>
+            <span className="text-muted-foreground text-right text-sm tabular-nums">
+              {event.playerRowCount}
+            </span>
+            <span className="text-muted-foreground text-right text-sm tabular-nums">
+              {event.deckCount}
+            </span>
+            <WinnerCell winners={winners} />
+          </>
+        ) : (
+          // Nothing archived is one fact: one muted line where three empty
+          // cells ("0 · 0 · —") would each restate it.
+          <span className="text-muted-foreground/60 col-span-3 text-sm">{emptyStatus}</span>
+        )}
       </div>
 
       <div className="flex items-start gap-3 sm:hidden">
@@ -75,7 +96,7 @@ export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
             <CountryFlag code={event.country} size="sm" />
             <span className="tabular-nums">{counts.join(" · ")}</span>
           </div>
-          <WinnerLine winners={event.winners} />
+          <WinnerLine winners={winners} />
         </div>
       </div>
     </Link>
@@ -83,7 +104,7 @@ export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
 }
 
 /** The winner column: the legend they played, then who they are. */
-function WinnerCell({ winners }: { winners: readonly MetaEventWinner[] }) {
+function WinnerCell({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 0) {
     return (
       <span aria-hidden className="text-muted-foreground/60 text-sm">
@@ -106,7 +127,7 @@ function WinnerCell({ winners }: { winners: readonly MetaEventWinner[] }) {
  * record is only shown for a single winner: two records side by side stop
  * reading as "who won" and start reading as a standings table.
  */
-function WinnerLine({ winners }: { winners: readonly MetaEventWinner[] }) {
+function WinnerLine({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 0) {
     return null;
   }
@@ -127,7 +148,7 @@ function WinnerLine({ winners }: { winners: readonly MetaEventWinner[] }) {
 }
 
 /** One thumbnail per winner, overlapped so a tie still fits the column. */
-function LegendThumbs({ winners }: { winners: readonly MetaEventWinner[] }) {
+function LegendThumbs({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 1) {
     return <LegendThumb winner={winners[0]} />;
   }
@@ -144,7 +165,7 @@ function LegendThumbs({ winners }: { winners: readonly MetaEventWinner[] }) {
  * The winner's legend at thumbnail size. Cropped to the art rather than the whole
  * card: at 24px a full card is a smudge, while the splash still reads.
  */
-function LegendThumb({ winner }: { winner: MetaEventWinner }) {
+function LegendThumb({ winner }: { winner: MetaEventFinish }) {
   const imageId = winner.legend?.imageId ?? null;
   const placeholder = <span className="bg-muted size-6 shrink-0 rounded-xs" />;
   if (imageId === null) {

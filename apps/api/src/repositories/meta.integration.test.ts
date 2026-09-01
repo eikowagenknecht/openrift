@@ -796,32 +796,98 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(standings[1].listStatus).toBe("none");
     });
 
-    it("takes only rank 1, and nothing from an event with no standings", async () => {
-      const withWinner = await seedEvent(repo, "mta-winner-one");
+    it("takes the podium and nothing deeper, and nothing from an event with no standings", async () => {
+      const withPodium = await seedEvent(repo, "mta-winner-one");
       const pending = await seedEvent(repo, "mta-winner-none");
-      await seedListedPlayer(repo, withWinner, { playerName: "MTA Champ", rank: 1, wins: 7 });
-      await seedDecklessPlayer(repo, withWinner, { playerName: "MTA Runner", rank: 2 });
+      await seedListedPlayer(repo, withPodium, { playerName: "MTA Champ", rank: 1, wins: 7 });
+      await seedDecklessPlayer(repo, withPodium, { playerName: "MTA Runner", rank: 2 });
+      await seedDecklessPlayer(repo, withPodium, { playerName: "MTA Third", rank: 3 });
+      await seedDecklessPlayer(repo, withPodium, { playerName: "MTA Fourth", rank: 4 });
 
-      const winners = await repo.winnersForEvents([withWinner, pending]);
+      const finishes = await repo.topFinishesForEvents([withPodium, pending]);
 
-      expect(winners).toHaveLength(1);
-      expect(winners[0].metaEventId).toBe(withWinner);
-      expect(winners[0].playerName).toBe("MTA Champ");
-      expect(winners[0].wins).toBe(7);
+      expect(finishes).toHaveLength(3);
+      expect(finishes.every((row) => row.metaEventId === withPodium)).toBe(true);
+      expect(finishes.map((row) => row.playerName)).toEqual([
+        "MTA Champ",
+        "MTA Runner",
+        "MTA Third",
+      ]);
+      expect(finishes[0].wins).toBe(7);
     });
 
-    it("keeps both rows when a source published two first places, ordered by name", async () => {
+    it("keeps both rows when a source published two first places, ordered by rank then name", async () => {
       const eventId = await seedEvent(repo, "mta-winner-tie");
       await seedDecklessPlayer(repo, eventId, { playerName: "MTA Zed", rank: 1 });
       await seedDecklessPlayer(repo, eventId, { playerName: "MTA Ashe", rank: 1 });
+      await seedDecklessPlayer(repo, eventId, { playerName: "MTA Bronze", rank: 2 });
 
-      const winners = await repo.winnersForEvents([eventId]);
+      const finishes = await repo.topFinishesForEvents([eventId]);
 
-      expect(winners.map((row) => row.playerName)).toEqual(["MTA Ashe", "MTA Zed"]);
+      expect(finishes.map((row) => row.playerName)).toEqual(["MTA Ashe", "MTA Zed", "MTA Bronze"]);
     });
 
     it("asks nothing of the database for an empty event list", async () => {
-      expect(await repo.winnersForEvents([])).toEqual([]);
+      expect(await repo.topFinishesForEvents([])).toEqual([]);
+    });
+
+    it("reports later deck and standings batches as bursts, newest first", async () => {
+      const eventId = await seedEvent(repo, "mta-activity-late");
+      const { deckId } = await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Fresh",
+        rank: 1,
+      });
+      await seedDecklessPlayer(repo, eventId, { playerName: "MTA Later", rank: 2 });
+      await ctx!.db
+        .updateTable("metaEvents")
+        .set({ createdAt: new Date("2026-08-20T10:00:00Z") })
+        .where("id", "=", eventId)
+        .execute();
+      await ctx!.db
+        .updateTable("metaEventPlayers")
+        .set({ createdAt: new Date("2026-08-22T09:00:00Z") })
+        .where("metaEventId", "=", eventId)
+        .execute();
+      await ctx!.db
+        .updateTable("decks")
+        .set({ createdAt: new Date("2026-08-23T09:00:00Z") })
+        .where("id", "=", deckId)
+        .execute();
+
+      const rows = await repo.recentActivity(500);
+      const mine = rows.filter((row) => row.eventSlug === "mta-activity-late");
+
+      expect(mine.map((row) => row.kind)).toEqual(["decks-added", "results-added", "event-added"]);
+      expect(mine[0].count).toBe(1);
+      expect(mine[1].count).toBe(2);
+      expect(mine[2].count).toBeNull();
+      expect(mine[0].eventName).toBe("MTA mta-activity-late");
+    });
+
+    it("folds rows landing on the event's own creation day into its one row", async () => {
+      const eventId = await seedEvent(repo, "mta-activity-fold");
+      const { deckId } = await seedListedPlayer(repo, eventId, { playerName: "MTA Same", rank: 1 });
+      const sameDay = new Date("2026-08-20T10:00:00Z");
+      await ctx!.db
+        .updateTable("metaEvents")
+        .set({ createdAt: sameDay })
+        .where("id", "=", eventId)
+        .execute();
+      await ctx!.db
+        .updateTable("metaEventPlayers")
+        .set({ createdAt: new Date("2026-08-20T12:00:00Z") })
+        .where("metaEventId", "=", eventId)
+        .execute();
+      await ctx!.db
+        .updateTable("decks")
+        .set({ createdAt: new Date("2026-08-20T14:00:00Z") })
+        .where("id", "=", deckId)
+        .execute();
+
+      const rows = await repo.recentActivity(500);
+      const mine = rows.filter((row) => row.eventSlug === "mta-activity-fold");
+
+      expect(mine.map((row) => row.kind)).toEqual(["event-added"]);
     });
 
     it("leaves the champion null when the standings row names none", async () => {

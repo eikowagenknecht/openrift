@@ -1,4 +1,4 @@
-import type { MetaDeckSummary, MetaEventSummary } from "@openrift/shared";
+import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared";
 
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
@@ -51,49 +51,29 @@ export function metaEventCountries(events: readonly MetaEventSummary[]): string[
   return [...codes].toSorted((left, right) => left.localeCompare(right));
 }
 
-/** One archived event that has at least one rank-1 finish to name. */
-export interface MetaEventWithWinners extends MetaEventSummary {
-  winners: [MetaEventSummary["winners"][number], ...MetaEventSummary["winners"]];
+/** The winners of one archived event: its rank-1 finishes, in payload order. */
+export function metaEventWinners(event: MetaEventSummary): MetaEventFinish[] {
+  return event.topFinishes.filter((finish) => finish.rank === 1);
+}
+
+/** The front page's tier buckets, in the order the page renders them. */
+export interface MetaFrontSections {
+  premier: MetaEventSummary[];
+  competitive: MetaEventSummary[];
+  /** Store and casual events, which share one section. */
+  community: MetaEventSummary[];
 }
 
 /**
- * The most recent events the archive knows a winner for. An event whose
- * standings have not been fetched yet is skipped rather than shown with an
- * empty seat: the section is a gallery of results, and a blank card claims a
- * tournament nobody won.
- *
- * Ordered here rather than trusting the payload, so the section stays "latest"
- * whatever order the caller filtered in. The limit counts events, not names, so
- * a tie at the top of one event does not push another event's win off the row.
+ * The events in scope split by how much they count for, newest first inside
+ * each bucket. Ordered here rather than trusting the payload, so each section
+ * stays "recent" whatever order the caller filtered in.
  */
-export function latestMetaWinners(
-  events: readonly MetaEventSummary[],
-  limit: number,
-): MetaEventWithWinners[] {
-  return events
-    .filter((event): event is MetaEventWithWinners => event.winners.length > 0)
-    .toSorted((left, right) => right.eventDate.localeCompare(left.eventDate))
-    .slice(0, limit);
-}
-
-/**
- * The archived decks belonging to the events in scope, newest event first and
- * best finish first inside a day. The deck payload carries no tier or country,
- * so scoping it means going through the events that passed the filter.
- */
-export function metaDecksForEvents(
-  decks: readonly MetaDeckSummary[],
-  events: readonly MetaEventSummary[],
-  limit: number,
-): MetaDeckSummary[] {
-  const slugs = new Set(events.map((event) => event.slug));
-  return decks
-    .filter((deck) => slugs.has(deck.event.slug))
-    .toSorted((left, right) => {
-      if (left.event.eventDate !== right.event.eventDate) {
-        return right.event.eventDate.localeCompare(left.event.eventDate);
-      }
-      return left.rank - right.rank;
-    })
-    .slice(0, limit);
+export function metaFrontSections(events: readonly MetaEventSummary[]): MetaFrontSections {
+  const sorted = events.toSorted((left, right) => right.eventDate.localeCompare(left.eventDate));
+  return {
+    premier: sorted.filter((event) => event.tier === "premier"),
+    competitive: sorted.filter((event) => event.tier === "competitive"),
+    community: sorted.filter((event) => event.tier === "store" || event.tier === "casual"),
+  };
 }

@@ -29,7 +29,7 @@ import {
   toMetaEventPlayer,
   toMetaEventSource,
   toMetaEventSummary,
-  toMetaEventWinner,
+  toMetaEventFinish,
   toMetaSubmission,
 } from "./meta-presenters.js";
 
@@ -132,7 +132,7 @@ describe("toMetaEventSummary", () => {
       organizer: "LGS Berlin",
       playerRowCount: 64,
       deckCount: 8,
-      winners: [],
+      topFinishes: [],
     });
   });
 
@@ -151,22 +151,24 @@ describe("toMetaEventSummary", () => {
     expect(summary.deckCount).toBe(0);
   });
 
-  it("carries every winner it was handed", () => {
+  it("carries every finish it was handed", () => {
     const summary = toMetaEventSummary(eventRow(), [
-      toMetaEventWinner(playerRow(), IMAGES),
-      toMetaEventWinner(playerRow({ playerName: "Rell" }), IMAGES),
+      toMetaEventFinish(playerRow(), IMAGES),
+      toMetaEventFinish(playerRow({ playerName: "Rell", rank: 2 }), IMAGES),
     ]);
-    expect(summary.winners.map((entry) => entry.playerName)).toEqual(["Nova", "Rell"]);
+    expect(summary.topFinishes.map((entry) => entry.playerName)).toEqual(["Nova", "Rell"]);
   });
 
-  it("has no winners for an event whose standings have not arrived", () => {
-    expect(toMetaEventSummary(eventRow()).winners).toEqual([]);
+  it("has no finishes for an event whose standings have not arrived", () => {
+    expect(toMetaEventSummary(eventRow()).topFinishes).toEqual([]);
   });
 });
 
-describe("toMetaEventWinner", () => {
-  it("names the winner's legend the way players say it, with its artwork", () => {
-    expect(toMetaEventWinner(playerRow(), IMAGES)).toEqual({
+describe("toMetaEventFinish", () => {
+  it("names the finish's legend the way players say it, with its artwork and rank", () => {
+    expect(toMetaEventFinish(playerRow(), IMAGES)).toEqual({
+      rank: 1,
+      rankIsTier: false,
       playerName: "Nova",
       wins: 5,
       losses: 1,
@@ -182,24 +184,29 @@ describe("toMetaEventWinner", () => {
     });
   });
 
-  it("gives the winner's legend its real domains, so an inline winner draws its runes", () => {
-    const winner = toMetaEventWinner(playerRow({ legendDomains: ["order"] }), IMAGES);
-    expect(winner.legend?.domains).toEqual(["order"]);
+  it("gives the finish's legend its real domains, so an inline row draws its runes", () => {
+    const finish = toMetaEventFinish(playerRow({ legendDomains: ["order"] }), IMAGES);
+    expect(finish.legend?.domains).toEqual(["order"]);
   });
 
   it("draws no runes for a legend the aggregates view has not caught up with", () => {
-    const winner = toMetaEventWinner(playerRow({ legendDomains: null }), IMAGES);
-    expect(winner.legend?.domains).toEqual([]);
+    const finish = toMetaEventFinish(playerRow({ legendDomains: null }), IMAGES);
+    expect(finish.legend?.domains).toEqual([]);
   });
 
-  it("keeps the winner when the archive never learned their legend", () => {
-    const winner = toMetaEventWinner(playerRow({ legendCardId: null, legendName: null }), IMAGES);
-    expect(winner).toMatchObject({ playerName: "Nova", legend: null });
+  it("keeps the finish when the archive never learned their legend", () => {
+    const finish = toMetaEventFinish(playerRow({ legendCardId: null, legendName: null }), IMAGES);
+    expect(finish).toMatchObject({ playerName: "Nova", legend: null });
+  });
+
+  it("carries a cut-bucket rank as the tier it is", () => {
+    const finish = toMetaEventFinish(playerRow({ rank: 3, rankIsTier: true }), IMAGES);
+    expect(finish).toMatchObject({ rank: 3, rankIsTier: true });
   });
 
   it("leaves the record null when the source published none", () => {
-    const winner = toMetaEventWinner(playerRow({ wins: null, losses: null, draws: null }), IMAGES);
-    expect(winner).toMatchObject({ wins: null, losses: null, draws: null });
+    const finish = toMetaEventFinish(playerRow({ wins: null, losses: null, draws: null }), IMAGES);
+    expect(finish).toMatchObject({ wins: null, losses: null, draws: null });
   });
 });
 
@@ -270,7 +277,7 @@ describe("toMetaEventDetail", () => {
       organizer: "LGS Berlin",
       playerRowCount: 64,
       deckCount: 8,
-      winners: [],
+      topFinishes: [],
       notes: "Top 8 lists only.",
       location: "Kartenstraße 1, 10115 Berlin, DE",
       sources: [

@@ -7,6 +7,7 @@ import {
   formatRecord,
   joinNames,
   metaEventCounts,
+  metaEventEmptyStatus,
   metaPlayerClaimChips,
   metaShownLabel,
   recordSortValue,
@@ -209,6 +210,29 @@ describe("metaEventCounts", () => {
       "1 player",
       "0 decks",
     ]);
+  });
+});
+
+describe("metaEventEmptyStatus", () => {
+  const TODAY = "2026-09-01";
+  const event = (over: Partial<MetaCountedEvent>): MetaCountedEvent => ({
+    eventDate: "2026-08-09",
+    playerCount: null,
+    playerRowCount: 0,
+    deckCount: 0,
+    ...over,
+  });
+
+  it("stays out of the way once the archive holds anything", () => {
+    expect(metaEventEmptyStatus(event({ playerRowCount: 12 }), TODAY)).toBeNull();
+  });
+
+  it("names a played event's missing results as one fact", () => {
+    expect(metaEventEmptyStatus(event({}), TODAY)).toBe("No results on file");
+  });
+
+  it("says an event still to come has not been played", () => {
+    expect(metaEventEmptyStatus(event({ eventDate: "2026-09-26" }), TODAY)).toBe("Not played yet");
   });
 });
 

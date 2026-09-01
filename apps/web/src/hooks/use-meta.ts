@@ -1,4 +1,5 @@
 import type {
+  MetaActivityResponse,
   MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
@@ -38,6 +39,25 @@ export const metaEventsQueryOptions = queryOptions({
 
 export function useMetaEvents() {
   return useSuspenseQuery(metaEventsQueryOptions);
+}
+
+const fetchMetaActivity = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<MetaActivityResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "meta", "activity"],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).activity(),
+    }),
+  );
+
+export const metaActivityQueryOptions = queryOptions({
+  queryKey: queryKeys.meta.activity,
+  queryFn: () => fetchMetaActivity(),
+  staleTime: 5 * 60 * 1000,
+});
+
+export function useMetaActivity() {
+  return useSuspenseQuery(metaActivityQueryOptions);
 }
 
 const fetchMetaEvent = createServerFn({ method: "GET" })

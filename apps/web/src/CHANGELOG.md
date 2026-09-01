@@ -4,10 +4,12 @@
 
 ### Highlights
 
+- feat(Meta): **Tiered tournament overview** — the archive front page now groups events by tier: premier events carry the winner's legend art, and premier and competitive events list their top 3 finishes.
 - feat(Meta): **Legends index shows each record** — every legend now carries its best finish, event wins, decklists and finishes, recomputed for whatever era, format, tier or country you pick, and the columns sort.
 
 ### Other
 
+- feat(Meta): **Fresh in the archive** — a new front-page section lists what landed lately: new events on record, decklist batches, and standings.
 - feat(Meta): **The archive opens on the current set** — every archive page now starts on the current set and constructed play, with all time and the other formats still one click away.
 - feat(Meta): **Roomier archive filter bar** — search leads the row like everywhere else, and the format and country pickers moved behind a Filters button.
 - feat(Meta): **Filter the archive by everything but** — format, tier and country now take several picks at once, and a second click on one turns it into "everything except this", the way the card filters work.
@@ -15,6 +17,7 @@
 - feat(App): **Front page opens the feature tour** — marketplace prices join the landing highlights, and the tour's five chapters are now linked right from the front page.
 - feat(App): **Roadmap brought up to date** — the Discord bot, tournament results archive, streamer tools, deck variants, and Swiss and 2v2 events are marked shipped, and the page now says how to influence what comes next.
 - feat(App): **Why OpenRift, in prose** — the help article now tells the story without the dated feature comparison table, and points to the feature tour instead.
+- fix(Meta): **One line for empty events** — an event with nothing archived shows a single status line in the tournament index instead of zero players, zero decks and a dash, and a missing flag no longer shifts the columns.
 - fix(Meta): **Even filter bar heights** — the Tier and Filters buttons now stand as tall as the search field and era picker beside them.
 - fix(Meta): **Event rows name the field size** — a row now says how many players the source reported and whether an event is still to come or simply has no results on file, and rows with no country keep their columns aligned.
 - fix(Meta): **Archived deck tiles** — a list's chosen champion now shows beside its legend, and the pilot's name is no longer the smallest thing on the tile.

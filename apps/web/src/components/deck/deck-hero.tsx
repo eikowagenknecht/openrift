@@ -8,6 +8,7 @@ import {
   PackageSearchIcon,
 } from "lucide-react";
 
+import { ArtBandBackdrop } from "@/components/art-band-backdrop";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
@@ -20,7 +21,6 @@ import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { deckGlowStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -296,28 +296,14 @@ export function DeckHero({
   // legend's art otherwise. The ambient glow stays legend-driven either way —
   // domain identity belongs to the legend, the cover is just the picture.
   const backdropThumb = cover?.thumbnail ?? legendThumb;
-  const backdropPosition = `50% ${cover?.position ?? 20}%`;
 
   return (
     <section className="bg-card relative overflow-hidden rounded-xl border">
-      <div className="absolute inset-0" style={deckGlowStyle(legendDomains, domainColors)} />
-      {backdropThumb && (
-        <>
-          {/* Full-art identity: the cover art blurred behind a two-direction
-              scrim — side fade keeps the text readable, bottom fade settles the
-              band into the card surface. scale-110 hides the blur's soft edges. */}
-          <img
-            src={backdropThumb}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            style={{ objectPosition: backdropPosition }}
-            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-md saturate-125 dark:opacity-40"
-          />
-          <div className="from-card via-card/70 to-card/30 absolute inset-0 bg-gradient-to-r" />
-          <div className="to-card/80 absolute inset-0 bg-gradient-to-b from-transparent via-transparent" />
-        </>
-      )}
+      <ArtBandBackdrop
+        thumbnail={backdropThumb}
+        position={cover?.position ?? 20}
+        domains={legendDomains}
+      />
       <div className="relative flex items-center gap-4 p-4 sm:gap-6 sm:p-5">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="min-w-0">

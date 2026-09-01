@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RouteErrorFallback } from "@/components/error-message";
 import { META_DESCRIPTION } from "@/components/meta/meta-copy";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaDecksQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
+import { metaActivityQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_app/meta")({
       context.queryClient.ensureQueryData(initQueryOptions),
       context.queryClient.ensureQueryData(publicSetListQueryOptions),
       context.queryClient.ensureQueryData(metaEventsQueryOptions),
-      context.queryClient.ensureQueryData(metaDecksQueryOptions),
+      context.queryClient.ensureQueryData(metaActivityQueryOptions),
     ]);
   },
   errorComponent: RouteErrorFallback,

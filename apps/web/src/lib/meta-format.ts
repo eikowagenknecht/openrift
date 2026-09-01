@@ -229,6 +229,19 @@ export interface MetaCountedEvent {
  *
  * @returns The fragments for the row's detail line.
  */
+/**
+ * The one-line status an index row shows in place of its holdings columns: an
+ * event with nothing archived yet is one fact, not three empty cells.
+ *
+ * @returns The status line, or null for an event with holdings to count.
+ */
+export function metaEventEmptyStatus(event: MetaCountedEvent, today = todayUtc()): string | null {
+  if (event.playerRowCount > 0 || event.deckCount > 0) {
+    return null;
+  }
+  return event.eventDate > today ? "Not played yet" : "No results on file";
+}
+
 export function metaEventCounts(event: MetaCountedEvent, today = todayUtc()): string[] {
   const size = event.playerCount ?? (event.playerRowCount === 0 ? null : event.playerRowCount);
   const parts: string[] = [];

@@ -1,3 +1,4 @@
+import type { MetaEventTier } from "@openrift/shared";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { TrophyIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -12,36 +13,31 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { MetaArchiveActivity } from "@/components/meta/meta-archive-activity";
 import { MetaArchiveCounts } from "@/components/meta/meta-archive-counts";
-import { MetaArchiveDeckTile } from "@/components/meta/meta-archive-deck-tile";
 import { MetaArchiveSearch } from "@/components/meta/meta-archive-search";
 import { MetaContributeBand } from "@/components/meta/meta-contribute-band";
 import { MetaEventRow } from "@/components/meta/meta-event-row";
+import { MetaFrontEventBlock } from "@/components/meta/meta-front-event-block";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
-import { MetaWinnerCard } from "@/components/meta/meta-winner-card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { useIsAdmin } from "@/hooks/use-admin";
-import { useMetaDecks, useMetaEvents } from "@/hooks/use-meta";
+import { useMetaActivity, useMetaEvents } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
 import { useMetaSubmissions } from "@/hooks/use-meta-submissions";
 import { useUserId } from "@/lib/auth-session";
-import {
-  filterMetaEvents,
-  latestMetaWinners,
-  metaDecksForEvents,
-  metaEventCountries,
-} from "@/lib/meta-front-page";
+import { filterMetaEvents, metaEventCountries, metaFrontSections } from "@/lib/meta-front-page";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, isScopeCustomized, nextScopeSearch } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta");
 
-const WINNER_LIMIT = 3;
-const RECENT_EVENT_LIMIT = 6;
-const NEWEST_DECK_LIMIT = 8;
+const PREMIER_LIMIT = 3;
+const COMPETITIVE_LIMIT = 3;
+const COMMUNITY_LIMIT = 5;
 
 /**
  * The link to a contributor's own ledger, which only exists once they have sent
@@ -77,15 +73,21 @@ function MetaEmptyState() {
 function Section({
   title,
   action,
+  accent,
   children,
 }: {
   title: string;
   action?: ReactNode;
+  /** The tier marker's color class; the untinted sections pass none. */
+  accent?: string;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {accent !== undefined && (
+          <span aria-hidden="true" className={cn("h-4 w-1 self-center rounded-full", accent)} />
+        )}
         <Heading>{title}</Heading>
         {action}
       </div>
@@ -95,8 +97,25 @@ function Section({
 }
 
 /**
- * `/meta` — the archive's front page: how much is on record, who last won what,
- * which events and decklists landed most recently, and how to add to it.
+ * The "All …" link a tier section carries, opening the event index already
+ * narrowed to that tier.
+ */
+function TierIndexLink({ tiers, count }: { tiers: MetaEventTier[]; count: number }) {
+  return (
+    <Link
+      to="/meta/events"
+      search={{ tiers }}
+      className="text-primary text-sm font-medium hover:underline"
+    >
+      Browse all {count}
+    </Link>
+  );
+}
+
+/**
+ * `/meta` — the archive's front page: how much is on record, the recent events
+ * split by how much they count for (each with the podium the archive holds),
+ * what landed lately, and how to add to it.
  *
  * Every number here counts archived facts. Nothing on this page rates a deck,
  * a card, or a legend against another.
@@ -107,7 +126,7 @@ export function MetaFrontPage() {
   const userId = useUserId();
   const eras = useMetaEras();
   const { data: eventsData } = useMetaEvents();
-  const { data: decksData } = useMetaDecks();
+  const { data: activityData } = useMetaActivity();
 
   const setScope = (patch: Partial<MetaScope>) => {
     void navigate({ search: (prev) => nextScopeSearch(prev, patch) });
@@ -123,10 +142,15 @@ export function MetaFrontPage() {
 
   const allEvents = eventsData.events;
   const events = filterMetaEvents(allEvents, { scope: search, eras, search: search.q });
-  const decks = metaDecksForEvents(decksData.decks, events, NEWEST_DECK_LIMIT);
-  const winners = latestMetaWinners(events, WINNER_LIMIT);
+  const sections = metaFrontSections(events);
+  const tierCounts = metaFrontSections(allEvents);
   const playerResults = events.reduce((total, event) => total + event.playerRowCount, 0);
   const deckResults = events.reduce((total, event) => total + event.deckCount, 0);
+  // The activity list is the whole archive's, so it stands down while the page
+  // is narrowed rather than pretending to follow a scope it ignores. Customized
+  // rather than restricting: the default era is a slice too, but it is the
+  // page's resting state, and the resting page is where the news belongs.
+  const showActivity = !isScopeCustomized(search) && (search.q ?? "").trim() === "";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -134,6 +158,7 @@ export function MetaFrontPage() {
         <PageTopBar>
           <PageTopBarTitle>Meta Archive</PageTopBarTitle>
           <PageTopBarActions>
+            <PageTopBarButton render={<Link to="/meta/decks" />}>Decklists</PageTopBarButton>
             <PageTopBarButton render={<Link to="/meta/legends" />}>Legends</PageTopBarButton>
             {/* Logged out there is nowhere to send a decklist to, so the pair
                 stands down entirely rather than leading somewhere dead. */}
@@ -180,62 +205,78 @@ export function MetaFrontPage() {
               </Empty>
             ) : (
               <>
-                {winners.length > 0 && (
-                  <Section title="Latest winners">
-                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {winners.map((event) => (
-                        <li key={event.id}>
-                          <MetaWinnerCard event={event} />
-                        </li>
-                      ))}
-                    </ul>
+                {sections.premier.length > 0 && (
+                  <Section
+                    title="Premier"
+                    accent="bg-border-accent"
+                    action={<TierIndexLink tiers={["premier"]} count={tierCounts.premier.length} />}
+                  >
+                    <Card className="gap-0 p-0">
+                      <ul className="divide-border divide-y">
+                        {sections.premier.slice(0, PREMIER_LIMIT).map((event) => (
+                          <li key={event.id}>
+                            <MetaFrontEventBlock event={event} featured />
+                          </li>
+                        ))}
+                      </ul>
+                    </Card>
                   </Section>
                 )}
 
-                <Section
-                  title="Recent events"
-                  action={
-                    // Both "Browse all" counts name the whole payload rather
-                    // than the scoped list above them, because that is what the
-                    // page behind the link opens on.
-                    <Link
-                      to="/meta/events"
-                      className="text-primary text-sm font-medium hover:underline"
-                    >
-                      Browse all {allEvents.length}
-                    </Link>
-                  }
-                >
-                  <Card className="gap-0 p-0">
-                    <ul className="divide-border divide-y">
-                      {events.slice(0, RECENT_EVENT_LIMIT).map((event) => (
-                        <li key={event.id}>
-                          <MetaEventRow event={event} />
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
-                </Section>
-
-                {decks.length > 0 && (
+                {sections.competitive.length > 0 && (
                   <Section
-                    title="Newest decklists"
+                    title="Competitive"
+                    accent="bg-teal-600 dark:bg-teal-400"
                     action={
+                      <TierIndexLink
+                        tiers={["competitive"]}
+                        count={tierCounts.competitive.length}
+                      />
+                    }
+                  >
+                    <Card className="gap-0 p-0">
+                      <ul className="divide-border divide-y">
+                        {sections.competitive.slice(0, COMPETITIVE_LIMIT).map((event) => (
+                          <li key={event.id}>
+                            <MetaFrontEventBlock event={event} />
+                          </li>
+                        ))}
+                      </ul>
+                    </Card>
+                  </Section>
+                )}
+
+                {sections.community.length > 0 && (
+                  <Section
+                    title="Store & casual"
+                    accent="bg-muted-foreground/40"
+                    action={
+                      // Named the whole payload rather than the scoped list
+                      // above it, because that is what the page behind the
+                      // link opens on.
                       <Link
-                        to="/meta/decks"
+                        to="/meta/events"
                         className="text-primary text-sm font-medium hover:underline"
                       >
-                        Browse all {decksData.decks.length}
+                        Browse all {allEvents.length} events
                       </Link>
                     }
                   >
-                    <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                      {decks.map((deck) => (
-                        <li key={deck.deckId}>
-                          <MetaArchiveDeckTile deck={deck} />
-                        </li>
-                      ))}
-                    </ul>
+                    <Card className="gap-0 p-0">
+                      <ul className="divide-border divide-y">
+                        {sections.community.slice(0, COMMUNITY_LIMIT).map((event) => (
+                          <li key={event.id}>
+                            <MetaEventRow event={event} />
+                          </li>
+                        ))}
+                      </ul>
+                    </Card>
+                  </Section>
+                )}
+
+                {showActivity && activityData.items.length > 0 && (
+                  <Section title="Fresh in the archive">
+                    <MetaArchiveActivity items={activityData.items} />
                   </Section>
                 )}
               </>

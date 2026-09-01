@@ -2,6 +2,7 @@ import type {
   MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
+  MetaActivityResponse,
   MetaEventDetailResponse,
   MetaEventListResponse,
   MetaCountsResponse,
@@ -22,7 +23,8 @@ import {
   toMetaEventPhase,
   toMetaEventPlayer,
   toMetaEventSummary,
-  toMetaEventWinner,
+  toMetaActivityItem,
+  toMetaEventFinish,
   toMetaLegendFinish,
   toMetaLegendRef,
   toMetaLegendSummary,
@@ -32,6 +34,9 @@ import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
 const os = implement(metaContract).$context<ApiContext>().use(requireUser);
+
+/** Bursts on the front page's "Fresh in the archive" list. */
+const ACTIVITY_LIMIT = 6;
 
 /**
  * Resolves the canonical front image of each card in one batch, so a standings
@@ -83,22 +88,27 @@ export const metaRouter = {
     const { meta, canonicalPrintings } = context.repos;
 
     const rows = await meta.allEvents();
-    const winners = await meta.winnersForEvents(rows.map((row) => row.id));
-    // Legends only: a list row shows the winner's legend, never their champion.
+    const finishes = await meta.topFinishesForEvents(rows.map((row) => row.id));
+    // Legends only: a list row shows a finish's legend, never their champion.
     const images = await imageIdsForCards(
       canonicalPrintings,
-      winners.map((winner) => winner.legendCardId).filter((id) => id !== null),
+      finishes.map((finish) => finish.legendCardId).filter((id) => id !== null),
     );
-    const byEvent = Map.groupBy(winners, (winner) => winner.metaEventId);
+    const byEvent = Map.groupBy(finishes, (finish) => finish.metaEventId);
 
     return {
       events: rows.map((row) =>
         toMetaEventSummary(
           row,
-          (byEvent.get(row.id) ?? []).map((winner) => toMetaEventWinner(winner, images)),
+          (byEvent.get(row.id) ?? []).map((finish) => toMetaEventFinish(finish, images)),
         ),
       ),
     };
+  }),
+
+  activity: os.activity.handler(async ({ context }): Promise<MetaActivityResponse> => {
+    const items = await context.repos.meta.recentActivity(ACTIVITY_LIMIT);
+    return { items: items.map((row) => toMetaActivityItem(row)) };
   }),
 
   event: os.event.handler(async ({ input, context, errors }): Promise<MetaEventDetailResponse> => {
@@ -119,12 +129,12 @@ export const metaRouter = {
       meta.contributorsForEvent(event.id),
     ]);
     const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(players));
-    const winners = players
-      .filter((player) => player.rank === 1)
-      .map((player) => toMetaEventWinner(player, images));
+    const topFinishes = players
+      .filter((player) => player.rank <= 3)
+      .map((player) => toMetaEventFinish(player, images));
 
     return {
-      event: toMetaEventDetail(event, { sources, contributors, winners }),
+      event: toMetaEventDetail(event, { sources, contributors, topFinishes }),
       players: players.map((row) => toMetaEventPlayer(row, images)),
       matches: matches.map((row) => toMetaEventMatch(row)),
       phases: phases.map((row) => toMetaEventPhase(row)),

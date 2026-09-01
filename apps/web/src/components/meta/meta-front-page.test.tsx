@@ -1,10 +1,10 @@
-import type { MetaDeckSummary, MetaEventSummary } from "@openrift/shared";
+import type { MetaActivityItem, MetaEventSummary } from "@openrift/shared";
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   events: [] as MetaEventSummary[],
-  decks: [] as MetaDeckSummary[],
+  activity: [] as MetaActivityItem[],
   search: {} as Record<string, string | string[] | undefined>,
   userId: null as string | null,
   submissionCount: 0,
@@ -41,7 +41,7 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@/hooks/use-meta", () => ({
   useMetaEvents: () => ({ data: { events: captured.events } }),
-  useMetaDecks: () => ({ data: { decks: captured.decks } }),
+  useMetaActivity: () => ({ data: { items: captured.activity } }),
 }));
 
 vi.mock("@/hooks/use-meta-eras", () => ({ useMetaEras: () => [] }));
@@ -65,6 +65,8 @@ vi.mock("@/hooks/use-enums", () => ({
 
 vi.mock("@/hooks/use-admin", () => ({ useIsAdmin: () => ({ data: false }) }));
 
+vi.mock("@/hooks/use-domain-colors", () => ({ useDomainColors: () => ({}) }));
+
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => captured.userId }));
 
 vi.mock("@/components/layout/page-top-bar", () => ({
@@ -78,15 +80,16 @@ vi.mock("@/components/layout/page-top-bar", () => ({
   PageTopBarTitle: ({ children }: { children?: React.ReactNode }) => <h1>{children}</h1>,
 }));
 
-// The scope bar and the fanned deck art both pull chrome these tests do not
-// exercise; what matters here is which facts the page puts on the screen.
+// The scope bar pulls chrome these tests do not exercise; what matters here is
+// which facts the page puts on the screen.
 vi.mock("@/components/meta/meta-scope-bar", () => ({ MetaScopeBar: () => null }));
-vi.mock("@/components/deck/deck-tile", () => ({ FannedPreview: () => null }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MetaFrontPage } from "./meta-front-page";
 
 const WINNER = {
+  rank: 1,
+  rankIsTier: false,
   playerName: "M. Álvarez",
   wins: 14,
   losses: 1,
@@ -99,6 +102,14 @@ const WINNER = {
     domains: ["calm", "order"],
     archiveSlug: "azir-emperor-of-the-sands",
   },
+};
+
+const RUNNER_UP = {
+  ...WINNER,
+  rank: 2,
+  playerName: "S. Okafor",
+  wins: 13,
+  losses: 2,
 };
 
 function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
@@ -115,41 +126,17 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     organizer: "Rift Events",
     playerRowCount: 588,
     deckCount: 32,
-    winners: [WINNER],
+    topFinishes: [WINNER, RUNNER_UP],
     ...overrides,
   };
 }
 
-function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
+function activityItem(overrides: Partial<MetaActivityItem> = {}): MetaActivityItem {
   return {
-    playerId: "player-1",
-    deckId: "deck-1",
-    shareToken: "aB3dE5gH7jK9",
-    listStatus: "full",
-    name: "Azir Control",
-    format: "constructed",
-    legendCardId: "card-azir",
-    legendName: "Azir, Emperor of the Sands",
-    legendSlug: "azir-emperor-of-the-sands",
-    legendArchiveSlug: null,
-    legendImageId: null,
-    championCardId: null,
-    championName: null,
-    championImageId: null,
-    playerName: "L. Moreau",
-    rank: 2,
-    rankIsTier: false,
-    wins: 13,
-    losses: 2,
-    draws: 0,
-    event: {
-      slug: "regional-qualifier-barcelona",
-      name: "Regional Qualifier Barcelona",
-      eventDate: "2026-08-23",
-      format: "constructed",
-      tier: "store",
-      country: "DE",
-    },
+    kind: "decks-added",
+    occurredAt: "2026-08-25T12:00:00.000Z",
+    count: 118,
+    event: { slug: "regional-qualifier-barcelona", name: "Regional Qualifier Barcelona" },
     ...overrides,
   };
 }
@@ -157,7 +144,7 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
 beforeEach(() => {
   navigate.mockReset();
   captured.events = [event()];
-  captured.decks = [deck()];
+  captured.activity = [activityItem()];
   captured.search = {};
   captured.userId = null;
   captured.submissionCount = 0;
@@ -190,34 +177,33 @@ describe("MetaFrontPage", () => {
     expect(document.body.textContent).not.toContain("%");
   });
 
-  it("names the winner, their legend and their full record", () => {
+  it("shows an event's podium as rows: names, legends and records", () => {
     render(<MetaFrontPage />);
 
-    const winners = section("Latest winners");
-    expect(within(winners).getByText("M. Álvarez")).toBeInTheDocument();
-    expect(within(winners).getByText("Azir")).toBeInTheDocument();
-    expect(within(winners).getByText("Emperor of the Sands")).toBeInTheDocument();
-    expect(within(winners).getByText("· 14-1-0")).toBeInTheDocument();
+    const premier = section("Premier");
+    expect(within(premier).getByText("M. Álvarez")).toBeInTheDocument();
+    expect(within(premier).getByText("S. Okafor")).toBeInTheDocument();
+    expect(within(premier).getAllByText("Azir").length).toBeGreaterThan(0);
+    expect(within(premier).getByText("14-1-0")).toBeInTheDocument();
+    expect(within(premier).getByText("13-2-0")).toBeInTheDocument();
   });
 
-  it("draws the winning legend's domain runes", () => {
+  it("draws the podium legends' domain runes", () => {
     render(<MetaFrontPage />);
 
-    const winners = section("Latest winners");
-    expect(within(winners).getByRole("img", { name: "Calm" })).toBeInTheDocument();
-    expect(within(winners).getByRole("img", { name: "Order" })).toBeInTheDocument();
+    const premier = section("Premier");
+    expect(within(premier).getAllByRole("img", { name: "Calm" }).length).toBeGreaterThan(0);
+    expect(within(premier).getAllByRole("img", { name: "Order" }).length).toBeGreaterThan(0);
   });
 
   it("names both players when the source published a tie at the top", () => {
     captured.events = [
       event({
-        winners: [
+        topFinishes: [
           WINNER,
           {
+            ...WINNER,
             playerName: "J. Weber",
-            wins: 14,
-            losses: 1,
-            draws: 0,
             legend: {
               cardId: "card-yasuo",
               name: "Yasuo, the Unforgiven",
@@ -233,29 +219,57 @@ describe("MetaFrontPage", () => {
 
     render(<MetaFrontPage />);
 
-    const winners = section("Latest winners");
-    expect(within(winners).getByText("M. Álvarez")).toBeInTheDocument();
-    expect(within(winners).getByText("J. Weber")).toBeInTheDocument();
-    expect(within(winners).getByText("Yasuo")).toBeInTheDocument();
-    // One card for the event, not one per name.
-    expect(within(winners).getAllByRole("link")).toHaveLength(1);
+    const premier = section("Premier");
+    expect(within(premier).getByText("M. Álvarez")).toBeInTheDocument();
+    expect(within(premier).getByText("J. Weber")).toBeInTheDocument();
+    expect(within(premier).getByText("Yasuo")).toBeInTheDocument();
   });
 
-  it("leaves out the winners section when no event has archived standings", () => {
-    captured.events = [event({ winners: [] })];
+  it("sorts events into tier sections, store and casual sharing one", () => {
+    captured.events = [
+      event(),
+      event({ id: "evt-2", slug: "paris-regional", name: "Paris Regional", tier: "competitive" }),
+      event({ id: "evt-3", slug: "store-night", name: "Store Night", tier: "store" }),
+      event({ id: "evt-4", slug: "casual-clash", name: "Casual Clash", tier: "casual" }),
+    ];
 
     render(<MetaFrontPage />);
 
-    expect(screen.queryByRole("heading", { name: "Latest winners" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Recent events" })).toBeInTheDocument();
-  });
-
-  it("links each recent event at its own page", () => {
-    render(<MetaFrontPage />);
-
-    const events = section("Recent events");
     expect(
-      within(events).getByRole("link", { name: /Regional Qualifier Barcelona/u }),
+      within(section("Premier")).getByText("Regional Qualifier Barcelona"),
+    ).toBeInTheDocument();
+    expect(within(section("Competitive")).getByText("Paris Regional")).toBeInTheDocument();
+    const community = section("Store & casual");
+    expect(within(community).getByText("Store Night")).toBeInTheDocument();
+    expect(within(community).getByText("Casual Clash")).toBeInTheDocument();
+  });
+
+  it("leaves out a tier section with no events in scope", () => {
+    captured.events = [event({ tier: "store" })];
+
+    render(<MetaFrontPage />);
+
+    expect(screen.queryByRole("heading", { name: "Premier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Competitive" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Store & casual" })).toBeInTheDocument();
+  });
+
+  it("names a store row's winner inline, with the champion they played", () => {
+    captured.events = [event({ tier: "store" })];
+
+    render(<MetaFrontPage />);
+
+    const community = section("Store & casual");
+    expect(within(community).getAllByText("M. Álvarez").length).toBeGreaterThan(0);
+    expect(within(community).getAllByText("on Azir").length).toBeGreaterThan(0);
+  });
+
+  it("links each event at its own page", () => {
+    render(<MetaFrontPage />);
+
+    const premier = section("Premier");
+    expect(
+      within(premier).getByRole("link", { name: /Regional Qualifier Barcelona/u }),
     ).toHaveAttribute("href", "/meta/$slug".replace("$slug", "regional-qualifier-barcelona"));
   });
 
@@ -265,7 +279,7 @@ describe("MetaFrontPage", () => {
     render(<MetaFrontPage />);
 
     expect(screen.getByText("No events archived yet")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Recent events" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Premier" })).not.toBeInTheDocument();
   });
 
   it("says so when a scope matches nothing, keeping the controls in place", () => {
@@ -274,32 +288,37 @@ describe("MetaFrontPage", () => {
     render(<MetaFrontPage />);
 
     expect(screen.getByText("No archived events match this scope.")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Recent events" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Premier" })).not.toBeInTheDocument();
     expect(screen.getByText("Help complete the record")).toBeInTheDocument();
   });
 
-  it("narrows every section from one scope", () => {
-    captured.events = [event(), event({ id: "evt-2", slug: "store-night", tier: "store" })];
-    captured.decks = [
-      deck(),
-      deck({
-        deckId: "deck-2",
-        event: {
-          slug: "store-night",
-          name: "Store Night",
-          eventDate: "2026-08-24",
-          format: "constructed",
-          tier: "store",
-          country: "DE",
-        },
-      }),
+  it("lists what landed in the archive lately", () => {
+    captured.activity = [
+      activityItem(),
+      activityItem({ kind: "event-added", count: null, occurredAt: "2026-08-24T09:00:00.000Z" }),
     ];
+
+    render(<MetaFrontPage />);
+
+    const fresh = section("Fresh in the archive");
+    expect(within(fresh).getByText("118 decklists added")).toBeInTheDocument();
+    expect(within(fresh).getByText("New event on record")).toBeInTheDocument();
+  });
+
+  it("stands the activity list down while the page is narrowed", () => {
     captured.search = { tiers: ["premier"] };
 
     render(<MetaFrontPage />);
 
-    expect(screen.queryByText("Store Night")).not.toBeInTheDocument();
-    expect(within(section("Newest decklists")).getByText("L. Moreau")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fresh in the archive" })).not.toBeInTheDocument();
+  });
+
+  it("leaves out the activity section when the archive has nothing to report", () => {
+    captured.activity = [];
+
+    render(<MetaFrontPage />);
+
+    expect(screen.queryByRole("heading", { name: "Fresh in the archive" })).not.toBeInTheDocument();
   });
 
   it("offers a signed-out visitor no action that would need an account", () => {
@@ -313,10 +332,12 @@ describe("MetaFrontPage", () => {
     expect(screen.getByText("Help complete the record")).toBeInTheDocument();
   });
 
-  it("leads anyone to the legend index", () => {
+  it("leads anyone to the legend index and the deck browser", () => {
     render(<MetaFrontPage />);
 
-    expect(within(pageActions() as HTMLElement).getByText("Legends")).toBeInTheDocument();
+    const actions = pageActions() as HTMLElement;
+    expect(within(actions).getByText("Legends")).toBeInTheDocument();
+    expect(within(actions).getByText("Decklists")).toBeInTheDocument();
   });
 
   it("offers the ledger only once a signed-in visitor has sent something", () => {
@@ -340,47 +361,21 @@ describe("MetaFrontPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("promises exactly the number of events the index behind the link lists", () => {
-    captured.events = [event(), event({ id: "evt-2", slug: "store-night", tier: "store" })];
-    // Scoped away from half the archive: the link still counts the whole of it,
-    // because that is what /meta/events opens on.
-    captured.search = { tiers: ["premier"] };
+  it("promises exactly the number of events the tier link narrows to", () => {
+    captured.events = [
+      event(),
+      event({ id: "evt-2", slug: "worlds", name: "Worlds", tier: "premier" }),
+      event({ id: "evt-3", slug: "store-night", name: "Store Night", tier: "store" }),
+    ];
+    // Scoped down to one event by search: the link still counts the whole
+    // tier, because that is what the narrowed index opens on.
+    captured.search = { q: "Worlds" };
 
     render(<MetaFrontPage />);
 
-    const events = section("Recent events");
-    expect(within(events).getByRole("link", { name: "Browse all 2" })).toHaveAttribute(
+    expect(within(section("Premier")).getByRole("link", { name: "Browse all 2" })).toHaveAttribute(
       "href",
       "/meta/events",
-    );
-  });
-
-  it("promises exactly the number of decks the browser behind the link lists", () => {
-    captured.events = [event(), event({ id: "evt-2", slug: "store-night", tier: "store" })];
-    captured.decks = [
-      deck(),
-      deck({
-        deckId: "deck-2",
-        event: {
-          slug: "store-night",
-          name: "Store Night",
-          eventDate: "2026-08-24",
-          format: "constructed",
-          tier: "store",
-          country: "DE",
-        },
-      }),
-    ];
-    // Scoped away from half the archive: the link still counts the whole of it,
-    // because that is what /meta/decks opens on.
-    captured.search = { tiers: ["premier"] };
-
-    render(<MetaFrontPage />);
-
-    const decklists = section("Newest decklists");
-    expect(within(decklists).getByRole("link", { name: "Browse all 2" })).toHaveAttribute(
-      "href",
-      "/meta/decks",
     );
   });
 });

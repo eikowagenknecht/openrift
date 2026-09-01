@@ -9,7 +9,8 @@ import type {
   MetaEventPhase,
   MetaEventPlayer,
   MetaEventSummary,
-  MetaEventWinner,
+  MetaActivityItem,
+  MetaEventFinish,
   MetaLegendFinish,
   MetaLegendSummary,
 } from "@openrift/shared";
@@ -35,6 +36,7 @@ import type {
   MetaLegendFinishRow,
   MetaEventMatchRow,
   MetaEventPhaseRow,
+  MetaActivityRow,
   MetaEventPlayerRow,
   MetaEventSourceRow,
   MetaEventWithCounts,
@@ -139,7 +141,7 @@ function rowLegendArchiveSlug(row: {
  */
 export function toMetaEventSummary(
   row: MetaEventWithCounts,
-  winners: readonly MetaEventWinner[] = [],
+  topFinishes: readonly MetaEventFinish[] = [],
 ): MetaEventSummary {
   return {
     id: row.id,
@@ -154,17 +156,19 @@ export function toMetaEventSummary(
     organizer: row.organizer,
     playerRowCount: row.playerRowCount,
     deckCount: row.deckCount,
-    winners: [...winners],
+    topFinishes: [...topFinishes],
   };
 }
 
 /**
- * One rank-1 standings row as a list row names it. The champion is left out: an
- * inline winner is one thumbnail wide, and the legend is what names a deck
+ * One podium standings row as a list row names it. The champion is left out: an
+ * inline finish is one thumbnail wide, and the legend is what names a deck
  * across the archive.
  */
-export function toMetaEventWinner(row: MetaEventPlayerRow, images: ImageIds): MetaEventWinner {
+export function toMetaEventFinish(row: MetaEventPlayerRow, images: ImageIds): MetaEventFinish {
   return {
+    rank: row.rank,
+    rankIsTier: row.rankIsTier,
     playerName: row.playerName,
     wins: row.wins,
     losses: row.losses,
@@ -179,6 +183,15 @@ export function toMetaEventWinner(row: MetaEventPlayerRow, images: ImageIds): Me
       images,
       rowLegendArchiveSlug(row),
     ),
+  };
+}
+
+export function toMetaActivityItem(row: MetaActivityRow): MetaActivityItem {
+  return {
+    kind: row.kind,
+    occurredAt: row.occurredAt.toISOString(),
+    count: row.count,
+    event: { slug: row.eventSlug, name: row.eventName },
   };
 }
 
@@ -206,11 +219,11 @@ export function toMetaEventDetail(
   options: {
     sources: readonly MetaEventSourceRow[];
     contributors: readonly MetaContributorRow[];
-    winners?: readonly MetaEventWinner[];
+    topFinishes?: readonly MetaEventFinish[];
   },
 ): MetaEventDetail {
   return {
-    ...toMetaEventSummary(row, options.winners ?? []),
+    ...toMetaEventSummary(row, options.topFinishes ?? []),
     notes: row.notes,
     sources: options.sources.map((source) => toMetaEventSource(source)),
     contributors: options.contributors.map((contributor) => contributor.displayName),

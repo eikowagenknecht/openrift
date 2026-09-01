@@ -105,6 +105,20 @@ export interface MetaEventPlayerRow {
 /** A standings row carrying the event it belongs to, for a cross-event batch. */
 export type MetaEventPlayerWithEventRow = MetaEventPlayerRow & { metaEventId: string };
 
+/**
+ * One recent addition to the archive, already grouped into a burst: all rows of
+ * one kind landing on one event within one UTC day.
+ */
+export interface MetaActivityRow {
+  kind: "event-added" | "decks-added" | "results-added";
+  /** When the newest row of the burst landed. */
+  occurredAt: Date;
+  /** Rows in the burst; null for `event-added`. */
+  count: number | null;
+  eventSlug: string;
+  eventName: string;
+}
+
 /** One archived deck as the cross-event browser lists it. */
 export interface MetaDeckSummaryRow {
   playerId: string;
@@ -730,23 +744,102 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Every rank-1 standings row of the named events.
+     * Every podium (rank ≤ 3) standings row of the named events, best first.
      *
-     * A source that published two first places gets both rows, in a stable
+     * A source that published two of the same place gets both rows, in a stable
      * alphabetical order: which of a tie is "the" winner is not the archive's
      * call to make, and picking one would print a fact nobody published.
      */
-    winnersForEvents(eventIds: readonly string[]): Promise<MetaEventPlayerWithEventRow[]> {
+    topFinishesForEvents(eventIds: readonly string[]): Promise<MetaEventPlayerWithEventRow[]> {
       if (eventIds.length === 0) {
         return Promise.resolve([]);
       }
       return playerQuery()
         .select("p.metaEventId")
         .where("p.metaEventId", "in", [...eventIds])
-        .where("p.rank", "=", 1)
+        .where("p.rank", "<=", 3)
         .orderBy("p.metaEventId")
+        .orderBy("p.rank", "asc")
         .orderBy(resolvedPlayerName, "asc")
         .execute();
+    },
+
+    /**
+     * The newest additions to the archive, one row per burst (one kind, one
+     * event, one UTC day), newest first.
+     *
+     * Deck and standings bursts landing on the UTC day the event itself was
+     * created are folded into that event's `event-added` row rather than
+     * reported again: an import that creates an event brings its rows along,
+     * and three lines for one upload would be noise, not news.
+     */
+    async recentActivity(limit: number): Promise<MetaActivityRow[]> {
+      const eventDay = sql`(e.created_at at time zone 'UTC')::date`;
+
+      const [events, deckBursts, resultBursts] = await Promise.all([
+        db
+          .selectFrom("metaEvents")
+          .select(["slug", "name", "createdAt"])
+          .orderBy("createdAt", "desc")
+          .limit(limit)
+          .execute(),
+        db
+          .selectFrom("metaEventPlayers as p")
+          .innerJoin("decks as d", "d.id", "p.deckId")
+          .innerJoin("metaEvents as e", "e.id", "p.metaEventId")
+          .select((eb) => [
+            "e.slug as eventSlug",
+            "e.name as eventName",
+            eb.fn.countAll<string>().as("count"),
+            eb.fn.max("d.createdAt").as("occurredAt"),
+          ])
+          .where(sql`(d.created_at at time zone 'UTC')::date`, ">", eventDay)
+          .groupBy(["e.slug", "e.name", sql`(d.created_at at time zone 'UTC')::date`])
+          .orderBy(sql`max(d.created_at)`, "desc")
+          .limit(limit)
+          .execute(),
+        db
+          .selectFrom("metaEventPlayers as p")
+          .innerJoin("metaEvents as e", "e.id", "p.metaEventId")
+          .select((eb) => [
+            "e.slug as eventSlug",
+            "e.name as eventName",
+            eb.fn.countAll<string>().as("count"),
+            eb.fn.max("p.createdAt").as("occurredAt"),
+          ])
+          .where(sql`(p.created_at at time zone 'UTC')::date`, ">", eventDay)
+          .groupBy(["e.slug", "e.name", sql`(p.created_at at time zone 'UTC')::date`])
+          .orderBy(sql`max(p.created_at)`, "desc")
+          .limit(limit)
+          .execute(),
+      ]);
+
+      const rows: MetaActivityRow[] = [
+        ...events.map((row): MetaActivityRow => ({
+          kind: "event-added",
+          occurredAt: row.createdAt,
+          count: null,
+          eventSlug: row.slug,
+          eventName: row.name,
+        })),
+        ...deckBursts.map((row): MetaActivityRow => ({
+          kind: "decks-added",
+          occurredAt: row.occurredAt,
+          count: Number(row.count),
+          eventSlug: row.eventSlug,
+          eventName: row.eventName,
+        })),
+        ...resultBursts.map((row): MetaActivityRow => ({
+          kind: "results-added",
+          occurredAt: row.occurredAt,
+          count: Number(row.count),
+          eventSlug: row.eventSlug,
+          eventName: row.eventName,
+        })),
+      ];
+      return rows
+        .toSorted((left, right) => right.occurredAt.getTime() - left.occurredAt.getTime())
+        .slice(0, limit);
     },
 
     /** The whole field, deckless entries included, best finish first. */

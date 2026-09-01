@@ -36,7 +36,9 @@ import type {
   metaEventPhaseSchema,
   metaEventSourceSchema,
   metaEventSummarySchema,
-  metaEventWinnerSchema,
+  metaEventFinishSchema,
+  metaActivityItemSchema,
+  metaActivityResponseSchema,
   metaCountsResponseSchema,
   metaLegendDetailResponseSchema,
   metaLegendFinishSchema,
@@ -47,8 +49,8 @@ import type {
 /** One archived event as a list row: header fields plus how much of it we hold. */
 export type MetaEventSummary = z.infer<typeof metaEventSummarySchema>;
 
-/** One rank-1 standings row, as an event list names it inline. */
-export type MetaEventWinner = z.infer<typeof metaEventWinnerSchema>;
+/** One podium (rank ≤ 3) standings row, as an event list names it inline. */
+export type MetaEventFinish = z.infer<typeof metaEventFinishSchema>;
 
 /** The summary plus the long-form fields only the event's own page shows. */
 export type MetaEventDetail = z.infer<typeof metaEventDetailSchema>;
@@ -77,6 +79,11 @@ export type MetaDeckSummary = z.infer<typeof metaDeckSummarySchema>;
 
 /** GET /meta/events — every archived event, newest first. */
 export type MetaEventListResponse = z.infer<typeof metaEventListResponseSchema>;
+
+/** One recent addition to the archive, reported as a per-event, per-day burst. */
+export type MetaActivityItem = z.infer<typeof metaActivityItemSchema>;
+
+export type MetaActivityResponse = z.infer<typeof metaActivityResponseSchema>;
 
 /** GET /meta/events/{slug} — one event and its full standings, best finish first. */
 export type MetaEventDetailResponse = z.infer<typeof metaEventDetailResponseSchema>;

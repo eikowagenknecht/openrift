@@ -108,7 +108,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     organizer: "Cardhouse",
     playerRowCount: 18,
     deckCount: 4,
-    winners: [],
+    topFinishes: [],
     ...overrides,
   };
 }

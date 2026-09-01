@@ -1,11 +1,11 @@
-import type { MetaDeckSummary, MetaEventSummary } from "@openrift/shared";
+import type { MetaEventSummary } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
   filterMetaEvents,
-  latestMetaWinners,
-  metaDecksForEvents,
   metaEventCountries,
+  metaEventWinners,
+  metaFrontSections,
 } from "@/lib/meta-front-page";
 import type { MetaEra } from "@/lib/meta-scope";
 import { ERA_ALL, ERA_CUSTOM } from "@/lib/meta-scope";
@@ -29,46 +29,14 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     organizer: "Rift Games Berlin",
     playerRowCount: 32,
     deckCount: 4,
-    winners: [],
-    ...overrides,
-  };
-}
-
-function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
-  return {
-    playerId: "player-1",
-    deckId: "deck-1",
-    shareToken: "aB3dE5gH7jK9",
-    listStatus: "full",
-    name: "Kennen Tempo",
-    format: "constructed",
-    legendCardId: "legend-1",
-    legendName: "Kennen, Heart of the Tempest",
-    legendSlug: "kennen",
-    legendArchiveSlug: null,
-    legendImageId: "img-1",
-    championCardId: null,
-    championName: null,
-    championImageId: null,
-    playerName: "Nova",
-    rank: 1,
-    rankIsTier: false,
-    wins: 6,
-    losses: 1,
-    draws: 0,
-    event: {
-      slug: "summoner-skirmish",
-      name: "Summoner Skirmish",
-      eventDate: "2026-08-15",
-      format: "constructed",
-      tier: "store",
-      country: "DE",
-    },
+    topFinishes: [],
     ...overrides,
   };
 }
 
 const WINNER = {
+  rank: 1,
+  rankIsTier: false,
   playerName: "Nova",
   wins: 6,
   losses: 1,
@@ -84,6 +52,7 @@ const WINNER = {
 };
 
 const CO_WINNER = { ...WINNER, playerName: "Ekko" };
+const RUNNER_UP = { ...WINNER, playerName: "Rell", rank: 2 };
 
 describe("filterMetaEvents", () => {
   it("keeps everything when nothing narrows the scope", () => {
@@ -216,99 +185,40 @@ describe("metaEventCountries", () => {
   });
 });
 
-describe("latestMetaWinners", () => {
-  it("keeps only the events a rank-1 row is known for", () => {
-    const events = [
-      event({ id: "newest", eventDate: "2026-08-20", winners: [WINNER] }),
-      event({ id: "pending", eventDate: "2026-08-19", winners: [] }),
-      event({ id: "older", eventDate: "2026-08-18", winners: [WINNER] }),
-    ];
-    expect(latestMetaWinners(events, 3).map((row) => row.id)).toEqual(["newest", "older"]);
+describe("metaEventWinners", () => {
+  it("keeps only the rank-1 rows of the podium", () => {
+    const row = event({ topFinishes: [WINNER, CO_WINNER, RUNNER_UP] });
+    expect(metaEventWinners(row).map((finish) => finish.playerName)).toEqual(["Nova", "Ekko"]);
   });
 
-  it("orders by event date rather than trusting the caller's order", () => {
-    const events = [
-      event({ id: "middle", eventDate: "2026-08-10", winners: [WINNER] }),
-      event({ id: "oldest", eventDate: "2026-01-02", winners: [WINNER] }),
-      event({ id: "newest", eventDate: "2026-09-30", winners: [WINNER] }),
-    ];
-    expect(latestMetaWinners(events, 3).map((row) => row.id)).toEqual([
-      "newest",
-      "middle",
-      "oldest",
-    ]);
-  });
-
-  it("keeps every name of a tie at the top", () => {
-    const events = [event({ winners: [WINNER, CO_WINNER] })];
-    expect(latestMetaWinners(events, 3)[0].winners.map((row) => row.playerName)).toEqual([
-      "Nova",
-      "Ekko",
-    ]);
-  });
-
-  it("counts events against the limit, not names", () => {
-    const events = [
-      event({ id: "a", eventDate: "2026-08-20", winners: [WINNER, CO_WINNER] }),
-      event({ id: "b", eventDate: "2026-08-19", winners: [WINNER] }),
-      event({ id: "c", eventDate: "2026-08-18", winners: [WINNER] }),
-    ];
-    expect(latestMetaWinners(events, 2).map((row) => row.id)).toEqual(["a", "b"]);
-  });
-
-  it("returns nothing when no event has archived standings", () => {
-    expect(latestMetaWinners([event({ winners: [] })], 3)).toEqual([]);
+  it("names no winner for an event whose standings have not arrived", () => {
+    expect(metaEventWinners(event({ topFinishes: [] }))).toEqual([]);
   });
 });
 
-describe("metaDecksForEvents", () => {
-  it("keeps only decks from the events in scope", () => {
-    const decks = [
-      deck({ deckId: "in" }),
-      deck({
-        deckId: "out",
-        event: {
-          slug: "other-event",
-          name: "Other",
-          eventDate: "2026-08-16",
-          format: "constructed",
-          tier: "store",
-          country: "DE",
-        },
-      }),
-    ];
-    expect(metaDecksForEvents(decks, [event()], 10).map((row) => row.deckId)).toEqual(["in"]);
-  });
-
-  it("orders by newest event, then best finish within a day", () => {
-    const older = {
-      slug: "older",
-      name: "Older",
-      eventDate: "2026-08-01",
-      format: "constructed",
-      tier: "store" as const,
-      country: "DE",
-    };
-    const newer = { ...older, slug: "newer", name: "Newer", eventDate: "2026-08-20" };
-    const decks = [
-      deck({ deckId: "old-first", rank: 1, event: older }),
-      deck({ deckId: "new-fourth", rank: 4, event: newer }),
-      deck({ deckId: "new-first", rank: 1, event: newer }),
-    ];
-    const events = [event({ slug: "newer" }), event({ id: "evt-2", slug: "older" })];
-    expect(metaDecksForEvents(decks, events, 10).map((row) => row.deckId)).toEqual([
-      "new-first",
-      "new-fourth",
-      "old-first",
+describe("metaFrontSections", () => {
+  it("splits events into the three tier buckets, store and casual sharing one", () => {
+    const sections = metaFrontSections([
+      event({ id: "p", tier: "premier" }),
+      event({ id: "c", tier: "competitive" }),
+      event({ id: "s", tier: "store" }),
+      event({ id: "x", tier: "casual" }),
     ]);
+    expect(sections.premier.map((row) => row.id)).toEqual(["p"]);
+    expect(sections.competitive.map((row) => row.id)).toEqual(["c"]);
+    expect(sections.community.map((row) => row.id)).toEqual(["s", "x"]);
   });
 
-  it("stops at the limit", () => {
-    const decks = [deck({ deckId: "a" }), deck({ deckId: "b" })];
-    expect(metaDecksForEvents(decks, [event()], 1).map((row) => row.deckId)).toEqual(["a"]);
+  it("orders each bucket newest first rather than trusting the caller's order", () => {
+    const sections = metaFrontSections([
+      event({ id: "middle", tier: "premier", eventDate: "2026-08-10" }),
+      event({ id: "oldest", tier: "premier", eventDate: "2026-01-02" }),
+      event({ id: "newest", tier: "premier", eventDate: "2026-09-30" }),
+    ]);
+    expect(sections.premier.map((row) => row.id)).toEqual(["newest", "middle", "oldest"]);
   });
 
-  it("returns nothing when the scope holds no events", () => {
-    expect(metaDecksForEvents([deck()], [], 10)).toEqual([]);
+  it("leaves every bucket empty for an empty archive", () => {
+    expect(metaFrontSections([])).toEqual({ premier: [], competitive: [], community: [] });
   });
 });

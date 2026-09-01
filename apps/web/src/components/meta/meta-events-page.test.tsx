@@ -54,7 +54,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     organizer: "Cardhouse",
     playerRowCount: 18,
     deckCount: 4,
-    winners: [],
+    topFinishes: [],
     ...overrides,
   };
 }
@@ -72,8 +72,10 @@ function renderPage(events: MetaEventSummary[], search: Record<string, unknown> 
   };
 }
 
-function winner(playerName: string): MetaEventSummary["winners"][number] {
+function winner(playerName: string): MetaEventSummary["topFinishes"][number] {
   return {
+    rank: 1,
+    rankIsTier: false,
     playerName,
     wins: 5,
     losses: 1,
@@ -151,18 +153,30 @@ describe("MetaEventsPage", () => {
   });
 
   it("names the winner of each event inline", () => {
-    renderPage([event({ winners: [winner("A. Gruber")] })]);
+    renderPage([event({ topFinishes: [winner("A. Gruber")] })]);
     expect(screen.getAllByText("A. Gruber").length).toBeGreaterThan(0);
   });
 
   it("names both players an event recorded two first places for", () => {
-    renderPage([event({ winners: [winner("A. Gruber"), winner("M. Álvarez")] })]);
+    renderPage([event({ topFinishes: [winner("A. Gruber"), winner("M. Álvarez")] })]);
     expect(screen.getAllByText("A. Gruber and M. Álvarez").length).toBeGreaterThan(0);
   });
 
   it("says a played event holds no results rather than counting a field of zero", () => {
     renderPage([event({ eventDate: "2026-01-10", playerRowCount: 0, deckCount: 0 })]);
     expect(screen.getByText("18 players · No results on file")).toBeDefined();
+  });
+
+  it("collapses the zero columns into one status line", () => {
+    renderPage([event({ eventDate: "2026-01-10", playerRowCount: 0, deckCount: 0 })]);
+    expect(screen.getByText("No results on file")).toBeDefined();
+    expect(screen.queryByText("0")).toBeNull();
+  });
+
+  it("keeps its columns aligned when no source named a country", () => {
+    renderPage([event({ country: null })]);
+    const grid = document.querySelector("a > div");
+    expect(grid?.childElementCount).toBe(7);
   });
 
   it("says an event still to come has not been played yet", () => {

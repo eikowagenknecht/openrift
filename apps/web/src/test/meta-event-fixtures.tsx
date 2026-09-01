@@ -54,7 +54,7 @@ export function metaEvent(overrides: Partial<MetaEventDetail> = {}): MetaEventDe
     location: null,
     playerRowCount: 0,
     deckCount: 0,
-    winners: [],
+    topFinishes: [],
     notes: null,
     sources: [],
     contributors: [],
