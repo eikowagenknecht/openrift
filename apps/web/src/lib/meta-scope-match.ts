@@ -2,7 +2,7 @@ import type { MetaEventTier } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
-import { resolveScopeRange } from "@/lib/meta-scope";
+import { resolveScopeRange, scopeFacetValues } from "@/lib/meta-scope";
 
 /**
  * The event facts the scope bar narrows by. Every archive payload carries them,
@@ -13,6 +13,34 @@ export interface ScopedEvent {
   format: string;
   tier: MetaEventTier;
   country: string | null;
+}
+
+/**
+ * Whether one value sits inside a facet's selection.
+ *
+ * An axis carries includes or excludes, never both (ADR-034). An event the
+ * source told us nothing about is outside every include set — an unknown country
+ * is not Germany — but inside every exclude set, since "all but Germany" is a
+ * claim about Germany and not about the events with no country on file.
+ */
+function axisMatches(
+  value: string | null,
+  included: readonly string[],
+  excluded: readonly string[],
+): boolean {
+  if (included.length > 0) {
+    return value !== null && included.includes(value);
+  }
+  if (excluded.length > 0) {
+    return value === null || !excluded.includes(value);
+  }
+  return true;
+}
+
+function countryCodes(values: readonly string[]): string[] {
+  return values
+    .map((value) => normalizeCountryCode(value))
+    .filter((code): code is string => code !== null);
 }
 
 /**
@@ -27,14 +55,22 @@ export function scopeMatches(
   scope: MetaScope,
   eras: readonly MetaEra[],
 ): boolean {
-  if (scope.format !== undefined && event.format !== scope.format) {
+  const format = scopeFacetValues(scope, "formats");
+  if (!axisMatches(event.format, format.included, format.excluded)) {
     return false;
   }
-  if (scope.tier !== undefined && event.tier !== scope.tier) {
+  const tier = scopeFacetValues(scope, "tiers");
+  if (!axisMatches(event.tier, tier.included, tier.excluded)) {
     return false;
   }
-  const country = normalizeCountryCode(scope.country);
-  if (country !== null && normalizeCountryCode(event.country) !== country) {
+  const country = scopeFacetValues(scope, "countries");
+  if (
+    !axisMatches(
+      normalizeCountryCode(event.country),
+      countryCodes(country.included),
+      countryCodes(country.excluded),
+    )
+  ) {
     return false;
   }
   // Date-only strings sort lexicographically, so plain comparison is enough.

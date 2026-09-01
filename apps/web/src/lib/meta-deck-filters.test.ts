@@ -103,18 +103,20 @@ describe("filterMetaDecks", () => {
   });
 
   it("filters by the scope's format", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { format: "legacy" } }))).toEqual(["c"]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { formats: ["legacy"] } }))).toEqual([
+      "c",
+    ]);
   });
 
   it("filters by the event's tier", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { tier: "premier" } }))).toEqual([
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { tiers: ["premier"] } }))).toEqual([
       "a",
       "b",
     ]);
   });
 
   it("filters by country whatever case the code is stored in", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { country: "fr" } }))).toEqual(["c"]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, scope: { countries: ["fr"] } }))).toEqual(["c"]);
   });
 
   it("filters by event slug", () => {
@@ -179,7 +181,7 @@ describe("filterMetaDecks", () => {
   it("intersects across axes", () => {
     const result = filterMetaDecks(decks, {
       ...EMPTY,
-      scope: { format: "standard" },
+      scope: { formats: ["standard"] },
       maxRank: 4,
       legends: ["card-lux"],
     });
@@ -189,7 +191,7 @@ describe("filterMetaDecks", () => {
   it("returns nothing when the axes cannot overlap", () => {
     const result = filterMetaDecks(decks, {
       ...EMPTY,
-      scope: { format: "legacy" },
+      scope: { formats: ["legacy"] },
       maxRank: 1,
     });
     expect(result).toEqual([]);
@@ -281,7 +283,7 @@ describe("metaDeckFilterCounts", () => {
   });
 
   it("counts an axis with the other axes already applied", () => {
-    const counts = metaDeckFilterCounts(decks, { ...EMPTY, scope: { format: "standard" } });
+    const counts = metaDeckFilterCounts(decks, { ...EMPTY, scope: { formats: ["standard"] } });
     expect(counts.events.get("rift-open")).toBeUndefined();
     expect(counts.finish.get(8)).toBe(2);
   });
@@ -344,7 +346,7 @@ describe("hasActiveMetaDeckFilters", () => {
   });
 
   it("is true once any axis is populated", () => {
-    expect(hasActiveMetaDeckFilters({ ...EMPTY, scope: { tier: "premier" } })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, scope: { tiers: ["premier"] } })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, maxRank: 8 })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, buildable: true })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, events: ["rift-open"] })).toBe(true);

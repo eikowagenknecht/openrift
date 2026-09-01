@@ -134,9 +134,9 @@ describe("isScopeNarrowed", () => {
 
   it("is true for any single facet", () => {
     expect(isScopeNarrowed({ era: "origins" })).toBe(true);
-    expect(isScopeNarrowed({ format: "standard" })).toBe(true);
-    expect(isScopeNarrowed({ tier: "premier" })).toBe(true);
-    expect(isScopeNarrowed({ country: "de" })).toBe(true);
+    expect(isScopeNarrowed({ formats: ["standard"] })).toBe(true);
+    expect(isScopeNarrowed({ tiers: ["premier"] })).toBe(true);
+    expect(isScopeNarrowed({ countries: ["de"] })).toBe(true);
   });
 
   it("counts custom bounds", () => {
@@ -147,53 +147,58 @@ describe("isScopeNarrowed", () => {
 
 describe("nextScopeSearch", () => {
   it("merges the patch over the current params", () => {
-    expect(nextScopeSearch({ era: "origins" }, { tier: "premier" })).toEqual({
+    expect(nextScopeSearch({ era: "origins" }, { tiers: ["premier"] })).toEqual({
       era: "origins",
-      tier: "premier",
+      tiers: ["premier"],
     });
   });
 
   it("drops a facet the patch clears rather than writing an empty one", () => {
-    expect(nextScopeSearch({ era: "origins", tier: "premier" }, { tier: undefined })).toEqual({
+    expect(nextScopeSearch({ era: "origins", tiers: ["premier"] }, { tiers: undefined })).toEqual({
       era: "origins",
     });
   });
 
-  it("drops an empty string, so the unnarrowed view keeps a clean URL", () => {
-    expect(nextScopeSearch({ country: "de" }, { country: "" })).toEqual({});
+  it("drops an emptied facet, so the unnarrowed view keeps a clean URL", () => {
+    expect(nextScopeSearch({ countries: ["de"] }, { countries: [] })).toEqual({});
+    expect(nextScopeSearch({ era: "origins" }, { era: "" })).toEqual({});
   });
 
   it("leaves params the scope knows nothing about alone", () => {
-    expect(nextScopeSearch({ page: 3, q: "kennen" }, { tier: "premier" })).toEqual({
+    expect(nextScopeSearch({ page: 3, q: "kennen" }, { tiers: ["premier"] })).toEqual({
       page: 3,
       q: "kennen",
-      tier: "premier",
+      tiers: ["premier"],
     });
   });
 
   it("returns to all time on the cleared patch", () => {
     expect(
-      nextScopeSearch({ era: "origins", tier: "premier", q: "kennen" }, CLEARED_SCOPE),
+      nextScopeSearch({ era: "origins", tiers: ["premier"], q: "kennen" }, CLEARED_SCOPE),
     ).toEqual({ q: "kennen" });
   });
 });
 
 describe("metaScopeSearchSchema", () => {
-  it("keeps every facet it is given", () => {
-    expect(
-      metaScopeSearchSchema.parse({
-        era: "origins",
-        format: "standard",
-        tier: "premier",
-        country: "de",
-      }),
-    ).toEqual({ era: "origins", format: "standard", tier: "premier", country: "de" });
+  it("keeps every facet it is given, includes and excludes alike", () => {
+    const scope = {
+      era: "origins",
+      formats: ["standard"],
+      tiers: ["premier", "store"],
+      countriesEx: ["de"],
+    };
+    expect(metaScopeSearchSchema.parse(scope)).toEqual(scope);
+  });
+
+  it("reads a hand-written single value as a one-value facet", () => {
+    expect(metaScopeSearchSchema.parse({ tiers: "premier" })).toEqual({ tiers: ["premier"] });
   });
 
   it("drops a bad value instead of throwing, so a stale bookmark still loads", () => {
-    expect(metaScopeSearchSchema.parse({ era: 7, country: ["de"] })).toEqual({
+    expect(metaScopeSearchSchema.parse({ era: 7, tiers: 3, countries: ["de"] })).toEqual({
       era: undefined,
-      country: undefined,
+      tiers: undefined,
+      countries: ["de"],
     });
   });
 });

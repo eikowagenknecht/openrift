@@ -48,9 +48,9 @@ describe("useMetaDeckFilters", () => {
 
   it("reads the filters out of the URL", () => {
     mockSearch = {
-      format: "standard",
-      tier: "premier",
-      country: "DE",
+      formats: ["standard"],
+      tiers: ["premier"],
+      countries: ["DE"],
       events: ["rift-open"],
       legends: ["card-jinx"],
       finish: 8,
@@ -66,9 +66,9 @@ describe("useMetaDeckFilters", () => {
       buildable: true,
     });
     expect(result.current.scope).toMatchObject({
-      format: "standard",
-      tier: "premier",
-      country: "DE",
+      formats: ["standard"],
+      tiers: ["premier"],
+      countries: ["DE"],
     });
   });
 
@@ -105,14 +105,14 @@ describe("useMetaDeckFilters", () => {
   });
 
   it("merges a scope patch and drops the facets it clears", () => {
-    mockSearch = { tier: "premier", country: "DE" };
+    mockSearch = { tiers: ["premier"], countries: ["DE"] };
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.setScope({ country: undefined });
-    expect(resultingSearch()).toEqual({ tier: "premier" });
+    result.current.setScope({ countries: undefined });
+    expect(resultingSearch()).toEqual({ tiers: ["premier"] });
   });
 
   it("keeps the browser's own axes when the scope is reset", () => {
-    mockSearch = { tier: "premier", legends: ["card-lux"] };
+    mockSearch = { tiers: ["premier"], legends: ["card-lux"] };
     const { result } = renderHook(() => useMetaDeckFilters());
     result.current.clearScope();
     expect(resultingSearch()).toEqual({ legends: ["card-lux"] });
@@ -137,8 +137,8 @@ describe("useMetaDeckFilters", () => {
 
   it("clears every filter at once, leaving the curation as it was", () => {
     mockSearch = {
-      tier: "premier",
-      country: "DE",
+      tiers: ["premier"],
+      countries: ["DE"],
       events: ["rift-open"],
       legends: ["card-jinx"],
       finish: 8,

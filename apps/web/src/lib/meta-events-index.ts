@@ -1,7 +1,11 @@
 import type { MetaEventSummary, MetaEventTier } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
-import type { MetaEventIndexSort, MetaEventIndexSortDirection } from "@/lib/meta-events-search";
+import type {
+  MetaEventHoldings,
+  MetaEventIndexSort,
+  MetaEventIndexSortDirection,
+} from "@/lib/meta-events-search";
 import { DEFAULT_EVENT_DIRECTION, DEFAULT_EVENT_SORT } from "@/lib/meta-events-search";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
@@ -33,22 +37,39 @@ export function metaEventCountries(events: readonly MetaEventSummary[]): string[
 }
 
 /**
- * The events left after the search box and the scope bar.
+ * The events left after the search box, the scope bar and the holdings filter.
  *
- * The whole archive ships as one payload (ADR-014), so both narrow client-side
- * and the count under the title is always the truth about what is on screen.
+ * The whole archive ships as one payload (ADR-014), so all three narrow
+ * client-side and the count under the title is always the truth about what is on
+ * screen.
  */
 export function filterMetaEvents(
   events: readonly MetaEventSummary[],
-  filter: { query?: string; scope: MetaScope; eras: readonly MetaEra[] },
+  filter: {
+    query?: string;
+    scope: MetaScope;
+    eras: readonly MetaEra[];
+    holds?: MetaEventHoldings;
+  },
 ): MetaEventSummary[] {
   const needle = (filter.query ?? "").trim().toLowerCase();
 
   return events.filter(
     (event) =>
       (needle === "" || matchesText(event, needle)) &&
+      holdsEnough(event, filter.holds) &&
       scopeMatches(event, filter.scope, filter.eras),
   );
+}
+
+function holdsEnough(event: MetaEventSummary, holds: MetaEventHoldings | undefined): boolean {
+  if (holds === "decks") {
+    return event.deckCount > 0;
+  }
+  if (holds === "standings") {
+    return event.playerRowCount > 0;
+  }
+  return true;
 }
 
 function matchesText(event: MetaEventSummary, needle: string): boolean {

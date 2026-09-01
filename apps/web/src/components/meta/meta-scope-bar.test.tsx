@@ -37,9 +37,20 @@ function renderBar(overrides: Partial<Parameters<typeof MetaScopeBar>[0]> = {}) 
   return { ...view, setScope, clearScope, user };
 }
 
-/** Waits for the select's popup to mount before querying it. */
+/** Waits for the popup to mount before querying it. */
 function option(name: string) {
   return screen.findByRole("option", { name });
+}
+
+/** One value facet's dropdown trigger, which reads as the facet until something is picked. */
+function facet(text: string) {
+  const trigger = screen
+    .getAllByRole("combobox")
+    .find((element) => element.textContent?.trim().startsWith(text));
+  if (trigger === undefined) {
+    throw new Error(`no facet trigger reading "${text}"`);
+  }
+  return trigger;
 }
 
 describe("MetaScopeBar", () => {
@@ -77,11 +88,11 @@ describe("MetaScopeBar", () => {
     expect(trigger).not.toHaveTextContent("retired-set");
   });
 
-  it("shows all countries for a code absent from the offered set", () => {
-    renderBar({ scope: { country: "br" } });
-    const trigger = screen.getByLabelText("Country");
-    expect(trigger).toHaveTextContent("All countries");
-    expect(trigger).not.toHaveTextContent("br");
+  it("keeps a picked country the offered set no longer holds, so it can be cleared", async () => {
+    const { setScope, user } = renderBar({ scope: { countries: ["br"] } });
+    await user.click(facet("br"));
+    await user.click(await option("br"));
+    expect(setScope).toHaveBeenCalledWith({ countries: [], countriesEx: ["br"] });
   });
 
   it("hides the date pickers outside a custom range", () => {
@@ -104,22 +115,50 @@ describe("MetaScopeBar", () => {
 
   it("names countries rather than printing their codes", async () => {
     const { user } = renderBar();
-    await user.click(screen.getByLabelText("Country"));
+    await user.click(facet("Country"));
     expect(await option("Germany")).toBeInTheDocument();
     expect(await option("Japan")).toBeInTheDocument();
   });
 
-  it("hides the country select when there is nothing to choose between", () => {
+  it("hides the country control when there is nothing to choose between", () => {
     renderBar({ countries: ["de"] });
-    expect(screen.queryByLabelText("Country")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Country" })).not.toBeInTheDocument();
   });
 
   it("offers every tier", async () => {
     const { user } = renderBar();
-    await user.click(screen.getByLabelText("Tier"));
-    for (const label of ["All tiers", "Premier", "Competitive", "Store", "Casual"]) {
+    await user.click(facet("Tier"));
+    for (const label of ["Premier", "Competitive", "Store", "Casual"]) {
       expect(await option(label)).toBeInTheDocument();
     }
+  });
+
+  it("picks a facet value into the include set", async () => {
+    const { setScope, user } = renderBar();
+    await user.click(facet("Tier"));
+    await user.click(await option("Premier"));
+    expect(setScope).toHaveBeenCalledWith({ tiers: ["premier"], tiersEx: [] });
+  });
+
+  it("adds a second pick rather than replacing the first", async () => {
+    const { setScope, user } = renderBar({ scope: { tiers: ["premier"] } });
+    await user.click(facet("Premier"));
+    await user.click(await option("Store"));
+    expect(setScope).toHaveBeenCalledWith({ tiers: ["premier", "store"], tiersEx: [] });
+  });
+
+  it("turns a sole pick into an exclusion on the second click", async () => {
+    const { setScope, user } = renderBar({ scope: { tiers: ["premier"] } });
+    await user.click(facet("Premier"));
+    await user.click(await option("Premier"));
+    expect(setScope).toHaveBeenCalledWith({ tiers: [], tiersEx: ["premier"] });
+  });
+
+  it("clears an exclusion on the third click", async () => {
+    const { setScope, user } = renderBar({ scope: { tiersEx: ["premier"] } });
+    await user.click(facet("−Premier"));
+    await user.click(await option("Premier"));
+    expect(setScope).toHaveBeenCalledWith({ tiers: [], tiersEx: [] });
   });
 
   it("hides the reset while nothing is narrowed", () => {
@@ -127,13 +166,22 @@ describe("MetaScopeBar", () => {
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
   });
 
-  it("shows the reset once a facet is set", () => {
-    renderBar({ scope: { tier: "premier" } });
+  it("shows the reset once a facet is set, including an exclusion", () => {
+    const { unmount } = renderBar({ scope: { tiers: ["premier"] } });
+    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
+    unmount();
+
+    renderBar({ scope: { countriesEx: ["de"] } });
+    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
+  });
+
+  it("shows the reset for a surface's own control", () => {
+    renderBar({ extras: <span>Holdings</span>, extrasActive: true });
     expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
   });
 
   it("clears the whole scope from the reset", async () => {
-    const { clearScope, user } = renderBar({ scope: { era: ERA_ALL, country: "de" } });
+    const { clearScope, user } = renderBar({ scope: { era: ERA_ALL, countries: ["de"] } });
     await user.click(screen.getByRole("button", { name: "Reset" }));
     expect(clearScope).toHaveBeenCalled();
   });

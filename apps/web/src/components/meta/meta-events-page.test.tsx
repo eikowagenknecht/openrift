@@ -31,7 +31,11 @@ vi.mock("@/hooks/use-meta", () => ({
   useMetaEvents: () => ({ data: { events: captured.events } }),
 }));
 vi.mock("@/hooks/use-meta-eras", () => ({ useMetaEras: () => [] }));
-vi.mock("@/components/meta/meta-scope-bar", () => ({ MetaScopeBar: () => <div /> }));
+// Stubbed down to the slot the page fills: the bar's own controls have their
+// own tests, but the holdings select is this page's and rides inside it.
+vi.mock("@/components/meta/meta-scope-bar", () => ({
+  MetaScopeBar: ({ extras }: { extras?: React.ReactNode }) => <div>{extras}</div>,
+}));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MetaEventsPage } from "./meta-events-page";
@@ -209,5 +213,29 @@ describe("MetaEventsPage", () => {
     renderPage([]);
     expect(screen.getByText("No tournaments archived yet")).toBeDefined();
     expect(screen.queryByRole("button", { name: /players/iu })).toBeNull();
+  });
+
+  it("lists only the events holding what the reader asked for", () => {
+    const events = [
+      event({ id: "listed", name: "With lists", deckCount: 4 }),
+      event({ id: "pending", name: "Nothing yet", playerRowCount: 0, deckCount: 0 }),
+    ];
+    renderPage(events, { holds: "decks" });
+
+    expect(screen.getAllByText("With lists").length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("Nothing yet")).toHaveLength(0);
+    expect(screen.getByText("1 of 2 archived events")).toBeDefined();
+  });
+
+  it("writes the picked holdings to the URL and clears it back", async () => {
+    renderPage([event()]);
+    await userEvent.click(screen.getByLabelText("Archive holdings"));
+    await userEvent.click(await screen.findByRole("option", { name: "With decklists" }));
+    expect(captured.navigated.at(-1)).toMatchObject({ holds: "decks" });
+
+    captured.search = { holds: "decks" };
+    await userEvent.click(screen.getByLabelText("Archive holdings"));
+    await userEvent.click(await screen.findByRole("option", { name: "Any events" }));
+    expect(captured.navigated.at(-1)).toEqual({});
   });
 });

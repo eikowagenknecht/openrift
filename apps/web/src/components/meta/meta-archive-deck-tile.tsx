@@ -1,7 +1,7 @@
 import type { MetaDeckSummary } from "@openrift/shared";
 
 import { FannedPreview } from "@/components/deck/deck-tile";
-import { MetaDeckFrame, MetaDeckFrameLink, metaFrontImage } from "@/components/meta/meta-deck-card";
+import { MetaDeckFrame, metaFrontImage } from "@/components/meta/meta-deck-card";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
@@ -74,11 +74,7 @@ export function MetaArchiveDeckTile({
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-3">
-        {/* The legend takes its own click, to its archive page; the rest of the
-            tile opens the list. */}
-        <MetaDeckFrameLink>
-          <MetaIdentity name={deck.legendName} archiveSlug={deck.legendArchiveSlug} layout="tile" />
-        </MetaDeckFrameLink>
+        <MetaIdentity name={deck.legendName} archiveSlug={deck.legendArchiveSlug} layout="tile" />
 
         <p className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs">
           <span className="truncate">{deck.playerName}</span>

@@ -21,7 +21,7 @@ import {
   metaLegendDecks,
 } from "@/lib/meta-legend-page";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, isScopeNarrowed, nextScopeSearch } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, isScopeNarrowed, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/legends_/$slug");
@@ -100,7 +100,7 @@ export function MetaLegendPage() {
   const { champion } = splitLegendName(data.legend.name);
   // Remounts both sections whenever the scope changes, so a view a reader opened
   // on the old slice does not carry into the new one.
-  const scopeKey = `${search.era ?? ""}|${search.from ?? ""}|${search.to ?? ""}|${search.format ?? ""}|${search.tier ?? ""}|${search.country ?? ""}`;
+  const sectionKey = scopeKey(search);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -124,9 +124,13 @@ export function MetaLegendPage() {
           <MetaLegendHero legend={data.legend} counts={counts} />
         </div>
 
-        <MetaLegendFinishes key={scopeKey} finishes={finishes} narrowed={isScopeNarrowed(search)} />
+        <MetaLegendFinishes
+          key={sectionKey}
+          finishes={finishes}
+          narrowed={isScopeNarrowed(search)}
+        />
 
-        {legendDecks.length > 0 && <ArchivedDecks key={scopeKey} decks={decks} />}
+        {legendDecks.length > 0 && <ArchivedDecks key={sectionKey} decks={decks} />}
       </div>
     </div>
   );

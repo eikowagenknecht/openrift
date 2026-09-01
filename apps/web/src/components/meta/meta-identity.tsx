@@ -95,18 +95,21 @@ export function MetaIdentity({
   const showTitle = !championOnly && title !== null;
 
   const championText = <span className={CHAMPION_CLASS[layout]}>{champion}</span>;
+  // Positioned so the name still takes its own clicks inside a stretched-link
+  // tile, where an unpositioned anchor sits under the overlay.
+  const linkClass = "relative hover:underline";
   const legendKey = filled(archiveSlug);
   const cardSlug = filled(slug);
   let named = championText;
   if (legendKey !== null) {
     named = (
-      <Link to="/meta/legends/$slug" params={{ slug: legendKey }} className="hover:underline">
+      <Link to="/meta/legends/$slug" params={{ slug: legendKey }} className={linkClass}>
         {championText}
       </Link>
     );
   } else if (cardSlug !== null) {
     named = (
-      <Link to="/cards/$cardSlug" params={{ cardSlug }} className="hover:underline">
+      <Link to="/cards/$cardSlug" params={{ cardSlug }} className={linkClass}>
         {championText}
       </Link>
     );

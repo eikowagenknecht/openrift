@@ -1,5 +1,6 @@
-import type { MetaEventTier } from "@openrift/shared";
+import type { ReactNode } from "react";
 
+import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -12,12 +13,15 @@ import {
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { countryLabel } from "@/lib/country";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
-import type { MetaEra, MetaScopeControls } from "@/lib/meta-scope";
-import { ERA_ALL, ERA_CUSTOM, isScopeNarrowed } from "@/lib/meta-scope";
+import type { MetaEra, MetaScope, MetaScopeControls, MetaScopeFacet } from "@/lib/meta-scope";
+import {
+  cycleScopeFacet,
+  ERA_ALL,
+  ERA_CUSTOM,
+  isScopeNarrowed,
+  scopeFacetValues,
+} from "@/lib/meta-scope";
 import { cn } from "@/lib/utils";
-
-/** Every select's "no narrowing" option. An empty string is what clears the param. */
-const ANY = "";
 
 export interface MetaScopeBarProps extends MetaScopeControls {
   eras: readonly MetaEra[];
@@ -27,6 +31,13 @@ export interface MetaScopeBarProps extends MetaScopeControls {
    * and there is no endpoint that would know better than the caller.
    */
   countries?: readonly string[];
+  /**
+   * A surface's own controls, rendered inside the bar so they wrap with it
+   * rather than forming a second row of filters below it.
+   */
+  extras?: ReactNode;
+  /** Whether {@link extras} are narrowing anything, so Reset offers itself. */
+  extrasActive?: boolean;
   className?: string;
 }
 
@@ -34,6 +45,10 @@ export interface MetaScopeBarProps extends MetaScopeControls {
  * The one scope bar every archive page carries: which era, format, tier and
  * country the page is about. Controlled, so the route owns the URL and the bar
  * can be driven straight from a test.
+ *
+ * The era is a single window, so it stays a select. The three value facets cycle
+ * off → include → exclude → off like the card browser's, so a reader who wants
+ * every country but one picks the one.
  */
 export function MetaScopeBar({
   scope,
@@ -41,6 +56,8 @@ export function MetaScopeBar({
   clearScope,
   eras,
   countries = [],
+  extras,
+  extrasActive = false,
   className,
 }: MetaScopeBarProps) {
   const { formats } = useDeckFormatList();
@@ -51,20 +68,16 @@ export function MetaScopeBar({
   }
   eraItems[ERA_CUSTOM] = "Custom range";
 
-  const formatItems: Record<string, string> = { [ANY]: "All formats" };
-  for (const format of formats) {
-    formatItems[format.slug] = format.label;
-  }
+  const formatOptions = formats.map((format) => ({ value: format.slug, label: format.label }));
 
-  const tierItems: Record<string, string> = { [ANY]: "All tiers", ...META_EVENT_TIER_LABELS };
+  const tierOptions = Object.entries(META_EVENT_TIER_LABELS).map(([value, label]) => ({
+    value,
+    label,
+  }));
 
-  const countryItems: Record<string, string> = { [ANY]: "All countries" };
-  for (const code of countries) {
-    const label = countryLabel(code);
-    if (label !== null) {
-      countryItems[code] = label;
-    }
-  }
+  const countryOptions = countries
+    .map((code) => ({ value: code, label: countryLabel(code) }))
+    .filter((option): option is { value: string; label: string } => option.label !== null);
 
   return (
     <div data-slot="meta-scope-bar" className={cn("flex flex-wrap items-center gap-2", className)}>
@@ -105,44 +118,72 @@ export function MetaScopeBar({
       )}
 
       {formats.length > 1 && (
-        <ScopeSelect
+        <ScopeFacet
           label="Format"
-          value={scope.format ?? ANY}
-          fallback={ANY}
-          items={formatItems}
-          className="w-40"
-          onValueChange={(next) => setScope({ format: next === ANY ? undefined : next })}
+          facet="formats"
+          options={formatOptions}
+          scope={scope}
+          setScope={setScope}
         />
       )}
 
-      <ScopeSelect
+      <ScopeFacet
         label="Tier"
-        value={scope.tier ?? ANY}
-        fallback={ANY}
-        items={tierItems}
-        className="w-36"
-        onValueChange={(next) =>
-          setScope({ tier: next === ANY ? undefined : (next as MetaEventTier) })
-        }
+        facet="tiers"
+        options={tierOptions}
+        scope={scope}
+        setScope={setScope}
       />
 
       {countries.length > 1 && (
-        <ScopeSelect
+        <ScopeFacet
           label="Country"
-          value={scope.country ?? ANY}
-          fallback={ANY}
-          items={countryItems}
-          className="w-44"
-          onValueChange={(next) => setScope({ country: next === ANY ? undefined : next })}
+          facet="countries"
+          options={countryOptions}
+          scope={scope}
+          setScope={setScope}
         />
       )}
 
-      {isScopeNarrowed(scope) && (
+      {extras}
+
+      {(isScopeNarrowed(scope) || extrasActive) && (
         <Button type="button" variant="ghost" size="sm" onClick={clearScope}>
           Reset
         </Button>
       )}
     </div>
+  );
+}
+
+/**
+ * One value facet as a cycling include/exclude dropdown. The trigger names the
+ * facet while nothing is picked, then the picks themselves.
+ */
+function ScopeFacet({
+  label,
+  facet,
+  options,
+  scope,
+  setScope,
+}: {
+  label: string;
+  facet: MetaScopeFacet;
+  options: readonly { value: string; label: string }[];
+  scope: MetaScope;
+  setScope: (patch: Partial<MetaScope>) => void;
+}) {
+  const { included, excluded } = scopeFacetValues(scope, facet);
+  return (
+    <MultiSelectCombobox
+      label={label}
+      triggerStyle="button"
+      options={options}
+      selected={[...included]}
+      excluded={[...excluded]}
+      onCycle={(value) => setScope(cycleScopeFacet(scope, facet, value))}
+      searchPlaceholder={`Search ${label.toLowerCase()}…`}
+    />
   );
 }
 

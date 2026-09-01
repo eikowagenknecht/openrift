@@ -15,6 +15,15 @@ export type MetaEventIndexSort = (typeof META_EVENT_INDEX_SORTS)[number];
 
 export type MetaEventIndexSortDirection = "asc" | "desc";
 
+/**
+ * What an event must already hold to be listed. An archived event starts as a
+ * date and a name, so an index of everything is mostly rows with nothing behind
+ * them yet, and a reader looking for lists has to open each one to find out.
+ */
+export const META_EVENT_HOLDINGS = ["decks", "standings"] as const;
+
+export type MetaEventHoldings = (typeof META_EVENT_HOLDINGS)[number];
+
 export const DEFAULT_EVENT_SORT: MetaEventIndexSort = "date";
 export const DEFAULT_EVENT_DIRECTION: MetaEventIndexSortDirection = "desc";
 
@@ -31,6 +40,8 @@ export const DEFAULT_EVENT_DIRECTION: MetaEventIndexSortDirection = "desc";
 export const metaEventsSearchSchema = metaScopeSearchSchema.extend({
   /** Free text, matched against the event name, its organizer and its venue. */
   q: z.string().optional().catch(undefined),
+  /** How much of an event the archive must hold for it to be listed. */
+  holds: z.enum(META_EVENT_HOLDINGS).optional().catch(undefined),
   by: z.enum(META_EVENT_INDEX_SORTS).optional().catch(undefined),
   dir: z.enum(["asc", "desc"]).optional().catch(undefined),
 });

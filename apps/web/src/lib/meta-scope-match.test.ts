@@ -51,29 +51,51 @@ describe("scopeMatches", () => {
   });
 
   it("matches format and tier exactly", () => {
-    expect(scopeMatches(event(), { format: "constructed" }, ERAS)).toBe(true);
-    expect(scopeMatches(event(), { format: "limited" }, ERAS)).toBe(false);
-    expect(scopeMatches(event(), { tier: "premier" }, ERAS)).toBe(true);
-    expect(scopeMatches(event(), { tier: "store" }, ERAS)).toBe(false);
+    expect(scopeMatches(event(), { formats: ["constructed"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { formats: ["limited"] }, ERAS)).toBe(false);
+    expect(scopeMatches(event(), { tiers: ["premier"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { tiers: ["store"] }, ERAS)).toBe(false);
   });
 
-  it("matches a country whichever case either side arrives in", () => {
-    expect(scopeMatches(event({ country: "fr" }), { country: "FR" }, ERAS)).toBe(true);
-    expect(scopeMatches(event({ country: "FR" }), { country: "fr" }, ERAS)).toBe(true);
-    expect(scopeMatches(event({ country: "DE" }), { country: "fr" }, ERAS)).toBe(false);
+  it("keeps an event matching any one of a facet's picks", () => {
+    expect(scopeMatches(event(), { tiers: ["store", "premier"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { tiers: ["store", "casual"] }, ERAS)).toBe(false);
   });
 
-  it("drops an event with no recorded venue once a country is chosen", () => {
-    expect(scopeMatches(event({ country: null }), { country: "FR" }, ERAS)).toBe(false);
+  it("keeps everything but the excluded values", () => {
+    expect(scopeMatches(event(), { tiersEx: ["store"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { tiersEx: ["premier"] }, ERAS)).toBe(false);
+    expect(scopeMatches(event({ country: "DE" }), { countriesEx: ["FR"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event({ country: "FR" }), { countriesEx: ["fr"] }, ERAS)).toBe(false);
+  });
+
+  it("keeps an event with no recorded venue out of an include and inside an exclude", () => {
+    expect(scopeMatches(event({ country: null }), { countries: ["FR"] }, ERAS)).toBe(false);
+    expect(scopeMatches(event({ country: null }), { countriesEx: ["FR"] }, ERAS)).toBe(true);
     expect(scopeMatches(event({ country: null }), {}, ERAS)).toBe(true);
   });
 
+  it("ignores an empty facet, so a cleared control narrows nothing", () => {
+    expect(scopeMatches(event(), { tiers: [], countriesEx: [] }, ERAS)).toBe(true);
+  });
+
+  it("matches a country whichever case either side arrives in", () => {
+    expect(scopeMatches(event({ country: "fr" }), { countries: ["FR"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event({ country: "FR" }), { countries: ["fr"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event({ country: "DE" }), { countries: ["fr"] }, ERAS)).toBe(false);
+  });
+
   it("ignores a country the code list cannot resolve, rather than emptying the page", () => {
-    expect(scopeMatches(event(), { country: "??" }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { countries: ["??"] }, ERAS)).toBe(true);
   });
 
   it("requires every populated facet at once", () => {
-    const scope = { era: "vendetta", tier: "premier", country: "FR", format: "constructed" };
+    const scope = {
+      era: "vendetta",
+      tiers: ["premier"],
+      countries: ["FR"],
+      formats: ["constructed"],
+    };
     expect(scopeMatches(event(), scope, ERAS)).toBe(true);
     expect(scopeMatches(event({ tier: "store" }), scope, ERAS)).toBe(false);
   });

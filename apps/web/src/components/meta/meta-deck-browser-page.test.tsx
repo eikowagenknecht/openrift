@@ -204,7 +204,7 @@ describe("MetaDeckBrowserPage", () => {
   });
 
   it("names the era and format it is scoped to", () => {
-    captured.search = { era: "vendetta", format: "standard" };
+    captured.search = { era: "vendetta", formats: ["standard"] };
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("Vendetta")).toBeInTheDocument();
     expect(screen.getByText("Standard")).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe("MetaDeckBrowserPage", () => {
   });
 
   it("says so when nothing matches", () => {
-    captured.search = { tier: "casual" };
+    captured.search = { tiers: ["casual"] };
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("No decks match these filters.")).toBeInTheDocument();
   });

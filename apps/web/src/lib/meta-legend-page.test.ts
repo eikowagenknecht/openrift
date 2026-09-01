@@ -166,16 +166,16 @@ describe("filterLegendDecks", () => {
       deck({ deckId: "b", event: { tier: "store", country: "DE" } }),
     ];
     expect(
-      filterLegendDecks(decks, { scope: { tier: "premier" }, eras: ERAS }).map(
+      filterLegendDecks(decks, { scope: { tiers: ["premier"] }, eras: ERAS }).map(
         (entry) => entry.deckId,
       ),
     ).toEqual(["a"]);
     expect(
-      filterLegendDecks(decks, { scope: { country: "de" }, eras: ERAS }).map(
+      filterLegendDecks(decks, { scope: { countries: ["de"] }, eras: ERAS }).map(
         (entry) => entry.deckId,
       ),
     ).toEqual(["b"]);
-    expect(filterLegendDecks(decks, { scope: { format: "limited" }, eras: ERAS })).toEqual([]);
+    expect(filterLegendDecks(decks, { scope: { formats: ["limited"] }, eras: ERAS })).toEqual([]);
   });
 });
 
@@ -207,17 +207,17 @@ describe("filterLegendFinishes", () => {
 
   it("narrows by tier, format and country", () => {
     expect(
-      filterLegendFinishes([premier, store], { scope: { tier: "premier" }, eras: ERAS }).map(
+      filterLegendFinishes([premier, store], { scope: { tiers: ["premier"] }, eras: ERAS }).map(
         (entry) => entry.playerId,
       ),
     ).toEqual(["p1"]);
     expect(
-      filterLegendFinishes([premier, store], { scope: { country: "fr" }, eras: ERAS }).map(
+      filterLegendFinishes([premier, store], { scope: { countries: ["fr"] }, eras: ERAS }).map(
         (entry) => entry.playerId,
       ),
     ).toEqual(["p1"]);
     expect(
-      filterLegendFinishes([premier, store], { scope: { format: "draft" }, eras: ERAS }),
+      filterLegendFinishes([premier, store], { scope: { formats: ["draft"] }, eras: ERAS }),
     ).toEqual([]);
   });
 
@@ -229,9 +229,9 @@ describe("filterLegendFinishes", () => {
 
   it("leaves the caller's array alone and handles an empty record", () => {
     const input = [premier, store];
-    filterLegendFinishes(input, { scope: { tier: "premier" }, eras: ERAS });
+    filterLegendFinishes(input, { scope: { tiers: ["premier"] }, eras: ERAS });
     expect(input).toHaveLength(2);
-    expect(filterLegendFinishes([], { scope: { tier: "premier" }, eras: ERAS })).toEqual([]);
+    expect(filterLegendFinishes([], { scope: { tiers: ["premier"] }, eras: ERAS })).toEqual([]);
   });
 });
 

@@ -18,6 +18,13 @@ import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Pressable } from "@/components/ui/pressable";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMetaEvents } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
@@ -27,17 +34,28 @@ import {
   nextEventSort,
   sortMetaEvents,
 } from "@/lib/meta-events-index";
-import type { MetaEventIndexSort, MetaEventIndexSortDirection } from "@/lib/meta-events-search";
-import { DEFAULT_EVENT_DIRECTION, DEFAULT_EVENT_SORT } from "@/lib/meta-events-search";
+import type {
+  MetaEventHoldings,
+  MetaEventIndexSort,
+  MetaEventIndexSortDirection,
+} from "@/lib/meta-events-search";
+import {
+  DEFAULT_EVENT_DIRECTION,
+  DEFAULT_EVENT_SORT,
+  META_EVENT_HOLDINGS,
+} from "@/lib/meta-events-search";
 import { metaShownLabel } from "@/lib/meta-format";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/events");
 
 /** How many rows the page opens with, and how many each "more" adds. */
 const PAGE_SIZE = 50;
+
+/** The holdings control's "no narrowing" option. An empty string clears the param. */
+const ANY_HOLDINGS = "";
 
 /**
  * `/meta/events` — every archived tournament as one row: when and where it ran,
@@ -61,7 +79,7 @@ export function MetaEventsPage() {
   };
 
   const setScope = (patch: Partial<MetaScope>) => setSearchParams(patch);
-  const clearScope = () => setSearchParams({ ...CLEARED_SCOPE, q: undefined });
+  const clearScope = () => setSearchParams({ ...CLEARED_SCOPE, q: undefined, holds: undefined });
   const setSort = (column: MetaEventIndexSort) => {
     const next = nextEventSort({ sort, direction }, column);
     setSearchParams({ by: next.sort, dir: next.direction });
@@ -70,14 +88,14 @@ export function MetaEventsPage() {
 
   const all = data.events;
   const events = sortMetaEvents(
-    filterMetaEvents(all, { query: search.q, scope: search, eras }),
+    filterMetaEvents(all, { query: search.q, scope: search, eras, holds: search.holds }),
     sort,
     direction,
   );
   const countries = metaEventCountries(all);
   // Reordering is not renarrowing: the same events in a new order stay expanded,
   // so the sort keys are deliberately absent here.
-  const listKey = `${search.q ?? ""}|${search.era ?? ""}|${search.from ?? ""}|${search.to ?? ""}|${search.format ?? ""}|${search.tier ?? ""}|${search.country ?? ""}`;
+  const listKey = `${search.q ?? ""}|${search.holds ?? ""}|${scopeKey(search)}`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -114,6 +132,13 @@ export function MetaEventsPage() {
                 clearScope={clearScope}
                 eras={eras}
                 countries={countries}
+                extras={
+                  <HoldingsSelect
+                    value={search.holds}
+                    onChange={(holds) => setSearchParams({ holds })}
+                  />
+                }
+                extrasActive={search.holds !== undefined}
               />
             </div>
 
@@ -133,6 +158,48 @@ export function MetaEventsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/** What the holdings control offers, in the words the index uses for the columns. */
+const HOLDINGS_ITEMS: Record<string, string> = {
+  [ANY_HOLDINGS]: "Any events",
+  decks: "With decklists",
+  standings: "With standings",
+};
+
+/**
+ * How much of an event the archive must already hold. An index of every event
+ * is mostly dates with nothing behind them yet, and a reader after decklists
+ * would otherwise open each row to find that out.
+ */
+function HoldingsSelect({
+  value,
+  onChange,
+}: {
+  value: MetaEventHoldings | undefined;
+  onChange: (value: MetaEventHoldings | undefined) => void;
+}) {
+  return (
+    <Select
+      value={value ?? ANY_HOLDINGS}
+      onValueChange={(next) => {
+        const chosen = (next as string | null) ?? ANY_HOLDINGS;
+        onChange(META_EVENT_HOLDINGS.find((entry) => entry === chosen));
+      }}
+      items={HOLDINGS_ITEMS}
+    >
+      <SelectTrigger className="w-40" aria-label="Archive holdings">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {Object.entries(HOLDINGS_ITEMS).map(([itemValue, label]) => (
+          <SelectItem key={itemValue} value={itemValue}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 

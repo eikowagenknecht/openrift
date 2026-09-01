@@ -22,8 +22,10 @@ export function metaFrontImage(imageId: string | null): PrintingImage | null {
  * A positioned container rather than an anchor, with the permalink stretched
  * over it by its `::after`, so the tile can also carry a link to the legend's
  * archive page — an anchor inside an anchor is invalid, and a nested one is what
- * kept the legend unlinked here. Anything meant to take its own clicks must sit
- * above that overlay (`relative`), which is what {@link MetaDeckFrameLink} does.
+ * kept the legend unlinked here. Anything meant to take its own clicks must be
+ * positioned, and the positioned element must be the anchor itself: a wrapper
+ * around it is a full-width flex child, so it would sit over the permalink
+ * across the whole card body while only the short name inside it led anywhere.
  */
 export function MetaDeckFrame({
   deck,
@@ -54,12 +56,4 @@ export function MetaDeckFrame({
       {children}
     </div>
   );
-}
-
-/**
- * A link inside a {@link MetaDeckFrame} that takes its own clicks rather than
- * the tile's, by sitting above the stretched permalink.
- */
-export function MetaDeckFrameLink({ children }: { children: ReactNode }) {
-  return <span className="relative">{children}</span>;
 }

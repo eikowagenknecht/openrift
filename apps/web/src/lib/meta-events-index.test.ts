@@ -86,17 +86,33 @@ describe("filterMetaEvents", () => {
 
   it("narrows by tier and by country, whatever case the URL carries", () => {
     expect(
-      filterMetaEvents(events, { ...all, scope: { tier: "premier" } }).map((e) => e.id),
+      filterMetaEvents(events, { ...all, scope: { tiers: ["premier"] } }).map((e) => e.id),
     ).toEqual(["a"]);
-    expect(filterMetaEvents(events, { ...all, scope: { country: "de" } }).map((e) => e.id)).toEqual(
-      ["b"],
-    );
+    expect(
+      filterMetaEvents(events, { ...all, scope: { countries: ["de"] } }).map((e) => e.id),
+    ).toEqual(["b"]);
+  });
+
+  it("narrows to the events the archive already holds something for", () => {
+    const holdings = [
+      event({ id: "listed", playerRowCount: 18, deckCount: 4 }),
+      event({ id: "standings-only", playerRowCount: 18, deckCount: 0 }),
+      event({ id: "pending", playerRowCount: 0, deckCount: 0 }),
+    ];
+    expect(filterMetaEvents(holdings, { ...all, holds: "decks" }).map((e) => e.id)).toEqual([
+      "listed",
+    ]);
+    expect(filterMetaEvents(holdings, { ...all, holds: "standings" }).map((e) => e.id)).toEqual([
+      "listed",
+      "standings-only",
+    ]);
+    expect(filterMetaEvents(holdings, all)).toHaveLength(3);
   });
 
   it("narrows by format", () => {
     const mixed = [event({ id: "a" }), event({ id: "b", format: "limited" })];
     expect(
-      filterMetaEvents(mixed, { ...all, scope: { format: "limited" } }).map((e) => e.id),
+      filterMetaEvents(mixed, { ...all, scope: { formats: ["limited"] } }).map((e) => e.id),
     ).toEqual(["b"]);
   });
 

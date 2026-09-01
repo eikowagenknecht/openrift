@@ -2,7 +2,8 @@ import type { MetaDeckSummary } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
-import { isScopeNarrowed, resolveScopeRange } from "@/lib/meta-scope";
+import { isScopeNarrowed } from "@/lib/meta-scope";
+import { scopeMatches } from "@/lib/meta-scope-match";
 
 /**
  * The meta deck browser's filter state: the archive-wide scope every page
@@ -86,27 +87,7 @@ function passesAxis(
       context.buildableDeckIds.has(deck.deckId)
     );
   }
-  return passesScope(deck, filters);
-}
-
-function passesScope(deck: MetaDeckSummary, filters: MetaDeckFilterValues): boolean {
-  const { scope } = filters;
-  if (scope.format !== undefined && deck.event.format !== scope.format) {
-    return false;
-  }
-  if (scope.tier !== undefined && deck.event.tier !== scope.tier) {
-    return false;
-  }
-  const country = normalizeCountryCode(scope.country);
-  if (country !== null && normalizeCountryCode(deck.event.country) !== country) {
-    return false;
-  }
-  // Date-only strings sort lexicographically, so plain comparison is enough.
-  const range = resolveScopeRange(scope, filters.eras);
-  if (range.from !== undefined && deck.event.eventDate < range.from) {
-    return false;
-  }
-  return range.to === undefined || deck.event.eventDate <= range.to;
+  return scopeMatches(deck.event, filters.scope, filters.eras);
 }
 
 const ALL_AXES: MetaDeckFilterAxis[] = ["scope", "events", "legends", "finish", "buildable"];

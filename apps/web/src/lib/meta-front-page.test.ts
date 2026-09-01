@@ -144,12 +144,14 @@ describe("filterMetaEvents", () => {
   it("matches a country whichever case either side arrives in", () => {
     const events = [event({ id: "spain", country: "es" }), event({ id: "italy", country: "IT" })];
     expect(
-      filterMetaEvents(events, { scope: { country: "ES" }, eras: ERAS }).map((row) => row.id),
+      filterMetaEvents(events, { scope: { countries: ["ES"] }, eras: ERAS }).map((row) => row.id),
     ).toEqual(["spain"]);
   });
 
   it("ignores a country code the list cannot resolve rather than emptying the page", () => {
-    expect(filterMetaEvents([event()], { scope: { country: "??" }, eras: ERAS })).toHaveLength(1);
+    expect(filterMetaEvents([event()], { scope: { countries: ["??"] }, eras: ERAS })).toHaveLength(
+      1,
+    );
   });
 
   it("narrows by format, tier and country together", () => {
@@ -160,7 +162,7 @@ describe("filterMetaEvents", () => {
       event({ id: "wrong-format", format: "freeform", tier: "premier", country: "ES" }),
     ];
     const kept = filterMetaEvents(events, {
-      scope: { format: "standard", tier: "premier", country: "ES" },
+      scope: { formats: ["standard"], tiers: ["premier"], countries: ["ES"] },
       eras: ERAS,
     });
     expect(kept.map((row) => row.id)).toEqual(["match"]);
@@ -190,7 +192,7 @@ describe("filterMetaEvents", () => {
   });
 
   it("returns nothing for an empty archive", () => {
-    expect(filterMetaEvents([], { scope: { tier: "premier" }, eras: ERAS })).toEqual([]);
+    expect(filterMetaEvents([], { scope: { tiers: ["premier"] }, eras: ERAS })).toEqual([]);
   });
 });
 

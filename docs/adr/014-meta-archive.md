@@ -387,7 +387,7 @@ Routes, all SSR public:
 - **`/meta/submissions`**: the submitter's own ledger.
 - **`/admin/meta`**: event list with create/edit, an **Overlays** queue (pending submissions and corrections) and a per-event **Drift** view, plus a **Catalogue** tab (the triage list above, with the auto-accept rule toggles and the manual full-resync action) and a **Sync** panel showing recent `meta.*` job runs and any stalled state.
 
-A scope bar (era, format, tier, country) is shared by every archive page and encoded in the URL. Every name `/meta` spends on a static child is a reserved event slug, so no event can be shadowed by one.
+A scope bar (era, format, tier, country) is shared by every archive page and encoded in the URL. The era is one window; format, tier and country are include/exclude axes cycling the same way the card browser's do (ADR-034), so "every country but this one" is a pick rather than a dead end. The tournament index adds a holdings filter, since an archived event starts as a date and a name. Every name `/meta` spends on a static child is a reserved event slug, so no event can be shadowed by one.
 
 The byline for an archived deck everywhere is player + rank + event, never an account owner. Navigation: a "Meta" entry in the main header, shown only while the flag is on.
 

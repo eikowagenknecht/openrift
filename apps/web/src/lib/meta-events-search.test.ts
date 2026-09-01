@@ -5,8 +5,18 @@ import { metaEventsSearchSchema } from "./meta-events-search";
 describe("metaEventsSearchSchema", () => {
   it("keeps the scope fields alongside its own", () => {
     expect(
-      metaEventsSearchSchema.parse({ q: "vienna", by: "players", dir: "asc", tier: "premier" }),
-    ).toMatchObject({ q: "vienna", by: "players", dir: "asc", tier: "premier" });
+      metaEventsSearchSchema.parse({
+        q: "vienna",
+        by: "players",
+        dir: "asc",
+        tiers: ["premier"],
+      }),
+    ).toMatchObject({ q: "vienna", by: "players", dir: "asc", tiers: ["premier"] });
+  });
+
+  it("keeps a holdings filter, and drops one the page does not offer", () => {
+    expect(metaEventsSearchSchema.parse({ holds: "decks" }).holds).toBe("decks");
+    expect(metaEventsSearchSchema.parse({ holds: "photos" }).holds).toBeUndefined();
   });
 
   it("drops a sort a stale bookmark names but the page no longer has", () => {
@@ -16,8 +26,8 @@ describe("metaEventsSearchSchema", () => {
   });
 
   it("keeps the scope fields a bad sort travelled with", () => {
-    expect(metaEventsSearchSchema.parse({ by: "organizer", country: "AT" })).toMatchObject({
-      country: "AT",
+    expect(metaEventsSearchSchema.parse({ by: "organizer", countries: ["AT"] })).toMatchObject({
+      countries: ["AT"],
     });
   });
 

@@ -90,7 +90,7 @@ vi.mock("@/components/meta/meta-scope-bar", () => ({
     captured.countries = countries ?? [];
     return (
       <div>
-        <button type="button" onClick={() => setScope({ tier: "premier" })}>
+        <button type="button" onClick={() => setScope({ tiers: ["premier"] })}>
           Scope to premier
         </button>
         <button type="button" onClick={clearScope}>
@@ -252,7 +252,7 @@ describe("MetaLegendPage", () => {
         deck("tok-a", "card-kennen", { slug: "worlds", tier: "premier" }),
         deck("tok-b", "card-kennen", { slug: "store-night", tier: "store" }),
       ],
-      { tier: "premier" },
+      { tiers: ["premier"] },
     );
 
     expect(counterValue("event wins")).toBe("1");
@@ -272,7 +272,7 @@ describe("MetaLegendPage", () => {
         finish(2, null, "b", "store-night", { country: "DE", tier: "store" }),
       ],
       [deck("tok-c", "card-kennen", { slug: "tokyo-open", country: "JP" })],
-      { tier: "premier" },
+      { tiers: ["premier"] },
     );
     expect(captured.countries).toEqual(["DE", "FR", "JP"]);
   });
@@ -281,7 +281,7 @@ describe("MetaLegendPage", () => {
     renderPage(
       [finish(1, "tok-a", "a", "store-night", { tier: "store" })],
       [deck("tok-a", "card-kennen", { slug: "store-night", tier: "store" })],
-      { tier: "premier" },
+      { tiers: ["premier"] },
     );
     expect(screen.getByRole("heading", { name: "Archived decklists" })).toBeInTheDocument();
     expect(
@@ -290,7 +290,7 @@ describe("MetaLegendPage", () => {
   });
 
   it("says nothing falls in the scope rather than nothing is on record", () => {
-    renderPage([finish(1, null, "a")], [], { tier: "premier" });
+    renderPage([finish(1, null, "a")], [], { tiers: ["premier"] });
     expect(
       screen.getByText("No finish on this legend's record falls in this scope."),
     ).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe("MetaLegendPage", () => {
   it("writes a scope choice to the URL without stacking a history entry per dropdown", async () => {
     renderPage([finish(1, null, "a")]);
     await userEvent.click(screen.getByRole("button", { name: "Scope to premier" }));
-    expect(captured.navigated.at(-1)).toMatchObject({ tier: "premier" });
+    expect(captured.navigated.at(-1)).toMatchObject({ tiers: ["premier"] });
     expect(captured.replaced.at(-1)).toBe(true);
   });
 
@@ -311,13 +311,17 @@ describe("MetaLegendPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Show all 8 finishes" }));
     expect(screen.getAllByRole("listitem")).toHaveLength(8);
 
-    page.navigateTo({ tier: "competitive" });
+    page.navigateTo({ tiers: ["competitive"] });
 
     expect(screen.getAllByRole("listitem")).toHaveLength(5);
   });
 
   it("drops every facet on reset", async () => {
-    renderPage([finish(1, null, "a")], [], { era: "vendetta", tier: "premier", country: "FR" });
+    renderPage([finish(1, null, "a")], [], {
+      era: "vendetta",
+      tiers: ["premier"],
+      countries: ["FR"],
+    });
     await userEvent.click(screen.getByRole("button", { name: "Reset scope" }));
     expect(captured.navigated.at(-1)).toEqual({});
   });

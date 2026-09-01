@@ -3,25 +3,46 @@ import type { SetReleases } from "@openrift/shared";
 import { earliestRelease, todayUtc } from "@openrift/shared";
 import { z } from "zod";
 
+import { cycleIncludeExclude } from "@/lib/filter-cycle";
+
+/**
+ * One facet's selection. A single bare value is read as a one-element list, so a
+ * link written against the scalar params the bar used to carry still narrows.
+ */
+const facetList = () =>
+  z
+    .union([z.string().transform((value) => [value]), z.array(z.string())])
+    .optional()
+    .catch(undefined);
+
 /**
  * The scope every archive page narrows by, in the URL (ADR-014). Each field is
  * optional and `.catch`es to undefined, so a stale bookmark loses the bad value
  * rather than crashing the route.
+ *
+ * The three value facets are include/exclude pairs (ADR-034), named the way the
+ * card browser names its own: the bare key holds the includes and the `Ex`
+ * companion the excludes. An axis is never both at once, which is what
+ * {@link cycleScopeFacet} enforces.
  */
 export const metaScopeSearchSchema = z.object({
   /**
    * A set slug, {@link ERA_ALL}, or {@link ERA_CUSTOM}. Absent means all time —
    * the same as {@link ERA_ALL}, which only ever appears once the reader has
-   * picked it back.
+   * picked it back. Single-valued: two eras with a gap between them are not a
+   * window, and the archive scopes by window.
    */
   era: z.string().optional().catch(undefined),
   /** Inclusive event-date bounds as date-only strings; read only under {@link ERA_CUSTOM}. */
   from: z.string().optional().catch(undefined),
   to: z.string().optional().catch(undefined),
-  format: z.string().optional().catch(undefined),
-  tier: z.string().optional().catch(undefined),
+  formats: facetList(),
+  formatsEx: facetList(),
+  tiers: facetList(),
+  tiersEx: facetList(),
   /** ISO 3166-1 alpha-2. */
-  country: z.string().optional().catch(undefined),
+  countries: facetList(),
+  countriesEx: facetList(),
 });
 
 export type MetaScope = z.infer<typeof metaScopeSearchSchema>;
@@ -123,10 +144,83 @@ export const CLEARED_SCOPE: Record<keyof MetaScope, undefined> = {
   era: undefined,
   from: undefined,
   to: undefined,
-  format: undefined,
-  tier: undefined,
-  country: undefined,
+  formats: undefined,
+  formatsEx: undefined,
+  tiers: undefined,
+  tiersEx: undefined,
+  countries: undefined,
+  countriesEx: undefined,
 };
+
+/** The facets a reader picks values on, as opposed to the era's single window. */
+export type MetaScopeFacet = "formats" | "tiers" | "countries";
+
+/** Every facet, for the callers that walk all three. */
+export const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "countries"];
+
+/** One facet's two buckets, in the order the cycling helpers read them. */
+export function scopeFacetValues(
+  scope: MetaScope,
+  facet: MetaScopeFacet,
+): { included: readonly string[]; excluded: readonly string[] } {
+  switch (facet) {
+    case "formats": {
+      return { included: scope.formats ?? [], excluded: scope.formatsEx ?? [] };
+    }
+    case "tiers": {
+      return { included: scope.tiers ?? [], excluded: scope.tiersEx ?? [] };
+    }
+    default: {
+      return { included: scope.countries ?? [], excluded: scope.countriesEx ?? [] };
+    }
+  }
+}
+
+function facetPatch(
+  facet: MetaScopeFacet,
+  included: string[],
+  excluded: string[],
+): Partial<MetaScope> {
+  switch (facet) {
+    case "formats": {
+      return { formats: included, formatsEx: excluded };
+    }
+    case "tiers": {
+      return { tiers: included, tiersEx: excluded };
+    }
+    default: {
+      return { countries: included, countriesEx: excluded };
+    }
+  }
+}
+
+/**
+ * The patch for one click on a facet's value: off → include → exclude → off,
+ * the same cycle the card browser's filters run (ADR-034).
+ */
+export function cycleScopeFacet(
+  scope: MetaScope,
+  facet: MetaScopeFacet,
+  value: string,
+): Partial<MetaScope> {
+  const { included, excluded } = scopeFacetValues(scope, facet);
+  const next = cycleIncludeExclude(included, excluded, value);
+  return facetPatch(facet, next.included, next.excluded);
+}
+
+/** The patch that takes one value off a facet, whichever bucket it sits in. */
+export function dropScopeFacetValue(
+  scope: MetaScope,
+  facet: MetaScopeFacet,
+  value: string,
+): Partial<MetaScope> {
+  const { included, excluded } = scopeFacetValues(scope, facet);
+  return facetPatch(
+    facet,
+    included.filter((entry) => entry !== value),
+    excluded.filter((entry) => entry !== value),
+  );
+}
 
 /**
  * A scope patch merged into a route's existing search params.
@@ -141,9 +235,12 @@ export function nextScopeSearch(
   patch: Partial<MetaScope>,
 ): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries({ ...prev, ...patch }).filter(
-      ([, value]) => value !== undefined && value !== "",
-    ),
+    Object.entries({ ...prev, ...patch }).filter(([, value]) => {
+      if (value === undefined || value === "") {
+        return false;
+      }
+      return !(Array.isArray(value) && value.length === 0);
+    }),
   );
 }
 
@@ -153,14 +250,28 @@ export function nextScopeSearch(
  */
 export function isScopeNarrowed(scope: MetaScope): boolean {
   const range = scope.era === ERA_CUSTOM ? [scope.from, scope.to] : [];
-  const facets = [
-    scope.era === ERA_ALL ? undefined : scope.era,
-    scope.format,
-    scope.tier,
-    scope.country,
-    ...range,
-  ];
-  return facets.some((value) => value !== undefined && value !== "");
+  const dates = [scope.era === ERA_ALL ? undefined : scope.era, ...range];
+  if (dates.some((value) => value !== undefined && value !== "")) {
+    return true;
+  }
+  return META_SCOPE_FACETS.some((facet) => {
+    const { included, excluded } = scopeFacetValues(scope, facet);
+    return included.length > 0 || excluded.length > 0;
+  });
+}
+
+/**
+ * A scope as one string, for the `key` that remounts a narrowed list. A section
+ * holding a "show more" depth is showing a slice of one selection, and carrying
+ * that depth into the next selection would show a slice of a list the reader
+ * never scrolled.
+ */
+export function scopeKey(scope: MetaScope): string {
+  const facets = META_SCOPE_FACETS.map((facet) => {
+    const { included, excluded } = scopeFacetValues(scope, facet);
+    return `${included.join(",")}!${excluded.join(",")}`;
+  });
+  return [scope.era ?? "", scope.from ?? "", scope.to ?? "", ...facets].join("|");
 }
 
 function dayBefore(date: string): string {

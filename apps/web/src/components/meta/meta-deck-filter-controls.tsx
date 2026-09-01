@@ -20,7 +20,8 @@ import { countryLabel } from "@/lib/country";
 import type { MetaDeckFilterCounts, MetaDeckFilterOptions } from "@/lib/meta-deck-filters";
 import { META_FINISH_OPTIONS, hasActiveMetaDeckFilters } from "@/lib/meta-deck-filters";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
-import type { MetaEra, MetaScope } from "@/lib/meta-scope";
+import type { MetaEra, MetaScope, MetaScopeFacet } from "@/lib/meta-scope";
+import { dropScopeFacetValue, META_SCOPE_FACETS, scopeFacetValues } from "@/lib/meta-scope";
 
 /** The finish select's "no bound" value — an empty string clears the param. */
 const ANY_FINISH = "";
@@ -188,7 +189,8 @@ export function MetaDeckActiveFilters({
 /**
  * Chips for the scope facets whose stored value is a code rather than a word: a
  * reader scanning the strip should see "Vendetta", "Standard", "Premier" and
- * "Germany", not `vendetta`, `standard`, `premier` and `DE`.
+ * "Germany", not `vendetta`, `standard`, `premier` and `DE`. An excluded value
+ * wears the same minus sign the card browser's strip uses.
  */
 function scopeChips(
   scope: MetaScope,
@@ -203,19 +205,30 @@ function scopeChips(
       chip("era", era, () => setScope({ era: undefined, from: undefined, to: undefined })),
     );
   }
-  const format = scope.format === undefined ? undefined : labels.formatLabels[scope.format];
-  if (format !== undefined) {
-    chips.push(chip("format", format, () => setScope({ format: undefined })));
-  }
-  const tier = scope.tier;
-  const tierLabel =
-    tier === undefined ? undefined : META_EVENT_TIER_LABELS[tier as MetaEventTierKey];
-  if (tierLabel !== undefined) {
-    chips.push(chip("tier", tierLabel, () => setScope({ tier: undefined })));
-  }
-  const country = scope.country === undefined ? null : countryLabel(scope.country);
-  if (country !== null) {
-    chips.push(chip("country", country, () => setScope({ country: undefined })));
+
+  const facetLabels: Record<MetaScopeFacet, (value: string) => string | null> = {
+    formats: (value) => labels.formatLabels[value] ?? null,
+    tiers: (value) => META_EVENT_TIER_LABELS[value as MetaEventTierKey] ?? null,
+    countries: (value) => countryLabel(value),
+  };
+
+  for (const facet of META_SCOPE_FACETS) {
+    const { included, excluded } = scopeFacetValues(scope, facet);
+    for (const [values, sign] of [
+      [included, ""],
+      [excluded, "−"],
+    ] as const) {
+      for (const value of values) {
+        const label = facetLabels[facet](value);
+        if (label !== null) {
+          chips.push(
+            chip(`${facet}-${value}`, `${sign}${label}`, () =>
+              setScope(dropScopeFacetValue(scope, facet, value)),
+            ),
+          );
+        }
+      }
+    }
   }
   return chips;
 }

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({
   events: [] as MetaEventSummary[],
   decks: [] as MetaDeckSummary[],
-  search: {} as Record<string, string | undefined>,
+  search: {} as Record<string, string | string[] | undefined>,
   userId: null as string | null,
   submissionCount: 0,
 }));
@@ -269,7 +269,7 @@ describe("MetaFrontPage", () => {
   });
 
   it("says so when a scope matches nothing, keeping the controls in place", () => {
-    captured.search = { tier: "casual" };
+    captured.search = { tiers: ["casual"] };
 
     render(<MetaFrontPage />);
 
@@ -294,7 +294,7 @@ describe("MetaFrontPage", () => {
         },
       }),
     ];
-    captured.search = { tier: "premier" };
+    captured.search = { tiers: ["premier"] };
 
     render(<MetaFrontPage />);
 
@@ -344,7 +344,7 @@ describe("MetaFrontPage", () => {
     captured.events = [event(), event({ id: "evt-2", slug: "store-night", tier: "store" })];
     // Scoped away from half the archive: the link still counts the whole of it,
     // because that is what /meta/events opens on.
-    captured.search = { tier: "premier" };
+    captured.search = { tiers: ["premier"] };
 
     render(<MetaFrontPage />);
 
@@ -373,7 +373,7 @@ describe("MetaFrontPage", () => {
     ];
     // Scoped away from half the archive: the link still counts the whole of it,
     // because that is what /meta/decks opens on.
-    captured.search = { tier: "premier" };
+    captured.search = { tiers: ["premier"] };
 
     render(<MetaFrontPage />);
 
