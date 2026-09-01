@@ -10,7 +10,7 @@ import {
 } from "../../lib/playloltcg-catalog.js";
 import type { PlayloltcgListRow } from "../../repositories/playloltcg-events.js";
 import { promoteMetaEvent } from "../meta-promote.js";
-import { PlayloltcgBlockedError } from "./playloltcg-client.js";
+import { PlayloltcgBlockedError, PlayloltcgRefusedError } from "./playloltcg-client.js";
 import type { PlayloltcgSyncDeps } from "./playloltcg-deps.js";
 import { clock } from "./playloltcg-deps.js";
 
@@ -25,16 +25,30 @@ import { clock } from "./playloltcg-deps.js";
  * ingest matches its alias index exactly rather than hoping a transcription does.
  */
 
-/** The ceiling on deck-body requests for one event; the ladder picks up the rest. */
-const MAX_DECK_FETCHES = 400;
+/**
+ * The standings page.
+ *
+ * The endpoint ignores `pageNum` entirely and cursors on rank instead, so this
+ * only sets how many trips a large field costs. Ranks are a dense sequence
+ * from 1, so the cursor never straddles a tie.
+ */
 const STANDINGS_PAGE_SIZE = 1000;
-const MAX_STANDINGS_PAGES = 50;
+
+/** A field past this is not a field; the cursor is stuck. */
+const MAX_STANDINGS_PAGES = 200;
 
 export interface PlayloltcgDeepFetchResult {
   activityShopId: number;
   requests: number;
   players: number;
   decks: number;
+  /** Deck requests spent, which is what the run's budget is measured in. */
+  deckRequests: number;
+  /**
+   * Decks the run's budget could not reach. Above zero, the caller holds the
+   * ladder and comes back soon instead of decaying to the next rung.
+   */
+  decksRemaining: number;
   acceptedPlayers: number;
   skippedPlayers: number;
   /** The shop id the detail exposed, so the run can report the link it made. */
@@ -109,7 +123,12 @@ export async function readPlayloltcgDetail(
 }
 
 /**
- * The whole standings table.
+ * The whole standings table, walked by rank.
+ *
+ * A short page is the end of the field, so the common event costs exactly one
+ * request. A full page is followed until the cursor stops moving, because the
+ * source will not say how many rows it holds and counting the page as the
+ * total is how this walk used to cut every large field off at its first page.
  *
  * @returns Every row, or null when any page failed. A partial table must never
  *   reach the ingest: it replaces the event's staged players wholesale, so the
@@ -121,35 +140,48 @@ async function readStandings(
   errors: string[],
 ): Promise<Record<string, unknown>[] | null> {
   const rows: Record<string, unknown>[] = [];
-  let page = 1;
+  let cursor: number | null = null;
   for (let guard = 0; guard < MAX_STANDINGS_PAGES; guard++) {
     let body;
     try {
       body = await deps.client.postList<Record<string, unknown>>(
         "/xcx/activityUser/pageForActivityDetail",
-        { pageNum: page, pageSize: STANDINGS_PAGE_SIZE, activityShopId, startFinalRanking: null },
+        { pageNum: 1, pageSize: STANDINGS_PAGE_SIZE, activityShopId, startFinalRanking: cursor },
       );
     } catch (error) {
       rethrowIfBlocked(error);
-      errors.push(`Event ${activityShopId} standings page ${page}: ${failure(error)}`);
+      errors.push(`Event ${activityShopId} standings after rank ${cursor ?? 0}: ${failure(error)}`);
       return null;
     }
     rows.push(...body.items);
-    if (body.items.length < STANDINGS_PAGE_SIZE || rows.length >= body.total) {
+    if (body.items.length < STANDINGS_PAGE_SIZE) {
       return rows;
     }
-    page++;
+    const last = num(body.items.at(-1)?.finalRanking);
+    if (last === null || (cursor !== null && last <= cursor)) {
+      errors.push(`Event ${activityShopId} standings stopped advancing at rank ${cursor ?? 0}.`);
+      return null;
+    }
+    cursor = last;
   }
   errors.push(`Event ${activityShopId} standings exceeded ${MAX_STANDINGS_PAGES} pages.`);
   return null;
 }
 
-/** One deck body, or null when it failed so the id stays fetchable next pass. */
+/** Nothing is recorded: the failure looked transient, so the id stays fetchable. */
+const SKIPPED = Symbol("deck skipped");
+
+/**
+ * One deck body, or what its failure means for the mirror: an answered refusal
+ * is recorded as `refused` so the id is never requested again, while a
+ * transient failure (the client's own retries already spent) records nothing
+ * and is tried on the next pass.
+ */
 async function readDeck(
   deps: PlayloltcgSyncDeps,
   cardGroupId: string,
   errors: string[],
-): Promise<Record<string, unknown>[] | null> {
+): Promise<Record<string, unknown>[] | null | typeof SKIPPED> {
   try {
     const body = await deps.client.postList<Record<string, unknown>>(
       "/xcx/cardGroup/getActivityCardGroupCardListImage",
@@ -159,15 +191,31 @@ async function readDeck(
   } catch (error) {
     rethrowIfBlocked(error);
     errors.push(`Deck ${cardGroupId}: ${failure(error)}`);
-    return null;
+    return error instanceof PlayloltcgRefusedError ? null : SKIPPED;
   }
+}
+
+/** What one pass of deck reads got through, and what it left. */
+interface PlayloltcgDeckFetch {
+  /** Bodies the source served this pass, by source deck id. */
+  bodies: Map<string, Record<string, unknown>[]>;
+  /** Ids the source answered with a refusal or with nothing. */
+  refused: string[];
+  /** Deck requests spent, so the run can hold the rest of its batch to budget. */
+  requests: number;
+  /** Ids still owed once the budget ran out. */
+  remaining: number;
 }
 
 /**
  * The deck bodies for one event, the stored ones reused. Decks are locked once
  * an event runs, so a body already held is never requested again and each pass
- * only closes the gap, capped. A field wider than the cap leaves the rest for
- * the next ladder visit, which is what the error line announces.
+ * only closes the gap.
+ *
+ * The budget is the run's, not the event's: one huge field spends what is left
+ * and the recheck comes straight back for the rest rather than advancing the
+ * decaying ladder, so a field of any size is finished within hours instead of
+ * being abandoned when the ladder runs out.
  *
  * Missing is derived from the standings just read, not the mirror's previous
  * pass: on a first visit the mirror holds no standings yet, and reading the
@@ -178,27 +226,35 @@ async function fetchDecks(
   activityShopId: number,
   standings: readonly Record<string, unknown>[],
   held: ReadonlySet<string>,
+  budget: number,
   errors: string[],
-): Promise<Record<string, unknown>> {
-  const decks: Record<string, unknown> = {};
+): Promise<PlayloltcgDeckFetch> {
   const missing = referencedDeckIds(standings).filter((id) => !held.has(id));
-  if (missing.length > MAX_DECK_FETCHES) {
+  const wanted = missing.slice(0, Math.max(budget, 0));
+  if (wanted.length < missing.length) {
     errors.push(
-      `Event ${activityShopId} is missing ${missing.length} decks; read the first ${MAX_DECK_FETCHES}, the rest follow on the next recheck.`,
+      `Event ${activityShopId} is missing ${missing.length} decks; read ${wanted.length} within this run's budget, the rest follow shortly.`,
     );
   }
-  for (const id of missing.slice(0, MAX_DECK_FETCHES)) {
+  const bodies = new Map<string, Record<string, unknown>[]>();
+  const refused: string[] = [];
+  for (const id of wanted) {
     const body = await readDeck(deps, id, errors);
-    if (body !== null) {
-      decks[id] = body;
+    if (body === SKIPPED) {
+      continue;
     }
+    if (body === null || body.length === 0) {
+      refused.push(id);
+      continue;
+    }
+    bodies.set(id, body);
   }
-  return decks;
-}
-
-function deckCards(decks: Record<string, unknown>, cardGroupId: number): unknown[] {
-  const body = decks[String(cardGroupId)];
-  return Array.isArray(body) ? body : [];
+  return {
+    bodies,
+    refused,
+    requests: wanted.length,
+    remaining: missing.length - wanted.length,
+  };
 }
 
 function num(value: unknown): number | null {
@@ -281,6 +337,7 @@ export async function playloltcgDeepFetch(
   deps: PlayloltcgSyncDeps,
   row: PlayloltcgListRow,
   detail: PlayloltcgDetailFacts,
+  deckBudget: number,
 ): Promise<PlayloltcgDeepFetchResult> {
   const before = deps.client.requests;
   const errors: string[] = [];
@@ -302,6 +359,8 @@ export async function playloltcgDeepFetch(
       requests: deps.client.requests - before,
       players: 0,
       decks: 0,
+      deckRequests: 0,
+      decksRemaining: 0,
       acceptedPlayers: 0,
       skippedPlayers: 0,
       shopId: detail.shopId,
@@ -311,19 +370,36 @@ export async function playloltcgDeepFetch(
     };
   }
 
-  const deckBodies = await fetchDecks(deps, activityShopId, standings, held, errors);
+  const fetched = await fetchDecks(deps, activityShopId, standings, held, deckBudget, errors);
   // Lines the mirror already holds, so a row whose deck was fetched on an
   // earlier pass keeps its legend instead of losing it to an empty body.
   const heldLines = await deps.repos.playloltcgResults.decklistCards(activityShopId);
-  // Every card the held bodies name, resolved through the bridge in one lookup
-  // so the per-deck loop below is pure.
-  const shortCodes = Object.values(deckBodies)
-    .flatMap((body) => (Array.isArray(body) ? body : []))
+  // Every card the served bodies name, resolved through the bridge in one
+  // lookup so the per-deck loop below is pure.
+  const shortCodes = [...fetched.bodies.values()]
+    .flat()
     .map((card) => normalizeCardNo((record(card) ?? {}).cardNo))
     .filter((code): code is string => code !== null);
   const bridge = await deps.repos.playloltcgEvents.cardsByShortCode(shortCodes);
 
-  let decks = 0;
+  const freshLines = new Map<string, PlayloltcgDeckLine[]>();
+  for (const [sourceDeckId, body] of fetched.bodies) {
+    const lines = projectPlayloltcgDeckLines(body, bridge);
+    freshLines.set(sourceDeckId, lines);
+    await deps.repos.playloltcgResults.putDecklist(
+      { sourceDeckId, activityShopId, fetchStatus: "fetched", fetchedAt: clock(deps) },
+      lines,
+    );
+  }
+  // Recorded with no lines rather than left out, which is what stops the next
+  // pass asking again and spending the budget on an answer that will not change.
+  for (const sourceDeckId of fetched.refused) {
+    await deps.repos.playloltcgResults.putDecklist(
+      { sourceDeckId, activityShopId, fetchStatus: "refused", fetchedAt: clock(deps) },
+      [],
+    );
+  }
+
   const seenNames = new Map<string, number>();
   const rows: Insertable<PlayloltcgEventStandingsTable>[] = [];
   for (const s of standings) {
@@ -335,23 +411,10 @@ export async function playloltcgDeepFetch(
     const playerName = rawName.slice(0, 80);
     const cardGroupId = num(s.cardGroupId) ?? 0;
     const sourceDeckId = cardGroupId > 0 ? String(cardGroupId) : null;
-    const body = sourceDeckId === null ? [] : deckCards(deckBodies, cardGroupId);
-    let lines: PlayloltcgDeckLine[] = [];
-    if (body.length > 0) {
-      decks++;
-      lines = projectPlayloltcgDeckLines(body, bridge);
-      await deps.repos.playloltcgResults.putDecklist(
-        {
-          sourceDeckId: sourceDeckId as string,
-          activityShopId,
-          fetchStatus: "fetched",
-          fetchedAt: clock(deps),
-        },
-        lines,
-      );
-    } else if (sourceDeckId !== null) {
-      lines = heldLines.get(sourceDeckId) ?? [];
-    }
+    const lines: readonly { zone: string; cardName: string }[] =
+      sourceDeckId === null
+        ? []
+        : (freshLines.get(sourceDeckId) ?? heldLines.get(sourceDeckId) ?? []);
     const userId = num(s.userId);
     rows.push({
       activityShopId,
@@ -376,7 +439,9 @@ export async function playloltcgDeepFetch(
     activityShopId,
     requests: deps.client.requests - before,
     players: rows.length,
-    decks,
+    decks: fetched.bodies.size,
+    deckRequests: fetched.requests,
+    decksRemaining: fetched.remaining,
     acceptedPlayers: 0,
     skippedPlayers: 0,
     shopId: detail.shopId,

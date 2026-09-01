@@ -8,6 +8,7 @@
 - feat(App): **Roadmap brought up to date** — the Discord bot, tournament results archive, streamer tools, deck variants, and Swiss and 2v2 events are marked shipped, and the page now says how to influence what comes next.
 - feat(App): **Why OpenRift, in prose** — the help article now tells the story without the dated feature comparison table, and points to the feature tour instead.
 - fix(Meta): **Large events stopped updating** — an event with a few thousand pairings failed to archive its round-by-round results, which also stalled the import for every event queued behind it.
+- fix(Meta): **Big events missing players and decks** — events from the Chinese source were archived with only the first 1,000 finishers and 400 decklists, and now bring in the whole field however large it is.
 - fix(Meta): **Decklists that repeat a card** — a list naming the same card on several lines now archives with the quantities added up, instead of failing and leaving the event without its decks.
 - fix(App): **Readable error messages** — a request that times out at the gateway now explains itself instead of showing the server's raw error page.
 

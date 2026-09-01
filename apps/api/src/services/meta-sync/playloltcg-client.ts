@@ -13,7 +13,13 @@ import { metaSyncUserAgent } from "./user-agent.js";
  * cool-down passes.
  */
 
-/** The list endpoints' safe ceiling: bigger pages return empty. One call per list. */
+/**
+ * The list endpoints' safe page ceiling: bigger pages return empty.
+ *
+ * It is also, on the event listing, the number of rows one query can ever
+ * reach however it is paged, so a full page there means the window was cut
+ * short rather than exhausted.
+ */
 export const MAX_PAGE_SIZE = 10_000;
 
 /** Minimum spacing between two request starts. */
@@ -36,13 +42,29 @@ export class PlayloltcgBlockedError extends Error {
   }
 }
 
+/**
+ * Thrown when the source answered and said no: a 4xx, or its own non-zero
+ * envelope code. Asking again cannot change the answer, which is what lets a
+ * deck fetch record the id as refused instead of retrying it every pass.
+ */
+export class PlayloltcgRefusedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PlayloltcgRefusedError";
+  }
+}
+
 type PlayloltcgBody = Record<string, unknown>;
 
 /** A list response, normalized across the source's two shapes. */
 export interface PlayloltcgList<T> {
   items: T[];
-  /** The source's own total when it gives one, else the item count. */
-  total: number;
+  /**
+   * The source's own total, or null when it answered with a bare array. The
+   * page's own length is not a total, and standing one in for a missing one is
+   * what silently truncated every bare-array listing at its first page.
+   */
+  total: number | null;
 }
 
 export interface PlayloltcgClientOptions {
@@ -92,21 +114,23 @@ async function settled(promise: Promise<unknown>): Promise<void> {
 function unwrap(body: unknown, url: string): unknown {
   const row = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
   if (typeof row.code === "number" && row.code !== 0) {
-    throw new Error(`playloltcg code ${row.code} for ${url}: ${String(row.message ?? "")}`);
+    throw new PlayloltcgRefusedError(
+      `playloltcg code ${row.code} for ${url}: ${String(row.message ?? "")}`,
+    );
   }
   return row.result;
 }
 
 function asList<T>(result: unknown): PlayloltcgList<T> {
   if (Array.isArray(result)) {
-    return { items: result as T[], total: result.length };
+    return { items: result as T[], total: null };
   }
   const row = (typeof result === "object" && result !== null ? result : {}) as Record<
     string,
     unknown
   >;
   const items = Array.isArray(row.list) ? (row.list as T[]) : [];
-  const total = typeof row.total === "number" ? row.total : items.length;
+  const total = typeof row.total === "number" ? row.total : null;
   return { items, total };
 }
 
@@ -190,9 +214,11 @@ export function createPlayloltcgClient(options: PlayloltcgClientOptions): Playlo
         return { error: new Error(`WAF block for ${url}`), retryable: false, waf: true };
       }
       if (!response.ok) {
+        const retryable = isRetryableStatus(response.status);
+        const message = `HTTP ${response.status} for ${url}: ${text.slice(0, 200)}`;
         return {
-          error: new Error(`HTTP ${response.status} for ${url}: ${text.slice(0, 200)}`),
-          retryable: isRetryableStatus(response.status),
+          error: retryable ? new Error(message) : new PlayloltcgRefusedError(message),
+          retryable,
           waf: false,
         };
       }

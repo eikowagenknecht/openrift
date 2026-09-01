@@ -28,6 +28,8 @@ vi.mock("./playloltcg-deep-fetch.js", () => ({
       requests: 0,
       players: 8,
       decks: 0,
+      deckRequests: 0,
+      decksRemaining: 0,
       acceptedPlayers: 0,
       skippedPlayers: 0,
       shopId: null,
@@ -107,8 +109,10 @@ function dueRow(overrides: Partial<PlayloltcgListRow> = {}): PlayloltcgListRow {
 }
 
 function fakeDeps(options: {
-  /** Pages keyed by `startTime`, in order. A missing window answers one empty page. */
-  pages?: Record<string, { items: unknown[]; total: number }[]>;
+  /** The rows one window answers with, keyed `start..end`. A window with no entry answers empty. */
+  rows?: Record<string, unknown[]>;
+  /** Every window overflows, however narrow: a source that will not be split. */
+  overflowing?: boolean;
   blockOn?: string;
   due?: PlayloltcgListRow[];
   /** Deck ids the mirror still owes, which is what holds the ladder open. */
@@ -123,23 +127,25 @@ function fakeDeps(options: {
   const windows: WindowRequest[] = [];
   const missing: MissingCall[] = [];
   const rechecks: RecheckWrite[] = [];
-  const seen = new Map<string, number>();
 
   const client = {
     requests: 0,
     postList: <T>(path: string, body: Record<string, unknown>): Promise<PlayloltcgList<T>> => {
       if (path === SHOPS_PATH) {
-        return Promise.resolve({ items: [] as T[], total: 0 });
+        return Promise.resolve({ items: [] as T[], total: null });
       }
       const startTime = String(body.startTime);
-      windows.push({ startTime, endTime: String(body.endTime), pageNum: Number(body.pageNum) });
+      const endTime = String(body.endTime);
+      windows.push({ startTime, endTime, pageNum: Number(body.pageNum) });
       if (options.blockOn === startTime) {
         return Promise.reject(new PlayloltcgBlockedError(path));
       }
-      const index = seen.get(startTime) ?? 0;
-      seen.set(startTime, index + 1);
-      const page = options.pages?.[startTime]?.[index] ?? { items: [], total: 0 };
-      return Promise.resolve({ items: page.items as T[], total: page.total });
+      const items = options.overflowing
+        ? FULL_PAGE
+        : (options.rows?.[`${startTime}..${endTime}`] ?? []);
+      // The source never reports a total for these listings, which is exactly
+      // what makes a full page ambiguous and the split necessary.
+      return Promise.resolve({ items: items as T[], total: null });
     },
   } as unknown as PlayloltcgClient;
 
@@ -206,23 +212,33 @@ describe("syncPlayloltcgCatalog", () => {
     expect(missing).toEqual([]);
   });
 
-  it("does not flag rows missing on a run that could not read the whole window", async () => {
-    // Every page comes back full, so the crawl hits its page ceiling with the
-    // window unfinished.
-    const { deps, missing } = fakeDeps({
-      pages: {
-        "2026-08-23": Array.from({ length: 120 }, () => ({
-          items: FULL_PAGE,
-          total: MAX_PAGE_SIZE * 200,
-        })),
-      },
+  it("splits an overflowing window instead of accepting its first page as the whole of it", async () => {
+    const { deps, windows } = fakeDeps({
+      rows: { "2026-08-23..2028-08-29": FULL_PAGE },
     });
+
+    const result = await syncPlayloltcgCatalog(deps);
+
+    // The wide window overflowed, so its two halves were asked for separately
+    // and both fit, which is the only way past the source's result ceiling.
+    expect(windows.map((entry) => `${entry.startTime}..${entry.endTime}`)).toEqual([
+      "2026-08-23..2028-08-29",
+      "2026-08-23..2027-08-26",
+      "2027-08-27..2028-08-29",
+    ]);
+    expect(result.complete).toBe(true);
+  });
+
+  it("does not flag rows missing on a run that could not read the whole window", async () => {
+    // Even a single day overflows, so there is nothing left to narrow and the
+    // crawl has to admit the gap.
+    const { deps, missing } = fakeDeps({ overflowing: true });
 
     const result = await syncPlayloltcgCatalog(deps);
 
     expect(result.complete).toBe(false);
     expect(missing).toEqual([]);
-    expect(result.errors[0]).toContain("exceeded 100 pages");
+    expect(result.errors[0]).toContain("all the source will give for one query");
   });
 
   it("caps the errors one run collects", async () => {
@@ -239,23 +255,22 @@ describe("syncPlayloltcgCatalog", () => {
 });
 
 describe("backfillPlayloltcg", () => {
-  it("follows a window past its first page instead of stopping on the run's row count", async () => {
+  it("narrows only the chunk that overflowed, leaving the others one request each", async () => {
     const { deps, windows } = fakeDeps({
-      pages: {
-        // A first chunk that fills one page exactly, so the run's cumulative row
-        // count already exceeds the next chunk's total.
-        "2025-06-01": [{ items: FULL_PAGE, total: MAX_PAGE_SIZE }],
-        "2025-06-15": [
-          { items: FULL_PAGE, total: MAX_PAGE_SIZE + 5 },
-          { items: [{ activityShopId: 1, name: "尾页" }], total: MAX_PAGE_SIZE + 5 },
-        ],
-      },
+      rows: { "2025-06-15..2025-06-28": FULL_PAGE },
     });
 
     await backfillPlayloltcg(deps);
 
-    const secondChunk = windows.filter((entry) => entry.startTime === "2025-06-15");
-    expect(secondChunk.map((entry) => entry.pageNum)).toEqual([1, 2]);
+    const june = windows.filter((entry) => entry.startTime.startsWith("2025-06"));
+    expect(june.map((entry) => `${entry.startTime}..${entry.endTime}`)).toEqual([
+      // The chunks either side fit, so they cost one call each.
+      "2025-06-01..2025-06-14",
+      "2025-06-15..2025-06-28",
+      "2025-06-15..2025-06-21",
+      "2025-06-22..2025-06-28",
+      "2025-06-29..2025-07-12",
+    ]);
   });
 });
 
@@ -290,12 +305,14 @@ describe("processPlayloltcgRechecks", () => {
       requests: 1,
       players: 0,
       decks: 0,
+      deckRequests: 0,
+      decksRemaining: 0,
       acceptedPlayers: 0,
       skippedPlayers: 0,
       shopId: null,
       publishedResults: true,
       complete: false,
-      errors: ["Event 109991 standings page 2: HTTP 502"],
+      errors: ["Event 109991 standings after rank 1000: HTTP 502"],
     });
     const { deps, rechecks } = fakeDeps({ due: [dueRow({ checkStage: 2 })] });
 
@@ -329,6 +346,62 @@ describe("processPlayloltcgRechecks", () => {
 
     expect(result.fetched).toBe(0);
     expect(result.processed).toBe(1);
+  });
+
+  it("comes straight back for an event whose decks outran the run's budget", async () => {
+    vi.mocked(playloltcgDeepFetch).mockResolvedValueOnce({
+      activityShopId: 109_991,
+      requests: 601,
+      players: 3283,
+      decks: 600,
+      deckRequests: 600,
+      decksRemaining: 2683,
+      acceptedPlayers: 3283,
+      skippedPlayers: 0,
+      shopId: null,
+      publishedResults: true,
+      complete: true,
+      errors: [],
+    });
+    const { deps, rechecks } = fakeDeps({
+      due: [dueRow({ checkStage: 1, fetchedAt: NOW })],
+      outstandingDecks: ["5"],
+    });
+
+    const result = await processPlayloltcgRechecks(deps);
+
+    // The ladder's next rung is days out, and taking it here is what used to
+    // abandon the rest of a large field.
+    expect(rechecks).toEqual([
+      { activityShopId: 109_991, nextCheckAt: new Date(NOW.getTime() + 60_000), checkStage: 1 },
+    ]);
+    expect(result.processed).toBe(1);
+    expect(result.decks).toBe(600);
+  });
+
+  it("leaves the rest of the batch to the next run once the budget is spent", async () => {
+    vi.mocked(playloltcgDeepFetch).mockResolvedValueOnce({
+      activityShopId: 109_991,
+      requests: 601,
+      players: 900,
+      decks: 600,
+      deckRequests: 600,
+      decksRemaining: 0,
+      acceptedPlayers: 900,
+      skippedPlayers: 0,
+      shopId: null,
+      publishedResults: true,
+      complete: true,
+      errors: [],
+    });
+    const { deps } = fakeDeps({
+      due: [dueRow(), dueRow({ activityShopId: 109_992 })],
+    });
+
+    const result = await processPlayloltcgRechecks(deps);
+
+    expect(result.due).toBe(2);
+    expect(result.fetched).toBe(1);
   });
 
   it("reports the same cool-down instant the catalogue sync does", async () => {

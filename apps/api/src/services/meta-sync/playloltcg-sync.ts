@@ -47,6 +47,34 @@ const MAX_ERRORS = 50;
 
 export const PLAYLOLTCG_RECHECK_BATCH_SIZE = 30;
 
+/**
+ * Deck bodies one recheck run may read, shared across its whole batch.
+ *
+ * There is no per-event cap: an event owes every deck its field submitted, and
+ * the ladder that was meant to collect the overflow retires after its last rung,
+ * so a cap silently abandoned the tail of any large field. The budget bounds the
+ * run instead, and an event that outruns it resumes on the next run rather than
+ * decaying, so a field of any size is finished whatever the budget is.
+ *
+ * It is not what sets the pace. The client spaces requests ~500ms apart, so this
+ * is about five minutes of fetching against a recheck cron measured in tens of
+ * minutes: what the number really picks is how much of each interval the source
+ * spends under load. Raising it buys catch-up speed by holding the source busy
+ * for more of the time, which is a trade against a WAF that answers bursts with
+ * hours of refusal, not free throughput.
+ */
+export const PLAYLOLTCG_DECK_BUDGET = 600;
+
+/**
+ * How soon a run returns to an event whose decks outran the budget.
+ *
+ * Short on purpose: it means "the next run", since anything longer than the cron
+ * interval wastes a tick. It cannot starve the rest of the queue, because a row
+ * that is genuinely due carries a `next_check_at` in the past and so still sorts
+ * ahead of this one.
+ */
+const DECK_CONTINUE_MS = 60 * 1000;
+
 export interface PlayloltcgSyncResult extends MetaSyncResultBase {
   /** Registry shops upserted this run. */
   shops: number;
@@ -76,6 +104,8 @@ export interface PlayloltcgRecheckResult {
   requests: number;
   fetched: number;
   players: number;
+  /** Deck bodies read this run, bounded by {@link PLAYLOLTCG_DECK_BUDGET}. */
+  decks: number;
   acceptedPlayers: number;
   blocked: boolean;
   blockedUntil: string | null;
@@ -130,10 +160,19 @@ function markBlocked(result: PlayloltcgSyncResult, now: Date): void {
   result.blockedUntil = cooldownUntil(now);
 }
 
-/** The page ceiling for one window, at 10k rows a page. */
-const MAX_WINDOW_PAGES = 100;
-
-/** One date-window page walk, upserting each page. Returns the touched keys. */
+/**
+ * One date window, upserted, halved whenever the source cut it short.
+ *
+ * The listing will not return more than {@link MAX_PAGE_SIZE} rows for one
+ * query however it is paged, and it sorts the oldest day last, so a full page
+ * is not the end of the window but the start of a silent gap at its beginning.
+ * Narrowing the dates is the only way to see past that, and it costs a request
+ * only for a window that actually overflowed: a normal one is a single call.
+ *
+ * The overflowing page is still upserted before the split. Its rows are real,
+ * and the source answers a wide window with stragglers outside it that neither
+ * half would ask for.
+ */
 async function crawlWindow(
   deps: PlayloltcgSyncDeps,
   result: PlayloltcgSyncResult,
@@ -142,45 +181,45 @@ async function crawlWindow(
   seenAt: Date,
   touched: number[],
 ): Promise<void> {
-  let page = 1;
-  let read = 0;
-  for (let guard = 0; guard < MAX_WINDOW_PAGES; guard++) {
-    const body = await deps.client.postList<unknown>(EVENTS_PATH, {
-      pageNum: page,
-      pageSize: MAX_PAGE_SIZE,
-      searchContent: "",
-      battleMode: "",
-      isSubmitCardGroup: "",
-      sortWeight: "",
-      userLocation: {},
-      startTime: day(from),
-      endTime: day(to),
-    });
-    read += body.items.length;
-    result.rows += body.items.length;
-    const projections: PlayloltcgUpsertInput[] = [];
-    for (const raw of body.items) {
-      const projection = projectEventRow(raw);
-      if (projection !== null) {
-        projections.push(projection);
-      }
+  const body = await deps.client.postList<unknown>(EVENTS_PATH, {
+    pageNum: 1,
+    pageSize: MAX_PAGE_SIZE,
+    searchContent: "",
+    battleMode: "",
+    isSubmitCardGroup: "",
+    sortWeight: "",
+    userLocation: {},
+    startTime: day(from),
+    endTime: day(to),
+  });
+  result.rows += body.items.length;
+  const projections: PlayloltcgUpsertInput[] = [];
+  for (const raw of body.items) {
+    const projection = projectEventRow(raw);
+    if (projection !== null) {
+      projections.push(projection);
     }
-    const written = await deps.repos.playloltcgEvents.upsertBatch(projections, seenAt);
-    result.inserted += written.inserted.length;
-    result.changed += written.changed.length;
-    result.unchanged += written.unchanged.length;
-    touched.push(...written.inserted, ...written.changed);
-    // Against this window's own total, never the run's cumulative row count:
-    // a second window would otherwise stop after its first page.
-    if (body.items.length < MAX_PAGE_SIZE || read >= body.total) {
-      return;
-    }
-    page++;
   }
-  result.complete = false;
-  record(result.errors, [
-    `Window ${day(from)}..${day(to)} exceeded ${MAX_WINDOW_PAGES} pages; the rest was not read.`,
-  ]);
+  const written = await deps.repos.playloltcgEvents.upsertBatch(projections, seenAt);
+  result.inserted += written.inserted.length;
+  result.changed += written.changed.length;
+  result.unchanged += written.unchanged.length;
+  touched.push(...written.inserted, ...written.changed);
+
+  if (body.items.length < MAX_PAGE_SIZE) {
+    return;
+  }
+  const days = Math.round((to.getTime() - from.getTime()) / DAY_MS);
+  if (days < 1) {
+    result.complete = false;
+    record(result.errors, [
+      `${day(from)} alone returned ${MAX_PAGE_SIZE} rows, which is all the source will give for one query, so part of that day was not read.`,
+    ]);
+    return;
+  }
+  const mid = shift(from, Math.floor(days / 2));
+  await crawlWindow(deps, result, from, mid, seenAt, touched);
+  await crawlWindow(deps, result, shift(mid, 1), to, seenAt, touched);
 }
 
 /** Refreshes the store directory from the registry — one call for all ~1,515. */
@@ -194,6 +233,12 @@ async function syncShops(deps: PlayloltcgSyncDeps, result: PlayloltcgSyncResult)
   });
   const shops = body.items.map((raw) => projectShopRow(raw)).filter((s) => s !== null);
   result.shops = await deps.repos.playloltcgEvents.upsertShops(shops);
+  if (body.items.length >= MAX_PAGE_SIZE) {
+    result.complete = false;
+    record(result.errors, [
+      `The store registry filled a ${MAX_PAGE_SIZE}-row page, so it is no longer one call and the directory is incomplete.`,
+    ]);
+  }
 }
 
 async function finish(
@@ -261,6 +306,23 @@ async function grace(
   });
 }
 
+/**
+ * The same hold for a pass that succeeded but ran out of budget. The ladder
+ * must not advance here: its rungs reach 90 days, and decaying an event that
+ * still owes decks is what left large fields permanently short.
+ */
+async function resumeSoon(
+  deps: PlayloltcgSyncDeps,
+  activityShopId: number,
+  now: Date,
+  checkStage: number,
+): Promise<void> {
+  await deps.repos.playloltcgEvents.setRecheck(activityShopId, {
+    nextCheckAt: new Date(now.getTime() + DECK_CONTINUE_MS),
+    checkStage,
+  });
+}
+
 /** The source's lifecycle read in the shared ladder's vocabulary. */
 function displayStatusOf(detail: PlayloltcgDetailFacts, status: number | null): string {
   if (detail.isPublishResult) {
@@ -290,6 +352,7 @@ export async function processPlayloltcgRechecks(
     requests: 0,
     fetched: 0,
     players: 0,
+    decks: 0,
     acceptedPlayers: 0,
     blocked: false,
     blockedUntil: null,
@@ -298,9 +361,15 @@ export async function processPlayloltcgRechecks(
   const due = await deps.repos.playloltcgEvents.dueForRecheck(now, limit);
   result.due = due.length;
 
+  let deckBudget = PLAYLOLTCG_DECK_BUDGET;
   try {
     for (const row of due) {
-      await visitContained(deps, row, now, result);
+      deckBudget -= await visitContained(deps, row, now, result, deckBudget);
+      // The rest of the batch is still due, so the next run picks it up with a
+      // fresh budget rather than reading standings it could not act on anyway.
+      if (deckBudget <= 0) {
+        break;
+      }
     }
   } catch (error) {
     if (error instanceof PlayloltcgBlockedError) {
@@ -326,9 +395,10 @@ async function visitContained(
   row: PlayloltcgListRow,
   now: Date,
   result: PlayloltcgRecheckResult,
-): Promise<void> {
+  deckBudget: number,
+): Promise<number> {
   try {
-    await visitPlayloltcgEvent(deps, row, now, result);
+    return await visitPlayloltcgEvent(deps, row, now, result, deckBudget);
   } catch (error) {
     if (error instanceof PlayloltcgBlockedError) {
       throw error;
@@ -336,21 +406,24 @@ async function visitContained(
     deps.log.warn({ err: error, activityShopId: row.activityShopId }, "Recheck visit failed");
     result.errors.push(errorText(error, `Event ${row.activityShopId}`));
     await grace(deps, row.activityShopId, now, row.checkStage);
+    return 0;
   }
 }
 
+/** @returns The deck requests this visit spent, which the run deducts from its budget. */
 async function visitPlayloltcgEvent(
   deps: PlayloltcgSyncDeps,
   row: PlayloltcgListRow,
   now: Date,
   result: PlayloltcgRecheckResult,
-): Promise<void> {
+  deckBudget: number,
+): Promise<number> {
   const detailErrors: string[] = [];
   const detail = await readPlayloltcgDetail(deps, row.activityShopId, detailErrors);
   record(result.errors, detailErrors);
   if (detail === null) {
     await grace(deps, row.activityShopId, now, row.checkStage);
-    return;
+    return 0;
   }
   if (detail.shopId !== null) {
     await deps.repos.playloltcgEvents.linkShopFromDetail(row.activityShopId, {
@@ -374,22 +447,33 @@ async function visitPlayloltcgEvent(
     playersPending: false,
     watched: false,
   });
-  if (decision.deepFetch) {
-    const fetched = await playloltcgDeepFetch(deps, row, detail);
-    result.fetched++;
-    result.players += fetched.players;
-    result.acceptedPlayers += fetched.acceptedPlayers;
-    record(result.errors, fetched.errors);
-    if (!fetched.complete) {
-      await grace(deps, row.activityShopId, now, row.checkStage);
-      return;
-    }
+  const advance = () =>
+    deps.repos.playloltcgEvents.setRecheck(row.activityShopId, {
+      nextCheckAt: decision.nextCheckAt,
+      checkStage: decision.checkStage,
+    });
+
+  if (!decision.deepFetch) {
+    await advance();
+    result.processed++;
+    return 0;
   }
-  await deps.repos.playloltcgEvents.setRecheck(row.activityShopId, {
-    nextCheckAt: decision.nextCheckAt,
-    checkStage: decision.checkStage,
-  });
+
+  const fetched = await playloltcgDeepFetch(deps, row, detail, deckBudget);
+  result.fetched++;
+  result.players += fetched.players;
+  result.decks += fetched.decks;
+  result.acceptedPlayers += fetched.acceptedPlayers;
+  record(result.errors, fetched.errors);
+  if (!fetched.complete) {
+    await grace(deps, row.activityShopId, now, row.checkStage);
+    return fetched.deckRequests;
+  }
+  await (fetched.decksRemaining > 0
+    ? resumeSoon(deps, row.activityShopId, now, row.checkStage)
+    : advance());
   result.processed++;
+  return fetched.deckRequests;
 }
 
 /**
@@ -415,6 +499,8 @@ export async function fetchPlayloltcgEvent(
       requests: deps.client.requests,
       players: 0,
       decks: 0,
+      deckRequests: 0,
+      decksRemaining: 0,
       acceptedPlayers: 0,
       skippedPlayers: 0,
       shopId: null,
@@ -423,7 +509,9 @@ export async function fetchPlayloltcgEvent(
       errors,
     };
   }
-  const result = await playloltcgDeepFetch(deps, row, detail);
+  // No budget: a manual pull runs as a background job the panel tracks, and
+  // stopping it partway would answer "what does the source hold" with half of it.
+  const result = await playloltcgDeepFetch(deps, row, detail, Number.POSITIVE_INFINITY);
   return { ...result, errors: [...errors, ...result.errors] };
 }
 

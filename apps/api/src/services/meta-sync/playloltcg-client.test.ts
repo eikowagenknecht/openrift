@@ -50,11 +50,13 @@ describe("createPlayloltcgClient", () => {
     expect(JSON.parse(String(init?.body))).toEqual({ pageNum: 1, pageSize: 2 });
   });
 
-  it("normalizes a bare-array result", async () => {
+  it("reports no total for a bare-array result rather than counting the page", async () => {
     const { client } = harness([() => json({ code: 0, result: [{ id: 1 }, { id: 2 }] })]);
     const list = await client.postList<{ id: number }>("/xcx/shop/searchShop", {});
     expect(list.items).toHaveLength(2);
-    expect(list.total).toBe(2);
+    // Standing the page's own length in for a missing total reads as "that was
+    // all of it", which is how a full page used to end a walk mid-listing.
+    expect(list.total).toBeNull();
   });
 
   it("normalizes a {list,total} result", async () => {
