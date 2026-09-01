@@ -160,6 +160,18 @@ export interface UvsgamesTemplateInput {
 /** The one row `meta_sync_settings` is CHECKed down to. */
 const SETTINGS_ID = 1;
 
+// The auto-accept sweep looks up every key a whole backfill touched, one bind
+// parameter each, so the list outgrows postgres's 65534 ceiling on a long run.
+const BATCH_SIZE = 1000;
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    batches.push(items.slice(i, i + size));
+  }
+  return batches;
+}
+
 const CATALOG_ORDER_COLUMNS = {
   startAt: sql`c.start_at`,
   name: sql`lower(c.name)`,
@@ -507,20 +519,22 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
 
     /** Rows whose triage state may have moved, for the auto-accept sweep. */
     async unacceptedByKeys(externalIds: string[]): Promise<UvsgamesListRow[]> {
-      if (externalIds.length === 0) {
-        return [];
+      const rows: UvsgamesListRow[] = [];
+      for (const batch of chunk(externalIds, BATCH_SIZE)) {
+        rows.push(
+          ...(await triagedQuery()
+            .selectAll("c")
+            .select([
+              triage.as("triage"),
+              "src.metaEventId as metaEventId",
+              "me.slug as metaEventSlug",
+              ...joinedColumns,
+            ])
+            .where("c.externalId", "in", batch)
+            .where(isNew)
+            .execute()),
+        );
       }
-      const rows = await triagedQuery()
-        .selectAll("c")
-        .select([
-          triage.as("triage"),
-          "src.metaEventId as metaEventId",
-          "me.slug as metaEventSlug",
-          ...joinedColumns,
-        ])
-        .where("c.externalId", "in", externalIds)
-        .where(isNew)
-        .execute();
       return rows;
     },
 

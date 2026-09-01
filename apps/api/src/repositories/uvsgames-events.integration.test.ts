@@ -250,6 +250,19 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     expect(unaccepted.map((entry) => entry.externalId)).not.toContain("mtc-out");
   });
 
+  it("looks up more keys than one id list can bind", async () => {
+    // The auto-accept sweep is handed every key the run touched, one bind
+    // parameter each, so a long backfill overruns postgres's 65534 ceiling.
+    const keys = [
+      "mtc-new",
+      ...Array.from({ length: 70_000 }, (_entry, index) => `mtc-absent-${index}`),
+    ];
+
+    const unaccepted = await repo().unacceptedByKeys(keys);
+
+    expect(unaccepted.map((entry) => entry.externalId)).toContain("mtc-new");
+  });
+
   it("filters and pages the triage list", async () => {
     const filtered = await repo().list(
       { search: "Regional", triage: "new" },
