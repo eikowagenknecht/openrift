@@ -62,7 +62,7 @@ export const ERA_CUSTOM = "custom";
  * current set standing in for an absent `era`; {@link ERA_ALL} is how a reader
  * says all time.
  */
-export const DEFAULT_SCOPE_FORMATS: readonly string[] = ["constructed"];
+const DEFAULT_SCOPE_FORMATS: readonly string[] = ["constructed"];
 
 /** One selectable stretch of archive time: a set's run, from its release to the next one's. */
 export interface MetaEra {
