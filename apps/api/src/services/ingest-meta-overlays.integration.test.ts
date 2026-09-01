@@ -14,6 +14,7 @@ import { ingestMetaOverlays, playerSourceKey } from "./ingest-meta-overlays.js";
 const ctx = createDbContext(crypto.randomUUID());
 
 const PROVIDER = "imopush";
+const BASE_EVENT = "imo-evt-1";
 const createdUserIds: string[] = [];
 const createdCardIds: string[] = [];
 
@@ -77,7 +78,7 @@ function payload(event: Record<string, unknown>): MetaIngestEvent[] {
 
 function eventBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    externalId: "imo-evt-1",
+    externalId: BASE_EVENT,
     name: "IMO Summoner Skirmish",
     eventDate: "2026-08-15",
     format: "constructed",
@@ -109,6 +110,10 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
       .selectFrom("metaEventPlayerOverlays")
       .selectAll()
       .where("provider", "=", PROVIDER)
+      .where("sourcePlayerKey", "in", [
+        playerSourceKey(BASE_EVENT, "p1"),
+        playerSourceKey(BASE_EVENT, "p2"),
+      ])
       .orderBy("sourcePlayerKey", "asc")
       .execute();
   }
@@ -121,7 +126,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
 
     expect(first).toMatchObject({ newEvents: 1, newPlayers: 2, updatedEvents: 0 });
     expect(first.newEventDetails).toEqual([
-      { externalId: "imo-evt-1", name: "IMO Summoner Skirmish" },
+      { externalId: BASE_EVENT, name: "IMO Summoner Skirmish" },
     ]);
     expect(second).toMatchObject({
       newEvents: 0,
@@ -189,6 +194,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
       .selectFrom("metaEventOverlays")
       .selectAll()
       .where("provider", "=", PROVIDER)
+      .where("externalId", "=", BASE_EVENT)
       .execute();
     await repos.metaOverlays.setEventOverlayStatus(existing.id, "accepted", new Date());
 
@@ -196,7 +202,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
 
     expect(result).toMatchObject({ newEvents: 0, updatedEvents: 1, unchangedEvents: 0 });
     expect(result.updatedEventDetails).toEqual([
-      { externalId: "imo-evt-1", name: "IMO Summoner Skirmish" },
+      { externalId: BASE_EVENT, name: "IMO Summoner Skirmish" },
     ]);
     // A producer that changed its mind must not have the old decision stand.
     expect(await repos.metaOverlays.eventOverlayById(existing.id)).toMatchObject({
