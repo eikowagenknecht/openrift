@@ -32,7 +32,6 @@ export interface MetaSubmissionDraft {
   wins: string;
   losses: string;
   draws: string;
-  listStatus: MetaSubmissionCompleteness;
   note: string;
   /** The pasted decklist, in any format the import box accepts. */
   deckText: string;
@@ -54,7 +53,6 @@ export const EMPTY_META_SUBMISSION_DRAFT: MetaSubmissionDraft = {
   wins: "",
   losses: "",
   draws: "",
-  listStatus: "full",
   note: "",
   deckText: "",
   eventName: "",
@@ -89,6 +87,7 @@ export interface MetaSubmissionPrefill {
   deckText?: string;
   /** The legend the archive has this entry on, named so the sender can check it. */
   legendName?: string;
+  legendCardId?: string;
 }
 
 /** Blank for a count nobody published, which is not the same as a zero. */
@@ -118,10 +117,6 @@ export function metaSubmissionDraftFromPrefill(
     losses: countField(prefill.losses),
     draws: countField(prefill.draws),
     deckText: prefill.deckText ?? EMPTY_META_SUBMISSION_DRAFT.deckText,
-    // Someone filling in a list the archive holds part of is, by the time they
-    // send it, holding the whole deck. A correction leaves it alone: the list
-    // it started from already carries the archive's own answer.
-    listStatus: kind === "completion" ? "full" : EMPTY_META_SUBMISSION_DRAFT.listStatus,
   };
 }
 
@@ -173,6 +168,12 @@ export interface MetaSubmissionCardLine {
   quantity: number;
 }
 
+export interface MetaSubmissionZoneCounts {
+  main: number;
+  battlefield: number;
+  runes: number;
+}
+
 /** What one paste turned into, and everything about it worth showing back. */
 export interface MetaSubmissionParsedList {
   /** The lines to send, summed per card and zone. */
@@ -183,6 +184,28 @@ export interface MetaSubmissionParsedList {
   reinterpreted: { source: string; matched: string }[];
   /** Complaints from the format parser itself (bad quantities, stray lines). */
   warnings: string[];
+  zones: MetaSubmissionZoneCounts;
+  legend: { cardId: string; cardName: string } | null;
+  listStatus: MetaSubmissionCompleteness;
+}
+
+/** A list is whole when it names its legend and brings battlefields and runes along. */
+export function metaSubmissionListStatus(
+  zones: MetaSubmissionZoneCounts,
+  legend: MetaSubmissionParsedList["legend"],
+): MetaSubmissionCompleteness {
+  return legend !== null && zones.battlefield > 0 && zones.runes > 0 ? "full" : "partial";
+}
+
+/** False when either side is unknown: nothing to compare is not a mismatch. */
+export function metaSubmissionLegendMismatch(
+  parsed: Pick<MetaSubmissionParsedList, "legend">,
+  rowLegendCardId: string | undefined,
+): boolean {
+  if (parsed.legend === null || rowLegendCardId === undefined) {
+    return false;
+  }
+  return parsed.legend.cardId !== rowLegendCardId;
 }
 
 /**
@@ -243,17 +266,33 @@ export function parseMetaSubmissionList(
   const matched = matchDeckEntries(entries, allPrintings);
   const unmatched: string[] = [];
   const reinterpreted: { source: string; matched: string }[] = [];
+  const zones: MetaSubmissionZoneCounts = { main: 0, battlefield: 0, runes: 0 };
+  let legend: MetaSubmissionParsedList["legend"] = null;
   for (const entry of matched) {
     const resolved = entry.resolvedCard;
+    if (entry.zone === "main" || entry.zone === "battlefield" || entry.zone === "runes") {
+      zones[entry.zone] += entry.entry.quantity;
+    }
     if (!resolved) {
       unmatched.push(sourceLabel(entry));
       continue;
+    }
+    if (entry.zone === "legend" && legend === null) {
+      legend = { cardId: resolved.cardId, cardName: resolved.cardName };
     }
     if (entry.status === "needs-review") {
       reinterpreted.push({ source: sourceLabel(entry), matched: resolved.cardName });
     }
   }
-  return { cards: metaSubmissionCardsFromMatches(matched), unmatched, reinterpreted, warnings };
+  return {
+    cards: metaSubmissionCardsFromMatches(matched),
+    unmatched,
+    reinterpreted,
+    warnings,
+    zones,
+    legend,
+    listStatus: metaSubmissionListStatus(zones, legend),
+  };
 }
 
 /**
@@ -295,7 +334,7 @@ export function validateMetaSubmissionDraft(
     return "Say what's wrong with the list we have, and where the right one came from.";
   }
   if (options.cardCount === 0) {
-    return "Paste the decklist, then check it, before sending.";
+    return "Paste the decklist before sending.";
   }
   if (options.cardCount > 200) {
     return "That is more than 200 different lines. Send the deck without its sideboard.";
@@ -336,13 +375,13 @@ export function validateMetaSubmissionDraft(
  * branch is made here once rather than at the call site.
  *
  * @param draft The validated form values.
- * @param cards The card lines from the last successful check.
+ * @param list The paste as last read.
  * @param target The archived event this targets, or null while proposing one.
  * @returns The submission body.
  */
 export function buildMetaSubmissionInput(
   draft: MetaSubmissionDraft,
-  cards: MetaSubmissionCardLine[],
+  list: Pick<MetaSubmissionParsedList, "cards" | "listStatus">,
   target: { metaEventId: string } | null,
 ): MetaSubmissionInput {
   const players = draft.eventPlayerCount.trim();
@@ -371,8 +410,8 @@ export function buildMetaSubmissionInput(
     wins: recordPart(draft.wins),
     losses: recordPart(draft.losses),
     draws: recordPart(draft.draws),
-    listStatus: draft.listStatus,
-    cards,
+    listStatus: list.listStatus,
+    cards: list.cards,
     note: draft.note.trim() || null,
   };
 }

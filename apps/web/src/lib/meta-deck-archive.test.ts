@@ -48,6 +48,7 @@ const legend = card({
 describe("archivedDeckIdentity", () => {
   it("names the legend champion-first with its slug and domains", () => {
     expect(archivedDeckIdentity([legend, card()])).toEqual({
+      cardId: "legend-1",
       name: "Volibear, Relentless Storm",
       slug: "relentless-storm",
       domains: ["fury", "body"],

@@ -35,19 +35,9 @@ export type MetaDeckSubmissionKind = Exclude<MetaSubmissionKind, "event_correcti
 
 /** The form's title per kind, so the page says which of the three it is doing. */
 export const metaSubmissionFormTitles: Record<MetaDeckSubmissionKind, string> = {
-  new_list: "Send a decklist",
-  completion: "Complete a decklist",
+  new_list: "Add decklist",
+  completion: "Complete decklist",
   correction: "Suggest a correction",
-};
-
-/** The line under the title, saying what the sender is expected to change. */
-export const metaSubmissionFormIntros: Record<MetaDeckSubmissionKind, string> = {
-  new_list:
-    "Know what someone played at a tournament? Send the list and we'll add it to the archive.",
-  completion:
-    "We only have part of this list. Add the cards we're missing and send the whole thing back.",
-  correction:
-    "The list below is what the archive holds. Change what's wrong and tell us where the right version came from.",
 };
 
 /** Badge label per outcome. */
@@ -170,23 +160,9 @@ export function metaSubmissionExplanation(
  */
 export type MetaSubmissionCompleteness = Exclude<MetaListStatus, "none">;
 
-/** The completeness choices the form offers, most complete first. */
-export const META_SUBMISSION_COMPLETENESS: MetaSubmissionCompleteness[] = ["full", "partial"];
-
-/**
- * How much of a deck the submitter is sending, in a player's words. The stored
- * vocabulary is `full` / `partial`; neither word belongs in front of someone
- * typing in a decklist.
- */
 export const metaSubmissionCompletenessLabels: Record<MetaSubmissionCompleteness, string> = {
-  full: "The whole deck",
+  full: "Whole deck",
   partial: "Main deck only",
-};
-
-/** One line under each completeness option, so the choice is obvious. */
-export const metaSubmissionCompletenessHints: Record<MetaSubmissionCompleteness, string> = {
-  full: "Every card the player played, side zones included.",
-  partial: "Every main-deck card, but the battlefields, runes, or sideboard are missing.",
 };
 
 /** Label for the credit setting's three states. */

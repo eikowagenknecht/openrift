@@ -32,6 +32,7 @@ function MetaEventSubmitRoute() {
         losses: search.losses,
         draws: search.draws,
         legendName: search.legend,
+        legendCardId: search.legendId,
         deckText: archived ? metaSubmissionTextFromCards(archived.cards) : undefined,
       }}
     />

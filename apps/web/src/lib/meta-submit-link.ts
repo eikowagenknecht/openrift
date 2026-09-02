@@ -30,6 +30,7 @@ export interface MetaSubmitSearch {
   deck?: string;
   /** The legend the archive already has this entry on, named for the sender. */
   legend?: string;
+  legendId?: string;
 }
 
 /** Matches the player-name bound the submission form and its contract enforce. */
@@ -40,6 +41,8 @@ const MAX_LEGEND_NAME = 120;
 
 /** A deck share token is opaque; this only keeps a pasted essay out of the URL. */
 const MAX_DECK_TOKEN = 64;
+
+const MAX_CARD_ID = 64;
 
 const ASKS = new Set<string>(["completion", "correction"]);
 
@@ -75,7 +78,7 @@ export function metaSubmitSearchForPlayer(
     losses: number | null;
     draws: number | null;
     /** The archive's own legend for this entry, when it has resolved one. */
-    legend?: { name: string } | null;
+    legend?: { name: string; cardId: string } | null;
     /** The archived list, when the entry has one. */
     shareToken?: string | null;
   },
@@ -93,6 +96,7 @@ export function metaSubmitSearchForPlayer(
     // nothing to start from, and the token would just seed the box wrongly.
     deck: ask === undefined ? undefined : (player.shareToken ?? undefined),
     legend: player.legend?.name,
+    legendId: player.legend?.cardId,
   };
 }
 
@@ -114,5 +118,6 @@ export function parseMetaSubmitSearch(search: Record<string, unknown>): MetaSubm
     ask: ask as MetaSubmitSearch["ask"],
     deck: text(search.deck, MAX_DECK_TOKEN),
     legend: text(search.legend, MAX_LEGEND_NAME),
+    legendId: text(search.legendId, MAX_CARD_ID),
   };
 }

@@ -1,11 +1,10 @@
-import type { MetaSubmissionResult } from "@openrift/shared";
+import type { MetaEventSummary, MetaSubmissionResult, Printing } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 
 import {
-  PageDescription,
   PageTopBar,
   PageTopBarActions,
   PageTopBarBack,
@@ -14,13 +13,14 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -34,12 +34,9 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaEvents } from "@/hooks/use-meta";
 import type { MetaSubmissionOutcome } from "@/hooks/use-meta-submissions";
 import { useSubmitMetaDeck } from "@/hooks/use-meta-submissions";
-import type { MetaSubmissionCompleteness } from "@/lib/meta-submission-copy";
+import { formatRank, formatRecord } from "@/lib/meta-format";
 import {
-  META_SUBMISSION_COMPLETENESS,
-  metaSubmissionCompletenessHints,
   metaSubmissionCompletenessLabels,
-  metaSubmissionFormIntros,
   metaSubmissionFormTitles,
 } from "@/lib/meta-submission-copy";
 import type {
@@ -50,22 +47,12 @@ import type {
 import {
   buildMetaSubmissionInput,
   metaSubmissionDraftFromPrefill,
+  metaSubmissionLegendMismatch,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
 } from "@/lib/meta-submission-form";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * `/meta/submit` and `/meta/$slug/submit` — a signed-in player sends one
- * decklist to the archive (ADR-014's User submissions).
- *
- * The same form covers both targets the endpoint accepts. With a tournament the
- * archive already has, the deck hangs off that event directly. Without one, the
- * event fields appear and the submission proposes the tournament as well as the
- * deck; either way nothing it writes is public until someone reads it.
- */
-
-/** The paste box's placeholder, so both the format and the shape are obvious. */
 const DECK_PLACEHOLDER = `Legend:
 1 Yasuo, Wandering Ronin
 
@@ -76,20 +63,102 @@ MainDeck:
 Battlefields:
 1 Ionian Cliffside`;
 
-/**
- * How a paste is described back once it has been read.
- *
- * @param props.parsed The last check's result.
- * @returns The summary block.
- */
-function CheckedList({ parsed }: { parsed: MetaSubmissionParsedList }) {
-  const total = parsed.cards.reduce((sum, card) => sum + card.quantity, 0);
+function plural(count: number, noun: string): string {
+  return `${count} ${count === 1 ? noun : `${noun}s`}`;
+}
+
+function joinMissing(parts: readonly string[]): string {
+  if (parts.length <= 1) {
+    return parts.join("");
+  }
+  return `${parts.slice(0, -1).join(", ")} or ${parts.at(-1)}`;
+}
+
+function partialListSentence(parsed: MetaSubmissionParsedList): string {
+  const missing: string[] = [];
+  if (parsed.legend === null) {
+    missing.push("legend");
+  }
+  if (parsed.zones.battlefield === 0) {
+    missing.push("battlefields");
+  }
+  if (parsed.zones.runes === 0) {
+    missing.push("runes");
+  }
+  const tail =
+    missing.length === 1 ? "Paste it too if you have it." : "Paste them too if you have them.";
+  return `No ${joinMissing(missing)} in the list, so it goes in as a partial list. ${tail}`;
+}
+
+function parsedList(text: string, allPrintings: Printing[]): MetaSubmissionParsedList | null {
+  return text.trim() === "" ? null : parseMetaSubmissionList(text, allPrintings);
+}
+
+function finishLabel(rank: number | undefined, rankIsTier: boolean | undefined): string | null {
+  if (rank === undefined) {
+    return null;
+  }
+  return rankIsTier === true ? formatRank(rank, true) : `#${rank}`;
+}
+
+function eventFacts(event: MetaEventSummary, formatLabel: string): string {
+  const facts = [formatDay(event.eventDate), formatLabel];
+  if (event.playerCount !== null) {
+    facts.push(plural(event.playerCount, "player"));
+  }
+  return facts.join(" · ");
+}
+
+function LegendCheck({
+  parsed,
+  prefill,
+}: {
+  parsed: MetaSubmissionParsedList;
+  prefill: MetaSubmissionPrefill;
+}) {
+  if (prefill.legendCardId === undefined || parsed.legend === null) {
+    return null;
+  }
+  if (!metaSubmissionLegendMismatch(parsed, prefill.legendCardId)) {
+    return <p className="text-muted-foreground text-sm">Legend matches the standings.</p>;
+  }
+  return (
+    <Alert variant="info">
+      <AlertTitle>
+        This list&apos;s legend is {parsed.legend.cardName}, but the standings have{" "}
+        {prefill.legendName}
+      </AlertTitle>
+      <AlertDescription>
+        Check you opened the right row. If the list is right, send it and the reviewer sees both.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function ListReadback({
+  parsed,
+  prefill,
+}: {
+  parsed: MetaSubmissionParsedList;
+  prefill: MetaSubmissionPrefill;
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-muted-foreground text-sm">
-        Read {total} {total === 1 ? "card" : "cards"} across {parsed.cards.length}{" "}
-        {parsed.cards.length === 1 ? "line" : "lines"}.
-      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={parsed.listStatus === "full" ? "success" : "muted"}>
+          {metaSubmissionCompletenessLabels[parsed.listStatus]}
+        </Badge>
+        <span className="text-muted-foreground text-sm">
+          {parsed.zones.main} main · {plural(parsed.zones.battlefield, "battlefield")} ·{" "}
+          {plural(parsed.zones.runes, "rune")}
+        </span>
+      </div>
+
+      {parsed.listStatus === "partial" && (
+        <p className="text-muted-foreground text-sm">{partialListSentence(parsed)}</p>
+      )}
+
+      <LegendCheck parsed={parsed} prefill={prefill} />
 
       {parsed.reinterpreted.length > 0 && (
         <Alert variant="info">
@@ -145,25 +214,17 @@ function CheckedList({ parsed }: { parsed: MetaSubmissionParsedList }) {
   );
 }
 
-/**
- * What the archive says back once a decklist is staged.
- *
- * Unresolved names are the one thing this screen must not bury: a deck whose
- * card names do not resolve cannot be added, and the person who typed it is the
- * only one who can say what they meant.
- *
- * @param props.result The submission result, including any unresolved names.
- * @param props.onSendAnother Returns to the form with the draft intact.
- * @returns The confirmation panel.
- */
 function SubmissionSent({
   result,
+  eventSlug,
   onSendAnother,
 }: {
   result: MetaSubmissionResult;
+  eventSlug?: string;
   onSendAnother: () => void;
 }) {
   const unresolved = result.unresolvedNames;
+  const showRetry = eventSlug === undefined || unresolved.length > 0;
   return (
     <div className="flex flex-col gap-4">
       {unresolved.length === 0 ? (
@@ -197,22 +258,27 @@ function SubmissionSent({
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button render={<Link to="/meta/submissions" />}>Your contributions</Button>
-        <Button variant="outline" onClick={onSendAnother}>
-          {unresolved.length === 0 ? "Send another" : "Fix the list and send again"}
+        {eventSlug !== undefined && (
+          <Button render={<Link to="/meta/$slug" params={{ slug: eventSlug }} />}>
+            Back to the standings
+          </Button>
+        )}
+        <Button
+          variant={eventSlug === undefined ? "default" : "outline"}
+          render={<Link to="/meta/submissions" />}
+        >
+          Your contributions
         </Button>
+        {showRetry && (
+          <Button variant="outline" onClick={onSendAnother}>
+            {unresolved.length === 0 ? "Send another" : "Fix the list and send again"}
+          </Button>
+        )}
       </div>
     </div>
   );
 }
 
-/**
- * The submission form.
- *
- * @param props.slug The archived event this targets, when the page was reached from one.
- * @param props.prefill The standings row the form was opened from, if any.
- * @returns The page element.
- */
 export function MetaSubmitPage({
   slug,
   prefill,
@@ -227,41 +293,33 @@ export function MetaSubmitPage({
 
   const events = eventsData.events;
   const eventFromSlug = slug === undefined ? undefined : events.find((row) => row.slug === slug);
+  const row = prefill ?? {};
 
   const [draft, setDraft] = useState<MetaSubmissionDraft>(() =>
-    metaSubmissionDraftFromPrefill(prefill ?? {}),
+    metaSubmissionDraftFromPrefill(row),
   );
   const [selectedEventId, setSelectedEventId] = useState<string>(eventFromSlug?.id ?? "");
-  // Proposing is a mode, not a value: the archive genuinely does not have the
-  // tournament, so there is nothing to pick and the event fields take over. An
-  // empty archive starts there, because a picker with nothing in it is a dead
-  // end for the very first contributor.
   const [proposing, setProposing] = useState(eventFromSlug === undefined && events.length === 0);
-  const [parsed, setParsed] = useState<MetaSubmissionParsedList | null>(null);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [result, setResult] = useState<MetaSubmissionResult | null>(null);
 
+  const deferredDeckText = useDeferredValue(draft.deckText);
+  const parsed = parsedList(deferredDeckText, allPrintings);
+
   const lockedToEvent = eventFromSlug !== undefined;
-  // Proposing a tournament the archive has never seen leaves nothing to
-  // complete or correct, so the page falls back to its plain wording.
+  const fromRow = lockedToEvent && row.playerName !== undefined && row.rank !== undefined;
+  // A proposed tournament is one the archive has never seen, so there is
+  // nothing to complete or correct whatever link got the sender here.
   const kind = proposing ? "new_list" : draft.kind;
-  const startedFromArchivedList = draft.kind !== "new_list" && (prefill?.deckText ?? "") !== "";
+  const startedFromArchivedList = draft.kind !== "new_list" && (row.deckText ?? "") !== "";
+  const noteExpanded = noteOpen || kind === "correction";
 
   function set<TKey extends keyof MetaSubmissionDraft>(
     key: TKey,
     value: MetaSubmissionDraft[TKey],
   ) {
     setDraft((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function handleCheck() {
-    const text = draft.deckText.trim();
-    if (text.length === 0) {
-      setFormError("Paste the decklist first.");
-      return;
-    }
-    setFormError("");
-    setParsed(parseMetaSubmissionList(text, allPrintings));
   }
 
   function applyOutcome(outcome: MetaSubmissionOutcome) {
@@ -273,14 +331,9 @@ export function MetaSubmitPage({
   }
 
   async function handleSubmit() {
-    // Always read the box as it stands rather than trusting the last check, so
-    // an edit after checking can never send the older list.
-    const list = parseMetaSubmissionList(draft.deckText, allPrintings);
-    setParsed(list);
-
     const problem = validateMetaSubmissionDraft(draft, {
       proposing,
-      cardCount: list.cards.length,
+      cardCount: parsed?.cards.length ?? 0,
     });
     if (problem) {
       setFormError(problem);
@@ -290,9 +343,13 @@ export function MetaSubmitPage({
       setFormError("Pick the tournament this deck came from.");
       return;
     }
+    if (parsed === null) {
+      setFormError("Paste the decklist before sending.");
+      return;
+    }
 
     const target = proposing ? null : { metaEventId: selectedEventId };
-    const input = buildMetaSubmissionInput(draft, list.cards, target);
+    const input = buildMetaSubmissionInput(draft, parsed, target);
     setFormError("");
     try {
       applyOutcome(await submit.mutateAsync(input));
@@ -315,11 +372,22 @@ export function MetaSubmitPage({
     formatItems[format.slug] = format.label;
   }
 
+  const record = formatRecord(row.wins ?? null, row.losses ?? null, row.draws ?? null);
+  const finish = finishLabel(row.rank, row.rankIsTier);
+  const cancelSlug = lockedToEvent ? slug : undefined;
+  const deckHint = startedFromArchivedList
+    ? "This is the list the archive has. Edit it and send the whole thing back."
+    : "A deck code, a TTS export, or one card per line.";
+
   return (
     <>
       <PageTopBarSticky width="capped">
         <PageTopBar>
-          <PageTopBarBack to="/meta" />
+          {cancelSlug === undefined ? (
+            <PageTopBarBack to="/meta" />
+          ) : (
+            <PageTopBarBack to="/meta/$slug" params={{ slug: cancelSlug }} />
+          )}
           <PageTopBarTitle>{metaSubmissionFormTitles[kind]}</PageTopBarTitle>
           <PageTopBarActions>
             <PageTopBarButton render={<Link to="/meta/submissions" />}>
@@ -330,346 +398,323 @@ export function MetaSubmitPage({
       </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "space-y-4 px-4 pt-3 pb-12")}>
-        <PageDescription>{metaSubmissionFormIntros[kind]}</PageDescription>
-
         {result ? (
-          <SubmissionSent result={result} onSendAnother={handleSendAnother} />
+          <SubmissionSent
+            result={result}
+            eventSlug={fromRow ? cancelSlug : undefined}
+            onSendAnother={handleSendAnother}
+          />
         ) : (
           <>
-            <Card>
-              <CardHeader>
-                <CardTitle>The tournament</CardTitle>
-                <CardDescription>
-                  {lockedToEvent
-                    ? "Where this deck was played."
-                    : "Pick the tournament this deck came from, or tell us about one we don't have."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  {lockedToEvent && eventFromSlug ? (
-                    <Field>
-                      <FieldLabel>Tournament</FieldLabel>
-                      <p className="font-medium">{eventFromSlug.name}</p>
-                      <FieldDescription>
-                        {formatDay(eventFromSlug.eventDate)} ·{" "}
-                        {formatLabels[eventFromSlug.format] ?? eventFromSlug.format}
-                      </FieldDescription>
-                      <FieldDescription>
-                        <Link to="/meta/submit" className="underline underline-offset-4">
-                          A different tournament?
-                        </Link>
-                      </FieldDescription>
-                    </Field>
-                  ) : null}
-
-                  {!lockedToEvent && !proposing ? (
-                    <Field>
-                      <FieldLabel htmlFor="meta-submit-event">Tournament</FieldLabel>
-                      <Select
-                        items={eventItems}
-                        value={selectedEventId}
-                        onValueChange={(value) => setSelectedEventId((value as string) ?? "")}
-                      >
-                        <SelectTrigger id="meta-submit-event" className="w-full">
-                          <SelectValue placeholder="Pick a tournament" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(eventItems).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FieldDescription>
-                        <Button
-                          type="button"
-                          variant="link-muted"
-                          size="sm"
-                          className="h-auto p-0"
-                          onClick={() => setProposing(true)}
-                        >
-                          We don&apos;t have your tournament? Tell us about it
-                        </Button>
-                      </FieldDescription>
-                    </Field>
-                  ) : null}
-
-                  {!lockedToEvent && proposing ? (
-                    <>
-                      <Field>
-                        <FieldLabel htmlFor="meta-submit-event-name">Tournament name</FieldLabel>
-                        <Input
-                          id="meta-submit-event-name"
-                          value={draft.eventName}
-                          maxLength={120}
-                          placeholder="Summoner Skirmish"
-                          onChange={(event) => set("eventName", event.target.value)}
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="meta-submit-event-date">Day it was played</FieldLabel>
-                        <DatePicker
-                          value={draft.eventDate}
-                          onChange={(iso) => set("eventDate", iso)}
-                          onClear={() => set("eventDate", "")}
-                          className="w-full"
-                        />
-                        <FieldDescription>
-                          For a tournament over several days, use the first one.
-                        </FieldDescription>
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="meta-submit-event-format">Format</FieldLabel>
-                        <Select
-                          items={formatItems}
-                          value={draft.eventFormat}
-                          onValueChange={(value) => set("eventFormat", (value as string) ?? "")}
-                        >
-                          <SelectTrigger id="meta-submit-event-format" className="w-full">
-                            <SelectValue placeholder="Pick a format" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(formatItems).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="meta-submit-event-players">
-                          How many played (optional)
-                        </FieldLabel>
-                        <Input
-                          id="meta-submit-event-players"
-                          inputMode="numeric"
-                          value={draft.eventPlayerCount}
-                          placeholder="64"
-                          onChange={(event) => set("eventPlayerCount", event.target.value)}
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="meta-submit-event-organizer">
-                          Who ran it (optional)
-                        </FieldLabel>
-                        <Input
-                          id="meta-submit-event-organizer"
-                          value={draft.eventOrganizer}
-                          maxLength={120}
-                          placeholder="Rift Games Berlin"
-                          onChange={(event) => set("eventOrganizer", event.target.value)}
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="meta-submit-event-source">
-                          Where you saw the results (optional)
-                        </FieldLabel>
-                        <Input
-                          id="meta-submit-event-source"
-                          value={draft.eventSourceUrl}
-                          maxLength={2000}
-                          placeholder="A results page, a stream VOD, a post"
-                          onChange={(event) => set("eventSourceUrl", event.target.value)}
-                        />
-                        <FieldDescription>
-                          A link is quickest to check and gets the tournament credited.
-                        </FieldDescription>
-                      </Field>
-                      <Field>
-                        <FieldDescription>
-                          <Button
-                            type="button"
-                            variant="link-muted"
-                            size="sm"
-                            className="h-auto p-0"
-                            onClick={() => setProposing(false)}
-                          >
-                            Pick one we already have instead
-                          </Button>
-                        </FieldDescription>
-                      </Field>
-                    </>
-                  ) : null}
-                </FieldGroup>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>The player</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="meta-submit-player">Who played it</FieldLabel>
-                    <Input
-                      id="meta-submit-player"
-                      value={draft.playerName}
-                      maxLength={80}
-                      placeholder="The player's name, as the results list it"
-                      onChange={(event) => set("playerName", event.target.value)}
-                    />
-                    {prefill?.legendName !== undefined && (
-                      <FieldDescription>
-                        The archive has them on {prefill.legendName}. We read the legend back off
-                        the list you send, so change it there if that is wrong.
-                      </FieldDescription>
+            {fromRow && eventFromSlug ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{eventFromSlug.name}</CardTitle>
+                  <CardDescription>
+                    {eventFacts(eventFromSlug, formatLabels[eventFromSlug.format])}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{row.playerName}</span>
+                    {finish !== null && <Badge variant="outline">{finish}</Badge>}
+                    {record !== null && (
+                      <span className="text-muted-foreground tabular-nums">{record}</span>
                     )}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="meta-submit-rank">Where they finished</FieldLabel>
-                    <Input
-                      id="meta-submit-rank"
-                      inputMode="numeric"
-                      value={draft.rank}
-                      placeholder="1"
-                      className="w-24"
-                      onChange={(event) => set("rank", event.target.value)}
-                    />
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        id="meta-submit-rank-is-tier"
-                        checked={draft.rankIsTier}
-                        onCheckedChange={(checked) => set("rankIsTier", checked === true)}
-                        className="mt-0.5"
-                      />
-                      <label htmlFor="meta-submit-rank-is-tier" className="cursor-pointer">
-                        <span className="block">Only the bracket is known</span>
-                        <span className="text-muted-foreground block text-sm">
-                          Tick this when the results say &ldquo;top 8&rdquo; rather than an exact
-                          placing. The archive will print it as T8.
-                        </span>
-                      </label>
-                    </div>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="meta-submit-wins">Match record (optional)</FieldLabel>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="meta-submit-wins"
-                        inputMode="numeric"
-                        value={draft.wins}
-                        placeholder="W"
-                        aria-label="Wins"
-                        className="w-16"
-                        onChange={(event) => set("wins", event.target.value)}
-                      />
-                      <Input
-                        inputMode="numeric"
-                        value={draft.losses}
-                        placeholder="L"
-                        aria-label="Losses"
-                        className="w-16"
-                        onChange={(event) => set("losses", event.target.value)}
-                      />
-                      <Input
-                        inputMode="numeric"
-                        value={draft.draws}
-                        placeholder="D"
-                        aria-label="Draws"
-                        className="w-16"
-                        onChange={(event) => set("draws", event.target.value)}
-                      />
-                    </div>
-                    <FieldDescription>Wins, losses, and draws.</FieldDescription>
-                  </Field>
-                </FieldGroup>
-              </CardContent>
-            </Card>
+                    {row.legendName !== undefined && (
+                      <span className="text-muted-foreground">Legend {row.legendName}</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {!fromRow && (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>The tournament</CardTitle>
+                    <CardDescription>
+                      {lockedToEvent
+                        ? "Where this deck was played."
+                        : "Pick the tournament this deck came from, or tell us about one we don't have."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <FieldGroup>
+                      {lockedToEvent && eventFromSlug ? (
+                        <Field>
+                          <p className="font-medium">{eventFromSlug.name}</p>
+                          <FieldDescription>
+                            {eventFacts(eventFromSlug, formatLabels[eventFromSlug.format])}
+                          </FieldDescription>
+                        </Field>
+                      ) : null}
+
+                      {!lockedToEvent && !proposing ? (
+                        <Field>
+                          <FieldLabel htmlFor="meta-submit-event">Tournament</FieldLabel>
+                          <Select
+                            items={eventItems}
+                            value={selectedEventId}
+                            onValueChange={(value) => setSelectedEventId((value as string) ?? "")}
+                          >
+                            <SelectTrigger id="meta-submit-event" className="w-full">
+                              <SelectValue placeholder="Pick a tournament" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(eventItems).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FieldDescription>
+                            <Button
+                              type="button"
+                              variant="link-muted"
+                              size="sm"
+                              className="h-auto p-0"
+                              onClick={() => setProposing(true)}
+                            >
+                              We don&apos;t have your tournament? Tell us about it
+                            </Button>
+                          </FieldDescription>
+                        </Field>
+                      ) : null}
+
+                      {!lockedToEvent && proposing ? (
+                        <>
+                          <Field>
+                            <FieldLabel htmlFor="meta-submit-event-name">
+                              Tournament name
+                            </FieldLabel>
+                            <Input
+                              id="meta-submit-event-name"
+                              value={draft.eventName}
+                              maxLength={120}
+                              placeholder="Summoner Skirmish"
+                              onChange={(event) => set("eventName", event.target.value)}
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel htmlFor="meta-submit-event-date">
+                              Day it was played
+                            </FieldLabel>
+                            <DatePicker
+                              value={draft.eventDate}
+                              onChange={(iso) => set("eventDate", iso)}
+                              onClear={() => set("eventDate", "")}
+                              className="w-full"
+                            />
+                            <FieldDescription>
+                              For a tournament over several days, use the first one.
+                            </FieldDescription>
+                          </Field>
+                          <Field>
+                            <FieldLabel htmlFor="meta-submit-event-format">Format</FieldLabel>
+                            <Select
+                              items={formatItems}
+                              value={draft.eventFormat}
+                              onValueChange={(value) => set("eventFormat", (value as string) ?? "")}
+                            >
+                              <SelectTrigger id="meta-submit-event-format" className="w-full">
+                                <SelectValue placeholder="Pick a format" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(formatItems).map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                          <Field>
+                            <FieldLabel htmlFor="meta-submit-event-players">
+                              How many played (optional)
+                            </FieldLabel>
+                            <Input
+                              id="meta-submit-event-players"
+                              inputMode="numeric"
+                              value={draft.eventPlayerCount}
+                              placeholder="64"
+                              onChange={(event) => set("eventPlayerCount", event.target.value)}
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel htmlFor="meta-submit-event-organizer">
+                              Who ran it (optional)
+                            </FieldLabel>
+                            <Input
+                              id="meta-submit-event-organizer"
+                              value={draft.eventOrganizer}
+                              maxLength={120}
+                              placeholder="Rift Games Berlin"
+                              onChange={(event) => set("eventOrganizer", event.target.value)}
+                            />
+                          </Field>
+                          <Field>
+                            <FieldLabel htmlFor="meta-submit-event-source">
+                              Where you saw the results (optional)
+                            </FieldLabel>
+                            <Input
+                              id="meta-submit-event-source"
+                              value={draft.eventSourceUrl}
+                              maxLength={2000}
+                              placeholder="A results page, a stream VOD, a post"
+                              onChange={(event) => set("eventSourceUrl", event.target.value)}
+                            />
+                            <FieldDescription>
+                              A link is quickest to check and gets the tournament credited.
+                            </FieldDescription>
+                          </Field>
+                          <Field>
+                            <FieldDescription>
+                              <Button
+                                type="button"
+                                variant="link-muted"
+                                size="sm"
+                                className="h-auto p-0"
+                                onClick={() => setProposing(false)}
+                              >
+                                Pick one we already have instead
+                              </Button>
+                            </FieldDescription>
+                          </Field>
+                        </>
+                      ) : null}
+                    </FieldGroup>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>The player</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <FieldGroup>
+                      <Field>
+                        <FieldLabel htmlFor="meta-submit-player">Who played it</FieldLabel>
+                        <Input
+                          id="meta-submit-player"
+                          value={draft.playerName}
+                          maxLength={80}
+                          placeholder="The player's name, as the results list it"
+                          onChange={(event) => set("playerName", event.target.value)}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="meta-submit-rank">Where they finished</FieldLabel>
+                        <Input
+                          id="meta-submit-rank"
+                          inputMode="numeric"
+                          value={draft.rank}
+                          placeholder="1"
+                          className="w-24"
+                          onChange={(event) => set("rank", event.target.value)}
+                        />
+                        <div className="flex items-start gap-2">
+                          <Checkbox
+                            id="meta-submit-rank-is-tier"
+                            checked={draft.rankIsTier}
+                            onCheckedChange={(checked) => set("rankIsTier", checked === true)}
+                            className="mt-0.5"
+                          />
+                          <label htmlFor="meta-submit-rank-is-tier" className="cursor-pointer">
+                            <span className="block">Only the bracket is known</span>
+                            <span className="text-muted-foreground block text-sm">
+                              Tick this when the results say &ldquo;top 8&rdquo; rather than an
+                              exact placing. The archive will print it as T8.
+                            </span>
+                          </label>
+                        </div>
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="meta-submit-wins">Match record (optional)</FieldLabel>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id="meta-submit-wins"
+                            inputMode="numeric"
+                            value={draft.wins}
+                            placeholder="W"
+                            aria-label="Wins"
+                            className="w-16"
+                            onChange={(event) => set("wins", event.target.value)}
+                          />
+                          <Input
+                            inputMode="numeric"
+                            value={draft.losses}
+                            placeholder="L"
+                            aria-label="Losses"
+                            className="w-16"
+                            onChange={(event) => set("losses", event.target.value)}
+                          />
+                          <Input
+                            inputMode="numeric"
+                            value={draft.draws}
+                            placeholder="D"
+                            aria-label="Draws"
+                            className="w-16"
+                            onChange={(event) => set("draws", event.target.value)}
+                          />
+                        </div>
+                        <FieldDescription>Wins, losses, and draws.</FieldDescription>
+                      </Field>
+                    </FieldGroup>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
             <Card>
-              <CardHeader>
-                <CardTitle>The deck</CardTitle>
-                <CardDescription>
-                  {startedFromArchivedList
-                    ? "The box below holds the list the archive has. Edit it and send the whole thing back."
-                    : "Paste a deck code or a plain list."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel>How much of it do you have?</FieldLabel>
-                    <RadioGroup
-                      value={draft.listStatus}
-                      onValueChange={(next) =>
-                        set("listStatus", next as MetaSubmissionCompleteness)
-                      }
-                      className="flex flex-col gap-3"
-                      aria-label="How much of it do you have?"
-                    >
-                      {META_SUBMISSION_COMPLETENESS.map((option) => {
-                        const radioId = `meta-submit-completeness-${option}`;
-                        return (
-                          <div key={option} className="flex items-start gap-2">
-                            <RadioGroupItem id={radioId} value={option} className="mt-1" />
-                            <label htmlFor={radioId} className="cursor-pointer">
-                              <span className="block">
-                                {metaSubmissionCompletenessLabels[option]}
-                              </span>
-                              <span className="text-muted-foreground block text-sm">
-                                {metaSubmissionCompletenessHints[option]}
-                              </span>
-                            </label>
-                          </div>
-                        );
-                      })}
-                    </RadioGroup>
-                  </Field>
+              <CardContent className="flex flex-col gap-2">
+                <Label htmlFor="meta-submit-deck">Decklist</Label>
+                <Textarea
+                  id="meta-submit-deck"
+                  value={draft.deckText}
+                  rows={12}
+                  className="font-mono text-sm"
+                  placeholder={DECK_PLACEHOLDER}
+                  onChange={(event) => set("deckText", event.target.value)}
+                />
+                <p className="text-muted-foreground text-sm">{deckHint}</p>
 
-                  <Field>
-                    <FieldLabel htmlFor="meta-submit-deck">The decklist</FieldLabel>
+                {parsed && parsed.cards.length > 0 ? (
+                  <ListReadback parsed={parsed} prefill={row} />
+                ) : null}
+
+                {noteExpanded ? (
+                  <div className="flex flex-col gap-2 pt-2">
+                    <Label htmlFor="meta-submit-note">
+                      {kind === "correction"
+                        ? "What's wrong with the list we have"
+                        : "Note for the reviewer (optional)"}
+                    </Label>
                     <Textarea
-                      id="meta-submit-deck"
-                      value={draft.deckText}
-                      rows={12}
-                      className="font-mono text-sm"
-                      placeholder={DECK_PLACEHOLDER}
-                      onChange={(event) => set("deckText", event.target.value)}
+                      id="meta-submit-note"
+                      value={draft.note}
+                      rows={3}
+                      maxLength={2000}
+                      placeholder={
+                        kind === "correction"
+                          ? "What we got wrong, and where the right list came from"
+                          : "Where you got the list, anything you're unsure about"
+                      }
+                      onChange={(event) => set("note", event.target.value)}
                     />
-                    <FieldDescription>
-                      A deck code, a TTS export, or one card per line under its zone heading.
-                    </FieldDescription>
-                  </Field>
-
-                  <Field>
-                    <Button type="button" variant="outline" onClick={handleCheck}>
-                      Check the list
-                    </Button>
-                  </Field>
-
-                  {parsed ? <CheckedList parsed={parsed} /> : null}
-                </FieldGroup>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Anything else</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Field>
-                  <FieldLabel htmlFor="meta-submit-note">
-                    {kind === "correction"
-                      ? "What's wrong with the list we have"
-                      : "Note for the reviewer (optional)"}
-                  </FieldLabel>
-                  <Textarea
-                    id="meta-submit-note"
-                    value={draft.note}
-                    rows={3}
-                    maxLength={2000}
-                    placeholder={
-                      kind === "correction"
-                        ? "What we got wrong, and where the right list came from"
-                        : "Where you got the list, anything you're unsure about"
-                    }
-                    onChange={(event) => set("note", event.target.value)}
-                  />
-                </Field>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="h-auto self-start p-0"
+                    onClick={() => setNoteOpen(true)}
+                  >
+                    Add a note for the reviewer
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
@@ -681,12 +726,25 @@ export function MetaSubmitPage({
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <Button type="button" disabled={submit.isPending} onClick={() => void handleSubmit()}>
-                {submit.isPending ? "Sending…" : "Send the decklist"}
+              <Button
+                type="button"
+                disabled={submit.isPending || parsed === null || parsed.cards.length === 0}
+                onClick={() => void handleSubmit()}
+              >
+                {submit.isPending ? "Sending…" : "Send decklist"}
               </Button>
-              <Button variant="outline" render={<Link to="/meta" />}>
-                Cancel
-              </Button>
+              {cancelSlug === undefined ? (
+                <Button variant="outline" render={<Link to="/meta" />}>
+                  Cancel
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  render={<Link to="/meta/$slug" params={{ slug: cancelSlug }} />}
+                >
+                  Cancel
+                </Button>
+              )}
             </div>
           </>
         )}

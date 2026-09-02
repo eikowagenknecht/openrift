@@ -38,6 +38,7 @@ describe("metaSubmitSearchForPlayer", () => {
       ask: undefined,
       deck: undefined,
       legend: undefined,
+      legendId: undefined,
     });
   });
 
@@ -66,6 +67,10 @@ describe("metaSubmitSearchForPlayer", () => {
 
   it("names the legend the archive already has the entry on", () => {
     expect(metaSubmitSearchForPlayer(withList).legend).toBe("Lux, Lady of Luminosity");
+  });
+
+  it("carries that legend's card id, for checking the pasted list against it", () => {
+    expect(metaSubmitSearchForPlayer(withList).legendId).toBe("card-1");
   });
 
   it("points a completion at the archived list it is filling in", () => {
@@ -98,6 +103,7 @@ describe("parseMetaSubmitSearch", () => {
         ask: "correction",
         deck: "tok-1",
         legend: "Lux, Lady of Luminosity",
+        legendId: "card-1",
       }),
     ).toEqual({
       player: "Ana",
@@ -109,6 +115,7 @@ describe("parseMetaSubmitSearch", () => {
       ask: "correction",
       deck: "tok-1",
       legend: "Lux, Lady of Luminosity",
+      legendId: "card-1",
     });
   });
 
@@ -123,6 +130,7 @@ describe("parseMetaSubmitSearch", () => {
       ask: undefined,
       deck: undefined,
       legend: undefined,
+      legendId: undefined,
     });
   });
 
@@ -161,5 +169,10 @@ describe("parseMetaSubmitSearch", () => {
   it("drops a deck token long enough to be a pasted list", () => {
     expect(parseMetaSubmitSearch({ deck: "a".repeat(65) }).deck).toBeUndefined();
     expect(parseMetaSubmitSearch({ deck: "" }).deck).toBeUndefined();
+  });
+
+  it("drops a legend id longer than a card id can be", () => {
+    expect(parseMetaSubmitSearch({ legendId: "a".repeat(64) }).legendId).toHaveLength(64);
+    expect(parseMetaSubmitSearch({ legendId: "a".repeat(65) }).legendId).toBeUndefined();
   });
 });

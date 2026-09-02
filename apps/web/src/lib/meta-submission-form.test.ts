@@ -9,6 +9,8 @@ import {
   EMPTY_META_SUBMISSION_DRAFT,
   buildMetaSubmissionInput,
   metaSubmissionDraftFromPrefill,
+  metaSubmissionLegendMismatch,
+  metaSubmissionListStatus,
   metaSubmissionTextFromCards,
   parseMetaSubmissionList,
   validateMetaSubmissionDraft,
@@ -28,6 +30,10 @@ function catalog(): Printing[] {
     stubPrinting({
       shortCode: "OGN-077",
       card: { name: "Ionian Cliffside", slug: "OGN-077", types: ["battlefield"] },
+    }),
+    stubPrinting({
+      shortCode: "OGN-090",
+      card: { name: "Health Rune", slug: "OGN-090", types: ["rune"] },
     }),
   ];
 }
@@ -91,7 +97,121 @@ describe("parseMetaSubmissionList", () => {
   });
 
   it("returns nothing for an empty paste", () => {
-    expect(parseMetaSubmissionList("   ", catalog()).cards).toEqual([]);
+    const parsed = parseMetaSubmissionList("   ", catalog());
+    expect(parsed.cards).toEqual([]);
+    expect(parsed.zones).toEqual({ main: 0, battlefield: 0, runes: 0 });
+    expect(parsed.legend).toBeNull();
+    expect(parsed.listStatus).toBe("partial");
+  });
+
+  it("sums each zone's quantities separately", () => {
+    const parsed = parseMetaSubmissionList(
+      "MainDeck:\n2 Blade of the Exile\n1 Blade of the Exile\n\nBattlefields:\n1 Ionian Cliffside\n",
+      catalog(),
+    );
+
+    expect(parsed.zones).toEqual({ main: 3, battlefield: 1, runes: 0 });
+  });
+
+  it("resolves the legend from the legend zone", () => {
+    const cards = catalog();
+    const legendPrinting = cards.find((printing) => printing.shortCode === "OGN-001")!;
+
+    const parsed = parseMetaSubmissionList("Legend:\n1 Wandering Ronin\n", cards);
+
+    expect(parsed.legend).toEqual({
+      cardId: legendPrinting.cardId,
+      cardName: "Wandering Ronin",
+    });
+  });
+
+  it("returns no legend when the paste names none", () => {
+    const parsed = parseMetaSubmissionList("MainDeck:\n3 Blade of the Exile\n", catalog());
+    expect(parsed.legend).toBeNull();
+  });
+
+  it("reports a full list when the legend, a battlefield, and a rune are all present", () => {
+    const parsed = parseMetaSubmissionList(
+      "Legend:\n1 Wandering Ronin\n\nBattlefields:\n1 Ionian Cliffside\n\nRunes:\n1 Health Rune\n",
+      catalog(),
+    );
+
+    expect(parsed.listStatus).toBe("full");
+  });
+
+  it("reports a partial list when the rune zone is missing", () => {
+    const parsed = parseMetaSubmissionList(
+      "Legend:\n1 Wandering Ronin\n\nBattlefields:\n1 Ionian Cliffside\n",
+      catalog(),
+    );
+
+    expect(parsed.listStatus).toBe("partial");
+  });
+
+  it("reports a partial list when the legend is missing", () => {
+    const parsed = parseMetaSubmissionList(
+      "Battlefields:\n1 Ionian Cliffside\n\nRunes:\n1 Health Rune\n",
+      catalog(),
+    );
+
+    expect(parsed.listStatus).toBe("partial");
+  });
+});
+
+describe("metaSubmissionListStatus", () => {
+  const legend = { cardId: "legend-1", cardName: "Wandering Ronin" };
+
+  it("is full when the legend, a battlefield, and a rune are all counted", () => {
+    expect(metaSubmissionListStatus({ main: 40, battlefield: 1, runes: 12 }, legend)).toBe("full");
+  });
+
+  it("is partial with no legend", () => {
+    expect(metaSubmissionListStatus({ main: 40, battlefield: 1, runes: 12 }, null)).toBe("partial");
+  });
+
+  it("is partial with no battlefield", () => {
+    expect(metaSubmissionListStatus({ main: 40, battlefield: 0, runes: 12 }, legend)).toBe(
+      "partial",
+    );
+  });
+
+  it("is partial with no runes", () => {
+    expect(metaSubmissionListStatus({ main: 40, battlefield: 1, runes: 0 }, legend)).toBe(
+      "partial",
+    );
+  });
+});
+
+describe("metaSubmissionLegendMismatch", () => {
+  it("is false when the parsed legend matches the row's", () => {
+    expect(
+      metaSubmissionLegendMismatch(
+        { legend: { cardId: "legend-1", cardName: "Wandering Ronin" } },
+        "legend-1",
+      ),
+    ).toBe(false);
+  });
+
+  it("is true when the parsed legend differs from the row's", () => {
+    expect(
+      metaSubmissionLegendMismatch(
+        { legend: { cardId: "legend-1", cardName: "Wandering Ronin" } },
+        "legend-2",
+      ),
+    ).toBe(true);
+  });
+
+  it("is false when the paste has no legend to compare", () => {
+    expect(metaSubmissionLegendMismatch({ legend: null }, "legend-1")).toBe(false);
+  });
+
+  it("is false when the row has no legend on file", () => {
+    expect(
+      metaSubmissionLegendMismatch(
+        { legend: { cardId: "legend-1", cardName: "Wandering Ronin" } },
+        undefined,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -220,7 +340,11 @@ describe("buildMetaSubmissionInput", () => {
   const cards = [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }];
 
   it("targets an existing event and proposes nothing", () => {
-    const input = buildMetaSubmissionInput(readyDraft, cards, { metaEventId: "event-1" });
+    const input = buildMetaSubmissionInput(
+      readyDraft,
+      { cards, listStatus: "partial" },
+      { metaEventId: "event-1" },
+    );
 
     expect(input.metaEventId).toBe("event-1");
     expect(input.proposedEvent).toBeNull();
@@ -230,6 +354,17 @@ describe("buildMetaSubmissionInput", () => {
     expect(input.wins).toBe(5);
     expect(input.losses).toBe(1);
     expect(input.cards).toEqual(cards);
+    expect(input.listStatus).toBe("partial");
+  });
+
+  it("carries the parsed list's status through to the request", () => {
+    const input = buildMetaSubmissionInput(
+      readyDraft,
+      { cards, listStatus: "full" },
+      { metaEventId: "event-1" },
+    );
+
+    expect(input.listStatus).toBe("full");
   });
 
   it("proposes an event and targets none", () => {
@@ -243,7 +378,7 @@ describe("buildMetaSubmissionInput", () => {
         eventOrganizer: "Rift Games Berlin",
         eventSourceUrl: "https://example.test/results",
       },
-      cards,
+      { cards, listStatus: "partial" },
       null,
     );
 
@@ -259,9 +394,11 @@ describe("buildMetaSubmissionInput", () => {
   });
 
   it("sends a bracket-only finish as a tier", () => {
-    const input = buildMetaSubmissionInput({ ...readyDraft, rankIsTier: true }, cards, {
-      metaEventId: "event-1",
-    });
+    const input = buildMetaSubmissionInput(
+      { ...readyDraft, rankIsTier: true },
+      { cards, listStatus: "partial" },
+      { metaEventId: "event-1" },
+    );
 
     expect(input.rank).toBe(4);
     expect(input.rankIsTier).toBe(true);
@@ -279,7 +416,7 @@ describe("buildMetaSubmissionInput", () => {
         eventDate: "2026-08-15",
         eventFormat: "standard",
       },
-      cards,
+      { cards, listStatus: "partial" },
       null,
     );
 
@@ -352,16 +489,6 @@ describe("metaSubmissionDraftFromPrefill kinds", () => {
     expect(draft.kind).toBe("completion");
     expect(draft.deckText).toBe("MainDeck:\n3 Blade of the Exile");
   });
-
-  it("starts a completion at the whole deck, which is what filling one in produces", () => {
-    expect(metaSubmissionDraftFromPrefill({ kind: "completion" }).listStatus).toBe("full");
-  });
-
-  it("leaves a correction's completeness where the sender found it", () => {
-    expect(metaSubmissionDraftFromPrefill({ kind: "correction" }).listStatus).toBe(
-      EMPTY_META_SUBMISSION_DRAFT.listStatus,
-    );
-  });
 });
 
 describe("metaSubmissionTextFromCards", () => {
@@ -411,7 +538,10 @@ describe("kinds on the way out", () => {
   it("sends the kind the link asked for", () => {
     const input = buildMetaSubmissionInput(
       { ...readyDraft, kind: "completion" },
-      [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }],
+      {
+        cards: [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }],
+        listStatus: "partial",
+      },
       { metaEventId: "event-1" },
     );
     expect(input.kind).toBe("completion");
@@ -426,7 +556,10 @@ describe("kinds on the way out", () => {
         eventDate: "2026-08-15",
         eventFormat: "freeform",
       },
-      [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }],
+      {
+        cards: [{ name: "Blade of the Exile", zone: WellKnown.deckZone.MAIN, quantity: 3 }],
+        listStatus: "partial",
+      },
       null,
     );
     expect(input.kind).toBe("new_list");

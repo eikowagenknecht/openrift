@@ -8,6 +8,7 @@ import { legendDisplayName, REQUIRED_ZONES, WellKnown, zoneExpected } from "@ope
 
 /** The legend an archived deck is named by, in the parts the identity unit takes. */
 export interface ArchivedDeckIdentity {
+  cardId: string;
   /** Champion-led display name, e.g. "Volibear, Relentless Storm". */
   name: string;
   /** The card's slug, so the name links at its card page. */
@@ -39,6 +40,7 @@ export function archivedDeckIdentity(
     return null;
   }
   return {
+    cardId: named.cardId,
     name: legendDisplayName({ name: named.cardName, types: named.cardTypes, tags: named.tags }),
     slug: named.cardSlug,
     domains: named.domains,

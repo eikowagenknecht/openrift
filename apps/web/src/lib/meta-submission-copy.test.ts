@@ -3,10 +3,31 @@ import { describe, expect, it } from "vitest";
 
 import {
   metaCreditPreview,
+  metaSubmissionCompletenessLabels,
   metaSubmissionExplanation,
+  metaSubmissionFormTitles,
   metaSubmissionReasonSentences,
   metaSubmissionReasonsFor,
 } from "./meta-submission-copy";
+
+describe("metaSubmissionFormTitles", () => {
+  it("names each of the three deck-submission kinds", () => {
+    expect(metaSubmissionFormTitles).toEqual({
+      new_list: "Add decklist",
+      completion: "Complete decklist",
+      correction: "Suggest a correction",
+    });
+  });
+});
+
+describe("metaSubmissionCompletenessLabels", () => {
+  it("names the two list-completeness states a player sees", () => {
+    expect(metaSubmissionCompletenessLabels).toEqual({
+      full: "Whole deck",
+      partial: "Main deck only",
+    });
+  });
+});
 
 describe("metaCreditPreview", () => {
   it("prints nothing while credit is off", () => {
