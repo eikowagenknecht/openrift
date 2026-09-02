@@ -1,8 +1,26 @@
 import type { MetaEventSource } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { metaEvent } from "@/test/meta-event-fixtures";
+import { metaEvent, metaPhase, metaPlayer } from "@/test/meta-event-fixtures";
+
+vi.mock("@tanstack/react-router", async () => {
+  const fixtures = await import("@/test/meta-event-fixtures");
+  return { Link: fixtures.StubLink };
+});
+
+vi.mock("@/hooks/use-enums", () => ({
+  useDeckFormatList: () => ({
+    formats: [{ slug: "freeform", label: "Freeform" }],
+    labels: { freeform: "Freeform" },
+  }),
+  useEnumOrders: () => ({
+    orders: { domains: ["fury"] },
+    labels: { domains: { fury: "Fury" } },
+  }),
+}));
+
+vi.mock("@/hooks/use-domain-colors", () => ({ useDomainColors: () => ({}) }));
 
 const { MetaEventHeader } = await import("./meta-event-header");
 
@@ -18,63 +36,171 @@ function source(overrides: Partial<MetaEventSource> = {}): MetaEventSource {
   };
 }
 
+const swiss = metaPhase({
+  phaseOrder: 1,
+  name: "Phase 1",
+  roundType: "SWISS",
+  roundCount: 6,
+  rankRequired: null,
+});
+
+function renderHeader({
+  event = metaEvent(),
+  players = [],
+  phases = [],
+}: {
+  event?: ReturnType<typeof metaEvent>;
+  players?: ReturnType<typeof metaPlayer>[];
+  phases?: ReturnType<typeof metaPhase>[];
+} = {}) {
+  return render(<MetaEventHeader event={event} players={players} phases={phases} />);
+}
+
 function sourcesText(): string | null {
   return screen.queryByText(/^Sources?:/u)?.textContent ?? null;
 }
 
+/** The card artwork on the band, which the domain runes and the flag are not. */
+function cardArt(container: HTMLElement): string[] {
+  return [...container.querySelectorAll("img")]
+    .map((img) => img.getAttribute("src") ?? "")
+    .filter((src) => src.startsWith("/media/cards/"));
+}
+
+function counterValue(label: string): string {
+  const counter = screen.getByText(label).parentElement as HTMLElement;
+  return counter.firstChild?.textContent ?? "";
+}
+
 describe("MetaEventHeader facts", () => {
-  it("prints when, where, how big, and who ran it, in that order", () => {
-    render(<MetaEventHeader event={metaEvent({ country: "ES", location: "Barcelona" })} />);
-    const row = screen.getByText("2026-08-01").parentElement as HTMLElement;
-    expect(row.textContent).toBe("2026-08-01·Barcelona·64 players·Organized by LGS Berlin");
-  });
-
-  it("leaves out the facts no source published", () => {
-    render(<MetaEventHeader event={metaEvent({ playerCount: null, organizer: null })} />);
-    expect(screen.queryByText(/players/u)).toBeNull();
-    expect(screen.queryByText(/Organized by/u)).toBeNull();
-  });
-
-  it("counts a one-player field in the singular", () => {
-    render(<MetaEventHeader event={metaEvent({ playerCount: 1 })} />);
-    expect(screen.getByText("1 player")).toBeInTheDocument();
+  it("leads with the date as a calendar leaf", () => {
+    renderHeader();
+    expect(screen.getByText("AUG")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("2026")).toBeInTheDocument();
   });
 
   it("flies the flag beside the venue the source named", () => {
-    render(<MetaEventHeader event={metaEvent({ country: "ES", location: "Barcelona" })} />);
+    renderHeader({ event: metaEvent({ country: "ES", location: "Barcelona" }) });
     expect(screen.getByText("Barcelona")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Spain" })).toBeInTheDocument();
   });
 
   it("shows the country code when the venue itself is unknown", () => {
-    render(<MetaEventHeader event={metaEvent({ country: "ES", location: null })} />);
+    renderHeader({ event: metaEvent({ country: "ES", location: null }) });
     expect(screen.getByText("ES")).toBeInTheDocument();
   });
 
   // The country is guessed from the address, and the guess fails on formats it
   // does not know — the venue must not vanish along with it.
   it("still prints the venue when the country could not be read off the address", () => {
-    render(<MetaEventHeader event={metaEvent({ country: null, location: "Fira, Barcelona" })} />);
+    renderHeader({ event: metaEvent({ country: null, location: "Fira, Barcelona" }) });
     expect(screen.getByText("Fira, Barcelona")).toBeInTheDocument();
-    expect(screen.queryByRole("img")).toBeNull();
   });
 
-  it("shows no place at all for an event no source located", () => {
-    render(<MetaEventHeader event={metaEvent()} />);
-    expect(screen.queryByRole("img")).toBeNull();
-    const row = screen.getByText("2026-08-01").parentElement as HTMLElement;
-    expect(row.textContent).toBe("2026-08-01·64 players·Organized by LGS Berlin");
+  it("bylines the organizer, the format and how the event was run", () => {
+    renderHeader({ phases: [swiss, metaPhase()] });
+    expect(
+      screen.getByText("Organized by LGS Berlin · Freeform · 6 Swiss rounds, then a top 8 cut"),
+    ).toBeInTheDocument();
+  });
+
+  it("drops the organizer from the byline when no source named one", () => {
+    renderHeader({ event: metaEvent({ organizer: null }) });
+    expect(screen.getByText("Freeform")).toBeInTheDocument();
   });
 });
 
-describe("MetaEventHeader sources", () => {
+describe("MetaEventHeader counters", () => {
+  it("counts the field, the archived rows and the lists on file", () => {
+    renderHeader({ event: metaEvent({ playerRowCount: 32, deckCount: 7 }) });
+    expect(counterValue("players in the field")).toBe("64");
+    expect(counterValue("results archived")).toBe("32");
+    expect(counterValue("decklists on file")).toBe("7");
+  });
+
+  it("leaves out the field size no source published", () => {
+    renderHeader({ event: metaEvent({ playerCount: null }) });
+    expect(screen.queryByText("players in the field")).toBeNull();
+  });
+
+  it("counts how much of the cut has a list once the phases name one", () => {
+    renderHeader({
+      players: [
+        metaPlayer({ id: "p-1", rank: 1, shareToken: "tok-1" }),
+        metaPlayer({ id: "p-2", rank: 2, shareToken: "tok-2" }),
+        metaPlayer({ id: "p-3", rank: 9, shareToken: "tok-3" }),
+        metaPlayer({ id: "p-4", rank: 4, shareToken: null }),
+      ],
+      phases: [swiss, metaPhase()],
+    });
+    expect(counterValue("top 8 with lists")).toBe("2 of 8");
+  });
+
+  it("counts nothing against a cut the phases never described", () => {
+    renderHeader({ players: [metaPlayer({ shareToken: "tok-1" })] });
+    expect(screen.queryByText(/with lists/u)).toBeNull();
+  });
+});
+
+describe("MetaEventHeader champion plate", () => {
+  const winner = metaPlayer({
+    playerName: "Ana",
+    rank: 1,
+    wins: 6,
+    losses: 1,
+    draws: 0,
+    legend: {
+      cardId: "card-yasuo",
+      name: "Yasuo, the Unforgiven",
+      slug: "yasuo-the-unforgiven",
+      imageId: "img-yasuo",
+      domains: ["fury"],
+      archiveSlug: "yasuo-yasuo-the-unforgiven",
+    },
+  });
+
+  it("names the winner, their legend and their record", () => {
+    renderHeader({ players: [winner] });
+    expect(screen.getByText("Champion")).toBeInTheDocument();
+    expect(screen.getByText("Ana")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Yasuo" })).toBeInTheDocument();
+    expect(screen.getByText("the Unforgiven")).toBeInTheDocument();
+    expect(screen.getByText("6-1-0")).toBeInTheDocument();
+  });
+
+  it("leaves out a record the source never published", () => {
+    renderHeader({ players: [metaPlayer({ rank: 1, wins: null, losses: null })] });
+    expect(screen.queryByText(/^\d+-\d+-\d+$/u)).toBeNull();
+  });
+
+  it("stands the winner's legend card beside the plate and blurs it behind the band", () => {
+    const { container } = renderHeader({ players: [winner] });
+    expect(cardArt(container)).toEqual([
+      "/media/cards/uo/img-yasuo-400w.webp",
+      "/media/cards/uo/img-yasuo-240w.webp",
+    ]);
+  });
+
+  it("paints no art for a winner whose legend has no image", () => {
+    const { container } = renderHeader({ players: [metaPlayer({ rank: 1 })] });
+    expect(cardArt(container)).toEqual([]);
+  });
+
+  it("shows no plate at all for an event whose standings nobody has archived", () => {
+    renderHeader({ players: [metaPlayer({ rank: 4 })] });
+    expect(screen.queryByText("Champion")).toBeNull();
+  });
+});
+
+describe("MetaEventHeader attribution", () => {
   it("renders nothing at all when the event has no citations", () => {
-    render(<MetaEventHeader event={metaEvent()} />);
+    renderHeader();
     expect(sourcesText()).toBeNull();
   });
 
   it("links a citation that carries a URL", () => {
-    render(<MetaEventHeader event={metaEvent({ sources: [source()] })} />);
+    renderHeader({ event: metaEvent({ sources: [source()] }) });
 
     const link = screen.getByRole("link", { name: /uvsgames/u });
     expect(link.getAttribute("href")).toBe("https://example.invalid/uvs");
@@ -84,89 +210,55 @@ describe("MetaEventHeader sources", () => {
   });
 
   it("prints a hand-entered citation as plain text, not a dead link", () => {
-    render(
-      <MetaEventHeader
-        event={metaEvent({
-          sources: [
-            source({ provider: null, externalId: null, label: "Twitch VOD", sourceUrl: null }),
-          ],
-        })}
-      />,
-    );
+    renderHeader({
+      event: metaEvent({
+        sources: [
+          source({ provider: null, externalId: null, label: "Twitch VOD", sourceUrl: null }),
+        ],
+      }),
+    });
 
     expect(sourcesText()).toContain("Twitch VOD");
     expect(screen.queryByRole("link", { name: /Twitch VOD/u })).toBeNull();
   });
 
   it("labels a single citation in the singular", () => {
-    render(<MetaEventHeader event={metaEvent({ sources: [source()] })} />);
+    renderHeader({ event: metaEvent({ sources: [source()] }) });
     expect(sourcesText()?.startsWith("Source:")).toBe(true);
   });
 
   it("lists every citation when several sources fed the event", () => {
-    render(
-      <MetaEventHeader
-        event={metaEvent({
-          sources: [
-            source(),
-            source({ id: "src-2", provider: "playriftbound", label: "playriftbound" }),
-            source({
-              id: "src-3",
-              provider: null,
-              externalId: null,
-              label: "Twitch VOD",
-              sourceUrl: null,
-            }),
-          ],
-        })}
-      />,
-    );
+    renderHeader({
+      event: metaEvent({
+        sources: [
+          source(),
+          source({ id: "src-2", provider: "playriftbound", label: "playriftbound" }),
+          source({
+            id: "src-3",
+            provider: null,
+            externalId: null,
+            label: "Twitch VOD",
+            sourceUrl: null,
+          }),
+        ],
+      }),
+    });
 
     const text = sourcesText();
     expect(text?.startsWith("Sources:")).toBe(true);
-    // Attribution: none of the three is collapsed behind a "more" toggle.
     expect(text).toContain("uvsgames");
     expect(text).toContain("playriftbound");
     expect(text).toContain("Twitch VOD");
     expect(screen.getAllByRole("link", { name: /uvsgames|playriftbound/u })).toHaveLength(2);
   });
-});
 
-describe("MetaEventHeader contributors", () => {
-  function line(): string | null {
-    return screen.queryByText(/^Contributed by/u)?.textContent ?? null;
-  }
-
-  it("renders nothing when nobody is credited", () => {
-    render(<MetaEventHeader event={metaEvent({ contributors: [] })} />);
-    expect(line()).toBeNull();
+  it("credits the contributors the payload carries", () => {
+    renderHeader({ event: metaEvent({ sources: [source()], contributors: ["Alice", "Bob"] }) });
+    expect(screen.getByText("Contributed by Alice and Bob")).toBeInTheDocument();
   });
 
-  // The truncation rule itself lives with the shared component that owns it —
-  // see meta-contributors.test.tsx. These pin the header's wiring: that the
-  // line is fed from `contributors`, and that it renders in both regimes.
-  it("names the contributors the payload carries", () => {
-    render(<MetaEventHeader event={metaEvent({ contributors: ["Alice", "Bob"] })} />);
-    expect(line()).toBe("Contributed by Alice and Bob");
-  });
-
-  it("collapses a long list rather than printing all of it", () => {
-    render(
-      <MetaEventHeader
-        event={metaEvent({ contributors: ["Alice", "Bob", "Carol", "Dan", "Erin"] })}
-      />,
-    );
-    expect(line()).toBe("Contributed by Alice, Bob, Carol and 2 others");
-  });
-
-  it("credits nobody with a profile link", () => {
-    render(<MetaEventHeader event={metaEvent({ contributors: ["Alice", "Bob"] })} />);
-    expect(screen.queryByRole("link", { name: /Alice|Bob/u })).toBeNull();
-  });
-
-  it("shares one attribution line with the citations", () => {
-    render(<MetaEventHeader event={metaEvent({ sources: [source()], contributors: ["Alice"] })} />);
-    const row = screen.getByText(/^Contributed by/u).parentElement as HTMLElement;
-    expect(row.textContent).toBe("Source: uvsgames·Contributed by Alice");
+  it("renders no credit line when nobody is named", () => {
+    renderHeader({ event: metaEvent({ contributors: [] }) });
+    expect(screen.queryByText(/^Contributed by/u)).toBeNull();
   });
 });

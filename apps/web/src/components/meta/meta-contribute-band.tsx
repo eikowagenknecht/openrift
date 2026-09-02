@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 /** The same accent wash the podium's winner seat carries, turned into a frame. */
-const BAND_GLOW =
+export const BAND_GLOW =
   "radial-gradient(120% 90% at 50% 115%, color-mix(in oklab, var(--border-accent) 16%, transparent), transparent 70%)";
 
 /**

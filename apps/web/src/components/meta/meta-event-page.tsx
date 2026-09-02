@@ -17,10 +17,9 @@ import {
 } from "@/components/layout/top-bar-breadcrumb";
 import { MarkdownText } from "@/components/markdown-text";
 import { MetaEventBracket } from "@/components/meta/meta-event-bracket";
+import { MetaEventContributeBand } from "@/components/meta/meta-event-contribute-band";
 import { MetaEventCorrectionDialog } from "@/components/meta/meta-event-correction-dialog";
-import { MetaEventDecklists } from "@/components/meta/meta-event-decklists";
 import { MetaEventHeader } from "@/components/meta/meta-event-header";
-import { MetaEventPodium } from "@/components/meta/meta-event-podium";
 import { MetaEventStandings } from "@/components/meta/meta-event-standings";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import {
@@ -31,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
+import { describeEventStructure } from "@/lib/meta-event-structure";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
@@ -109,7 +109,7 @@ function EventActionsMenu({ event }: { event: MetaEventDetail }) {
 
 /**
  * `/meta/$slug` — one archived event, top-down: who won it, how the cut played
- * out, the lists the archive holds, and the whole field behind them (ADR-014).
+ * out, and the whole field with its decklists opening in place (ADR-014).
  *
  * Every section stands down on its own when the archive has nothing for it, so
  * an event that arrived as bare standings still reads as a finished page rather
@@ -118,6 +118,7 @@ function EventActionsMenu({ event }: { event: MetaEventDetail }) {
 export function MetaEventPage({ slug }: { slug: string }) {
   const { data } = useMetaEvent(slug);
   const { event, players, matches, phases } = data;
+  const structure = describeEventStructure(phases);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -139,7 +140,7 @@ export function MetaEventPage({ slug }: { slug: string }) {
       </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-10")}>
-        <MetaEventHeader event={event} />
+        <MetaEventHeader event={event} players={players} phases={phases} />
 
         {event.notes !== null && event.notes !== "" && (
           <div className="mt-4">
@@ -148,15 +149,13 @@ export function MetaEventPage({ slug }: { slug: string }) {
           </div>
         )}
 
-        <div className="mt-6">
-          <MetaEventPodium players={players} />
-        </div>
-
         <MetaEventBracket matches={matches} phases={phases} players={players} />
 
-        <MetaEventDecklists players={players} fieldSize={event.playerCount} slug={slug} />
+        <MetaEventStandings players={players} slug={slug} cutSize={structure.cutSize} />
 
-        <MetaEventStandings players={players} slug={slug} />
+        <div className="mt-8">
+          <MetaEventContributeBand event={event} players={players} slug={slug} />
+        </div>
 
         <p className="text-muted-foreground mt-8 text-sm">
           <Link to="/meta/decks" className="hover:underline">

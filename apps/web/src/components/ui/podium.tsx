@@ -28,7 +28,7 @@ export function accentGlow(strength: number): string {
 }
 
 /** The winner's seat glow. */
-export const SEAT_GLOW = accentGlow(24);
+const SEAT_GLOW = accentGlow(24);
 
 export interface PodiumSeat {
   key: string;
@@ -78,10 +78,8 @@ export type MedalVariant = "flat" | "onArt";
 /**
  * The display order for a row of seats: the winner is centered and the
  * runners-up flank it, so the row reads 2 · 1 · 3 rather than 1 · 2 · 3.
- * Generic and exported, because the archive seats card art through the same
- * arrangement and two copies of it would eventually disagree.
  */
-export function seatOrder<TSeat>(seats: readonly TSeat[]): TSeat[] {
+function seatOrder<TSeat>(seats: readonly TSeat[]): TSeat[] {
   if (seats.length >= 3) {
     return [seats[1], seats[0], seats[2]];
   }

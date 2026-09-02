@@ -6,6 +6,7 @@ import type {
   DeckFormat,
   DeckZone,
   Domain,
+  PublicDeckCardResponse,
   SuperType,
 } from "@openrift/shared";
 import { WellKnown, copyLimitFor, formatHasSideboard, isBaseBanFormat } from "@openrift/shared";
@@ -64,6 +65,28 @@ export function deckCardKey(
   preferredPrintingId: string | null,
 ): string {
   return `${cardId}|${zone}|${preferredPrintingId ?? ""}`;
+}
+
+/** The public payload already denormalizes every field, so this needs no catalog lookup and stays SSR-safe. */
+export function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard {
+  return {
+    cardId: card.cardId,
+    zone: card.zone,
+    quantity: card.quantity,
+    preferredPrintingId: card.preferredPrintingId,
+    cardName: card.cardName,
+    cardType: card.cardType,
+    cardTypes: card.cardTypes,
+    superTypes: card.superTypes,
+    domains: card.domains,
+    tags: card.tags,
+    keywords: card.keywords,
+    maxCopiesOverride: card.maxCopiesOverride,
+    banned: card.banned,
+    energy: card.energy,
+    might: card.might,
+    power: card.power,
+  };
 }
 
 /**

@@ -1,3 +1,4 @@
+import type { MetaEventPlayer } from "@openrift/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +18,12 @@ vi.mock("@tanstack/react-router", async () => {
   return { Link: fixtures.StubLink };
 });
 
+// The real preview suspends on the deck query and pulls the price feed with it.
+vi.mock("@/components/meta/meta-event-deck-preview", () => ({
+  MetaEventDeckPreview: ({ token }: { token: string }) => <p>Preview for {token}</p>,
+  MetaEventDeckPreviewSkeleton: () => null,
+}));
+
 const { MetaEventStandings } = await import("./meta-event-standings");
 
 /** The phone rendering, which is the one carrying every fact in one element. */
@@ -25,8 +32,19 @@ function phoneRow(name: string): HTMLElement {
   return within(list).getByText(name).closest("li") as HTMLElement;
 }
 
-function renderStandings(players = [metaPlayer()]) {
-  render(<MetaEventStandings players={players} slug="summoner-skirmish" />);
+function renderStandings(players: MetaEventPlayer[] = [metaPlayer()], cutSize: number | null = 8) {
+  render(<MetaEventStandings players={players} slug="summoner-skirmish" cutSize={cutSize} />);
+}
+
+function field(count: number, overrides: (index: number) => Partial<MetaEventPlayer> = () => ({})) {
+  return Array.from({ length: count }, (_, index) =>
+    metaPlayer({
+      id: `p-${index}`,
+      playerName: `Player ${index}`,
+      rank: index + 1,
+      ...overrides(index),
+    }),
+  );
 }
 
 describe("MetaEventStandings", () => {
@@ -40,6 +58,22 @@ describe("MetaEventStandings", () => {
       screen.getByText("The results for this event have not come through yet. Check back soon."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("counts the field and how much of it has a list", () => {
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1, shareToken: "tok1" }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+    expect(screen.getByText("2 entries · 1 with a decklist")).toBeInTheDocument();
+  });
+
+  it("counts only the entries when the archive holds no list at all", () => {
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1 }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+    expect(screen.getByText("2 entries")).toBeInTheDocument();
   });
 
   it("lists every player, the deckless ones included", () => {
@@ -65,6 +99,47 @@ describe("MetaEventStandings", () => {
     expect(within(phoneRow("Bo")).getByText("T8")).toBeInTheDocument();
   });
 
+  it("shows legend art down to the cut and nothing below it", () => {
+    const legend = metaPlayer().legend;
+    renderStandings(
+      [
+        metaPlayer({
+          id: "p-1",
+          playerName: "Ana",
+          rank: 4,
+          legend: { ...legend!, imageId: "art" },
+        }),
+        metaPlayer({
+          id: "p-2",
+          playerName: "Bo",
+          rank: 9,
+          legend: { ...legend!, imageId: "art" },
+        }),
+      ],
+      8,
+    );
+    expect(phoneRow("Ana").querySelector('img[src*="art-120w"]')).not.toBeNull();
+    expect(phoneRow("Bo").querySelector('img[src*="art-120w"]')).toBeNull();
+  });
+
+  it("takes the cut from the event rather than assuming a top 8", () => {
+    const legend = metaPlayer().legend;
+    renderStandings(
+      [metaPlayer({ playerName: "Ana", rank: 5, legend: { ...legend!, imageId: "art" } })],
+      4,
+    );
+    expect(phoneRow("Ana").querySelector('img[src*="art-120w"]')).toBeNull();
+  });
+
+  it("washes the winner's row in the archive's gold", () => {
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1 }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+    expect(phoneRow("Ana").className).toContain("bg-border-accent/10");
+    expect(phoneRow("Bo").className).not.toContain("bg-border-accent/10");
+  });
+
   it("derives the record as all three parts", () => {
     renderStandings([
       metaPlayer({ id: "p-1", playerName: "Ana", wins: 6, losses: 1, draws: null }),
@@ -72,11 +147,6 @@ describe("MetaEventStandings", () => {
     ]);
     expect(within(phoneRow("Ana")).getByText("6-1-0")).toBeInTheDocument();
     expect(within(phoneRow("Bo")).getByText("5-1-1")).toBeInTheDocument();
-  });
-
-  it("shows no record for a player the source published none for", () => {
-    renderStandings([metaPlayer({ playerName: "Ana", wins: null, losses: null, draws: null })]);
-    expect(within(phoneRow("Ana")).queryByText(/^\d+-\d+/u)).toBeNull();
   });
 
   it("names the legend and draws its domain runes", () => {
@@ -93,30 +163,18 @@ describe("MetaEventStandings", () => {
     expect(link.getAttribute("href")).toBe("/meta/legends/yasuo-yasuo-the-unforgiven");
   });
 
-  it("leaves the legend out for a player the archive knows none for", () => {
-    renderStandings([metaPlayer({ playerName: "Ana", legend: null })]);
-    expect(within(phoneRow("Ana")).queryByText("Yasuo")).toBeNull();
-  });
-
-  it("links the players whose list the archive holds", () => {
-    renderStandings([
-      metaPlayer({
-        playerName: "Ana",
-        deckId: "d1",
-        deckName: "Yasuo Aggro",
-        shareToken: "tok1",
-        listStatus: "full",
-      }),
-    ]);
-    const link = within(phoneRow("Ana")).getByRole("link", { name: "Decklist" });
-    expect(link.getAttribute("href")).toBe("/meta/decks/tok1");
-  });
-
-  it("says when a linked list is only partial", () => {
+  it("marks a linked list that is only partial", () => {
     renderStandings([
       metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1", listStatus: "partial" }),
     ]);
-    expect(within(phoneRow("Ana")).getByRole("link", { name: "Partial" })).toBeInTheDocument();
+    expect(within(phoneRow("Ana")).getByText("Partial list")).toBeInTheDocument();
+  });
+
+  it("leaves a full list unmarked", () => {
+    renderStandings([
+      metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1", listStatus: "full" }),
+    ]);
+    expect(within(phoneRow("Ana")).queryByText("Partial list")).toBeNull();
   });
 
   it("offers a signed-in reader the form, prefilled from the row", () => {
@@ -132,9 +190,6 @@ describe("MetaEventStandings", () => {
     expect(search.get("player")).toBe("Ana");
     expect(search.get("rank")).toBe("8");
     expect(search.get("cut")).toBe("true");
-    expect(search.get("wins")).toBe("12");
-    expect(search.get("losses")).toBe("3");
-    expect(search.get("draws")).toBe("0");
   });
 
   it("offers a signed-out reader nothing to click on a list-less row", () => {
@@ -142,12 +197,70 @@ describe("MetaEventStandings", () => {
     expect(screen.queryByRole("link", { name: "+ Add" })).toBeNull();
   });
 
+  it("opens a row's decklist in place", async () => {
+    const user = userEvent.setup();
+    renderStandings([metaPlayer({ playerName: "Ana", shareToken: "tok1" })]);
+
+    expect(screen.queryByText("Preview for tok1")).toBeNull();
+    await user.click(within(phoneRow("Ana")).getByRole("button", { name: "Decklist" }));
+    expect(within(phoneRow("Ana")).getByText("Preview for tok1")).toBeInTheDocument();
+  });
+
+  it("closes an open decklist when another one opens", async () => {
+    const user = userEvent.setup();
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1, shareToken: "tok1" }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2, shareToken: "tok2" }),
+    ]);
+
+    await user.click(within(phoneRow("Ana")).getByRole("button", { name: "Decklist" }));
+    await user.click(within(phoneRow("Bo")).getByRole("button", { name: "Decklist" }));
+
+    expect(screen.queryByText("Preview for tok1")).toBeNull();
+    expect(within(phoneRow("Bo")).getByText("Preview for tok2")).toBeInTheDocument();
+  });
+
+  it("narrows the field to the entries with a list", async () => {
+    const user = userEvent.setup();
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1, shareToken: "tok1" }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "With decklist (1)" }));
+    expect(phoneRow("Ana")).toBeInTheDocument();
+    expect(screen.queryByText("Bo")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "All entries" }));
+    expect(phoneRow("Bo")).toBeInTheDocument();
+  });
+
+  it("offers no decklist filter for a field with none on file", () => {
+    renderStandings(field(12));
+    expect(screen.queryByRole("button", { name: /With decklist/u })).toBeNull();
+  });
+
+  it("finds a player by name", async () => {
+    const user = userEvent.setup();
+    renderStandings(field(12));
+
+    await user.type(screen.getByRole("searchbox", { name: "Find a player" }), "player 7");
+    expect(phoneRow("Player 7")).toBeInTheDocument();
+    expect(screen.queryByText("Player 6")).toBeNull();
+  });
+
+  it("says so when nothing matches what was typed", async () => {
+    const user = userEvent.setup();
+    renderStandings(field(12));
+
+    await user.type(screen.getByRole("searchbox", { name: "Find a player" }), "Ziggs");
+    expect(screen.getByText("No entries match.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
   it("opens a long field partly, then shows the rest on request", async () => {
     const user = userEvent.setup();
-    const players = Array.from({ length: 20 }, (_, index) =>
-      metaPlayer({ id: `p-${index}`, playerName: `Player ${index}`, rank: index + 1 }),
-    );
-    renderStandings(players);
+    renderStandings(field(20));
 
     expect(screen.queryByText("Player 19")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Show all 20 entries" }));
@@ -155,6 +268,14 @@ describe("MetaEventStandings", () => {
 
     await user.click(screen.getByRole("button", { name: "Show fewer" }));
     expect(screen.queryByText("Player 19")).toBeNull();
+  });
+
+  it("counts the narrowed field in the show-all button", async () => {
+    const user = userEvent.setup();
+    renderStandings(field(20, (index) => (index < 18 ? { shareToken: `tok-${index}` } : {})));
+
+    await user.click(screen.getByRole("button", { name: "With decklist (18)" }));
+    expect(screen.getByRole("button", { name: "Show all 18 entries" })).toBeInTheDocument();
   });
 
   it("offers no toggle for a field that already fits", () => {

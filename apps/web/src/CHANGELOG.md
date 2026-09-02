@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-02
+
+### Highlights
+
+- feat(Meta): **Event pages redesigned** — the header now shows the champion, format, and structure at a glance, and standings expand inline to preview each decklist's card mix, value, and how much of it you own.
+
 ## 2026-09-01
 
 ### Highlights

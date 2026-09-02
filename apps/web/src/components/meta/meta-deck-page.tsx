@@ -1,6 +1,6 @@
 import type { DeckFormat, DeckZone, MetaDeckDetailResponse } from "@openrift/shared";
 import { formatDay, WellKnown } from "@openrift/shared";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, GitForkIcon, InfoIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,9 +12,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Medal } from "@/components/ui/podium";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { useCloneSharedDeck, useEncodeDeckCards } from "@/hooks/use-decks";
+import { useEncodeDeckCards } from "@/hooks/use-decks";
+import { useForkArchivedDeck } from "@/hooks/use-fork-archived-deck";
 import { useMetaDeck } from "@/hooks/use-meta";
-import { useUserId } from "@/lib/auth-session";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import {
   archivedDeckIdentity,
@@ -25,7 +25,6 @@ import {
 import { formatRank, formatRecord } from "@/lib/meta-format";
 import type { MetaSubmitSearch } from "@/lib/meta-submit-link";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
-import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 /** Module scope so the copy handler's `try` stays branch-free (React Compiler). */
 function reportEncodeWarnings(warnings: readonly string[]): void {
@@ -119,47 +118,11 @@ function MetaDeckNotice({
  */
 export function MetaDeckPage({ token }: { token: string }) {
   const { data } = useMetaDeck(token);
-  const userId = useUserId();
-  const isLoggedIn = userId !== null;
-  const cloneMutation = useCloneSharedDeck();
+  const { fork, isPending: forkPending, isLoggedIn, label: forkLabel } = useForkArchivedDeck();
   const encodeMutation = useEncodeDeckCards();
   const { copied, copy } = useCopyToClipboard();
-  const navigate = useNavigate();
 
-  // Fork, per ADR-014: signed in duplicates the deck server-side, signed out
-  // builds the same list as a browser-local deck (ADR-035). Which branch runs
-  // follows the deck importer: the presence of a user id, not a session load
-  // state.
-  const handleFork = async () => {
-    if (!isLoggedIn) {
-      const store = useLocalDecksStore.getState();
-      const localId = store.createDeck(data.deck.format, data.deck.name);
-      // createDeck starts with formatConfig null; carry the archived deck's
-      // config (and links) over so e.g. a Custom-Region fork keeps its
-      // regions, matching what the signed-in clone does server-side.
-      store.updateDeck(localId, {
-        formatConfig: data.deck.formatConfig,
-        links: data.deck.links,
-      });
-      store.setCards(
-        localId,
-        data.cards.map((card) => ({
-          zone: card.zone,
-          cardId: card.cardId,
-          quantity: card.quantity,
-          preferredPrintingId: card.preferredPrintingId,
-        })),
-      );
-      void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
-      return;
-    }
-    try {
-      const result = await cloneMutation.mutateAsync(token);
-      void navigate({ to: "/decks/$deckId", params: { deckId: result.deckId } });
-    } catch {
-      /* Reported by the global mutation error toast. */
-    }
-  };
+  const handleFork = () => fork({ token, deck: data.deck, cards: data.cards });
 
   // The archived deck has no server row the viewer may export, so the code
   // comes from the public stateless encoder — the same codecs the owner's
@@ -178,7 +141,6 @@ export function MetaDeckPage({ token }: { token: string }) {
   };
 
   const unknown = unknownZoneCounts(data.cards, data.deck.format, data.meta.listStatus);
-  const forkLabel = isLoggedIn ? "Fork to my decks" : "Open in deck builder";
 
   const identity = archivedDeckIdentity(data.cards);
   // `archivedDeckIdentity` falls back to the champion for a list with no legend
@@ -224,14 +186,12 @@ export function MetaDeckPage({ token }: { token: string }) {
               </PageTopBarButton>
               <PageTopBarPrimaryButton
                 onClick={handleFork}
-                disabled={cloneMutation.isPending}
-                aria-label={cloneMutation.isPending ? "Copying…" : forkLabel}
+                disabled={forkPending}
+                aria-label={forkPending ? "Copying…" : forkLabel}
               >
                 <GitForkIcon />
-                <span className="hidden sm:inline">
-                  {cloneMutation.isPending ? "Copying…" : forkLabel}
-                </span>
-                <span className="sm:hidden">{cloneMutation.isPending ? "Copying…" : "Fork"}</span>
+                <span className="hidden sm:inline">{forkPending ? "Copying…" : forkLabel}</span>
+                <span className="sm:hidden">{forkPending ? "Copying…" : "Fork"}</span>
               </PageTopBarPrimaryButton>
             </>
           }

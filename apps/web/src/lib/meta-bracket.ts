@@ -44,7 +44,7 @@ function roundLabel(fromEnd: number): string {
  * `RANKED_SINGLE_ELIMINATION`), so this matches on the substring rather than a
  * fixed list a new source would fall outside of.
  */
-function isSingleElimination(roundType: string): boolean {
+export function isSingleElimination(roundType: string): boolean {
   return roundType.toUpperCase().includes("SINGLE_ELIMINATION");
 }
 

@@ -71,6 +71,13 @@ vi.mock("@/components/meta/meta-event-correction-dialog", () => ({
   MetaEventCorrectionDialog: () => null,
 }));
 
+// The standings' inline preview suspends on the deck query and pulls the price
+// feed with it. Nothing on this page opens one.
+vi.mock("@/components/meta/meta-event-deck-preview", () => ({
+  MetaEventDeckPreview: () => null,
+  MetaEventDeckPreviewSkeleton: () => null,
+}));
+
 vi.mock("@/components/layout/top-bar-breadcrumb", () => ({
   TopBarBreadcrumbSeparator: () => null,
   TopBarBreadcrumbTrail: () => null,
@@ -154,7 +161,7 @@ describe("MetaEventPage", () => {
     expect(screen.getByText("Played on the new floor.")).toBeInTheDocument();
   });
 
-  it("reads top-down: podium, decklists, standings", () => {
+  it("reads top-down: the hero, the field, then the ask", () => {
     renderPage({}, [
       metaPlayer({ id: "p-1", playerName: "Ana", rank: 1, shareToken: "tok1", deckId: "d1" }),
       metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
@@ -165,8 +172,19 @@ describe("MetaEventPage", () => {
       .map((node) => node.textContent)
       .filter((text) => text !== null);
     expect(headings[0]).toBe("Summoner Skirmish");
-    expect(headings.some((text) => text.startsWith("Decklists"))).toBe(true);
     expect(headings.at(-1)).toBe("Standings");
+
+    const standings = screen.getByRole("heading", { name: "Standings" });
+    const ask = screen.getByText("Were you there?");
+    expect(standings.compareDocumentPosition(ask)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("names the champion above the field", () => {
+    renderPage({}, [
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1 }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+    expect(screen.getByText("Champion")).toBeInTheDocument();
   });
 
   it("stands the bracket down for an event with no archived pairings", () => {
@@ -197,7 +215,7 @@ describe("MetaEventPage", () => {
     expect(
       screen.getByText("The results for this event have not come through yet. Check back soon."),
     ).toBeInTheDocument();
-    expect(screen.getByText(/haven.t archived any decks/u)).toBeInTheDocument();
+    expect(screen.queryByText("Were you there?")).toBeNull();
   });
 
   it("leads on to the rest of the archive", () => {

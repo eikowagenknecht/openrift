@@ -1,45 +1,24 @@
-import type { MetaEventDetail } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import type { MetaEventDetail, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
+import { dateLeafPartsUtc, imageUrl } from "@openrift/shared";
 import { ExternalLinkIcon } from "lucide-react";
-import type { ReactNode } from "react";
 import { Fragment } from "react";
 
+import { ArtBandBackdrop } from "@/components/art-band-backdrop";
+import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { MetaContributors } from "@/components/meta/meta-contributors";
+import { MetaIdentity } from "@/components/meta/meta-identity";
 import { CountryFlag } from "@/components/ui/country-flag";
+import { DateLeaf } from "@/components/ui/date-leaf";
+import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+import { useDeckFormatList } from "@/hooks/use-enums";
+import { describeEventStructure } from "@/lib/meta-event-structure";
+import { formatRecord } from "@/lib/meta-format";
+import { metaEventWinners } from "@/lib/meta-front-page";
 
-interface Fact {
-  id: string;
-  node: ReactNode;
-}
-
-/** The facts, separated by the middle dots the byline reads in. */
-function FactRow({ facts }: { facts: readonly Fact[] }) {
-  return (
-    <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-      {facts.map((fact, index) => (
-        <Fragment key={fact.id}>
-          {index > 0 && <span aria-hidden>·</span>}
-          {fact.node}
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Where this event's data came from (ADR-014). One event is fed by several
- * sources — uvsgames posts the standings, playriftbound the lists — so this is
- * a list rather than the single link it replaced.
- *
- * Every citation is printed. None is collapsed behind a "+2 more" and none is
- * truncated: this is attribution, and a source that fed the page is owed its
- * credit whether it is the first or the fourth. A hand-entered citation (an
- * admin transcribing from a VOD or a photo of the standings board) carries no
- * URL, so it renders as plain text rather than a dead link.
- */
+/** Every citation is printed, never collapsed behind a "+2 more": this is attribution. */
 function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
   return (
-    <span>
+    <p className="text-muted-foreground text-xs">
       {sources.length === 1 ? "Source" : "Sources"}:{" "}
       {sources.map((source, index) => (
         <Fragment key={source.id}>
@@ -59,65 +38,152 @@ function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
           )}
         </Fragment>
       ))}
-    </span>
+    </p>
+  );
+}
+
+function Counter({ value, label }: { value: string; label: string }) {
+  return (
+    <p className="flex flex-col gap-0.5">
+      <span className="font-heading text-2xl leading-none font-bold tabular-nums">{value}</span>
+      <span className="text-muted-foreground text-xs">{label}</span>
+    </p>
+  );
+}
+
+/** Pinned grouping: a server on another default locale would send "1.247" into a browser rendering "1,247". */
+function counterValue(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
+function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: string | null }) {
+  const record = formatRecord(player.wins, player.losses, player.draws);
+
+  return (
+    <div className="flex shrink-0 items-center gap-4">
+      <div className="bg-background/60 ring-foreground/10 flex flex-col gap-2 rounded-lg p-4 ring-1 sm:w-64">
+        <span className="text-border-accent text-2xs font-semibold tracking-wider uppercase">
+          Champion
+        </span>
+        <p className="font-heading font-semibold">{player.playerName}</p>
+        <MetaIdentity
+          name={player.legend?.name}
+          slug={player.legend?.slug}
+          archiveSlug={player.legend?.archiveSlug}
+          domains={player.legend?.domains}
+          layout="stacked"
+          className="text-sm"
+        />
+        {player.champion !== null && (
+          <p className="text-muted-foreground text-xs">{player.champion.name}</p>
+        )}
+        {record !== null && (
+          <p className="font-heading text-border-accent text-2xl leading-none font-bold tabular-nums">
+            {record}
+          </p>
+        )}
+      </div>
+      {artId !== null && (
+        <ImgWithFallback
+          src={imageUrl(artId, "240w")}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          draggable={false}
+          fallback={null}
+          style={{ borderRadius: CARD_BORDER_RADIUS }}
+          className="aspect-card hidden h-32 shrink-0 rotate-6 object-cover shadow-md sm:block"
+        />
+      )}
+    </div>
   );
 }
 
 /**
- * The byline under an archived event's title: when and where it was played, how
- * big the field was, and who ran it, then the citations and the people who typed
- * the entry in, on one attribution line.
- *
- * The flag and the venue are independently optional. The country is derived from
- * the venue address by a heuristic that gives up on formats it does not know, so
- * an event whose address never resolved still prints where it was played.
- *
- * The tier badge is deliberately absent — it rides beside the title in the page's
- * top bar, where it stays visible while the standings scroll.
+ * The flag and the venue are independently optional: the country comes from an
+ * address heuristic that gives up on formats it does not know. The tier badge
+ * rides beside the title in the top bar, not here.
  */
-export function MetaEventHeader({ event }: { event: MetaEventDetail }) {
-  const facts: Fact[] = [{ id: "date", node: <span>{formatDay(event.eventDate)}</span> }];
+export function MetaEventHeader({
+  event,
+  players,
+  phases,
+}: {
+  event: MetaEventDetail;
+  players: readonly MetaEventPlayer[];
+  phases: readonly MetaEventPhase[];
+}) {
+  const { labels: formatLabels } = useDeckFormatList();
+  const leaf = dateLeafPartsUtc(event.eventDate);
+  const structure = describeEventStructure(phases);
+  const champion = players.find((player) => player.rank === 1) ?? null;
+  const winnerLegend =
+    champion?.legend ?? metaEventWinners(event).find((winner) => winner.legend !== null)?.legend;
+  const artId = winnerLegend?.imageId ?? null;
 
-  if (event.country !== null || event.location !== null) {
-    facts.push({
-      id: "place",
-      node: (
-        <span className="flex items-center gap-1.5">
-          <CountryFlag code={event.country} size="sm" showCode={event.location === null} />
-          {event.location !== null && <span>{event.location}</span>}
-        </span>
-      ),
-    });
-  }
-  if (event.playerCount !== null) {
-    facts.push({
-      id: "players",
-      node: (
-        <span>
-          {event.playerCount} {event.playerCount === 1 ? "player" : "players"}
-        </span>
-      ),
-    });
-  }
+  const byline: string[] = [];
   if (event.organizer !== null) {
-    facts.push({ id: "organizer", node: <span>Organized by {event.organizer}</span> });
+    byline.push(`Organized by ${event.organizer}`);
+  }
+  byline.push(formatLabels[event.format]);
+  if (structure.sentence !== null) {
+    byline.push(structure.sentence);
   }
 
-  const attribution: Fact[] = [];
-  if (event.sources.length > 0) {
-    attribution.push({ id: "sources", node: <EventSources sources={event.sources} /> });
-  }
-  if (event.contributors.length > 0) {
-    attribution.push({
-      id: "credits",
-      node: <MetaContributors contributors={event.contributors} />,
-    });
-  }
+  const cutSize = structure.cutSize;
+  const cutWithLists =
+    cutSize === null
+      ? null
+      : players.filter((player) => player.rank <= cutSize && player.shareToken !== null).length;
 
   return (
-    <div className="flex flex-col gap-1">
-      <FactRow facts={facts} />
-      {attribution.length > 0 && <FactRow facts={attribution} />}
-    </div>
+    <section className="bg-card ring-foreground/10 relative overflow-hidden rounded-xl ring-1">
+      {artId !== null && (
+        <ArtBandBackdrop
+          thumbnail={imageUrl(artId, "400w")}
+          domains={winnerLegend?.domains ?? []}
+        />
+      )}
+
+      <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <DateLeaf month={leaf.month} day={leaf.day} year={leaf.year} />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              {(event.country !== null || event.location !== null) && (
+                <p className="flex items-center gap-1.5 font-medium">
+                  <CountryFlag code={event.country} size="sm" showCode={event.location === null} />
+                  {event.location !== null && <span>{event.location}</span>}
+                </p>
+              )}
+              <p className="text-muted-foreground text-sm">{byline.join(" · ")}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-x-9 gap-y-3">
+            {event.playerCount !== null && (
+              <Counter value={counterValue(event.playerCount)} label="players in the field" />
+            )}
+            <Counter value={counterValue(event.playerRowCount)} label="results archived" />
+            <Counter value={counterValue(event.deckCount)} label="decklists on file" />
+            {cutSize !== null && cutWithLists !== null && (
+              <Counter
+                value={`${counterValue(cutWithLists)} of ${counterValue(cutSize)}`}
+                label={`top ${cutSize} with lists`}
+              />
+            )}
+          </div>
+
+          {(event.sources.length > 0 || event.contributors.length > 0) && (
+            <div className="flex flex-col gap-1">
+              {event.sources.length > 0 && <EventSources sources={event.sources} />}
+              <MetaContributors contributors={event.contributors} className="text-xs" />
+            </div>
+          )}
+        </div>
+
+        {champion !== null && <ChampionPlate player={champion} artId={artId} />}
+      </div>
+    </section>
   );
 }

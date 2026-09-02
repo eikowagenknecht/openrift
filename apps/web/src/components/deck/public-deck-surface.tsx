@@ -1,4 +1,4 @@
-import type { DeckZone, PublicDeckCardResponse, PublicDeckDetailResponse } from "@openrift/shared";
+import type { DeckZone, PublicDeckDetailResponse } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { Suspense, useEffect, useRef, useState } from "react";
 
@@ -20,6 +20,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { toBuilderCardFromPublic } from "@/lib/deck-builder-card";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
@@ -32,27 +33,6 @@ import { useSelectionStore } from "@/stores/selection-store";
 // empty value is the whole contract — every FilterSearch field is optional and
 // `view` falls back to the display-store default.
 const EMPTY_FILTER_SEARCH: FilterSearch = {};
-
-function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard {
-  return {
-    cardId: card.cardId,
-    zone: card.zone,
-    quantity: card.quantity,
-    preferredPrintingId: card.preferredPrintingId,
-    cardName: card.cardName,
-    cardType: card.cardType,
-    cardTypes: card.cardTypes,
-    superTypes: card.superTypes,
-    domains: card.domains,
-    tags: card.tags,
-    keywords: card.keywords,
-    maxCopiesOverride: card.maxCopiesOverride,
-    banned: card.banned,
-    energy: card.energy,
-    might: card.might,
-    power: card.power,
-  };
-}
 
 function thumbKey(cardId: string, preferredPrintingId: string | null): string {
   return `${cardId}|${preferredPrintingId ?? ""}`;

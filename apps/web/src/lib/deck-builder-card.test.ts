@@ -1,4 +1,10 @@
-import type { CardBan, CardType, DeckZone, SuperType } from "@openrift/shared";
+import type {
+  CardBan,
+  CardType,
+  DeckZone,
+  PublicDeckCardResponse,
+  SuperType,
+} from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
@@ -10,6 +16,7 @@ import {
   isCardAllowedInZone,
   isCardBanned,
   isDeckZoneFullForDrag,
+  toBuilderCardFromPublic,
 } from "./deck-builder-card";
 
 function ban(formatId: string): CardBan {
@@ -598,5 +605,59 @@ describe("buildMoveRows", () => {
 
   it("returns nothing when the card has no move targets", () => {
     expect(buildMoveRows([], 3, true)).toEqual([]);
+  });
+});
+
+describe("toBuilderCardFromPublic", () => {
+  const card = {
+    cardId: "card-a",
+    zone: "main",
+    quantity: 3,
+    preferredPrintingId: "printing-a",
+    cardName: "Punch First",
+    cardSlug: "punch-first",
+    cardType: "spell",
+    cardTypes: ["spell"],
+    superTypes: [],
+    domains: ["fury"],
+    tags: [],
+    keywords: ["Accelerate"],
+    maxCopiesOverride: null,
+    banned: false,
+    energy: 2,
+    might: null,
+    power: 1,
+    resolvedPrintingId: "printing-a",
+    shortCode: "OGN-042",
+    imageId: "0123456789abcdef",
+  } as unknown as PublicDeckCardResponse;
+
+  it("copies every builder field off the denormalized payload", () => {
+    expect(toBuilderCardFromPublic(card)).toEqual({
+      cardId: "card-a",
+      zone: "main",
+      quantity: 3,
+      preferredPrintingId: "printing-a",
+      cardName: "Punch First",
+      cardType: "spell",
+      cardTypes: ["spell"],
+      superTypes: [],
+      domains: ["fury"],
+      tags: [],
+      keywords: ["Accelerate"],
+      maxCopiesOverride: null,
+      banned: false,
+      energy: 2,
+      might: null,
+      power: 1,
+    });
+  });
+
+  it("drops the fields the builder has no use for", () => {
+    const builderCard = toBuilderCardFromPublic(card);
+
+    expect(builderCard).not.toHaveProperty("imageId");
+    expect(builderCard).not.toHaveProperty("shortCode");
+    expect(builderCard).not.toHaveProperty("cardSlug");
   });
 });
