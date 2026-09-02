@@ -42,22 +42,16 @@ Email sending is disabled when `SMTP_HOST` is unset.
 | `SMTP_PASS`   |         | SMTP authentication password                            |
 | `SMTP_FROM`   |         | "From" address (e.g. `OpenRift <noreply@openrift.app>`) |
 
-#### Cron
+#### Job Secrets
 
-| Variable                       | Default                              | Description                                                                                         |
-| ------------------------------ | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
-| `CRON_TCGPLAYER`               |                                      | Cron expression for TCGPlayer refresh (e.g. `0 6 * * *`). Unset to disable.                         |
-| `CRON_CARDMARKET`              |                                      | Cron expression for Cardmarket refresh (e.g. `15 6 * * *`). Unset to disable.                       |
-| `CRON_CARDTRADER`              |                                      | Cron expression for CardTrader refresh (e.g. `30 6 * * *`). Also requires the API token.            |
-| `CRON_CHANGELOG`               |                                      | Cron expression for changelog Discord post (e.g. `0 20 * * *`). Unset to disable.                   |
-| `CARDTRADER_API_TOKEN`         |                                      | CardTrader API token. Required for CardTrader refresh; leave empty to skip.                         |
-| `CHANGELOG_PATH`               | `apps/web/src/CHANGELOG.md`          | Path to the changelog file read by the Discord cron job.                                            |
-| `CRON_META_UVSGAMES_SYNC`      |                                      | Cron expression for the uvsgames daily catalogue sync. Unset to disable.                            |
-| `CRON_META_UVSGAMES_RECHECK`   |                                      | Cron expression for the uvsgames recheck queue (suggested `*/10 * * * *`). Unset to disable.        |
-| `CRON_META_PLAYLOLTCG_SYNC`    |                                      | Cron expression for the playloltcg daily catalogue sync. Unset to disable.                          |
-| `CRON_META_PLAYLOLTCG_RECHECK` |                                      | Cron expression for the playloltcg recheck queue (suggested `*/10 * * * *`). Unset to disable.      |
-| `META_SYNC_BASE_URL`           | `https://api.riftbound.uvsgames.com` | Base URL of the uvsgames API the meta sync reads. Override to point at a recorded fixture server.   |
-| `META_PLAYLOLTCG_BASE_URL`     | `https://lol-api.playloltcg.com`     | Base URL of the playloltcg API the meta sync reads. Override to point at a recorded fixture server. |
+Scheduling for these jobs lives in the `/admin/jobs` page (see [Scheduled Jobs](#scheduled-jobs) below), not in env vars. These variables gate or configure the jobs themselves.
+
+| Variable                   | Default                              | Description                                                                                         |
+| -------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `CARDTRADER_API_TOKEN`     |                                      | CardTrader API token. Required for the CardTrader price refresh job to be enabled.                  |
+| `CHANGELOG_PATH`           | `apps/web/src/CHANGELOG.md`          | Path to the changelog file read by the changelog Discord post job.                                  |
+| `META_SYNC_BASE_URL`       | `https://api.riftbound.uvsgames.com` | Base URL of the uvsgames API the meta sync reads. Override to point at a recorded fixture server.   |
+| `META_PLAYLOLTCG_BASE_URL` | `https://lol-api.playloltcg.com`     | Base URL of the playloltcg API the meta sync reads. Override to point at a recorded fixture server. |
 
 #### Discord Webhooks
 
@@ -67,7 +61,7 @@ Each webhook is independent — leave any unset to disable that notification str
 | ---------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `DISCORD_WEBHOOK_NEW_PRINTINGS`    | Webhook URL for the new-printings channel. Receives notifications when new printings are created. |
 | `DISCORD_WEBHOOK_PRINTING_CHANGES` | Webhook URL for the data-updates channel. Receives notifications when printing data changes.      |
-| `DISCORD_WEBHOOK_CHANGELOG`        | Webhook URL for the changelog post driven by `CRON_CHANGELOG`.                                    |
+| `DISCORD_WEBHOOK_CHANGELOG`        | Webhook URL for the changelog post job.                                                           |
 
 ### Web (Vite)
 
@@ -113,6 +107,12 @@ These are set automatically by the test harness and should not be in `.env`.
 | `INTEGRATION_DB_URL` | Connection string for the temporary test database (set by the test orchestrator) |
 | `KEEP_TEST_DB`       | If set, preserve test databases after the run instead of dropping them           |
 | `COVERAGE`           | If set, generate coverage reports during test runs                               |
+
+## Scheduled Jobs
+
+Job schedules (price refreshes, meta syncs, trade digest, changelog post) are stored in the `job_schedules` database table and managed from the admin panel at `/admin/jobs`. A job with no row is off; a fresh deployment starts with every job disabled.
+
+Each job shows a suggested schedule on the page. "Enable suggested" turns on one job with that schedule; "Enable all suggested" enables every job at once, which is the normal way to bring up a new deployment. Schedules are five-field cron expressions in UTC, and can be edited or the job disabled again at any time. A job whose required secret (e.g. `CARDTRADER_API_TOKEN`) is missing shows why it cannot be enabled. "Run now" starts an out-of-schedule run immediately; every run, scheduled or manual, appears on the Job Runs page.
 
 ## Feature Flags
 

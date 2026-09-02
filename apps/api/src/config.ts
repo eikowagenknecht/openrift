@@ -57,33 +57,6 @@ export function createConfig(env: Record<string, string | undefined>) {
     logRequestBodies: env.LOG_REQUEST_BODIES === "true",
     logResponseBodies: env.LOG_RESPONSE_BODIES === "true",
 
-    cron: {
-      tcgplayerSchedule: env.CRON_TCGPLAYER,
-      cardmarketSchedule: env.CRON_CARDMARKET,
-      cardtraderSchedule: env.CRON_CARDTRADER,
-      changelogSchedule: env.CRON_CHANGELOG,
-      // ADR-030 daily match digest. Defaults to once a day at 08:00 UTC; set
-      // CRON_TRADE_DIGEST to an empty string to disable.
-      tradeDigestSchedule: env.CRON_TRADE_DIGEST ?? "0 8 * * *",
-      // ADR-030 coalesced trade-request flush. Runs every minute by default and
-      // sends the follow-up once a sender→recipient burst has settled; set
-      // CRON_TRADE_REQUEST_FLUSH to an empty string to disable.
-      tradeRequestFlushSchedule: env.CRON_TRADE_REQUEST_FLUSH ?? "* * * * *",
-      // ADR-030 coalesced trade-status flush (accepted / declined / cancelled).
-      // Runs every minute by default and emails the party who didn't act once an
-      // actor→recipient burst has settled; set CRON_TRADE_STATUS_FLUSH to an
-      // empty string to disable.
-      tradeStatusFlushSchedule: env.CRON_TRADE_STATUS_FLUSH ?? "* * * * *",
-      // Meta archive sync. All four are unset by default, so a deployment that
-      // has not opted in never reaches the sources; the admin UI's manual
-      // triggers are how the sync is exercised there. Suggested production
-      // values: each catalogue sync daily, rechecks every ten minutes.
-      metaUvsgamesSyncSchedule: env.CRON_META_UVSGAMES_SYNC,
-      metaUvsgamesRecheckSchedule: env.CRON_META_UVSGAMES_RECHECK,
-      metaPlayloltcgSyncSchedule: env.CRON_META_PLAYLOLTCG_SYNC,
-      metaPlayloltcgRecheckSchedule: env.CRON_META_PLAYLOLTCG_RECHECK,
-    },
-
     // The meta sources. Overridable so a test deployment can point at a recorded
     // fixture server instead of the live APIs.
     metaSync: {

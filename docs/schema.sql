@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 8xy3bx0wQe7wlOWVMuQNKU5DyOJPSN8hfpqKNG3gzFKc2s0CUsKLnC1y03t5x3G
+\restrict c9ACPA46vncwpc0ulq4HEfUhoPt6NBUoAmZjLa3mRFqJMx5UthrcIzjiP3KPUZb
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -1786,6 +1786,19 @@ CREATE TABLE public.job_runs (
     CONSTRAINT chk_job_runs_finished_shape CHECK (((status = 'running'::text) = (finished_at IS NULL))),
     CONSTRAINT chk_job_runs_status CHECK ((status = ANY (ARRAY['running'::text, 'succeeded'::text, 'failed'::text]))),
     CONSTRAINT chk_job_runs_trigger CHECK ((trigger = ANY (ARRAY['cron'::text, 'admin'::text, 'api'::text])))
+);
+
+
+--
+-- Name: job_schedules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.job_schedules (
+    kind text NOT NULL,
+    schedule text NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_job_schedules_kind CHECK ((kind <> ''::text)),
+    CONSTRAINT chk_job_schedules_schedule CHECK ((schedule <> ''::text))
 );
 
 
@@ -4179,6 +4192,14 @@ ALTER TABLE ONLY public.image_files
 
 ALTER TABLE ONLY public.job_runs
     ADD CONSTRAINT job_runs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_schedules job_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_schedules
+    ADD CONSTRAINT job_schedules_pkey PRIMARY KEY (kind);
 
 
 --
@@ -8796,5 +8817,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 8xy3bx0wQe7wlOWVMuQNKU5DyOJPSN8hfpqKNG3gzFKc2s0CUsKLnC1y03t5x3G
+\unrestrict c9ACPA46vncwpc0ulq4HEfUhoPt6NBUoAmZjLa3mRFqJMx5UthrcIzjiP3KPUZb
 

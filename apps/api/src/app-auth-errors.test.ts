@@ -43,7 +43,6 @@ const baseMockConfig = {
   corsOrigin: undefined,
   auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
   smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
 };
 
 /** Builds an app whose session lookup always rejects with `toThrow`.

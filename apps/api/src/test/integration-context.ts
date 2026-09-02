@@ -47,7 +47,6 @@ const mockConfig = {
   appBaseUrl: "http://localhost:5173",
   auth: { secret: "test", adminEmail: undefined, google: undefined, discord: undefined },
   smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
 } as any;
 
 export interface TestContext {

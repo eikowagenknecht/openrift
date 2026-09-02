@@ -11,7 +11,6 @@ import {
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 
-import { cronJobs } from "../../cron-jobs.js";
 import { AppError } from "../../errors.js";
 import { toMetaCatalogRow, toMetaSourceTemplate } from "../../lib/meta-catalog-presenters.js";
 import { toPlayloltcgCatalogRow } from "../../lib/playloltcg-catalog-presenters.js";
@@ -344,10 +343,10 @@ export const adminMetaCatalogRouter = {
         result: (run.result ?? null) as Record<string, unknown> | null,
       })),
       schedules: {
-        "meta.uvsgames_sync": cronJobs.metaUvsgamesSync !== null,
-        "meta.uvsgames_recheck": cronJobs.metaUvsgamesRecheck !== null,
-        "meta.playloltcg_sync": cronJobs.metaPlayloltcgSync !== null,
-        "meta.playloltcg_recheck": cronJobs.metaPlayloltcgRecheck !== null,
+        "meta.uvsgames_sync": context.scheduler?.isEnabled("meta.uvsgames_sync") ?? false,
+        "meta.uvsgames_recheck": context.scheduler?.isEnabled("meta.uvsgames_recheck") ?? false,
+        "meta.playloltcg_sync": context.scheduler?.isEnabled("meta.playloltcg_sync") ?? false,
+        "meta.playloltcg_recheck": context.scheduler?.isEnabled("meta.playloltcg_recheck") ?? false,
       },
     };
   }),

@@ -23,7 +23,6 @@ const baseMockConfig = {
   corsOrigin: undefined,
   auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
   smtp: { configured: false },
-  cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
 };
 
 function buildApp(isDev: boolean) {

@@ -32,6 +32,7 @@ import { adminIgnoredCandidatesRouter } from "../routes/admin/ignored-candidates
 import { adminIgnoredProductsRouter } from "../routes/admin/ignored-products.js";
 import { adminImagesRouter } from "../routes/admin/images.js";
 import { adminJobRunsRouter } from "../routes/admin/job-runs.js";
+import { adminJobSchedulesRouter } from "../routes/admin/job-schedules.js";
 import { adminKeywordsRouter } from "../routes/admin/keywords.js";
 import { adminLanguagesRouter } from "../routes/admin/languages.js";
 import { adminMarkersRouter } from "../routes/admin/markers.js";
@@ -141,6 +142,7 @@ const apiRouter = {
   adminIgnoredProductsRouter,
   adminImagesRouter,
   adminJobRunsRouter,
+  adminJobSchedulesRouter,
   adminKeywordsRouter,
   adminLanguagesRouter,
   adminMarkersRouter,

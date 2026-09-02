@@ -5,11 +5,10 @@ import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { refreshActions } from "@/components/admin/refresh-actions";
-import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useClearPrices, useLatestJobRun, useRefreshPrices } from "@/hooks/use-admin-prices";
-import { useCronStatus } from "@/hooks/use-cron-status";
+import { useJobSchedules } from "@/hooks/use-job-schedules";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 
@@ -74,21 +73,19 @@ function PriceSection({
   groups,
   mapped,
   staged,
-  cronKey,
-  cronStatus,
+  marketplace,
+  nextRun,
 }: {
   label: "TCGplayer" | "Cardmarket" | "CardTrader";
   groups: number;
   mapped: number;
   staged: number;
-  cronKey: keyof CronStatus;
-  cronStatus?: CronStatus;
+  marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+  nextRun: string | null;
 }) {
-  const nextRun = cronStatus?.[cronKey]?.nextRun;
-
-  const refreshMutation = useRefreshPrices(cronKey);
-  const clearMutation = useClearPrices(cronKey);
-  const latestRun = useLatestJobRun(refreshActions[cronKey].jobKind);
+  const refreshMutation = useRefreshPrices(marketplace);
+  const clearMutation = useClearPrices(marketplace);
+  const latestRun = useLatestJobRun(refreshActions[marketplace].jobKind);
 
   const isRefreshRunning = refreshMutation.isPending || latestRun.data?.status === "running";
   const anyPending = isRefreshRunning || clearMutation.isPending;
@@ -160,8 +157,10 @@ function PriceSection({
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export function MarketplaceOverviewPage() {
-  const { data: cronStatus } = useCronStatus();
+  const { data: schedules } = useJobSchedules();
   const { data: groupsData } = useMarketplaceGroups();
+
+  const nextRunByKind = new Map(schedules.jobs.map((job) => [job.kind, job.nextRun]));
 
   const allGroups = groupsData.groups;
   const tcgGroups = allGroups.filter((g) => g.marketplace === "tcgplayer");
@@ -182,24 +181,24 @@ export function MarketplaceOverviewPage() {
         groups={tcgGroups.length}
         mapped={tcgAssigned}
         staged={tcgStaged}
-        cronKey="tcgplayer"
-        cronStatus={cronStatus}
+        marketplace="tcgplayer"
+        nextRun={nextRunByKind.get("tcgplayer.refresh") ?? null}
       />
       <PriceSection
         label="Cardmarket"
         groups={cmGroups.length}
         mapped={cmAssigned}
         staged={cmStaged}
-        cronKey="cardmarket"
-        cronStatus={cronStatus}
+        marketplace="cardmarket"
+        nextRun={nextRunByKind.get("cardmarket.refresh") ?? null}
       />
       <PriceSection
         label="CardTrader"
         groups={ctGroups.length}
         mapped={ctAssigned}
         staged={ctStaged}
-        cronKey="cardtrader"
-        cronStatus={cronStatus}
+        marketplace="cardtrader"
+        nextRun={nextRunByKind.get("cardtrader.refresh") ?? null}
       />
     </div>
   );

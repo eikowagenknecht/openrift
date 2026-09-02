@@ -27,8 +27,8 @@ const clearPricesFn = createServerFn({ method: "POST" })
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
-export function useRefreshPrices(cronKey: "tcgplayer" | "cardmarket" | "cardtrader") {
-  const refreshAction = refreshActions[cronKey];
+export function useRefreshPrices(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+  const refreshAction = refreshActions[marketplace];
   return useMutation({
     mutationFn: (): Promise<JobRunStartedResponse> =>
       refreshAction.post() as Promise<JobRunStartedResponse>,
@@ -53,8 +53,8 @@ export function useLatestJobRun(kind: string) {
   });
 }
 
-export function useClearPrices(cronKey: "tcgplayer" | "cardmarket" | "cardtrader") {
-  const clearAction = clearActions[cronKey];
+export function useClearPrices(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+  const clearAction = clearActions[marketplace];
   return useMutation({
     mutationFn: (): Promise<ClearPricesResponse> =>
       clearPricesFn({ data: { marketplace: clearAction.source } }),

@@ -126,6 +126,6 @@ Only the database runs in Docker (`docker compose up db`). The API and frontend 
 ```
 
 Images are pre-built in GitHub Actions and pulled from GHCR.
-The `api` container runs migrations on startup and schedules price refresh cron jobs in-process.
+The `api` container runs migrations on startup and schedules jobs in-process from the `job_schedules` table; each job is off until enabled on `/admin/jobs`.
 
 **Request flow:** Cloudflare terminates the public TLS connection and forwards traffic to host nginx, which terminates a second TLS hop using a Cloudflare Origin Certificate. Host nginx proxies everything to the `proxy` container on `:8080`. The `proxy` container serves static assets (hashed JS/CSS, card images) directly and proxies all other requests to the `web` container (TanStack Start SSR on `:3001`). The `web` container renders pages server-side using server functions that call the `api` container over HTTP. `/api/*` requests are proxied directly from `proxy` to `api`.

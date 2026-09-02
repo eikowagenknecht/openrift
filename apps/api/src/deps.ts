@@ -45,6 +45,7 @@ import { healthRepo } from "./repositories/health.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
 import { ingestRepo } from "./repositories/ingest.js";
 import { jobRunsRepo } from "./repositories/job-runs.js";
+import { jobSchedulesRepo } from "./repositories/job-schedules.js";
 import { keywordsRepo } from "./repositories/keywords.js";
 import { languagesRepo } from "./repositories/languages.js";
 import { listsRepo } from "./repositories/lists.js";
@@ -216,6 +217,7 @@ export interface Repos {
   priceRefresh: ReturnType<typeof priceRefreshRepo>;
   printingEvents: ReturnType<typeof printingEventsRepo>;
   jobRuns: ReturnType<typeof jobRunsRepo>;
+  jobSchedules: ReturnType<typeof jobSchedulesRepo>;
   scanIndex: ReturnType<typeof scanIndexRepo>;
 }
 
@@ -421,6 +423,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     priceRefresh: priceRefreshRepo(db),
     printingEvents: printingEventsRepo(db),
     jobRuns: jobRunsRepo(db),
+    jobSchedules: jobSchedulesRepo(db),
     scanIndex: scanIndexRepo(db),
   };
   return Object.fromEntries(

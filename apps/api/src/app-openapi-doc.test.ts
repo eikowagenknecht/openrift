@@ -26,7 +26,6 @@ const app = createApp({
     corsOrigin: undefined,
     auth: { secret: "test-secret", adminEmail: undefined, google: undefined, discord: undefined },
     smtp: { configured: false },
-    cron: { enabled: false, tcgplayerSchedule: "", cardmarketSchedule: "" },
     isDev: false,
     // oxlint-disable-next-line typescript/no-explicit-any -- minimal stubs to boot the app
   } as any,

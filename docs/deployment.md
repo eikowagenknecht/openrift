@@ -20,7 +20,7 @@ Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls
 The `api` container:
 
 1. Runs database migrations on startup (blocks until complete)
-2. Registers cron jobs for price refresh (TCGPlayer at 06:00 UTC, Cardmarket at 06:15 UTC)
+2. Registers whatever job schedules the `job_schedules` table holds; enabling a job happens on `/admin/jobs`, not at startup
 3. Starts the Hono API server
 
 ## Release Strategy
@@ -82,16 +82,15 @@ The gate **fails open**: after `API_WAIT_TIMEOUT` it starts anyway rather than p
 
 ## Environment Variables
 
-### Cron Configuration
+### Other Configuration
 
-| Variable          | Default  | Description                                                                   |
-| ----------------- | -------- | ----------------------------------------------------------------------------- |
-| `CRON_TCGPLAYER`  |          | Cron expression for TCGPlayer price refresh (e.g. `0 6 * * *`). Unset = off   |
-| `CRON_CARDMARKET` |          | Cron expression for Cardmarket price refresh (e.g. `15 6 * * *`). Unset = off |
-| `CRON_CHANGELOG`  |          | Cron expression for changelog Discord post (e.g. `0 20 * * *`). Unset = off   |
-| `IMAGE_TAG`       | `latest` | GHCR image tag (`preview`, `latest`, or `v1.2.3`)                             |
-| `SMTP_PORT`       | `465`    | SMTP port for email verification                                              |
-| `SMTP_SECURE`     | `true`   | Use TLS for SMTP                                                              |
+| Variable      | Default  | Description                                       |
+| ------------- | -------- | ------------------------------------------------- |
+| `IMAGE_TAG`   | `latest` | GHCR image tag (`preview`, `latest`, or `v1.2.3`) |
+| `SMTP_PORT`   | `465`    | SMTP port for email verification                  |
+| `SMTP_SECURE` | `true`   | Use TLS for SMTP                                  |
+
+Job schedules (price refreshes, changelog post, meta syncs, trade digest) are managed on `/admin/jobs`, not through env vars. See [settings.md](settings.md#scheduled-jobs).
 
 ## Regular Deploys
 
@@ -108,6 +107,8 @@ Or use the deploy script:
 ```bash
 ./deploy.sh
 ```
+
+The first deploy of the release that introduced `job_schedules` (job scheduling moved out of `CRON_*` env vars) needs schedules enabled once on `/admin/jobs`; every deploy after that keeps whatever is in the table.
 
 ## Common Operations
 
@@ -243,7 +244,7 @@ curl -s localhost:3000/api/health | jq .
 
 ## Price Refresh
 
-Price refresh runs automatically via in-process cron jobs in the `api` container (TCGPlayer at 06:00 UTC, Cardmarket at 06:15 UTC). The `protect: true` option prevents overlapping runs.
+Price refresh runs via in-process cron jobs in the `api` container, on whatever schedule the `job_schedules` table holds; each job is off until an admin enables it on `/admin/jobs`. The `protect: true` option prevents overlapping runs.
 
 **Run manually via admin API:**
 
@@ -414,6 +415,8 @@ cd ~/openrift && ./deploy.sh
 # Preview
 cd ~/openrift-preview && ./deploy.sh
 ```
+
+A new stack starts with every job disabled; enable schedules once on `/admin/jobs` ("Enable all suggested" covers the normal case).
 
 Verify:
 

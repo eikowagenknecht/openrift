@@ -189,6 +189,8 @@ There is no template rule and no notable-name rule here. The source's `activityT
 
 Both sources promote into the same live tables under their own provider string, so linking, citations, overlays and the ignore tables are one pipeline with two producers. Scheduling stays per-source: `CRON_META_PLAYLOLTCG_SYNC` and `CRON_META_PLAYLOLTCG_RECHECK` sit beside the uvsgames pair, all four unset by default, and `META_PLAYLOLTCG_BASE_URL` aims the client at the source the way `META_SYNC_BASE_URL` does for uvsgames, so a test deployment can point either at a recorded fixture server.
 
+> Schedules now live in the `job_schedules` table, managed on `/admin/jobs`, not in `CRON_*` env vars (2026-09-02).
+
 ### Admin catalogue triage and auto-accept
 
 The admin UI presents the catalogue as a filterable list (status, player-count floor, decklists published, name, date) with two actions per row:

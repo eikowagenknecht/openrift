@@ -2989,6 +2989,13 @@ interface JobRunsTable {
   noop: ColumnType<boolean | null, boolean | null | undefined, boolean | null>;
 }
 
+interface JobSchedulesTable {
+  kind: string;
+  /** Five-field cron expression, UTC. */
+  schedule: string;
+  updatedAt: UpdatedAt;
+}
+
 /**
  * Singleton metadata row (id = 1) for the scanner's embedding bank.
  *
@@ -3265,6 +3272,7 @@ export interface Database {
   printingEvents: PrintingEventsTable;
 
   jobRuns: JobRunsTable;
+  jobSchedules: JobSchedulesTable;
 
   scanIndex: ScanIndexTable;
 

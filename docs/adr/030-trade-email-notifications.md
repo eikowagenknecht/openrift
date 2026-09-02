@@ -89,6 +89,8 @@ Keeping the asymmetry in the gate (and leaving the JSONB default blob untouched)
 
 A new cron `email.trade_match_digest`, registered alongside the others in `apps/api/src/index.ts` (slot in `apps/api/src/cron-jobs.ts`), schedule from a new `CRON_TRADE_DIGEST` config entry (default once daily, e.g. `0 8 * * *`):
 
+> Schedules now live in the `job_schedules` table, managed on `/admin/jobs`, not in `CRON_*` env vars (2026-09-02).
+
 1. **Read watermark.** `repos.jobRuns.findLatestForResume("email.trade_match_digest")`, extract the stored `lastRunAt` (same pattern as `extractWatermark` for the changelog job). First run with no prior watermark notifies nothing and just records `now()` (avoids a launch-day blast of every pre-existing match).
 2. **Find new matches.** Add an optional `sinceTimestamp?: Date` to `recentIncomingMatchesForFeed` (`apps/api/src/repositories/friend-group-matches.ts`), applying `WHERE matchedAt > $since`. For v1, loop over opted-in users and their group memberships calling this per `(user, group)`; the result already nets out reserved copies. (A single batch query grouped by viewer is the scale-up path if the loop gets expensive; not needed at friend-group scale.)
 3. **Group by recipient, send one email each.** Only users with `emailNotifications.tradeMatches === true` and a verified email (`users.email_verified`). One email aggregates all of that user's new matches across all their groups: per group, the cards now available and from whom (counterparty name + nickname). Deep-link each group into its Trading tab.

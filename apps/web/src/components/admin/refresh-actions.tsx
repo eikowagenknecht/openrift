@@ -7,14 +7,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface CronStatus {
-  tcgplayer: { nextRun: string | null } | null;
-  cardmarket: { nextRun: string | null } | null;
-  cardtrader: { nextRun: string | null } | null;
-}
-
 // ── Server functions for refresh actions ───────────────────────────────────
 
 const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
@@ -52,7 +44,6 @@ export const refreshActions = {
     title: "Refresh TCGPlayer Prices",
     description: "Fetch latest prices from TCGPlayer",
     post: refreshTcgplayerPricesFn,
-    cronKey: "tcgplayer" as const,
     jobKind: "tcgplayer.refresh" as const,
   },
   cardmarket: {
@@ -60,7 +51,6 @@ export const refreshActions = {
     title: "Refresh Cardmarket Prices",
     description: "Fetch latest prices from Cardmarket",
     post: refreshCardmarketPricesFn,
-    cronKey: "cardmarket" as const,
     jobKind: "cardmarket.refresh" as const,
   },
   cardtrader: {
@@ -68,7 +58,6 @@ export const refreshActions = {
     title: "Refresh CardTrader Prices",
     description: "Fetch latest prices from CardTrader",
     post: refreshCardtraderPricesFn,
-    cronKey: "cardtrader" as const,
     jobKind: "cardtrader.refresh" as const,
   },
 } as const;

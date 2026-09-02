@@ -46,6 +46,7 @@ import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { publicShareImagesRoute } from "./routes/public/share-images.js";
 import { SWAGGER_ASSETS_BASE_URL, swaggerAssetsRoute } from "./routes/public/swagger-assets.js";
 import { unsubscribeOneClickRoute } from "./routes/public/unsubscribe-one-click.js";
+import type { JobScheduler } from "./services/job-scheduler.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -55,6 +56,7 @@ export interface AppDeps {
   log: Logger;
   io?: Io;
   services?: Partial<Services>;
+  scheduler?: JobScheduler;
   /** ADR-030: enables the instant trade-request email. Omitted in tests that don't assert mail. */
   sendEmail?: ReturnType<typeof createEmailSender>;
 }
@@ -324,6 +326,7 @@ export function createApp(deps: AppDeps) {
     c.set("repos", repos);
     c.set("services", services);
     c.set("transact", transact);
+    c.set("scheduler", deps.scheduler);
     await next();
   });
 

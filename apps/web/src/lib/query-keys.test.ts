@@ -123,8 +123,8 @@ describe("queryKeys.admin", () => {
     expect(queryKeys.admin.featureFlags).toEqual(["admin", "feature-flags"]);
   });
 
-  it("cronStatus", () => {
-    expect(queryKeys.admin.cronStatus).toEqual(["admin", "cron-status"]);
+  it("jobSchedules", () => {
+    expect(queryKeys.admin.jobSchedules).toEqual(["admin", "job-schedules"]);
   });
 
   it("rehostStatus", () => {

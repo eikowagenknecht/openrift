@@ -34,7 +34,7 @@ function hashPassword(password: string): string {
 
 /**
  * Throws unless the connection string points at a local database. Restoring a
- * dump and flattening every password is a dev-only operation.
+ * production dump and sanitizing it is a dev-only operation.
  *
  * @returns Nothing.
  */
@@ -101,9 +101,14 @@ const verified = await db
   .where("emailVerified", "=", false)
   .executeTakeFirst();
 
+// A restored production dump would otherwise start production's cron jobs
+// (price refreshes, meta syncs, trade digests) against the local database.
+const clearedSchedules = await db.deleteFrom("jobSchedules").executeTakeFirst();
+
 console.log(`Password for every user set to "${password}".`);
 console.log(`  ${updated.numUpdatedRows} existing credential account(s) updated`);
 console.log(`  ${withoutCredentials.length} credential account(s) created`);
 console.log(`  ${verified.numUpdatedRows} user(s) marked email-verified`);
+console.log(`  ${clearedSchedules.numDeletedRows} job schedule(s) cleared`);
 
 await db.destroy();

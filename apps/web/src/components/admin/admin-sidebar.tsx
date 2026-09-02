@@ -3,6 +3,7 @@ import {
   BanIcon,
   BookOpenIcon,
   ActivityIcon,
+  CalendarClockIcon,
   CameraIcon,
   CloudIcon,
   CrownIcon,
@@ -94,6 +95,7 @@ const marketplacePages = [
 const systemPages = [
   { to: "/admin/status" as const, icon: ActivityIcon, title: "Status" },
   { to: "/admin/audit" as const, icon: ScrollTextIcon, title: "Audit Log" },
+  { to: "/admin/jobs" as const, icon: CalendarClockIcon, title: "Jobs" },
   { to: "/admin/job-runs" as const, icon: ListChecksIcon, title: "Job Runs" },
   { to: "/admin/printing-events" as const, icon: SendIcon, title: "Printing Events" },
   { to: "/admin/users" as const, icon: UsersIcon, title: "Users" },

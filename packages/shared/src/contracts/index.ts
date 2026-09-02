@@ -26,6 +26,7 @@ export * from "./admin/ignored-candidates.js";
 export * from "./admin/ignored-products.js";
 export * from "./admin/images.js";
 export * from "./admin/job-runs.js";
+export * from "./admin/job-schedules.js";
 export * from "./admin/keywords.js";
 export * from "./admin/languages.js";
 export * from "./admin/markers.js";

@@ -307,7 +307,7 @@ export const queryKeys = {
     jobRunsList: (params: { page: number; kind?: string; trigger?: string; status?: string }) =>
       ["admin", "job-runs", "list", params] as const,
     jobRunsByKind: (kind: string) => ["admin", "job-runs", "by-kind", kind] as const,
-    cronStatus: ["admin", "cron-status"] as const,
+    jobSchedules: ["admin", "job-schedules"] as const,
     cacheStatus: ["admin", "cache-status"] as const,
     apiKeys: ["admin", "api-keys"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,

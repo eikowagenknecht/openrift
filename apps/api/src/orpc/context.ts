@@ -7,6 +7,7 @@ import type { Io } from "../io.js";
 import { mapAuthError } from "../lib/better-auth-error.js";
 import { resolveSession } from "../middleware/load-session.js";
 import type { AdminAccess } from "../middleware/require-admin.js";
+import type { JobScheduler } from "../services/job-scheduler.js";
 import type { Auth, Config, Variables } from "../types.js";
 
 type SessionUser = NonNullable<Variables["user"]>;
@@ -29,6 +30,7 @@ export interface ApiContext {
   transact: Transact;
   io: Io;
   auth: Auth;
+  scheduler: JobScheduler | null;
   user: SessionUser | null;
   /**
    * Admin authorization resolved by `requireAdmin` (full admins and grant
@@ -103,6 +105,7 @@ export function buildApiContext(c: Context<{ Variables: Variables }>): ApiContex
     transact: c.get("transact"),
     io: c.get("io"),
     auth: c.get("auth"),
+    scheduler: c.get("scheduler") ?? null,
     user: c.get("user") ?? null,
     adminAccess: c.get("adminAccess") ?? null,
     loadUser: async () => {

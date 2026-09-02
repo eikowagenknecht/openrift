@@ -2,24 +2,19 @@ import { formatRelativeTime } from "@openrift/shared";
 import {
   ActivityIcon,
   BugIcon,
-  ClockIcon,
   CpuIcon,
   DatabaseIcon,
   LoaderIcon,
-  SendIcon,
   ServerIcon,
   TagIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { JobStatusBadge } from "@/components/admin/job-status-badge";
 import { RefreshCountdownButton } from "@/components/admin/refresh-countdown-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFlushPrintingEvents, useLatestFlushRun } from "@/hooks/use-flush-printing-events";
-import { usePostChangelog } from "@/hooks/use-post-changelog";
 import { useThrowInApi, useThrowInSsr } from "@/hooks/use-sentry-test";
 import { ADMIN_STATUS_REFRESH_INTERVAL_MS, useAdminStatus } from "@/hooks/use-status";
 
@@ -44,19 +39,6 @@ function formatUptime(seconds: number): string {
 
 function formatNumber(num: number): string {
   return num.toLocaleString();
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) {
-    return `${ms}ms`;
-  }
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remSeconds = seconds % 60;
-  return remSeconds > 0 ? `${minutes}m ${remSeconds}s` : `${minutes}m`;
 }
 
 function StatRow({ label, value }: { label: string; value: string | number }) {
@@ -89,13 +71,13 @@ export function StatusPage() {
     return topBar;
   }
 
-  const { server, database, cron, app, pricing } = data;
+  const { server, database, app, pricing } = data;
 
   return (
     <div className="space-y-4">
       {topBar}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {/* Server */}
         <Card>
           <CardHeader>
@@ -154,50 +136,6 @@ export function StatusPage() {
                 </span>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Cron Jobs */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClockIcon className="text-muted-foreground size-4" />
-              Cron Jobs
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-0.5">
-            {Object.entries(cron.jobs).map(([name, job]) => (
-              <div key={name} className="py-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm">{name}</span>
-                  <div className="flex items-center gap-2">
-                    {job.enabled ? (
-                      <span className="font-mono">
-                        {job.nextRun ? formatRelativeTime(job.nextRun) : "idle"}
-                      </span>
-                    ) : (
-                      <Badge variant="secondary">off</Badge>
-                    )}
-                    {name === "printingEvents" && <FlushPrintingEventsButton />}
-                    {name === "changelog" && <PostChangelogButton />}
-                  </div>
-                </div>
-                {job.lastRun && (
-                  <div className="text-muted-foreground flex items-center justify-between pl-0">
-                    <span>
-                      last: {formatRelativeTime(job.lastRun.startedAt)}
-                      {job.lastRun.durationMs !== null && (
-                        <> · {formatDuration(job.lastRun.durationMs)}</>
-                      )}
-                    </span>
-                    <JobStatusBadge status={job.lastRun.status} />
-                  </div>
-                )}
-                {job.lastRun?.status === "failed" && job.lastRun.errorMessage && (
-                  <p className="text-red-600 dark:text-red-400">{job.lastRun.errorMessage}</p>
-                )}
-              </div>
-            ))}
           </CardContent>
         </Card>
       </div>
@@ -338,87 +276,5 @@ function SentrySmokeTestCard() {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-// ── Inline cron triggers ────────────────────────────────────────────────────
-
-function FlushPrintingEventsButton() {
-  const flush = useFlushPrintingEvents();
-  const latestRun = useLatestFlushRun();
-  const isFlushRunning = flush.isPending || latestRun.data?.status === "running";
-
-  async function handleFlush() {
-    // Narrow the try to just the await — react-compiler doesn't support
-    // logical/conditional value blocks inside a try/catch statement.
-    let started: Awaited<ReturnType<typeof flush.mutateAsync>>;
-    try {
-      started = await flush.mutateAsync();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-      return;
-    }
-    if (started.status === "already_running") {
-      toast.info("A flush is already running");
-    } else {
-      toast.success("Flush started");
-    }
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-7"
-      onClick={() => void handleFlush()}
-      disabled={isFlushRunning}
-      title="Flush pending printing events to Discord now"
-    >
-      {isFlushRunning ? (
-        <LoaderIcon className="size-3.5 animate-spin" />
-      ) : (
-        <SendIcon className="size-3.5" />
-      )}
-    </Button>
-  );
-}
-
-function PostChangelogButton() {
-  const post = usePostChangelog();
-
-  async function handlePost() {
-    // Narrow the try to just the await — react-compiler doesn't support
-    // logical/conditional value blocks inside a try/catch statement.
-    let result: Awaited<ReturnType<typeof post.mutateAsync>>;
-    try {
-      result = await post.mutateAsync();
-    } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
-      return;
-    }
-    if (result.posted) {
-      toast.success(
-        `Changelog posted to Discord (${result.count} ${result.count === 1 ? "entry" : "entries"})`,
-      );
-    } else {
-      toast.success("No new entries to post");
-    }
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="size-7"
-      onClick={() => void handlePost()}
-      disabled={post.isPending}
-      title="Post pending changelog entries to Discord now"
-    >
-      {post.isPending ? (
-        <LoaderIcon className="size-3.5 animate-spin" />
-      ) : (
-        <SendIcon className="size-3.5" />
-      )}
-    </Button>
   );
 }

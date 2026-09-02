@@ -5,20 +5,6 @@ import { authedRoute } from "../_base.js";
 
 extendZodWithOpenApi(z);
 
-const lastJobRunSchema = z.object({
-  startedAt: z.string(),
-  finishedAt: z.string().nullable(),
-  durationMs: z.number().nullable(),
-  status: z.enum(["running", "succeeded", "failed"]),
-  errorMessage: z.string().nullable(),
-});
-
-const cronJobStatusSchema = z.object({
-  enabled: z.boolean(),
-  nextRun: z.string().nullable(),
-  lastRun: lastJobRunSchema.nullable(),
-});
-
 export const adminStatusResponseSchema = z
   .object({
     server: z.object({
@@ -37,16 +23,6 @@ export const adminStatusResponseSchema = z
       activeConnections: z.number().nullable(),
       latestMigration: z.string().nullable(),
       totalMigrations: z.number(),
-    }),
-    cron: z.object({
-      jobs: z.object({
-        tcgplayer: cronJobStatusSchema,
-        cardmarket: cronJobStatusSchema,
-        cardtrader: cronJobStatusSchema,
-        printingEvents: cronJobStatusSchema,
-        changelog: cronJobStatusSchema,
-        jobRunsCleanup: cronJobStatusSchema,
-      }),
     }),
     app: z.object({
       totalUsers: z.number(),
@@ -77,7 +53,7 @@ const TAG = "Admin";
 /**
  * oRPC contract for the admin status dashboard (mounted at
  * `/api/admin/v1/status`, admin-gated by the mount). Read-only: aggregates
- * server/runtime, database, cron, app, and pricing stats. Reuses the shared
+ * server/runtime, database, app, and pricing stats. Reuses the shared
  * {@link adminStatusResponseSchema}. Session-gated (UNAUTHORIZED + FORBIDDEN
  * from `authedRoute`); no domain error codes are declared.
  */

@@ -4,7 +4,7 @@ import { adminReq, createTestContext } from "../../test/integration-context.js";
 import { readJson } from "../../test/read-json.js";
 
 // ---------------------------------------------------------------------------
-// Integration tests: Admin core routes (/admin/me, /admin/cron-status)
+// Integration tests: Admin core routes (/admin/me)
 //
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // This user is NOT pre-promoted to admin — tests non-admin access first.
@@ -29,15 +29,6 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
   describe("GET /admin/me (non-admin)", () => {
     it("returns 403 when user is not in admins table", async () => {
       const res = await app.fetch(adminReq("GET", "/me"));
-      expect(res.status).toBe(403);
-    });
-  });
-
-  // ── GET /admin/cron-status (non-admin) ───────────────────────────────────
-
-  describe("GET /admin/cron-status (non-admin)", () => {
-    it("returns 403 when user is not admin", async () => {
-      const res = await app.fetch(adminReq("GET", "/cron-status"));
       expect(res.status).toBe(403);
     });
   });
@@ -68,23 +59,6 @@ describe.skipIf(!ctx)("Admin core routes (integration)", () => {
 
       const json = await readJson(res);
       expect(json).toEqual({ isAdmin: true, sections: [] });
-    });
-  });
-
-  // ── GET /admin/cron-status (admin) ───────────────────────────────────────
-
-  describe("GET /admin/cron-status (admin)", () => {
-    it("returns 200 with null cron jobs", async () => {
-      const res = await app.fetch(adminReq("GET", "/cron-status"));
-      expect(res.status).toBe(200);
-
-      const json = await readJson(res);
-      expect(json).toEqual({
-        tcgplayer: null,
-        cardmarket: null,
-        cardtrader: null,
-        changelog: null,
-      });
     });
   });
 });
