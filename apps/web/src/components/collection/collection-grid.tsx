@@ -1151,6 +1151,7 @@ export function CollectionGrid({
               void handleDisposeFromCollection(target, targetCollectionId)
             }
             closeVariants={closeVariants}
+            viewCollectionId={collectionId}
           />
         </CardBrowserFilterProvider>
       )}

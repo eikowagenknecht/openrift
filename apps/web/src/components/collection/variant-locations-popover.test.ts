@@ -88,6 +88,50 @@ describe("buildVariantGroups", () => {
     expect(groups[0].total).toBe(0);
     expect(groups[1].total).toBe(1);
   });
+
+  it("sorts the viewed collection first so `remove` highlights the row the user opened", () => {
+    const groups = buildVariantGroups(
+      [printing("p1")],
+      [
+        {
+          printingId: "p1",
+          collections: [
+            { collectionId: "inbox", collectionName: "Inbox", count: 1 },
+            { collectionId: "binder-a", collectionName: "Binder A", count: 1 },
+          ],
+        },
+      ],
+      personalCollections,
+      "binder-a",
+    );
+
+    expect(groups[0].locations.map((location) => location.collectionId)).toEqual([
+      "binder-a",
+      "inbox",
+    ]);
+  });
+
+  it("lists a viewed group collection as a location without offering it as an add candidate", () => {
+    const groups = buildVariantGroups(
+      [printing("p1")],
+      [
+        {
+          printingId: "p1",
+          collections: [{ collectionId: "bulk-box", collectionName: "Bulk box", count: 4 }],
+        },
+      ],
+      personalCollections,
+      "bulk-box",
+    );
+
+    expect(groups[0].total).toBe(4);
+    expect(groups[0].locations.map((location) => location.collectionId)).toEqual(["bulk-box"]);
+    expect(groups[0].addCandidates.map((collection) => collection.id)).toEqual([
+      "inbox",
+      "binder-a",
+      "binder-b",
+    ]);
+  });
 });
 
 describe("ownedCountInCollection", () => {
@@ -122,5 +166,21 @@ describe("ownedCountInCollection", () => {
     const group = buildVariantGroups([printing("p1")], [], personalCollections)[0];
 
     expect(ownedCountInCollection(group, "inbox")).toBe(0);
+  });
+
+  it("counts copies in a viewed group collection so the header `-` stays live there", () => {
+    const group = buildVariantGroups(
+      [printing("p1")],
+      [
+        {
+          printingId: "p1",
+          collections: [{ collectionId: "bulk-box", collectionName: "Bulk box", count: 4 }],
+        },
+      ],
+      personalCollections,
+      "bulk-box",
+    )[0];
+
+    expect(ownedCountInCollection(group, "bulk-box")).toBe(4);
   });
 });

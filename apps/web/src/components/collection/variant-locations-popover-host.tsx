@@ -19,6 +19,8 @@ interface VariantLocationsPopoverHostProps {
   onAddToCollection: (printing: Printing, collectionId: string) => void;
   onRemoveFromCollection: (printing: Printing, collectionId: string) => void;
   closeVariants: (pressTarget?: EventTarget | null) => void;
+  /** The collection whose grid hosts the popover; undefined on the catalog browser. */
+  viewCollectionId?: string;
 }
 
 /**
@@ -39,6 +41,7 @@ export function VariantLocationsPopoverHost({
   onAddToCollection,
   onRemoveFromCollection,
   closeVariants,
+  viewCollectionId,
 }: VariantLocationsPopoverHostProps) {
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const selectedCardId = useSelectionStore((s) => s.selectedCard?.id);
@@ -98,6 +101,7 @@ export function VariantLocationsPopoverHost({
           onRemoveFromCollection={onRemoveFromCollection}
           addCollectionTarget={addCollectionTarget}
           setAddCollectionTarget={setAddCollectionTarget}
+          viewCollectionId={viewCollectionId}
         />
       </PopoverContent>
     </Popover>

@@ -412,14 +412,16 @@ export function aggregateByVariant(
   copies: readonly CopyResponse[],
   variants: readonly OwnedBreakdownVariant[],
   collectionNameById: Map<string, string>,
+  viewCollectionId?: string,
 ): VariantCollectionBreakdownEntry[] {
   const buckets = new Map<string, Map<string, number>>();
   for (const variant of variants) {
     buckets.set(variant.id, new Map());
   }
   for (const copy of copies) {
-    // Owned breakdown = personal collections only (see aggregateByCollection).
-    if (copy.groupId !== null) {
+    // Personal collections only (see aggregateByCollection), plus every copy in
+    // the viewed collection, which in a group box is what its +/- act on.
+    if (copy.groupId !== null && copy.collectionId !== viewCollectionId) {
       continue;
     }
     const bucket = buckets.get(copy.printingId);
@@ -454,11 +456,14 @@ export function aggregateByVariant(
 
 /**
  * Per-variant owned-collection breakdown for a set of sibling printings (same card).
+ * Copies in `viewCollectionId` count even when it is a group collection, so the
+ * breakdown matches the counts that collection's grid shows.
  * @returns One entry per variant that has at least one owned copy, in input order.
  */
 export function useOwnedCollectionsByVariants(
   variants: readonly OwnedBreakdownVariant[],
   enabled: boolean,
+  viewCollectionId?: string,
 ): { data: VariantCollectionBreakdownEntry[] | undefined } {
   const userId = useUserId();
   const copiesCollection = useCopiesCollection();
@@ -478,5 +483,5 @@ export function useOwnedCollectionsByVariants(
     return { data: undefined };
   }
   const nameById = new Map((collections ?? []).map((col) => [col.id, col.name]));
-  return { data: aggregateByVariant(copies, variants, nameById) };
+  return { data: aggregateByVariant(copies, variants, nameById, viewCollectionId) };
 }

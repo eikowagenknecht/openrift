@@ -131,6 +131,49 @@ describe("aggregateByVariant", () => {
   it("returns an empty array when no variants are provided", () => {
     expect(aggregateByVariant([copy("p1", "c-import")], [], NAME_MAP)).toEqual([]);
   });
+
+  it("skips group copies when no collection is being viewed", () => {
+    const copies = [groupCopy("p1", "c-group", "g1"), copy("p2", "c-inbox")];
+
+    const result = aggregateByVariant(copies, [v1, v2], NAME_MAP);
+
+    expect(result.map((entry) => entry.printingId)).toEqual(["p2"]);
+  });
+
+  it("counts group copies that sit in the viewed collection", () => {
+    const copies = [
+      groupCopy("p1", "c-group", "g1"),
+      groupCopy("p1", "c-group", "g1"),
+      groupCopy("p2", "c-group", "g1"),
+    ];
+
+    const result = aggregateByVariant(copies, [v1, v2], NAME_MAP, "c-group");
+
+    expect(result).toEqual([
+      {
+        printingId: "p1",
+        shortCode: "OGN-001",
+        finish: "normal",
+        collections: [{ collectionId: "c-group", collectionName: "", count: 2 }],
+      },
+      {
+        printingId: "p2",
+        shortCode: "OGN-001p",
+        finish: "foil",
+        collections: [{ collectionId: "c-group", collectionName: "", count: 1 }],
+      },
+    ]);
+  });
+
+  it("still skips group copies held in another group collection", () => {
+    const copies = [groupCopy("p1", "c-group", "g1"), groupCopy("p1", "c-other-group", "g2")];
+
+    const result = aggregateByVariant(copies, [v1], NAME_MAP, "c-group");
+
+    expect(result[0]?.collections).toEqual([
+      { collectionId: "c-group", collectionName: "", count: 1 },
+    ]);
+  });
 });
 
 describe("aggregateScopedCount", () => {

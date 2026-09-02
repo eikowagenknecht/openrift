@@ -11,6 +11,7 @@
 
 ### Other
 
+- fix(Groups): **Removing cards from a group box** — a card held in two versions ignored the minus button and showed zeroes in its variant menu, which now counts the group's copies.
 - fix(Groups): **Group settings check before saving** — the name and web address are now validated on the form, so a bad address says what is wrong on the field instead of failing with a generic error.
 - fix(Account): **Failed requests now say so** — signing in or out, email codes, password resets, connected accounts, and import file reads report a network failure instead of doing nothing or spinning forever.
 - feat(Meta): **Standings rows open on click** — clicking anywhere on a standings row opens its decklist, and every row now carries its legend art, not just the top cut.

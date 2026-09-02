@@ -55,6 +55,12 @@ interface VariantLocationsPopoverProps {
    */
   addCollectionTarget: Printing | null;
   setAddCollectionTarget: (printing: Printing | null) => void;
+  /**
+   * The collection whose grid opened the popover. Its copies count towards the
+   * breakdown even when it is a group collection, and its row sorts first.
+   * Undefined on the catalog browser, which is scoped to no collection.
+   */
+  viewCollectionId?: string;
 }
 
 type RowAction =
@@ -86,16 +92,24 @@ export interface VariantGroup {
  * copies change), and the personal collections it is not yet in (the add-page
  * candidates). Variants with no owned copies still get a group (total 0, no
  * locations) so the unowned/add path renders.
+ *
+ * `viewCollectionId` sorts first so `remove` intent highlights the row the user
+ * opened the popover from. It also covers a group collection, which is never in
+ * `personalCollections`.
  * @returns One {@link VariantGroup} per printing, in input order.
  */
 export function buildVariantGroups(
   printings: readonly Printing[],
   breakdown: readonly VariantBreakdownEntry[] | undefined,
   personalCollections: readonly CollectionResponse[],
+  viewCollectionId?: string,
 ): VariantGroup[] {
   const collectionIndex = new Map(
     personalCollections.map((collection, index) => [collection.id, index]),
   );
+  if (viewCollectionId !== undefined) {
+    collectionIndex.set(viewCollectionId, -1);
+  }
   const breakdownByPrinting = new Map((breakdown ?? []).map((entry) => [entry.printingId, entry]));
 
   return printings.map((printing) => {
@@ -146,10 +160,11 @@ export function VariantLocationsPopover({
   onRemoveFromCollection,
   addCollectionTarget,
   setAddCollectionTarget,
+  viewCollectionId,
 }: VariantLocationsPopoverProps) {
   const userId = useRequiredUserId();
   const { data: collections } = useQuery(collectionsQueryOptions(userId));
-  const { data: breakdown } = useOwnedCollectionsByVariants(printings, true);
+  const { data: breakdown } = useOwnedCollectionsByVariants(printings, true, viewCollectionId);
 
   const hasMixedRarities = new Set(printings.map((printing) => printing.rarity)).size > 1;
 
@@ -158,7 +173,7 @@ export function VariantLocationsPopover({
   const personalCollections = (collections ?? []).filter(
     (collection) => collection.groupId === null,
   );
-  const groups = buildVariantGroups(printings, breakdown, personalCollections);
+  const groups = buildVariantGroups(printings, breakdown, personalCollections, viewCollectionId);
 
   // Opened via `-`: the user is here to remove, so hide every add affordance and
   // skip variants with nothing to remove (zero owned copies).
