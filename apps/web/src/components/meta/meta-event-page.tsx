@@ -9,19 +9,14 @@ import {
   PageTopBarIconButton,
   PageTopBarPrimaryButton,
   PageTopBarSticky,
-  PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import {
-  TopBarBreadcrumbSeparator,
-  TopBarBreadcrumbTrail,
-} from "@/components/layout/top-bar-breadcrumb";
+import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { MarkdownText } from "@/components/markdown-text";
 import { MetaEventBracket } from "@/components/meta/meta-event-bracket";
 import { MetaEventContributeBand } from "@/components/meta/meta-event-contribute-band";
 import { MetaEventCorrectionDialog } from "@/components/meta/meta-event-correction-dialog";
 import { MetaEventHeader } from "@/components/meta/meta-event-header";
 import { MetaEventStandings } from "@/components/meta/meta-event-standings";
-import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -124,11 +119,11 @@ export function MetaEventPage({ slug }: { slug: string }) {
         <PageTopBar className="gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <TopBarBreadcrumbTrail
-              segments={[{ label: "Meta Archive", link: <Link to="/meta" /> }]}
+              segments={[
+                { label: "Meta Archive", link: <Link to="/meta" /> },
+                { label: event.name },
+              ]}
             />
-            <TopBarBreadcrumbSeparator className="hidden sm:inline" />
-            <PageTopBarTitle>{event.name}</PageTopBarTitle>
-            <MetaTierBadge tier={event.tier} />
           </div>
           <PageTopBarActions>
             <AddDeckCta slug={slug} />

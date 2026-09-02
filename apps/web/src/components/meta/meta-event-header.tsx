@@ -7,6 +7,7 @@ import { ArtBandBackdrop } from "@/components/art-band-backdrop";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { MetaIdentity } from "@/components/meta/meta-identity";
+import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
@@ -60,8 +61,8 @@ function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: stri
   const record = formatRecord(player.wins, player.losses, player.draws);
 
   return (
-    <div className="flex shrink-0 items-center gap-4">
-      <div className="bg-background/60 ring-foreground/10 flex flex-col gap-2 rounded-lg p-4 ring-1 sm:w-64">
+    <div className="flex w-full shrink-0 items-center gap-4 sm:w-auto">
+      <div className="bg-background/60 ring-foreground/10 flex w-full flex-col gap-2 rounded-lg p-4 ring-1 sm:w-64">
         <span className="text-border-accent text-2xs font-semibold tracking-wider uppercase">
           Champion
         </span>
@@ -130,12 +131,6 @@ export function MetaEventHeader({
     byline.push(structure.sentence);
   }
 
-  const cutSize = structure.cutSize;
-  const cutWithLists =
-    cutSize === null
-      ? null
-      : players.filter((player) => player.rank <= cutSize && player.shareToken !== null).length;
-
   return (
     <section className="bg-card ring-foreground/10 relative overflow-hidden rounded-xl ring-1">
       {artId !== null && (
@@ -150,6 +145,10 @@ export function MetaEventHeader({
           <div className="flex items-center gap-3">
             <DateLeaf month={leaf.month} day={leaf.day} year={leaf.year} />
             <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="font-heading text-2xl font-bold">{event.name}</h1>
+                <MetaTierBadge tier={event.tier} />
+              </div>
               {(event.country !== null || event.location !== null) && (
                 <p className="font-medium">
                   <CountryFlag
@@ -171,12 +170,6 @@ export function MetaEventHeader({
             )}
             <Counter value={counterValue(event.playerRowCount)} label="results archived" />
             <Counter value={counterValue(event.deckCount)} label="decklists on file" />
-            {cutSize !== null && cutWithLists !== null && (
-              <Counter
-                value={`${counterValue(cutWithLists)} of ${counterValue(cutSize)}`}
-                label={`top ${cutSize} with lists`}
-              />
-            )}
           </div>
 
           {(event.sources.length > 0 || event.contributors.length > 0) && (

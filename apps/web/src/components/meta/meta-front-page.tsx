@@ -228,6 +228,7 @@ export function MetaFrontPage() {
                   clearScope={clearScope}
                   eras={eras}
                   countries={metaEventCountries(allEvents)}
+                  showTier={false}
                 />
               </div>
               <MetaArchiveCounts

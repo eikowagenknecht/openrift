@@ -54,14 +54,17 @@ import {
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const DECK_PLACEHOLDER = `Legend:
-1 Yasuo, Wandering Ronin
+1 Emperor of the Sands
+
+Champion:
+1 Azir, Sovereign
 
 MainDeck:
-3 Blade of the Exile
-3 Windswept Vanguard
+3 Arise!
+3 Soul Sword
 
 Battlefields:
-1 Ionian Cliffside`;
+1 Seat of Power`;
 
 function plural(count: number, noun: string): string {
   return `${count} ${count === 1 ? noun : `${noun}s`}`;

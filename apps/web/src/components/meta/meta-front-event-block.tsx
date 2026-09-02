@@ -56,16 +56,16 @@ function FinishRow({ finish }: { finish: MetaEventFinish }) {
     >
       <Medal rank={finish.rank} />
       <FinishThumb legend={finish.legend} />
-      <span
-        className={cn("shrink-0 truncate", finish.rank === 1 ? "font-semibold" : "font-medium")}
-      >
-        {finish.playerName}
+      <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-2.5">
+        <span className={cn("truncate", finish.rank === 1 ? "font-semibold" : "font-medium")}>
+          {finish.playerName}
+        </span>
+        <MetaIdentity
+          name={finish.legend?.name}
+          domains={finish.legend?.domains}
+          className="text-sm sm:flex-1"
+        />
       </span>
-      <MetaIdentity
-        name={finish.legend?.name}
-        domains={finish.legend?.domains}
-        className="min-w-0 flex-1 text-sm"
-      />
       {record !== null && (
         <span className="text-muted-foreground ml-auto shrink-0 text-xs tabular-nums">
           {record}

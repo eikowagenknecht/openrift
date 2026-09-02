@@ -124,21 +124,11 @@ describe("MetaEventHeader counters", () => {
     expect(screen.queryByText("players in the field")).toBeNull();
   });
 
-  it("counts how much of the cut has a list once the phases name one", () => {
+  it("counts nothing against the cut", () => {
     renderHeader({
-      players: [
-        metaPlayer({ id: "p-1", rank: 1, shareToken: "tok-1" }),
-        metaPlayer({ id: "p-2", rank: 2, shareToken: "tok-2" }),
-        metaPlayer({ id: "p-3", rank: 9, shareToken: "tok-3" }),
-        metaPlayer({ id: "p-4", rank: 4, shareToken: null }),
-      ],
+      players: [metaPlayer({ id: "p-1", rank: 1, shareToken: "tok-1" })],
       phases: [swiss, metaPhase()],
     });
-    expect(counterValue("top 8 with lists")).toBe("2 of 8");
-  });
-
-  it("counts nothing against a cut the phases never described", () => {
-    renderHeader({ players: [metaPlayer({ shareToken: "tok-1" })] });
     expect(screen.queryByText(/with lists/u)).toBeNull();
   });
 });

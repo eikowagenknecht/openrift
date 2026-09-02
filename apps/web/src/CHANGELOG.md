@@ -12,6 +12,7 @@
 ### Other
 
 - feat(Meta): **Standings rows open on click** — clicking anywhere on a standings row opens its decklist, and every row now carries its legend art, not just the top cut.
+- fix(Meta): **Archive fits on phones** — the tournament name moved into the event header, where the top bar had truncated it away, and the winner tile and podium rows now use the full width.
 - fix(Meta): **Placements across the whole cut** — every seat in an event's top cut now carries its finishing place, where only the champion's showed before.
 - fix(Meta): **Contribute prompt names the event** — the ask below the standings used the venue's street address, and now reads "Were you at (event name)?".
 - fix(Meta): **Event page layout polish** — the country flag stays with the first line of a wrapping venue name, the entry filter matches the search field height, and the expanded decklist drops its nested box and stretched art.

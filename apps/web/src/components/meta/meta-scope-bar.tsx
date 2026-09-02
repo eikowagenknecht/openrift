@@ -48,6 +48,7 @@ export interface MetaScopeBarProps extends MetaScopeControls {
   extras?: ReactNode;
   /** Whether {@link extras} are narrowing anything, so Reset offers itself. */
   extrasActive?: boolean;
+  showTier?: boolean;
   className?: string;
 }
 
@@ -68,6 +69,7 @@ export function MetaScopeBar({
   countries = [],
   extras,
   extrasActive = false,
+  showTier = true,
   className,
 }: MetaScopeBarProps) {
   const { formats } = useDeckFormatList();
@@ -127,13 +129,15 @@ export function MetaScopeBar({
         </>
       )}
 
-      <ScopeFacet
-        label="Tier"
-        facet="tiers"
-        options={tierOptions}
-        scope={scope}
-        setScope={setScope}
-      />
+      {showTier && (
+        <ScopeFacet
+          label="Tier"
+          facet="tiers"
+          options={tierOptions}
+          scope={scope}
+          setScope={setScope}
+        />
+      )}
 
       <ScopeFilterMenu
         scope={scope}
