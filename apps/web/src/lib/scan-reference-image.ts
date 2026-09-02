@@ -38,12 +38,8 @@ let referenceCanvas: ReferenceCanvas | null = null;
  * @returns The canvas, created on first use.
  */
 function decodeCanvas(): ReferenceCanvas {
-  if (!referenceCanvas) {
-    referenceCanvas =
-      typeof document === "undefined"
-        ? new OffscreenCanvas(1, 1)
-        : document.createElement("canvas");
-  }
+  referenceCanvas ??=
+    typeof document === "undefined" ? new OffscreenCanvas(1, 1) : document.createElement("canvas");
   return referenceCanvas;
 }
 

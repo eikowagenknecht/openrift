@@ -242,11 +242,10 @@ export function CreateListDialog({
         <DialogHeader>
           <DialogTitle>{title ?? INTENT_TITLE[intent]}</DialogTitle>
           <DialogDescription>
-            {description === undefined
-              ? availableKinds.length === 1
+            {description ??
+              (availableKinds.length === 1
                 ? "List specific copies you want to sell or trade away."
-                : "You can't change it later, but you can always create a new list."
-              : description}
+                : "You can't change it later, but you can always create a new list.")}
           </DialogDescription>
         </DialogHeader>
 

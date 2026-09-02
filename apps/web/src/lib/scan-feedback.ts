@@ -16,9 +16,7 @@ let audioContext: AudioContext | null = null;
  */
 export function playLockTick(): void {
   try {
-    if (!audioContext) {
-      audioContext = new AudioContext();
-    }
+    audioContext ??= new AudioContext();
     if (audioContext.state === "suspended") {
       void audioContext.resume();
     }

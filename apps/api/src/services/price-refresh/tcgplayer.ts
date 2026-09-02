@@ -128,7 +128,7 @@ function buildTcgplayerStaging(
       if (ignoredKeys.productIds.has(product.productId)) {
         continue;
       }
-      const priceEntries = pricesByProductId.get(product.productId) || [];
+      const priceEntries = pricesByProductId.get(product.productId) ?? [];
       for (const entry of priceEntries) {
         const marketCents = toCents(entry.marketPrice);
         if (marketCents === null) {

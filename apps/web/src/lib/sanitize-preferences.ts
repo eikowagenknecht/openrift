@@ -300,12 +300,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
 
   const showImages = typeof record.showImages === "boolean" ? record.showImages : null;
 
-  const fancyFan =
-    typeof record.fancyFan === "boolean"
-      ? record.fancyFan
-      : legacyRich === undefined
-        ? null
-        : legacyRich;
+  const fancyFan = typeof record.fancyFan === "boolean" ? record.fancyFan : (legacyRich ?? null);
   // Migrate old tristate ("none"/"static"/"animated") → boolean
   const foilEffect: boolean | null =
     typeof record.foilEffect === "boolean"
@@ -315,12 +310,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
         : legacyRich === false
           ? false
           : null;
-  const cardTilt =
-    typeof record.cardTilt === "boolean"
-      ? record.cardTilt
-      : legacyRich === undefined
-        ? null
-        : legacyRich;
+  const cardTilt = typeof record.cardTilt === "boolean" ? record.cardTilt : (legacyRich ?? null);
 
   const safeOrder = Array.isArray(record.marketplaceOrder)
     ? record.marketplaceOrder.filter(

@@ -535,7 +535,7 @@ async function renderLandscapeDeckImage(
   const rightColumn = element(
     "div",
     { display: "flex", flexDirection: "column", flexGrow: 1 },
-    mainGrid || element("div", { display: "flex", flexGrow: 1 }),
+    mainGrid ?? element("div", { display: "flex", flexGrow: 1 }),
     sideboardSection,
     bottomRow,
   );
@@ -893,7 +893,7 @@ async function renderVerticalDeckImage(
       justifyContent: "center",
       marginTop: GAP,
     },
-    mainGrid ||
+    mainGrid ??
       element(
         "div",
         {

@@ -613,7 +613,7 @@ export const adminCardMutationsRouter = {
       const rarityRows = await rarities.listAll();
       const raritySlugs = rarityRows.map((row) => row.slug);
       normalizedValue =
-        raritySlugs.find((slug) => slug.toLowerCase() === value.toLowerCase()) || value;
+        raritySlugs.find((slug) => slug.toLowerCase() === value.toLowerCase()) ?? value;
     }
 
     const validator = printingFieldRules[field as keyof typeof printingFieldRules];

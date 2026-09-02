@@ -42,9 +42,7 @@ export function useResponsiveColumns(maxColumns?: number | null) {
   // is referentially stable, so binding it directly as the ref callback doesn't
   // re-attach on every render.
   const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
-  const [columns, setColumns] = useState(() =>
-    maxColumns !== undefined && maxColumns !== null ? maxColumns : SSR_SAFE_COLUMNS,
-  );
+  const [columns, setColumns] = useState(() => maxColumns ?? SSR_SAFE_COLUMNS);
   const [physicalMax, setPhysicalMax] = useState(8);
   const [physicalMin, setPhysicalMin] = useState(1);
   const [autoColumns, setAutoColumns] = useState(SSR_SAFE_COLUMNS);

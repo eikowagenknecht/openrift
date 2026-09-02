@@ -62,7 +62,7 @@ export function ColumnControls({
         }}
         title={maxColumns === null ? "Auto columns" : "Reset to auto"}
       >
-        {maxColumns === null ? "Auto" : maxColumns}
+        {maxColumns ?? "Auto"}
       </ButtonGroupText>
       <Button
         variant="outline"

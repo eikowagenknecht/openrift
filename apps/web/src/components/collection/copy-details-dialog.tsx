@@ -224,7 +224,7 @@ function SummaryIcon({
         aria-label={label}
       >
         <Icon className="size-3.5" />
-        {count === undefined ? null : count}
+        {count ?? null}
       </TooltipTrigger>
       <TooltipContent className="whitespace-pre-wrap">{content ?? label}</TooltipContent>
     </Tooltip>

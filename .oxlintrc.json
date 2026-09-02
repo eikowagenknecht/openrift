@@ -119,7 +119,7 @@
     "typescript/no-unsafe-call": "off",
     "typescript/no-unsafe-return": "off",
     "typescript/prefer-includes": "error",
-    "typescript/prefer-nullish-coalescing": "off", // 77, but `||` falling through on "" is deliberate in most of them
+    "typescript/prefer-nullish-coalescing": "off", // the rest are deliberate: `||` falling through on "", boolean-context guards, and `??=` the React Compiler bails on
     "typescript/prefer-promise-reject-errors": "error",
     "typescript/prefer-readonly-parameter-types": "off", // 20k findings; every parameter in the codebase
     "typescript/related-getter-setter-pairs": "error",

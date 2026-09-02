@@ -229,7 +229,7 @@ export function useCollectionGridSelection({
     // printing either way. The stepper is capped to the copies in view; the
     // server enforces the true unclaimed bound.
     if (action === "lend") {
-      const lendStack = (printing && stackByPrintingId.get(printing.id)) || stack;
+      const lendStack = (printing && stackByPrintingId.get(printing.id)) ?? stack;
       setLendTarget({
         printing: lendStack.printing,
         maxQuantity: stacked ? lendStack.copyIds.length : 1,

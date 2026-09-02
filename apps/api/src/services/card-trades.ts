@@ -911,13 +911,11 @@ export function applyTradeSync(
       settledId = target.id;
       // Without a choice the pins are what goes; a split moved some of them,
       // so re-read.
-      let copyIds = chosenCopyIds;
-      if (copyIds === undefined) {
-        copyIds =
-          target.id === tradeId
-            ? pinnedCopyIds
-            : await trxRepos.cardTrades.listReservedCopyIds(target.id);
-      }
+      const copyIds =
+        chosenCopyIds ??
+        (target.id === tradeId
+          ? pinnedCopyIds
+          : await trxRepos.cardTrades.listReservedCopyIds(target.id));
       // Release the reservation rows so the dispose guard passes, then dispose
       // through the shared service body so the `removed` event and the
       // unfillable-trade sweep still happen.
