@@ -418,7 +418,8 @@ export function toMetaLegendFinish(row: MetaLegendFinishRow): MetaLegendFinish {
 
 /**
  * Pools the archive's deck-card rows into the browser's card index: one array of
- * distinct card ids, and per deck a flat run of `[cardIndex, quantity]` pairs.
+ * distinct card ids, and per deck `[cardIndex, quantity]` runs for the sideboard
+ * and for every other zone, indexing the same pool.
  *
  * Rows are expected grouped by deck, which is the order the repo returns them
  * in; a deck whose rows arrive split would present as two entries, so the
@@ -427,7 +428,7 @@ export function toMetaLegendFinish(row: MetaLegendFinishRow): MetaLegendFinish {
 export function toMetaDeckCardIndex(rows: readonly MetaDeckCardRow[]): MetaDeckCardIndexResponse {
   const cardIndexes = new Map<string, number>();
   const cards: string[] = [];
-  const byDeck = new Map<string, number[]>();
+  const byDeck = new Map<string, { entries: number[]; sideboard: number[] }>();
 
   for (const row of rows) {
     let index = cardIndexes.get(row.cardId);
@@ -436,17 +437,22 @@ export function toMetaDeckCardIndex(rows: readonly MetaDeckCardRow[]): MetaDeckC
       cardIndexes.set(row.cardId, index);
       cards.push(row.cardId);
     }
-    const entries = byDeck.get(row.deckId);
-    if (entries === undefined) {
-      byDeck.set(row.deckId, [index, row.quantity]);
-      continue;
+    let deck = byDeck.get(row.deckId);
+    if (deck === undefined) {
+      deck = { entries: [], sideboard: [] };
+      byDeck.set(row.deckId, deck);
     }
-    entries.push(index, row.quantity);
+    const target = row.sideboard ? deck.sideboard : deck.entries;
+    target.push(index, row.quantity);
   }
 
   return {
     cards,
-    decks: [...byDeck].map(([deckId, entries]) => ({ deckId, entries })),
+    decks: [...byDeck].map(([deckId, deck]) => ({
+      deckId,
+      entries: deck.entries,
+      sideboard: deck.sideboard,
+    })),
   };
 }
 

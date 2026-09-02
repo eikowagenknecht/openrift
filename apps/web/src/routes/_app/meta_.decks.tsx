@@ -3,7 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { RouteErrorFallback } from "@/components/error-message";
 import { META_DECKS_DESCRIPTION } from "@/components/meta/meta-copy";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaDecksQueryOptions } from "@/hooks/use-meta";
+import { metaDecksQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { metaDeckSearchSchema } from "@/lib/meta-deck-search";
@@ -41,6 +41,7 @@ export const Route = createFileRoute("/_app/meta_/decks")({
     await Promise.all([
       context.queryClient.ensureQueryData(initQueryOptions),
       context.queryClient.ensureQueryData(metaDecksQueryOptions),
+      context.queryClient.ensureQueryData(metaEventsQueryOptions),
     ]);
   },
   errorComponent: RouteErrorFallback,

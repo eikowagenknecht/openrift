@@ -64,6 +64,10 @@ const DECK: MetaDeckSummary = {
   },
 };
 
+function tile(props: Partial<React.ComponentProps<typeof MetaArchiveDeckTile>> = {}) {
+  return <MetaArchiveDeckTile deck={DECK} marketplace="cardtrader" {...props} />;
+}
+
 /** The tile frame, which owns the stretched permalink every other element sits under. */
 function frameOf(element: HTMLElement): HTMLElement {
   const frame = element.closest<HTMLElement>(".group");
@@ -75,7 +79,7 @@ function frameOf(element: HTMLElement): HTMLElement {
 
 describe("MetaArchiveDeckTile", () => {
   it("sends the tile to the archived list and the legend to its own page", () => {
-    render(<MetaArchiveDeckTile deck={DECK} />);
+    render(tile());
     expect(
       screen.getByRole("link", { name: "Nova's Kennen, Heart of the Tempest decklist" }),
     ).toHaveAttribute("href", "/meta/decks/aB3dE5gH7jK9");
@@ -86,7 +90,7 @@ describe("MetaArchiveDeckTile", () => {
   });
 
   it("lifts the legend link itself above the permalink, not a wrapper around it", () => {
-    render(<MetaArchiveDeckTile deck={DECK} />);
+    render(tile());
     const legend = screen.getByRole("link", { name: "Kennen" });
     expect(legend).toHaveClass("relative");
 
@@ -101,5 +105,42 @@ describe("MetaArchiveDeckTile", () => {
     ) {
       expect(node.classList.contains("relative")).toBe(false);
     }
+  });
+
+  it("places the finish in the field it was reached in", () => {
+    render(tile({ fieldSize: 86 }));
+    expect(screen.getByText("of 86")).toBeInTheDocument();
+  });
+
+  it("leaves the field out when no source published one", () => {
+    render(tile());
+    expect(screen.queryByText(/^of /u)).not.toBeInTheDocument();
+  });
+
+  it("prints a bracket finish as the bracket it is", () => {
+    render(tile({ deck: { ...DECK, rank: 8, rankIsTier: true } }));
+    expect(screen.getByText("T8")).toBeInTheDocument();
+  });
+
+  it("pins what the list is worth over the art", () => {
+    render(tile({ cost: { needed: 40, owned: undefined, value: 120, toComplete: undefined } }));
+    expect(screen.getByText("120 €")).toBeInTheDocument();
+  });
+
+  it("counts the reader's own cards and what the rest would cost", () => {
+    render(tile({ cost: { needed: 40, owned: 34, value: 120, toComplete: 30 } }));
+    expect(screen.getByText("34 of 40 owned")).toBeInTheDocument();
+    expect(screen.getByText("30 €").parentElement).toHaveTextContent("30 € to complete");
+  });
+
+  it("says a fully owned list is buildable", () => {
+    render(tile({ cost: { needed: 40, owned: 40, value: 120, toComplete: 0 } }));
+    expect(screen.getByText("All 40 owned")).toBeInTheDocument();
+    expect(screen.getByText("Buildable")).toBeInTheDocument();
+  });
+
+  it("counts nothing for a reader with no collection loaded", () => {
+    render(tile({ cost: { needed: 40, owned: undefined, value: 120, toComplete: undefined } }));
+    expect(screen.queryByText(/owned/u)).not.toBeInTheDocument();
   });
 });

@@ -1,11 +1,10 @@
+import { priceLookupFromMap } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
+  cheapestPriceByCardId,
   decodeMetaDeckCardIndex,
-  isMostlyBuildable,
-  metaDeckOwnership,
-  metaDeckOwnershipByDeck,
-  mostlyBuildableDeckIds,
+  metaDeckCosts,
   ownedCountsByCardId,
 } from "./meta-deck-collection";
 
@@ -14,39 +13,52 @@ describe("decodeMetaDeckCardIndex", () => {
     const decoded = decodeMetaDeckCardIndex({
       cards: ["card-a", "card-b"],
       decks: [
-        { deckId: "deck-1", entries: [0, 3, 1, 1] },
-        { deckId: "deck-2", entries: [1, 2] },
+        { deckId: "deck-1", entries: [0, 3, 1, 1], sideboard: [] },
+        { deckId: "deck-2", entries: [1, 2], sideboard: [] },
       ],
     });
-    expect([...(decoded.get("deck-1") ?? [])]).toEqual([
+    expect([...(decoded.get("deck-1")?.main ?? [])]).toEqual([
       ["card-a", 3],
       ["card-b", 1],
     ]);
-    expect([...(decoded.get("deck-2") ?? [])]).toEqual([["card-b", 2]]);
+    expect([...(decoded.get("deck-2")?.main ?? [])]).toEqual([["card-b", 2]]);
+  });
+
+  it("keeps the sideboard apart from the rest of the list", () => {
+    const decoded = decodeMetaDeckCardIndex({
+      cards: ["card-a", "card-b"],
+      decks: [{ deckId: "deck-1", entries: [0, 3], sideboard: [0, 1, 1, 2] }],
+    });
+    expect([...(decoded.get("deck-1")?.main ?? [])]).toEqual([["card-a", 3]]);
+    expect([...(decoded.get("deck-1")?.side ?? [])]).toEqual([
+      ["card-a", 1],
+      ["card-b", 2],
+    ]);
   });
 
   it("drops a pair naming a card outside the pool", () => {
     const decoded = decodeMetaDeckCardIndex({
       cards: ["card-a"],
-      decks: [{ deckId: "deck-1", entries: [0, 2, 7, 1] }],
+      decks: [{ deckId: "deck-1", entries: [0, 2, 7, 1], sideboard: [] }],
     });
-    expect([...(decoded.get("deck-1") ?? [])]).toEqual([["card-a", 2]]);
+    expect([...(decoded.get("deck-1")?.main ?? [])]).toEqual([["card-a", 2]]);
   });
 
   it("drops a trailing index with no quantity behind it", () => {
     const decoded = decodeMetaDeckCardIndex({
       cards: ["card-a", "card-b"],
-      decks: [{ deckId: "deck-1", entries: [0, 2, 1] }],
+      decks: [{ deckId: "deck-1", entries: [0, 2, 1], sideboard: [] }],
     });
-    expect([...(decoded.get("deck-1") ?? [])]).toEqual([["card-a", 2]]);
+    expect([...(decoded.get("deck-1")?.main ?? [])]).toEqual([["card-a", 2]]);
   });
 
   it("keeps a deck the archive holds no cards of", () => {
     const decoded = decodeMetaDeckCardIndex({
       cards: [],
-      decks: [{ deckId: "deck-1", entries: [] }],
+      decks: [{ deckId: "deck-1", entries: [], sideboard: [] }],
     });
-    expect(decoded.get("deck-1")?.size).toBe(0);
+    expect(decoded.get("deck-1")?.main.size).toBe(0);
+    expect(decoded.get("deck-1")?.side.size).toBe(0);
   });
 
   it("returns an empty map for an empty index", () => {
@@ -76,74 +88,155 @@ describe("ownedCountsByCardId", () => {
   });
 });
 
-describe("metaDeckOwnership", () => {
-  const requirements = new Map([
-    ["card-a", 3],
-    ["card-b", 1],
+describe("cheapestPriceByCardId", () => {
+  const printings = new Map([
+    [
+      "card-a",
+      [
+        { id: "print-en", language: "en" },
+        { id: "print-en-alt", language: "en" },
+        { id: "print-de", language: "de" },
+      ],
+    ],
+    ["card-b", [{ id: "print-b-fr", language: "fr" }]],
+    ["card-c", [{ id: "print-c", language: "en" }]],
   ]);
 
-  it("counts the copies the list calls for", () => {
-    expect(metaDeckOwnership(requirements, new Map())).toEqual({ owned: 0, needed: 4 });
+  it("takes the cheapest printing in the reader's languages", () => {
+    const prices = priceLookupFromMap({
+      "print-en": { cardtrader: 500 },
+      "print-en-alt": { cardtrader: 250 },
+      "print-de": { cardtrader: 100 },
+    });
+    expect(cheapestPriceByCardId(printings, prices, "cardtrader", ["en"]).get("card-a")).toBe(2.5);
   });
 
-  it("caps a card's contribution at what the list plays", () => {
-    const owned = new Map([["card-a", 9]]);
-    expect(metaDeckOwnership(requirements, owned)).toEqual({ owned: 3, needed: 4 });
+  it("falls back to any language for a card none of them is priced in", () => {
+    const prices = priceLookupFromMap({ "print-b-fr": { cardtrader: 400 } });
+    expect(cheapestPriceByCardId(printings, prices, "cardtrader", ["en"]).get("card-b")).toBe(4);
   });
 
-  it("counts a fully owned list as complete", () => {
-    const owned = new Map([
-      ["card-a", 3],
-      ["card-b", 1],
-    ]);
-    expect(metaDeckOwnership(requirements, owned)).toEqual({ owned: 4, needed: 4 });
+  it("prefers a language printing over a cheaper one outside them", () => {
+    const prices = priceLookupFromMap({
+      "print-en": { cardtrader: 500 },
+      "print-de": { cardtrader: 100 },
+    });
+    expect(cheapestPriceByCardId(printings, prices, "cardtrader", ["en"]).get("card-a")).toBe(5);
   });
 
-  it("needs nothing for a list the archive holds no cards of", () => {
-    expect(metaDeckOwnership(new Map(), new Map())).toEqual({ owned: 0, needed: 0 });
-  });
-});
-
-describe("isMostlyBuildable", () => {
-  it("is true at the threshold", () => {
-    expect(isMostlyBuildable({ owned: 8, needed: 10 })).toBe(true);
-  });
-
-  it("is false just under it", () => {
-    expect(isMostlyBuildable({ owned: 7, needed: 10 })).toBe(false);
-  });
-
-  it("is false for a list with nothing known in it", () => {
-    expect(isMostlyBuildable({ owned: 0, needed: 0 })).toBe(false);
-  });
-});
-
-describe("metaDeckOwnershipByDeck", () => {
-  it("judges each deck against the same collection", () => {
-    const byDeck = metaDeckOwnershipByDeck(
-      new Map([
-        ["deck-1", new Map([["card-a", 2]])],
-        ["deck-2", new Map([["card-b", 2]])],
-      ]),
-      new Map([["card-a", 2]]),
+  it("leaves out a card no printing of is priced", () => {
+    const prices = priceLookupFromMap({ "print-en": { cardtrader: 500 } });
+    expect(cheapestPriceByCardId(printings, prices, "cardtrader", ["en"]).has("card-c")).toBe(
+      false,
     );
-    expect(byDeck.get("deck-1")).toEqual({ owned: 2, needed: 2 });
-    expect(byDeck.get("deck-2")).toEqual({ owned: 0, needed: 2 });
+  });
+
+  it("reads the marketplace it was asked for", () => {
+    const prices = priceLookupFromMap({ "print-c": { cardtrader: 500, cardmarket: 300 } });
+    expect(cheapestPriceByCardId(printings, prices, "cardmarket", ["en"]).get("card-c")).toBe(3);
   });
 });
 
-describe("mostlyBuildableDeckIds", () => {
-  it("keeps only the decks over the threshold", () => {
-    const ids = mostlyBuildableDeckIds(
-      new Map([
-        ["deck-1", { owned: 10, needed: 10 }],
-        ["deck-2", { owned: 1, needed: 10 }],
-      ]),
-    );
-    expect([...ids]).toEqual(["deck-1"]);
+describe("metaDeckCosts", () => {
+  const decks = new Map([
+    [
+      "deck-1",
+      {
+        main: new Map([
+          ["card-a", 3],
+          ["card-b", 1],
+        ]),
+        side: new Map([["card-a", 2]]),
+      },
+    ],
+  ]);
+  const prices = new Map([
+    ["card-a", 2],
+    ["card-b", 10],
+  ]);
+
+  it("prices the main deck alone by default", () => {
+    const costs = metaDeckCosts(decks, { includeSideboard: false, prices });
+    expect(costs.get("deck-1")).toEqual({
+      needed: 4,
+      owned: undefined,
+      value: 16,
+      toComplete: undefined,
+    });
   });
 
-  it("is empty when nothing qualifies", () => {
-    expect(mostlyBuildableDeckIds(new Map()).size).toBe(0);
+  it("adds the sideboard's copies to the same card", () => {
+    const costs = metaDeckCosts(decks, { includeSideboard: true, prices });
+    expect(costs.get("deck-1")?.needed).toBe(6);
+    expect(costs.get("deck-1")?.value).toBe(20);
+  });
+
+  it("prices only the copies the reader lacks", () => {
+    const costs = metaDeckCosts(decks, {
+      includeSideboard: false,
+      prices,
+      ownedByCardId: new Map([["card-a", 2]]),
+    });
+    expect(costs.get("deck-1")).toEqual({ needed: 4, owned: 2, value: 16, toComplete: 12 });
+  });
+
+  it("caps a card's owned copies at what the list plays", () => {
+    const costs = metaDeckCosts(decks, {
+      includeSideboard: false,
+      prices,
+      ownedByCardId: new Map([["card-a", 9]]),
+    });
+    expect(costs.get("deck-1")?.owned).toBe(3);
+    expect(costs.get("deck-1")?.toComplete).toBe(10);
+  });
+
+  it("caps against the combined quantity once the sideboard counts", () => {
+    const costs = metaDeckCosts(decks, {
+      includeSideboard: true,
+      prices,
+      ownedByCardId: new Map([["card-a", 9]]),
+    });
+    expect(costs.get("deck-1")?.owned).toBe(5);
+  });
+
+  it("has no value when one of the list's cards is unpriced", () => {
+    const costs = metaDeckCosts(decks, {
+      includeSideboard: false,
+      prices: new Map([["card-a", 2]]),
+      ownedByCardId: new Map(),
+    });
+    expect(costs.get("deck-1")?.value).toBeUndefined();
+    expect(costs.get("deck-1")?.toComplete).toBeUndefined();
+  });
+
+  it("still costs a completion when the unpriced card is one the reader owns", () => {
+    const costs = metaDeckCosts(decks, {
+      includeSideboard: false,
+      prices: new Map([["card-a", 2]]),
+      ownedByCardId: new Map([["card-b", 1]]),
+    });
+    expect(costs.get("deck-1")?.value).toBeUndefined();
+    expect(costs.get("deck-1")?.toComplete).toBe(6);
+  });
+
+  it("costs nothing to complete a list the reader already holds", () => {
+    const costs = metaDeckCosts(decks, {
+      includeSideboard: false,
+      prices,
+      ownedByCardId: new Map([
+        ["card-a", 3],
+        ["card-b", 1],
+      ]),
+    });
+    expect(costs.get("deck-1")?.toComplete).toBe(0);
+  });
+
+  it("reports a list the archive holds no cards of as needing nothing", () => {
+    const costs = metaDeckCosts(new Map([["deck-1", { main: new Map(), side: new Map() }]]), {
+      includeSideboard: true,
+      prices,
+      ownedByCardId: new Map(),
+    });
+    expect(costs.get("deck-1")).toEqual({ needed: 0, owned: 0, value: 0, toComplete: 0 });
   });
 });

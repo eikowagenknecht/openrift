@@ -16,7 +16,7 @@ export const META_DESCRIPTION =
 
 /** Shared by the /meta/decks description, the JSON-LD, and the visible page intro. */
 export const META_DECKS_DESCRIPTION =
-  "Every decklist in the Riftbound meta archive, filterable by era, format, tier, country, event, legend and finish.";
+  "Every decklist in the Riftbound meta archive, grouped by event with the newest first, with what each list is worth and how much of it you already own.";
 
 /** Shared by the /meta/events description, the JSON-LD, and the visible page intro. */
 export const META_EVENTS_DESCRIPTION =

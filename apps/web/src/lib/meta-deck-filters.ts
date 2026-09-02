@@ -1,6 +1,7 @@
 import type { MetaDeckSummary } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
+import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { isScopeCustomized } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
@@ -24,8 +25,11 @@ export interface MetaDeckFilterValues {
    * so on. Null means any finish.
    */
   maxRank: number | null;
-  /** Keeps only the lists the reader can mostly build from their own collection. */
-  buildable: boolean;
+  maxCost: number | null;
+  valueMin: number | null;
+  valueMax: number | null;
+  /** Not an axis: the context's costs are computed with it. */
+  includeSideboard: boolean;
   /**
    * Opens every archived list instead of the curated one-per-legend-per-event
    * view. Not an axis — it rejects no deck — but the faceted counts read it, so
@@ -34,13 +38,8 @@ export interface MetaDeckFilterValues {
   showAll: boolean;
 }
 
-/**
- * What the browser knows about the reader that the archive itself does not. The
- * deck ids arrive already judged, because whether a list is mostly buildable
- * depends on a collection the filter has no business loading.
- */
 export interface MetaDeckFilterContext {
-  buildableDeckIds?: ReadonlySet<string>;
+  costs?: ReadonlyMap<string, MetaDeckCost>;
 }
 
 /** The finish buckets offered in the browser, best first. */
@@ -52,7 +51,7 @@ export const META_FINISH_OPTIONS: { value: number; label: string }[] = [
 ];
 
 /** One axis of {@link MetaDeckFilterValues}, for the per-axis faceted counts. */
-type MetaDeckFilterAxis = "scope" | "events" | "legends" | "finish" | "buildable";
+type MetaDeckFilterAxis = "scope" | "events" | "legends" | "finish" | "cost" | "value";
 
 /**
  * Whether one deck passes a single axis. Split out so the faceted counts can
@@ -77,20 +76,32 @@ function passesAxis(
   if (axis === "finish") {
     return filters.maxRank === null || deck.rank <= filters.maxRank;
   }
-  if (axis === "buildable") {
-    // Inert until a collection has loaded: a shared `?buildable=true` link would
-    // otherwise show a signed-out reader an empty archive, and a signed-in one an
-    // empty archive until the bridge answers.
+  if (axis === "cost") {
+    // Inert until the costs have loaded, so a shared `?cost=` link does not open
+    // on an empty archive while the bridge answers.
+    if (filters.maxCost === null || context.costs === undefined) {
+      return true;
+    }
+    const toComplete = context.costs.get(deck.deckId)?.toComplete;
+    return toComplete !== undefined && toComplete <= filters.maxCost;
+  }
+  if (axis === "value") {
+    if ((filters.valueMin === null && filters.valueMax === null) || context.costs === undefined) {
+      return true;
+    }
+    const value = context.costs.get(deck.deckId)?.value;
+    if (value === undefined) {
+      return false;
+    }
     return (
-      !filters.buildable ||
-      context.buildableDeckIds === undefined ||
-      context.buildableDeckIds.has(deck.deckId)
+      (filters.valueMin === null || value >= filters.valueMin) &&
+      (filters.valueMax === null || value <= filters.valueMax)
     );
   }
   return scopeMatches(deck.event, filters.scope, filters.eras);
 }
 
-const ALL_AXES: MetaDeckFilterAxis[] = ["scope", "events", "legends", "finish", "buildable"];
+const ALL_AXES: MetaDeckFilterAxis[] = ["scope", "events", "legends", "finish", "cost", "value"];
 
 /** Narrows the archive to the decks matching every populated axis. */
 export function filterMetaDecks(
@@ -159,6 +170,21 @@ export function sortMetaDecks(decks: readonly MetaDeckSummary[]): MetaDeckSummar
   });
 }
 
+// Curated after filtering, like the grid, or a count would promise decks the grid folds away.
+function shownWithoutAxis(
+  decks: readonly MetaDeckSummary[],
+  filters: MetaDeckFilterValues,
+  context: MetaDeckFilterContext,
+  skip: MetaDeckFilterAxis,
+): MetaDeckSummary[] {
+  return curateMetaDecks(
+    decks.filter((deck) =>
+      ALL_AXES.every((axis) => axis === skip || passesAxis(deck, filters, context, axis)),
+    ),
+    filters,
+  );
+}
+
 /** Faceted counts per axis, keyed by the axis value the control offers. */
 export interface MetaDeckFilterCounts {
   events: Map<string, number>;
@@ -191,12 +217,7 @@ export function metaDeckFilterCounts(
     finish: new Map(),
   };
   const shownWithout = (skip: MetaDeckFilterAxis) =>
-    curateMetaDecks(
-      decks.filter((deck) =>
-        ALL_AXES.every((axis) => axis === skip || passesAxis(deck, filters, context, axis)),
-      ),
-      filters,
-    );
+    shownWithoutAxis(decks, filters, context, skip);
 
   for (const deck of shownWithout("events")) {
     bump(counts.events, deck.event.slug);
@@ -270,6 +291,39 @@ export function hasActiveMetaDeckFilters(filters: Omit<MetaDeckFilterValues, "er
     filters.events.length > 0 ||
     filters.legends.length > 0 ||
     filters.maxRank !== null ||
-    filters.buildable
+    filters.maxCost !== null ||
+    filters.valueMin !== null ||
+    filters.valueMax !== null
   );
+}
+
+export interface MetaDeckEventGroup {
+  event: MetaDeckSummary["event"];
+  decks: MetaDeckSummary[];
+}
+
+/** Consecutive runs only: input must be sorted by {@link sortMetaDecks}. */
+export function groupMetaDecksByEvent(decks: readonly MetaDeckSummary[]): MetaDeckEventGroup[] {
+  const groups: MetaDeckEventGroup[] = [];
+  for (const deck of decks) {
+    const open = groups.at(-1);
+    if (open !== undefined && open.event.slug === deck.event.slug) {
+      open.decks.push(deck);
+      continue;
+    }
+    groups.push({ event: deck.event, decks: [deck] });
+  }
+  return groups;
+}
+
+export function countMetaDecksUnderCost(
+  decks: readonly MetaDeckSummary[],
+  filters: MetaDeckFilterValues,
+  context: MetaDeckFilterContext,
+  maxCost: number | null,
+): number {
+  const swapped = { ...filters, maxCost };
+  return shownWithoutAxis(decks, swapped, context, "cost").filter((deck) =>
+    passesAxis(deck, swapped, context, "cost"),
+  ).length;
 }

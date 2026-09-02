@@ -43,6 +43,7 @@ interface PlayerOpts {
   losses?: number | null;
   draws?: number | null;
   withChampion?: boolean;
+  withSideboard?: boolean;
   deckFormat?: string;
 }
 
@@ -136,6 +137,9 @@ function deckInput(
     opts.withChampion === false
       ? []
       : [{ cardId: championCardId, zone: "champion", quantity: 3, preferredPrintingId: null }];
+  const sideboard: MetaDeckCardInput[] = opts.withSideboard
+    ? [{ cardId: spellCardId, zone: "sideboard", quantity: 2, preferredPrintingId: null }]
+    : [];
   return {
     name: `${opts.playerName} Deck`,
     format: opts.deckFormat ?? FORMAT,
@@ -146,6 +150,7 @@ function deckInput(
       { cardId: legendCardId, zone: "legend", quantity: 1, preferredPrintingId: null },
       ...champion,
       { cardId: spellCardId, zone: "main", quantity: 3, preferredPrintingId: null },
+      ...sideboard,
     ],
     listStatus,
   };
@@ -927,22 +932,31 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(decks[1].wins).toBe(3);
     });
 
-    it("reports each archived list's cards, summed across its zones", async () => {
+    it("reports each archived list's cards, summing every zone but the sideboard", async () => {
       const eventId = await seedEvent(repo, "mta-deck-cards");
       const { deckId } = await seedListedPlayer(repo, eventId, {
         playerName: "MTA Carded",
         rank: 1,
+        withSideboard: true,
       });
 
       const all = await repo.allDeckCards();
       const rows = all.filter((row) => row.deckId === deckId);
-      expect(new Map(rows.map((row) => [row.cardId, row.quantity]))).toEqual(
-        new Map([
-          [legendCardId, 1],
-          [championCardId, 3],
-          [spellCardId, 3],
+      expect(
+        rows.map((row) => ({
+          cardId: row.cardId,
+          quantity: row.quantity,
+          sideboard: row.sideboard,
+        })),
+      ).toEqual(
+        expect.arrayContaining([
+          { cardId: legendCardId, quantity: 1, sideboard: false },
+          { cardId: championCardId, quantity: 3, sideboard: false },
+          { cardId: spellCardId, quantity: 3, sideboard: false },
+          { cardId: spellCardId, quantity: 2, sideboard: true },
         ]),
       );
+      expect(rows).toHaveLength(4);
     });
 
     it("holds one standings row per deck, which is what keeps the card index unfanned", async () => {

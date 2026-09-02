@@ -1,3 +1,4 @@
+import { WellKnown } from "@openrift/shared";
 import type {
   CardType,
   DeckFormatConfig,
@@ -148,11 +149,11 @@ export interface MetaDeckSummaryRow {
   eventCountry: string | null;
 }
 
-/** How many of one card an archived list holds, summed across its zones. */
 export interface MetaDeckCardRow {
   deckId: string;
   cardId: string;
   quantity: number;
+  sideboard: boolean;
 }
 
 /**
@@ -1141,18 +1142,17 @@ export function metaRepo(db: Kysely<Database>) {
     /**
      * What every archived list holds, for the browser's collection overlay.
      * Unpaginated like {@link allDeckSummaries} and for the same reason.
-     *
-     * Zones are summed away: the overlay asks whether the reader owns the card,
-     * and a copy sitting in the rune deck rather than the main deck is still a
-     * copy they need.
+     * The sideboard stays its own row; every other zone is summed together.
      */
     async allDeckCards(): Promise<MetaDeckCardRow[]> {
+      const isSideboard = sql<boolean>`dc.zone = ${sql.lit(WellKnown.deckZone.SIDEBOARD)}`;
       const rows = await db
         .selectFrom("deckCards as dc")
         .select(({ fn }) => [
           "dc.deckId",
           "dc.cardId",
           fn.sum<string>("dc.quantity").as("quantity"),
+          isSideboard.as("sideboard"),
         ])
         // An `exists` rather than a join, so the quantities stay the deck's own
         // however many standings rows reference it. `uq_meta_event_players_deck`
@@ -1166,13 +1166,16 @@ export function metaRepo(db: Kysely<Database>) {
               .whereRef("p.deckId", "=", "dc.deckId"),
           ),
         )
-        .groupBy(["dc.deckId", "dc.cardId"])
+        .groupBy(["dc.deckId", "dc.cardId", isSideboard])
         .orderBy("dc.deckId")
+        .orderBy("dc.cardId")
+        .orderBy(isSideboard)
         .execute();
       return rows.map((row) => ({
         deckId: row.deckId,
         cardId: row.cardId,
         quantity: Number(row.quantity),
+        sideboard: row.sideboard,
       }));
     },
 

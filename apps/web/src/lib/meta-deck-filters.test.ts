@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 
 import type { MetaDeckFilterValues } from "./meta-deck-filters";
 import {
+  countMetaDecksUnderCost,
   curateMetaDecks,
   filterMetaDecks,
+  groupMetaDecksByEvent,
   hasActiveMetaDeckFilters,
   metaDeckFilterCounts,
   metaDeckFilterOptions,
@@ -27,9 +29,18 @@ const EMPTY: MetaDeckFilterValues = {
   events: [],
   legends: [],
   maxRank: null,
-  buildable: false,
+  maxCost: null,
+  valueMin: null,
+  valueMax: null,
+  includeSideboard: false,
   showAll: false,
 };
+
+const COSTS = new Map([
+  ["a", { needed: 40, owned: 40, value: 120, toComplete: 0 }],
+  ["b", { needed: 40, owned: 20, value: 60, toComplete: 25 }],
+  ["c", { needed: 40, owned: 0, value: undefined, toComplete: undefined }],
+]);
 
 function makeDeck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
   const event = {
@@ -165,22 +176,51 @@ describe("filterMetaDecks", () => {
     expect(ids(open)).toEqual(["a", "b"]);
   });
 
-  it("keeps only the decks the reader can mostly build when asked", () => {
-    const result = filterMetaDecks(
-      decks,
-      { ...EMPTY, buildable: true },
-      { buildableDeckIds: new Set(["b"]) },
-    );
-    expect(ids(result)).toEqual(["b"]);
+  it("keeps only the lists completable within the cost bound", () => {
+    const result = filterMetaDecks(decks, { ...EMPTY, maxCost: 25 }, { costs: COSTS });
+    expect(ids(result)).toEqual(["a", "b"]);
   });
 
-  it("keeps the whole archive while no collection has loaded, rather than emptying a shared link", () => {
-    expect(ids(filterMetaDecks(decks, { ...EMPTY, buildable: true }))).toEqual(["a", "b", "c"]);
+  it("treats a bound of zero as the lists the reader can build now", () => {
+    const result = filterMetaDecks(decks, { ...EMPTY, maxCost: 0 }, { costs: COSTS });
+    expect(ids(result)).toEqual(["a"]);
   });
 
-  it("ignores the buildable set while the filter is off", () => {
-    const result = filterMetaDecks(decks, EMPTY, { buildableDeckIds: new Set(["b"]) });
-    expect(ids(result)).toEqual(["a", "b", "c"]);
+  it("drops a list whose completion cannot be costed", () => {
+    const result = filterMetaDecks(decks, { ...EMPTY, maxCost: 1000 }, { costs: COSTS });
+    expect(ids(result)).toEqual(["a", "b"]);
+  });
+
+  it("keeps the whole archive while no costs have loaded, rather than emptying a shared link", () => {
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, maxCost: 0 }))).toEqual(["a", "b", "c"]);
+  });
+
+  it("ignores the costs while no bound is set", () => {
+    expect(ids(filterMetaDecks(decks, EMPTY, { costs: COSTS }))).toEqual(["a", "b", "c"]);
+  });
+
+  it("treats both value bounds as inclusive", () => {
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, valueMin: 60 }, { costs: COSTS }))).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, valueMax: 60 }, { costs: COSTS }))).toEqual([
+      "b",
+    ]);
+    expect(
+      ids(filterMetaDecks(decks, { ...EMPTY, valueMin: 61, valueMax: 200 }, { costs: COSTS })),
+    ).toEqual(["a"]);
+  });
+
+  it("drops a list whose value is unknown once a bound is set", () => {
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, valueMin: 0 }, { costs: COSTS }))).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("keeps the whole archive on a value bound while no costs have loaded", () => {
+    expect(ids(filterMetaDecks(decks, { ...EMPTY, valueMax: 1 }))).toEqual(["a", "b", "c"]);
   });
 
   it("intersects across axes", () => {
@@ -362,7 +402,60 @@ describe("hasActiveMetaDeckFilters", () => {
       hasActiveMetaDeckFilters({ ...EMPTY, scope: { ...EMPTY.scope, tiers: ["premier"] } }),
     ).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, maxRank: 8 })).toBe(true);
-    expect(hasActiveMetaDeckFilters({ ...EMPTY, buildable: true })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, maxCost: 0 })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, valueMin: 5 })).toBe(true);
+    expect(hasActiveMetaDeckFilters({ ...EMPTY, valueMax: 5 })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, events: ["rift-open"] })).toBe(true);
+  });
+});
+
+describe("groupMetaDecksByEvent", () => {
+  it("gathers each event's lists in the order they arrived", () => {
+    const groups = groupMetaDecksByEvent(sortMetaDecks(decks));
+    expect(groups.map((group) => group.event.slug)).toEqual(["summoner-skirmish", "rift-open"]);
+    expect(groups.map((group) => ids(group.decks))).toEqual([["a", "b"], ["c"]]);
+  });
+
+  it("opens a new group for a slug that comes back after another event", () => {
+    const groups = groupMetaDecksByEvent([decks[0], decks[2], decks[1]]);
+    expect(groups.map((group) => group.event.slug)).toEqual([
+      "summoner-skirmish",
+      "rift-open",
+      "summoner-skirmish",
+    ]);
+  });
+
+  it("returns nothing for an empty list", () => {
+    expect(groupMetaDecksByEvent([])).toEqual([]);
+  });
+});
+
+describe("countMetaDecksUnderCost", () => {
+  it("counts what the grid would show at another bound", () => {
+    expect(countMetaDecksUnderCost(decks, { ...EMPTY, showAll: true }, { costs: COSTS }, 0)).toBe(
+      1,
+    );
+    expect(countMetaDecksUnderCost(decks, { ...EMPTY, showAll: true }, { costs: COSTS }, 25)).toBe(
+      2,
+    );
+  });
+
+  it("holds the other axes as they are", () => {
+    const filters = { ...EMPTY, showAll: true, legends: ["card-jinx"] };
+    expect(countMetaDecksUnderCost(decks, filters, { costs: COSTS }, 25)).toBe(1);
+  });
+
+  it("counts the curated grid rather than the raw matches", () => {
+    const sameLegendTwice = [
+      makeDeck({ deckId: "a", playerName: "Ashen", rank: 1 }),
+      makeDeck({ deckId: "b", playerName: "Bram", rank: 8 }),
+    ];
+    expect(countMetaDecksUnderCost(sameLegendTwice, EMPTY, { costs: COSTS }, 25)).toBe(1);
+  });
+
+  it("counts the whole curated archive for a lifted bound", () => {
+    expect(
+      countMetaDecksUnderCost(decks, { ...EMPTY, showAll: true }, { costs: COSTS }, null),
+    ).toBe(3);
   });
 });

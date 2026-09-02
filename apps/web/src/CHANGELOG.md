@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Meta): **Archived decks grouped by event** — the deck browser now lists each event's best lists newest first, with every list's value, what completing it costs you, and a cost filter.
 - feat(Meta): **Slimmer decklist submission** — adding a list from a standings row shows the tournament and player as read-only, reads the paste as you type, and works out whole deck vs main deck only from the cards.
 - feat(Meta): **Upcoming events in their own list** — the front page's tier sections now show only events with results, and everything still to come sits in a "Coming up" list beside them, soonest first.
 - feat(Meta): **Event pages redesigned** — the header now shows the champion, format, and structure at a glance, and standings expand inline to preview each decklist's card mix, value, and how much of it you own.

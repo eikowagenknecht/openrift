@@ -3,13 +3,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { MetaDeckOwnership } from "@/lib/meta-deck-collection";
+import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 
 const captured = vi.hoisted(() => ({
   decks: [] as MetaDeckSummary[],
   search: {} as Record<string, unknown>,
   signedIn: false,
-  ownership: undefined as Map<string, MetaDeckOwnership> | undefined,
+  costs: undefined as Map<string, MetaDeckCost> | undefined,
 }));
 
 const navigate = vi.hoisted(() => vi.fn());
@@ -41,7 +41,26 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
-vi.mock("@/hooks/use-meta", () => ({ useMetaDecks: () => ({ data: { decks: captured.decks } }) }));
+const EVENT_SUMMARY = vi.hoisted(() => ({
+  id: "event-1",
+  slug: "regional-qualifier-barcelona",
+  name: "Regional Qualifier Barcelona",
+  eventDate: "2026-08-23",
+  format: "constructed",
+  tier: "premier",
+  country: "ES",
+  location: "Barcelona",
+  organizer: "Rift Open Series",
+  playerCount: 86,
+  playerRowCount: 41,
+  deckCount: 41,
+  topFinishes: [],
+}));
+
+vi.mock("@/hooks/use-meta", () => ({
+  useMetaDecks: () => ({ data: { decks: captured.decks } }),
+  useMetaEvents: () => ({ data: { events: [EVENT_SUMMARY] } }),
+}));
 vi.mock("@/hooks/use-enums", () => ({
   useDeckFormatList: () => ({
     formats: [{ slug: "standard", label: "Standard" }],
@@ -52,8 +71,8 @@ vi.mock("@/hooks/use-meta-eras", () => ({
   useMetaEras: () => [{ id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null }],
 }));
 vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => true }));
-vi.mock("@/hooks/use-meta-deck-ownership", () => ({
-  useMetaDeckOwnership: () => captured.ownership,
+vi.mock("@/hooks/use-meta-deck-costs", () => ({
+  useMetaDeckCosts: () => captured.costs,
 }));
 vi.mock("@/lib/auth-session", () => ({
   useSession: () => ({ data: captured.signedIn ? { user: { id: "u1" } } : null }),
@@ -121,19 +140,27 @@ describe("MetaDeckBrowserPage", () => {
     captured.decks = SAME_LEGEND_TWICE;
     captured.search = {};
     captured.signedIn = false;
-    captured.ownership = undefined;
+    captured.costs = undefined;
   });
 
   it("opens on the best finish per legend at each event", () => {
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("Nova")).toBeInTheDocument();
     expect(screen.queryByText("Ekko")).not.toBeInTheDocument();
-    expect(screen.getByText("1 deck")).toBeInTheDocument();
+    expect(screen.getByText("1 deck · 1 event")).toBeInTheDocument();
+  });
+
+  it("groups the lists under the event they were played at", () => {
+    render(<MetaDeckBrowserPage />);
+    expect(
+      screen.getByRole("heading", { name: /Regional Qualifier Barcelona/u }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("86 players · 41 decks")).toBeInTheDocument();
   });
 
   it("offers every archived list one click away", async () => {
     render(<MetaDeckBrowserPage />);
-    await userEvent.click(screen.getByRole("button", { name: "Show all 2" }));
+    await userEvent.click(screen.getByRole("button", { name: "Every list" }));
     expect(navigate).toHaveBeenCalled();
     const search = navigate.mock.calls.at(-1)?.[0].search as (
       prev: Record<string, unknown>,
@@ -146,41 +173,47 @@ describe("MetaDeckBrowserPage", () => {
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("Nova")).toBeInTheDocument();
     expect(screen.getByText("Ekko")).toBeInTheDocument();
-    expect(screen.getByText("2 decks")).toBeInTheDocument();
+    expect(screen.getByText("2 decks · 1 event")).toBeInTheDocument();
   });
 
-  it("shows each event's tier on the tile", () => {
+  it("shows each event's tier in its section header", () => {
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("Premier")).toBeInTheDocument();
   });
 
-  it("keeps the collection filter hidden for a signed-out reader", () => {
-    render(<MetaDeckBrowserPage />);
-    expect(screen.queryByText("Mostly buildable")).not.toBeInTheDocument();
-  });
-
   it("counts the reader's own cards on each tile once the collection is in", () => {
     captured.signedIn = true;
-    captured.ownership = new Map([["winner", { owned: 34, needed: 40 }]]);
+    captured.costs = new Map([["winner", { owned: 34, needed: 40, value: 120, toComplete: 30 }]]);
     render(<MetaDeckBrowserPage />);
-    expect(screen.getByText("34/40")).toBeInTheDocument();
-    expect(screen.getByText("Mostly buildable")).toBeInTheDocument();
+    expect(screen.getByText("34 of 40 owned")).toBeInTheDocument();
+    expect(screen.getByText("120 €")).toBeInTheDocument();
   });
 
-  it("narrows to the lists the reader can mostly build", () => {
+  it("narrows to the lists the reader can complete within their budget", () => {
     captured.signedIn = true;
-    captured.search = { all: true, buildable: true };
-    captured.ownership = new Map([
-      ["winner", { owned: 40, needed: 40 }],
-      ["eighth", { owned: 4, needed: 40 }],
+    captured.search = { all: true, cost: 0 };
+    captured.costs = new Map([
+      ["winner", { owned: 40, needed: 40, value: 120, toComplete: 0 }],
+      ["eighth", { owned: 4, needed: 40, value: 120, toComplete: 95 }],
     ]);
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("Nova")).toBeInTheDocument();
     expect(screen.queryByText("Ekko")).not.toBeInTheDocument();
   });
 
-  it("shows the whole archive on a shared buildable link before any collection loads", () => {
-    captured.search = { all: true, buildable: true };
+  it("shows the whole archive on a shared cost link before any collection loads", () => {
+    captured.search = { all: true, cost: 0 };
+    render(<MetaDeckBrowserPage />);
+    expect(screen.getByText("Nova")).toBeInTheDocument();
+    expect(screen.getByText("Ekko")).toBeInTheDocument();
+  });
+
+  it("never narrows a signed-out reader by a cost they cannot be measured against", () => {
+    captured.search = { all: true, cost: 0 };
+    captured.costs = new Map([
+      ["winner", { owned: undefined, needed: 40, value: 120, toComplete: undefined }],
+      ["eighth", { owned: undefined, needed: 40, value: 120, toComplete: undefined }],
+    ]);
     render(<MetaDeckBrowserPage />);
     expect(screen.getByText("Nova")).toBeInTheDocument();
     expect(screen.getByText("Ekko")).toBeInTheDocument();

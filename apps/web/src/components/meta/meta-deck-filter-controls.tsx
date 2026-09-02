@@ -1,11 +1,17 @@
 import type { ReactNode } from "react";
 
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
+import type { MetaDeckCostFilterProps } from "@/components/meta/meta-deck-cost-filter";
+import {
+  MetaDeckCostFilter,
+  metaCostBoundLabel,
+  metaValueRangeLabel,
+  useMetaPriceFormat,
+} from "@/components/meta/meta-deck-cost-filter";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
 import { countryLabel } from "@/lib/country";
@@ -31,8 +36,6 @@ import {
 /** The finish select's "no bound" value — an empty string clears the param. */
 const ANY_FINISH = "";
 
-const BUILDABLE_SWITCH_ID = "meta-decks-buildable";
-
 /**
  * The deck browser's controls: the archive-wide scope bar, then the axes only a
  * deck list has. Every option is derived from the archive itself, so a control
@@ -42,13 +45,12 @@ export function MetaDeckFilterControls({
   options,
   counts,
   eras,
-  showCollectionFilter,
+  cost,
 }: {
   options: MetaDeckFilterOptions;
   counts: MetaDeckFilterCounts;
   eras: readonly MetaEra[];
-  /** Offered only once a collection is loaded — there is nothing to compare against otherwise. */
-  showCollectionFilter: boolean;
+  cost: MetaDeckCostFilterProps;
 }) {
   const filters = useMetaDeckFilters();
 
@@ -110,18 +112,13 @@ export function MetaDeckFilterControls({
           </SelectContent>
         </Select>
 
-        {showCollectionFilter && (
-          <div className="flex items-center gap-2">
-            <Switch
-              id={BUILDABLE_SWITCH_ID}
-              checked={filters.buildable}
-              onCheckedChange={(checked) => filters.setBuildable(checked)}
-            />
-            <Label htmlFor={BUILDABLE_SWITCH_ID}>Mostly buildable</Label>
-          </div>
-        )}
+        <MetaDeckCostFilter {...cost} />
 
-        {hasActiveMetaDeckFilters(filters) && (
+        {hasActiveMetaDeckFilters({
+          ...filters,
+          valueMin: filters.valueRange.min,
+          valueMax: filters.valueRange.max,
+        }) && (
           <Button type="button" variant="ghost" size="sm" onClick={() => filters.clearAllFilters()}>
             Reset filters
           </Button>
@@ -138,12 +135,15 @@ export function MetaDeckFilterControls({
 export function MetaDeckActiveFilters({
   options,
   eras,
+  withCollection,
 }: {
   options: MetaDeckFilterOptions;
   eras: readonly MetaEra[];
+  withCollection: boolean;
 }) {
   const filters = useMetaDeckFilters();
   const { labels: formatLabels } = useDeckFormatList();
+  const priceFormat = useMetaPriceFormat();
 
   const eventLabels = new Map(options.events.map((entry) => [entry.value, entry.label]));
   const legendLabels = new Map(options.legends.map((entry) => [entry.value, entry.label]));
@@ -171,8 +171,20 @@ export function MetaDeckActiveFilters({
   if (finishLabel !== undefined) {
     chips.push(chip("finish", finishLabel, () => filters.setMaxRank(null)));
   }
-  if (filters.buildable) {
-    chips.push(chip("buildable", "Mostly buildable", () => filters.setBuildable(false)));
+  if (withCollection && filters.maxCost !== null) {
+    chips.push(
+      chip("cost", metaCostBoundLabel(filters.maxCost, priceFormat), () =>
+        filters.setMaxCost(null),
+      ),
+    );
+  }
+  const valueLabel = metaValueRangeLabel(
+    filters.valueRange.min,
+    filters.valueRange.max,
+    priceFormat,
+  );
+  if (valueLabel !== null) {
+    chips.push(chip("value", valueLabel, () => filters.setValueRange({ min: null, max: null })));
   }
 
   // A scope narrowed by a custom date range alone names nothing, and a strip

@@ -1,49 +1,46 @@
-import type { MetaDeckCardIndexResponse } from "@openrift/shared";
+import type { Marketplace, PriceLookup } from "@openrift/shared";
 
-/** One archived list's card requirements: how many copies of each card it calls for. */
-export type MetaDeckRequirements = ReadonlyMap<string, number>;
-
-/** How much of one archived list the reader already holds. */
-export interface MetaDeckOwnership {
-  /** Copies of the list's cards the reader owns, capped at what the list calls for. */
-  owned: number;
-  /** Copies the known list calls for. Zero when the archive holds no cards of it. */
-  needed: number;
+/** Card id to copies, per zone. */
+export interface MetaDeckCards {
+  main: ReadonlyMap<string, number>;
+  side: ReadonlyMap<string, number>;
 }
 
-/**
- * How much of a list the reader must already hold for it to count as mostly
- * buildable. A judgement about their own collection against one list, never
- * about the list itself and never against another list.
- *
- * Proportional rather than a fixed number of missing cards, because a partial
- * list can be half the size of a full one and "five cards short" means something
- * different in each.
- */
-const MOSTLY_BUILDABLE_THRESHOLD = 0.8;
+export type MetaDeckCardsByDeck = ReadonlyMap<string, MetaDeckCards>;
 
-/**
- * Unpacks the archive's card index into per-deck requirements.
- *
- * The wire format pools card ids and refers to them by position, so this is
- * where the positions turn back into ids. A pair naming a card outside the pool
- * is dropped rather than trusted, and so is a trailing index with no quantity
- * behind it.
- */
-export function decodeMetaDeckCardIndex(
-  index: MetaDeckCardIndexResponse,
-): Map<string, MetaDeckRequirements> {
-  const byDeck = new Map<string, MetaDeckRequirements>();
-  for (const deck of index.decks) {
-    const requirements = new Map<string, number>();
-    for (let at = 0; at + 1 < deck.entries.length; at += 2) {
-      const cardId = index.cards[deck.entries[at]];
-      if (cardId === undefined) {
-        continue;
-      }
-      requirements.set(cardId, (requirements.get(cardId) ?? 0) + deck.entries[at + 1]);
+export interface MetaDeckCost {
+  needed: number;
+  /** Undefined when no collection is loaded. */
+  owned: number | undefined;
+  /** Undefined when any card has no price. */
+  value: number | undefined;
+  /** Undefined without a collection, or when a missing card has no price. */
+  toComplete: number | undefined;
+}
+
+// A pair naming a card outside the pool is dropped, as is a trailing index without a quantity.
+function decodePairs(pairs: readonly number[], cards: readonly string[]): Map<string, number> {
+  const requirements = new Map<string, number>();
+  for (let at = 0; at + 1 < pairs.length; at += 2) {
+    const cardId = cards[pairs[at]];
+    if (cardId === undefined) {
+      continue;
     }
-    byDeck.set(deck.deckId, requirements);
+    requirements.set(cardId, (requirements.get(cardId) ?? 0) + pairs[at + 1]);
+  }
+  return requirements;
+}
+
+export function decodeMetaDeckCardIndex(index: {
+  cards: readonly string[];
+  decks: readonly { deckId: string; entries: readonly number[]; sideboard: readonly number[] }[];
+}): Map<string, MetaDeckCards> {
+  const byDeck = new Map<string, MetaDeckCards>();
+  for (const deck of index.decks) {
+    byDeck.set(deck.deckId, {
+      main: decodePairs(deck.entries, index.cards),
+      side: decodePairs(deck.sideboard, index.cards),
+    });
   }
   return byDeck;
 }
@@ -71,52 +68,87 @@ export function ownedCountsByCardId(
 }
 
 /**
- * How much of one list the reader holds. Copies are capped per card: owning six
- * of a card a list plays three of covers three, not six.
+ * Currency major units. Printings in the reader's languages win; any other
+ * language is a fallback. A card with no priced printing has no entry.
  */
-export function metaDeckOwnership(
-  requirements: MetaDeckRequirements,
-  ownedByCardId: ReadonlyMap<string, number>,
-): MetaDeckOwnership {
-  let owned = 0;
-  let needed = 0;
-  for (const [cardId, quantity] of requirements) {
-    needed += quantity;
-    owned += Math.min(quantity, ownedByCardId.get(cardId) ?? 0);
-  }
-  return { owned, needed };
-}
-
-/** {@link metaDeckOwnership} across the archive, keyed by deck id. */
-export function metaDeckOwnershipByDeck(
-  requirementsByDeck: ReadonlyMap<string, MetaDeckRequirements>,
-  ownedByCardId: ReadonlyMap<string, number>,
-): Map<string, MetaDeckOwnership> {
-  const byDeck = new Map<string, MetaDeckOwnership>();
-  for (const [deckId, requirements] of requirementsByDeck) {
-    byDeck.set(deckId, metaDeckOwnership(requirements, ownedByCardId));
-  }
-  return byDeck;
-}
-
-/**
- * Whether the reader is close enough to holding this list for it to be worth
- * building. A list the archive holds no cards of is never close, however empty
- * the reader's collection is.
- */
-export function isMostlyBuildable(ownership: MetaDeckOwnership): boolean {
-  return ownership.needed > 0 && ownership.owned >= ownership.needed * MOSTLY_BUILDABLE_THRESHOLD;
-}
-
-/** The decks {@link isMostlyBuildable} passes, as the filter's membership test. */
-export function mostlyBuildableDeckIds(
-  ownershipByDeck: ReadonlyMap<string, MetaDeckOwnership>,
-): Set<string> {
-  const ids = new Set<string>();
-  for (const [deckId, ownership] of ownershipByDeck) {
-    if (isMostlyBuildable(ownership)) {
-      ids.add(deckId);
+export function cheapestPriceByCardId(
+  printingsByCardId: ReadonlyMap<string, readonly { id: string; language: string }[]>,
+  prices: PriceLookup,
+  marketplace: Marketplace,
+  languageOrder: readonly string[],
+): Map<string, number> {
+  const cheapest = new Map<string, number>();
+  for (const [cardId, printings] of printingsByCardId) {
+    const pools = [
+      printings.filter((printing) => languageOrder.includes(printing.language)),
+      printings,
+    ];
+    for (const pool of pools) {
+      let best: number | undefined;
+      for (const printing of pool) {
+        const price = prices.get(printing.id, marketplace);
+        if (price !== undefined && (best === undefined || price < best)) {
+          best = price;
+        }
+      }
+      if (best !== undefined) {
+        cheapest.set(cardId, best);
+        break;
+      }
     }
   }
-  return ids;
+  return cheapest;
+}
+
+function scopedQuantities(cards: MetaDeckCards, includeSideboard: boolean): Map<string, number> {
+  const quantities = new Map(cards.main);
+  if (includeSideboard) {
+    for (const [cardId, quantity] of cards.side) {
+      quantities.set(cardId, (quantities.get(cardId) ?? 0) + quantity);
+    }
+  }
+  return quantities;
+}
+
+/** Owned copies are capped per card at what the list plays. */
+export function metaDeckCosts(
+  decks: MetaDeckCardsByDeck,
+  options: {
+    includeSideboard: boolean;
+    prices: ReadonlyMap<string, number>;
+    ownedByCardId?: ReadonlyMap<string, number>;
+  },
+): Map<string, MetaDeckCost> {
+  const byDeck = new Map<string, MetaDeckCost>();
+  for (const [deckId, cards] of decks) {
+    let needed = 0;
+    let owned = 0;
+    let value: number | undefined = 0;
+    let toComplete: number | undefined = 0;
+    for (const [cardId, quantity] of scopedQuantities(cards, options.includeSideboard)) {
+      const price = options.prices.get(cardId);
+      const held = Math.min(quantity, options.ownedByCardId?.get(cardId) ?? 0);
+      needed += quantity;
+      owned += held;
+      if (price === undefined) {
+        value = undefined;
+      } else if (value !== undefined) {
+        value += price * quantity;
+      }
+      const missing = quantity - held;
+      if (price === undefined && missing > 0) {
+        toComplete = undefined;
+      } else if (toComplete !== undefined && price !== undefined) {
+        toComplete += price * missing;
+      }
+    }
+    const withCollection = options.ownedByCardId !== undefined;
+    byDeck.set(deckId, {
+      needed,
+      owned: withCollection ? owned : undefined,
+      value,
+      toComplete: withCollection ? toComplete : undefined,
+    });
+  }
+  return byDeck;
 }

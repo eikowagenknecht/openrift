@@ -27,6 +27,7 @@ import {
 import type { MetaScope } from "@/lib/meta-scope";
 import { CLEARED_SCOPE, isScopeRestricting, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 
 const routeApi = getRouteApi("/_app/meta_/legends_/$slug");
 
@@ -39,6 +40,7 @@ const DECK_GRID_LIMIT = 8;
  */
 function ArchivedDecks({ decks }: { decks: readonly MetaDeckSummary[] }) {
   const [expanded, setExpanded] = useState(false);
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
   const shown = expanded ? decks : decks.slice(0, DECK_GRID_LIMIT);
   const remaining = decks.length - shown.length;
 
@@ -63,7 +65,7 @@ function ArchivedDecks({ decks }: { decks: readonly MetaDeckSummary[] }) {
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {shown.map((deck) => (
           <li key={deck.deckId}>
-            <MetaArchiveDeckTile deck={deck} />
+            <MetaArchiveDeckTile deck={deck} marketplace={marketplace} showEvent />
           </li>
         ))}
       </ul>

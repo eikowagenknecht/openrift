@@ -21,8 +21,12 @@ export const metaDeckSearchSchema = metaScopeSearchSchema.extend({
    * per event — which is what the browser opens on.
    */
   all: z.boolean().optional().catch(undefined),
-  /** Keeps the lists the reader can mostly build from their own collection. */
-  buildable: z.boolean().optional().catch(undefined),
+  /** Currency major units. */
+  cost: z.number().nonnegative().optional().catch(undefined),
+  side: z.boolean().optional().catch(undefined),
+  /** Currency major units. */
+  valueMin: z.number().nonnegative().optional().catch(undefined),
+  valueMax: z.number().nonnegative().optional().catch(undefined),
 });
 
 export type MetaDeckSearch = z.infer<typeof metaDeckSearchSchema>;

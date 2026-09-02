@@ -324,9 +324,7 @@ export const metaDeckListResponseSchema = z
  * holds tens of thousands of deck-card rows over a few hundred distinct cards,
  * and repeating a uuid per row multiplies the payload by roughly eight. `entries`
  * is a flat run of `[cardIndex, quantity]` pairs for the same reason.
- *
- * Quantities are summed across zones: a card is owned or not, and which zone a
- * copy is destined for does not change how many the reader needs.
+ * The sideboard is its own run; every other zone is summed into `entries`.
  */
 export const metaDeckCardIndexResponseSchema = z
   .object({
@@ -334,7 +332,10 @@ export const metaDeckCardIndexResponseSchema = z
     decks: z.array(
       z.object({
         deckId: z.string(),
+        /** Flat `[cardIndex, quantity]` pairs. */
         entries: z.array(z.number().int().nonnegative()),
+        /** Flat `[cardIndex, quantity]` pairs. */
+        sideboard: z.array(z.number().int().nonnegative()),
       }),
     ),
   })

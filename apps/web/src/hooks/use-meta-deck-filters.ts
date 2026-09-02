@@ -14,7 +14,9 @@ export interface MetaDeckFilterState {
   maxRank: number | null;
   /** False is the curated view: one tile per legend per event. */
   showAll: boolean;
-  buildable: boolean;
+  maxCost: number | null;
+  includeSideboard: boolean;
+  valueRange: { min: number | null; max: number | null };
 }
 
 export interface MetaDeckFilterActions {
@@ -27,7 +29,11 @@ export interface MetaDeckFilterActions {
   /** Null clears the finish bound. */
   setMaxRank: (value: number | null) => void;
   setShowAll: (value: boolean) => void;
-  setBuildable: (value: boolean) => void;
+  setMaxCost: (value: number | null) => void;
+  setIncludeSideboard: (value: boolean) => void;
+  setValueRange: (value: { min: number | null; max: number | null }) => void;
+  /** One navigation: two updaters back to back would resolve against the same stale search. */
+  clearCostFilters: () => void;
   clearAllFilters: () => void;
 }
 
@@ -65,7 +71,9 @@ export function useMetaDeckFilters(): MetaDeckFilterState &
     legends,
     maxRank: search.finish ?? null,
     showAll: search.all === true,
-    buildable: search.buildable === true,
+    maxCost: search.cost ?? null,
+    includeSideboard: search.side === true,
+    valueRange: { min: search.valueMin ?? null, max: search.valueMax ?? null },
 
     toggleEvent: (value) => update({ events: toggle(events, value) }),
     toggleLegend: (value) => update({ legends: toggle(legends, value) }),
@@ -73,14 +81,20 @@ export function useMetaDeckFilters(): MetaDeckFilterState &
     setLegends: (values) => update({ legends: values }),
     setMaxRank: (value) => update({ finish: value ?? undefined }),
     setShowAll: (value) => update({ all: value ? true : undefined }),
-    setBuildable: (value) => update({ buildable: value ? true : undefined }),
+    setMaxCost: (value) => update({ cost: value ?? undefined }),
+    setIncludeSideboard: (value) => update({ side: value ? true : undefined }),
+    setValueRange: (value) =>
+      update({ valueMin: value.min ?? undefined, valueMax: value.max ?? undefined }),
+    clearCostFilters: () => update({ cost: undefined, valueMin: undefined, valueMax: undefined }),
     clearAllFilters: () =>
       update({
         ...CLEARED_SCOPE,
         events: undefined,
         legends: undefined,
         finish: undefined,
-        buildable: undefined,
+        cost: undefined,
+        valueMin: undefined,
+        valueMax: undefined,
       }),
   };
 }

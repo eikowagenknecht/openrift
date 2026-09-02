@@ -552,27 +552,58 @@ describe("toMetaDeckCardIndex", () => {
   it("pools card ids and points each deck at them by position", () => {
     expect(
       toMetaDeckCardIndex([
-        { deckId: "deck-1", cardId: "card-a", quantity: 3 },
-        { deckId: "deck-1", cardId: "card-b", quantity: 1 },
-        { deckId: "deck-2", cardId: "card-b", quantity: 2 },
+        { deckId: "deck-1", cardId: "card-a", quantity: 3, sideboard: false },
+        { deckId: "deck-1", cardId: "card-b", quantity: 1, sideboard: false },
+        { deckId: "deck-2", cardId: "card-b", quantity: 2, sideboard: false },
       ]),
     ).toEqual({
       cards: ["card-a", "card-b"],
       decks: [
-        { deckId: "deck-1", entries: [0, 3, 1, 1] },
-        { deckId: "deck-2", entries: [1, 2] },
+        { deckId: "deck-1", entries: [0, 3, 1, 1], sideboard: [] },
+        { deckId: "deck-2", entries: [1, 2], sideboard: [] },
       ],
     });
   });
 
   it("keeps a deck whose rows arrive apart as one entry", () => {
     const index = toMetaDeckCardIndex([
-      { deckId: "deck-1", cardId: "card-a", quantity: 1 },
-      { deckId: "deck-2", cardId: "card-a", quantity: 1 },
-      { deckId: "deck-1", cardId: "card-b", quantity: 4 },
+      { deckId: "deck-1", cardId: "card-a", quantity: 1, sideboard: false },
+      { deckId: "deck-2", cardId: "card-a", quantity: 1, sideboard: false },
+      { deckId: "deck-1", cardId: "card-b", quantity: 4, sideboard: false },
     ]);
     expect(index.decks).toHaveLength(2);
-    expect(index.decks[0]).toEqual({ deckId: "deck-1", entries: [0, 1, 1, 4] });
+    expect(index.decks[0]).toEqual({ deckId: "deck-1", entries: [0, 1, 1, 4], sideboard: [] });
+  });
+
+  it("splits the sideboard out of the summed zones", () => {
+    expect(
+      toMetaDeckCardIndex([
+        { deckId: "deck-1", cardId: "card-a", quantity: 3, sideboard: false },
+        { deckId: "deck-1", cardId: "card-b", quantity: 2, sideboard: true },
+      ]),
+    ).toEqual({
+      cards: ["card-a", "card-b"],
+      decks: [{ deckId: "deck-1", entries: [0, 3], sideboard: [1, 2] }],
+    });
+  });
+
+  it("reuses one pool index for a card held in both the main deck and the sideboard", () => {
+    expect(
+      toMetaDeckCardIndex([
+        { deckId: "deck-1", cardId: "card-a", quantity: 3, sideboard: false },
+        { deckId: "deck-1", cardId: "card-a", quantity: 1, sideboard: true },
+      ]),
+    ).toEqual({
+      cards: ["card-a"],
+      decks: [{ deckId: "deck-1", entries: [0, 3], sideboard: [0, 1] }],
+    });
+  });
+
+  it("gives a deck with no sideboard an empty sideboard run", () => {
+    const index = toMetaDeckCardIndex([
+      { deckId: "deck-1", cardId: "card-a", quantity: 4, sideboard: false },
+    ]);
+    expect(index.decks[0]?.sideboard).toEqual([]);
   });
 
   it("returns an empty index for an archive with no lists", () => {

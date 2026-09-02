@@ -42,7 +42,9 @@ describe("useMetaDeckFilters", () => {
       legends: [],
       maxRank: null,
       showAll: false,
-      buildable: false,
+      maxCost: null,
+      includeSideboard: false,
+      valueRange: { min: null, max: null },
     });
   });
 
@@ -55,7 +57,10 @@ describe("useMetaDeckFilters", () => {
       legends: ["card-jinx"],
       finish: 8,
       all: true,
-      buildable: true,
+      cost: 25,
+      side: true,
+      valueMin: 10,
+      valueMax: 200,
     };
     const { result } = renderHook(() => useMetaDeckFilters());
     expect(result.current).toMatchObject({
@@ -63,7 +68,9 @@ describe("useMetaDeckFilters", () => {
       legends: ["card-jinx"],
       maxRank: 8,
       showAll: true,
-      buildable: true,
+      maxCost: 25,
+      includeSideboard: true,
+      valueRange: { min: 10, max: 200 },
     });
     expect(result.current.scope).toMatchObject({
       formats: ["standard"],
@@ -136,10 +143,34 @@ describe("useMetaDeckFilters", () => {
     expect(resultingSearch()).toEqual({ all: true });
   });
 
-  it("writes the collection filter the same way", () => {
+  it("writes the sideboard preference as an absent param rather than false", () => {
     const { result } = renderHook(() => useMetaDeckFilters());
-    result.current.setBuildable(true);
-    expect(resultingSearch()).toEqual({ buildable: true });
+    result.current.setIncludeSideboard(true);
+    expect(resultingSearch()).toEqual({ side: true });
+
+    mockSearch = { side: true };
+    const off = renderHook(() => useMetaDeckFilters());
+    off.result.current.setIncludeSideboard(false);
+    expect(resultingSearch()).toEqual({});
+  });
+
+  it("keeps a cost bound of zero, which is its own filter", () => {
+    const { result } = renderHook(() => useMetaDeckFilters());
+    result.current.setMaxCost(0);
+    expect(resultingSearch()).toEqual({ cost: 0 });
+  });
+
+  it("drops the cost bound when cleared", () => {
+    mockSearch = { cost: 25 };
+    const { result } = renderHook(() => useMetaDeckFilters());
+    result.current.setMaxCost(null);
+    expect(resultingSearch()).toEqual({});
+  });
+
+  it("writes each value bound on its own and drops an open side", () => {
+    const { result } = renderHook(() => useMetaDeckFilters());
+    result.current.setValueRange({ min: 10, max: null });
+    expect(resultingSearch()).toEqual({ valueMin: 10 });
   });
 
   it("clears every filter at once, leaving the curation as it was", () => {
@@ -149,11 +180,14 @@ describe("useMetaDeckFilters", () => {
       events: ["rift-open"],
       legends: ["card-jinx"],
       finish: 8,
-      buildable: true,
+      cost: 25,
+      valueMin: 10,
+      valueMax: 200,
+      side: true,
       all: true,
     };
     const { result } = renderHook(() => useMetaDeckFilters());
     result.current.clearAllFilters();
-    expect(resultingSearch()).toEqual({ all: true });
+    expect(resultingSearch()).toEqual({ all: true, side: true });
   });
 });

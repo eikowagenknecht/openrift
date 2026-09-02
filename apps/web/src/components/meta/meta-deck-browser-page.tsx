@@ -7,47 +7,64 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import { MetaArchiveDeckTile } from "@/components/meta/meta-archive-deck-tile";
 import { META_DECKS_DESCRIPTION } from "@/components/meta/meta-copy";
+import { MetaDeckEventSection } from "@/components/meta/meta-deck-event-section";
 import {
   MetaDeckActiveFilters,
   MetaDeckFilterControls,
 } from "@/components/meta/meta-deck-filter-controls";
-import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { useMetaDecks } from "@/hooks/use-meta";
+import { useMetaDecks, useMetaEvents } from "@/hooks/use-meta";
+import { useMetaDeckCosts } from "@/hooks/use-meta-deck-costs";
 import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
-import { useMetaDeckOwnership } from "@/hooks/use-meta-deck-ownership";
 import { useMetaEras } from "@/hooks/use-meta-eras";
 import { useSession } from "@/lib/auth-session";
-import type { MetaDeckOwnership } from "@/lib/meta-deck-collection";
-import { mostlyBuildableDeckIds } from "@/lib/meta-deck-collection";
+import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import {
+  countMetaDecksUnderCost,
   curateMetaDecks,
   filterMetaDecks,
+  groupMetaDecksByEvent,
   metaDeckFilterCounts,
   metaDeckFilterOptions,
   sortMetaDecks,
 } from "@/lib/meta-deck-filters";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
+
+function highest(
+  costs: ReadonlyMap<string, MetaDeckCost> | undefined,
+  pick: (cost: MetaDeckCost) => number | undefined,
+): number | undefined {
+  if (costs === undefined) {
+    return undefined;
+  }
+  let top: number | undefined;
+  for (const cost of costs.values()) {
+    const value = pick(cost);
+    if (value !== undefined && (top === undefined || value > top)) {
+      top = value;
+    }
+  }
+  return top;
+}
 
 /**
  * `/meta/decks` — the cross-event deck browser. The endpoint hands over the
  * whole archive and every filter runs client-side (ADR-014), so narrowing is
  * instant and one cacheable payload serves every view.
- *
- * It opens curated: one tile per legend per event, showing that legend's best
- * finish there. A big Swiss event archives the same legend a dozen times over,
- * and a wall of near-identical tiles buries everything else the day produced.
  */
 export function MetaDeckBrowserPage() {
   const { data } = useMetaDecks();
+  const { data: eventsData } = useMetaEvents();
   const filters = useMetaDeckFilters();
   const eras = useMetaEras();
   const hydrated = useHydrated();
   const { data: session } = useSession();
-  const [ownership, setOwnership] = useState<ReadonlyMap<string, MetaDeckOwnership>>();
+  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
+  const [costs, setCosts] = useState<ReadonlyMap<string, MetaDeckCost>>();
 
   const signedIn = Boolean(session?.user);
   const values = {
@@ -56,23 +73,39 @@ export function MetaDeckBrowserPage() {
     events: filters.events,
     legends: filters.legends,
     maxRank: filters.maxRank,
-    buildable: filters.buildable,
+    maxCost: signedIn ? filters.maxCost : null,
+    valueMin: filters.valueRange.min,
+    valueMax: filters.valueRange.max,
+    includeSideboard: filters.includeSideboard,
     showAll: filters.showAll,
   };
-  const context = {
-    buildableDeckIds: ownership === undefined ? undefined : mostlyBuildableDeckIds(ownership),
-  };
+  const context = { costs };
 
   const options = metaDeckFilterOptions(data.decks);
   const counts = metaDeckFilterCounts(data.decks, values, context);
   const matching = filterMetaDecks(data.decks, values, context);
   const decks = sortMetaDecks(curateMetaDecks(matching, values));
+  const groups = groupMetaDecksByEvent(decks);
+  const summaries = new Map(eventsData.events.map((event) => [event.slug, event]));
+
+  const cost = {
+    ready: costs !== undefined,
+    withCollection: signedIn,
+    countUnderCost: (maxCost: number | null) =>
+      countMetaDecksUnderCost(data.decks, values, context, maxCost),
+    maxToComplete: highest(costs, (entry) => entry.toComplete),
+    maxValue: highest(costs, (entry) => entry.value),
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {hydrated && signedIn && (
+      {hydrated && (
         <Suspense fallback={null}>
-          <MetaDeckOwnershipBridge onChange={setOwnership} />
+          <MetaDeckCostsBridge
+            includeSideboard={filters.includeSideboard}
+            withCollection={signedIn}
+            onChange={setCosts}
+          />
         </Suspense>
       )}
 
@@ -86,82 +119,55 @@ export function MetaDeckBrowserPage() {
         <PageDescription className="pb-4">{META_DECKS_DESCRIPTION}</PageDescription>
 
         <div className="flex flex-col gap-3">
-          <MetaDeckFilterControls
-            options={options}
-            counts={counts}
-            eras={eras}
-            showCollectionFilter={ownership !== undefined}
-          />
-          <MetaDeckActiveFilters options={options} eras={eras} />
+          <MetaDeckFilterControls options={options} counts={counts} eras={eras} cost={cost} />
+          <MetaDeckActiveFilters options={options} eras={eras} withCollection={signedIn} />
         </div>
 
-        <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-          <span>
-            {decks.length} {decks.length === 1 ? "deck" : "decks"}
-          </span>
-          {matching.length > 0 && (
-            <CurationNote
-              matching={matching.length}
-              showAll={filters.showAll}
-              onShowAll={(value) => filters.setShowAll(value)}
-            />
-          )}
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <ToggleGroup
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={[filters.showAll ? "all" : "best"]}
+            onValueChange={([next]) => {
+              if (next === "best" || next === "all") {
+                filters.setShowAll(next === "all");
+              }
+            }}
+            aria-label="Lists shown"
+          >
+            <ToggleGroupItem value="best">Best list per legend</ToggleGroupItem>
+            <ToggleGroupItem value="all">Every list</ToggleGroupItem>
+          </ToggleGroup>
+          <p className="text-muted-foreground text-sm tabular-nums">
+            {decks.length} {decks.length === 1 ? "deck" : "decks"} · {groups.length}{" "}
+            {groups.length === 1 ? "event" : "events"}
+          </p>
         </div>
 
-        {decks.length === 0 ? (
+        {groups.length === 0 ? (
           <Empty className="mt-6">
             <EmptyHeader>
               <EmptyDescription>No decks match these filters.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
-          <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {decks.map((deck) => (
-              <li key={deck.deckId}>
-                <MetaArchiveDeckTile deck={deck} ownership={ownership?.get(deck.deckId)} />
-              </li>
+          <div className="mt-6 flex flex-col gap-8">
+            {groups.map((group) => (
+              <MetaDeckEventSection
+                key={group.event.slug}
+                event={group.event}
+                summary={summaries.get(group.event.slug)}
+                decks={group.decks}
+                costs={costs}
+                marketplace={marketplace}
+                defaultExpanded={groups.length === 1}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * What the curation left out, and the way back to it. Counts of archived lists,
- * never a judgement of them: the tile that survives is the one that finished
- * best at its own event, which is a published result.
- */
-function CurationNote({
-  matching,
-  showAll,
-  onShowAll,
-}: {
-  /** Lists passing the filters, before the curation folds them. */
-  matching: number;
-  showAll: boolean;
-  onShowAll: (value: boolean) => void;
-}) {
-  if (showAll) {
-    return (
-      <>
-        <span aria-hidden>·</span>
-        <span>every archived list</span>
-        <Button type="button" variant="link" size="sm" onClick={() => onShowAll(false)}>
-          Best finish per legend
-        </Button>
-      </>
-    );
-  }
-  return (
-    <>
-      <span aria-hidden>·</span>
-      <span>best finish per legend at each event</span>
-      <Button type="button" variant="link" size="sm" onClick={() => onShowAll(true)}>
-        Show all {matching}
-      </Button>
-    </>
   );
 }
 
@@ -170,14 +176,18 @@ function CurationNote({
  * client: the copies live query has no server snapshot, and the catalog it needs
  * to match printings back to cards is a payload this page otherwise never pulls.
  */
-function MetaDeckOwnershipBridge({
+function MetaDeckCostsBridge({
+  includeSideboard,
+  withCollection,
   onChange,
 }: {
-  onChange: (value: ReadonlyMap<string, MetaDeckOwnership> | undefined) => void;
+  includeSideboard: boolean;
+  withCollection: boolean;
+  onChange: (value: ReadonlyMap<string, MetaDeckCost> | undefined) => void;
 }) {
-  const ownership = useMetaDeckOwnership();
+  const costs = useMetaDeckCosts(includeSideboard, { withCollection });
   useEffect(() => {
-    onChange(ownership);
-  }, [ownership, onChange]);
+    onChange(costs);
+  }, [costs, onChange]);
   return null;
 }
