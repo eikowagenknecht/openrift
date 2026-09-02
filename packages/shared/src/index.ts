@@ -151,6 +151,7 @@ export {
   slugifyName,
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
+  stringifyUnknown,
   titleCaseSlug,
   trimToNull,
   truncateWithEllipsis,

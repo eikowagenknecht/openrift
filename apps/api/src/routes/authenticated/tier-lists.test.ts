@@ -60,10 +60,13 @@ function dbRow(overrides: Record<string, unknown> = {}) {
 
 /** @returns The response body of a JSON request against the mounted router. */
 async function request(path: string, init?: RequestInit) {
-  const res = await app.request(`/api/v1${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  // Spreading HeadersInit drops a Headers instance's entries and turns a
+  // string[][] into indices, so build the headers rather than merging objects.
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  const res = await app.request(`/api/v1${path}`, { ...init, headers });
   return { status: res.status, body: res.status === 204 ? null : await readJson(res) };
 }
 

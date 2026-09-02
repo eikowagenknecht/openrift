@@ -7,7 +7,10 @@ import { sessionQueryOptions } from "@/lib/auth-session";
 export const Route = createFileRoute("/_app/_authenticated")({
   errorComponent: RouteErrorFallback,
   beforeLoad: async ({ location, context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (!session?.user) {
       throw redirect({
         to: "/login",

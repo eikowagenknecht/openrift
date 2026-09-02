@@ -33,8 +33,8 @@ export const Route = createFileRoute("/stage_/source/$token")({
     // Init carries the keyword styles the plate's rules text renders with — a
     // suspending read, so it has to be in hand before the canvas mounts.
     await Promise.all([
-      context.queryClient.ensureQueryData(catalogQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
     return null;
   },

@@ -44,7 +44,10 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
   },
   loader: async ({ context, params }): Promise<PublicDeckDetailResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(publicDeckQueryOptions(params.token));
+      return await context.queryClient.query({
+        ...publicDeckQueryOptions(params.token),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

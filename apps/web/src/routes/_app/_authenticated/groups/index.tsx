@@ -9,7 +9,10 @@ export const Route = createFileRoute("/_app/_authenticated/groups/")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Groups", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(friendGroupsQueryOptions(context.userId));
+    await context.queryClient.query({
+      ...friendGroupsQueryOptions(context.userId),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

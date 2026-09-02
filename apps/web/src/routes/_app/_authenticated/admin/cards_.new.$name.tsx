@@ -13,11 +13,14 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/new/$nam
   head: () => adminSeoHead("New Card"),
   loader: async ({ context, params }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(unmatchedCardDetailQueryOptions(params.name)),
-      context.queryClient.ensureQueryData(adminMarkersQueryOptions),
-      context.queryClient.ensureQueryData(providerSettingsQueryOptions),
-      context.queryClient.ensureQueryData(adminDistinctArtistsQueryOptions),
-      context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
+      context.queryClient.query({
+        ...unmatchedCardDetailQueryOptions(params.name),
+        staleTime: "static",
+      }),
+      context.queryClient.query({ ...adminMarkersQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...providerSettingsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminDistinctArtistsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminLanguagesQueryOptions, staleTime: "static" }),
     ]);
   },
   pendingComponent: AdminPending,

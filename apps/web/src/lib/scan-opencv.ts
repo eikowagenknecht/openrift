@@ -168,7 +168,7 @@ export async function loadOpenCvInWorker(
   );
   const previousModule = installLocateFile(scriptUrl);
   try {
-    // oxlint-disable-next-line no-new-func -- the emscripten UMD must be evaluated as a classic script; see the module comment
+    // oxlint-disable-next-line no-new-func, typescript/no-implied-eval -- the emscripten UMD must be evaluated as a classic script; see the module comment
     new Function(source)();
   } finally {
     (globalThis as { Module?: unknown }).Module = previousModule;

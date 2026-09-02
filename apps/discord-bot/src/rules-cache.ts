@@ -16,7 +16,7 @@ interface RulesFetchers {
  * cache so a rules fetch problem never blocks card lookups (or vice versa).
  */
 export class RulesCache {
-  #fetchers: RulesFetchers;
+  readonly #fetchers: RulesFetchers;
   #snapshot: RulesSnapshot | null = null;
 
   constructor(fetchers: RulesFetchers) {

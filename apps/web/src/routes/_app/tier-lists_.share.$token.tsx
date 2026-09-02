@@ -43,7 +43,10 @@ export const Route = createFileRoute("/_app/tier-lists_/share/$token")({
   },
   loader: async ({ context, params }): Promise<PublicTierListDetailResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(publicTierListQueryOptions(params.token));
+      return await context.queryClient.query({
+        ...publicTierListQueryOptions(params.token),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

@@ -7,6 +7,7 @@ import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../../deps.js";
+import { requestUrl } from "../../test/request-url.js";
 import { refreshCardtraderPrices } from "./cardtrader.js";
 import * as logMod from "./log.js";
 import type { StagingRow, UpsertCounts } from "./types.js";
@@ -244,7 +245,7 @@ describe("refreshCardtraderPrices", () => {
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
       // Should NOT fetch blueprints for the other game expansion
-      const urls = fetchSpy.mock.calls.map((call) => String(call[0]));
+      const urls = fetchSpy.mock.calls.map((call) => requestUrl(call[0]));
       expect(urls.some((url) => url.includes("expansion_id=9999"))).toBe(false);
     });
 

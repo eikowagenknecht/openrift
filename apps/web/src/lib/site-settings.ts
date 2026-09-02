@@ -12,7 +12,7 @@ import { apiOrpcClient } from "./server-fns/orpc-client";
 export type SiteSettings = Record<string, string>;
 
 const fetchSiteSettings = createServerFn({ method: "GET" }).handler(() =>
-  serverCache.fetchQuery({
+  serverCache.query({
     queryKey: ["server-cache", "site-settings"],
     queryFn: async () => {
       const data = await apiOrpcClient(siteSettingsContract).get();

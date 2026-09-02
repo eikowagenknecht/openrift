@@ -55,7 +55,9 @@ describe("createAdminEnumHooks", () => {
     expect(hooks.queryOptions.staleTime).toBe(1000);
 
     const { client } = makeClient();
-    await expect(client.ensureQueryData(hooks.queryOptions)).resolves.toEqual([{ slug: "foil" }]);
+    await expect(client.query({ ...hooks.queryOptions, staleTime: "static" })).resolves.toEqual([
+      { slug: "foil" },
+    ]);
     expect(list).toHaveBeenCalledTimes(1);
   });
 

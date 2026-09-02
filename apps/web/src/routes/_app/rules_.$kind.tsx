@@ -33,7 +33,10 @@ export const Route = createFileRoute("/_app/rules_/$kind")({
       throw notFound();
     }
     const kind = params.kind as RuleKind;
-    const versions = await context.queryClient.ensureQueryData(ruleVersionsQueryOptions(kind));
+    const versions = await context.queryClient.query({
+      ...ruleVersionsQueryOptions(kind),
+      staleTime: "static",
+    });
     const latest = versions.versions.at(-1);
     if (latest) {
       throw redirect({

@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/languages")({
   head: () => adminSeoHead("Languages"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...adminLanguagesQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

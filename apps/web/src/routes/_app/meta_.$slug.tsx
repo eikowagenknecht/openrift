@@ -36,16 +36,17 @@ export const Route = createFileRoute("/_app/meta_/$slug")({
   // `never` in the current TanStack Router version. Same pattern as
   // help_.$slug.tsx; the redirect still fires before anything renders.
   loader: async ({ context, params }): Promise<MetaEventDetailResponse> => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
     try {
       const [, event] = await Promise.all([
-        context.queryClient.ensureQueryData(initQueryOptions),
-        context.queryClient.ensureQueryData(metaEventQueryOptions(params.slug)),
+        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+        context.queryClient.query({ ...metaEventQueryOptions(params.slug), staleTime: "static" }),
       ]);
       return event;
     } catch (error) {

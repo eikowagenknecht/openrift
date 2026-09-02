@@ -29,9 +29,10 @@ export const Route = createFileRoute("/_app/users_/share/$token_/lists/$listId")
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(
-        publicUserBundleListQueryOptions(params.token, params.listId),
-      );
+      return await context.queryClient.query({
+        ...publicUserBundleListQueryOptions(params.token, params.listId),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

@@ -13,8 +13,48 @@
     "nursery": "off"
   },
   "rules": {
+    "typescript/await-thenable": "error",
+    "typescript/no-array-delete": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-duplicate-type-constituents": "error",
     "typescript/no-floating-promises": "error",
-    "typescript/no-misused-promises": "error"
+    "typescript/no-for-in-array": "error",
+    "typescript/no-implied-eval": "error",
+    "typescript/no-meaningless-void-operator": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-mixed-enums": "error",
+    "typescript/no-unnecessary-qualifier": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-unary-minus": "error",
+    // TanStack Router signals a redirect and a 404 by throwing a sentinel, so
+    // those two are thrown on purpose everywhere a route loader guards.
+    "typescript/only-throw-error": [
+      "error",
+      {
+        "allow": [
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": ["Redirect", "NotFoundError"]
+          }
+        ]
+      }
+    ],
+    "typescript/prefer-includes": "error",
+    "typescript/prefer-readonly": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-return-this-type": "error",
+    "typescript/prefer-string-starts-ends-with": "error",
+    "typescript/related-getter-setter-pairs": "error",
+    "typescript/restrict-plus-operands": "error",
+    // A switch with a default already decides what an unhandled member does;
+    // this catches the one without, which falls through silently.
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+    "typescript/use-unknown-in-catch-callback-variable": "error"
   },
   "overrides": [
     {

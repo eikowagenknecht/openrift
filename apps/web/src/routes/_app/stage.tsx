@@ -107,7 +107,10 @@ export const Route = createFileRoute("/_app/stage")({
     if (search.tier === undefined) {
       return;
     }
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (!session?.user) {
       throw redirect({
         to: "/login",
@@ -119,8 +122,8 @@ export const Route = createFileRoute("/_app/stage")({
     // Both the deck walk and the ad-hoc queue resolve their cards against the
     // catalog, and the stage reads zone labels off /init.
     await Promise.all([
-      context.queryClient.ensureQueryData(catalogQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
     return null;
   },

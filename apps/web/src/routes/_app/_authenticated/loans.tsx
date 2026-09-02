@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_app/_authenticated/loans")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Lending", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(loansQueryOptions(context.userId));
+    await context.queryClient.query({ ...loansQueryOptions(context.userId), staleTime: "static" });
   },
   errorComponent: RouteErrorFallback,
 });

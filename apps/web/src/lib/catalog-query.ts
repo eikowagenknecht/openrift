@@ -70,7 +70,7 @@ function fetchCatalogWithVersion(): Promise<{
   catalog: CatalogResponse;
   version: string | null;
 }> {
-  return serverCache.fetchQuery({
+  return serverCache.query({
     queryKey: ["server-cache", "catalog"],
     queryFn: async () => {
       const res = await fetchCatalogResponse(

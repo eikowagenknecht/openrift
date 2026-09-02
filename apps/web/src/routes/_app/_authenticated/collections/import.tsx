@@ -8,6 +8,9 @@ export const Route = createFileRoute("/_app/_authenticated/collections/import")(
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import / Export", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId));
+    await context.queryClient.query({
+      ...collectionsQueryOptions(context.userId),
+      staleTime: "static",
+    });
   },
 });

@@ -9,7 +9,10 @@ export const Route = createFileRoute("/_app/tournaments_/report/$token_/standing
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Standings", noIndex: true }),
   loader: async ({ context, params }) => {
     try {
-      await context.queryClient.ensureQueryData(tournamentReportQueryOptions(params.token));
+      await context.queryClient.query({
+        ...tournamentReportQueryOptions(params.token),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

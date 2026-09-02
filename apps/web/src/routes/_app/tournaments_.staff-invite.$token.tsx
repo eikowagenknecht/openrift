@@ -12,9 +12,10 @@ export const Route = createFileRoute("/_app/tournaments_/staff-invite/$token")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Staff invite", noIndex: true }),
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(
-      tournamentStaffInviteLandingQueryOptions(params.token),
-    );
+    await context.queryClient.query({
+      ...tournamentStaffInviteLandingQueryOptions(params.token),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/marketplace-gro
   head: () => adminSeoHead("Marketplace Groups"),
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(marketplaceGroupsQueryOptions),
-      context.queryClient.ensureQueryData(setsQueryOptions),
+      context.queryClient.query({ ...marketplaceGroupsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...setsQueryOptions, staleTime: "static" }),
     ]),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

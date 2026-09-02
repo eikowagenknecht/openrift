@@ -67,21 +67,30 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
   loader: async ({ context, params }) => {
     // Already warm from the admin layout beforeLoad. The marketplace section
     // is admin-only — card-review grant holders cannot reach its endpoint.
-    const access = await context.queryClient.ensureQueryData(
-      adminAccessQueryOptions(context.userId),
-    );
+    const access = await context.queryClient.query({
+      ...adminAccessQueryOptions(context.userId),
+      staleTime: "static",
+    });
     const [detail] = await Promise.all([
-      context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
-      context.queryClient.ensureQueryData(adminMarkersQueryOptions),
-      context.queryClient.ensureQueryData(providerSettingsQueryOptions),
-      context.queryClient.ensureQueryData(allCardsQueryOptions),
-      context.queryClient.ensureQueryData(adminDistinctArtistsQueryOptions),
-      context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
+      context.queryClient.query({
+        ...adminCardDetailQueryOptions(params.cardSlug),
+        staleTime: "static",
+      }),
+      context.queryClient.query({ ...adminMarkersQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...providerSettingsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...allCardsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminDistinctArtistsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminLanguagesQueryOptions, staleTime: "static" }),
       // Preload the marketplace section so it's warm by the time the page
       // mounts. The endpoint accepts a slug, so this can run in parallel with
       // the card detail fetch without waiting for the UUID resolution.
       ...(access.isAdmin
-        ? [context.queryClient.ensureQueryData(unifiedMappingsForCardQueryOptions(params.cardSlug))]
+        ? [
+            context.queryClient.query({
+              ...unifiedMappingsForCardQueryOptions(params.cardSlug),
+              staleTime: "static",
+            }),
+          ]
         : []),
     ]);
     return detail;

@@ -12,6 +12,7 @@ import { writeFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- CLI script, not a browser module
 import { resolve } from "node:path";
 
+import { stringifyUnknown } from "@openrift/shared/utils";
 import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -60,7 +61,8 @@ function escapeValue(v: unknown): string {
     }
     return `'{${v.map((e) => `"${String(e).replaceAll('"', String.raw`\"`)}"`).join(",")}}'`;
   }
-  const s = String(v).replaceAll("'", "''");
+  // A jsonb value arrives as an object; String() would seed "[object Object]".
+  const s = stringifyUnknown(v).replaceAll("'", "''");
   return `'${s}'`;
 }
 

@@ -16,9 +16,10 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id")({
     // participant 403s the whole loader into the error screen.
     const detail = await loadTournamentDetail(context.queryClient, context.userId, params.id);
     if (isTournamentStaff(detail.myRoles)) {
-      await context.queryClient.ensureQueryData(
-        tournamentParticipantsQueryOptions(context.userId, params.id),
-      );
+      await context.queryClient.query({
+        ...tournamentParticipantsQueryOptions(context.userId, params.id),
+        staleTime: "static",
+      });
     }
   },
   errorComponent: RouteErrorFallback,

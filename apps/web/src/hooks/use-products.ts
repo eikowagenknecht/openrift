@@ -25,7 +25,7 @@ type UpdateProductInput = ContractInput<typeof adminProductsContract, "update">;
 const fetchProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<ProductsListResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "products"],
       queryFn: () => apiOrpcClient(productsContract, context.cookie).list(),
     }),

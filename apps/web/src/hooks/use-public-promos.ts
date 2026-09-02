@@ -11,7 +11,7 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 const fetchPromoList = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<PromosListResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "promos"],
       queryFn: () => apiOrpcClient(promosContract, context.cookie).list(),
     }),

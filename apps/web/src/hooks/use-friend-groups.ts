@@ -187,7 +187,10 @@ export async function ensureFriendGroupDetailCanonical(options: {
   location: ParsedLocation;
 }): Promise<FriendGroupDetailResponse> {
   const { queryClient, userId, slug, location } = options;
-  const detail = await queryClient.ensureQueryData(friendGroupDetailQueryOptions(userId, slug));
+  const detail = await queryClient.query({
+    ...friendGroupDetailQueryOptions(userId, slug),
+    staleTime: "static",
+  });
   const canonical = detail.group.slug;
   if (canonical !== slug) {
     throw redirect({

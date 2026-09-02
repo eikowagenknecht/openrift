@@ -252,9 +252,7 @@ export function TradeSettleSection({
       const result = await runSettleBatch(steps, {
         settle: (variables) => applySync.mutateAsync(variables),
         readCopyOptions: (tradeId) =>
-          copyOptionsOrNull(() =>
-            queryClient.fetchQuery(tradeCopyOptionsQueryOptions(userId, tradeId)),
-          ),
+          copyOptionsOrNull(() => queryClient.query(tradeCopyOptionsQueryOptions(userId, tradeId))),
         targetCollectionId: target.collectionId,
       });
       finishBatch(result);

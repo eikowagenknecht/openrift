@@ -3,7 +3,7 @@ import type {
   EnumOrders,
   ProviderSettingResponse,
 } from "@openrift/shared";
-import { fixTypography } from "@openrift/shared";
+import { fixTypography, stringifyUnknown } from "@openrift/shared";
 import type {
   AcceptCardField,
   AcceptPrintingField,
@@ -466,10 +466,10 @@ function formatValue(value: unknown, suffix?: unknown): string {
   } else if (typeof value === "boolean") {
     text = value ? "Yes" : "No";
   } else {
-    text = String(value);
+    text = stringifyUnknown(value);
   }
   if (suffix !== null && suffix !== undefined && suffix !== "") {
-    text += ` (${String(suffix)})`;
+    text += ` (${stringifyUnknown(suffix)})`;
   }
   return text;
 }

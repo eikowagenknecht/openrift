@@ -31,10 +31,11 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
   },
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collection", noIndex: true }),
   loader: async ({ context, params }) => {
-    const collections = await context.queryClient.ensureQueryData(
-      collectionsQueryOptions(context.userId),
-    );
-    if (!collections.items.some((col) => col.id === params.collectionId)) {
+    const collections = await context.queryClient.query({
+      ...collectionsQueryOptions(context.userId),
+      staleTime: "static",
+    });
+    if (!collections.some((col) => col.id === params.collectionId)) {
       throw notFound();
     }
   },

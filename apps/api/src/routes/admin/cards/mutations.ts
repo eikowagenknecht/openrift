@@ -712,8 +712,9 @@ export const adminCardMutationsRouter = {
     // Candidate printings store setId as a slug; printings store it as a UUID FK
     if (field === "setId" && normalizedValue) {
       const { sets } = context.repos;
-      const setRow = await sets.getBySlug(normalizedValue as string);
-      assertFound(setRow, `Set not found: ${normalizedValue}`);
+      const slug = normalizedValue as string;
+      const setRow = await sets.getBySlug(slug);
+      assertFound(setRow, `Set not found: ${slug}`);
       normalizedValue = setRow.id;
     }
 

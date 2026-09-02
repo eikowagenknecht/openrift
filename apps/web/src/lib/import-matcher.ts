@@ -40,15 +40,15 @@ interface SearchableCardGroup extends SearchableCard {
 
 class PrintingIndex {
   /** shortCode (lowercase) → Printing[] */
-  private byShortCode = new Map<string, Printing[]>();
+  private readonly byShortCode = new Map<string, Printing[]>();
   /**
    * Name resolution, through the app-wide matcher. Replaced a normalized-name
    * map, a "Champion, Title" map and a >70% prefix-overlap guess, all of which
    * this file used to carry and the deck importer used to carry separately.
    */
-  private nameIndex: CardSearchIndex<SearchableCardGroup>;
+  private readonly nameIndex: CardSearchIndex<SearchableCardGroup>;
   /** cardId → that card's group, for widening a code hit to the whole card. */
-  private byCardId = new Map<string, SearchableCardGroup>();
+  private readonly byCardId = new Map<string, SearchableCardGroup>();
 
   constructor(allPrintings: Printing[]) {
     // Index by short code

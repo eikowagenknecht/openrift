@@ -47,7 +47,11 @@ describe("createPlayloltcgClient", () => {
     const headers = init?.headers as Record<string, string>;
     expect(headers["user-agent"]).toBe(USER_AGENT);
     expect(headers.referer).toBeUndefined();
-    expect(JSON.parse(String(init?.body))).toEqual({ pageNum: 1, pageSize: 2 });
+    const body = init?.body;
+    expect(JSON.parse(typeof body === "string" ? body : "null")).toEqual({
+      pageNum: 1,
+      pageSize: 2,
+    });
   });
 
   it("reports no total for a bare-array result rather than counting the page", async () => {

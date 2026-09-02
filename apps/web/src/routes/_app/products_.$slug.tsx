@@ -53,7 +53,11 @@ export const Route = createFileRoute("/_app/products_/$slug")({
   },
   loader: async ({ context, params }): Promise<ProductDetailResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(productDetailQueryOptions(params.slug));
+      return await context.queryClient.query({
+        ...productDetailQueryOptions(params.slug),
+        select: undefined,
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

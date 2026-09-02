@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Fetch } from "../../io.js";
+import { requestUrl } from "../../test/request-url.js";
 import { createUvsClient } from "./uvsgames-client.js";
 
 const USER_AGENT = "Mozilla/5.0 (test) AppleWebKit/537.36 Chrome/134.0.0.0 Safari/537.36";
@@ -17,7 +18,7 @@ function harness(responses: (() => Response)[]) {
   let call = 0;
 
   const fetchFn: Fetch = (input, init) => {
-    urls.push(String(input));
+    urls.push(requestUrl(input));
     inits.push(init);
     const next = responses[Math.min(call, responses.length - 1)];
     call++;
@@ -165,7 +166,7 @@ describe("createUvsClient", () => {
   it("keeps requests single-flight when callers do not await each other", async () => {
     const order: string[] = [];
     const fetchFn: Fetch = (input) => {
-      order.push(`start ${String(input).slice(-3)}`);
+      order.push(`start ${requestUrl(input).slice(-3)}`);
       return Promise.resolve(json({}));
     };
     const client = createUvsClient({

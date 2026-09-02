@@ -23,9 +23,15 @@ export const Route = createFileRoute("/_app/decks/")({
   // Auth-optional (ADR-035): logged-out visitors see their browser-local decks
   // (client-side). Only prefetch the server deck list when a session exists.
   loader: async ({ context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (session?.user) {
-      await context.queryClient.ensureQueryData(decksQueryOptions(session.user.id));
+      await context.queryClient.query({
+        ...decksQueryOptions(session.user.id),
+        staleTime: "static",
+      });
     }
   },
   errorComponent: RouteErrorFallback,

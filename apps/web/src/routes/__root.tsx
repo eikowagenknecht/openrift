@@ -186,7 +186,7 @@ export const Route = createRootRouteWithContext<{
     // and that pass picks up the prefetches.
     if (location.pathname === "/") {
       const session = await context.queryClient
-        .ensureQueryData(sessionQueryOptions())
+        .query({ ...sessionQueryOptions(), staleTime: "static" })
         .catch(() => null);
       if (session?.user) {
         throw redirect({ to: "/cards" });
@@ -194,7 +194,7 @@ export const Route = createRootRouteWithContext<{
     }
     const flagsReady = (async () => {
       try {
-        await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
+        await context.queryClient.query({ ...featureFlagsQueryOptions, staleTime: "static" });
       } catch {
         // Feature flags are non-critical — seed cache with empty defaults so
         // useSuspenseQuery in components doesn't re-throw the cached error.
@@ -203,7 +203,7 @@ export const Route = createRootRouteWithContext<{
     })();
     const settingsReady = (async () => {
       try {
-        await context.queryClient.ensureQueryData(siteSettingsQueryOptions);
+        await context.queryClient.query({ ...siteSettingsQueryOptions, staleTime: "static" });
       } catch {
         context.queryClient.setQueryData(siteSettingsQueryOptions.queryKey, {});
       }

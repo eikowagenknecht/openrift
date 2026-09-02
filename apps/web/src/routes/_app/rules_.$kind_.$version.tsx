@@ -31,8 +31,11 @@ export const Route = createFileRoute("/_app/rules_/$kind_/$version")({
     }
     const kind = params.kind as RuleKind;
     await Promise.all([
-      context.queryClient.ensureQueryData(ruleVersionsQueryOptions(kind)),
-      context.queryClient.ensureQueryData(rulesAtVersionQueryOptions(kind, params.version)),
+      context.queryClient.query({ ...ruleVersionsQueryOptions(kind), staleTime: "static" }),
+      context.queryClient.query({
+        ...rulesAtVersionQueryOptions(kind, params.version),
+        staleTime: "static",
+      }),
     ]);
     return { kind, version: params.version };
   },

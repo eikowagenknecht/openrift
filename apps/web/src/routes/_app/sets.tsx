@@ -37,7 +37,8 @@ export const Route = createFileRoute("/_app/sets")({
       ],
     };
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(publicSetListQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
   component: () => null,
   pendingComponent: () => null,
   errorComponent: RouteErrorFallback,

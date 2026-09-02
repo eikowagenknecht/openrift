@@ -24,6 +24,7 @@ import {
   sentenceCaseSlug,
   sortByLanguageAndCanonicalRank,
   straightenApostrophes,
+  stringifyUnknown,
   titleCaseSlug,
   toCents,
   trimToNull,
@@ -814,5 +815,29 @@ describe("formatCents", () => {
 
   it("groups thousands and keeps two decimals", () => {
     expect(formatCents(123_456, "USD")).toBe("$1,234.56");
+  });
+});
+
+describe("stringifyUnknown", () => {
+  it("returns a string unchanged and renders other primitives", () => {
+    expect(stringifyUnknown("already text")).toBe("already text");
+    expect(stringifyUnknown(42)).toBe("42");
+    expect(stringifyUnknown(true)).toBe("true");
+    expect(stringifyUnknown(9n)).toBe("9");
+  });
+
+  it("renders an object as JSON rather than [object Object]", () => {
+    expect(stringifyUnknown({ a: 1 })).toBe('{"a":1}');
+    expect(stringifyUnknown([1, "two"])).toBe('[1,"two"]');
+  });
+
+  it("names null and undefined", () => {
+    expect(stringifyUnknown(null)).toBe("null");
+    expect(stringifyUnknown(undefined)).toBe("undefined");
+  });
+
+  it("returns an empty string for a value JSON cannot represent", () => {
+    expect(stringifyUnknown(Symbol("s"))).toBe("");
+    expect(stringifyUnknown(() => undefined)).toBe("");
   });
 });

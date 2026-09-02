@@ -12,7 +12,10 @@ export const Route = createFileRoute("/_app/tournaments_/submit/$token")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Join tournament", noIndex: true }),
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(tournamentSubmitLandingQueryOptions(params.token));
+    await context.queryClient.query({
+      ...tournamentSubmitLandingQueryOptions(params.token),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

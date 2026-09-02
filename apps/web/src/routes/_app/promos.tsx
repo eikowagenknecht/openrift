@@ -33,8 +33,8 @@ export const Route = createFileRoute("/_app/promos")({
     }),
   loader: async ({ context, location }) => {
     const [data] = await Promise.all([
-      context.queryClient.ensureQueryData(publicPromoListQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.query({ ...publicPromoListQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
     const languages = new Set(data.printings.map((printing) => printing.language));
     const defaultLanguage = pickDefaultLanguage(languages);

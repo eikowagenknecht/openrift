@@ -8,7 +8,7 @@ import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchInit = createServerFn({ method: "GET" }).handler((): Promise<InitResponse> =>
-  serverCache.fetchQuery({
+  serverCache.query({
     queryKey: ["server-cache", "init"],
     queryFn: () => apiOrpcClient(initContract).get(),
   }),

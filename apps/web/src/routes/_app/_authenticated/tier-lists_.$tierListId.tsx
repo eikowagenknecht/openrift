@@ -30,9 +30,10 @@ export const Route = createFileRoute("/_app/_authenticated/tier-lists_/$tierList
   },
   loader: async ({ context, params }) => {
     try {
-      await context.queryClient.ensureQueryData(
-        tierListQueryOptions(context.userId, params.tierListId),
-      );
+      await context.queryClient.query({
+        ...tierListQueryOptions(context.userId, params.tierListId),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

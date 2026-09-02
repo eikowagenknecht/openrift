@@ -117,7 +117,10 @@ function SourceRow({
  */
 async function loadDeckCards(queryClient: QueryClient, userId: string, deckId: string) {
   try {
-    const detail = await queryClient.ensureQueryData(deckDetailQueryOptions(userId, deckId));
+    const detail = await queryClient.query({
+      ...deckDetailQueryOptions(userId, deckId),
+      staleTime: "static",
+    });
     return detail.cards;
   } catch {
     toast.error("Couldn't load that deck.");
@@ -131,7 +134,10 @@ async function loadDeckCards(queryClient: QueryClient, userId: string, deckId: s
  */
 async function loadListEntries(queryClient: QueryClient, userId: string, listId: string) {
   try {
-    const detail = await queryClient.ensureQueryData(listDetailQueryOptions(userId, listId));
+    const detail = await queryClient.query({
+      ...listDetailQueryOptions(userId, listId),
+      staleTime: "static",
+    });
     return detail.entries;
   } catch {
     toast.error("Couldn't load that list.");

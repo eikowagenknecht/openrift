@@ -7,7 +7,7 @@ import { ensureFriendGroupDetailCanonical } from "./use-friend-groups";
 
 function fakeQueryClient(canonicalSlug: string): QueryClient {
   return {
-    ensureQueryData: vi.fn(() => Promise.resolve({ group: { slug: canonicalSlug } })),
+    query: vi.fn(() => Promise.resolve({ group: { slug: canonicalSlug } })),
   } as unknown as QueryClient;
 }
 

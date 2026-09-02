@@ -21,9 +21,10 @@ export const Route = createFileRoute("/_app/meta")({
       path: "/meta",
     }),
   beforeLoad: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
@@ -33,10 +34,10 @@ export const Route = createFileRoute("/_app/meta")({
   // rather than re-fetching.
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(initQueryOptions),
-      context.queryClient.ensureQueryData(publicSetListQueryOptions),
-      context.queryClient.ensureQueryData(metaEventsQueryOptions),
-      context.queryClient.ensureQueryData(metaActivityQueryOptions),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaEventsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaActivityQueryOptions, staleTime: "static" }),
     ]);
   },
   errorComponent: RouteErrorFallback,

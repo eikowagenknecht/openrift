@@ -30,14 +30,17 @@ export const Route = createFileRoute("/_app/decks/compare")({
   // comparison between browser-local decks needs no session, and those sides
   // resolve client-side from the store.
   loader: async ({ context, location, deps }) => {
-    await context.queryClient.ensureQueryData(initQueryOptions);
+    await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });
     const serverIds = [deps.from, deps.to].filter(
       (id): id is string => id !== undefined && !isLocalDeckId(id),
     );
     if (serverIds.length === 0) {
       return;
     }
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (!session?.user) {
       throw redirect({
         to: "/login",
@@ -47,9 +50,9 @@ export const Route = createFileRoute("/_app/decks/compare")({
     const userId = session.user.id;
     try {
       await Promise.all([
-        context.queryClient.ensureQueryData(decksQueryOptions(userId)),
+        context.queryClient.query({ ...decksQueryOptions(userId), staleTime: "static" }),
         ...serverIds.map((id) =>
-          context.queryClient.ensureQueryData(deckDetailQueryOptions(userId, id)),
+          context.queryClient.query({ ...deckDetailQueryOptions(userId, id), staleTime: "static" }),
         ),
       ]);
     } catch (error) {

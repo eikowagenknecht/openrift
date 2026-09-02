@@ -12,7 +12,7 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 const fetchCardDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(({ data }): Promise<CardDetailResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "card-detail", data],
       queryFn: async () => {
         // 404 (unknown slug) is a typed NOT_FOUND error on the contract;

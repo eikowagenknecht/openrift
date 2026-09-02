@@ -30,17 +30,18 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     // Already warm from the admin layout beforeLoad. Unified mappings are a
     // marketplace endpoint that card-review grant holders cannot reach — only
     // prefetch it for full admins.
-    const access = await context.queryClient.ensureQueryData(
-      adminAccessQueryOptions(context.userId),
-    );
+    const access = await context.queryClient.query({
+      ...adminAccessQueryOptions(context.userId),
+      staleTime: "static",
+    });
     await Promise.all([
-      context.queryClient.ensureQueryData(adminCardListQueryOptions),
-      context.queryClient.ensureQueryData(providerSettingsQueryOptions),
-      context.queryClient.ensureQueryData(allCardsQueryOptions),
+      context.queryClient.query({ ...adminCardListQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...providerSettingsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...allCardsQueryOptions, staleTime: "static" }),
       ...(access.isAdmin
-        ? [context.queryClient.ensureQueryData(unifiedMappingsQueryOptions())]
+        ? [context.queryClient.query({ ...unifiedMappingsQueryOptions(), staleTime: "static" })]
         : []),
-      context.queryClient.ensureQueryData(setsQueryOptions),
+      context.queryClient.query({ ...setsQueryOptions, staleTime: "static" }),
     ]);
   },
   pendingComponent: AdminPending,

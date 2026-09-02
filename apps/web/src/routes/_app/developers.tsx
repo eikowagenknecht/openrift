@@ -16,9 +16,10 @@ export const Route = createFileRoute("/_app/developers")({
       path: "/developers",
     }),
   beforeLoad: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "developers")) {
       throw redirect({ to: "/cards" });
     }

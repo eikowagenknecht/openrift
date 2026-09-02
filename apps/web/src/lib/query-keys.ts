@@ -84,7 +84,7 @@ export const queryKeys = {
   copies: {
     all: (userId: string) => ["copies", userId] as const,
     // The react-db copies store's own query (see copies-collection.ts). Its
-    // queryFn re-reads `copies.all` via fetchQuery, so invalidate BOTH keys to
+    // queryFn re-reads `copies.all` via query(), so invalidate BOTH keys to
     // force a server round-trip that syncs fresh rows into the store (loan
     // mutations do this — the server picks which copies get pinned, so there
     // is nothing to write optimistically).

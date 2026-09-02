@@ -5,6 +5,7 @@ import type {
 } from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types";
+import { stringifyUnknown } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
 import { assertExisted } from "../../lib/assertions.js";
@@ -82,7 +83,7 @@ function display(value: unknown): string | null {
   if (value === null || value === undefined) {
     return null;
   }
-  return typeof value === "string" ? value : String(value);
+  return stringifyUnknown(value);
 }
 
 /**

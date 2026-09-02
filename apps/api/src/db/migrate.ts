@@ -1,4 +1,5 @@
 import type { Logger } from "@openrift/shared/logger";
+import { stringifyUnknown } from "@openrift/shared/utils";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { Migrator } from "kysely/migration";
@@ -84,6 +85,10 @@ async function normalizeMigrationTimestamps(db: Kysely<Database>): Promise<void>
   `.execute(db);
 }
 
+function toError(thrown: unknown): Error {
+  return thrown instanceof Error ? thrown : new Error(stringifyUnknown(thrown));
+}
+
 export async function migrate(db: Kysely<Database>, log: Logger): Promise<void> {
   // Repair any prior clock-step corruption before Kysely's ordering check runs.
   await normalizeMigrationTimestamps(db);
@@ -98,7 +103,7 @@ export async function migrate(db: Kysely<Database>, log: Logger): Promise<void> 
     }
   });
   if (error) {
-    throw error instanceof Error ? error : new Error(String(error));
+    throw toError(error);
   }
   if (results?.length) {
     // A backward wall-clock step during this run can leave the freshly-recorded
@@ -125,7 +130,7 @@ export async function rollback(db: Kysely<Database>, log: Logger): Promise<void>
     }
   });
   if (error) {
-    throw error instanceof Error ? error : new Error(String(error));
+    throw toError(error);
   }
   if (results?.length) {
     log.info("Rolled back successfully");

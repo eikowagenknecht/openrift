@@ -45,6 +45,7 @@ export const Route = createFileRoute("/_app/products")({
       ],
     };
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(productsListQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...productsListQueryOptions, staleTime: "static" }),
   errorComponent: RouteErrorFallback,
 });

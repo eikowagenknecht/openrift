@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/card-types")({
   head: () => adminSeoHead("Card Types"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminCardTypesQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...adminCardTypesQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

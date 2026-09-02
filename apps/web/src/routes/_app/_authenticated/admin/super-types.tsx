@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/super-types")({
   head: () => adminSeoHead("Supertypes"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminSuperTypesQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...adminSuperTypesQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

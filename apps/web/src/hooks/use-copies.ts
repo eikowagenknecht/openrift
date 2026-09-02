@@ -233,7 +233,7 @@ export function useAddCopies() {
         }
         // Mark the shared per-user copies cache stale (without an eager
         // refetch). The collection's queryFn reads this cache via
-        // ensureQueryData, so without invalidation the next refetch (e.g.
+        // query(), so without invalidation the next refetch (e.g.
         // on network reconnect) would hand back pre-mutation data and
         // clobber our writes to the synced store.
         void queryClient.invalidateQueries({

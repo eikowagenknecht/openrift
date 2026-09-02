@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/keywords")({
   head: () => adminSeoHead("Keywords"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(keywordStatsQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...keywordStatsQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

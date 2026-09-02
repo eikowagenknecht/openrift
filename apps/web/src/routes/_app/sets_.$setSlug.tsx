@@ -60,7 +60,10 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
   },
   loader: async ({ context, params }) => {
     try {
-      return await context.queryClient.ensureQueryData(publicSetDetailQueryOptions(params.setSlug));
+      return await context.queryClient.query({
+        ...publicSetDetailQueryOptions(params.setSlug),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

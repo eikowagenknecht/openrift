@@ -288,8 +288,8 @@ export function useTradeSheet(memberId: string) {
  * Deliberately not a mounted `useQuery`: the route re-reads the giver's supply,
  * which for a member with a dynamic trade list assembles the whole rule
  * catalogue. It must run once per opened picker, never on a render and never on
- * a poll, so the accept flow pulls it through `fetchQuery` at the moment the
- * giver presses Accept and nothing subscribes to it. `fetchQuery` on a
+ * a poll, so the accept flow pulls it through `query()` at the moment the
+ * giver presses Accept and nothing subscribes to it. `query()` on a
  * zero-`staleTime` key always goes to the network, so a picker reopened after
  * another accept sees the copies that are still free rather than a cached list.
  * @returns The copy-options query options.

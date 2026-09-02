@@ -9,7 +9,10 @@ export const Route = createFileRoute("/_app/_authenticated/tier-lists")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Tier lists", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(tierListsQueryOptions(context.userId));
+    await context.queryClient.query({
+      ...tierListsQueryOptions(context.userId),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

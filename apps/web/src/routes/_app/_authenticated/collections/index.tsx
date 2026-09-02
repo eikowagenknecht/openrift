@@ -19,7 +19,10 @@ export const Route = createFileRoute("/_app/_authenticated/collections/")({
   },
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collections", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId));
+    await context.queryClient.query({
+      ...collectionsQueryOptions(context.userId),
+      staleTime: "static",
+    });
   },
   pendingComponent: CollectionPending,
   errorComponent: RouteErrorFallback,

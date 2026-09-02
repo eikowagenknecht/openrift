@@ -146,6 +146,12 @@ function buildChartConfig(
   return config;
 }
 
+// The tooltip label is the axis bucket, but ChartTooltipContent types it as the
+// wider ReactNode a config label may hold.
+function bucketLabel(value: unknown, axis: string): string {
+  return typeof value === "string" || typeof value === "number" ? `${value} ${axis}` : axis;
+}
+
 /**
  * Returns the fill value for a domain combo — solid color for singles,
  * gradient URL reference for multi-domain combos.
@@ -282,7 +288,9 @@ function SingleChart({
             <XAxis dataKey="value" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent labelFormatter={(value) => `${value} ${label}`} />}
+              content={
+                <ChartTooltipContent labelFormatter={(value) => bucketLabel(value, label)} />
+              }
             />
             <Bar
               dataKey={`${metric}_total`}
@@ -347,7 +355,10 @@ function SingleChart({
           <ChartTooltip
             cursor={false}
             content={
-              <ChartTooltipContent reverseOrder labelFormatter={(value) => `${value} ${label}`} />
+              <ChartTooltipContent
+                reverseOrder
+                labelFormatter={(value) => bucketLabel(value, label)}
+              />
             }
           />
           {stacks.map((stack, index) => (

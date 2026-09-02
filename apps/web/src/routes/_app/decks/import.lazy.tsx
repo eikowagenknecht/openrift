@@ -306,7 +306,7 @@ function DeckImportPage() {
     // flag reset after the block is reached on both paths.
     let data: PublicDeckDetailResponse | null = null;
     try {
-      data = await queryClient.fetchQuery(publicDeckQueryOptions(token));
+      data = await queryClient.query(publicDeckQueryOptions(token));
     } catch (error) {
       setParseWarnings([
         error instanceof Error && error.message === "NOT_FOUND"

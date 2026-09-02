@@ -51,7 +51,7 @@ async function entriesFromShareToken(
   token: string,
 ): Promise<EntriesResult> {
   try {
-    const data = await queryClient.fetchQuery(publicDeckQueryOptions(token));
+    const data = await queryClient.query(publicDeckQueryOptions(token));
     if (data.cards.length === 0) {
       return { error: "That shared deck has no cards to compare against." };
     }

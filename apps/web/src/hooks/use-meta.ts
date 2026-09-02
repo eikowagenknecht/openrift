@@ -25,7 +25,7 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 const fetchMetaEvents = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<MetaEventListResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "meta", "events"],
       queryFn: () => apiOrpcClient(metaContract, context.cookie).events(),
     }),
@@ -44,7 +44,7 @@ export function useMetaEvents() {
 const fetchMetaActivity = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<MetaActivityResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "meta", "activity"],
       queryFn: () => apiOrpcClient(metaContract, context.cookie).activity(),
     }),
@@ -91,7 +91,7 @@ export function useMetaEvent(slug: string) {
 const fetchMetaDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<MetaDeckListResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "meta", "decks"],
       queryFn: () => apiOrpcClient(metaContract, context.cookie).decks(),
     }),
@@ -114,7 +114,7 @@ export function useMetaDecks() {
 const fetchMetaDeckCards = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<MetaDeckCardIndexResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "meta", "deck-cards"],
       queryFn: () => apiOrpcClient(metaContract, context.cookie).deckCards(),
     }),
@@ -164,7 +164,7 @@ export function useMetaDeck(token: string) {
 const fetchMetaLegends = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(({ context }): Promise<MetaLegendListResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "meta", "legends"],
       queryFn: () => apiOrpcClient(metaContract, context.cookie).legends(),
     }),

@@ -18,7 +18,7 @@ export function useEffectiveLanguageOrder(): readonly string[] {
 /**
  * Non-hook variant for route loaders, server functions, and other contexts
  * that can't call hooks. Callers pass both the user preference list and the
- * raw language rows from `/api/init` (already fetched via `ensureQueryData`
+ * raw language rows from `/api/init` (already fetched via `query()`
  * on `initQueryOptions`).
  *
  * @returns Ordered language codes, user preference taking priority over the DB default.

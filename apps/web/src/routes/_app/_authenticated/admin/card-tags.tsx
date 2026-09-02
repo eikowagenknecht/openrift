@@ -9,8 +9,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/card-tags")({
   head: () => adminSeoHead("Card Tags"),
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(adminCardTagsQueryOptions),
-      context.queryClient.ensureQueryData(adminTagCategoriesQueryOptions),
+      context.queryClient.query({ ...adminCardTagsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminTagCategoriesQueryOptions, staleTime: "static" }),
     ]),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

@@ -32,7 +32,7 @@ const CARD_DETAIL = {
 const INIT = { enums: { languages: [{ slug: "EN", sortOrder: 0 }], domains: [], cardTypes: [] } };
 
 function makeContext() {
-  const ensureQueryData = vi.fn((options: { queryKey: unknown[] }) => {
+  const query = vi.fn((options: { queryKey: unknown[] }) => {
     const [root] = options.queryKey;
     if (root === "cards") {
       return Promise.resolve(CARD_DETAIL);
@@ -45,11 +45,11 @@ function makeContext() {
     }
     throw new Error(`unexpected query key: ${JSON.stringify(options.queryKey)}`);
   });
-  return { queryClient: { ensureQueryData } };
+  return { queryClient: { query } };
 }
 
 function ensuredKeys(context: ReturnType<typeof makeContext>): string[] {
-  return context.queryClient.ensureQueryData.mock.calls.map((call) => String(call[0].queryKey[0]));
+  return context.queryClient.query.mock.calls.map((call) => String(call[0].queryKey[0]));
 }
 
 type LoaderFn = (ctx: {
@@ -65,7 +65,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Regression: the loader used to call `ensureQueryData(pricesQueryOptions)`
+// Regression: the loader used to call `query(pricesQueryOptions)`
 // unconditionally. TanStack Start dehydrates the router's query cache into the
 // SSR HTML, so that inlined the whole catalog price map — ~270 KB, 74% of the
 // document — into every card page, purely to emit three JSON-LD offers. The

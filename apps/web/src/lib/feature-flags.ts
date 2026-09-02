@@ -31,7 +31,7 @@ export function loadFeatureFlags(cookie: string): Promise<FeatureFlags> {
     return fetchFlagsFromApi(cookie);
   }
   // Anonymous: coalesce concurrent SSR requests onto a single upstream call.
-  return serverCache.fetchQuery({
+  return serverCache.query({
     queryKey: ["server-cache", "feature-flags"],
     queryFn: () => fetchFlagsFromApi(),
   });

@@ -26,11 +26,14 @@ export const Route = createFileRoute(
   },
   loader: async ({ context, params }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
-      context.queryClient.ensureQueryData(setsQueryOptions),
-      context.queryClient.ensureQueryData(adminMarkersQueryOptions),
-      context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.query({
+        ...adminCardDetailQueryOptions(params.cardSlug),
+        staleTime: "static",
+      }),
+      context.queryClient.query({ ...setsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminMarkersQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminLanguagesQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
   },
   pendingComponent: AdminPending,

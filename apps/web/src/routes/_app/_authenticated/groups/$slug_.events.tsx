@@ -17,9 +17,10 @@ export const Route = createFileRoute("/_app/_authenticated/groups/$slug_/events"
         slug: params.slug,
         location,
       }),
-      context.queryClient.ensureQueryData(
-        groupTournamentsQueryOptions(context.userId, params.slug),
-      ),
+      context.queryClient.query({
+        ...groupTournamentsQueryOptions(context.userId, params.slug),
+        staleTime: "static",
+      }),
     ]);
   },
   errorComponent: RouteErrorFallback,

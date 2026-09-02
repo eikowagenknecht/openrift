@@ -104,7 +104,7 @@ export function representativePrinting(
  * everything here is rebuilt from the API on startup and on every refresh.
  */
 export class CatalogCache {
-  #fetchers: CatalogFetchers;
+  readonly #fetchers: CatalogFetchers;
   #snapshot: CatalogSnapshot | null = null;
 
   constructor(fetchers: CatalogFetchers) {

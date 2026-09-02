@@ -158,7 +158,7 @@ describe("createQueryClient session-expiry handling", () => {
     const invalidateSpy = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
 
     await expect(
-      client.fetchQuery({
+      client.query({
         queryKey: ["deck", "1"],
         // oxlint-disable-next-line prefer-promise-reject-errors -- deliberately a plain object: the post-seroval ApiError shape
         queryFn: () => Promise.reject(unauthorized),
@@ -174,7 +174,7 @@ describe("createQueryClient session-expiry handling", () => {
     const serverError = new Error("boom");
 
     await expect(
-      client.fetchQuery({
+      client.query({
         queryKey: ["deck", "2"],
         queryFn: () => Promise.reject(serverError),
         retry: false,
@@ -188,7 +188,7 @@ describe("createQueryClient session-expiry handling", () => {
     const client = createQueryClient();
 
     await expect(
-      client.fetchQuery({
+      client.query({
         queryKey: ["deck-check", "entries"],
         // oxlint-disable-next-line prefer-promise-reject-errors -- the post-boundary server-fn error shape
         queryFn: () => Promise.reject(staleServerFn),

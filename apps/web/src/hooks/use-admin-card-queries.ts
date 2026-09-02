@@ -52,7 +52,7 @@ export function useNextUncheckedCard(currentSlug: string, allowedSlugs?: Set<str
   const queryClient = useQueryClient();
 
   async function fetchNext(): Promise<string | null> {
-    const rows = await queryClient.fetchQuery(adminCardListQueryOptions);
+    const rows = await queryClient.query(adminCardListQueryOptions);
     const next = rows.find(
       (r: {
         cardSlug: string | null;

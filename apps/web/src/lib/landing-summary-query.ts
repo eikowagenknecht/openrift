@@ -9,7 +9,7 @@ import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-clien
 
 const fetchLandingSummary = createServerFn({ method: "GET" }).handler(
   (): Promise<LandingSummaryResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "landing-summary"],
       queryFn: () => apiOrpcClient(landingSummaryContract).get(),
     }),

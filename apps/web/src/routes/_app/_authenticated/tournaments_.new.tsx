@@ -14,8 +14,14 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/new")({
   }),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(myOrganizationsQueryOptions(context.userId)),
-      context.queryClient.ensureQueryData(friendGroupsQueryOptions(context.userId)),
+      context.queryClient.query({
+        ...myOrganizationsQueryOptions(context.userId),
+        staleTime: "static",
+      }),
+      context.queryClient.query({
+        ...friendGroupsQueryOptions(context.userId),
+        staleTime: "static",
+      }),
     ]);
   },
   errorComponent: RouteErrorFallback,

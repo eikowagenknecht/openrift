@@ -17,17 +17,21 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/submissions")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Decklists you sent", noIndex: true }),
   loader: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
     await Promise.all([
-      context.queryClient.ensureInfiniteQueryData(metaSubmissionsQueryOptions(context.userId)),
+      context.queryClient.infiniteQuery({
+        ...metaSubmissionsQueryOptions(context.userId),
+        staleTime: "static",
+      }),
       // An accepted row names a deck id, while a public archive link is keyed by
       // the deck's share token. The archive payload is what maps one to the other.
-      context.queryClient.ensureQueryData(metaDecksQueryOptions),
+      context.queryClient.query({ ...metaDecksQueryOptions, staleTime: "static" }),
     ]);
   },
   errorComponent: RouteErrorFallback,

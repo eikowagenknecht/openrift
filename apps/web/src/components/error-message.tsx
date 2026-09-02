@@ -142,8 +142,20 @@ export function ErrorMessageLayout({
   );
 }
 
+// A route can be handed anything as its error, including an object with no
+// message.
+function thrownMessage(thrown: unknown): string | undefined {
+  if (thrown instanceof Error) {
+    return thrown.message;
+  }
+  if (typeof thrown === "string" || typeof thrown === "number") {
+    return String(thrown);
+  }
+  return undefined;
+}
+
 export function RouteErrorFallback({ error }: { error?: unknown }) {
-  const message = error instanceof Error ? error.message : error ? String(error) : undefined;
+  const message = thrownMessage(error);
   const seed = message ?? "unknown";
   return (
     <ErrorMessageLayout

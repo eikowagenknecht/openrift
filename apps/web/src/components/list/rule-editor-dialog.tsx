@@ -122,11 +122,11 @@ export function RuleEditorDialog({
     // Rules preview evaluates against the whole catalog, so make sure the
     // language-split fetch's tail is merged too (no-op when complete).
     void (async () => {
-      await queryClient.ensureQueryData(catalogQueryOptions);
+      await queryClient.query({ ...catalogQueryOptions, staleTime: "static" });
       await loadCatalogTail(queryClient);
     })();
-    void queryClient.ensureQueryData(initQueryOptions);
-    void queryClient.ensureQueryData(pricesQueryOptions);
+    void queryClient.query({ ...initQueryOptions, staleTime: "static" });
+    void queryClient.query({ ...pricesQueryOptions, staleTime: "static" });
     return () => reset();
   }, [open, currentRules, currentRuleCombine, load, reset, queryClient]);
 

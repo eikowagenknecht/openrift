@@ -113,16 +113,16 @@ export const Route = createFileRoute("/_app/cards")({
       }
       return (async () => {
         await Promise.all([
-          context.queryClient.ensureQueryData(catalogQueryOptions),
-          context.queryClient.ensureQueryData(pricesQueryOptions),
-          context.queryClient.ensureQueryData(initQueryOptions),
+          context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
+          context.queryClient.query({ ...pricesQueryOptions, staleTime: "static" }),
+          context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
         ]);
         return empty;
       })();
     }
     const ssrSearch = location.search;
     return (async () => {
-      await context.queryClient.ensureQueryData(initQueryOptions);
+      await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });
       // `catalogVersion` (the catalog's ETag) rides along so the hydrated
       // client can fetch the catalog as `?v=<token>` — guaranteeing the edge
       // serves a catalog at least as fresh as this SSR shell. Read directly

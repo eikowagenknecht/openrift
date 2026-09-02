@@ -89,9 +89,9 @@ export const Route = createFileRoute("/_app/promos_/$language")({
     // filter chip can render readable names; PromosListResponse only carries
     // setId for each printing.
     const result = await Promise.all([
-      context.queryClient.ensureQueryData(publicPromoListQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
-      context.queryClient.ensureQueryData(catalogQueryOptions),
+      context.queryClient.query({ ...publicPromoListQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
     ]);
     const [data] = result;
     const hasLanguage = data.printings.some((printing) => printing.language === params.language);

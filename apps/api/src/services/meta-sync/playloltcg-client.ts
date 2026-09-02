@@ -114,9 +114,9 @@ async function settled(promise: Promise<unknown>): Promise<void> {
 function unwrap(body: unknown, url: string): unknown {
   const row = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
   if (typeof row.code === "number" && row.code !== 0) {
-    throw new PlayloltcgRefusedError(
-      `playloltcg code ${row.code} for ${url}: ${String(row.message ?? "")}`,
-    );
+    const detail =
+      typeof row.message === "string" ? row.message : JSON.stringify(row.message ?? "");
+    throw new PlayloltcgRefusedError(`playloltcg code ${row.code} for ${url}: ${detail}`);
   }
   return row.result;
 }

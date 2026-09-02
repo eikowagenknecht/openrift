@@ -110,7 +110,7 @@ export function useTradeAcceptFlow({ onSettled }: { onSettled?: () => void } = {
       setBusy(true);
       void (async () => {
         try {
-          const options = await queryClient.fetchQuery(
+          const options = await queryClient.query(
             tradeCopyOptionsQueryOptions(userId, target.tradeId),
           );
           if (options.choiceMatters) {

@@ -140,9 +140,15 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     let data: CardDetailResponse;
     let init: Awaited<ReturnType<typeof initQueryOptions.queryFn & object>>;
     try {
+      // `select: undefined` keeps the raw response: the enriched shape the
+      // components read drops fields the JSON-LD below still needs.
       [data, init] = await Promise.all([
-        context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
-        context.queryClient.ensureQueryData(initQueryOptions),
+        context.queryClient.query({
+          ...cardDetailQueryOptions(params.cardSlug),
+          select: undefined,
+          staleTime: "static",
+        }),
+        context.queryClient.query({ ...initQueryOptions, select: undefined, staleTime: "static" }),
       ]);
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
@@ -174,7 +180,11 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       pricesResponse =
         globalThis.window === undefined
           ? await fetchPricesForSeo()
-          : await context.queryClient.ensureQueryData(pricesQueryOptions);
+          : await context.queryClient.query({
+              ...pricesQueryOptions,
+              select: undefined,
+              staleTime: "static",
+            });
     } catch {
       pricesResponse = { prices: {}, currencies: MARKETPLACE_CURRENCY, stale: {} };
     }

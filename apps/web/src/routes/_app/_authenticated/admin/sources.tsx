@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/sources")({
   head: () => adminSeoHead("Sources"),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(providerStatsQueryOptions),
-      context.queryClient.ensureQueryData(providerSettingsQueryOptions),
+      context.queryClient.query({ ...providerStatsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...providerSettingsQueryOptions, staleTime: "static" }),
     ]);
   },
   pendingComponent: AdminPending,

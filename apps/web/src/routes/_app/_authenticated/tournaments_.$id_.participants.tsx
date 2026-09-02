@@ -17,9 +17,10 @@ export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/par
     if (!isTournamentStaff(detail.myRoles)) {
       redirectToTournamentOverview(params.id);
     }
-    await context.queryClient.ensureQueryData(
-      tournamentParticipantsQueryOptions(context.userId, params.id),
-    );
+    await context.queryClient.query({
+      ...tournamentParticipantsQueryOptions(context.userId, params.id),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

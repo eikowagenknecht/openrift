@@ -13,9 +13,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/feature-flags")
   head: () => adminSeoHead("Feature Flags"),
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(adminFeatureFlagsQueryOptions),
-      context.queryClient.ensureQueryData(adminFeatureFlagOverridesQueryOptions),
-      context.queryClient.ensureQueryData(adminUsersQueryOptions),
+      context.queryClient.query({ ...adminFeatureFlagsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminFeatureFlagOverridesQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminUsersQueryOptions, staleTime: "static" }),
     ]),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

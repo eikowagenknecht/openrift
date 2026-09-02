@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/typography-review")({
   head: () => adminSeoHead("Typography"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(typographyReviewQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...typographyReviewQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

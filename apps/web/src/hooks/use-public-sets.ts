@@ -10,7 +10,7 @@ import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchSetList = createServerFn({ method: "GET" }).handler((): Promise<SetListResponse> =>
-  serverCache.fetchQuery({
+  serverCache.query({
     queryKey: ["server-cache", "sets"],
     queryFn: () => apiOrpcClient(setsContract).list(),
   }),
@@ -19,7 +19,7 @@ const fetchSetList = createServerFn({ method: "GET" }).handler((): Promise<SetLi
 const fetchSetDetail = createServerFn({ method: "GET" })
   .validator((input: string) => input)
   .handler(({ data }): Promise<SetDetailResponse> =>
-    serverCache.fetchQuery({
+    serverCache.query({
       queryKey: ["server-cache", "set-detail", data],
       queryFn: async () => {
         // 404 is legitimate (unknown slug) — the contract declares it as a

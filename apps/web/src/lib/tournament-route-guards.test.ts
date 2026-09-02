@@ -21,13 +21,14 @@ vi.mock("@/hooks/use-tournaments", () => ({
 
 describe("loadTournamentDetail", () => {
   it("ensures the unified detail query is loaded and returns it", async () => {
-    const ensureQueryData = vi.fn().mockResolvedValue({ id: "t-1" });
-    const queryClient = { ensureQueryData } as unknown as QueryClient;
+    const query = vi.fn().mockResolvedValue({ id: "t-1" });
+    const queryClient = { query } as unknown as QueryClient;
 
     const result = await loadTournamentDetail(queryClient, "user-1", "t-1");
 
-    expect(ensureQueryData).toHaveBeenCalledWith({
+    expect(query).toHaveBeenCalledWith({
       queryKey: ["tournament-detail", "user-1", "t-1"],
+      staleTime: "static",
     });
     expect(result).toEqual({ id: "t-1" });
   });
@@ -35,8 +36,8 @@ describe("loadTournamentDetail", () => {
   it("converts the NOT_FOUND sentinel into the router's notFound", async () => {
     // Regression: a deleted or unknown tournament must
     // render the 404 page, not the generic error screen.
-    const ensureQueryData = vi.fn().mockRejectedValue(new Error("NOT_FOUND"));
-    const queryClient = { ensureQueryData } as unknown as QueryClient;
+    const query = vi.fn().mockRejectedValue(new Error("NOT_FOUND"));
+    const queryClient = { query } as unknown as QueryClient;
 
     await expect(loadTournamentDetail(queryClient, "user-1", "t-gone")).rejects.toSatisfy(
       isNotFound,
@@ -45,8 +46,8 @@ describe("loadTournamentDetail", () => {
 
   it("passes every other failure through untouched", async () => {
     const failure = new Error("boom");
-    const ensureQueryData = vi.fn().mockRejectedValue(failure);
-    const queryClient = { ensureQueryData } as unknown as QueryClient;
+    const query = vi.fn().mockRejectedValue(failure);
+    const queryClient = { query } as unknown as QueryClient;
 
     await expect(loadTournamentDetail(queryClient, "user-1", "t-1")).rejects.toBe(failure);
   });
@@ -54,13 +55,14 @@ describe("loadTournamentDetail", () => {
 
 describe("loadTournamentRunState", () => {
   it("ensures the pod run-state query is loaded and returns it", async () => {
-    const ensureQueryData = vi.fn().mockResolvedValue({ rounds: [] });
-    const queryClient = { ensureQueryData } as unknown as QueryClient;
+    const query = vi.fn().mockResolvedValue({ rounds: [] });
+    const queryClient = { query } as unknown as QueryClient;
 
     const result = await loadTournamentRunState(queryClient, "user-1", "t-1");
 
-    expect(ensureQueryData).toHaveBeenCalledWith({
+    expect(query).toHaveBeenCalledWith({
       queryKey: ["tournament-run-state", "user-1", "t-1"],
+      staleTime: "static",
     });
     expect(result).toEqual({ rounds: [] });
   });

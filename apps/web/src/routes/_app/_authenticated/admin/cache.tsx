@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cache")({
   head: () => adminSeoHead("Cache"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminCacheStatusQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...adminCacheStatusQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

@@ -8,9 +8,10 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/help")({
   loader: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     return {
       articles: visibleHelpArticles(flags).map(({ title, description }) => ({
         title,

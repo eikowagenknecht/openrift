@@ -11,9 +11,10 @@ export const Route = createFileRoute("/_app/_authenticated/collections/lists/$li
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "List", noIndex: true }),
   loader: async ({ context, params }) => {
     try {
-      await context.queryClient.ensureQueryData(
-        listDetailQueryOptions(context.userId, params.listId),
-      );
+      await context.queryClient.query({
+        ...listDetailQueryOptions(context.userId, params.listId),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

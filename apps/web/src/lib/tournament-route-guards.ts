@@ -16,7 +16,10 @@ import {
  */
 export async function loadTournamentDetail(queryClient: QueryClient, userId: string, id: string) {
   try {
-    return await queryClient.ensureQueryData(tournamentDetailQueryOptions(userId, id));
+    return await queryClient.query({
+      ...tournamentDetailQueryOptions(userId, id),
+      staleTime: "static",
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "NOT_FOUND") {
       throw notFound();
@@ -31,7 +34,7 @@ export async function loadTournamentDetail(queryClient: QueryClient, userId: str
  * @returns The pod tournament run state.
  */
 export function loadTournamentRunState(queryClient: QueryClient, userId: string, id: string) {
-  return queryClient.ensureQueryData(tournamentRunStateQueryOptions(userId, id));
+  return queryClient.query({ ...tournamentRunStateQueryOptions(userId, id), staleTime: "static" });
 }
 
 /**

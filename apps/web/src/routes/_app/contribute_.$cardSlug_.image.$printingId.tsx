@@ -8,7 +8,10 @@ import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/contribute_/$cardSlug_/image/$printingId")({
   beforeLoad: async ({ location, context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (!session?.user) {
       throw redirect({
         to: "/login",
@@ -24,7 +27,10 @@ export const Route = createFileRoute("/_app/contribute_/$cardSlug_/image/$printi
       path: `/contribute/${params.cardSlug}/image/${params.printingId}`,
     }),
   loader: async ({ context, params }) => {
-    const data = await context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug));
+    const data = await context.queryClient.query({
+      ...cardDetailQueryOptions(params.cardSlug),
+      staleTime: "static",
+    });
     if (!data.printings.some((p) => p.id === params.printingId)) {
       throw notFound();
     }

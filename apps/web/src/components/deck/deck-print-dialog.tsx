@@ -217,7 +217,7 @@ async function generateProxyPdf({
   // Pre-fetch init data so CardText doesn't suspend during rendering, then
   // compose the effective language order so `preferredPrinting` picks
   // variants in the same order the rest of the UI does.
-  const init = await queryClient.ensureQueryData(initQueryOptions);
+  const init = await queryClient.query({ ...initQueryOptions, staleTime: "static" });
   const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
   const languageOrder = effectiveLanguageOrder(languages, languageRows);
   const zoneRows = (init.enums.deckZones ?? []) as { slug: string; sortOrder: number }[];

@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/marketplace-ove
   head: () => adminSeoHead("Marketplace Overview"),
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(marketplaceGroupsQueryOptions),
-      context.queryClient.ensureQueryData(adminJobSchedulesQueryOptions),
+      context.queryClient.query({ ...marketplaceGroupsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminJobSchedulesQueryOptions, staleTime: "static" }),
     ]),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

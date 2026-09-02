@@ -8,7 +8,8 @@ import { adminSeoHead } from "@/lib/seo";
 export const Route = createFileRoute("/_app/_authenticated/admin/audit")({
   head: () => adminSeoHead("Audit Log"),
   // Warm the first unfiltered page; the component's infinite query takes over.
-  loader: ({ context }) => context.queryClient.ensureInfiniteQueryData(auditEventsQueryOptions()),
+  loader: ({ context }) =>
+    context.queryClient.infiniteQuery({ ...auditEventsQueryOptions(), staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

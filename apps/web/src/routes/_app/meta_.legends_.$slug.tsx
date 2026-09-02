@@ -66,9 +66,10 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
   // `never` in the current TanStack Router version. Same pattern as
   // meta_.$slug.tsx; the redirect still fires before anything renders.
   loader: async ({ context, params }): Promise<MetaLegendDetailResponse> => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
@@ -79,10 +80,10 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
       // The set list is here for the scope bar's eras, which are derived from
       // set release dates rather than stored.
       const [legend] = await Promise.all([
-        context.queryClient.ensureQueryData(metaLegendQueryOptions(params.slug)),
-        context.queryClient.ensureQueryData(initQueryOptions),
-        context.queryClient.ensureQueryData(metaDecksQueryOptions),
-        context.queryClient.ensureQueryData(publicSetListQueryOptions),
+        context.queryClient.query({ ...metaLegendQueryOptions(params.slug), staleTime: "static" }),
+        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+        context.queryClient.query({ ...metaDecksQueryOptions, staleTime: "static" }),
+        context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
       ]);
       return legend;
     } catch (error) {

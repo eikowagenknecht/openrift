@@ -9,7 +9,10 @@ export const Route = createFileRoute("/_app/_authenticated/organizations_/$id")(
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Organization", noIndex: true }),
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(organizationQueryOptions(context.userId, params.id));
+    await context.queryClient.query({
+      ...organizationQueryOptions(context.userId, params.id),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

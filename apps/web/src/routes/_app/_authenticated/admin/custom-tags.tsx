@@ -12,8 +12,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/custom-tags")({
   head: () => adminSeoHead("Custom Tags"),
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(adminCustomTagsQueryOptions),
-      context.queryClient.ensureQueryData(adminCustomTagCategoriesQueryOptions),
+      context.queryClient.query({ ...adminCustomTagsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminCustomTagCategoriesQueryOptions, staleTime: "static" }),
     ]),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

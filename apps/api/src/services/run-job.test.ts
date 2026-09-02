@@ -157,7 +157,7 @@ describe("runJob", () => {
 
   it("serializes non-Error throws to string", async () => {
     const fn = vi.fn(async () => {
-      // oxlint-disable-next-line no-throw-literal -- testing the String(error) fallback
+      // oxlint-disable-next-line no-throw-literal, typescript/only-throw-error -- testing the String(error) fallback
       throw "string-boom";
     });
     await runJob(ctx.deps, "k", "cron", fn);

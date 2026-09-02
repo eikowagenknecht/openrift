@@ -15,17 +15,17 @@ const validateSearch = Route.options.validateSearch as unknown as {
 type SessionUser = { user: { id: string } } | null;
 
 const beforeLoad = Route.options.beforeLoad as unknown as (args: {
-  context: { queryClient: { ensureQueryData: () => Promise<SessionUser> } };
+  context: { queryClient: { query: () => Promise<SessionUser> } };
   location: { href: string };
   search: Record<string, unknown>;
 }) => Promise<void>;
 
 function runGuard(search: Record<string, unknown>, session: SessionUser, href = "/stage") {
-  const ensureQueryData = vi.fn().mockResolvedValue(session);
+  const query = vi.fn().mockResolvedValue(session);
   return {
-    ensureQueryData,
+    query,
     result: beforeLoad({
-      context: { queryClient: { ensureQueryData } },
+      context: { queryClient: { query } },
       location: { href },
       search,
     }),
@@ -125,10 +125,10 @@ describe("/stage owned tier-list guard", () => {
   });
 
   it("leaves the shared-ranking branch public", async () => {
-    const { ensureQueryData, result } = runGuard({ tierShare: "tok" }, null);
+    const { query, result } = runGuard({ tierShare: "tok" }, null);
 
     await expect(result).resolves.toBeUndefined();
-    expect(ensureQueryData).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -136,9 +136,9 @@ describe("/stage owned tier-list guard", () => {
     ["a deck walk", { deck: "deck-1" }],
     ["an ad-hoc queue", { cards: ["p-1", "p-2"] }],
   ])("leaves %s public", async (_label, search) => {
-    const { ensureQueryData, result } = runGuard(search, null);
+    const { query, result } = runGuard(search, null);
 
     await expect(result).resolves.toBeUndefined();
-    expect(ensureQueryData).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
   });
 });

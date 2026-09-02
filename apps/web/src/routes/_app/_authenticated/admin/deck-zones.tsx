@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/deck-zones")({
   head: () => adminSeoHead("Deck Zones"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminDeckZonesQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...adminDeckZonesQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

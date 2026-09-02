@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_app/_authenticated/admin/users")({
   head: () => adminSeoHead("Users"),
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData(adminUsersQueryOptions),
-      context.queryClient.ensureQueryData(adminGrantsQueryOptions),
+      context.queryClient.query({ ...adminUsersQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...adminGrantsQueryOptions, staleTime: "static" }),
     ]),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,

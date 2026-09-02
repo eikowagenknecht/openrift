@@ -62,13 +62,17 @@ export const Route = createFileRoute("/_app/decks/import")({
   // detail — a `local:` target lives in this browser's storage, and asking the
   // server about its synthetic id would 404.
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(initQueryOptions);
+    await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });
     if (deps.replaceDeckId && !isLocalDeckId(deps.replaceDeckId)) {
-      const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+      const session = await context.queryClient.query({
+        ...sessionQueryOptions(),
+        staleTime: "static",
+      });
       if (session?.user) {
-        await context.queryClient.ensureQueryData(
-          deckDetailQueryOptions(session.user.id, deps.replaceDeckId),
-        );
+        await context.queryClient.query({
+          ...deckDetailQueryOptions(session.user.id, deps.replaceDeckId),
+          staleTime: "static",
+        });
       }
     }
   },

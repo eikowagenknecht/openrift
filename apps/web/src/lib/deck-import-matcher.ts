@@ -73,8 +73,8 @@ class CardIndex {
   /** shortCode (lowercase) → ResolvedCard. Multiple language printings share a
    * shortCode; we don't pin one because the deck-code formats carry no language
    * info — display falls back to the user's language preference. */
-  private byShortCode = new Map<string, ResolvedCard>();
-  private nameIndex: CardSearchIndex<SearchableDeckCard>;
+  private readonly byShortCode = new Map<string, ResolvedCard>();
+  private readonly nameIndex: CardSearchIndex<SearchableDeckCard>;
 
   constructor(allPrintings: Printing[]) {
     // Deduplicate printings to cards: pick the first printing per card as representative

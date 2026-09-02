@@ -18,8 +18,8 @@ export const Route = createFileRoute("/_app/pack-opener")({
     }),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(publicSetListQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
   },
   errorComponent: RouteErrorFallback,

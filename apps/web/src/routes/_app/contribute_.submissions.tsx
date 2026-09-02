@@ -9,7 +9,10 @@ import { getSiteUrl } from "@/lib/site-config";
 export const Route = createFileRoute("/_app/contribute_/submissions")({
   ssr: "data-only",
   beforeLoad: async ({ location, context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (!session?.user) {
       throw redirect({
         to: "/login",
@@ -20,7 +23,10 @@ export const Route = createFileRoute("/_app/contribute_/submissions")({
   },
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "My card submissions", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureInfiniteQueryData(cardSubmissionsQueryOptions(context.userId));
+    await context.queryClient.infiniteQuery({
+      ...cardSubmissionsQueryOptions(context.userId),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

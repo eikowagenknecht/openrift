@@ -47,14 +47,14 @@ const SSR_MARKETPLACE: Marketplace = "cardtrader";
 const SSR_DEFAULT_VIEW = "cards";
 
 function readPricesFromServerCache(): Promise<PricesResponse> {
-  return serverCache.fetchQuery({
+  return serverCache.query({
     queryKey: ["server-cache", "prices"],
     queryFn: () => apiOrpcClient(pricesContract).prices(),
   });
 }
 
 function readInitFromServerCache(): Promise<InitResponse> {
-  return serverCache.fetchQuery({
+  return serverCache.query({
     queryKey: ["server-cache", "init"],
     queryFn: () => apiOrpcClient(initContract).get(),
   });

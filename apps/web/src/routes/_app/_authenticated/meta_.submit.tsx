@@ -22,18 +22,19 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/submit")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Send a decklist", noIndex: true }),
   loader: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
     await Promise.all([
-      context.queryClient.ensureQueryData(initQueryOptions),
-      context.queryClient.ensureQueryData(metaEventsQueryOptions),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaEventsQueryOptions, staleTime: "static" }),
       // The catalog turns a pasted deck code's short codes into the card names
       // the submission endpoint takes.
-      context.queryClient.ensureQueryData(catalogQueryOptions),
+      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
     ]);
   },
   errorComponent: RouteErrorFallback,

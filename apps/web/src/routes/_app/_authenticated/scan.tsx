@@ -14,8 +14,11 @@ export const Route = createFileRoute("/_app/_authenticated/scan")({
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Scan cards", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(catalogQueryOptions),
-      context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId)),
+      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
+      context.queryClient.query({
+        ...collectionsQueryOptions(context.userId),
+        staleTime: "static",
+      }),
     ]);
     // The catalog's client fetch covers the user's languages first; the scanner
     // must match printings of ANY language, so pull the remaining ones now

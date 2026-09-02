@@ -34,10 +34,13 @@ export const Route = createFileRoute("/_app/decks/$deckId")({
   //    bookmarked/shared authenticated deck link still works after sign-in.
   loader: async ({ context, params, location }) => {
     if (isLocalDeckId(params.deckId)) {
-      await context.queryClient.ensureQueryData(initQueryOptions);
+      await context.queryClient.query({ ...initQueryOptions, staleTime: "static" });
       return;
     }
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
+    const session = await context.queryClient.query({
+      ...sessionQueryOptions(),
+      staleTime: "static",
+    });
     if (!session?.user) {
       throw redirect({
         to: "/login",
@@ -46,8 +49,11 @@ export const Route = createFileRoute("/_app/decks/$deckId")({
     }
     try {
       await Promise.all([
-        context.queryClient.ensureQueryData(deckDetailQueryOptions(session.user.id, params.deckId)),
-        context.queryClient.ensureQueryData(initQueryOptions),
+        context.queryClient.query({
+          ...deckDetailQueryOptions(session.user.id, params.deckId),
+          staleTime: "static",
+        }),
+        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
       ]);
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {

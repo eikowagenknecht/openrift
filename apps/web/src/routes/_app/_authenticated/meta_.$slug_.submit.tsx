@@ -27,23 +27,26 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")
   validateSearch: parseMetaSubmitSearch,
   loaderDeps: ({ search }) => ({ deck: search.deck }),
   loader: async ({ context, deps }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
     await Promise.all([
-      context.queryClient.ensureQueryData(initQueryOptions),
-      context.queryClient.ensureQueryData(metaEventsQueryOptions),
-      context.queryClient.ensureQueryData(catalogQueryOptions),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaEventsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
       // The list a completion or a correction edits, in cache before the form
       // mounts so its paste box opens already holding it. A token that no
       // longer resolves is not fatal: the box opens empty and the sender types
       // the list, which is what they came to do.
       deps.deck === undefined
         ? Promise.resolve()
-        : context.queryClient.ensureQueryData(metaDeckQueryOptions(deps.deck)).catch(() => null),
+        : context.queryClient
+            .query({ ...metaDeckQueryOptions(deps.deck), staleTime: "static" })
+            .catch(() => null),
     ]);
   },
   errorComponent: RouteErrorFallback,

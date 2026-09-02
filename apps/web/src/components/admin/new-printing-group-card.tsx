@@ -4,7 +4,7 @@ import type {
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
-import { appendSetTotal, formatPrintingLabel } from "@openrift/shared";
+import { appendSetTotal, formatPrintingLabel, stringifyUnknown } from "@openrift/shared";
 import {
   ArrowRightIcon,
   CheckCheckIcon,
@@ -91,7 +91,7 @@ function NewPrintingColumnActions({
           if (val === null || val === undefined || val === "") {
             continue;
           }
-          if (field.options && !field.options.includes(String(val))) {
+          if (field.options && !field.options.includes(stringifyUnknown(val))) {
             continue;
           }
           values[field.key] = val;

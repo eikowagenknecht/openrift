@@ -15,7 +15,9 @@ export const Route = createFileRoute("/_app")({
     // Preload session so the Header can render auth-dependent UI during SSR
     // (profile icon, gated menu entries). Non-critical: if it fails, the
     // client-side useQuery will retry.
-    await context.queryClient.ensureQueryData(sessionQueryOptions()).catch(() => null);
+    await context.queryClient
+      .query({ ...sessionQueryOptions(), staleTime: "static" })
+      .catch(() => null);
   },
   component: AppLayout,
 });

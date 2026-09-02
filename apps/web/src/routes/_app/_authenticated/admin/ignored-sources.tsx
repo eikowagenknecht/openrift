@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/ignored-sources")({
   head: () => adminSeoHead("Ignored Sources"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(ignoredCandidatesQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...ignoredCandidatesQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

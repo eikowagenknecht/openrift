@@ -35,7 +35,10 @@ export const Route = createFileRoute("/_app/users_/share/$token")({
   },
   loader: async ({ context, params }): Promise<PublicUserBundleResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(publicUserBundleQueryOptions(params.token));
+      return await context.queryClient.query({
+        ...publicUserBundleQueryOptions(params.token),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

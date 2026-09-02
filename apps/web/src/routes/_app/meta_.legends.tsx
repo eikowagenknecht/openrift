@@ -30,19 +30,20 @@ export const Route = createFileRoute("/_app/meta_/legends")({
     };
   },
   beforeLoad: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
+    const flags = (await context.queryClient.query({
+      ...featureFlagsQueryOptions,
+      staleTime: "static",
+    })) as FeatureFlags;
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
   },
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(initQueryOptions),
-      context.queryClient.ensureQueryData(metaLegendsQueryOptions),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaLegendsQueryOptions, staleTime: "static" }),
       // The rows join their records against the events payload client-side.
-      context.queryClient.ensureQueryData(metaEventsQueryOptions),
+      context.queryClient.query({ ...metaEventsQueryOptions, staleTime: "static" }),
     ]);
   },
   errorComponent: RouteErrorFallback,

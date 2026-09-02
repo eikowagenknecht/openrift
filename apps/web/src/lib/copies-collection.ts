@@ -47,16 +47,16 @@ export function getCopiesCollection(
       // Per-user queryKey so user A's copies cache and user B's never share
       // a slot. Distinct from copiesQueryOptions' queryKey: this one stores
       // an array (what QueryCollection expects), the other stores the full
-      // CopyListResponse object. The fetch is deduped via fetchQuery below.
+      // CopyListResponse object. The fetch is deduped via query() below.
       queryKey: [...queryKeys.copies.syncedStore(userId)],
       queryFn: async () => {
-        // fetchQuery respects staleTime: returns cached data if fresh, but
-        // refetches from the server if stale. ensureQueryData (what we used
-        // before) always returns cached, regardless of staleness — which
-        // meant our invalidateQueries after mutations never translated into
-        // a refetch, and refetchOnReconnect just handed back the stale
-        // pre-mutation snapshot.
-        const response = await queryClient.fetchQuery({
+        // query() respects staleTime: returns cached data if fresh, but
+        // refetches from the server if stale. Passing staleTime: "static"
+        // here (what we used before) always returns cached, regardless of
+        // staleness — which meant our invalidateQueries after mutations never
+        // translated into a refetch, and refetchOnReconnect just handed back
+        // the stale pre-mutation snapshot.
+        const response = await queryClient.query({
           queryKey: options.queryKey,
           queryFn: options.queryFn,
         });

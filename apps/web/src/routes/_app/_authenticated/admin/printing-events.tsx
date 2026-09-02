@@ -7,7 +7,8 @@ import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/printing-events")({
   head: () => adminSeoHead("Printing Events"),
-  loader: ({ context }) => context.queryClient.ensureQueryData(adminPrintingEventsQueryOptions),
+  loader: ({ context }) =>
+    context.queryClient.query({ ...adminPrintingEventsQueryOptions, staleTime: "static" }),
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
 });

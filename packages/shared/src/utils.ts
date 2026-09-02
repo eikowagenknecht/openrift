@@ -552,3 +552,24 @@ export function labelMap(rows: readonly { slug: string; label: string }[]): Reco
 export function formatCents(cents: number, currency: string): string {
   return new Intl.NumberFormat("en", { style: "currency", currency }).format(cents / 100);
 }
+
+/**
+ * Renders an unknown value as text, sending objects through JSON rather than
+ * the `[object Object]` a bare `String()` would produce.
+ * @returns The value as text.
+ */
+export function stringifyUnknown(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (value === null) {
+    return "null";
+  }
+  if (value === undefined) {
+    return "undefined";
+  }
+  return JSON.stringify(value) ?? "";
+}

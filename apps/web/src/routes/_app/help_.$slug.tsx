@@ -46,9 +46,10 @@ export const Route = createFileRoute("/_app/help_/$slug")({
       throw notFound();
     }
     if (article.featureFlag) {
-      const flags = (await context.queryClient.ensureQueryData(
-        featureFlagsQueryOptions,
-      )) as FeatureFlags;
+      const flags = (await context.queryClient.query({
+        ...featureFlagsQueryOptions,
+        staleTime: "static",
+      })) as FeatureFlags;
       if (!featureEnabled(flags, article.featureFlag)) {
         throw notFound();
       }

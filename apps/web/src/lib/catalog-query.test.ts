@@ -106,8 +106,8 @@ describe("split fetch + tail merge", () => {
     seedCatalogVersion("v-test-1");
 
     const queryClient = new QueryClient();
-    const data = await queryClient.fetchQuery(catalogQueryOptions);
-    // fetchQuery stores the RAW response (select runs on read); the raw entry
+    const data = await queryClient.query(catalogQueryOptions);
+    // query() stores the RAW response (select runs on read); the raw entry
     // is what loadCatalogTail merges into.
     const raw = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
     expect(raw).toBeDefined();
@@ -134,7 +134,7 @@ describe("split fetch + tail merge", () => {
     seedCatalogVersion("v-test-2");
 
     const queryClient = new QueryClient();
-    await queryClient.fetchQuery(catalogQueryOptions);
+    await queryClient.query(catalogQueryOptions);
 
     await loadCatalogTail(queryClient);
     // No tail request went out: the "primary" already contained everything.

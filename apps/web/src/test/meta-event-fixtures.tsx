@@ -4,6 +4,7 @@ import type {
   MetaEventPhase,
   MetaEventPlayer,
 } from "@openrift/shared";
+import { stringifyUnknown } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 /**
@@ -112,7 +113,7 @@ export function StubLink({ to = "", params, search, className, children }: StubL
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(search ?? {})) {
     if (value !== undefined) {
-      query.set(key, String(value));
+      query.set(key, stringifyUnknown(value));
     }
   }
   const suffix = query.size > 0 ? `?${query.toString()}` : "";

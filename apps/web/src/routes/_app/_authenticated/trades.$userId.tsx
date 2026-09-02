@@ -16,9 +16,10 @@ export const Route = createFileRoute("/_app/_authenticated/trades/$userId")({
   }),
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Trade sheet", noIndex: true }),
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(
-      tradeSheetQueryOptions(context.userId, params.userId),
-    );
+    await context.queryClient.query({
+      ...tradeSheetQueryOptions(context.userId, params.userId),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

@@ -97,14 +97,17 @@ export const Route = createFileRoute("/_app/_authenticated/admin/meta")({
       // Warm the exact key the Public tab will read: its own filtered page on a
       // deep link, else the default first page the tab opens on. Anything less
       // exact misses the component's cache lookup and the tab suspends.
-      context.queryClient.ensureQueryData(
-        adminMetaEventsQueryOptions(metaEventsParamsFromSearch(deps.tab === "public" ? deps : {})),
-      ),
+      context.queryClient.query({
+        ...adminMetaEventsQueryOptions(
+          metaEventsParamsFromSearch(deps.tab === "public" ? deps : {}),
+        ),
+        staleTime: "static",
+      }),
       // The Candidates tab label carries the pending count, so the queue is
       // needed on both tabs.
-      context.queryClient.ensureQueryData(adminMetaOverlaysQueryOptions),
+      context.queryClient.query({ ...adminMetaOverlaysQueryOptions, staleTime: "static" }),
       // The tables render format labels from /init.
-      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
   },
   pendingComponent: AdminPending,

@@ -31,7 +31,10 @@ export const Route = createFileRoute("/_app/collections_/share/$token")({
   },
   loader: async ({ context, params }): Promise<PublicCollectionDetailResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(publicCollectionQueryOptions(params.token));
+      return await context.queryClient.query({
+        ...publicCollectionQueryOptions(params.token),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

@@ -27,7 +27,10 @@ export const Route = createFileRoute("/_app/lists_/share/$token")({
   },
   loader: async ({ context, params }): Promise<PublicListDetailResponse> => {
     try {
-      return await context.queryClient.ensureQueryData(publicListQueryOptions(params.token));
+      return await context.queryClient.query({
+        ...publicListQueryOptions(params.token),
+        staleTime: "static",
+      });
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {
         throw notFound();

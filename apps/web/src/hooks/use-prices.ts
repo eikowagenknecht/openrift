@@ -10,7 +10,7 @@ import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPrices = createServerFn({ method: "GET" }).handler((): Promise<PricesResponse> =>
-  serverCache.fetchQuery({
+  serverCache.query({
     queryKey: ["server-cache", "prices"],
     queryFn: () => apiOrpcClient(pricesContract).prices(),
   }),
@@ -27,7 +27,7 @@ function fetchPricesFromEdge(): Promise<PricesResponse> {
  * Fetches the raw price map during SSR for SEO markup only, deliberately
  * bypassing the React Query cache.
  *
- * Do **not** reach for `queryClient.ensureQueryData(pricesQueryOptions)` on the
+ * Do **not** reach for `queryClient.query({ ...pricesQueryOptions, staleTime: "static" })` on the
  * server. TanStack Start dehydrates the router's query cache into the SSR HTML,
  * so a server-side cache write inlines the whole catalog price map (~270 KB, one
  * entry per printing) into the page — on `/cards/$cardSlug` that was 74% of the
@@ -70,9 +70,10 @@ export function usePrices(): PriceLookup {
  * @returns A lookup backed by the cached `/api/v1/prices` payload.
  */
 export async function ensurePriceLookup(queryClient: QueryClient): Promise<PriceLookup> {
-  const response = await queryClient.ensureQueryData({
+  const response = await queryClient.query({
     queryKey: pricesQueryOptions.queryKey,
     queryFn: pricesQueryOptions.queryFn,
+    staleTime: "static",
   });
   return priceLookupFromMap(response.prices);
 }

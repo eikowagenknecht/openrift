@@ -130,8 +130,8 @@ describe("useCards", () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
-    // fetchQuery returns raw data (without select), so check the raw shape
-    const raw = await queryClient.fetchQuery(catalogQueryOptions);
+    // `select: undefined` skips the enrichment, so this checks the raw shape
+    const raw = await queryClient.query({ ...catalogQueryOptions, select: undefined });
 
     expect(Object.keys(raw.printings)).toHaveLength(2);
     expect(raw.sets).toEqual([
@@ -191,7 +191,7 @@ describe("useCards", () => {
     });
 
     try {
-      await queryClient.fetchQuery(catalogQueryOptions);
+      await queryClient.query(catalogQueryOptions);
       expect.fail("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(Error);
