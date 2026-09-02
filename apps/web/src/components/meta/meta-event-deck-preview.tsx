@@ -37,7 +37,7 @@ export function MetaEventDeckPreview({ token }: { token: string }) {
   const fork = useForkArchivedDeck();
 
   return (
-    <div className="bg-background/60 ring-foreground/10 grid gap-4 rounded-lg p-4 ring-1 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-3">
       <PreviewIdentity data={data} />
       <PreviewComposition types={deckTypeSplit(data.cards)} runes={deckRuneSplit(data.cards)} />
       <div className="flex flex-col gap-3">
@@ -85,9 +85,9 @@ export function MetaEventDeckPreview({ token }: { token: string }) {
 
 export function MetaEventDeckPreviewSkeleton() {
   return (
-    <div className="bg-background/60 ring-foreground/10 grid gap-4 rounded-lg p-4 ring-1 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-3">
       <div className="flex gap-3">
-        <Skeleton className="aspect-card w-14" />
+        <Skeleton className="aspect-card w-14 self-start" />
         <div className="flex-1 space-y-2 py-1">
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-3 w-1/2" />
@@ -121,7 +121,7 @@ function PreviewIdentity({ data }: { data: MetaDeckDetailResponse }) {
         imageId={legend?.imageId ?? champion?.imageId ?? null}
         domains={identity?.domains}
         loading="lazy"
-        className="w-14"
+        className="w-14 self-start"
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -191,7 +191,7 @@ function PreviewValue({
 }) {
   const format = formatterForMarketplace(marketplace);
   return (
-    <div className="bg-card ring-foreground/10 rounded-lg p-3 ring-1">
+    <div className="bg-muted/40 ring-foreground/10 rounded-lg p-3 ring-1">
       <p className={EYEBROW}>Deck value · {MARKETPLACE_META[marketplace].label}</p>
       {ownership === undefined ? (
         <div className="mt-1 space-y-2">

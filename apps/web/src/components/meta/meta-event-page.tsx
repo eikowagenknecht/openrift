@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
-import { describeEventStructure } from "@/lib/meta-event-structure";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 /**
@@ -118,7 +117,6 @@ function EventActionsMenu({ event }: { event: MetaEventDetail }) {
 export function MetaEventPage({ slug }: { slug: string }) {
   const { data } = useMetaEvent(slug);
   const { event, players, matches, phases } = data;
-  const structure = describeEventStructure(phases);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -151,7 +149,7 @@ export function MetaEventPage({ slug }: { slug: string }) {
 
         <MetaEventBracket matches={matches} phases={phases} players={players} />
 
-        <MetaEventStandings players={players} slug={slug} cutSize={structure.cutSize} />
+        <MetaEventStandings players={players} slug={slug} />
 
         <div className="mt-8">
           <MetaEventContributeBand event={event} players={players} slug={slug} />

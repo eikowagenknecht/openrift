@@ -151,9 +151,14 @@ export function MetaEventHeader({
             <DateLeaf month={leaf.month} day={leaf.day} year={leaf.year} />
             <div className="flex min-w-0 flex-col gap-0.5">
               {(event.country !== null || event.location !== null) && (
-                <p className="flex items-center gap-1.5 font-medium">
-                  <CountryFlag code={event.country} size="sm" showCode={event.location === null} />
-                  {event.location !== null && <span>{event.location}</span>}
+                <p className="font-medium">
+                  <CountryFlag
+                    code={event.country}
+                    size="sm"
+                    showCode={event.location === null}
+                    className="mr-1.5 align-middle"
+                  />
+                  {event.location}
                 </p>
               )}
               <p className="text-muted-foreground text-sm">{byline.join(" · ")}</p>

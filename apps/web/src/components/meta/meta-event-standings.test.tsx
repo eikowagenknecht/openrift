@@ -32,8 +32,8 @@ function phoneRow(name: string): HTMLElement {
   return within(list).getByText(name).closest("li") as HTMLElement;
 }
 
-function renderStandings(players: MetaEventPlayer[] = [metaPlayer()], cutSize: number | null = 8) {
-  render(<MetaEventStandings players={players} slug="summoner-skirmish" cutSize={cutSize} />);
+function renderStandings(players: MetaEventPlayer[] = [metaPlayer()]) {
+  render(<MetaEventStandings players={players} slug="summoner-skirmish" />);
 }
 
 function field(count: number, overrides: (index: number) => Partial<MetaEventPlayer> = () => ({})) {
@@ -99,36 +99,14 @@ describe("MetaEventStandings", () => {
     expect(within(phoneRow("Bo")).getByText("T8")).toBeInTheDocument();
   });
 
-  it("shows legend art down to the cut and nothing below it", () => {
+  it("shows legend art on every row, cut or not", () => {
     const legend = metaPlayer().legend;
-    renderStandings(
-      [
-        metaPlayer({
-          id: "p-1",
-          playerName: "Ana",
-          rank: 4,
-          legend: { ...legend!, imageId: "art" },
-        }),
-        metaPlayer({
-          id: "p-2",
-          playerName: "Bo",
-          rank: 9,
-          legend: { ...legend!, imageId: "art" },
-        }),
-      ],
-      8,
-    );
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 4, legend: { ...legend!, imageId: "art" } }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 40, legend: { ...legend!, imageId: "art" } }),
+    ]);
     expect(phoneRow("Ana").querySelector('img[src*="art-120w"]')).not.toBeNull();
-    expect(phoneRow("Bo").querySelector('img[src*="art-120w"]')).toBeNull();
-  });
-
-  it("takes the cut from the event rather than assuming a top 8", () => {
-    const legend = metaPlayer().legend;
-    renderStandings(
-      [metaPlayer({ playerName: "Ana", rank: 5, legend: { ...legend!, imageId: "art" } })],
-      4,
-    );
-    expect(phoneRow("Ana").querySelector('img[src*="art-120w"]')).toBeNull();
+    expect(phoneRow("Bo").querySelector('img[src*="art-120w"]')).not.toBeNull();
   });
 
   it("washes the winner's row in the archive's gold", () => {
@@ -204,6 +182,25 @@ describe("MetaEventStandings", () => {
     expect(screen.queryByText("Preview for tok1")).toBeNull();
     await user.click(within(phoneRow("Ana")).getByRole("button", { name: "Decklist" }));
     expect(within(phoneRow("Ana")).getByText("Preview for tok1")).toBeInTheDocument();
+  });
+
+  it("opens and closes a decklist from anywhere on the row", async () => {
+    const user = userEvent.setup();
+    renderStandings([metaPlayer({ playerName: "Ana", shareToken: "tok1" })]);
+
+    await user.click(within(phoneRow("Ana")).getByText("Ana"));
+    expect(within(phoneRow("Ana")).getByText("Preview for tok1")).toBeInTheDocument();
+
+    await user.click(within(phoneRow("Ana")).getByText("Ana"));
+    expect(screen.queryByText("Preview for tok1")).toBeNull();
+  });
+
+  it("leaves a row's own links clickable", async () => {
+    const user = userEvent.setup();
+    renderStandings([metaPlayer({ playerName: "Ana", shareToken: "tok1" })]);
+
+    await user.click(within(phoneRow("Ana")).getByRole("link", { name: /Yasuo/u }));
+    expect(screen.queryByText("Preview for tok1")).toBeNull();
   });
 
   it("closes an open decklist when another one opens", async () => {

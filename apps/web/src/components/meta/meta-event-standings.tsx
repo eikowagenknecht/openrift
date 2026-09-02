@@ -31,9 +31,6 @@ import { cn } from "@/lib/utils";
 
 const ROWS_SHOWN = 16;
 
-/** Where the art stops for an event whose phases never named a cut. */
-const ASSUMED_CUT = 8;
-
 const COLUMN_COUNT = 5;
 
 type StandingsFilter = "all" | "withList";
@@ -49,19 +46,15 @@ function Rank({ player }: { player: MetaEventPlayer }) {
   );
 }
 
-function LegendCell({ player, showArt }: { player: MetaEventPlayer; showArt: boolean }) {
+function LegendCell({ player }: { player: MetaEventPlayer }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
-      {showArt ? (
-        <CardArtThumb
-          imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
-          domains={player.legend?.domains}
-          loading="lazy"
-          className="w-9"
-        />
-      ) : (
-        <span className="w-9 shrink-0" />
-      )}
+      <CardArtThumb
+        imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
+        domains={player.legend?.domains}
+        loading="lazy"
+        className="w-9"
+      />
       <MetaIdentity
         name={player.legend?.name}
         slug={player.legend?.slug}
@@ -126,25 +119,40 @@ interface RowProps {
   player: MetaEventPlayer;
   slug: string;
   canSubmit: boolean;
-  inCut: boolean;
   expanded: boolean;
   onToggle: () => void;
 }
 
-function DesktopRow({ player, slug, canSubmit, inCut, expanded, onToggle }: RowProps) {
+function rowToggleHandler(onToggle: () => void) {
+  return (event: React.MouseEvent<HTMLElement>) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest("a, button") !== null) {
+      return;
+    }
+    onToggle();
+  };
+}
+
+function DesktopRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
   const record = formatRecord(player.wins, player.losses, player.draws);
   const token = player.shareToken;
 
   return (
     <>
-      <TableRow className={cn(player.rank === 1 && "bg-border-accent/10")}>
+      <TableRow
+        onClick={token === null ? undefined : rowToggleHandler(onToggle)}
+        className={cn(
+          player.rank === 1 && "bg-border-accent/10",
+          token !== null && "cursor-pointer",
+        )}
+      >
         <TableCell>
           <Rank player={player} />
         </TableCell>
         <TableCell className="font-medium">{player.playerName}</TableCell>
         <TableCell className="text-right tabular-nums">{record}</TableCell>
         <TableCell>
-          <LegendCell player={player} showArt={inCut} />
+          <LegendCell player={player} />
         </TableCell>
         <TableCell className="text-right">
           <DeckCell
@@ -168,27 +176,28 @@ function DesktopRow({ player, slug, canSubmit, inCut, expanded, onToggle }: RowP
   );
 }
 
-function PhoneRow({ player, slug, canSubmit, inCut, expanded, onToggle }: RowProps) {
+function PhoneRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
   const record = formatRecord(player.wins, player.losses, player.draws);
   const token = player.shareToken;
 
   return (
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the row's keyboard path is the Decklist button inside it, which owns aria-expanded
     <li
+      onClick={token === null ? undefined : rowToggleHandler(onToggle)}
       className={cn(
         "flex flex-col gap-2 px-3 py-2 text-sm not-last:border-b",
         player.rank === 1 && "bg-border-accent/10",
+        token !== null && "cursor-pointer",
       )}
     >
       <div className="flex items-center gap-2.5">
         <Rank player={player} />
-        {inCut && (
-          <CardArtThumb
-            imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
-            domains={player.legend?.domains}
-            loading="lazy"
-            className="w-9"
-          />
-        )}
+        <CardArtThumb
+          imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
+          domains={player.legend?.domains}
+          loading="lazy"
+          className="w-9"
+        />
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate font-medium">{player.playerName}</p>
           <MetaIdentity
@@ -232,11 +241,9 @@ function subtitleFor(total: number, withLists: number): string {
 export function MetaEventStandings({
   players,
   slug,
-  cutSize,
 }: {
   players: readonly MetaEventPlayer[];
   slug: string;
-  cutSize: number | null;
 }) {
   const canSubmit = useUserId() !== null;
   const [showAll, setShowAll] = useState(false);
@@ -260,7 +267,6 @@ export function MetaEventStandings({
   }
 
   const withLists = players.filter((player) => player.shareToken !== null).length;
-  const cut = cutSize ?? ASSUMED_CUT;
   const needle = query.trim().toLowerCase();
   const matching = players.filter(
     (player) =>
@@ -284,7 +290,6 @@ export function MetaEventStandings({
           {withLists > 0 && (
             <ToggleGroup
               variant="outline"
-              size="sm"
               spacing={0}
               value={[filter]}
               onValueChange={([next]) => {
@@ -340,7 +345,6 @@ export function MetaEventStandings({
                       player={player}
                       slug={slug}
                       canSubmit={canSubmit}
-                      inCut={player.rank <= cut}
                       expanded={expandedId === player.id}
                       onToggle={() => toggle(player.id)}
                     />
@@ -356,7 +360,6 @@ export function MetaEventStandings({
                   player={player}
                   slug={slug}
                   canSubmit={canSubmit}
-                  inCut={player.rank <= cut}
                   expanded={expandedId === player.id}
                   onToggle={() => toggle(player.id)}
                 />
