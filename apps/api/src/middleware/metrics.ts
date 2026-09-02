@@ -1,6 +1,7 @@
 import { trace } from "@opentelemetry/api";
 import type { Context, MiddlewareHandler } from "hono";
 import { createMiddleware } from "hono/factory";
+import { routePath } from "hono/route";
 import { collectDefaultMetrics, Counter, Histogram, Registry } from "prom-client";
 
 const HISTOGRAM_BUCKETS = [
@@ -69,7 +70,7 @@ export const createMetricsMiddleware = (options: MetricsOptions = {}): Metrics =
     } finally {
       const labels = {
         method: c.req.method,
-        route: c.req.routePath,
+        route: routePath(c),
         status: c.res.status.toString(),
         ok: String(c.res.ok),
       };

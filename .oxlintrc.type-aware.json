@@ -16,6 +16,7 @@
     "typescript/await-thenable": "error",
     "typescript/no-array-delete": "error",
     "typescript/no-base-to-string": "error",
+    "typescript/no-deprecated": "error",
     "typescript/no-duplicate-type-constituents": "error",
     "typescript/no-floating-promises": "error",
     "typescript/no-for-in-array": "error",
@@ -62,6 +63,14 @@
       "files": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": {
         "typescript/no-misused-promises": "off"
+      }
+    },
+    {
+      // Scaffolded from shadcn; a deprecation fix here is permanent drift from
+      // upstream, so it waits for the next re-scaffold.
+      "files": ["apps/web/src/components/ui/**"],
+      "rules": {
+        "typescript/no-deprecated": "off"
       }
     }
   ]

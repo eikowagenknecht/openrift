@@ -18,7 +18,7 @@ import {
 } from "@openrift/shared";
 import { useDeferredValue } from "react";
 
-import type { SetInfo } from "@/components/cards/card-grid";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { buildSortCardsOptions, computePriceRanges } from "@/lib/card-price-sort";
 import { cardsViewTileKey, dedupeToCardsViewTiles } from "@/lib/card-tiles";
@@ -27,7 +27,7 @@ import type { OwnedBucket } from "@/lib/search-schemas";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
-  sets: SetInfo[];
+  sets: GroupInfo[];
   filters: CardFilters;
   /** Selected ownership buckets. Empty array means no owned filter. */
   ownedFilter?: readonly OwnedBucket[];
@@ -78,7 +78,7 @@ interface UseCardDataParams {
 
 interface UseCatalogFilterMetaParams {
   allPrintings: Printing[];
-  sets: SetInfo[];
+  sets: GroupInfo[];
   filters: CardFilters;
   ownedFilter?: readonly OwnedBucket[];
   ownedCountMin?: number | null;

@@ -94,10 +94,7 @@ function isQuotaExceeded(error: unknown): boolean {
   // or 1014 "NS_ERROR_DOM_QUOTA_REACHED" on Firefox).
   return (
     error instanceof DOMException &&
-    (error.name === "QuotaExceededError" ||
-      error.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
-      error.code === 22 ||
-      error.code === 1014)
+    (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")
   );
 }
 

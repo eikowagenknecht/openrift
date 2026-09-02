@@ -103,7 +103,7 @@ export const overlayPayloadSchema = z.object({
    * giveaway. Null hides the code. Independent of the plate: a bare card with a
    * QR beside it is a valid scene.
    */
-  qrUrl: z.string().url().max(2000).nullable(),
+  qrUrl: z.url().max(2000).nullable(),
   corner: overlayCornerSchema,
   /** Card height as a percentage of the source's height. */
   scale: z.number().int().min(20).max(100),
@@ -138,7 +138,7 @@ const overlayDressingShape = {
   showPlate: z.boolean().optional(),
   platePosition: overlayPlatePositionSchema.optional(),
   plateFields: overlayPlateFieldsSchema.partial().optional(),
-  qrUrl: z.string().url().max(2000).nullish(),
+  qrUrl: z.url().max(2000).nullish(),
   corner: overlayCornerSchema.optional(),
   scale: z.number().int().min(20).max(100).optional(),
 };

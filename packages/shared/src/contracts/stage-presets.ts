@@ -42,7 +42,7 @@ export const stagePresetConfigSchema = z.object({
    */
   plateFields: overlayPlateFieldsSchema.partial().optional(),
   /** Null is a value here (hide the QR); only absence means untouched. */
-  qrUrl: z.string().url().max(2000).nullish(),
+  qrUrl: z.url().max(2000).nullish(),
   corner: overlayCornerSchema.optional(),
   /** Card height as a percentage of the overlay source's height. */
   scale: z.number().int().min(20).max(100).optional(),

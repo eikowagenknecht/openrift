@@ -35,8 +35,6 @@ import { computeRowStarts } from "./compute-row-starts";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useStickyHeader } from "./use-sticky-header";
 
-export type { SetInfo } from "./card-grid-types";
-
 // Persists the measured grid offset across re-mounts within a session so the
 // first render can use the real value instead of 0. SSR initializes to 0; the
 // ResizeObserver below corrects it once the DOM is in place.

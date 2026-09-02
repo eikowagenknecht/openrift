@@ -3,7 +3,7 @@ import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SetInfo } from "@/components/cards/card-grid";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
@@ -52,7 +52,7 @@ afterEach(() => {
   mockStacks.mockReset();
 });
 
-const SETS: SetInfo[] = [
+const SETS: GroupInfo[] = [
   {
     id: "set-1",
     slug: "rb1",

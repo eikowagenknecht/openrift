@@ -156,6 +156,7 @@ export function TypeBreakdown({
               isAnimationActive={false}
             >
               {labeledData.map((entry) => (
+                // oxlint-disable-next-line typescript/no-deprecated -- recharts 3 deprecates Cell for removal in 4.0; the replacement threads per-datum opacity through the custom shape, which needs a visual check
                 <Cell key={entry.type} fillOpacity={columnOpacity(entry.type)} />
               ))}
               {showTotals && <LabelList dataKey="total" content={<TotalLabel />} />}
@@ -207,6 +208,7 @@ export function TypeBreakdown({
               isAnimationActive={false}
             >
               {labeledData.map((entry, rowIndex) => (
+                // oxlint-disable-next-line typescript/no-deprecated -- recharts 3 deprecates Cell for removal in 4.0; the replacement threads per-datum opacity through the custom shape, which needs a visual check
                 <Cell
                   key={entry.type}
                   fillOpacity={columnOpacity(entry.type)}

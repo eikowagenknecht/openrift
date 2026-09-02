@@ -302,6 +302,7 @@ function SingleChart({
               isAnimationActive={false}
             >
               {chartData.map((row) => (
+                // oxlint-disable-next-line typescript/no-deprecated -- recharts 3 deprecates Cell for removal in 4.0; the replacement threads per-datum opacity through the custom shape, which needs a visual check
                 <Cell key={row.value} fillOpacity={columnOpacity(row.value)} />
               ))}
               {showTotals && <LabelList dataKey={totalKey} content={<TotalLabel />} />}
@@ -378,6 +379,7 @@ function SingleChart({
               isAnimationActive={false}
             >
               {chartData.map((row, rowIndex) => (
+                // oxlint-disable-next-line typescript/no-deprecated -- recharts 3 deprecates Cell for removal in 4.0; the replacement threads per-datum opacity through the custom shape, which needs a visual check
                 <Cell
                   key={String(row.value)}
                   fillOpacity={columnOpacity(String(row.value))}

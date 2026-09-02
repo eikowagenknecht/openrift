@@ -8,7 +8,7 @@ import type {
 } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
-import type { SetInfo } from "@/components/cards/card-grid";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { useCardData } from "@/hooks/use-card-data";
 import type { useFilterValues } from "@/hooks/use-card-filters";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
@@ -38,7 +38,7 @@ interface UseCollectionGridDataParams {
    * Inert outside a group bulk box, which is the only place the toggle shows. */
   wantedOnly: boolean;
   allPrintings: Printing[];
-  sets: SetInfo[];
+  sets: GroupInfo[];
   /** The full catalog's printingsByCardId (from useCards()), unfiltered by
    * collection membership — used for sibling lookups and the detail pane. */
   catalogAllPrintingsByCardId: Map<string, Printing[]>;

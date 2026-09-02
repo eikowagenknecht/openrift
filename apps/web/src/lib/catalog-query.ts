@@ -5,7 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import type { SetInfo } from "@/components/cards/card-grid";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { consumeSeededCatalogVersion, versionFromEtag } from "@/lib/catalog-version";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
@@ -57,7 +57,7 @@ export interface UseCardsResult {
   cardsById: Record<string, Card>;
   printingsById: Record<string, Printing>;
   printingsByCardId: Map<string, Printing[]>;
-  sets: SetInfo[];
+  sets: GroupInfo[];
 }
 
 /**

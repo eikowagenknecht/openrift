@@ -3,7 +3,7 @@ import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { SetInfo } from "@/components/cards/card-grid";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 const TEST_ORDERS = {
@@ -27,7 +27,7 @@ beforeEach(() => {
   resetIdCounter();
 });
 
-const SETS: SetInfo[] = [{ id: "set-1", slug: "rb1", name: "RB1", setType: "main" }];
+const SETS: GroupInfo[] = [{ id: "set-1", slug: "rb1", name: "RB1", setType: "main" }];
 
 function emptyFilters(): CardFilters {
   return { ...EMPTY_CARD_FILTERS };

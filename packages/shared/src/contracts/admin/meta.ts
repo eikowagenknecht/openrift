@@ -337,7 +337,7 @@ const uploadPlayerSchema = z
     if (cards === null) {
       if (player.listStatus !== undefined && player.listStatus !== "none") {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           message: `player "${player.externalId}" claims listStatus "${player.listStatus}" but carries no cards`,
         });
         return z.NEVER;
@@ -346,7 +346,7 @@ const uploadPlayerSchema = z
     }
     if (player.listStatus === "none") {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: `player "${player.externalId}" carries cards but claims listStatus "none"`,
       });
       return z.NEVER;

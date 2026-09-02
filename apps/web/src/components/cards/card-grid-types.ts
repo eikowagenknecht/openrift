@@ -7,9 +7,6 @@ export interface GroupInfo {
   setType?: "main" | "supplemental";
 }
 
-/** @deprecated Use GroupInfo instead. */
-export type SetInfo = GroupInfo;
-
 /**
  * A section of cards in a viewer: its header info plus the items it contains.
  * Every grouping axis (`lib/group-by-*.ts`) returns this shape, and the grid and

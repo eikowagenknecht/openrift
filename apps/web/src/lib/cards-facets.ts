@@ -108,7 +108,7 @@ export function extractAvailableLanguages(catalog: CatalogResponse): string[] {
 /**
  * Map of set slug → display name, derived from the catalog's `sets` array.
  * Powers `setDisplayLabel` in chrome components without shipping the full
- * SetInfo[] over the wire.
+ * GroupInfo[] over the wire.
  *
  * @returns A record mapping each set slug to its human-readable name.
  */

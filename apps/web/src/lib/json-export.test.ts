@@ -22,6 +22,8 @@ beforeEach(() => {
   // jsdom implements neither, and a real click would try to navigate.
   vi.stubGlobal("URL", Object.assign(globalThis.URL, { createObjectURL, revokeObjectURL }));
 
+  // Bound now so it captures the original, before the spy below replaces it.
+  // oxlint-disable-next-line typescript/no-deprecated -- a bare method reference resolves to the deprecated legacy-tag overload
   const realCreateElement = document.createElement.bind(document);
   vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
     const element = realCreateElement(tag);

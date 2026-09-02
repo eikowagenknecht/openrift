@@ -1,9 +1,10 @@
 import reactCompiler from "eslint-plugin-react-compiler";
+import { defineConfig } from "eslint/config";
 // Minimal ESLint config for React Compiler only
 // All other linting is handled by oxlint
 import tseslint from "typescript-eslint";
 
-export default tseslint.config(
+export default defineConfig(
   {
     // routeTree.gen.ts is generated and carries its own blanket eslint-disable.
     // The generated directories need listing here as well as being excluded by

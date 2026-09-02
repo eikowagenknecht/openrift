@@ -11,7 +11,7 @@ import type { Card, Printing } from "@openrift/shared";
 import { formatCompactUtcStamp, trimToNull, WellKnown } from "@openrift/shared";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
 import { contributionFileSchema } from "@openrift/shared/contribute-schema";
-import type { ZodIssue } from "zod";
+import type { core } from "zod";
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
 
@@ -204,7 +204,7 @@ export function validateContribution(state: ContributeFormState): ValidationResu
  * @param issue The Zod issue to humanize.
  * @returns A user-facing error message.
  */
-function humanizeIssue(issue: ZodIssue): string {
+function humanizeIssue(issue: core.$ZodIssue): string {
   const lastKey = String(issue.path.at(-1) ?? "");
   if (lastKey === "name" && issue.path[0] === "card" && issue.code === "too_small") {
     return "Card name is required.";

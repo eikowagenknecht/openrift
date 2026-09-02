@@ -160,12 +160,12 @@ const marketplaceInfoQuerySchema = z.object({
       .map((id) => id.trim())
       .filter(Boolean);
     if (ids.length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "printings must not be empty" });
+      ctx.addIssue({ code: "custom", message: "printings must not be empty" });
       return z.NEVER;
     }
     if (ids.length > MARKETPLACE_INFO_MAX_PRINTINGS) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         message: `printings must be at most ${MARKETPLACE_INFO_MAX_PRINTINGS} ids`,
       });
       return z.NEVER;
@@ -174,7 +174,7 @@ const marketplaceInfoQuerySchema = z.object({
     for (const id of ids) {
       const parsed = uuid.safeParse(id);
       if (!parsed.success) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `invalid uuid: ${id}` });
+        ctx.addIssue({ code: "custom", message: `invalid uuid: ${id}` });
         return z.NEVER;
       }
     }

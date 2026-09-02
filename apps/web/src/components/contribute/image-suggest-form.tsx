@@ -34,7 +34,7 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
     ? errors.find((e) => e.path === "printings[0].imageUrl")?.message
     : undefined;
 
-  function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
     const state = buildImagePatchState({

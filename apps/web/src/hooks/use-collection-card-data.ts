@@ -18,7 +18,7 @@ import {
 } from "@openrift/shared";
 import { useDeferredValue } from "react";
 
-import type { SetInfo } from "@/components/cards/card-grid";
+import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { EMPTY_FILTER_COUNTS } from "@/hooks/use-card-data";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -36,7 +36,7 @@ interface UseCollectionCardDataParams {
   view: "cards" | "printings";
   /** Cards-view grouping axis. Splits a card into per-set / per-rarity tiles. */
   groupBy: GroupByField;
-  sets: SetInfo[];
+  sets: GroupInfo[];
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
