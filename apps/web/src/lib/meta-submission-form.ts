@@ -162,7 +162,7 @@ function recordPart(value: string): number | null {
 }
 
 /** One card line, in the shape the submission endpoint takes. */
-export interface MetaSubmissionCardLine {
+interface MetaSubmissionCardLine {
   name: string;
   zone: string;
   quantity: number;
