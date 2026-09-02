@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YLtuLY2exHJNB8fkvB48MlOnKYWkxfNZqcOPPPqVIIso1MmWezJiNNSeyP1BhEP
+\restrict 8xy3bx0wQe7wlOWVMuQNKU5DyOJPSN8hfpqKNG3gzFKc2s0CUsKLnC1y03t5x3G
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -5804,6 +5804,13 @@ CREATE INDEX idx_playloltcg_event_checks_due ON public.playloltcg_event_checks U
 
 
 --
+-- Name: idx_playloltcg_events_page; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_playloltcg_events_page ON public.playloltcg_events USING btree (start_at DESC NULLS LAST, activity_shop_id DESC);
+
+
+--
 -- Name: idx_playloltcg_events_shop; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -6053,6 +6060,13 @@ CREATE INDEX idx_uvsgames_event_matches_round ON public.uvsgames_event_matches U
 --
 
 CREATE INDEX idx_uvsgames_event_standings_player ON public.uvsgames_event_standings USING btree (uvsgames_player_id);
+
+
+--
+-- Name: idx_uvsgames_events_page; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_uvsgames_events_page ON public.uvsgames_events USING btree (start_at DESC NULLS LAST, external_id DESC);
 
 
 --
@@ -8782,5 +8796,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YLtuLY2exHJNB8fkvB48MlOnKYWkxfNZqcOPPPqVIIso1MmWezJiNNSeyP1BhEP
+\unrestrict 8xy3bx0wQe7wlOWVMuQNKU5DyOJPSN8hfpqKNG3gzFKc2s0CUsKLnC1y03t5x3G
 

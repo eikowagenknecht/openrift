@@ -43,6 +43,7 @@ const EXTERNAL_IDS = [
   "mtc-sort-a",
   "mtc-sort-b",
   "mtc-sort-c",
+  "mtc-dismissed-after-accept",
 ];
 
 /** The store this file invents, well clear of the source's own id space. */
@@ -286,6 +287,55 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
 
     const counts = await repo().triageCounts();
     expect(counts.new + counts.accepted + counts.dismissed).toBeGreaterThan(0);
+  });
+
+  it("splits the catalogue into the same three buckets the counts report", async () => {
+    const key = "mtc-dismissed-after-accept";
+    await repo().upsertBatch([row({ externalId: key, contentHash: "h-both" })], SEEN);
+    const live = await ctx!.db
+      .insertInto("metaEvents")
+      .values({
+        slug: `uvs-${key}`,
+        name: "UVS dismissed after accept",
+        eventDate: "2026-08-15",
+        format: "freeform",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    createdEventIds.push(live.id);
+    await ctx!.db
+      .insertInto("metaEventSources")
+      .values({
+        metaEventId: live.id,
+        provider: UVSGAMES_PROVIDER,
+        externalId: key,
+        label: UVSGAMES_PROVIDER,
+        sourceUrl: null,
+      })
+      .execute();
+    await ctx!.db
+      .insertInto("ignoredMetaSourceEvents")
+      .values({ provider: UVSGAMES_PROVIDER, externalId: key })
+      .execute();
+    const both = await repo().byKey(key);
+    expect(both?.triage).toBe("dismissed");
+
+    const page = { limit: 1, offset: 0 };
+    const [all, listed, counts] = await Promise.all([
+      repo().list({}, page),
+      Promise.all([
+        repo().list({ triage: "new" }, page),
+        repo().list({ triage: "accepted" }, page),
+        repo().list({ triage: "dismissed" }, page),
+      ]),
+      repo().triageCounts(),
+    ]);
+    const [fresh, accepted, dismissed] = listed;
+
+    expect(fresh.total).toBe(counts.new);
+    expect(accepted.total).toBe(counts.accepted);
+    expect(dismissed.total).toBe(counts.dismissed);
+    expect(fresh.total + accepted.total + dismissed.total).toBe(all.total);
   });
 
   describe("ordering one page of the triage list", () => {

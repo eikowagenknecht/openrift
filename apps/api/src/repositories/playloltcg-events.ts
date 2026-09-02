@@ -178,6 +178,21 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
   const isNew = sql<SqlBool>`i.provider is null and src.meta_event_id is null`;
   const accepted = sql<SqlBool>`i.provider is null and src.meta_event_id is not null`;
 
+  // Absence must be an anti-join here: reading a joined null makes the planner
+  // sort the whole catalogue before taking one page. Presence reads the join.
+  const notDismissed = sql<SqlBool>`not exists (
+    select 1 from ignored_meta_source_events x
+     where x.provider = ${PLAYLOLTCG_PROVIDER} and x.external_id = c.activity_shop_id::text
+  )`;
+  const notLinked = sql<SqlBool>`not exists (
+    select 1 from meta_event_sources y
+     where y.provider = ${PLAYLOLTCG_PROVIDER} and y.external_id = c.activity_shop_id::text
+       and y.meta_event_id is not null
+  )`;
+  const pagedNew = sql<SqlBool>`${notDismissed} and ${notLinked}`;
+  const pagedAccepted = sql<SqlBool>`${notDismissed} and src.meta_event_id is not null`;
+  const pagedDismissed = sql<SqlBool>`i.provider is not null`;
+
   function listSelect() {
     return triagedQuery()
       .selectAll("c")
@@ -367,14 +382,14 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
           base = base.where("c.missingSince", "is not", null) as T;
         }
         if (filters.awaitingResults === true) {
-          base = base.where(accepted).where(notFetched) as T;
+          base = base.where(pagedAccepted).where(notFetched) as T;
         }
         if (filters.triage === "new") {
-          base = base.where(isNew) as T;
+          base = base.where(pagedNew) as T;
         } else if (filters.triage === "accepted") {
-          base = base.where(accepted) as T;
+          base = base.where(pagedAccepted) as T;
         } else if (filters.triage === "dismissed") {
-          base = base.where(sql<SqlBool>`i.provider is not null`) as T;
+          base = base.where(pagedDismissed) as T;
         }
         return base;
       };
@@ -483,7 +498,18 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
       acceptedMissing: number;
       lastSeenAt: Date | null;
     }> {
+      // An aggregate FILTER cannot become an anti-join, so `notFetched` here
+      // would probe the mirror once per catalogue row. Pre-aggregate instead.
       const row = await triagedQuery()
+        .leftJoin(
+          (eb) =>
+            eb
+              .selectFrom("playloltcgEventStandings")
+              .select("activityShopId")
+              .distinct()
+              .as("fetched"),
+          (join) => join.onRef("fetched.activityShopId", "=", "c.activityShopId"),
+        )
         .select((eb) => [
           eb.fn.countAll<string>().as("total"),
           // The source has no decklist_status column. A finished event (status 5)
@@ -493,13 +519,15 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
           sql<string>`count(*) filter (where c.status = ${PLAYLOLTCG_STATUS_FINISHED})`.as(
             "completed",
           ),
-          sql<string>`count(*) filter (where not (${notFetched}))`.as("decklistPublished"),
+          sql<string>`count(*) filter (where fetched.activity_shop_id is not null)`.as(
+            "decklistPublished",
+          ),
           sql<string>`count(*) filter (where c.missing_since is not null)`.as("missing"),
           sql<string>`count(*) filter (where ck.next_check_at is not null and ck.next_check_at <= now())`.as(
             "dueRecheck",
           ),
           sql<string>`count(*) filter (where ck.next_check_at is not null)`.as("queued"),
-          sql<string>`count(*) filter (where (${accepted}) and (${notFetched}))`.as(
+          sql<string>`count(*) filter (where (${accepted}) and fetched.activity_shop_id is null)`.as(
             "acceptedAwaitingResults",
           ),
           sql<string>`count(*) filter (where (${accepted}) and c.missing_since is not null)`.as(

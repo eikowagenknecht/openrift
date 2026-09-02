@@ -237,6 +237,20 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
 
   const isNew = sql<SqlBool>`i.provider is null and src.meta_event_id is null`;
 
+  // Absence must be an anti-join here: reading a joined null makes the planner
+  // sort the whole catalogue before taking one page. Presence reads the join.
+  const notDismissed = sql<SqlBool>`not exists (
+    select 1 from ignored_meta_source_events x
+     where x.provider = ${UVSGAMES_PROVIDER} and x.external_id = c.external_id
+  )`;
+  const notLinked = sql<SqlBool>`not exists (
+    select 1 from meta_event_sources y
+     where y.provider = ${UVSGAMES_PROVIDER} and y.external_id = c.external_id
+       and y.meta_event_id is not null
+  )`;
+  const pagedNew = sql<SqlBool>`${notDismissed} and ${notLinked}`;
+  const pagedAccepted = sql<SqlBool>`${notDismissed} and src.meta_event_id is not null`;
+
   // Correlated against the mirror, so each one is an index lookup on the page's
   // rows rather than an aggregate over every event the archive has fetched.
   const stagedPlayerCount = sql<number>`(
@@ -330,11 +344,11 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
     return { ...row, mappedFormat: mappings.get(normalizeFormatKey(row.sourceFormat)) ?? null };
   }
 
-  function triagePredicate(state: UvsgamesTriage) {
+  function pagedTriagePredicate(state: UvsgamesTriage) {
     if (state === "dismissed") {
       return dismissed;
     }
-    return state === "accepted" ? accepted : isNew;
+    return state === "accepted" ? pagedAccepted : pagedNew;
   }
 
   return {
@@ -624,11 +638,11 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         countQuery = countQuery.where("c.missingSince", "is not", null);
       }
       if (filters.awaitingResults === true) {
-        rowQuery = rowQuery.where(accepted).where(notFetched);
-        countQuery = countQuery.where(accepted).where(notFetched);
+        rowQuery = rowQuery.where(pagedAccepted).where(notFetched);
+        countQuery = countQuery.where(pagedAccepted).where(notFetched);
       }
       if (filters.triage !== undefined) {
-        const predicate = triagePredicate(filters.triage);
+        const predicate = pagedTriagePredicate(filters.triage);
         rowQuery = rowQuery.where(predicate);
         countQuery = countQuery.where(predicate);
       }

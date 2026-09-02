@@ -24,6 +24,10 @@ const KEYS = {
   sortA: 990_008,
   sortB: 990_009,
   sortC: 990_010,
+  published: 990_011,
+  awaitingA: 990_012,
+  awaitingB: 990_013,
+  dismissedAfterAccept: 990_014,
 } as const;
 const ALL_KEYS = Object.values(KEYS);
 
@@ -346,6 +350,35 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
     expect(counts.new + counts.accepted + counts.dismissed).toBeGreaterThan(0);
   });
 
+  it("splits the catalogue into the same three buckets the counts report", async () => {
+    const key = KEYS.dismissedAfterAccept;
+    await repo().upsertBatch([row({ activityShopId: key, contentHash: "h-both" })], SEEN);
+    await seedAcceptedCandidate(key);
+    await ctx!.db
+      .insertInto("ignoredMetaSourceEvents")
+      .values({ provider: PLAYLOLTCG_PROVIDER, externalId: String(key) })
+      .execute();
+    const both = await repo().byKey(key);
+    expect(both?.triage).toBe("dismissed");
+
+    const page = { limit: 1, offset: 0 };
+    const [all, listed, counts] = await Promise.all([
+      repo().list({}, page),
+      Promise.all([
+        repo().list({ triage: "new" }, page),
+        repo().list({ triage: "accepted" }, page),
+        repo().list({ triage: "dismissed" }, page),
+      ]),
+      repo().triageCounts(),
+    ]);
+    const [fresh, accepted, dismissed] = listed;
+
+    expect(fresh.total).toBe(counts.new);
+    expect(accepted.total).toBe(counts.accepted);
+    expect(dismissed.total).toBe(counts.dismissed);
+    expect(fresh.total + accepted.total + dismissed.total).toBe(all.total);
+  });
+
   it("bounds the triage list by start day, both ends included", async () => {
     const listed = await repo().list(
       { search: "本命传奇挑战", dateFrom: "2026-09-01", dateTo: "2026-09-01" },
@@ -454,5 +487,27 @@ describe.skipIf(!ctx)("playloltcgEventsRepo", () => {
     expect(overview.decklistPublished).toBeGreaterThanOrEqual(1);
     expect(overview.acceptedAwaitingResults).toBeGreaterThanOrEqual(1);
     expect(overview.lastSeenAt).not.toBeNull();
+  });
+
+  it("splits accepted events by whether the mirror holds their standings", async () => {
+    const before = await repo().syncOverview();
+
+    await repo().upsertBatch(
+      [
+        row({ activityShopId: KEYS.published, contentHash: "h-published" }),
+        row({ activityShopId: KEYS.awaitingA, contentHash: "h-awaiting-a" }),
+        row({ activityShopId: KEYS.awaitingB, contentHash: "h-awaiting-b" }),
+      ],
+      SEEN,
+    );
+    await seedAcceptedCandidate(KEYS.published, { fetchedAt: new Date("2026-08-22T06:00:00Z") });
+    await seedAcceptedCandidate(KEYS.awaitingA);
+    await seedAcceptedCandidate(KEYS.awaitingB);
+
+    const after = await repo().syncOverview();
+
+    expect(after.total - before.total).toBe(3);
+    expect(after.decklistPublished - before.decklistPublished).toBe(1);
+    expect(after.acceptedAwaitingResults - before.acceptedAwaitingResults).toBe(2);
   });
 });
