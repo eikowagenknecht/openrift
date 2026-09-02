@@ -23,6 +23,11 @@
     "es2024": true
   },
   "rules": {
+    // Sections follow oxlint's own rule categories. Only non-default settings
+    // belong here; the categories block above supplies the rest. Rules that
+    // need type information run under `--type-aware`, which `bun lint` and the
+    // pre-commit hook both pass.
+
     // Correctness Overwrites
     "jsdoc/check-tag-names": [
       "error",
@@ -30,11 +35,26 @@
         "typed": true
       }
     ],
+    "typescript/no-misused-spread": "off", // 12, ASCII string spreads and jsdom location stubs
+    "typescript/no-redundant-type-constituents": "off", // 12, real smells but each fix is a design call
+    "typescript/no-useless-default-assignment": "off", // 1, no autofix
+    "typescript/require-array-sort-compare": "off", // 28 test sorts, several numeric ones worth fixing first
+    "typescript/restrict-template-expressions": "off", // 12, all `unknown` in a template; no-base-to-string covers the object case
+    "typescript/unbound-method": "off", // 29, almost all `expect(event.preventDefault)` and Kysely expression builders
 
     // Suspicious Overwrites
     "preserve-caught-error": "off",
+    "no-underscore-dangle": "off", // `_` prefix marks intentionally-unused vars; `__name__` is used for build-time globals (Vite)
     "unicorn/consistent-function-scoping": "off",
     "unicorn/no-array-sort": "off",
+    "typescript/consistent-return": "off", // 90, style
+    "typescript/no-unnecessary-boolean-literal-compare": "off", // 45, cosmetic
+    "typescript/no-unnecessary-template-expression": "off", // autofix drops the parentheses and silently changes what a log line prints
+    "typescript/no-unnecessary-type-arguments": "off", // 34, cosmetic
+    "typescript/no-unnecessary-type-assertion": "off", // disagrees with tsgo about which assertions are load-bearing; its autofix broke typecheck in ~20 places
+    "typescript/no-unnecessary-type-conversion": "off", // 36, cosmetic
+    "typescript/no-unnecessary-type-parameters": "off", // 6, same
+    "typescript/no-unsafe-type-assertion": "off", // flags every deliberate downcast, not an `any` leak
 
     // Style Overwrites
     "max-statements": "off",
@@ -45,7 +65,6 @@
     "no-duplicate-imports": "off",
     "no-ternary": "off",
     "no-nested-ternary": "off",
-    "no-namespace": "off",
     "id-length": "off",
     "init-declarations": "off",
     "one-var": "off", // One declaration per `const` reads better than a comma-chained group
@@ -54,32 +73,61 @@
     "sort-keys": "off",
     "func-style": "off",
     "func-name-matching": "off", // Allow named function expressions assigned to differently-named properties (helpful in stack traces)
-    "no-underscore-dangle": "off", // `_` prefix marks intentionally-unused vars; `__name__` is used for build-time globals (Vite)
     "new-cap": "off",
     "import/exports-last": "off",
     "import/no-named-export": "off",
     "import/group-exports": "off",
+    "import/no-namespace": "off",
     "import/prefer-default-export": "off",
     "import/no-mutable-exports": "off",
     "unicorn/no-null": "off",
     "unicorn/filename-case": "off", // TanStack Router uses $paramName.tsx for dynamic routes
+    "unicorn/number-literal-case": "off", // Conflicts with oxfmt
+    "unicorn/no-nested-ternary": "off", // Conflicts with oxfmt
+    "unicorn/max-nested-calls": "off", // Fires on idiomatic Zod/oRPC schema builders (z.array(z.object({ ... }))) where nesting is the DSL
     "unicorn/text-encoding-identifier-case": ["warn", { "withDash": true }], // Prefer "utf-8" to match HTML spec
+    "typescript/consistent-type-exports": "off", // 25, cosmetic
+    "typescript/dot-notation": "off", // 47, cosmetic
+    "typescript/no-unnecessary-qualifier": "error",
+    "typescript/prefer-find": "off", // 1, no autofix
+    "typescript/prefer-readonly": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-regexp-exec": "off", // 36, cosmetic
+    "typescript/prefer-return-this-type": "error",
+    "typescript/prefer-string-starts-ends-with": "error",
 
     // Pedantic Overwrites
     "max-lines-per-function": "off",
     "no-warning-comments": "off",
     "no-inline-comments": "off",
-    "max-dependencies": "off",
     "max-depth": "off",
     "max-lines": "off",
     "max-classes-per-file": "off",
     "no-lonely-if": "off",
+    "import/max-dependencies": "off",
     "jsdoc/require-param-type": "off",
     "jsdoc/require-returns-type": "off",
     "jsdoc/require-param": "off",
     "jsdoc/require-returns": "off", // The comment standard deletes boilerplate tags; see docs/contributing.md "Comments"
+    "unicorn/no-object-as-default-parameter": "off",
+    "oxc/branches-sharing-code": "off", // Intentional duplication is sometimes clearer than refactored shared tails
+    "typescript/no-confusing-void-expression": "off", // 2.2k, and it contradicts the `() => void handler()` binding this repo standardized on
+    "typescript/no-deprecated": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-mixed-enums": "error",
+    "typescript/no-unsafe-member-access": "off", // the no-unsafe-* rules are ~90% test files reading `await res.json()`
+    "typescript/no-unsafe-assignment": "off",
+    "typescript/no-unsafe-argument": "off",
+    "typescript/no-unsafe-call": "off",
+    "typescript/no-unsafe-return": "off",
+    "typescript/prefer-includes": "error",
+    "typescript/prefer-nullish-coalescing": "off", // 77, but `||` falling through on "" is deliberate in most of them
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/prefer-readonly-parameter-types": "off", // 20k findings; every parameter in the codebase
+    "typescript/related-getter-setter-pairs": "error",
+    "typescript/require-await": "off", // 463, style
     "typescript/restrict-plus-operands": [
-      "warn",
+      "error",
       {
         "allowAny": false,
         "allowBoolean": false,
@@ -88,11 +136,29 @@
         "allowRegExp": false
       }
     ],
-    "unicorn/number-literal-case": "off", // Conflicts with oxfmt
-    "unicorn/no-nested-ternary": "off", // Conflicts with oxfmt
-    "unicorn/no-object-as-default-parameter": "off",
-    "unicorn/max-nested-calls": "off", // Fires on idiomatic Zod/oRPC schema builders (z.array(z.object({ ... }))) where nesting is the DSL
-    "oxc/branches-sharing-code": "off", // Intentional duplication is sometimes clearer than refactored shared tails
+    "typescript/return-await": "off", // 115, style
+    "typescript/strict-boolean-expressions": "off", // 2.2k; the codebase relies on truthiness throughout
+    "typescript/strict-void-return": "off", // 457, overlaps no-misused-promises more strictly
+    // TanStack Router signals a redirect and a 404 by throwing a sentinel, so
+    // those two are thrown on purpose everywhere a route loader guards.
+    "typescript/only-throw-error": [
+      "error",
+      {
+        "allow": [
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": ["Redirect", "NotFoundError"]
+          }
+        ]
+      }
+    ],
+    // A switch with a default already decides what an unhandled member does;
+    // this catches the one without, which falls through silently.
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
 
     // Restriction Overwrites
     "no-empty": "error",
@@ -106,7 +172,6 @@
     "typescript/no-non-null-assertion": "error",
     "typescript/no-require-imports": "error",
     "typescript/use-unknown-in-catch-callback-variable": "error",
-    "typescript/non-nullable-type-assertion-style": "error",
     "no-restricted-imports": [
       "error",
       {
@@ -151,88 +216,7 @@
 
     // jsx-a11y Overwrites
     "jsx-a11y/prefer-tag-over-role": "off", // Inline SVG icons, listbox/combobox typeahead, div-based grids, and shadcn-scaffolded groups intentionally use ARIA roles; the suggested semantic tags don't fit
-    "jsx-a11y/no-redundant-roles": "off", // `<input role="combobox">` is the canonical ARIA combobox pattern even when technically redundant
-
-    // Type-aware rules. These run only under `--type-aware`, which `bun lint`
-    // and the pre-commit hook both pass. Category membership brings them in the
-    // same way it does untyped rules, so the "off" block below is the record of
-    // what we looked at and declined.
-    "typescript/await-thenable": "error",
-    "typescript/no-array-delete": "error",
-    "typescript/no-base-to-string": "error",
-    "typescript/no-deprecated": "error",
-    "typescript/no-duplicate-type-constituents": "error",
-    "typescript/no-floating-promises": "error",
-    "typescript/no-for-in-array": "error",
-    "typescript/no-implied-eval": "error",
-    "typescript/no-meaningless-void-operator": "error",
-    "typescript/no-misused-promises": "error",
-    "typescript/no-mixed-enums": "error",
-    "typescript/no-unnecessary-qualifier": "error",
-    "typescript/no-unsafe-enum-comparison": "error",
-    "typescript/no-unsafe-unary-minus": "error",
-    "typescript/prefer-includes": "error",
-    "typescript/prefer-promise-reject-errors": "error",
-    "typescript/prefer-readonly": "error",
-    "typescript/prefer-reduce-type-parameter": "error",
-    "typescript/prefer-return-this-type": "error",
-    "typescript/prefer-string-starts-ends-with": "error",
-    "typescript/related-getter-setter-pairs": "error",
-    "typescript/restrict-plus-operands": "error",
-    "typescript/use-unknown-in-catch-callback-variable": "error",
-    // TanStack Router signals a redirect and a 404 by throwing a sentinel, so
-    // those two are thrown on purpose everywhere a route loader guards.
-    "typescript/only-throw-error": [
-      "error",
-      {
-        "allow": [
-          {
-            "from": "package",
-            "package": "@tanstack/router-core",
-            "name": ["Redirect", "NotFoundError"]
-          }
-        ]
-      }
-    ],
-    // A switch with a default already decides what an unhandled member does;
-    // this catches the one without, which falls through silently.
-    "typescript/switch-exhaustiveness-check": [
-      "error",
-      { "considerDefaultExhaustiveForUnions": true }
-    ],
-
-    // Type-aware rules a category would otherwise enable, declined:
-    "typescript/prefer-readonly-parameter-types": "off", // 20k findings; every parameter in the codebase
-    "typescript/strict-boolean-expressions": "off", // 2.2k; the codebase relies on truthiness throughout
-    "typescript/no-confusing-void-expression": "off", // 2.2k, and it contradicts the `() => void handler()` binding this repo standardized on
-    "typescript/no-unsafe-member-access": "off", // the six no-unsafe rules are ~90% test files reading `await res.json()`
-    "typescript/no-unsafe-type-assertion": "off", // flags every deliberate downcast, not an `any` leak
-    "typescript/no-unsafe-assignment": "off",
-    "typescript/no-unsafe-argument": "off",
-    "typescript/no-unsafe-call": "off",
-    "typescript/no-unsafe-return": "off",
-    "typescript/no-unnecessary-type-assertion": "off", // disagrees with tsgo about which assertions are load-bearing; its autofix broke typecheck in ~20 places
-    "typescript/no-unnecessary-template-expression": "off", // autofix drops the parentheses and silently changes what a log line prints
-    "typescript/require-await": "off", // 463, style
-    "typescript/strict-void-return": "off", // 457, overlaps no-misused-promises more strictly
-    "typescript/return-await": "off", // 115, style
-    "typescript/non-nullable-type-assertion-style": "off", // 110, cosmetic
-    "typescript/consistent-return": "off", // 90, style
-    "typescript/prefer-nullish-coalescing": "off", // 77, but `||` falling through on "" is deliberate in most of them
-    "typescript/dot-notation": "off", // 47, cosmetic
-    "typescript/no-unnecessary-boolean-literal-compare": "off", // 45, cosmetic
-    "typescript/prefer-regexp-exec": "off", // 36, cosmetic
-    "typescript/no-unnecessary-type-conversion": "off", // 36, cosmetic
-    "typescript/no-unnecessary-type-arguments": "off", // 34, cosmetic
-    "typescript/unbound-method": "off", // 29, almost all `expect(event.preventDefault)` and Kysely expression builders
-    "typescript/require-array-sort-compare": "off", // 28 test sorts, several numeric ones worth fixing first
-    "typescript/consistent-type-exports": "off", // 25, cosmetic
-    "typescript/restrict-template-expressions": "off", // 12, all `unknown` in a template; no-base-to-string covers the object case
-    "typescript/no-misused-spread": "off", // 12, ASCII string spreads and jsdom location stubs
-    "typescript/no-redundant-type-constituents": "off", // 12, real smells but each fix is a design call
-    "typescript/no-unnecessary-type-parameters": "off", // 6, same
-    "typescript/prefer-find": "off", // 1, no autofix
-    "typescript/no-useless-default-assignment": "off" // 1, no autofix
+    "jsx-a11y/no-redundant-roles": "off" // `<input role="combobox">` is the canonical ARIA combobox pattern even when technically redundant
   },
   "ignorePatterns": [],
   "overrides": [
