@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import type { RefObject } from "react";
+import { toast } from "sonner";
 
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import type { ImportEntry } from "@/lib/import-parsers";
@@ -76,15 +77,21 @@ export async function handleImportFileUpload(
   event: React.ChangeEvent<HTMLInputElement>,
   fileRef: RefObject<HTMLInputElement | null>,
   setRawText: (text: string) => void,
-  handleParse: (text: string) => void,
+  handleParse: (text: string) => void | Promise<void>,
 ): Promise<void> {
   const file = event.target.files?.[0];
   if (!file) {
     return;
   }
-  const text = await file.text();
+  let text: string;
+  try {
+    text = await file.text();
+  } catch {
+    toast.error("Could not read that file.");
+    return;
+  }
   setRawText(text);
-  handleParse(text);
+  await handleParse(text);
   // Reset file input so the same file can be re-selected
   if (fileRef.current) {
     fileRef.current.value = "";

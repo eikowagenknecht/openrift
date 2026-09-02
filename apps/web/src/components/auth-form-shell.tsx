@@ -1,4 +1,5 @@
 import { siDiscord, siGoogle } from "simple-icons";
+import { toast } from "sonner";
 
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,16 @@ export function SocialAuthButtons({ redirectTo }: { redirectTo?: string }) {
   if (isPreview()) {
     return null;
   }
+  const callbackURL = redirectTo ?? "/collections";
+
+  async function signInWith(provider: "google" | "discord") {
+    try {
+      await authClient.signIn.social({ provider, callbackURL });
+    } catch {
+      toast.error("Could not reach the sign-in provider. Please try again.");
+    }
+  }
+
   return (
     <>
       <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
@@ -56,12 +67,7 @@ export function SocialAuthButtons({ redirectTo }: { redirectTo?: string }) {
           variant="outline"
           type="button"
           className="w-full"
-          onClick={() =>
-            authClient.signIn.social({
-              provider: "google",
-              callbackURL: redirectTo ?? "/collections",
-            })
-          }
+          onClick={() => void signInWith("google")}
         >
           <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
             <path d={siGoogle.path} fill="currentColor" />
@@ -72,12 +78,7 @@ export function SocialAuthButtons({ redirectTo }: { redirectTo?: string }) {
           variant="outline"
           type="button"
           className="w-full"
-          onClick={() =>
-            authClient.signIn.social({
-              provider: "discord",
-              callbackURL: redirectTo ?? "/collections",
-            })
-          }
+          onClick={() => void signInWith("discord")}
         >
           <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
             <path d={siDiscord.path} fill="currentColor" />

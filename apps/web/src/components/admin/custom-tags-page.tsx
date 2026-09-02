@@ -629,9 +629,13 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
       return;
     }
     const matchedCount = plan.cardIds.length;
-    const response = await mutation.mutateAsync({ tagId: selectedTag.id, cardIds: plan.cardIds });
-    setResult({ added: response.added, matched: matchedCount, tagLabel: selectedTag.label });
-    setText("");
+    try {
+      const response = await mutation.mutateAsync({ tagId: selectedTag.id, cardIds: plan.cardIds });
+      setResult({ added: response.added, matched: matchedCount, tagLabel: selectedTag.label });
+      setText("");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   if (tags.length === 0) {
@@ -701,7 +705,7 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
       <BulkImportPreview plan={plan} />
 
       <div className="flex items-center gap-3">
-        <Button disabled={!canImport} onClick={handleImport}>
+        <Button disabled={!canImport} onClick={() => void handleImport()}>
           {mutation.isPending
             ? "Importing…"
             : `Import ${plan.cardIds.length} card${plan.cardIds.length === 1 ? "" : "s"}`}
@@ -809,7 +813,11 @@ function CardTagToggleList({
   }
 
   async function save() {
-    await mutation.mutateAsync([...pending]);
+    try {
+      await mutation.mutateAsync([...pending]);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   const dirty =
@@ -845,7 +853,7 @@ function CardTagToggleList({
       {tags.length === 0 && (
         <p className="text-muted-foreground text-sm">No tags exist yet — create one above.</p>
       )}
-      <Button disabled={!dirty || mutation.isPending} onClick={save}>
+      <Button disabled={!dirty || mutation.isPending} onClick={() => void save()}>
         {mutation.isPending ? "Saving…" : "Save"}
       </Button>
     </div>

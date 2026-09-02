@@ -261,7 +261,7 @@ function KnownFlagRow({
         <span className="text-muted-foreground font-mono text-sm">{known.key}</span>
         <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>
       </div>
-      <Button variant="ghost" size="sm" onClick={handleCreate} disabled={pending}>
+      <Button variant="ghost" size="sm" onClick={() => void handleCreate()} disabled={pending}>
         <PlusIcon className="mr-1 h-3.5 w-3.5" />
         Set up
       </Button>

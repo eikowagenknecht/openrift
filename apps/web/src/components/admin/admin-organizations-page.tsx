@@ -74,7 +74,7 @@ function EditOrgDialog({ org }: { org: OrganizationSummaryResponse }) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button size="sm" variant="ghost" />}>Edit</DialogTrigger>
       <DialogContent>
-        <DialogForm onSubmit={handleSave}>
+        <DialogForm onSubmit={() => void handleSave()}>
           <DialogHeader>
             <DialogTitle>Edit organization</DialogTitle>
             <DialogDescription>
@@ -126,6 +126,14 @@ function OrgRow({ org }: { org: OrganizationSummaryResponse }) {
   const deleteOrg = useAdminDeleteOrganization();
   const [confirming, setConfirming] = useState(false);
 
+  async function handleDelete() {
+    try {
+      await deleteOrg.mutateAsync(org.id);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <li className="flex flex-wrap items-center justify-between gap-2 p-3">
       <span className="flex min-w-0 flex-col">
@@ -155,13 +163,7 @@ function OrgRow({ org }: { org: OrganizationSummaryResponse }) {
               size="sm"
               variant="destructive"
               disabled={deleteOrg.isPending}
-              onClick={async () => {
-                try {
-                  await deleteOrg.mutateAsync(org.id);
-                } catch {
-                  // Reported by the global mutation error toast (see reportMutationError).
-                }
-              }}
+              onClick={() => void handleDelete()}
             >
               Confirm
             </Button>
@@ -280,7 +282,7 @@ export function AdminOrganizationsPage() {
         <Button
           className="w-fit"
           disabled={!slug.trim() || !name.trim() || !ownerUserId || createOrg.isPending}
-          onClick={handleCreate}
+          onClick={() => void handleCreate()}
         >
           Create
         </Button>

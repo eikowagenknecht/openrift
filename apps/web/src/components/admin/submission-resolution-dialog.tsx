@@ -110,7 +110,7 @@ export function SubmissionResolutionDialog({
   return (
     <Dialog open={candidateCardId !== null} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>
               {mode === "reject" ? "Reject submission" : "Reply to contributor"}

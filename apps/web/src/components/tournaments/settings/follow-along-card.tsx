@@ -43,6 +43,16 @@ export function FollowAlongCard({
     ? `${getSiteUrl()}/tournaments/report/${detail.followToken}`
     : null;
 
+  async function handleDisableReport() {
+    await runReportedMutation(() => setReportToken.mutateAsync({ id: detail.id, enabled: false }));
+    setConfirmDisableReport(false);
+  }
+
+  async function handleDisableFollow() {
+    await runReportedMutation(() => setFollowToken.mutateAsync({ id: detail.id, enabled: false }));
+    setConfirmDisableFollow(false);
+  }
+
   return (
     <>
       <Card id="follow-along" className="scroll-mt-16">
@@ -130,14 +140,7 @@ export function FollowAlongCard({
 
       <Dialog open={confirmDisableReport} onOpenChange={setConfirmDisableReport}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              await runReportedMutation(() =>
-                setReportToken.mutateAsync({ id: detail.id, enabled: false }),
-              );
-              setConfirmDisableReport(false);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleDisableReport()}>
             <DialogHeader>
               <DialogTitle>Disable the result reporting link?</DialogTitle>
               <DialogDescription>
@@ -158,14 +161,7 @@ export function FollowAlongCard({
 
       <Dialog open={confirmDisableFollow} onOpenChange={setConfirmDisableFollow}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              await runReportedMutation(() =>
-                setFollowToken.mutateAsync({ id: detail.id, enabled: false }),
-              );
-              setConfirmDisableFollow(false);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleDisableFollow()}>
             <DialogHeader>
               <DialogTitle>Disable the follow-only link?</DialogTitle>
               <DialogDescription>

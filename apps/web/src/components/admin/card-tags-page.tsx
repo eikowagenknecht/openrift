@@ -266,12 +266,18 @@ function ClassificationSection({
     if (!legendCategory) {
       return;
     }
-    const result = await detectMutation.mutateAsync({ categoryId: legendCategory.id });
-    setDetectResult(
-      result.assigned === 0
-        ? `All ${result.found} Legend tags were already classified.`
-        : `Classified ${result.assigned} of ${result.found} Legend tags as ${legendCategory.label}.`,
-    );
+    try {
+      const result = await detectMutation.mutateAsync({ categoryId: legendCategory.id });
+      if (result.assigned === 0) {
+        setDetectResult(`All ${result.found} Legend tags were already classified.`);
+      } else {
+        setDetectResult(
+          `Classified ${result.assigned} of ${result.found} Legend tags as ${legendCategory.label}.`,
+        );
+      }
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   };
 
   const categoryItems = [
@@ -343,7 +349,7 @@ function ClassificationSection({
             <Button
               variant="outline"
               size="sm"
-              onClick={detectLegendTags}
+              onClick={() => void detectLegendTags()}
               disabled={!legendCategory || detectMutation.isPending}
               title={
                 legendCategory

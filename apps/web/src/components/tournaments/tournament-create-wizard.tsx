@@ -582,7 +582,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={handleCreate}
+            onClick={() => void handleCreate()}
             disabled={
               !name.trim() ||
               closeTimeInvalid ||

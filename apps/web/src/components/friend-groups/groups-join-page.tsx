@@ -44,11 +44,16 @@ function JoinAction({
       void navigate({ to: "/groups/$slug", params: { slug: preview.slug } });
       return;
     }
-    await joinByCode.mutateAsync(code);
-    if (preview?.slug) {
-      void navigate({ to: "/groups/$slug", params: { slug: preview.slug } });
-    } else {
-      void navigate({ to: "/groups" });
+    const joinedSlug = preview?.slug;
+    try {
+      await joinByCode.mutateAsync(code);
+      if (joinedSlug) {
+        void navigate({ to: "/groups/$slug", params: { slug: joinedSlug } });
+      } else {
+        void navigate({ to: "/groups" });
+      }
+    } catch {
+      /* Reported by the global mutation error toast. */
     }
   }
 
@@ -57,7 +62,10 @@ function JoinAction({
       <Button variant="ghost" render={<Link to="/groups" />}>
         Cancel
       </Button>
-      <Button onClick={handleSubmit} disabled={!code || previewLoading || joinByCode.isPending}>
+      <Button
+        onClick={() => void handleSubmit()}
+        disabled={!code || previewLoading || joinByCode.isPending}
+      >
         {preview?.viewerStatus === "member"
           ? "Open group"
           : preview?.viewerStatus === "pending"

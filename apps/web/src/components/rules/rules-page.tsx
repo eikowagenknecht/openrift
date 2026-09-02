@@ -205,7 +205,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
                   if (typeof nextVersion !== "string" || nextVersion === version) {
                     return;
                   }
-                  navigate({
+                  void navigate({
                     to: "/rules/$kind/$version",
                     params: { kind, version: nextVersion },
                   });

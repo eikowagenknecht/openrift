@@ -1235,7 +1235,7 @@ function ShareLinkButton({ cardName }: { cardName: string }) {
   };
 
   return (
-    <PageTopBarButton onClick={handleShare} aria-label="Share link">
+    <PageTopBarButton onClick={() => void handleShare()} aria-label="Share link">
       {copied ? <CheckIcon className="size-4" /> : <Share2Icon className="size-4" />}
       Share
     </PageTopBarButton>

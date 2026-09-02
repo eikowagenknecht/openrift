@@ -1027,9 +1027,9 @@ export function ScanPage() {
       )}
       <ScanSessionTray
         index={index}
-        onSwitchFinish={handleSwitchPrinting}
+        onSwitchFinish={(row, to) => void handleSwitchPrinting(row, to)}
         onAddOne={handleAddOne}
-        onRemoveOne={handleRemoveOne}
+        onRemoveOne={(row) => void handleRemoveOne(row)}
         onChangePrinting={setSwapRow}
         onRemoveAll={() => void handleRemoveAll()}
         onAddAll={() => setAddAllOpen(true)}

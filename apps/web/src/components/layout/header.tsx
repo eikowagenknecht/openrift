@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Fragment, useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
+import { toast } from "sonner";
 
 import type {
   LockedFeatureKey,
@@ -313,22 +314,26 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut();
-    useDisplayStore.getState().reset();
-    useThemeStore.getState().reset();
-    usePaletteStore.getState().reset();
-    useAddModeStore.getState().reset();
-    useDeckBuilderUiStore.getState().reset();
-    // Navigate first so authenticated routes start unmounting, then
-    // refetch the session (the cookie is gone, the server returns null).
-    // Synchronously setting the session to null would re-render the
-    // still-mounted CollectionGrid / CollectionSidebar / deck builder
-    // before React commits the unmount — useRequiredUserId throws and
-    // the route crashes. The refetch is async; its network round-trip
-    // gives React time to commit, so observers only see the new state
-    // once those components are gone.
-    await router.navigate({ to: "/cards", search: {} });
-    void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    try {
+      await signOut();
+      useDisplayStore.getState().reset();
+      useThemeStore.getState().reset();
+      usePaletteStore.getState().reset();
+      useAddModeStore.getState().reset();
+      useDeckBuilderUiStore.getState().reset();
+      // Navigate first so authenticated routes start unmounting, then
+      // refetch the session (the cookie is gone, the server returns null).
+      // Synchronously setting the session to null would re-render the
+      // still-mounted CollectionGrid / CollectionSidebar / deck builder
+      // before React commits the unmount — useRequiredUserId throws and
+      // the route crashes. The refetch is async; its network round-trip
+      // gives React time to commit, so observers only see the new state
+      // once those components are gone.
+      await router.navigate({ to: "/cards", search: {} });
+      void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    } catch {
+      toast.error("Could not sign out. Please try again.");
+    }
   };
 
   return (
@@ -366,7 +371,7 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
       </DropdownMenuItem>
       {isLoggedIn && <DropdownMenuSeparator />}
       {isLoggedIn && (
-        <DropdownMenuItem onClick={handleSignOut}>
+        <DropdownMenuItem onClick={() => void handleSignOut()}>
           <LogOutIcon className="size-4" />
           Sign out
         </DropdownMenuItem>

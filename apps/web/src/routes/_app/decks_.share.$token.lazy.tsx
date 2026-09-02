@@ -26,8 +26,12 @@ function SharedDeckPage() {
       });
       return;
     }
-    const result = await cloneMutation.mutateAsync(token);
-    void navigate({ to: "/decks/$deckId", params: { deckId: result.deckId } });
+    try {
+      const result = await cloneMutation.mutateAsync(token);
+      void navigate({ to: "/decks/$deckId", params: { deckId: result.deckId } });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   };
 
   return (
@@ -39,7 +43,7 @@ function SharedDeckPage() {
       // copy CTA under the status chips.
       heroByline={<>by {data.owner.displayName}</>}
       heroActions={
-        <Button onClick={handleClone} disabled={cloneMutation.isPending}>
+        <Button onClick={() => void handleClone()} disabled={cloneMutation.isPending}>
           <CopyIcon />
           {cloneMutation.isPending
             ? "Copying…"

@@ -41,11 +41,14 @@ function ResetPasswordPage() {
     }
     setEmailError("");
     setLoading(true);
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: trimmed,
-      type: "forget-password",
-    });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email: trimmed, type: "forget-password" })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setEmailError("Could not send the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setEmailError(requestOtpErrorMessage(result.error));
       return;
@@ -56,11 +59,14 @@ function ResetPasswordPage() {
   async function handleResend() {
     setResending(true);
     setError("");
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: email.trim(),
-      type: "forget-password",
-    });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email: email.trim(), type: "forget-password" })
+      .catch(() => null);
     setResending(false);
+    if (!result) {
+      setError("Could not send the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(requestOtpErrorMessage(result.error));
     }
@@ -77,12 +83,14 @@ function ResetPasswordPage() {
       return;
     }
     setLoading(true);
-    const result = await authClient.emailOtp.resetPassword({
-      email: email.trim(),
-      otp,
-      password: newPassword,
-    });
+    const result = await authClient.emailOtp
+      .resetPassword({ email: email.trim(), otp, password: newPassword })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setError("Could not reset the password. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(otpErrorMessage(result.error));
       return;
@@ -106,7 +114,7 @@ function ResetPasswordPage() {
                 className="w-full"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  handleSendCode();
+                  void handleSendCode();
                 }}
                 noValidate
               >
@@ -144,7 +152,7 @@ function ResetPasswordPage() {
                 className="w-full"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  handleReset();
+                  void handleReset();
                 }}
                 noValidate
               >
@@ -182,7 +190,7 @@ function ResetPasswordPage() {
                     type="button"
                     variant="link-muted"
                     disabled={resending}
-                    onClick={handleResend}
+                    onClick={() => void handleResend()}
                   >
                     {resending ? "Sending..." : "Resend code"}
                   </Button>

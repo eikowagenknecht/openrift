@@ -87,7 +87,7 @@ function TradeAddTargetBody({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <DialogForm onSubmit={confirm}>
+    <DialogForm onSubmit={() => void confirm()}>
       <DialogHeader>
         <DialogTitle>Where do incoming cards go?</DialogTitle>
         <DialogDescription>

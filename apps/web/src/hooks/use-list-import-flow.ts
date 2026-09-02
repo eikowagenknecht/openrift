@@ -90,8 +90,9 @@ export function useListImportFlow(
     );
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
-    handleImportFileUpload(event, fileRef, setRawText, handleParse);
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    void handleImportFileUpload(event, fileRef, setRawText, handleParse);
+  };
 
   const { handleResolve, handleSkip, handleUnskip, handleToggleExpand } = createImportEntryHandlers(
     setMatchedEntries,

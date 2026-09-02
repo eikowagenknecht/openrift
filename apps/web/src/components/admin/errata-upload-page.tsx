@@ -67,7 +67,13 @@ export function ErrataUploadPage() {
     setPreview(null);
     upload.reset();
 
-    const text = await file.text();
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setParseError("Could not read that file");
+      return;
+    }
     const parsed = parseErrataEntries(text);
     if (!parsed.ok) {
       setParseError(
@@ -136,7 +142,7 @@ export function ErrataUploadPage() {
               ref={fileRef}
               type="file"
               accept=".json,application/json"
-              onChange={handleFileChange}
+              onChange={(event) => void handleFileChange(event)}
             />
             {fileName && entries && (
               <p className="text-muted-foreground text-sm">

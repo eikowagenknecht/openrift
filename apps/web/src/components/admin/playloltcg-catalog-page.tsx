@@ -312,7 +312,7 @@ export function PlayloltcgCatalogPage() {
             onAccept={(activityShopId) => accept.mutate({ activityShopId })}
             onDismiss={(activityShopId) => dismiss.mutateAsync({ activityShopId })}
             onUndismiss={(activityShopId) => undismiss.mutate({ activityShopId })}
-            onFetch={handleFetch}
+            onFetch={(activityShopId) => void handleFetch(activityShopId)}
           />
         }
       />

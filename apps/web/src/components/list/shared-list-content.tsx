@@ -444,8 +444,8 @@ function SharedListGrid({
           ownedSlot={ownedSlot}
           wishSlot={wishSlot}
           disabled={tradeMutating}
-          onRequest={() => handleClaim(item.printing)}
-          onRelease={() => handleRelease(item.printing)}
+          onRequest={() => void handleClaim(item.printing)}
+          onRelease={() => void handleRelease(item.printing)}
         />
       );
     } else if (exchange?.mode === "offer") {
@@ -552,8 +552,8 @@ function SharedListGrid({
                       entryByItemId={entryByItemId}
                       requestedItemIds={requestedItemIds}
                       disabled={tradeMutating}
-                      onRequest={handleClaim}
-                      onRelease={handleRelease}
+                      onRequest={(printing) => void handleClaim(printing)}
+                      onRelease={(printing) => void handleRelease(printing)}
                     />
                   ),
                 }

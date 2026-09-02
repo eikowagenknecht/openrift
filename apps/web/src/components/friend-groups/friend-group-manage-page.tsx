@@ -74,6 +74,7 @@ import {
 } from "@/hooks/use-friend-groups";
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useRequiredUserId } from "@/lib/auth-session";
+import { groupSlugError } from "@/lib/group-slug";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
@@ -194,7 +195,7 @@ function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; 
   );
 }
 
-function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
+export function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
   const navigate = useNavigate();
   const update = useUpdateFriendGroup();
   const enableCode = useEnableFriendGroupCode();
@@ -203,22 +204,33 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
   const [description, setDescription] = useServerSeededState(data.group.description ?? "");
   const [newSlug, setNewSlug] = useServerSeededState(data.group.slug);
 
+  const trimmedName = name.trim();
+  const trimmedSlug = newSlug.trim();
   const slugChanged = newSlug !== data.group.slug;
+  const nameError = trimmedName.length === 0 ? "Give the group a name" : null;
+  const slugError = trimmedSlug.length === 0 ? "Pick a web address" : groupSlugError(trimmedSlug);
 
   async function handleSave() {
-    const trimmedName = name.trim();
+    if (nameError || slugError) {
+      return;
+    }
     const trimmedDescription = description.trim();
-    const result = await update.mutateAsync({
+    const payload = {
       slug,
       name: trimmedName === data.group.name ? undefined : trimmedName,
       description:
         trimmedDescription === (data.group.description ?? "")
           ? undefined
           : trimmedDescription || null,
-      newSlug: slugChanged ? newSlug.trim() : undefined,
-    });
-    if (slugChanged) {
-      void navigate({ to: "/groups/$slug/manage", params: { slug: result.slug } });
+      newSlug: slugChanged ? trimmedSlug : undefined,
+    };
+    try {
+      const result = await update.mutateAsync(payload);
+      if (slugChanged) {
+        void navigate({ to: "/groups/$slug/manage", params: { slug: result.slug } });
+      }
+    } catch {
+      /* Reported by the global mutation error toast. */
     }
   }
 
@@ -237,6 +249,7 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             onChange={(e) => setName(e.target.value)}
             maxLength={60}
           />
+          {nameError ? <span className="text-destructive text-xs">{nameError}</span> : null}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="fg-edit-slug">Slug</Label>
@@ -246,7 +259,8 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
             onChange={(e) => setNewSlug(e.target.value.toLowerCase())}
             maxLength={30}
           />
-          {slugChanged ? (
+          {slugError ? <span className="text-destructive text-xs">{slugError}</span> : null}
+          {slugChanged && !slugError ? (
             <span className="text-xs text-amber-700">
               Renaming the slug breaks any existing bookmarks to this group.
             </span>
@@ -266,7 +280,10 @@ function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse; slug: 
           </span>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={update.isPending}>
+          <Button
+            onClick={() => void handleSave()}
+            disabled={update.isPending || nameError !== null || slugError !== null}
+          >
             Save changes
           </Button>
         </div>
@@ -315,6 +332,24 @@ function InviteLinkPanel({ slug, code }: { slug: string; code: string }) {
 
   const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
 
+  async function handleRotate() {
+    try {
+      await rotateCode.mutateAsync(slug);
+      setRotateConfirmOpen(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
+  async function handleDisable() {
+    try {
+      await disableCode.mutateAsync(slug);
+      setDisableConfirmOpen(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <ShareLinkRow
@@ -326,12 +361,7 @@ function InviteLinkPanel({ slug, code }: { slug: string; code: string }) {
             <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
               <DialogTrigger render={<Button variant="destructive" />}>Rotate</DialogTrigger>
               <DialogContent>
-                <DialogForm
-                  onSubmit={async () => {
-                    await rotateCode.mutateAsync(slug);
-                    setRotateConfirmOpen(false);
-                  }}
-                >
+                <DialogForm onSubmit={() => void handleRotate()}>
                   <DialogHeader>
                     <DialogTitle>Rotate the invite link?</DialogTitle>
                     <DialogDescription>
@@ -352,12 +382,7 @@ function InviteLinkPanel({ slug, code }: { slug: string; code: string }) {
             <Dialog open={disableConfirmOpen} onOpenChange={setDisableConfirmOpen}>
               <DialogTrigger render={<Button variant="destructive" />}>Disable</DialogTrigger>
               <DialogContent>
-                <DialogForm
-                  onSubmit={async () => {
-                    await disableCode.mutateAsync(slug);
-                    setDisableConfirmOpen(false);
-                  }}
-                >
+                <DialogForm onSubmit={() => void handleDisable()}>
                   <DialogHeader>
                     <DialogTitle>Turn off invites?</DialogTitle>
                     <DialogDescription>
@@ -406,8 +431,12 @@ function DiscordPanel({ slug }: { slug: string }) {
     pending !== null && data.items.some((item) => !pending.knownLinkIds.includes(item.id));
 
   async function handleGenerate() {
-    const result = await createCode.mutateAsync(slug);
-    setPending({ code: result.code, knownLinkIds: data.items.map((item) => item.id) });
+    try {
+      const result = await createCode.mutateAsync(slug);
+      setPending({ code: result.code, knownLinkIds: data.items.map((item) => item.id) });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   return (
@@ -450,7 +479,7 @@ function DiscordPanel({ slug }: { slug: string }) {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleGenerate}
+              onClick={() => void handleGenerate()}
               disabled={createCode.isPending}
             >
               Generate link code
@@ -662,6 +691,18 @@ function TransferOwnershipControl({
   }));
   const target = candidates.find((member) => member.userId === targetId);
 
+  async function handleTransfer() {
+    if (!target) {
+      return;
+    }
+    try {
+      await transfer.mutateAsync({ slug, userId: target.userId });
+      setConfirmOpen(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col gap-2">
@@ -690,15 +731,7 @@ function TransferOwnershipControl({
               Transfer ownership
             </DialogTrigger>
             <DialogContent>
-              <DialogForm
-                onSubmit={async () => {
-                  if (!target) {
-                    return;
-                  }
-                  await transfer.mutateAsync({ slug, userId: target.userId });
-                  setConfirmOpen(false);
-                }}
-              >
+              <DialogForm onSubmit={() => void handleTransfer()}>
                 <DialogHeader>
                   <DialogTitle>Make {target?.userName ?? "this member"} the owner?</DialogTitle>
                   <DialogDescription>
@@ -731,6 +764,24 @@ function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; s
   const isOwner = data.viewerRole === "owner";
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  async function handleDelete() {
+    try {
+      await remove.mutateAsync(slug);
+      void navigate({ to: "/groups" });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
+  async function handleLeave() {
+    try {
+      await leave.mutateAsync(slug);
+      void navigate({ to: "/groups" });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -750,12 +801,7 @@ function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; s
                 Delete group
               </DialogTrigger>
               <DialogContent>
-                <DialogForm
-                  onSubmit={async () => {
-                    await remove.mutateAsync(slug);
-                    void navigate({ to: "/groups" });
-                  }}
-                >
+                <DialogForm onSubmit={() => void handleDelete()}>
                   <DialogHeader>
                     <DialogTitle>Delete this group?</DialogTitle>
                     <DialogDescription>
@@ -776,14 +822,7 @@ function LeaveOrDeletePanel({ data, slug }: { data: FriendGroupDetailResponse; s
             </Dialog>
           </>
         ) : (
-          <Button
-            variant="ghost"
-            onClick={async () => {
-              await leave.mutateAsync(slug);
-              void navigate({ to: "/groups" });
-            }}
-            disabled={leave.isPending}
-          >
+          <Button variant="ghost" onClick={() => void handleLeave()} disabled={leave.isPending}>
             Leave group
           </Button>
         )}

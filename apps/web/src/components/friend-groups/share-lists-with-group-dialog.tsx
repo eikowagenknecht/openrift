@@ -129,7 +129,7 @@ function ShareListsBody({
   };
 
   return (
-    <DialogForm onSubmit={handleShare}>
+    <DialogForm onSubmit={() => void handleShare()}>
       <ul className="flex flex-col gap-2">
         {candidates.map((item) => {
           const checkboxId = `share-list-${item.listId}`;

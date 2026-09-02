@@ -2,14 +2,16 @@ import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { sessionQueryOptions } from "./auth-session";
-import { isApiError, isSessionExpiredError } from "./server-fns/api-error";
+import { captureHandledError } from "./report-error";
+import { errorStatus, isApiError, isSessionExpiredError } from "./server-fns/api-error";
 import { isStaleServerFnError, reloadIfStaleServerFnError } from "./stale-bundle-reload";
 import { PERSISTENT_ERROR_TOAST } from "./toast";
 import { toastableMessage } from "./toastable-message";
 
 /**
  * The failure path for a mutation: reload on a stale bundle, refetch the
- * session on a 401, log the diagnostic, and raise the persistent error toast.
+ * session on a 401, log the diagnostic, report the unexpected ones to Sentry,
+ * and raise the persistent error toast.
  *
  * Installed as the QueryClient's default mutation `onError`, and exported
  * because react-query merges mutation options shallowly — a mutation that
@@ -36,6 +38,12 @@ export function reportMutationError(err: Error, queryClient: QueryClient): void 
     console.error(`[mutation error] ${err.message}\n\n${diagnostic}`, err);
   } else {
     console.error(err);
+  }
+  // Call sites catch their own rejections, so this is the last place a failure
+  // can reach Sentry; a 4xx is correctable input the toast already explains.
+  const status = errorStatus(err);
+  if (status === undefined || status >= 500) {
+    captureHandledError(err, { mutation: "true" });
   }
   // Mutations are user-triggered actions; a failure that auto-dismisses is easy
   // to miss (an add/remove looks like it worked). Keep it up until the user

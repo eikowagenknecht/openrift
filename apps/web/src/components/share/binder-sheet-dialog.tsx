@@ -257,7 +257,7 @@ export function BinderSheetDialog({
           <p className="text-muted-foreground text-sm">
             Print at 100% (Actual size), not Fit to page.
           </p>
-          <Button className="self-start" onClick={handleCreate} disabled={generating}>
+          <Button className="self-start" onClick={() => void handleCreate()} disabled={generating}>
             {generating ? (
               <>
                 <Loader2Icon className="animate-spin" />

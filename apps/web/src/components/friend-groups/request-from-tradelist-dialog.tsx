@@ -208,7 +208,7 @@ function RequestBody({
   // Already a shared match → one-tap confirm, no list picking or sharing.
   if (existingMatch) {
     return (
-      <DialogForm onSubmit={sendRequest}>
+      <DialogForm onSubmit={() => void sendRequest()}>
         <DialogHeader>
           <DialogTitle>Request this card</DialogTitle>
           <DialogDescription>
@@ -230,7 +230,7 @@ function RequestBody({
   // Share confirmation step (only reached when the chosen list isn't shared yet).
   if (phase === "confirm-share") {
     return (
-      <DialogForm onSubmit={sendRequest}>
+      <DialogForm onSubmit={() => void sendRequest()}>
         <DialogHeader>
           <DialogTitle>
             Share {chosenName} with {groupName}?

@@ -83,6 +83,20 @@ export function OrganizationPage({ id }: { id: string }) {
     }
   }
 
+  async function handleAddMember() {
+    await run(() => addMember.mutateAsync({ id, email: email.trim(), role }));
+    setAddOpen(false);
+    setEmail("");
+  }
+
+  async function handleRemoveMember() {
+    if (!memberToRemove) {
+      return;
+    }
+    await run(() => removeMember.mutateAsync({ id, userId: memberToRemove.userId }));
+    setMemberToRemove(null);
+  }
+
   return (
     <>
       <PageTopBarSticky width="capped">
@@ -182,13 +196,7 @@ export function OrganizationPage({ id }: { id: string }) {
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              await run(() => addMember.mutateAsync({ id, email: email.trim(), role }));
-              setAddOpen(false);
-              setEmail("");
-            }}
-          >
+          <DialogForm onSubmit={() => void handleAddMember()}>
             <DialogHeader>
               <DialogTitle>Add member</DialogTitle>
               <DialogDescription>
@@ -254,13 +262,7 @@ export function OrganizationPage({ id }: { id: string }) {
         confirmLabel="Remove"
         pendingLabel="Removing..."
         isPending={removeMember.isPending}
-        onConfirm={async () => {
-          if (!memberToRemove) {
-            return;
-          }
-          await run(() => removeMember.mutateAsync({ id, userId: memberToRemove.userId }));
-          setMemberToRemove(null);
-        }}
+        onConfirm={() => void handleRemoveMember()}
       />
     </>
   );

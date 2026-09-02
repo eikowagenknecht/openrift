@@ -129,7 +129,7 @@ function ImportExportPage() {
         onToggleExpand={flow.handleToggleExpand}
         onCollectionChange={flow.handleCollectionChange}
         onNewCollectionNameChange={flow.handleNewCollectionNameChange}
-        onImport={flow.handleImport}
+        onImport={(options) => void flow.handleImport(options)}
         onBack={flow.handleBack}
       />
     </>

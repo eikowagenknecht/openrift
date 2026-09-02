@@ -110,7 +110,7 @@ function DeleteKeyButton({ apiKey }: { apiKey: ApiKeySummary }) {
         <TrashIcon className="size-4" />
       </AlertDialogTrigger>
       <AlertDialogContent>
-        <DialogForm onSubmit={handleDelete}>
+        <DialogForm onSubmit={() => void handleDelete()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke &ldquo;{apiKey.name ?? apiKey.start}&rdquo;?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -171,12 +171,19 @@ export function ApiKeysPage() {
                 id="api-key-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && handleCreate()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    void handleCreate();
+                  }
+                }}
                 placeholder="e.g. upload-script"
                 className="w-56"
               />
             </div>
-            <Button onClick={handleCreate} disabled={!name.trim() || createKey.isPending}>
+            <Button
+              onClick={() => void handleCreate()}
+              disabled={!name.trim() || createKey.isPending}
+            >
               {createKey.isPending ? (
                 <LoaderIcon className="size-4 animate-spin" />
               ) : (

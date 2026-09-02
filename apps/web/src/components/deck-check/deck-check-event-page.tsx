@@ -297,6 +297,15 @@ function EntryRowMenu({
   const deleteEntry = useDeleteTournamentDeckCheckEntry();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  async function handleDelete() {
+    try {
+      await deleteEntry.mutateAsync({ tournamentId, entryId: entry.id });
+      setDeleteOpen(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -344,10 +353,7 @@ function EntryRowMenu({
         confirmLabel="Delete"
         pendingLabel="Deleting..."
         isPending={deleteEntry.isPending}
-        onConfirm={async () => {
-          await deleteEntry.mutateAsync({ tournamentId, entryId: entry.id });
-          setDeleteOpen(false);
-        }}
+        onConfirm={() => void handleDelete()}
       />
     </>
   );

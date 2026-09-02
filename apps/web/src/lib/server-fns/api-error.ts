@@ -58,9 +58,20 @@ export interface ApiErrorShape extends Error {
  * @returns Whether `error` carries HTTP status 401.
  */
 export function isSessionExpiredError(error: unknown): boolean {
-  return (
-    typeof error === "object" && error !== null && (error as { status?: unknown }).status === 401
-  );
+  return errorStatus(error) === 401;
+}
+
+/**
+ * The HTTP status an error carries, for both the raw-fetch {@link ApiError}
+ * and oRPC's `ORPCError`. Undefined when the error never reached the server.
+ * @returns The status, or undefined when the error carries none.
+ */
+export function errorStatus(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  const status = (error as { status?: unknown }).status;
+  return typeof status === "number" ? status : undefined;
 }
 
 /**

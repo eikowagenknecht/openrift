@@ -703,7 +703,7 @@ export function MetaAdminOverviewPage({ source }: { source: MetaSource }) {
         title="Meta Archive"
         actions={
           <RefreshCountdownButton
-            onRefresh={() => refetch()}
+            onRefresh={() => void refetch()}
             isFetching={isFetching}
             dataUpdatedAt={dataUpdatedAt}
             intervalMs={SYNC_STATUS_POLL_MS}

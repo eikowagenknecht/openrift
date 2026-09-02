@@ -627,7 +627,7 @@ function PodCard({
             />
             <Button
               size="icon-sm"
-              onClick={handleSaveScore}
+              onClick={() => void handleSaveScore()}
               disabled={saving || parsePoints(scoreDraft) === null}
               aria-label={`Save score for ${name}`}
             >

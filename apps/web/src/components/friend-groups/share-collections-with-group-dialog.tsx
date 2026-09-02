@@ -125,7 +125,7 @@ function ShareCollectionsBody({
   };
 
   return (
-    <DialogForm onSubmit={handleShare}>
+    <DialogForm onSubmit={() => void handleShare()}>
       <ul className="flex flex-col gap-2">
         {candidates.map((item) => {
           const checkboxId = `share-collection-${item.collectionId}`;

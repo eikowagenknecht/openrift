@@ -37,7 +37,7 @@ describe("copiesRepo", () => {
     const repo = copiesRepo(db);
     expect(() => repo.listForAccessibleCollections("u1", 20, "not-a-date")).toThrow(AppError);
     try {
-      repo.listForAccessibleCollections("u1", 20, "not-a-date");
+      void repo.listForAccessibleCollections("u1", 20, "not-a-date");
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);

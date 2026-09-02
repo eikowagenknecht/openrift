@@ -94,8 +94,8 @@ export function useRebuildScanBank() {
     onSuccess: () => {
       // Surface the running row immediately; the manifest refreshes once the
       // rebuild lands a new generation.
-      queryClient.invalidateQueries({ queryKey: REBUILD_RUN_KEY });
-      queryClient.invalidateQueries({ queryKey: MANIFEST_KEY });
+      void queryClient.invalidateQueries({ queryKey: REBUILD_RUN_KEY });
+      void queryClient.invalidateQueries({ queryKey: MANIFEST_KEY });
     },
   });
 }

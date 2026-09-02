@@ -254,7 +254,7 @@ export function CreateCardPage() {
                 <PlusIcon className="mr-1 size-4" />
                 Create card
               </Button>
-              <Button variant="ghost" onClick={() => navigate({ to: "/admin/cards" })}>
+              <Button variant="ghost" onClick={() => void navigate({ to: "/admin/cards" })}>
                 Cancel
               </Button>
             </div>

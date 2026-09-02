@@ -286,7 +286,9 @@ export function useCollectionGridSelection({
   useRowActionHandlers("collection", {
     onRowClick: handleGridCardClick,
     onSiblingClick: handleSiblingClick,
-    onIncrement: handleQuickAdd,
+    onIncrement:
+      handleQuickAdd &&
+      ((printing, modifiers, quantity) => void handleQuickAdd(printing, modifiers, quantity)),
     onDecrement: buildOnDecrement({
       dataView,
       groupBy: tileGroupBy,

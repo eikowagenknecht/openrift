@@ -116,7 +116,7 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-xl">
-        <DialogForm id={FORM_ID} onSubmit={handleSubmit}>
+        <DialogForm id={FORM_ID} onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>{event ? "Edit event" : "New event"}</DialogTitle>
             <DialogDescription>

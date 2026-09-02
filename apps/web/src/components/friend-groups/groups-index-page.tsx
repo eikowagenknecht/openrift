@@ -115,22 +115,28 @@ function CreateGroupDialog({
     if (!name.trim() || !effectiveSlug || slugError) {
       return;
     }
-    const group = await createGroup.mutateAsync({
-      name: name.trim(),
+    const trimmedName = name.trim();
+    const payload = {
+      name: trimmedName,
       slug: effectiveSlug,
       description: description.trim() || null,
       generateCode,
-    });
-    onOpenChange(false);
-    // Hand off to the parent, which prompts the creator to share lists with
-    // their new group and then navigates into it.
-    onCreated({ slug: group.slug, name: name.trim() });
+    };
+    try {
+      const group = await createGroup.mutateAsync(payload);
+      onOpenChange(false);
+      // Hand off to the parent, which prompts the creator to share lists with
+      // their new group and then navigates into it.
+      onCreated({ slug: group.slug, name: trimmedName });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogForm onSubmit={handleCreate}>
+        <DialogForm onSubmit={() => void handleCreate()}>
           <DialogHeader>
             <DialogTitle>Create group</DialogTitle>
             <DialogDescription>

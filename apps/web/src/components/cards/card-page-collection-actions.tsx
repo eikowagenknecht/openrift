@@ -159,8 +159,12 @@ export function CardPageCollectionActions({
         languageScopedPrintingsByCardId={printingsByCardId}
         onQuickAdd={quickAdd}
         defaultTargetCollectionId={inbox?.id}
-        onAddToCollection={handleAddToCollection}
-        onRemoveFromCollection={handleDisposeFromCollection}
+        onAddToCollection={(target, collectionId) =>
+          void handleAddToCollection(target, collectionId)
+        }
+        onRemoveFromCollection={(target, collectionId) =>
+          void handleDisposeFromCollection(target, collectionId)
+        }
         closeVariants={closeVariants}
       />
       <WishlistPickerHost target={wishTarget} onClose={() => setWishTarget(null)} />

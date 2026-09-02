@@ -51,7 +51,7 @@ export function MetaEventDeckPreview({ token }: { token: string }) {
           <Button
             size="sm"
             disabled={fork.isPending}
-            onClick={() => fork.fork({ token, deck: data.deck, cards: data.cards })}
+            onClick={() => void fork.fork({ token, deck: data.deck, cards: data.cards })}
           >
             <GitForkIcon />
             {fork.isPending ? "Copying…" : fork.label}

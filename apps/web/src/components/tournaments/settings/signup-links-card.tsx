@@ -44,6 +44,13 @@ export function SignupLinksCard({
   const showLink = detail.selfRegistration || deckExpected;
   const linkLabel = detail.selfRegistration ? "Registration link" : "Deck submission link";
 
+  async function handleRotate() {
+    await runReportedMutation(() =>
+      setSubmissionToken.mutateAsync({ id: detail.id, enabled: true }),
+    );
+    setConfirmRotate(false);
+  }
+
   return (
     <>
       <Card id="signup-links" className="scroll-mt-16">
@@ -95,14 +102,7 @@ export function SignupLinksCard({
 
       <Dialog open={confirmRotate} onOpenChange={setConfirmRotate}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              await runReportedMutation(() =>
-                setSubmissionToken.mutateAsync({ id: detail.id, enabled: true }),
-              );
-              setConfirmRotate(false);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleRotate()}>
             <DialogHeader>
               <DialogTitle>Rotate the link?</DialogTitle>
               <DialogDescription>

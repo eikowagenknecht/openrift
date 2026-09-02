@@ -381,7 +381,7 @@ function ProxyPrintPanel({
   };
 
   return (
-    <DialogForm onSubmit={handleGenerate}>
+    <DialogForm onSubmit={() => void handleGenerate()}>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="proxy-render-mode">Render mode</Label>

@@ -57,18 +57,27 @@ export function RulesImportPage() {
 
   async function handleImport() {
     setResult(null);
-    const response = await importMutation.mutateAsync({
+    const payload = {
       kind,
       version: version.trim(),
       comments: comments.trim() || null,
       content,
-    });
-    setResult(response);
-    setContent("");
+    };
+    try {
+      const response = await importMutation.mutateAsync(payload);
+      setResult(response);
+      setContent("");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   async function handleDelete(targetKind: RuleKind, versionToDelete: string) {
-    await deleteMutation.mutateAsync({ kind: targetKind, version: versionToDelete });
+    try {
+      await deleteMutation.mutateAsync({ kind: targetKind, version: versionToDelete });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   const canImport = version.trim() && content.trim() && !importMutation.isPending;
@@ -154,7 +163,7 @@ export function RulesImportPage() {
           />
         </div>
 
-        <Button onClick={handleImport} disabled={!canImport}>
+        <Button onClick={() => void handleImport()} disabled={!canImport}>
           {importMutation.isPending ? "Importing..." : "Import"}
         </Button>
 
@@ -192,7 +201,9 @@ export function RulesImportPage() {
                 <VersionRow
                   key={`${entry.kind}-${entry.version}`}
                   entry={entry}
-                  onDelete={handleDelete}
+                  onDelete={(deleteKind, deleteVersion) =>
+                    void handleDelete(deleteKind, deleteVersion)
+                  }
                   isDeleting={deleteMutation.isPending}
                 />
               ))}
@@ -224,12 +235,17 @@ function VersionRow({
 
   async function save() {
     const trimmed = draft.trim();
-    await updateMutation.mutateAsync({
+    const payload = {
       kind: entry.kind,
       version: entry.version,
       comments: trimmed.length > 0 ? trimmed : null,
-    });
-    setIsEditing(false);
+    };
+    try {
+      await updateMutation.mutateAsync(payload);
+      setIsEditing(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   function cancel() {
@@ -252,7 +268,7 @@ function VersionRow({
               <Button variant="outline" onClick={cancel} disabled={updateMutation.isPending}>
                 Cancel
               </Button>
-              <Button onClick={save} disabled={updateMutation.isPending}>
+              <Button onClick={() => void save()} disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? "Saving..." : "Save"}
               </Button>
             </>

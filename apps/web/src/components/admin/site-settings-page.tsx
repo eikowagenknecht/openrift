@@ -440,7 +440,12 @@ function KnownSettingRow({
       </div>
       {isBoolean ? (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleCreateOn} disabled={pending}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleCreateOn()}
+            disabled={pending}
+          >
             <PlusIcon className="mr-1 h-3.5 w-3.5" />
             Set up
           </Button>
@@ -454,7 +459,7 @@ function KnownSettingRow({
             placeholder={known.placeholder}
             className="w-72 font-mono"
           />
-          <Button variant="outline" onClick={handleSave} disabled={pending}>
+          <Button variant="outline" onClick={() => void handleSave()} disabled={pending}>
             Save
           </Button>
           <Button

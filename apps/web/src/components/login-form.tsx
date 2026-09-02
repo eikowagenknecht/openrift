@@ -121,8 +121,13 @@ function PasswordSignIn({
   async function onSubmit(values: SignInValues) {
     setLoading(true);
     setEmailNotVerified(false);
-    const { error } = await signIn.email(values);
+    const result = await signIn.email(values).catch(() => null);
     setLoading(false);
+    if (!result) {
+      form.setError("root", { message: "Could not sign in. Please try again." });
+      return;
+    }
+    const { error } = result;
     if (error) {
       if (error.code === "EMAIL_NOT_VERIFIED") {
         setEmailNotVerified(true);
@@ -144,11 +149,14 @@ function PasswordSignIn({
     // `sendVerificationEmail` would mail a 6-digit code (the emailOTP plugin
     // runs with `overrideDefaultEmailVerification`), and /login has no field to
     // type one into. Send the code and hand the user to the page that does.
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "email-verification",
-    });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email, type: "email-verification" })
+      .catch(() => null);
     setResending(false);
+    if (!result) {
+      form.setError("root", { message: "Could not send the code. Please try again." });
+      return;
+    }
     if (result.error) {
       form.setError("root", { message: requestOtpErrorMessage(result.error) });
       return;
@@ -157,7 +165,7 @@ function PasswordSignIn({
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+    <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} noValidate>
       <FieldGroup>
         <RootFormError control={form.control}>
           {emailNotVerified && (
@@ -168,7 +176,7 @@ function PasswordSignIn({
               // reads as part of the error sentence.
               className="ml-1 h-auto px-0 text-inherit hover:text-inherit"
               disabled={resending}
-              onClick={handleResend}
+              onClick={() => void handleResend()}
             >
               {resending ? "Sending..." : "Send a verification code"}
             </Button>
@@ -259,8 +267,14 @@ function OtpSignIn({
     }
     setEmailError("");
     setLoading(true);
-    const result = await authClient.emailOtp.sendVerificationOtp({ email, type: "sign-in" });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email, type: "sign-in" })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setEmailError("Could not send the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setEmailError(requestOtpErrorMessage(result.error));
       return;
@@ -274,11 +288,14 @@ function OtpSignIn({
     }
     setLoading(true);
     setOtpError("");
-    const result = await authClient.signIn.emailOtp({
-      email: form.getValues("email").trim(),
-      otp,
-    });
+    const result = await authClient.signIn
+      .emailOtp({ email: form.getValues("email").trim(), otp })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setOtpError("Could not sign in. Please try again.");
+      return;
+    }
     if (result.error) {
       setOtpError(otpErrorMessage(result.error));
       return;
@@ -292,9 +309,9 @@ function OtpSignIn({
       onSubmit={(event) => {
         event.preventDefault();
         if (step === "email") {
-          handleSendOtp();
+          void handleSendOtp();
         } else {
-          handleVerifyOtp();
+          void handleVerifyOtp();
         }
       }}
       noValidate

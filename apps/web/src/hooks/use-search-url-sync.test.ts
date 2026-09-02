@@ -29,7 +29,9 @@ describe("useSearchUrlSync", () => {
     const { result } = renderHook(() => useSearchUrlSync({ urlValue: "", onCommit }));
 
     act(() => result.current[1]("hello"));
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
 
     expect(onCommit).toHaveBeenCalledWith("hello");
   });
@@ -69,7 +71,9 @@ describe("useSearchUrlSync", () => {
     act(() => result.current[1]("Th"));
     act(() => result.current[1]("Thi"));
 
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(commits.at(-1)).toBe("Thi");
 
     // User keeps typing BEFORE the URL has caught up. Rerender with a fresh
@@ -83,7 +87,9 @@ describe("useSearchUrlSync", () => {
     rerender({ urlValue: "Thi", onCommit: makeOnCommit() });
     expect(result.current[0]).toBe("This is not");
 
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(commits.at(-1)).toBe("This is not");
   });
 
@@ -99,7 +105,9 @@ describe("useSearchUrlSync", () => {
     );
 
     act(() => result.current[1]("foo"));
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     rerender({ urlValue: pendingUrlValue, onCommit });
     expect(result.current[0]).toBe("foo");
 
@@ -120,7 +128,9 @@ describe("useSearchUrlSync", () => {
     );
 
     act(() => result.current[1]("foo"));
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(onCommit).toHaveBeenCalledTimes(1);
 
     rerender({ urlValue: pendingUrlValue, onCommit });

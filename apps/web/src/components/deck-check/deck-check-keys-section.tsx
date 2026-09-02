@@ -241,6 +241,26 @@ function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: Ke
   const [renameOpen, setRenameOpen] = useState(false);
   const revoked = apiKey.revokedAt !== null;
 
+  async function handleRevoke() {
+    try {
+      await actions.revoke(apiKey.id);
+      setConfirmOpen(false);
+      toast.success("Key revoked");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
+  async function handleRemove() {
+    try {
+      await actions.remove(apiKey.id);
+      setRemoveOpen(false);
+      toast.success("Key removed");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <Card className="flex-row items-center gap-3 p-3">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -295,11 +315,7 @@ function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: Ke
         confirmLabel="Revoke"
         pendingLabel="Revoking..."
         isPending={actions.revokePending}
-        onConfirm={async () => {
-          await actions.revoke(apiKey.id);
-          setConfirmOpen(false);
-          toast.success("Key revoked");
-        }}
+        onConfirm={() => void handleRevoke()}
       />
       <ConfirmActionDialog
         open={removeOpen}
@@ -309,11 +325,7 @@ function KeyRow({ apiKey, actions }: { apiKey: DeckCheckKeyResponse; actions: Ke
         confirmLabel="Remove"
         pendingLabel="Removing..."
         isPending={actions.removePending}
-        onConfirm={async () => {
-          await actions.remove(apiKey.id);
-          setRemoveOpen(false);
-          toast.success("Key removed");
-        }}
+        onConfirm={() => void handleRemove()}
       />
     </Card>
   );

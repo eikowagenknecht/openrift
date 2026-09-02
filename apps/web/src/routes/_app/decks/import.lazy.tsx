@@ -371,8 +371,9 @@ function DeckImportPage() {
     finishParse(entries, warnings);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
-    handleImportFileUpload(event, fileRef, setRawText, handleParse);
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    void handleImportFileUpload(event, fileRef, setRawText, handleParse);
+  };
 
   // Deep links (e.g. the Discord bot's "Open in OpenRift" button or the
   // browser extension) land with ?code=<deck code or URL-encoded text list>.
@@ -536,7 +537,7 @@ function DeckImportPage() {
         onTextChange={setRawText}
         importMode={importMode}
         onImportModeChange={setImportMode}
-        onParse={handleParse}
+        onParse={(text) => void handleParse(text)}
         onFileUpload={handleFileUpload}
         fileRef={fileRef}
         isParsing={isResolvingLink}

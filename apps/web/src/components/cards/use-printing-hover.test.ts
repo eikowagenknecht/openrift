@@ -28,9 +28,13 @@ describe("usePrintingHover", () => {
     act(() => result.current.onEnter("a"));
     act(() => result.current.onLeave());
     expect(result.current.hoveredId).toBe("a");
-    act(() => vi.advanceTimersByTime(79));
+    act(() => {
+      vi.advanceTimersByTime(79);
+    });
     expect(result.current.hoveredId).toBe("a");
-    act(() => vi.advanceTimersByTime(1));
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(result.current.hoveredId).toBeNull();
   });
 
@@ -39,7 +43,9 @@ describe("usePrintingHover", () => {
     act(() => result.current.onEnter("a"));
     act(() => result.current.onLeave());
     act(() => result.current.onEnter("b"));
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(result.current.hoveredId).toBe("b");
   });
 
@@ -50,7 +56,9 @@ describe("usePrintingHover", () => {
     act(() => result.current.reset());
     expect(result.current.hoveredId).toBeNull();
     // Advancing past the old timer must not flip state back.
-    act(() => vi.advanceTimersByTime(200));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
     expect(result.current.hoveredId).toBeNull();
   });
 

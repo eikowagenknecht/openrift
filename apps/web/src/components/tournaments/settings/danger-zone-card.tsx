@@ -29,6 +29,18 @@ export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse })
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  async function handleCancel() {
+    await runReportedMutation(() => cancelTournament.mutateAsync({ id: detail.id }));
+    setConfirmCancel(false);
+  }
+
+  async function handleDelete() {
+    await runReportedMutation(async () => {
+      await deleteTournament.mutateAsync(detail.id);
+      await navigate({ to: "/tournaments" });
+    });
+  }
+
   return (
     <>
       <Card className="border-destructive/50">
@@ -55,12 +67,7 @@ export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse })
 
       <Dialog open={confirmCancel} onOpenChange={setConfirmCancel}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              await runReportedMutation(() => cancelTournament.mutateAsync({ id: detail.id }));
-              setConfirmCancel(false);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleCancel()}>
             <DialogHeader>
               <DialogTitle>Cancel {detail.name}?</DialogTitle>
               <DialogDescription>
@@ -81,14 +88,7 @@ export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse })
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              await runReportedMutation(async () => {
-                await deleteTournament.mutateAsync(detail.id);
-                await navigate({ to: "/tournaments" });
-              });
-            }}
-          >
+          <DialogForm onSubmit={() => void handleDelete()}>
             <DialogHeader>
               <DialogTitle>Delete {detail.name}?</DialogTitle>
               <DialogDescription>

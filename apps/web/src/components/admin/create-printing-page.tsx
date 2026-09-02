@@ -452,7 +452,9 @@ export function CreatePrintingPage({
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug } })}
+                onClick={() =>
+                  void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug } })
+                }
               >
                 Cancel
               </Button>

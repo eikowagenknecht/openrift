@@ -105,7 +105,7 @@ export function TournamentStaffInvitePage({ token }: { token: string }) {
               roleLabel={roleLabel}
               signedIn={Boolean(userId)}
               pending={claim.isPending}
-              onConfirm={handleConfirm}
+              onConfirm={() => void handleConfirm()}
             />
             {userId ? (
               <Button variant="ghost" render={<Link to="/tournaments" />} className="w-fit">

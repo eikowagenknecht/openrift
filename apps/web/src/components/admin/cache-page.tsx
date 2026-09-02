@@ -136,7 +136,7 @@ export function CachePage() {
           <Button
             variant="outline"
             onClick={() =>
-              refreshMatviews.mutate(undefined, { onSuccess: () => matviewsRun.refetch() })
+              refreshMatviews.mutate(undefined, { onSuccess: () => void matviewsRun.refetch() })
             }
             disabled={matviewsRunning}
           >
@@ -167,7 +167,9 @@ export function CachePage() {
           <Button
             variant="outline"
             onClick={() =>
-              recomputeCardTokens.mutate(undefined, { onSuccess: () => cardTokensRun.refetch() })
+              recomputeCardTokens.mutate(undefined, {
+                onSuccess: () => void cardTokensRun.refetch(),
+              })
             }
             disabled={cardTokensRunning}
           >
@@ -213,7 +215,7 @@ export function CachePage() {
                 Purge Cloudflare cache
               </AlertDialogTrigger>
               <AlertDialogContent>
-                <DialogForm onSubmit={handlePurge}>
+                <DialogForm onSubmit={() => void handlePurge()}>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Purge all Cloudflare cache?</AlertDialogTitle>
                     <AlertDialogDescription>

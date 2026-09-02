@@ -113,7 +113,13 @@ export function CandidateUploadPage() {
 
     setProvider(file.name.replace(/\.json$/iu, ""));
 
-    const text = await file.text();
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setParseError("Could not read that file");
+      return;
+    }
     const parsed = parseCandidates(text);
     if (!parsed.ok) {
       setParseError(
@@ -166,7 +172,7 @@ export function CandidateUploadPage() {
               ref={fileRef}
               type="file"
               accept=".json,application/json"
-              onChange={handleFileChange}
+              onChange={(event) => void handleFileChange(event)}
             />
             {fileName && fileData && (
               <p className="text-muted-foreground text-sm">
@@ -618,7 +624,7 @@ function ExportCardsCard() {
         <CardDescription>Same JSON format as uploads.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button disabled={exporting} onClick={handleExport}>
+        <Button disabled={exporting} onClick={() => void handleExport()}>
           {exporting ? (
             <>
               <LoaderIcon className="size-4 animate-spin" />

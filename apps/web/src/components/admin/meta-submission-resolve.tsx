@@ -206,7 +206,7 @@ export function MetaSubmissionResolve({ submission, playerOverlayId }: MetaSubmi
         <ResolvedSummary
           submission={submission}
           reopening={reopen.isPending}
-          onReopen={handleReopen}
+          onReopen={() => void handleReopen()}
         />
         {conflict && (
           <p className="text-muted-foreground text-sm">
@@ -234,7 +234,7 @@ export function MetaSubmissionResolve({ submission, playerOverlayId }: MetaSubmi
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogForm onSubmit={handleSubmit}>
+          <DialogForm onSubmit={() => void handleSubmit()}>
             <DialogHeader>
               <DialogTitle>
                 {submission.playerName === null

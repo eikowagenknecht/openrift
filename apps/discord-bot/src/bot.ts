@@ -12,6 +12,7 @@ import type {
   AutocompleteInteraction,
   ButtonInteraction,
   ChatInputCommandInteraction,
+  Interaction,
   Message,
 } from "discord.js";
 import {
@@ -667,7 +668,7 @@ export function createBot(ctx: BotContext): Client {
     ],
   });
 
-  client.once(Events.ClientReady, async (readyClient) => {
+  const onReady = async (readyClient: Client<true>) => {
     console.log(`Logged in as ${readyClient.user.tag}`);
     try {
       // /link only exists when the group features are configured — an
@@ -689,9 +690,10 @@ export function createBot(ctx: BotContext): Client {
     } catch (error) {
       console.error("Failed to load glyph emojis, card text will use plain words", error);
     }
-  });
+  };
+  client.once(Events.ClientReady, (readyClient) => void onReady(readyClient));
 
-  client.on(Events.InteractionCreate, async (interaction) => {
+  const onInteraction = async (interaction: Interaction) => {
     try {
       if (interaction.isButton()) {
         await handleDetailsButton(ctx, interaction);
@@ -728,15 +730,17 @@ export function createBot(ctx: BotContext): Client {
     } catch (error) {
       console.error("Interaction handling failed", error);
     }
-  });
+  };
+  client.on(Events.InteractionCreate, (interaction) => void onInteraction(interaction));
 
-  client.on(Events.MessageCreate, async (message) => {
+  const onMessage = async (message: Message) => {
     try {
       await handleMessage(ctx, message);
     } catch (error) {
       console.error("Message handling failed", error);
     }
-  });
+  };
+  client.on(Events.MessageCreate, (message) => void onMessage(message));
 
   return client;
 }

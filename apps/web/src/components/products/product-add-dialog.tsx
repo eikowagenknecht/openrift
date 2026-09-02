@@ -142,7 +142,7 @@ function ProductAddBody({
   };
 
   return (
-    <DialogForm onSubmit={confirm}>
+    <DialogForm onSubmit={() => void confirm()}>
       <DialogHeader>
         <DialogTitle>Add to collection</DialogTitle>
         <DialogDescription>

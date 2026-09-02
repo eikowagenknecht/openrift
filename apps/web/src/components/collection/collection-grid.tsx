@@ -1142,10 +1142,14 @@ export function CollectionGrid({
           <VariantLocationsPopoverHost
             catalogPrintingsByCardId={catalogPrintingsByCardId}
             languageScopedPrintingsByCardId={detailPanePrintingsByCardId}
-            onQuickAdd={handleQuickAdd}
+            onQuickAdd={handleQuickAdd && ((printing) => void handleQuickAdd(printing))}
             defaultTargetCollectionId={addTarget}
-            onAddToCollection={handleAddToCollection}
-            onRemoveFromCollection={handleDisposeFromCollection}
+            onAddToCollection={(target, targetCollectionId) =>
+              void handleAddToCollection(target, targetCollectionId)
+            }
+            onRemoveFromCollection={(target, targetCollectionId) =>
+              void handleDisposeFromCollection(target, targetCollectionId)
+            }
             closeVariants={closeVariants}
           />
         </CardBrowserFilterProvider>

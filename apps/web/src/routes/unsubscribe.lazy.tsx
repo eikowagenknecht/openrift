@@ -99,7 +99,7 @@ function UnsubscribePage() {
         <p className="text-destructive text-sm">Something went wrong. Please try again.</p>
       )}
       <div className="flex items-center gap-3">
-        <Button onClick={handleConfirm} disabled={status === "submitting"}>
+        <Button onClick={() => void handleConfirm()} disabled={status === "submitting"}>
           {status === "submitting" ? "Unsubscribing…" : "Unsubscribe"}
         </Button>
         <Link to="/" className="text-muted-foreground text-sm hover:underline">

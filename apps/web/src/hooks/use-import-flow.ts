@@ -101,8 +101,9 @@ export function useImportFlow() {
     );
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) =>
-    handleImportFileUpload(event, fileRef, setRawText, handleParse);
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    void handleImportFileUpload(event, fileRef, setRawText, handleParse);
+  };
 
   const { handleResolve, handleSkip, handleUnskip, handleToggleExpand } = createImportEntryHandlers(
     setMatchedEntries,
@@ -140,7 +141,7 @@ export function useImportFlow() {
     try {
       await sendAllBatches();
       toast.success(`Added ${summary.totalCards} ${cardLabel} to ${list.name}.`);
-      navigate({ to: "/collections/lists/$listId", params: { listId } });
+      void navigate({ to: "/collections/lists/$listId", params: { listId } });
     } catch {
       // Deliberately a SECOND toast on top of the global mutation error one:
       // that one says why the call failed, this one says the import was left
@@ -242,7 +243,7 @@ export function useImportFlow() {
     try {
       await sendAllBatches();
       toast.success(`Imported ${summary.totalCards} ${copyLabel}.`);
-      navigate({
+      void navigate({
         to: "/collections/$collectionId",
         params: { collectionId: targetCollectionId },
       });

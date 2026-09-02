@@ -196,7 +196,7 @@ function ManageSection() {
   const { data: status, refetch } = useRehostStatus();
   const { data: latestRegenRun } = useLatestJobRunByKind(REGENERATE_KIND);
 
-  const rehostMutation = useRehostImages(() => refetch());
+  const rehostMutation = useRehostImages(() => void refetch());
   const regenMutation = useRegenerateImages();
   const cancelRegenMutation = useCancelRegenerateImages();
   const clearMutation = useClearRehosted();

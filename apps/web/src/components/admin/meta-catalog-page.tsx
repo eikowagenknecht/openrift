@@ -319,7 +319,12 @@ function CatalogRowActionsFor({
             Standings
           </Button>
         )}
-        <Button variant="ghost" size="sm" disabled={fetchEvent.isPending} onClick={handleFetch}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={fetchEvent.isPending}
+          onClick={() => void handleFetch()}
+        >
           <DownloadIcon />
           Fetch now
         </Button>
@@ -333,7 +338,7 @@ function CatalogRowActionsFor({
         variant="ghost"
         size="sm"
         disabled={accept.isPending || followUp.isPending}
-        onClick={handleAccept}
+        onClick={() => void handleAccept()}
       >
         <CheckIcon />
         Accept
@@ -476,7 +481,7 @@ export function MetaCatalogPage() {
         row={formatTarget}
         pending={accept.isPending}
         onCancel={() => setFormatTarget(null)}
-        onConfirm={confirmFormat}
+        onConfirm={(format) => void confirmFormat(format)}
       />
 
       {rulesOpen && <MetaAutoAcceptDialog source="uvsgames" onClose={() => setRulesOpen(false)} />}

@@ -31,7 +31,7 @@ export function useRecomputeKeywords() {
   return useMutation({
     mutationFn: () => recomputeKeywordsFn(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
     },
   });
 }
@@ -55,8 +55,8 @@ export function useUpdateKeywordStyle() {
       costKeyword: boolean;
     }) => updateKeywordStyleFn({ data: params }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -80,8 +80,8 @@ export function useCreateKeywordStyle() {
       costKeyword: boolean;
     }) => createKeywordStyleFn({ data: params }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -98,8 +98,8 @@ export function useDeleteKeywordStyle() {
   return useMutation({
     mutationFn: (name: string) => deleteKeywordStyleFn({ data: { name } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -117,8 +117,8 @@ export function useDiscoverTranslations() {
   return useMutation({
     mutationFn: () => discoverTranslationsFn(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -136,8 +136,8 @@ export function useUpsertTranslation() {
     mutationFn: (params: { keywordName: string; language: string; label: string }) =>
       upsertTranslationFn({ data: params }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -155,8 +155,8 @@ export function useDeleteTranslation() {
     mutationFn: (params: { keywordName: string; language: string }) =>
       deleteTranslationFn({ data: params }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }

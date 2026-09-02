@@ -132,7 +132,7 @@ export function JobRunsPage() {
       title="Job Runs"
       actions={
         <RefreshCountdownButton
-          onRefresh={() => refetch()}
+          onRefresh={() => void refetch()}
           isFetching={isFetching}
           dataUpdatedAt={dataUpdatedAt}
           intervalMs={jobRunsRefreshIntervalMs(page)}

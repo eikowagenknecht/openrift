@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // Type-aware pass, run separately from .oxlintrc.json because `--type-aware`
+  // switches on every type-aware rule in the enabled categories (~31k findings
+  // repo-wide). Every category is off here so the list below is the whole pass.
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error"
+  },
+  "overrides": [
+    {
+      // Mocks legitimately hand promise-returning functions to callbacks.
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "typescript/no-misused-promises": "off"
+      }
+    }
+  ]
+}

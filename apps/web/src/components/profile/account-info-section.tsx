@@ -74,8 +74,13 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
   async function onSubmit(values: DisplayNameValues) {
     setLoading(true);
     setSuccess(false);
-    const { error } = await authClient.updateUser({ name: values.name.trim() });
+    const result = await authClient.updateUser({ name: values.name.trim() }).catch(() => null);
     setLoading(false);
+    if (!result) {
+      form.setError("root", { message: "Could not save. Please try again." });
+      return;
+    }
+    const { error } = result;
     if (error) {
       setServerError(form, error);
       return;
@@ -85,7 +90,7 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
   }
 
   return (
-    <form key={userId} onSubmit={form.handleSubmit(onSubmit)} noValidate>
+    <form key={userId} onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} noValidate>
       <FieldGroup>
         {form.formState.errors.root && (
           <FieldError>{form.formState.errors.root.message}</FieldError>
@@ -145,8 +150,13 @@ function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: 
     setLoading(true);
     setSuccess(false);
     // The server hook normalizes an empty string to null (clears the field).
-    const { error } = await authClient.updateUser({ riotId: values.riotId.trim() });
+    const result = await authClient.updateUser({ riotId: values.riotId.trim() }).catch(() => null);
     setLoading(false);
+    if (!result) {
+      form.setError("root", { message: "Could not save. Please try again." });
+      return;
+    }
+    const { error } = result;
     if (error) {
       setServerError(form, error);
       return;
@@ -156,7 +166,7 @@ function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: 
   }
 
   return (
-    <form key={userId} onSubmit={form.handleSubmit(onSubmit)} noValidate>
+    <form key={userId} onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} noValidate>
       <FieldGroup>
         {form.formState.errors.root && (
           <FieldError>{form.formState.errors.root.message}</FieldError>
@@ -220,11 +230,14 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     }
     setError("");
     setLoading(true);
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: currentEmail,
-      type: "email-verification",
-    });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email: currentEmail, type: "email-verification" })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setError("Could not send the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(requestOtpErrorMessage(result.error));
       return;
@@ -238,11 +251,14 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     }
     setLoading(true);
     setError("");
-    const result = await authClient.emailOtp.requestEmailChange({
-      newEmail: newEmail.trim(),
-      otp,
-    });
+    const result = await authClient.emailOtp
+      .requestEmailChange({ newEmail: newEmail.trim(), otp })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setError("Could not verify the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(otpErrorMessage(result.error));
       return;
@@ -257,11 +273,14 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     }
     setLoading(true);
     setError("");
-    const result = await authClient.emailOtp.changeEmail({
-      newEmail: newEmail.trim(),
-      otp,
-    });
+    const result = await authClient.emailOtp
+      .changeEmail({ newEmail: newEmail.trim(), otp })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      setError("Could not verify the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(otpErrorMessage(result.error));
       return;
@@ -279,11 +298,14 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
   async function handleResend() {
     setResending(true);
     setError("");
-    const result = await authClient.emailOtp.sendVerificationOtp({
-      email: currentEmail,
-      type: "email-verification",
-    });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email: currentEmail, type: "email-verification" })
+      .catch(() => null);
     setResending(false);
+    if (!result) {
+      setError("Could not send the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(requestOtpErrorMessage(result.error));
     }
@@ -318,7 +340,10 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             />
           </Field>
           <Field>
-            <Button disabled={loading || !newEmail.trim()} onClick={handleSendToCurrentEmail}>
+            <Button
+              disabled={loading || !newEmail.trim()}
+              onClick={() => void handleSendToCurrentEmail()}
+            >
               {loading ? "Sending..." : "Send code to current email"}
             </Button>
           </Field>
@@ -334,7 +359,10 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             <SixDigitOtpInput value={otp} onChange={setOtp} />
           </div>
           <Field>
-            <Button disabled={otp.length < 6 || loading} onClick={handleVerifyCurrentEmail}>
+            <Button
+              disabled={otp.length < 6 || loading}
+              onClick={() => void handleVerifyCurrentEmail()}
+            >
               {loading ? "Verifying..." : "Verify"}
             </Button>
           </Field>
@@ -344,7 +372,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
               variant="link-muted"
               className="h-auto px-0 text-sm"
               disabled={resending}
-              onClick={handleResend}
+              onClick={() => void handleResend()}
             >
               {resending ? "Sending..." : "Resend code"}
             </Button>
@@ -369,7 +397,10 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             <SixDigitOtpInput value={otp} onChange={setOtp} />
           </div>
           <Field>
-            <Button disabled={otp.length < 6 || loading} onClick={handleVerifyNewEmail}>
+            <Button
+              disabled={otp.length < 6 || loading}
+              onClick={() => void handleVerifyNewEmail()}
+            >
               {loading ? "Confirming..." : "Confirm"}
             </Button>
           </Field>

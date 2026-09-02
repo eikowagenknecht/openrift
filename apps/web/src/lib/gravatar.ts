@@ -33,9 +33,10 @@ export function useGravatarHash(email: string | undefined): string | undefined {
       return;
     }
     let cancelled = false;
-    (async () => {
-      const computed = await sha256Hex(email.trim().toLowerCase());
-      if (!cancelled) {
+    void (async () => {
+      // A digest failure leaves the avatar on its initials fallback.
+      const computed = await sha256Hex(email.trim().toLowerCase()).catch(() => null);
+      if (computed !== null && !cancelled) {
         setHash(computed);
       }
     })();

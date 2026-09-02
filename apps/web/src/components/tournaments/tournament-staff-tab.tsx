@@ -170,6 +170,14 @@ function StaffRow({
   const removeStaff = useRemoveTournamentStaff();
   const canRemove = host && member.source === "grant";
 
+  async function handleRemove() {
+    try {
+      await removeStaff.mutateAsync({ id: detail.id, userId: member.userId, role: member.role });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <Card className="flex-row items-center gap-3 p-3">
       <UserAvatar name={member.name} className="size-9 shrink-0" />
@@ -199,17 +207,7 @@ function StaffRow({
             <DropdownMenuItem
               variant="destructive"
               disabled={removeStaff.isPending}
-              onClick={async () => {
-                try {
-                  await removeStaff.mutateAsync({
-                    id: detail.id,
-                    userId: member.userId,
-                    role: member.role,
-                  });
-                } catch {
-                  // Reported by the global mutation error toast (see reportMutationError).
-                }
-              }}
+              onClick={() => void handleRemove()}
             >
               <Trash2Icon className="size-4" />
               Remove
@@ -280,6 +278,11 @@ function StaffInviteRow({
     }
   }
 
+  async function handleDisable() {
+    await run(false);
+    setDisableOpen(false);
+  }
+
   return (
     // The role chip sits on its own line above the link rather than inside it:
     // ShareLinkRow already wraps its field and buttons, and squeezing a badge
@@ -329,10 +332,7 @@ function StaffInviteRow({
             confirmLabel="Disable link"
             pendingLabel="Disabling..."
             isPending={setInvite.isPending}
-            onConfirm={async () => {
-              await run(false);
-              setDisableOpen(false);
-            }}
+            onConfirm={() => void handleDisable()}
           />
         </>
       ) : null}
@@ -382,6 +382,18 @@ function AddStaffDialog({
     }`,
   }));
 
+  async function handleAdd() {
+    if (!userId) {
+      return;
+    }
+    try {
+      await addStaff.mutateAsync({ id: tournamentId, userId, role });
+      onOpenChange(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <Dialog
       open={open}
@@ -393,19 +405,7 @@ function AddStaffDialog({
       }}
     >
       <DialogContent>
-        <DialogForm
-          onSubmit={async () => {
-            if (!userId) {
-              return;
-            }
-            try {
-              await addStaff.mutateAsync({ id: tournamentId, userId, role });
-              onOpenChange(false);
-            } catch {
-              // Reported by the global mutation error toast (see reportMutationError).
-            }
-          }}
-        >
+        <DialogForm onSubmit={() => void handleAdd()}>
           <DialogHeader>
             <DialogTitle>Add staff</DialogTitle>
             <DialogDescription>

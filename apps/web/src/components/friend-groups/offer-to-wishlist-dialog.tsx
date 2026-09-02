@@ -242,7 +242,7 @@ function OfferBody({
   // Already a shared match → one-tap confirm, no list picking or sharing.
   if (existingMatch) {
     return (
-      <DialogForm onSubmit={sendOffer}>
+      <DialogForm onSubmit={() => void sendOffer()}>
         <DialogHeader>
           <DialogTitle>Offer this card</DialogTitle>
           <DialogDescription>
@@ -265,7 +265,7 @@ function OfferBody({
   // Share confirmation step (only reached when the chosen list isn't shared yet).
   if (phase === "confirm-share") {
     return (
-      <DialogForm onSubmit={sendOffer}>
+      <DialogForm onSubmit={() => void sendOffer()}>
         <DialogHeader>
           <DialogTitle>
             Share {chosenListName} with {groupName}?

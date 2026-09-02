@@ -319,7 +319,7 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-2xl">
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>{player ? "Edit standings row" : "Add a player"}</DialogTitle>
             <DialogDescription>

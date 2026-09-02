@@ -22,7 +22,9 @@ describe("useCountUp", () => {
     expect(result.current).toBe(0);
 
     // Advance past the full duration
-    act(() => vi.advanceTimersByTime(1100));
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
     expect(result.current).toBe(100);
   });
 
@@ -30,7 +32,9 @@ describe("useCountUp", () => {
     const { result } = renderHook(() => useCountUp(1000, 1000));
 
     // At ~50% through a cubic ease-out, value should be well above 0 but below target
-    act(() => vi.advanceTimersByTime(500));
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
     expect(result.current).toBeGreaterThan(0);
     expect(result.current).toBeLessThan(1000);
   });
@@ -41,12 +45,16 @@ describe("useCountUp", () => {
     });
 
     // Complete first animation
-    act(() => vi.advanceTimersByTime(1100));
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
     expect(result.current).toBe(100);
 
     // Change target — new animation runs toward 200
     rerender({ target: 200 });
-    act(() => vi.advanceTimersByTime(1100));
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
     expect(result.current).toBe(200);
   });
 
@@ -54,7 +62,9 @@ describe("useCountUp", () => {
     const { result } = renderHook(() => useCountUp(1000, 1000));
 
     // At 25% time, ease-out cubic should yield more than 25% progress
-    act(() => vi.advanceTimersByTime(250));
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
     const earlyValue = result.current;
     expect(earlyValue).toBeGreaterThan(250);
   });
@@ -62,7 +72,9 @@ describe("useCountUp", () => {
   it("returns integer values only", () => {
     const { result } = renderHook(() => useCountUp(777, 1000));
 
-    act(() => vi.advanceTimersByTime(333));
+    act(() => {
+      vi.advanceTimersByTime(333);
+    });
     expect(Number.isInteger(result.current)).toBe(true);
   });
 });

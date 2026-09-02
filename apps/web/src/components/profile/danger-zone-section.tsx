@@ -87,7 +87,7 @@ function ResetCollectionsAction() {
           }
         />
         <AlertDialogContent>
-          <DialogForm onSubmit={handleReset}>
+          <DialogForm onSubmit={() => void handleReset()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Reset your collections?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -135,10 +135,14 @@ function DeleteAccountAction() {
     }
     setLoading(true);
     setError(null);
-    const { error: deleteError } = await authClient.deleteUser({ password });
+    const result = await authClient.deleteUser({ password }).catch(() => null);
     setLoading(false);
-    if (deleteError) {
-      setError(deleteError.message ?? "Failed to delete account.");
+    if (!result) {
+      setError("Failed to delete account.");
+      return;
+    }
+    if (result.error) {
+      setError(result.error.message ?? "Failed to delete account.");
       return;
     }
     // Navigate first so the profile page (and any other authenticated
@@ -148,8 +152,12 @@ function DeleteAccountAction() {
     // authenticated routes with no userId — useRequiredUserId throws.
     // The refetch is async; its network round-trip gives React time to
     // commit the unmount before observers see the new state.
-    await router.navigate({ to: "/" });
-    void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    try {
+      await router.navigate({ to: "/" });
+      void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
+    } catch {
+      /* The account is already gone; a reload lands on the signed-out app. */
+    }
   }
 
   return (
@@ -178,7 +186,7 @@ function DeleteAccountAction() {
           }
         />
         <AlertDialogContent>
-          <DialogForm onSubmit={handleDelete}>
+          <DialogForm onSubmit={() => void handleDelete()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete your account?</AlertDialogTitle>
               <AlertDialogDescription>

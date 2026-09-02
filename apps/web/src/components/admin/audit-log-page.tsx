@@ -139,7 +139,7 @@ export function AuditLogPage() {
       <AdminPageTopBar
         title="Audit Log"
         actions={
-          <PageTopBarButton onClick={() => events.refetch()} disabled={events.isFetching}>
+          <PageTopBarButton onClick={() => void events.refetch()} disabled={events.isFetching}>
             <RefreshCwIcon className={events.isFetching ? "animate-spin" : ""} />
             Refresh
           </PageTopBarButton>
@@ -223,7 +223,7 @@ export function AuditLogPage() {
         <div className="flex justify-center">
           <Button
             variant="outline"
-            onClick={() => events.fetchNextPage()}
+            onClick={() => void events.fetchNextPage()}
             disabled={events.isFetchingNextPage}
           >
             {events.isFetchingNextPage && <LoaderIcon className="mr-1 size-4 animate-spin" />}

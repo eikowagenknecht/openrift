@@ -358,7 +358,7 @@ function ServingCard({ serving }: { serving: ScanServing }) {
           <p className="text-destructive">Last rebuild failed: {latestRun.data.errorMessage}</p>
         )}
         <div>
-          <Button onClick={handleRebuild} disabled={running} variant="secondary">
+          <Button onClick={() => void handleRebuild()} disabled={running} variant="secondary">
             {running ? <LoaderIcon className="animate-spin" /> : <RotateCcwIcon />}
             Rebuild bank
           </Button>

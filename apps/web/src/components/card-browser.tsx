@@ -337,7 +337,9 @@ export function CardBrowser() {
   useRowActionHandlers("catalog", {
     onRowClick: handleGridCardClick,
     onSiblingClick: handleSiblingClick,
-    onIncrement: handleQuickAdd,
+    onIncrement:
+      handleQuickAdd &&
+      ((printing, modifiers, quantity) => void handleQuickAdd(printing, modifiers, quantity)),
     onDecrement: hasAddTarget ? handleDecrement : undefined,
     onOpenVariants: openVariantsForTile,
     onAddToWishlist: isLoggedIn ? setWishTarget : undefined,
@@ -503,10 +505,14 @@ export function CardBrowser() {
         <VariantLocationsPopoverHost
           catalogPrintingsByCardId={printingsByCardId}
           languageScopedPrintingsByCardId={detailPanePrintingsByCardId}
-          onQuickAdd={handleQuickAdd}
+          onQuickAdd={handleQuickAdd && ((printing) => void handleQuickAdd(printing))}
           defaultTargetCollectionId={inboxId}
-          onAddToCollection={handleAddToCollection}
-          onRemoveFromCollection={handleDisposeFromCollection}
+          onAddToCollection={(printing, collectionId) =>
+            void handleAddToCollection(printing, collectionId)
+          }
+          onRemoveFromCollection={(printing, collectionId) =>
+            void handleDisposeFromCollection(printing, collectionId)
+          }
           closeVariants={closeVariants}
         />
       </CardBrowserFilterProvider>

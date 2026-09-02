@@ -122,7 +122,9 @@ export function MetaDeckPage({ token }: { token: string }) {
   const encodeMutation = useEncodeDeckCards();
   const { copied, copy } = useCopyToClipboard();
 
-  const handleFork = () => fork({ token, deck: data.deck, cards: data.cards });
+  const handleFork = () => {
+    void fork({ token, deck: data.deck, cards: data.cards });
+  };
 
   // The archived deck has no server row the viewer may export, so the code
   // comes from the public stateless encoder — the same codecs the owner's
@@ -176,7 +178,10 @@ export function MetaDeckPage({ token }: { token: string }) {
           listStatus={data.meta.listStatus}
           actions={
             <>
-              <PageTopBarButton onClick={handleCopyCode} disabled={encodeMutation.isPending}>
+              <PageTopBarButton
+                onClick={() => void handleCopyCode()}
+                disabled={encodeMutation.isPending}
+              >
                 {copied ? <CheckIcon /> : <CopyIcon />}
                 {/* Kept in the accessibility tree on phones, where the bar has
                     room for the icon alone. */}

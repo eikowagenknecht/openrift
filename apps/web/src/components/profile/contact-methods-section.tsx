@@ -75,6 +75,15 @@ function ContactMethodRow({ method }: { method: ContactMethod }) {
   const dirty = type !== method.type || value.trim() !== method.value;
   const canSave = dirty && value.trim().length > 0;
 
+  async function handleSave() {
+    try {
+      await update.mutateAsync({ id: method.id, type, value: value.trim() });
+      toast.success("Contact method saved");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <div className="flex items-center gap-2">
       <TypeSelect value={type} onValueChange={setType} />
@@ -87,13 +96,7 @@ function ContactMethodRow({ method }: { method: ContactMethod }) {
         aria-label="Contact value"
       />
       {canSave ? (
-        <Button
-          disabled={update.isPending}
-          onClick={async () => {
-            await update.mutateAsync({ id: method.id, type, value: value.trim() });
-            toast.success("Contact method saved");
-          }}
-        >
+        <Button disabled={update.isPending} onClick={() => void handleSave()}>
           Save
         </Button>
       ) : null}
@@ -117,6 +120,15 @@ function AddContactMethod() {
 
   const canAdd = value.trim().length > 0;
 
+  async function handleAdd() {
+    try {
+      await create.mutateAsync({ type, value: value.trim() });
+      setValue("");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <div className="flex items-center gap-2">
       <TypeSelect value={type} onValueChange={setType} id="contact-add-type" />
@@ -131,10 +143,7 @@ function AddContactMethod() {
       <Button
         variant="outline"
         disabled={!canAdd || create.isPending}
-        onClick={async () => {
-          await create.mutateAsync({ type, value: value.trim() });
-          setValue("");
-        }}
+        onClick={() => void handleAdd()}
       >
         <PlusIcon />
         Add

@@ -548,7 +548,10 @@ function ActivityPage() {
             );
           })}
           {hasNextPage && (
-            <LoadMoreSentinel onIntersect={fetchNextPage} isFetching={isFetchingNextPage} />
+            <LoadMoreSentinel
+              onIntersect={() => void fetchNextPage()}
+              isFetching={isFetchingNextPage}
+            />
           )}
         </>
       )}

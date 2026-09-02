@@ -291,19 +291,19 @@ export function MembersInviteAction({ slug }: { slug: string }) {
       </PageTopBarPrimaryButton>
     );
   }
+  const handleInvite = async () => {
+    const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
+    if (await copy(joinUrl)) {
+      toast.success("Invite link copied. Send it to whoever you want to join");
+    } else {
+      // No clipboard (denied, insecure context): hand the link over on the
+      // Manage page instead, where it is on screen and selectable.
+      void navigate({ to: "/groups/$slug/manage", params: { slug } });
+    }
+  };
+
   return (
-    <PageTopBarPrimaryButton
-      onClick={async () => {
-        const joinUrl = `${getSiteUrl()}/groups/join?code=${encodeURIComponent(code)}`;
-        if (await copy(joinUrl)) {
-          toast.success("Invite link copied. Send it to whoever you want to join");
-        } else {
-          // No clipboard (denied, insecure context): hand the link over on the
-          // Manage page instead, where it is on screen and selectable.
-          void navigate({ to: "/groups/$slug/manage", params: { slug } });
-        }
-      }}
-    >
+    <PageTopBarPrimaryButton onClick={() => void handleInvite()}>
       <UserPlusIcon className="size-4" />
       Invite
     </PageTopBarPrimaryButton>

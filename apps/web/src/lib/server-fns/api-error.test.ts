@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, apiErrorFromResponse, isApiError, isSessionExpiredError } from "./api-error";
+import {
+  ApiError,
+  apiErrorFromResponse,
+  errorStatus,
+  isApiError,
+  isSessionExpiredError,
+} from "./api-error";
 
 function mockResponse(body: string, init: { status?: number; statusText?: string } = {}) {
   const { status = 500, statusText = "Internal Server Error" } = init;
@@ -10,6 +16,26 @@ function mockResponse(body: string, init: { status?: number; statusText?: string
     text: () => Promise.resolve(body),
   };
 }
+
+describe("errorStatus", () => {
+  it("reads the status off an ApiError instance", () => {
+    expect(errorStatus(new ApiError("Boom", { status: 500, diagnostic: "" }))).toBe(500);
+  });
+
+  it("reads the status off a post-boundary plain object", () => {
+    expect(errorStatus({ name: "Error", status: 409 })).toBe(409);
+  });
+
+  it("returns undefined for an error carrying no status", () => {
+    expect(errorStatus(new Error("Failed to fetch"))).toBeUndefined();
+  });
+
+  it("returns undefined for a non-numeric status and for non-objects", () => {
+    expect(errorStatus({ status: "500" })).toBeUndefined();
+    expect(errorStatus(null)).toBeUndefined();
+    expect(errorStatus("boom")).toBeUndefined();
+  });
+});
 
 describe("isSessionExpiredError", () => {
   it("returns true for a status-401 object", () => {

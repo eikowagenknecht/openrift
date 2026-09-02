@@ -60,10 +60,15 @@ export function SwissResultForm({
     if (!chosen || !side1 || !side2) {
       return;
     }
-    await onSubmit([
+    const results = [
       ...side1.map((member) => ({ playerId: member.playerId, gamePoints: chosen.gamePoints[0] })),
       ...side2.map((member) => ({ playerId: member.playerId, gamePoints: chosen.gamePoints[1] })),
-    ]);
+    ];
+    try {
+      await onSubmit(results);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   if (!side1 || !side2 || groups.length !== 2) {
@@ -150,7 +155,7 @@ export function SwissResultForm({
             Cancel
           </Button>
         ) : null}
-        <Button onClick={handleSubmit} disabled={selected === null || submitting}>
+        <Button onClick={() => void handleSubmit()} disabled={selected === null || submitting}>
           {submitting ? "Saving…" : "Save result"}
         </Button>
       </div>

@@ -48,8 +48,13 @@ export function SignupForm({
 
   async function onSubmit(values: SignUpValues) {
     setLoading(true);
-    const { error } = await signUp.email(values);
+    const result = await signUp.email(values).catch(() => null);
     setLoading(false);
+    if (!result) {
+      form.setError("root", { message: "Could not create the account. Please try again." });
+      return;
+    }
+    const { error } = result;
     if (error) {
       setServerError(form, error);
       return;
@@ -64,7 +69,7 @@ export function SignupForm({
       subtitle="Enter your details to get started"
       {...props}
     >
-      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+      <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} noValidate>
         <FieldGroup>
           <RootFormError control={form.control} />
           <Controller

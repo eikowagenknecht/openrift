@@ -47,6 +47,10 @@ export function ChangeBanner({ summary }: { summary: DeckCheckChangeSummary }) {
   );
 }
 
+function reResolveMessage(updatedLines: number): string {
+  return `${updatedLines} ${updatedLines === 1 ? "line" : "lines"} now resolve`;
+}
+
 export function FindingsBanner({
   tournamentId,
   detail,
@@ -66,6 +70,21 @@ export function FindingsBanner({
   if (detail.violations.length === 0 && unmatched.length === 0 && suggestions.length === 0) {
     return null;
   }
+
+  async function handleReResolve() {
+    try {
+      const result = await reResolve.mutateAsync({ tournamentId });
+      if (result.updatedLines === 0) {
+        toast.info("No new matches found");
+      } else {
+        toast.info(reResolveMessage(result.updatedLines));
+      }
+      onResolved();
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
       <span className="font-medium">Possible deck problems</span>
@@ -95,15 +114,7 @@ export function FindingsBanner({
             variant="outline"
             disabled={reResolve.isPending}
             title="Try matching the unidentified cards against the catalog again, e.g. after a catalog fix"
-            onClick={async () => {
-              const result = await reResolve.mutateAsync({ tournamentId });
-              toast.info(
-                result.updatedLines === 0
-                  ? "No new matches found"
-                  : `${result.updatedLines} ${result.updatedLines === 1 ? "line" : "lines"} now resolve`,
-              );
-              onResolved();
-            }}
+            onClick={() => void handleReResolve()}
           >
             <RefreshCwIcon className="size-4" />
             Re-resolve cards

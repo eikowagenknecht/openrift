@@ -115,7 +115,11 @@ export function ConfirmActionButton({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={handleConfirm} disabled={pending}>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => void handleConfirm()}
+            disabled={pending}
+          >
             {confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

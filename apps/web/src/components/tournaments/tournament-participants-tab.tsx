@@ -182,6 +182,50 @@ export function TournamentParticipantsTab({
       .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
   })).filter((group) => group.players.length > 0);
 
+  async function handleRename() {
+    const displayName = renameTarget?.name.trim();
+    if (!renameTarget || !displayName) {
+      return;
+    }
+    await run(() =>
+      updateParticipant.mutateAsync({
+        id,
+        participantId: renameTarget.participantId,
+        displayName,
+      }),
+    );
+    setRenameTarget(null);
+  }
+
+  async function handleSetRegion() {
+    if (!regionTarget) {
+      return;
+    }
+    const region = regionTarget.region === "none" ? null : regionTarget.region;
+    await run(() =>
+      updateParticipant.mutateAsync({ id, participantId: regionTarget.participantId, region }),
+    );
+    setRegionTarget(null);
+  }
+
+  async function handleSetFixedTable() {
+    if (!fixedTableTarget) {
+      return;
+    }
+    const parsed = parseFixedTable(fixedTableTarget.fixedTable);
+    if (parsed === undefined) {
+      return;
+    }
+    await run(() =>
+      updateParticipant.mutateAsync({
+        id,
+        participantId: fixedTableTarget.participantId,
+        fixedTable: parsed,
+      }),
+    );
+    setFixedTableTarget(null);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {canAssignRegion && missingRegionPlayers.length > 0 ? (
@@ -241,21 +285,7 @@ export function TournamentParticipantsTab({
 
       <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              if (!renameTarget?.name.trim()) {
-                return;
-              }
-              await run(() =>
-                updateParticipant.mutateAsync({
-                  id,
-                  participantId: renameTarget.participantId,
-                  displayName: renameTarget.name.trim(),
-                }),
-              );
-              setRenameTarget(null);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleRename()}>
             <DialogHeader>
               <DialogTitle>Rename participant</DialogTitle>
             </DialogHeader>
@@ -284,21 +314,7 @@ export function TournamentParticipantsTab({
 
       <Dialog open={regionTarget !== null} onOpenChange={(open) => !open && setRegionTarget(null)}>
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              if (!regionTarget) {
-                return;
-              }
-              await run(() =>
-                updateParticipant.mutateAsync({
-                  id,
-                  participantId: regionTarget.participantId,
-                  region: regionTarget.region === "none" ? null : regionTarget.region,
-                }),
-              );
-              setRegionTarget(null);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleSetRegion()}>
             <DialogHeader>
               <DialogTitle>Set region for {regionTarget?.name}</DialogTitle>
               <DialogDescription>
@@ -328,25 +344,7 @@ export function TournamentParticipantsTab({
         onOpenChange={(open) => !open && setFixedTableTarget(null)}
       >
         <DialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              if (!fixedTableTarget) {
-                return;
-              }
-              const parsed = parseFixedTable(fixedTableTarget.fixedTable);
-              if (parsed === undefined) {
-                return;
-              }
-              await run(() =>
-                updateParticipant.mutateAsync({
-                  id,
-                  participantId: fixedTableTarget.participantId,
-                  fixedTable: parsed,
-                }),
-              );
-              setFixedTableTarget(null);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleSetFixedTable()}>
             <DialogHeader>
               <DialogTitle>Set fixed table for {fixedTableTarget?.name}</DialogTitle>
               <DialogDescription>

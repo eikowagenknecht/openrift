@@ -1,4 +1,10 @@
-import type { Currency, ListIntent, ListKind, TradePreference } from "@openrift/shared";
+import type {
+  Currency,
+  ListIntent,
+  ListKind,
+  ListResponse,
+  TradePreference,
+} from "@openrift/shared";
 import { ChevronDownIcon, CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";
@@ -181,6 +187,29 @@ export function CreateListDialog({
     onOpenChange(next);
   };
 
+  const finishCreate = async (list: ListResponse) => {
+    const entries = initialEntries?.(kind) ?? [];
+    if (entries.length > 0) {
+      try {
+        await bulkAdd.mutateAsync({ listId: list.id, entries });
+      } catch {
+        /* Reported by the global mutation error toast. */
+        return;
+      }
+    }
+    // Group visibility is opt-in (ADR-013): the API creates every list private,
+    // so we only share it with the groups the user checked. A failure doesn't
+    // block creation — visibility can be fixed later from the share dialog.
+    const selectedGroups = groups.filter((group) => selectedGroupIds.has(group.id));
+    await Promise.allSettled(
+      selectedGroups.map((group) =>
+        shareWithGroup.mutateAsync({ slug: group.slug, listId: list.id }),
+      ),
+    );
+    onCreated?.(list.id);
+    handleOpenChange(false);
+  };
+
   const handleSubmit = () => {
     const trimmed = name.trim();
     if (
@@ -203,26 +232,7 @@ export function CreateListDialog({
         // "?" the user would otherwise see when toggling to fixed price.
         ...(supportsPrefs && { tradeDefaults, currency }),
       },
-      {
-        onSuccess: async (list) => {
-          const entries = initialEntries?.(kind) ?? [];
-          if (entries.length > 0) {
-            await bulkAdd.mutateAsync({ listId: list.id, entries });
-          }
-          // Group visibility is opt-in (ADR-013): the API creates every list
-          // private, so we only share it with the groups the user checked. A
-          // failure doesn't block creation — visibility can be fixed later from
-          // the list's share dialog.
-          const selectedGroups = groups.filter((group) => selectedGroupIds.has(group.id));
-          await Promise.allSettled(
-            selectedGroups.map((group) =>
-              shareWithGroup.mutateAsync({ slug: group.slug, listId: list.id }),
-            ),
-          );
-          onCreated?.(list.id);
-          handleOpenChange(false);
-        },
-      },
+      { onSuccess: (list) => void finishCreate(list) },
     );
   };
 

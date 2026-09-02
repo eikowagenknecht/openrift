@@ -105,7 +105,7 @@ export function KindTabs({ kind }: { kind: RuleKind }) {
         }
         // Keeps ?q= across the switch: looking the same term up in the other
         // document is the reason you press this.
-        navigate({ to: "/rules/$kind", params: { kind: value }, search: (prev) => prev });
+        void navigate({ to: "/rules/$kind", params: { kind: value }, search: (prev) => prev });
       }}
     >
       <TabsList variant="line">

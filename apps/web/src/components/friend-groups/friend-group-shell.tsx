@@ -110,16 +110,23 @@ function PendingApprovalStub({ data }: { data: FriendGroupDetailResponse }) {
   const viewerId = useRequiredUserId();
   const declineInvite = useDeclineFriendGroupInvite();
   const navigate = useNavigate();
+
+  async function handleCancel() {
+    try {
+      await declineInvite.mutateAsync({ slug: data.group.slug, userId: viewerId });
+      void navigate({ to: "/groups" });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-4 text-center", PAGE_PADDING)}>
       <Heading level={1}>{data.group.name}</Heading>
       <p className="text-muted-foreground">Waiting for an admin to approve your request to join.</p>
       <Button
         variant="ghost"
-        onClick={async () => {
-          await declineInvite.mutateAsync({ slug: data.group.slug, userId: viewerId });
-          void navigate({ to: "/groups" });
-        }}
+        onClick={() => void handleCancel()}
         disabled={declineInvite.isPending}
       >
         Cancel request

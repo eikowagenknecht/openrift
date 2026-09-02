@@ -124,6 +124,19 @@ export function ParticipantRow({
     name: participant.displayName,
   };
 
+  async function handleCopyClaimLink() {
+    const token = participant.claimToken;
+    if (!token) {
+      return;
+    }
+    // Built from the env-backed origin, never a hardcoded site URL.
+    if (await copy(`${getSiteUrl()}/tournaments/claim/${token}`)) {
+      toast.success("Claim link copied");
+    } else {
+      toast.error("Could not copy the claim link");
+    }
+  }
+
   return (
     <Card className={cn("flex-row flex-wrap items-center gap-3 p-3", dimmed && "opacity-50")}>
       <UserAvatar
@@ -302,20 +315,7 @@ export function ParticipantRow({
                   Re-issue claim link
                 </DropdownMenuItem>
               ) : participant.claimToken ? (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    const token = participant.claimToken;
-                    if (!token) {
-                      return;
-                    }
-                    // Built from the env-backed origin, never a hardcoded site URL.
-                    if (await copy(`${getSiteUrl()}/tournaments/claim/${token}`)) {
-                      toast.success("Claim link copied");
-                    } else {
-                      toast.error("Could not copy the claim link");
-                    }
-                  }}
-                >
+                <DropdownMenuItem onClick={() => void handleCopyClaimLink()}>
                   <CopyIcon className="size-4" />
                   Copy claim link
                 </DropdownMenuItem>

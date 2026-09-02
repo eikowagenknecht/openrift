@@ -31,8 +31,12 @@ function VerifyEmailPage() {
     }
     setVerifying(true);
     setError("");
-    const result = await authClient.emailOtp.verifyEmail({ email, otp: code });
+    const result = await authClient.emailOtp.verifyEmail({ email, otp: code }).catch(() => null);
     setVerifying(false);
+    if (!result) {
+      setError("Could not verify the code. Please try again.");
+      return;
+    }
     if (result.error) {
       setError(otpErrorMessage(result.error));
       return;
@@ -48,8 +52,13 @@ function VerifyEmailPage() {
   async function handleResend() {
     setResending(true);
     setError("");
-    await authClient.emailOtp.sendVerificationOtp({ email, type: "email-verification" });
+    const result = await authClient.emailOtp
+      .sendVerificationOtp({ email, type: "email-verification" })
+      .catch(() => null);
     setResending(false);
+    if (!result) {
+      setError("Could not send a new code. Please try again.");
+    }
   }
 
   return (
@@ -68,16 +77,21 @@ function VerifyEmailPage() {
               autoFocusOnMount
               value={otp}
               onChange={setOtp}
-              onComplete={handleVerify}
+              onComplete={(code) => void handleVerify(code)}
             />
             <Button
               className="w-full"
               disabled={otp.length < 6 || verifying}
-              onClick={() => handleVerify(otp)}
+              onClick={() => void handleVerify(otp)}
             >
               {verifying ? "Verifying..." : "Verify"}
             </Button>
-            <Button type="button" variant="link-muted" disabled={resending} onClick={handleResend}>
+            <Button
+              type="button"
+              variant="link-muted"
+              disabled={resending}
+              onClick={() => void handleResend()}
+            >
               {resending ? "Sending..." : "Resend code"}
             </Button>
           </FieldGroup>

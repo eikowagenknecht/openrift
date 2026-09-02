@@ -452,6 +452,15 @@ function ChecklistRow({
     }
   };
 
+  const handleRemove = async () => {
+    try {
+      await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
+      setRemoveOpen(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  };
+
   return (
     <div
       className="hover:bg-muted/40 flex items-center gap-2 rounded-md"
@@ -542,10 +551,7 @@ function ChecklistRow({
         confirmLabel="Remove"
         pendingLabel="Removing..."
         isPending={removeCard.isPending}
-        onConfirm={async () => {
-          await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
-          setRemoveOpen(false);
-        }}
+        onConfirm={() => void handleRemove()}
       />
     </div>
   );
@@ -613,6 +619,15 @@ function ChecklistCell({
     }
   };
 
+  const handleRemove = async () => {
+    try {
+      await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
+      setRemoveOpen(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  };
+
   const foundOverlay = found ? (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
       <div className="bg-background/80 rounded-full p-3 shadow-md">
@@ -674,10 +689,7 @@ function ChecklistCell({
             confirmLabel="Remove"
             pendingLabel="Removing..."
             isPending={removeCard.isPending}
-            onConfirm={async () => {
-              await removeCard.mutateAsync({ tournamentId, entryId, cardId: card.id, copyIndex });
-              setRemoveOpen(false);
-            }}
+            onConfirm={() => void handleRemove()}
           />
         )}
       </>

@@ -188,7 +188,7 @@ export function SourceCitationsEditor<T extends EditableCitation>({
         <Button
           variant="outline"
           disabled={trimmedLabel.length === 0 || creating}
-          onClick={handleAdd}
+          onClick={() => void handleAdd()}
         >
           <PlusIcon />
           Add citation

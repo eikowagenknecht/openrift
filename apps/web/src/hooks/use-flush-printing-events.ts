@@ -38,8 +38,8 @@ export function useFlushPrintingEvents() {
     onSuccess: () => {
       // Surface the new running row immediately and refresh the queue list
       // once the flush completes; the run-poll hook drives intermediate state.
-      queryClient.invalidateQueries({ queryKey: FLUSH_RUN_KEY });
-      queryClient.invalidateQueries({ queryKey: PRINTING_EVENTS_KEY });
+      void queryClient.invalidateQueries({ queryKey: FLUSH_RUN_KEY });
+      void queryClient.invalidateQueries({ queryKey: PRINTING_EVENTS_KEY });
     },
   });
 }

@@ -476,6 +476,49 @@ function TranslationsTable({
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
 
+  async function handleSaveEdit(row: TranslationRow) {
+    const label = editLabel.trim();
+    if (!label) {
+      return;
+    }
+    try {
+      await upsertTranslation.mutateAsync({
+        keywordName: row.keywordName,
+        language: row.language,
+        label,
+      });
+      setEditingKey(null);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
+  async function handleDelete(row: TranslationRow) {
+    try {
+      await deleteTranslation.mutateAsync({
+        keywordName: row.keywordName,
+        language: row.language,
+      });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
+  async function handleAdd() {
+    try {
+      await upsertTranslation.mutateAsync({
+        keywordName: addKeyword.trim(),
+        language: addLanguage.trim(),
+        label: addLabel.trim(),
+      });
+      setAddKeyword("");
+      setAddLanguage("");
+      setAddLabel("");
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   return (
     <Card>
       <CardContent className="pt-5">
@@ -522,16 +565,7 @@ function TranslationsTable({
                           variant="ghost"
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={async () => {
-                            if (editLabel.trim()) {
-                              await upsertTranslation.mutateAsync({
-                                keywordName: t.keywordName,
-                                language: t.language,
-                                label: editLabel.trim(),
-                              });
-                              setEditingKey(null);
-                            }
-                          }}
+                          onClick={() => void handleSaveEdit(t)}
                         >
                           Save
                         </Button>
@@ -561,12 +595,7 @@ function TranslationsTable({
                           variant="ghost"
                           size="sm"
                           className="text-destructive h-7 text-xs"
-                          onClick={() =>
-                            deleteTranslation.mutateAsync({
-                              keywordName: t.keywordName,
-                              language: t.language,
-                            })
-                          }
+                          onClick={() => void handleDelete(t)}
                         >
                           <Trash2Icon className="size-3" />
                         </Button>
@@ -623,16 +652,7 @@ function TranslationsTable({
                   size="sm"
                   className="h-7 text-xs"
                   disabled={!addKeyword.trim() || !addLanguage.trim() || !addLabel.trim()}
-                  onClick={async () => {
-                    await upsertTranslation.mutateAsync({
-                      keywordName: addKeyword.trim(),
-                      language: addLanguage.trim(),
-                      label: addLabel.trim(),
-                    });
-                    setAddKeyword("");
-                    setAddLanguage("");
-                    setAddLabel("");
-                  }}
+                  onClick={() => void handleAdd()}
                 >
                   <PlusIcon className="size-3" /> Add
                 </Button>

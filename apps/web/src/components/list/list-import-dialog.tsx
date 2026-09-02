@@ -92,7 +92,7 @@ export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListI
             onSkip={flow.handleSkip}
             onUnskip={flow.handleUnskip}
             onToggleExpand={flow.handleToggleExpand}
-            onImport={flow.handleImport}
+            onImport={() => void flow.handleImport()}
             onBack={flow.handleBack}
           />
         )}

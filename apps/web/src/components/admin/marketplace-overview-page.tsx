@@ -116,7 +116,7 @@ function PriceSection({
               disabled={anyPending}
               onClick={() =>
                 refreshMutation.mutate(undefined, {
-                  onSuccess: () => latestRun.refetch(),
+                  onSuccess: () => void latestRun.refetch(),
                 })
               }
             >

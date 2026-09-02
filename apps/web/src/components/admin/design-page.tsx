@@ -549,16 +549,19 @@ const TYPE_TIERS: readonly { role: string; cls: string; note?: string }[] = [
 // paired foreground); line/chart tokens omit it.
 function ColorTokenTile({ token, fg, value }: { token: string; fg?: string; value?: string }) {
   const { copy } = useCopyToClipboard();
+
+  async function handleCopy() {
+    if (await copy(`var(${token})`)) {
+      toast.success(`Copied var(${token})`);
+    } else {
+      toast.error("Could not copy the token");
+    }
+  }
+
   return (
     <Pressable
       className="group flex min-w-0 flex-col gap-1 text-left"
-      onClick={async () => {
-        if (await copy(`var(${token})`)) {
-          toast.success(`Copied var(${token})`);
-        } else {
-          toast.error("Could not copy the token");
-        }
-      }}
+      onClick={() => void handleCopy()}
     >
       <span
         className="border-border-opaque flex h-12 items-center justify-center rounded-md border text-sm"

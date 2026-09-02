@@ -596,7 +596,7 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
         {hasActions && (
           <TableCell className="text-right">
             <SaveCancelButtons
-              onSave={saveAdd}
+              onSave={() => void saveAdd()}
               onCancel={cancelAdding}
               isPending={addPending}
               error={addError}
@@ -762,7 +762,7 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
                       <TableCell className="text-right">
                         {isEditing ? (
                           <SaveCancelButtons
-                            onSave={saveEdit}
+                            onSave={() => void saveEdit()}
                             onCancel={cancelEditing}
                             isPending={editPending}
                             error={editError}
@@ -1027,6 +1027,33 @@ function DeleteButton<TData>({
   const [open, setOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
 
+  async function handleConfirmedDelete() {
+    // Guard against double-submission while a delete is in flight.
+    if (deletePending) {
+      return;
+    }
+    setDeleteError("");
+    setDeletePending(true);
+    // React Compiler can lower neither a `finally` clause nor a conditional
+    // inside a try/catch, so the reset runs on both paths and the message
+    // comes from a plain helper.
+    try {
+      await config.onDelete(row);
+      setOpen(false);
+    } catch (error) {
+      setDeleteError(errorText(error, "Delete failed"));
+    }
+    setDeletePending(false);
+  }
+
+  async function handleDelete() {
+    try {
+      await config.onDelete(row);
+    } catch (error) {
+      setDeleteError(errorText(error, "Delete failed"));
+    }
+  }
+
   if (config.confirm) {
     const { title, description } = config.confirm(row);
     return (
@@ -1045,26 +1072,7 @@ function DeleteButton<TData>({
           <Trash2Icon className="h-4 w-4" />
         </AlertDialogTrigger>
         <AlertDialogContent>
-          <DialogForm
-            onSubmit={async () => {
-              // Guard against double-submission while a delete is in flight.
-              if (deletePending) {
-                return;
-              }
-              setDeleteError("");
-              setDeletePending(true);
-              // React Compiler can lower neither a `finally` clause nor a
-              // conditional inside a try/catch, so the reset runs on both
-              // paths and the message comes from a plain helper.
-              try {
-                await config.onDelete(row);
-                setOpen(false);
-              } catch (error) {
-                setDeleteError(errorText(error, "Delete failed"));
-              }
-              setDeletePending(false);
-            }}
-          >
+          <DialogForm onSubmit={() => void handleConfirmedDelete()}>
             <AlertDialogHeader>
               <AlertDialogTitle>{title}</AlertDialogTitle>
               <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -1086,13 +1094,7 @@ function DeleteButton<TData>({
     <Button
       variant="ghost"
       className="text-destructive hover:text-destructive"
-      onClick={async () => {
-        try {
-          await config.onDelete(row);
-        } catch (error) {
-          setDeleteError(errorText(error, "Delete failed"));
-        }
-      }}
+      onClick={() => void handleDelete()}
     >
       Delete
     </Button>

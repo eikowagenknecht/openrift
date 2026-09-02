@@ -58,28 +58,31 @@ export function TakeWishlistFollowUpDialog({
     // Reduce each chosen entry by the copies taken (capped at its own quantity),
     // removing it outright when that reaches zero. The common case is one list
     // at quantity 1, which is a plain removal.
-    await Promise.all(
-      chosen.map((entry) => {
-        const decrement = Math.min(entry.quantity, takenQuantity);
-        return entry.quantity - decrement <= 0
-          ? removeEntry.mutateAsync({ listId: entry.listId, entryId: entry.entryId })
-          : updateEntry.mutateAsync({
-              listId: entry.listId,
-              entryId: entry.entryId,
-              quantity: entry.quantity - decrement,
-            });
-      }),
-    );
-    toast.success(
-      chosen.length === 1 ? "Updated your wishlist" : `Updated ${chosen.length} wishlists`,
-    );
-    onOpenChange(false);
+    const updates = chosen.map((entry) => {
+      const decrement = Math.min(entry.quantity, takenQuantity);
+      return entry.quantity - decrement <= 0
+        ? removeEntry.mutateAsync({ listId: entry.listId, entryId: entry.entryId })
+        : updateEntry.mutateAsync({
+            listId: entry.listId,
+            entryId: entry.entryId,
+            quantity: entry.quantity - decrement,
+          });
+    });
+    const message =
+      chosen.length === 1 ? "Updated your wishlist" : `Updated ${chosen.length} wishlists`;
+    try {
+      await Promise.all(updates);
+      toast.success(message);
+      onOpenChange(false);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   };
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <DialogForm onSubmit={applyRemoval}>
+        <DialogForm onSubmit={() => void applyRemoval()}>
           <AlertDialogTitle>Remove from your wishlist?</AlertDialogTitle>
           {!single && (
             <div className="flex flex-col gap-2 py-1">

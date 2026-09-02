@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sessionQueryOptions } from "./auth-session";
 import { createQueryClient } from "./query-client";
+import { captureHandledError } from "./report-error";
 import { _resetReloadStateForTesting } from "./stale-bundle-reload";
 import { PERSISTENT_ERROR_TOAST } from "./toast";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("./report-error", () => ({ captureHandledError: vi.fn() }));
 
 // What a 401 ApiError looks like after the server-fn (seroval) boundary: a
 // PLAIN object carrying the own properties, prototype gone. instanceof would
@@ -50,6 +52,7 @@ describe("createQueryClient mutation onError", () => {
 
   beforeEach(() => {
     vi.mocked(toast.error).mockClear();
+    vi.mocked(captureHandledError).mockClear();
   });
 
   it("toasts the server message and logs the diagnostic for an ApiError-shaped object", () => {
@@ -94,6 +97,42 @@ describe("createQueryClient mutation onError", () => {
     // The user sees a reload, not a framework-internal error message.
     expect(reloadSpy).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it("reports a 5xx to Sentry", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    getOnError()(
+      { name: "ApiError", message: "Internal error", status: 500, diagnostic: "" },
+      undefined,
+      undefined,
+    );
+
+    expect(captureHandledError).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
+  it("reports an error carrying no status to Sentry", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    getOnError()(new Error("boom"), undefined, undefined);
+
+    expect(captureHandledError).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
+  });
+
+  it("does not report a 4xx to Sentry, since the toast already explains it", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    getOnError()(
+      { name: "ApiError", message: "Input validation failed", status: 400, diagnostic: "" },
+      undefined,
+      undefined,
+    );
+
+    expect(toast.error).toHaveBeenCalledWith("Input validation failed", PERSISTENT_ERROR_TOAST);
+    expect(captureHandledError).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 

@@ -86,12 +86,15 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
     if (!allSet) {
       return;
     }
-    await onSubmit(
-      pod.members.map((member, index) => ({
-        playerId: member.playerId,
-        gamePoints: parsed[index] as number,
-      })),
-    );
+    const results = pod.members.map((member, index) => ({
+      playerId: member.playerId,
+      gamePoints: parsed[index] as number,
+    }));
+    try {
+      await onSubmit(results);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
   }
 
   return (
@@ -146,7 +149,7 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
             Cancel
           </Button>
         ) : null}
-        <Button onClick={handleSubmit} disabled={!allSet || submitting}>
+        <Button onClick={() => void handleSubmit()} disabled={!allSet || submitting}>
           {submitting ? "Saving…" : "Save result"}
         </Button>
       </div>

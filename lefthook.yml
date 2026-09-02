@@ -12,6 +12,12 @@ pre-commit:
     oxlint-check:
       glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx}"
       run: bunx oxlint --deny-warnings '{staged_files}'
+    oxlint-type-aware:
+      # Separate config because --type-aware switches on every type-aware rule
+      # in the enabled categories; .oxlintrc.type-aware.json turns the
+      # categories off so only the rules listed there run.
+      glob: "*.{ts,tsx}"
+      run: bunx oxlint --type-aware -c .oxlintrc.type-aware.json '{staged_files}'
     eslint-check:
       glob: "*.{js,ts,jsx,tsx}"
       root: "apps/web/"

@@ -184,7 +184,13 @@ export function MetaOverlayUploadDialog({ onClose }: { onClose: () => void }) {
     setBody(null);
     setResult(null);
 
-    const text = await file.text();
+    let text: string;
+    try {
+      text = await file.text();
+    } catch {
+      setParseError("Could not read that file");
+      return;
+    }
     const parsed = parseMetaUploadFile(text);
     if (!parsed.ok) {
       setParseError(parsed.error);
@@ -232,7 +238,7 @@ export function MetaOverlayUploadDialog({ onClose }: { onClose: () => void }) {
               ref={fileRef}
               type="file"
               accept=".json,application/json"
-              onChange={handleFileChange}
+              onChange={(event) => void handleFileChange(event)}
             />
             {fileName && body && (
               <p className="text-muted-foreground text-sm">
@@ -255,7 +261,7 @@ export function MetaOverlayUploadDialog({ onClose }: { onClose: () => void }) {
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button onClick={handleUpload} disabled={!body || upload.isPending}>
+          <Button onClick={() => void handleUpload()} disabled={!body || upload.isPending}>
             <UploadIcon />
             Upload
           </Button>

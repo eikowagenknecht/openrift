@@ -84,6 +84,16 @@ export function TournamentDeckCheckEntry({
   const deleteEntry = useDeleteTournamentDeckCheckEntry();
   const navigate = useNavigate();
 
+  async function handleDelete() {
+    try {
+      await deleteEntry.mutateAsync({ tournamentId, entryId });
+      setDeleteOpen(false);
+      void navigate({ to: "/tournaments/$id/decks", params: { id: tournamentId } });
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
   // A state transition, folding in any unsaved notes so a judge's notes survive
   // when they advance the entry from the top bar or the action row.
   const transition = (
@@ -278,11 +288,7 @@ export function TournamentDeckCheckEntry({
           confirmLabel="Delete"
           pendingLabel="Deleting..."
           isPending={deleteEntry.isPending}
-          onConfirm={async () => {
-            await deleteEntry.mutateAsync({ tournamentId, entryId });
-            setDeleteOpen(false);
-            void navigate({ to: "/tournaments/$id/decks", params: { id: tournamentId } });
-          }}
+          onConfirm={() => void handleDelete()}
         />
       ) : null}
     </>

@@ -337,7 +337,7 @@ function CreateProductDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>Create product from list</DialogTitle>
           </DialogHeader>
@@ -478,7 +478,7 @@ function ResyncDialog({
   return (
     <Dialog open={product !== null} onOpenChange={handleOpenChange}>
       <DialogContent>
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>Re-sync contents{product ? `: ${product.name}` : ""}</DialogTitle>
           </DialogHeader>

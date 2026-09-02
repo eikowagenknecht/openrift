@@ -28,7 +28,7 @@ describe("collectionEventsRepo", () => {
     const repo = collectionEventsRepo(db);
     expect(() => repo.listForUser("u1", 20, "not-a-date")).toThrow(AppError);
     try {
-      repo.listForUser("u1", 20, "not-a-date");
+      void repo.listForUser("u1", 20, "not-a-date");
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);

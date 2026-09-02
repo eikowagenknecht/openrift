@@ -108,12 +108,19 @@ function ChangePasswordCard() {
   async function onSubmit(values: PasswordValues) {
     setLoading(true);
     setSuccess(false);
-    const { error } = await authClient.changePassword({
-      currentPassword: values.currentPassword,
-      newPassword: values.newPassword,
-      revokeOtherSessions: true,
-    });
+    const result = await authClient
+      .changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        revokeOtherSessions: true,
+      })
+      .catch(() => null);
     setLoading(false);
+    if (!result) {
+      form.setError("root", { message: "Could not change the password. Please try again." });
+      return;
+    }
+    const { error } = result;
     if (error) {
       setServerError(form, error);
       return;
@@ -129,7 +136,7 @@ function ChangePasswordCard() {
         <CardDescription>Other signed-in devices will be signed out.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+        <form onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} noValidate>
           <FieldGroup>
             {form.formState.errors.root && (
               <FieldError>{form.formState.errors.root.message}</FieldError>

@@ -76,7 +76,7 @@ export function StatusPage() {
       title="Status"
       actions={
         <RefreshCountdownButton
-          onRefresh={() => refetch()}
+          onRefresh={() => void refetch()}
           isFetching={isFetching}
           dataUpdatedAt={dataUpdatedAt}
           intervalMs={ADMIN_STATUS_REFRESH_INTERVAL_MS}
@@ -327,11 +327,11 @@ function SentrySmokeTestCard() {
             <BugIcon />
             Throw in browser
           </Button>
-          <Button variant="outline" onClick={handleSsr} disabled={throwSsr.isPending}>
+          <Button variant="outline" onClick={() => void handleSsr()} disabled={throwSsr.isPending}>
             {throwSsr.isPending ? <LoaderIcon className="animate-spin" /> : <BugIcon />}
             Throw in SSR
           </Button>
-          <Button variant="outline" onClick={handleApi} disabled={throwApi.isPending}>
+          <Button variant="outline" onClick={() => void handleApi()} disabled={throwApi.isPending}>
             {throwApi.isPending ? <LoaderIcon className="animate-spin" /> : <BugIcon />}
             Throw in API
           </Button>
@@ -370,7 +370,7 @@ function FlushPrintingEventsButton() {
       variant="ghost"
       size="icon"
       className="size-7"
-      onClick={handleFlush}
+      onClick={() => void handleFlush()}
       disabled={isFlushRunning}
       title="Flush pending printing events to Discord now"
     >
@@ -410,7 +410,7 @@ function PostChangelogButton() {
       variant="ghost"
       size="icon"
       className="size-7"
-      onClick={handlePost}
+      onClick={() => void handlePost()}
       disabled={post.isPending}
       title="Post pending changelog entries to Discord now"
     >

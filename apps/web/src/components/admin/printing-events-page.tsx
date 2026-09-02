@@ -89,7 +89,7 @@ export function PrintingEventsPage() {
         <>
           {failed.length > 0 && (
             <PageTopBarButton
-              onClick={() => handleRetry(failed.map((e) => e.id))}
+              onClick={() => void handleRetry(failed.map((e) => e.id))}
               disabled={retry.isPending}
             >
               {retry.isPending ? <LoaderIcon className="animate-spin" /> : <RotateCcwIcon />}
@@ -97,12 +97,12 @@ export function PrintingEventsPage() {
             </PageTopBarButton>
           )}
           <RefreshCountdownButton
-            onRefresh={() => refetch()}
+            onRefresh={() => void refetch()}
             isFetching={isFetching}
             dataUpdatedAt={dataUpdatedAt}
             intervalMs={PRINTING_EVENTS_REFRESH_INTERVAL_MS}
           />
-          <PageTopBarPrimaryButton onClick={handleFlush} disabled={isFlushRunning}>
+          <PageTopBarPrimaryButton onClick={() => void handleFlush()} disabled={isFlushRunning}>
             {isFlushRunning ? <LoaderIcon className="animate-spin" /> : <SendIcon />}
             Flush now
           </PageTopBarPrimaryButton>
@@ -157,7 +157,7 @@ export function PrintingEventsPage() {
               key={event.id}
               event={event}
               isRetrying={retryingIds.has(event.id)}
-              onRetry={() => handleRetry([event.id])}
+              onRetry={() => void handleRetry([event.id])}
             />
           ))}
         </TableBody>

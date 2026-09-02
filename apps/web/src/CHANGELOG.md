@@ -11,6 +11,8 @@
 
 ### Other
 
+- fix(Groups): **Group settings check before saving** — the name and web address are now validated on the form, so a bad address says what is wrong on the field instead of failing with a generic error.
+- fix(Account): **Failed requests now say so** — signing in or out, email codes, password resets, connected accounts, and import file reads report a network failure instead of doing nothing or spinning forever.
 - feat(Meta): **Standings rows open on click** — clicking anywhere on a standings row opens its decklist, and every row now carries its legend art, not just the top cut.
 - fix(Meta): **Archive fits on phones** — the tournament name moved into the event header, where the top bar had truncated it away, and the winner tile and podium rows now use the full width.
 - fix(Meta): **Placements across the whole cut** — every seat in an event's top cut now carries its finishing place, where only the champion's showed before.

@@ -90,7 +90,7 @@ export function MetaEventCorrectionDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
-        <DialogForm onSubmit={handleSubmit}>
+        <DialogForm onSubmit={() => void handleSubmit()}>
           <DialogHeader>
             <DialogTitle>Suggest a correction</DialogTitle>
             <DialogDescription>

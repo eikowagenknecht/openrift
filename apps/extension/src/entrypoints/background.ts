@@ -51,17 +51,21 @@ async function importDeckFromTab(tabId: number, tabIndex: number): Promise<void>
   await browser.tabs.create({ url, index: tabIndex + 1 });
 }
 
+async function handleActionClick(tabId: number, tabIndex: number) {
+  try {
+    await importDeckFromTab(tabId, tabIndex);
+  } catch {
+    // Injection fails on pages extensions cannot touch (browser-internal
+    // pages, extension stores). Signal it the same way as "nothing found".
+    showNotFoundBadge(tabId);
+  }
+}
+
 export default defineBackground(() => {
-  actionApi().onClicked.addListener(async (tab) => {
+  actionApi().onClicked.addListener((tab) => {
     if (tab.id === undefined) {
       return;
     }
-    try {
-      await importDeckFromTab(tab.id, tab.index);
-    } catch {
-      // Injection fails on pages extensions cannot touch (browser-internal
-      // pages, extension stores). Signal it the same way as "nothing found".
-      showNotFoundBadge(tab.id);
-    }
+    void handleActionClick(tab.id, tab.index);
   });
 });

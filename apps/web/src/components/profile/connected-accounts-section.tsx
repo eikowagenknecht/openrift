@@ -19,24 +19,31 @@ export function ConnectedAccountsSection() {
 
   useEffect(() => {
     async function fetchAccounts() {
-      const { data, error: fetchError } = await authClient.listAccounts();
-      if (fetchError) {
-        setError(fetchError.message ?? "Failed to load connected accounts.");
+      const result = await authClient.listAccounts().catch(() => null);
+      if (!result) {
+        setError("Failed to load connected accounts.");
+      } else if (result.error) {
+        setError(result.error.message ?? "Failed to load connected accounts.");
       } else {
-        setAccounts(data ?? []);
+        setAccounts(result.data ?? []);
       }
       setLoading(false);
     }
-    fetchAccounts();
+    void fetchAccounts();
   }, []);
 
   async function handleLink(provider: string) {
     setActionLoading(provider);
     setError(null);
-    await authClient.linkSocial({
-      provider: provider as "google" | "discord",
-      callbackURL: "/profile",
-    });
+    try {
+      await authClient.linkSocial({
+        provider: provider as "google" | "discord",
+        callbackURL: "/profile",
+      });
+    } catch {
+      setActionLoading(null);
+      setError("Could not reach the sign-in provider. Please try again.");
+    }
   }
 
   async function handleUnlink(providerId: string) {
@@ -46,10 +53,14 @@ export function ConnectedAccountsSection() {
     }
     setActionLoading(providerId);
     setError(null);
-    const { error: unlinkError } = await authClient.unlinkAccount({ accountId: account.id });
+    const result = await authClient.unlinkAccount({ accountId: account.id }).catch(() => null);
     setActionLoading(null);
-    if (unlinkError) {
-      setError(unlinkError.message ?? "Failed to unlink account.");
+    if (!result) {
+      setError("Failed to unlink account.");
+      return;
+    }
+    if (result.error) {
+      setError(result.error.message ?? "Failed to unlink account.");
       return;
     }
     setAccounts((prev) => prev.filter((a) => a.providerId !== providerId));
@@ -90,7 +101,7 @@ export function ConnectedAccountsSection() {
                             variant="outline"
                             size="sm"
                             disabled={isOnlyAccount || actionLoading === provider.id}
-                            onClick={() => handleUnlink(provider.id)}
+                            onClick={() => void handleUnlink(provider.id)}
                           />
                         }
                       >
@@ -105,7 +116,7 @@ export function ConnectedAccountsSection() {
                       variant="outline"
                       size="sm"
                       disabled={actionLoading === provider.id}
-                      onClick={() => handleLink(provider.id)}
+                      onClick={() => void handleLink(provider.id)}
                     >
                       {actionLoading === provider.id ? "Connecting..." : "Connect"}
                     </Button>
