@@ -175,7 +175,7 @@ describe("MetaEventPage", () => {
     expect(headings.at(-1)).toBe("Standings");
 
     const standings = screen.getByRole("heading", { name: "Standings" });
-    const ask = screen.getByText("Were you there?");
+    const ask = screen.getByText("Were you at Summoner Skirmish?");
     expect(standings.compareDocumentPosition(ask)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
@@ -215,7 +215,7 @@ describe("MetaEventPage", () => {
     expect(
       screen.getByText("The results for this event have not come through yet. Check back soon."),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Were you there?")).toBeNull();
+    expect(screen.queryByText("Were you at Summoner Skirmish?")).toBeNull();
   });
 
   it("leads on to the rest of the archive", () => {

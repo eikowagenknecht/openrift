@@ -26,7 +26,7 @@ export function MetaEventContributeBand({
   }
 
   const missing = players.filter((player) => player.shareToken === null).length;
-  const title = event.location === null ? "Were you there?" : `Were you in ${event.location}?`;
+  const title = `Were you at ${event.name}?`;
   const body =
     missing === 0
       ? "Every entry has its decklist. Corrections are still welcome."

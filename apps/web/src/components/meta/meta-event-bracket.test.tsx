@@ -85,14 +85,28 @@ describe("MetaEventBracket", () => {
     expect(screen.getAllByText("1").length).toBeGreaterThan(0);
   });
 
-  it("medals the winner of the final, and only the final", () => {
+  it("badges every seat with that player's finishing rank", () => {
     const { container } = render(
       <MetaEventBracket matches={topFour} phases={topFourPhases} players={players} />,
     );
-    expect(container.querySelectorAll('[data-slot="medal"]')).toHaveLength(1);
+    const badges = [...container.querySelectorAll('[data-slot="medal"]')].map(
+      (badge) => badge.textContent,
+    );
+    expect(badges).toEqual(["1", "4", "2", "3", "1", "2"]);
   });
 
-  it("medals nobody when a third-place match shares the last round with the final", () => {
+  it("badges a seat whose standings row the archive does not hold with nothing", () => {
+    const orphan = [
+      ...topFour.slice(0, 2),
+      metaMatch({ roundNumber: 2, player1Id: "p-1", player2Id: "gone", winnerId: "p-1" }),
+    ];
+    const { container } = render(
+      <MetaEventBracket matches={orphan} phases={topFourPhases} players={players} />,
+    );
+    expect(container.querySelectorAll('[data-slot="medal"]')).toHaveLength(5);
+  });
+
+  it("badges the third-place match beside the final from the standings", () => {
     const withBronze = [
       ...topFour,
       metaMatch({ roundNumber: 2, tableNumber: 2, player1Id: "p-3", player2Id: "p-4" }),
@@ -102,7 +116,7 @@ describe("MetaEventBracket", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Top 4" })).toBeInTheDocument();
-    expect(container.querySelectorAll('[data-slot="medal"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-slot="medal"]')).toHaveLength(8);
   });
 
   it("prints a dash where the source reported no games", () => {

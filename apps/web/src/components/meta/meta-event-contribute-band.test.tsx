@@ -38,14 +38,11 @@ describe("MetaEventContributeBand", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("asks by the venue when the archive knows where it was played", () => {
-    renderBand([metaPlayer()], { location: "Berlin" });
-    expect(screen.getByText("Were you in Berlin?")).toBeInTheDocument();
-  });
-
-  it("asks plainly when the archive has no venue", () => {
-    renderBand();
-    expect(screen.getByText("Were you there?")).toBeInTheDocument();
+  it("asks by the event's name, not the street address it was played at", () => {
+    renderBand([metaPlayer()], {
+      location: "Av. de la Reina Maria Cristina, s/n, Sants-Montjuïc, 08004 Barcelona, Spain",
+    });
+    expect(screen.getByText("Were you at Summoner Skirmish?")).toBeInTheDocument();
   });
 
   it("counts the entries still missing their list", () => {

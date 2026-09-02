@@ -10,15 +10,7 @@ import { cn } from "@/lib/utils";
 /** The final's card wears the archive's winning colour, quieter than a podium seat. */
 const FINAL_GLOW = accentGlow(12);
 
-function Seat({
-  seat,
-  player,
-  showMedal,
-}: {
-  seat: MetaBracketSeat;
-  player: MetaEventPlayer | undefined;
-  showMedal: boolean;
-}) {
+function Seat({ seat, player }: { seat: MetaBracketSeat; player: MetaEventPlayer | undefined }) {
   return (
     <div
       className={cn(
@@ -26,7 +18,7 @@ function Seat({
         seat.isWinner ? "font-semibold" : "text-muted-foreground",
       )}
     >
-      {showMedal && (seat.isWinner ? <Medal rank={1} /> : <span className="size-5 shrink-0" />)}
+      {player === undefined ? <span className="size-5 shrink-0" /> : <Medal rank={player.rank} />}
       {/* A seat with no player id is a bye; one whose standings row the archive
           does not hold is a gap in the record, and saying "Bye" would be wrong
           about what happened. */}
@@ -67,7 +59,6 @@ function BracketMatch({
           key={`${match.key}:${index}`}
           seat={seat}
           player={seat.playerId === null ? undefined : players.get(seat.playerId)}
-          showMedal={isFinal}
         />
       ))}
     </div>
