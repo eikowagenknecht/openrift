@@ -109,6 +109,17 @@ describe("filterMetaEvents", () => {
     expect(filterMetaEvents(holdings, all)).toHaveLength(3);
   });
 
+  it("narrows to events that have not happened yet", () => {
+    const spread = [
+      event({ id: "future", eventDate: "2026-09-01" }),
+      event({ id: "today", eventDate: "2026-08-31" }),
+      event({ id: "past", eventDate: "2026-08-30" }),
+    ];
+    expect(
+      filterMetaEvents(spread, { ...all, holds: "upcoming", today: "2026-08-31" }).map((e) => e.id),
+    ).toEqual(["future"]);
+  });
+
   it("narrows by format", () => {
     const mixed = [event({ id: "a" }), event({ id: "b", format: "limited" })];
     expect(

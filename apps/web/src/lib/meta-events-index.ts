@@ -1,4 +1,5 @@
 import type { MetaEventSummary, MetaEventTier } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type {
@@ -50,24 +51,33 @@ export function filterMetaEvents(
     scope: MetaScope;
     eras: readonly MetaEra[];
     holds?: MetaEventHoldings;
+    today?: string;
   },
 ): MetaEventSummary[] {
   const needle = (filter.query ?? "").trim().toLowerCase();
+  const today = filter.today ?? todayUtc();
 
   return events.filter(
     (event) =>
       (needle === "" || matchesText(event, needle)) &&
-      holdsEnough(event, filter.holds) &&
+      holdsEnough(event, filter.holds, today) &&
       scopeMatches(event, filter.scope, filter.eras),
   );
 }
 
-function holdsEnough(event: MetaEventSummary, holds: MetaEventHoldings | undefined): boolean {
+function holdsEnough(
+  event: MetaEventSummary,
+  holds: MetaEventHoldings | undefined,
+  today: string,
+): boolean {
   if (holds === "decks") {
     return event.deckCount > 0;
   }
   if (holds === "standings") {
     return event.playerRowCount > 0;
+  }
+  if (holds === "upcoming") {
+    return event.eventDate > today;
   }
   return true;
 }

@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Meta): **Upcoming events in their own list** — the front page's tier sections now show only events with results, and everything still to come sits in a "Coming up" list beside them, soonest first.
 - feat(Meta): **Event pages redesigned** — the header now shows the champion, format, and structure at a glance, and standings expand inline to preview each decklist's card mix, value, and how much of it you own.
 
 ### Other

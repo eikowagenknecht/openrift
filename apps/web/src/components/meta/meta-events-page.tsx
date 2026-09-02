@@ -166,6 +166,7 @@ const HOLDINGS_ITEMS: Record<string, string> = {
   [ANY_HOLDINGS]: "Any events",
   decks: "With decklists",
   standings: "With standings",
+  upcoming: "Upcoming",
 };
 
 /**

@@ -6,6 +6,7 @@ import {
   metaEventCountries,
   metaEventWinners,
   metaFrontSections,
+  metaTierCounts,
 } from "@/lib/meta-front-page";
 import type { MetaEra } from "@/lib/meta-scope";
 import { ERA_ALL, ERA_CUSTOM } from "@/lib/meta-scope";
@@ -197,28 +198,122 @@ describe("metaEventWinners", () => {
 });
 
 describe("metaFrontSections", () => {
+  const TODAY = "2026-09-02";
+
   it("splits events into the three tier buckets, store and casual sharing one", () => {
-    const sections = metaFrontSections([
-      event({ id: "p", tier: "premier" }),
-      event({ id: "c", tier: "competitive" }),
-      event({ id: "s", tier: "store" }),
-      event({ id: "x", tier: "casual" }),
-    ]);
+    const sections = metaFrontSections(
+      [
+        event({ id: "p", tier: "premier" }),
+        event({ id: "c", tier: "competitive" }),
+        event({ id: "s", tier: "store" }),
+        event({ id: "x", tier: "casual" }),
+      ],
+      TODAY,
+    );
     expect(sections.premier.map((row) => row.id)).toEqual(["p"]);
     expect(sections.competitive.map((row) => row.id)).toEqual(["c"]);
     expect(sections.community.map((row) => row.id)).toEqual(["s", "x"]);
   });
 
   it("orders each bucket newest first rather than trusting the caller's order", () => {
-    const sections = metaFrontSections([
-      event({ id: "middle", tier: "premier", eventDate: "2026-08-10" }),
-      event({ id: "oldest", tier: "premier", eventDate: "2026-01-02" }),
-      event({ id: "newest", tier: "premier", eventDate: "2026-09-30" }),
-    ]);
+    const sections = metaFrontSections(
+      [
+        event({ id: "middle", tier: "premier", eventDate: "2026-08-10" }),
+        event({ id: "oldest", tier: "premier", eventDate: "2026-01-02" }),
+        event({ id: "newest", tier: "premier", eventDate: "2026-08-20" }),
+      ],
+      TODAY,
+    );
     expect(sections.premier.map((row) => row.id)).toEqual(["newest", "middle", "oldest"]);
   });
 
   it("leaves every bucket empty for an empty archive", () => {
-    expect(metaFrontSections([])).toEqual({ premier: [], competitive: [], community: [] });
+    expect(metaFrontSections([], TODAY)).toEqual({
+      premier: [],
+      competitive: [],
+      community: [],
+      upcoming: [],
+    });
+  });
+
+  it("puts a future event with no results in upcoming, not its tier bucket", () => {
+    const sections = metaFrontSections(
+      [event({ id: "future", tier: "premier", eventDate: "2026-09-10", playerRowCount: 0 })],
+      TODAY,
+    );
+    expect(sections.premier).toEqual([]);
+    expect(sections.upcoming.map((row) => row.id)).toEqual(["future"]);
+  });
+
+  it("puts a played event with no standings in no bucket at all", () => {
+    const sections = metaFrontSections(
+      [event({ id: "empty", tier: "premier", eventDate: "2026-08-01", playerRowCount: 0 })],
+      TODAY,
+    );
+    expect(sections.premier).toEqual([]);
+    expect(sections.upcoming).toEqual([]);
+  });
+
+  it("does not treat an event dated exactly today as upcoming", () => {
+    const sections = metaFrontSections(
+      [event({ id: "today", tier: "premier", eventDate: TODAY })],
+      TODAY,
+    );
+    expect(sections.upcoming).toEqual([]);
+  });
+
+  it("orders upcoming soonest first", () => {
+    const sections = metaFrontSections(
+      [
+        event({ id: "later", tier: "premier", eventDate: "2026-10-01" }),
+        event({ id: "sooner", tier: "premier", eventDate: "2026-09-05" }),
+      ],
+      TODAY,
+    );
+    expect(sections.upcoming.map((row) => row.id)).toEqual(["sooner", "later"]);
+  });
+
+  it("breaks a same-day upcoming tie by tier, then name", () => {
+    const sections = metaFrontSections(
+      [
+        event({ id: "casual", name: "Zed", tier: "casual", eventDate: "2026-09-10" }),
+        event({ id: "store", name: "Alpha", tier: "store", eventDate: "2026-09-10" }),
+        event({ id: "competitive", name: "Beta", tier: "competitive", eventDate: "2026-09-10" }),
+        event({ id: "premier", name: "Gamma", tier: "premier", eventDate: "2026-09-10" }),
+        event({ id: "store-2", name: "Zulu", tier: "store", eventDate: "2026-09-10" }),
+      ],
+      TODAY,
+    );
+    expect(sections.upcoming.map((row) => row.id)).toEqual([
+      "premier",
+      "competitive",
+      "store",
+      "store-2",
+      "casual",
+    ]);
+  });
+});
+
+describe("metaTierCounts", () => {
+  it("counts every event by tier, results or not", () => {
+    expect(
+      metaTierCounts([
+        event({ id: "p1", tier: "premier", playerRowCount: 0 }),
+        event({ id: "p2", tier: "premier" }),
+        event({ id: "c", tier: "competitive" }),
+        event({ id: "s", tier: "store" }),
+        event({ id: "x", tier: "casual" }),
+      ]),
+    ).toEqual({ premier: 2, competitive: 1, community: 2 });
+  });
+
+  it("counts a future event same as a played one", () => {
+    expect(
+      metaTierCounts([event({ id: "future", tier: "premier", eventDate: "2099-01-01" })]),
+    ).toEqual({ premier: 1, competitive: 0, community: 0 });
+  });
+
+  it("returns zeros for an empty archive", () => {
+    expect(metaTierCounts([])).toEqual({ premier: 0, competitive: 0, community: 0 });
   });
 });

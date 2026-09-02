@@ -1,4 +1,5 @@
-import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared";
+import type { MetaEventFinish, MetaEventSummary, MetaEventTier } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared";
 
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
@@ -62,18 +63,60 @@ export interface MetaFrontSections {
   competitive: MetaEventSummary[];
   /** Store and casual events, which share one section. */
   community: MetaEventSummary[];
+  upcoming: MetaEventSummary[];
 }
 
+const UPCOMING_TIER_RANK: Record<MetaEventTier, number> = {
+  premier: 0,
+  competitive: 1,
+  store: 2,
+  casual: 3,
+};
+
 /**
- * The events in scope split by how much they count for, newest first inside
- * each bucket. Ordered here rather than trusting the payload, so each section
- * stays "recent" whatever order the caller filtered in.
+ * The tier buckets keep only events with results on file, newest first. Every
+ * future event moves to `upcoming` instead, soonest first.
  */
-export function metaFrontSections(events: readonly MetaEventSummary[]): MetaFrontSections {
-  const sorted = events.toSorted((left, right) => right.eventDate.localeCompare(left.eventDate));
+export function metaFrontSections(
+  events: readonly MetaEventSummary[],
+  today = todayUtc(),
+): MetaFrontSections {
+  const played = events
+    .filter((event) => event.playerRowCount > 0)
+    .toSorted((left, right) => right.eventDate.localeCompare(left.eventDate));
+  const upcoming = events
+    .filter((event) => event.eventDate > today)
+    .toSorted((left, right) => {
+      const byDate = left.eventDate.localeCompare(right.eventDate);
+      if (byDate !== 0) {
+        return byDate;
+      }
+      const byTier = UPCOMING_TIER_RANK[left.tier] - UPCOMING_TIER_RANK[right.tier];
+      return byTier === 0 ? left.name.localeCompare(right.name) : byTier;
+    });
   return {
-    premier: sorted.filter((event) => event.tier === "premier"),
-    competitive: sorted.filter((event) => event.tier === "competitive"),
-    community: sorted.filter((event) => event.tier === "store" || event.tier === "casual"),
+    premier: played.filter((event) => event.tier === "premier"),
+    competitive: played.filter((event) => event.tier === "competitive"),
+    community: played.filter((event) => event.tier === "store" || event.tier === "casual"),
+    upcoming,
   };
+}
+
+/** How many events each tier section's "Browse all" link opens on, results or not. */
+export function metaTierCounts(
+  events: readonly MetaEventSummary[],
+): Record<"premier" | "competitive" | "community", number> {
+  let premier = 0;
+  let competitive = 0;
+  let community = 0;
+  for (const event of events) {
+    if (event.tier === "premier") {
+      premier += 1;
+    } else if (event.tier === "competitive") {
+      competitive += 1;
+    } else {
+      community += 1;
+    }
+  }
+  return { premier, competitive, community };
 }

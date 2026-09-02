@@ -21,18 +21,29 @@ vi.mock("@tanstack/react-router", () => ({
     children,
     to,
     params,
+    from,
+    search,
+    hash,
+    hashScrollIntoView: _hashScrollIntoView,
     ...rest
   }: {
     children?: React.ReactNode;
     to?: string;
     params?: { slug?: string; token?: string; cardSlug?: string };
+    from?: string;
+    search?: unknown;
+    hash?: string;
+    hashScrollIntoView?: boolean;
   }) => (
     <a
       {...rest}
-      href={(to ?? "/")
+      href={`${(to ?? from ?? "/")
         .replace("$cardSlug", params?.cardSlug ?? "")
         .replace("$slug", params?.slug ?? "")
-        .replace("$token", params?.token ?? "")}
+        .replace("$token", params?.token ?? "")}${hash === undefined ? "" : `#${hash}`}`}
+      data-search={
+        typeof search === "object" && search !== null ? JSON.stringify(search) : undefined
+      }
     >
       {children}
     </a>
@@ -377,5 +388,76 @@ describe("MetaFrontPage", () => {
       "href",
       "/meta/events",
     );
+  });
+
+  it("holds an event with no results out of the tier sections and in the rail", () => {
+    captured.events = [
+      event(),
+      event({
+        id: "evt-2",
+        slug: "worlds-2099",
+        name: "Worlds 2099",
+        eventDate: "2099-06-01",
+        playerRowCount: 0,
+        deckCount: 0,
+        topFinishes: [],
+      }),
+    ];
+
+    render(<MetaFrontPage />);
+
+    expect(within(section("Premier")).queryByText("Worlds 2099")).not.toBeInTheDocument();
+    expect(within(section("Coming up")).getByText("Worlds 2099")).toBeInTheDocument();
+  });
+
+  it("opens the whole upcoming list soonest first", () => {
+    captured.events = [
+      event(),
+      event({ id: "evt-2", slug: "worlds-2099", name: "Worlds 2099", eventDate: "2099-06-01" }),
+      event({ id: "evt-3", slug: "nexus-2100", name: "Nexus 2100", eventDate: "2100-01-01" }),
+    ];
+
+    render(<MetaFrontPage />);
+
+    const link = within(section("Coming up")).getByRole("link", { name: "All 2" });
+    expect(link).toHaveAttribute("href", "/meta/events");
+    expect(link).toHaveAttribute(
+      "data-search",
+      JSON.stringify({ holds: "upcoming", by: "date", dir: "asc" }),
+    );
+  });
+
+  it("teases the nearest upcoming event, which on a phone sits below the tiers", () => {
+    captured.events = [
+      event(),
+      event({ id: "evt-2", slug: "worlds-2099", name: "Worlds 2099", eventDate: "2099-06-01" }),
+      event({ id: "evt-3", slug: "nexus-2100", name: "Nexus 2100", eventDate: "2100-01-01" }),
+    ];
+
+    render(<MetaFrontPage />);
+
+    const teaser = screen.getByRole("link", { name: /Next up/u });
+    expect(teaser).toHaveAttribute("href", "/meta#coming-up");
+    expect(within(teaser).getByText("Worlds 2099")).toBeInTheDocument();
+    expect(within(teaser).getByText("2 upcoming events")).toBeInTheDocument();
+  });
+
+  it("says no results are on file when the scope holds only events still to come", () => {
+    captured.events = [
+      event({ eventDate: "2099-06-01", playerRowCount: 0, deckCount: 0, topFinishes: [] }),
+    ];
+
+    render(<MetaFrontPage />);
+
+    expect(screen.getByText("No results on file for this scope yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Premier" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Coming up" })).toBeInTheDocument();
+  });
+
+  it("leaves the rail's upcoming section out when nothing is scheduled", () => {
+    render(<MetaFrontPage />);
+
+    expect(screen.queryByRole("heading", { name: "Coming up" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Next up/u)).not.toBeInTheDocument();
   });
 });

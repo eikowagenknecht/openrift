@@ -19,8 +19,9 @@ export type MetaEventIndexSortDirection = "asc" | "desc";
  * What an event must already hold to be listed. An archived event starts as a
  * date and a name, so an index of everything is mostly rows with nothing behind
  * them yet, and a reader looking for lists has to open each one to find out.
+ * `upcoming` narrows the other way, to events that have not happened yet.
  */
-export const META_EVENT_HOLDINGS = ["decks", "standings"] as const;
+export const META_EVENT_HOLDINGS = ["decks", "standings", "upcoming"] as const;
 
 export type MetaEventHoldings = (typeof META_EVENT_HOLDINGS)[number];
 
