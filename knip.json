@@ -16,9 +16,19 @@
       "ignoreDependencies": ["swagger-ui-dist"]
     },
     "apps/web": {
-      "entry": ["src/routes/**/*.tsx", "src/components/cards/card-detail/index.tsx"],
+      "entry": [
+        "src/routes/**/*.tsx",
+        "src/components/cards/card-detail/index.tsx",
+        "src/client.tsx",
+        "src/router.ts",
+        "src/server.ts",
+        "src/start.ts",
+        "src/instrument.server.mjs",
+        "src/tracing.server.ts",
+        "src/components/error-fallback.tsx"
+      ],
       "ignore": ["src/components/ui/**", "public/sw.js"],
-      "ignoreDependencies": ["@tanstack/router-cli", "@tanstack/router-plugin", "flag-icons"]
+      "ignoreDependencies": ["@tanstack/router-plugin", "flag-icons"]
     },
     "packages/shared": {},
     "packages/e2e": {

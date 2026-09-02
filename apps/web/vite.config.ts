@@ -249,12 +249,9 @@ export default defineConfig(({ mode, command }) => {
         : []),
       serveMediaPlugin,
       tailwindcss(),
-      tanstackStart({
-        router: {
-          // Skip colocated vitest files in routes/; they don't export a Route.
-          routeFileIgnorePattern: "\\.test\\.",
-        },
-      }),
+      // Router options live in tsr.config.json so this plugin and the `tsr
+      // generate` the lint job runs read the same routeFileIgnorePattern.
+      tanstackStart(),
       // Only enable Nitro for production builds — in dev it caches stale SSR
       // HTML after HMR updates, causing hydration mismatches.
       // See https://github.com/TanStack/router/issues/6556

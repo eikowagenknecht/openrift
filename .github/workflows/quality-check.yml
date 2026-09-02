@@ -146,5 +146,10 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # routeTree.gen.ts is a gitignored build artifact. Without it the
+      # type-aware rules see route context and search params as `error`/`any`.
+      - name: Generate route tree
+        run: bun run routes:generate
+
       - name: Lint
         run: bun run lint

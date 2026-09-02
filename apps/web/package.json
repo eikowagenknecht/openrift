@@ -12,6 +12,7 @@
     "analyze": "ANALYZE=1 vite build",
     "start": "bun --env-file=../../.env .output/server/index.mjs",
     "start:lh": "COMPRESS=1 bun run build && bun run start",
+    "routes:generate": "tsr generate",
     "typecheck": "tsgo -b",
     "lint": "eslint . --max-warnings=0"
   },
