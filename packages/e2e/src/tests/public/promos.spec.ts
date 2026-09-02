@@ -46,7 +46,7 @@ async function fetchPromoList(): Promise<PromoFixture> {
 // the source file + export. Decoding lets us pick out the promo list call
 // without touching other server fns on the same route transition.
 function isPromoListServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

@@ -149,7 +149,7 @@ function buildExpectedDescription(detail: CardDetailFixture, priceLine: string |
 // run during a route transition. TanStack Start encodes the server fn id as
 // base64url(JSON) referencing the source file + export name.
 function isCardDetailServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

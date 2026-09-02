@@ -452,7 +452,7 @@ const RIFTCORE_HEADERS = [
  * @returns The RiftCore Card ID.
  */
 function riftCoreCardId(shortCode: string): string {
-  const match = shortCode.match(/^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u);
+  const match = /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u.exec(shortCode);
   if (!match) {
     return shortCode;
   }

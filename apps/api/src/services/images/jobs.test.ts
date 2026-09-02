@@ -508,10 +508,10 @@ function makeFakeJobRunsRepo(initial: unknown = null) {
     }),
     mergeResult: vi.fn(async (_id: string, patch: object) => {
       const prior = (state.stored ?? {}) as Record<string, unknown>;
-      const preserved = prior["cancelRequested"] === true;
+      const preserved = prior.cancelRequested === true;
       state.stored = { ...prior, ...(patch as Record<string, unknown>) };
       if (preserved) {
-        (state.stored as Record<string, unknown>)["cancelRequested"] = true;
+        (state.stored as Record<string, unknown>).cancelRequested = true;
       }
     }),
     getResult: vi.fn(async () => state.stored),

@@ -117,7 +117,7 @@ async function countCopiesInCollection(collectionId: string): Promise<number> {
 // source file + export name; matching on the decoded payload lets us target a
 // single server fn out of the bundle that fires during a route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

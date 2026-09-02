@@ -21,7 +21,7 @@ interface ChangelogGroup {
  * @returns the parsed title (if any) and the remaining message.
  */
 function parseEntryBody(raw: string): { title?: string; message: string } {
-  const match = raw.match(/^\*\*(?<title>[^*]+)\*\* — (?<message>.+)$/u);
+  const match = /^\*\*(?<title>[^*]+)\*\* — (?<message>.+)$/u.exec(raw);
   const fields = match?.groups;
   if (fields) {
     return { title: fields.title.trim(), message: fields.message.trim() };
@@ -50,16 +50,13 @@ export function parseChangelog(markdown: string): ChangelogGroup[] {
     let current: "highlight" | "other" = "other";
 
     for (const line of lines.slice(1)) {
-      const heading = line
-        .match(/^### (?<name>.+)$/u)
-        ?.groups?.name.trim()
-        .toLowerCase();
+      const heading = /^### (?<name>.+)$/u.exec(line)?.groups?.name.trim().toLowerCase();
       if (heading) {
         current = heading === "highlights" ? "highlight" : "other";
         continue;
       }
 
-      const match = line.match(/^- (?<type>feat|fix)(?:\((?<area>[^)]+)\))?: (?<rest>.+)$/u);
+      const match = /^- (?<type>feat|fix)(?:\((?<area>[^)]+)\))?: (?<rest>.+)$/u.exec(line);
       const fields = match?.groups;
       if (!fields) {
         continue;

@@ -81,7 +81,7 @@ async function deckExists(deckId: string): Promise<boolean> {
 // file + export name; decoding the segment lets us target a specific server fn
 // without colliding with others that fire during the same route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

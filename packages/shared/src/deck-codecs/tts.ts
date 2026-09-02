@@ -64,7 +64,7 @@ export function encodeTTS(cards: DeckCodecCard[]): EncodeResult {
  */
 function stripTTSVariant(token: string): string {
   // Match SET-NNN-V where V is the variant number
-  const match = token.match(/^(?<base>[A-Z]+-\d+)-\d+$/u);
+  const match = /^(?<base>[A-Z]+-\d+)-\d+$/u.exec(token);
   return match ? match[1] : token;
 }
 

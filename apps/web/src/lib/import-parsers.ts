@@ -1,3 +1,5 @@
+// oxlint-disable typescript/dot-notation -- record keys are CSV column headers; bracket access stays uniform across headers that do and don't contain spaces
+
 import type { ArtVariant, CopyLink, Finish } from "@openrift/shared";
 import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared";
 
@@ -328,7 +330,7 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   }
 
   // Try standard format: SET-CCC[modifier]? (e.g. "OGN-001", "SFD-T01", "SFD-R04a", "OGN-123*")
-  const standardMatch = code.match(/^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u);
+  const standardMatch = /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u.exec(code);
   if (standardMatch) {
     const { artVariant, shortCode } = resolveCardModifier(
       standardMatch[1],
@@ -344,9 +346,8 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   }
 
   // Try suffixed format: SET-CCC[modifier]?-PromoSuffix (e.g. "OGN-001-Nexus", "OGN-027a-Release")
-  const suffixMatch = code.match(
-    /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)-(?<suffix>[A-Za-z]+)$/u,
-  );
+  const suffixMatch =
+    /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)-(?<suffix>[A-Za-z]+)$/u.exec(code);
   if (suffixMatch) {
     const { artVariant, shortCode } = resolveCardModifier(
       suffixMatch[1],
@@ -526,7 +527,7 @@ function parseOpenRift(text: string): ParseResult {
  * @returns Parsed parts, or null if the format is unrecognized.
  */
 function parseOpenRiftCardId(cardId: string): { setPrefix: string } | null {
-  const match = cardId.match(/^(?<set>[A-Z]{3})(?:-(?<code>[A-Z0-9]{3})[a-z*]?)?$/u);
+  const match = /^(?<set>[A-Z]{3})(?:-(?<code>[A-Z0-9]{3})[a-z*]?)?$/u.exec(cardId);
   if (!match) {
     return null;
   }
@@ -706,7 +707,7 @@ interface RiftCoreCardParts {
 function parseRiftCoreCardId(cardId: string): RiftCoreCardParts | null {
   // Match: SET-CCC[modifier]? where CCC is 3 alphanumeric chars (e.g. "001", "T01", "R04")
   // Modifier is an optional letter or * suffix (RiftCore uses uppercase, e.g. "A", "S")
-  const match = cardId.match(/^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[A-Za-z*]?)$/u);
+  const match = /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[A-Za-z*]?)$/u.exec(cardId);
   if (!match) {
     return null;
   }
@@ -914,7 +915,7 @@ function parseRiftManaCardId(cardId: string): RiftManaCardParts | null {
     code = code.slice(0, -2);
   }
 
-  const match = code.match(/^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u);
+  const match = /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u.exec(code);
   if (!match) {
     return null;
   }

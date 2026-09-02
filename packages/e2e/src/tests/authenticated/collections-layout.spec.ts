@@ -8,7 +8,7 @@ import { API_BASE_URL } from "../../helpers/constants.js";
 // collections fetch without affecting session/theme/feature-flags/catalog
 // server fns that fire on the same transition.
 function isCollectionsServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

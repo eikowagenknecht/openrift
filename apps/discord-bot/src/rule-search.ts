@@ -109,7 +109,7 @@ const KIND_PREFIX_QUERY_REGEX = /^(?<prefix>cr|tr)(?![a-z])[\s.:-]*/iu;
  */
 export function parseRuleQuery(query: string): { kind?: RuleKind; rest: string } {
   const trimmed = query.trim();
-  const match = trimmed.match(KIND_PREFIX_QUERY_REGEX);
+  const match = KIND_PREFIX_QUERY_REGEX.exec(trimmed);
   if (!match?.groups) {
     return { rest: trimmed };
   }

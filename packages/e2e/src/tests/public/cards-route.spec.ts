@@ -10,7 +10,7 @@ const CARDS_DESCRIPTION =
 // catalog fetch without affecting the session/theme/feature-flags server fns
 // that fire on the same route transition.
 function isCatalogServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

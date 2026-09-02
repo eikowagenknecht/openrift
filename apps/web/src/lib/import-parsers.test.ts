@@ -1,3 +1,5 @@
+// oxlint-disable typescript/dot-notation -- record keys are CSV column headers; bracket access stays uniform across headers that do and don't contain spaces
+
 import { describe, expect, it } from "vitest";
 
 import { parseImportData } from "./import-parsers";

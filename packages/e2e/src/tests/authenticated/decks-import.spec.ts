@@ -65,7 +65,7 @@ async function deleteUser(email: string) {
 // segment lets us target a specific server fn without colliding with others.
 function isServerFn(fnName: string) {
   return (url: string) => {
-    const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+    const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
     const encoded = match?.groups?.encoded;
     if (encoded === undefined) {
       return false;

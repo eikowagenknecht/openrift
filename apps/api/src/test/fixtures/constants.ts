@@ -737,7 +737,7 @@ export const PRINTINGS = {
 /** A Unit card in the Fury domain (Epic rarity): Annie, Fiery */
 export const CARD_FURY_UNIT = CARDS["annie-fiery"];
 /** A Spell card in the Fury domain (Uncommon rarity): Firestorm */
-export const CARD_FURY_SPELL = CARDS["firestorm"];
+export const CARD_FURY_SPELL = CARDS.firestorm;
 /** A Rune card in the Fury domain: Fury Rune (printed in OGN/SFD, not OGS) */
 export const CARD_FURY_RUNE = CARDS["fury-rune"];
 /** A Unit card in the Calm domain (Rare rarity): Master Yi, Meditative */
@@ -942,9 +942,9 @@ export const MARKETPLACE_GROUPS = {
 } as const;
 
 /** TCGPlayer group for OGS */
-export const TCGPLAYER_OGS_GROUP = MARKETPLACE_GROUPS["tcgplayer_24439"];
+export const TCGPLAYER_OGS_GROUP = MARKETPLACE_GROUPS.tcgplayer_24439;
 /** Cardmarket group for OGS */
-export const CARDMARKET_OGS_GROUP = MARKETPLACE_GROUPS["cardmarket_6289"];
+export const CARDMARKET_OGS_GROUP = MARKETPLACE_GROUPS.cardmarket_6289;
 
 /** Card with synthetic errata: Annie, Fiery */
 export const ERRATA_CARD = CARDS["annie-fiery"];

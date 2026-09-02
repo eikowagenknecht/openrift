@@ -8,7 +8,7 @@ import { defineConfig } from "vitest/config";
 const envPath = resolve(import.meta.dirname ?? ".", "../../.env");
 try {
   for (const line of readFileSync(envPath, "utf-8").split("\n")) {
-    const match = line.match(/^(?<key>[A-Z_]+)=(?<value>.*)$/u);
+    const match = /^(?<key>[A-Z_]+)=(?<value>.*)$/u.exec(line);
     const groups = match?.groups;
     if (groups && !process.env[groups.key]) {
       process.env[groups.key] = groups.value.replaceAll(/^["']|["']$/gu, "");

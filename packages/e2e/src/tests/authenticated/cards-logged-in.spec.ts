@@ -125,7 +125,7 @@ async function openQuickAddPalette(page: Page, shortcut: "Control+k" | "Meta+k")
  * @returns True when the URL belongs to the named server fn.
  */
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/(?<encoded>[^/?#]+)/u);
+  const match = /\/_serverFn\/(?<encoded>[^/?#]+)/u.exec(url);
   const encoded = match?.groups?.encoded;
   if (encoded === undefined) {
     return false;

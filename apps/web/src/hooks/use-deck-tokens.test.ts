@@ -138,7 +138,7 @@ describe("useDeckTokens", () => {
   });
 
   it("skips a token that has no printing to show", () => {
-    cardsById["ghost"] = stubCard({ name: "Ghost", superTypes: ["token"] });
+    cardsById.ghost = stubCard({ name: "Ghost", superTypes: ["token"] });
     registerSource("summoner", "Summoner", ["ghost"]);
 
     const { result } = renderHook(() =>

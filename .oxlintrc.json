@@ -86,13 +86,9 @@
     "unicorn/no-nested-ternary": "off", // Conflicts with oxfmt
     "unicorn/max-nested-calls": "off", // Fires on idiomatic Zod/oRPC schema builders (z.array(z.object({ ... }))) where nesting is the DSL
     "unicorn/text-encoding-identifier-case": ["warn", { "withDash": true }], // Prefer "utf-8" to match HTML spec
-    "typescript/consistent-type-exports": "off", // 25, cosmetic
-    "typescript/dot-notation": "off", // 47, cosmetic
     "typescript/no-unnecessary-qualifier": "error",
-    "typescript/prefer-find": "off", // 1, no autofix
     "typescript/prefer-readonly": "error",
     "typescript/prefer-reduce-type-parameter": "error",
-    "typescript/prefer-regexp-exec": "off", // 36, cosmetic
     "typescript/prefer-return-this-type": "error",
     "typescript/prefer-string-starts-ends-with": "error",
 

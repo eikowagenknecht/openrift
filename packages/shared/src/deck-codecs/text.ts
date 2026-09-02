@@ -139,7 +139,7 @@ export function parseTextFormat(code: string): DeckCodeParseResult {
       continue;
     }
 
-    const match = line.match(/^(?<quantity>\d+)\s+(?<name>.+)$/u);
+    const match = /^(?<quantity>\d+)\s+(?<name>.+)$/u.exec(line);
     const effectiveZone = currentZone ?? WellKnown.deckZone.MAIN;
     const quantity = match ? Number(match[1]) : 1;
     const cardName = match ? match[2].trim() : line;

@@ -353,9 +353,8 @@ export async function migrateImageDirectories(io: Io): Promise<{
 
     for (const file of files) {
       progress.scanned++;
-      const uuidMatch = file.match(
-        /^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu,
-      );
+      const uuidMatch =
+        /^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu.exec(file);
       if (!uuidMatch) {
         progress.skipped++;
         continue;

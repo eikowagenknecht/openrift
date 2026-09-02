@@ -49,7 +49,7 @@ export function parseCardListText(text: string): ListImportParseResult {
     }
     rowCount++;
 
-    const match = line.match(/^(?<quantity>\d+)\s+(?<name>.+)$/u);
+    const match = /^(?<quantity>\d+)\s+(?<name>.+)$/u.exec(line);
     if (!match) {
       errors.push(
         `Line ${index + 1}: couldn't read "${line}" — expected "<quantity> <card name>".`,

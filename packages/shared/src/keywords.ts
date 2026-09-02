@@ -27,7 +27,7 @@ function bracketLabels(text: string): string[] {
       }
       if (token.type === "keyword") {
         // Drop trailing parameters: "Shield 2" → "Shield", "Assault 3" → "Assault".
-        const label = token.name.split(/\s+/u).filter(Boolean)[0];
+        const label = token.name.split(/\s+/u).find(Boolean);
         if (label) {
           labels.push(label);
         }

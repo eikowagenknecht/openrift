@@ -68,7 +68,7 @@ export function extractDeckFromUrl(text: string): DeckImportUrlSniff | null {
     return null;
   }
 
-  const shareMatch = url.pathname.match(SHARE_TOKEN_PATH);
+  const shareMatch = SHARE_TOKEN_PATH.exec(url.pathname);
   const token = shareMatch?.groups?.token;
   if (token) {
     return { kind: "share-token", token };
