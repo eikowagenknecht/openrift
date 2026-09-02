@@ -18,7 +18,7 @@ const fetchJobSchedules = createServerFn({ method: "GET" })
     apiOrpcClient(adminJobSchedulesContract, context.cookie).list(),
   );
 
-export const JOB_SCHEDULES_REFRESH_INTERVAL_MS = 60_000;
+const JOB_SCHEDULES_REFRESH_INTERVAL_MS = 60_000;
 
 export const adminJobSchedulesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.jobSchedules,
