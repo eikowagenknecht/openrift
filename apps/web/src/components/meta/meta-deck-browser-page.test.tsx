@@ -210,6 +210,17 @@ describe("MetaDeckBrowserPage", () => {
     expect(screen.getByText("Standard")).toBeInTheDocument();
   });
 
+  it("widens to all time when the era chip already names the current set", async () => {
+    captured.search = { era: "vendetta" };
+    const user = userEvent.setup();
+    render(<MetaDeckBrowserPage />);
+    await user.click(screen.getByRole("button", { name: "Remove Vendetta" }));
+    const [{ search: nextSearch }] = navigate.mock.calls.at(-1) as [
+      { search: (prev: unknown) => Record<string, unknown> },
+    ];
+    expect(nextSearch(captured.search)).toEqual({ era: "all" });
+  });
+
   it("renders no chip strip when the scope narrows by a custom range alone", () => {
     captured.search = { era: "custom", from: "2026-01-01" };
     render(<MetaDeckBrowserPage />);

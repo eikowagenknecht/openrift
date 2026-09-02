@@ -103,7 +103,7 @@ export function MetaScopeBar({
           setScope(
             next === ERA_CUSTOM
               ? { era: ERA_CUSTOM }
-              : { era: next === ERA_ALL ? undefined : next, from: undefined, to: undefined },
+              : { era: next, from: undefined, to: undefined },
           )
         }
       />

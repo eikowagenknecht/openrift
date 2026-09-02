@@ -21,7 +21,12 @@ import type { MetaDeckFilterCounts, MetaDeckFilterOptions } from "@/lib/meta-dec
 import { META_FINISH_OPTIONS, hasActiveMetaDeckFilters } from "@/lib/meta-deck-filters";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 import type { MetaEra, MetaScope, MetaScopeFacet } from "@/lib/meta-scope";
-import { dropScopeFacetValue, META_SCOPE_FACETS, scopeFacetValues } from "@/lib/meta-scope";
+import {
+  dropScopeFacetValue,
+  ERA_ALL,
+  META_SCOPE_FACETS,
+  scopeFacetValues,
+} from "@/lib/meta-scope";
 
 /** The finish select's "no bound" value — an empty string clears the param. */
 const ANY_FINISH = "";
@@ -201,9 +206,9 @@ function scopeChips(
   const chips: ReactNode[] = [];
   const era = scope.era === undefined ? undefined : labels.eraLabels.get(scope.era);
   if (era !== undefined) {
-    chips.push(
-      chip("era", era, () => setScope({ era: undefined, from: undefined, to: undefined })),
-    );
+    // All time, not an absent era: absent resolves back to the current set, so
+    // removing the chip while it names that set would change nothing.
+    chips.push(chip("era", era, () => setScope({ era: ERA_ALL, from: undefined, to: undefined })));
   }
 
   const facetLabels: Record<MetaScopeFacet, (value: string) => string | null> = {

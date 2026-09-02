@@ -82,11 +82,18 @@ describe("MetaScopeBar", () => {
     expect(setScope).toHaveBeenCalledWith({ era: "origins", from: undefined, to: undefined });
   });
 
-  it("clears the era rather than writing the all-time sentinel", async () => {
+  it("writes the all-time sentinel, since an absent era means the current set", async () => {
     const { setScope, user } = renderBar({ scope: { era: "origins" } });
     await user.click(screen.getByLabelText("Era"));
     await user.click(await option("All time"));
-    expect(setScope).toHaveBeenCalledWith({ era: undefined, from: undefined, to: undefined });
+    expect(setScope).toHaveBeenCalledWith({ era: ERA_ALL, from: undefined, to: undefined });
+  });
+
+  it("shows all time after picking it off the default era", async () => {
+    const { user } = renderBar({ scope: { era: ERA_ALL } });
+    expect(screen.getByLabelText("Era")).toHaveTextContent("All time");
+    await user.click(screen.getByLabelText("Era"));
+    expect(await option("All time")).toBeInTheDocument();
   });
 
   it("shows all time for a bookmarked era that no longer exists, not the dead slug", () => {

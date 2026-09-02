@@ -2,7 +2,7 @@ import { getRouteApi } from "@tanstack/react-router";
 
 import type { MetaDeckSearch } from "@/lib/meta-deck-search";
 import type { MetaScope, MetaScopeControls } from "@/lib/meta-scope";
-import { CLEARED_SCOPE } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
 
 const routeApi = getRouteApi("/_app/meta_/decks");
 
@@ -49,23 +49,8 @@ export function useMetaDeckFilters(): MetaDeckFilterState &
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
 
-  // Empty values are dropped rather than written as "" / [] / false, so the
-  // default browser keeps a clean URL and the back button doesn't step through
-  // states that look identical.
   const update = (patch: Partial<MetaDeckSearch>) => {
-    void navigate({
-      search: (prev) => {
-        const next = { ...prev, ...patch };
-        return Object.fromEntries(
-          Object.entries(next).filter(([, value]) => {
-            if (value === undefined || value === "" || value === false) {
-              return false;
-            }
-            return !(Array.isArray(value) && value.length === 0);
-          }),
-        );
-      },
-    });
+    void navigate({ search: (prev) => nextScopeSearch(prev, patch) });
   };
 
   const events = search.events ?? [];

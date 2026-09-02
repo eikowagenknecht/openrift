@@ -6,6 +6,10 @@
 
 - feat(Meta): **Event pages redesigned** — the header now shows the champion, format, and structure at a glance, and standings expand inline to preview each decklist's card mix, value, and how much of it you own.
 
+### Other
+
+- fix(Meta): **Widening the archive past its defaults** — picking "All time" in the era picker snapped back to the current set, and turning off the constructed filter on the decks page snapped back to constructed.
+
 ## 2026-09-01
 
 ### Highlights

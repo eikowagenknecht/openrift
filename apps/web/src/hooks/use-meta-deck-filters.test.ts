@@ -111,6 +111,13 @@ describe("useMetaDeckFilters", () => {
     expect(resultingSearch()).toEqual({ tiers: ["premier"] });
   });
 
+  it("keeps an emptied format selection, since an absent one means constructed", () => {
+    mockSearch = { formats: ["constructed"] };
+    const { result } = renderHook(() => useMetaDeckFilters());
+    result.current.setScope({ formats: [], formatsEx: [] });
+    expect(resultingSearch()).toEqual({ formats: [] });
+  });
+
   it("keeps the browser's own axes when the scope is reset", () => {
     mockSearch = { tiers: ["premier"], legends: ["card-lux"] };
     const { result } = renderHook(() => useMetaDeckFilters());

@@ -259,18 +259,20 @@ export function dropScopeFacetValue(
 /**
  * A scope patch merged into a route's existing search params.
  *
- * Empty values are dropped rather than written as "", so the unnarrowed view
- * keeps a clean URL and the back button does not step through states that look
- * identical. Params the scope knows nothing about ride along untouched, which is
- * what lets one bar sit on four routes.
+ * Empty values are dropped rather than written as "", [] or false, so the
+ * unnarrowed view keeps a clean URL and the back button does not step through
+ * states that look identical. Params the scope knows nothing about ride along
+ * untouched, which is what lets one bar sit on every archive route.
  */
 export function nextScopeSearch(
   prev: Record<string, unknown>,
   patch: Partial<MetaScope>,
 ): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries({ ...prev, ...patch }).filter(([key, value]) => {
-      if (value === undefined || value === "") {
+    // Explicitly `unknown`: a route's own params ride along in `prev`, and
+    // inferring the merged type narrows them to the scope's own value types.
+    Object.entries<unknown>({ ...prev, ...patch }).filter(([key, value]) => {
+      if (value === undefined || value === "" || value === false) {
         return false;
       }
       if (Array.isArray(value) && value.length === 0) {
