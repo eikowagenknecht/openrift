@@ -5,6 +5,42 @@
 - **Imports** — use `@/` path alias in `apps/web` instead of relative parent imports (`../`).
 - **Styling** — Tailwind utility classes with `cn()` from `@/lib/utils` for conditional class merging.
 - **React Compiler** — auto-memoizes everything. Do not add `useMemo`, `useCallback`, or `React.memo`.
+- **Page chrome and card browsers** — page widths, top bars, sticky stacking, and the shared card-browser pieces are documented in [ui-composition.md](./ui-composition.md).
+
+## React Compiler
+
+The compiler is enabled in `infer` mode. `use`-prefixed functions that don't call hooks are silently skipped; add a `"use memo"` directive to force compilation.
+
+**Bailouts fail the build.** When the compiler can't lower a component or hook it skips the whole file, which then ships with no memoization at all. The eslint `react-compiler` rule does not report these (it stays quiet on the compiler's `Todo` category), so `apps/web/vite.config.ts` collects every `CompileError` / `CompileSkip` and throws at `buildEnd` unless the file is listed in `ALLOWED_COMPILER_BAILOUTS` there. The only accepted entry is `lib/virtualizer-fresh.ts` (`"use no memo"` on purpose). Add to that list only when the cause is outside your control, with the reason inline. Constructs that bail, all with plain rewrites:
+
+- **Anything branching inside a `try`/`catch` body**: a ternary, `&&` / `||` / `??`, an optional call (`onDone?.()`), an optional chain, or a `for...of` loop. Resolve the branch into a local before the `try`, use an `if` statement (those are fine), or move a loop into a plain async helper outside the component. In a `catch`, feed the thrown value to a module-level helper (`errorText(error, "Save failed")`) rather than an inline `error instanceof Error ? ... : ...`.
+- **A `finally` clause.** Duplicate the cleanup on the success and failure paths. Examples in `pairings-view.tsx` and `admin-table.tsx`.
+- **A function declared after the component's `return`.** Hoisting makes it work at runtime, but the compiler bails on the unreachable declaration. Move it above the `return`.
+- **Calling a function declared later in the same body.** Declare it before its first use.
+
+**`.map()` closures over changing parent state.** When a `.map()` callback reads parent state that changes during interaction, the compiler can't keep the iteration result cached: its cache key includes the closure deps, so every row re-runs on each parent update even though props look stable. The fix is architectural. Keep the changing state out of the parent's closure with a Zustand store and per-row selector subscriptions: each row reads only its own slice, the parent's `.map()` callback closes only over stable refs, the compiler caches the result, and the reconciler bails on unchanged rows. Example: `apps/web/src/stores/rules-fold-store.ts` plus the `RuleRow` subscriptions in `apps/web/src/components/rules/rules-page.tsx`.
+
+**TanStack Virtual.** Always go through `useWindowVirtualizerFresh` from `apps/web/src/lib/virtualizer-fresh.ts`, never `useWindowVirtualizer` directly. A naively compiled virtualizer renders empty forever, because the compiler memoizes `getVirtualItems()` / `getTotalSize()` against the stable virtualizer ref (upstream issue TanStack/virtual#736). The wrapper carries `"use no memo"` and returns pre-read `{ virtualizer, virtualItems, totalSize }` so call sites don't re-trip the memoization. Keep `overflow-anchor: none` on the scroll container (it lives on `html, body` in `apps/web/src/index.css` for the window-scrolled surfaces).
+
+**dnd-kit.** Destructure `useSortable` / `useDraggable` / `useDroppable` returns into locals before JSX. Member access on the return object in render (`{...sortable.listeners}`) makes the compiler bail with a refs-during-render error, visible only in the dev console. Pattern: `apps/web/src/components/collection/draggable-card.tsx`.
+
+## TanStack Table
+
+The app uses v9, where features are opt-in. Register only what a table uses via `tableFeatures()`, and reuse an existing set: `adminCardTableFeatures` (exported from `apps/web/src/components/admin/admin-card-table-shared.tsx`) covers sorting plus global filtering, and `admin-table.tsx` keeps a private sorting-only set. Types lead with `TFeatures`: `ColumnDef<typeof features, Row>`, `Table<TFeatures, TData>`, `Column<TFeatures, TData, TValue>`. Two things that bite: `row.getVisibleCells()` belongs to `columnVisibilityFeature`, so use `row.getAllCells()` when that feature isn't registered (if you ever add column hiding, switch back to `getVisibleCells()` in the same change, because `getHeaderGroups()` filters by visibility on its own and the headers would otherwise shrink while the cells don't), and `columnDef.sortingFn` is now `sortFn`. The package ships its own skills under `node_modules/@tanstack/react-table/skills/` (notably `migrate-v8-to-v9`), which are more accurate than the website guide.
+
+## SSR-unsafe hooks
+
+`@tanstack/react-db`'s `useLiveQuery` calls `useSyncExternalStore` without a server snapshot, which makes React revert the subtree to client rendering during SSR. Gate any consumer (directly or transitively, e.g. `useOwnedCount`, `useDeckBuildingCounts`) behind `useHydrated()` from `@/hooks/use-hydrated`. For routes whose entire payload depends on the data, gate the component mount (`if (!hydrated) return null;`), see `apps/web/src/routes/_app/cards.lazy.tsx`. For SSR-meaningful pages where crawlers should see the rest of the content, use a client-only bridge child that lifts the data up via state, see `apps/web/src/routes/_app/promos_.$language.lazy.tsx`. Always use `useHydrated`; there is no parallel `useState` + `useEffect` variant.
+
+## Mutation errors
+
+The QueryClient's default mutation `onError` (`apps/web/src/lib/query-client.ts`) owns the error toast, the stale-bundle reload and the 401 session refetch for every mutation, via the exported `reportMutationError` in that same file. A call site must not add its own `toast.error` in a `catch`: write `catch { /* Reported by the global mutation error toast. */ }` and keep only the state resets. Declaring `onError` in a `useMutation` call replaces that default (react-query merges mutation options shallowly), so a handler that rolls an optimistic update back must call `reportMutationError(error, queryClient)` itself, or the change reverts with nothing telling the user why. Callbacks passed per call (`mutate(vars, { onError })`) run in addition to the default, so those must not toast either: the call site's generic string and the default's server message would both appear. Two call-site toasts stay legitimate, each with a comment saying why: a partial-progress warning after a batched loop ("Import failed. Some cards may have been added.") and a per-item label when one iteration of a loop failed. Non-mutation async (clipboard, PDF/image download, `localStorage` quota) never reaches the global handler and toasts normally.
+
+## Database access
+
+All queries go through repository functions in `apps/api/src/repositories/`. Routes and services never touch `db` / Kysely directly; add a method to the appropriate repository. Route handlers reach repos via `c.get("repos")`.
+
+PostgreSQL stores timestamps with microsecond precision, JavaScript `Date` with milliseconds. When comparing a `Date` against a `timestamptz` column (cursor pagination, for example), wrap the column in `date_trunc('milliseconds', ...)`. Without this, equality checks silently fail.
 
 ## API module layout
 
@@ -175,7 +211,7 @@ Each date splits into `### Highlights` and `### Other`. The panel shows Highligh
 
 An entry is `type(Area):`, then a bold title of 3–6 words, then an em dash with a space on each side, then one plain sentence. Group `feat:` entries above `fix:` entries within each section, newest date at the top.
 
-**Area** is exactly one tag from this list, spelled as written: `Cards`, `Collection`, `Decks`, `Groups`, `Trades`, `Tournaments`, `Rules`, `Packs`, `Products`, `Designer`, `Account`, `App`. Use `App` for anything cross-cutting (performance, theming, navigation, offline).
+**Area** is exactly one tag from this list, spelled as written: `Cards` (browser, search, card detail), `Collection` (owning cards, wishlists/tradelists, import/export), `Decks`, `Groups` (friend groups, sharing, activity feed), `Trades`, `Tournaments`, `Rules`, `Packs`, `Products` (the sealed-products catalog), `Designer`, `Meta` (the meta archive: events, standings, decklists), `Account`, `App`. Use `App` for anything cross-cutting (performance, theming, navigation, offline, release updates).
 
 **Highlights vs Other** — Highlights are what a user would actually care about on that release: new surfaces, visible behavior changes, fixes to something painful. Polish, wording tweaks, and edge cases go under Other. There is no quota; a quiet release can have none, and a date may have only one of the two sections.
 
