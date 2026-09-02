@@ -151,7 +151,88 @@
 
     // jsx-a11y Overwrites
     "jsx-a11y/prefer-tag-over-role": "off", // Inline SVG icons, listbox/combobox typeahead, div-based grids, and shadcn-scaffolded groups intentionally use ARIA roles; the suggested semantic tags don't fit
-    "jsx-a11y/no-redundant-roles": "off" // `<input role="combobox">` is the canonical ARIA combobox pattern even when technically redundant
+    "jsx-a11y/no-redundant-roles": "off", // `<input role="combobox">` is the canonical ARIA combobox pattern even when technically redundant
+
+    // Type-aware rules. These run only under `--type-aware`, which `bun lint`
+    // and the pre-commit hook both pass. Category membership brings them in the
+    // same way it does untyped rules, so the "off" block below is the record of
+    // what we looked at and declined.
+    "typescript/await-thenable": "error",
+    "typescript/no-array-delete": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-deprecated": "error",
+    "typescript/no-duplicate-type-constituents": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-for-in-array": "error",
+    "typescript/no-implied-eval": "error",
+    "typescript/no-meaningless-void-operator": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/no-mixed-enums": "error",
+    "typescript/no-unnecessary-qualifier": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-unary-minus": "error",
+    "typescript/prefer-includes": "error",
+    "typescript/prefer-promise-reject-errors": "error",
+    "typescript/prefer-readonly": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-return-this-type": "error",
+    "typescript/prefer-string-starts-ends-with": "error",
+    "typescript/related-getter-setter-pairs": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
+    // TanStack Router signals a redirect and a 404 by throwing a sentinel, so
+    // those two are thrown on purpose everywhere a route loader guards.
+    "typescript/only-throw-error": [
+      "error",
+      {
+        "allow": [
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": ["Redirect", "NotFoundError"]
+          }
+        ]
+      }
+    ],
+    // A switch with a default already decides what an unhandled member does;
+    // this catches the one without, which falls through silently.
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+
+    // Type-aware rules a category would otherwise enable, declined:
+    "typescript/prefer-readonly-parameter-types": "off", // 20k findings; every parameter in the codebase
+    "typescript/strict-boolean-expressions": "off", // 2.2k; the codebase relies on truthiness throughout
+    "typescript/no-confusing-void-expression": "off", // 2.2k, and it contradicts the `() => void handler()` binding this repo standardized on
+    "typescript/no-unsafe-member-access": "off", // the six no-unsafe rules are ~90% test files reading `await res.json()`
+    "typescript/no-unsafe-type-assertion": "off", // flags every deliberate downcast, not an `any` leak
+    "typescript/no-unsafe-assignment": "off",
+    "typescript/no-unsafe-argument": "off",
+    "typescript/no-unsafe-call": "off",
+    "typescript/no-unsafe-return": "off",
+    "typescript/no-unnecessary-type-assertion": "off", // disagrees with tsgo about which assertions are load-bearing; its autofix broke typecheck in ~20 places
+    "typescript/no-unnecessary-template-expression": "off", // autofix drops the parentheses and silently changes what a log line prints
+    "typescript/require-await": "off", // 463, style
+    "typescript/strict-void-return": "off", // 457, overlaps no-misused-promises more strictly
+    "typescript/return-await": "off", // 115, style
+    "typescript/non-nullable-type-assertion-style": "off", // 110, cosmetic
+    "typescript/consistent-return": "off", // 90, style
+    "typescript/prefer-nullish-coalescing": "off", // 77, but `||` falling through on "" is deliberate in most of them
+    "typescript/dot-notation": "off", // 47, cosmetic
+    "typescript/no-unnecessary-boolean-literal-compare": "off", // 45, cosmetic
+    "typescript/prefer-regexp-exec": "off", // 36, cosmetic
+    "typescript/no-unnecessary-type-conversion": "off", // 36, cosmetic
+    "typescript/no-unnecessary-type-arguments": "off", // 34, cosmetic
+    "typescript/unbound-method": "off", // 29, almost all `expect(event.preventDefault)` and Kysely expression builders
+    "typescript/require-array-sort-compare": "off", // 28 test sorts, several numeric ones worth fixing first
+    "typescript/consistent-type-exports": "off", // 25, cosmetic
+    "typescript/restrict-template-expressions": "off", // 12, all `unknown` in a template; no-base-to-string covers the object case
+    "typescript/no-misused-spread": "off", // 12, ASCII string spreads and jsdom location stubs
+    "typescript/no-redundant-type-constituents": "off", // 12, real smells but each fix is a design call
+    "typescript/no-unnecessary-type-parameters": "off", // 6, same
+    "typescript/prefer-find": "off", // 1, no autofix
+    "typescript/no-useless-default-assignment": "off" // 1, no autofix
   },
   "ignorePatterns": [],
   "overrides": [
@@ -164,14 +245,16 @@
         "promise/prefer-await-to-then": "off",
         "promise/prefer-await-to-callbacks": "off",
         "unicorn/no-useless-undefined": "off",
-        "react/forbid-elements": "off"
+        "react/forbid-elements": "off",
+        "typescript/no-misused-promises": "off" // mocks legitimately hand promise-returning functions to callbacks
       }
     },
     {
       "files": ["apps/web/src/components/ui/**"],
       "rules": {
         "react/forbid-elements": "off",
-        "react/function-component-definition": "off" // shadcn scaffolds components as arrow consts; rewriting them adds permanent drift from upstream and noise when re-scaffolding
+        "react/function-component-definition": "off", // shadcn scaffolds components as arrow consts; rewriting them adds permanent drift from upstream and noise when re-scaffolding
+        "typescript/no-deprecated": "off" // same reason: a deprecation fix here is drift that survives until the next re-scaffold
       }
     },
     {

@@ -62,7 +62,7 @@ const stubApi = Bun.serve({
 // fixed because worktrees run this concurrently.
 const probe = Bun.serve({ port: 0, fetch: () => new Response() });
 const port = probe.port;
-probe.stop(true);
+void probe.stop(true);
 
 const server = Bun.spawn(["bun", "run", join(stageDir, ".output/server/index.mjs")], {
   cwd: stageDir,
@@ -87,7 +87,7 @@ void collect(server.stderr);
 
 function cleanup(): void {
   server.kill();
-  stubApi.stop(true);
+  void stubApi.stop(true);
   rmSync(stageDir, { recursive: true, force: true });
 }
 
