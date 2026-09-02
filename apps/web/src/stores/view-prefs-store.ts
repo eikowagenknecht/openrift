@@ -145,7 +145,7 @@ function adoptLegacyDeckListPrefs(
     if (!raw) {
       return blob;
     }
-    const legacy = JSON.parse(raw)?.state as Record<string, unknown> | undefined;
+    const legacy = (JSON.parse(raw) as { state?: Record<string, unknown> } | null)?.state;
     if (!legacy) {
       return blob;
     }

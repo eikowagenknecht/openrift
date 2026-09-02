@@ -8,6 +8,8 @@
  * hand a handler a payload another context on the page put there.
  */
 
+import type { Collision, DroppableContainer } from "@dnd-kit/core";
+
 /** The minimum any of our payloads carries: a discriminator to check it by. */
 interface TypedDragData {
   type: string;
@@ -32,4 +34,19 @@ export function asDragData<T extends TypedDragData>(
   }
   const candidate = data as T;
   return types.includes(candidate.type) ? candidate : undefined;
+}
+
+/**
+ * Reads the drop payload a collision points at.
+ *
+ * dnd-kit types `Collision["data"]` as `Record<string, any>`. Every built-in
+ * detector puts a `droppableContainer` there.
+ *
+ * @returns The hovered target's payload, for `asDragData` to narrow.
+ */
+export function collisionDropData(collision: Collision): unknown {
+  const { droppableContainer } = (collision.data ?? {}) as {
+    droppableContainer?: DroppableContainer;
+  };
+  return droppableContainer?.data.current;
 }

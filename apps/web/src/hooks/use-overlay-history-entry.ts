@@ -75,5 +75,5 @@ export function closeOverlayHistoryEntry(stateKey: OverlayHistoryKey, close: () 
  * @returns True when popping the entry is the right way to close.
  */
 export function hasOverlayHistoryEntry(stateKey: OverlayHistoryKey): boolean {
-  return Boolean(history.state?.[stateKey]);
+  return Boolean((history.state as Record<string, unknown> | null)?.[stateKey]);
 }

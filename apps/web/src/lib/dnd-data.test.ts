@@ -1,6 +1,7 @@
+import type { Collision } from "@dnd-kit/core";
 import { describe, expect, it } from "vitest";
 
-import { asDragData } from "@/lib/dnd-data";
+import { asDragData, collisionDropData } from "@/lib/dnd-data";
 
 interface CardDrag {
   type: "card";
@@ -50,5 +51,27 @@ describe("asDragData", () => {
 
   it("accepts nothing when the caller lists no types", () => {
     expect(asDragData<CardDrag>({ type: "card", cardId: "c1" }, [])).toBe(undefined);
+  });
+});
+
+describe("collisionDropData", () => {
+  const collisionWith = (data: unknown) => ({ id: "d1", data }) as unknown as Collision;
+
+  it("reads the payload off the droppable container", () => {
+    const payload = { type: "row", rowIndex: 1 };
+    const collision = collisionWith({ droppableContainer: { data: { current: payload } } });
+    expect(collisionDropData(collision)).toBe(payload);
+  });
+
+  it("returns undefined when the container carries no payload", () => {
+    expect(collisionDropData(collisionWith({ droppableContainer: { data: {} } }))).toBe(undefined);
+  });
+
+  it("returns undefined for a collision naming no droppable container", () => {
+    expect(collisionDropData(collisionWith({ value: 12 }))).toBe(undefined);
+  });
+
+  it("returns undefined when the collision carries no data at all", () => {
+    expect(collisionDropData(collisionWith(undefined))).toBe(undefined);
   });
 });

@@ -35,7 +35,7 @@ type ParseResult =
  */
 function parseErrataEntries(text: string): ParseResult {
   try {
-    const json = JSON.parse(text);
+    const json = JSON.parse(text) as unknown[] | { entries?: unknown };
     const list = Array.isArray(json) ? json : json.entries;
     if (!Array.isArray(list) || list.length === 0) {
       return { ok: false, error: "empty-or-wrong-shape" };

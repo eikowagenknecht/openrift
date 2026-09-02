@@ -25,6 +25,7 @@ import { CardDragGhost } from "@/components/cards/card-drag-ghost";
 import { DndScrollWatcher } from "@/components/dnd-scroll-watcher";
 import type { StageDragData } from "@/components/present/stage-dnd-types";
 import { asStageDragData, asStageDropData } from "@/components/present/stage-dnd-types";
+import { collisionDropData } from "@/lib/dnd-data";
 import { moveToIndex } from "@/lib/move-to-index";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
 
@@ -44,7 +45,7 @@ const QUEUE_ROW_MODIFIERS: Modifier[] = [restrictToVerticalAxis, restrictToParen
 
 /** @returns The drop payload behind a collision, when it is one of ours. */
 function dropTypeOf(collision: Collision): string | undefined {
-  return asStageDropData(collision.data?.droppableContainer?.data?.current)?.type;
+  return asStageDropData(collisionDropData(collision))?.type;
 }
 
 /**

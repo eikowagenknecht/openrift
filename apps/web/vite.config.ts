@@ -5,6 +5,7 @@ import { createReadStream, existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
 import path from "node:path";
 
+import type { RolldownBabelPreset } from "@rolldown/plugin-babel";
 import babel from "@rolldown/plugin-babel";
 import { sentryTanstackStart } from "@sentry/tanstackstart-react/vite";
 import tailwindcss from "@tailwindcss/vite";
@@ -58,9 +59,9 @@ const serveMediaPlugin: Plugin = {
 //
 // Runs on the Vite server only (dev and build). Nothing from this logger ever
 // reaches the client bundle. See docs: https://react.dev/reference/react-compiler/logger
-// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- preset is a structural type from @rolldown/plugin-babel
-function withReactCompilerLogger(preset: any): any {
-  const innerPreset = preset.preset;
+function withReactCompilerLogger(preset: RolldownBabelPreset): RolldownBabelPreset {
+  // `PresetItem` covers every shape babel accepts. This one is a factory.
+  const innerPreset = preset.preset as (...args: unknown[]) => { plugins: unknown[] };
   preset.preset = (...args: unknown[]) => {
     const result = innerPreset(...args);
     result.plugins = result.plugins.map((plugin: unknown) => {

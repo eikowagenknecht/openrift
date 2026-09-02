@@ -25,8 +25,8 @@ export function resolveThemeFromCookie(raw: string | null | undefined): "light" 
     return "light";
   }
   try {
-    const parsed = JSON.parse(raw);
-    const preference: string | undefined = parsed?.state?.preference;
+    const parsed = JSON.parse(raw) as { state?: { preference?: unknown } } | null;
+    const preference = parsed?.state?.preference;
     return preference === "dark" ? "dark" : "light";
   } catch {
     return "light";
@@ -45,8 +45,8 @@ export function resolvePaletteFromCookie(raw: string | null | undefined): Palett
     return "default";
   }
   try {
-    const parsed = JSON.parse(raw);
-    const preference: unknown = parsed?.state?.preference;
+    const parsed = JSON.parse(raw) as { state?: { preference?: unknown } } | null;
+    const preference = parsed?.state?.preference;
     if (typeof preference === "string" && (PALETTES as readonly string[]).includes(preference)) {
       return preference as Palette;
     }

@@ -1,4 +1,5 @@
 // oxlint-disable unicorn/prefer-global-this -- `self` is the conventional global in service worker scripts
+// oxlint-disable typescript/no-unsafe-member-access -- this file is served as-is and is outside the TS program, so `self` has no worker types
 // Self-destructing service worker. The app shipped as a PWA at some point, and
 // browsers that installed that Workbox service worker still re-fetch /sw.js to
 // check for updates (the 404s show up in the proxy logs daily). Serving this

@@ -21,6 +21,7 @@ import {
   asTierListDragData,
   asTierListDropData,
 } from "@/components/tier-lists/tier-list-dnd-types";
+import { collisionDropData } from "@/lib/dnd-data";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 /** Pointer travel before a press becomes a drag, so a click still reads as a click. */
@@ -40,13 +41,11 @@ const preferCardTargets: CollisionDetection = (args) => {
   const collisions = pointerWithin(args);
   if (asTierListDragData(args.active.data.current)?.type === "tier-row-handle") {
     return collisions.filter(
-      (collision) =>
-        asTierListDropData(collision.data?.droppableContainer?.data?.current)?.type === "tier-row",
+      (collision) => asTierListDropData(collisionDropData(collision))?.type === "tier-row",
     );
   }
   const cardHit = collisions.find(
-    (collision) =>
-      asTierListDropData(collision.data?.droppableContainer?.data?.current)?.type === "tier-card",
+    (collision) => asTierListDropData(collisionDropData(collision))?.type === "tier-card",
   );
   return cardHit ? [cardHit, ...collisions.filter((c) => c !== cardHit)] : collisions;
 };

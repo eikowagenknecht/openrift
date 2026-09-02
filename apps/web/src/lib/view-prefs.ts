@@ -164,7 +164,7 @@ export function resolveViewPrefsFromCookie(
     return sanitizeViewPrefsBlob(undefined, COOKIE_VIEW_SURFACES);
   }
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as { state?: unknown } | null;
     return sanitizeViewPrefsBlob(parsed?.state, COOKIE_VIEW_SURFACES);
   } catch {
     return sanitizeViewPrefsBlob(undefined, COOKIE_VIEW_SURFACES);

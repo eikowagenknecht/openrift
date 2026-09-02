@@ -68,7 +68,7 @@ type ParseResult =
  */
 function parseCandidates(text: string): ParseResult {
   try {
-    const json = JSON.parse(text);
+    const json = JSON.parse(text) as unknown[] | { candidates?: unknown };
     const candidates = Array.isArray(json) ? json : json.candidates;
     if (!Array.isArray(candidates) || candidates.length === 0) {
       return { ok: false, error: "empty-or-wrong-shape" };
