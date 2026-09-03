@@ -128,6 +128,7 @@ import {
 import {
   acceptMetaEventOverlay,
   acceptMetaPlayerOverlay,
+  acceptMetaPlayerOverlays,
   rejectMetaOverlay,
 } from "./services/meta-overlay-review.js";
 import { promoteMetaEvent, promoteNewEvent } from "./services/meta-promote.js";
@@ -241,6 +242,7 @@ export interface Services {
   repromoteMetaEvents: typeof repromoteMetaEvents;
   acceptMetaEventOverlay: typeof acceptMetaEventOverlay;
   acceptMetaPlayerOverlay: typeof acceptMetaPlayerOverlay;
+  acceptMetaPlayerOverlays: typeof acceptMetaPlayerOverlays;
   rejectMetaOverlay: typeof rejectMetaOverlay;
   suggestMetaEventMatches: typeof suggestMetaEventMatches;
   suggestMetaPlayerMatches: typeof suggestMetaPlayerMatches;
@@ -461,6 +463,7 @@ export const services: Services = {
   repromoteMetaEvents,
   acceptMetaEventOverlay,
   acceptMetaPlayerOverlay,
+  acceptMetaPlayerOverlays,
   rejectMetaOverlay,
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,

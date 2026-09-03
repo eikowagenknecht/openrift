@@ -11,6 +11,7 @@ import {
   scorePlayerMatch,
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,
+  summarizePlayerMatch,
 } from "./meta-match-suggestions.js";
 
 /** @returns A live event row with the fields the ranking reads. */
@@ -295,6 +296,77 @@ describe("rankPlayerMatches", () => {
 
   it("returns nothing for an event with no standings yet", () => {
     expect(rankPlayerMatches({ playerName: "Nova", rank: 1 }, [])).toEqual([]);
+  });
+});
+
+describe("summarizePlayerMatch", () => {
+  const linked = { id: "row-1", playerName: "Nova", rank: 3, rankIsTier: true };
+
+  it("names the anchored row, counting the other candidates beside it", () => {
+    const suggestions = rankPlayerMatches(
+      { playerName: "Nova", rank: 3 },
+      [
+        player({ id: "row-1", rank: 3, rankIsTier: true }),
+        player({ id: "row-2", playerName: "Novaa" }),
+      ],
+      "row-1",
+    );
+    expect(summarizePlayerMatch(suggestions, linked)).toEqual({
+      state: "linked",
+      metaEventPlayerId: "row-1",
+      playerName: "Nova",
+      rank: 3,
+      rankIsTier: true,
+      candidateCount: 1,
+    });
+  });
+
+  it("reads one same-name candidate as exact, the row Accept can link", () => {
+    const suggestions = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ id: "exact", rank: 2 }),
+      player({ id: "near", playerName: "Novaa" }),
+    ]);
+    expect(summarizePlayerMatch(suggestions, null)).toEqual({
+      state: "exact",
+      metaEventPlayerId: "exact",
+      playerName: "Nova",
+      rank: 2,
+      rankIsTier: false,
+      candidateCount: 2,
+    });
+  });
+
+  it("leaves two same-name rows to the admin, since either could be the one", () => {
+    const suggestions = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ id: "a" }),
+      player({ id: "b", rank: 9 }),
+    ]);
+    expect(summarizePlayerMatch(suggestions, null)).toMatchObject({
+      state: "candidates",
+      metaEventPlayerId: null,
+      candidateCount: 2,
+    });
+  });
+
+  it("offers similar names as candidates, never as a match", () => {
+    const suggestions = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ playerName: "Novaa" }),
+    ]);
+    expect(summarizePlayerMatch(suggestions, null)).toMatchObject({
+      state: "candidates",
+      candidateCount: 1,
+    });
+  });
+
+  it("says so when nothing in the standings reads as the player", () => {
+    expect(summarizePlayerMatch([], null)).toEqual({
+      state: "none",
+      metaEventPlayerId: null,
+      playerName: null,
+      rank: null,
+      rankIsTier: null,
+      candidateCount: 0,
+    });
   });
 });
 

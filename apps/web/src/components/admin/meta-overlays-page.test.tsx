@@ -1,5 +1,7 @@
-import type { MetaOverlayQueueRow } from "@openrift/shared";
-import { render, screen } from "@testing-library/react";
+import type { MetaOverlayQueueRow, MetaOverlayRowMatch } from "@openrift/shared";
+import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/meta-submissions";
+import type * as Router from "@tanstack/react-router";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,10 +14,18 @@ vi.mock("@/components/admin/admin-page-top-bar", () => ({
   AdminPageTopBar: ({ actions }: { actions?: ReactNode }) => <div>{actions}</div>,
 }));
 
+// The group's "Open event" link needs no router to render as an anchor.
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof Router>()),
+  Link: ({ children }: { children?: ReactNode }) => <a href="/admin/meta/e1">{children}</a>,
+}));
+
 const captured = {
   overlays: [] as unknown[],
+  corrections: [] as unknown[],
   acceptedEvent: [] as { id: string; metaEventId: string | null }[],
-  acceptedPlayer: [] as string[],
+  acceptedPlayer: [] as { id: string; metaEventPlayerId: string | null }[],
+  acceptedBulk: [] as { id: string; metaEventPlayerId: string | null }[][],
   rejected: [] as { kind: string; id: string }[],
   linked: [] as { id: string; metaEventPlayerId: string }[],
   eventSuggestions: [] as unknown[],
@@ -36,12 +46,19 @@ vi.mock("@/hooks/use-admin-meta-overlays", () => ({
     isPending: false,
   }),
   useAcceptMetaPlayerOverlay: () => ({
-    mutateAsync: (id: string) => {
+    mutateAsync: (input: { id: string; metaEventPlayerId: string | null }) => {
       if (captured.acceptFails) {
         return Promise.reject(new Error("nope"));
       }
-      captured.acceptedPlayer.push(id);
+      captured.acceptedPlayer.push(input);
       return Promise.resolve({ metaEventId: "e1", created: false });
+    },
+    isPending: false,
+  }),
+  useAcceptMetaPlayerOverlays: () => ({
+    mutateAsync: (input: { items: { id: string; metaEventPlayerId: string | null }[] }) => {
+      captured.acceptedBulk.push(input.items);
+      return Promise.resolve({ accepted: input.items.length, metaEventIds: ["e1"] });
     },
     isPending: false,
   }),
@@ -99,12 +116,13 @@ vi.mock("@/hooks/use-enums", () => ({
 
 vi.mock("@/hooks/use-admin-meta-submissions", () => ({
   useMetaSubmissionForPlayerOverlay: () => ({ data: { submission: null } }),
+  useMetaEventCorrections: () => ({ data: { items: captured.corrections, hasMore: false } }),
 }));
 
-// The corrections panel is its own query and its own subject; this file is
-// about the overlay queue's cards.
-vi.mock("@/components/admin/meta-event-corrections-panel", () => ({
-  MetaEventCorrectionsPanel: () => null,
+vi.mock("@/components/admin/meta-event-correction-card", () => ({
+  MetaEventCorrectionCard: ({ correction }: { correction: AdminMetaEventCorrection }) => (
+    <div>{`correction:${correction.submission.id}`}</div>
+  ),
 }));
 vi.mock("@/components/admin/meta-overlay-upload-dialog", () => ({
   MetaOverlayUploadDialog: () => null,
@@ -118,6 +136,18 @@ vi.mock("@/components/admin/meta-card-name-picker", () => ({
 
 const { MetaOverlaysPage } = await import("@/components/admin/meta-overlays-page");
 
+function match(overrides: Partial<MetaOverlayRowMatch> = {}): MetaOverlayRowMatch {
+  return {
+    state: "linked",
+    metaEventPlayerId: "row-1",
+    playerName: "Ashe Main",
+    rank: 2,
+    rankIsTier: false,
+    candidateCount: 0,
+    ...overrides,
+  };
+}
+
 function overlay(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueueRow {
   return {
     id: "o1",
@@ -126,11 +156,18 @@ function overlay(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueue
     provider: "uvsgames",
     sourceEventExternalId: "evt-1",
     sourcePlayerExternalId: "evt-1-p1",
+    eventOverlayId: null,
     metaEventPlayerId: "row-1",
     metaEventId: "e1",
     metaEventName: "Summoner Skirmish",
+    metaEventSlug: "summoner-skirmish",
+    eventDate: "2026-08-01",
+    eventFormat: "constructed",
     proposedName: null,
     playerName: "Ashe Main",
+    rank: 4,
+    rankIsTier: false,
+    match: match(),
     submittedBy: "u1",
     submissionNote: null,
     changes: [{ field: "rank", from: "4", to: "2" }],
@@ -141,10 +178,75 @@ function overlay(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueue
   };
 }
 
+/** An unanchored standings overlay whose match is what the test says. */
+function loose(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueueRow {
+  return overlay({
+    metaEventPlayerId: null,
+    match: match({ state: "none", metaEventPlayerId: null, playerName: null, rank: null }),
+    ...overrides,
+  });
+}
+
+function proposal(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueueRow {
+  return overlay({
+    kind: "event",
+    metaEventId: null,
+    metaEventName: null,
+    metaEventSlug: null,
+    metaEventPlayerId: null,
+    sourcePlayerExternalId: null,
+    proposedName: "Brand New",
+    playerName: null,
+    rank: null,
+    rankIsTier: null,
+    match: null,
+    ...overrides,
+  });
+}
+
+function correctionFor(id: string, eventId: string | null): AdminMetaEventCorrection {
+  return {
+    submission: {
+      id,
+      eventName: "Summoner Skirmish",
+      playerName: null,
+      kind: "event_correction",
+      note: null,
+      status: "pending",
+      reason: null,
+      resolutionNote: null,
+      acceptedDeckId: null,
+      createdAt: "2026-08-29T10:00:00.000Z",
+      resolvedAt: null,
+    },
+    event:
+      eventId === null
+        ? null
+        : {
+            id: eventId,
+            slug: "summoner-skirmish",
+            name: "Summoner Skirmish",
+            eventDate: "2026-08-01",
+            format: "constructed",
+            playerCount: 64,
+            organizer: null,
+            location: null,
+            country: null,
+          },
+    fieldEdits: {},
+  };
+}
+
+async function expandRow(name: string): Promise<void> {
+  await userEvent.click(screen.getByRole("button", { name: `Expand ${name}` }));
+}
+
 beforeEach(() => {
   captured.overlays = [];
+  captured.corrections = [];
   captured.acceptedEvent = [];
   captured.acceptedPlayer = [];
+  captured.acceptedBulk = [];
   captured.rejected = [];
   captured.linked = [];
   captured.eventSuggestions = [];
@@ -162,27 +264,211 @@ describe("MetaOverlaysPage", () => {
     expect(screen.getByText("Nothing waiting.")).toBeInTheDocument();
   });
 
-  it("shows each claimed field as a before and after", () => {
-    captured.overlays = [overlay()];
+  it("groups every row under the event it lands on, with the event's facts", () => {
+    captured.overlays = [
+      overlay({ id: "a", playerName: "Ashe Main" }),
+      overlay({ id: "b", playerName: "Jinx Fan", rank: 9 }),
+      overlay({ id: "c", metaEventId: "e2", metaEventName: "Other Night", playerName: "Zed" }),
+    ];
 
     render(<MetaOverlaysPage />);
 
+    expect(screen.getByRole("button", { name: "Collapse Summoner Skirmish" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse Other Night" })).toBeInTheDocument();
+    expect(screen.getByText("2 decklists")).toBeInTheDocument();
+    expect(screen.getAllByText("constructed")).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Open event" })).toHaveLength(2);
+  });
+
+  it("folds a correction into its event's group", () => {
+    captured.overlays = [overlay()];
+    captured.corrections = [correctionFor("s1", "e1")];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getAllByRole("button", { name: /^Collapse/u })).toHaveLength(1);
+    expect(screen.getByText("correction:s1")).toBeInTheDocument();
+    expect(screen.getByText("1 decklist · 1 correction")).toBeInTheDocument();
+  });
+
+  it("counts the queue by what the admin has to decide", () => {
+    captured.overlays = [
+      overlay({ id: "ready" }),
+      loose({ id: "loose", playerName: "Loose" }),
+      overlay({ id: "unmatched", playerName: "Unmatched", unresolvedNames: ["Mystery"] }),
+      proposal({ id: "prop" }),
+    ];
+    captured.corrections = [correctionFor("s1", "e1")];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByRole("button", { name: /^All ?5$/u })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /^Ready ?1$/u })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Needs a row ?1$/u })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Unmatched cards ?1$/u })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^New events ?1$/u })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Corrections ?1$/u })).toBeInTheDocument();
+  });
+
+  it("narrows the page to one triage when its chip is pressed", async () => {
+    captured.overlays = [
+      overlay({ id: "ready", playerName: "Ready Player" }),
+      loose({ id: "loose", playerName: "Loose Player" }),
+    ];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: /^Needs a row ?1$/u }));
+
+    expect(screen.getByText("Loose Player")).toBeInTheDocument();
+    expect(screen.queryByText("Ready Player")).not.toBeInTheDocument();
+  });
+
+  it("reads an exact match as ready, and links it on accept", async () => {
+    captured.overlays = [
+      loose({
+        id: "p1",
+        match: match({ state: "exact", metaEventPlayerId: "row-5", playerName: "Ashe Main" }),
+      }),
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByText("exact match")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+    expect(captured.acceptedPlayer).toEqual([{ id: "p1", metaEventPlayerId: "row-5" }]);
+  });
+
+  it("accepts a linked entry without a warning and without relinking it", async () => {
+    captured.overlays = [overlay({ id: "p5" })];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+
+    expect(captured.acceptedPlayer).toEqual([{ id: "p5", metaEventPlayerId: null }]);
+  });
+
+  it("warns before filing a second standings row for an unlinked entry", async () => {
+    captured.overlays = [loose({ id: "p6" })];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Accept as new row" }));
+
+    expect(captured.acceptedPlayer).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "File a new row" }));
+    expect(captured.acceptedPlayer).toEqual([{ id: "p6", metaEventPlayerId: null }]);
+  });
+
+  it("offers no accept on a row whose event is still only proposed", () => {
+    captured.overlays = [loose({ match: match({ state: "unscored" }) })];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByText("accept the event first")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Accept/u })).not.toBeInTheDocument();
+  });
+
+  it("accepts every ready row of a group in one call, linking the exact matches", async () => {
+    captured.overlays = [
+      overlay({ id: "linked" }),
+      loose({
+        id: "exact",
+        playerName: "Exact",
+        match: match({ state: "exact", metaEventPlayerId: "row-9", playerName: "Exact" }),
+      }),
+      loose({ id: "loose", playerName: "Loose" }),
+    ];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Accept 2 ready" }));
+    await userEvent.click(screen.getByRole("button", { name: "Accept all" }));
+
+    expect(captured.acceptedBulk).toEqual([
+      [
+        { id: "linked", metaEventPlayerId: null },
+        { id: "exact", metaEventPlayerId: "row-9" },
+      ],
+    ]);
+  });
+
+  it("offers no bulk accept when nothing in the group is ready", () => {
+    captured.overlays = [loose()];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.queryByRole("button", { name: /ready$/u })).not.toBeInTheDocument();
+  });
+
+  it("folds ready rows past the first few behind a count, keeping the rest in view", async () => {
+    captured.overlays = [
+      ...Array.from({ length: 7 }, (_, index) =>
+        overlay({ id: `r${index}`, playerName: `Ready ${index}`, rank: index + 1 }),
+      ),
+      loose({ id: "loose", playerName: "Loose Player", rank: 40 }),
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByText("Loose Player")).toBeInTheDocument();
+    expect(screen.queryByText("Ready 6")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show 2 more" }));
+    expect(screen.getByText("Ready 6")).toBeInTheDocument();
+  });
+
+  it("orders a group's rows by finish", () => {
+    captured.overlays = [
+      overlay({ id: "b", playerName: "Second", rank: 12 }),
+      overlay({ id: "a", playerName: "First", rank: 3 }),
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(within(rows[0]).getByText("First")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Second")).toBeInTheDocument();
+  });
+
+  it("shows each claimed field as a before and after once the row is opened", async () => {
+    captured.overlays = [overlay()];
+
+    render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
+
     expect(screen.getByText("rank")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("renders a cleared field as empty rather than blank", () => {
+  it("renders a cleared field as empty rather than blank", async () => {
     captured.overlays = [
       overlay({ changes: [{ field: "organizer", from: "LGS Berlin", to: null }] }),
     ];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
 
     expect(screen.getByText("empty")).toBeInTheDocument();
   });
 
-  it("names the provider a scraped overlay came from", () => {
+  it("hides a claim that repeats what the live row already holds", async () => {
+    captured.overlays = [
+      overlay({
+        changes: [
+          { field: "playerName", from: "linsanity", to: "linsanity" },
+          { field: "listStatus", from: "none", to: "full" },
+        ],
+      }),
+    ];
+
+    render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
+
+    expect(screen.queryByText("playerName")).not.toBeInTheDocument();
+    expect(screen.getByText("listStatus")).toBeInTheDocument();
+  });
+
+  it("names the provider a group's rows came from", () => {
     captured.overlays = [overlay({ provider: "playloltcg" })];
 
     render(<MetaOverlaysPage />);
@@ -190,15 +476,23 @@ describe("MetaOverlaysPage", () => {
     expect(screen.getByText("playloltcg")).toBeInTheDocument();
   });
 
-  it("names a person's overlay rather than leaving its provider blank", () => {
+  it("marks a person's row as a submission, both on the group and the row", () => {
     captured.overlays = [overlay({ provider: null })];
 
     render(<MetaOverlaysPage />);
 
-    expect(screen.getByText("User submission")).toBeInTheDocument();
+    expect(screen.getAllByText("User submission")).toHaveLength(2);
   });
 
-  it("offers a card picker for every name that matches nothing", () => {
+  it("counts the unmatched names in the row, so it need not be opened", () => {
+    captured.overlays = [overlay({ unresolvedNames: ["A", "B"] })];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByText("2 unmatched")).toBeInTheDocument();
+  });
+
+  it("offers a card picker for every name that matches nothing", async () => {
     captured.overlays = [
       overlay({
         cards: [
@@ -209,28 +503,10 @@ describe("MetaOverlaysPage", () => {
     ];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
 
     expect(screen.getByText(/match nothing in the catalog/u)).toBeInTheDocument();
     expect(screen.getByText("picker:Unknown Card")).toBeInTheDocument();
-  });
-
-  it("routes accept to the handler for the overlay's kind", async () => {
-    captured.overlays = [overlay({ id: "p1", kind: "player" })];
-
-    render(<MetaOverlaysPage />);
-    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
-
-    expect(captured.acceptedPlayer).toEqual(["p1"]);
-    expect(captured.acceptedEvent).toEqual([]);
-  });
-
-  it("rejects with the overlay's kind, so the right table is settled", async () => {
-    captured.overlays = [overlay({ id: "e9", kind: "event", proposedName: "Proposed" })];
-
-    render(<MetaOverlaysPage />);
-    await userEvent.click(screen.getByRole("button", { name: "Reject" }));
-
-    expect(captured.rejected).toEqual([{ kind: "event", id: "e9" }]);
   });
 
   it("asks again before accepting a list whose cards match nothing", async () => {
@@ -245,11 +521,10 @@ describe("MetaOverlaysPage", () => {
     render(<MetaOverlaysPage />);
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
 
-    // The first click only warns: accepting would file a standings row and
-    // silently drop the deck.
     expect(captured.acceptedPlayer).toEqual([]);
+    expect(screen.getByText(/lands as a standings row with no decklist/u)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Accept without a deck" }));
-    expect(captured.acceptedPlayer).toEqual(["p9"]);
+    expect(captured.acceptedPlayer).toEqual([{ id: "p9", metaEventPlayerId: null }]);
   });
 
   it("drops back to a plain Accept when the confirmed accept fails", async () => {
@@ -269,41 +544,40 @@ describe("MetaOverlaysPage", () => {
     expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
   });
 
-  it("accepts a fully matched list on the first click", async () => {
-    captured.overlays = [
-      overlay({
-        id: "p8",
-        cards: [{ lineNumber: 0, zone: "main", quantity: 1, cardName: "Known", cardId: "card-1" }],
-      }),
-    ];
+  it("rejects a standings row with its kind, so the right table is settled", async () => {
+    captured.overlays = [overlay({ id: "p2" })];
 
     render(<MetaOverlaysPage />);
-    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+    await userEvent.click(screen.getByRole("button", { name: "Reject" }));
 
-    expect(captured.acceptedPlayer).toEqual(["p8"]);
+    expect(captured.rejected).toEqual([{ kind: "player", id: "p2" }]);
   });
 
-  it("counts the unmatched names in the header, so the card need not be expanded", () => {
-    captured.overlays = [overlay({ unresolvedNames: ["A", "B"] })];
+  it("rejects a proposal with the event kind", async () => {
+    captured.overlays = [proposal({ id: "e9" })];
 
     render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Reject" }));
 
-    expect(screen.getByText("2 unmatched")).toBeInTheDocument();
+    expect(captured.rejected).toEqual([{ kind: "event", id: "e9" }]);
   });
 
-  it("marks an overlay with no live target as a new event", () => {
+  it("marks a proposal as a new event and leads the queue with it", () => {
     captured.overlays = [
-      overlay({ kind: "event", metaEventId: null, metaEventName: null, proposedName: "Brand New" }),
+      overlay({ id: "old", createdAt: "2026-08-01T00:00:00.000Z" }),
+      proposal({ createdAt: "2026-08-31T00:00:00.000Z" }),
     ];
 
     render(<MetaOverlaysPage />);
 
     expect(screen.getByText("new event")).toBeInTheDocument();
+    const toggles = screen.getAllByRole("button", { name: /^Collapse/u });
+    expect(toggles[0]).toHaveAccessibleName("Collapse Brand New");
   });
 
   it("names the search window when a proposal matches no archived event", () => {
     captured.windowDays = 5;
-    captured.overlays = [overlay({ kind: "event", metaEventId: null, proposedName: "Brand New" })];
+    captured.overlays = [proposal()];
 
     render(<MetaOverlaysPage />);
 
@@ -311,9 +585,7 @@ describe("MetaOverlaysPage", () => {
   });
 
   it("accepts a proposal into a suggested event instead of minting a duplicate", async () => {
-    captured.overlays = [
-      overlay({ id: "e5", kind: "event", metaEventId: null, proposedName: "Brand New" }),
-    ];
+    captured.overlays = [proposal({ id: "e5" })];
     captured.eventSuggestions = [
       {
         metaEventId: "live-1",
@@ -334,9 +606,7 @@ describe("MetaOverlaysPage", () => {
   });
 
   it("mints a new event only after the warning is confirmed", async () => {
-    captured.overlays = [
-      overlay({ id: "e6", kind: "event", metaEventId: null, proposedName: "Brand New" }),
-    ];
+    captured.overlays = [proposal({ id: "e6" })];
 
     render(<MetaOverlaysPage />);
     await userEvent.click(screen.getByRole("button", { name: "Accept as new" }));
@@ -346,30 +616,8 @@ describe("MetaOverlaysPage", () => {
     expect(captured.acceptedEvent).toEqual([{ id: "e6", metaEventId: null }]);
   });
 
-  it("warns before filing a second standings row for an unlinked entry", async () => {
-    captured.overlays = [overlay({ id: "p6", metaEventPlayerId: null })];
-
-    render(<MetaOverlaysPage />);
-    await userEvent.click(screen.getByRole("button", { name: "Accept as new" }));
-
-    expect(captured.acceptedPlayer).toEqual([]);
-    await userEvent.click(screen.getByRole("button", { name: "File a new row" }));
-    expect(captured.acceptedPlayer).toEqual(["p6"]);
-  });
-
-  it("accepts a linked entry without a warning, since it patches the row it names", async () => {
-    captured.overlays = [overlay({ id: "p5", metaEventPlayerId: "row-1" })];
-
-    render(<MetaOverlaysPage />);
-    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
-
-    expect(captured.acceptedPlayer).toEqual(["p5"]);
-  });
-
-  it("leads with the exact match, so the one case with no judgement in it stands out", () => {
-    captured.overlays = [
-      overlay({ id: "e7", kind: "event", metaEventId: null, proposedName: "Brand New" }),
-    ];
+  it("leads with the exact event match, so the case with no judgement in it stands out", () => {
+    captured.overlays = [proposal({ id: "e7" })];
     captured.eventSuggestions = [
       {
         metaEventId: "live-1",
@@ -389,23 +637,26 @@ describe("MetaOverlaysPage", () => {
     expect(screen.getByRole("button", { name: "Accept into this" })).toHaveClass("bg-primary");
   });
 
-  it("hides a claim that repeats what the live row already holds", () => {
+  it("keeps a proposal's own standings rows under it", () => {
     captured.overlays = [
-      overlay({
-        changes: [
-          { field: "playerName", from: "linsanity", to: "linsanity" },
-          { field: "listStatus", from: "none", to: "full" },
-        ],
+      proposal({ id: "prop" }),
+      loose({
+        id: "rider",
+        playerName: "Rider",
+        metaEventId: null,
+        metaEventName: null,
+        eventOverlayId: "prop",
+        match: match({ state: "unscored" }),
       }),
     ];
 
     render(<MetaOverlaysPage />);
 
-    expect(screen.queryByText("playerName")).not.toBeInTheDocument();
-    expect(screen.getByText("listStatus")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Collapse/u })).toHaveLength(1);
+    expect(screen.getByText("Rider")).toBeInTheDocument();
   });
 
-  it("groups a decklist under one heading per zone", () => {
+  it("groups a decklist under one heading per zone", async () => {
     captured.overlays = [
       overlay({
         cards: [
@@ -417,6 +668,7 @@ describe("MetaOverlaysPage", () => {
     ];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
 
     expect(screen.getByText("Legend · 1")).toBeInTheDocument();
     expect(screen.getByText("Main Deck · 5")).toBeInTheDocument();
@@ -429,6 +681,7 @@ describe("MetaOverlaysPage", () => {
         sourceEventExternalId: "evt-9",
         sourcePlayerExternalId: null,
         metaEventPlayerId: null,
+        match: null,
       }),
     ];
 
@@ -446,6 +699,7 @@ describe("MetaOverlaysPage", () => {
     ];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
     await userEvent.click(screen.getByRole("button", { name: /Dismiss this source key/u }));
     await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
 
@@ -455,51 +709,32 @@ describe("MetaOverlaysPage", () => {
     expect(captured.ignoredEvents).toEqual([]);
   });
 
-  it("offers no dismiss on a person's overlay, which carries no source key", () => {
+  it("offers no dismiss on a person's overlay, which carries no source key", async () => {
     captured.overlays = [
       overlay({ provider: null, sourceEventExternalId: null, sourcePlayerExternalId: null }),
     ];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
 
     expect(
       screen.queryByRole("button", { name: /Dismiss this source key/u }),
     ).not.toBeInTheDocument();
   });
 
-  it("marks an anchored overlay as linked and still offers to move it", () => {
+  it("marks an anchored overlay as linked and still offers to move it", async () => {
     captured.overlays = [overlay({ metaEventPlayerId: "row-7" })];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
 
     expect(screen.getByText("linked")).toBeInTheDocument();
     expect(screen.getByText(/Pick another row to move it/u)).toBeInTheDocument();
     expect(screen.queryByText(/accepting files a new one/u)).not.toBeInTheDocument();
   });
 
-  it("shows the standings rows without asking for a toggle first", () => {
-    captured.overlays = [overlay({ id: "p4", metaEventPlayerId: null })];
-    captured.playerSuggestions = [
-      {
-        metaEventPlayerId: "row-1",
-        playerName: "Ashe Main",
-        rank: 2,
-        rankIsTier: false,
-        deckId: null,
-        score: 11,
-        reasons: ["same player", "same finish"],
-        isCurrent: false,
-        isExact: true,
-      },
-    ];
-
-    render(<MetaOverlaysPage />);
-
-    expect(screen.getByRole("button", { name: "Link to this entry" })).toBeInTheDocument();
-  });
-
   it("links a standings overlay to the row a suggestion names", async () => {
-    captured.overlays = [overlay({ id: "p3", metaEventPlayerId: null })];
+    captured.overlays = [loose({ id: "p3" })];
     captured.playerSuggestions = [
       {
         metaEventPlayerId: "row-1",
@@ -513,8 +748,19 @@ describe("MetaOverlaysPage", () => {
     ];
 
     render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
     await userEvent.click(screen.getByRole("button", { name: "Link to this entry" }));
 
     expect(captured.linked).toEqual([{ id: "p3", metaEventPlayerId: "row-1" }]);
+  });
+
+  it("collapses a group without losing it", async () => {
+    captured.overlays = [overlay()];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Collapse Summoner Skirmish" }));
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand Summoner Skirmish" })).toBeInTheDocument();
   });
 });

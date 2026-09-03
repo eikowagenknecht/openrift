@@ -1,6 +1,7 @@
 import type {
   MetaEventDrift,
   MetaEventMatchSuggestion,
+  MetaOverlayBulkAcceptResult,
   MetaOverlayQueueRow,
   MetaOverlayReviewResult,
   MetaPlayerMatchSuggestion,
@@ -264,14 +265,35 @@ export function useMoveMetaEventOverlay() {
 
 const acceptPlayerOverlayFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .validator((id: string) => id)
+  .validator(
+    (input: ContractInput<typeof adminMetaCandidatesContract, "acceptPlayerOverlay">) => input,
+  )
   .handler(({ context, data }): Promise<MetaOverlayReviewResult> =>
-    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptPlayerOverlay({ id: data }),
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptPlayerOverlay(data),
   );
 
 export function useAcceptMetaPlayerOverlay() {
   return useMutationWithInvalidation({
-    mutationFn: (id: string) => acceptPlayerOverlayFn({ data: id }),
+    mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "acceptPlayerOverlay">) =>
+      acceptPlayerOverlayFn({ data: input }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const acceptPlayerOverlaysFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .validator(
+    (input: ContractInput<typeof adminMetaCandidatesContract, "acceptPlayerOverlays">) => input,
+  )
+  .handler(({ context, data }): Promise<MetaOverlayBulkAcceptResult> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).acceptPlayerOverlays(data),
+  );
+
+export function useAcceptMetaPlayerOverlays() {
+  return useMutationWithInvalidation({
+    mutationFn: (
+      input: ContractInput<typeof adminMetaCandidatesContract, "acceptPlayerOverlays">,
+    ) => acceptPlayerOverlaysFn({ data: input }),
     invalidates: ALL_META_KEYS,
   });
 }

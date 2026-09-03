@@ -16,6 +16,7 @@
  * deck ingest run on, so "Summoner Skirmish #4" and "summoner skirmish 4" are
  * one name here exactly as they are there.
  */
+import type { MetaOverlayRowMatch } from "@openrift/shared";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
@@ -334,3 +335,55 @@ export function rankPlayerMatches(
       isExact: row.isExact,
     }));
 }
+
+export interface LinkedPlayerRow {
+  id: string;
+  playerName: string;
+  rank: number;
+  rankIsTier: boolean;
+}
+
+export function summarizePlayerMatch(
+  suggestions: readonly MetaPlayerMatchSuggestion[],
+  linked: LinkedPlayerRow | null,
+): MetaOverlayRowMatch {
+  if (linked !== null) {
+    return {
+      state: "linked",
+      metaEventPlayerId: linked.id,
+      playerName: linked.playerName,
+      rank: linked.rank,
+      rankIsTier: linked.rankIsTier,
+      candidateCount: suggestions.filter((suggestion) => !suggestion.isCurrent).length,
+    };
+  }
+  const exact = suggestions.filter((suggestion) => suggestion.isExact);
+  if (exact.length === 1) {
+    const [only] = exact;
+    return {
+      state: "exact",
+      metaEventPlayerId: only.metaEventPlayerId,
+      playerName: only.playerName,
+      rank: only.rank,
+      rankIsTier: only.rankIsTier,
+      candidateCount: suggestions.length,
+    };
+  }
+  return {
+    state: suggestions.length > 0 ? "candidates" : "none",
+    metaEventPlayerId: null,
+    playerName: null,
+    rank: null,
+    rankIsTier: null,
+    candidateCount: suggestions.length,
+  };
+}
+
+export const UNSCORED_PLAYER_MATCH: MetaOverlayRowMatch = {
+  state: "unscored",
+  metaEventPlayerId: null,
+  playerName: null,
+  rank: null,
+  rankIsTier: null,
+  candidateCount: 0,
+};

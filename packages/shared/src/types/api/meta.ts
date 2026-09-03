@@ -7,8 +7,11 @@ import type {
   adminMetaPlayerSchema,
   metaEventDriftSchema,
   metaOverlayDetailSchema,
+  metaOverlayBulkAcceptResultSchema,
+  metaOverlayMatchStateSchema,
   metaOverlayQueueRowSchema,
   metaOverlayReviewResultSchema,
+  metaOverlayRowMatchSchema,
   metaEventMatchSuggestionSchema,
   metaPlayerMatchSuggestionSchema,
   metaUploadResponseSchema,
@@ -146,6 +149,14 @@ export type MetaUploadResponse = z.infer<typeof metaUploadResponseSchema>;
 
 /** One row of the overlay review queue. */
 export type MetaOverlayQueueRow = z.infer<typeof metaOverlayQueueRowSchema>;
+
+export type MetaOverlayMatchState = z.infer<typeof metaOverlayMatchStateSchema>;
+
+/** Which live standings row a queued player overlay lands on. */
+export type MetaOverlayRowMatch = z.infer<typeof metaOverlayRowMatchSchema>;
+
+/** What a bulk accept settled: the rows taken and the events promoted for them. */
+export type MetaOverlayBulkAcceptResult = z.infer<typeof metaOverlayBulkAcceptResultSchema>;
 
 /** The outcome of settling one overlay: the live event it landed on, if any. */
 export type MetaOverlayReviewResult = z.infer<typeof metaOverlayReviewResultSchema>;

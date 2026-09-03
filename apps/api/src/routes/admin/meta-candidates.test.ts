@@ -63,6 +63,7 @@ const mockMeta = {
   eventsByIds: vi.fn(),
   playerById: vi.fn(),
   livePlayersByIds: vi.fn(),
+  adminPlayersForEvent: vi.fn(),
   eventIdForPlayer: vi.fn(),
   rawStandingsForEvent: vi.fn(),
   renamePlayerDeck: vi.fn(),
@@ -217,6 +218,7 @@ beforeEach(() => {
   mockMeta.eventById.mockResolvedValue(LIVE_EVENT);
   mockMeta.eventsByIds.mockResolvedValue([LIVE_EVENT]);
   mockMeta.livePlayersByIds.mockResolvedValue([]);
+  mockMeta.adminPlayersForEvent.mockResolvedValue([]);
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockUvsgames.formatMappings.mockResolvedValue(new Map());
   mockUvsgames.templateTiers.mockResolvedValue(new Map());
@@ -238,7 +240,14 @@ describe("GET /meta/overlays", () => {
       playerOverlay({ metaEventId: null, metaEventPlayerId: LIVE_PLAYER_ID }),
     ]);
     mockMeta.livePlayersByIds.mockResolvedValue([
-      { id: LIVE_PLAYER_ID, playerName: "Renata", rank: 4, wins: 5 },
+      {
+        id: LIVE_PLAYER_ID,
+        metaEventId: LIVE_EVENT_ID,
+        playerName: "Renata",
+        rank: 4,
+        rankIsTier: false,
+        wins: 5,
+      },
     ]);
 
     const body = await readJson(await app.request("/api/admin/v1/meta/overlays"));
@@ -912,6 +921,265 @@ describe("POST /meta/players/{id}/overlays", () => {
 
     expect(response.status).toBe(404);
     expect(mockOverlays.insertPlayerOverlay).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /meta/overlays, the facts a grouped queue reads", () => {
+  const OTHER_EVENT_ID = "e0000000-0002-4000-a000-000000000002";
+  const OTHER_PLAYER_ID = "f0000000-0002-4000-a000-000000000002";
+
+  /** A live standings row as `adminPlayersForEvent` lists it. */
+  function standing(overrides: Record<string, unknown> = {}) {
+    return {
+      id: LIVE_PLAYER_ID,
+      rank: 2,
+      rankIsTier: false,
+      playerName: "Renata",
+      deckId: null,
+      ...overrides,
+    };
+  }
+
+  async function queue(): Promise<Record<string, unknown>[]> {
+    const body = await readJson(await app.request("/api/admin/v1/meta/overlays"));
+    return body.overlays as Record<string, unknown>[];
+  }
+
+  beforeEach(() => {
+    mockMeta.eventsByIds.mockResolvedValue([{ ...LIVE_EVENT, slug: "summoner-skirmish" }]);
+  });
+
+  it("puts the live event's name, slug, date and format on a player row", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([playerOverlay()]);
+
+    const [row] = await queue();
+
+    expect(row).toMatchObject({
+      metaEventId: LIVE_EVENT_ID,
+      metaEventName: "Summoner Skirmish",
+      metaEventSlug: "summoner-skirmish",
+      eventDate: "2026-08-01",
+      eventFormat: "constructed",
+      eventOverlayId: null,
+      rank: 2,
+      rankIsTier: null,
+    });
+  });
+
+  it("resolves a linked row's event through its anchor when the column is empty", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({
+        metaEventId: null,
+        metaEventPlayerId: LIVE_PLAYER_ID,
+        playerName: null,
+        rank: null,
+        claimedFields: [],
+      }),
+    ]);
+    mockMeta.livePlayersByIds.mockResolvedValue([
+      {
+        id: LIVE_PLAYER_ID,
+        metaEventId: LIVE_EVENT_ID,
+        playerName: "Renata",
+        rank: 4,
+        rankIsTier: true,
+      },
+    ]);
+
+    const [row] = await queue();
+
+    expect(row).toMatchObject({
+      metaEventId: LIVE_EVENT_ID,
+      metaEventName: "Summoner Skirmish",
+      rank: 4,
+      rankIsTier: true,
+      match: { state: "linked", metaEventPlayerId: LIVE_PLAYER_ID, playerName: "Renata", rank: 4 },
+    });
+  });
+
+  it("resolves a proposal's own rows through the proposal once it has minted", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ metaEventId: null, eventOverlayId: EVENT_OVERLAY_ID }),
+    ]);
+    mockOverlays.eventOverlayById.mockResolvedValue(eventOverlay({ metaEventId: LIVE_EVENT_ID }));
+
+    const [row] = await queue();
+
+    expect(row).toMatchObject({
+      eventOverlayId: EVENT_OVERLAY_ID,
+      metaEventId: LIVE_EVENT_ID,
+      metaEventName: "Summoner Skirmish",
+    });
+  });
+
+  it("leaves a row under an unaccepted proposal unscored", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ metaEventId: null, eventOverlayId: EVENT_OVERLAY_ID }),
+    ]);
+    mockOverlays.eventOverlayById.mockResolvedValue(eventOverlay({ metaEventId: null }));
+
+    const [row] = await queue();
+
+    expect(row).toMatchObject({
+      metaEventId: null,
+      metaEventName: null,
+      match: { state: "unscored", candidateCount: 0 },
+    });
+    expect(mockMeta.adminPlayersForEvent).not.toHaveBeenCalled();
+  });
+
+  it("reads one exact same-name row as the match Accept can link", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([playerOverlay()]);
+    mockMeta.adminPlayersForEvent.mockResolvedValue([
+      standing(),
+      standing({ id: OTHER_PLAYER_ID, playerName: "Renatta", rank: 9 }),
+    ]);
+
+    const [row] = await queue();
+
+    expect(row.match).toEqual({
+      state: "exact",
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      playerName: "Renata",
+      rank: 2,
+      rankIsTier: false,
+      candidateCount: 2,
+    });
+  });
+
+  it("reports candidates when only similar names exist, and none when nothing does", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ id: PLAYER_OVERLAY_ID }),
+      playerOverlay({ id: OTHER_PLAYER_ID, playerName: "Zilean" }),
+    ]);
+    mockMeta.adminPlayersForEvent.mockResolvedValue([standing({ playerName: "Renatta" })]);
+
+    const rows = await queue();
+
+    expect(rows.map((row) => (row.match as { state: string }).state)).toEqual([
+      "candidates",
+      "none",
+    ]);
+  });
+
+  it("reads each event's standings once, however many rows land on it", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ id: PLAYER_OVERLAY_ID }),
+      playerOverlay({ id: OTHER_PLAYER_ID, playerName: "Zilean" }),
+      playerOverlay({ id: "c0000000-0003-4000-a000-000000000003", metaEventId: OTHER_EVENT_ID }),
+    ]);
+
+    await queue();
+
+    expect(mockMeta.adminPlayersForEvent).toHaveBeenCalledTimes(2);
+    expect(mockMeta.eventsByIds).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a proposal's own date and format, since it has no live event yet", async () => {
+    mockOverlays.pendingEventOverlays.mockResolvedValue([
+      eventOverlay({
+        metaEventId: null,
+        name: "Brand New",
+        eventDate: "2026-09-01",
+        format: "freeform",
+      }),
+    ]);
+
+    const [row] = await queue();
+
+    expect(row).toMatchObject({
+      proposedName: "Brand New",
+      eventDate: "2026-09-01",
+      eventFormat: "freeform",
+      metaEventSlug: null,
+      match: null,
+      rank: null,
+    });
+  });
+});
+
+describe("POST /meta/overlays/players/{id}/accept", () => {
+  beforeEach(() => {
+    mockOverlays.playerOverlayById.mockResolvedValue(playerOverlay());
+    mockMeta.playerById.mockResolvedValue({ id: LIVE_PLAYER_ID, playerName: "Renata", rank: 2 });
+  });
+
+  async function accept(body: Record<string, unknown>): Promise<Response> {
+    return await app.request(`/api/admin/v1/meta/overlays/players/${PLAYER_OVERLAY_ID}/accept`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("links to the named row before accepting, in one call", async () => {
+    const response = await accept({ metaEventPlayerId: LIVE_PLAYER_ID });
+
+    expect(response.status).toBe(200);
+    expect(mockOverlays.linkPlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, LIVE_PLAYER_ID);
+    expect(mockOverlays.setPlayerOverlayStatus).toHaveBeenCalledWith(
+      PLAYER_OVERLAY_ID,
+      "accepted",
+      expect.any(Date),
+    );
+    expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts without a link when no row is named", async () => {
+    const response = await accept({});
+
+    expect(response.status).toBe(200);
+    expect(mockOverlays.linkPlayerOverlay).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /meta/overlays/players/accept", () => {
+  const SECOND = "c0000000-0002-4000-a000-000000000002";
+
+  async function acceptAll(items: Record<string, unknown>[]): Promise<Response> {
+    return await app.request("/api/admin/v1/meta/overlays/players/accept", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+  }
+
+  beforeEach(() => {
+    mockOverlays.playerOverlayById.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === PLAYER_OVERLAY_ID || id === SECOND ? playerOverlay({ id }) : undefined,
+      ),
+    );
+    mockMeta.playerById.mockResolvedValue({ id: LIVE_PLAYER_ID, playerName: "Renata", rank: 2 });
+  });
+
+  it("accepts the batch and promotes the shared event once", async () => {
+    const response = await acceptAll([
+      { id: PLAYER_OVERLAY_ID, metaEventPlayerId: LIVE_PLAYER_ID },
+      { id: SECOND },
+    ]);
+
+    expect(await readJson(response)).toEqual({ accepted: 2, metaEventIds: [LIVE_EVENT_ID] });
+    expect(mockOverlays.linkPlayerOverlay).toHaveBeenCalledTimes(1);
+    expect(mockOverlays.setPlayerOverlayStatus).toHaveBeenCalledTimes(2);
+    expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes nothing when one id is unknown", async () => {
+    const response = await acceptAll([
+      { id: PLAYER_OVERLAY_ID },
+      { id: "c0000000-0009-4000-a000-000000000009" },
+    ]);
+
+    expect(response.status).toBe(404);
+    expect(mockOverlays.setPlayerOverlayStatus).not.toHaveBeenCalled();
+    expect(promoteMetaEvent).not.toHaveBeenCalled();
+  });
+
+  it("refuses an empty batch", async () => {
+    const response = await acceptAll([]);
+
+    expect(response.status).toBe(400);
   });
 });
 

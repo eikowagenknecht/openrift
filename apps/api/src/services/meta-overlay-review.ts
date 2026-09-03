@@ -1,5 +1,5 @@
 import { ERROR_CODES } from "@openrift/shared";
-import type { MetaOverlayReviewResult } from "@openrift/shared";
+import type { MetaOverlayBulkAcceptResult, MetaOverlayReviewResult } from "@openrift/shared";
 import type {
   MetaEntryStatus,
   MetaEventOverlayField,
@@ -14,7 +14,9 @@ import type { Insertable } from "kysely";
 import type { MetaEventPlayerOverlaysTable } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
+import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
 import { sourceEventKeyPrefix } from "../repositories/meta-overlays.js";
+import type { MetaEventPlayerRow } from "../repositories/meta.js";
 import { promoteMetaEvent, promoteNewEvent } from "./meta-promote.js";
 
 /**
@@ -659,18 +661,30 @@ export async function releaseMetaPlayerOverlayField(
   return { metaEventId, created: false };
 }
 
-/** Accepts a standings overlay, then promotes the event it belongs to. */
-export async function acceptMetaPlayerOverlay(
+interface PendingPlayerAccept {
+  overlay: MetaPlayerOverlayRow;
+  player: MetaEventPlayerRow | null;
+  metaEventId: string;
+}
+
+async function loadPlayerAccept(
   repos: Repos,
   overlayId: string,
-  now: Date = new Date(),
-): Promise<MetaOverlayReviewResult> {
+  metaEventPlayerId: string | null,
+): Promise<PendingPlayerAccept> {
   const overlay = await repos.metaOverlays.playerOverlayById(overlayId);
   if (overlay === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "That overlay no longer exists.");
   }
-
-  const metaEventId = await eventIdForPlayerOverlay(repos, overlay);
+  let player: MetaEventPlayerRow | null = null;
+  let metaEventId = await eventIdForPlayerOverlay(repos, overlay);
+  if (metaEventPlayerId !== null) {
+    player = (await repos.meta.playerById(metaEventPlayerId)) ?? null;
+    if (player === null) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "That standings row no longer exists.");
+    }
+    metaEventId = (await repos.meta.eventIdForPlayer(metaEventPlayerId)) ?? metaEventId;
+  }
   if (metaEventId === null) {
     throw new AppError(
       409,
@@ -678,10 +692,73 @@ export async function acceptMetaPlayerOverlay(
       "This entry belongs to an event that has not been accepted yet. Accept the event first.",
     );
   }
+  return { overlay, player, metaEventId };
+}
 
+async function anchorPlayerOverlay(
+  repos: Repos,
+  overlay: MetaPlayerOverlayRow,
+  player: MetaEventPlayerRow,
+): Promise<void> {
+  await repos.metaOverlays.linkPlayerOverlay(overlay.id, player.id);
+  const redundant = redundantClaims(
+    overlay.claimedFields,
+    overlay as unknown as Record<string, unknown>,
+    player as unknown as Record<string, unknown>,
+  );
+  if (redundant.length > 0) {
+    await repos.metaOverlays.updatePlayerOverlay(overlay.id, {
+      claimedFields: overlay.claimedFields.filter(
+        (field) => !redundant.includes(field),
+      ) as MetaPlayerOverlayField[],
+      ...Object.fromEntries(redundant.map((field) => [field, null])),
+    });
+  }
+}
+
+export async function acceptMetaPlayerOverlay(
+  repos: Repos,
+  overlayId: string,
+  options: { metaEventPlayerId?: string | null } = {},
+  now: Date = new Date(),
+): Promise<MetaOverlayReviewResult> {
+  const { overlay, player, metaEventId } = await loadPlayerAccept(
+    repos,
+    overlayId,
+    options.metaEventPlayerId ?? null,
+  );
+  if (player !== null) {
+    await anchorPlayerOverlay(repos, overlay, player);
+  }
   await repos.metaOverlays.setPlayerOverlayStatus(overlayId, "accepted", now);
   await promoteMetaEvent(repos, metaEventId);
   return { metaEventId, created: false };
+}
+
+/**
+ * Every item is resolved before anything is written, so a stale id refuses
+ * the whole batch, and each touched event is promoted once at the end.
+ */
+export async function acceptMetaPlayerOverlays(
+  repos: Repos,
+  items: readonly { id: string; metaEventPlayerId: string | null }[],
+  now: Date = new Date(),
+): Promise<MetaOverlayBulkAcceptResult> {
+  const pending: PendingPlayerAccept[] = [];
+  for (const item of items) {
+    pending.push(await loadPlayerAccept(repos, item.id, item.metaEventPlayerId));
+  }
+  for (const { overlay, player } of pending) {
+    if (player !== null) {
+      await anchorPlayerOverlay(repos, overlay, player);
+    }
+    await repos.metaOverlays.setPlayerOverlayStatus(overlay.id, "accepted", now);
+  }
+  const metaEventIds = [...new Set(pending.map((entry) => entry.metaEventId))];
+  for (const metaEventId of metaEventIds) {
+    await promoteMetaEvent(repos, metaEventId);
+  }
+  return { accepted: pending.length, metaEventIds };
 }
 
 /**
@@ -703,20 +780,7 @@ export async function linkMetaPlayerOverlay(
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "That standings row no longer exists.");
   }
 
-  await repos.metaOverlays.linkPlayerOverlay(overlayId, metaEventPlayerId);
-  const redundant = redundantClaims(
-    overlay.claimedFields,
-    overlay as unknown as Record<string, unknown>,
-    player as unknown as Record<string, unknown>,
-  );
-  if (redundant.length > 0) {
-    await repos.metaOverlays.updatePlayerOverlay(overlayId, {
-      claimedFields: overlay.claimedFields.filter(
-        (field) => !redundant.includes(field),
-      ) as MetaPlayerOverlayField[],
-      ...Object.fromEntries(redundant.map((field) => [field, null])),
-    });
-  }
+  await anchorPlayerOverlay(repos, overlay, player);
   const metaEventId = await repos.meta.eventIdForPlayer(metaEventPlayerId);
   if (overlay.status === "accepted" && metaEventId !== undefined) {
     await promoteMetaEvent(repos, metaEventId);

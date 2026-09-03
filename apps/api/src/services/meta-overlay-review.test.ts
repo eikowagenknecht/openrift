@@ -5,6 +5,8 @@ import { AppError } from "../errors.js";
 import { playerSourceKey } from "./ingest-meta-overlays.js";
 import {
   acceptMetaEventOverlay,
+  acceptMetaPlayerOverlay,
+  acceptMetaPlayerOverlays,
   linkMetaPlayerOverlay,
   listMetaUploadsForEvent,
   moveMetaEventOverlay,
@@ -54,6 +56,7 @@ const mockOverlays = {
   playerOverlayById: vi.fn(),
   linkPlayerOverlay: vi.fn(),
   updatePlayerOverlay: vi.fn(),
+  setPlayerOverlayStatus: vi.fn(),
 };
 
 const mockMeta = {
@@ -349,5 +352,141 @@ describe("linkMetaPlayerOverlay", () => {
     await linkMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, LIVE_PLAYER_ID);
 
     expect(mockOverlays.updatePlayerOverlay).not.toHaveBeenCalled();
+  });
+});
+
+describe("acceptMetaPlayerOverlay", () => {
+  const LOOSE = {
+    id: PLAYER_OVERLAY_ID,
+    metaEventId: LIVE_EVENT_ID,
+    metaEventPlayerId: null,
+    eventOverlayId: null,
+    status: "pending",
+    playerName: "Nova",
+    rank: 4,
+    claimedFields: ["playerName", "rank"],
+  };
+
+  beforeEach(() => {
+    mockOverlays.playerOverlayById.mockResolvedValue(LOOSE);
+    mockMeta.playerById.mockResolvedValue({ id: LIVE_PLAYER_ID, playerName: "Nova", rank: 4 });
+  });
+
+  it("accepts and promotes without touching the anchor when no row is named", async () => {
+    const result = await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID);
+
+    expect(result).toEqual({ metaEventId: LIVE_EVENT_ID, created: false });
+    expect(mockOverlays.linkPlayerOverlay).not.toHaveBeenCalled();
+    expect(mockOverlays.setPlayerOverlayStatus).toHaveBeenCalledWith(
+      PLAYER_OVERLAY_ID,
+      "accepted",
+      expect.any(Date),
+    );
+    expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("anchors to the named row first, then accepts and promotes once", async () => {
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { metaEventPlayerId: LIVE_PLAYER_ID });
+
+    expect(mockOverlays.linkPlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, LIVE_PLAYER_ID);
+    expect(mockOverlays.updatePlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, {
+      claimedFields: [],
+      playerName: null,
+      rank: null,
+    });
+    expect(mockOverlays.setPlayerOverlayStatus).toHaveBeenCalledTimes(1);
+    expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a named row that no longer exists, writing nothing", async () => {
+    mockMeta.playerById.mockResolvedValue(undefined);
+
+    await expect(
+      acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { metaEventPlayerId: LIVE_PLAYER_ID }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(mockOverlays.setPlayerOverlayStatus).not.toHaveBeenCalled();
+  });
+
+  it("refuses a row whose event is still only proposed", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue({
+      ...LOOSE,
+      metaEventId: null,
+      eventOverlayId: OVERLAY_ID,
+    });
+
+    await expect(acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+});
+
+describe("acceptMetaPlayerOverlays", () => {
+  const FIRST = "c0000000-0001-4000-a000-000000000011";
+  const SECOND = "c0000000-0001-4000-a000-000000000012";
+  const THIRD = "c0000000-0001-4000-a000-000000000013";
+
+  function loose(id: string, metaEventId: string | null) {
+    return {
+      id,
+      metaEventId,
+      metaEventPlayerId: null,
+      eventOverlayId: metaEventId === null ? OVERLAY_ID : null,
+      status: "pending",
+      playerName: "Nova",
+      rank: 4,
+      claimedFields: ["playerName", "rank"],
+    };
+  }
+
+  function stage(rows: Record<string, ReturnType<typeof loose>>) {
+    mockOverlays.playerOverlayById.mockImplementation((id: string) => Promise.resolve(rows[id]));
+  }
+
+  beforeEach(() => {
+    stage({
+      [FIRST]: loose(FIRST, LIVE_EVENT_ID),
+      [SECOND]: loose(SECOND, LIVE_EVENT_ID),
+      [THIRD]: loose(THIRD, OTHER_EVENT_ID),
+    });
+    mockMeta.playerById.mockResolvedValue({ id: LIVE_PLAYER_ID, playerName: "Ekko", rank: 9 });
+  });
+
+  it("accepts every row and promotes each touched event once", async () => {
+    const result = await acceptMetaPlayerOverlays(repos, [
+      { id: FIRST, metaEventPlayerId: LIVE_PLAYER_ID },
+      { id: SECOND, metaEventPlayerId: null },
+      { id: THIRD, metaEventPlayerId: null },
+    ]);
+
+    expect(result).toEqual({ accepted: 3, metaEventIds: [LIVE_EVENT_ID, OTHER_EVENT_ID] });
+    expect(mockOverlays.linkPlayerOverlay).toHaveBeenCalledTimes(1);
+    expect(mockOverlays.linkPlayerOverlay).toHaveBeenCalledWith(FIRST, LIVE_PLAYER_ID);
+    expect(mockOverlays.setPlayerOverlayStatus).toHaveBeenCalledTimes(3);
+    expect(promoteMetaEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes nothing when one id in the batch is unknown", async () => {
+    await expect(
+      acceptMetaPlayerOverlays(repos, [
+        { id: FIRST, metaEventPlayerId: null },
+        { id: "c0000000-0001-4000-a000-0000000000ff", metaEventPlayerId: null },
+      ]),
+    ).rejects.toMatchObject({ status: 404 });
+
+    expect(mockOverlays.setPlayerOverlayStatus).not.toHaveBeenCalled();
+    expect(promoteMetaEvent).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing when one row's event is still only proposed", async () => {
+    stage({ [FIRST]: loose(FIRST, LIVE_EVENT_ID), [SECOND]: loose(SECOND, null) });
+
+    await expect(
+      acceptMetaPlayerOverlays(repos, [
+        { id: FIRST, metaEventPlayerId: null },
+        { id: SECOND, metaEventPlayerId: null },
+      ]),
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(mockOverlays.setPlayerOverlayStatus).not.toHaveBeenCalled();
   });
 });

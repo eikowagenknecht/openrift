@@ -2,12 +2,14 @@ import type {
   MetaEventDrift,
   MetaOverlayQueueRow,
   MetaOverlayReviewResult,
+  MetaOverlayRowMatch,
 } from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types";
 import { stringifyUnknown } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
+import type { Repos } from "../../deps.js";
 import { assertExisted } from "../../lib/assertions.js";
 import { PLAYLOLTCG_PROVIDER } from "../../lib/playloltcg-catalog.js";
 import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
@@ -18,15 +20,24 @@ import type {
   MetaOverlayCardRow,
   MetaPlayerOverlayRow,
 } from "../../repositories/meta-overlays.js";
+import type {
+  AdminMetaPlayerRow,
+  LiveMetaPlayerRow,
+  MetaEventWithCounts,
+} from "../../repositories/meta.js";
 import { ingestMetaOverlays, splitSourcePlayerKey } from "../../services/ingest-meta-overlays.js";
 import {
   MAX_EVENT_MATCH_DAY_DELTA,
+  rankPlayerMatches,
   suggestMetaEventMatches,
   suggestMetaPlayerMatches,
+  summarizePlayerMatch,
+  UNSCORED_PLAYER_MATCH,
 } from "../../services/meta-match-suggestions.js";
 import {
   acceptMetaEventOverlay,
   acceptMetaPlayerOverlay,
+  acceptMetaPlayerOverlays,
   linkMetaPlayerOverlay,
   listMetaUploadsForEvent,
   moveMetaEventOverlay,
@@ -163,6 +174,165 @@ function toCardRows(cards: readonly MetaOverlayCardRow[]): MetaOverlayQueueRow["
   }));
 }
 
+function unresolvedNames(cards: readonly MetaOverlayCardRow[]): string[] {
+  return [...new Set(cards.filter((card) => card.cardId === null).map((card) => card.cardName))];
+}
+
+function eventQueueRow(
+  overlay: MetaEventOverlayRow,
+  live: MetaEventWithCounts | null,
+): MetaOverlayQueueRow {
+  return {
+    id: overlay.id,
+    kind: "event",
+    status: overlay.status,
+    provider: overlay.provider,
+    sourceEventExternalId: overlay.externalId,
+    sourcePlayerExternalId: null,
+    eventOverlayId: null,
+    metaEventId: overlay.metaEventId,
+    metaEventPlayerId: null,
+    metaEventName: live?.name ?? null,
+    metaEventSlug: live?.slug ?? null,
+    eventDate: live?.eventDate ?? overlay.eventDate,
+    eventFormat: live?.format ?? overlay.format,
+    proposedName: overlay.name,
+    playerName: null,
+    rank: null,
+    rankIsTier: null,
+    match: null,
+    submittedBy: overlay.submittedByUserId,
+    submissionNote: overlay.submissionNote,
+    changes: eventChanges(overlay, (live ?? null) as Record<string, unknown> | null),
+    cards: [],
+    unresolvedNames: [],
+    createdAt: overlay.createdAt.toISOString(),
+  };
+}
+
+function playerMatch(
+  overlay: MetaPlayerOverlayRow,
+  live: LiveMetaPlayerRow | null,
+  standings: readonly AdminMetaPlayerRow[] | undefined,
+): MetaOverlayRowMatch {
+  const playerName = overlay.playerName ?? live?.playerName ?? null;
+  const rank = overlay.rank ?? live?.rank ?? null;
+  if (standings === undefined || playerName === null || rank === null) {
+    return live === null ? UNSCORED_PLAYER_MATCH : summarizePlayerMatch([], live);
+  }
+  return summarizePlayerMatch(
+    rankPlayerMatches({ playerName, rank }, standings, overlay.metaEventPlayerId),
+    live,
+  );
+}
+
+async function queueRows(
+  repos: Repos,
+  events: readonly MetaEventOverlayRow[],
+  players: readonly MetaPlayerOverlayRow[],
+  cardsByOverlay: ReadonlyMap<string, MetaOverlayCardRow[]>,
+): Promise<MetaOverlayQueueRow[]> {
+  const { metaOverlays, meta, catalog } = repos;
+
+  const livePlayers = await meta.livePlayersByIds(
+    players.map((row) => row.metaEventPlayerId).filter((id): id is string => id !== null),
+  );
+  const livePlayersById = new Map(livePlayers.map((row) => [row.id, row]));
+
+  const parentIds = new Set(
+    players
+      .filter((row) => row.metaEventId === null && row.metaEventPlayerId === null)
+      .map((row) => row.eventOverlayId)
+      .filter((id): id is string => id !== null),
+  );
+  const parents = new Map(
+    await Promise.all(
+      [...parentIds].map(
+        async (id) => [id, (await metaOverlays.eventOverlayById(id)) ?? null] as const,
+      ),
+    ),
+  );
+
+  const eventIdFor = (overlay: MetaPlayerOverlayRow): string | null => {
+    if (overlay.metaEventId !== null) {
+      return overlay.metaEventId;
+    }
+    if (overlay.metaEventPlayerId !== null) {
+      return livePlayersById.get(overlay.metaEventPlayerId)?.metaEventId ?? null;
+    }
+    if (overlay.eventOverlayId !== null) {
+      return parents.get(overlay.eventOverlayId)?.metaEventId ?? null;
+    }
+    return null;
+  };
+  const playerEventIds = players.map((overlay) => eventIdFor(overlay));
+
+  const eventIds = new Set([
+    ...events.map((row) => row.metaEventId).filter((id): id is string => id !== null),
+    ...playerEventIds.filter((id): id is string => id !== null),
+  ]);
+  const [liveEvents, cardNames] = await Promise.all([
+    meta.eventsByIds([...eventIds]),
+    catalog.cardNamesByIds([...new Set(cardIdsInChanges([...players, ...livePlayers]))]),
+  ]);
+  const liveEventsById = new Map(liveEvents.map((row) => [row.id, row]));
+
+  const standingsEventIds = [...new Set(playerEventIds.filter((id): id is string => id !== null))];
+  const standingsByEvent = new Map(
+    await Promise.all(
+      standingsEventIds.map(async (id) => [id, await meta.adminPlayersForEvent(id)] as const),
+    ),
+  );
+
+  const eventRows = events.map((overlay) =>
+    eventQueueRow(
+      overlay,
+      overlay.metaEventId === null ? null : (liveEventsById.get(overlay.metaEventId) ?? null),
+    ),
+  );
+
+  const playerRows = players.map((overlay, index): MetaOverlayQueueRow => {
+    const live =
+      overlay.metaEventPlayerId === null
+        ? null
+        : (livePlayersById.get(overlay.metaEventPlayerId) ?? null);
+    const metaEventId = playerEventIds[index];
+    const liveEvent = metaEventId === null ? null : (liveEventsById.get(metaEventId) ?? null);
+    const cards = cardsByOverlay.get(overlay.id) ?? [];
+    return {
+      id: overlay.id,
+      kind: "player",
+      status: overlay.status,
+      provider: overlay.provider,
+      ...playerSourceIds(overlay),
+      eventOverlayId: overlay.eventOverlayId,
+      metaEventId,
+      metaEventPlayerId: overlay.metaEventPlayerId,
+      metaEventName: liveEvent?.name ?? null,
+      metaEventSlug: liveEvent?.slug ?? null,
+      eventDate: liveEvent?.eventDate ?? null,
+      eventFormat: liveEvent?.format ?? null,
+      proposedName: null,
+      playerName: overlay.playerName ?? live?.playerName ?? null,
+      rank: overlay.rank ?? live?.rank ?? null,
+      rankIsTier: overlay.rankIsTier ?? live?.rankIsTier ?? null,
+      match: playerMatch(
+        overlay,
+        live,
+        metaEventId === null ? undefined : standingsByEvent.get(metaEventId),
+      ),
+      submittedBy: overlay.submittedByUserId,
+      submissionNote: overlay.submissionNote,
+      changes: playerChanges(overlay, (live ?? null) as Record<string, unknown> | null, cardNames),
+      cards: toCardRows(cards),
+      unresolvedNames: unresolvedNames(cards),
+      createdAt: overlay.createdAt.toISOString(),
+    };
+  });
+
+  return [...eventRows, ...playerRows];
+}
+
 export const adminMetaCandidatesRouter = os.router({
   upload: os.upload.handler(async ({ input, context }) => {
     const result = await ingestMetaOverlays(
@@ -194,162 +364,41 @@ export const adminMetaCandidatesRouter = os.router({
   }),
 
   list: os.list.handler(async ({ context }) => {
-    const { metaOverlays, meta, catalog } = context.repos;
+    const { metaOverlays } = context.repos;
     const [events, players] = await Promise.all([
       metaOverlays.pendingEventOverlays(),
       metaOverlays.pendingPlayerOverlays(),
     ]);
-    const [cardsByOverlay, liveEvents, livePlayers] = await Promise.all([
-      metaOverlays.cardsByOverlayIds(players.map((row: MetaPlayerOverlayRow) => row.id)),
-      meta.eventsByIds(
-        events
-          .map((row: MetaEventOverlayRow) => row.metaEventId)
-          .filter((id): id is string => id !== null),
-      ),
-      meta.livePlayersByIds(
-        players
-          .map((row: MetaPlayerOverlayRow) => row.metaEventPlayerId)
-          .filter((id): id is string => id !== null),
-      ),
-    ]);
-    const liveEventsById = new Map(liveEvents.map((row) => [row.id, row]));
-    const livePlayersById = new Map(livePlayers.map((row) => [row.id, row]));
-    const cardNames = await catalog.cardNamesByIds([
-      ...new Set(cardIdsInChanges([...players, ...livePlayers])),
-    ]);
-
-    const eventRows: MetaOverlayQueueRow[] = events.map((overlay) => {
-      const live =
-        overlay.metaEventId === null ? null : (liveEventsById.get(overlay.metaEventId) ?? null);
-      return {
-        id: overlay.id,
-        kind: "event",
-        status: overlay.status,
-        provider: overlay.provider,
-        sourceEventExternalId: overlay.externalId,
-        sourcePlayerExternalId: null,
-        metaEventId: overlay.metaEventId,
-        metaEventPlayerId: null,
-        metaEventName: live?.name ?? null,
-        proposedName: overlay.name,
-        playerName: null,
-        submittedBy: overlay.submittedByUserId,
-        submissionNote: overlay.submissionNote,
-        changes: eventChanges(overlay, (live ?? null) as Record<string, unknown> | null),
-        cards: [],
-        unresolvedNames: [],
-        createdAt: overlay.createdAt.toISOString(),
-      };
-    });
-
-    const playerRows: MetaOverlayQueueRow[] = [];
-    for (const overlay of players) {
-      const live =
-        overlay.metaEventPlayerId === null
-          ? null
-          : (livePlayersById.get(overlay.metaEventPlayerId) ?? null);
-      const cards = cardsByOverlay.get(overlay.id) ?? [];
-      playerRows.push({
-        id: overlay.id,
-        kind: "player",
-        status: overlay.status,
-        provider: overlay.provider,
-        ...playerSourceIds(overlay),
-        metaEventId: overlay.metaEventId,
-        metaEventPlayerId: overlay.metaEventPlayerId,
-        metaEventName: null,
-        proposedName: null,
-        playerName: overlay.playerName ?? live?.playerName ?? null,
-        submittedBy: overlay.submittedByUserId,
-        submissionNote: overlay.submissionNote,
-        changes: playerChanges(
-          overlay,
-          (live ?? null) as Record<string, unknown> | null,
-          cardNames,
-        ),
-        cards: toCardRows(cards),
-        unresolvedNames: [
-          ...new Set(
-            cards
-              .filter((card: MetaOverlayCardRow) => card.cardId === null)
-              .map((card: MetaOverlayCardRow) => card.cardName),
-          ),
-        ],
-        createdAt: overlay.createdAt.toISOString(),
-      });
-    }
-
+    const cardsByOverlay = await metaOverlays.cardsByOverlayIds(
+      players.map((row: MetaPlayerOverlayRow) => row.id),
+    );
+    const overlays = await queueRows(context.repos, events, players, cardsByOverlay);
     return {
-      overlays: [...eventRows, ...playerRows].toSorted(
-        (a: MetaOverlayQueueRow, b: MetaOverlayQueueRow) => a.createdAt.localeCompare(b.createdAt),
+      overlays: overlays.toSorted((a: MetaOverlayQueueRow, b: MetaOverlayQueueRow) =>
+        a.createdAt.localeCompare(b.createdAt),
       ),
     };
   }),
 
   detail: os.detail.handler(async ({ input, context, errors }) => {
-    const { metaOverlays, meta, catalog } = context.repos;
+    const { metaOverlays } = context.repos;
     const eventOverlay = await metaOverlays.eventOverlayById(input.id);
     if (eventOverlay !== undefined) {
-      const live =
-        eventOverlay.metaEventId === null ? null : await meta.eventById(eventOverlay.metaEventId);
-      return {
-        id: eventOverlay.id,
-        kind: "event" as const,
-        status: eventOverlay.status,
-        provider: eventOverlay.provider,
-        sourceEventExternalId: eventOverlay.externalId,
-        sourcePlayerExternalId: null,
-        metaEventId: eventOverlay.metaEventId,
-        metaEventPlayerId: null,
-        metaEventName: live?.name ?? null,
-        proposedName: eventOverlay.name,
-        playerName: null,
-        submittedBy: eventOverlay.submittedByUserId,
-        submissionNote: eventOverlay.submissionNote,
-        changes: eventChanges(eventOverlay, (live ?? null) as Record<string, unknown> | null),
-        cards: [],
-        unresolvedNames: [],
-        createdAt: eventOverlay.createdAt.toISOString(),
-      };
+      const [row] = await queueRows(context.repos, [eventOverlay], [], new Map());
+      return row;
     }
 
     const playerOverlay = await metaOverlays.playerOverlayById(input.id);
     if (playerOverlay === undefined) {
       throw errors.NOT_FOUND();
     }
-    const live =
-      playerOverlay.metaEventPlayerId === null
-        ? null
-        : await meta.playerById(playerOverlay.metaEventPlayerId);
-    const cardNames = await catalog.cardNamesByIds([
-      ...new Set(cardIdsInChanges([playerOverlay, live])),
-    ]);
-    return {
-      id: playerOverlay.id,
-      kind: "player" as const,
-      status: playerOverlay.status,
-      provider: playerOverlay.provider,
-      ...playerSourceIds(playerOverlay),
-      metaEventId: playerOverlay.metaEventId,
-      metaEventPlayerId: playerOverlay.metaEventPlayerId,
-      metaEventName: null,
-      proposedName: null,
-      playerName: playerOverlay.playerName ?? live?.playerName ?? null,
-      submittedBy: playerOverlay.submittedByUserId,
-      submissionNote: playerOverlay.submissionNote,
-      changes: playerChanges(
-        playerOverlay,
-        (live ?? null) as Record<string, unknown> | null,
-        cardNames,
-      ),
-      cards: toCardRows(playerOverlay.cards),
-      unresolvedNames: [
-        ...new Set(
-          playerOverlay.cards.filter((card) => card.cardId === null).map((card) => card.cardName),
-        ),
-      ],
-      createdAt: playerOverlay.createdAt.toISOString(),
-    };
+    const [row] = await queueRows(
+      context.repos,
+      [],
+      [playerOverlay],
+      new Map([[playerOverlay.id, playerOverlay.cards]]),
+    );
+    return row;
   }),
 
   /**
@@ -469,7 +518,12 @@ export const adminMetaCandidatesRouter = os.router({
 
   acceptPlayerOverlay: os.acceptPlayerOverlay.handler(
     ({ input, context }): Promise<MetaOverlayReviewResult> =>
-      acceptMetaPlayerOverlay(context.repos, input.id),
+      acceptMetaPlayerOverlay(context.repos, input.id, {
+        metaEventPlayerId: input.metaEventPlayerId,
+      }),
+  ),
+  acceptPlayerOverlays: os.acceptPlayerOverlays.handler(({ input, context }) =>
+    acceptMetaPlayerOverlays(context.repos, input.items),
   ),
 
   linkPlayerOverlay: os.linkPlayerOverlay.handler(

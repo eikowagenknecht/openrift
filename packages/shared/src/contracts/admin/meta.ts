@@ -430,6 +430,25 @@ const metaOverlayCardSchema = z.object({
   cardId: z.string().nullable(),
 });
 
+export const metaOverlayMatchStateSchema = z.enum([
+  "linked",
+  "exact",
+  "candidates",
+  "none",
+  "unscored",
+]);
+
+/** Which live standings row a player overlay lands on, as far as the queue can tell without a second fetch. */
+export const metaOverlayRowMatchSchema = z.object({
+  state: metaOverlayMatchStateSchema,
+  /** The anchored row for `linked`, the row Accept would link for `exact`, else null. */
+  metaEventPlayerId: z.string().nullable(),
+  playerName: z.string().nullable(),
+  rank: z.number().int().nullable(),
+  rankIsTier: z.boolean().nullable(),
+  candidateCount: z.number().int().nonnegative(),
+});
+
 export const metaOverlayQueueRowSchema = z
   .object({
     id: z.string(),
@@ -445,14 +464,26 @@ export const metaOverlayQueueRowSchema = z
     sourceEventExternalId: z.string().nullable(),
     /** The provider's own key for a pushed standings row. See above; null for people. */
     sourcePlayerExternalId: z.string().nullable(),
-    /** Null on a proposal, which has no live row to patch yet. */
+    /** The proposal a player row rides on; null on event rows and on rows under a live event. */
+    eventOverlayId: z.string().nullable(),
+    /** The live event this row lands on, resolved through the anchor or parent proposal; null on a proposal. */
     metaEventId: z.string().nullable(),
     /** The standings row a player overlay is anchored to; null while loose. */
     metaEventPlayerId: z.string().nullable(),
     metaEventName: z.string().nullable(),
+    metaEventSlug: z.string().nullable(),
+    /** The live event's date, or a proposal's own. */
+    eventDate: isoDate.nullable(),
+    /** The live event's format, or a proposal's own. */
+    eventFormat: z.string().nullable(),
     /** What the submitter called the event, so a proposal still reads. */
     proposedName: z.string().nullable(),
     playerName: z.string().nullable(),
+    /** The finish this row claims, else the anchored row's; null on event rows. */
+    rank: z.number().int().nullable(),
+    rankIsTier: z.boolean().nullable(),
+    /** Null on event rows. */
+    match: metaOverlayRowMatchSchema.nullable(),
     submittedBy: z.string().nullable(),
     submissionNote: z.string().nullable(),
     changes: z.array(metaOverlayFieldChangeSchema),
@@ -465,6 +496,13 @@ export const metaOverlayQueueRowSchema = z
   .openapi("MetaOverlayQueueRow");
 
 export const metaOverlayDetailSchema = metaOverlayQueueRowSchema.openapi("MetaOverlayDetail");
+
+export const metaOverlayBulkAcceptResultSchema = z
+  .object({
+    accepted: z.number().int().nonnegative(),
+    metaEventIds: z.array(z.string()),
+  })
+  .openapi("MetaOverlayBulkAcceptResult");
 
 export const metaOverlayReviewResultSchema = z
   .object({
@@ -908,14 +946,45 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
+  /**
+   * `metaEventPlayerId` anchors the overlay to that standings row in the same
+   * call, so the reviewer acting on an exact match is one click.
+   */
   acceptPlayerOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/{id}/accept`, tags: [OVERLAY_TAG] })
-    .input(idParamSchema)
+    .input(
+      idParamSchema.extend({ metaEventPlayerId: z.string().nullable().optional().default(null) }),
+    )
     .errors({
-      NOT_FOUND: { message: "Overlay not found" },
+      NOT_FOUND: { message: "Overlay or standings row not found" },
       CONFLICT: { message: "Accept the event first" },
     })
     .output(metaOverlayReviewResultSchema),
+
+  /**
+   * Many standings overlays at once, each optionally linked first, with every
+   * touched event promoted once. Nothing is written when any item is refused.
+   */
+  acceptPlayerOverlays: authedRoute
+    .route({ method: "POST", path: `${BASE}/overlays/players/accept`, tags: [OVERLAY_TAG] })
+    .input(
+      z.object({
+        items: z
+          .array(
+            z.object({
+              id: z.string(),
+              metaEventPlayerId: z.string().nullable().optional().default(null),
+            }),
+          )
+          .min(1)
+          .max(200),
+      }),
+    )
+    .errors({
+      NOT_FOUND: { message: "Overlay or standings row not found" },
+      CONFLICT: { message: "Accept the event first" },
+    })
+    .output(metaOverlayBulkAcceptResultSchema),
 
   /**
    * Anchors a standings overlay to the live row it describes — the reviewer
