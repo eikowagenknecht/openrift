@@ -45,6 +45,7 @@ import {
   cellPreferredPrintingId,
   RUNE_TARGET,
 } from "@/lib/deck-builder-card";
+import { buildRunesByDomain } from "@/lib/deck-runes-by-domain";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -141,27 +142,6 @@ function DeckActionsCell({
  * Build a map of domain → rune DeckBuilderCards from the full catalog.
  * @returns A map keyed by domain name, each value an array of rune cards in that domain.
  */
-export function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
-  const runesByDomain = new Map<string, DeckBuilderCard[]>();
-  for (const entry of allPrintings) {
-    if (!entry.card.types.includes(WellKnown.cardType.RUNE)) {
-      continue;
-    }
-    const runeCard = catalogCardToDeckBuilderCard(entry.cardId, entry.card);
-    for (const domain of entry.card.domains) {
-      const list = runesByDomain.get(domain);
-      if (list) {
-        if (!list.some((existing) => existing.cardId === runeCard.cardId)) {
-          list.push(runeCard);
-        }
-      } else {
-        runesByDomain.set(domain, [runeCard]);
-      }
-    }
-  }
-  return runesByDomain;
-}
-
 interface DeckCardBrowserProps {
   deckId: string;
   ownershipData?: DeckOwnershipData;

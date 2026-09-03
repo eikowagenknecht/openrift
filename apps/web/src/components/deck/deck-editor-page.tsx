@@ -25,7 +25,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
+import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckCoverDialog } from "@/components/deck/deck-cover-dialog";
 import { DeckDetailsDialog } from "@/components/deck/deck-details-dialog";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
@@ -125,6 +125,7 @@ import {
   useDeckSaveStatus,
 } from "@/lib/deck-builder-collection";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
+import { buildRunesByDomain } from "@/lib/deck-runes-by-domain";
 import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";

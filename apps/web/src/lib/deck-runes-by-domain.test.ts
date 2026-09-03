@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { stubPrinting } from "@/test/factories";
 
-import { buildRunesByDomain } from "./deck-card-browser";
+import { buildRunesByDomain } from "./deck-runes-by-domain";
 
 const RUNE = WellKnown.cardType.RUNE;
 
