@@ -18,8 +18,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     ),
     folded AS (
       UPDATE deck_cards AS d
-        SET quantity = d.quantity + surplus.moved,
-            updated_at = now()
+        SET quantity = d.quantity + surplus.moved
         FROM surplus
         WHERE d.deck_id = surplus.deck_id
           AND d.card_id = surplus.card_id
@@ -34,8 +33,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       WHERE id NOT IN (SELECT id FROM folded)
     )
     UPDATE deck_cards
-      SET quantity = 1,
-          updated_at = now()
+      SET quantity = 1
       WHERE id IN (SELECT id FROM surplus)
   `.execute(db);
 

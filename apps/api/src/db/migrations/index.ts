@@ -229,7 +229,8 @@ import * as m280 from "./280-printing-overnumbered-flag.js";
 import * as m281 from "./281-overlay-minted-players.js";
 import * as m282 from "./282-meta-deck-name-empty-brackets.js";
 import * as m283 from "./283-meta-list-status-champion-copies.js";
-import * as m284 from "./284-meta-champion-playset-to-main.js";
+import * as m284 from "./284-drop-deck-cards-updated-at-trigger.js";
+import * as m285 from "./285-meta-champion-playset-to-main.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -518,5 +519,6 @@ export const migrations: Record<string, Migration> = {
   "281-overlay-minted-players": m281,
   "282-meta-deck-name-empty-brackets": m282,
   "283-meta-list-status-champion-copies": m283,
-  "284-meta-champion-playset-to-main": m284,
+  "284-drop-deck-cards-updated-at-trigger": m284,
+  "285-meta-champion-playset-to-main": m285,
 };

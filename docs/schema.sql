@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict V06obrPfpjo0lsFy8gC6BiQe5HeTLJf9pgNO3dhKH7IpeTDoEffKmoDHkj5uKjH
+\restrict FhNZV6Abf5a52YyiuhCfod1KFpsWd1xwpASeD8fkaXIlm9Lu7hYfj94oARl9aZf
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -6699,13 +6699,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.custom_tags FOR EACH R
 
 
 --
--- Name: deck_cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.deck_cards FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: deck_check_entries trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -8859,5 +8852,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict V06obrPfpjo0lsFy8gC6BiQe5HeTLJf9pgNO3dhKH7IpeTDoEffKmoDHkj5uKjH
+\unrestrict FhNZV6Abf5a52YyiuhCfod1KFpsWd1xwpASeD8fkaXIlm9Lu7hYfj94oARl9aZf
 

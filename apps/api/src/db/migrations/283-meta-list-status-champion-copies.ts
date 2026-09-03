@@ -4,7 +4,7 @@ import { sql } from "kysely";
 /**
  * Backfills `list_status = 'full'` for lists marked partial only because a
  * champion playset (2-3 copies filed under `champion`) left `main` short of
- * its floor. Superseded by 284, which repairs the stored zones themselves;
+ * its floor. Superseded by 285, which repairs the stored zones themselves;
  * this migration only touches the status.
  */
 
