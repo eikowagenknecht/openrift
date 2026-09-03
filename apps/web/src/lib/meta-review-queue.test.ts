@@ -3,6 +3,7 @@ import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/
 import { describe, expect, it } from "vitest";
 
 import {
+  acceptClaimMask,
   bulkAcceptItems,
   filterGroup,
   groupReviewQueue,
@@ -292,5 +293,40 @@ describe("sumTriageCounts", () => {
     const counts = sumTriageCounts(groups);
     expect(counts).toEqual({ ready: 1, needsRow: 0, unmatched: 1, newEvent: 0, correction: 1 });
     expect(totalTriageCount(counts)).toBe(3);
+  });
+});
+
+describe("acceptClaimMask", () => {
+  const CHANGES = [
+    { field: "playerName", from: "ASC HaruKaze", to: "HaruKaze" },
+    { field: "rank", from: "28", to: "30" },
+    { field: "listStatus", from: null, to: "full" },
+  ];
+
+  it("sends no mask while nothing is unticked", () => {
+    expect(acceptClaimMask(player({ changes: CHANGES }), new Set())).toBeNull();
+  });
+
+  it("keeps the ticked fields and the lines that travel with them", () => {
+    expect(acceptClaimMask(player({ changes: CHANGES }), new Set(["rank"]))).toEqual([
+      "playerName",
+      "listStatus",
+      "cards",
+    ]);
+  });
+
+  it("adds no card claim to an overlay that printed no lines", () => {
+    const row = player({ changes: CHANGES, cards: [] });
+    expect(acceptClaimMask(row, new Set(["rank"]))).toEqual(["playerName", "listStatus"]);
+  });
+
+  it("drops a field name the player vocabulary does not know", () => {
+    const row = player({ changes: [...CHANGES, { field: "notAField", from: "a", to: "b" }] });
+    expect(acceptClaimMask(row, new Set(["rank"]))).not.toContain("notAField");
+  });
+
+  it("reports an empty mask when every claim is unticked, which accept refuses", () => {
+    const row = player({ changes: CHANGES, cards: [] });
+    expect(acceptClaimMask(row, new Set(["playerName", "rank", "listStatus"]))).toEqual([]);
   });
 });

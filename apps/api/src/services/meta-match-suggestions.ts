@@ -191,7 +191,8 @@ export function scoreEventMatch(
 
 /**
  * A shared finish also qualifies a row, scored below any name overlap and
- * never exact: a top 8 shares four tiers between eight rows.
+ * never exact: a top 8 shares four tiers between eight rows. Exact requires
+ * the finish too — a handle is not unique inside one event.
  */
 export function scorePlayerMatch(
   candidate: MetaPlayerMatchInput,
@@ -222,7 +223,13 @@ export function scorePlayerMatch(
     reasons.push("same finish");
   }
 
-  return { score, reasons, playerMatched: similarity > 0, rankMatched, isExact: similarity === 1 };
+  return {
+    score,
+    reasons,
+    playerMatched: similarity > 0,
+    rankMatched,
+    isExact: similarity === 1 && rankMatched,
+  };
 }
 
 export async function suggestMetaEventMatches(

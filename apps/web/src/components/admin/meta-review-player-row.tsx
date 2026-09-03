@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useAcceptMetaPlayerOverlay, useRejectMetaOverlay } from "@/hooks/use-admin-meta-overlays";
+import { acceptClaimMask } from "@/lib/meta-review-queue";
 import { sourceProviderDisplay } from "@/lib/meta-source-review";
 
 export const PLAYER_ROW_COLUMNS = 6;
@@ -100,6 +101,11 @@ export function MetaReviewPlayerRow({ overlay }: { overlay: MetaOverlayQueueRow 
   const reject = useRejectMetaOverlay();
   const [expanded, setExpanded] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // Claims the reviewer unticked in the change list. Empty means the accept
+  // sends no mask at all and takes the overlay whole.
+  const [dropped, setDropped] = useState<ReadonlySet<string>>(new Set());
+  const kept = acceptClaimMask(overlay, dropped);
+  const keepsNothing = kept !== null && kept.length === 0;
   const busy = accept.isPending || reject.isPending;
 
   const name = overlay.playerName ?? "Standings entry";
@@ -114,7 +120,7 @@ export function MetaReviewPlayerRow({ overlay }: { overlay: MetaOverlayQueueRow 
   async function runAccept(): Promise<void> {
     const metaEventPlayerId = state === "exact" ? (overlay.match?.metaEventPlayerId ?? null) : null;
     try {
-      await accept.mutateAsync({ id: overlay.id, metaEventPlayerId });
+      await accept.mutateAsync({ id: overlay.id, metaEventPlayerId, fields: kept });
     } catch {
       setConfirming(false);
       // Reported by the global mutation error toast.
@@ -184,14 +190,14 @@ export function MetaReviewPlayerRow({ overlay }: { overlay: MetaOverlayQueueRow 
                 description={`Nothing links this entry to a standings row, so accepting files a new one. The row the source published stays as it is, and the event ends up with two entries for this finish.${unmatched}`}
                 confirmLabel="File a new row"
                 onConfirm={runAccept}
-                disabled={busy}
+                disabled={busy || keepsNothing}
                 trigger={<Button variant="outline" size="sm" />}
               >
                 <CheckIcon />
                 Accept as new row
               </ConfirmActionButton>
             ) : (
-              <Button size="sm" onClick={onAccept} disabled={busy}>
+              <Button size="sm" onClick={onAccept} disabled={busy || keepsNothing}>
                 <CheckIcon />
                 {confirming ? "Accept without a deck" : "Accept"}
               </Button>
@@ -231,7 +237,26 @@ export function MetaReviewPlayerRow({ overlay }: { overlay: MetaOverlayQueueRow 
                 <PlayerMatches overlay={overlay} />
                 <div className="space-y-2">
                   <span className="font-medium">Changes</span>
-                  <OverlayChanges changes={overlay.changes} />
+                  <OverlayChanges
+                    changes={overlay.changes}
+                    dropped={dropped}
+                    onToggle={(field) => {
+                      setDropped((current) => {
+                        const next = new Set(current);
+                        if (!next.delete(field)) {
+                          next.add(field);
+                        }
+                        return next;
+                      });
+                    }}
+                  />
+                  {kept !== null && (
+                    <p className="text-muted-foreground text-sm">
+                      {keepsNothing
+                        ? "Nothing left to claim. Reject the row instead."
+                        : `Unticked fields stay with the sources. Accepting claims ${String(kept.length)} field${kept.length === 1 ? "" : "s"}.`}
+                    </p>
+                  )}
                 </div>
                 <DismissSourceKey overlay={overlay} />
                 <SubmissionLedger overlay={overlay} />

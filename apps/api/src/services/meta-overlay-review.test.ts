@@ -398,6 +398,69 @@ describe("acceptMetaPlayerOverlay", () => {
     expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps only the named claims, clearing the columns it drops", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue({
+      ...LOOSE,
+      claimedFields: ["playerName", "rank", "listStatus", "cards"],
+    });
+
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { fields: ["cards"] });
+
+    expect(mockOverlays.updatePlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, {
+      claimedFields: ["listStatus", "cards"],
+      playerName: null,
+      rank: null,
+    });
+    expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a list and its status together, whichever of the two is named", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue({
+      ...LOOSE,
+      claimedFields: ["rank", "listStatus", "cards"],
+    });
+
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { fields: ["listStatus"] });
+
+    expect(mockOverlays.updatePlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, {
+      claimedFields: ["listStatus", "cards"],
+      rank: null,
+    });
+  });
+
+  it("writes nothing when the mask keeps every claim the overlay already had", async () => {
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { fields: ["playerName", "rank"] });
+
+    expect(mockOverlays.updatePlayerOverlay).not.toHaveBeenCalled();
+    expect(mockOverlays.setPlayerOverlayStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a mask that keeps no claim, since that is a reject", async () => {
+    await expect(
+      acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { fields: ["wins"] }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(mockOverlays.setPlayerOverlayStatus).not.toHaveBeenCalled();
+  });
+
+  it("narrows what the anchor left rather than the overlay's original claims", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue({
+      ...LOOSE,
+      claimedFields: ["playerName", "rank", "listStatus", "cards"],
+    });
+
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, {
+      metaEventPlayerId: LIVE_PLAYER_ID,
+      fields: ["cards", "rank"],
+    });
+
+    expect(mockOverlays.updatePlayerOverlay).toHaveBeenCalledTimes(1);
+    expect(mockOverlays.updatePlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, {
+      claimedFields: ["listStatus", "cards"],
+      playerName: null,
+      rank: null,
+    });
+  });
+
   it("refuses a named row that no longer exists, writing nothing", async () => {
     mockMeta.playerById.mockResolvedValue(undefined);
 

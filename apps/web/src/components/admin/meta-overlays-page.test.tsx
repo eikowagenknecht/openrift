@@ -356,7 +356,9 @@ describe("MetaOverlaysPage", () => {
 
     expect(screen.getByText("exact match")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
-    expect(captured.acceptedPlayer).toEqual([{ id: "p1", metaEventPlayerId: "row-5" }]);
+    expect(captured.acceptedPlayer).toEqual([
+      { id: "p1", metaEventPlayerId: "row-5", fields: null },
+    ]);
   });
 
   it("accepts a linked entry without a warning and without relinking it", async () => {
@@ -365,7 +367,41 @@ describe("MetaOverlaysPage", () => {
     render(<MetaOverlaysPage />);
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
 
-    expect(captured.acceptedPlayer).toEqual([{ id: "p5", metaEventPlayerId: null }]);
+    expect(captured.acceptedPlayer).toEqual([{ id: "p5", metaEventPlayerId: null, fields: null }]);
+  });
+
+  it("leaves an unticked field with the sources instead of claiming it", async () => {
+    captured.overlays = [
+      overlay({
+        id: "p5b",
+        changes: [
+          { field: "rank", from: "28", to: "30" },
+          { field: "listStatus", from: null, to: "full" },
+        ],
+      }),
+    ];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: /Expand/u }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Claim rank" }));
+    await userEvent.click(screen.getByRole("button", { name: "Accept" }));
+
+    expect(captured.acceptedPlayer).toEqual([
+      { id: "p5b", metaEventPlayerId: null, fields: ["listStatus"] },
+    ]);
+  });
+
+  it("blocks an accept that would claim nothing at all", async () => {
+    captured.overlays = [
+      overlay({ id: "p5c", changes: [{ field: "rank", from: "28", to: "30" }] }),
+    ];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: /Expand/u }));
+    await userEvent.click(screen.getByRole("checkbox", { name: "Claim rank" }));
+
+    expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
+    expect(screen.getByText(/Nothing left to claim/u)).toBeInTheDocument();
   });
 
   it("warns before filing a second standings row for an unlinked entry", async () => {
@@ -376,7 +412,7 @@ describe("MetaOverlaysPage", () => {
 
     expect(captured.acceptedPlayer).toEqual([]);
     await userEvent.click(screen.getByRole("button", { name: "File a new row" }));
-    expect(captured.acceptedPlayer).toEqual([{ id: "p6", metaEventPlayerId: null }]);
+    expect(captured.acceptedPlayer).toEqual([{ id: "p6", metaEventPlayerId: null, fields: null }]);
   });
 
   it("offers no accept on a row whose event is still only proposed", () => {
@@ -542,7 +578,7 @@ describe("MetaOverlaysPage", () => {
     expect(captured.acceptedPlayer).toEqual([]);
     expect(screen.getByText(/lands as a standings row with no decklist/u)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Accept without a deck" }));
-    expect(captured.acceptedPlayer).toEqual([{ id: "p9", metaEventPlayerId: null }]);
+    expect(captured.acceptedPlayer).toEqual([{ id: "p9", metaEventPlayerId: null, fields: null }]);
   });
 
   it("drops back to a plain Accept when the confirmed accept fails", async () => {

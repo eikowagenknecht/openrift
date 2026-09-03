@@ -228,9 +228,15 @@ describe("scorePlayerMatch", () => {
     expect(reasons).toEqual(["same player", "same finish"]);
   });
 
-  it("calls the same name exact whatever the finish says, since sources disagree on placings", () => {
-    expect(scorePlayerMatch({ playerName: "nova", rank: 9 }, player()).isExact).toBe(true);
+  it("calls a row exact only when the name and the finish both agree", () => {
+    expect(scorePlayerMatch({ playerName: "nova", rank: 1 }, player()).isExact).toBe(true);
     expect(scorePlayerMatch({ playerName: "Novaa", rank: 1 }, player()).isExact).toBe(false);
+  });
+
+  it("refuses exact for a shared handle the finishes disagree about", () => {
+    expect(scorePlayerMatch({ playerName: "nova", rank: 9 }, player({ rank: 1602 })).isExact).toBe(
+      false,
+    );
   });
 
   it("prefers an equal rank only as a tie-break", () => {
@@ -356,25 +362,36 @@ describe("summarizePlayerMatch", () => {
     });
   });
 
-  it("reads one same-name candidate as exact, the row Accept can link", () => {
+  it("reads one same-name same-finish candidate as exact, the row Accept can link", () => {
     const suggestions = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
-      player({ id: "exact", rank: 2 }),
+      player({ id: "exact" }),
       player({ id: "near", playerName: "Novaa" }),
     ]);
     expect(summarizePlayerMatch(suggestions, null)).toEqual({
       state: "exact",
       metaEventPlayerId: "exact",
       playerName: "Nova",
-      rank: 2,
+      rank: 1,
       rankIsTier: false,
-      candidateCount: 2,
+      candidateCount: 1,
     });
   });
 
-  it("leaves two same-name rows to the admin, since either could be the one", () => {
+  it("leaves a same-name row the finishes disagree about to the admin", () => {
+    const suggestions = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ id: "far", rank: 1602 }),
+    ]);
+    expect(summarizePlayerMatch(suggestions, null)).toMatchObject({
+      state: "candidates",
+      metaEventPlayerId: null,
+      candidateCount: 1,
+    });
+  });
+
+  it("leaves two same-name rows sharing the finish to the admin, since either could be the one", () => {
     const suggestions = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
       player({ id: "a" }),
-      player({ id: "b", rank: 9 }),
+      player({ id: "b" }),
     ]);
     expect(summarizePlayerMatch(suggestions, null)).toMatchObject({
       state: "candidates",

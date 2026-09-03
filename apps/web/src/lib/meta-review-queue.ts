@@ -1,4 +1,5 @@
-import type { MetaOverlayQueueRow } from "@openrift/shared";
+import type { MetaOverlayQueueRow, MetaPlayerOverlayField } from "@openrift/shared";
+import { META_PLAYER_OVERLAY_FIELDS } from "@openrift/shared";
 import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/meta-submissions";
 
 export const META_REVIEW_TRIAGE = [
@@ -214,6 +215,28 @@ export function sumTriageCounts(groups: readonly MetaReviewGroup[]): MetaReviewT
     }
   }
   return total;
+}
+
+/**
+ * The claim mask an accept should send, or null to keep the overlay whole.
+ * `cards` has no row of its own in `changes` and is added back whenever the
+ * overlay printed lines.
+ */
+export function acceptClaimMask(
+  row: MetaOverlayQueueRow,
+  dropped: ReadonlySet<string>,
+): MetaPlayerOverlayField[] | null {
+  if (dropped.size === 0) {
+    return null;
+  }
+  const known = new Set<string>(META_PLAYER_OVERLAY_FIELDS);
+  const kept = row.changes
+    .map((change) => change.field)
+    .filter((field): field is MetaPlayerOverlayField => known.has(field) && !dropped.has(field));
+  if (row.cards.length > 0 && !kept.includes("cards")) {
+    kept.push("cards");
+  }
+  return kept;
 }
 
 export function totalTriageCount(counts: MetaReviewTriageCounts): number {

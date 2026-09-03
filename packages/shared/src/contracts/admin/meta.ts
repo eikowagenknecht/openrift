@@ -497,6 +497,16 @@ export const metaOverlayQueueRowSchema = z
 
 export const metaOverlayDetailSchema = metaOverlayQueueRowSchema.openapi("MetaOverlayDetail");
 
+/**
+ * The subset of an overlay's claims an accept keeps; absent keeps every
+ * claim. `cards` and `listStatus` are one claim: naming either keeps both.
+ */
+const acceptClaimFields = z
+  .array(z.enum(META_PLAYER_OVERLAY_FIELDS))
+  .nullable()
+  .optional()
+  .default(null);
+
 export const metaOverlayBulkAcceptResultSchema = z
   .object({
     accepted: z.number().int().nonnegative(),
@@ -947,23 +957,27 @@ export const adminMetaCandidatesContract = {
     .output(metaOverlayReviewResultSchema),
 
   /**
-   * `metaEventPlayerId` anchors the overlay to that standings row in the same
-   * call, so the reviewer acting on an exact match is one click.
+   * `metaEventPlayerId` anchors the overlay to the row on an exact match;
+   * `fields` narrows what the accept keeps — see {@link acceptClaimFields}.
    */
   acceptPlayerOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/{id}/accept`, tags: [OVERLAY_TAG] })
     .input(
-      idParamSchema.extend({ metaEventPlayerId: z.string().nullable().optional().default(null) }),
+      idParamSchema.extend({
+        metaEventPlayerId: z.string().nullable().optional().default(null),
+        fields: acceptClaimFields,
+      }),
     )
     .errors({
       NOT_FOUND: { message: "Overlay or standings row not found" },
       CONFLICT: { message: "Accept the event first" },
+      BAD_REQUEST: { message: "An accept that keeps no claim is a reject" },
     })
     .output(metaOverlayReviewResultSchema),
 
   /**
-   * Many standings overlays at once, each optionally linked first, with every
-   * touched event promoted once. Nothing is written when any item is refused.
+   * Many standings overlays at once, each optionally linked and narrowed
+   * first. Nothing is written when any item is refused.
    */
   acceptPlayerOverlays: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/accept`, tags: [OVERLAY_TAG] })
@@ -974,6 +988,7 @@ export const adminMetaCandidatesContract = {
             z.object({
               id: z.string(),
               metaEventPlayerId: z.string().nullable().optional().default(null),
+              fields: acceptClaimFields,
             }),
           )
           .min(1)
@@ -983,6 +998,7 @@ export const adminMetaCandidatesContract = {
     .errors({
       NOT_FOUND: { message: "Overlay or standings row not found" },
       CONFLICT: { message: "Accept the event first" },
+      BAD_REQUEST: { message: "An accept that keeps no claim is a reject" },
     })
     .output(metaOverlayBulkAcceptResultSchema),
 

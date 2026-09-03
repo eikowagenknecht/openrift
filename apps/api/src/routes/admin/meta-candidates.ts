@@ -520,6 +520,7 @@ export const adminMetaCandidatesRouter = os.router({
     ({ input, context }): Promise<MetaOverlayReviewResult> =>
       acceptMetaPlayerOverlay(context.repos, input.id, {
         metaEventPlayerId: input.metaEventPlayerId,
+        fields: input.fields,
       }),
   ),
   acceptPlayerOverlays: os.acceptPlayerOverlays.handler(({ input, context }) =>

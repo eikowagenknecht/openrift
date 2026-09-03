@@ -10,6 +10,7 @@ import { MetaStandingsRowPicker } from "@/components/admin/meta-standings-row-pi
 import { MetaSubmissionResolve } from "@/components/admin/meta-submission-resolve";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useIgnoreMetaSourceEvent,
@@ -21,25 +22,66 @@ import {
 import { useMetaSubmissionForPlayerOverlay } from "@/hooks/use-admin-meta-submissions";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { sourceDismissTarget } from "@/lib/meta-source-review";
+import { cn } from "@/lib/utils";
 
-export function OverlayChanges({ changes }: { changes: MetaOverlayQueueRow["changes"] }) {
+/**
+ * Pass `dropped` and `onToggle` together for an accept's claim picker; omit
+ * both for a read-only list.
+ */
+export function OverlayChanges({
+  changes,
+  dropped,
+  onToggle,
+}: {
+  changes: MetaOverlayQueueRow["changes"];
+  dropped?: ReadonlySet<string>;
+  onToggle?: (field: string) => void;
+}) {
   const real = changes.filter((change) => change.from !== change.to);
   if (real.length === 0) {
     return <p className="text-muted-foreground text-sm">No field changes.</p>;
   }
+  if (onToggle === undefined) {
+    return (
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+        {real.map((change) => (
+          <div key={change.field} className="contents">
+            <dt className="text-muted-foreground font-mono text-xs">{change.field}</dt>
+            <dd className="flex flex-wrap items-baseline gap-2">
+              <span className="text-muted-foreground line-through">{change.from ?? "empty"}</span>
+              <span aria-hidden>→</span>
+              <span className="font-medium">{change.to ?? "empty"}</span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-      {real.map((change) => (
-        <div key={change.field} className="contents">
-          <dt className="text-muted-foreground font-mono text-xs">{change.field}</dt>
-          <dd className="flex flex-wrap items-baseline gap-2">
-            <span className="text-muted-foreground line-through">{change.from ?? "empty"}</span>
+    <ul className="space-y-1 text-sm">
+      {real.map((change) => {
+        const keep = dropped?.has(change.field) !== true;
+        return (
+          <li key={change.field} className="flex flex-wrap items-baseline gap-2">
+            <Checkbox
+              checked={keep}
+              aria-label={`Claim ${change.field}`}
+              onCheckedChange={() => {
+                onToggle(change.field);
+              }}
+            />
+            <span className="text-muted-foreground font-mono text-xs">{change.field}</span>
+            <span className={cn("text-muted-foreground", keep && "line-through")}>
+              {change.from ?? "empty"}
+            </span>
             <span aria-hidden>→</span>
-            <span className="font-medium">{change.to ?? "empty"}</span>
-          </dd>
-        </div>
-      ))}
-    </dl>
+            <span className={keep ? "font-medium" : "text-muted-foreground line-through"}>
+              {change.to ?? "empty"}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

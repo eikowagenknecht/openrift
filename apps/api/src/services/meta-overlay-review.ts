@@ -665,6 +665,7 @@ interface PendingPlayerAccept {
   overlay: MetaPlayerOverlayRow;
   player: MetaEventPlayerRow | null;
   metaEventId: string;
+  fields?: MetaPlayerOverlayField[] | null;
 }
 
 async function loadPlayerAccept(
@@ -695,31 +696,78 @@ async function loadPlayerAccept(
   return { overlay, player, metaEventId };
 }
 
+/**
+ * @returns The claims left after redundant ones drop; narrowing must use
+ * this, not the overlay's original claims, or it reclaims a nulled field.
+ */
 async function anchorPlayerOverlay(
   repos: Repos,
   overlay: MetaPlayerOverlayRow,
   player: MetaEventPlayerRow,
-): Promise<void> {
+): Promise<MetaPlayerOverlayField[]> {
   await repos.metaOverlays.linkPlayerOverlay(overlay.id, player.id);
   const redundant = redundantClaims(
     overlay.claimedFields,
     overlay as unknown as Record<string, unknown>,
     player as unknown as Record<string, unknown>,
   );
-  if (redundant.length > 0) {
-    await repos.metaOverlays.updatePlayerOverlay(overlay.id, {
-      claimedFields: overlay.claimedFields.filter(
-        (field) => !redundant.includes(field),
-      ) as MetaPlayerOverlayField[],
-      ...Object.fromEntries(redundant.map((field) => [field, null])),
-    });
+  if (redundant.length === 0) {
+    return [...overlay.claimedFields];
   }
+  const remaining = overlay.claimedFields.filter(
+    (field) => !redundant.includes(field),
+  ) as MetaPlayerOverlayField[];
+  await repos.metaOverlays.updatePlayerOverlay(overlay.id, {
+    claimedFields: remaining,
+    ...Object.fromEntries(redundant.map((field) => [field, null])),
+  });
+  return remaining;
+}
+
+/**
+ * Drops claims an accept was told to leave behind. The card rows survive a
+ * dropped `cards` claim; clearing them would read as a change on re-upload.
+ */
+async function narrowPlayerClaims(
+  repos: Repos,
+  overlayId: string,
+  claimed: readonly MetaPlayerOverlayField[],
+  fields: readonly MetaPlayerOverlayField[] | null,
+): Promise<void> {
+  if (fields === null) {
+    return;
+  }
+  const kept = new Set<MetaPlayerOverlayField>(fields);
+  if (kept.has("cards") || kept.has("listStatus")) {
+    kept.add("cards");
+    kept.add("listStatus");
+  }
+  const remaining = claimed.filter((claim) => kept.has(claim));
+  // claimed.length === 0 means the anchor already dropped every claim as
+  // redundant: a finished accept, not an empty mask.
+  if (remaining.length === 0 && claimed.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      "An accept that keeps no claim is a reject. Reject the row instead.",
+    );
+  }
+  if (remaining.length === claimed.length) {
+    return;
+  }
+  const cleared = Object.fromEntries(
+    claimed.filter((claim) => !kept.has(claim) && claim !== "cards").map((claim) => [claim, null]),
+  );
+  await repos.metaOverlays.updatePlayerOverlay(overlayId, {
+    claimedFields: remaining,
+    ...cleared,
+  });
 }
 
 export async function acceptMetaPlayerOverlay(
   repos: Repos,
   overlayId: string,
-  options: { metaEventPlayerId?: string | null } = {},
+  options: { metaEventPlayerId?: string | null; fields?: MetaPlayerOverlayField[] | null } = {},
   now: Date = new Date(),
 ): Promise<MetaOverlayReviewResult> {
   const { overlay, player, metaEventId } = await loadPlayerAccept(
@@ -727,9 +775,11 @@ export async function acceptMetaPlayerOverlay(
     overlayId,
     options.metaEventPlayerId ?? null,
   );
-  if (player !== null) {
-    await anchorPlayerOverlay(repos, overlay, player);
-  }
+  const claimed =
+    player === null
+      ? [...overlay.claimedFields]
+      : await anchorPlayerOverlay(repos, overlay, player);
+  await narrowPlayerClaims(repos, overlayId, claimed, options.fields ?? null);
   await repos.metaOverlays.setPlayerOverlayStatus(overlayId, "accepted", now);
   await promoteMetaEvent(repos, metaEventId);
   return { metaEventId, created: false };
@@ -741,17 +791,26 @@ export async function acceptMetaPlayerOverlay(
  */
 export async function acceptMetaPlayerOverlays(
   repos: Repos,
-  items: readonly { id: string; metaEventPlayerId: string | null }[],
+  items: readonly {
+    id: string;
+    metaEventPlayerId: string | null;
+    fields?: MetaPlayerOverlayField[] | null;
+  }[],
   now: Date = new Date(),
 ): Promise<MetaOverlayBulkAcceptResult> {
   const pending: PendingPlayerAccept[] = [];
   for (const item of items) {
-    pending.push(await loadPlayerAccept(repos, item.id, item.metaEventPlayerId));
+    pending.push({
+      ...(await loadPlayerAccept(repos, item.id, item.metaEventPlayerId)),
+      fields: item.fields ?? null,
+    });
   }
-  for (const { overlay, player } of pending) {
-    if (player !== null) {
-      await anchorPlayerOverlay(repos, overlay, player);
-    }
+  for (const { overlay, player, fields } of pending) {
+    const claimed =
+      player === null
+        ? [...overlay.claimedFields]
+        : await anchorPlayerOverlay(repos, overlay, player);
+    await narrowPlayerClaims(repos, overlay.id, claimed, fields ?? null);
     await repos.metaOverlays.setPlayerOverlayStatus(overlay.id, "accepted", now);
   }
   const metaEventIds = [...new Set(pending.map((entry) => entry.metaEventId))];
