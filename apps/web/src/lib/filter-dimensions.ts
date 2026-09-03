@@ -196,9 +196,8 @@ export const FILTER_DIMENSIONS: readonly FilterDimension[] = [
       ...presenceLabels("superTypes", s.superTypesPresence),
     ],
   },
-  // The Variant unit's three axes. Art Variant is the primary picker and hosts
-  // the Signed flag when both render in the same host; Finish rides as a
-  // labelled group beside it.
+  // Overnumbered and Signed ride the Art Variant axis's host when it renders
+  // alongside them (see FilterVariantDropdown); otherwise each gets its own row.
   {
     key: "artVariants",
     unit: "variant",
@@ -214,6 +213,14 @@ export const FILTER_DIMENSIONS: readonly FilterDimension[] = [
     hasContent: ({ availableFilters }) => availableFilters.finishes.length > 1,
     activeCount: (s) => s.finishes.length + s.finishesEx.length,
     activeLabels: (s, l) => valueLabels(s.finishes, s.finishesEx, l.finish),
+  },
+  {
+    key: "overnumbered",
+    unit: "variant",
+    section: "overnumbered",
+    hasContent: ({ availableFilters }) => availableFilters.hasOvernumbered,
+    activeCount: (s) => setCount(s.overnumbered),
+    activeLabels: (s) => flagLabels(s.overnumbered, "Overnumbered"),
   },
   {
     key: "signed",

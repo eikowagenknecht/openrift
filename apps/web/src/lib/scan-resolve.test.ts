@@ -103,6 +103,23 @@ describe("resolveLock", () => {
     }
   });
 
+  it("sends a resolved lock to the picker when an overnumbered sibling shares the render", () => {
+    const inTotal = withImage(
+      stubPrinting({ id: "p-in", shortCode: "OGN-003", isOvernumbered: false }),
+      "img-a",
+    );
+    const overnumbered = withImage(
+      stubPrinting({ id: "p-over", shortCode: "OGN-303", isOvernumbered: true }),
+      "img-a",
+    );
+    const index = buildScanPrintingIndex([inTotal, overnumbered], stubBank({ "img-a": "art-1" }));
+    const resolution = resolveLock(lock("img-a", true), index);
+    expect(resolution.kind).toBe("picker");
+    if (resolution.kind === "picker") {
+      expect(resolution.candidates).toHaveLength(2);
+    }
+  });
+
   it("offers every printing of every render of the artwork for an unresolved lock", () => {
     const en = withImage(stubPrinting({ id: "p-en", language: "EN" }), "img-en");
     const de = withImage(stubPrinting({ id: "p-de", language: "DE" }), "img-de");

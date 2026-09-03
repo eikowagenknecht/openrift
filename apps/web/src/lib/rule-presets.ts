@@ -82,10 +82,9 @@ export const WISH_RULE_PRESETS: RulePreset[] = [
             // sets facet (there is no live set-type filter dimension).
             sets: ctx?.mainSetSlugs ?? [],
             isStandard: true,
-            // isStandard already rejects non-normal art variants; the explicit
-            // exclude keeps the intent visible (and the rule intact) if the
-            // user later switches the standard toggle off.
-            artVariantsExclude: [WellKnown.artVariant.OVERNUMBERED],
+            // isStandard already excludes overnumbered prints; the explicit
+            // flag keeps the rule intact if the user later turns standard off.
+            isOvernumbered: false,
             typesExclude: [WellKnown.cardType.RUNE],
             superTypesExclude: [WellKnown.superType.TOKEN],
           },

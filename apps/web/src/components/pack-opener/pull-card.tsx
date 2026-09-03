@@ -152,7 +152,7 @@ function slotLabel(pull: PackPull, rarityLabels: Record<string, string>): string
       if (pull.printing.isSigned) {
         return "Signed";
       }
-      if (pull.printing.artVariant === WellKnown.artVariant.OVERNUMBERED) {
+      if (pull.printing.isOvernumbered) {
         return "Overnumbered";
       }
       return "Alt Art";

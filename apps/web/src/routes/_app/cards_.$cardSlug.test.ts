@@ -32,6 +32,7 @@ function makePrinting(id: string, language: string, frontImageId: string): Catal
     rarity: "rare",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markers: [],
     distributionChannels: [],
     finish: "normal",

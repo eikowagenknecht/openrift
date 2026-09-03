@@ -31,6 +31,11 @@ export interface ImportEntry {
   finish: Finish;
   /** Art variant. */
   artVariant: ArtVariant;
+  /**
+   * Whether the collector number runs past the set's printed total. Undefined
+   * means the source format has no such column ("don't care"), not "false".
+   */
+  isOvernumbered?: boolean;
   /** How many copies to import. */
   quantity: number;
   /** Card name from the source data, for display. */
@@ -167,30 +172,23 @@ export function parseImportData(text: string): ParseResult {
  * @returns The metadata, or undefined when the row carries none.
  */
 /**
- * The art variant a Piltover row describes. Their columns name it, so they win
- * over the variant number's modifier: a `*` there marks a *signed* printing
- * (which stays in the short code) and says nothing about the art, so only the
- * letter suffix implies alt art.
- *
- * The label is read before the type because it is the finer of the two: their
- * one Ultimate card types as `Overnumbered` and is only named Ultimate there.
- * @returns The art variant to match on.
+ * The art variant a Piltover row describes. Their `Variant Label` wins over the
+ * variant number's modifier, which only distinguishes alt art from plain: a `*`
+ * there marks a *signed* printing and says nothing about the art.
  */
-function piltoverArtVariant(
-  variantType: string,
-  variantLabel: string,
-  fromModifier?: ArtVariant,
-): ArtVariant {
+function piltoverArtVariant(variantLabel: string, fromModifier?: ArtVariant): ArtVariant {
   if (variantLabel.trim().toLowerCase() === "ultimate") {
     return WellKnown.artVariant.ULTIMATE;
   }
-  if (variantType.trim().toLowerCase().startsWith("overnumbered")) {
-    return WellKnown.artVariant.OVERNUMBERED;
-  }
-  if (fromModifier === undefined || fromModifier === WellKnown.artVariant.OVERNUMBERED) {
-    return WellKnown.artVariant.NORMAL;
-  }
-  return fromModifier;
+  return fromModifier ?? WellKnown.artVariant.NORMAL;
+}
+
+/**
+ * Their `Variant Type` is the only column that names overnumbering, and it says
+ * so for their Ultimate card too — which is right, since that print is both.
+ */
+function piltoverIsOvernumbered(variantType: string): boolean {
+  return variantType.trim().toLowerCase().startsWith("overnumbered");
 }
 
 function parsePiltoverMetadata(record: Record<string, string>): ImportCopyMetadata | undefined {
@@ -275,7 +273,8 @@ function parsePiltoverArchive(text: string): ParseResult {
     const entry: ImportEntry = {
       setPrefix: parsed?.setPrefix ?? record["Set Prefix"]?.trim() ?? "",
       finish,
-      artVariant: piltoverArtVariant(variantType, variantLabel, parsed?.artVariant),
+      artVariant: piltoverArtVariant(variantLabel, parsed?.artVariant),
+      isOvernumbered: piltoverIsOvernumbered(variantType),
       quantity,
       cardName,
       sourceCode: parsed?.shortCode ?? variantNumber,
@@ -482,9 +481,17 @@ function parseOpenRift(text: string): ParseResult {
         ? WellKnown.finish.FOIL
         : WellKnown.finish.NORMAL;
     const artVariantRaw = record["Art Variant"]?.trim();
+    // Exports written before the Overnumbered column named it as an art
+    // variant; drop that fallback once those are out of circulation.
+    const overnumberedCell = record["Overnumbered"];
+    let isOvernumbered: boolean | undefined;
+    if (overnumberedCell !== undefined) {
+      isOvernumbered = overnumberedCell.trim().toLowerCase() === "yes";
+    } else if (artVariantRaw === "overnumbered") {
+      isOvernumbered = true;
+    }
     const artVariant: ArtVariant =
       artVariantRaw === WellKnown.artVariant.ALTART ||
-      artVariantRaw === WellKnown.artVariant.OVERNUMBERED ||
       artVariantRaw === WellKnown.artVariant.ULTIMATE
         ? artVariantRaw
         : WellKnown.artVariant.NORMAL;
@@ -494,6 +501,7 @@ function parseOpenRift(text: string): ParseResult {
       setPrefix: parsed.setPrefix,
       finish,
       artVariant,
+      isOvernumbered,
       quantity,
       cardName,
       sourceCode: cardId,
@@ -539,26 +547,18 @@ function parseOpenRiftCardId(cardId: string): { setPrefix: string } | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Extracts collector number, art variant, and normalized short code from a
- * parsed card code. The card number part is 3 alphanumeric chars (e.g. "001",
- * "T01", "R04") and the modifier is an optional suffix ("a"/"b" = altart,
- * "*" = signed/overnumbered).
- * @returns Resolved card parts.
+ * Extracts art variant and normalized short code from a parsed card code.
+ * Neither the "a"/"b" (altart) nor "*" (signed) modifier says whether the
+ * printing is overnumbered; only the collector number against the set's
+ * printed total does, which no import format carries.
  */
 function resolveCardModifier(
   setPrefix: string,
   cardNumber: string,
   modifier: string,
 ): { artVariant: ArtVariant; shortCode: string } {
-  let artVariant: ArtVariant;
-  if (modifier === "*") {
-    artVariant = WellKnown.artVariant.OVERNUMBERED;
-  } else if (modifier) {
-    artVariant = WellKnown.artVariant.ALTART;
-  } else {
-    artVariant = WellKnown.artVariant.NORMAL;
-  }
-
+  const artVariant =
+    modifier && modifier !== "*" ? WellKnown.artVariant.ALTART : WellKnown.artVariant.NORMAL;
   const shortCode = `${setPrefix}-${cardNumber}${modifier}`;
   return { artVariant, shortCode };
 }

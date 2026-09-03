@@ -164,6 +164,7 @@ function toFilterState(
     ownedCountMax: raw.ownedCountMax ?? null,
     owned: raw.owned ?? [],
     signed: raw.signed ?? null,
+    overnumbered: raw.overnumbered ?? null,
     markersPresence: raw.markersPresence ?? null,
     superTypesPresence: raw.superTypesPresence ?? null,
     customTagsPresence: raw.customTagsPresence ?? null,
@@ -245,6 +246,7 @@ export function useFilterValues() {
     ownedCountMin: filterState.ownedCountMin,
     ownedCountMax: filterState.ownedCountMax,
     isSigned: filterState.signed ?? null,
+    isOvernumbered: filterState.overnumbered ?? null,
     presence,
     markers: filterState.markers,
     channels: filterState.channels,
@@ -317,6 +319,7 @@ export function useFilterValues() {
     filterState.ownedCountMax !== null ||
     filterState.owned.length > 0 ||
     filterState.signed !== null ||
+    filterState.overnumbered !== null ||
     filterState.markersPresence !== null ||
     filterState.superTypesPresence !== null ||
     filterState.customTagsPresence !== null ||
@@ -423,6 +426,7 @@ export function useFilterActions() {
       ownedCountMax: undefined,
       owned: undefined,
       signed: undefined,
+      overnumbered: undefined,
       markersPresence: undefined,
       superTypesPresence: undefined,
       customTagsPresence: undefined,
@@ -561,12 +565,17 @@ export function useFilterActions() {
 
   const clearOwned = () => updateSearch({ owned: undefined });
 
-  const toggleSigned = () => {
-    trackEvent("filter-apply", { type: "signed" });
-    const next =
-      filterState.signed === null ? true : filterState.signed === true ? false : undefined;
-    updateSearch({ signed: next });
+  // Tri-state flags (ADR-034): null → true → false → null.
+  const toggleFlag = (key: "signed" | "overnumbered" | "banned" | "errata" | "standard") => {
+    trackEvent("filter-apply", { type: key });
+    const current = filterState[key];
+    updateSearch({ [key]: current === null ? true : current === true ? false : undefined });
   };
+  const toggleSigned = () => toggleFlag("signed");
+  const toggleOvernumbered = () => toggleFlag("overnumbered");
+  const toggleBanned = () => toggleFlag("banned");
+  const toggleErrata = () => toggleFlag("errata");
+  const toggleStandard = () => toggleFlag("standard");
   // Writes a presence state for a dimension. Setting "none" also clears any
   // specific value selection for the dimension, since requiring "no values"
   // contradicts naming values.
@@ -594,28 +603,10 @@ export function useFilterActions() {
   const clearPresence = (dimension: PresenceDimension) =>
     updateSearch({ [PRESENCE_PARAMS[dimension]]: undefined });
   const clearSigned = () => updateSearch({ signed: undefined });
-  const toggleBanned = () => {
-    trackEvent("filter-apply", { type: "banned" });
-    const next =
-      filterState.banned === null ? true : filterState.banned === true ? false : undefined;
-    updateSearch({ banned: next });
-  };
-  const toggleErrata = () => {
-    trackEvent("filter-apply", { type: "errata" });
-    const next =
-      filterState.errata === null ? true : filterState.errata === true ? false : undefined;
-    updateSearch({ errata: next });
-  };
+  const clearOvernumbered = () => updateSearch({ overnumbered: undefined });
   const clearBanned = () => updateSearch({ banned: undefined });
   const clearErrata = () => updateSearch({ errata: undefined });
   const clearStandard = () => updateSearch({ standard: undefined });
-  // Tri-state "standard printing" flag (ADR-034): null → true → false → null.
-  const toggleStandard = () => {
-    trackEvent("filter-apply", { type: "standard" });
-    const next =
-      filterState.standard === null ? true : filterState.standard === true ? false : undefined;
-    updateSearch({ standard: next });
-  };
 
   // Toolbar changes write both: the store remembers the choice for the next
   // visit, the URL keeps the current view shareable. A param equal to the
@@ -663,12 +654,14 @@ export function useFilterActions() {
     setOwnedCountRange,
     clearOwned,
     toggleSigned,
+    toggleOvernumbered,
     cyclePresence,
     clearPresence,
     toggleBanned,
     toggleErrata,
     toggleStandard,
     clearSigned,
+    clearOvernumbered,
     clearBanned,
     clearErrata,
     clearStandard,

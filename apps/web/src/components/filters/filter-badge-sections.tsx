@@ -24,18 +24,38 @@ export function FilterBadgeSections({
 }) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const { cycleArrayFilter, toggleSigned } = useFilterActions();
+  const { cycleArrayFilter, toggleSigned, toggleOvernumbered } = useFilterActions();
   const languageLabels = useLanguageLabels();
   const showUnit = (unit: string) => units === undefined || units.has(unit);
-  // Signed rides inside the Art Variant section (a signed card is, in effect, a
-  // variant) when both are shown; otherwise it renders as a flag chip wherever
-  // the Variant unit lives (see FilterChipSections).
   const signedApplicable = availableFilters.hasSigned && !hiddenSections?.has("signed");
+  const overnumberedApplicable =
+    availableFilters.hasOvernumbered && !hiddenSections?.has("overnumbered");
   const artVariantShown =
     showUnit("variant") &&
     availableFilters.artVariants.length > 1 &&
     !hiddenSections?.has("artVariants");
   const signedInArtVariant = signedApplicable && artVariantShown;
+  const overnumberedInArtVariant = overnumberedApplicable && artVariantShown;
+  const artVariantFlags = (
+    <>
+      {overnumberedInArtVariant && (
+        <FlagBadge
+          label="Overnumbered"
+          state={filterState.overnumbered}
+          count={filterCounts?.flags.overnumbered}
+          onClick={toggleOvernumbered}
+        />
+      )}
+      {signedInArtVariant && (
+        <FlagBadge
+          label="Signed"
+          state={filterState.signed}
+          count={filterCounts?.flags.signed}
+          onClick={toggleSigned}
+        />
+      )}
+    </>
+  );
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
   const selected = (key: keyof typeof filterState) => {
     const urlValue = filterState[key];
@@ -130,16 +150,7 @@ export function FilterBadgeSections({
           onCycle={(v) => cycleArrayFilter("artVariants", "artVariantsEx", v)}
           displayLabel={(v) => labels.artVariants[v]}
           counts={filterCounts?.artVariants}
-          trailing={
-            signedInArtVariant ? (
-              <FlagBadge
-                label="Signed"
-                state={filterState.signed}
-                count={filterCounts?.flags.signed}
-                onClick={toggleSigned}
-              />
-            ) : undefined
-          }
+          trailing={artVariantFlags}
         />
       )}
       {showUnit("variant") &&

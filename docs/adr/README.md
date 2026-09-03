@@ -56,6 +56,7 @@ The MADR documentation is available at <https://adr.github.io/madr/> while gener
 - **[ADR-040](040-per-section-admin-grants.md)**: Per-Section Admin Grants (extends ADR-032's binary admin role with section-scoped grants)
 - **[ADR-041](041-swiss-pairing-and-regions.md)**: Swiss 1v1 Pairing and Player Regions (amends ADR-033's pods-only pairing scope)
 - **[ADR-042](042-deck-variants.md)**: Deck Variants and Checkpoints
+- **[ADR-044](044-overnumbered-as-a-flag.md)**: Overnumbered as a Printing Flag (moves `overnumbered` off ADR-008's `art_variant` enum)
 
 ### Rejected
 

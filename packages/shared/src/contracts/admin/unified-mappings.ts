@@ -76,6 +76,7 @@ const unifiedMappingPrintingResponseSchema = z
     rarity: raritySchema,
     artVariant: artVariantSchema,
     isSigned: z.boolean().openapi({ example: false }),
+    isOvernumbered: z.boolean().openapi({ example: false }),
     markerSlugs: z.array(z.string()).openapi({ example: [] }),
     /** The printing's own finish, which may be `metal` / `metal-deluxe` — finishes no marketplace sells. */
     finish: finishSchema,

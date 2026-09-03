@@ -39,6 +39,7 @@ function printing(input: PrintingInput): IngestPrinting {
     rarity: null,
     art_variant: null,
     is_signed: false,
+    is_overnumbered: false,
     marker_slugs: [],
     distribution_channel_slugs: [],
     finish: null,

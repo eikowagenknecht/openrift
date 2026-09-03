@@ -316,6 +316,7 @@ function toBoxCopy(
     finish: printing.finish,
     size: printing.size,
     isSigned: printing.isSigned,
+    isOvernumbered: printing.isOvernumbered,
     markers: printing.markers,
     condition: copy.condition,
     grade: copy.grade,

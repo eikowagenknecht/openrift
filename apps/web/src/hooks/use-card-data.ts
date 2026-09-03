@@ -162,7 +162,7 @@ export const EMPTY_FILTER_COUNTS: FilterCounts = {
   channels: new Map<string, number>(),
   keywords: new Map<string, number>(),
   tags: new Map<string, number>(),
-  flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
+  flags: { signed: 0, overnumbered: 0, banned: 0, errata: 0, standard: 0 },
   presence: {
     markers: { any: 0, none: 0 },
     superTypes: { any: 0, none: 0 },

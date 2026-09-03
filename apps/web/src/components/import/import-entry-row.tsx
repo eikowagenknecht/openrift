@@ -146,7 +146,7 @@ function formatEntrySpecialties(
   if (entry.entry.artVariant === WellKnown.artVariant.ALTART) {
     parts.push("Alt Art");
   }
-  if (entry.entry.artVariant === WellKnown.artVariant.OVERNUMBERED) {
+  if (entry.entry.isOvernumbered) {
     parts.push("Overnumbered");
   }
   return parts.length > 0 ? parts.join(" · ") : null;

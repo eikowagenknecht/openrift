@@ -34,6 +34,7 @@ describe("toVariantLabelPrinting", () => {
       finish: "normal",
       size: "standard",
       isSigned: false,
+      isOvernumbered: false,
       markers: [],
     });
   });

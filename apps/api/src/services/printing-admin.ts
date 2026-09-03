@@ -214,6 +214,7 @@ interface AcceptPrintingFields {
   rarity?: string | null;
   artVariant?: string;
   isSigned?: boolean;
+  isOvernumbered?: boolean;
   markerSlugs?: string[];
   distributionChannelSlugs?: string[];
   finish?: string;
@@ -369,6 +370,7 @@ export async function acceptPrinting(
       rarity: normalizedRarity as Rarity,
       artVariant: (printingFields.artVariant ?? WellKnown.artVariant.NORMAL) as ArtVariant,
       isSigned: printingFields.isSigned ?? false,
+      isOvernumbered: printingFields.isOvernumbered ?? false,
       markerSlugs,
       finish,
       size,

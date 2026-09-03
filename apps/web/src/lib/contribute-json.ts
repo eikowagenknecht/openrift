@@ -28,6 +28,7 @@ const JSON_TO_FORM_KEY: Record<string, string> = {
   set_name: "setName",
   art_variant: "artVariant",
   is_signed: "isSigned",
+  is_overnumbered: "isOvernumbered",
   marker_slugs: "markerSlugs",
   distribution_channel_slugs: "distributionChannelSlugs",
   printed_rules_text: "printedRulesText",
@@ -78,6 +79,7 @@ export interface ContributeFormPrinting {
   rarity: string | null;
   artVariant: string | null;
   isSigned: boolean;
+  isOvernumbered: boolean;
   markerSlugs: string[];
   distributionChannelSlugs: string[];
   finish: string | null;
@@ -132,6 +134,7 @@ export function emptyPrinting(): ContributeFormPrinting {
     rarity: null,
     artVariant: null,
     isSigned: false,
+    isOvernumbered: false,
     markerSlugs: [],
     distributionChannelSlugs: [],
     finish: null,
@@ -267,6 +270,9 @@ function buildPrintingJson(
   setIfPresent(out, "art_variant", trimToNull(printing.artVariant), isNonEmptyString);
   if (printing.isSigned) {
     out.is_signed = true;
+  }
+  if (printing.isOvernumbered) {
+    out.is_overnumbered = true;
   }
   setIfPresent(out, "marker_slugs", printing.markerSlugs, isNonEmptyArray);
   setIfPresent(
@@ -461,6 +467,7 @@ export function prefillFromCard(
       rarity: p.rarity || null,
       artVariant: p.artVariant || null,
       isSigned: p.isSigned,
+      isOvernumbered: p.isOvernumbered,
       markerSlugs: p.markers.map((m) => m.slug),
       distributionChannelSlugs: p.distributionChannels.map((channel) => channel.channel.slug),
       finish: p.finish || null,

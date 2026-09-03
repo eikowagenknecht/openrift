@@ -345,6 +345,23 @@ describe("evaluateListRule — trade", () => {
     expect(out.map((entry) => entry.copyId)).toEqual(["cpRare"]);
   });
 
+  it("keeps the overnumbered copy over an otherwise equal special one", () => {
+    const overCatalog = [
+      makePrinting("foil", "c1", { rarity: "common", finish: "foil" }),
+      makePrinting("over", "c1", { rarity: "common", finish: "foil", isOvernumbered: true }),
+    ];
+    const ownedCopies = [
+      ownedCopy({ copyId: "cpFoil", printingId: "foil", cardId: "c1" }),
+      ownedCopy({ copyId: "cpOver", printingId: "over", cardId: "c1" }),
+    ];
+    const out = evaluateListRule(tradeRule({ keepPerCard: { mode: "fixed", n: 1 } }), "copy", {
+      catalog: overCatalog,
+      ownedCopies,
+      enumOrders,
+    });
+    expect(out.map((entry) => entry.copyId)).toEqual(["cpFoil"]);
+  });
+
   it("keeps marked copies over unmarked ones of equal rarity and finish", () => {
     // Regression: a promo (marked) foil and a plain foil tie on every ranked
     // dimension, and the promo's later canonicalRank used to sort it into the

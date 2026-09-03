@@ -40,6 +40,7 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
     rarity: "rare",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markers: [],
     distributionChannels: [],
     finish: "normal",

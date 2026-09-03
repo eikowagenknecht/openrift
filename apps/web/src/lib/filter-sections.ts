@@ -35,7 +35,11 @@ export const FILTER_PLACEMENT_UNITS: readonly FilterPlacementUnit[] = [
   { key: "rarities", label: "Rarity", sections: ["rarities"] },
   { key: "types", label: "Type", sections: ["types"] },
   { key: "superTypes", label: "Supertype", sections: ["superTypes"] },
-  { key: "variant", label: "Variant", sections: ["artVariants", "finishes", "signed"] },
+  {
+    key: "variant",
+    label: "Variant",
+    sections: ["artVariants", "finishes", "overnumbered", "signed"],
+  },
   { key: "standard", label: "Standard", sections: ["standard"] },
   { key: "stats", label: "Stats", sections: ["energy", "power", "might"] },
   { key: "markers", label: "Markers", sections: ["markers"] },

@@ -144,6 +144,7 @@ export const cardFiltersSchema = z.object({
   // Filter to printings of these physical sizes (e.g. `standard`, `oversized`).
   cardSizes: stringArray(),
   isSigned: z.boolean().nullable().default(null),
+  isOvernumbered: z.boolean().nullable().default(null),
   // Generic per-dimension presence predicate. For each listed dimension, "any"
   // requires the card/printing to carry at least one value, "none" requires it
   // to carry none — independent of which specific values. Absent key = no
@@ -216,6 +217,7 @@ export const EMPTY_CARD_FILTERS: CardFilters = {
   finishes: [],
   cardSizes: [],
   isSigned: null,
+  isOvernumbered: null,
   presence: {},
   markerSlugs: [],
   distributionChannelSlugs: [],

@@ -61,7 +61,14 @@ describe("isStandardPrinting", () => {
 
   it("a non-normal art variant is never standard", () => {
     expect(isStandardPrinting(makePrinting({ artVariant: "altart" }))).toBe(false);
-    expect(isStandardPrinting(makePrinting({ artVariant: "overnumbered" }))).toBe(false);
+    expect(isStandardPrinting(makePrinting({ artVariant: "ultimate" }))).toBe(false);
+  });
+
+  it("an overnumbered printing is never standard, whatever its art", () => {
+    expect(isStandardPrinting(makePrinting({ isOvernumbered: true }))).toBe(false);
+    expect(isStandardPrinting(makePrinting({ isOvernumbered: true, artVariant: "altart" }))).toBe(
+      false,
+    );
   });
 
   it("treats falsy art variant as normal", () => {

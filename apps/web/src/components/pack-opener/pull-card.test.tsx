@@ -29,6 +29,7 @@ function makePull(overrides: Partial<PackPrinting> = {}): PackPull {
     finish: "normal",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     language: "EN",
     shortCode: "RB1-001",
     publicCode: "rb1-001",

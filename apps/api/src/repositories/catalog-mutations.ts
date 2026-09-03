@@ -50,7 +50,15 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
     getPrintingDifferentiatorsById(id: string) {
       return db
         .selectFrom("printings")
-        .select(["id", "finish", "artVariant", "isSigned", "markerSlugs", "rarity"])
+        .select([
+          "id",
+          "finish",
+          "artVariant",
+          "isSigned",
+          "isOvernumbered",
+          "markerSlugs",
+          "rarity",
+        ])
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -300,6 +308,7 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       rarity: Rarity;
       artVariant: ArtVariant;
       isSigned: boolean;
+      isOvernumbered: boolean;
       markerSlugs: string[];
       finish: Finish;
       size: CardSize;

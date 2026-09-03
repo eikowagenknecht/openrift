@@ -11,6 +11,7 @@ export interface VariantLabelPrinting {
   finish: string;
   size: string;
   isSigned: boolean;
+  isOvernumbered: boolean;
   markers: readonly { slug: string; label: string }[];
 }
 
@@ -25,7 +26,8 @@ export interface VariantLabelEnumLabels {
  * A printing's distinguishing attributes split so the language can render as a
  * chip instead of a `[XX]` tag. `language` is the code to show (or null when it
  * shouldn't be shown — English, or when all siblings share it); `rest` holds the
- * non-language attribute labels (art variant, finish, size, signed, markers).
+ * non-language attribute labels (art variant, overnumbered, finish, size,
+ * signed, markers).
  */
 export interface PrintingVariantLabelParts {
   language: string | null;
@@ -36,8 +38,9 @@ export interface PrintingVariantLabelParts {
  * Splits a printing's distinguishing attributes into the language code and the
  * remaining attribute labels. The rules match
  * {@link formatPrintingVariantLabel}: a language is shown only when siblings
- * differ in language; a non-normal art variant and oversized are always
- * labeled; finish / signed / markers are omitted when shared by all siblings.
+ * differ in language; a non-normal art variant, overnumbered and oversized are
+ * always labeled; finish / signed / markers are omitted when shared by all
+ * siblings.
  * @returns The language code (or null) and the ordered non-language labels.
  */
 export function formatPrintingVariantLabelParts(
@@ -53,11 +56,14 @@ export function formatPrintingVariantLabelParts(
   if (printing.artVariant !== WellKnown.artVariant.NORMAL) {
     rest.push(labels.artVariants[printing.artVariant]);
   }
+  if (printing.isOvernumbered) {
+    rest.push("Overnumbered");
+  }
   if (printing.finish !== WellKnown.finish.NORMAL && !allSame((c) => c.finish)) {
     rest.push(labels.finishes[printing.finish]);
   }
-  // Oversized is always labeled when present (like art variant): the larger
-  // print carries meaning even without a standard counterpart in the list.
+  // Oversized is always labeled when present (like art variant and
+  // overnumbered): it carries meaning with no plain counterpart in the list.
   if (printing.size !== WellKnown.cardSize.STANDARD) {
     rest.push(labels.cardSizes[printing.size]);
   }
@@ -73,8 +79,9 @@ export function formatPrintingVariantLabelParts(
 /**
  * Human-readable label for a printing's distinguishing attributes.
  * Omits "Normal" defaults. Most attributes are also omitted when shared by all
- * siblings, but a non-normal art variant is always labeled — the alt-art status
- * carries meaning even without a normal counterpart in the list. When language
+ * siblings, but a non-normal art variant and the overnumbered flag are always
+ * labeled: that status carries meaning even without a plain counterpart in the
+ * list. When language
  * varies among siblings, every row gets a `[XX]` tag (including English) so the
  * pairing reads symmetrically rather than leaving default rows blank.
  *

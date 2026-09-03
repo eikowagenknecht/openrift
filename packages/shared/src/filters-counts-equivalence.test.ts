@@ -90,6 +90,7 @@ const REF_DIMENSIONS: readonly RefCountableDimension[] = [
 
 const REF_FLAGS = [
   { key: "signed", filterField: "isSigned" },
+  { key: "overnumbered", filterField: "isOvernumbered" },
   { key: "banned", filterField: "isBanned" },
   { key: "errata", filterField: "hasErrata" },
   { key: "standard", filterField: "isStandard" },
@@ -139,7 +140,7 @@ function referenceComputeFilterCounts(
   options: RefOptions,
 ): FilterCounts {
   const result = {
-    flags: { signed: 0, banned: 0, errata: 0, standard: 0 },
+    flags: { signed: 0, overnumbered: 0, banned: 0, errata: 0, standard: 0 },
     presence: {
       markers: { any: 0, none: 0 },
       superTypes: { any: 0, none: 0 },
@@ -331,6 +332,7 @@ function buildCatalog(count: number): { printings: Printing[]; prices: WeakMap<P
       rarity: pickOne(RARITIES, r),
       artVariant: pickOne(ART_VARIANTS, r),
       isSigned: r() > 0.93,
+      isOvernumbered: r() > 0.9,
       markers: pickOne(MARKERS, r),
       distributionChannels: pickOne(CHANNELS, r),
       finish: pickOne(FINISHES, r),
@@ -403,8 +405,13 @@ const SCENARIOS: Record<string, CardFilters> = {
     presence: { markers: "any" },
     markerSlugs: ["galaxy"],
   }),
-  "flags true": makeFilters({ isSigned: true, isStandard: true }),
-  "flags false": makeFilters({ isSigned: false, hasErrata: false, isBanned: false }),
+  "flags true": makeFilters({ isSigned: true, isOvernumbered: true, isStandard: true }),
+  "flags false": makeFilters({
+    isSigned: false,
+    isOvernumbered: false,
+    hasErrata: false,
+    isBanned: false,
+  }),
   ranges: makeFilters({ energy: { min: 2, max: 6 }, might: { min: 0, max: 5 } }),
   "range with NONE sentinel": makeFilters({ power: { min: NONE, max: NONE } }),
   "price range": makeFilters({ price: { min: 1, max: 30 } }),

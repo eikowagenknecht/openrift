@@ -381,6 +381,41 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).not.toHaveProperty("signed");
   });
 
+  it("toggleOvernumbered cycles null → true → false → null", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.toggleOvernumbered());
+    expect(lastNavigateSearch()).toMatchObject({ overnumbered: true });
+
+    mockSearch = { overnumbered: true };
+    mockNavigate.mockClear();
+    const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
+    act(() => r2.current.toggleOvernumbered());
+    expect(lastNavigateSearch()).toMatchObject({ overnumbered: false });
+
+    mockSearch = { overnumbered: false };
+    mockNavigate.mockClear();
+    const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
+    act(() => r3.current.toggleOvernumbered());
+    expect(lastNavigateSearch()).not.toHaveProperty("overnumbered");
+  });
+
+  it("clearOvernumbered removes overnumbered from search", () => {
+    mockSearch = { overnumbered: true };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.clearOvernumbered());
+
+    expect(lastNavigateSearch()).not.toHaveProperty("overnumbered");
+  });
+
+  it("maps the overnumbered param onto the isOvernumbered filter", () => {
+    mockSearch = { overnumbered: false };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.filters.isOvernumbered).toBe(false);
+    expect(result.current.hasActiveFilters).toBe(true);
+  });
+
   it("cyclePresence('markers') cycles null → any → none → null", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 

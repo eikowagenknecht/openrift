@@ -43,6 +43,7 @@ export type CandidatePrintingRow = Pick<
   | "rarity"
   | "artVariant"
   | "isSigned"
+  | "isOvernumbered"
   | "markerSlugs"
   | "distributionChannelSlugs"
   | "finish"

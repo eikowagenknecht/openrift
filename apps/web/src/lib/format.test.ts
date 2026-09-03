@@ -43,6 +43,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markers: [],
     distributionChannels: [],
     finish: "normal",

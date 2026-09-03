@@ -29,6 +29,7 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
     finish: "normal",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     language: "EN",
     shortCode: "XXX-001",
     publicCode: "XXX-001",
@@ -54,7 +55,7 @@ function samplePool() {
     p({ id: "tok1", cardSuperTypes: ["token"], rarity: "common" }),
     p({ id: "tok2", cardSuperTypes: ["token"], rarity: "common" }),
     p({ id: "sa1", rarity: "showcase", finish: "foil", artVariant: "altart" }),
-    p({ id: "so1", rarity: "showcase", finish: "foil", artVariant: "overnumbered" }),
+    p({ id: "so1", rarity: "showcase", finish: "foil", isOvernumbered: true }),
     p({ id: "ss1", rarity: "showcase", finish: "foil", isSigned: true }),
     p({ id: "ult1", artVariant: "ultimate" }),
   ];
@@ -223,7 +224,7 @@ describe("openPack", () => {
             signed++;
           } else if (pull.printing.artVariant === "altart") {
             altart++;
-          } else if (pull.printing.artVariant === "overnumbered") {
+          } else if (pull.printing.isOvernumbered) {
             overnumbered++;
           }
         } else if (pull.slot === "ultimate") {

@@ -166,6 +166,98 @@ describe("MultiSelectCombobox cycling rows", () => {
   });
 });
 
+function renderWithFlags(
+  flags: { label: string; state: boolean | null; onToggle: () => void }[],
+  flagPosition: "top" | "bottom" = "bottom",
+) {
+  const onCycle = vi.fn();
+  render(
+    <MultiSelectCombobox
+      triggerStyle="button"
+      label="Art Variant"
+      options={SET_OPTIONS}
+      selected={[]}
+      excluded={[]}
+      onCycle={onCycle}
+      flags={flags}
+      flagPosition={flagPosition}
+    />,
+  );
+  return { onCycle };
+}
+
+describe("MultiSelectCombobox flag rows", () => {
+  it("routes a flag row click to that flag's onToggle and nowhere else", async () => {
+    const user = userEvent.setup();
+    const toggleOvernumbered = vi.fn();
+    const toggleSigned = vi.fn();
+    const { onCycle } = renderWithFlags([
+      { label: "Overnumbered", state: null, onToggle: toggleOvernumbered },
+      { label: "Signed", state: null, onToggle: toggleSigned },
+    ]);
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Signed" }));
+
+    expect(toggleSigned).toHaveBeenCalledOnce();
+    expect(toggleOvernumbered).not.toHaveBeenCalled();
+    expect(onCycle).not.toHaveBeenCalled();
+  });
+
+  it("lists every flag after the options with one divider before the block", async () => {
+    const user = userEvent.setup();
+    renderWithFlags([
+      { label: "Overnumbered", state: null, onToggle: vi.fn() },
+      { label: "Signed", state: null, onToggle: vi.fn() },
+    ]);
+
+    await user.click(screen.getByRole("combobox"));
+
+    const list = await screen.findByRole("listbox");
+    const names = within(list)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(names).toEqual(["Origins", "Unlimited", "Beyond the Rift", "Overnumbered", "Signed"]);
+    expect(list.querySelectorAll('[data-slot="combobox-separator"]')).toHaveLength(1);
+  });
+
+  it("leads with the flags and one divider after them at the top position", async () => {
+    const user = userEvent.setup();
+    renderWithFlags(
+      [
+        { label: "Has any marker", state: null, onToggle: vi.fn() },
+        { label: "Signed", state: null, onToggle: vi.fn() },
+      ],
+      "top",
+    );
+
+    await user.click(screen.getByRole("combobox"));
+
+    const list = await screen.findByRole("listbox");
+    const names = within(list)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(names).toEqual(["Has any marker", "Signed", "Origins", "Unlimited", "Beyond the Rift"]);
+    expect(list.querySelectorAll('[data-slot="combobox-separator"]')).toHaveLength(1);
+  });
+
+  it("names a single active flag on the trigger and signs an excluded one", () => {
+    renderWithFlags([
+      { label: "Overnumbered", state: null, onToggle: vi.fn() },
+      { label: "Signed", state: true, onToggle: vi.fn() },
+    ]);
+    expect(screen.getByRole("combobox")).toHaveTextContent("Signed");
+  });
+
+  it("summarises several active flags with their signs", () => {
+    renderWithFlags([
+      { label: "Overnumbered", state: false, onToggle: vi.fn() },
+      { label: "Signed", state: true, onToggle: vi.fn() },
+    ]);
+    expect(screen.getByRole("combobox")).toHaveTextContent("−Overnumbered, Signed");
+  });
+});
+
 // The compact bar's "More" menu hosts these dropdowns as menu rows, so the
 // combobox popup is a React child of the menu popup even though it portals
 // elsewhere in the DOM. The menu's typeahead sees every bubbled keystroke.

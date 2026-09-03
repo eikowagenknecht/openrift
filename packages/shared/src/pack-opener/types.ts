@@ -15,6 +15,7 @@ export interface PackPrinting {
   finish: string;
   artVariant: string;
   isSigned: boolean;
+  isOvernumbered: boolean;
   language: string;
   shortCode: string;
   publicCode: string;

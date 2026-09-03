@@ -14,6 +14,7 @@ export function toPackPrinting(p: Printing): PackPrinting {
     finish: p.finish,
     artVariant: p.artVariant,
     isSigned: p.isSigned,
+    isOvernumbered: p.isOvernumbered,
     language: p.language,
     shortCode: p.shortCode,
     publicCode: p.publicCode,

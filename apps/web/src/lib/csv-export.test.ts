@@ -27,6 +27,7 @@ function makeStack(overrides: {
   language?: string;
   setSlug?: string;
   isSigned?: boolean;
+  isOvernumbered?: boolean;
   copyCount?: number;
 }): StackedEntry {
   const printing = {
@@ -36,6 +37,7 @@ function makeStack(overrides: {
     finish: overrides.finish ?? "normal",
     artVariant: overrides.artVariant ?? "normal",
     isSigned: overrides.isSigned ?? false,
+    isOvernumbered: overrides.isOvernumbered ?? false,
     markers: overrides.markers ?? [],
     distributionChannels: [],
     language: overrides.language ?? "EN",
@@ -80,7 +82,7 @@ describe("generateExportCSV", () => {
     const csv = generateExportCSV([]);
     const headers = csv.split("\n")[0];
     expect(headers).toBe(
-      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity," +
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Language,Quantity," +
         "Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links",
     );
   });
@@ -94,14 +96,28 @@ describe("generateExportCSV", () => {
     });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-042,Promo Card,common,unit,Arcane,normal,normal,nexus,EN,2,,,,,,,");
+    expect(lines[1]).toBe("OGN-042,Promo Card,common,unit,Arcane,normal,normal,,nexus,EN,2,,,,,,,");
   });
 
   it("exports empty promo field for non-promo cards", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card" });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,,,,,,");
+    expect(lines[1]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,,EN,1,,,,,,,");
+  });
+
+  it("writes Yes in the Overnumbered column beside the art variant", () => {
+    const stack = makeStack({
+      shortCode: "OGN-303a",
+      name: "Loose Cannon",
+      artVariant: "altart",
+      isOvernumbered: true,
+    });
+    const csv = generateExportCSV([stack]);
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe(
+      "OGN-303a,Loose Cannon,common,unit,Arcane,normal,altart,Yes,,EN,1,,,,,,,",
+    );
   });
 
   // ADR-037: the Type column joins every type of a multi-type card, matching
@@ -110,7 +126,9 @@ describe("generateExportCSV", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Unit Gear", types: ["unit", "gear"] });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-001,Unit Gear,common,unit / gear,Arcane,normal,normal,,EN,1,,,,,,,");
+    expect(lines[1]).toBe(
+      "OGN-001,Unit Gear,common,unit / gear,Arcane,normal,normal,,,EN,1,,,,,,,",
+    );
   });
 
   it("escapes fields with commas", () => {
@@ -133,12 +151,12 @@ describe("generateExportCSV", () => {
     const lines = csv.split("\n");
     expect(lines).toHaveLength(4);
     expect(lines[1]).toBe(
-      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,2,near-mint,,,,,,",
+      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,,EN,2,near-mint,,,,,,",
     );
     expect(lines[2]).toBe(
-      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,played,,,Yes,,,",
+      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,,EN,1,played,,,Yes,,,",
     );
-    expect(lines[3]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,,,,,,");
+    expect(lines[3]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,,EN,1,,,,,,,");
   });
 
   it("exports grading, notes, and encoded links (ADR-038)", () => {
@@ -163,7 +181,7 @@ describe("generateExportCSV", () => {
     const csv = generateExportCSV([stack], copiesById);
     const lines = csv.split("\n");
     expect(lines[1]).toBe(
-      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1,,psa,9.5,,Pack fresh,From Worlds," +
+      "OGN-001,Regular Card,common,unit,Arcane,normal,normal,,,EN,1,,psa,9.5,,Pack fresh,From Worlds," +
         "https://example.com/a.jpg|Front; https://example.com/b.jpg",
     );
   });
@@ -245,7 +263,7 @@ describe("generatePiltoverArchiveCSV", () => {
     const promoMarker = { id: "m1", slug: "promo", label: "Promo", description: null };
     const overnumbered = makeStack({
       shortCode: "OGN-309",
-      artVariant: "overnumbered",
+      isOvernumbered: true,
       markers: [promoMarker],
     });
     const promoAltArt = makeStack({
@@ -264,7 +282,7 @@ describe("generatePiltoverArchiveCSV", () => {
   it("marks a signed printing in the variant label, as their export does", () => {
     const stack = makeStack({
       shortCode: "OGN-309*",
-      artVariant: "overnumbered",
+      isOvernumbered: true,
       isSigned: true,
     });
     const cells = generatePiltoverArchiveCSV([stack], LABELS).split("\n")[1].split(",");
@@ -313,7 +331,7 @@ describe("generatePiltoverArchiveCSV", () => {
       makeStack({
         shortCode: "OGN-309*",
         name: "Signed",
-        artVariant: "overnumbered",
+        isOvernumbered: true,
         isSigned: true,
         finish: "foil",
       }),
@@ -340,7 +358,7 @@ describe("generatePiltoverArchiveCSV", () => {
     });
     expect(byCode.get("OGN-004")).toMatchObject({ finish: "foil" });
     expect(byCode.get("OGN-089a")).toMatchObject({ finish: "foil", artVariant: "altart" });
-    expect(byCode.get("OGN-309*")).toMatchObject({ artVariant: "overnumbered" });
+    expect(byCode.get("OGN-309*")).toMatchObject({ isOvernumbered: true });
     expect(byCode.get("OGN-089b")).toMatchObject({ isPromo: true });
   });
 
@@ -425,13 +443,13 @@ describe("generateRiftManaCSV", () => {
     expect(lines[1].split(",")[9]).toBe("NM:1;LP:1");
   });
 
-  it("round-trips through the RiftMana import parser", () => {
+  it("round-trips through the RiftMana import parser, which has no overnumbered column", () => {
     const stacks = [
       makeStack({ shortCode: "OGN-001", name: "Plain", copyCount: 2 }),
       makeStack({ shortCode: "OGN-001", name: "Plain", finish: "foil" }),
       makeStack({ shortCode: "OGN-025", name: "Always foil", finish: "foil", rarity: "rare" }),
       makeStack({ shortCode: "OGN-079a", name: "Alt", artVariant: "altart" }),
-      makeStack({ shortCode: "OGN-123*", name: "Over", artVariant: "overnumbered" }),
+      makeStack({ shortCode: "OGN-123*", name: "Over", isOvernumbered: true }),
       makeStack({
         shortCode: "OGN-010",
         name: "Promo",
@@ -452,7 +470,7 @@ describe("generateRiftManaCSV", () => {
     // Always-foil rarity exports in the normal column; the importer infers foil.
     expect(byKey.get("OGN-025:foil")).toMatchObject({ quantity: 1 });
     expect(byKey.get("OGN-079a:normal")).toMatchObject({ artVariant: "altart" });
-    expect(byKey.get("OGN-123*:normal")).toMatchObject({ artVariant: "overnumbered" });
+    expect(byKey.get("OGN-123*:normal")?.isOvernumbered).toBeUndefined();
     expect(byKey.get("OGN-010:normal")).toMatchObject({ isPromo: true, language: "SC" });
   });
 
@@ -501,7 +519,7 @@ describe("generateRiftCoreCSV", () => {
     const lines = generateRiftCoreCSV(
       [
         makeStack({ shortCode: "OGN-030a", artVariant: "altart" }),
-        makeStack({ shortCode: "OGN-123*", artVariant: "overnumbered" }),
+        makeStack({ shortCode: "OGN-123*", isOvernumbered: true }),
       ],
       LABELS,
     ).split("\n");
@@ -517,13 +535,13 @@ describe("generateRiftCoreCSV", () => {
     expect(lines[2].split(",").slice(7, 11)).toEqual(["1", "0", "0", "1"]);
   });
 
-  it("round-trips through the RiftCore import parser", () => {
+  it("round-trips through the RiftCore import parser, which has no overnumbered column", () => {
     const stacks = [
       makeStack({ shortCode: "OGN-001", name: "Plain", copyCount: 2 }),
       makeStack({ shortCode: "OGN-001", name: "Plain", finish: "foil" }),
       makeStack({ shortCode: "OGN-025", name: "Always foil", finish: "foil", rarity: "rare" }),
       makeStack({ shortCode: "OGN-030a", name: "Alt", artVariant: "altart" }),
-      makeStack({ shortCode: "OGN-123*", name: "Over", artVariant: "overnumbered" }),
+      makeStack({ shortCode: "OGN-123*", name: "Over", isOvernumbered: true }),
     ];
     const result = parseImportData(generateRiftCoreCSV(stacks, LABELS));
 
@@ -538,7 +556,7 @@ describe("generateRiftCoreCSV", () => {
     // Always-foil rarity exports in the standard column; the importer infers foil.
     expect(byKey.get("OGN-025:foil")).toMatchObject({ quantity: 1 });
     expect(byKey.get("OGN-030a:normal")).toMatchObject({ artVariant: "altart" });
-    expect(byKey.get("OGN-123*:normal")).toMatchObject({ artVariant: "overnumbered" });
+    expect(byKey.get("OGN-123*:normal")?.isOvernumbered).toBeUndefined();
   });
 });
 

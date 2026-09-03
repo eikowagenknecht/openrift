@@ -981,7 +981,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
             rules: [
               {
                 kind: "wish",
-                filter: filters({ artVariantsExclude: ["overnumbered"] }),
+                filter: filters({ artVariantsExclude: ["altart"] }),
                 quantity: { mode: "fixed", n: 3 },
                 excludeIds: [],
               },
@@ -989,7 +989,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
           }),
         ],
       ],
-      // The seller offers a normal-art copy and an overnumbered copy of the
+      // The seller offers a normal-art copy and an alt-art copy of the
       // same card; only the normal-art one may satisfy the filtered want.
       listEntries: [
         [supplyEntry({ id: "e-s1", copyId: "cp-1" }), supplyEntry({ id: "e-s2", copyId: "cp-2" })],
@@ -1012,7 +1012,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
     const providers = providersWith({
       catalog: [
         makeCatalogPrinting("prt-1", "crd-1"),
-        makeCatalogPrinting("prt-2", "crd-1", { artVariant: "overnumbered" }),
+        makeCatalogPrinting("prt-2", "crd-1", { artVariant: "altart" }),
       ],
     });
     const repo = friendGroupMatchesRepo(makeDb(queues), providers);
@@ -1031,7 +1031,7 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
             rules: [
               {
                 kind: "wish",
-                filter: filters({ artVariantsExclude: ["overnumbered"] }),
+                filter: filters({ artVariantsExclude: ["altart"] }),
                 quantity: { mode: "playset", multiplier: 1 },
                 excludeIds: [],
                 netOwned: true,
@@ -1048,9 +1048,9 @@ describe("friendGroupMatchesRepo — dynamic rules (ADR-034)", () => {
     const providers = providersWith({
       catalog: [
         makeCatalogPrinting("prt-1", "crd-1"),
-        makeCatalogPrinting("prt-2", "crd-1", { artVariant: "overnumbered" }),
+        makeCatalogPrinting("prt-2", "crd-1", { artVariant: "altart" }),
       ],
-      // The viewer owns a full playset, but only in the excluded overnumbered
+      // The viewer owns a full playset, but only in the excluded alt-art
       // variant — the want must survive netting and still match.
       owned: {
         viewer: [1, 2, 3].map((index) =>

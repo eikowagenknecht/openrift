@@ -29,6 +29,7 @@ export function toVariantLabelPrinting(
     finish: printing.finish ?? WellKnown.finish.NORMAL,
     size: printing.size ?? WellKnown.cardSize.STANDARD,
     isSigned: printing.isSigned,
+    isOvernumbered: printing.isOvernumbered,
     markers: printing.markerSlugs.map((slug) => ({ slug, label: markerLabels[slug] })),
   };
 }

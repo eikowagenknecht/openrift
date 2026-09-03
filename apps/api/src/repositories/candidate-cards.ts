@@ -406,6 +406,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "rarity",
           "artVariant",
           "isSigned",
+          "isOvernumbered",
           "markerSlugs",
           "finish",
           "size",
@@ -441,6 +442,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "rarity"
         | "artVariant"
         | "isSigned"
+        | "isOvernumbered"
         | "markerSlugs"
         | "distributionChannelSlugs"
         | "finish"
@@ -479,6 +481,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.rarity",
           "ps.artVariant",
           "ps.isSigned",
+          "ps.isOvernumbered",
           "ps.markerSlugs",
           "ps.distributionChannelSlugs",
           "ps.finish",
@@ -840,6 +843,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "artVariant",
           "size",
           "isSigned",
+          "isOvernumbered",
           "flavorText",
           "printedRulesText",
           "printedEffectText",
@@ -1026,6 +1030,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         rarity: string | null;
         artVariant: string | null;
         isSigned: boolean;
+        isOvernumbered: boolean;
         markerSlugs: string[];
         finish: string;
       },
@@ -1041,6 +1046,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           rarity: target.rarity as Rarity | null,
           artVariant: target.artVariant as ArtVariant | null,
           isSigned: target.isSigned,
+          isOvernumbered: target.isOvernumbered,
           markerSlugs: target.markerSlugs,
           finish: target.finish as Finish,
           artist: ps.artist,

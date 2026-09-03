@@ -142,6 +142,7 @@ export async function acceptFavoritePrintingsForCard(
           rarity,
           artVariant: first.artVariant ?? WellKnown.artVariant.NORMAL,
           isSigned: first.isSigned ?? false,
+          isOvernumbered: first.isOvernumbered ?? false,
           markerSlugs: first.markerSlugs ?? [],
           distributionChannelSlugs: first.distributionChannelSlugs ?? [],
           finish,

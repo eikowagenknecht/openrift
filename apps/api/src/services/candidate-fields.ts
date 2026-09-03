@@ -147,6 +147,7 @@ export function buildCandidatePrintingFields(printing: IngestPrinting): Candidat
     rarity: printing.rarity,
     artVariant: printing.art_variant,
     isSigned: printing.is_signed,
+    isOvernumbered: printing.is_overnumbered,
     markerSlugs: [...printing.marker_slugs].toSorted(),
     distributionChannelSlugs: printing.distribution_channel_slugs,
     finish: printing.finish,

@@ -189,17 +189,10 @@ function scorePrintingProduct(
     ) {
       score += 60;
     }
-    if (
-      suffix.includes("overnumbered") &&
-      printing.artVariant === WellKnown.artVariant.OVERNUMBERED
-    ) {
+    if (suffix.includes("overnumbered") && printing.isOvernumbered) {
       score += 60;
     }
-    if (
-      suffix.includes("signature") &&
-      printing.isSigned &&
-      printing.artVariant === WellKnown.artVariant.OVERNUMBERED
-    ) {
+    if (suffix.includes("signature") && printing.isSigned && printing.isOvernumbered) {
       score += 60;
     }
   }

@@ -27,6 +27,7 @@ function printing(
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markerSlugs: [],
     finish: "normal",
     size: "standard",

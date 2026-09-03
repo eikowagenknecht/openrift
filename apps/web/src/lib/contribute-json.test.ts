@@ -35,6 +35,7 @@ function fullState(): ContributeFormState {
         rarity: "rare",
         artVariant: "normal",
         isSigned: false,
+        isOvernumbered: false,
         markerSlugs: [],
         distributionChannelSlugs: [],
         finish: "foil",

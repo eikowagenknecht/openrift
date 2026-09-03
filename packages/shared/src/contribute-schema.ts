@@ -63,6 +63,7 @@ export const contributionPrintingSchema = z
     rarity: printingFieldRules.rarity.nullable().optional(),
     art_variant: printingFieldRules.artVariant.nullable().optional(),
     is_signed: z.boolean().optional(),
+    is_overnumbered: z.boolean().optional(),
     marker_slugs: z.array(z.string().min(1)).optional(),
     distribution_channel_slugs: z.array(z.string().min(1)).optional(),
     finish: printingFieldRules.finish.nullable().optional(),

@@ -186,6 +186,7 @@ export interface PrintingsTable {
   /** FK → art_variants(slug) */
   artVariant: ArtVariant;
   isSigned: Generated<boolean>;
+  isOvernumbered: Generated<boolean>;
   /**
    * Sorted slug array maintained by trigger from `printing_markers`.
    * Empty array `{}` means "no markers" (regular printing).
@@ -2456,6 +2457,7 @@ export interface CandidatePrintingsTable {
   /** CHECK: <> '' */
   artVariant: string | null;
   isSigned: boolean | null;
+  isOvernumbered: boolean | null;
   markerSlugs: Generated<string[]>;
   /** Distribution channel slugs (events/products) applied to the accepted printing. */
   distributionChannelSlugs: Generated<string[]>;

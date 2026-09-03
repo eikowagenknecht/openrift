@@ -103,7 +103,7 @@ describe("rule presets", () => {
       ...EMPTY_CARD_FILTERS,
       sets: ["origins", "spirit-blossom"],
       isStandard: true,
-      artVariantsExclude: ["overnumbered"],
+      isOvernumbered: false,
       typesExclude: ["rune"],
       superTypesExclude: ["token"],
     });

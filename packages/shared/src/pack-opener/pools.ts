@@ -11,7 +11,6 @@ import type { PackPool, PackPrinting } from "./types.js";
 export function buildPool(printings: readonly PackPrinting[]): PackPool {
   const normalArt = WellKnown.artVariant.NORMAL;
   const altart = WellKnown.artVariant.ALTART;
-  const overnumbered = WellKnown.artVariant.OVERNUMBERED;
   const ultimate = WellKnown.artVariant.ULTIMATE;
   const normalFinish = WellKnown.finish.NORMAL;
   const foilFinish = WellKnown.finish.FOIL;
@@ -43,15 +42,17 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
     if (p.rarity === WellKnown.rarity.SHOWCASE) {
       if (p.isSigned) {
         pool.showcaseSigned.push(p);
+      } else if (p.isOvernumbered) {
+        // Ahead of alt art: a Showcase that is both pulls at the overnumbered
+        // rate, which is the rarer of the two.
+        pool.showcaseOvernumbered.push(p);
       } else if (p.artVariant === altart) {
         pool.showcaseAltart.push(p);
-      } else if (p.artVariant === overnumbered) {
-        pool.showcaseOvernumbered.push(p);
       }
       // Plain non-signed Showcase with art=normal is an edge case; ignore it.
       continue;
     }
-    if (p.isSigned) {
+    if (p.isSigned || p.isOvernumbered) {
       continue;
     }
     // Token-supertype cards (Sprite, Recruit) belong in the token slot, not the

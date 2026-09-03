@@ -294,7 +294,10 @@ function matchSingleEntry(
 
     // Try to find the specific printing within the matched card
     const finishMatches = langMatches.filter(
-      (printing) => printing.finish === entry.finish && printing.artVariant === entry.artVariant,
+      (printing) =>
+        printing.finish === entry.finish &&
+        printing.artVariant === entry.artVariant &&
+        (entry.isOvernumbered === undefined || printing.isOvernumbered === entry.isOvernumbered),
     );
 
     if (finishMatches.length === 1) {

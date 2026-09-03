@@ -121,6 +121,7 @@ export interface ScanReferenceRow {
   language: string;
   cardType: string;
   artVariant: string | null;
+  isOvernumbered: boolean;
   createdAt: Date;
   /**
    * Min/max serialized marker set over every active front printing sharing
@@ -192,6 +193,7 @@ const PRINTING_VIEW_COLUMNS = [
   "printingsOrdered.rarity",
   "printingsOrdered.artVariant",
   "printingsOrdered.isSigned",
+  "printingsOrdered.isOvernumbered",
   "printingsOrdered.finish",
   "printingsOrdered.size",
   "printingsOrdered.artist",
@@ -623,6 +625,7 @@ export function catalogRepo(db: Kysely<Database>) {
               concat_ws(
                 ' · ',
                 case when printings.art_variant <> ${WellKnown.artVariant.NORMAL} then av.label end,
+                case when printings.is_overnumbered then 'Overnumbered' end,
                 case when printings.finish <> ${WellKnown.finish.NORMAL} then fin.label end
               ),
               ''
@@ -834,6 +837,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "p.rarity",
           "p.artVariant",
           "p.isSigned",
+          "p.isOvernumbered",
           "p.finish",
           "p.size",
           "p.artist",
@@ -1052,6 +1056,7 @@ export function catalogRepo(db: Kysely<Database>) {
             "printings.language",
             "cards.type as cardType",
             "printings.artVariant",
+            "printings.isOvernumbered",
             "printingImages.createdAt",
             // Window aggregates run before distinctOn collapses the shared
             // images, so min/max span every printing sharing the render;

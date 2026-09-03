@@ -89,6 +89,7 @@ export const candidatePrintingResponseSchema = z
     rarity: z.string().nullable(),
     artVariant: z.string().nullable(),
     isSigned: z.boolean().nullable(),
+    isOvernumbered: z.boolean().nullable(),
     markerSlugs: z.array(z.string()),
     distributionChannelSlugs: z.array(z.string()),
     finish: z.string().nullable(),
@@ -161,6 +162,7 @@ export const adminPrintingResponseSchema = z
     rarity: z.string(),
     artVariant: z.string(),
     isSigned: z.boolean(),
+    isOvernumbered: z.boolean(),
     markerSlugs: z.array(z.string()),
     /** Flat list of channel slugs the printing is currently linked to. */
     distributionChannelSlugs: z.array(z.string()),

@@ -338,6 +338,7 @@ describe("candidateCardsRepo", () => {
       rarity: "rare",
       artVariant: "normal",
       isSigned: false,
+      isOvernumbered: false,
       markerSlugs: [],
       finish: "normal",
     };

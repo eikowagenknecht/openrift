@@ -97,8 +97,9 @@ Physical product variations of a game card (art, rarity, finish, etc.). One card
 | `short_code`          | text        | not null                                                                                                          |
 | `public_code`         | text        | not null                                                                                                          |
 | `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase)                                                                 |
-| `art_variant`         | text        | not null (normal, altart, overnumbered, ultimate)                                                                 |
+| `art_variant`         | text        | not null (normal, altart, ultimate)                                                                               |
 | `is_signed`           | boolean     | not null, default false                                                                                           |
+| `is_overnumbered`     | boolean     | not null, default false — collector number past the set's `printed_total`                                         |
 | `finish`              | text        | not null (normal, foil)                                                                                           |
 | `language`            | text        | not null, default 'EN'                                                                                            |
 | `marker_slugs`        | text[]      | not null, default '{}' — denormalized, sorted, GIN-indexed mirror of `printing_markers` (kept in sync by trigger) |

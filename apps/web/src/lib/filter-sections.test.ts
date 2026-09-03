@@ -22,6 +22,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     finishes: [],
     cardSizes: [],
     hasSigned: false,
+    hasOvernumbered: false,
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,

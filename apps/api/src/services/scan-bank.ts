@@ -31,6 +31,18 @@ const SCAN_MEDIA_DIR = join(MEDIA_DIR, "scan");
 /** Renders embedded per encoder call; above this the gain flattens. */
 const BUILD_BATCH = 8;
 
+/**
+ * Groups renders by artwork. Language is excluded, a null variant collapses to
+ * the empty string to match the dev catalogue's grouping, and an overnumbered
+ * print keys apart from the in-total one since it carries its own illustration.
+ * @returns The artwork key shared by every render of one illustration.
+ */
+export function scanArtKey(
+  row: Pick<ScanReferenceRow, "setSlug" | "name" | "artVariant" | "isOvernumbered">,
+): string {
+  return `${row.setSlug}|${row.name}|${row.artVariant ?? ""}|${row.isOvernumbered ? "over" : ""}`;
+}
+
 export interface ScanBankBuildResult {
   entryCount: number;
   /** Catalogued renders whose 400w file was missing or undecodable. */
@@ -156,9 +168,7 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
         // such an image carries no stamp evidence for disambiguation.
         markers: row.markersMin === row.markersMax ? row.markersMin : null,
       };
-      // Language deliberately excluded, and null variants collapse to the
-      // empty string to match the dev catalogue's artwork grouping exactly.
-      artKeys.set(row.imageId, `${row.setSlug}|${row.name}|${row.artVariant ?? ""}`);
+      artKeys.set(row.imageId, scanArtKey(row));
       vectors.push(embedded[i]);
       if (watermark === null || row.createdAt > watermark) {
         watermark = row.createdAt;

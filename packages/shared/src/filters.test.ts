@@ -15,7 +15,7 @@ import type { Card, CardFilters, EnumOrders, Printing } from "./types";
 const TEST_ORDERS: EnumOrders = {
   domains: ["fury", "calm", "mind", "body", "chaos", "order", "colorless"],
   rarities: ["common", "uncommon", "rare", "epic", "showcase"],
-  artVariants: ["normal", "altart", "overnumbered", "ultimate"],
+  artVariants: ["normal", "altart", "ultimate"],
   cardTypes: ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"],
   superTypes: ["basic", "champion", "signature", "token"],
   finishes: ["normal", "foil", "metal", "metal-deluxe"],
@@ -645,6 +645,26 @@ describe("filterCards", () => {
     const result = filterCards(withSigned, emptyFilters({ isSigned: true }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Signed Card");
+  });
+
+  // -- isOvernumbered filter --
+
+  it("filters by isOvernumbered independently of art variant", () => {
+    const withOvernumbered = [
+      makePrinting({ shortCode: "OGN-303a", isOvernumbered: true, artVariant: "altart" }),
+      makePrinting({ shortCode: "OGN-007a", isOvernumbered: false, artVariant: "altart" }),
+    ];
+    const result = filterCards(withOvernumbered, emptyFilters({ isOvernumbered: true }));
+    expect(result.map((p) => p.shortCode)).toEqual(["OGN-303a"]);
+  });
+
+  it("filters by isOvernumbered=false excluding overnumbered printings", () => {
+    const mixed = [
+      makePrinting({ shortCode: "OGN-303a", isOvernumbered: true }),
+      makePrinting({ shortCode: "OGN-007", isOvernumbered: false }),
+    ];
+    const result = filterCards(mixed, emptyFilters({ isOvernumbered: false }));
+    expect(result.map((p) => p.shortCode)).toEqual(["OGN-007"]);
   });
 
   // -- markers filter --
@@ -1933,6 +1953,19 @@ describe("getAvailableFilters", () => {
   it("computes hasSigned false when no signed printings", () => {
     const result = getAvailableFilters([makePrinting({ isSigned: false })]);
     expect(result.hasSigned).toBe(false);
+  });
+
+  it("computes hasOvernumbered when overnumbered printings exist", () => {
+    const result = getAvailableFilters([
+      makePrinting({ isOvernumbered: true }),
+      makePrinting({ isOvernumbered: false }),
+    ]);
+    expect(result.hasOvernumbered).toBe(true);
+  });
+
+  it("computes hasOvernumbered false when no overnumbered printings", () => {
+    const result = getAvailableFilters([makePrinting({ isOvernumbered: false })]);
+    expect(result.hasOvernumbered).toBe(false);
   });
 
   it("computes hasNonStandard true when a non-standard printing exists", () => {

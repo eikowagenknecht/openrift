@@ -21,7 +21,7 @@ FROM cards c
 JOIN printings p        ON p.card_id = c.id
 JOIN printing_images pi ON pi.printing_id = p.id AND pi.face = 'front' AND pi.is_active
 WHERE c.type = 'unit' AND p.rarity = 'common'
-  AND p.art_variant = 'normal' AND p.finish = 'normal'
+  AND p.art_variant = 'normal' AND NOT p.is_overnumbered AND p.finish = 'normal'
   AND p.language = 'EN'                     -- see alignment note
   AND c.power IS NULL                        -- "with power cost" => c.power IS NOT NULL
   AND EXISTS (SELECT 1 FROM card_domains d  WHERE d.card_id = c.id AND d.domain_slug = 'fury')
@@ -32,7 +32,7 @@ WHERE c.type = 'unit' AND p.rarity = 'common'
 
 - The canonical render is **744x1039** (`media/cards/<last-2-of-image_file_id>/<id>-full.webp`). Keep only files at exactly that size; some printings are `744x1040` (crop one row) and a few are off-resolution (skip).
 - **Filter `language='EN'`.** Mixed-language buckets inject CJK ghosts into the text and footer that survive stacking. As a bonus, EN renders tend to be exactly 744x1039.
-- Median tolerates up to ~50% contamination, so exclude full-art / alt-art / foil printings (their art bleeds over the frame and breaks "chrome is constant").
+- Median tolerates up to ~50% contamination, so exclude full-art / alt-art / overnumbered / foil printings (their art bleeds over the frame and breaks "chrome is constant"). Overnumbered is its own column since ADR-044, so `art_variant = 'normal'` no longer rules it out.
 
 ## 3. Reduce per region, by polarity
 

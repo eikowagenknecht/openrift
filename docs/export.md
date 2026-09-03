@@ -14,27 +14,28 @@ This document describes OpenRift's own format. The app can also export in Piltov
 
 ## Columns
 
-| #   | Header        | Description                                                            | Example values                                                    |
-| --- | ------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 1   | Card ID       | Unique printing identifier (`SET-NNN` + optional variant suffix)       | `OGN-001`, `OGN-030a`, `SFD-R01b`                                 |
-| 2   | Card Name     | Display name of the card                                               | `Blazing Scorcher`                                                |
-| 3   | Rarity        | Card rarity                                                            | `Common`, `Uncommon`, `Rare`, `Epic`, `Showcase`                  |
-| 4   | Type          | Card type(s), separated by `/` for multi-type cards                    | `Legend`, `Unit`, `Unit / Gear`, `Rune`, `Battlefield`            |
-| 5   | Domain        | Card domain(s), separated by `/` for multi-domain cards                | `Fury`, `Mind / Body`                                             |
-| 6   | Finish        | Card finish                                                            | `normal`, `foil`                                                  |
-| 7   | Art Variant   | Art variant type                                                       | `normal`, `altart`, `overnumbered`, `ultimate`                    |
-| 8   | Promo         | Promo/distribution marker slugs, joined with `+` (empty for non-promo) | `prerelease`, `judge+promo`                                       |
-| 9   | Language      | Printing language (uppercase catalog code)                             | `EN`, `FR`, `SC`                                                  |
-| 10  | Quantity      | Number of copies this row covers                                       | `1`, `3`                                                          |
-| 11  | Condition     | House condition slug (empty when unrecorded or graded)                 | `near-mint`, `light-played`, `poor`                               |
-| 12  | Grader        | Grading company slug, lowercase (empty when ungraded)                  | `psa`, `bgs`, `cgc`                                               |
-| 13  | Grade         | Numeric grade (set only together with Grader)                          | `9.5`, `10`                                                       |
-| 14  | Altered       | `Yes` when the copy is altered, empty otherwise                        | `Yes`                                                             |
-| 15  | Public Notes  | Free-text note visible to other users                                  | `Pack fresh`                                                      |
-| 16  | Private Notes | Free-text note visible only to the owner                               | `From Worlds side event`                                          |
-| 17  | Links         | `url\|label` entries joined by `; ` (label optional)                   | `https://example.com/front.jpg\|Front; https://example.com/b.jpg` |
+| #   | Header        | Description                                                              | Example values                                                    |
+| --- | ------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| 1   | Card ID       | Unique printing identifier (`SET-NNN` + optional variant suffix)         | `OGN-001`, `OGN-030a`, `SFD-R01b`                                 |
+| 2   | Card Name     | Display name of the card                                                 | `Blazing Scorcher`                                                |
+| 3   | Rarity        | Card rarity                                                              | `Common`, `Uncommon`, `Rare`, `Epic`, `Showcase`                  |
+| 4   | Type          | Card type(s), separated by `/` for multi-type cards                      | `Legend`, `Unit`, `Unit / Gear`, `Rune`, `Battlefield`            |
+| 5   | Domain        | Card domain(s), separated by `/` for multi-domain cards                  | `Fury`, `Mind / Body`                                             |
+| 6   | Finish        | Card finish                                                              | `normal`, `foil`                                                  |
+| 7   | Art Variant   | Art variant type                                                         | `normal`, `altart`, `ultimate`                                    |
+| 8   | Overnumbered  | `Yes` when the collector number runs past the set total, empty otherwise | `Yes`                                                             |
+| 9   | Promo         | Promo/distribution marker slugs, joined with `+` (empty for non-promo)   | `prerelease`, `judge+promo`                                       |
+| 10  | Language      | Printing language (uppercase catalog code)                               | `EN`, `FR`, `SC`                                                  |
+| 11  | Quantity      | Number of copies this row covers                                         | `1`, `3`                                                          |
+| 12  | Condition     | House condition slug (empty when unrecorded or graded)                   | `near-mint`, `light-played`, `poor`                               |
+| 13  | Grader        | Grading company slug, lowercase (empty when ungraded)                    | `psa`, `bgs`, `cgc`                                               |
+| 14  | Grade         | Numeric grade (set only together with Grader)                            | `9.5`, `10`                                                       |
+| 15  | Altered       | `Yes` when the copy is altered, empty otherwise                          | `Yes`                                                             |
+| 16  | Public Notes  | Free-text note visible to other users                                    | `Pack fresh`                                                      |
+| 17  | Private Notes | Free-text note visible only to the owner                                 | `From Worlds side event`                                          |
+| 18  | Links         | `url\|label` entries joined by `; ` (label optional)                     | `https://example.com/front.jpg\|Front; https://example.com/b.jpg` |
 
-Columns 11–17 carry per-copy metadata. Condition and grading are mutually exclusive: a graded row has Grader + Grade and an empty Condition. All seven are empty when no metadata is recorded — older exports without these columns still import fine.
+Columns 12–18 carry per-copy metadata. Condition and grading are mutually exclusive: a graded row has Grader + Grade and an empty Condition. All seven are empty when no metadata is recorded — older exports without these columns still import fine. An export written before the Overnumbered column carried the value as an `overnumbered` art variant; the importer still reads that.
 
 ## Card ID format
 
@@ -48,7 +49,8 @@ The Card ID is the printing's `shortCode`. The general structure is:
 - **NUMBER**: Three-digit card number (e.g., `001`, `030`); special printings
   carry a letter prefix instead (`R01` for runes, `T01` for tokens)
 - **variant suffix**: Lowercase letter for alt art (`a`, `b`, etc.) or `*` for
-  star variants
+  signed printings. Neither says whether the printing is overnumbered — the
+  number does, against the set total, so that rides its own column.
 
 The Card ID carries **no finish information**: a foil and a normal copy of the
 same printing share one Card ID and are split into separate rows by the
@@ -58,16 +60,18 @@ Examples:
 
 - `OGN-001` — Origins #001, normal art
 - `OGN-030a` — Origins #030, alt art variant
+- `OGN-303a` — Origins #303, alt art and overnumbered (the set prints 298)
 - `SFD-R01b` — a rune printing, second alt art
 
 ## Example
 
 ```csv
-Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity,Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links
-OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,EN,3,near-mint,,,,,,
-OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,EN,1,,psa,9.5,,Pack fresh,,https://example.com/slab.jpg|Slab
-OGN-004,Cleave,Common,Unit,Fury,foil,normal,,EN,1,,,,,,,
-OGN-030a,Emberclaw Champion,Rare,Unit,Fury / Mind,normal,altart,prerelease,EN,1,,,,Yes,,,
+Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Language,Quantity,Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links
+OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,,EN,3,near-mint,,,,,,
+OGN-001,Blazing Scorcher,Common,Unit,Fury,normal,normal,,,EN,1,,psa,9.5,,Pack fresh,,https://example.com/slab.jpg|Slab
+OGN-004,Cleave,Common,Unit,Fury,foil,normal,,,EN,1,,,,,,,
+OGN-030a,Emberclaw Champion,Rare,Unit,Fury / Mind,normal,altart,,prerelease,EN,1,,,,Yes,,,
+OGN-303a,Jinx Loose Cannon,Showcase,Unit,Fury / Chaos,foil,altart,Yes,,EN,1,,,,,,,
 ```
 
 ## Escaping

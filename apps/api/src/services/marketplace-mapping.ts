@@ -49,6 +49,7 @@ export function buildCardIndex(
     setName: string;
     artVariant: string;
     isSigned: boolean;
+    isOvernumbered: boolean;
     markerSlugs: string[];
     finish: string;
     size: string;
@@ -95,6 +96,7 @@ export function buildCardIndex(
       rarity: row.rarity,
       artVariant: row.artVariant,
       isSigned: row.isSigned,
+      isOvernumbered: row.isOvernumbered,
       markerSlugs: [...(row.markerSlugs ?? [])],
       finish: row.finish,
       size: row.size,

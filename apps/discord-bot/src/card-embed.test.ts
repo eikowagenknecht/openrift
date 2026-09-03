@@ -28,13 +28,14 @@ function snapshotWithPrices(prices = makePricesResponse()) {
 const LABELS = snapshotWithPrices().labels;
 
 describe("fallbackArtDifferences", () => {
-  it("mirrors the site's badge order: language, markers, art variant, signed, finish", () => {
+  it("mirrors the site's badge order: language, markers, art variant, overnumbered, signed, finish", () => {
     const printing = makePrinting({
       id: "p-noimg",
       images: [],
       language: "DE",
       markers: [{ id: "m1", slug: "promo", label: "Promo", description: null }],
       artVariant: "altart",
+      isOvernumbered: true,
       isSigned: true,
       finish: "metal",
     });
@@ -43,6 +44,7 @@ describe("fallbackArtDifferences", () => {
       "EN",
       "Promo",
       "Alt Art",
+      "Overnumbered",
       "Signed",
       "Metal",
     ]);

@@ -32,6 +32,7 @@ const plan: DeckBoxPlan = {
           finish: "standard",
           size: "standard",
           isSigned: false,
+          isOvernumbered: false,
           markers: [],
         },
       ],

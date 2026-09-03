@@ -115,6 +115,7 @@ describe("catalogMutationsRepo", () => {
       rarity: "rare",
       artVariant: "normal",
       isSigned: false,
+      isOvernumbered: false,
       markerSlugs: [],
       finish: "normal",
       size: "standard",

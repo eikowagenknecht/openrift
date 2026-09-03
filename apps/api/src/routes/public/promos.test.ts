@@ -76,6 +76,7 @@ const dbPrinting = {
   rarity: "Epic",
   artVariant: "normal",
   isSigned: false,
+  isOvernumbered: false,
   markerSlugs: [],
   finish: "foil",
   size: "standard",

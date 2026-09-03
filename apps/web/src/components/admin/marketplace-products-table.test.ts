@@ -24,6 +24,7 @@ function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappi
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markerSlugs: [],
     finish: "normal",
     size: "standard",

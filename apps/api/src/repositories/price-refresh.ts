@@ -65,6 +65,7 @@ export function priceRefreshRepo(db: Db) {
           "finish",
           "artVariant",
           "isSigned",
+          "isOvernumbered",
           "language",
           "markerSlugs",
         ])

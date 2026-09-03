@@ -75,6 +75,7 @@ const EMPTY_FACETS: AvailableFiltersWire = {
   finishes: [],
   cardSizes: [],
   hasSigned: false,
+  hasOvernumbered: false,
   keywords: [],
   tags: [],
   hasNonStandard: false,

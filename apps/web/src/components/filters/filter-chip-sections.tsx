@@ -62,6 +62,7 @@ export function FilterChipSections({
     setArrayFilter,
     cycleArrayFilter,
     toggleSigned,
+    toggleOvernumbered,
     cyclePresence,
     toggleBanned,
     toggleErrata,
@@ -101,13 +102,12 @@ export function FilterChipSections({
   const showKeywords = shows("keywords");
   const showOwned = shows("owned");
   const showOversize = shows("cardSizes");
-  // Signed belongs to the Variant unit; it only renders here when the Art
-  // Variant badge section (its preferred host) isn't shown in the same host.
   const showSigned = shows("signed") && !shows("artVariants");
+  const showOvernumbered = shows("overnumbered") && !shows("artVariants");
   const showBanned = shows("banned");
   const showErrata = shows("errata");
   const showStandard = shows("standard");
-  const showFlags = showSigned || showBanned || showErrata;
+  const showFlags = showOvernumbered || showSigned || showBanned || showErrata;
 
   if (
     !showStandard &&
@@ -299,6 +299,15 @@ export function FilterChipSections({
       label: "Flags",
       node: (
         <>
+          {showOvernumbered && (
+            <FlagBadge
+              label="Overnumbered"
+              state={filterState.overnumbered}
+              count={filterCounts?.flags.overnumbered}
+              onClick={toggleOvernumbered}
+              triggerStyle={triggerStyle}
+            />
+          )}
           {showSigned && (
             <FlagBadge
               label="Signed"

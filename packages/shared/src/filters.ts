@@ -488,6 +488,7 @@ export function filterCards(
         overlaps(filters.tags, card.tags) &&
         matchesFlag(filters.isStandard, isStandardPrinting(printing)) &&
         matchesFlag(filters.isSigned, printing.isSigned) &&
+        matchesFlag(filters.isOvernumbered, printing.isOvernumbered) &&
         matchesRange(card.energy, filters.energy) &&
         matchesRange(card.might, filters.might) &&
         matchesRange(card.power, filters.power) &&
@@ -582,6 +583,7 @@ export interface AvailableFilters {
   finishes: string[];
   cardSizes: string[];
   hasSigned: boolean;
+  hasOvernumbered: boolean;
   hasNonStandard: boolean;
   hasBanned: boolean;
   hasErrata: boolean;
@@ -676,6 +678,7 @@ export function getAvailableFilters(
   const power = { min: Infinity, max: -Infinity, any: false } as BoundsAcc;
   const price = { min: Infinity, max: -Infinity, any: false } as BoundsAcc;
   let hasSigned = false;
+  let hasOvernumbered = false;
   let hasNonStandard = false;
   let hasBanned = false;
   let hasErrata = false;
@@ -713,6 +716,9 @@ export function getAvailableFilters(
     }
     if (printing.isSigned) {
       hasSigned = true;
+    }
+    if (printing.isOvernumbered) {
+      hasOvernumbered = true;
     }
     if (!hasNonStandard && !isStandardPrinting(printing)) {
       hasNonStandard = true;
@@ -771,6 +777,7 @@ export function getAvailableFilters(
     finishes: [...finishSet].sort(byOrder(orders.finishes)),
     cardSizes: [...cardSizeSet].sort(byOrder(orders.cardSizes)),
     hasSigned,
+    hasOvernumbered,
     hasNonStandard,
     hasBanned,
     hasErrata,
@@ -811,6 +818,7 @@ export interface FilterCounts {
    */
   flags: {
     signed: number;
+    overnumbered: number;
     banned: number;
     errata: number;
     standard: number;
@@ -961,11 +969,12 @@ const NO_VALUES = (): readonly string[] => EMPTY_STRINGS;
 
 interface FlagDimension {
   key: keyof FilterCounts["flags"];
-  filterField: "isSigned" | "isBanned" | "hasErrata" | "isStandard";
+  filterField: "isSigned" | "isOvernumbered" | "isBanned" | "hasErrata" | "isStandard";
 }
 
 const FLAG_DIMENSIONS: readonly FlagDimension[] = [
   { key: "signed", filterField: "isSigned" },
+  { key: "overnumbered", filterField: "isOvernumbered" },
   { key: "banned", filterField: "isBanned" },
   { key: "errata", filterField: "hasErrata" },
   { key: "standard", filterField: "isStandard" },
@@ -1008,6 +1017,7 @@ const ATOM = {
   might: 1 << 25,
   power: 1 << 26,
   price: 1 << 27,
+  isOvernumbered: 1 << 28,
 } as const;
 
 const DIMENSION_CLEARS: Record<CountableDimension["key"], number> = {
@@ -1043,6 +1053,7 @@ const PRESENCE_CLEARS: Record<PresenceDimension, number> = {
 const FLAG_CLEARS: Record<FlagDimension["key"], number> = {
   standard: ATOM.isStandard,
   signed: ATOM.isSigned,
+  overnumbered: ATOM.isOvernumbered,
   banned: ATOM.isBanned,
   errata: ATOM.hasErrata,
 };
@@ -1163,6 +1174,7 @@ export function computeFilterCounts(
   }));
   const flagCounters = {
     signed: makeCounter(byCard),
+    overnumbered: makeCounter(byCard),
     banned: makeCounter(byCard),
     errata: makeCounter(byCard),
     standard: makeCounter(byCard),
@@ -1173,6 +1185,7 @@ export function computeFilterCounts(
   const flagTargets = {
     standard: filters.isStandard !== false,
     signed: filters.isSigned !== false,
+    overnumbered: filters.isOvernumbered !== false,
     banned: filters.isBanned !== false,
     errata: filters.hasErrata !== false,
   };
@@ -1368,6 +1381,9 @@ export function computeFilterCounts(
     if (filters.isSigned !== null && filters.isSigned !== printing.isSigned) {
       fail |= ATOM.isSigned;
     }
+    if (filters.isOvernumbered !== null && filters.isOvernumbered !== printing.isOvernumbered) {
+      fail |= ATOM.isOvernumbered;
+    }
     if (filters.isBanned !== null && filters.isBanned !== isBanned) {
       fail |= ATOM.isBanned;
     }
@@ -1450,9 +1466,11 @@ export function computeFilterCounts(
             ? isStandard
             : key === "signed"
               ? printing.isSigned
-              : key === "banned"
-                ? isBanned
-                : hasErrata;
+              : key === "overnumbered"
+                ? printing.isOvernumbered
+                : key === "banned"
+                  ? isBanned
+                  : hasErrata;
         if (actual === flagTargets[key]) {
           bumpCounter(flagCounters[key], cardIndex);
         }
@@ -1510,6 +1528,7 @@ export function computeFilterCounts(
   const result = {
     flags: {
       signed: readCounter(flagCounters.signed),
+      overnumbered: readCounter(flagCounters.overnumbered),
       banned: readCounter(flagCounters.banned),
       errata: readCounter(flagCounters.errata),
       standard: readCounter(flagCounters.standard),

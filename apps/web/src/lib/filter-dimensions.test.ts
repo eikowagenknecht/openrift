@@ -28,6 +28,7 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     finishes: [],
     cardSizes: [],
     hasSigned: false,
+    hasOvernumbered: false,
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,
@@ -71,6 +72,7 @@ const EMPTY_STATE = {
   finishes: [],
   finishesEx: [],
   signed: null,
+  overnumbered: null,
   standard: null,
   energyMin: null,
   energyMax: null,
@@ -222,6 +224,13 @@ describe("activeFilterDimensionLabels", () => {
     ).toEqual(["−Banned"]);
   });
 
+  it("names the overnumbered flag inside the Variant unit", () => {
+    expect(
+      activeFilterDimensionLabels(state({ overnumbered: false }), IDENTITY_LABELS, everything),
+    ).toEqual(["−Overnumbered"]);
+    expect(countActiveFilterDimensions(state({ overnumbered: true }), everything)).toBe(1);
+  });
+
   it("names a presence toggle by its trait, negated for none", () => {
     expect(
       activeFilterDimensionLabels(state({ tagsPresence: "none" }), IDENTITY_LABELS, everything),
@@ -264,6 +273,15 @@ describe("visibleFilterDimensions", () => {
       }),
     };
     expect(visibleFilterDimensions(withMarkers)).toContain("markers");
+  });
+
+  it("admits the Overnumbered axis once an overnumbered printing is available", () => {
+    expect(visibleFilterDimensions(AVAILABILITY)).not.toContain("overnumbered");
+    const withOvernumbered = {
+      ...AVAILABILITY,
+      availableFilters: makeAvailable({ hasOvernumbered: true }),
+    };
+    expect(visibleFilterDimensions(withOvernumbered)).toContain("overnumbered");
   });
 
   it("needs two languages before the Language axis applies", () => {

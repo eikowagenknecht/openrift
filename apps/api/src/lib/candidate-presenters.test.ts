@@ -36,6 +36,7 @@ const PRINTING_ROW: CandidatePrintingRow = {
   rarity: "epic",
   artVariant: "alternate",
   isSigned: false,
+  isOvernumbered: false,
   markerSlugs: ["foil-stamp"],
   distributionChannelSlugs: ["prerelease"],
   finish: "foil",

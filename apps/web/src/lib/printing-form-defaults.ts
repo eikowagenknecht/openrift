@@ -18,6 +18,7 @@ export interface PrintingFormDefaults {
   finish: string;
   size: string;
   isSigned: boolean;
+  isOvernumbered: boolean;
   markerSlugs: string[];
   distributionChannelSlugs: string[];
   artist: string;
@@ -56,6 +57,7 @@ export function printingFormDefaults(
     finish: source?.finish ?? fallbacks.finish,
     size: source?.size ?? fallbacks.size,
     isSigned: source?.isSigned ?? false,
+    isOvernumbered: source?.isOvernumbered ?? false,
     markerSlugs: source?.markerSlugs ?? [],
     distributionChannelSlugs: source?.distributionChannelSlugs ?? [],
     artist: source?.artist ?? "",

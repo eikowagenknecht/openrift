@@ -231,6 +231,7 @@ export function findDerivedArtPrinting(
     rarity: p.rarity,
     artVariant: p.artVariant,
     isSigned: p.isSigned,
+    isOvernumbered: p.isOvernumbered,
     finish: p.finish,
     markers: p.markerSlugs.map((slug) => ({ id: slug, slug, label: slug, description: null })),
     images: printingImages

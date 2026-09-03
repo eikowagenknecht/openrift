@@ -17,6 +17,7 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markers: [],
     distributionChannels: [],
     finish: "normal",
@@ -266,6 +267,38 @@ describe("matchEntries — multi-marker promo slugs", () => {
     const results = matchEntries(entries, [singleMarkerPromo, multiMarkerPromo]);
     expect(results[0].status).toBe("needs-review");
     expect(results[0].candidates).toHaveLength(2);
+  });
+});
+
+describe("matchEntries — overnumbered flag on a name match", () => {
+  const inTotal = makePrinting({ id: "in-total", shortCode: "OGN-100" });
+  const overnumbered = makePrinting({
+    id: "overnumbered",
+    shortCode: "OGN-300",
+    isOvernumbered: true,
+  });
+  const both = [inTotal, overnumbered];
+
+  it("picks the overnumbered printing when the source says so", () => {
+    const entries = [makeEntry({ sourceCode: "", isOvernumbered: true })];
+    const results = matchEntries(entries, both);
+    expect(results[0].resolvedPrinting?.id).toBe("overnumbered");
+  });
+
+  it("picks the in-total printing when the source rules overnumbering out", () => {
+    const entries = [makeEntry({ sourceCode: "", isOvernumbered: false })];
+    const results = matchEntries(entries, both);
+    expect(results[0].resolvedPrinting?.id).toBe("in-total");
+  });
+
+  it("leaves both as candidates when the source does not say", () => {
+    const entries = [makeEntry({ sourceCode: "" })];
+    const results = matchEntries(entries, both);
+    expect(results[0].resolvedPrinting).toBeNull();
+    expect(results[0].candidates.map((printing) => printing.id)).toEqual([
+      "in-total",
+      "overnumbered",
+    ]);
   });
 });
 

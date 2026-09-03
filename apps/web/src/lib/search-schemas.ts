@@ -77,6 +77,7 @@ export const filterSearchSchema = z.object({
   ownedCountMax: numberField(),
   owned: ownedFilter(),
   signed: boolFlag(),
+  overnumbered: boolFlag(),
   // Generic presence (any/none) params, one per PRESENCE_DIMENSIONS entry.
   // `markersPresence` supersedes the old `promo` boolean flag.
   markersPresence: presenceField(),

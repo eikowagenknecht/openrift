@@ -97,6 +97,7 @@ function buildFixture() {
       rarity: pick(RARITIES, r),
       artVariant: pick(ART_VARIANTS, r),
       isSigned: r() > 0.9,
+      isOvernumbered: false,
       markers: [],
       distributionChannels: [],
       finish: pick(FINISHES, r),

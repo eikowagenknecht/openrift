@@ -51,6 +51,7 @@ export function ActiveFilters({
     setRange,
     setOwnedCountRange,
     clearSigned,
+    clearOvernumbered,
     clearPresence,
     clearBanned,
     clearErrata,
@@ -344,6 +345,7 @@ export function ActiveFilters({
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
     copiesRangeActive ||
     filterState.signed !== null ||
+    filterState.overnumbered !== null ||
     presenceChips.some(([, value]) => value !== null) ||
     filterState.banned !== null ||
     filterState.errata !== null ||
@@ -532,6 +534,13 @@ export function ActiveFilters({
             availableMin={0}
             availableMax={ownedCountMax ?? 0}
             onClear={() => setOwnedCountRange(null, null)}
+          />
+        )}
+        {filterState.overnumbered !== null && (
+          <FlagChip
+            label="Overnumbered"
+            state={filterState.overnumbered}
+            onClear={clearOvernumbered}
           />
         )}
         {filterState.signed !== null && (

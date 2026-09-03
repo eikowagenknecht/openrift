@@ -21,6 +21,7 @@ function stub(overrides: Partial<VariantLabelPrinting> = {}): VariantLabelPrinti
     finish: "normal",
     size: "standard",
     isSigned: false,
+    isOvernumbered: false,
     markers: [],
     ...overrides,
   };
@@ -49,6 +50,17 @@ describe("formatPrintingVariantLabel", () => {
       finishes: { ...TEST_LABELS.finishes, metal: "Metal" },
     };
     expect(formatPrintingVariantLabel(stub({ finish: "metal" }), undefined, labels)).toBe("Metal");
+  });
+
+  it("labels an overnumbered printing even without an in-total sibling", () => {
+    expect(formatPrintingVariantLabel(stub({ isOvernumbered: true }), undefined, TEST_LABELS)).toBe(
+      "Overnumbered",
+    );
+  });
+
+  it("labels alt art and overnumbered together", () => {
+    const p = stub({ artVariant: "altart", isOvernumbered: true });
+    expect(formatPrintingVariantLabel(p, undefined, TEST_LABELS)).toBe("Alt Art · Overnumbered");
   });
 
   it("labels an oversized printing even without a standard sibling", () => {

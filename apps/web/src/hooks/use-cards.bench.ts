@@ -92,6 +92,7 @@ function buildFixture(): Printing[] {
       rarity: pick(RARITIES, r),
       artVariant: pick(ART_VARIANTS, r),
       isSigned: false,
+      isOvernumbered: false,
       markers: [],
       distributionChannels: [],
       finish: pick(FINISHES, r),

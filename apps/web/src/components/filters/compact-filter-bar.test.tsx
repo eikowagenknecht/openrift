@@ -233,6 +233,7 @@ function makeAvailable(): AvailableFilters {
     finishes: [],
     cardSizes: [],
     hasSigned: false,
+    hasOvernumbered: false,
     hasNonStandard: false,
     hasBanned: false,
     hasErrata: false,

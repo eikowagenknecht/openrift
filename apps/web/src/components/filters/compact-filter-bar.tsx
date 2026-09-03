@@ -592,17 +592,12 @@ export function CompactFilterBar({
       />
     ) : null;
 
-  // Art Variant, Finish, and Signed are all printing-variant axes, so they share
-  // one "Variant" dropdown to keep the bar from crowding. Each section only
-  // appears when it has content; the menu shows whenever any of them does.
   const showArtVariantSection = shows("artVariants");
   const showFinishSection = shows("finishes");
   const showVariantMenu = showArtVariantSection || showFinishSection;
 
-  // Signed rides in the Variant dropdown when the Art Variant section is present
-  // (mirroring the expanded panel); otherwise it renders as a flag chip / More
-  // row wherever the Variant unit lives (see FilterChipSections).
   const signedInVariantMenu = shows("signed") && showArtVariantSection;
+  const overnumberedInVariantMenu = shows("overnumbered") && showArtVariantSection;
 
   // Stats: the printed gameplay sliders only (Energy/Might/Power, always shown
   // unless hidden). Price and Copies are value/collection ranges under their
@@ -718,6 +713,7 @@ export function CompactFilterBar({
             filterCounts={filterCounts}
             showArtVariant={showArtVariantSection}
             showFinish={showFinishSection}
+            showOvernumberedFlag={overnumberedInVariantMenu}
             showSignedFlag={signedInVariantMenu}
             // Grouped Variant dropdown is short; size it to its content and
             // only scroll when the viewport is tight, like a menu.

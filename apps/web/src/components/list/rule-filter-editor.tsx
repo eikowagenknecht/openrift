@@ -271,27 +271,29 @@ export function RuleFilterEditor({
               patch({ [includeKey]: next.included, [excludeKey]: next.excluded });
             }}
             flagPosition="top"
-            flag={
+            flags={
               presenceDimension
-                ? {
-                    label: PRESENCE_LABELS[presenceDimension],
-                    state: presenceToFlagState(presenceState ?? null),
-                    onToggle: () => {
-                      const cycled = cycleIncludeExclude(
-                        presenceState === "any" ? ["1"] : [],
-                        presenceState === "none" ? ["1"] : [],
-                        "1",
-                      );
-                      patchPresence(
-                        presenceDimension,
-                        cycled.included.length > 0
-                          ? "any"
-                          : cycled.excluded.length > 0
-                            ? "none"
-                            : undefined,
-                      );
+                ? [
+                    {
+                      label: PRESENCE_LABELS[presenceDimension],
+                      state: presenceToFlagState(presenceState ?? null),
+                      onToggle: () => {
+                        const cycled = cycleIncludeExclude(
+                          presenceState === "any" ? ["1"] : [],
+                          presenceState === "none" ? ["1"] : [],
+                          "1",
+                        );
+                        patchPresence(
+                          presenceDimension,
+                          cycled.included.length > 0
+                            ? "any"
+                            : cycled.excluded.length > 0
+                              ? "none"
+                              : undefined,
+                        );
+                      },
                     },
-                  }
+                  ]
                 : undefined
             }
           />
@@ -608,6 +610,14 @@ export function RuleFilterEditor({
         label: channel.label,
       })),
       "distributionChannels",
+    ),
+    flag(
+      "overnumbered",
+      "Overnumbered",
+      "Overnumbered",
+      "isOvernumbered",
+      "printing",
+      available.hasOvernumbered,
     ),
     flag("signed", "Signed", "Signed", "isSigned", "printing", available.hasSigned),
     priceEntry,

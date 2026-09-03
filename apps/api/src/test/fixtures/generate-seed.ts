@@ -154,7 +154,7 @@ const cardDomains = await sql<Record<string, unknown>[]>`
 
 const printings = await sql<Record<string, unknown>[]>`
   SELECT p.id, p.card_id, p.set_id, p.short_code, p.rarity,
-    p.art_variant, p.is_signed, p.finish, p.artist, p.public_code,
+    p.art_variant, p.is_signed, p.is_overnumbered, p.finish, p.artist, p.public_code,
     p.printed_rules_text, p.printed_effect_text, p.flavor_text, p.comment,
     p.marker_slugs, p.language, p.printed_name, p.printed_year
   FROM printings p

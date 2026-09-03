@@ -92,6 +92,7 @@ export function CreatePrintingPage({
   const [finish, setFinish] = useState<string>(defaults.finish);
   const [size, setSize] = useState<string>(defaults.size);
   const [isSigned, setIsSigned] = useState(defaults.isSigned);
+  const [isOvernumbered, setIsOvernumbered] = useState(defaults.isOvernumbered);
   const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>(defaults.markerSlugs);
   const [selectedChannelSlugs, setSelectedChannelSlugs] = useState<string[]>(
     defaults.distributionChannelSlugs,
@@ -130,6 +131,7 @@ export function CreatePrintingPage({
       rarity,
       artVariant,
       isSigned,
+      isOvernumbered,
       finish,
       size,
       artist: artist.trim(),
@@ -318,6 +320,14 @@ export function CreatePrintingPage({
                   onCheckedChange={setIsSigned}
                 />
                 <FieldLabel htmlFor="create-printing-signed">Signed</FieldLabel>
+              </Field>
+              <Field orientation="horizontal" className="sm:col-start-3 sm:self-end">
+                <Checkbox
+                  id="create-printing-overnumbered"
+                  checked={isOvernumbered}
+                  onCheckedChange={setIsOvernumbered}
+                />
+                <FieldLabel htmlFor="create-printing-overnumbered">Overnumbered</FieldLabel>
               </Field>
             </div>
 

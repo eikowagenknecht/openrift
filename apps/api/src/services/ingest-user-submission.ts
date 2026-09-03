@@ -74,6 +74,7 @@ export function buildUserSubmissionCard(
       rarity: printing.rarity ?? null,
       art_variant: printing.art_variant ?? null,
       is_signed: printing.is_signed ?? false,
+      is_overnumbered: printing.is_overnumbered ?? false,
       marker_slugs: printing.marker_slugs ?? [],
       distribution_channel_slugs: printing.distribution_channel_slugs ?? [],
       finish: printing.finish ?? null,

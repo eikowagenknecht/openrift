@@ -169,6 +169,7 @@ export function searchToFilters(search: FilterSearch) {
     finishes: (search.finishes ?? []) as Finish[],
     cardSizes: (search.cardSizes ?? []) as CardSize[],
     isSigned: search.signed ?? null,
+    isOvernumbered: search.overnumbered ?? null,
     presence: presenceFromSearch(search),
     markerSlugs: search.markers ?? [],
     distributionChannelSlugs: search.channels ?? [],
@@ -276,6 +277,7 @@ export interface FilterCountsWire {
   tags: CountMapWire;
   flags: {
     signed: number;
+    overnumbered: number;
     banned: number;
     errata: number;
     standard: number;
@@ -305,6 +307,7 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
     tags: Object.fromEntries(counts.tags),
     flags: {
       signed: counts.flags.signed,
+      overnumbered: counts.flags.overnumbered,
       banned: counts.flags.banned,
       errata: counts.flags.errata,
       standard: counts.flags.standard,

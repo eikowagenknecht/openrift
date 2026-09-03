@@ -176,6 +176,9 @@ export function fallbackArtDifferences(
   if (artVariant !== WellKnown.artVariant.NORMAL) {
     tags.push(labels.artVariants[artVariant]);
   }
+  if (printing.isOvernumbered) {
+    tags.push("Overnumbered");
+  }
   if (printing.isSigned) {
     tags.push("Signed");
   }

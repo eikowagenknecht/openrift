@@ -43,12 +43,37 @@ describe("parseImportData — OpenRift format", () => {
     expect(entry.sourceCode).toBe("OGN-079a");
   });
 
-  it("handles overnumbered variant", () => {
+  it("reads the Overnumbered column", () => {
+    const headerWithOver =
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Quantity";
+    const csv = `${headerWithOver}\nOGN-123*,Rare Beast,Showcase,Unit,Nature,foil,normal,Yes,,2`;
+    const result = parseImportData(csv);
+    const entry = result.entries[0];
+    expect(entry.isOvernumbered).toBe(true);
+    expect(entry.artVariant).toBe("normal");
+    expect(entry.sourceCode).toBe("OGN-123*");
+  });
+
+  it("reads an empty Overnumbered cell as not overnumbered", () => {
+    const headerWithOver =
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Quantity";
+    const csv = `${headerWithOver}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,,1`;
+    expect(parseImportData(csv).entries[0].isOvernumbered).toBe(false);
+  });
+
+  it("reads a pre-column export's `overnumbered` art variant as the flag", () => {
     const csv = `${header}\nOGN-123*,Rare Beast,Showcase,Unit,Nature,foil,overnumbered,,2`;
     const result = parseImportData(csv);
     const entry = result.entries[0];
-    expect(entry.artVariant).toBe("overnumbered");
-    expect(entry.sourceCode).toBe("OGN-123*");
+    expect(entry.isOvernumbered).toBe(true);
+    expect(entry.artVariant).toBe("normal");
+  });
+
+  it("leaves the flag unset for a pre-column export row not typed overnumbered", () => {
+    const csv = `${header}\nUNL-238,Baron Nashor,Showcase,Unit,Chaos,foil,ultimate,,1`;
+    const entry = parseImportData(csv).entries[0];
+    expect(entry.isOvernumbered).toBeUndefined();
+    expect(entry.artVariant).toBe("ultimate");
   });
 
   it("handles token short codes", () => {
@@ -202,11 +227,11 @@ describe("parseImportData — RiftMana format", () => {
     expect(result.entries[0].sourceCode).toBe("OGN-007a");
   });
 
-  it("handles overnumbered suffix", () => {
+  it("keeps the `*` suffix in the short code", () => {
     const csv = `${header}\n0,1,Jinx Loose Cannon,OGN-301*,Origins,Fury Chaos,Showcase,0.00,960.52,,NM:1,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].artVariant).toBe("overnumbered");
+    expect(result.entries[0].artVariant).toBe("normal");
     expect(result.entries[0].sourceCode).toBe("OGN-301*");
   });
 
@@ -434,7 +459,8 @@ describe("parseImportData — Piltover Archive variant columns", () => {
     const result = parseImportData(csv);
     expect(result.entries[0]).toMatchObject({
       sourceCode: "OGN-309*",
-      artVariant: "overnumbered",
+      isOvernumbered: true,
+      artVariant: "normal",
     });
   });
 
@@ -516,12 +542,14 @@ describe("parseImportData — a real Piltover Archive export", () => {
 
   it("treats `*` as signed, not as an art variant", () => {
     // Their Variant Type is what says overnumbered; the star only marks signing.
-    expect(byCode.get("OGN-300*::")?.artVariant).toBe("overnumbered");
-    expect(byCode.get("OGN-309::")?.artVariant).toBe("overnumbered");
+    expect(byCode.get("OGN-300*::")?.isOvernumbered).toBe(true);
+    expect(byCode.get("OGN-300*::")?.artVariant).toBe("normal");
+    expect(byCode.get("OGN-309::")?.isOvernumbered).toBe(true);
   });
 
-  it("takes Ultimate from the label, which is finer than the Overnumbered type", () => {
+  it("takes Ultimate from the label and keeps the Overnumbered type as the flag", () => {
     expect(byCode.get("UNL-238::")?.artVariant).toBe("ultimate");
+    expect(byCode.get("UNL-238::")?.isOvernumbered).toBe(true);
   });
 
   it("keeps a graded copy out of the raw copy beside it (ADR-038)", () => {

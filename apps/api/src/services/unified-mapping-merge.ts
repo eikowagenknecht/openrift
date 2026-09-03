@@ -132,6 +132,7 @@ function toMergedPrinting(p: RawGroupPrinting, marketplace: MarketplaceSlot): Me
     rarity: p.rarity,
     artVariant: p.artVariant,
     isSigned: p.isSigned,
+    isOvernumbered: p.isOvernumbered,
     markerSlugs: p.markerSlugs,
     finish: p.finish,
     size: p.size,

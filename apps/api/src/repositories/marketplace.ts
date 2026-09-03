@@ -59,13 +59,14 @@ function customTagExists(slugs: string[]) {
 }
 
 // The "standard printing" rule as SQL. Restates `isStandardPrinting` from
-// @openrift/shared (normal art, unsigned, no markers, and a finish that counts
-// as plain for the rarity) — the two must be changed together, since the web
-// app filters the same axis with the TypeScript version.
+// @openrift/shared (normal art, in-total number, unsigned, no markers, and a
+// finish that counts as plain for the rarity) — the two must be changed
+// together, since the web app filters the same axis with the TypeScript version.
 const STANDARD_LOW_RARITIES = sql.join([...LOW_RARITIES].map((rarity) => sql`${rarity}`));
 
 const STANDARD = sql`(
   COALESCE(NULLIF(p.art_variant, ''), ${WellKnown.artVariant.NORMAL}) = ${WellKnown.artVariant.NORMAL}
+  AND p.is_overnumbered = false
   AND p.is_signed = false
   AND cardinality(p.marker_slugs) = 0
   AND CASE

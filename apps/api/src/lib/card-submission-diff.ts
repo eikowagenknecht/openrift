@@ -37,6 +37,7 @@ export interface LivePrintingSnapshot {
   artVariant: string | null;
   size: string | null;
   isSigned: boolean;
+  isOvernumbered: boolean;
   flavorText: string | null;
   printedRulesText: string | null;
   printedEffectText: string | null;
@@ -73,6 +74,7 @@ export interface ProposedPrinting {
   artVariant?: string | null;
   size?: string | null;
   isSigned?: boolean | null;
+  isOvernumbered?: boolean | null;
   flavorText?: string | null;
   printedRulesText?: string | null;
   printedEffectText?: string | null;
@@ -197,6 +199,12 @@ export function computeProposedDiff(
     }
     if (!isEmpty(printing.isSigned) && printing.isSigned !== livePrinting.isSigned) {
       diff.push(`printing.${key}.isSigned`);
+    }
+    if (
+      !isEmpty(printing.isOvernumbered) &&
+      printing.isOvernumbered !== livePrinting.isOvernumbered
+    ) {
+      diff.push(`printing.${key}.isOvernumbered`);
     }
     // An image suggestion for a printing that already has artwork proposes a
     // replacement we cannot verify by comparison, so it counts as no change.

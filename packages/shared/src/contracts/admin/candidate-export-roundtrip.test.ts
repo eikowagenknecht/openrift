@@ -36,6 +36,7 @@ const sampleExport = [
         rarity: "Epic",
         art_variant: "normal",
         is_signed: false,
+        is_overnumbered: false,
         finish: "foil",
         artist: "Someone",
         public_code: "001",

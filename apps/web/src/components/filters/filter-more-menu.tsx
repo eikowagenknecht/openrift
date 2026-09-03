@@ -240,7 +240,7 @@ function MoreDimension({
         searchPlaceholder={searchPlaceholder}
         emptyText={emptyText}
         counts={facetedCounts}
-        flag={flag}
+        flags={flag ? [flag] : undefined}
         flagPosition="top"
       />
     );
@@ -328,6 +328,7 @@ export function FilterMoreMenu({
     cycleArrayFilter,
     toggleArrayFilter,
     toggleSigned,
+    toggleOvernumbered,
     cyclePresence,
     toggleBanned,
     toggleErrata,
@@ -363,11 +364,10 @@ export function FilterMoreMenu({
   const showArtVariantSection = shows("artVariants");
   const showFinishSection = shows("finishes");
   const showVariantRow = showArtVariantSection || showFinishSection;
-  // Signed belongs to the Variant unit: it rides the Variant row's flag when
-  // the Art Variant axis renders here, and falls back to its own flag row when
-  // the unit is demoted without that axis (mirroring FilterChipSections).
   const signedInVariantRow = shows("signed") && showArtVariantSection;
   const showSignedRow = shows("signed") && !signedInVariantRow;
+  const overnumberedInVariantRow = shows("overnumbered") && showArtVariantSection;
+  const showOvernumberedRow = shows("overnumbered") && !overnumberedInVariantRow;
   const showStats = shows("energy") || shows("might") || shows("power");
   const showPrice = shows("price");
   const showOwned = shows("owned");
@@ -418,6 +418,7 @@ export function FilterMoreMenu({
       filterCounts={filterCounts}
       showArtVariant={showArtVariantSection}
       showFinish={showFinishSection}
+      showOvernumberedFlag={overnumberedInVariantRow}
       showSignedFlag={signedInVariantRow}
     />
   ) : null;
@@ -441,6 +442,15 @@ export function FilterMoreMenu({
       state={oversizeState_}
       count={oversizeCount(filterCounts?.cardSizes, oversizeState_)}
       onToggle={() => setArrayFilter("cardSizes", nextOversize(filterState.cardSizes))}
+    />
+  ) : null;
+  const overnumberedNode = showOvernumberedRow ? (
+    <FlagMenuItem
+      key="overnumbered"
+      label="Overnumbered"
+      state={filterState.overnumbered}
+      count={filterCounts?.flags.overnumbered}
+      onToggle={toggleOvernumbered}
     />
   ) : null;
   const signedNode = showSignedRow ? (
@@ -603,7 +613,7 @@ export function FilterMoreMenu({
         dropdownRow("keywords"),
       ],
     },
-    { id: "flags", items: [signedNode, bannedNode, errataNode] },
+    { id: "flags", items: [overnumberedNode, signedNode, bannedNode, errataNode] },
     { id: "market", items: [ownedNode, copiesNode, priceNode] },
   ]
     .map((block) => ({ id: block.id, items: block.items.filter(Boolean) }))

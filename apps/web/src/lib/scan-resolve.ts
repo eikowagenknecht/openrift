@@ -60,6 +60,7 @@ function baseKeyOf(printing: Printing): string {
     printing.artVariant,
     printing.size,
     printing.isSigned ? "signed" : "",
+    printing.isOvernumbered ? "overnumbered" : "",
   ].join("|");
 }
 

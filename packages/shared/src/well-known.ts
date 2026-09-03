@@ -74,8 +74,6 @@ export const WellKnown = {
     NORMAL: "normal",
     /** Alt art display label. */
     ALTART: "altart",
-    /** Overnumbered display label. */
-    OVERNUMBERED: "overnumbered",
     /** Rarest tier, appears in <0.1% of packs. Only exists in sets that have one (e.g. UNL Baron Nashor). */
     ULTIMATE: "ultimate",
   },

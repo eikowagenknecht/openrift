@@ -37,7 +37,7 @@ function presenceFlag(
   dimension: PresenceDimension,
   value: "any" | "none" | null,
   ctx: DropdownContext,
-): MultiSelectComboboxProps["flag"] {
+): NonNullable<MultiSelectComboboxProps["flags"]>[number] {
   const state = presenceToFlagState(value);
   return {
     label: PRESENCE_LABELS[dimension],
@@ -161,7 +161,7 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     onCycle: (value) => ctx.actions.cycleArrayFilter("markers", "markersEx", value),
     counts: ctx.filterCounts?.markers,
     flagPosition: "top",
-    flag: presenceFlag("markers", ctx.filterState.markersPresence, ctx),
+    flags: [presenceFlag("markers", ctx.filterState.markersPresence, ctx)],
   }),
   channels: (ctx) => ({
     label: "Distribution Channels",
@@ -178,7 +178,7 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     onCycle: (value) => ctx.actions.cycleArrayFilter("channels", "channelsEx", value),
     counts: ctx.filterCounts?.channels,
     flagPosition: "top",
-    flag: presenceFlag("distributionChannels", ctx.filterState.channelsPresence, ctx),
+    flags: [presenceFlag("distributionChannels", ctx.filterState.channelsPresence, ctx)],
   }),
   keywords: (ctx) => ({
     label: "Keywords",
@@ -193,21 +193,14 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     onCycle: (value) => ctx.actions.cycleArrayFilter("keywords", "keywordsEx", value),
     counts: ctx.filterCounts?.keywords,
     flagPosition: "top",
-    flag: presenceFlag("keywords", ctx.filterState.keywordsPresence, ctx),
+    flags: [presenceFlag("keywords", ctx.filterState.keywordsPresence, ctx)],
   }),
 };
 
 /**
- * The Variant unit's dropdown: Art Variant, Finish and Signed in one picker, so
- * the bar doesn't crowd with three printing-variant axes. Art Variant is the
- * primary axis (and hosts the Signed flag); Finish follows as a labelled group.
- * Each axis's rows cycle off → include → exclude → off (ADR-034). When only one
- * axis applies the dropdown collapses to it and names itself after it.
- *
- * Its own component rather than a {@link DROPDOWNS} entry because which axis is
- * primary is decided by the host — the caller has already applied the placement
- * and `hiddenSections` gating for each axis and passes the verdicts in.
- * @returns The Variant dropdown.
+ * The Variant unit's dropdown, kept outside {@link DROPDOWNS} because which
+ * axis is primary is decided by the host, which passes the placement and
+ * `hiddenSections` verdicts in.
  */
 export function FilterVariantDropdown({
   triggerStyle,
@@ -215,6 +208,7 @@ export function FilterVariantDropdown({
   filterCounts,
   showArtVariant,
   showFinish,
+  showOvernumberedFlag,
   showSignedFlag,
   fitContent,
 }: {
@@ -223,13 +217,14 @@ export function FilterVariantDropdown({
   filterCounts?: FilterCounts;
   showArtVariant: boolean;
   showFinish: boolean;
+  showOvernumberedFlag: boolean;
   /** Whether the Signed flag rides this dropdown rather than its own row. */
   showSignedFlag: boolean;
   fitContent?: boolean;
 }) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const { cycleArrayFilter, toggleSigned } = useFilterActions();
+  const { cycleArrayFilter, toggleSigned, toggleOvernumbered } = useFilterActions();
   const artVariantOptions = availableFilters.artVariants.map((value) => ({
     value,
     label: labels.artVariants[value],
@@ -252,6 +247,22 @@ export function FilterVariantDropdown({
         },
       ]
     : [];
+  const overnumberedFlag = {
+    label: "Overnumbered",
+    state: filterState.overnumbered,
+    count: filterCounts?.flags.overnumbered,
+    onToggle: toggleOvernumbered,
+  };
+  const signedFlag = {
+    label: "Signed",
+    state: filterState.signed,
+    count: filterCounts?.flags.signed,
+    onToggle: toggleSigned,
+  };
+  const flags = [
+    ...(showOvernumberedFlag ? [overnumberedFlag] : []),
+    ...(showSignedFlag ? [signedFlag] : []),
+  ];
   return (
     <MultiSelectCombobox
       triggerStyle={triggerStyle}
@@ -269,16 +280,7 @@ export function FilterVariantDropdown({
       }
       counts={primaryIsArt ? filterCounts?.artVariants : filterCounts?.finishes}
       groups={groups}
-      flag={
-        showSignedFlag
-          ? {
-              label: "Signed",
-              state: filterState.signed,
-              count: filterCounts?.flags.signed,
-              onToggle: toggleSigned,
-            }
-          : undefined
-      }
+      flags={flags}
       fitContent={fitContent}
     />
   );

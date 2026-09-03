@@ -128,6 +128,7 @@ export async function acceptFavoriteNewCard(
           rarity: first.rarity,
           artVariant: first.artVariant ?? WellKnown.artVariant.NORMAL,
           isSigned: first.isSigned ?? false,
+          isOvernumbered: first.isOvernumbered ?? false,
           markerSlugs: first.markerSlugs ?? [],
           distributionChannelSlugs: first.distributionChannelSlugs ?? [],
           finish: first.finish ?? WellKnown.finish.NORMAL,

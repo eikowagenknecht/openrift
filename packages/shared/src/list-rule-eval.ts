@@ -40,13 +40,14 @@ function orderRank(order: readonly string[], slug: string): number {
 /**
  * Compares two printings by keep-priority: the nicer one sorts first (kept).
  * The top printing tier is standard-vs-special ({@link isStandardPrinting}): a
- * special copy (marked, signed, alt art, premium finish) is kept over a plain
- * one, even across rarities — "keep the special one, offer the plain reprint".
- * Below that, lexicographic across rarity, finish, markers, art variant, then
- * signed — rarity/finish/art measured against their reference order (premium
- * last → higher rank kept), markers by presence (a marked printing — promo
- * stamp, event stamp — is kept over an unmarked one). `canonicalRank` is the
- * neutral final tiebreak so equally-nice printings stay deterministic.
+ * special copy (marked, signed, alt art, overnumbered, premium finish) is kept
+ * over a plain one, even across rarities — "keep the special one, offer the
+ * plain reprint". Below that, lexicographic across rarity, finish, markers, art
+ * variant, overnumbered, then signed — rarity/finish/art measured against their
+ * reference order (premium last → higher rank kept), markers by presence (a
+ * marked printing — promo stamp, event stamp — is kept over an unmarked one).
+ * `canonicalRank` is the neutral final tiebreak so equally-nice printings stay
+ * deterministic.
  * The ladder's overriding bottom tier is `reserved` (promised copies never fill
  * a keep slot). It is a copy property, so it lives in
  * {@link copyKeepComparator}, not here.
@@ -59,6 +60,7 @@ function comparePrintingKeepPriority(a: Printing, b: Printing, orders: KeepPrior
     orderRank(orders.finishes, b.finish) - orderRank(orders.finishes, a.finish) ||
     Number(b.markers.length > 0) - Number(a.markers.length > 0) ||
     orderRank(orders.artVariants, b.artVariant) - orderRank(orders.artVariants, a.artVariant) ||
+    Number(b.isOvernumbered) - Number(a.isOvernumbered) ||
     Number(b.isSigned) - Number(a.isSigned) ||
     a.canonicalRank - b.canonicalRank
   );

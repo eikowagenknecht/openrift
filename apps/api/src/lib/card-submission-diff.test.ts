@@ -23,6 +23,7 @@ const LIVE_PRINTING: LivePrintingSnapshot = {
   artVariant: "standard",
   size: "standard",
   isSigned: false,
+  isOvernumbered: false,
   flavorText: "Boom.",
   printedRulesText: null,
   printedEffectText: null,
@@ -83,6 +84,28 @@ describe("computeProposedDiff", () => {
       liveSnapshot(),
     );
     expect(diff).toEqual(["card.energy", `printing.${EN_NORMAL}.artist`]);
+  });
+
+  it("reports an overnumbered flag that disagrees with the catalog", () => {
+    const diff = computeProposedDiff(
+      {
+        card: { name: "Jinx" },
+        printings: [proposedPrinting({ isOvernumbered: true })],
+      },
+      liveSnapshot(),
+    );
+    expect(diff).toEqual([`printing.${EN_NORMAL}.isOvernumbered`]);
+  });
+
+  it("treats an unstated overnumbered flag as no proposal", () => {
+    const diff = computeProposedDiff(
+      {
+        card: { name: "Jinx" },
+        printings: [proposedPrinting({ isOvernumbered: null })],
+      },
+      liveSnapshot({ isOvernumbered: true }),
+    );
+    expect(diff).toEqual([]);
   });
 
   it("keeps a card's finishes and languages apart", () => {

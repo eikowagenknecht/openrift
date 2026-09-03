@@ -8,7 +8,7 @@ import { LOW_RARITIES, WellKnown } from "./well-known.js";
  */
 type StandardCheckFields = Pick<
   Printing,
-  "artVariant" | "isSigned" | "markers" | "finish" | "rarity"
+  "artVariant" | "isSigned" | "isOvernumbered" | "markers" | "finish" | "rarity"
 >;
 
 /** The additional fields the art-fallback search needs on each candidate. */
@@ -32,6 +32,7 @@ type FallbackCandidateFields = StandardCheckFields &
  *
  * Returns true iff **all** of the following hold:
  * - the art is the normal art variant,
+ * - the collector number is within the set's printed total,
  * - the printing is not signed,
  * - the printing carries no markers (not a promo / stamped printing),
  * - the finish is standard **for the rarity**:
@@ -44,6 +45,9 @@ type FallbackCandidateFields = StandardCheckFields &
  */
 export function isStandardPrinting(printing: StandardCheckFields): boolean {
   if ((printing.artVariant || WellKnown.artVariant.NORMAL) !== WellKnown.artVariant.NORMAL) {
+    return false;
+  }
+  if (printing.isOvernumbered) {
     return false;
   }
   if (printing.isSigned) {

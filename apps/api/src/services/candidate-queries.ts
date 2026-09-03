@@ -337,6 +337,7 @@ export async function buildExport(repo: Repo) {
         rarity: p.rarity,
         art_variant: p.artVariant,
         is_signed: p.isSigned,
+        is_overnumbered: p.isOvernumbered,
         finish: p.finish,
         artist: p.artist,
         public_code: p.publicCode,

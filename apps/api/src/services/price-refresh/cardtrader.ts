@@ -279,6 +279,7 @@ function buildSiblingLookup(
     finish: string;
     artVariant: string;
     isSigned: boolean;
+    isOvernumbered: boolean;
     language: string;
     markerSlugs: string[];
   }[],
@@ -286,7 +287,7 @@ function buildSiblingLookup(
   const byIdentity = new Map<string, Map<string, string>>();
   for (const p of printings) {
     const slugKey = [...p.markerSlugs].sort().join(",");
-    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${slugKey}`;
+    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${p.isOvernumbered}|${slugKey}`;
     let byLang = byIdentity.get(identity);
     if (!byLang) {
       byLang = new Map<string, string>();
@@ -328,7 +329,7 @@ async function autoMatchBlueprints(
   const identityByPrintingId = new Map<string, string>();
   for (const p of allPrintings) {
     const slugKey = [...p.markerSlugs].sort().join(",");
-    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${slugKey}`;
+    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${p.isOvernumbered}|${slugKey}`;
     identityByPrintingId.set(p.id, identity);
   }
 

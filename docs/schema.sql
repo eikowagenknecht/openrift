@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1kqT3fyYqo42Sv907es5RdwZBChyzChf7mvmtl1moXfjgTNG0lOF4ORxDmjYqdQ
+\restrict rNF33BiszSZzcWj8Ywcm7i48BHGXrgwNoWSDEfTsyTIL7XtW56uJJddrhWiNy3f
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -824,6 +824,7 @@ CREATE TABLE public.candidate_printings (
     size text,
     distribution_channel_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     printed_year smallint,
+    is_overnumbered boolean,
     CONSTRAINT candidate_printings_size_check CHECK ((size <> ''::text)),
     CONSTRAINT chk_candidate_printings_extra_data_shape CHECK (((extra_data IS NULL) OR (jsonb_typeof(extra_data) = 'object'::text))),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
@@ -2578,6 +2579,7 @@ CREATE TABLE public.printings (
     size text DEFAULT 'standard'::text NOT NULL,
     fallback_art_mode text DEFAULT 'auto'::text NOT NULL,
     fallback_image_file_id uuid,
+    is_overnumbered boolean DEFAULT false NOT NULL,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_fallback_art_mode CHECK ((fallback_art_mode = ANY (ARRAY['auto'::text, 'pinned'::text, 'none'::text]))),
     CONSTRAINT chk_printings_fallback_pinned_has_image CHECK (((fallback_art_mode = 'pinned'::text) = (fallback_image_file_id IS NOT NULL))),
@@ -2968,6 +2970,7 @@ CREATE VIEW public.printings_ordered AS
     p.size,
     p.fallback_art_mode,
     p.fallback_image_file_id,
+    p.is_overnumbered,
     COALESCE(r.canonical_rank, 2147483647) AS canonical_rank
    FROM (public.printings p
      LEFT JOIN public.mv_printings_canonical_rank r ON ((r.printing_id = p.id)));
@@ -5006,7 +5009,7 @@ ALTER TABLE ONLY public.printings
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, marker_slugs, rarity, finish, language, size) DEFERRABLE INITIALLY DEFERRED;
+    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, is_overnumbered, marker_slugs, rarity, finish, language, size) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -8840,5 +8843,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1kqT3fyYqo42Sv907es5RdwZBChyzChf7mvmtl1moXfjgTNG0lOF4ORxDmjYqdQ
+\unrestrict rNF33BiszSZzcWj8Ywcm7i48BHGXrgwNoWSDEfTsyTIL7XtW56uJJddrhWiNy3f
 

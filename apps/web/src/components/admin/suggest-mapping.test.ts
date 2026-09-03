@@ -16,6 +16,7 @@ function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappi
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markerSlugs: [],
     finish: "normal",
     size: "standard",
@@ -425,7 +426,7 @@ describe("computeProductSuggestions", () => {
       shortCode: "OGN-302*",
       finish: "foil",
       language: "EN",
-      artVariant: "overnumbered",
+      isOvernumbered: true,
       isSigned: true,
     });
     const ogn253Zh = printing({
@@ -440,7 +441,7 @@ describe("computeProductSuggestions", () => {
       shortCode: "OGN-302",
       finish: "foil",
       language: "SC",
-      artVariant: "overnumbered",
+      isOvernumbered: true,
     });
     const ognOverZh = printing({
       printingId: "p-302-sc-signed",

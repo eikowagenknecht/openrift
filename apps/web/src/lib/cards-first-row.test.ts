@@ -51,6 +51,7 @@ function makePrinting(
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     markers: [],
     distributionChannels: [],
     finish: "normal",

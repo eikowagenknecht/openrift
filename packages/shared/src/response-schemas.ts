@@ -253,6 +253,7 @@ export const catalogPrintingResponseSchema = z.object({
   rarity: raritySchema,
   artVariant: artVariantSchema,
   isSigned: z.boolean().openapi({ example: false }),
+  isOvernumbered: z.boolean().openapi({ example: false }),
   markers: z.array(markerSchema).openapi({ example: [] }),
   distributionChannels: z.array(printingDistributionChannelSchema).openapi({ example: [] }),
   // `.optional()` rather than this file's usual always-present array: almost no

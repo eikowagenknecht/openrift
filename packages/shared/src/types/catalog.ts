@@ -149,6 +149,7 @@ export interface Printing {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
+  isOvernumbered: boolean;
   markers: Marker[];
   distributionChannels: PrintingDistributionChannel[];
   /** Omitted when the printing has nothing cited — see the wire schema. */

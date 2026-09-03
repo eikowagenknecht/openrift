@@ -52,6 +52,7 @@ const HEADERS = [
   "Domain",
   "Finish",
   "Art Variant",
+  "Overnumbered",
   "Promo",
   "Language",
   "Quantity",
@@ -175,6 +176,7 @@ export function generateExportCSV(
         printing.card.domains.join(" / "),
         printing.finish,
         printing.artVariant,
+        printing.isOvernumbered ? "Yes" : "",
         printing.markers.map((m) => m.slug).join("+"),
         printing.language,
         String(group.quantity),
@@ -203,7 +205,7 @@ const PROMO_MARKER = "promo";
  * @returns One of Piltover's Variant Type values.
  */
 function piltoverVariantType(printing: Printing): string {
-  if (printing.artVariant === WellKnown.artVariant.OVERNUMBERED) {
+  if (printing.isOvernumbered) {
     return "Overnumbered";
   }
   if (printing.markers.some((marker) => marker.slug === PROMO_MARKER)) {

@@ -112,15 +112,15 @@ export interface MultiSelectComboboxProps {
    */
   groups?: readonly MultiSelectGroup[];
   /**
-   * An extra tri-state flag rendered as a regular list row at the end (e.g. the
-   * Signed filter hosted inside Art Variant). It's a real combobox row, so it
-   * inherits the same hover/keyboard styling as the options; only the indicator
-   * differs — a check for include, a minus for exclude, nothing when off. It is
-   * never part of the `selected` value.
+   * Extra tri-state flags rendered as regular list rows (e.g. Overnumbered and
+   * Signed hosted inside Art Variant), in the order given. They're real combobox
+   * rows, so they inherit the same hover/keyboard styling as the options; only
+   * the indicator differs — a check for include, a minus for exclude, nothing
+   * when off. They are never part of the `selected` value.
    */
-  flag?: MultiSelectFlag;
+  flags?: readonly MultiSelectFlag[];
   /**
-   * Where the {@link flag} row sits relative to the options: "bottom" (default,
+   * Where the {@link flags} rows sit relative to the options: "bottom" (default,
    * e.g. Signed under Art Variant) or "top" (e.g. a "Has any …" presence toggle
    * that should read before the specific values it generalises).
    */
@@ -158,8 +158,11 @@ interface MultiSelectFlag {
   onToggle: () => void;
 }
 
-/** Sentinel list value backing {@link MultiSelectFlag} — never stored in the selection. */
-const FLAG_VALUE = "__flag__";
+/** Sentinel list-value prefix backing {@link MultiSelectFlag} — never stored in the selection. */
+const FLAG_PREFIX = "__flag__:";
+const flagId = (index: number) => `${FLAG_PREFIX}${index}`;
+const isFlagId = (id: string) => id.startsWith(FLAG_PREFIX);
+const flagIndex = (id: string) => Number(id.slice(FLAG_PREFIX.length));
 
 /**
  * Outline-button styling matched to the Domain/Rarity toggle group, shared by
@@ -277,7 +280,7 @@ export function MultiSelectCombobox({
   mutedOptions,
   primaryLabel,
   groups,
-  flag,
+  flags,
   flagPosition = "bottom",
   fitContent,
   placeholder,
@@ -319,8 +322,9 @@ export function MultiSelectCombobox({
   // selection — its click is translated to flag.onToggle below.
   const items: string[] = [];
   const idMeta = new Map<string, { section: Section; option: MultiSelectOption }>();
-  if (flag && flagPosition === "top") {
-    items.push(FLAG_VALUE);
+  const flagList = flags ?? [];
+  if (flagPosition === "top") {
+    items.push(...flagList.map((_, i) => flagId(i)));
   }
   for (const section of sections) {
     for (const option of section.options) {
@@ -343,8 +347,8 @@ export function MultiSelectCombobox({
       }
     }
   }
-  if (flag && flagPosition === "bottom") {
-    items.push(FLAG_VALUE);
+  if (flagPosition === "bottom") {
+    items.push(...flagList.map((_, i) => flagId(i)));
   }
 
   // The combobox's controlled value carries only the plain (non-cycling)
@@ -365,13 +369,13 @@ export function MultiSelectCombobox({
     (total, section) => total + (section.excluded?.length ?? 0),
     0,
   );
-  const flagActive = flag !== undefined && flag.state !== null;
-  const flagCount = flagActive ? 1 : 0;
+  const flagCount = flagList.filter((entry) => entry.state !== null).length;
+  const firstActiveFlag = flagList.findIndex((entry) => entry.state !== null);
   const totalCount = selectedIds.length + includedCount + excludedCount + flagCount;
   const isActive = totalCount > 0;
   const labelFor = (id: string) => {
-    if (id === FLAG_VALUE && flag) {
-      return flag.label;
+    if (isFlagId(id)) {
+      return flagList[flagIndex(id)].label;
     }
     const option = idMeta.get(id)?.option;
     if (!option) {
@@ -393,9 +397,7 @@ export function MultiSelectCombobox({
     values.length === 1
       ? labelFor(encodeId(section.index, values[0] ?? ""))
       : String(values.length);
-  const flagInclude = flag !== undefined && flag.state === true;
-  const flagExclude = flag !== undefined && flag.state === false;
-  const hasExclude = excludedCount > 0 || flagExclude;
+  const hasExclude = excludedCount > 0 || flagList.some((entry) => entry.state === false);
   const signedSummary = (): string => {
     const parts: string[] = [];
     for (const section of sections) {
@@ -410,11 +412,12 @@ export function MultiSelectCombobox({
         parts.push(summarise(section, section.selected));
       }
     }
-    if (flagInclude) {
-      parts.push(flag.label);
-    }
-    if (flagExclude) {
-      parts.push(`−${flag.label}`);
+    for (const entry of flagList) {
+      if (entry.state === true) {
+        parts.push(entry.label);
+      } else if (entry.state === false) {
+        parts.push(`−${entry.label}`);
+      }
     }
     return parts.join(", ");
   };
@@ -423,7 +426,7 @@ export function MultiSelectCombobox({
     cycleSections.flatMap((section) =>
       section.selected.map((value) => encodeId(section.index, value)),
     )[0] ??
-    (flagActive ? FLAG_VALUE : "");
+    (firstActiveFlag === -1 ? "" : flagId(firstActiveFlag));
   const triggerLabel = isActive
     ? hasExclude || (placeholder !== undefined && (includedCount > 0 || excludedCount > 0))
       ? signedSummary()
@@ -452,7 +455,7 @@ export function MultiSelectCombobox({
     }
     let seenVisibleMain = false;
     for (const value of items) {
-      if (value === FLAG_VALUE || !isVisible(value)) {
+      if (isFlagId(value) || !isVisible(value)) {
         continue;
       }
       if (mutedOptions.has(value)) {
@@ -488,8 +491,8 @@ export function MultiSelectCombobox({
   // — below it when it leads the list, above it when it trails — but only while
   // at least one option is still visible, so a search that filters every option
   // away (or matches only the flag itself) doesn't leave a stray divider.
-  const showFlagDivider =
-    flag !== undefined && items.some((id) => id !== FLAG_VALUE && isVisible(id));
+  const showFlagDivider = flagList.length > 0 && items.some((id) => !isFlagId(id) && isVisible(id));
+  const visibleFlagIds = items.filter((id) => isFlagId(id) && isVisible(id));
 
   return (
     <Combobox<string, true>
@@ -500,10 +503,12 @@ export function MultiSelectCombobox({
         // The flag sentinel never persists in the selection: a click on it
         // toggles the flag's tri-state instead.
         let working = next;
-        if (flag && working.includes(FLAG_VALUE)) {
-          flag.onToggle();
-          working = working.filter((id) => id !== FLAG_VALUE);
+        for (const id of working) {
+          if (isFlagId(id)) {
+            flagList[flagIndex(id)].onToggle();
+          }
         }
+        working = working.filter((id) => !isFlagId(id));
         // A cycling section's values never sit in the controlled `value`, so the
         // primitive can only ever *add* one to `next` — that added id is the row
         // the user just clicked. Route it to the owning section's `onCycle`
@@ -630,25 +635,26 @@ export function MultiSelectCombobox({
             // The flag rides as a normal row — same hover/keyboard styling as the
             // options — but with a tri-state indicator (check = include, minus =
             // exclude, none = off) instead of the default selection checkmark.
-            if (flag && value === FLAG_VALUE) {
+            if (isFlagId(value)) {
+              const entry = flagList[flagIndex(value)];
               const flagItem = (
                 <ComboboxItem key={value} value={value}>
                   <span className="min-w-0 flex-1 break-words whitespace-normal">
-                    {flag.label}
-                    {flag.count !== undefined && (
+                    {entry.label}
+                    {entry.count !== undefined && (
                       <span
                         className={cn(
                           "text-muted-foreground text-2xs ml-1.5 tabular-nums",
-                          flag.count === 0 && "opacity-50",
+                          entry.count === 0 && "opacity-50",
                         )}
                       >
-                        ({flag.count})
+                        ({entry.count})
                       </span>
                     )}
                   </span>
-                  {flag.state !== null && (
+                  {entry.state !== null && (
                     <span className="absolute right-2 flex size-4 items-center justify-center">
-                      {flag.state ? (
+                      {entry.state ? (
                         <CheckIcon className="size-4" />
                       ) : (
                         <MinusIcon className="size-4" />
@@ -657,12 +663,16 @@ export function MultiSelectCombobox({
                   )}
                 </ComboboxItem>
               );
-              if (showFlagDivider) {
+              // One divider for the whole block: above it when the flags trail
+              // the options, below it when they lead.
+              const leads = flagPosition === "bottom" && value === visibleFlagIds[0];
+              const trails = flagPosition === "top" && value === visibleFlagIds.at(-1);
+              if (showFlagDivider && (leads || trails)) {
                 return (
                   <Fragment key={value}>
-                    {flagPosition === "bottom" && <ComboboxSeparator />}
+                    {leads && <ComboboxSeparator />}
                     {flagItem}
-                    {flagPosition === "top" && <ComboboxSeparator />}
+                    {trails && <ComboboxSeparator />}
                   </Fragment>
                 );
               }

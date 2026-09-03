@@ -847,6 +847,13 @@ function PrintingCard({
                 className="mt-1"
               />
             </FieldRow>
+            <FieldRow label="Overnumbered">
+              <Switch
+                checked={printing.isOvernumbered}
+                onCheckedChange={(checked) => onChange("isOvernumbered", checked)}
+                className="mt-1"
+              />
+            </FieldRow>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <FieldRow label="Artist">

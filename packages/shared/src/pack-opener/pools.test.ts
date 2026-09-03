@@ -16,6 +16,7 @@ function printing(overrides: Partial<PackPrinting>): PackPrinting {
     finish: "normal",
     artVariant: "normal",
     isSigned: false,
+    isOvernumbered: false,
     language: "EN",
     shortCode: "XXX-001",
     publicCode: "XXX-001",
@@ -38,7 +39,7 @@ describe("buildPool", () => {
       printing({ id: "arun1", cardTypes: ["rune"], rarity: "common", artVariant: "altart" }),
       printing({ id: "tok1", cardSuperTypes: ["token"] }),
       printing({ id: "sa1", rarity: "showcase", finish: "foil", artVariant: "altart" }),
-      printing({ id: "so1", rarity: "showcase", finish: "foil", artVariant: "overnumbered" }),
+      printing({ id: "so1", rarity: "showcase", finish: "foil", isOvernumbered: true }),
       printing({ id: "ss1", rarity: "showcase", finish: "foil", isSigned: true }),
       printing({ id: "ult1", artVariant: "ultimate" }),
     ];
@@ -93,10 +94,41 @@ describe("buildPool", () => {
 
   it("routes ultimate printings to the ultimates pool regardless of rarity", () => {
     const pool = buildPool([
-      printing({ id: "u", rarity: "showcase", artVariant: "ultimate", finish: "foil" }),
+      printing({
+        id: "u",
+        rarity: "showcase",
+        artVariant: "ultimate",
+        finish: "foil",
+        isOvernumbered: true,
+      }),
     ]);
     expect(pool.ultimates).toHaveLength(1);
     expect(pool.showcaseAltart).toHaveLength(0);
     expect(pool.showcaseOvernumbered).toHaveLength(0);
+  });
+
+  it("pulls an overnumbered alt-art Showcase at the overnumbered rate", () => {
+    const pool = buildPool([
+      printing({
+        id: "both",
+        rarity: "showcase",
+        finish: "foil",
+        artVariant: "altart",
+        isOvernumbered: true,
+      }),
+    ]);
+    expect(pool.showcaseOvernumbered.map((p) => p.id)).toEqual(["both"]);
+    expect(pool.showcaseAltart).toHaveLength(0);
+  });
+
+  it("keeps overnumbered printings out of the common, rune and token pools", () => {
+    const pool = buildPool([
+      printing({ id: "c", rarity: "common", isOvernumbered: true }),
+      printing({ id: "run", cardTypes: ["rune"], rarity: "common", isOvernumbered: true }),
+      printing({ id: "tok", cardSuperTypes: ["token"], isOvernumbered: true }),
+    ]);
+    expect(pool.commons).toHaveLength(0);
+    expect(pool.runes).toHaveLength(0);
+    expect(pool.tokens).toHaveLength(0);
   });
 });

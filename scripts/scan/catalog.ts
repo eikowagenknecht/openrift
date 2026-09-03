@@ -44,6 +44,7 @@ const QUERY = `
          p.language as language,
          c.type as card_type,
          p.art_variant as art_variant,
+         p.is_overnumbered as is_overnumbered,
          array_to_string(p.marker_slugs, '+') as markers
   from printing_images pi
   join printings p on p.id = pi.printing_id
@@ -60,9 +61,13 @@ const QUERY = `
 export function loadCatalog(refresh = false): Map<string, CardIdentity> {
   if (!refresh && fs.existsSync(CACHE_FILE)) {
     const cached = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8")) as CardIdentity[];
-    // A cache written before cardType or markers existed refreshes itself
-    // once (markers is null-able, so presence is the check, not the value).
-    if (cached.length === 0 || (cached[0].cardType !== undefined && "markers" in cached[0])) {
+    // A cache written before cardType, markers or the overnumbered segment of
+    // artKey existed refreshes itself once (checked by field count, not value).
+    const first = cached[0];
+    const fresh =
+      first === undefined ||
+      (first.cardType !== undefined && "markers" in first && first.artKey.split("|").length === 4);
+    if (fresh) {
       return new Map(cached.map((c) => [c.key, c]));
     }
   }
@@ -77,10 +82,20 @@ export function loadCatalog(refresh = false): Map<string, CardIdentity> {
   const byKey = new Map<string, CardIdentity>();
   for (const line of raw.split("\n")) {
     const parts = line.split("");
-    if (parts.length < 8) {
+    if (parts.length < 9) {
       continue;
     }
-    const [key, name, setSlug, publicCode, language, cardType, artVariant, markers] = parts;
+    const [
+      key,
+      name,
+      setSlug,
+      publicCode,
+      language,
+      cardType,
+      artVariant,
+      isOvernumbered,
+      markers,
+    ] = parts;
     const existing = byKey.get(key);
     if (existing) {
       // One image can serve several printings. The first row stays the
@@ -99,9 +114,9 @@ export function loadCatalog(refresh = false): Map<string, CardIdentity> {
       language,
       cardType,
       markers,
-      // Language is deliberately excluded: two prints of one artwork differ only
-      // in their text, which is what makes them hard to separate visually.
-      artKey: `${setSlug}|${name}|${artVariant}`,
+      // Language is deliberately excluded (two prints differ only in text, not
+      // look). Overnumbered keys apart since it carries its own illustration.
+      artKey: `${setSlug}|${name}|${artVariant}|${isOvernumbered === "t" ? "over" : ""}`,
     };
     byKey.set(key, identity);
     identities.push(identity);

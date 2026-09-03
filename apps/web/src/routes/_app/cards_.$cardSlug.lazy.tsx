@@ -250,6 +250,9 @@ function CardDetailPage() {
       </span>,
     ]);
   }
+  if (selectedPrinting.isOvernumbered) {
+    leftRows.push(["Numbering", <span key="overnumbered">Overnumbered</span>]);
+  }
   if (selectedPrinting.artist) {
     leftRows.push([
       "Artist",
@@ -802,6 +805,13 @@ function PrintingCard({
       >
         <TagIcon className="size-3" />
         {printing.markers.map((m) => m.label).join(", ")}
+      </span>,
+    );
+  }
+  if (printing.isOvernumbered) {
+    badges.push(
+      <span key="overnumbered" className="text-muted-foreground text-xs">
+        Overnumbered
       </span>,
     );
   }

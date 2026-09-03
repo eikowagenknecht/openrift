@@ -222,6 +222,7 @@ export function buildCandidatePrintingFields(
       labeledOptions: toLabeledOptions(orders.cardSizes, labels.cardSizes),
     },
     { key: "isSigned", label: "Signed", type: "boolean" },
+    { key: "isOvernumbered", label: "Overnumbered", type: "boolean" },
     {
       key: "markerSlugs",
       label: "Markers",
