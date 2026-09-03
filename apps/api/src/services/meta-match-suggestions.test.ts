@@ -43,6 +43,7 @@ function player(overrides: Partial<AdminMetaPlayerRow> = {}): AdminMetaPlayerRow
     rank: 1,
     rankIsTier: false,
     playerName: "Nova",
+    sourceIdentity: null,
     wins: 5,
     losses: 1,
     draws: 0,

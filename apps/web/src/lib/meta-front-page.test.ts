@@ -39,6 +39,7 @@ const WINNER = {
   rank: 1,
   rankIsTier: false,
   playerName: "Nova",
+  playerKey: "u2001",
   wins: 6,
   losses: 1,
   draws: 0,

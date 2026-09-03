@@ -4,6 +4,7 @@
 
 ### Highlights
 
+- feat(Meta): **Player pages** — every player name in the archive now opens a page with their record: event wins, top 8 finishes, the legends they brought, every archived finish with a Best/All view, and the decklists they registered, all narrowable with the scope bar.
 - feat(App): **One palette everywhere** — dark mode panels, menus and borders now carry the navy tint instead of gray, and status colors, badges, callouts and hover states share one set of shapes and tones across the app.
 - feat(Meta): **Decklists open as a card strip** — an expanded standings row now shows the whole list as card art sorted by energy, with the sideboard beside it, and every card opens its details.
 

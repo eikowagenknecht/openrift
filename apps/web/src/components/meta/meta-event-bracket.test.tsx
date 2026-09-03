@@ -163,4 +163,18 @@ describe("MetaEventBracket", () => {
     expect(within(finalColumn).getByText("Unknown")).toBeInTheDocument();
     expect(within(finalColumn).queryByText("Bye")).toBeNull();
   });
+
+  it("sends a seated player the archive has a page for to it", () => {
+    render(<MetaEventBracket matches={topFour} phases={topFourPhases} players={players} />);
+    for (const link of screen.getAllByRole("link", { name: "Ana" })) {
+      expect(link).toHaveAttribute("href", "/meta/players/u1001");
+    }
+  });
+
+  it("prints a seated player the source filed under no identity as plain text", () => {
+    const anonymous = players.map((player) => ({ ...player, playerKey: null }));
+    render(<MetaEventBracket matches={topFour} phases={topFourPhases} players={anonymous} />);
+    expect(screen.queryByRole("link", { name: "Ana" })).toBeNull();
+    expect(screen.getAllByText("Ana").length).toBeGreaterThan(0);
+  });
 });

@@ -102,6 +102,7 @@ const WINNER = {
   rank: 1,
   rankIsTier: false,
   playerName: "M. Álvarez",
+  playerKey: "u3001",
   wins: 14,
   losses: 1,
   draws: 0,

@@ -77,6 +77,7 @@ function winner(playerName: string): MetaEventSummary["topFinishes"][number] {
     rank: 1,
     rankIsTier: false,
     playerName,
+    playerKey: `pn${playerName}`,
     wins: 5,
     losses: 1,
     draws: 0,

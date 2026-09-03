@@ -164,6 +164,20 @@ describe("MetaEventHeader champion plate", () => {
     expect(screen.queryByText(/^\d+-\d+-\d+$/u)).toBeNull();
   });
 
+  it("sends the champion to their player page", () => {
+    renderHeader({ players: [winner] });
+    expect(screen.getByRole("link", { name: "Ana" })).toHaveAttribute(
+      "href",
+      "/meta/players/u1001",
+    );
+  });
+
+  it("prints a champion the source filed under no identity as plain text", () => {
+    renderHeader({ players: [metaPlayer({ playerName: "Ana", rank: 1, playerKey: null })] });
+    expect(screen.queryByRole("link", { name: "Ana" })).toBeNull();
+    expect(screen.getByText("Ana")).toBeInTheDocument();
+  });
+
   it("stands the winner's legend card beside the plate and blurs it behind the band", () => {
     const { container } = renderHeader({ players: [winner] });
     expect(cardArt(container)).toEqual([

@@ -25,6 +25,7 @@ const mockMeta = {
   archiveLegends: vi.fn(),
   archiveLegendEventRecords: vi.fn(),
   finishesForLegend: vi.fn(),
+  finishesForPlayer: vi.fn(),
 };
 
 const mockCanonicalPrintings = { resolvePrintingMetaForRows: vi.fn() };
@@ -69,6 +70,7 @@ function playerRow(overrides: Record<string, unknown> = {}) {
     rank: 1,
     rankIsTier: false,
     playerName: "Renata",
+    sourceIdentity: "u347713",
     wins: 5,
     losses: 1,
     draws: 0,
@@ -116,6 +118,7 @@ beforeEach(() => {
   mockMeta.archiveLegends.mockResolvedValue([]);
   mockMeta.archiveLegendEventRecords.mockResolvedValue([]);
   mockMeta.finishesForLegend.mockResolvedValue([]);
+  mockMeta.finishesForPlayer.mockResolvedValue([]);
   mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([]);
 });
 
@@ -546,6 +549,7 @@ function finishRow(overrides: Record<string, unknown> = {}) {
     rank: 1,
     rankIsTier: false,
     playerName: "Renata",
+    sourceIdentity: "u347713",
     wins: 12,
     losses: 1,
     draws: 0,
@@ -744,6 +748,101 @@ describe("GET /meta/legends/{slug}", () => {
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.finishes).toEqual([]);
+  });
+});
+
+/** @returns One archived finish for a player, as the repo returns it. */
+function playerFinishRow(overrides: Record<string, unknown> = {}) {
+  return {
+    playerId: "p0000000-0001-4000-a000-000000000001",
+    playerName: "乌冬",
+    rank: 1,
+    rankIsTier: false,
+    wins: 12,
+    losses: 1,
+    draws: 0,
+    shareToken: null,
+    listStatus: "none",
+    legendCardId: LEGEND_ID,
+    legendName: "Heart of the Tempest",
+    legendSlug: "heart-of-the-tempest",
+    legendTypes: ["legend"],
+    legendTags: ["Kennen"],
+    legendDomains: ["chaos", "order"],
+    eventSlug: "summoner-skirmish-2026",
+    eventName: "Summoner Skirmish",
+    eventDate: "2026-08-01",
+    eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
+    eventPlayerCount: 64,
+    ...overrides,
+  };
+}
+
+describe("GET /meta/players/{key}", () => {
+  it("returns every archived finish under the key, titled by the newest row's name", async () => {
+    mockMeta.finishesForPlayer.mockResolvedValue([
+      playerFinishRow({ playerName: "乌冬 the Second" }),
+      playerFinishRow({
+        playerId: "p0000000-0001-4000-a000-000000000002",
+        rank: 4,
+        eventSlug: "regional-lyon",
+        eventTier: "premier",
+      }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/players/pn%E4%B9%8C%E5%86%AC");
+
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(mockMeta.finishesForPlayer).toHaveBeenCalledWith("pn乌冬");
+    expect(json.key).toBe("pn乌冬");
+    expect(json.name).toBe("乌冬 the Second");
+    expect(json.finishes).toHaveLength(2);
+    expect(json.finishes[1].event).toMatchObject({ slug: "regional-lyon", tier: "premier" });
+  });
+
+  it("names each finish's legend the way players say it, with its archive key", async () => {
+    mockMeta.finishesForPlayer.mockResolvedValue([playerFinishRow()]);
+    mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([
+      { imageId: "img-legend" },
+    ]);
+
+    const res = await app.request("/api/v1/meta/players/u347713");
+
+    const json = await readJson(res);
+    expect(json.finishes[0].legend).toEqual({
+      cardId: LEGEND_ID,
+      name: "Kennen, Heart of the Tempest",
+      slug: "heart-of-the-tempest",
+      imageId: "img-legend",
+      domains: ["chaos", "order"],
+      archiveSlug: "kennen-heart-of-the-tempest",
+    });
+  });
+
+  it("resolves one printing per legend however many finishes name it", async () => {
+    mockMeta.finishesForPlayer.mockResolvedValue([
+      playerFinishRow(),
+      playerFinishRow({ playerId: "p0000000-0001-4000-a000-000000000002" }),
+      playerFinishRow({ playerId: "p0000000-0001-4000-a000-000000000003", legendCardId: null }),
+    ]);
+    mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([
+      { imageId: "img-legend" },
+    ]);
+
+    await app.request("/api/v1/meta/players/u347713");
+
+    expect(mockCanonicalPrintings.resolvePrintingMetaForRows).toHaveBeenCalledWith([
+      { cardId: LEGEND_ID, preferredPrintingId: null },
+    ]);
+  });
+
+  it("404s a key the archive holds no standings row for", async () => {
+    const res = await app.request("/api/v1/meta/players/u999999");
+
+    expect(res.status).toBe(404);
   });
 });
 

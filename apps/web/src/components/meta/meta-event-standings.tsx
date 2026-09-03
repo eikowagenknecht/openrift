@@ -18,6 +18,7 @@ import {
   MetaEventDeckPreviewSkeleton,
 } from "@/components/meta/meta-event-deck-preview";
 import { MetaIdentity } from "@/components/meta/meta-identity";
+import { MetaPlayerName } from "@/components/meta/meta-player-name";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
@@ -298,7 +299,9 @@ function DesktopRow({ player, slug, canSubmit, columns, costs, expanded, onToggl
             <LegendCell player={player} />
           </TableCell>
         )}
-        <TableCell className="truncate font-medium">{player.playerName}</TableCell>
+        <TableCell className="truncate font-medium">
+          <MetaPlayerName name={player.playerName} playerKey={player.playerKey} />
+        </TableCell>
         {columns.value && (
           <TableCell className="text-right">
             <DeckValue player={player} costs={costs} />
@@ -345,7 +348,9 @@ function PhoneRow({ player, slug, canSubmit, columns, costs, expanded, onToggle 
           />
         )}
         <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate font-medium">{player.playerName}</p>
+          <p className="truncate font-medium">
+            <MetaPlayerName name={player.playerName} playerKey={player.playerKey} />
+          </p>
           <MetaIdentity
             name={player.legend?.name}
             slug={player.legend?.slug}

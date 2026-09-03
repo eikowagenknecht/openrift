@@ -9,6 +9,8 @@ import type {
   DeckZone,
   Domain,
   Marketplace,
+  MetaPlayerDetailResponse,
+  MetaPlayerFinish,
   PriceLookup,
   Printing,
   SuperType,
@@ -196,6 +198,66 @@ export function stubCardOwnership(overrides: Partial<CardOwnership> = {}): CardO
       imageId: undefined,
       landscape: false,
     },
+    ...overrides,
+  };
+}
+
+const META_PLAYER_LEGEND: NonNullable<MetaPlayerFinish["legend"]> = {
+  cardId: "legend-lux",
+  name: "Lux, Lady of Luminosity",
+  slug: "lady-of-luminosity",
+  imageId: "img-lux",
+  domains: ["calm"],
+  archiveSlug: "lux-lady-of-luminosity",
+};
+
+type MetaPlayerFinishOverrides = Partial<Omit<MetaPlayerFinish, "event">> & {
+  event?: Partial<MetaPlayerFinish["event"]>;
+};
+
+/**
+ * Creates one archived finish for the player page, defaulting to a win at a
+ * German store event with a legend on file. Pass `legend: null` for a row no
+ * source named a legend for.
+ * @returns A MetaPlayerFinish with overrides applied.
+ */
+export function makeMetaPlayerFinish(overrides: MetaPlayerFinishOverrides = {}): MetaPlayerFinish {
+  const { event, ...rest } = overrides;
+  return {
+    playerId: nextId(),
+    rank: 1,
+    rankIsTier: false,
+    wins: 6,
+    losses: 1,
+    draws: 0,
+    shareToken: null,
+    listStatus: "none",
+    legend: { ...META_PLAYER_LEGEND },
+    ...rest,
+    event: {
+      slug: "summoner-skirmish",
+      name: "Summoner Skirmish",
+      eventDate: "2026-08-01",
+      format: "constructed",
+      tier: "store",
+      country: "DE",
+      playerCount: 64,
+      ...event,
+    },
+  };
+}
+
+/**
+ * Creates the player detail payload the page loads, with one finish by default.
+ * @returns A MetaPlayerDetailResponse with overrides applied.
+ */
+export function makeMetaPlayerDetail(
+  overrides: Partial<MetaPlayerDetailResponse> = {},
+): MetaPlayerDetailResponse {
+  return {
+    key: "pnrenata",
+    name: "Renata",
+    finishes: [makeMetaPlayerFinish()],
     ...overrides,
   };
 }

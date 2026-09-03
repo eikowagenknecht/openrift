@@ -11,6 +11,7 @@ import type {
   MetaEventSourceRow,
   MetaEventWithCounts,
   MetaLegendFinishRow,
+  MetaPlayerFinishRow,
 } from "../repositories/meta.js";
 import {
   archiveLegendSlug,
@@ -30,6 +31,7 @@ import {
   toMetaEventSource,
   toMetaEventSummary,
   toMetaEventFinish,
+  toMetaPlayerFinish,
   toMetaSubmission,
 } from "./meta-presenters.js";
 
@@ -60,6 +62,7 @@ function playerRow(overrides: Partial<MetaEventPlayerRow> = {}): MetaEventPlayer
     rank: 1,
     rankIsTier: false,
     playerName: "Nova",
+    sourceIdentity: "u347713",
     wins: 5,
     losses: 1,
     draws: 0,
@@ -97,6 +100,7 @@ function deckRow(overrides: Partial<MetaDeckSummaryRow> = {}): MetaDeckSummaryRo
     championCardId: "champion-1",
     championName: "Vi",
     playerName: "Nova",
+    sourceIdentity: "u347713",
     rank: 1,
     rankIsTier: false,
     wins: 5,
@@ -170,6 +174,7 @@ describe("toMetaEventFinish", () => {
       rank: 1,
       rankIsTier: false,
       playerName: "Nova",
+      playerKey: "u347713",
       wins: 5,
       losses: 1,
       draws: 0,
@@ -197,6 +202,13 @@ describe("toMetaEventFinish", () => {
   it("keeps the finish when the archive never learned their legend", () => {
     const finish = toMetaEventFinish(playerRow({ legendCardId: null, legendName: null }), IMAGES);
     expect(finish).toMatchObject({ playerName: "Nova", legend: null });
+  });
+
+  it("folds the source identity into a page key, and leaves a hand-entered row without one", () => {
+    expect(toMetaEventFinish(playerRow({ sourceIdentity: "pn乌冬#2" }), IMAGES).playerKey).toBe(
+      "pn乌冬",
+    );
+    expect(toMetaEventFinish(playerRow({ sourceIdentity: null }), IMAGES).playerKey).toBeNull();
   });
 
   it("carries a cut-bucket rank as the tier it is", () => {
@@ -419,6 +431,7 @@ describe("toMetaEventPlayer", () => {
       rank: 1,
       rankIsTier: false,
       playerName: "Nova",
+      playerKey: "u347713",
       wins: 5,
       losses: 1,
       draws: 0,
@@ -443,6 +456,13 @@ describe("toMetaEventPlayer", () => {
       shareToken: "aB3dE5gH7jK9",
       listStatus: "full",
     });
+  });
+
+  it("folds the source identity into a page key, and leaves a hand-entered row without one", () => {
+    expect(toMetaEventPlayer(playerRow({ sourceIdentity: "pn乌冬#2" }), IMAGES).playerKey).toBe(
+      "pn乌冬",
+    );
+    expect(toMetaEventPlayer(playerRow({ sourceIdentity: null }), IMAGES).playerKey).toBeNull();
   });
 
   it("leaves a standings-only entry with a legend but no page", () => {
@@ -688,6 +708,13 @@ describe("toMetaDeckSummary", () => {
     expect(summary.draws).toBe(0);
   });
 
+  it("folds the source identity into a page key, and leaves a hand-entered row without one", () => {
+    expect(toMetaDeckSummary(deckRow({ sourceIdentity: "pn乌冬#2" }), IMAGES).playerKey).toBe(
+      "pn乌冬",
+    );
+    expect(toMetaDeckSummary(deckRow({ sourceIdentity: null }), IMAGES).playerKey).toBeNull();
+  });
+
   it("carries a cut-bucket finish with no record", () => {
     const summary = toMetaDeckSummary(
       deckRow({ rank: 8, rankIsTier: true, wins: null, losses: null, draws: null }),
@@ -733,6 +760,7 @@ describe("toMetaDeckContext", () => {
     playerId: "3f7a1c2e-0000-7000-8000-0000000000c1",
     listStatus: "full",
     playerName: "Nova",
+    sourceIdentity: "u347713",
     rank: 4,
     rankIsTier: false,
     wins: 4,
@@ -758,6 +786,7 @@ describe("toMetaDeckContext", () => {
       },
       listStatus: "full",
       playerName: "Nova",
+      playerKey: "u347713",
       rank: 4,
       rankIsTier: false,
       wins: 4,
@@ -774,6 +803,11 @@ describe("toMetaDeckContext", () => {
     ]);
     expect(meta.contributors).toEqual(["Nova", "Rell"]);
     expect(JSON.stringify(meta)).not.toContain("user-1");
+  });
+
+  it("folds the source identity into a page key, and leaves a hand-entered row without one", () => {
+    expect(toMetaDeckContext({ ...row, sourceIdentity: "pn乌冬#2" }, []).playerKey).toBe("pn乌冬");
+    expect(toMetaDeckContext({ ...row, sourceIdentity: null }, []).playerKey).toBeNull();
   });
 
   it("keeps the standings row's own id off the deck page", () => {
@@ -1003,6 +1037,7 @@ function legendFinishRow(overrides: Partial<MetaLegendFinishRow> = {}): MetaLege
     rank: 1,
     rankIsTier: false,
     playerName: "Renata",
+    sourceIdentity: "pn乌冬#2",
     wins: 12,
     losses: 1,
     draws: 0,
@@ -1119,6 +1154,11 @@ describe("toMetaLegendFinish", () => {
     expect(finish.listStatus).toBe("none");
   });
 
+  it("folds the source identity into a page key, and leaves a hand-entered row without one", () => {
+    expect(toMetaLegendFinish(legendFinishRow()).playerKey).toBe("pn乌冬");
+    expect(toMetaLegendFinish(legendFinishRow({ sourceIdentity: null })).playerKey).toBeNull();
+  });
+
   it("keeps a record the source never published null rather than inventing zeros", () => {
     const finish = toMetaLegendFinish(
       legendFinishRow({ wins: null, losses: null, draws: null, eventPlayerCount: null }),
@@ -1126,6 +1166,100 @@ describe("toMetaLegendFinish", () => {
     expect(finish.wins).toBeNull();
     expect(finish.losses).toBeNull();
     expect(finish.draws).toBeNull();
+    expect(finish.event.playerCount).toBeNull();
+  });
+});
+
+function playerFinishRow(overrides: Partial<MetaPlayerFinishRow> = {}): MetaPlayerFinishRow {
+  return {
+    playerId: "3f7a1c2e-0000-7000-8000-00000000000f",
+    playerName: "Renata",
+    rank: 1,
+    rankIsTier: false,
+    wins: 12,
+    losses: 1,
+    draws: 0,
+    shareToken: null,
+    listStatus: "none",
+    legendCardId: "legend-1",
+    legendName: "Jinx",
+    legendSlug: "jinx",
+    legendTypes: ["legend"],
+    legendTags: [],
+    legendDomains: ["chaos", "fury"],
+    eventSlug: "summoner-skirmish-2026",
+    eventName: "Summoner Skirmish",
+    eventDate: "2026-08-01",
+    eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
+    eventPlayerCount: 64,
+    ...overrides,
+  };
+}
+
+describe("toMetaPlayerFinish", () => {
+  it("names the legend the player brought, with its artwork and archive key", () => {
+    expect(toMetaPlayerFinish(playerFinishRow(), IMAGES).legend).toEqual({
+      cardId: "legend-1",
+      name: "Jinx",
+      slug: "jinx",
+      imageId: "image-legend",
+      domains: ["chaos", "fury"],
+      archiveSlug: "jinx",
+    });
+  });
+
+  it("composes the archive key from the champion tag the row carries", () => {
+    const finish = toMetaPlayerFinish(
+      playerFinishRow({
+        legendName: "Loose Cannon",
+        legendSlug: "loose-cannon",
+        legendTags: ["Jinx"],
+      }),
+      IMAGES,
+    );
+    expect(finish.legend?.name).toBe("Jinx, Loose Cannon");
+    expect(finish.legend?.archiveSlug).toBe("jinx-loose-cannon");
+  });
+
+  it("keeps a finish whose legend the archive never learned", () => {
+    const finish = toMetaPlayerFinish(
+      playerFinishRow({ legendCardId: null, legendName: null, legendSlug: null }),
+      IMAGES,
+    );
+    expect(finish.legend).toBeNull();
+    expect(finish.rank).toBe(1);
+  });
+
+  it("carries the event facts a row prints without leaving the player's page", () => {
+    expect(toMetaPlayerFinish(playerFinishRow(), IMAGES).event).toEqual({
+      slug: "summoner-skirmish-2026",
+      name: "Summoner Skirmish",
+      eventDate: "2026-08-01",
+      format: "constructed",
+      tier: "store",
+      country: "DE",
+      playerCount: 64,
+    });
+  });
+
+  it("leaves the player's own name off a page already titled with it", () => {
+    expect(toMetaPlayerFinish(playerFinishRow(), IMAGES)).not.toHaveProperty("playerName");
+  });
+
+  it("offers no decklist for a standings-only entry", () => {
+    const finish = toMetaPlayerFinish(playerFinishRow(), IMAGES);
+    expect(finish.shareToken).toBeNull();
+    expect(finish.listStatus).toBe("none");
+  });
+
+  it("keeps a record the source never published null rather than inventing zeros", () => {
+    const finish = toMetaPlayerFinish(
+      playerFinishRow({ wins: null, losses: null, draws: null, eventPlayerCount: null }),
+      IMAGES,
+    );
+    expect(finish.wins).toBeNull();
     expect(finish.event.playerCount).toBeNull();
   });
 });

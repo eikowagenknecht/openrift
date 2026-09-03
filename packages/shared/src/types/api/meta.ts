@@ -46,6 +46,8 @@ import type {
   metaActivityResponseSchema,
   metaCountsResponseSchema,
   metaLegendDetailResponseSchema,
+  metaPlayerDetailResponseSchema,
+  metaPlayerFinishSchema,
   metaLegendFinishSchema,
   metaLegendListResponseSchema,
   metaLegendSummarySchema,
@@ -119,6 +121,12 @@ export type MetaLegendListResponse = z.infer<typeof metaLegendListResponseSchema
 
 /** GET /meta/legends/{slug} — one legend and every finish on its record. */
 export type MetaLegendDetailResponse = z.infer<typeof metaLegendDetailResponseSchema>;
+
+/** One archived standings row seen from the player's side. */
+export type MetaPlayerFinish = z.infer<typeof metaPlayerFinishSchema>;
+
+/** GET /meta/players/{key} — one player and every finish on their record. */
+export type MetaPlayerDetailResponse = z.infer<typeof metaPlayerDetailResponseSchema>;
 
 /** Admin event row: every stored column plus the roster and deck counts. */
 export type AdminMetaEvent = z.infer<typeof adminMetaEventSchema>;

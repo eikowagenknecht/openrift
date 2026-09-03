@@ -68,6 +68,7 @@ function makeDeck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
     championName: "Jinx, Loose Cannon",
     championImageId: "img-jinx-champ",
     playerName: "Ashen",
+    playerKey: "u6001",
     rank: 1,
     rankIsTier: false,
     wins: 6,

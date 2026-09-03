@@ -83,6 +83,7 @@ export interface MetaEventPlayerRow {
   rank: number;
   rankIsTier: boolean;
   playerName: string;
+  sourceIdentity: string | null;
   wins: number | null;
   losses: number | null;
   draws: number | null;
@@ -136,6 +137,7 @@ export interface MetaDeckSummaryRow {
   championCardId: string | null;
   championName: string | null;
   playerName: string;
+  sourceIdentity: string | null;
   rank: number;
   rankIsTier: boolean;
   wins: number | null;
@@ -186,11 +188,37 @@ export interface MetaLegendFinishRow {
   rank: number;
   rankIsTier: boolean;
   playerName: string;
+  sourceIdentity: string | null;
   wins: number | null;
   losses: number | null;
   draws: number | null;
   shareToken: string | null;
   listStatus: MetaListStatus;
+  eventSlug: string;
+  eventName: string;
+  eventDate: string;
+  eventFormat: string;
+  eventTier: MetaEventTier;
+  eventCountry: string | null;
+  eventPlayerCount: number | null;
+}
+
+export interface MetaPlayerFinishRow {
+  playerId: string;
+  playerName: string;
+  rank: number;
+  rankIsTier: boolean;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  shareToken: string | null;
+  listStatus: MetaListStatus;
+  legendCardId: string | null;
+  legendName: string | null;
+  legendSlug: string | null;
+  legendTypes: CardType[] | null;
+  legendTags: string[] | null;
+  legendDomains: string[] | null;
   eventSlug: string;
   eventName: string;
   eventDate: string;
@@ -210,6 +238,7 @@ export interface MetaDeckContextRow {
   playerId: string;
   listStatus: MetaListStatus;
   playerName: string;
+  sourceIdentity: string | null;
   rank: number;
   rankIsTier: boolean;
   wins: number | null;
@@ -408,6 +437,12 @@ export interface MetaEventPlayerPatch {
  */
 const resolvedPlayerName = sql<string>`coalesce(p.player_name, up.display_name)`;
 
+/**
+ * Must stay character-for-character what `metaPlayerKey` and
+ * `idx_meta_event_players_player_key` compute.
+ */
+const foldedPlayerIdentity = sql<string>`regexp_replace(p.source_identity, '#\\d+$', '')`;
+
 /** How one page of the live event list is filtered. */
 export interface MetaEventFilters {
   /** Matched against the event name and the organizer. */
@@ -532,6 +567,7 @@ export function metaRepo(db: Kysely<Database>) {
           "p.rank",
           "p.rankIsTier",
           resolvedPlayerName.as("playerName"),
+          "p.sourceIdentity",
           "p.wins",
           "p.losses",
           "p.draws",
@@ -1032,6 +1068,7 @@ export function metaRepo(db: Kysely<Database>) {
             "p.championCardId",
             "cc.name as championName",
             resolvedPlayerName.as("playerName"),
+            "p.sourceIdentity",
             "p.rank",
             "p.rankIsTier",
             "p.wins",
@@ -1120,6 +1157,7 @@ export function metaRepo(db: Kysely<Database>) {
           "p.rank",
           "p.rankIsTier",
           resolvedPlayerName.as("playerName"),
+          "p.sourceIdentity",
           "p.wins",
           "p.losses",
           "p.draws",
@@ -1137,6 +1175,44 @@ export function metaRepo(db: Kysely<Database>) {
         .orderBy("p.rank", "asc")
         .orderBy("me.eventDate", "desc")
         .orderBy(resolvedPlayerName, "asc")
+        .execute();
+    },
+
+    finishesForPlayer(key: string): Promise<MetaPlayerFinishRow[]> {
+      return db
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+        .leftJoin("decks as d", "d.id", "p.deckId")
+        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+        .leftJoin("cards as lc", "lc.id", "p.legendCardId")
+        .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
+        .select([
+          "p.id as playerId",
+          resolvedPlayerName.as("playerName"),
+          "p.rank",
+          "p.rankIsTier",
+          "p.wins",
+          "p.losses",
+          "p.draws",
+          "d.shareToken",
+          "p.listStatus",
+          "p.legendCardId",
+          "lc.name as legendName",
+          "lc.slug as legendSlug",
+          "lmca.types as legendTypes",
+          "lc.tags as legendTags",
+          "lmca.domains as legendDomains",
+          "me.slug as eventSlug",
+          "me.name as eventName",
+          "me.eventDate",
+          "me.format as eventFormat",
+          "me.tier as eventTier",
+          "me.country as eventCountry",
+          "me.playerCount as eventPlayerCount",
+        ])
+        .where(foldedPlayerIdentity, "=", key)
+        .orderBy("me.eventDate", "desc")
+        .orderBy("p.rank", "asc")
         .execute();
     },
 
@@ -1202,6 +1278,7 @@ export function metaRepo(db: Kysely<Database>) {
           "p.id as playerId",
           "p.listStatus",
           resolvedPlayerName.as("playerName"),
+          "p.sourceIdentity",
           "p.rank",
           "p.rankIsTier",
           "p.wins",

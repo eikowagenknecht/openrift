@@ -76,6 +76,7 @@ function deck(rank: number): MetaDeckSummary {
     championName: null,
     championImageId: null,
     playerName: `Pilot ${rank}`,
+    playerKey: `u${rank}`,
     rank,
     rankIsTier: false,
     wins: 6,

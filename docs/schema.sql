@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict xpzLKUAvTw1CxrBDTYQJb5mYN4WMhF8McQVi48xDI3oTIs1LPYDTIgxBPO4ZnUo
+\restrict swV4o6UOT8jhbtBgiudHAmU7PQpMgThp8NZpkaGkp37RokkQ7hFHYv9kFq1hgc0
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -5766,6 +5766,13 @@ CREATE INDEX idx_meta_event_players_minted_by ON public.meta_event_players USING
 
 
 --
+-- Name: idx_meta_event_players_player_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_event_players_player_key ON public.meta_event_players USING btree (regexp_replace(source_identity, '#\d+$'::text, ''::text)) WHERE (source_identity IS NOT NULL);
+
+
+--
 -- Name: idx_meta_event_sources_event; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8850,5 +8857,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xpzLKUAvTw1CxrBDTYQJb5mYN4WMhF8McQVi48xDI3oTIs1LPYDTIgxBPO4ZnUo
+\unrestrict swV4o6UOT8jhbtBgiudHAmU7PQpMgThp8NZpkaGkp37RokkQ7hFHYv9kFq1hgc0
 

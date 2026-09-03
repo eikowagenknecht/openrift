@@ -11,14 +11,15 @@ vi.mock("@tanstack/react-router", () => ({
   }: {
     children?: React.ReactNode;
     to?: string;
-    params?: { token?: string; slug?: string; cardSlug?: string };
+    params?: { token?: string; slug?: string; cardSlug?: string; key?: string };
   }) => (
     <a
       {...rest}
       href={(to ?? "/")
         .replace("$token", params?.token ?? "")
         .replace("$slug", params?.slug ?? "")
-        .replace("$cardSlug", params?.cardSlug ?? "")}
+        .replace("$cardSlug", params?.cardSlug ?? "")
+        .replace("$key", params?.key ?? "")}
     >
       {children}
     </a>
@@ -49,6 +50,7 @@ const DECK: MetaDeckSummary = {
   championName: null,
   championImageId: null,
   playerName: "Nova",
+  playerKey: "u2001",
   rank: 1,
   rankIsTier: false,
   wins: 6,
@@ -142,5 +144,20 @@ describe("MetaArchiveDeckTile", () => {
   it("counts nothing for a reader with no collection loaded", () => {
     render(tile({ cost: { needed: 40, owned: undefined, value: 120, toComplete: undefined } }));
     expect(screen.queryByText(/owned/u)).not.toBeInTheDocument();
+  });
+
+  it("sends the pilot's name to their page, positioned so the tile's permalink does not swallow it", () => {
+    render(tile());
+
+    const link = screen.getByRole("link", { name: "Nova" });
+    expect(link).toHaveAttribute("href", "/meta/players/u2001");
+    expect(link).toHaveClass("relative");
+  });
+
+  it("prints a pilot the source filed under no identity as plain text", () => {
+    render(tile({ deck: { ...DECK, playerKey: null } }));
+
+    expect(screen.queryByRole("link", { name: "Nova" })).not.toBeInTheDocument();
+    expect(screen.getByText("Nova")).toBeInTheDocument();
   });
 });

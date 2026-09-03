@@ -111,6 +111,7 @@ function deck(overrides: Partial<MetaDeckSummary> = {}): MetaDeckSummary {
     championName: null,
     championImageId: null,
     playerName: "Nova",
+    playerKey: "u2001",
     rank: 1,
     rankIsTier: false,
     wins: 6,

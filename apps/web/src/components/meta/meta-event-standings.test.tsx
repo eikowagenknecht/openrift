@@ -383,10 +383,10 @@ describe("MetaEventStandings", () => {
     const user = userEvent.setup();
     renderStandings([metaPlayer({ playerName: "Ana", shareToken: "tok1" })]);
 
-    await user.click(within(phoneRow("Ana")).getByText("Ana"));
+    await user.click(within(phoneRow("Ana")).getByText("6-1-0"));
     expect(within(phoneRow("Ana")).getByText("Preview for tok1")).toBeInTheDocument();
 
-    await user.click(within(phoneRow("Ana")).getByText("Ana"));
+    await user.click(within(phoneRow("Ana")).getByText("6-1-0"));
     expect(screen.queryByText("Preview for tok1")).toBeNull();
   });
 
@@ -396,6 +396,23 @@ describe("MetaEventStandings", () => {
 
     await user.click(within(phoneRow("Ana")).getByRole("link", { name: /Yasuo/u }));
     expect(screen.queryByText("Preview for tok1")).toBeNull();
+  });
+
+  it("sends a player the archive has a page for to it, in both renderings", () => {
+    renderStandings([metaPlayer({ playerName: "Ana", playerKey: "u1001" })]);
+
+    const links = screen.getAllByRole("link", { name: "Ana" });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/meta/players/u1001");
+    }
+  });
+
+  it("prints a player the source filed under no identity as plain text", () => {
+    renderStandings([metaPlayer({ playerName: "Ana", playerKey: null })]);
+
+    expect(screen.queryByRole("link", { name: "Ana" })).toBeNull();
+    expect(within(phoneRow("Ana")).getByText("Ana")).toBeInTheDocument();
   });
 
   it("closes an open decklist when another one opens", async () => {

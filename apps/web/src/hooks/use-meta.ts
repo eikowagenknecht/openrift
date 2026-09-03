@@ -7,6 +7,7 @@ import type {
   MetaEventListResponse,
   MetaLegendDetailResponse,
   MetaLegendListResponse,
+  MetaPlayerDetailResponse,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { isDefinedError, safe } from "@orpc/client";
@@ -206,4 +207,30 @@ export function metaLegendQueryOptions(slug: string) {
 
 export function useMetaLegend(slug: string) {
   return useSuspenseQuery(metaLegendQueryOptions(slug));
+}
+
+const fetchMetaPlayer = createServerFn({ method: "GET" })
+  .validator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: key }): Promise<MetaPlayerDetailResponse> => {
+    const { error, data } = await safe(apiOrpcClient(metaContract, context.cookie).player({ key }));
+    if (error) {
+      if (isDefinedError(error) && error.code === "NOT_FOUND") {
+        throw new Error("NOT_FOUND");
+      }
+      throw error;
+    }
+    return data;
+  });
+
+export function metaPlayerQueryOptions(key: string) {
+  return queryOptions({
+    queryKey: queryKeys.meta.player(key),
+    queryFn: () => fetchMetaPlayer({ data: key }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useMetaPlayer(key: string) {
+  return useSuspenseQuery(metaPlayerQueryOptions(key));
 }

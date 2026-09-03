@@ -2,6 +2,7 @@ import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/
 
 import { Heading } from "@/components/heading";
 import { MetaIdentity } from "@/components/meta/meta-identity";
+import { MetaPlayerName } from "@/components/meta/meta-player-name";
 import { Card } from "@/components/ui/card";
 import { accentGlow, Medal } from "@/components/ui/podium";
 import type { MetaBracketMatch, MetaBracketRound, MetaBracketSeat } from "@/lib/meta-bracket";
@@ -10,6 +11,27 @@ import { cn } from "@/lib/utils";
 
 /** The final's card wears the archive's winning colour, quieter than a podium seat. */
 const FINAL_GLOW = accentGlow(12);
+
+const SEAT_NAME_CLASS = "min-w-0 flex-1 truncate";
+
+function SeatName({
+  seat,
+  player,
+}: {
+  seat: MetaBracketSeat;
+  player: MetaEventPlayer | undefined;
+}) {
+  if (player === undefined) {
+    return <span className={SEAT_NAME_CLASS}>{seat.playerId === null ? "Bye" : "Unknown"}</span>;
+  }
+  return (
+    <MetaPlayerName
+      name={player.playerName}
+      playerKey={player.playerKey}
+      className={SEAT_NAME_CLASS}
+    />
+  );
+}
 
 function Seat({ seat, player }: { seat: MetaBracketSeat; player: MetaEventPlayer | undefined }) {
   return (
@@ -20,12 +42,7 @@ function Seat({ seat, player }: { seat: MetaBracketSeat; player: MetaEventPlayer
       )}
     >
       {player === undefined ? <span className="size-5 shrink-0" /> : <Medal rank={player.rank} />}
-      {/* A seat with no player id is a bye; one whose standings row the archive
-          does not hold is a gap in the record, and saying "Bye" would be wrong
-          about what happened. */}
-      <span className="min-w-0 flex-1 truncate">
-        {seat.playerId === null ? "Bye" : (player?.playerName ?? "Unknown")}
-      </span>
+      <SeatName seat={seat} player={player} />
       {/* The compact bracket is the one surface allowed the champion alone: a
           full "Kennen · Heart of the Tempest" does not fit a bracket cell. */}
       <MetaIdentity

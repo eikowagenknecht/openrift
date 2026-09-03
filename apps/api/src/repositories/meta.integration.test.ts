@@ -45,6 +45,7 @@ interface PlayerOpts {
   withChampion?: boolean;
   withSideboard?: boolean;
   deckFormat?: string;
+  sourceIdentity?: string;
 }
 
 function shareToken(): string {
@@ -125,6 +126,7 @@ function playerInput(
     draws: opts.draws ?? null,
     legendCardId,
     championCardId: opts.withChampion === false ? null : championCardId,
+    sourceIdentity: opts.sourceIdentity ?? null,
     deck,
   };
 }
@@ -767,6 +769,51 @@ describe.skipIf(!ctx)("metaRepo", () => {
           won: false,
         },
       ]);
+    });
+
+    it("gathers one player's finishes across events, newest first, suffix folded off", async () => {
+      const older = await seedEvent(repo, "mta-player-older", { eventDate: "2026-03-01" });
+      const newer = await seedEvent(repo, "mta-player-newer", { eventDate: "2026-12-01" });
+      await seedListedPlayer(repo, newer, {
+        playerName: "MTA Udon Latest",
+        rank: 1,
+        sourceIdentity: "mta乌冬",
+      });
+      await seedDecklessPlayer(repo, newer, {
+        playerName: "MTA Udon Second",
+        rank: 4,
+        sourceIdentity: "mta乌冬#2",
+      });
+      await seedDecklessPlayer(repo, older, {
+        playerName: "MTA Udon Older",
+        rank: 8,
+        sourceIdentity: "mta乌冬#11",
+      });
+      await seedDecklessPlayer(repo, newer, {
+        playerName: "MTA Not Udon",
+        rank: 9,
+        sourceIdentity: "mta乌冬2",
+      });
+
+      const finishes = await repo.finishesForPlayer("mta乌冬");
+
+      expect(finishes.map((row) => [row.eventSlug, row.rank])).toEqual([
+        ["mta-player-newer", 1],
+        ["mta-player-newer", 4],
+        ["mta-player-older", 8],
+      ]);
+      expect(finishes[0].playerName).toBe("MTA Udon Latest");
+      expect(finishes[0].legendName).toBe("MTA Legend");
+      expect(finishes[0].shareToken).not.toBeNull();
+      expect(finishes[0].eventPlayerCount).toBe(64);
+      expect(finishes[1].shareToken).toBeNull();
+    });
+
+    it("holds no page for a row the source filed under no identity", async () => {
+      const eventId = await seedEvent(repo, "mta-player-anon");
+      await seedDecklessPlayer(repo, eventId, { playerName: "MTA Anon", rank: 1 });
+
+      expect(await repo.finishesForPlayer("MTA Anon")).toEqual([]);
     });
 
     it("resolves an event by slug with its counts", async () => {

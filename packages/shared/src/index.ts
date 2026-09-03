@@ -144,6 +144,7 @@ export {
   labelMap,
   legendDisplayName,
   metaLegendSlug,
+  metaPlayerKey,
   preferredPrinting,
   mostCommonValue,
   normalizeNameForIdentity,

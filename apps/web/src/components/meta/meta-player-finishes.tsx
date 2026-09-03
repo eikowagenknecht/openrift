@@ -1,10 +1,10 @@
-import type { MetaLegendFinish } from "@openrift/shared";
+import type { MetaPlayerFinish } from "@openrift/shared";
 import { formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Heading } from "@/components/heading";
-import { MetaPlayerName } from "@/components/meta/meta-player-name";
+import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,15 +14,15 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useUserId } from "@/lib/auth-session";
 import { formatRank, formatRecord, MEDAL_RANKS } from "@/lib/meta-format";
 import type { MetaFinishesView } from "@/lib/meta-legend-page";
-import { BEST_FINISH_COUNT, FINISH_PAGE_SIZE, sortLegendFinishes } from "@/lib/meta-legend-page";
+import { BEST_FINISH_COUNT, FINISH_PAGE_SIZE } from "@/lib/meta-legend-page";
+import { sortPlayerFinishes } from "@/lib/meta-player-page";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 import { cn } from "@/lib/utils";
 
-/** The desktop column track, shared by the rows so they cannot drift apart. */
 const FINISH_GRID =
-  "grid grid-cols-[1.75rem_minmax(0,1fr)_6rem_9rem_4.5rem_5rem] items-center gap-x-3.5";
+  "grid grid-cols-[1.75rem_minmax(0,1fr)_6rem_minmax(0,14rem)_4.5rem_5rem] items-center gap-x-3.5";
 
-function Rank({ finish }: { finish: MetaLegendFinish }) {
+function Rank({ finish }: { finish: MetaPlayerFinish }) {
   if (finish.rank <= MEDAL_RANKS) {
     return <Medal rank={finish.rank} />;
   }
@@ -33,12 +33,31 @@ function Rank({ finish }: { finish: MetaLegendFinish }) {
   );
 }
 
-/**
- * What a finish offers about its list: the archived page when one is on file, and
- * otherwise the way to send it. A signed-out reader gets neither — the form is
- * behind a login, and an "+ Add" on every row of a long record leads nowhere.
- */
-function ListLink({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit: boolean }) {
+function LegendCell({ finish, className }: { finish: MetaPlayerFinish; className?: string }) {
+  const { legend } = finish;
+  if (legend === null) {
+    return <span className="text-muted-foreground text-xs">No legend on file</span>;
+  }
+  return (
+    <MetaIdentity
+      name={legend.name}
+      slug={legend.slug}
+      archiveSlug={legend.archiveSlug}
+      domains={legend.domains}
+      className={className}
+    />
+  );
+}
+
+function ListLink({
+  finish,
+  playerName,
+  canSubmit,
+}: {
+  finish: MetaPlayerFinish;
+  playerName: string;
+  canSubmit: boolean;
+}) {
   if (finish.shareToken !== null) {
     return (
       <Link
@@ -57,7 +76,7 @@ function ListLink({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit: 
     <Link
       to="/meta/$slug/submit"
       params={{ slug: finish.event.slug }}
-      search={metaSubmitSearchForPlayer(finish)}
+      search={metaSubmitSearchForPlayer({ ...finish, playerName })}
       className="text-primary font-medium whitespace-nowrap hover:underline"
     >
       + Add
@@ -65,8 +84,7 @@ function ListLink({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit: 
   );
 }
 
-/** The event's date and, where the source published one, its field size. */
-function eventFacts(finish: MetaLegendFinish): string {
+function eventFacts(finish: MetaPlayerFinish): string {
   const size = finish.event.playerCount;
   const parts = [formatDay(finish.event.eventDate)];
   if (size !== null) {
@@ -75,7 +93,15 @@ function eventFacts(finish: MetaLegendFinish): string {
   return parts.join(" · ");
 }
 
-function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit: boolean }) {
+function FinishRow({
+  finish,
+  playerName,
+  canSubmit,
+}: {
+  finish: MetaPlayerFinish;
+  playerName: string;
+  canSubmit: boolean;
+}) {
   const record = formatRecord(finish.wins, finish.losses, finish.draws);
 
   return (
@@ -97,14 +123,10 @@ function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit:
         <div>
           <MetaTierBadge tier={finish.event.tier} />
         </div>
-        <MetaPlayerName
-          name={finish.playerName}
-          playerKey={finish.playerKey}
-          className="truncate text-sm font-medium"
-        />
+        <LegendCell finish={finish} className="text-sm" />
         <span className="text-right text-sm tabular-nums">{record}</span>
         <span className="text-right text-sm">
-          <ListLink finish={finish} canSubmit={canSubmit} />
+          <ListLink finish={finish} playerName={playerName} canSubmit={canSubmit} />
         </span>
       </div>
 
@@ -125,15 +147,11 @@ function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit:
             <span className="tabular-nums">{eventFacts(finish)}</span>
           </p>
           <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
-            <MetaPlayerName
-              name={finish.playerName}
-              playerKey={finish.playerKey}
-              className="truncate font-medium"
-            />
+            <LegendCell finish={finish} />
             {record !== null && (
               <span className="text-muted-foreground tabular-nums">{record}</span>
             )}
-            <ListLink finish={finish} canSubmit={canSubmit} />
+            <ListLink finish={finish} playerName={playerName} canSubmit={canSubmit} />
           </p>
         </div>
       </div>
@@ -141,31 +159,19 @@ function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit:
   );
 }
 
-/**
- * One legend's tournament record: every archived standings row filed under it,
- * as published.
- *
- * "Best" leads with the placings; "All" is the record in the order it happened
- * and grows a page at a time. Both views hold the same rows, so the count beside
- * the toggle is always the number the list can reach.
- *
- * The rows arrive already narrowed by the page's scope bar; `narrowed` only
- * decides which empty state to write, since "nothing on record" and "nothing in
- * this scope" are different facts about the archive.
- */
-export function MetaLegendFinishes({
+export function MetaPlayerFinishes({
   finishes,
+  playerName,
   narrowed = false,
 }: {
-  finishes: readonly MetaLegendFinish[];
+  finishes: readonly MetaPlayerFinish[];
+  playerName: string;
   narrowed?: boolean;
 }) {
   const canSubmit = useUserId() !== null;
   const [view, setView] = useState<MetaFinishesView>("best");
   const [shown, setShown] = useState(FINISH_PAGE_SIZE);
 
-  // The footer says "Show all N", so it shows all N. Leaving `shown` at one page
-  // would page instead, and the button would have lied.
   const showAll = () => {
     setView("all");
     setShown(finishes.length);
@@ -179,8 +185,8 @@ export function MetaLegendFinishes({
           <EmptyHeader>
             <EmptyDescription>
               {narrowed
-                ? "No finish on this legend's record falls in this scope."
-                : "No archived event has this legend on its standings yet."}
+                ? "No finish on this player's record falls in this scope."
+                : "No archived event has this player on its standings yet."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -188,7 +194,7 @@ export function MetaLegendFinishes({
     );
   }
 
-  const sorted = sortLegendFinishes(finishes, view);
+  const sorted = sortPlayerFinishes(finishes, view);
   const rows = view === "best" ? sorted.slice(0, BEST_FINISH_COUNT) : sorted.slice(0, shown);
   const remaining = finishes.length - rows.length;
 
@@ -221,7 +227,12 @@ export function MetaLegendFinishes({
       <Card className="gap-0 py-0">
         <ul className="flex flex-col">
           {rows.map((finish) => (
-            <FinishRow key={finish.playerId} finish={finish} canSubmit={canSubmit} />
+            <FinishRow
+              key={finish.playerId}
+              finish={finish}
+              playerName={playerName}
+              canSubmit={canSubmit}
+            />
           ))}
         </ul>
 

@@ -8,6 +8,7 @@ import { PublicDeckSurface } from "@/components/deck/public-deck-surface";
 import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { MetaDeckArchiveBar } from "@/components/meta/meta-deck-archive-bar";
+import { MetaPlayerName } from "@/components/meta/meta-player-name";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Medal } from "@/components/ui/podium";
@@ -46,7 +47,11 @@ function MetaDeckByline({ meta }: { meta: MetaDeckDetailResponse["meta"] }) {
   return (
     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
       {medal === null ? formatRank(meta.rank, meta.rankIsTier) : <Medal rank={medal} />}
-      <span className="text-foreground font-medium">{meta.playerName}</span>
+      <MetaPlayerName
+        name={meta.playerName}
+        playerKey={meta.playerKey}
+        className="text-foreground font-medium"
+      />
       {record !== null && <span className="tabular-nums">{record}</span>}
       <span aria-hidden>·</span>
       <Link to="/meta/$slug" params={{ slug: meta.event.slug }} className="hover:underline">

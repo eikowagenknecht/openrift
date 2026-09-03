@@ -5,6 +5,7 @@ const captured = vi.hoisted(() => ({
   meta: null as {
     listStatus: string;
     contributors: string[];
+    playerKey?: string | null;
   } | null,
   userId: null as string | null,
   cards: [] as Record<string, unknown>[],
@@ -51,6 +52,7 @@ vi.mock("@/hooks/use-meta", () => ({
       meta: {
         event: { slug: "summoner-skirmish", name: "Summoner Skirmish", eventDate: "2026-08-01" },
         playerName: "Nova",
+        playerKey: "u2001",
         rank: 1,
         rankIsTier: false,
         wins: 5,
@@ -68,7 +70,24 @@ vi.mock("@/hooks/use-decks", () => ({
 }));
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => captured.userId }));
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children }: { children?: React.ReactNode }) => <a href="/meta">{children}</a>,
+  Link: ({
+    children,
+    to,
+    params,
+  }: {
+    children?: React.ReactNode;
+    to?: string;
+    params?: Record<string, string>;
+  }) => (
+    <a
+      href={Object.entries(params ?? {}).reduce(
+        (path, [key, value]) => path.replace(`$${key}`, value),
+        to ?? "/meta",
+      )}
+    >
+      {children}
+    </a>
+  ),
   useNavigate: () => vi.fn(),
   createLink: (component: unknown) => component,
 }));
@@ -94,7 +113,7 @@ function deckCard(zone: string, quantity: number): Record<string, unknown> {
 
 /** Renders the page for one archived deck's contributors and list status. */
 function renderDeck(
-  meta: { listStatus?: string; contributors?: string[] } = {},
+  meta: { listStatus?: string; contributors?: string[]; playerKey?: string | null } = {},
   cards: { zone: string; quantity: number }[] = [],
 ): void {
   captured.meta = { listStatus: "full", contributors: [], ...meta };
@@ -227,5 +246,19 @@ describe("MetaDeckPage archive frame", () => {
   it("offers the deck code", () => {
     renderDeck();
     expect(screen.getByRole("button", { name: "Copy deck code" })).toBeDefined();
+  });
+
+  it("sends the byline's player to their page", () => {
+    renderDeck();
+    expect(screen.getByRole("link", { name: "Nova" })).toHaveAttribute(
+      "href",
+      "/meta/players/u2001",
+    );
+  });
+
+  it("prints a player the source filed under no identity as plain text", () => {
+    renderDeck({ playerKey: null });
+    expect(screen.queryByRole("link", { name: "Nova" })).toBeNull();
+    expect(screen.getByText("Nova")).toBeDefined();
   });
 });

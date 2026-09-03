@@ -8,6 +8,7 @@ import type {
   MetaCountsResponse,
   MetaLegendDetailResponse,
   MetaLegendListResponse,
+  MetaPlayerDetailResponse,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { implement } from "@orpc/server";
@@ -28,6 +29,7 @@ import {
   toMetaLegendFinish,
   toMetaLegendRef,
   toMetaLegendSummary,
+  toMetaPlayerFinish,
 } from "../../lib/meta-presenters.js";
 import { buildPublicDeckDetail } from "../../lib/public-deck-payload.js";
 import { requireUser } from "../../orpc/base.js";
@@ -226,6 +228,28 @@ export const metaRouter = {
         slug: ref.slug,
         legend: ref.legend,
         finishes: finishes.map((finish) => toMetaLegendFinish(finish)),
+      };
+    },
+  ),
+
+  player: os.player.handler(
+    async ({ input, context, errors }): Promise<MetaPlayerDetailResponse> => {
+      const { meta, canonicalPrintings } = context.repos;
+
+      const finishes = await meta.finishesForPlayer(input.key);
+      const newest = finishes[0];
+      if (newest === undefined) {
+        throw errors.NOT_FOUND({ message: "Player not found" });
+      }
+      const images = await imageIdsForCards(
+        canonicalPrintings,
+        finishes.map((finish) => finish.legendCardId).filter((id) => id !== null),
+      );
+
+      return {
+        key: input.key,
+        name: newest.playerName,
+        finishes: finishes.map((finish) => toMetaPlayerFinish(finish, images)),
       };
     },
   ),

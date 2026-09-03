@@ -18,6 +18,7 @@ import {
   labelMap,
   legendDisplayName,
   metaLegendSlug,
+  metaPlayerKey,
   mostCommonValue,
   normalizeNameForIdentity,
   preferredPrinting,
@@ -84,6 +85,26 @@ describe("legendDisplayName", () => {
 
   it("returns the bare name for non-Legend cards even when tagged", () => {
     expect(legendDisplayName({ name: "Recall", types: ["spell"], tags: ["Azir"] })).toBe("Recall");
+  });
+});
+
+describe("metaPlayerKey", () => {
+  it("keeps a uvsgames identity as it is", () => {
+    expect(metaPlayerKey("u347713")).toBe("u347713");
+  });
+
+  it("folds the per-event suffix off a playloltcg identity", () => {
+    expect(metaPlayerKey("pn乌冬#1")).toBe("pn乌冬");
+    expect(metaPlayerKey("pnARBD-Jay#12")).toBe("pnARBD-Jay");
+  });
+
+  it("leaves a hash inside the name alone", () => {
+    expect(metaPlayerKey("pnC#Dev#1")).toBe("pnC#Dev");
+  });
+
+  it("returns null for a row with no identity", () => {
+    expect(metaPlayerKey(null)).toBeNull();
+    expect(metaPlayerKey("")).toBeNull();
   });
 });
 

@@ -92,6 +92,17 @@ export function metaLegendSlug(displayName: string, cardSlug: string): string {
 }
 
 /**
+ * The `#n` a playloltcg identity carries only tells two same-named entrants of
+ * one event apart, so the page for the name folds it away.
+ */
+export function metaPlayerKey(sourceIdentity: string | null): string | null {
+  if (sourceIdentity === null || sourceIdentity === "") {
+    return null;
+  }
+  return sourceIdentity.replace(/#\d+$/u, "");
+}
+
+/**
  * Compares two cards by the name the user actually reads, so a sorted list
  * files a Legend under its champion ("Azir, Emperor of the Sands" under A) and
  * agrees with the label beside it. Sorting on the stored `name` was what put

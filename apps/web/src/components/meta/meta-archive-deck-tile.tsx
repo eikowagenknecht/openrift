@@ -4,6 +4,7 @@ import { FannedPreview } from "@/components/deck/deck-tile";
 import { MetaDeckFrame, metaFrontImage } from "@/components/meta/meta-deck-card";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
+import { MetaPlayerName } from "@/components/meta/meta-player-name";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { Medal } from "@/components/ui/podium";
 import { compactFormatterForMarketplace } from "@/lib/format";
@@ -129,7 +130,12 @@ export function MetaArchiveDeckTile({
         <MetaIdentity name={deck.legendName} archiveSlug={deck.legendArchiveSlug} layout="tile" />
 
         <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm">
-          <span className="truncate font-medium">{deck.playerName}</span>
+          <MetaPlayerName
+            name={deck.playerName}
+            playerKey={deck.playerKey}
+            inStretchedTile
+            className="truncate font-medium"
+          />
           {record !== null && (
             <span className="text-muted-foreground text-xs tabular-nums">{record}</span>
           )}

@@ -13,13 +13,14 @@ import type {
   MetaEventFinish,
   MetaLegendFinish,
   MetaLegendSummary,
+  MetaPlayerFinish,
 } from "@openrift/shared";
-import { legendDisplayName, metaLegendSlug } from "@openrift/shared";
+import { legendDisplayName, metaLegendSlug, metaPlayerKey } from "@openrift/shared";
 import type {
   AdminMetaEventCorrection,
   AdminMetaSubmission,
 } from "@openrift/shared/contracts/admin/meta-submissions";
-import type { CardType } from "@openrift/shared/types";
+import type { CardType, MetaEventTier } from "@openrift/shared/types";
 
 import type {
   MetaEventCorrectionRow,
@@ -34,6 +35,7 @@ import type {
   MetaDeckSummaryRow,
   MetaLegendEventRecordRow,
   MetaLegendFinishRow,
+  MetaPlayerFinishRow,
   MetaEventMatchRow,
   MetaEventPhaseRow,
   MetaActivityRow,
@@ -170,6 +172,7 @@ export function toMetaEventFinish(row: MetaEventPlayerRow, images: ImageIds): Me
     rank: row.rank,
     rankIsTier: row.rankIsTier,
     playerName: row.playerName,
+    playerKey: metaPlayerKey(row.sourceIdentity),
     wins: row.wins,
     losses: row.losses,
     draws: row.draws,
@@ -242,6 +245,7 @@ export function toMetaEventPlayer(row: MetaEventPlayerRow, images: ImageIds): Me
     rank: row.rank,
     rankIsTier: row.rankIsTier,
     playerName: row.playerName,
+    playerKey: metaPlayerKey(row.sourceIdentity),
     wins: row.wins,
     losses: row.losses,
     draws: row.draws,
@@ -320,6 +324,7 @@ export function toMetaDeckSummary(row: MetaDeckSummaryRow, images: ImageIds): Me
     championName: row.championName,
     championImageId: row.championCardId === null ? null : (images.get(row.championCardId) ?? null),
     playerName: row.playerName,
+    playerKey: metaPlayerKey(row.sourceIdentity),
     rank: row.rank,
     rankIsTier: row.rankIsTier,
     wins: row.wins,
@@ -389,6 +394,26 @@ export function archiveLegendSlug(row: MetaArchiveLegendRow): string {
   return metaLegendSlug(archiveLegendName(row), row.slug);
 }
 
+function toFinishEvent(row: {
+  eventSlug: string;
+  eventName: string;
+  eventDate: string;
+  eventFormat: string;
+  eventTier: MetaEventTier;
+  eventCountry: string | null;
+  eventPlayerCount: number | null;
+}): MetaLegendFinish["event"] {
+  return {
+    slug: row.eventSlug,
+    name: row.eventName,
+    eventDate: row.eventDate,
+    format: row.eventFormat,
+    tier: row.eventTier,
+    country: row.eventCountry,
+    playerCount: row.eventPlayerCount,
+  };
+}
+
 /**
  * One archived finish on a legend's own page: the event it happened at, who
  * piloted the legend there, and whether the archive holds the list.
@@ -399,20 +424,37 @@ export function toMetaLegendFinish(row: MetaLegendFinishRow): MetaLegendFinish {
     rank: row.rank,
     rankIsTier: row.rankIsTier,
     playerName: row.playerName,
+    playerKey: metaPlayerKey(row.sourceIdentity),
     wins: row.wins,
     losses: row.losses,
     draws: row.draws,
     shareToken: row.shareToken,
     listStatus: row.listStatus,
-    event: {
-      slug: row.eventSlug,
-      name: row.eventName,
-      eventDate: row.eventDate,
-      format: row.eventFormat,
-      tier: row.eventTier,
-      country: row.eventCountry,
-      playerCount: row.eventPlayerCount,
-    },
+    event: toFinishEvent(row),
+  };
+}
+
+export function toMetaPlayerFinish(row: MetaPlayerFinishRow, images: ImageIds): MetaPlayerFinish {
+  return {
+    playerId: row.playerId,
+    rank: row.rank,
+    rankIsTier: row.rankIsTier,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    shareToken: row.shareToken,
+    listStatus: row.listStatus,
+    legend: toCardRef(
+      {
+        cardId: row.legendCardId,
+        name: legendLabel(row),
+        slug: row.legendSlug,
+        domains: row.legendDomains,
+      },
+      images,
+      rowLegendArchiveSlug(row),
+    ),
+    event: toFinishEvent(row),
   };
 }
 
@@ -481,6 +523,7 @@ export function toMetaDeckContext(
     },
     listStatus: row.listStatus,
     playerName: row.playerName,
+    playerKey: metaPlayerKey(row.sourceIdentity),
     rank: row.rank,
     rankIsTier: row.rankIsTier,
     wins: row.wins,

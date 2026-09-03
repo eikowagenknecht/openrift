@@ -395,6 +395,7 @@ Routes, all SSR public:
 - **`/meta/decks/$token`**: single archived deck, reusing the public deck-share surface with the archive's byline (rank, player, record, event link, date), the ownership line, and the fork and deck-code actions.
 - **`/meta/legends`**: alphabetical index of every legend the archive holds a result for, with the number of lists on file.
 - **`/meta/legends/$slug`**: one legend's record: its archived finishes, the players behind them, and the lists they registered.
+- **`/meta/players/$key`**: one player's record: their archived finishes, the legends they brought, and the lists they registered.
 - **`/meta/$slug/submit`**: signed-in decklist submission against an existing event; proposing a new event is the same form with the event fields shown.
 - **`/settings`**: the credit visibility control, with a preview of the printed line.
 - **`/meta/submissions`**: the submitter's own ledger.
@@ -909,7 +910,7 @@ Schema-level invariants exercised by integration tests:
 
 Read-path behaviour exercised by vitest tests:
 
-- `/meta`, `/meta/events`, `/meta/$slug`, `/meta/decks`, `/meta/decks/$token`, `/meta/legends`, and `/meta/legends/$slug` all render for an unauthenticated request.
+- `/meta`, `/meta/events`, `/meta/$slug`, `/meta/decks`, `/meta/decks/$token`, `/meta/legends`, `/meta/legends/$slug`, and `/meta/players/$key` all render for an unauthenticated request.
 - No archive surface renders a percentage, a rate, or a share.
 - The event page renders the full standings table including deckless players, lists every citation row, and names each contributor once.
 - A contributor on `hidden` is absent from the public payload; switching to `name` or `riot_id` reveals every past contribution.

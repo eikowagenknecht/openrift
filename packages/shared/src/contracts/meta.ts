@@ -58,6 +58,11 @@ export const metaEventFinishSchema = z
     /** True when the source published cut buckets ("Top 4") rather than exact standings. */
     rankIsTier: z.boolean(),
     playerName: z.string(),
+    /**
+     * The key of the player's page at `/meta/players/{key}`, or null for a row
+     * the source filed under no identity.
+     */
+    playerKey: z.string().nullable(),
     wins: z.number().int().nullable(),
     losses: z.number().int().nullable(),
     draws: z.number().int().nullable(),
@@ -163,6 +168,11 @@ export const metaEventPlayerSchema = z
     rank: z.number().int(),
     rankIsTier: z.boolean(),
     playerName: z.string(),
+    /**
+     * The key of the player's page at `/meta/players/{key}`, or null for a row
+     * the source filed under no identity.
+     */
+    playerKey: z.string().nullable(),
     wins: z.number().int().nullable(),
     losses: z.number().int().nullable(),
     draws: z.number().int().nullable(),
@@ -260,6 +270,11 @@ export const metaDeckSummarySchema = z
     championName: z.string().nullable(),
     championImageId: z.string().nullable(),
     playerName: z.string(),
+    /**
+     * The key of the player's page at `/meta/players/{key}`, or null for a row
+     * the source filed under no identity.
+     */
+    playerKey: z.string().nullable(),
     rank: z.number().int(),
     rankIsTier: z.boolean(),
     wins: z.number().int().nullable(),
@@ -358,6 +373,11 @@ export const metaDeckDetailResponseSchema = publicDeckDetailResponseSchema
        */
       listStatus: metaListStatusSchema,
       playerName: z.string(),
+      /**
+       * The key of the player's page at `/meta/players/{key}`, or null for a row
+       * the source filed under no identity.
+       */
+      playerKey: z.string().nullable(),
       rank: z.number().int(),
       rankIsTier: z.boolean(),
       wins: z.number().int().nullable(),
@@ -418,6 +438,11 @@ export const metaLegendFinishSchema = z
     rank: z.number().int(),
     rankIsTier: z.boolean(),
     playerName: z.string(),
+    /**
+     * The key of the player's page at `/meta/players/{key}`, or null for a row
+     * the source filed under no identity.
+     */
+    playerKey: z.string().nullable(),
     wins: z.number().int().nullable(),
     losses: z.number().int().nullable(),
     draws: z.number().int().nullable(),
@@ -483,6 +508,43 @@ export const metaLegendDetailResponseSchema = z
   })
   .openapi("MetaLegendDetailResponse");
 
+/**
+ * One archived result for one player: a published standings row, seen from the
+ * player's side. The legend is the row's own, so the page can group a record by
+ * what the player brought.
+ */
+export const metaPlayerFinishSchema = z
+  .object({
+    /** The `meta_event_players` row, so a list can key on it. */
+    playerId: z.string(),
+    rank: z.number().int(),
+    rankIsTier: z.boolean(),
+    wins: z.number().int().nullable(),
+    losses: z.number().int().nullable(),
+    draws: z.number().int().nullable(),
+    shareToken: z.string().nullable(),
+    listStatus: metaListStatusSchema,
+    legend: metaCardRefSchema.nullable(),
+    event: metaLegendEventSchema,
+  })
+  .openapi("MetaPlayerFinish");
+
+/**
+ * Every archived finish for one player, newest first.
+ *
+ * Facts only: each entry is a standings row a tournament published. Nothing here
+ * is a rate or a comparison against another player.
+ */
+export const metaPlayerDetailResponseSchema = z
+  .object({
+    /** The route key `/meta/players/{key}` resolves; see `metaPlayerKey`. */
+    key: z.string(),
+    /** The name the newest row on record was published under. */
+    name: z.string(),
+    finishes: z.array(metaPlayerFinishSchema),
+  })
+  .openapi("MetaPlayerDetailResponse");
+
 export const metaCountsQuerySchema = z.object({
   format: z.string().min(1).optional(),
   dateFrom: isoDate.optional(),
@@ -547,6 +609,13 @@ export const metaContract = {
     .input(z.object({ slug: z.string().min(1) }))
     .errors({ NOT_FOUND: { message: "Legend not found" } })
     .output(metaLegendDetailResponseSchema),
+
+  player: oc
+    .route({ method: "GET", path: `${BASE}/players/{key}`, tags: [TAG] })
+    .meta({ auth: "public", cache: "medium", etag: true })
+    .input(z.object({ key: z.string().min(1) }))
+    .errors({ NOT_FOUND: { message: "Player not found" } })
+    .output(metaPlayerDetailResponseSchema),
 
   counts: oc
     .route({ method: "GET", path: `${BASE}/counts`, tags: [TAG] })

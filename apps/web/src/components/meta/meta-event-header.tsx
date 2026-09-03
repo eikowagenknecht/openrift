@@ -7,6 +7,7 @@ import { ArtBandBackdrop } from "@/components/art-band-backdrop";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { MetaIdentity } from "@/components/meta/meta-identity";
+import { MetaPlayerName } from "@/components/meta/meta-player-name";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { Card } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -67,7 +68,9 @@ function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: stri
         <span className="text-border-accent text-2xs font-semibold tracking-wide uppercase">
           Champion
         </span>
-        <p className="font-heading font-semibold">{player.playerName}</p>
+        <p className="font-heading font-semibold">
+          <MetaPlayerName name={player.playerName} playerKey={player.playerKey} />
+        </p>
         <MetaIdentity
           name={player.legend?.name}
           slug={player.legend?.slug}

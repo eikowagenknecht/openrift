@@ -6,34 +6,32 @@ import {
   TopBarBreadcrumbTrail,
 } from "@/components/layout/top-bar-breadcrumb";
 import { MetaArchivedDecks } from "@/components/meta/meta-archived-decks";
-import { MetaLegendFinishes } from "@/components/meta/meta-legend-finishes";
-import { MetaLegendHero } from "@/components/meta/meta-legend-hero";
+import { MetaPlayerFinishes } from "@/components/meta/meta-player-finishes";
+import { MetaPlayerHero } from "@/components/meta/meta-player-hero";
+import { MetaPlayerLegends } from "@/components/meta/meta-player-legends";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
-import { useMetaDecks, useMetaLegend } from "@/hooks/use-meta";
+import { useMetaDecks, useMetaPlayer } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
-import { splitLegendName } from "@/lib/meta-format";
+import { filterLegendDecks } from "@/lib/meta-legend-page";
 import {
-  filterLegendDecks,
-  filterLegendFinishes,
-  metaLegendCounts,
-  metaLegendCountries,
-  metaLegendDecks,
-} from "@/lib/meta-legend-page";
+  filterPlayerFinishes,
+  metaPlayerCounts,
+  metaPlayerCountries,
+  metaPlayerDecks,
+  metaPlayerFacts,
+  metaPlayerLegends,
+} from "@/lib/meta-player-page";
 import type { MetaScope } from "@/lib/meta-scope";
 import { CLEARED_SCOPE, isScopeRestricting, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-const routeApi = getRouteApi("/_app/meta_/legends_/$slug");
+const routeApi = getRouteApi("/_app/meta_/players_/$key");
 
-/**
- * `/meta/legends/$slug` — one legend's place in the archive: what it has won,
- * every finish on its record, and the lists that were registered with it.
- */
-export function MetaLegendPage() {
-  const { slug } = routeApi.useParams();
+export function MetaPlayerPage() {
+  const { key } = routeApi.useParams();
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
-  const { data } = useMetaLegend(slug);
+  const { data } = useMetaPlayer(key);
   const { data: decksData } = useMetaDecks();
   const eras = useMetaEras();
 
@@ -44,14 +42,14 @@ export function MetaLegendPage() {
   };
   const clearScope = () => setScope(CLEARED_SCOPE);
 
-  const legendDecks = metaLegendDecks(decksData.decks, data.legend.cardId);
-  const finishes = filterLegendFinishes(data.finishes, { scope: search, eras });
-  const decks = filterLegendDecks(legendDecks, { scope: search, eras });
-  const counts = metaLegendCounts(finishes, decks);
-  const { champion } = splitLegendName(data.legend.name);
-  // Remounts both sections whenever the scope changes, so a view a reader opened
-  // on the old slice does not carry into the new one. Each section prefixes it:
-  // two siblings sharing one key leave the first one's DOM behind on the swap.
+  const playerDecks = metaPlayerDecks(decksData.decks, data.finishes);
+  const finishes = filterPlayerFinishes(data.finishes, { scope: search, eras });
+  const decks = filterLegendDecks(playerDecks, { scope: search, eras });
+  const counts = metaPlayerCounts(finishes, decks);
+  const facts = metaPlayerFacts(finishes);
+  const legends = metaPlayerLegends(finishes);
+  // Prefixed per section: two siblings sharing one key leave the first one's
+  // DOM behind on the swap.
   const sectionKey = scopeKey(search);
 
   return (
@@ -60,13 +58,10 @@ export function MetaLegendPage() {
         <PageTopBar className="gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <TopBarBreadcrumbTrail
-              segments={[
-                { label: "Meta Archive", link: <Link to="/meta" /> },
-                { label: "Legends", link: <Link to="/meta/legends" /> },
-              ]}
+              segments={[{ label: "Meta Archive", link: <Link to="/meta" /> }]}
             />
             <TopBarBreadcrumbSeparator className="hidden sm:inline" />
-            <PageTopBarTitle>{champion}</PageTopBarTitle>
+            <PageTopBarTitle>{data.name}</PageTopBarTitle>
           </div>
         </PageTopBar>
       </PageTopBarSticky>
@@ -78,19 +73,26 @@ export function MetaLegendPage() {
             setScope={setScope}
             clearScope={clearScope}
             eras={eras}
-            countries={metaLegendCountries(data.finishes, legendDecks)}
+            countries={metaPlayerCountries(data.finishes, playerDecks)}
           />
-          <MetaLegendHero legend={data.legend} counts={counts} />
+          <MetaPlayerHero name={data.name} facts={facts} counts={counts} />
         </div>
 
-        <MetaLegendFinishes
+        <MetaPlayerLegends
+          key={`legends:${sectionKey}`}
+          entries={legends.entries}
+          withoutLegend={legends.withoutLegend}
+        />
+
+        <MetaPlayerFinishes
           key={`finishes:${sectionKey}`}
           finishes={finishes}
+          playerName={data.name}
           narrowed={isScopeRestricting(search, eras)}
         />
 
-        {legendDecks.length > 0 && (
-          <MetaArchivedDecks key={`decks:${sectionKey}`} decks={decks} subject="legend" />
+        {playerDecks.length > 0 && (
+          <MetaArchivedDecks key={`decks:${sectionKey}`} decks={decks} subject="player" />
         )}
       </div>
     </div>

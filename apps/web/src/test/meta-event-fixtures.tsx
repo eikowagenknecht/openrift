@@ -20,6 +20,7 @@ export function metaPlayer(overrides: Partial<MetaEventPlayer> = {}): MetaEventP
     rank: 1,
     rankIsTier: false,
     playerName: "Ana",
+    playerKey: "u1001",
     wins: 6,
     losses: 1,
     draws: null,

@@ -9,6 +9,7 @@ import { normalizeCountryCode } from "@/lib/country";
 import type { MetaLegendIndexSort, MetaLegendIndexSortDirection } from "@/lib/meta-legends-search";
 import { DEFAULT_LEGEND_DIRECTION, DEFAULT_LEGEND_SORT } from "@/lib/meta-legends-search";
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
+import type { ScopedEvent } from "@/lib/meta-scope-match";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
 /**
@@ -62,11 +63,11 @@ export interface MetaLegendScope {
   eras: readonly MetaEra[];
 }
 
-/** The legend's finishes inside the scope bar's selection. */
-export function filterLegendFinishes(
-  finishes: readonly MetaLegendFinish[],
+/** The finishes inside the scope bar's selection. */
+export function filterLegendFinishes<T extends { event: ScopedEvent }>(
+  finishes: readonly T[],
   filter: MetaLegendScope,
-): MetaLegendFinish[] {
+): T[] {
   return finishes.filter((finish) => scopeMatches(finish.event, filter.scope, filter.eras));
 }
 
@@ -103,8 +104,8 @@ export function filterLegendDecks(
  * that picked it.
  */
 export function metaLegendCountries(
-  finishes: readonly MetaLegendFinish[],
-  decks: readonly MetaDeckSummary[],
+  finishes: readonly { event: { country: string | null } }[],
+  decks: readonly { event: { country: string | null } }[],
 ): string[] {
   const codes = new Set<string>();
   for (const event of [...finishes, ...decks].map((entry) => entry.event)) {
@@ -125,10 +126,9 @@ export function metaLegendCountries(
  * `all` is the record as it happened, newest first, with the better placing
  * first inside one day.
  */
-export function sortLegendFinishes(
-  finishes: readonly MetaLegendFinish[],
-  view: MetaFinishesView,
-): MetaLegendFinish[] {
+export function sortLegendFinishes<
+  T extends { rank: number; event: { eventDate: string; name: string } },
+>(finishes: readonly T[], view: MetaFinishesView): T[] {
   if (view === "best") {
     return finishes.toSorted(
       (a, b) =>

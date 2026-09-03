@@ -28,6 +28,7 @@ function player(overrides: Partial<MetaEventPlayer> = {}): MetaEventPlayer {
     rank: 1,
     rankIsTier: false,
     playerName: "Ana",
+    playerKey: "u1001",
     wins: 6,
     losses: 1,
     draws: null,

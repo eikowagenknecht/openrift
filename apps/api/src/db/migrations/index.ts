@@ -232,6 +232,7 @@ import * as m283 from "./283-meta-list-status-champion-copies.js";
 import * as m284 from "./284-drop-deck-cards-updated-at-trigger.js";
 import * as m285 from "./285-meta-champion-playset-to-main.js";
 import * as m286 from "./286-overlay-claims-may-be-empty.js";
+import * as m287 from "./287-meta-player-key-index.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -523,4 +524,5 @@ export const migrations: Record<string, Migration> = {
   "284-drop-deck-cards-updated-at-trigger": m284,
   "285-meta-champion-playset-to-main": m285,
   "286-overlay-claims-may-be-empty": m286,
+  "287-meta-player-key-index": m287,
 };
