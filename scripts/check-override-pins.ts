@@ -21,7 +21,7 @@
  * 1. An `npm:<target>@<version>` alias must match every workspace pin of <target>.
  * 2. A plain override must match a workspace's direct pin of the same package.
  * 3. A companion package (listed below) must match the version its own dependent
- *    declares, read from the installed tree.
+ *    declares, read from `bun.lock`.
  *
  * Usage: bun scripts/check-override-pins.ts
  */
@@ -33,16 +33,15 @@ const repoRoot = resolve(import.meta.dirname ?? ".", "..");
 
 /**
  * Overrides that exist to line a transitive package up with the version another
- * dependency declares, rather than with a pin the repo writes itself. The
- * expected value is read from the dependent's installed package.json.
+ * dependency declares, rather than with a pin the repo writes itself.
  */
+// Read from bun.lock, not node_modules — a squash-merge leaves it predating the commit.
 const COMPANION_PINS = [
   {
     override: "@tanstack/query-core",
     // react-query pins its core dep to its own exact version, so an override
     // that lags behind silently runs react-query against an older core.
     declaredBy: "@tanstack/react-query",
-    resolveFrom: "apps/web",
   },
 ];
 
@@ -54,12 +53,43 @@ interface PackageJson {
   overrides?: Record<string, string>;
 }
 
+interface LockFile {
+  packages?: Record<string, unknown[]>;
+}
+
 function readPackageJson(path: string): PackageJson | null {
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as PackageJson;
   } catch {
     return null;
   }
+}
+
+/** `bun.lock` is JSON with trailing commas, which `JSON.parse` rejects. */
+function readLockfile(path: string): LockFile | null {
+  try {
+    const text = readFileSync(path, "utf-8");
+    // Match whole string literals first so a comma inside one is never stripped.
+    const json = text.replaceAll(/"(?:[^"\\]|\\.)*"|,(?=\s*[}\]])/gu, (match) =>
+      match.startsWith('"') ? match : "",
+    );
+    return JSON.parse(json) as LockFile;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The dependency map inside a `bun.lock` entry, whose position differs between
+ * registry packages (`[key, "", meta, hash]`) and workspaces (`[name, meta]`).
+ */
+function lockedDependencies(entry: unknown[]): Record<string, string> {
+  for (const part of entry) {
+    if (typeof part === "object" && part !== null && !Array.isArray(part)) {
+      return (part as { dependencies?: Record<string, string> }).dependencies ?? {};
+    }
+  }
+  return {};
 }
 
 const root = readPackageJson(resolve(repoRoot, "package.json"));
@@ -122,18 +152,18 @@ for (const [name, value] of overrides) {
 }
 
 // Rule 3: a companion override must equal the version its dependent declares.
-for (const { override, declaredBy, resolveFrom } of COMPANION_PINS) {
+const lock = readLockfile(resolve(repoRoot, "bun.lock"));
+for (const { override, declaredBy } of COMPANION_PINS) {
   const pinned = root.overrides?.[override];
   if (!pinned) {
     continue;
   }
-  const installedPath = resolve(repoRoot, resolveFrom, "node_modules", declaredBy, "package.json");
-  const installed = readPackageJson(installedPath);
-  if (!installed) {
-    console.warn(`Skipping ${override}: ${declaredBy} is not installed under ${resolveFrom}.`);
+  const entry = lock?.packages?.[declaredBy];
+  if (!entry) {
+    console.warn(`Skipping ${override}: no bun.lock entry for ${declaredBy}.`);
     continue;
   }
-  const declared = installed.dependencies?.[override];
+  const declared = lockedDependencies(entry)[override];
   if (declared && declared !== pinned) {
     problems.push(
       `overrides.${override} is "${pinned}" but ${declaredBy} declares ${declared}.\n` +
