@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-04
+
+### Other
+
+- fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.
+
 ## 2026-09-03
 
 ### Highlights

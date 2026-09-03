@@ -45,18 +45,21 @@ const routeApi = getRouteApi("/_app/meta_/legends");
  * the two can never drift apart.
  */
 const LEGEND_INDEX_GRID =
-  "grid grid-cols-[3rem_minmax(0,1fr)_19rem_4.5rem_4.5rem] items-center gap-x-3.5";
+  "grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1.6fr)_4.5rem_4.5rem] items-center gap-x-3.5";
 
 const SortButton = IndexSortButton<MetaLegendIndexSort>;
 
 /** The best placing's chip: a medal for the podium, the ordinal for the rest. */
 function Rank({ rank, rankIsTier }: { rank: number; rankIsTier: boolean }) {
-  if (rank <= MEDAL_RANKS) {
-    return <Medal rank={rank} />;
-  }
   return (
-    <span className="text-muted-foreground inline-block w-5 shrink-0 text-center text-sm tabular-nums">
-      {formatRank(rank, rankIsTier)}
+    <span className="flex w-10 shrink-0 justify-center">
+      {rank <= MEDAL_RANKS ? (
+        <Medal rank={rank} />
+      ) : (
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {formatRank(rank, rankIsTier)}
+        </span>
+      )}
     </span>
   );
 }
@@ -73,12 +76,12 @@ function bestFinishFacts(entry: MetaLegendIndexEntry): string {
   return parts.join(" · ");
 }
 
-function WinsChip({ eventWins }: { eventWins: number }) {
+function WinsChip({ eventWins, className }: { eventWins: number; className?: string }) {
   if (eventWins === 0) {
     return null;
   }
   return (
-    <Badge variant="subtle">
+    <Badge variant="subtle" className={className}>
       {eventWins.toLocaleString("en-US")} {eventWins === 1 ? "event win" : "event wins"}
     </Badge>
   );
@@ -111,7 +114,7 @@ function LegendRow({ entry }: { entry: MetaLegendIndexEntry }) {
       params={{ slug: entry.slug }}
       className="hover:bg-muted/50 focus-visible:ring-ring/50 block px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-inset"
     >
-      <div className={cn(LEGEND_INDEX_GRID, "hidden sm:grid")}>
+      <div className={cn(LEGEND_INDEX_GRID, "hidden md:grid")}>
         <LegendArt entry={entry} className="size-12" />
         <div className="min-w-0">
           <p className="flex min-w-0 items-center gap-1.5">
@@ -119,7 +122,7 @@ function LegendRow({ entry }: { entry: MetaLegendIndexEntry }) {
             {entry.legend.domains.map((domain) => (
               <DomainIcon key={domain} domain={domain} className="size-4 shrink-0" />
             ))}
-            <WinsChip eventWins={entry.eventWins} />
+            <WinsChip eventWins={entry.eventWins} className="hidden lg:inline-flex" />
           </p>
           {title !== null && <p className="text-muted-foreground truncate text-xs">{title}</p>}
         </div>
@@ -128,7 +131,7 @@ function LegendRow({ entry }: { entry: MetaLegendIndexEntry }) {
             <Rank rank={best.rank} rankIsTier={best.rankIsTier} />
             <span className="truncate text-sm font-medium">{best.event.name}</span>
           </p>
-          <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 pl-7 text-xs">
+          <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 pl-12 text-xs">
             <MetaTierBadge tier={best.event.tier} />
             <span className="truncate tabular-nums">{bestFinishFacts(entry)}</span>
           </p>
@@ -141,7 +144,7 @@ function LegendRow({ entry }: { entry: MetaLegendIndexEntry }) {
         </span>
       </div>
 
-      <div className="flex items-start gap-2.5 sm:hidden">
+      <div className="flex items-start gap-2.5 md:hidden">
         <LegendArt entry={entry} className="mt-0.5 size-10" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="flex min-w-0 items-center gap-1.5">
@@ -204,7 +207,7 @@ function SortHeader({
     <div
       className={cn(
         LEGEND_INDEX_GRID,
-        "border-border text-muted-foreground hidden border-b px-4 py-2 text-xs font-semibold sm:grid",
+        "border-border text-muted-foreground hidden border-b px-4 py-2 text-xs font-semibold md:grid",
       )}
     >
       <span />
