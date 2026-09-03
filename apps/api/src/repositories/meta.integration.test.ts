@@ -1042,6 +1042,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
         playerId,
         listStatus: "full",
         playerName: "MTA Player",
+        sourceIdentity: null,
         rank: 8,
         rankIsTier: true,
         wins: 6,

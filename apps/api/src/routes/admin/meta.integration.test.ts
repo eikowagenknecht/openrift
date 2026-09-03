@@ -728,6 +728,7 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
       },
       listStatus: "full",
       playerName: "MTR Detail",
+      playerKey: null,
       rank: 4,
       rankIsTier: true,
       wins: 3,
