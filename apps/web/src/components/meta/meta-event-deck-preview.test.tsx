@@ -163,12 +163,20 @@ describe("MetaEventDeckPreview", () => {
     resetDisplay();
   });
 
-  it("names the deck, the player and the chosen champion", () => {
+  it("names the chosen champion, which the standings row does not", () => {
     renderPreview();
 
-    expect(screen.getByText("Azir Control")).toBeInTheDocument();
-    expect(screen.getByText("Nova")).toBeInTheDocument();
-    expect(screen.getByText("Champion · Sivir, Battle Mistress")).toBeInTheDocument();
+    expect(screen.getByText("Chosen champion")).toBeInTheDocument();
+    expect(screen.getByText("Sivir, Battle Mistress")).toBeInTheDocument();
+  });
+
+  it("leaves what the standings row above it already carries to that row", () => {
+    state.deck = metaDeck({ listStatus: "partial" });
+    renderPreview();
+
+    expect(screen.queryByText("Nova")).toBeNull();
+    expect(screen.queryByText("Partial list")).toBeNull();
+    expect(screen.queryByText("Azir Control")).toBeNull();
   });
 
   it("credits the contributors who typed the list in", () => {
@@ -176,13 +184,6 @@ describe("MetaEventDeckPreview", () => {
     renderPreview();
 
     expect(screen.getByText("Contributed by Alice and Bob")).toBeInTheDocument();
-  });
-
-  it("marks a partial list", () => {
-    state.deck = metaDeck({ listStatus: "partial" });
-    renderPreview();
-
-    expect(screen.getByText("Partial list")).toBeInTheDocument();
   });
 
   it("counts the main deck by type, sideboard excluded", () => {

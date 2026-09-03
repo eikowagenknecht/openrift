@@ -295,14 +295,14 @@ describe("MetaFrontPage", () => {
     expect(screen.getByRole("heading", { name: "Store & casual" })).toBeInTheDocument();
   });
 
-  it("names a store row's winner inline, with the champion they played", () => {
+  it("names a store row's winner and the legend they played", () => {
     captured.events = [event({ tier: "store" })];
 
     render(<MetaFrontPage />);
 
     const community = section("Store & casual");
     expect(within(community).getAllByText("M. Álvarez").length).toBeGreaterThan(0);
-    expect(within(community).getAllByText("on Azir").length).toBeGreaterThan(0);
+    expect(within(community).getAllByText("Azir").length).toBeGreaterThan(0);
   });
 
   it("links each event at its own page", () => {
@@ -376,9 +376,18 @@ describe("MetaFrontPage", () => {
   it("leads anyone to the legend index and the deck browser", () => {
     render(<MetaFrontPage />);
 
-    const actions = pageActions() as HTMLElement;
-    expect(within(actions).getByText("Legends")).toBeInTheDocument();
-    expect(within(actions).getByText("Decklists")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Legends/u })).toHaveAttribute("href", "/meta/legends");
+    expect(screen.getByRole("link", { name: /Decklists/u })).toHaveAttribute("href", "/meta/decks");
+  });
+
+  it("leaves the ask to the contribute band rather than the top bar", () => {
+    captured.userId = "user-1";
+
+    render(<MetaFrontPage />);
+
+    expect(within(pageActions() as HTMLElement).queryByText("Send a decklist")).toBeNull();
+    expect(screen.getByText("Help complete the record")).toBeInTheDocument();
+    expect(screen.getByText("Send a decklist")).toBeInTheDocument();
   });
 
   it("offers the ledger only once a signed-in visitor has sent something", () => {
@@ -386,9 +395,9 @@ describe("MetaFrontPage", () => {
 
     render(<MetaFrontPage />);
 
-    const actions = pageActions() as HTMLElement;
-    expect(within(actions).getByText("Send a decklist")).toBeInTheDocument();
-    expect(within(actions).queryByText("Your contributions")).not.toBeInTheDocument();
+    expect(
+      within(pageActions() as HTMLElement).queryByText("Your contributions"),
+    ).not.toBeInTheDocument();
   });
 
   it("offers the ledger to a contributor", () => {

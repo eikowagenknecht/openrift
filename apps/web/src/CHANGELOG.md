@@ -6,7 +6,13 @@
 
 - feat(Cards): **Overnumbered as its own filter** — a card past its set's printed total is now filtered and labelled separately from its artwork, so an alt art that is also overnumbered reads as both.
 - feat(Collection): **Overnumbered column in exports** — the collection CSV now carries the flag in its own column, and older exports that named it as an art variant still import.
+- feat(Meta): **Filter standings by legend** — a legend filter sits next to the player search once a field has more than one legend on file.
 - fix(Meta): **Consistent legend art** — a legend with no image on file now shows the same domain-tinted placeholder everywhere in the archive, instead of a plain grey square on the front page and event index. Standings and podium rows also drop their legend and decklist columns entirely for events the source published as bare placings, rather than filling every row with an empty placeholder.
+- fix(Meta): **Consistent event blocks with a crowned winner** — Premier and Competitive events now share Store & Casual's layout, add a fanned podium of the winning legends, and mark first place with a crown instead of a gold "1".
+- fix(Meta): **"Browse all" links show the full count** — tier and event-index links from the front page no longer land on a narrower scope than the count they promised.
+- fix(Meta): **Deck preview drops repeated details** — the expanded decklist no longer repeats the player, legend, and partial-list badge already on the row above it, showing the chosen champion in their place.
+- fix(Meta): **Correct completeness marking for playset champions** — a decklist whose champion arrived as a multi-copy line was wrongly marked partial, and now reads correctly.
+- fix(Meta): **Deck names no longer end in an empty pair** — a list promoted from a user-id-keyed standing could be named "Legend, Title ()"; it now resolves the player's real name.
 
 ## 2026-09-02
 

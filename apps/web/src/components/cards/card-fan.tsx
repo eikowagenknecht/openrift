@@ -5,11 +5,15 @@ import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { cn } from "@/lib/utils";
 
-/** One fan slot: horizontal offset (px) and rotation (deg). */
+/** One fan slot: x/y offset (px), rotation (deg), and an optional paint-order z. */
 interface FanSlot {
   x: number;
   r: number;
+  y?: number;
+  z?: number;
 }
+
+type FanSize = "xs" | "sm" | "lg";
 
 /** Per-size fan geometry: card width (px) and slot layouts indexed by fan size. */
 interface FanSpec {
@@ -17,10 +21,25 @@ interface FanSpec {
   layouts: readonly (readonly FanSlot[])[];
 }
 
-// The `sm` spec is the products-tile fan (bottom-anchored, up to four cards);
-// `lg` is the event-hero fan (center-anchored, up to three larger cards with a
-// heavier overlap, tuned separately rather than scaled from `sm`).
-const FAN_SPECS: Record<"sm" | "lg", FanSpec> = {
+// `xs` is the archive's podium fan (winner centered, in front). `sm` is the
+// products tile; `lg` the event hero, at larger card sizes.
+const FAN_SPECS: Record<FanSize, FanSpec> = {
+  xs: {
+    cardWidth: 64,
+    layouts: [
+      [],
+      [{ x: 0, r: 0 }],
+      [
+        { x: 5, r: 4, z: 2 },
+        { x: -18, y: 6, r: -8, z: 1 },
+      ],
+      [
+        { x: 0, r: 0, z: 2 },
+        { x: -25, y: 7, r: -9, z: 1 },
+        { x: 25, y: 7, r: 9, z: 1 },
+      ],
+    ],
+  },
   sm: {
     cardWidth: 92,
     layouts: [
@@ -75,9 +94,10 @@ function fanCardStyle(
   const verticalCenter = anchor === "center" ? { marginTop: (-cardWidth * 88) / 63 / 2 } : {};
   return {
     width: cardWidth,
+    zIndex: slot.z,
     marginLeft: -cardWidth / 2,
     ...verticalCenter,
-    transform: `translateX(${slot.x}px) rotate(${slot.r}deg)`,
+    transform: `translate(${slot.x}px, ${slot.y ?? 0}px) rotate(${slot.r}deg)`,
     transformOrigin: anchor === "bottom" ? "50% 120%" : "50% 90%",
   };
 }
@@ -104,8 +124,8 @@ function coverSources(
 interface CardFanProps {
   /** The art to fan, in display order; slots beyond the layout are ignored. */
   covers: readonly FanCover[];
-  /** `sm` is the products-tile fan; `lg` the larger event-hero fan. */
-  size?: "sm" | "lg";
+  /** `xs` is the archive's podium fan, `sm` the products tile, `lg` the event hero. */
+  size?: FanSize;
   /** `bottom` bleeds off the band's bottom edge; `center` floats mid-band. */
   anchor?: "bottom" | "center";
   /**
@@ -165,7 +185,7 @@ export function CardFanOutline({
   anchor = "bottom",
   icon: Icon,
 }: {
-  size?: "sm" | "lg";
+  size?: FanSize;
   anchor?: "bottom" | "center";
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }) {

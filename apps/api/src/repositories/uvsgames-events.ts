@@ -823,6 +823,20 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       return unique.length;
     },
 
+    /** Current display names, for callers holding raw standings rows where the name is still NULL. */
+    async playerDisplayNames(ids: readonly number[]): Promise<Map<number, string>> {
+      const unique = [...new Set(ids)];
+      if (unique.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("uvsgamesPlayers")
+        .select(["id", "displayName"])
+        .where("id", "in", unique)
+        .execute();
+      return new Map(rows.map((row) => [row.id, row.displayName]));
+    },
+
     // ── The source's vocabularies ──────────────────────────────────────────
     // Templates come from the source's own vocabulary endpoint and formats are
     // discovered from the mirror, so the two lists are built differently: one

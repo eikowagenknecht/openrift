@@ -4,11 +4,9 @@ import { Link } from "@tanstack/react-router";
 import { CheckIcon, GitForkIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
-import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { DeckOwnershipBridge } from "@/components/deck/deck-ownership-bridge";
 import { DomainIcon } from "@/components/deck/domain-icon";
 import { MetaContributors } from "@/components/meta/meta-contributors";
-import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
@@ -18,7 +16,6 @@ import { useMetaDeck } from "@/hooks/use-meta";
 import { toBuilderCardFromPublic } from "@/lib/deck-builder-card";
 import { formatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
-import { archivedDeckIdentity } from "@/lib/meta-deck-archive";
 import type { DeckRuneSplit, DeckTypeSplit } from "@/lib/meta-deck-composition";
 import { deckRuneSplit, deckTypeSplit } from "@/lib/meta-deck-composition";
 import { useDisplayStore } from "@/stores/display-store";
@@ -86,12 +83,10 @@ export function MetaEventDeckPreview({ token }: { token: string }) {
 export function MetaEventDeckPreviewSkeleton() {
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <div className="flex gap-3">
-        <Skeleton className="aspect-card w-14 self-start" />
-        <div className="flex-1 space-y-2 py-1">
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-3 w-1/2" />
-        </div>
+      <div className="space-y-2 py-1">
+        <Skeleton className="h-2 w-16" />
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-3 w-1/2" />
       </div>
       <div className="space-y-2 py-1">
         <Skeleton className="h-2 w-full" />
@@ -107,8 +102,8 @@ export function MetaEventDeckPreviewSkeleton() {
   );
 }
 
+/** Champion and contributors only — the standings row above already names the player, legend, and list status. */
 function PreviewIdentity({ data }: { data: MetaDeckDetailResponse }) {
-  const identity = archivedDeckIdentity(data.cards);
   const legend = data.cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
   const champion = data.cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
   // The identity falls back to the champion for a list with no Legend, and
@@ -116,24 +111,14 @@ function PreviewIdentity({ data }: { data: MetaDeckDetailResponse }) {
   const championName = legend ? champion?.cardName : undefined;
 
   return (
-    <div className="flex min-w-0 gap-3">
-      <CardArtThumb
-        imageId={legend?.imageId ?? champion?.imageId ?? null}
-        domains={identity?.domains}
-        loading="lazy"
-        className="w-14 self-start"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-heading font-semibold">{data.deck.name}</span>
-          <MetaListStatusBadge listStatus={data.meta.listStatus} />
+    <div className="flex min-w-0 flex-col gap-3">
+      {championName !== undefined && (
+        <div className="space-y-1.5">
+          <p className={EYEBROW}>Chosen champion</p>
+          <p className="truncate text-sm">{championName}</p>
         </div>
-        <p className="text-muted-foreground truncate text-sm">{data.meta.playerName}</p>
-        {championName !== undefined && (
-          <p className="text-muted-foreground truncate text-sm">Champion · {championName}</p>
-        )}
-        <MetaContributors contributors={data.meta.contributors} />
-      </div>
+      )}
+      <MetaContributors contributors={data.meta.contributors} />
     </div>
   );
 }

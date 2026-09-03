@@ -1574,8 +1574,21 @@ function CardThumbnailsSection() {
       </DemoRow>
       <DemoRow
         label="CardFan on CoverBand"
-        hint="Fanned card art on the warm-glow CoverBand (product tiles, event heroes). CardFanOutline is the no-art stand-in; anchor=center floats the fan mid-band for taller hero bands."
+        hint="Fanned card art on the warm-glow CoverBand (product tiles, event heroes). CardFanOutline is the no-art stand-in; anchor=center floats the fan mid-band for taller hero bands. xs is the archive's podium fan, laid out in podium order so the first cover sits centred in front."
       >
+        <Swatch label="xs / center">
+          <CoverBand aria-hidden="true" className="h-28 w-56 overflow-hidden rounded-lg">
+            <CardFan
+              size="xs"
+              anchor="center"
+              covers={[
+                { key: "a", src: PORTRAIT_SAMPLE_ART },
+                { key: "b", src: PORTRAIT_SAMPLE_ART },
+                { key: "c", src: PORTRAIT_SAMPLE_ART },
+              ]}
+            />
+          </CoverBand>
+        </Swatch>
         <Swatch label="sm / bottom">
           <CoverBand aria-hidden="true" className="h-36 w-72 overflow-hidden rounded-lg">
             <CardFan

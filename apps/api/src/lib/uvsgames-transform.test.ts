@@ -5,9 +5,11 @@ import {
   completedRounds,
   projectPhases,
   projectRoundMatches,
+  listStatusFor,
   readDeckLines,
   referencedDeckIds,
   projectUvsStandings,
+  withSingleChampion,
 } from "./uvsgames-transform.js";
 
 function registration(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -528,5 +530,91 @@ describe("readDeckLines", () => {
     });
 
     expect(lines?.cards).toEqual([{ name: "Poro", zone: "main", quantity: 1 }]);
+  });
+});
+
+describe("listStatusFor", () => {
+  const complete = [
+    { name: "Yasuo", zone: "legend", quantity: 1 },
+    { name: "Sivir", zone: "champion", quantity: 1 },
+    { name: "Rune", zone: "runes", quantity: 12 },
+    { name: "Field", zone: "battlefield", quantity: 3 },
+    { name: "Poro", zone: "main", quantity: 39 },
+  ];
+
+  it("calls a list holding every zone full", () => {
+    expect(listStatusFor(complete, null)).toBe("full");
+  });
+
+  it("calls a list short of its main deck partial", () => {
+    const short = [
+      ...complete.filter((line) => line.zone !== "main"),
+      { name: "Poro", zone: "main", quantity: 30 },
+    ];
+
+    expect(listStatusFor(short, null)).toBe("partial");
+  });
+
+  it("calls a list with no champion partial however long its main deck", () => {
+    const noChampion = [
+      ...complete.filter((line) => line.zone !== "champion" && line.zone !== "main"),
+      { name: "Poro", zone: "main", quantity: 47 },
+    ];
+
+    expect(listStatusFor(noChampion, null)).toBe("partial");
+  });
+
+  it("credits the standings legend to a list carrying no legend zone", () => {
+    const noLegend = complete.filter((line) => line.zone !== "legend");
+
+    expect(listStatusFor(noLegend, null)).toBe("partial");
+    expect(listStatusFor(noLegend, "Yasuo, the Unforgiven")).toBe("full");
+  });
+
+  it("reads a normalised playset as the complete list it is", () => {
+    const playset = withSingleChampion([
+      ...complete.filter((line) => line.zone !== "champion" && line.zone !== "main"),
+      { name: "Sivir", zone: "champion", quantity: 3 },
+      { name: "Poro", zone: "main", quantity: 37 },
+    ]);
+
+    expect(listStatusFor(playset, null)).toBe("full");
+  });
+});
+
+describe("withSingleChampion", () => {
+  it("leaves a single-copy champion where the source filed it", () => {
+    const lines = [{ name: "Sivir", zone: "champion", quantity: 1 }];
+
+    expect(withSingleChampion(lines)).toEqual(lines);
+  });
+
+  it("seats one copy and sends the rest of the playset to the main deck", () => {
+    expect(withSingleChampion([{ name: "Sivir", zone: "champion", quantity: 3 }])).toEqual([
+      { name: "Sivir", zone: "champion", quantity: 1 },
+      { name: "Sivir", zone: "main", quantity: 2 },
+    ]);
+  });
+
+  it("seats only the first champion line when a source files two", () => {
+    expect(
+      withSingleChampion([
+        { name: "Sivir", zone: "champion", quantity: 1 },
+        { name: "Rumble", zone: "champion", quantity: 2 },
+      ]),
+    ).toEqual([
+      { name: "Sivir", zone: "champion", quantity: 1 },
+      { name: "Rumble", zone: "main", quantity: 2 },
+    ]);
+  });
+
+  it("leaves every other zone alone", () => {
+    const lines = [
+      { name: "Yasuo", zone: "legend", quantity: 1 },
+      { name: "Rune", zone: "runes", quantity: 12 },
+      { name: "Poro", zone: "main", quantity: 39 },
+    ];
+
+    expect(withSingleChampion(lines)).toEqual(lines);
   });
 });

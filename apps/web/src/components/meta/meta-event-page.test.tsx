@@ -111,9 +111,9 @@ function renderPage(
   render(<MetaEventPage slug="summoner-skirmish" />);
 }
 
-function ctaHref(): string | null {
-  const cta = document.querySelector('[data-slot="top-bar-cta"] a');
-  return cta?.getAttribute("href") ?? null;
+/** Finds the submission link by its visible label; it no longer sits in a fixed top-bar slot. */
+function ctaHref(label: string): string | null {
+  return screen.getByText(label).closest("a")?.getAttribute("href") ?? null;
 }
 
 describe("MetaEventPage", () => {
@@ -135,14 +135,22 @@ describe("MetaEventPage", () => {
 
   it("offers a signed-in reader the submission form for this event", () => {
     captured.userId = "user-1";
-    renderPage();
-    expect(ctaHref()).toBe("/meta/summoner-skirmish/submit");
+    renderPage({}, [metaPlayer()]);
+    expect(ctaHref("Add a decklist")).toBe("/meta/summoner-skirmish/submit");
   });
 
   it("tells a logged-out reader that signing in is what stands in the way", () => {
-    renderPage();
+    renderPage({}, [metaPlayer()]);
     expect(screen.getByText("Sign in to add a decklist")).toBeInTheDocument();
-    expect(ctaHref()).toBe("/login?redirect=%2Fmeta%2Fsummoner-skirmish%2Fsubmit");
+    expect(ctaHref("Sign in to add a decklist")).toBe(
+      "/login?redirect=%2Fmeta%2Fsummoner-skirmish%2Fsubmit",
+    );
+  });
+
+  it("keeps the top bar to the breadcrumb and the overflow menu", () => {
+    captured.userId = "user-1";
+    renderPage({}, [metaPlayer()]);
+    expect(document.querySelector('[data-slot="top-bar-cta"]')).toBeNull();
   });
 
   it("offers a signed-in reader a way to correct the tournament's own facts", () => {
@@ -212,9 +220,7 @@ describe("MetaEventPage", () => {
 
   it("still reads as a finished page when the archive holds nothing but the event", () => {
     renderPage({}, []);
-    expect(
-      screen.getByText("The results for this event have not come through yet. Check back soon."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No standings on file for this event yet.")).toBeInTheDocument();
     expect(screen.queryByText("Were you at Summoner Skirmish?")).toBeNull();
   });
 

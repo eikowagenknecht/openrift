@@ -56,9 +56,9 @@ describe("StandingsTable", () => {
       />,
     );
     expect(tableRanks()).toEqual(["1", "2", "3", "4"]);
-    // The medal is a round chip; fourth place is a bare number.
+    // The top three carry a medal; fourth place is a bare number.
     const medalled = tableRows().map(
-      (row) => within(row).getAllByRole("cell")[0].querySelector("span.rounded-full") !== null,
+      (row) => within(row).getAllByRole("cell")[0].querySelector("[data-slot=medal]") !== null,
     );
     expect(medalled).toEqual([true, true, true, false]);
   });

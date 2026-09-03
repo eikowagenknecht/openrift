@@ -78,7 +78,7 @@ describe("Podium", () => {
       seat(1, "Poppy", 9, "opp 1.71"),
       seat(3, "Fenix", 7),
     ]);
-    const medals = [...document.querySelectorAll("[data-slot=podium] .rounded-full.size-5")];
+    const medals = [...document.querySelectorAll("[data-slot=podium] [data-slot=medal]")];
     expect(medals.map((el) => el.textContent)).toEqual(["1", "1", "3"]);
     const raised = document.querySelector(String.raw`.ring-border-accent\/40`) as HTMLElement;
     expect(within(raised).getByText("DerVuk")).toBeInTheDocument();

@@ -38,11 +38,11 @@ function ActivityRow({ item }: { item: MetaActivityItem }) {
       <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full">
         <Icon aria-hidden className="size-3.5" />
       </span>
+      {/* The event takes its own line: sharing one with the headline in a 20rem
+          rail truncated away the only part that names what happened. */}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="min-w-0 truncate">
-          <span className="font-semibold">{itemHeadline(item)}</span>
-          <span className="text-muted-foreground"> · {item.event.name}</span>
-        </span>
+        <span className="truncate font-semibold">{itemHeadline(item)}</span>
+        <span className="truncate">{item.event.name}</span>
         <span className="text-muted-foreground text-xs">{formatRelativeTime(item.occurredAt)}</span>
       </span>
       <ChevronRightIcon aria-hidden className="text-muted-foreground size-4 shrink-0" />

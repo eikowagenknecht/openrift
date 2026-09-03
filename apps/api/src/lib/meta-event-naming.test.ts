@@ -4,6 +4,7 @@ import {
   defaultMetaDeckName,
   metaEventSlugBase,
   metaEventSlugCandidates,
+  resolvedStandingName,
 } from "./meta-event-naming.js";
 
 /** The CHECK constraint on `meta_events.slug`, so every case can assert against it. */
@@ -89,6 +90,31 @@ describe("metaEventSlugCandidates", () => {
   });
 });
 
+describe("resolvedStandingName", () => {
+  it("takes the row's own name when the source published one", () => {
+    expect(resolvedStandingName({ playerName: "Renata", uvsgamesPlayerId: null }, new Map())).toBe(
+      "Renata",
+    );
+  });
+
+  it("resolves a row keyed by user id through the source's display names", () => {
+    expect(
+      resolvedStandingName(
+        { playerName: null, uvsgamesPlayerId: 42 },
+        new Map([[42, "Master Yi Enjoyer"]]),
+      ),
+    ).toBe("Master Yi Enjoyer");
+  });
+
+  it("resolves to nothing when the id has no display name on file", () => {
+    expect(resolvedStandingName({ playerName: null, uvsgamesPlayerId: 42 }, new Map())).toBe("");
+  });
+
+  it("resolves to nothing when neither a name nor an id is given", () => {
+    expect(resolvedStandingName({ playerName: null, uvsgamesPlayerId: null }, new Map())).toBe("");
+  });
+});
+
 describe("defaultMetaDeckName", () => {
   it("leads with the legend and names the player", () => {
     expect(defaultMetaDeckName("Azir, Emperor of the Sands", "Renata", "Rift Open")).toBe(
@@ -102,6 +128,20 @@ describe("defaultMetaDeckName", () => {
 
   it("treats an empty legend name as no legend", () => {
     expect(defaultMetaDeckName("", "Renata", "Rift Open")).toBe("Rift Open (Renata)");
+  });
+
+  it("drops the brackets rather than printing an empty pair for a nameless player", () => {
+    expect(defaultMetaDeckName("Irelia, Blade Dancer", "", "Rift Open")).toBe(
+      "Irelia, Blade Dancer",
+    );
+  });
+
+  it("names the player alone when neither a legend nor an event is given", () => {
+    expect(defaultMetaDeckName(null, "Renata", "")).toBe("(Renata)");
+  });
+
+  it("falls back to a placeholder when it is given nothing at all", () => {
+    expect(defaultMetaDeckName(null, "", "")).toBe("Untitled deck");
   });
 
   it("truncates to the deck name column's bound", () => {

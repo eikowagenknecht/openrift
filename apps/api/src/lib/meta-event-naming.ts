@@ -78,6 +78,20 @@ export function metaEventSlugCandidates(name: string, eventDate: string): string
 /** `decks.name` CHECK bound. */
 const MAX_DECK_NAME_LENGTH = 200;
 
+/** Resolves a standing's name the way every read query's `coalesce` does, for callers holding raw columns. */
+export function resolvedStandingName(
+  standing: { playerName: string | null; uvsgamesPlayerId: number | null },
+  displayNames: ReadonlyMap<number, string>,
+): string {
+  if (standing.playerName !== null) {
+    return standing.playerName;
+  }
+  if (standing.uvsgamesPlayerId === null) {
+    return "";
+  }
+  return displayNames.get(standing.uvsgamesPlayerId) ?? "";
+}
+
 /**
  * The display name for a promoted deck whose source gave none.
  *
@@ -85,6 +99,9 @@ const MAX_DECK_NAME_LENGTH = 200;
  * page is useless. The legend is what players call the archetype, so it leads;
  * the event name stands in when the list has no legend zone card (an
  * incomplete import, or a format without legends).
+ *
+ * Every part is optional; an absent one drops its whole fragment, never an
+ * empty pair.
  */
 export function defaultMetaDeckName(
   legendName: string | null,
@@ -92,5 +109,7 @@ export function defaultMetaDeckName(
   eventName: string,
 ): string {
   const lead = legendName === null || legendName === "" ? eventName : legendName;
-  return `${lead} (${playerName})`.slice(0, MAX_DECK_NAME_LENGTH);
+  const parts = [lead, playerName === "" ? null : `(${playerName})`].filter(Boolean);
+  const name = parts.length === 0 ? "Untitled deck" : parts.join(" ");
+  return name.slice(0, MAX_DECK_NAME_LENGTH);
 }

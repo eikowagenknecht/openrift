@@ -10,12 +10,16 @@ import type {
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { classifyMetaEventTier, countryFromAddress } from "../lib/meta-event-classify.js";
-import { defaultMetaDeckName, metaEventSlugCandidates } from "../lib/meta-event-naming.js";
+import {
+  defaultMetaDeckName,
+  metaEventSlugCandidates,
+  resolvedStandingName,
+} from "../lib/meta-event-naming.js";
 import type { MetaEventOverlayPatch, MetaPlayerOverlayPatch } from "../lib/meta-overlay-apply.js";
 import { applyOverlays } from "../lib/meta-overlay-apply.js";
 import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
 import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgames-catalog.js";
-import { listStatusFor } from "../lib/uvsgames-transform.js";
+import { listStatusFor, withSingleChampion } from "../lib/uvsgames-transform.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
 import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../repositories/meta.js";
 import { deckCardMergeKey, mergeDeckCards } from "../repositories/meta.js";
@@ -487,6 +491,13 @@ async function promoteStandings(
 
   const providers = new Set([...merged.values()].map((standing) => standing.provider));
   const deckLines = await loadDeckLines(repos, metaEventId, providers);
+  // A row the source keys by user id stores no name of its own, so the deck's
+  // default name has to reach for the same display name the read surfaces join.
+  const displayNames = await repos.uvsgamesEvents.playerDisplayNames(
+    [...merged.values()].flatMap((standing) =>
+      standing.uvsgamesPlayerId === null ? [] : [standing.uvsgamesPlayerId],
+    ),
+  );
   const unresolved = new Set<string>();
   const mergedLines = new Set<string>();
 
@@ -510,6 +521,7 @@ async function promoteStandings(
     }
     const deck = buildDeck(
       standing,
+      resolvedStandingName(standing, displayNames),
       legendCardId,
       liveEvent?.format ?? WellKnown.deckFormat.CONSTRUCTED,
       liveEvent?.name ?? "",
@@ -622,6 +634,7 @@ async function loadDeckLines(
  */
 function buildDeck(
   standing: StandingFacts,
+  playerName: string,
   legendCardId: string | null,
   format: string,
   eventName: string,
@@ -633,7 +646,7 @@ function buildDeck(
   if (standing.sourceDeckId === null) {
     return null;
   }
-  const lines = deckLines.get(standing.sourceDeckId) ?? [];
+  const lines = withSingleChampion(deckLines.get(standing.sourceDeckId) ?? []);
   if (lines.length === 0) {
     return null;
   }
@@ -688,7 +701,7 @@ function buildDeck(
   }
 
   return {
-    name: defaultMetaDeckName(standing.legendName, standing.playerName ?? "", eventName),
+    name: defaultMetaDeckName(standing.legendName, playerName, eventName),
     format,
     formatConfig: null,
     cards: folded,

@@ -32,8 +32,8 @@ function phoneRow(name: string): HTMLElement {
   return within(list).getByText(name).closest("li") as HTMLElement;
 }
 
-function renderStandings(players: MetaEventPlayer[] = [metaPlayer()]) {
-  render(<MetaEventStandings players={players} slug="summoner-skirmish" />);
+function renderStandings(players: MetaEventPlayer[] = [metaPlayer()], eventDate = "2020-01-01") {
+  render(<MetaEventStandings players={players} slug="summoner-skirmish" eventDate={eventDate} />);
 }
 
 function field(count: number, overrides: (index: number) => Partial<MetaEventPlayer> = () => ({})) {
@@ -52,12 +52,19 @@ describe("MetaEventStandings", () => {
     session.userId = null;
   });
 
-  it("says the results have not arrived rather than showing an empty field", () => {
+  it("says nothing is on file rather than showing an empty field", () => {
     renderStandings([]);
-    expect(
-      screen.getByText("The results for this event have not come through yet. Check back soon."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No standings on file for this event yet.")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("says an event still to come has not been played rather than that results are late", () => {
+    renderStandings([], "2999-01-01");
+    expect(
+      screen.getByText(
+        "This event has not been played yet. Standings will appear here once it has.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("counts the field and how much of it has a list", () => {
@@ -92,6 +99,26 @@ describe("MetaEventStandings", () => {
     ]);
     expect(within(phoneRow("Ana")).getByText("3")).toBeInTheDocument();
     expect(within(phoneRow("Bo")).getByText("4th")).toBeInTheDocument();
+  });
+
+  it("offers a legend filter once the field played more than one", () => {
+    const legend = metaPlayer().legend;
+    renderStandings(
+      field(9, (index) => ({
+        legend:
+          index % 2 === 0
+            ? legend
+            : { ...legend!, cardId: "other-legend", name: "Ahri, the Nine-Tailed Fox" },
+      })),
+    );
+
+    expect(screen.getByLabelText("Filter by legend")).toBeInTheDocument();
+  });
+
+  it("keeps the legend filter out of a field that all played the same one", () => {
+    renderStandings(field(9));
+
+    expect(screen.queryByLabelText("Filter by legend")).toBeNull();
   });
 
   it("prints a cut bucket as a bracket rather than an ordinal", () => {

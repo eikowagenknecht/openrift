@@ -556,6 +556,9 @@ export function readDeckLines(deck: unknown): DeckLines | null {
  *
  * The targets are the constructed baselines rather than `zoneExpected`, because
  * the mirror's format is still the source's unmapped string here.
+ *
+ * Expects {@link withSingleChampion} to have already run; an unnormalised
+ * champion playset leaves `main` short and misreads as partial.
  */
 export function listStatusFor(
   cards: readonly DeckLine[],
@@ -572,6 +575,25 @@ export function listStatusFor(
     (zone) => (held.get(zone) ?? 0) >= (ZONE_EXPECTED[zone] ?? 0),
   );
   return complete ? "full" : "partial";
+}
+
+/** Moves champion-zone lines past the first copy into the main deck; the zone holds exactly one card. */
+export function withSingleChampion<TLine extends { zone: string; quantity: number }>(
+  cards: readonly TLine[],
+): TLine[] {
+  let seatsLeft = 1;
+  return cards.flatMap((line): TLine[] => {
+    if (line.zone !== WellKnown.deckZone.CHAMPION) {
+      return [line];
+    }
+    const seated = Math.min(seatsLeft, line.quantity);
+    seatsLeft -= seated;
+    const spilled = line.quantity - seated;
+    return [
+      ...(seated > 0 ? [{ ...line, quantity: seated }] : []),
+      ...(spilled > 0 ? [{ ...line, zone: WellKnown.deckZone.MAIN, quantity: spilled }] : []),
+    ];
+  });
 }
 
 /**

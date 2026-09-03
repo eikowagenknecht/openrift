@@ -1,3 +1,4 @@
+import { CrownIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { UserAvatar } from "@/components/user-avatar";
@@ -13,7 +14,7 @@ import { cn } from "@/lib/utils";
 // or two seats the same number of columns, centered.
 //
 // Ranks come from the caller and are rendered as given: a tie hands two seats
-// `rank: 1` and both get the gold medal. The seat is presentation, the medal is
+// `rank: 1` and both get the crown. The seat is presentation, the medal is
 // the claim — the caller has already resolved the tie-break for the raised
 // seat, and passes the deciding number as `hint`.
 
@@ -44,20 +45,24 @@ export interface PodiumSeat {
 }
 
 const MEDAL_CLASS: Record<number, string> = {
-  1: "bg-amber-400 text-amber-950",
   2: "bg-muted-foreground/40 text-foreground",
   3: "bg-amber-800/45 text-foreground dark:bg-amber-800/60",
 };
 
 // Over artwork the wash a plate sits on is the card, not the page, so the
 // translucent silver and bronze turn to mud and their theme-following
-// foregrounds can land on their own background. Gold was already opaque and
-// carries over unchanged; the other two are restated as fixed pairs, which is
-// also right in both themes because the art does not change with them.
+// foregrounds can land on their own background. Both are restated as fixed
+// pairs, which is also right in both themes because the art does not change
+// with them.
 const MEDAL_ON_ART_CLASS: Record<number, string> = {
-  1: MEDAL_CLASS[1],
   2: "bg-zinc-300 text-zinc-900",
   3: "bg-amber-700 text-amber-50",
+};
+
+/** The winner's crown tint, per surface: over art it needs its own shadow. */
+const CROWN_CLASS: Record<MedalVariant, string> = {
+  flat: "text-amber-500 dark:text-amber-400",
+  onArt: "text-amber-300 drop-shadow-[0_1px_2px_rgb(0_0_0/0.7)]",
 };
 
 /** @returns The medal tint for a rank, falling back to the neutral chip. */
@@ -96,9 +101,10 @@ const COLUMNS_CLASS: Record<number, string> = {
 };
 
 /**
- * The rank chip: gold, silver, bronze, then a neutral tint. Exported so the
- * standings table can medal its top three from the same tints as the throne,
- * and so the archive's tiles can pin one over card art with `variant="onArt"`.
+ * The rank chip: a crown for the winner, then silver, bronze, and a neutral
+ * tint. Exported so the standings table can medal its top three from the same
+ * tints as the throne, and so the archive's tiles can pin one over card art
+ * with `variant="onArt"`.
  *
  * @returns The medal element.
  */
@@ -111,6 +117,22 @@ export function Medal({
   variant?: MedalVariant;
   className?: string;
 }) {
+  if (rank === 1) {
+    return (
+      <span
+        data-slot="medal"
+        className={cn(
+          "flex size-5 shrink-0 items-center justify-center",
+          CROWN_CLASS[variant],
+          className,
+        )}
+      >
+        <CrownIcon aria-hidden className="size-4.5 fill-current" />
+        <span className="sr-only">1</span>
+      </span>
+    );
+  }
+
   return (
     <span
       data-slot="medal"

@@ -1,13 +1,12 @@
 import type { MetaEventDetail } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { EllipsisVerticalIcon, MessageSquareWarningIcon, PlusIcon } from "lucide-react";
+import { EllipsisVerticalIcon, MessageSquareWarningIcon } from "lucide-react";
 import { useState } from "react";
 
 import {
   PageTopBar,
   PageTopBarActions,
   PageTopBarIconButton,
-  PageTopBarPrimaryButton,
   PageTopBarSticky,
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
@@ -26,42 +25,6 @@ import {
 import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-
-/**
- * How someone who was at the tournament adds to it (ADR-014's User
- * submissions). This is the archive's main way in: a reader looking at an event
- * whose top 8 is half-empty is exactly the person who can fill it.
- *
- * The `meta` flag needs no check here — the route redirects to /cards when it
- * is off, so nothing on this page renders while the archive is unlaunched.
- *
- * Signing in does gate the form, so a logged-out reader is told that before
- * they click rather than being bounced into a login screen with no reason
- * given, and the link carries them back to the form afterwards.
- */
-function AddDeckCta({ slug }: { slug: string }) {
-  const userId = useUserId();
-
-  if (userId === null) {
-    return (
-      <PageTopBarPrimaryButton
-        render={
-          <Link to="/login" search={{ redirect: `/meta/${slug}/submit`, email: undefined }} />
-        }
-      >
-        <PlusIcon />
-        Sign in to add a decklist
-      </PageTopBarPrimaryButton>
-    );
-  }
-
-  return (
-    <PageTopBarPrimaryButton render={<Link to="/meta/$slug/submit" params={{ slug }} />}>
-      <PlusIcon />
-      Add a decklist
-    </PageTopBarPrimaryButton>
-  );
-}
 
 /**
  * The overflow menu beside the main call to action: the ways in that are not
@@ -125,8 +88,9 @@ export function MetaEventPage({ slug }: { slug: string }) {
               ]}
             />
           </div>
+          {/* The ask lives in the contribute band further down, which says how
+              many entries are still missing a list. */}
           <PageTopBarActions>
-            <AddDeckCta slug={slug} />
             <EventActionsMenu event={event} />
           </PageTopBarActions>
         </PageTopBar>
@@ -144,7 +108,7 @@ export function MetaEventPage({ slug }: { slug: string }) {
 
         <MetaEventBracket matches={matches} phases={phases} players={players} />
 
-        <MetaEventStandings players={players} slug={slug} />
+        <MetaEventStandings players={players} slug={slug} eventDate={event.eventDate} />
 
         <div className="mt-8">
           <MetaEventContributeBand event={event} players={players} slug={slug} />

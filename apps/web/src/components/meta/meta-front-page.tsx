@@ -1,7 +1,13 @@
 import type { MetaEventSummary, MetaEventTier } from "@openrift/shared";
 import { dateLeafPartsUtc } from "@openrift/shared";
 import { Link, getRouteApi } from "@tanstack/react-router";
-import { ChevronDownIcon, TrophyIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  LayersIcon,
+  SwordsIcon,
+  TrophyIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -10,7 +16,6 @@ import {
   PageTopBar,
   PageTopBarActions,
   PageTopBarButton,
-  PageTopBarPrimaryButton,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
@@ -23,7 +28,8 @@ import { MetaFrontEventBlock } from "@/components/meta/meta-front-event-block";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { MetaUpcomingRow } from "@/components/meta/meta-upcoming-row";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardLink } from "@/components/ui/card-link";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { useIsAdmin } from "@/hooks/use-admin";
@@ -38,10 +44,25 @@ import {
   metaTierCounts,
 } from "@/lib/meta-front-page";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, isScopeCustomized, nextScopeSearch } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, isScopeCustomized, nextScopeSearch, UNSCOPED } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta");
+
+const ARCHIVE_INDEXES = [
+  {
+    to: "/meta/decks",
+    icon: LayersIcon,
+    title: "Decklists",
+    description: "Every list the archive holds, filterable by legend, domain and card.",
+  },
+  {
+    to: "/meta/legends",
+    icon: SwordsIcon,
+    title: "Legends",
+    description: "How each legend has finished, and the players who took it there.",
+  },
+] as const;
 
 const PREMIER_LIMIT = 3;
 const COMPETITIVE_LIMIT = 4;
@@ -61,6 +82,26 @@ function ContributionsLink() {
   }
   return (
     <PageTopBarButton render={<Link to="/meta/submissions" />}>Your contributions</PageTopBarButton>
+  );
+}
+
+/** Under the counts, not the top bar: both are places to browse, not actions on this page. */
+function ArchiveIndexTiles() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {ARCHIVE_INDEXES.map((index) => (
+        <CardLink key={index.to} render={<Link to={index.to} />} size="sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <index.icon className="text-muted-foreground size-4" />
+              {index.title}
+              <ChevronRightIcon aria-hidden className="text-muted-foreground ml-auto size-4" />
+            </CardTitle>
+            <CardDescription>{index.description}</CardDescription>
+          </CardHeader>
+        </CardLink>
+      ))}
+    </div>
   );
 }
 
@@ -108,14 +149,15 @@ function Section({
 }
 
 /**
- * The "All …" link a tier section carries, opening the event index already
- * narrowed to that tier.
+ * The "All …" link a tier section carries, opening the event index narrowed to
+ * that tier and nothing else. The count is of the whole archive, so the link
+ * has to clear the index's default era and format or it lands short of it.
  */
 function TierIndexLink({ tiers, count }: { tiers: MetaEventTier[]; count: number }) {
   return (
     <Link
       to="/meta/events"
-      search={{ tiers }}
+      search={{ ...UNSCOPED, tiers }}
       className="text-primary text-sm font-medium hover:underline"
     >
       Browse all {count}
@@ -197,20 +239,9 @@ export function MetaFrontPage() {
       <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Meta Archive</PageTopBarTitle>
-          <PageTopBarActions>
-            <PageTopBarButton render={<Link to="/meta/decks" />}>Decklists</PageTopBarButton>
-            <PageTopBarButton render={<Link to="/meta/legends" />}>Legends</PageTopBarButton>
-            {/* Logged out there is nowhere to send a decklist to, so the pair
-                stands down entirely rather than leading somewhere dead. */}
-            {userId !== null && (
-              <>
-                <ContributionsLink />
-                <PageTopBarPrimaryButton render={<Link to="/meta/submit" />}>
-                  Send a decklist
-                </PageTopBarPrimaryButton>
-              </>
-            )}
-          </PageTopBarActions>
+          {/* The ask lives in the contribute band at the foot of the page, which
+              says what is wanted; a bare button here said only where to go. */}
+          <PageTopBarActions>{userId !== null && <ContributionsLink />}</PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>
 
@@ -236,6 +267,7 @@ export function MetaFrontPage() {
                 playerResultCount={playerResults}
                 deckCount={deckResults}
               />
+              <ArchiveIndexTiles />
             </div>
 
             {events.length === 0 ? (
@@ -275,7 +307,7 @@ export function MetaFrontPage() {
                               <ul className="divide-border divide-y">
                                 {sections.premier.slice(0, PREMIER_LIMIT).map((event) => (
                                   <li key={event.id}>
-                                    <MetaFrontEventBlock event={event} featured />
+                                    <MetaFrontEventBlock event={event} />
                                   </li>
                                 ))}
                               </ul>
@@ -313,6 +345,7 @@ export function MetaFrontPage() {
                             action={
                               <Link
                                 to="/meta/events"
+                                search={UNSCOPED}
                                 className="text-primary text-sm font-medium hover:underline"
                               >
                                 Browse all {allEvents.length} events
@@ -351,7 +384,7 @@ export function MetaFrontPage() {
                           action={
                             <Link
                               to="/meta/events"
-                              search={{ holds: "upcoming", by: "date", dir: "asc" }}
+                              search={{ ...search, holds: "upcoming", by: "date", dir: "asc" }}
                               className="text-primary text-sm font-medium hover:underline"
                             >
                               All {sections.upcoming.length}

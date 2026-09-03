@@ -1,4 +1,5 @@
 import type { MetaEventPlayer } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -16,6 +17,13 @@ import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Medal } from "@/components/ui/podium";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -32,6 +40,35 @@ import { cn } from "@/lib/utils";
 const ROWS_SHOWN = 16;
 
 type StandingsFilter = "all" | "withList";
+
+const ANY_LEGEND = "any";
+
+/** The legends the field played, commonest first. Keyed by card id so legends sharing a champion stay apart. */
+function legendOptions(players: readonly MetaEventPlayer[]): Record<string, string> {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const player of players) {
+    if (player.legend === null) {
+      continue;
+    }
+    const seen = counts.get(player.legend.cardId);
+    counts.set(player.legend.cardId, {
+      name: player.legend.name,
+      count: (seen?.count ?? 0) + 1,
+    });
+  }
+  if (counts.size < 2) {
+    return {};
+  }
+  const ordered = [...counts.entries()].sort(
+    (a, b) => b[1].count - a[1].count || a[1].name.localeCompare(b[1].name),
+  );
+  return {
+    [ANY_LEGEND]: "Any legend",
+    ...Object.fromEntries(
+      ordered.map(([cardId, entry]) => [cardId, `${entry.name} (${entry.count})`]),
+    ),
+  };
+}
 
 interface StandingsColumns {
   legend: boolean;
@@ -268,14 +305,18 @@ function subtitleFor(total: number, withLists: number): string {
 export function MetaEventStandings({
   players,
   slug,
+  eventDate,
 }: {
   players: readonly MetaEventPlayer[];
   slug: string;
+  /** UTC date. */
+  eventDate: string;
 }) {
   const canSubmit = useUserId() !== null;
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StandingsFilter>("all");
+  const [legendId, setLegendId] = useState(ANY_LEGEND);
   const [query, setQuery] = useState("");
 
   if (players.length === 0) {
@@ -285,7 +326,9 @@ export function MetaEventStandings({
         <Empty>
           <EmptyHeader>
             <EmptyDescription>
-              The results for this event have not come through yet. Check back soon.
+              {eventDate > todayUtc()
+                ? "This event has not been played yet. Standings will appear here once it has."
+                : "No standings on file for this event yet."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -296,14 +339,17 @@ export function MetaEventStandings({
   const columns = standingsColumns(players, canSubmit);
   const withLists = players.filter((player) => player.shareToken !== null).length;
   const needle = query.trim().toLowerCase();
+  const legends = legendOptions(players);
   const matching = players.filter(
     (player) =>
       (filter === "all" || player.shareToken !== null) &&
+      (legendId === ANY_LEGEND || player.legend?.cardId === legendId) &&
       (needle === "" || player.playerName.toLowerCase().includes(needle)),
   );
   const shown = showAll ? matching : matching.slice(0, ROWS_SHOWN);
   const hidden = matching.length - shown.length;
   const showSearch = players.length > 8;
+  const showLegendFilter = showSearch && Object.keys(legends).length > 0;
   const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
 
   return (
@@ -313,7 +359,7 @@ export function MetaEventStandings({
         <p className="text-muted-foreground text-sm">{subtitleFor(players.length, withLists)}</p>
       </div>
 
-      {(withLists > 0 || showSearch) && (
+      {(withLists > 0 || showSearch || showLegendFilter) && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {withLists > 0 && (
             <ToggleGroup
@@ -346,6 +392,24 @@ export function MetaEventStandings({
                 className="pl-8"
               />
             </div>
+          )}
+          {showLegendFilter && (
+            <Select
+              value={legendId}
+              onValueChange={(value) => setLegendId((value as string | null) ?? ANY_LEGEND)}
+              items={legends}
+            >
+              <SelectTrigger className="w-56" aria-label="Filter by legend">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(legends).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
       )}

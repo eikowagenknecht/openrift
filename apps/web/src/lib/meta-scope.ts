@@ -176,6 +176,14 @@ export const CLEARED_SCOPE: Record<keyof MetaScope, undefined> = {
   countriesEx: undefined,
 };
 
+/**
+ * The scope that narrows nothing. Leaving a key out is not the same thing: an
+ * absent era resolves to the current set and an absent format to constructed,
+ * so a link whose label counts the whole archive has to say all time and every
+ * format outright or it lands on a page holding fewer rows than it promised.
+ */
+export const UNSCOPED: Pick<MetaScope, "era" | "formats"> = { era: ERA_ALL, formats: [] };
+
 /** The facets a reader picks values on, as opposed to the era's single window. */
 export type MetaScopeFacet = "formats" | "tiers" | "countries";
 
