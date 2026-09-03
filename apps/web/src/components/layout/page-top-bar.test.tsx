@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { PageTopBarSticky, PageTopBarTitle } from "./page-top-bar";
+import { PAGE_TOP_BAR_STICKY_BASE, PageTopBarSticky, PageTopBarTitle } from "./page-top-bar";
 
 describe("PageTopBarSticky", () => {
   it("tucks 1px under the header instead of sitting flush", () => {
@@ -55,6 +55,30 @@ describe("PageTopBarSticky", () => {
     // Across the whole subtree the gutter appears on a single element.
     const withGutter = container.querySelectorAll('[class*="px-safe"]');
     expect(withGutter).toHaveLength(1);
+  });
+
+  it.each(["full", "capped"] as const)(
+    "paints its surface on a viewport-wide bleed layer, not on the sticky element (%s)",
+    (width) => {
+      const { container } = render(
+        <PageTopBarSticky width={width}>
+          <span>content</span>
+        </PageTopBarSticky>,
+      );
+      const classes = (container.firstElementChild as HTMLElement).className.split(/\s+/u);
+
+      expect(classes).toContain("before:w-screen");
+      expect(classes).toContain("before:bg-background");
+      expect(classes).not.toContain("bg-background");
+      expect(classes).toContain("sticky");
+      expect(classes).not.toContain("relative");
+    },
+  );
+
+  it("leaves the column-layout base painting inside its own column", () => {
+    const classes = PAGE_TOP_BAR_STICKY_BASE.split(/\s+/u);
+    expect(classes).toContain("bg-background");
+    expect(classes).not.toContain("before:w-screen");
   });
 });
 

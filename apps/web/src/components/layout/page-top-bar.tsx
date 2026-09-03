@@ -96,14 +96,23 @@ export function useMeasuredHeight(el: HTMLElement | null) {
 // phones to optically match the tighter rhythm of the controls below. Desktop
 // keeps the 12px gap (`sm:pb-3`); the top stays 12px since the header's border
 // anchors it (no optical inflation there).
-// Exported for sidebar-column layouts (admin, collections): their content
-// column already clears the iOS safe areas (ml-safe sidebar on the left,
-// pr-safe on the right), so the bar must NOT re-apply px-safe — on notched
-// phones in landscape that double-insets the bar's content by the safe-area
-// width. Those layouts compose the base with column-relative padding instead.
-export const PAGE_TOP_BAR_STICKY_BASE = `${STICKY_SURFACE} sticky top-[calc(var(--header-height)_-_1px)] z-30 -mt-px pt-3 pb-2 sm:pb-3`;
+// Exported for column layouts (the admin and collections sidebars, the rules
+// ToC): their content column already clears the iOS safe areas (ml-safe
+// sidebar on the left, pr-safe on the right), so the bar must NOT re-apply
+// px-safe — on notched phones in landscape that double-insets the bar's
+// content by the safe-area width. Those layouts compose the base with
+// column-relative padding, and keep the surface on the element itself so it
+// stays inside the column.
+const PAGE_TOP_BAR_GEOMETRY =
+  "sticky top-[calc(var(--header-height)_-_1px)] z-30 -mt-px pt-3 pb-2 sm:pb-3";
 
-export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_STICKY_BASE} px-safe`;
+export const PAGE_TOP_BAR_STICKY_BASE = `${STICKY_SURFACE} ${PAGE_TOP_BAR_GEOMETRY}`;
+
+// The surface rides a 100vw `before:` layer because the wrapper sits inside
+// `<main>`, which CONTAINER_WIDTH caps, so a background on it stops mid-screen.
+export const PAGE_TOP_BAR_BLEED = `${PAGE_TOP_BAR_GEOMETRY} before:pointer-events-none before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-background [[data-frosted]_&]:before:bg-background/80 [[data-frosted]_&]:before:backdrop-blur-lg`;
+
+export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_BLEED} px-safe`;
 
 interface PageTopBarStickyProps extends ComponentProps<"div"> {
   /**
@@ -124,12 +133,11 @@ export function PageTopBarSticky({ width, className, children, ...props }: PageT
   return (
     // On `capped`, the horizontal padding moves inside the centered container
     // so the bar's content edges match a content column that is `mx-auto
-    // max-w-5xl px-safe` (padding inside the measured box). The full-bleed
-    // layer keeps no gutter (base styles) so its `px-safe` can't stack with
-    // the inner column's `px-safe`; on `full` the gutter lives on the sticky
-    // layer itself.
+    // max-w-5xl px-safe` (padding inside the measured box). That branch keeps
+    // no gutter of its own so its `px-safe` can't stack with the inner
+    // column's; on `full` the gutter lives on the sticky element itself.
     <div
-      className={cn(width === "capped" ? PAGE_TOP_BAR_STICKY_BASE : PAGE_TOP_BAR_STICKY, className)}
+      className={cn(width === "capped" ? PAGE_TOP_BAR_BLEED : PAGE_TOP_BAR_STICKY, className)}
       {...props}
     >
       {width === "capped" ? (

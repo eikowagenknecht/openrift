@@ -19,6 +19,7 @@
 - fix(Meta): **Deck preview drops repeated details** — the expanded decklist no longer repeats the player, legend, and partial-list badge already on the row above it, showing the chosen champion in their place.
 - fix(Meta): **Correct completeness marking for playset champions** — a decklist whose champion arrived as a multi-copy line was wrongly marked partial, and now reads correctly.
 - fix(Meta): **Deck names no longer end in an empty pair** — a list promoted from a user-id-keyed standing could be named "Legend, Title ()"; it now resolves the player's real name.
+- fix(App): **Page bars reach the screen edge on wide monitors** — the title bar under the header no longer stops short of the viewport at the wide layout breakpoints, leaving a mismatched band on either side.
 
 ## 2026-09-02
 

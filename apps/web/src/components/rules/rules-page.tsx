@@ -5,7 +5,7 @@ import { useState } from "react";
 import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import {
-  PAGE_TOP_BAR_STICKY,
+  PAGE_TOP_BAR_STICKY_BASE,
   PageTopBar,
   PageTopBarActions,
   PageTopBarSticky,
@@ -244,14 +244,16 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
             <div className="min-w-0 flex-1">
               <div
                 className={cn(
-                  PAGE_TOP_BAR_STICKY,
+                  // The base, not PAGE_TOP_BAR_STICKY: this tier lives in the
+                  // ToC's content column, so its surface must not bleed 100vw.
+                  PAGE_TOP_BAR_STICKY_BASE,
                   // `mx-safe-neg` cancels the page container's gutter so the
                   // blur band reaches the physical edge (the bar's own px-safe
                   // re-insets the controls), matching the card-browser toolbar.
-                  "mx-safe-neg z-20 mb-4 flex flex-wrap items-center gap-3",
+                  "px-safe mx-safe-neg z-20 mb-4 flex flex-wrap items-center gap-3",
                 )}
                 // -1px matches the page top bar's own -1px offset in
-                // PAGE_TOP_BAR_STICKY, keeping this tier flush with its bottom.
+                // PAGE_TOP_BAR_STICKY_BASE, keeping this tier flush with its bottom.
                 style={{ top: `calc(var(--header-height) + ${topBarHeight - 1}px)` }}
               >
                 <PageTocMobileTrigger items={tocItems} />
