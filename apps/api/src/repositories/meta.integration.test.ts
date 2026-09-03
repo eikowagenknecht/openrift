@@ -1394,6 +1394,81 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(await repo.updatePlayer(crypto.randomUUID(), { rank: 2 })).toBe(false);
     });
 
+    it("writes a patch per row in one statement", async () => {
+      const eventId = await seedEvent(repo, "mta-batch-update");
+      const first = await seedDecklessPlayer(repo, eventId, { playerName: "MTA One", rank: 1 });
+      const second = await seedDecklessPlayer(repo, eventId, { playerName: "MTA Two", rank: 2 });
+      const third = await seedDecklessPlayer(repo, eventId, { playerName: "MTA Three", rank: 3 });
+
+      await repo.updatePlayers([
+        { id: first, rank: 8, wins: 5, entryStatus: "dropped", gameWinPct: 0.5 },
+        { id: second, rank: 9, wins: 6, entryStatus: null, gameWinPct: null },
+      ]);
+
+      const rows = await repo.rawStandingsForEvent(eventId);
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      expect(byId.get(first)).toMatchObject({
+        rank: 8,
+        wins: 5,
+        entryStatus: "dropped",
+        gameWinPct: 0.5,
+      });
+      expect(byId.get(second)).toMatchObject({ rank: 9, wins: 6, entryStatus: null });
+      expect(byId.get(third)).toMatchObject({ rank: 3, playerName: "MTA Three" });
+    });
+
+    it("keeps a column the row's own patch leaves out", async () => {
+      const eventId = await seedEvent(repo, "mta-batch-mixed");
+      const first = await seedDecklessPlayer(repo, eventId, {
+        playerName: "MTA Ranks",
+        rank: 1,
+        wins: 2,
+      });
+      const second = await seedDecklessPlayer(repo, eventId, {
+        playerName: "MTA Wins",
+        rank: 2,
+        wins: 3,
+      });
+
+      await repo.updatePlayers([
+        { id: first, rank: 4 },
+        { id: second, wins: 7 },
+      ]);
+
+      const rows = await repo.rawStandingsForEvent(eventId);
+      const byId = new Map(rows.map((row) => [row.id, row]));
+      expect(byId.get(first)).toMatchObject({ rank: 4, wins: 2 });
+      expect(byId.get(second)).toMatchObject({ rank: 2, wins: 7 });
+    });
+
+    it("touches nothing for an empty batch", async () => {
+      await expect(repo.updatePlayers([])).resolves.toBeUndefined();
+    });
+
+    it("reads every archived list the event holds in one pass", async () => {
+      const eventId = await seedEvent(repo, "mta-deck-states");
+      const { playerId, deckId } = await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Listed",
+        rank: 1,
+        listStatus: "partial",
+      });
+      const deckless = await seedDecklessPlayer(repo, eventId, {
+        playerName: "MTA Standings Only",
+        rank: 2,
+      });
+
+      const states = await repo.deckStatesForEvent(eventId);
+
+      expect(states.has(deckless)).toBe(false);
+      expect(states.get(playerId)).toMatchObject({
+        deckId,
+        listStatus: "partial",
+        name: "MTA Listed Deck",
+        format: FORMAT,
+      });
+      expect(states.get(playerId)?.cards).toHaveLength(3);
+    });
+
     it("attaches a list to a standings-only entry and mints its permalink", async () => {
       const eventId = await seedEvent(repo, "mta-fill-in");
       const playerId = await seedDecklessPlayer(repo, eventId, {

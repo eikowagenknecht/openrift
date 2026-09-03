@@ -361,6 +361,44 @@ export function mergeDeckCards(cards: readonly MetaDeckCardInput[]): MetaDeckCar
   return [...merged.values()];
 }
 
+export interface MetaStoredDeckCard {
+  cardId: string;
+  zone: string;
+  quantity: number;
+  preferredPrintingId: string | null;
+}
+
+function deckCardKey(card: MetaStoredDeckCard | MetaDeckCardInput): string {
+  return `${card.cardId} ${card.zone} ${card.quantity} ${card.preferredPrintingId ?? ""}`;
+}
+
+/**
+ * `incoming` is compared as given — callers pass it through
+ * {@link mergeDeckCards} first, since that is the shape the table holds.
+ */
+export function sameDeckCards(
+  existing: readonly MetaStoredDeckCard[],
+  incoming: readonly MetaDeckCardInput[],
+): boolean {
+  if (existing.length !== incoming.length) {
+    return false;
+  }
+  const held = new Map<string, number>();
+  for (const card of existing) {
+    const key = deckCardKey(card);
+    held.set(key, (held.get(key) ?? 0) + 1);
+  }
+  for (const card of incoming) {
+    const key = deckCardKey(card);
+    const left = held.get(key) ?? 0;
+    if (left === 0) {
+      return false;
+    }
+    held.set(key, left - 1);
+  }
+  return true;
+}
+
 /**
  * The decklist attached to a standings row. `listStatus` cannot be `"none"`
  * here: that value means there is no deck, and the table CHECKs the two agree.
@@ -400,6 +438,44 @@ export interface MetaEventPlayerInput {
   mintedByOverlayId?: string | null;
   /** Null leaves the entry standings-only, which is what most of a field is. */
   deck: MetaArchivedDeckInput | null;
+}
+
+export interface MetaEventPlayerUpdate extends MetaEventPlayerPatch {
+  id: string;
+}
+
+/**
+ * The snake_case name and SQL type of every patchable column. `updatePlayers`
+ * is raw SQL, past the `CamelCasePlugin`, so it has to spell them itself.
+ */
+const PLAYER_PATCH_COLUMNS = [
+  { key: "rank", column: "rank", type: "int" },
+  { key: "rankIsTier", column: "rank_is_tier", type: "boolean" },
+  { key: "playerName", column: "player_name", type: "text" },
+  { key: "uvsgamesPlayerId", column: "uvsgames_player_id", type: "int" },
+  { key: "wins", column: "wins", type: "smallint" },
+  { key: "losses", column: "losses", type: "smallint" },
+  { key: "draws", column: "draws", type: "smallint" },
+  { key: "matchPoints", column: "match_points", type: "int" },
+  { key: "opponentMatchWinPct", column: "opponent_match_win_pct", type: "double precision" },
+  { key: "gameWinPct", column: "game_win_pct", type: "double precision" },
+  { key: "opponentGameWinPct", column: "opponent_game_win_pct", type: "double precision" },
+  { key: "entryStatus", column: "entry_status", type: "text" },
+  { key: "legendCardId", column: "legend_card_id", type: "uuid" },
+  { key: "championCardId", column: "champion_card_id", type: "uuid" },
+  { key: "sourceIdentity", column: "source_identity", type: "text" },
+] as const satisfies readonly {
+  key: keyof MetaEventPlayerPatch;
+  column: string;
+  type: string;
+}[];
+
+export interface MetaStoredPlayerDeck {
+  deckId: string;
+  listStatus: MetaListStatus;
+  name: string;
+  format: string;
+  cards: MetaStoredDeckCard[];
 }
 
 /** Scalar columns only — the deck moves through `setPlayerDeck` / `clearPlayerDeck`. */
@@ -666,43 +742,6 @@ export function metaRepo(db: Kysely<Database>) {
       .execute();
 
     return row.id;
-  }
-
-  function deckCardKey(card: {
-    cardId: string;
-    zone: string;
-    quantity: number;
-    preferredPrintingId: string | null;
-  }): string {
-    return `${card.cardId} ${card.zone} ${card.quantity} ${card.preferredPrintingId ?? ""}`;
-  }
-
-  function sameDeckCards(
-    existing: readonly {
-      cardId: string;
-      zone: string;
-      quantity: number;
-      preferredPrintingId: string | null;
-    }[],
-    incoming: readonly MetaDeckCardInput[],
-  ): boolean {
-    if (existing.length !== incoming.length) {
-      return false;
-    }
-    const held = new Map<string, number>();
-    for (const card of existing) {
-      const key = deckCardKey(card);
-      held.set(key, (held.get(key) ?? 0) + 1);
-    }
-    for (const card of incoming) {
-      const key = deckCardKey(card);
-      const left = held.get(key) ?? 0;
-      if (left === 0) {
-        return false;
-      }
-      held.set(key, left - 1);
-    }
-    return true;
   }
 
   return {
@@ -1631,6 +1670,83 @@ export function metaRepo(db: Kysely<Database>) {
         .where("id", "=", id)
         .executeTakeFirst();
       return (result.numUpdatedRows ?? 0n) > 0n;
+    },
+
+    /**
+     * The same patch as {@link updatePlayer}, for many rows in one statement.
+     * Grouped by which columns each patch carries, so an omitted column is never written null.
+     */
+    async updatePlayers(updates: readonly MetaEventPlayerUpdate[]): Promise<void> {
+      const groups = Map.groupBy(updates, (update) =>
+        PLAYER_PATCH_COLUMNS.filter(({ key }) => update[key] !== undefined)
+          .map(({ key }) => key)
+          .join(","),
+      );
+
+      for (const group of groups.values()) {
+        const columns = PLAYER_PATCH_COLUMNS.filter(({ key }) => group[0][key] !== undefined);
+        if (columns.length === 0) {
+          continue;
+        }
+        const rows = group.map((update) =>
+          Object.fromEntries([
+            ["id", update.id],
+            ...columns.map(({ key, column }) => [column, update[key]]),
+          ]),
+        );
+        const assignments = columns.map(({ column }) => `"${column}" = v."${column}"`).join(", ");
+        const record = ['"id" uuid', ...columns.map(({ column, type }) => `"${column}" ${type}`)];
+        await sql`
+          update ${sql.table("metaEventPlayers")} as p
+          set ${sql.raw(assignments)}
+          from jsonb_to_recordset(${rows}::jsonb)
+            as v(${sql.raw(record.join(", "))})
+          where p.id = v."id"
+        `.execute(db);
+      }
+    },
+
+    /** Every archived deck the event's standings rows point at, three queries for the whole field. */
+    async deckStatesForEvent(eventId: string): Promise<Map<string, MetaStoredPlayerDeck>> {
+      const players = await db
+        .selectFrom("metaEventPlayers")
+        .select(["id", "deckId", "listStatus"])
+        .where("metaEventId", "=", eventId)
+        .where("deckId", "is not", null)
+        .execute();
+      if (players.length === 0) {
+        return new Map();
+      }
+
+      const deckIds = players.map((player) => player.deckId as string);
+      const decks = await db
+        .selectFrom("decks")
+        .select(["id", "name", "format"])
+        .where("id", "in", deckIds)
+        .execute();
+      const cards = await db
+        .selectFrom("deckCards")
+        .select(["deckId", "cardId", "zone", "quantity", "preferredPrintingId"])
+        .where("deckId", "in", deckIds)
+        .execute();
+
+      const byDeck = new Map(decks.map((deck) => [deck.id, deck]));
+      const cardsByDeck = Map.groupBy(cards, (card) => card.deckId);
+      const states = new Map<string, MetaStoredPlayerDeck>();
+      for (const player of players) {
+        const deck = byDeck.get(player.deckId as string);
+        if (deck === undefined) {
+          continue;
+        }
+        states.set(player.id, {
+          deckId: deck.id,
+          listStatus: player.listStatus,
+          name: deck.name,
+          format: deck.format,
+          cards: cardsByDeck.get(deck.id) ?? [],
+        });
+      }
+      return states;
     },
 
     /**

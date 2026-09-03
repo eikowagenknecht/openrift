@@ -21,8 +21,14 @@ import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
 import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgames-catalog.js";
 import { listStatusFor, withSingleChampion } from "../lib/uvsgames-transform.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
-import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../repositories/meta.js";
-import { deckCardMergeKey, mergeDeckCards } from "../repositories/meta.js";
+import type {
+  MetaArchivedDeckInput,
+  MetaDeckCardInput,
+  MetaEventPlayerPatch,
+  MetaEventPlayerUpdate,
+  MetaStoredPlayerDeck,
+} from "../repositories/meta.js";
+import { deckCardMergeKey, mergeDeckCards, sameDeckCards } from "../repositories/meta.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.js";
 
@@ -498,8 +504,11 @@ async function promoteStandings(
       standing.uvsgamesPlayerId === null ? [] : [standing.uvsgamesPlayerId],
     ),
   );
+  const deckStates = await repos.meta.deckStatesForEvent(metaEventId);
   const unresolved = new Set<string>();
   const mergedLines = new Set<string>();
+  const updates: MetaEventPlayerUpdate[] = [];
+  const deckWrites: { playerId: string; deck: MetaArchivedDeckInput }[] = [];
 
   for (const standing of merged.values()) {
     const legendCardId =
@@ -560,7 +569,7 @@ async function promoteStandings(
       continue;
     }
 
-    await repos.meta.updatePlayer(existingRow.id, {
+    const patch = {
       rank: standing.rank,
       rankIsTier: standing.rankIsTier,
       playerName: standing.playerName,
@@ -575,18 +584,53 @@ async function promoteStandings(
       entryStatus: standing.entryStatus,
       legendCardId,
       sourceIdentity: standing.identity,
-    });
+    } satisfies MetaEventPlayerPatch;
+    if (!samePlayerColumns(existingRow, patch)) {
+      updates.push({ id: existingRow.id, ...patch });
+    }
     result.players++;
     if (deck !== null) {
       // The maintainer may have renamed the archived deck; a re-promote of the
       // same list must not take that back.
-      await setMetaPlayerList(repos.meta, existingRow.id, deck, { preserveName: true });
+      if (!sameStoredDeck(deckStates.get(existingRow.id), deck)) {
+        deckWrites.push({ playerId: existingRow.id, deck });
+      }
       result.decks++;
     }
   }
 
+  await repos.meta.updatePlayers(updates);
+  for (const write of deckWrites) {
+    await setMetaPlayerList(repos.meta, write.playerId, write.deck, { preserveName: true });
+  }
+
   result.unresolvedNames = [...unresolved];
   result.mergedLines = [...mergedLines];
+}
+
+function samePlayerColumns(row: MetaEventPlayerPatch, patch: MetaEventPlayerPatch): boolean {
+  for (const key of Object.keys(patch) as (keyof MetaEventPlayerPatch)[]) {
+    if (row[key] !== patch[key]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Whether `setPlayerDeck` would write nothing for this list. Mirrors that
+ * method's own comparison under `preserveName`, and has to keep mirroring it.
+ */
+function sameStoredDeck(
+  stored: MetaStoredPlayerDeck | undefined,
+  deck: MetaArchivedDeckInput,
+): boolean {
+  return (
+    stored !== undefined &&
+    stored.format === deck.format &&
+    stored.listStatus === deck.listStatus &&
+    sameDeckCards(stored.cards, mergeDeckCards(deck.cards))
+  );
 }
 
 type SourceDeckLines = Map<string, { zone: string; quantity: number; cardName: string }[]>;

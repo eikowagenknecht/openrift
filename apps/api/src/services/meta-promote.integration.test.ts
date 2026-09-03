@@ -368,6 +368,90 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       expect(deck?.name).toBe("MPI Curated Name");
       expect(cards).toEqual([{ cardId: spellCardId, quantity: 3 }]);
     });
+
+    it("rewrites the archived list when the source list moves", async () => {
+      const activityShopId = takeShopId();
+      const sourceDeckId = `mpi-deck-${activityShopId}`;
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rune Cup",
+          startAt: "2026-08-20",
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgDecklists")
+        .values({ sourceDeckId, activityShopId, fetchStatus: "fetched" })
+        .execute();
+      await db
+        .insertInto("playloltcgDecklistCards")
+        .values({ sourceDeckId, lineNumber: 0, zone: "main", quantity: 3, cardName: "MPI Spell" })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values({
+          activityShopId,
+          playerKey: "u5003",
+          playerName: "MPI Lux",
+          rank: 1,
+          sourceDeckId,
+        })
+        .execute();
+
+      const metaEventId = await seedLiveEvent("mpi-deck-moves");
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+
+      await promoteMetaEvent(repos, metaEventId);
+      const [player] = await repo.rawStandingsForEvent(metaEventId);
+      const deckId = player.deckId as string;
+      createdDeckIds.push(deckId);
+
+      await db
+        .updateTable("playloltcgDecklistCards")
+        .set({ quantity: 1 })
+        .where("sourceDeckId", "=", sourceDeckId)
+        .execute();
+      await promoteMetaEvent(repos, metaEventId);
+
+      const cards = await db
+        .selectFrom("deckCards")
+        .select(["cardId", "quantity"])
+        .where("deckId", "=", deckId)
+        .execute();
+      expect(cards).toEqual([{ cardId: spellCardId, quantity: 1 }]);
+    });
+
+    it("rewrites a standing the source moved, and leaves its neighbour alone", async () => {
+      const { metaEventId, activityShopId } = await seedMirroredEvent(
+        "mpi-playloltcg-rerank",
+        TWO_PLAYERS,
+      );
+      await promoteMetaEvent(repos, metaEventId);
+      const before = await repo.rawStandingsForEvent(metaEventId);
+      const untouched = before.find((row) => row.sourceIdentity !== "pu5001");
+
+      await db
+        .updateTable("playloltcgEventStandings")
+        .set({ rank: 7, wins: 6 })
+        .where("activityShopId", "=", activityShopId)
+        .where("playerKey", "=", "u5001")
+        .execute();
+      await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after.find((row) => row.sourceIdentity === "pu5001")).toMatchObject({
+        rank: 7,
+        wins: 6,
+      });
+      expect(after.find((row) => row.sourceIdentity === untouched?.sourceIdentity)).toMatchObject({
+        rank: untouched?.rank,
+        playerName: untouched?.playerName,
+      });
+    });
   });
 
   describe("player overlays", () => {
