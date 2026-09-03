@@ -20,8 +20,21 @@ import { cn } from "@/lib/utils";
  * - `strip` — a wide crop at the exact landscape-card ratio (88/63), so
  *   battlefield art fills it edge to edge while portrait art crops to its
  *   illustration band. Use as the lead of a list row.
+ * - `square` — a square crop of the art's top. Use where a card stands in for a
+ *   legend at avatar size, in a row of them or beside a name.
  */
-type CardArtThumbShape = "card" | "strip";
+type CardArtThumbShape = "card" | "strip" | "square";
+
+const FRAME_CLASS: Record<CardArtThumbShape, string> = {
+  card: "bg-muted aspect-card",
+  strip: "bg-muted/40 aspect-[88/63] h-6 rounded-sm border",
+  square: "bg-muted/40 ring-foreground/10 aspect-square size-6 rounded-sm ring-1 ring-inset",
+};
+
+const CROP_CLASS: Partial<Record<CardArtThumbShape, string>> = {
+  strip: "object-[50%_18%]",
+  square: "object-top",
+};
 
 interface CardArtThumbProps {
   /** Frame shape. Defaults to `"card"`. */
@@ -64,7 +77,7 @@ interface CardArtThumbProps {
    * Landscape cards (Battlefields) are stored as landscape images. Derive it
    * from `getOrientation(card.types) === "landscape"`. What it does depends on
    * the shape: a `card` frame rotates the art -90° to fill the portrait frame,
-   * while a `strip` frame simply skips the portrait crop, since the strip is
+   * while `strip` and `square` skip the portrait crop, a strip because it is
    * already the landscape-card ratio and the art fills it exactly.
    */
   landscape?: boolean;
@@ -139,7 +152,7 @@ function ThumbPlaceholder({
  * `inline-block` keeps the aspect-driven axis content-sized in both flex and
  * block contexts.
  *
- * Two shapes, picked with `shape` — see {@link CardArtThumbShape}. Both share
+ * Three shapes, picked with `shape` — see {@link CardArtThumbShape}. All share
  * one fallback chain, so the three ways art can be absent (no printing
  * resolved, a printing with no image on file, and an image record whose file is
  * missing on the server) all land in the same domain-tinted placeholder instead
@@ -167,7 +180,7 @@ export function CardArtThumb({
   landscape = false,
   foil = false,
 }: CardArtThumbProps) {
-  const strip = shape === "strip";
+  const framed = shape === "card";
   const resolved = src ?? (imageId ? imageUrl(imageId, variant) : null);
   const emptyFrame = fallback ?? (
     <ThumbPlaceholder rarity={rarity} domains={domains} shape={shape} />
@@ -177,28 +190,23 @@ export function CardArtThumb({
       src={resolved}
       alt={alt}
       loading={loading}
-      className={cn(
-        "size-full object-cover",
-        // A strip crops portrait art to the illustration band rather than its
-        // middle, which at 24px tall would land on the type line. Landscape art
-        // is already the strip's own ratio, so it fills edge to edge untouched.
-        strip && !landscape && "object-[50%_18%]",
-      )}
+      className={cn("size-full object-cover", !landscape && CROP_CLASS[shape])}
       fallback={emptyFrame}
     />
   );
-  // Rotation only ever applies to the portrait frame: the strip is already the
-  // landscape-card ratio, so battlefield art belongs in it as-is.
-  const rotate = landscape && !strip;
+  // Rotation only ever applies to the portrait frame; the other shapes take
+  // battlefield art as-is.
+  const rotate = landscape && framed;
   return (
     <span
+      data-slot="card-art-thumb"
       className={cn(
         "relative inline-block shrink-0 overflow-hidden align-top",
-        strip ? "bg-muted/40 aspect-[88/63] h-6 rounded-sm border" : "bg-muted aspect-card",
+        FRAME_CLASS[shape],
         foil && "ring-1 ring-amber-400/60",
         className,
       )}
-      style={strip ? undefined : { borderRadius: CARD_BORDER_RADIUS }}
+      style={framed ? { borderRadius: CARD_BORDER_RADIUS } : undefined}
     >
       {image ? (
         rotate ? (

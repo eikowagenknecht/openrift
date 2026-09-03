@@ -1447,18 +1447,21 @@ function CardThumbnailsSection() {
     <DemoSection
       id="card-thumbnails"
       title="Card thumbnails"
-      note="CardArtThumb is the lightweight, image-only card frame for lists, tooltips, and stats — two shapes off one prop. shape=card is the portrait card frame, for where the thumb stands in for the card object (covers, tier tiles, stats, floating previews). shape=strip is the wide crop that leads a list row. Size either with a width or height utility; the other axis follows. The full grid tile (foil, pricing, sibling fan-out) is CardThumbnail; the whole row lead is CardMiniRow."
+      note="CardArtThumb is the lightweight, image-only card frame for lists, tooltips, and stats — three shapes off one prop. shape=card is the portrait card frame, for where the thumb stands in for the card object (covers, tier tiles, stats, floating previews). shape=strip is the wide crop that leads a list row. shape=square is the avatar-sized crop of the art's top, for where a card stands in for a legend beside a name. Size any of them with a width or height utility; the other axis follows. The full grid tile (foil, pricing, sibling fan-out) is CardThumbnail; the whole row lead is CardMiniRow."
       docs="components/cards/card-art-thumb.tsx"
     >
       <DemoRow
         label="Shapes"
-        hint="Same art. card locks to the portrait card ratio; strip locks to the landscape-card ratio (88/63) and crops portrait art to its illustration band rather than its middle, which at row height would land on the type line."
+        hint="Same art. card locks to the portrait card ratio; strip locks to the landscape-card ratio (88/63) and crops portrait art to its illustration band, which at row height beats its middle landing on the type line; square crops the top, where the splash is."
       >
         <Swatch label="card">
           <CardArtThumb src={PORTRAIT_SAMPLE_ART} className="h-14" />
         </Swatch>
         <Swatch label="strip">
           <CardArtThumb shape="strip" src={PORTRAIT_SAMPLE_ART} className="h-14" />
+        </Swatch>
+        <Swatch label="square">
+          <CardArtThumb shape="square" src={PORTRAIT_SAMPLE_ART} className="h-14" />
         </Swatch>
       </DemoRow>
       <DemoRow label="Sizes" hint="Height- or width-driven; the shape's aspect ratio stays fixed.">
@@ -1519,6 +1522,15 @@ function CardThumbnailsSection() {
         <Swatch label="strip, domain tint">
           <CardArtThumb
             shape="strip"
+            imageId={null}
+            rarity="showcase"
+            domains={["chaos"]}
+            className="h-14"
+          />
+        </Swatch>
+        <Swatch label="square, domain tint">
+          <CardArtThumb
+            shape="square"
             imageId={null}
             rarity="showcase"
             domains={["chaos"]}

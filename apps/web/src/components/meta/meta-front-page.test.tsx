@@ -171,6 +171,11 @@ function archiveCount(label: string): string {
   return screen.getByText(label).previousElementSibling?.textContent ?? "";
 }
 
+/** @returns How many legend card frames a section renders. */
+function thumbCount(scope: HTMLElement): number {
+  return scope.querySelectorAll('[data-slot="card-art-thumb"]').length;
+}
+
 /** @returns The signed-in action row, empty when the page renders none. */
 function pageActions(): HTMLElement | null {
   return screen.queryByTestId("page-actions");
@@ -205,6 +210,31 @@ describe("MetaFrontPage", () => {
     const premier = section("Premier");
     expect(within(premier).getAllByRole("img", { name: "Calm" }).length).toBeGreaterThan(0);
     expect(within(premier).getAllByRole("img", { name: "Order" }).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the legend frame on every podium row when any finish names one", () => {
+    captured.events = [event({ topFinishes: [WINNER, { ...RUNNER_UP, legend: null }] })];
+
+    render(<MetaFrontPage />);
+
+    expect(thumbCount(section("Premier"))).toBe(2);
+  });
+
+  it("drops the legend frame when no finish names one", () => {
+    captured.events = [
+      event({
+        topFinishes: [
+          { ...WINNER, legend: null },
+          { ...RUNNER_UP, legend: null },
+        ],
+      }),
+    ];
+
+    render(<MetaFrontPage />);
+
+    const premier = section("Premier");
+    expect(thumbCount(premier)).toBe(0);
+    expect(within(premier).getByText("M. Álvarez")).toBeInTheDocument();
   });
 
   it("names both players when the source published a tie at the top", () => {

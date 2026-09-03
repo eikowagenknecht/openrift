@@ -1,11 +1,11 @@
 import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared";
-import { dateLeafPartsUtc, formatDay, imageUrl } from "@openrift/shared";
+import { dateLeafPartsUtc, formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { DateLeaf } from "@/components/ui/date-leaf";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import {
   formatRecord,
   joinNames,
@@ -166,19 +166,15 @@ function LegendThumbs({ winners }: { winners: readonly MetaEventFinish[] }) {
  * card: at 24px a full card is a smudge, while the splash still reads.
  */
 function LegendThumb({ winner }: { winner: MetaEventFinish }) {
-  const imageId = winner.legend?.imageId ?? null;
-  const placeholder = <span className="bg-muted size-6 shrink-0 rounded-xs" />;
-  if (imageId === null) {
-    return placeholder;
-  }
   const champion = winner.legend === null ? "" : splitLegendName(winner.legend.name).champion;
   return (
-    <ImgWithFallback
-      src={imageUrl(imageId, "120w")}
+    <CardArtThumb
+      shape="square"
+      imageId={winner.legend?.imageId ?? null}
+      domains={winner.legend?.domains}
       alt={champion}
       loading="lazy"
-      className="ring-foreground/10 size-6 shrink-0 rounded-xs object-cover object-top ring-1 ring-inset"
-      fallback={placeholder}
+      className="rounded-xs"
     />
   );
 }

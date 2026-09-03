@@ -1,7 +1,8 @@
-import { formatDay, imageUrl } from "@openrift/shared";
+import { formatDay } from "@openrift/shared";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { SwordsIcon } from "lucide-react";
 
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { DomainIcon } from "@/components/deck/domain-icon";
 import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/filters/search-input";
@@ -18,7 +19,6 @@ import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
-import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Medal } from "@/components/ui/podium";
 import { useMetaEvents, useMetaLegends } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
@@ -84,21 +84,13 @@ function WinsChip({ eventWins }: { eventWins: number }) {
 }
 
 function LegendArt({ entry, className }: { entry: MetaLegendIndexEntry; className: string }) {
-  const placeholder = <span className={cn("bg-muted shrink-0 rounded-sm", className)} />;
-  if (entry.legend.imageId === null) {
-    return placeholder;
-  }
   return (
-    <ImgWithFallback
-      src={imageUrl(entry.legend.imageId, "120w")}
-      alt=""
-      aria-hidden="true"
+    <CardArtThumb
+      shape="square"
+      imageId={entry.legend.imageId}
+      domains={entry.legend.domains}
       loading="lazy"
-      className={cn(
-        "ring-foreground/10 shrink-0 rounded-sm object-cover object-top ring-1 ring-inset",
-        className,
-      )}
-      fallback={placeholder}
+      className={className}
     />
   );
 }

@@ -6,6 +6,7 @@
 
 - feat(Cards): **Overnumbered as its own filter** — a card past its set's printed total is now filtered and labelled separately from its artwork, so an alt art that is also overnumbered reads as both.
 - feat(Collection): **Overnumbered column in exports** — the collection CSV now carries the flag in its own column, and older exports that named it as an art variant still import.
+- fix(Meta): **Consistent legend art** — a legend with no image on file now shows the same domain-tinted placeholder everywhere in the archive, instead of a plain grey square on the front page and event index. Standings and podium rows also drop their legend and decklist columns entirely for events the source published as bare placings, rather than filling every row with an empty placeholder.
 
 ## 2026-09-02
 

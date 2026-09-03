@@ -109,6 +109,32 @@ describe("MetaEventStandings", () => {
     expect(phoneRow("Bo").querySelector('img[src*="art-120w"]')).not.toBeNull();
   });
 
+  it("drops both optional columns when the source published bare placings", () => {
+    renderStandings(field(2, () => ({ legend: null, champion: null })));
+
+    expect(screen.queryByRole("columnheader", { name: "Legend" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Decklist" })).not.toBeInTheDocument();
+    expect(phoneRow("Player 0").querySelector('[data-slot="card-art-thumb"]')).toBeNull();
+  });
+
+  it("keeps the legend column when a single entry names one", () => {
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", rank: 1 }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2, legend: null }),
+    ]);
+
+    expect(screen.getByRole("columnheader", { name: "Legend" })).toBeInTheDocument();
+    expect(phoneRow("Bo").querySelector('[data-slot="card-art-thumb"]')).not.toBeNull();
+  });
+
+  it("keeps the decklist column for anyone who can send one in", () => {
+    session.userId = "u-1";
+    renderStandings(field(2, () => ({ legend: null, champion: null })));
+
+    expect(screen.getByRole("columnheader", { name: "Decklist" })).toBeInTheDocument();
+    expect(within(phoneRow("Player 0")).getByRole("link", { name: "+ Add" })).toBeInTheDocument();
+  });
+
   it("washes the winner's row in the archive's gold", () => {
     renderStandings([
       metaPlayer({ id: "p-1", playerName: "Ana", rank: 1 }),

@@ -31,9 +31,27 @@ import { cn } from "@/lib/utils";
 
 const ROWS_SHOWN = 16;
 
-const COLUMN_COUNT = 5;
-
 type StandingsFilter = "all" | "withList";
+
+interface StandingsColumns {
+  legend: boolean;
+  deck: boolean;
+}
+
+function standingsColumns(
+  players: readonly MetaEventPlayer[],
+  canSubmit: boolean,
+): StandingsColumns {
+  return {
+    legend: players.some((player) => player.legend !== null || player.champion !== null),
+    deck: canSubmit || players.some((player) => player.shareToken !== null),
+  };
+}
+
+/** Rank, player and record always stand; the other two are conditional. */
+function columnCount(columns: StandingsColumns): number {
+  return 3 + (columns.legend ? 1 : 0) + (columns.deck ? 1 : 0);
+}
 
 function Rank({ player }: { player: MetaEventPlayer }) {
   if (player.rank <= MEDAL_RANKS) {
@@ -119,6 +137,7 @@ interface RowProps {
   player: MetaEventPlayer;
   slug: string;
   canSubmit: boolean;
+  columns: StandingsColumns;
   expanded: boolean;
   onToggle: () => void;
 }
@@ -133,7 +152,7 @@ function rowToggleHandler(onToggle: () => void) {
   };
 }
 
-function DesktopRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
+function DesktopRow({ player, slug, canSubmit, columns, expanded, onToggle }: RowProps) {
   const record = formatRecord(player.wins, player.losses, player.draws);
   const token = player.shareToken;
 
@@ -151,23 +170,27 @@ function DesktopRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
         </TableCell>
         <TableCell className="font-medium">{player.playerName}</TableCell>
         <TableCell className="text-right tabular-nums">{record}</TableCell>
-        <TableCell>
-          <LegendCell player={player} />
-        </TableCell>
-        <TableCell className="text-right">
-          <DeckCell
-            player={player}
-            slug={slug}
-            canSubmit={canSubmit}
-            expanded={expanded}
-            onToggle={onToggle}
-            className="justify-end"
-          />
-        </TableCell>
+        {columns.legend && (
+          <TableCell>
+            <LegendCell player={player} />
+          </TableCell>
+        )}
+        {columns.deck && (
+          <TableCell className="text-right">
+            <DeckCell
+              player={player}
+              slug={slug}
+              canSubmit={canSubmit}
+              expanded={expanded}
+              onToggle={onToggle}
+              className="justify-end"
+            />
+          </TableCell>
+        )}
       </TableRow>
       {expanded && token !== null && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={COLUMN_COUNT} className="p-3 whitespace-normal">
+          <TableCell colSpan={columnCount(columns)} className="p-3 whitespace-normal">
             <DeckPreview token={token} />
           </TableCell>
         </TableRow>
@@ -176,7 +199,7 @@ function DesktopRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
   );
 }
 
-function PhoneRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
+function PhoneRow({ player, slug, canSubmit, columns, expanded, onToggle }: RowProps) {
   const record = formatRecord(player.wins, player.losses, player.draws);
   const token = player.shareToken;
 
@@ -192,12 +215,14 @@ function PhoneRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
     >
       <div className="flex items-center gap-2.5">
         <Rank player={player} />
-        <CardArtThumb
-          imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
-          domains={player.legend?.domains}
-          loading="lazy"
-          className="w-9"
-        />
+        {columns.legend && (
+          <CardArtThumb
+            imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
+            domains={player.legend?.domains}
+            loading="lazy"
+            className="w-9"
+          />
+        )}
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate font-medium">{player.playerName}</p>
           <MetaIdentity
@@ -210,13 +235,15 @@ function PhoneRow({ player, slug, canSubmit, expanded, onToggle }: RowProps) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5 leading-tight">
           {record !== null && <span className="tabular-nums">{record}</span>}
-          <DeckCell
-            player={player}
-            slug={slug}
-            canSubmit={canSubmit}
-            expanded={expanded}
-            onToggle={onToggle}
-          />
+          {columns.deck && (
+            <DeckCell
+              player={player}
+              slug={slug}
+              canSubmit={canSubmit}
+              expanded={expanded}
+              onToggle={onToggle}
+            />
+          )}
         </div>
       </div>
       {expanded && token !== null && <DeckPreview token={token} />}
@@ -266,6 +293,7 @@ export function MetaEventStandings({
     );
   }
 
+  const columns = standingsColumns(players, canSubmit);
   const withLists = players.filter((player) => player.shareToken !== null).length;
   const needle = query.trim().toLowerCase();
   const matching = players.filter(
@@ -334,8 +362,8 @@ export function MetaEventStandings({
                     <TableHead className="w-16">Rank</TableHead>
                     <TableHead>Player</TableHead>
                     <TableHead className="w-24 text-right">Record</TableHead>
-                    <TableHead className="w-64">Legend</TableHead>
-                    <TableHead className="w-40 text-right">Decklist</TableHead>
+                    {columns.legend && <TableHead className="w-64">Legend</TableHead>}
+                    {columns.deck && <TableHead className="w-40 text-right">Decklist</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -345,6 +373,7 @@ export function MetaEventStandings({
                       player={player}
                       slug={slug}
                       canSubmit={canSubmit}
+                      columns={columns}
                       expanded={expandedId === player.id}
                       onToggle={() => toggle(player.id)}
                     />
@@ -360,6 +389,7 @@ export function MetaEventStandings({
                   player={player}
                   slug={slug}
                   canSubmit={canSubmit}
+                  columns={columns}
                   expanded={expandedId === player.id}
                   onToggle={() => toggle(player.id)}
                 />

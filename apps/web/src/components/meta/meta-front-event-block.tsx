@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
 
 import { ArtBandBackdrop } from "@/components/art-band-backdrop";
+import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { CountryFlag } from "@/components/ui/country-flag";
@@ -14,37 +15,12 @@ import { formatRecord, metaEventCounts } from "@/lib/meta-format";
 import { metaEventWinners } from "@/lib/meta-front-page";
 import { cn } from "@/lib/utils";
 
-function FinishThumb({ legend }: { legend: MetaEventFinish["legend"] }) {
-  const placeholder = (
-    <span
-      aria-hidden="true"
-      className="aspect-card bg-muted h-12 shrink-0"
-      style={{ borderRadius: CARD_BORDER_RADIUS }}
-    />
-  );
-  if (legend?.imageId === null || legend?.imageId === undefined) {
-    return placeholder;
-  }
-  return (
-    <ImgWithFallback
-      src={imageUrl(legend.imageId, "120w")}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      draggable={false}
-      fallback={placeholder}
-      className="aspect-card h-12 shrink-0 object-cover"
-      style={{ borderRadius: CARD_BORDER_RADIUS }}
-    />
-  );
-}
-
 /**
  * One podium standings row: the medal, the legend as a mini card, who it was,
- * and on what. The rank-1 row sits on the archive's gold wash — the same claim
+ * and on what. The rank-1 row sits on the archive's gold wash, the same claim
  * the podium's raised seat makes, at row strength.
  */
-function FinishRow({ finish }: { finish: MetaEventFinish }) {
+function FinishRow({ finish, showArt }: { finish: MetaEventFinish; showArt: boolean }) {
   const record = formatRecord(finish.wins, finish.losses, finish.draws);
 
   return (
@@ -55,15 +31,22 @@ function FinishRow({ finish }: { finish: MetaEventFinish }) {
       )}
     >
       <Medal rank={finish.rank} />
-      <FinishThumb legend={finish.legend} />
-      <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-2.5">
+      {showArt && (
+        <CardArtThumb
+          imageId={finish.legend?.imageId ?? null}
+          domains={finish.legend?.domains}
+          loading="lazy"
+          className="h-12"
+        />
+      )}
+      <span className="flex min-w-0 flex-1 flex-col">
         <span className={cn("truncate", finish.rank === 1 ? "font-semibold" : "font-medium")}>
           {finish.playerName}
         </span>
         <MetaIdentity
           name={finish.legend?.name}
           domains={finish.legend?.domains}
-          className="text-sm sm:flex-1"
+          className="text-sm"
         />
       </span>
       {record !== null && (
@@ -101,6 +84,7 @@ export function MetaFrontEventBlock({
     ? (metaEventWinners(event).find((winner) => winner.legend !== null)?.legend ?? null)
     : null;
   const bandArtId = bandLegend?.imageId ?? null;
+  const showsLegendArt = event.topFinishes.some((finish) => finish.legend !== null);
 
   return (
     <div className="relative overflow-hidden">
@@ -146,7 +130,11 @@ export function MetaFrontEventBlock({
         {event.topFinishes.length > 0 && (
           <span className="flex flex-col gap-0.5 sm:pl-14">
             {event.topFinishes.map((finish, index) => (
-              <FinishRow key={`${finish.rank}-${finish.playerName}-${index}`} finish={finish} />
+              <FinishRow
+                key={`${finish.rank}-${finish.playerName}-${index}`}
+                finish={finish}
+                showArt={showsLegendArt}
+              />
             ))}
           </span>
         )}
