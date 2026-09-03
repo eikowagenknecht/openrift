@@ -63,10 +63,17 @@ COPY --from=build /app/apps/extension/package.json apps/extension/
 COPY --from=build /app/apps/web/package.json apps/web/
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/e2e/package.json packages/e2e/
-RUN bun install --frozen-lockfile --production --ignore-scripts
+# --filter=api drops web's production tree. The deletes share this RUN or their
+# bytes stay in the layer, and node_modules hardlinks into bun's install cache.
+RUN bun install --frozen-lockfile --production --ignore-scripts --filter=api \
+ && foreign=$(find node_modules -type d -path '*/onnxruntime-node/bin/napi-v6/*' \( -name win32 -o -name darwin \)) \
+ && { [ -n "$foreign" ] || { echo "onnxruntime platform dirs not found; layout changed" >&2; exit 1; }; } \
+ && echo "$foreign" | xargs rm -rf \
+ && bun pm cache rm
 
-COPY --from=build /app/packages/shared ./packages/shared
-COPY --from=build /app/apps/api ./apps/api
+# src only: a whole-directory copy would overwrite the filtered node_modules above.
+COPY --from=build /app/packages/shared/src ./packages/shared/src
+COPY --from=build /app/apps/api/src ./apps/api/src
 COPY --from=build /app/apps/web/src/CHANGELOG.md ./apps/web/src/CHANGELOG.md
 COPY --from=build /app/.build-id /app/.build-id
 EXPOSE 3000
@@ -97,10 +104,11 @@ COPY --from=build /app/apps/extension/package.json apps/extension/
 COPY --from=build /app/apps/web/package.json apps/web/
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/e2e/package.json packages/e2e/
-RUN bun install --frozen-lockfile --production --ignore-scripts
+RUN bun install --frozen-lockfile --production --ignore-scripts --filter=discord-bot \
+ && bun pm cache rm
 
-COPY --from=build /app/packages/shared ./packages/shared
-COPY --from=build /app/apps/discord-bot ./apps/discord-bot
+COPY --from=build /app/packages/shared/src ./packages/shared/src
+COPY --from=build /app/apps/discord-bot/src ./apps/discord-bot/src
 # Same gate as the web stage: the bot logs in to Discord and immediately starts
 # answering lookups against the API, so a daemon-driven restart put it in the
 # same race.

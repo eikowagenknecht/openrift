@@ -7,6 +7,8 @@ OpenRift runs on a VPS with Docker Compose behind Cloudflare. Two instances shar
 
 Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls pre-built images — no building on prod, no git clone needed.
 
+A fifth GHCR package, `openrift-buildcache`, holds the BuildKit layer cache with one tag per build target (`main-build-api`, `main-build-web`, `main-build-proxy`, `main-build-bot`). Nothing pulls it at runtime. It replaced the GitHub Actions cache backend, which evicted entries at GitHub's 10 GB per-repository cap and made every build re-run `bun install`, so `latest` and `preview` never shared a dependency layer.
+
 ## Architecture
 
 | Container | Image                                | Role                                                                                              |

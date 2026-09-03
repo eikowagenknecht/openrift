@@ -13,8 +13,6 @@ group "default" {
 target "_base" {
   context    = "."
   dockerfile = "Dockerfile"
-  cache-from = ["type=gha,scope=${CACHE_SCOPE}"]
-  cache-to   = ["type=gha,mode=max,scope=${CACHE_SCOPE}"]
   # Sentry source-map upload runs during `bun run build` in stage 1. ORG and
   # PROJECT are non-sensitive build args. The auth token is a BuildKit secret
   # so it stays out of image history. When SENTRY_AUTH_TOKEN is empty, the
@@ -34,26 +32,46 @@ function "tags_for" {
   )
 }
 
+# One cache ref per target: parallel bake targets exporting to a shared ref
+# clobber each other, and type=gha evicts at GitHub's 10 GB per-repo cap.
+function "cache_from_for" {
+  params = [stage]
+  result = ["type=registry,ref=${REGISTRY}/${OWNER}/openrift-buildcache:${CACHE_SCOPE}-${stage}"]
+}
+
+function "cache_to_for" {
+  params = [stage]
+  result = ["type=registry,mode=max,image-manifest=true,oci-mediatypes=true,ref=${REGISTRY}/${OWNER}/openrift-buildcache:${CACHE_SCOPE}-${stage}"]
+}
+
 target "api" {
-  inherits = ["_base"]
-  target   = "api"
-  tags     = tags_for("openrift-api")
+  inherits   = ["_base"]
+  target     = "api"
+  tags       = tags_for("openrift-api")
+  cache-from = cache_from_for("api")
+  cache-to   = cache_to_for("api")
 }
 
 target "web" {
-  inherits = ["_base"]
-  target   = "web"
-  tags     = tags_for("openrift-web")
+  inherits   = ["_base"]
+  target     = "web"
+  tags       = tags_for("openrift-web")
+  cache-from = cache_from_for("web")
+  cache-to   = cache_to_for("web")
 }
 
 target "proxy" {
-  inherits = ["_base"]
-  target   = "proxy"
-  tags     = tags_for("openrift-proxy")
+  inherits   = ["_base"]
+  target     = "proxy"
+  tags       = tags_for("openrift-proxy")
+  cache-from = cache_from_for("proxy")
+  cache-to   = cache_to_for("proxy")
 }
 
 target "bot" {
-  inherits = ["_base"]
-  target   = "bot"
-  tags     = tags_for("openrift-bot")
+  inherits   = ["_base"]
+  target     = "bot"
+  tags       = tags_for("openrift-bot")
+  cache-from = cache_from_for("bot")
+  cache-to   = cache_to_for("bot")
 }

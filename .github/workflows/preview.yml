@@ -77,6 +77,17 @@ jobs:
           docker logs web-smoke
           exit 1
 
+      # A filtered install fails only at import time, and neither image can boot
+      # here (the api needs a database), so bundle to resolve every import.
+      - name: Resolve the api and bot entrypoints
+        run: |
+          set -e
+          for pair in api:apps/api/src/index.ts bot:apps/discord-bot/src/index.ts; do
+            image="ghcr.io/${{ github.repository_owner }}/openrift-${pair%%:*}:sha-${{ github.sha }}"
+            docker run --rm --entrypoint bun "$image" \
+              build --target=bun "${pair#*:}" --outdir=/tmp/resolve-check
+          done
+
   deploy:
     runs-on: ubuntu-latest
     needs: [build, smoke]
