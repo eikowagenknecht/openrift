@@ -66,7 +66,7 @@ export function TagMultiSelect({
       <ComboboxTrigger
         id={triggerId}
         className={cn(
-          "border-input bg-background hover:bg-accent/40 flex h-9 items-center justify-between rounded-md border px-3 text-sm",
+          "border-input bg-background hover:bg-muted/50 flex h-9 items-center justify-between rounded-md border px-3 text-sm",
           triggerClassName ?? "w-72",
         )}
       >

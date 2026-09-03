@@ -416,7 +416,7 @@ export function MarketplaceProductsTable({
                     }
                   }
                 }}
-                className="border-amber-600/50 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                className="border-warning/40 text-warning hover:bg-warning-soft"
               >
                 <WandSparklesIcon />
                 Accept all {totalWeakCount} weak suggestion{totalWeakCount === 1 ? "" : "s"}
@@ -453,7 +453,7 @@ export function MarketplaceProductsTable({
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={8} className="bg-muted/50 py-1 pr-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-muted-foreground font-semibold tracking-wide uppercase">
+                      <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                         {MARKETPLACE_CONFIGS[entry.marketplace].displayName}
                       </span>
                       <div className="flex items-center gap-2">
@@ -465,7 +465,7 @@ export function MarketplaceProductsTable({
                             onClick={() =>
                               marketplaceHandlers.onBatchAssignToPrintings(weakMappings)
                             }
-                            className="border-amber-600/50 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                            className="border-warning/40 text-warning hover:bg-warning-soft"
                           >
                             <WandSparklesIcon />
                             Accept {weakMappings.length} weak suggestion
@@ -566,15 +566,12 @@ function MarketplaceProductRow({
         <TableCell className="w-80 max-w-0">
           <div className="flex items-center gap-1.5">
             {isAssigned ? (
-              <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
+              <CheckIcon className="text-success size-3.5 shrink-0" />
             ) : (
               <span aria-hidden className="inline-block size-3.5 shrink-0" />
             )}
             <span
-              className={cn(
-                "truncate font-medium",
-                nameMismatched && "text-yellow-600 dark:text-yellow-400",
-              )}
+              className={cn("truncate font-medium", nameMismatched && "text-warning")}
               title={
                 nameMismatched
                   ? `${product.productName} (does not match card name "${cardName}")`
@@ -796,12 +793,12 @@ function SuggestionChip({
       className={cn(
         "inline-flex h-5 items-center gap-1 rounded-4xl border px-2 py-0.5 text-xs font-medium disabled:opacity-50",
         isStrong &&
-          "border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400",
+          "border-success/30 bg-success-soft text-success hover:bg-success/20 border-solid",
         !isStrong &&
           !isWeak &&
           "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 border-dashed",
         isWeak &&
-          "border-dashed border-amber-600/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400",
+          "border-warning/40 bg-warning-soft text-warning hover:bg-warning/20 border-dashed",
       )}
     >
       {pending ? (
@@ -857,7 +854,7 @@ function PrintingLabel({
         {printing.markerSlugs.join("+")}
       </span>
       :<span className={finishMatches ? matchCls : undefined}>{printing.finish}</span>
-      {isOversized && <span className="text-amber-600 dark:text-amber-400">:{printing.size}</span>}
+      {isOversized && <span className="text-warning">:{printing.size}</span>}
     </span>
   );
 }
@@ -933,7 +930,7 @@ function AssignToPrintingButton({
                 className={cn(assignedElsewhere && "text-muted-foreground/60")}
               >
                 {currentlyAssigned ? (
-                  <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
+                  <CheckIcon className="text-success size-3.5" />
                 ) : (
                   <span className="inline-block size-3.5" />
                 )}

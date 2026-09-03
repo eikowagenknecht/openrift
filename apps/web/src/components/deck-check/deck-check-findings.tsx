@@ -27,7 +27,7 @@ import { zoneFixAllowed } from "@/lib/deck-check-actions";
 export function ChangeBanner({ summary }: { summary: DeckCheckChangeSummary }) {
   const describe = (line: { name: string; quantity: number }) => `${line.quantity}× ${line.name}`;
   return (
-    <div className="border-destructive/50 bg-destructive/10 flex flex-col gap-1 rounded-md border p-3 text-sm">
+    <div className="border-destructive/40 bg-destructive-soft flex flex-col gap-1 rounded-md border p-3 text-sm">
       <span className="font-medium">This list changed since a judge last reviewed it.</span>
       {summary.added.length > 0 ? (
         <span>Added: {summary.added.map((line) => describe(line)).join(", ")}</span>
@@ -86,7 +86,7 @@ export function FindingsBanner({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+    <div className="border-warning/40 bg-warning-soft flex flex-col gap-2 rounded-md border p-3 text-sm">
       <span className="font-medium">Possible deck problems</span>
       <ul className="list-disc pl-5">
         {unmatched.length > 0 ? (
@@ -201,7 +201,7 @@ function FixZonesDialog({
           <ul className="flex flex-col gap-2">
             {suggestions.map((suggestion) => (
               <li key={suggestion.cardId}>
-                <Label className="hover:bg-muted/40 flex items-center gap-3 rounded-md p-2">
+                <Label className="hover:bg-muted/50 flex items-center gap-3 rounded-md p-2">
                   <Checkbox
                     checked={selected.has(suggestion.cardId)}
                     onCheckedChange={(checked: boolean) =>

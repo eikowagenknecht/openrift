@@ -228,7 +228,7 @@ export function DeckZoneSection({
       className={cn(
         // Frameless: no box. The drop highlight is a ring around the whole
         // block, since there's no border left to recolor.
-        "flex flex-col gap-1.5 rounded transition-all select-none",
+        "flex flex-col gap-1.5 rounded-md transition-all select-none",
         isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-2",
         dropDisabled && "opacity-40",
       )}
@@ -249,7 +249,7 @@ export function DeckZoneSection({
           onClick={activateZone}
           aria-label={`Edit ${zoneLabel}`}
           className={cn(
-            "text-muted-foreground hover:text-foreground text-2xs min-w-0 flex-1 truncate font-semibold tracking-widest uppercase transition-colors",
+            "text-muted-foreground hover:text-foreground text-2xs min-w-0 flex-1 truncate font-semibold tracking-wide uppercase transition-colors",
             isActive && "text-foreground",
           )}
         >
@@ -265,7 +265,7 @@ export function DeckZoneSection({
                   variant="ghost"
                   size="icon-xs"
                   aria-label="Show zone issues"
-                  className="size-5 shrink-0 rounded"
+                  className="size-5 shrink-0 rounded-md"
                 />
               }
             >
@@ -288,7 +288,7 @@ export function DeckZoneSection({
             hasZoneViolations
               ? "text-destructive"
               : expected !== undefined && totalQuantity === expected
-                ? "text-green-600 dark:text-green-500"
+                ? "text-success"
                 : "text-muted-foreground",
           )}
         >
@@ -303,7 +303,7 @@ export function DeckZoneSection({
             type="button"
             variant="ghost"
             size="xs"
-            className="text-muted-foreground h-auto w-full justify-start rounded py-1 text-left font-normal whitespace-normal"
+            className="text-muted-foreground h-auto w-full justify-start rounded-md py-1 text-left font-normal whitespace-normal"
             onClick={activateZone}
           >
             {zoneEmptyHint(zone, format)}

@@ -72,7 +72,7 @@ function Panel({
       <div aria-hidden="true" className="absolute inset-0" style={deckGlowStyle(domains)} />
       <div aria-hidden="true" className="absolute inset-0" style={VIGNETTE_STYLE} />
 
-      <span className="text-muted-foreground text-2xs relative w-full truncate text-center font-semibold tracking-widest uppercase">
+      <span className="text-muted-foreground text-2xs relative w-full truncate text-center font-semibold tracking-wide uppercase">
         {name}
       </span>
 
@@ -141,10 +141,10 @@ export function TrackerVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string
         <Panel name="Alice" points={3} domains={["calm", "order"]} art={thumbnailUrls[0]} rotated />
         <Panel name="Max" points={4} domains={["chaos", "fury"]} art={thumbnailUrls[1]} scoring />
         <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 flex -translate-y-1/2 justify-center gap-2">
-          <span className="border-border bg-popover grid size-8 place-items-center rounded-full border shadow-sm">
+          <span className="bg-popover grid size-8 place-items-center rounded-full border shadow-sm">
             <DicesIcon className="size-4" aria-hidden="true" />
           </span>
-          <span className="border-border bg-popover grid size-8 place-items-center rounded-full border shadow-sm">
+          <span className="bg-popover grid size-8 place-items-center rounded-full border shadow-sm">
             <Settings2Icon className="size-4" aria-hidden="true" />
           </span>
         </div>

@@ -148,7 +148,7 @@ export function CardErrataManager({
                 href={errata.sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-blue-500 underline"
+                className="text-info underline"
               >
                 {errata.source}
               </a>

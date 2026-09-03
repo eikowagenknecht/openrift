@@ -161,7 +161,7 @@ export function RuleRow({
               expanded={!isFolded}
               onClick={() => toggle(rule.ruleNumber)}
               aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
-              className="text-muted-foreground hover:text-foreground size-4 justify-center gap-0 rounded no-underline"
+              className="text-muted-foreground hover:text-foreground size-4 justify-center gap-0 rounded-md no-underline"
               chevronClassName="size-3 text-inherit"
             />
           </span>

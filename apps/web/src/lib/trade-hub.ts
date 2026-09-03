@@ -347,8 +347,8 @@ type TradeShelfRowKey = "answer" | "hand-over" | "confirm" | "could-get" | "woul
 export interface TradeShelfRow {
   key: TradeShelfRowKey;
   label: string;
-  /** Gold rows wait on the viewer, green rows are opportunities. */
-  tone: "gold" | "green";
+  /** Warning rows wait on the viewer, success rows are opportunities. */
+  tone: "warning" | "success";
   /** The distinct printings the row's art strip shows, longest-waiting first. */
   printingIds: string[];
   /** The row's own sentence: how many of what, and with whom. */
@@ -426,7 +426,7 @@ function obligationRow(
   return {
     key,
     label,
-    tone: "gold",
+    tone: "warning",
     printingIds: distinctPrintingIds(trades),
     detail: tail === "" ? detail : `${detail}, ${tail}`,
   };
@@ -459,7 +459,7 @@ function suggestionRow(
     key === "could-get"
       ? `${count} ${cardNoun(count)} from ${members} ${memberNoun(members)}`
       : `${count} ${cardNoun(count)}, wanted by ${members} ${memberNoun(members)}`;
-  return { key, label, tone: "green", printingIds: distinctPrintingIds(matches), detail };
+  return { key, label, tone: "success", printingIds: distinctPrintingIds(matches), detail };
 }
 
 /**

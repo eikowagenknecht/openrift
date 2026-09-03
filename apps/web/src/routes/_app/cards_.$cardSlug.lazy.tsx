@@ -404,7 +404,7 @@ function CardDetailPage() {
                 {selectedPrinting.printedEffectText && (
                   <InfoRow label="Effect">
                     <div
-                      className="rounded px-2 py-1.5"
+                      className="rounded-md px-2 py-1.5"
                       style={getDomainGradientStyle(card.domains, "18", domainColors)}
                     >
                       <p className="text-muted-foreground">
@@ -424,7 +424,7 @@ function CardDetailPage() {
                 )}
                 {selectedPrinting.markers.length > 0 && (
                   <InfoRow label="Promo">
-                    <div className="border-border/50 bg-muted/30 flex flex-wrap gap-1 rounded border px-2.5 py-1.5">
+                    <div className="border-border/50 bg-muted/30 flex flex-wrap gap-1 rounded-md border px-2.5 py-1.5">
                       {selectedPrinting.markers.map((marker) => (
                         <Badge
                           key={marker.id}
@@ -444,7 +444,7 @@ function CardDetailPage() {
                 <SourcesRow printing={selectedPrinting} />
                 {selectedPrinting.comment && (
                   <InfoRow label="Note">
-                    <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+                    <div className="border-border/50 bg-muted/30 rounded-md border px-2.5 py-1.5">
                       <p className="text-muted-foreground italic">{selectedPrinting.comment}</p>
                     </div>
                   </InfoRow>
@@ -679,7 +679,7 @@ function FoundInRow({
   }
   return (
     <InfoRow label="Found in">
-      <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+      <div className="border-border/50 bg-muted/30 rounded-md border px-2.5 py-1.5">
         {/* A lone entry needs no bullet to disambiguate it from its neighbours. */}
         {entries.length === 1 ? (
           entries[0].node
@@ -713,7 +713,7 @@ function SourcesRow({ printing }: { printing: Printing }) {
   }
   return (
     <InfoRow label={citations.length === 1 ? "Source" : "Sources"}>
-      <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+      <div className="border-border/50 bg-muted/30 rounded-md border px-2.5 py-1.5">
         <PrintingCitationList citations={citations} />
       </div>
     </InfoRow>
@@ -844,7 +844,7 @@ function PrintingCard({
       <CardPanel
         className={cn(
           "h-full flex-row items-start gap-3 px-3 py-2 transition-colors",
-          isSelected ? "ring-primary ring-2" : "hover:bg-muted",
+          isSelected ? "ring-primary ring-2" : "hover:bg-muted/50",
         )}
       >
         <CardArtThumb
@@ -1063,10 +1063,10 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
           // phone viewport; containment zeroes that contribution so the table
           // scrolls inside instead.
           <div className="min-w-0 contain-inline-size xl:flex-1 xl:basis-0">
-            <div className="border-border max-h-[400px] overflow-auto rounded-lg border">
+            <div className="max-h-[400px] overflow-auto rounded-lg border">
               <table className="w-full text-sm">
                 <thead className="sticky top-0">
-                  <tr className="border-border bg-muted/90 border-b backdrop-blur">
+                  <tr className="border-border bg-muted border-b">
                     <th scope="col" className="px-3 py-2 text-left font-medium">
                       Date
                     </th>

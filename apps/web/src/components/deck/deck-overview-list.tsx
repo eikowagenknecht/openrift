@@ -325,7 +325,7 @@ export function DeckOverviewList({
                     variant="ghost"
                     size="icon-xs"
                     aria-label={`Show ${ZONE_LABELS[zone]} issues`}
-                    className="size-5 shrink-0 rounded"
+                    className="size-5 shrink-0 rounded-md"
                   />
                 }
               >
@@ -348,7 +348,7 @@ export function DeckOverviewList({
               zoneViolations.length > 0
                 ? "text-destructive"
                 : showExpected && quantity === expected
-                  ? "text-green-600 dark:text-green-500"
+                  ? "text-success"
                   : "text-muted-foreground",
             )}
           >
@@ -444,7 +444,7 @@ export function DeckOverviewList({
  * which is not a zone but sits in the same flow and has to fold the same way.
  */
 export const DECK_LIST_SECTION_CLASS =
-  "mb-6 flex break-inside-avoid flex-col gap-1.5 rounded transition-all";
+  "mb-6 flex break-inside-avoid flex-col gap-1.5 rounded-md transition-all";
 
 /**
  * Trailing add row for a zone, edit mode only: a dashed full-width target that
@@ -561,7 +561,7 @@ function DroppableZoneSection({
       ref={setNodeRef}
       className={cn(
         DECK_LIST_SECTION_CLASS,
-        isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-4",
+        isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-2",
         dropDisabled && "opacity-40",
       )}
     >
@@ -773,7 +773,7 @@ export function DeckListRow({
       className={cn(
         // Tighter gaps on phones: the row keeps every column but the set code
         // there, and the seven gaps are what the card name pays for them.
-        "flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2",
+        "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm sm:gap-2",
         onCardClick && "hover:bg-muted/50 cursor-pointer",
         // Gate on dragProps, not dragRef: reading a `…Ref`-named value during
         // render trips the compiler's refs-during-render check (build-failing
@@ -830,7 +830,7 @@ export function DeckListRow({
         <span
           className={cn(
             "w-12 shrink-0 text-right tabular-nums",
-            missing ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground",
+            missing ? "text-warning" : "text-muted-foreground",
           )}
         >
           {entry.owned}/{entry.needed}

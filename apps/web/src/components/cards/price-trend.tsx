@@ -26,7 +26,7 @@ function TrendBadge({ pctChange, className }: { pctChange: number; className?: s
     <span
       className={cn(
         "inline-flex items-center gap-0.5 font-medium [&_svg]:size-3",
-        isUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+        isUp ? "text-success" : "text-destructive",
         className,
       )}
     >

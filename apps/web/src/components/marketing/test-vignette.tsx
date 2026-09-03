@@ -115,7 +115,7 @@ export function TestVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] 
       </div>
 
       <div>
-        <div className="text-muted-foreground text-2xs mb-1.5 font-semibold tracking-widest uppercase">
+        <div className="text-muted-foreground text-2xs mb-1.5 font-semibold tracking-wide uppercase">
           Draw odds
         </div>
         <div className="overflow-hidden rounded-md border">
@@ -130,7 +130,7 @@ export function TestVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] 
               </tr>
             </thead>
             <tbody>
-              <tr className="bg-muted/40 border-t">
+              <tr className="bg-muted/50 border-t">
                 <td className="max-w-0 truncate px-2 py-1">
                   Turn-1 unit going first (≤2 energy){" "}
                   <span className="text-muted-foreground tabular-nums">· 9</span>

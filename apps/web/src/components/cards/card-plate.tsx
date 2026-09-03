@@ -83,7 +83,7 @@ export function CardPlateContent({
         </div>
       )}
       {fields.code && (
-        <div className="text-muted-foreground font-mono text-sm tracking-wider uppercase">
+        <div className="text-muted-foreground font-mono text-sm tracking-wide uppercase">
           {formatPublicCode(printing)}
           {printing.finish === WellKnown.finish.FOIL ? " · Foil" : ""}
         </div>

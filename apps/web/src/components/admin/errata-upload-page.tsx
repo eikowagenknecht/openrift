@@ -14,12 +14,12 @@ import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Code } from "@/components/ui/code";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { BulkErrataEntry } from "@/hooks/use-card-errata";
 import { useUploadErrata } from "@/hooks/use-card-errata";
-import { cn } from "@/lib/utils";
 
 type ParseResult =
   | { ok: true; entries: BulkErrataEntry[] }
@@ -150,7 +150,7 @@ export function ErrataUploadPage() {
               </p>
             )}
             {parseError && (
-              <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+              <p className="text-destructive flex items-center gap-1 text-sm">
                 <XIcon className="size-4" />
                 {parseError}
               </p>
@@ -193,14 +193,14 @@ export function ErrataUploadPage() {
           {preview && <PreviewSummary data={preview} />}
 
           {upload.isSuccess && !preview && (
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+            <p className="text-success flex items-center gap-1 text-sm">
               <CheckIcon className="size-4" />
               Errata applied successfully
             </p>
           )}
 
           {upload.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <p className="text-destructive flex items-center gap-1 text-sm">
               <XIcon className="size-4" />
               {upload.error.message}
             </p>
@@ -231,37 +231,30 @@ function FormatHelp() {
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-3 border-t px-3 py-3 text-sm">
         <p>
-          The file must contain a JSON array of entries (or an object with an{" "}
-          <code className="bg-muted rounded px-1">entries</code> field holding the array). Each
-          entry has these fields:
+          The file must contain a JSON array of entries (or an object with an <Code>entries</Code>{" "}
+          field holding the array). Each entry has these fields:
         </p>
         <ul className="ml-5 list-disc space-y-1">
           <li>
-            <code className="bg-muted rounded px-1">cardSlug</code> (string, required): slug of the
-            card to errata.
+            <Code>cardSlug</Code> (string, required): slug of the card to errata.
           </li>
           <li>
-            <code className="bg-muted rounded px-1">correctedRulesText</code> (string or{" "}
-            <code className="bg-muted rounded px-1">null</code>): corrected rules text. At least one
-            of rules or effect text must be set.
+            <Code>correctedRulesText</Code> (string or <Code>null</Code>): corrected rules text. At
+            least one of rules or effect text must be set.
           </li>
           <li>
-            <code className="bg-muted rounded px-1">correctedEffectText</code> (string or{" "}
-            <code className="bg-muted rounded px-1">null</code>): corrected effect text.
+            <Code>correctedEffectText</Code> (string or <Code>null</Code>): corrected effect text.
           </li>
           <li>
-            <code className="bg-muted rounded px-1">source</code> (string, required): short label
-            describing where the correction comes from.
+            <Code>source</Code> (string, required): short label describing where the correction
+            comes from.
           </li>
           <li>
-            <code className="bg-muted rounded px-1">sourceUrl</code> (string or{" "}
-            <code className="bg-muted rounded px-1">null</code>, optional): link to the source.
+            <Code>sourceUrl</Code> (string or <Code>null</Code>, optional): link to the source.
           </li>
           <li>
-            <code className="bg-muted rounded px-1">effectiveDate</code> (string{" "}
-            <code className="bg-muted rounded px-1">YYYY-MM-DD</code> or{" "}
-            <code className="bg-muted rounded px-1">null</code>, optional): date the errata took
-            effect.
+            <Code>effectiveDate</Code> (string <Code>YYYY-MM-DD</Code> or <Code>null</Code>,
+            optional): date the errata took effect.
           </li>
         </ul>
         <p>Example:</p>
@@ -277,15 +270,15 @@ function PreviewSummary({ data }: { data: UploadErrataResponse }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 text-sm">
-        <Pill label="New" count={data.newCount} tone="green" />
-        <Pill label="Updated" count={data.updatedCount} tone="amber" />
+        <Pill label="New" count={data.newCount} tone="success" />
+        <Pill label="Updated" count={data.updatedCount} tone="warning" />
         <Pill label="Unchanged" count={data.unchangedCount} tone="muted" />
         <Pill label="Matches printed" count={data.matchesPrintedCount} tone="muted" />
-        <Pill label="Errors" count={data.errors.length} tone="red" />
+        <Pill label="Errors" count={data.errors.length} tone="destructive" />
       </div>
 
       {data.errors.length > 0 && (
-        <ul className="ml-5 list-disc text-sm text-red-600 dark:text-red-400">
+        <ul className="text-destructive ml-5 list-disc text-sm">
           {data.errors.slice(0, 10).map((err, index) => (
             <li key={index}>{err}</li>
           ))}
@@ -321,20 +314,10 @@ function Pill({
 }: {
   label: string;
   count: number;
-  tone: "green" | "amber" | "red" | "muted";
+  tone: "success" | "warning" | "destructive" | "muted";
 }) {
-  // Map each tone to a Badge variant. The variant's dark-mode colors differ
-  // slightly from the original inline spans, so each tone overrides them back
-  // to the exact original shade. The red tone keeps its own red-500 palette
-  // (the destructive variant uses the destructive token, a different shade).
-  const { variant, override } = {
-    green: { variant: "success", override: "dark:bg-green-500/10 dark:text-green-300" },
-    amber: { variant: "warning", override: "dark:bg-amber-500/10 dark:text-amber-300" },
-    red: { variant: "destructive", override: "bg-red-500/10 text-red-700 dark:text-red-300" },
-    muted: { variant: "muted", override: "" },
-  }[tone] as { variant: "success" | "warning" | "destructive" | "muted"; override: string };
   return (
-    <Badge variant={variant} className={cn("h-auto rounded-md px-2 py-0.5 text-sm", override)}>
+    <Badge variant={tone} className="h-auto rounded-md px-2 py-0.5 text-sm">
       {label}: {count}
     </Badge>
   );
@@ -403,13 +386,13 @@ function DiffList({
                   <td className="px-2 py-1 font-medium">{entry.cardName}</td>
                   <td className="px-2 py-1">{field.field}</td>
                   <td
-                    className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
+                    className="text-destructive max-w-48 truncate px-2 py-1"
                     title={JSON.stringify(field.from)}
                   >
                     {JSON.stringify(field.from)}
                   </td>
                   <td
-                    className="max-w-48 truncate px-2 py-1 text-green-600 dark:text-green-400"
+                    className="text-success max-w-48 truncate px-2 py-1"
                     title={JSON.stringify(field.to)}
                   >
                     {JSON.stringify(field.to)}

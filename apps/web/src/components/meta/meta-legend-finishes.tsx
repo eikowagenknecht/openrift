@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Heading } from "@/components/heading";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Medal } from "@/components/ui/podium";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -208,7 +209,7 @@ export function MetaLegendFinishes({
         </div>
       </div>
 
-      <div className="bg-card ring-foreground/10 overflow-hidden rounded-lg ring-1">
+      <Card className="gap-0 py-0">
         <ul className="flex flex-col">
           {rows.map((finish) => (
             <FinishRow key={finish.playerId} finish={finish} canSubmit={canSubmit} />
@@ -228,7 +229,7 @@ export function MetaLegendFinishes({
             </Button>
           </div>
         )}
-      </div>
+      </Card>
     </section>
   );
 }

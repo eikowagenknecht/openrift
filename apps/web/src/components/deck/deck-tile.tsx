@@ -158,7 +158,7 @@ export function FannedPreview({
             className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-md saturate-125 dark:opacity-40"
             fallback={null}
           />
-          <div className="to-card/60 absolute inset-0 bg-gradient-to-b from-transparent via-transparent" />
+          <div className="to-card/60 absolute inset-0 bg-linear-to-b from-transparent via-transparent" />
         </>
       )}
       {legendImage ? (
@@ -265,7 +265,7 @@ export function DeckTile({
         cardLinkVariants(),
         // No hover wash here: the domain gradient is an inline style that overrides
         // the wash on legend decks, so drop it everywhere to keep tiles consistent.
-        "ring-foreground/10 group relative flex flex-col overflow-hidden rounded-lg ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
+        "ring-border group relative flex flex-col overflow-hidden rounded-lg ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
         // The deck name's link stretches over the whole tile through its ::after
         // instead of the tile being one big anchor, because an anchor may not
         // contain the menu and the badges that live in here. It is the only

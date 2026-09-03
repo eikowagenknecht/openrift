@@ -115,7 +115,7 @@ export function LendCardDialog({
             {members.map((member) => (
               <label
                 key={member.userId}
-                className="hover:bg-muted/60 flex cursor-pointer items-center gap-3 rounded-md border p-2.5"
+                className="hover:bg-muted/50 flex cursor-pointer items-center gap-3 rounded-md border p-2.5"
               >
                 <RadioGroupItem value={member.userId} />
                 <UserAvatar
@@ -127,7 +127,7 @@ export function LendCardDialog({
                 <span className="min-w-0 flex-1 truncate text-sm">{member.name ?? "Member"}</span>
               </label>
             ))}
-            <label className="hover:bg-muted/60 flex cursor-pointer items-start gap-3 rounded-md border p-2.5">
+            <label className="hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-md border p-2.5">
               <RadioGroupItem value={FREE_TEXT} className="mt-2" />
               <span className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <Input

@@ -37,7 +37,7 @@ describe("MetaTierBadge", () => {
 
   it("pins the competitive teal in dark mode so it cannot collide with the gold", () => {
     render(<MetaTierBadge tier="competitive" />);
-    expect(screen.getByText("Competitive")).toHaveClass("dark:text-teal-300");
+    expect(screen.getByText("Competitive")).toHaveClass("text-primary");
   });
 
   it("outlines the two ranked tiers and fills the two unranked ones", () => {

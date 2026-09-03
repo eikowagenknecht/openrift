@@ -6,7 +6,8 @@ import type { VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+  // custom: ring-2 focus ring — app-wide focus width (scaffold ships ring-3)
+  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
   {
     variants: {
       variant: {
@@ -17,21 +18,20 @@ const badgeVariants = cva(
         outline: "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
-        // custom: tonal green success badge — replaces inline bg-green-500/10 text-green-700 label spans
-        success: "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400",
-        // custom: tonal amber warning badge — replaces inline bg-amber-500/10 text-amber-700 label spans
-        warning: "bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
-        // custom: tonal violet label badge — the admin role chip, matching IconChip's violet tone
-        violet: "bg-violet-500/15 text-violet-600 dark:bg-violet-500/20 dark:text-violet-400",
-        // custom: sky variant for shared-list chips — matching IconChip's sky tone
-        sky: "bg-sky-500/15 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400",
+        // custom: tonal success badge on the success token — replaces inline green label spans
+        success: "bg-success-soft text-success",
+        // custom: tonal warning badge on the warning token — replaces inline amber label spans
+        warning: "bg-warning-soft text-warning",
+        // custom: tonal violet label badge on the violet token — the admin role chip, matching IconChip's violet tone
+        violet: "bg-violet-soft text-violet",
+        // custom: info variant for shared-list chips on the info token — matching IconChip's info tone
+        info: "bg-info-soft text-info",
         // custom: neutral muted badge — replaces inline bg-muted text-muted-foreground label spans
         muted: "bg-muted text-muted-foreground",
         // custom: subtle primary-tinted label badge — replaces inline bg-primary/10 text-primary label spans
         subtle: "bg-primary/10 text-primary",
-        // custom: compact count/notification bubble — replaces hand-rolled bg-primary text-primary-foreground rounded-full count pills (header nav, group tabs)
-        count:
-          "bg-primary text-primary-foreground h-auto rounded-full px-1.5 py-0 text-2xs font-medium",
+        // custom: compact count/notification bubble — replaces hand-rolled bg-primary text-primary-foreground rounded-full count pills (header nav, group tabs); the base rounded-4xl is already fully round at this height
+        count: "bg-primary text-primary-foreground h-auto px-1.5 py-0 text-2xs font-medium",
       },
     },
     defaultVariants: {

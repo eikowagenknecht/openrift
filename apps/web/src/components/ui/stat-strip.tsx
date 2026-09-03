@@ -41,7 +41,7 @@ export function StatStrip({ items, className }: { items: StatStripItem[]; classN
       {items.map((item) => (
         <div
           key={item.key}
-          className="ring-foreground/10 bg-card flex min-w-28 flex-1 items-center gap-2 rounded-lg px-3 py-2 ring-1"
+          className="ring-border bg-card flex min-w-28 flex-1 items-center gap-2 rounded-lg px-3 py-2 ring-1"
         >
           {item.icon ? (
             <IconChip icon={item.icon} tone={item.iconTone} size="sm" shape="round" />
@@ -49,7 +49,7 @@ export function StatStrip({ items, className }: { items: StatStripItem[]; classN
           <span
             className={cn(
               "font-heading text-lg font-bold tabular-nums",
-              item.tone === "good" && "text-emerald-600 dark:text-emerald-400",
+              item.tone === "good" && "text-success",
             )}
           >
             {item.value}

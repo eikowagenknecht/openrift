@@ -117,7 +117,7 @@ export function TournamentParticipantsTab({
   const teammateNames = teamMode ? teammateNamesById(participants) : new Map<string, string>();
 
   const stats: StatStripItem[] = [
-    { key: "active", value: activeCount, label: "active", icon: CheckIcon, iconTone: "green" },
+    { key: "active", value: activeCount, label: "active", icon: CheckIcon, iconTone: "success" },
     { key: "dropped", value: droppedCount, label: "dropped", icon: UserXIcon },
     ...(teamMode
       ? [
@@ -141,7 +141,7 @@ export function TournamentParticipantsTab({
             value: `${withRegionCount}/${activeCount}`,
             label: "with region",
             icon: GlobeIcon,
-            iconTone: "sky" as const,
+            iconTone: "info" as const,
             // A full field is the verdict this page exists to deliver: pairing
             // is unblocked. A partial count is just a number.
             tone: (missingRegionPlayers.length === 0 && activeCount > 0

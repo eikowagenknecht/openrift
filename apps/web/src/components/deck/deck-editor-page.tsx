@@ -626,7 +626,7 @@ function DeckEditorContent({
                       editorViolations.length > 0
                         ? "text-destructive"
                         : requiredCounts.progress === requiredCounts.total
-                          ? "text-green-600 dark:text-green-500"
+                          ? "text-success"
                           : "text-muted-foreground",
                     )}
                   >

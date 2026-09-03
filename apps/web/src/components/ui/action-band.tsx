@@ -73,7 +73,7 @@ function ActionBand({
       {
         className: cn(
           "group/action-band bg-card flex flex-col gap-3 rounded-lg p-4 no-underline ring-1 transition-all",
-          accent ? "ring-primary/40" : "ring-foreground/10",
+          accent ? "ring-primary/40" : "ring-border",
           interactive &&
             cn("hover:shadow-md", accent ? "hover:ring-primary/50" : "hover:ring-primary/30"),
           className,

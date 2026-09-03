@@ -20,6 +20,7 @@ import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
+import { SectionHeading } from "@/components/ui/section-heading";
 import {
   Select,
   SelectContent,
@@ -46,9 +47,9 @@ export const Route = createLazyFileRoute("/_app/_authenticated/collections/activ
 // ── Config ──────────────────────────────────────────────────────────────────
 
 const ACTION_CONFIG = {
-  added: { icon: PlusIcon, color: "text-green-600 dark:text-green-400" },
-  removed: { icon: MinusIcon, color: "text-red-600 dark:text-red-400" },
-  moved: { icon: ArrowLeftRightIcon, color: "text-amber-600 dark:text-amber-400" },
+  added: { icon: PlusIcon, color: "text-success" },
+  removed: { icon: MinusIcon, color: "text-destructive" },
+  moved: { icon: ArrowLeftRightIcon, color: "text-warning" },
 } as const;
 
 type ActionFilter = ActivityAction | "all";
@@ -241,7 +242,7 @@ function EventCard({
     <Link
       to="/cards"
       search={{ printingId: event.printingId }}
-      className="hover:bg-accent/50 flex items-center gap-3 py-2 transition-colors"
+      className="hover:bg-muted/50 flex items-center gap-3 py-2 transition-colors"
     >
       <div
         className={cn(
@@ -372,12 +373,7 @@ function DaySummary({
     <div className="text-muted-foreground flex items-center gap-2 text-xs">
       <span>{parts.join(", ")}</span>
       {netValue !== 0 && (
-        <span
-          className={cn(
-            "font-medium",
-            netValue > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400",
-          )}
-        >
+        <span className={cn("font-medium", netValue > 0 ? "text-success" : "text-destructive")}>
           {netValue > 0 ? "+" : ""}
           {formatPrice(netValue)}
         </span>
@@ -525,9 +521,7 @@ function ActivityPage() {
             return (
               <div key={date} className="mb-6">
                 <div className="mb-2 flex items-baseline justify-between gap-2">
-                  <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                    {formatDayLocal(events[0].createdAt)}
-                  </h2>
+                  <SectionHeading>{formatDayLocal(events[0].createdAt)}</SectionHeading>
                   <DaySummary events={events} marketplace={marketplace} formatPrice={formatPrice} />
                 </div>
                 <div className="divide-y">

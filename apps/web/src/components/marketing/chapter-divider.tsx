@@ -27,7 +27,7 @@ export function ChapterDivider({ chapter }: { chapter: FeatureChapter }) {
       />
       <Reveal>
         <div className="flex flex-col items-start gap-4">
-          <div className="text-primary font-heading flex items-center gap-2 text-sm font-semibold tracking-widest uppercase">
+          <div className="text-primary font-heading flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
             <Icon aria-hidden="true" className="size-4" />
             {chapter.number}
           </div>

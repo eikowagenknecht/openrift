@@ -39,7 +39,7 @@ export function Eyebrow({
       className={cn(
         variant === "default"
           ? "text-muted-foreground mb-3 font-semibold tracking-wide uppercase"
-          : "text-primary text-2xs mb-0 font-semibold tracking-widest uppercase",
+          : "text-primary text-2xs mb-0 font-semibold tracking-wide uppercase",
         className,
       )}
       {...props}

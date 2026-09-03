@@ -62,12 +62,12 @@ const CELL_STYLES: Record<SideBySideRow["kind"], { from: string; to: string }> =
   same: { from: "text-muted-foreground", to: "text-muted-foreground" },
   add: {
     from: "text-muted-foreground/60",
-    to: "bg-green-500/10 text-green-700 dark:text-green-400",
+    to: "bg-success-soft text-success",
   },
-  cut: { from: "bg-destructive/10 text-destructive", to: "text-muted-foreground/60" },
+  cut: { from: "bg-destructive-soft text-destructive", to: "text-muted-foreground/60" },
   change: {
-    from: "bg-amber-500/10 text-amber-700 dark:text-amber-500",
-    to: "bg-amber-500/10 text-amber-700 dark:text-amber-500",
+    from: "bg-warning-soft text-warning",
+    to: "bg-warning-soft text-warning",
   },
 };
 
@@ -107,7 +107,9 @@ function SideCell({
   }
   const { card, printing } = catalog;
   return (
-    <span className={cn("flex min-w-0 items-center gap-1.5 rounded px-2 py-1 sm:gap-2", className)}>
+    <span
+      className={cn("flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 sm:gap-2", className)}
+    >
       <CardMiniRow
         className="self-stretch"
         imageId={printing?.images.find((image) => image.face === "front")?.imageId}
@@ -151,7 +153,7 @@ function ChangesRow({
   const styles = CELL_STYLES[row.kind];
   return (
     <div
-      className="hover:bg-muted/50 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded text-sm"
+      className="hover:bg-muted/50 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md text-sm"
       onMouseEnter={() => onHover(row.cardId)}
       onMouseLeave={() => onHover(null)}
     >
@@ -250,7 +252,7 @@ function DeckPicker({
             render={
               <Pressable
                 aria-label={`${label}: ${name}`}
-                className="bg-card ring-foreground/10 hover:bg-accent/40 flex min-w-0 flex-1 items-center gap-1 overflow-hidden rounded-lg pr-2 ring-1 transition-colors"
+                className="bg-card ring-border hover:bg-muted/50 flex min-w-0 flex-1 items-center gap-1 overflow-hidden rounded-lg pr-2 ring-1 transition-colors"
               />
             }
           >

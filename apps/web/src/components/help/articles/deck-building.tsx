@@ -10,6 +10,7 @@ import { Heading } from "@/components/heading";
 import { FeatureCard, StepRow, ZoneCard } from "@/components/help/article-cards";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Callout } from "@/components/ui/callout";
 
 export default function DeckBuildingArticle() {
   return (
@@ -54,8 +55,8 @@ export default function DeckBuildingArticle() {
       </Alert>
 
       {/* Deck structure diagram */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
-        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wider uppercase">
+      <Callout>
+        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
           Deck structure
         </p>
         <div className="grid gap-2 text-sm sm:grid-cols-2">
@@ -63,25 +64,25 @@ export default function DeckBuildingArticle() {
             name="Legend"
             count="1"
             description="Defines your deck's identity and which domains it can use"
-            color="text-amber-600 dark:text-amber-400"
+            color="text-warning"
           />
           <ZoneCard
             name="Chosen Champion"
             count="1"
             description="A champion unit that shares a tag with your legend"
-            color="text-purple-600 dark:text-purple-400"
+            color="text-violet"
           />
           <ZoneCard
             name="Runes"
             count="12"
             description="Resource cards that match your legend's domains"
-            color="text-blue-600 dark:text-blue-400"
+            color="text-info"
           />
           <ZoneCard
             name="Battlefield"
             count="3"
             description="Three unique battlefield cards"
-            color="text-emerald-600 dark:text-emerald-400"
+            color="text-success"
           />
           <ZoneCard
             name="Main Deck"
@@ -96,7 +97,7 @@ export default function DeckBuildingArticle() {
             color="text-muted-foreground"
           />
         </div>
-      </div>
+      </Callout>
 
       {/* Getting started */}
       <section>

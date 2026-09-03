@@ -17,6 +17,7 @@ import { EVENT_INDEX_GRID, MetaEventIndexRow } from "@/components/meta/meta-even
 import { IndexSortButton } from "@/components/meta/meta-index-sort-button";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import {
   Select,
@@ -142,7 +143,7 @@ export function MetaEventsPage() {
               />
             </div>
 
-            <div className="bg-card ring-foreground/10 mt-4 overflow-hidden rounded-lg ring-1">
+            <Card className="mt-4 gap-0 py-0">
               <SortHeader sort={sort} direction={direction} onSort={setSort} />
               {events.length === 0 ? (
                 <Empty className="py-10">
@@ -153,7 +154,7 @@ export function MetaEventsPage() {
               ) : (
                 <EventList key={listKey} events={events} />
               )}
-            </div>
+            </Card>
           </>
         )}
       </div>

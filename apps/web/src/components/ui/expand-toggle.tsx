@@ -46,7 +46,7 @@ function ExpandToggle({
       type="button"
       aria-expanded={expanded}
       className={cn(
-        "focus-visible:ring-ring flex cursor-pointer items-center gap-2 text-left focus-visible:ring-2 focus-visible:outline-none",
+        "focus-visible:ring-ring/50 flex cursor-pointer items-center gap-2 text-left focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
       {...props}

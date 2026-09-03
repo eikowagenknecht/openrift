@@ -449,7 +449,7 @@ function CardTextPreview({ text, variant }: { text: string; variant: CardTextVar
     );
   }
   return (
-    <div className="border-input bg-muted/20 text-foreground rounded-md border px-2.5 py-1.5 text-sm">
+    <div className="border-input bg-muted/30 text-foreground rounded-md border px-2.5 py-1.5 text-sm">
       {variant === "flavor" ? (
         // Flavor text renders as plain italic prose, not card syntax.
         <p className="text-muted-foreground/80 whitespace-pre-wrap italic">{text}</p>

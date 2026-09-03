@@ -250,7 +250,7 @@ export function UnmatchedProductsPanel() {
                     <TableRow className="hover:bg-transparent">
                       <TableCell
                         colSpan={COLUMN_COUNT}
-                        className="bg-muted/50 text-muted-foreground py-1.5 font-semibold tracking-wide uppercase"
+                        className="bg-muted/50 text-muted-foreground py-1.5 text-xs font-medium tracking-wide uppercase"
                       >
                         {CONFIG_BY_MARKETPLACE[marketplace].displayName}
                       </TableCell>

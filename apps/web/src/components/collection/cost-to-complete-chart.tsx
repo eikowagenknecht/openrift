@@ -393,7 +393,7 @@ function CostToCompleteTooltipContent({
   const point = payload[0].payload;
 
   return (
-    <div className="border-border/50 bg-background flex min-w-36 gap-2.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="border-border/50 bg-background flex min-w-36 gap-2.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-md">
       {point.thumbnail && <CardArtThumb src={point.thumbnail} className="h-16" />}
       <div>
         {point.label ? (

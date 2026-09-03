@@ -366,7 +366,7 @@ function DiffText({ segments }: { segments: DiffSegment[] }) {
         }
         if (seg.type === "added") {
           return (
-            <mark key={i} className="bg-yellow-200 text-inherit dark:bg-yellow-700/60">
+            <mark key={i} className="bg-warning-soft text-inherit">
               {seg.text}
             </mark>
           );
@@ -525,7 +525,7 @@ function SuggestionCombobox({
   return (
     <Command
       shouldFilter
-      className="border-primary rounded border"
+      className="border-primary rounded-md border"
       onClick={(event: React.MouseEvent) => event.stopPropagation()}
     >
       <CommandInput
@@ -652,7 +652,7 @@ function MultiSelectCell({
           <button
             type="button"
             aria-label={`Edit ${label}`}
-            className="flex w-full items-center gap-1 rounded text-left text-sm"
+            className="flex w-full items-center gap-1 rounded-md text-left text-sm"
             onClick={(event: React.MouseEvent) => event.stopPropagation()}
           />
         }
@@ -813,8 +813,7 @@ export function CandidateSpreadsheet<
                   key={row.id}
                   className={cn(
                     "w-[300px] border-l px-3 py-2 text-left font-medium",
-                    isFavoriteProvider(row, providerLabels, favoriteProviders) &&
-                      "bg-blue-50 dark:bg-blue-950/30",
+                    isFavoriteProvider(row, providerLabels, favoriteProviders) && "bg-info-soft",
                     isChecked(row) && "opacity-50",
                     columnClassName?.(row),
                   )}
@@ -828,9 +827,7 @@ export function CandidateSpreadsheet<
                         </span>
                       )}
                     </span>
-                    {isChecked(row) && (
-                      <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
-                    )}
+                    {isChecked(row) && <CheckIcon className="text-success size-3.5 shrink-0" />}
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={<Button variant="ghost" size="icon" className="ml-auto shrink-0" />}
@@ -881,19 +878,19 @@ export function CandidateSpreadsheet<
               <tr key={field.key} className="border-b last:border-b-0">
                 <td className="bg-background sticky left-0 z-10 px-3 py-1.5 font-medium">
                   {field.label}
-                  {isRequired && <span className="ml-0.5 text-red-500">*</span>}
+                  {isRequired && <span className="text-destructive ml-0.5">*</span>}
                 </td>
                 <td
                   className={cn(
                     "group/active relative border-l px-3 py-1.5 break-words",
                     field.multiline && "whitespace-pre-wrap",
                     field.readOnly && "bg-muted/30",
-                    isMissing && "bg-red-50 dark:bg-red-950/20",
+                    isMissing && "bg-destructive-soft",
                     onActiveChange &&
                       !field.readOnly &&
                       (field.type === "boolean" || hasDropdown(field)
-                        ? "hover:bg-muted/30 cursor-pointer"
-                        : "hover:bg-muted/30 cursor-text"),
+                        ? "hover:bg-muted/50 cursor-pointer"
+                        : "hover:bg-muted/50 cursor-text"),
                   )}
                   onClick={() => {
                     if (
@@ -939,7 +936,9 @@ export function CandidateSpreadsheet<
                             <CardText text={String(activeValue)} interactive={false} />
                           )
                         ) : (
-                          <span className={isMissing ? "text-red-400" : "text-muted-foreground"}>
+                          <span
+                            className={isMissing ? "text-destructive" : "text-muted-foreground"}
+                          >
                             {isMissing ? "required" : "—"}
                           </span>
                         )}
@@ -991,7 +990,7 @@ export function CandidateSpreadsheet<
                       }}
                     >
                       <SelectTrigger
-                        className="w-full gap-1 rounded border-none px-1 text-sm shadow-none"
+                        className="w-full gap-1 rounded-md border-none px-1 text-sm shadow-none"
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       >
                         <SelectValue placeholder="— select —" />
@@ -1024,7 +1023,7 @@ export function CandidateSpreadsheet<
                       aria-label={field.label}
                       defaultValue={hasValue(activeValue) ? String(activeValue) : ""}
                       rows={4}
-                      className="border-primary w-full resize-y rounded border bg-transparent p-1 text-sm outline-none"
+                      className="border-primary w-full resize-y rounded-md border bg-transparent p-1 text-sm outline-none"
                       // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
                       autoFocus
                       onBlur={(e) => commitEdit(field.key, e.target.value)}
@@ -1076,7 +1075,7 @@ export function CandidateSpreadsheet<
                         href={activeValue}
                         target="_blank"
                         rel="noreferrer"
-                        className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                        className="text-info hover:text-info/80 block truncate underline"
                         title={activeValue}
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       >
@@ -1086,14 +1085,14 @@ export function CandidateSpreadsheet<
                         <img
                           src={activeValue}
                           alt="Active"
-                          className="max-h-[80vh] max-w-[40vw] rounded object-contain"
+                          className="max-h-[80vh] max-w-[40vw] rounded-md object-contain"
                         />
                       </HoverCardContent>
                     </HoverCard>
                   ) : (
                     <span
                       className={cn(
-                        isMissing ? "text-red-400" : "text-muted-foreground",
+                        isMissing ? "text-destructive" : "text-muted-foreground",
                         (hasDropdown(field) || field.array) && "block truncate",
                       )}
                       title={
@@ -1188,13 +1187,11 @@ export function CandidateSpreadsheet<
                         "border-l px-3 py-1.5 break-words",
                         field.multiline && "whitespace-pre-wrap",
                         isFavoriteProvider(row, providerLabels, favoriteProviders) &&
-                          "bg-blue-50 dark:bg-blue-950/30",
+                          "bg-info-soft",
                         isChecked(row) && "opacity-50",
-                        invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
-                        isDifferent && "bg-yellow-100 dark:bg-yellow-900/40",
-                        isClickable &&
-                          onCellClick &&
-                          "cursor-pointer hover:bg-yellow-200 dark:hover:bg-yellow-800/50",
+                        invalidOption && "bg-destructive-soft line-through",
+                        isDifferent && "bg-warning-soft",
+                        isClickable && onCellClick && "hover:bg-warning/20 cursor-pointer",
                       )}
                       onClick={
                         isClickable && onCellClick
@@ -1210,7 +1207,7 @@ export function CandidateSpreadsheet<
                       {warningText && (
                         <span
                           title={warningText}
-                          className="mr-1 inline-flex align-middle text-orange-500"
+                          className="text-warning mr-1 inline-flex align-middle"
                         >
                           <TriangleAlertIcon className="size-3.5" />
                         </span>
@@ -1221,7 +1218,7 @@ export function CandidateSpreadsheet<
                             href={candidateValue}
                             target="_blank"
                             rel="noreferrer"
-                            className="block truncate text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                            className="text-info hover:text-info/80 block truncate underline"
                             title={candidateValue}
                             onClick={(e: React.MouseEvent) => e.stopPropagation()}
                           >
@@ -1231,7 +1228,7 @@ export function CandidateSpreadsheet<
                             <img
                               src={candidateValue}
                               alt="Candidate"
-                              className="max-h-[80vh] max-w-[40vw] rounded object-contain"
+                              className="max-h-[80vh] max-w-[40vw] rounded-md object-contain"
                             />
                           </HoverCardContent>
                         </HoverCard>

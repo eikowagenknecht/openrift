@@ -10,6 +10,7 @@ import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { useMarkerList } from "@/hooks/use-enums";
 import { initQueryOptions } from "@/hooks/use-init";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
@@ -185,16 +186,13 @@ function matches(query: string, ...fields: (string | undefined | null)[]): boole
 
 function GroupHeading({ id, title }: { id: string; title: string }) {
   return (
-    <h2
-      id={id}
-      className="text-muted-foreground border-border scroll-mt-20 border-b pb-2 text-sm font-semibold tracking-wider uppercase"
-    >
-      {title}
-    </h2>
+    <div id={id} className="scroll-mt-20">
+      <SectionHeading className="border-b pb-2">{title}</SectionHeading>
+    </div>
   );
 }
 
-function SectionHeading({ id, title }: Section) {
+function GlossarySectionHeading({ id, title }: Section) {
   return (
     <Heading level={2} as="h3" id={id} className="mt-8 scroll-mt-20">
       {title}
@@ -224,7 +222,7 @@ function DomainsSection({
   }
   return (
     <section>
-      <SectionHeading id="domains" title="Domains" />
+      <GlossarySectionHeading id="domains" title="Domains" />
       <p className="text-muted-foreground mt-2">
         Riftbound has six domains, each with its own colour and symbol: Fury, Calm, Mind, Body,
         Chaos, and Order. A card&apos;s domain is shown by glyphs in the lower-right corner of the
@@ -239,10 +237,7 @@ function DomainsSection({
           const domainIcon = getFilterIconPath("domains", domain.slug);
           const ruleNumber = DOMAIN_RULES[slug];
           return (
-            <li
-              key={domain.slug}
-              className="border-border flex items-center gap-3 rounded-md border p-3"
-            >
+            <li key={domain.slug} className="flex items-center gap-3 rounded-md border p-3">
               {hasIcon && domainIcon && (
                 <img
                   src={domainIcon}
@@ -295,7 +290,7 @@ function CardTypesSection({
   const knownIcons = new Set(["battlefield", "gear", "legend", "rune", "spell", "unit"]);
   return (
     <section>
-      <SectionHeading id="card-types" title="Card types" />
+      <GlossarySectionHeading id="card-types" title="Card types" />
       {visible.length > 0 && (
         <>
           <p className="text-muted-foreground mt-2">
@@ -312,10 +307,7 @@ function CardTypesSection({
               const typeIcon = getFilterIconPath("types", cardType.slug);
               const ruleNumber = CARD_TYPE_RULES[slug];
               return (
-                <li
-                  key={cardType.slug}
-                  className="border-border flex items-center gap-3 rounded-md border p-3"
-                >
+                <li key={cardType.slug} className="flex items-center gap-3 rounded-md border p-3">
                   {hasIcon && typeIcon && (
                     <img
                       src={typeIcon}
@@ -348,7 +340,7 @@ function CardTypesSection({
               return (
                 <li
                   key={supertype.slug}
-                  className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+                  className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
                 >
                   <span className="flex items-center gap-2 font-medium sm:w-32 sm:shrink-0">
                     {supertypeIcon && (
@@ -388,7 +380,7 @@ function RaritiesSection({
   const withImage = new Set(["common", "uncommon", "rare", "epic", "showcase"]);
   return (
     <section>
-      <SectionHeading id="rarities" title="Rarities" />
+      <GlossarySectionHeading id="rarities" title="Rarities" />
       <p className="text-muted-foreground mt-2">
         Every printing has a rarity, shown by the coloured glyph in the middle of the card face.
         Rarity reflects how often a card appears in booster packs and the visual treatment of its
@@ -400,10 +392,7 @@ function RaritiesSection({
           const slug = rarity.slug.toLowerCase();
           const rarityIcon = getFilterIconPath("rarities", rarity.slug);
           return (
-            <li
-              key={rarity.slug}
-              className="border-border flex items-center gap-3 rounded-md border p-3"
-            >
+            <li key={rarity.slug} className="flex items-center gap-3 rounded-md border p-3">
               {withImage.has(slug) && rarityIcon && (
                 <img
                   src={rarityIcon}
@@ -431,7 +420,7 @@ function BoosterPacksSection({ query }: { query: string }) {
   }
   return (
     <section>
-      <SectionHeading id="booster-packs" title="Booster pack contents" />
+      <GlossarySectionHeading id="booster-packs" title="Booster pack contents" />
       <p className="text-muted-foreground mt-2">
         A standard Riftbound booster contains 14 cards across five slot types. The{" "}
         <Link to="/pack-opener" className="text-primary hover:underline">
@@ -443,7 +432,7 @@ function BoosterPacksSection({ query }: { query: string }) {
         {visible.map((slot) => (
           <li
             key={slot.label}
-            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+            className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <span className="font-medium sm:w-36 sm:shrink-0">{slot.label}</span>
             <p className="text-muted-foreground">{slot.description}</p>
@@ -474,7 +463,7 @@ function ArtVariantsSection({
   }
   return (
     <section>
-      <SectionHeading id="art-variants" title="Art variants" />
+      <GlossarySectionHeading id="art-variants" title="Art variants" />
       <p className="text-muted-foreground mt-2">
         An art variant describes which illustration appears on a printing. Alt-art printings are
         usually marked by a lowercase letter suffix on the card number, like OGN-120a.
@@ -483,7 +472,7 @@ function ArtVariantsSection({
         {visible.map((variant) => (
           <li
             key={variant.slug}
-            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+            className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <span className="font-medium sm:w-32 sm:shrink-0">{variant.label}</span>
             <p className="text-muted-foreground">
@@ -512,7 +501,7 @@ function FinishesSection({
   }
   return (
     <section>
-      <SectionHeading id="finishes" title="Finishes" />
+      <GlossarySectionHeading id="finishes" title="Finishes" />
       <p className="text-muted-foreground mt-2">
         Finish describes the physical production treatment of a printing. Most cards use a normal
         cardstock finish, foil printings add a glossy reflective coating across the card face, and a
@@ -523,7 +512,7 @@ function FinishesSection({
         {visible.map((finish) => (
           <li
             key={finish.slug}
-            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+            className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <span className="font-medium sm:w-32 sm:shrink-0">{finish.label}</span>
             <p className="text-muted-foreground">
@@ -551,7 +540,7 @@ function MarkersSection({
   }
   return (
     <section>
-      <SectionHeading id="markers" title="Markers" />
+      <GlossarySectionHeading id="markers" title="Markers" />
       <p className="text-muted-foreground mt-2">
         Markers describe how a printing was distributed rather than what&apos;s on the card. They
         cover promotional channels like prereleases, tournaments, judge programs, and store-level
@@ -561,7 +550,7 @@ function MarkersSection({
         {visible.map((marker) => (
           <li
             key={marker.slug}
-            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+            className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <span className="font-medium sm:w-36 sm:shrink-0">{marker.label}</span>
             <p className="text-muted-foreground">
@@ -603,7 +592,7 @@ function PrintingDetailsSection({ query }: { query: string }) {
   }
   return (
     <section>
-      <SectionHeading id="artist-and-signature" title="Artist and signature" />
+      <GlossarySectionHeading id="artist-and-signature" title="Artist and signature" />
       <p className="text-muted-foreground mt-2">
         Artist credit is tracked per printing so reprints can preserve the original illustrator, and
         the signature flag marks printings where the artist&apos;s signature is overlaid on the
@@ -613,7 +602,7 @@ function PrintingDetailsSection({ query }: { query: string }) {
         {visible.map((item) => (
           <li
             key={item.key}
-            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+            className="flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <span className="font-medium sm:w-32 sm:shrink-0">{item.label}</span>
             <p className="text-muted-foreground">{item.description}</p>
@@ -633,7 +622,7 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
   }
   return (
     <section>
-      <SectionHeading id="sets" title="Sets" />
+      <GlossarySectionHeading id="sets" title="Sets" />
       <p className="text-muted-foreground mt-2">
         Sets are how Riftbound releases new cards. Each set has a three-letter code that prefixes
         every card number in it, and is classified as either a main set (the regular release
@@ -646,9 +635,9 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
       </p>
       <ul className="mt-4 grid gap-2 lg:grid-cols-2">
         {visible.map((set) => (
-          <li key={set.slug} className="border-border rounded-md border p-3">
+          <li key={set.slug} className="rounded-md border p-3">
             <div className="flex flex-wrap items-baseline gap-2">
-              <code className="bg-muted shrink-0 rounded px-2 py-0.5 font-mono">{set.slug}</code>
+              <code className="bg-muted shrink-0 rounded-md px-2 py-0.5 font-mono">{set.slug}</code>
               <Link
                 to="/sets/$setSlug"
                 params={{ setSlug: set.slug }}
@@ -658,7 +647,7 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
               </Link>
               <span className="text-muted-foreground capitalize">{set.setType}</span>
               {!isReleasedAnywhere(set.releases) && (
-                <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs text-amber-700 dark:text-amber-300">
+                <span className="bg-warning-soft text-warning rounded-md px-1.5 py-0.5 text-xs">
                   Unreleased
                 </span>
               )}
@@ -720,7 +709,7 @@ function KeywordsSection({ keywords, query }: { keywords: KeywordRow[]; query: s
   }
   return (
     <section>
-      <SectionHeading id="keywords" title="Keywords" />
+      <GlossarySectionHeading id="keywords" title="Keywords" />
       <p className="text-muted-foreground mt-2">
         Keywords are short words or phrases that stand in for a longer rule. They appear in card
         text in square brackets, like [Equip] or [Deathknell]. Tap a rule reference to jump to the
@@ -731,7 +720,7 @@ function KeywordsSection({ keywords, query }: { keywords: KeywordRow[]; query: s
           <li
             id={keywordAnchorSlug(kw.name)}
             key={kw.name}
-            className="border-border scroll-mt-20 rounded-md border p-3"
+            className="scroll-mt-20 rounded-md border p-3"
           >
             <div className="flex items-center justify-between gap-3">
               <KeywordPill name={kw.name} color={kw.color} darkText={kw.darkText} />
@@ -809,14 +798,14 @@ function SymbolsSection({ query }: { query: string }) {
   }
   return (
     <section>
-      <SectionHeading id="symbols" title="In-text symbols" />
+      <GlossarySectionHeading id="symbols" title="In-text symbols" />
       <p className="text-muted-foreground mt-2">
         Riftbound uses a small set of inline symbols on cards to express costs and core game
         concepts compactly.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {visible.map((sym) => (
-          <li key={sym.key} className="border-border flex items-start gap-3 rounded-md border p-3">
+          <li key={sym.key} className="flex items-start gap-3 rounded-md border p-3">
             {sym.icon ? (
               <img
                 src={sym.icon}
@@ -871,15 +860,15 @@ function NumberingSection({ query }: { query: string }) {
   }
   return (
     <section>
-      <SectionHeading id="numbering" title="Card numbering" />
+      <GlossarySectionHeading id="numbering" title="Card numbering" />
       <p className="text-muted-foreground mt-2">
         Every printing has a short code combining the three-letter set code with a card number, like
         OGN-007.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((item) => (
-          <li key={item.pattern} className="border-border flex gap-3 rounded-md border p-3">
-            <code className="bg-muted shrink-0 self-start rounded px-2 py-0.5 font-mono">
+          <li key={item.pattern} className="flex gap-3 rounded-md border p-3">
+            <code className="bg-muted shrink-0 self-start rounded-md px-2 py-0.5 font-mono">
               {item.pattern}
             </code>
             <p className="text-muted-foreground">{item.summary}</p>

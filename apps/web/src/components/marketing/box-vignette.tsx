@@ -57,7 +57,7 @@ function Row({
   muted?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2">
+    <div className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm sm:gap-2">
       {leading}
       {thumb}
       <span className={cn("min-w-0 flex-1 truncate", muted && "text-muted-foreground")}>
@@ -159,13 +159,13 @@ export function BoxVignette() {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex h-6 items-center gap-2 border-b">
-          <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+          <span className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
             Main Deck
           </span>
           <span className="ml-auto text-xs tabular-nums">
             <TextSwap
               before={<span className="text-muted-foreground">2/4</span>}
-              after={<span className="text-green-600 dark:text-green-500">3/4</span>}
+              after={<span className="text-success">3/4</span>}
             />
           </span>
         </div>
@@ -211,7 +211,7 @@ export function BoxVignette() {
                 </span>
               }
             />
-            <div className="bg-popover text-popover-foreground ring-foreground/10 motion-safe:animate-box-picker absolute right-0 bottom-full z-10 mb-1 w-72 rounded-lg text-sm opacity-0 shadow-md ring-1">
+            <div className="bg-popover text-popover-foreground ring-border motion-safe:animate-box-picker absolute right-0 bottom-full z-10 mb-1 w-72 rounded-lg text-sm opacity-0 shadow-md ring-1">
               <p className="text-muted-foreground px-2.5 pt-2 text-xs">Take this copy instead</p>
               <div className="p-1">
                 <PickerGroupLabel>Binder</PickerGroupLabel>

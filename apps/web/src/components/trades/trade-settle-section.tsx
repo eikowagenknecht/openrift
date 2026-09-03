@@ -264,7 +264,7 @@ export function TradeSettleSection({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionHeading icon={HandshakeIcon} tone="green" count={trades.length}>
+        <SectionHeading icon={HandshakeIcon} tone="success" count={trades.length}>
           Ready to swap
         </SectionHeading>
         {session ? null : hasSavedCount ? (
@@ -295,8 +295,8 @@ export function TradeSettleSection({
         // read as a thing you are inside of and can leave, which a bare list
         // with a floating button does not. No overflow-hidden — it would trap
         // the sticky footer inside the panel's own scroll box.
-        <div className="bg-card rounded-xl border border-green-600/30 dark:border-green-500/25">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-xl bg-green-500/10 px-3 py-2">
+        <div className="bg-card border-success/30 rounded-xl border">
+          <div className="bg-success-soft flex flex-wrap items-center justify-between gap-2 rounded-t-xl px-3 py-2">
             <div className="flex min-w-0 flex-col">
               <span className="text-sm font-medium">Counting cards</span>
               {/* The guarantee belongs where the session starts, not on the

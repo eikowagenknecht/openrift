@@ -149,7 +149,7 @@ describe("PairingsView", () => {
     const rematchValue = within(strip as HTMLElement).getByText("rematches")
       .previousSibling as HTMLElement;
     expect(rematchValue).toHaveTextContent("0");
-    expect(rematchValue.className).toContain("text-emerald-600");
+    expect(rematchValue.className).toContain("text-success");
     expect(within(strip as HTMLElement).getByText("largest spread")).toBeInTheDocument();
   });
 

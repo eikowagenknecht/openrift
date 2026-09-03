@@ -141,19 +141,19 @@ describe("priceColorClass", () => {
     expect(priceColorClass(0)).toBe("text-muted-foreground");
   });
 
-  it("returns emerald for 1 <= value < 10", () => {
-    expect(priceColorClass(1)).toContain("emerald");
-    expect(priceColorClass(9.99)).toContain("emerald");
+  it("returns success for 1 <= value < 10", () => {
+    expect(priceColorClass(1)).toBe("text-success");
+    expect(priceColorClass(9.99)).toBe("text-success");
   });
 
-  it("returns amber for 10 <= value < 50", () => {
-    expect(priceColorClass(10)).toContain("amber");
-    expect(priceColorClass(49.99)).toContain("amber");
+  it("returns warning for 10 <= value < 50", () => {
+    expect(priceColorClass(10)).toBe("text-warning");
+    expect(priceColorClass(49.99)).toBe("text-warning");
   });
 
-  it("returns rose for value >= 50", () => {
-    expect(priceColorClass(50)).toContain("rose");
-    expect(priceColorClass(100)).toContain("rose");
+  it("returns destructive for value >= 50", () => {
+    expect(priceColorClass(50)).toBe("text-destructive");
+    expect(priceColorClass(100)).toBe("text-destructive");
   });
 });
 

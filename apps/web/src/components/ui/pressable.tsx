@@ -23,7 +23,7 @@ function Pressable({ className, type, ...props }: React.ComponentProps<"button">
       data-slot="pressable"
       type={type ?? "button"}
       className={cn(
-        "focus-visible:ring-ring cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none",
+        "focus-visible:ring-ring/50 cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
       {...props}

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { cn } from "@/lib/utils";
 
 /**
@@ -48,7 +49,7 @@ export function SettingsGroup({
           </ExpandToggle>
         </h2>
       ) : (
-        <h2 className={heading}>{title}</h2>
+        <SectionHeading>{title}</SectionHeading>
       )}
       {expanded ? children : null}
     </section>

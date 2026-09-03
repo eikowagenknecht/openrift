@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { describeAction, useMatchTrackerStore } from "@/stores/match-tracker-store";
 
 const SEAM_BUTTON_CLASS =
-  "border-border bg-popover hover:border-primary grid size-8 place-items-center rounded-full border shadow-sm transition-colors disabled:opacity-50";
+  "bg-popover hover:border-primary grid size-8 place-items-center rounded-full border shadow-sm transition-colors disabled:opacity-50";
 
 /**
  * The shared controls, centred on the divider between the two halves. Anything

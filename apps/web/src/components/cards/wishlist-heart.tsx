@@ -5,6 +5,7 @@ import { HeartIcon, HeartPlusIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionHeading } from "@/components/ui/section-heading";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,7 @@ export function WishlistHeart({
           totalQuantity > 1 ? `On your ${listLabel} (${totalQuantity})` : `On your ${listLabel}`
         }
       >
-        <HeartIcon className="size-3 fill-current text-rose-500" />
+        <HeartIcon className="text-destructive size-3 fill-current" />
         {totalQuantity > 1 && <span>{totalQuantity}</span>}
         <span className="sr-only">
           On your {listLabel}
@@ -59,9 +60,7 @@ export function WishlistHeart({
       </PopoverTrigger>
       <PopoverContent side="bottom" align={align} className="w-60 p-0">
         <div className="px-3 pt-2.5 pb-1">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            On your {listLabel}
-          </p>
+          <SectionHeading as="h3">On your {listLabel}</SectionHeading>
         </div>
         <ul className="px-1 pb-1">
           {entries.map((entry) => (
@@ -155,7 +154,7 @@ export function WishlistButton({
       tabIndex={-1}
       size="icon-xs"
       variant="ghost"
-      className="text-muted-foreground hover:text-rose-500"
+      className="text-muted-foreground hover:text-destructive"
       onClick={(event) => {
         event.stopPropagation();
         onAdd();

@@ -317,7 +317,7 @@ export function DeckCardRow({
   const domainTint = getDomainGradientStyle(card.domains, "40", domainColors);
 
   const baseClass = cn(
-    "group/card flex items-center gap-1.5 rounded px-1 py-1 text-sm",
+    "group/card flex items-center gap-1.5 rounded-md px-1 py-1 text-sm",
     dimmed && "opacity-50",
     hasViolation && "bg-destructive/10",
     isDragging && card.quantity === 1 && "opacity-40",
@@ -351,7 +351,7 @@ export function DeckCardRow({
       {shortfall !== undefined && shortfall > 0 && (
         <Tooltip>
           <TooltipTrigger className="shrink-0">
-            <span className="text-2xs text-amber-600 tabular-nums dark:text-amber-500">
+            <span className="text-2xs text-warning tabular-nums">
               {card.quantity - shortfall}/{card.quantity}
             </span>
           </TooltipTrigger>

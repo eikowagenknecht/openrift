@@ -4,6 +4,7 @@ import { Heading } from "@/components/heading";
 import { FeatureCard, StepRow, ZoneCard } from "@/components/help/article-cards";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 
 export default function HowToPlayArticle() {
@@ -17,7 +18,7 @@ export default function HowToPlayArticle() {
 
       {/* The goal */}
       <Alert>
-        <TrophyIcon className="text-amber-600 dark:text-amber-400" />
+        <TrophyIcon className="text-warning" />
         <AlertTitle>The goal</AlertTitle>
         <AlertDescription>
           Score <strong className="text-foreground">8 points</strong> (11 in team play) to win. You
@@ -39,25 +40,25 @@ export default function HowToPlayArticle() {
             name="Legend"
             count="1"
             description="Your champion legend. Defines the deck's two domains."
-            color="text-amber-600 dark:text-amber-400"
+            color="text-warning"
           />
           <ZoneCard
             name="Chosen Champion"
             count="1"
             description="A champion unit that shares a tag with your legend."
-            color="text-purple-600 dark:text-purple-400"
+            color="text-violet"
           />
           <ZoneCard
             name="Battlefields"
             count="3"
             description="Three unique battlefields. Brought to the table by both players."
-            color="text-emerald-600 dark:text-emerald-400"
+            color="text-success"
           />
           <ZoneCard
             name="Runes"
             count="12"
             description="A separate side deck of resources, not your main draw pile."
-            color="text-blue-600 dark:text-blue-400"
+            color="text-info"
           />
           <ZoneCard
             name="Main Deck"
@@ -85,17 +86,17 @@ export default function HowToPlayArticle() {
           for grabs by either player once the game starts.
         </p>
 
-        <div className="border-border bg-muted/30 mt-3 rounded-lg border p-4">
-          <p className="text-muted-foreground text-2xs mb-2 text-center font-medium tracking-wider uppercase">
+        <Callout className="mt-3">
+          <p className="text-muted-foreground text-2xs mb-2 text-center font-medium tracking-wide uppercase">
             Board layout (placeholder)
           </p>
-          <div className="border-border bg-background flex h-56 items-center justify-center rounded border border-dashed">
+          <div className="bg-background flex h-56 items-center justify-center rounded-md border border-dashed">
             <span className="text-muted-foreground text-sm">
               [Diagram: opponent base on top, three battlefields in the middle, your base on the
               bottom, runes and decks to the side]
             </span>
           </div>
-        </div>
+        </Callout>
       </section>
 
       {/* A turn */}
@@ -154,24 +155,18 @@ export default function HowToPlayArticle() {
         </p>
 
         <DefinitionList className="mt-3">
-          <DefinitionRow
-            icon={<FlagIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" />}
-            label="Move in"
-          >
+          <DefinitionRow icon={<FlagIcon className="text-success size-3.5" />} label="Move in">
             Units deploy to your base, then move to a battlefield. Some units have Ganking, which
             lets them hop between battlefields without going home first.
           </DefinitionRow>
           <DefinitionRow
-            icon={<SwordIcon className="size-3.5 text-rose-600 dark:text-rose-400" />}
+            icon={<SwordIcon className="text-destructive size-3.5" />}
             label="Showdown"
           >
             When both players have units at the same battlefield, every unit there deals damage
             equal to its Might at the same time. A unit dies if damage meets or exceeds its Might.
           </DefinitionRow>
-          <DefinitionRow
-            icon={<TrophyIcon className="size-3.5 text-amber-600 dark:text-amber-400" />}
-            label="Conquer"
-          >
+          <DefinitionRow icon={<TrophyIcon className="text-warning size-3.5" />} label="Conquer">
             Hold a battlefield with no opposing units present and you score a point. You score one
             more for every turn you keep it.
           </DefinitionRow>

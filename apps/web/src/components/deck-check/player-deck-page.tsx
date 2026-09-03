@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import {
@@ -228,8 +229,8 @@ function sharingSummary(allowPublish: boolean, allowName: boolean, allowRiotId: 
 
 function Banner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2 rounded-md border border-amber-500/60 bg-amber-500/10 p-3 text-sm">
-      <TriangleAlertIcon className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+    <div className="border-warning/40 bg-warning-soft flex items-start gap-2 rounded-md border p-3 text-sm">
+      <TriangleAlertIcon className="text-warning mt-0.5 size-4 shrink-0" />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
@@ -284,9 +285,9 @@ function PlayerCardGrid({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
         const copies = zoneCards.reduce((sum, card) => sum + card.quantity, 0);
         return (
           <section key={zone} className="flex min-w-0 flex-col gap-2">
-            <h3 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+            <SectionHeading as="h3">
               {zoneLabels[zone]} · {copies}
-            </h3>
+            </SectionHeading>
             <div
               className="grid gap-3"
               style={{
@@ -316,7 +317,7 @@ function PlayerCardCell({ card }: { card: DeckCheckEntryCardResponse }) {
 
   if (!printing || card.matchStatus !== "matched") {
     return (
-      <div className="flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-left text-sm">
+      <div className="border-warning/40 bg-warning-soft flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed p-2 text-left text-sm">
         <span className="font-medium break-all">{card.rawName}</span>
         <span className="text-muted-foreground">
           {card.matchStatus === "ambiguous" ? "Several matches" : "Not in catalog"}

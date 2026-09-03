@@ -31,7 +31,7 @@ export function FloatingActionBar({ selectedCount, actions, onClear }: FloatingA
   return (
     <div
       aria-label={`${selectedCount} selected`}
-      className="bg-card md:border-primary/50 fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2 shadow-xl md:gap-4 md:border-2 md:px-5 md:py-3"
+      className="bg-card md:border-primary/50 fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2 shadow-md md:gap-4 md:border-2 md:px-5 md:py-3"
     >
       <span className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-sm font-semibold md:hidden">
         {selectedCount}

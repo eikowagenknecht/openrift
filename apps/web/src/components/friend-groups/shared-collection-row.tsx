@@ -28,7 +28,7 @@ export function SharedCollectionRow({
       search={(prev) => prev}
       className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-2.5 rounded-md px-2 py-2 outline-none focus-visible:ring-2"
     >
-      <IconChip icon={FolderIcon} tone="sky" size="sm" shape="round" />
+      <IconChip icon={FolderIcon} tone="info" size="sm" shape="round" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm font-medium">{share.collectionName}</span>
         <span className="text-muted-foreground truncate text-xs">

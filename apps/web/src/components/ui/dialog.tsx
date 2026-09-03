@@ -71,7 +71,8 @@ function DialogContent({
         className={cn(
           // custom: max-h + overflow-y-auto + overscroll-contain so tall dialogs scroll instead of overflowing the viewport
           // custom: rounded-lg (scaffold ships rounded-xl) — app-wide surface radius matches form controls
-          "bg-popover text-popover-foreground ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-lg p-4 text-sm ring-1 duration-100 outline-none sm:max-w-sm",
+          // custom: ring-border edge and shadow-lg — modal elevation tier (scaffold ships a border and no shadow)
+          "bg-popover text-popover-foreground ring-border data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto overscroll-contain rounded-lg p-4 text-sm shadow-lg ring-1 duration-100 outline-none sm:max-w-sm",
           className,
         )}
         onClick={(event) => {

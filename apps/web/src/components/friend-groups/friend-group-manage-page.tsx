@@ -261,7 +261,7 @@ export function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse;
           />
           {slugError ? <span className="text-destructive text-xs">{slugError}</span> : null}
           {slugChanged && !slugError ? (
-            <span className="text-xs text-amber-700">
+            <span className="text-warning text-xs">
               Renaming the slug breaks any existing bookmarks to this group.
             </span>
           ) : null}
@@ -494,7 +494,7 @@ function DiscordPanel({ slug }: { slug: string }) {
               permission there):
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <code className="bg-muted rounded px-2 py-1 font-mono text-sm">
+              <code className="bg-muted rounded-md px-2 py-1 font-mono text-sm">
                 /link code:{pending.code}
               </code>
               <Button

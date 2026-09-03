@@ -44,8 +44,8 @@ export function ArtBandBackdrop({
             style={{ objectPosition: `50% ${position}%` }}
             className="absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-md saturate-125 dark:opacity-40"
           />
-          <div className="from-card via-card/70 to-card/30 absolute inset-0 bg-gradient-to-r" />
-          <div className="to-card/80 absolute inset-0 bg-gradient-to-b from-transparent via-transparent" />
+          <div className="from-card via-card/70 to-card/30 absolute inset-0 bg-linear-to-r" />
+          <div className="to-card/80 absolute inset-0 bg-linear-to-b from-transparent via-transparent" />
         </>
       )}
     </>

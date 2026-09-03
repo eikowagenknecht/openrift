@@ -40,7 +40,7 @@ export function ImportStatusBadges({
             render={<Pressable />}
             // The badge's own hover rules only target anchors, so a button
             // rendering needs its feedback spelled out.
-            className="hover:bg-destructive/20 dark:hover:bg-destructive/30"
+            className="hover:bg-destructive/20"
             aria-label={`Jump to the first of ${needsAttentionCount} ${
               needsAttentionCount === 1 ? "row" : "rows"
             } that need attention`}
@@ -74,14 +74,14 @@ export function ImportParseErrorDetails({
   }
 
   return (
-    <details className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-      <summary className="cursor-pointer px-3 py-2 font-medium text-amber-800 dark:text-amber-300">
+    <details className="bg-warning-soft border-warning/40 rounded-md border">
+      <summary className="text-warning cursor-pointer px-3 py-2 font-medium">
         {errors.length} {unit}
         {errors.length === 1 ? "" : "s"} could not be read
       </summary>
-      <div className="border-t border-amber-200 px-3 py-2 dark:border-amber-900">
+      <div className="border-warning/40 border-t px-3 py-2">
         {errors.map((error) => (
-          <p key={error} className="text-amber-700 dark:text-amber-400">
+          <p key={error} className="text-warning">
             {error}
           </p>
         ))}
@@ -110,7 +110,7 @@ export function ImportExactMatchesDisclosure({
     <details className="group rounded-md border">
       <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 px-4 py-2.5">
         <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
-        <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />
+        <CheckCircle2Icon className="text-success size-4" />
         <span>{count} matched exactly</span>
       </summary>
       <div className="divide-border divide-y border-t">{children}</div>
@@ -130,7 +130,7 @@ export function ImportToVerifyNote({ count }: { count: number }) {
   return (
     <p className="text-muted-foreground text-sm">
       Best guess picked for {count} {count === 1 ? "card" : "cards"} (marked{" "}
-      <span className="text-amber-600 dark:text-amber-400">to verify</span>). Open each to confirm.
+      <span className="text-warning">to verify</span>). Open each to confirm.
     </p>
   );
 }

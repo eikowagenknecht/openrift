@@ -33,6 +33,7 @@ import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer } from "@/components/ui/chart";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ProgressIndicator, ProgressTrack } from "@/components/ui/progress";
+import { SectionHeading } from "@/components/ui/section-heading";
 import {
   Select,
   SelectContent,
@@ -467,9 +468,9 @@ function CompletionSection({
           </div>
           {supplementalEntries.length > 0 && (
             <div className="mt-3">
-              <h4 className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
+              <SectionHeading as="h3" className="mb-1">
                 Supplemental
-              </h4>
+              </SectionHeading>
               {supplementalEntries.map((entry) => (
                 <CompletionRow
                   key={entry.key}
@@ -663,7 +664,7 @@ function MostExpensivePrintings({
               key={printing.printingId}
               to="/cards/$cardSlug"
               params={{ cardSlug: printing.cardSlug }}
-              className="hover:bg-muted/60 focus-visible:ring-ring/50 flex items-center gap-3 rounded-md p-2 no-underline transition-colors outline-none focus-visible:ring-2"
+              className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-3 rounded-md p-2 no-underline transition-colors outline-none focus-visible:ring-2"
             >
               <span className="text-muted-foreground w-5 shrink-0 text-right tabular-nums">
                 {index + 1}
@@ -678,7 +679,7 @@ function MostExpensivePrintings({
                   </HoverCardTrigger>
                   {printing.fullImage && (
                     <HoverCardContent side="right" className="w-auto p-1">
-                      <img src={printing.fullImage} alt="" className="h-80 w-auto rounded" />
+                      <img src={printing.fullImage} alt="" className="h-80 w-auto rounded-md" />
                     </HoverCardContent>
                   )}
                 </HoverCard>

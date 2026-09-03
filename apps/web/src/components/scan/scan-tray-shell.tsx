@@ -56,7 +56,7 @@ export function ScanTrayShell({ layout, anchorRef, children }: ScanTrayShellProp
         className={cn(
           // Above the immersive viewfinder's z-40, matching the portalled
           // portrait sheet's own layer.
-          "bg-background/90 pr-safe fixed inset-y-0 right-0 z-50 overflow-y-auto overscroll-contain border-l px-3 py-3 backdrop-blur-lg",
+          "bg-background/80 pr-safe fixed inset-y-0 right-0 z-50 overflow-y-auto overscroll-contain border-l px-3 py-3 backdrop-blur-lg",
           LANDSCAPE_PANEL_WIDTH,
         )}
       >

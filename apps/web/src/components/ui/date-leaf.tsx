@@ -27,7 +27,7 @@ export function DateLeaf({ month, day, year, size = "default", className }: Date
     <div
       data-slot="date-leaf"
       className={cn(
-        "border-border bg-muted flex shrink-0 flex-col items-center rounded-lg border text-center leading-none",
+        "bg-muted flex shrink-0 flex-col items-center rounded-lg border text-center leading-none",
         size === "default" ? "w-14 gap-1 py-2" : "w-11 gap-0.5 py-1.5",
         className,
       )}

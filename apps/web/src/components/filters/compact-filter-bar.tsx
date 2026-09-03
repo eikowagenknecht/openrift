@@ -16,7 +16,6 @@ import {
 import {
   FILTER_TRIGGER_ACTIVE_CLASS,
   FILTER_TRIGGER_CLASS,
-  NEUTRAL_HOVER_SCOPE,
 } from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -414,10 +413,7 @@ export function FilterDropdownChip({
         {active && !summary && <span className="tabular-nums">({activeCount})</span>}
         <ChevronDownIcon />
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        className={cn(NEUTRAL_HOVER_SCOPE, "w-max max-w-[90vw] min-w-64", contentClassName)}
-      >
+      <PopoverContent align="start" className={cn("w-max max-w-[90vw] min-w-64", contentClassName)}>
         {children}
       </PopoverContent>
     </Popover>
@@ -426,12 +422,10 @@ export function FilterDropdownChip({
 
 /**
  * Shared row treatment for the slider/badge rows inside a dropdown chip's
- * popover — each direct child div gets the same subtle hover the More menu's
- * rows have. bg-accent resolves to the neutral muted set by the popover's
- * NEUTRAL_HOVER_SCOPE.
+ * popover — each direct child div gets the same hover the More menu's rows have.
  */
 const CHIP_POPOVER_ROWS_CLASS =
-  "[&>div:focus-within]:bg-accent [&>div:hover]:bg-accent flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5";
+  "[&>div:focus-within]:bg-muted [&>div:hover]:bg-muted flex flex-col gap-0.5 [&>div]:rounded-md [&>div]:px-1.5 [&>div]:py-1.5";
 
 /**
  * The Owned chip: both halves of the "owned" placement unit — the playset
@@ -490,7 +484,7 @@ export function OwnedFilterChip({
               key={bucket.value}
               aria-pressed={isSelected}
               onClick={() => toggleArrayFilter("owned", bucket.value)}
-              className="hover:bg-accent hover:text-accent-foreground relative flex w-full items-center rounded-md py-1 pr-8 pl-1.5 text-sm"
+              className="hover:bg-muted hover:text-foreground relative flex w-full items-center rounded-md py-1 pr-8 pl-1.5 text-sm"
             >
               <span className="min-w-0 flex-1">{bucket.label}</span>
               {isSelected && (

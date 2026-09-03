@@ -258,7 +258,7 @@ function DesktopNav({
             <div className="w-[34rem] columns-2 gap-2 p-2">
               {visibleMoreSections({ flags, mobile: false }).map((section) => (
                 <section key={section.label} className="mb-3 break-inside-avoid last:mb-0">
-                  <div className="text-muted-foreground px-2 pb-1 text-xs font-semibold tracking-wide uppercase">
+                  <div className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
                     {section.label}
                   </div>
                   <ul className="grid gap-1">
@@ -541,7 +541,7 @@ function MobileNav({
           )}
           {visibleMoreSections({ flags, mobile: true }).map((section) => (
             <Fragment key={section.label}>
-              <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
+              <div className="text-muted-foreground mt-3 px-3 pb-1 text-xs font-medium tracking-wide uppercase">
                 {section.label}
               </div>
               {section.items.map((item) => (

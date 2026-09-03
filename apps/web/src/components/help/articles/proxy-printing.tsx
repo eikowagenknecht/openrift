@@ -3,6 +3,7 @@ import { ImageIcon, InfoIcon, RulerIcon, ScissorsIcon, ShieldCheckIcon } from "l
 import { Heading } from "@/components/heading";
 import { FeatureCard, StepRow } from "@/components/help/article-cards";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Callout } from "@/components/ui/callout";
 
 export default function ProxyPrintingArticle() {
   return (
@@ -14,15 +15,15 @@ export default function ProxyPrintingArticle() {
       </p>
 
       {/* Page layout diagram */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
-        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wider uppercase">
+      <Callout>
+        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
           PDF page layout
         </p>
         <div className="mx-auto grid max-w-xs grid-cols-3 gap-1.5">
           {Array.from({ length: 9 }, (_, index) => (
             <div
               key={index}
-              className="bg-muted/60 border-border aspect-card flex items-center justify-center rounded border"
+              className="bg-muted/30 aspect-card flex items-center justify-center rounded-md border"
             >
               <span className="text-muted-foreground/40 text-2xs tabular-nums">{index + 1}</span>
             </div>
@@ -31,7 +32,7 @@ export default function ProxyPrintingArticle() {
         <p className="text-muted-foreground mt-2 text-center text-xs">
           3&times;3 grid, 9 cards per page, centered on A4 or US Letter
         </p>
-      </div>
+      </Callout>
 
       {/* Getting started */}
       <section>

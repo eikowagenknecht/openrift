@@ -414,7 +414,7 @@ export function CardTableRow({
       data-printing-id={printing.id}
       className={cn(
         "grid cursor-pointer items-center gap-3 text-sm transition-colors outline-none",
-        isSelected ? "bg-accent/50" : "hover:bg-muted/40",
+        isSelected ? "bg-muted/50" : "hover:bg-muted/50",
       )}
       style={{ gridTemplateColumns: columns, height: CARD_TABLE_ROW_HEIGHT }}
     >

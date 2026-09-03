@@ -37,7 +37,7 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
 
   if (availableSlugs.length === 0) {
     return (
-      <section className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
+      <section className="border-warning/40 bg-warning-soft rounded-md border p-4">
         <Heading level={2}>No {config.nounPlural} available</Heading>
         <p className="text-muted-foreground text-sm">
           An admin needs to create at least one custom tag in the <code>{config.category}</code>{" "}

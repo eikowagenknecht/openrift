@@ -8,6 +8,7 @@ import { DeckOwnershipBridge } from "@/components/deck/deck-ownership-bridge";
 import { DomainIcon } from "@/components/deck/domain-icon";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { Button } from "@/components/ui/button";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useForkArchivedDeck } from "@/hooks/use-fork-archived-deck";
@@ -19,8 +20,6 @@ import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { DeckRuneSplit, DeckTypeSplit } from "@/lib/meta-deck-composition";
 import { deckRuneSplit, deckTypeSplit } from "@/lib/meta-deck-composition";
 import { useDisplayStore } from "@/stores/display-store";
-
-const EYEBROW = "text-muted-foreground text-2xs tracking-wider uppercase";
 
 /** Suspends on the deck query; mount it under a Suspense boundary with {@link MetaEventDeckPreviewSkeleton}. */
 export function MetaEventDeckPreview({ token }: { token: string }) {
@@ -114,7 +113,9 @@ function PreviewIdentity({ data }: { data: MetaDeckDetailResponse }) {
     <div className="flex min-w-0 flex-col gap-3">
       {championName !== undefined && (
         <div className="space-y-1.5">
-          <p className={EYEBROW}>Chosen champion</p>
+          <SectionHeading as="h3" size="sm">
+            Chosen champion
+          </SectionHeading>
           <p className="truncate text-sm">{championName}</p>
         </div>
       )}
@@ -128,7 +129,9 @@ function PreviewComposition({ types, runes }: { types: DeckTypeSplit; runes: Dec
     <div className="flex flex-col gap-3">
       {types.total > 0 && (
         <div className="space-y-1.5">
-          <p className={EYEBROW}>Card types</p>
+          <SectionHeading as="h3" size="sm">
+            Card types
+          </SectionHeading>
           <div className="flex h-2 overflow-hidden rounded-full">
             <TypeSegment count={types.units} className="bg-primary" />
             <TypeSegment count={types.spells} className="bg-border-accent" />
@@ -141,7 +144,9 @@ function PreviewComposition({ types, runes }: { types: DeckTypeSplit; runes: Dec
       )}
       {runes.length > 0 && (
         <div className="space-y-1.5">
-          <p className={EYEBROW}>Runes</p>
+          <SectionHeading as="h3" size="sm">
+            Runes
+          </SectionHeading>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {runes.map((rune) => (
               <span key={rune.domain} className="flex items-center gap-1">
@@ -176,8 +181,10 @@ function PreviewValue({
 }) {
   const format = formatterForMarketplace(marketplace);
   return (
-    <div className="bg-muted/40 ring-foreground/10 rounded-lg p-3 ring-1">
-      <p className={EYEBROW}>Deck value · {MARKETPLACE_META[marketplace].label}</p>
+    <div className="bg-muted/30 ring-border rounded-lg p-3 ring-1">
+      <SectionHeading as="h3" size="sm">
+        Deck value · {MARKETPLACE_META[marketplace].label}
+      </SectionHeading>
       {ownership === undefined ? (
         <div className="mt-1 space-y-2">
           <Skeleton className="h-7 w-24" />
@@ -222,7 +229,7 @@ function OwnedLine({ ownership }: { ownership: DeckOwnershipData | undefined }) 
   }
   if (ownership.missingCount === 0) {
     return (
-      <p className="flex items-center gap-1 text-xs text-green-600 tabular-nums dark:text-green-500">
+      <p className="text-success flex items-center gap-1 text-xs tabular-nums">
         <CheckIcon className="size-3.5" />
         All {ownership.totalNeeded} cards owned
       </p>

@@ -75,7 +75,7 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
           placeholder="https://..."
         />
         {urlError ? (
-          <p className="text-sm text-red-600 dark:text-red-400">{urlError}</p>
+          <p className="text-destructive text-sm">{urlError}</p>
         ) : (
           <p className="text-muted-foreground text-sm">
             Any image format works (.png, .jpg, .webp, .avif, ...).

@@ -11,13 +11,13 @@ export function JobStatusBadge({ status }: { status: string }) {
   }
   if (status === "failed") {
     return (
-      <Badge variant="outline" className="border-red-600 text-red-600 dark:text-red-400">
+      <Badge variant="outline" className="border-destructive text-destructive">
         failed
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-green-600 text-green-600 dark:text-green-400">
+    <Badge variant="outline" className="border-success text-success">
       ok
     </Badge>
   );

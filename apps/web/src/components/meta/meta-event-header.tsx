@@ -8,6 +8,7 @@ import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
+import { Card } from "@/components/ui/card";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
@@ -62,8 +63,8 @@ function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: stri
 
   return (
     <div className="flex w-full shrink-0 items-center gap-4 sm:w-auto">
-      <div className="bg-background/60 ring-foreground/10 flex w-full flex-col gap-2 rounded-lg p-4 ring-1 sm:w-64">
-        <span className="text-border-accent text-2xs font-semibold tracking-wider uppercase">
+      <div className="bg-background/60 ring-border flex w-full flex-col gap-2 rounded-lg p-4 ring-1 sm:w-64">
+        <span className="text-border-accent text-2xs font-semibold tracking-wide uppercase">
           Champion
         </span>
         <p className="font-heading font-semibold">{player.playerName}</p>
@@ -132,7 +133,7 @@ export function MetaEventHeader({
   }
 
   return (
-    <section className="bg-card ring-foreground/10 relative overflow-hidden rounded-xl ring-1">
+    <Card className="relative gap-0 py-0">
       {artId !== null && (
         <ArtBandBackdrop
           thumbnail={imageUrl(artId, "400w")}
@@ -182,6 +183,6 @@ export function MetaEventHeader({
 
         {champion !== null && <ChampionPlate player={champion} artId={artId} />}
       </div>
-    </section>
+    </Card>
   );
 }

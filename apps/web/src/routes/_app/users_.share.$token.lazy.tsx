@@ -16,6 +16,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
 import { usePublicUserBundle } from "@/hooks/use-user-share";
 import { useUserId } from "@/lib/auth-session";
@@ -71,9 +72,7 @@ function SharedUserBundlePage() {
             }
             return (
               <section key={intent} className="flex flex-col gap-3">
-                <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-                  {heading}
-                </h2>
+                <SectionHeading>{heading}</SectionHeading>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {sectionLists.map((list) => (
                     <BundleListRow
@@ -90,9 +89,7 @@ function SharedUserBundlePage() {
 
           {collections.length > 0 ? (
             <section className="flex flex-col gap-3">
-              <h2 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-                Collections
-              </h2>
+              <SectionHeading>Collections</SectionHeading>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {collections.map((collection) => (
                   <BundleCollectionRow key={collection.id} collection={collection} />
@@ -117,7 +114,7 @@ function BundleCollectionRow({ collection }: { collection: PublicUserBundleColle
     <Link
       to="/groups/$slug/collections/$collectionId"
       params={{ slug: viaGroup.slug, collectionId: collection.id }}
-      className="hover:bg-muted flex flex-col gap-1 rounded-md border px-3 py-3"
+      className="hover:bg-muted/50 flex flex-col gap-1 rounded-md border px-3 py-3"
     >
       <div className="flex items-center gap-2">
         <BookOpenIcon className="size-4 shrink-0" />

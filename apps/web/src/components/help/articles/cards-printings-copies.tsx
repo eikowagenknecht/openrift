@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { Heading } from "@/components/heading";
+import { Callout } from "@/components/ui/callout";
+import { Code } from "@/components/ui/code";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { cn } from "@/lib/utils";
@@ -48,7 +50,7 @@ export default function CardsPrintingsCopiesArticle() {
       </p>
 
       {/* Diagram */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
+      <Callout>
         <div className="flex flex-col items-center gap-3 text-sm">
           <div className="bg-primary/10 text-primary w-full rounded-md px-4 py-2.5 text-center font-semibold">
             Card: &quot;Fury Rune&quot;
@@ -117,7 +119,7 @@ export default function CardsPrintingsCopiesArticle() {
             </div>
           </div>
         </div>
-      </div>
+      </Callout>
 
       {/* Cards */}
       <section>
@@ -193,9 +195,8 @@ export default function CardsPrintingsCopiesArticle() {
         </p>
         <p className="text-muted-foreground mt-2">
           The short code is visible at the bottom left of the physical card, like{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">SFD-R01b</code>. Two printings
-          can share the same short code and still be different, for example a normal finish and a
-          foil finish, or a special promo edition.
+          <Code>SFD-R01b</Code>. Two printings can share the same short code and still be different,
+          for example a normal finish and a foil finish, or a special promo edition.
         </p>
         <p className="text-muted-foreground mt-2">
           Printed text can vary too: some alt art cards omit reminder text, newer printings may
@@ -273,7 +274,7 @@ export default function CardsPrintingsCopiesArticle() {
 
 function PrintingCard({ image, code, label }: { image?: string; code: string; label: string }) {
   return (
-    <div className="bg-background border-border flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
+    <div className="bg-background flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
       <CardImage src={image} alt={`Fury Rune ${code}`} className="h-14 w-10" />
       <div>
         <span className="font-medium">{code}</span>
@@ -294,7 +295,7 @@ function CardImage({ src, alt, className }: { src?: string; alt: string; classNa
   const [errored, setErrored] = useState(false);
   const showSkeleton = !src || errored || !loaded;
   return (
-    <div className={cn("relative overflow-hidden rounded", className)}>
+    <div className={cn("relative overflow-hidden rounded-md", className)}>
       {showSkeleton && <Skeleton className="absolute inset-0" aria-hidden="true" />}
       {src && !errored && (
         <img
@@ -323,7 +324,7 @@ function Arrow() {
 
 function ExampleTable({ rows }: { rows: React.ReactNode[][] }) {
   return (
-    <div className="border-border mt-3 overflow-x-auto rounded-lg border text-sm">
+    <div className="mt-3 overflow-x-auto rounded-lg border text-sm">
       <table className="w-full">
         <tbody className="divide-border divide-y">
           {rows.map((row, rowIndex) => (

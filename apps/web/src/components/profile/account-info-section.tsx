@@ -117,7 +117,7 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
             {loading ? "Saving..." : "Save"}
           </Button>
         </Field>
-        {success && <FieldDescription className="text-emerald-600">Name updated.</FieldDescription>}
+        {success && <FieldDescription className="text-success">Name updated.</FieldDescription>}
       </FieldGroup>
     </form>
   );
@@ -194,9 +194,7 @@ function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: 
             {loading ? "Saving..." : "Save"}
           </Button>
         </Field>
-        {success && (
-          <FieldDescription className="text-emerald-600">Riot ID updated.</FieldDescription>
-        )}
+        {success && <FieldDescription className="text-success">Riot ID updated.</FieldDescription>}
       </FieldGroup>
     </form>
   );
@@ -318,9 +316,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
       </FieldLabel>
       {error && <FieldError>{error}</FieldError>}
       {success && (
-        <FieldDescription className="text-emerald-600">
-          Email updated successfully.
-        </FieldDescription>
+        <FieldDescription className="text-success">Email updated successfully.</FieldDescription>
       )}
 
       {step === "input" && (

@@ -33,7 +33,7 @@ export function ImagePreview({
           <img
             src={url}
             alt={alt}
-            className="w-full rounded border object-contain"
+            className="w-full rounded-md border object-contain"
             onLoad={(e) => {
               const img = e.currentTarget;
               setResolution(`${img.naturalWidth}×${img.naturalHeight}`);
@@ -46,17 +46,17 @@ export function ImagePreview({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 aspect-card flex w-full items-center justify-center rounded border"
+          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 aspect-card flex w-full items-center justify-center rounded-md border"
         >
           Failed to load — click to open
         </a>
       ) : (
-        <div className="text-muted-foreground aspect-card flex w-full items-center justify-center rounded border">
+        <div className="text-muted-foreground aspect-card flex w-full items-center justify-center rounded-md border">
           No image
         </div>
       )}
       {resolution && url && !imgError && (
-        <span className="absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1.5 py-0.5 text-white">
+        <span className="absolute right-1.5 bottom-1.5 rounded-md bg-black/60 px-1.5 py-0.5 text-white">
           {resolution}
         </span>
       )}

@@ -327,7 +327,7 @@ describe("OverlayFrame board", () => {
       />,
     );
 
-    expect(tileFor(getByAltText("card-a")).spotlight.className).toContain("ring-amber-400");
+    expect(tileFor(getByAltText("card-a")).spotlight.className).toContain("ring-border-accent");
   });
 
   it("leaves a finished board undimmed", () => {

@@ -39,7 +39,7 @@ function PriceHistoryTooltipContent({
   const snap = payload[0].payload;
   const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
   return (
-    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-md">
       <p className="mb-1 font-medium">{formatDay(snap.date)}</p>
       <div className="space-y-0.5">
         {snap.value !== null && snap.value !== undefined && (

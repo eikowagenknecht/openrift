@@ -7,6 +7,7 @@ import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
 import { deckDetailQueryOptions, useDecks } from "@/hooks/use-decks";
@@ -73,13 +74,13 @@ const LANE_BOTTOM_PAD = Math.max(
   COUNTS_GAP_Y + LABEL_LINE_HEIGHT / 2,
 );
 
-const CHIP_BASE = "rounded px-1.5 font-mono text-2xs font-bold tabular-nums";
-const ADD_CHIP = "bg-green-500/10 text-green-600 dark:text-green-500";
-const CUT_CHIP = "bg-destructive/10 text-destructive";
-const CHANGE_CHIP = "bg-amber-500/10 text-amber-700 dark:text-amber-500";
+const CHIP_BASE = "rounded-md px-1.5 font-mono text-2xs font-bold tabular-nums";
+const ADD_CHIP = "bg-success-soft text-success";
+const CUT_CHIP = "bg-destructive-soft text-destructive";
+const CHANGE_CHIP = "bg-warning-soft text-warning";
 /** Deepened tints for the step-diff chips, driven by their trigger's `group`. */
 const ADD_CHIP_HOVER =
-  "transition-colors group-hover:bg-green-500/20 group-focus-visible:bg-green-500/20";
+  "transition-colors group-hover:bg-success/20 group-focus-visible:bg-success/20";
 const CUT_CHIP_HOVER =
   "transition-colors group-hover:bg-destructive/20 group-focus-visible:bg-destructive/20";
 
@@ -188,9 +189,9 @@ function RailDiffRows({ diff }: { diff: DeckDiff }) {
     <div className="flex max-h-64 min-w-0 flex-col gap-3 overflow-y-auto overscroll-contain">
       {diff.zones.map((zoneDiff) => (
         <section key={zoneDiff.zone} className="flex min-w-0 flex-col gap-1">
-          <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+          <SectionHeading as="h3" size="sm">
             {ZONE_LABELS[zoneDiff.zone]}
-          </span>
+          </SectionHeading>
           {zoneDiff.entries.map((entry) => (
             <div key={entry.cardId} className="flex items-baseline gap-2">
               <span className={cn(CHIP_BASE, CHIP_STYLES[entry.kind])}>{chipLabel(entry)}</span>
@@ -442,7 +443,7 @@ function RailNodeLabel({ node }: { node: RailNode }) {
       style={{ width: LABEL_WIDTH }}
     >
       <span className="truncate">{node.label}</span>
-      {node.isDraft && <span className="shrink-0 text-amber-700 dark:text-amber-500">Draft</span>}
+      {node.isDraft && <span className="text-warning shrink-0">Draft</span>}
     </span>
   );
 }
@@ -666,7 +667,7 @@ function VariantRailBody({ deckId }: { deckId: string }) {
                 variant="ghost"
                 size="icon-sm"
                 aria-label="New variant"
-                className="border-border rounded-full border border-dashed"
+                className="rounded-full border border-dashed"
                 onClick={() => handleCreate({ id: deckId, name: openDeckName })}
               />
             }

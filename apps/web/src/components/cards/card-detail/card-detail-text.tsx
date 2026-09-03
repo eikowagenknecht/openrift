@@ -1,6 +1,7 @@
 import type { Printing } from "@openrift/shared";
 
 import { CardText } from "@/components/cards/card-text";
+import { Callout } from "@/components/ui/callout";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ export function CardDetailText({
   return (
     <div className="space-y-3 pt-2">
       {printing.printedRulesText && (
-        <div className="border-border/50 bg-muted/30 rounded-lg border px-3 py-2.5">
+        <Callout className="px-3 py-2.5">
           <p className="text-muted-foreground text-sm">
             <CardText
               text={card.errata?.correctedRulesText ?? printing.printedRulesText}
@@ -70,7 +71,7 @@ export function CardDetailText({
                 onKeywordClick={onKeywordClick}
               />
             )}
-        </div>
+        </Callout>
       )}
 
       {(printing.printedEffectText || (card.mightBonus !== null && card.mightBonus > 0)) && (

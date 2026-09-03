@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -177,7 +178,7 @@ function RuneOddsPanel({ cards }: { cards: DeckBuilderCard[] }) {
   }
   return (
     <div>
-      <div className="text-muted-foreground text-2xs mb-1.5 flex items-center gap-2 font-semibold tracking-widest uppercase">
+      <div className="text-muted-foreground text-2xs mb-1.5 flex items-center gap-2 font-semibold tracking-wide uppercase">
         Rune odds
         <ToggleGroup
           variant="outline"
@@ -817,9 +818,9 @@ export function DeckTestBench({
                 onClick={() => setSideboardOpen((open) => !open)}
                 chevronClassName="size-3.5"
               >
-                <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+                <SectionHeading as="span" size="sm">
                   Sideboard test
-                </span>
+                </SectionHeading>
               </ExpandToggle>
               {/* Reset stays put while collapsed: swaps still skew every
                   number, so it doubles as the "something is active" flag. */}
@@ -868,7 +869,7 @@ export function DeckTestBench({
         <div className="flex w-full shrink-0 flex-col gap-6 @3xl:w-96 @7xl:grid @7xl:w-[49.5rem] @7xl:grid-cols-2 @7xl:items-start">
           {oddsRows.length > 0 && (
             <div>
-              <div className="text-muted-foreground text-2xs mb-1.5 flex items-center font-semibold tracking-widest uppercase">
+              <div className="text-muted-foreground text-2xs mb-1.5 flex items-center font-semibold tracking-wide uppercase">
                 Draw odds
                 <Popover>
                   <PopoverTrigger
@@ -908,9 +909,9 @@ export function DeckTestBench({
                     {/* Hidden when there is nothing deck-specific to show: no
                     custom groups and no way to add one (read-only viewer). */}
                     {(customDefs.length > 0 || canCustomize) && (
-                      <div className="text-muted-foreground text-2xs mt-3 mb-1 font-semibold tracking-widest uppercase">
+                      <SectionHeading as="h3" size="sm" className="mt-3 mb-1">
                         This deck
-                      </div>
+                      </SectionHeading>
                     )}
                     <div className="flex flex-col">
                       {customDefs.map((def) => {
@@ -923,7 +924,7 @@ export function DeckTestBench({
                           <div
                             key={def.key}
                             className={cn(
-                              "flex items-center gap-2 rounded px-1 py-1 text-sm",
+                              "flex items-center gap-2 rounded-md px-1 py-1 text-sm",
                               !informative && "opacity-50",
                             )}
                           >
@@ -961,9 +962,9 @@ export function DeckTestBench({
                       }
                       return (
                         <div key={theme}>
-                          <div className="text-muted-foreground text-2xs mt-3 mb-1 font-semibold tracking-widest uppercase">
+                          <SectionHeading as="h3" size="sm" className="mt-3 mb-1">
                             {theme}
-                          </div>
+                          </SectionHeading>
                           <div className="flex flex-col">
                             {themed.map((preset) => {
                               const row = rowsByKey.get(preset.key);
@@ -975,7 +976,7 @@ export function DeckTestBench({
                                 <label
                                   key={preset.key}
                                   className={cn(
-                                    "flex items-center gap-2 rounded px-1 py-1 text-sm",
+                                    "flex items-center gap-2 rounded-md px-1 py-1 text-sm",
                                     informative ? "hover:bg-muted/50 cursor-pointer" : "opacity-50",
                                   )}
                                 >
@@ -1023,7 +1024,7 @@ export function DeckTestBench({
                     {groupRows.map((row) => {
                       const inHand = inHandGroupCounts.get(row.key) ?? 0;
                       return (
-                        <tr key={row.key} className="bg-muted/40 border-t">
+                        <tr key={row.key} className="bg-muted/50 border-t">
                           <td
                             className="max-w-0 truncate px-2 py-1"
                             title={oddsRowTitle(row.label, inHand)}

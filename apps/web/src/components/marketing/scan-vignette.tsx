@@ -100,7 +100,7 @@ function TrayRow({
       </span>
       {ownedBefore === 0 ? (
         <span
-          className="shrink-0 text-sm text-emerald-600 dark:text-emerald-400"
+          className="text-success shrink-0 text-sm"
           title="None in your collection before this session"
         >
           New
@@ -114,7 +114,7 @@ function TrayRow({
         </span>
       )}
       {card.price !== null && (
-        <span className="shrink-0 text-sm text-emerald-600 tabular-nums dark:text-emerald-400">
+        <span className="text-success shrink-0 text-sm tabular-nums">
           {formatPriceEur(card.price)}
         </span>
       )}
@@ -151,7 +151,7 @@ function TrayTotals({
         ·
       </span>
       <span
-        className="text-emerald-600 dark:text-emerald-400"
+        className="text-success"
         title="Cards with no copy in your collection before this session"
       >
         {newCount} new
@@ -191,7 +191,7 @@ export function ScanVignette({ cards }: { cards: LandingThumbnailCard[] }) {
           )}
           <span
             aria-hidden="true"
-            className="via-primary/80 motion-safe:animate-scan-sweep absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-transparent to-transparent opacity-0"
+            className="via-primary/80 motion-safe:animate-scan-sweep absolute inset-x-0 top-0 h-1/3 bg-linear-to-b from-transparent to-transparent opacity-0"
           />
           <Brackets className="border-white/45" />
           <Brackets
@@ -206,7 +206,7 @@ export function ScanVignette({ cards }: { cards: LandingThumbnailCard[] }) {
             aria-hidden="true"
             loading="lazy"
             draggable={false}
-            className="aspect-card motion-safe:animate-scan-flight absolute top-1/2 left-1/2 h-[74%] [translate:-50%_-50%] rounded object-cover opacity-0"
+            className="aspect-card motion-safe:animate-scan-flight absolute top-1/2 left-1/2 h-[74%] [translate:-50%_-50%] rounded-md object-cover opacity-0"
           />
         )}
       </div>

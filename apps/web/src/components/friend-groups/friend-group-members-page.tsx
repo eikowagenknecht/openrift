@@ -316,8 +316,8 @@ const ROLE_BADGE_VARIANT = { owner: "warning", admin: "violet" } as const;
 
 /** Avatar rings echo the role chips, so leadership reads down the column. */
 const ROLE_AVATAR_RING = {
-  owner: "ring-2 ring-amber-500/70 ring-offset-2 ring-offset-card",
-  admin: "ring-2 ring-violet-500/60 ring-offset-2 ring-offset-card",
+  owner: "ring-border-accent/70 ring-2 ring-offset-2 ring-offset-card",
+  admin: "ring-violet/60 ring-2 ring-offset-2 ring-offset-card",
   member: "",
 } as const;
 
@@ -432,7 +432,7 @@ function MemberRow({
           <span className="text-muted-foreground flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
             <span>Joined {formatMonth(member.joinedAt)}</span>
             {cardsTraded > 0 ? (
-              <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+              <span className="text-warning flex items-center gap-1 font-medium">
                 <ZapIcon className="size-3" />
                 {cardsTraded} traded with you
               </span>

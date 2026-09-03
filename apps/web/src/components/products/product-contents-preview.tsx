@@ -21,7 +21,7 @@ function PreviewArt({ printing }: { printing: Printing }) {
   const frontImage = printing.images[0] ?? null;
   const rotated = needsCssRotation(getOrientation(printing.card.types));
   if (!frontImage) {
-    return <div className="bg-muted/40 aspect-card w-full rounded-lg" />;
+    return <div className="bg-muted aspect-card w-full rounded-lg" />;
   }
   const src = imageUrl(frontImage.imageId, "400w");
   const srcSet = `${imageUrl(frontImage.imageId, "120w")} 120w, ${imageUrl(frontImage.imageId, "240w")} 240w, ${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`;

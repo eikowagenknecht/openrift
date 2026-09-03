@@ -144,9 +144,7 @@ export function TradeHubMemberCard({
           opens shows those too — a bare "Nothing traded yet" then reads as a
           contradiction. */}
       {quiet ? <p className="text-muted-foreground">Nothing in this group yet</p> : null}
-      {action === null ? null : (
-        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{action}</p>
-      )}
+      {action === null ? null : <p className="text-warning text-sm font-medium">{action}</p>}
       {/* The art of what waits on you, so the card says which cards they are
           before you open the sheet. One thumb per distinct printing. */}
       {waitingArt.length > 0 ? (
@@ -156,7 +154,7 @@ export function TradeHubMemberCard({
           apart from the muted line — green like the incoming arrow, one step
           below the gold of what already waits. */}
       {suggestions === null ? null : (
-        <p className="flex items-center gap-1 text-sm font-medium text-green-700 dark:text-green-500">
+        <p className="text-success flex items-center gap-1 text-sm font-medium">
           <SparklesIcon className="size-3.5 shrink-0" />
           {suggestions}
         </p>
@@ -187,7 +185,7 @@ export function ShareYourListsBand({ slug, groupName }: { slug: string; groupNam
   if (tradable.length === 0) {
     return (
       <Card className="flex-row items-center gap-3 p-3">
-        <IconChip icon={Share2Icon} tone="sky" size="sm" shape="round" />
+        <IconChip icon={Share2Icon} tone="info" size="sm" shape="round" />
         <p className="text-muted-foreground min-w-0 flex-1">
           You don&apos;t have a wishlist or tradelist yet.{" "}
           <Link to="/collections" className="text-foreground underline underline-offset-4">
@@ -201,7 +199,7 @@ export function ShareYourListsBand({ slug, groupName }: { slug: string; groupNam
 
   return (
     <Card className="flex-row items-center gap-3 p-3">
-      <IconChip icon={Share2Icon} tone="sky" size="sm" shape="round" />
+      <IconChip icon={Share2Icon} tone="info" size="sm" shape="round" />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="font-medium">
           You&apos;ve shared {shared.length} of {tradable.length}{" "}

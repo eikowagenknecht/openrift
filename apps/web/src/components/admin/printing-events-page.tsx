@@ -35,7 +35,7 @@ import type { JobRunView } from "@/lib/server-fns/api-types";
 function StatusBadge({ status }: { status: PrintingEventView["status"] }) {
   if (status === "failed") {
     return (
-      <Badge variant="outline" className="border-red-600 text-red-600 dark:text-red-400">
+      <Badge variant="outline" className="border-destructive text-destructive">
         failed
       </Badge>
     );
@@ -234,7 +234,7 @@ function FlushRunStatus({ run }: { run: JobRunView }) {
   }
   if (run.status === "failed") {
     return (
-      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+      <p className="text-destructive flex items-center gap-1 text-sm">
         <XIcon className="size-4" />
         {run.errorMessage ?? "Flush failed"}
       </p>
@@ -254,8 +254,8 @@ function FlushRunStatus({ run }: { run: JobRunView }) {
       <p
         className={
           failedCount === 0
-            ? "flex items-center gap-1 text-sm text-green-600 dark:text-green-400"
-            : "flex items-center gap-1 text-sm text-yellow-700 dark:text-yellow-500"
+            ? "text-success flex items-center gap-1 text-sm"
+            : "text-warning flex items-center gap-1 text-sm"
         }
       >
         <CheckIcon className="size-4" />
@@ -264,7 +264,7 @@ function FlushRunStatus({ run }: { run: JobRunView }) {
     );
   }
   return (
-    <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+    <p className="text-success flex items-center gap-1 text-sm">
       <CheckIcon className="size-4" />
       Last flush completed
     </p>

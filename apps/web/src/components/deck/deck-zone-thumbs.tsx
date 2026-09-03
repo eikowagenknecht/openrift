@@ -106,7 +106,7 @@ function ThumbEditControls({
               variant="ghost"
               size="icon-xs"
               className={cn(
-                "bg-background/80 hover:bg-background absolute top-1 right-1 size-5 rounded",
+                "bg-background/80 hover:bg-background absolute top-1 right-1 size-5 rounded-md",
                 reveal,
               )}
               aria-label={perCopy ? `Remove one copy of ${cardName}` : `Remove ${cardName}`}
@@ -291,7 +291,7 @@ export function ZoneThumb({
       {hasCustomPrinting && (
         <span
           title="Pinned printing"
-          className="bg-background/70 absolute top-1 left-1 rounded p-0.5"
+          className="bg-background/70 absolute top-1 left-1 rounded-md p-0.5"
         >
           <PinIcon className="text-muted-foreground size-2.5" />
         </span>
@@ -365,16 +365,16 @@ export function ZoneThumb({
           className="absolute inset-x-0 bottom-0 flex h-0.5 overflow-hidden"
         >
           {band.exact > 0 && (
-            <span className="bg-green-500" style={{ flexGrow: band.exact, flexBasis: 0 }} />
+            <span className="bg-success" style={{ flexGrow: band.exact, flexBasis: 0 }} />
           )}
           {band.other > 0 && (
-            <span className="bg-sky-500" style={{ flexGrow: band.other, flexBasis: 0 }} />
+            <span className="bg-info" style={{ flexGrow: band.other, flexBasis: 0 }} />
           )}
           {band.borrowed > 0 && (
-            <span className="bg-violet-500" style={{ flexGrow: band.borrowed, flexBasis: 0 }} />
+            <span className="bg-violet" style={{ flexGrow: band.borrowed, flexBasis: 0 }} />
           )}
           {band.locked > 0 && (
-            <span className="bg-amber-500" style={{ flexGrow: band.locked, flexBasis: 0 }} />
+            <span className="bg-warning" style={{ flexGrow: band.locked, flexBasis: 0 }} />
           )}
           {band.missing > 0 && <span style={{ flexGrow: band.missing, flexBasis: 0 }} />}
         </span>

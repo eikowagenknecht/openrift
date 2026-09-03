@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import { ReviewDisclosure } from "@/components/admin/meta-review-shared";
 import { Button } from "@/components/ui/button";
+import { Code } from "@/components/ui/code";
 import {
   Dialog,
   DialogContent,
@@ -61,14 +62,12 @@ function FormatHelp() {
   return (
     <ReviewDisclosure title="Format and example" contentClassName="space-y-3 py-3">
       <p>
-        The file is the whole request body: a{" "}
-        <code className="bg-muted rounded px-1">provider</code> string and a non-empty{" "}
-        <code className="bg-muted rounded px-1">events</code> array. Each event replaces its own
-        staged copy in full, keyed by <code className="bg-muted rounded px-1">externalId</code>;
-        events left out of the file are untouched. A player carries a list only when the source
-        published one; the rest are standings rows with a legend. Card and legend names are matched
-        against the catalog on ingest. A field the file leaves out is claimed by nothing and stays
-        with whichever source publishes it.
+        The file is the whole request body: a <Code>provider</Code> string and a non-empty{" "}
+        <Code>events</Code> array. Each event replaces its own staged copy in full, keyed by{" "}
+        <Code>externalId</Code>; events left out of the file are untouched. A player carries a list
+        only when the source published one; the rest are standings rows with a legend. Card and
+        legend names are matched against the catalog on ingest. A field the file leaves out is
+        claimed by nothing and stays with whichever source publishes it.
       </p>
       <pre className="bg-muted overflow-x-auto rounded-md p-3">
         <code>{EXAMPLE_UPLOAD_JSON}</code>

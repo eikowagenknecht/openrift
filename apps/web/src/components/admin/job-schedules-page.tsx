@@ -64,7 +64,7 @@ function LastRunLine({ lastRun }: { lastRun: NonNullable<JobScheduleView["lastRu
         </span>
       </div>
       {lastRun.status === "failed" && lastRun.errorMessage !== null && (
-        <p className="text-red-600 dark:text-red-400">{lastRun.errorMessage}</p>
+        <p className="text-destructive">{lastRun.errorMessage}</p>
       )}
     </div>
   );

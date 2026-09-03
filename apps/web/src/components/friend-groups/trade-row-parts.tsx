@@ -30,9 +30,7 @@ export function TradeDirectionIcon({ incoming }: { incoming: boolean }) {
     <span
       className={cn(
         "flex size-7 shrink-0 items-center justify-center rounded-full",
-        incoming
-          ? "bg-green-500/10 text-green-600 dark:text-green-500"
-          : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
+        incoming ? "bg-success-soft text-success" : "bg-warning-soft text-warning",
       )}
       title={incoming ? "Comes to you" : "Goes to them"}
       aria-label={incoming ? "Comes to you" : "Goes to them"}
@@ -292,7 +290,7 @@ export function TradeExpiry({
     <span
       className={cn(
         "inline-flex shrink-0 items-center gap-1 text-xs whitespace-nowrap",
-        urgent ? "font-medium text-amber-700 dark:text-amber-400" : "text-muted-foreground",
+        urgent ? "text-warning font-medium" : "text-muted-foreground",
       )}
       title="Pending requests expire 7 days after they're sent"
     >

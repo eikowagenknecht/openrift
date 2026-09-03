@@ -212,7 +212,7 @@ export function TierBoard({
                   // at either end is not clipped by the row's overflow.
                   className={cn(
                     "inline-flex rounded-sm transition-opacity duration-300",
-                    spotlight && (focused ? "ring-2 ring-amber-400" : "opacity-30"),
+                    spotlight && (focused ? "ring-border-accent ring-2" : "opacity-30"),
                   )}
                 >
                   {onCardClick ? (

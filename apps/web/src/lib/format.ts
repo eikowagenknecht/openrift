@@ -79,12 +79,12 @@ export function priceColorClass(value?: number | null): string {
     return "text-muted-foreground";
   }
   if (value < 10) {
-    return "text-emerald-600 dark:text-emerald-400";
+    return "text-success";
   }
   if (value < 50) {
-    return "text-amber-600 dark:text-amber-400";
+    return "text-warning";
   }
-  return "text-rose-600 dark:text-rose-400";
+  return "text-destructive";
 }
 
 export function formatPriceEur(value?: number | null): string {

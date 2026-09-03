@@ -94,6 +94,7 @@ import { BrandGlyph } from "@/components/ui/brand-glyph";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupSeparator } from "@/components/ui/button-group";
 import { Calendar } from "@/components/ui/calendar";
+import { Callout } from "@/components/ui/callout";
 import {
   Card,
   CardContent,
@@ -108,6 +109,7 @@ import { ChartContainer } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
+import { Code } from "@/components/ui/code";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Combobox,
@@ -255,7 +257,7 @@ const BADGE_VARIANTS = [
   "success",
   "warning",
   "violet",
-  "sky",
+  "info",
   "muted",
   "subtle",
   "count",
@@ -490,6 +492,18 @@ const COLOR_PAIRS = [
   { token: "--destructive", fg: "white" },
 ] as const;
 
+const STATUS_COLOR_PAIRS = [
+  { token: "--success", fg: "var(--success-foreground)" },
+  { token: "--warning", fg: "var(--warning-foreground)" },
+  { token: "--info", fg: "var(--info-foreground)" },
+  { token: "--violet", fg: "var(--background)" },
+  { token: "--success-soft", fg: "var(--success)" },
+  { token: "--warning-soft", fg: "var(--warning)" },
+  { token: "--info-soft", fg: "var(--info)" },
+  { token: "--violet-soft", fg: "var(--violet)" },
+  { token: "--destructive-soft", fg: "var(--destructive)" },
+] as const;
+
 const LINE_COLOR_TOKENS = [
   "--border",
   "--border-accent",
@@ -508,6 +522,7 @@ const CHART_COLOR_TOKENS = [
 
 const TOKEN_NAMES = [
   ...COLOR_PAIRS.map((pair) => pair.token),
+  ...STATUS_COLOR_PAIRS.map((pair) => pair.token),
   ...LINE_COLOR_TOKENS,
   ...CHART_COLOR_TOKENS,
 ];
@@ -613,6 +628,21 @@ function TokensSection() {
       >
         <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
           {COLOR_PAIRS.map((pair) => (
+            <ColorTokenTile
+              key={pair.token}
+              token={pair.token}
+              fg={pair.fg}
+              value={values[pair.token]}
+            />
+          ))}
+        </div>
+      </DemoRow>
+      <DemoRow
+        label="Status"
+        hint="Success, warning, info and violet with their soft fills. Use these for state; never a raw Tailwind hue. Gold accents use --border-accent."
+      >
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-9">
+          {STATUS_COLOR_PAIRS.map((pair) => (
             <ColorTokenTile
               key={pair.token}
               token={pair.token}
@@ -1016,7 +1046,7 @@ function SectionHeadingSection() {
           <SectionHeading icon={BellIcon} tone="gold" count={2}>
             Action needed
           </SectionHeading>
-          <SectionHeading icon={HeartIcon} tone="sky" count={5}>
+          <SectionHeading icon={HeartIcon} tone="info" count={5}>
             Wishlists &amp; tradelists
           </SectionHeading>
         </div>
@@ -1042,11 +1072,11 @@ function IconChipSection() {
         <Swatch label="gold">
           <IconChip icon={ZapIcon} tone="gold" />
         </Swatch>
-        <Swatch label="sky">
-          <IconChip icon={FolderIcon} tone="sky" />
+        <Swatch label="info">
+          <IconChip icon={FolderIcon} tone="info" />
         </Swatch>
-        <Swatch label="green">
-          <IconChip icon={UsersIcon} tone="green" />
+        <Swatch label="success">
+          <IconChip icon={UsersIcon} tone="success" />
         </Swatch>
         <Swatch label="violet">
           <IconChip icon={TrophyIcon} tone="violet" />
@@ -1210,7 +1240,7 @@ function TilesSection() {
           {["Round 1", "Round 2", "Round 3"].map((round) => (
             <li
               key={round}
-              className="hover:bg-muted/50 flex items-center gap-2.5 rounded px-2 py-2"
+              className="hover:bg-muted/50 flex items-center gap-2.5 rounded-md px-2 py-2"
             >
               <span className="bg-primary/60 size-2 shrink-0 rounded-full" aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{round}</span>
@@ -1267,7 +1297,7 @@ function TilesSection() {
             icon={FolderIcon}
             label="Collections"
             value={1}
-            tone="sky"
+            tone="info"
             hint="tone=sky"
           />
           <StatTile
@@ -1275,7 +1305,7 @@ function TilesSection() {
             icon={UsersIcon}
             label="Members"
             value={9}
-            tone="green"
+            tone="success"
             hint="tone=green"
           />
           <StatTile
@@ -1310,7 +1340,7 @@ function TilesSection() {
           <ActionBand
             render={<Link to="/admin/design" hash="tiles" />}
             icon={ZapIcon}
-            tone="green"
+            tone="success"
             label="Trades"
             value="Nothing waiting on you"
             valueClassName="font-sans truncate text-base font-medium"
@@ -1328,7 +1358,7 @@ function TilesSection() {
             value={1}
             sub="person waiting to join"
           >
-            <div className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2">
+            <div className="bg-muted flex items-center gap-2.5 rounded-lg px-2.5 py-2">
               <span className="min-w-0 flex-1 truncate text-sm">
                 <span className="font-medium">Powder Undercity</span>
                 <span className="text-muted-foreground"> · requested 2h ago</span>
@@ -1352,9 +1382,9 @@ function TilesSection() {
       >
         <StatStrip
           items={[
-            { key: "active", value: 11, label: "active", icon: CheckIcon, iconTone: "green" },
+            { key: "active", value: 11, label: "active", icon: CheckIcon, iconTone: "success" },
             { key: "dropped", value: 3, label: "dropped", icon: UsersIcon },
-            { key: "regions", value: 4, label: "regions", icon: GlobeIcon, iconTone: "sky" },
+            { key: "regions", value: 4, label: "regions", icon: GlobeIcon, iconTone: "info" },
           ]}
         />
         <StatStrip
@@ -2097,7 +2127,35 @@ function FeedbackSection() {
               <AlertTitle>Import failed</AlertTitle>
               <AlertDescription>3 lines could not be matched to the catalog.</AlertDescription>
             </Alert>
+            <Alert variant="warning">
+              <TriangleAlertIcon />
+              <AlertTitle>Rotation next week</AlertTitle>
+              <AlertDescription>Two of your decks lose cards on Sept 10.</AlertDescription>
+            </Alert>
+            <Alert variant="info">
+              <InfoIcon />
+              <AlertTitle>Shared with your group</AlertTitle>
+              <AlertDescription>Everyone in Tuesday Night Crew can see this list.</AlertDescription>
+            </Alert>
           </div>
+        </Demo>
+        <Demo
+          name="Callout"
+          hint="Muted note box for intro banners and asides that carry their own layout. Alert is the icon + title + description form."
+        >
+          <Callout className="w-full text-sm">
+            <p className="font-medium">Welcome to your collection</p>
+            <p className="text-muted-foreground mt-0.5">
+              Tap the + on any card to add it. Paste a deck code with <Code>Ctrl+V</Code> to import
+              one.
+            </p>
+          </Callout>
+        </Demo>
+        <Demo name="Code" hint="Inline code chip in help copy: a path, a key, a command.">
+          <p className="text-sm">
+            Send a <Code>POST</Code> to <Code>/api/v1/ingest/deck-check</Code> with your{" "}
+            <Code>orpk_…</Code> key.
+          </p>
         </Demo>
         <Demo name="Progress" hint="Determinate completion (imports, collection goals).">
           <Progress value={64} className="w-40" aria-label="Collection progress" />

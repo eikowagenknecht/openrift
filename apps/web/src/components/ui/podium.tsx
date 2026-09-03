@@ -178,7 +178,7 @@ function GhostSeat({ rank }: { rank: number }) {
   return (
     <div className="bg-muted/40 flex flex-col items-center gap-1 rounded-lg px-1.5 py-3">
       <Medal rank={rank} className="opacity-40" />
-      <span className="border-border size-10 rounded-full border border-dashed" />
+      <span className="size-10 rounded-full border border-dashed" />
     </div>
   );
 }

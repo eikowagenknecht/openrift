@@ -30,25 +30,24 @@ const buttonVariants = cva(
           "font-normal text-muted-foreground underline underline-offset-2 hover:text-foreground",
         // custom: dashed-border CTA for empty-state "add" targets (deck zones); `outline` is solid-border so it doesn't fit
         dashed:
-          "border-border border-dashed text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/40 hover:text-foreground",
+          "border-border border-dashed text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/50 hover:text-foreground",
         // custom: translucent glass pill for a floating selector over content (card-table group jump); no other variant captures the blur + ring
         "glass-pill": "bg-background/60 ring-border/70 rounded-full shadow-sm ring-1 backdrop-blur",
       },
       size: {
         default:
           "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        // custom: smaller corner-cut for the compact size (see btn-corner-cut)
-        xs: "[--btn-cut:5px] h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        // custom: smaller corner-cut for the compact size (see btn-corner-cut)
-        sm: "[--btn-cut:5px] h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        // custom: smaller corner-cut and the rounded-md token radius for the compact size (see btn-corner-cut)
+        xs: "[--btn-cut:5px] h-6 gap-1 rounded-md px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        // custom: smaller corner-cut and the rounded-md token radius for the compact size (see btn-corner-cut)
+        sm: "[--btn-cut:5px] h-7 gap-1 rounded-md px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         icon: "size-8",
-        // custom: smaller corner-cut for the compact size (see btn-corner-cut)
+        // custom: smaller corner-cut and the rounded-md token radius for the compact size (see btn-corner-cut)
         "icon-xs":
-          "[--btn-cut:5px] size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        // custom: smaller corner-cut for the compact size (see btn-corner-cut)
-        "icon-sm":
-          "[--btn-cut:5px] size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+          "[--btn-cut:5px] size-6 rounded-md in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+        // custom: smaller corner-cut and the rounded-md token radius for the compact size (see btn-corner-cut)
+        "icon-sm": "[--btn-cut:5px] size-7 rounded-md in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
       },
     },

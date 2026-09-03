@@ -27,8 +27,8 @@ type CardArtThumbShape = "card" | "strip" | "square";
 
 const FRAME_CLASS: Record<CardArtThumbShape, string> = {
   card: "bg-muted aspect-card",
-  strip: "bg-muted/40 aspect-[88/63] h-6 rounded-sm border",
-  square: "bg-muted/40 ring-foreground/10 aspect-square size-6 rounded-sm ring-1 ring-inset",
+  strip: "bg-muted/30 aspect-[88/63] h-6 rounded-sm border",
+  square: "bg-muted/30 ring-border aspect-square size-6 rounded-sm ring-1 ring-inset",
 };
 
 const CROP_CLASS: Partial<Record<CardArtThumbShape, string>> = {
@@ -203,7 +203,7 @@ export function CardArtThumb({
       className={cn(
         "relative inline-block shrink-0 overflow-hidden align-top",
         FRAME_CLASS[shape],
-        foil && "ring-1 ring-amber-400/60",
+        foil && "ring-border-accent/60 ring-1",
         className,
       )}
       style={framed ? { borderRadius: CARD_BORDER_RADIUS } : undefined}

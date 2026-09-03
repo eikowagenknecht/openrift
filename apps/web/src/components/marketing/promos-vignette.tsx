@@ -36,7 +36,7 @@ function SectionDivider({ title, count }: { title: string; count: number }) {
             <span className="text-muted-foreground tabular-nums">({count})</span>
           </>
         ) : (
-          <span className="bg-muted h-4 w-32 rounded" />
+          <span className="bg-muted h-4 w-32 rounded-md" />
         )}
         <span aria-hidden="true" className="text-muted-foreground/60 self-center">
           <LinkIcon className="size-3.5" />

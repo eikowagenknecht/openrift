@@ -39,7 +39,7 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
       <div className="relative w-28 shrink-0 sm:w-36">
         {set.coverImageId ? (
           <>
-            <div className="aspect-card bg-muted/40" />
+            <div className="aspect-card bg-muted" />
             {/* fallback null: the spacer above already matches the no-cover tile. */}
             <ImgWithFallback
               src={imageUrl(set.coverImageId, "400w")}
@@ -53,7 +53,7 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
             />
           </>
         ) : (
-          <div className="aspect-card bg-muted/40" />
+          <div className="aspect-card bg-muted" />
         )}
       </div>
       <div className="flex min-w-0 flex-col justify-center gap-1 p-4">

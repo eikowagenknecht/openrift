@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Pressable } from "@/components/ui/pressable";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -263,9 +264,9 @@ function MissingCardsDialogBody({
         <div className="max-h-80 [scrollbar-gutter:stable] overflow-y-auto text-sm">
           {groupedByZone.map(([zone, cards]) => (
             <div key={zone} className="pt-3 first:pt-0">
-              <div className="text-muted-foreground px-2 pb-1 text-xs font-medium tracking-wide uppercase">
+              <SectionHeading as="h3" className="px-2 pb-1">
                 {zoneLabel(zone)}
-              </div>
+              </SectionHeading>
               {cards.map((card) => {
                 // The viewer completes the deck by buying the cheapest
                 // acceptable printing, not the creator's (possibly premium)
@@ -275,7 +276,7 @@ function MissingCardsDialogBody({
                 return (
                   <div
                     key={`${card.cardId}:${card.zone}`}
-                    className="hover:bg-muted/40 flex items-center gap-2 rounded-md py-1.5 pr-3 pl-2 sm:gap-3"
+                    className="hover:bg-muted/50 flex items-center gap-2 rounded-md py-1.5 pr-3 pl-2 sm:gap-3"
                   >
                     {/* Small card thumbnail alongside the two stacked rows on mobile;
                       hidden on desktop where the row is a single line. */}

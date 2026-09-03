@@ -214,7 +214,7 @@ export function PrintingReviewCard({
     <div data-printing-id={printingId} className="overflow-hidden rounded-md border">
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
       <div
-        className="bg-muted/40 flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90"
+        className="bg-muted flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90"
         onClick={() => togglePrintingFold(cardId, printingId)}
       >
         <span className="flex items-center gap-2">

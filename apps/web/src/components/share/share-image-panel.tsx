@@ -142,7 +142,7 @@ export function ShareImagePanel({
         <div
           // The frame keeps the host dialog's height steady while a new render
           // arrives, so switching shape doesn't make the buttons jump.
-          className="bg-muted/40 ring-border relative mx-auto w-full max-w-sm overflow-hidden rounded-md ring-1"
+          className="bg-muted/30 ring-border relative mx-auto w-full max-w-sm overflow-hidden rounded-md ring-1"
           style={{ aspectRatio: `${canvas.width} / ${canvas.height}` }}
         >
           <img

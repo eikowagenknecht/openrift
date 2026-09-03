@@ -177,7 +177,7 @@ export function CardPlaceholderImage({
         // over any photo. The name bar carries its own domain gradient.
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/85 via-black/55 to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-linear-to-t from-black/85 via-black/55 to-transparent"
         />
       ) : (
         <>

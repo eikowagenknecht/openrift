@@ -151,5 +151,5 @@ export default function DiscordBotArticle() {
 }
 
 function InlineCode({ children }: { children: ReactNode }) {
-  return <code className="bg-muted rounded px-1 py-0.5 font-mono text-sm">{children}</code>;
+  return <code className="bg-muted rounded-md px-1 py-0.5 font-mono text-sm">{children}</code>;
 }

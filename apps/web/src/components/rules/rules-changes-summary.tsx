@@ -34,21 +34,21 @@ export function ChangesSummary({
     return null;
   }
   return (
-    <div className="border-border bg-muted/30 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2 text-xs">
+    <div className="bg-muted/30 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2 text-xs">
       <span className="text-muted-foreground">Changes from v{previousVersion}:</span>
-      <span className="text-emerald-700 dark:text-emerald-300">
+      <span className="text-success">
         <span className="font-semibold">{newCount}</span> new
       </span>
       <span className="text-muted-foreground">·</span>
-      <span className="text-amber-700 dark:text-amber-300">
+      <span className="text-warning">
         <span className="font-semibold">{changedCount}</span> changed
       </span>
       <span className="text-muted-foreground">·</span>
-      <span className="text-sky-700 dark:text-sky-300">
+      <span className="text-info">
         <span className="font-semibold">{movesCount}</span> moved
       </span>
       <span className="text-muted-foreground">·</span>
-      <span className="text-violet-700 dark:text-violet-300">
+      <span className="text-violet">
         <span className="font-semibold">{replacedCount}</span> replaced
       </span>
       <span className="text-muted-foreground">·</span>

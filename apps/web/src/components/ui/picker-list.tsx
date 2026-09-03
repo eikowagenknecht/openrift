@@ -152,8 +152,7 @@ export function PickerRow({ value, keywords, onSelect, className, ref, children 
       onSelect={onSelect}
       className={cn(
         // scroll-my-2 gives cmdk's scrollIntoView({block:"nearest"}) explicit breathing room around the row, so keyboard nav doesn't park the active row flush against (or partly under) the list edge.
-        // data-selected:**:text-accent-foreground flips descendant text (including muted spans like the count or card-id) to readable contrast on the gold accent bg in dark mode.
-        "data-selected:bg-accent data-selected:text-accent-foreground data-selected:**:text-accent-foreground flex scroll-my-8 items-center gap-2 rounded-md px-1.5 py-1 text-sm outline-hidden",
+        "data-selected:bg-muted data-selected:text-foreground flex scroll-my-8 items-center gap-2 rounded-md px-1.5 py-1 text-sm outline-hidden",
         className,
       )}
     >

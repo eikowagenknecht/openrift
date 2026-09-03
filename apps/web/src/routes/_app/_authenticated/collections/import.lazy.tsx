@@ -502,7 +502,7 @@ function PreviewStep({
       </ImportExactMatchesDisclosure>
 
       {/* Summary + target collection + import button */}
-      <div className="bg-muted/50 space-y-4 rounded-md border p-4">
+      <div className="bg-muted/30 space-y-4 rounded-md border p-4">
         <ImportStatusBadges
           readyCount={readyCount}
           toVerifyCount={toVerifyCount}

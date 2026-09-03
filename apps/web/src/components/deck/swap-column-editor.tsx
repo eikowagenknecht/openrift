@@ -101,7 +101,7 @@ function SwapColumn({
         {direction === "out" ? (
           <span className="text-destructive">− Out (maindeck)</span>
         ) : (
-          <span className="text-green-600 dark:text-green-400">+ In (sideboard)</span>
+          <span className="text-success">+ In (sideboard)</span>
         )}
       </div>
       {columnSwaps.map(({ swap, swapIndex }) => {

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  */
 function EmptyCardFan({ icon: Icon }: { icon?: ComponentType<SVGProps<SVGSVGElement>> }) {
   const sideCardClass =
-    "aspect-card border-border absolute bottom-0 left-1/2 w-16 origin-bottom -translate-x-1/2 rounded-md border border-dashed";
+    "aspect-card absolute bottom-0 left-1/2 w-16 origin-bottom -translate-x-1/2 rounded-md border border-dashed";
   return (
     <div className="relative h-[100px] w-36" aria-hidden="true">
       <span className={cn(sideCardClass, "-rotate-12")} />

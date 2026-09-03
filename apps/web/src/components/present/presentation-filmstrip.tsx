@@ -54,9 +54,9 @@ export function PresentationFilmstrip({
               aria-label={`Show ${legendDisplayName(item.printing.card)}`}
               aria-current={isCurrent ? "true" : undefined}
               className={cn(
-                "shrink-0 rounded transition-all duration-200",
+                "shrink-0 rounded-md transition-all duration-200",
                 isCurrent
-                  ? "w-20 opacity-100 ring-2 ring-amber-400"
+                  ? "ring-border-accent w-20 opacity-100 ring-2"
                   : "w-14 opacity-45 hover:opacity-80",
               )}
             >

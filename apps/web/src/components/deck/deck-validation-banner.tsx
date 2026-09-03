@@ -26,10 +26,7 @@ export function ViolationBadge({
   return (
     <Popover>
       <PopoverTrigger nativeButton={false} render={<span />}>
-        <Badge
-          variant="warning"
-          className="shrink-0 cursor-pointer rounded-md dark:bg-amber-500/10"
-        >
+        <Badge variant="warning" className="shrink-0 cursor-pointer rounded-md">
           {formatLabel}
           {progress && <span className="tabular-nums">· {progress}</span>}
           <CircleAlertIcon className="size-3" />

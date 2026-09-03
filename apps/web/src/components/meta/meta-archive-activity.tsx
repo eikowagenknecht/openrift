@@ -33,7 +33,7 @@ function ActivityRow({ item }: { item: MetaActivityItem }) {
     <Link
       to="/meta/$slug"
       params={{ slug: item.event.slug }}
-      className="hover:bg-muted/40 focus-visible:ring-ring/50 flex items-center gap-3 px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
+      className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-3 px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
     >
       <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full">
         <Icon aria-hidden className="size-3.5" />

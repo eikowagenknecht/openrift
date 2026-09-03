@@ -1,3 +1,4 @@
+import { SectionHeading } from "@/components/ui/section-heading";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,9 +24,9 @@ export function DeckZoneHeader({
 }) {
   return (
     <div className={cn("flex h-6 items-center gap-2 border-b", className)}>
-      <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+      <SectionHeading as="span" size="sm">
         {label}
-      </span>
+      </SectionHeading>
       {children}
     </div>
   );

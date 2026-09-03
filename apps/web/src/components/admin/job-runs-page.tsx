@@ -352,7 +352,7 @@ function JobRunRow({
             {run.errorMessage !== null && (
               <div className="mb-2">
                 <div className="text-muted-foreground uppercase">Error</div>
-                <pre className="bg-muted text-destructive overflow-x-auto rounded p-2 font-mono">
+                <pre className="bg-muted text-destructive overflow-x-auto rounded-md p-2 font-mono">
                   {run.errorMessage}
                 </pre>
               </div>
@@ -360,7 +360,7 @@ function JobRunRow({
             {hasResult(run.result) && (
               <div>
                 <div className="text-muted-foreground uppercase">Result</div>
-                <pre className="bg-muted overflow-x-auto rounded p-2 font-mono">
+                <pre className="bg-muted overflow-x-auto rounded-md p-2 font-mono">
                   {JSON.stringify(run.result, null, 2)}
                 </pre>
               </div>

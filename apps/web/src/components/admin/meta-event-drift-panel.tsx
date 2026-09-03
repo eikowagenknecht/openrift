@@ -267,12 +267,7 @@ function FieldRow({
   return (
     <tr className="border-b last:border-0">
       <td className="w-1 py-1.5 pr-1">
-        {contested && (
-          <span
-            className="block size-1.5 rounded-full bg-amber-500 dark:bg-amber-400"
-            aria-hidden
-          />
-        )}
+        {contested && <span className="bg-warning block size-1.5 rounded-full" aria-hidden />}
       </td>
       <td className="text-muted-foreground py-1.5 pr-3 font-mono">
         <span className="flex items-center gap-1.5">
@@ -286,10 +281,7 @@ function FieldRow({
           className={cn(
             "py-1.5 pr-3 align-top",
             field.claimedByOverlay && "text-muted-foreground/50 line-through",
-            contested &&
-              cell.value !== field.live &&
-              cell.value !== null &&
-              "text-amber-600 dark:text-amber-400",
+            contested && cell.value !== field.live && cell.value !== null && "text-warning",
           )}
         >
           <span className="block">{cell.value ?? "—"}</span>

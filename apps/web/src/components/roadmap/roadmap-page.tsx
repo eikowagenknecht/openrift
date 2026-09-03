@@ -42,6 +42,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
@@ -351,9 +352,7 @@ export function RoadmapPage() {
                     <div className="flex w-20 shrink-0 justify-center md:w-28">
                       {isFirstDone && <div className="bg-muted-foreground/15 w-0.5" />}
                     </div>
-                    <p className="text-muted-foreground flex-1 py-3 text-xs font-medium tracking-wider uppercase">
-                      {headerLabel}
-                    </p>
+                    <SectionHeading className="flex-1 py-3">{headerLabel}</SectionHeading>
                   </div>
                 )}
                 <div className="flex gap-4">

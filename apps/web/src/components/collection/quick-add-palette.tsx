@@ -521,7 +521,7 @@ function PaletteInner({
                 data-selected={isSelected || isExpanded}
                 className={cn(
                   "group flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
-                  isSelected || isExpanded ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+                  isSelected || isExpanded ? "bg-muted text-foreground" : "hover:bg-muted",
                 )}
                 onMouseDown={keepInputFocus}
                 onClick={() => {
@@ -548,7 +548,7 @@ function PaletteInner({
                 )}
                 <ChevronRightIcon
                   className={cn(
-                    "text-muted-foreground group-data-[selected=true]:text-accent-foreground size-4 shrink-0 transition-transform",
+                    "text-muted-foreground group-data-[selected=true]:text-foreground size-4 shrink-0 transition-transform",
                     isExpanded && "rotate-90",
                   )}
                 />
@@ -581,8 +581,8 @@ function PaletteInner({
                         key={printing.id}
                         data-selected={isPrintingSelected}
                         className={cn(
-                          "group rounded transition-colors",
-                          isPrintingSelected && "bg-accent text-accent-foreground",
+                          "group rounded-md transition-colors",
+                          isPrintingSelected && "bg-muted text-foreground",
                         )}
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >

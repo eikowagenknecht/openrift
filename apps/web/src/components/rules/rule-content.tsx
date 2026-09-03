@@ -176,17 +176,15 @@ function RuleMarkdownSpan({
 }) {
   if (penalty && PENALTY_STYLES[penalty]) {
     return (
-      <span className={cn("rounded px-1.5 py-0.5 text-sm font-semibold", PENALTY_STYLES[penalty])}>
+      <span
+        className={cn("rounded-md px-1.5 py-0.5 text-sm font-semibold", PENALTY_STYLES[penalty])}
+      >
         {children}
       </span>
     );
   }
   if (diff === "added") {
-    return (
-      <mark className="rounded-xs bg-emerald-500/15 px-0.5 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
-        {children}
-      </mark>
-    );
+    return <mark className="bg-success-soft text-success rounded-xs px-0.5">{children}</mark>;
   }
   if (diff === "removed") {
     return (
@@ -296,7 +294,7 @@ const VERSION_COMMENT_COMPONENTS: Components = {
 
 export function VersionComments({ markdown }: { markdown: string }) {
   return (
-    <div className="border-border bg-muted/30 mb-4 rounded-md border p-3">
+    <div className="bg-muted/30 mb-4 rounded-md border p-3">
       <ReactMarkdown
         components={VERSION_COMMENT_COMPONENTS}
         allowedElements={VERSION_COMMENT_MARKDOWN_ELEMENTS}

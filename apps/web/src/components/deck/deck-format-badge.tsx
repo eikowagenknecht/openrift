@@ -28,20 +28,14 @@ export function FormatStateBadge({ format, isValid }: { format: string; isValid:
   }
   if (isValid) {
     return (
-      <Badge
-        variant="outline"
-        className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
-      >
+      <Badge variant="outline" className="border-success/30 bg-success-soft text-success text-xs">
         <CheckIcon className="size-3" />
         {formatLabel}
       </Badge>
     );
   }
   return (
-    <Badge
-      variant="outline"
-      className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
-    >
+    <Badge variant="outline" className="border-warning/40 bg-warning-soft text-warning text-xs">
       <CircleAlertIcon className="size-3" />
       {formatLabel}
     </Badge>
@@ -108,10 +102,7 @@ export function DeckFormatBadge({
       );
     }
     return (
-      <Badge
-        variant="outline"
-        className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
-      >
+      <Badge variant="outline" className="border-warning/40 bg-warning-soft text-warning text-xs">
         {formatLabel}
         {progress && <span className="tabular-nums">· {progress}</span>}
         <CircleAlertIcon className="size-3" />
@@ -157,10 +148,10 @@ function formatStateText(
  */
 function formatStateTone(kind: DeckFormatBadgeKind, isFreeform: boolean): string | undefined {
   if (kind === "invalid") {
-    return "text-amber-600 dark:text-amber-500";
+    return "text-warning";
   }
   if (kind === "settled" && !isFreeform) {
-    return "text-green-600 dark:text-green-500";
+    return "text-success";
   }
   return undefined;
 }

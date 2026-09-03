@@ -82,7 +82,7 @@ function LivePreview({
         <h2 className="font-semibold">On stream</h2>
         <span
           className={cn(
-            "font-mono text-sm tracking-widest uppercase",
+            "font-mono text-sm tracking-wide uppercase",
             live ? "text-primary" : "text-muted-foreground",
           )}
         >

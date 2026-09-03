@@ -14,6 +14,7 @@ import { Heading } from "@/components/heading";
 import { FeatureCard, StepRow } from "@/components/help/article-cards";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Callout } from "@/components/ui/callout";
 
 export default function GroupsArticle() {
   return (
@@ -26,11 +27,11 @@ export default function GroupsArticle() {
       </p>
 
       {/* Anatomy diagram */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
-        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wider uppercase">
+      <Callout>
+        <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
           A group page at a glance
         </p>
-        <div className="bg-background border-border flex flex-col gap-3 rounded-lg border p-3">
+        <div className="bg-background flex flex-col gap-3 rounded-lg border p-3">
           <div className="flex items-center justify-between">
             <span className="text-base font-semibold">Tuesday Night Crew</span>
             <span className="bg-secondary text-secondary-foreground text-2xs rounded-full px-2 py-0.5 font-medium">
@@ -48,7 +49,7 @@ export default function GroupsArticle() {
             <SectionChip icon={<KeyIcon className="size-3.5" />} label="Settings" />
           </div>
         </div>
-      </div>
+      </Callout>
 
       <Alert>
         <ShieldIcon className="text-primary" />
@@ -274,7 +275,7 @@ export default function GroupsArticle() {
 
 function SectionChip({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="bg-muted/60 text-foreground flex items-center gap-1.5 rounded px-2 py-1 text-xs">
+    <div className="bg-muted text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
       <span className="text-muted-foreground">{icon}</span>
       <span className="truncate">{label}</span>
     </div>

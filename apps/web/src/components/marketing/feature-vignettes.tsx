@@ -139,7 +139,7 @@ export function CatalogVignette({
         to="/cards"
         search={search}
         aria-label={active ? `Browse ${active.label} cards` : "Browse the catalog"}
-        className="border-input hover:bg-muted/40 focus-visible:ring-ring flex h-8 w-full items-center gap-2 rounded-lg border px-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        className="border-input hover:bg-muted focus-visible:ring-ring flex h-8 w-full items-center gap-2 rounded-lg border px-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <SearchIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
         <span className="text-muted-foreground flex-1 truncate text-sm">Search...</span>
@@ -402,10 +402,7 @@ function VariantHeaderRow({
   const Chevron = expanded ? ChevronDownIcon : ChevronRightIcon;
   return (
     <div
-      className={cn(
-        "bg-muted/50 flex items-center gap-2 rounded-md px-1.5 py-0.5 text-sm",
-        className,
-      )}
+      className={cn("bg-muted flex items-center gap-2 rounded-md px-1.5 py-0.5 text-sm", className)}
     >
       <div className="flex flex-1 items-center gap-1.5 whitespace-nowrap">
         <Chevron className="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
@@ -583,7 +580,7 @@ function RuleBlock({
   children: ReactNode;
 }) {
   return (
-    <div className="border-border flex flex-col gap-3 rounded-lg border p-3">
+    <div className="flex flex-col gap-3 rounded-lg border p-3">
       <span className="flex items-center justify-between">
         <span className="flex items-baseline gap-2">
           <span className="text-sm font-medium">{title}</span>
@@ -754,10 +751,7 @@ export function ImportVignette() {
                   <span className="text-muted-foreground ml-1.5 text-xs">{match.specialties}</span>
                 )}
               </span>
-              <CheckCircle2Icon
-                className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                aria-hidden="true"
-              />
+              <CheckCircle2Icon className="text-success size-4 shrink-0" aria-hidden="true" />
             </span>
           ))}
           <span className="text-muted-foreground py-1 text-xs">219 more</span>
@@ -855,7 +849,7 @@ export function PricesVignette() {
       </div>
       <div className="flex flex-col gap-1.5">
         <VignetteHeading>Buy on</VignetteHeading>
-        <div className="divide-border border-border grid grid-cols-3 divide-x rounded-lg border">
+        <div className="divide-border grid grid-cols-3 divide-x rounded-lg border">
           {PRICE_SOURCES.map((entry) => (
             <span key={entry.marketplace} className="flex flex-col items-center gap-1 px-2 py-2">
               <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
@@ -895,9 +889,7 @@ export function PricesVignette() {
             <span
               className={cn(
                 "inline-flex items-center gap-0.5 font-medium tabular-nums",
-                isUp
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400",
+                isUp ? "text-success" : "text-destructive",
               )}
             >
               {isUp ? (
@@ -1046,20 +1038,15 @@ export function GroupsVignette({ thumbnailUrls }: { thumbnailUrls: string[] }) {
                 extra={group.canGetExtra}
               />
               <span className="text-muted-foreground min-w-0 truncate text-sm">
-                <span className="font-medium text-green-700 dark:text-green-500">
-                  {group.canGet}
-                </span>{" "}
-                you could get
+                <span className="text-success font-medium">{group.canGet}</span> you could get
               </span>
             </div>
             {group.theydWant !== null && (
               <div className="flex min-w-0 items-center gap-2.5">
                 <ArtStrip urls={thumbnailUrls.slice(6, 8)} extra={group.theydWantExtra} />
                 <span className="text-muted-foreground min-w-0 truncate text-sm">
-                  <span className="font-medium text-green-700 dark:text-green-500">
-                    {group.theydWant}
-                  </span>{" "}
-                  they&apos;d want
+                  <span className="text-success font-medium">{group.theydWant}</span> they&apos;d
+                  want
                 </span>
               </div>
             )}
@@ -1068,7 +1055,7 @@ export function GroupsVignette({ thumbnailUrls }: { thumbnailUrls: string[] }) {
                 aria-hidden="true"
                 className={cn(
                   "size-1.5 rounded-full",
-                  group.active ? "bg-green-600 dark:bg-green-500" : "bg-muted-foreground/50",
+                  group.active ? "bg-success" : "bg-muted-foreground/50",
                 )}
               />
               {group.volume}
@@ -1113,7 +1100,7 @@ export function TournamentsVignette() {
             <div className="flex items-center gap-2">
               <IconChip
                 icon={SwordsIcon}
-                tone={pairing.status === "Reported" ? "green" : "neutral"}
+                tone={pairing.status === "Reported" ? "success" : "neutral"}
                 size="sm"
                 shape="round"
               />

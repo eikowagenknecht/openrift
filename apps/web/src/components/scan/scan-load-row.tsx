@@ -39,7 +39,7 @@ export function ScanLoadRow({ label, done, progress }: ScanLoadRowProps) {
     <div className="w-64 max-w-full">
       <div className="flex items-center gap-2">
         {done ? (
-          <CheckIcon className="size-4 shrink-0 text-green-500" />
+          <CheckIcon className="text-success size-4 shrink-0" />
         ) : (
           <LoaderIcon className="size-4 shrink-0 animate-spin" />
         )}

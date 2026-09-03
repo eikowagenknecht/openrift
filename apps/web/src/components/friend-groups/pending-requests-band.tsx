@@ -34,10 +34,7 @@ export function PendingRequestsBand({
     >
       <div className="flex flex-col gap-2">
         {requests.map((req) => (
-          <div
-            key={req.id}
-            className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2"
-          >
+          <div key={req.id} className="bg-muted flex items-center gap-2.5 rounded-lg px-2.5 py-2">
             <UserAvatar
               image={req.userImage}
               name={req.userName}

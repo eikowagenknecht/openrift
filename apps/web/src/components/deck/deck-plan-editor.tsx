@@ -109,10 +109,7 @@ function WarningList({
   return (
     <ul className="space-y-1">
       {warnings.map((warning, index) => (
-        <li
-          key={index}
-          className="flex items-start gap-1.5 text-sm text-amber-600 dark:text-amber-400"
-        >
+        <li key={index} className="text-warning flex items-start gap-1.5 text-sm">
           <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
           <span>{warningMessage(warning, nameOf)}</span>
         </li>

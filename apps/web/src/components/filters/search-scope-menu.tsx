@@ -4,7 +4,6 @@ import { ChevronDownIcon } from "lucide-react";
 import type { RefObject } from "react";
 import { useId } from "react";
 
-import { NEUTRAL_HOVER_SCOPE } from "@/components/filters/multi-select-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
@@ -132,11 +131,7 @@ export function SearchScopeChip({
           />
         )}
       </Badge>
-      <PopoverContent
-        align="start"
-        finalFocus={inputRef}
-        className={cn(NEUTRAL_HOVER_SCOPE, "w-64 gap-1 p-1.5")}
-      >
+      <PopoverContent align="start" finalFocus={inputRef} className={cn("w-64 gap-1 p-1.5")}>
         <span className="text-muted-foreground px-1.5 text-xs">Search in</span>
         <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5">
           <Checkbox
@@ -159,7 +154,7 @@ export function SearchScopeChip({
           return (
             <div
               key={field}
-              className="hover:bg-accent flex items-center gap-2 rounded-md px-1.5 py-1.5"
+              className="hover:bg-muted flex items-center gap-2 rounded-md px-1.5 py-1.5"
             >
               <Checkbox
                 id={`${rowId}-${field}`}

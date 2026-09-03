@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 /** Amber emphasis for the ownership gap, shared by both renderings. */
-const WARN_CLASS = "text-amber-600 dark:text-amber-500";
+const WARN_CLASS = "text-warning";
 
 /**
  * Column widths for the `columns` rendering. Fixed so the numbers line up down

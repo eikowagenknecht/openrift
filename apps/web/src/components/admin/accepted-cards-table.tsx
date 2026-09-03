@@ -106,26 +106,25 @@ function AcceptFavoriteButton({ cardSlug, count }: { cardSlug: string; count: nu
 // Marketplace coverage badges
 // ---------------------------------------------------------------------------
 
-// Match the per-printing badges on the card detail page (printing-marketplace-cells.tsx):
-// fill /10, border /30, text-{color}-600 dark:text-{color}-400, with "outline"
-// (border-border + text-foreground, no fill) for the empty state.
+// Match the per-printing badges on the card detail page (printing-marketplace-cells.tsx),
+// with "outline" (border-border + text-foreground, no fill) for the empty state.
 const HALF_BG_CLASS: Record<DirectionCoverage["status"], string> = {
-  full: "bg-emerald-500/10",
-  partial: "bg-amber-500/10",
-  none: "bg-destructive/10",
+  full: "bg-success-soft",
+  partial: "bg-warning-soft",
+  none: "bg-destructive-soft",
   na: "",
 };
 
 const BORDER_CLASS: Record<DirectionCoverage["status"], string> = {
-  full: "border-emerald-500/30",
-  partial: "border-amber-500/30",
+  full: "border-success/30",
+  partial: "border-warning/40",
   none: "border-destructive/30",
   na: "border-border",
 };
 
 const TEXT_CLASS: Record<DirectionCoverage["status"], string> = {
-  full: "text-emerald-600 dark:text-emerald-400",
-  partial: "text-amber-600 dark:text-amber-400",
+  full: "text-success",
+  partial: "text-warning",
   none: "text-destructive",
   na: "text-foreground",
 };
@@ -652,9 +651,7 @@ export function AcceptedCardsTable({
         <p className="text-muted-foreground">
           {rows.length} of {data.length} cards
           {isAdmin && acceptableCount > 0 && (
-            <span className="ml-2 text-orange-600">
-              ({acceptableCount} with pending ★ printings)
-            </span>
+            <span className="text-warning ml-2">({acceptableCount} with pending ★ printings)</span>
           )}
         </p>
 

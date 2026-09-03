@@ -6,6 +6,7 @@ import { useContext } from "react";
 import { OwnedVariantBreakdown } from "@/components/cards/owned-variant-breakdown";
 import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionHeading } from "@/components/ui/section-heading";
 import type { OwnedBreakdownVariant } from "@/hooks/use-owned-count";
 import {
   useOwnedCollections,
@@ -96,9 +97,7 @@ export function OwnedCollectionsPopover({
       </PopoverTrigger>
       <PopoverContent side="bottom" align={align} className="w-60 p-0">
         <div className="px-3 pt-2.5 pb-1">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            In your collections
-          </p>
+          <SectionHeading as="h3">In your collections</SectionHeading>
         </div>
         {groupByVariant ? (
           <OwnedVariantBreakdown variants={variantBreakdown ?? []} />

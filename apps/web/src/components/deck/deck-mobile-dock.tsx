@@ -28,11 +28,7 @@ function ZoneRing({ count, expected }: { count: number; expected?: number }) {
   }
   const filled = Math.min(100, Math.round((count / expected) * 100));
   const tone =
-    count === expected
-      ? "text-green-600 dark:text-green-500"
-      : count > expected
-        ? "text-destructive"
-        : "text-primary";
+    count === expected ? "text-success" : count > expected ? "text-destructive" : "text-primary";
   return (
     <span
       aria-hidden="true"
@@ -71,7 +67,7 @@ export function DeckMobileDock({ deckId, zone }: { deckId: string; zone: DeckZon
   const change = previous ? lastChange(previous, cards) : null;
 
   return (
-    <div className="bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-lg">
+    <div className="bg-background/80 fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur-lg">
       {/* pb-safe owns the bottom padding (it already floors at 0.75rem), so
           the top side pads on its own to avoid a padding-shorthand clash. */}
       <div className="px-safe pb-safe mx-auto flex w-full max-w-3xl items-center gap-3 pt-2">
@@ -93,7 +89,7 @@ export function DeckMobileDock({ deckId, zone }: { deckId: string; zone: DeckZon
               <span
                 className={cn(
                   "tabular-nums",
-                  change.delta > 0 ? "text-green-600 dark:text-green-500" : "text-destructive",
+                  change.delta > 0 ? "text-success" : "text-destructive",
                 )}
               >
                 {change.delta > 0 ? `+${change.delta}` : `−${Math.abs(change.delta)}`}

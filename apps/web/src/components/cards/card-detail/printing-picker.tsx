@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { PrintingLanguageTabs } from "@/components/cards/printing-language-tabs";
 import { PrintingRowContent } from "@/components/cards/printing-row";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { useLanguageList } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
@@ -50,9 +51,9 @@ export function PrintingPicker({
 
 function PickerHeading() {
   return (
-    <h3 className="text-muted-foreground shrink-0 text-xs font-medium tracking-wide uppercase">
+    <SectionHeading as="h3" className="shrink-0">
       Printings
-    </h3>
+    </SectionHeading>
   );
 }
 

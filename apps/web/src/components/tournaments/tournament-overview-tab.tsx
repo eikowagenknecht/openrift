@@ -20,6 +20,7 @@ import {
 import { ParticipantFacepile } from "@/components/tournaments/participant-facepile";
 import { ActionBand } from "@/components/ui/action-band";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { CardList } from "@/components/ui/card-list";
 import { IconChip } from "@/components/ui/icon-chip";
 import type { PodiumSeat } from "@/components/ui/podium";
@@ -50,9 +51,6 @@ import { cn } from "@/lib/utils";
 /** The rail's row shape, shared with the group overview's rail. */
 const RAIL_ROW_CLASS = "flex items-center gap-2.5 rounded-md px-2 py-2";
 
-/** The Card edge every dashboard surface rests on (matches StatTile). */
-const CARD_EDGE_CLASS = "bg-card ring-foreground/10 rounded-lg p-5 ring-1";
-
 /**
  * Whether the event is over, so a module reads as finished rather than as an
  * open action waiting on the viewer.
@@ -78,7 +76,7 @@ function DecksTile({ id }: { id: string }) {
     <StatTile
       render={<Link to="/tournaments/$id/decks" params={{ id }} />}
       icon={ClipboardCheckIcon}
-      tone="sky"
+      tone="info"
       label="Decks"
       value={data?.event.entryCount ?? 0}
       hint={`${data?.event.approvedCount ?? 0} approved · ${data?.event.checkedCount ?? 0} checked`}
@@ -188,7 +186,7 @@ function ParticipantsTile({
     <StatTile
       render={staff ? <Link to="/tournaments/$id/participants" params={{ id }} /> : <div />}
       icon={UsersIcon}
-      tone="green"
+      tone="success"
       label="Participants"
       value={detail.participantCount}
       hint={hints.length > 0 ? hints.join(" · ") : undefined}
@@ -243,7 +241,7 @@ function JoinRequestsBand({
         {pending.map((participant) => (
           <li
             key={participant.id}
-            className="bg-muted/40 flex flex-wrap items-center justify-between gap-2 rounded-lg px-2.5 py-2"
+            className="bg-muted flex flex-wrap items-center justify-between gap-2 rounded-lg px-2.5 py-2"
           >
             <span className="truncate text-sm font-medium">{participant.displayName}</span>
             <span className="flex items-center gap-1">
@@ -375,7 +373,7 @@ function RoundBand({
             return (
               <li
                 key={pod.id}
-                className="bg-muted/40 text-muted-foreground truncate rounded-lg px-2.5 py-1.5 text-sm"
+                className="bg-muted text-muted-foreground truncate rounded-lg px-2.5 py-1.5 text-sm"
               >
                 <span className="text-foreground font-medium">
                   {pairingLabel(pod.size, pod.podNumber)}
@@ -432,54 +430,55 @@ function ThroneModule({
     <Link
       to="/tournaments/$id/standings"
       params={{ id }}
-      className={cn(
-        CARD_EDGE_CLASS,
-        "group/throne hover:ring-primary/30 flex flex-col gap-4 no-underline transition-all hover:shadow-md",
-      )}
+      className="group/throne block no-underline"
     >
-      <div className="flex min-w-0 items-center gap-2.5">
-        <IconChip icon={TrophyIcon} tone="gold" size="sm" />
-        <SectionHeading>Standings</SectionHeading>
-        {finalized > 0 ? (
-          <span className="text-muted-foreground/60 truncate text-sm tabular-nums">
-            after round {finalized}
+      <Card className="hover:ring-primary/30 p-5 transition-all hover:shadow-md">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <IconChip icon={TrophyIcon} tone="gold" size="sm" />
+          <SectionHeading>Standings</SectionHeading>
+          {finalized > 0 ? (
+            <span className="text-muted-foreground/60 truncate text-sm tabular-nums">
+              after round {finalized}
+            </span>
+          ) : null}
+          <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1 text-sm">
+            Full table
+            <ChevronRightIcon className="size-4 transition-transform group-hover/throne:translate-x-0.5" />
           </span>
+        </div>
+        <Podium seats={seats} emptyLabel="The throne fills after round 1 is finalized." />
+        {trailing.length > 0 ? (
+          <ul className="flex flex-col">
+            {trailing.map(({ row, rank }) => (
+              <li key={row.playerId} className={RAIL_ROW_CLASS}>
+                <span className="text-muted-foreground w-4 shrink-0 text-center text-sm tabular-nums">
+                  {rank}
+                </span>
+                <UserAvatar name={row.displayName} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {row.displayName}
+                </span>
+                <span
+                  className="text-muted-foreground shrink-0 text-xs"
+                  title={swiss ? undefined : POD_WINS_HINT}
+                >
+                  {formatPlayerRecord(row, swiss)}
+                </span>
+                <span className="font-heading w-8 shrink-0 text-right font-semibold tabular-nums">
+                  {row.score}
+                </span>
+              </li>
+            ))}
+          </ul>
         ) : null}
-        <span className="text-muted-foreground ml-auto flex shrink-0 items-center gap-1 text-sm">
-          Full table
-          <ChevronRightIcon className="size-4 transition-transform group-hover/throne:translate-x-0.5" />
-        </span>
-      </div>
-      <Podium seats={seats} emptyLabel="The throne fills after round 1 is finalized." />
-      {trailing.length > 0 ? (
-        <ul className="flex flex-col">
-          {trailing.map(({ row, rank }) => (
-            <li key={row.playerId} className={RAIL_ROW_CLASS}>
-              <span className="text-muted-foreground w-4 shrink-0 text-center text-sm tabular-nums">
-                {rank}
-              </span>
-              <UserAvatar name={row.displayName} size="sm" />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.displayName}</span>
-              <span
-                className="text-muted-foreground shrink-0 text-xs"
-                title={swiss ? undefined : POD_WINS_HINT}
-              >
-                {formatPlayerRecord(row, swiss)}
-              </span>
-              <span className="font-heading w-8 shrink-0 text-right font-semibold tabular-nums">
-                {row.score}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      </Card>
     </Link>
   );
 }
 
 const ROUND_DOT_CLASS = {
-  finalized: "bg-emerald-500",
-  reporting: "bg-amber-500",
+  finalized: "bg-success",
+  reporting: "bg-warning",
   next: "bg-muted-foreground/30",
 } as const;
 

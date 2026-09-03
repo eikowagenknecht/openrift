@@ -123,7 +123,7 @@ export function DeckStatsPanel({ deckId }: { deckId: string }) {
     <Collapsible defaultOpen={defaultOpen} className="flex flex-col gap-1.5">
       <CollapsibleTrigger className="group text-muted-foreground hover:text-foreground flex h-6 w-full items-center gap-1.5 border-b text-left transition-colors">
         <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
-        <span className="text-2xs shrink-0 font-semibold tracking-widest uppercase">Stats</span>
+        <span className="text-2xs shrink-0 font-semibold tracking-wide uppercase">Stats</span>
         <DomainBar
           data={stats.domainDistribution}
           total={stats.totalCards}

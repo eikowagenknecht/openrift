@@ -44,7 +44,7 @@ export function tradedCard(cards: LandingThumbnailCard[]): TradedCard {
   };
 }
 
-/** The app's direction badge: green arrow in, amber arrow out. */
+/** The app's direction badge: arrow in reads success, arrow out warning. */
 function DirectionBadge({ incoming }: { incoming: boolean }) {
   const Icon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
   return (
@@ -52,9 +52,7 @@ function DirectionBadge({ incoming }: { incoming: boolean }) {
       aria-hidden="true"
       className={cn(
         "flex size-7 shrink-0 items-center justify-center rounded-full",
-        incoming
-          ? "bg-green-500/10 text-green-600 dark:text-green-500"
-          : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
+        incoming ? "bg-success-soft text-success" : "bg-warning-soft text-warning",
       )}
     >
       <Icon className="size-4" />
@@ -67,14 +65,14 @@ function MiniBadge({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "gold" | "green" | "primary";
+  tone?: "neutral" | "warning" | "success" | "primary";
 }) {
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        tone === "gold" && "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-        tone === "green" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-500",
+        tone === "warning" && "bg-warning-soft text-warning",
+        tone === "success" && "bg-success-soft text-success",
         tone === "primary" && "bg-primary text-primary-foreground",
         tone === "neutral" && "bg-muted text-muted-foreground",
       )}
@@ -113,7 +111,7 @@ function MiniPanel({
     <div
       className={cn(
         "bg-card flex flex-col gap-2 rounded-lg p-3 ring-1",
-        accent ? "ring-primary/40" : "ring-foreground/10",
+        accent ? "ring-primary/40" : "ring-border",
         className,
       )}
       style={
@@ -138,7 +136,7 @@ function ShelfRow({
   detail,
 }: {
   label: string;
-  tone: "gold" | "green";
+  tone: "warning" | "success";
   urls: string[];
   extra?: number;
   detail: string;
@@ -148,9 +146,7 @@ function ShelfRow({
       <span
         className={cn(
           "w-24 shrink-0 text-xs font-semibold tracking-wide uppercase",
-          tone === "gold"
-            ? "text-amber-700 dark:text-amber-400"
-            : "text-green-700 dark:text-green-500",
+          tone === "warning" ? "text-warning" : "text-success",
         )}
       >
         {label}
@@ -168,7 +164,7 @@ export function TradeMatchVignette({ thumbnailUrls }: { thumbnailUrls: string[] 
       <VignetteHeading>Thursday store crew</VignetteHeading>
       <MiniPanel accent>
         <div className="flex items-center gap-2.5">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+          <span className="bg-warning-soft text-warning flex size-9 shrink-0 items-center justify-center rounded-lg">
             <ZapIcon className="size-4.5" aria-hidden="true" />
           </span>
           <span className="text-muted-foreground text-sm font-medium">Trades</span>
@@ -176,14 +172,14 @@ export function TradeMatchVignette({ thumbnailUrls }: { thumbnailUrls: string[] 
         </div>
         <ShelfRow
           label="You could get"
-          tone="green"
+          tone="success"
           urls={thumbnailUrls.slice(0, 4)}
           extra={5}
           detail="9 cards from 4 members"
         />
         <ShelfRow
           label="They'd want"
-          tone="green"
+          tone="success"
           urls={thumbnailUrls.slice(4, 6)}
           extra={3}
           detail="5 cards, wanted by 3 members"
@@ -234,7 +230,7 @@ export function TradeReservedVignette({ card }: { card: TradedCard }) {
               Coming to you from {THEM}
             </span>
           </span>
-          <MiniBadge tone="gold">Reserved</MiniBadge>
+          <MiniBadge tone="warning">Reserved</MiniBadge>
         </div>
       </MiniPanel>
       <p className="text-muted-foreground text-xs">
@@ -256,7 +252,7 @@ export function TradeSettleVignette() {
             <span className="font-medium">{THEM}</span>
             <span className="text-muted-foreground"> handed it over</span>
           </span>
-          <MiniBadge tone="green">
+          <MiniBadge tone="success">
             <CheckIcon className="mr-1 size-3" aria-hidden="true" />
             Done
           </MiniBadge>
@@ -290,7 +286,7 @@ export function TradeArrivedVignette({ card }: { card: TradedCard }) {
           {/* No "traded from Mira" badge: a copy carries no provenance today,
               and the tour must not advertise a field that does not exist. */}
           <span className="flex flex-wrap items-center gap-1.5">
-            <MiniBadge tone="green">×1 owned</MiniBadge>
+            <MiniBadge tone="success">×1 owned</MiniBadge>
             <MiniBadge>Near Mint</MiniBadge>
           </span>
           <span className="text-muted-foreground text-xs">

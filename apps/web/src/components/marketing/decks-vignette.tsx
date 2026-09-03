@@ -117,10 +117,7 @@ const STATS_DECK_SIZE = 40;
 /** DeckFormatBadge's settled state: green outline, check, the format label. */
 function SettledFormatBadge() {
   return (
-    <Badge
-      variant="outline"
-      className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
-    >
+    <Badge variant="outline" className="bg-success-soft border-success/30 text-success text-xs">
       <CheckIcon aria-hidden="true" />
       Constructed
     </Badge>
@@ -130,10 +127,7 @@ function SettledFormatBadge() {
 /** DeckFormatBadge's invalid state: amber, the format label, the figure, the alert. */
 function InvalidFormatBadge() {
   return (
-    <Badge
-      variant="outline"
-      className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
-    >
+    <Badge variant="outline" className="bg-warning-soft border-warning/40 text-warning text-xs">
       Constructed
       <span className="tabular-nums">· 55/56</span>
       <CircleAlertIcon aria-hidden="true" />
@@ -144,12 +138,7 @@ function InvalidFormatBadge() {
 /** The zone's own count, green once it reaches the format's target. */
 function ZoneCount({ quantity, complete }: { quantity: number; complete?: boolean }) {
   return (
-    <span
-      className={cn(
-        "tabular-nums",
-        complete ? "text-green-600 dark:text-green-500" : "text-muted-foreground",
-      )}
-    >
+    <span className={cn("tabular-nums", complete ? "text-success" : "text-muted-foreground")}>
       {quantity}/{MAIN_DECK_SIZE}
     </span>
   );
@@ -158,12 +147,7 @@ function ZoneCount({ quantity, complete }: { quantity: number; complete?: boolea
 /** The owned/needed fraction, amber while the collection is short. */
 function Ownership({ owned, needed }: { owned: number; needed: number }) {
   return (
-    <span
-      className={cn(
-        "tabular-nums",
-        owned < needed ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground",
-      )}
-    >
+    <span className={cn("tabular-nums", owned < needed ? "text-warning" : "text-muted-foreground")}>
       {owned}/{needed}
     </span>
   );
@@ -189,7 +173,7 @@ function DeckRow({
   ownership: ReactNode;
 }) {
   return (
-    <li className="flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2">
+    <li className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm sm:gap-2">
       <CardMiniRow
         className="self-stretch"
         domains={[domain]}
@@ -270,7 +254,7 @@ export function DecksVignette() {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex h-6 items-center gap-2 border-b">
-          <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+          <span className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
             Main Deck
           </span>
           <span className="ml-auto text-xs">
@@ -328,7 +312,7 @@ export function DecksVignette() {
       <div className="flex flex-col gap-1.5">
         <div className="text-muted-foreground flex h-6 items-center gap-1.5 border-b">
           <ChevronRightIcon aria-hidden="true" className="size-3.5 shrink-0 rotate-90" />
-          <span className="text-2xs shrink-0 font-semibold tracking-widest uppercase">Stats</span>
+          <span className="text-2xs shrink-0 font-semibold tracking-wide uppercase">Stats</span>
           <span aria-hidden="true" className="mx-1 flex h-2.5 flex-1 overflow-hidden rounded-full">
             {DOMAIN_SPLIT.map((entry) => (
               <span

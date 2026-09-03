@@ -12,13 +12,13 @@ interface FinishVisual {
 function getFinishVisual(finish: string): FinishVisual | null {
   switch (finish) {
     case WellKnown.finish.FOIL: {
-      return { Icon: SparkleIcon, colorClass: "text-amber-400" };
+      return { Icon: SparkleIcon, colorClass: "text-border-accent" };
     }
     case WellKnown.finish.METAL: {
       return { Icon: AnvilIcon, colorClass: "text-slate-400" };
     }
     case WellKnown.finish.METAL_DELUXE: {
-      return { Icon: TrophyIcon, colorClass: "text-yellow-500" };
+      return { Icon: TrophyIcon, colorClass: "text-border-accent" };
     }
     default: {
       return null;

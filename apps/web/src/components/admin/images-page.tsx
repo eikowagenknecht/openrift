@@ -72,12 +72,12 @@ function MutationStatus({
     const verb = label === "rehost" ? "Rehosted" : "Regenerated";
     return (
       <div>
-        <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+        <p className="text-success flex items-center gap-1 text-sm">
           <CheckIcon className="size-4" />
           {verb} {count} / {total} images
         </p>
         {errors.length > 0 && (
-          <ul className="mt-1 ml-5 list-disc text-red-600 dark:text-red-400">
+          <ul className="text-destructive mt-1 ml-5 list-disc">
             {errors.slice(0, MAX_DISPLAYED_ERRORS).map((err) => (
               <li key={err}>{err}</li>
             ))}
@@ -91,7 +91,7 @@ function MutationStatus({
   }
   if (mutation.isError) {
     return (
-      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+      <p className="text-destructive flex items-center gap-1 text-sm">
         <XIcon className="size-4" />
         {mutation.error?.message}
       </p>
@@ -115,7 +115,7 @@ function RegenerateJobStatus({
   if (!checkpoint) {
     if (run.status === "failed") {
       return (
-        <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+        <p className="text-destructive flex items-center gap-1 text-sm">
           <XIcon className="size-4" />
           {run.errorMessage ?? "Regenerate failed"}
         </p>
@@ -157,7 +157,7 @@ function SimpleMutationResult<T>({
 }) {
   if (mutation.isSuccess && mutation.data) {
     return (
-      <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+      <p className="text-success flex items-center gap-1 text-sm">
         <CheckIcon className="size-4" />
         {renderSuccess(mutation.data)}
       </p>
@@ -165,7 +165,7 @@ function SimpleMutationResult<T>({
   }
   if (mutation.isError) {
     return (
-      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+      <p className="text-destructive flex items-center gap-1 text-sm">
         <XIcon className="size-4" />
         {mutation.error?.message}
       </p>
@@ -179,7 +179,7 @@ function ErrorsList({ errors }: { errors: string[] }) {
     return null;
   }
   return (
-    <ul className="mt-1 ml-5 list-disc text-red-600 dark:text-red-400">
+    <ul className="text-destructive mt-1 ml-5 list-disc">
       {errors.slice(0, MAX_DISPLAYED_ERRORS).map((err) => (
         <li key={err}>{err}</li>
       ))}
@@ -349,7 +349,7 @@ function ManageSection() {
 
         {migrateMutation.isSuccess && migrateMutation.data && (
           <div>
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+            <p className="text-success flex items-center gap-1 text-sm">
               <CheckIcon className="size-4" />
               Scanned {migrateMutation.data.scanned} files: {migrateMutation.data.moved} moved,{" "}
               {migrateMutation.data.skipped} skipped
@@ -359,7 +359,7 @@ function ManageSection() {
           </div>
         )}
         {migrateMutation.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {migrateMutation.error?.message}
           </p>
@@ -367,13 +367,13 @@ function ManageSection() {
 
         <MutationStatus mutation={rehostMutation} label="rehost" />
         {regenMutation.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {regenMutation.error?.message}
           </p>
         )}
         {cancelRegenMutation.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {cancelRegenMutation.error?.message}
           </p>
@@ -391,7 +391,7 @@ function ManageSection() {
           </div>
         )}
         {cleanupMutation.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {cleanupMutation.error?.message}
           </p>
@@ -553,7 +553,7 @@ function BrokenImagesSection() {
       <CardContent className="pt-0">
         {unrehostMutation.isSuccess && unrehostMutation.data && (
           <div className="mb-3">
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+            <p className="text-success flex items-center gap-1 text-sm">
               <CheckIcon className="size-4" />
               Un-rehosted {unrehostMutation.data.unrehosted} / {unrehostMutation.data.total} images
             </p>
@@ -561,7 +561,7 @@ function BrokenImagesSection() {
           </div>
         )}
         {unrehostMutation.isError && (
-          <p className="mb-3 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive mb-3 flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {unrehostMutation.error?.message}
           </p>

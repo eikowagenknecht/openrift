@@ -124,12 +124,12 @@ export function DiscordVignette({ card }: { card?: LandingThumbnailCard }) {
                 alt=""
                 loading="lazy"
                 draggable={false}
-                className="aspect-[16/9] w-full rounded object-cover object-top"
+                className="aspect-[16/9] w-full rounded-md object-cover object-top"
               />
             )}
             <span className="text-muted-foreground text-xs">{footer}</span>
           </div>
-          <div className="bg-muted text-muted-foreground w-fit rounded px-3 py-1 text-xs font-medium">
+          <div className="bg-muted text-muted-foreground w-fit rounded-md px-3 py-1 text-xs font-medium">
             Details
           </div>
         </div>

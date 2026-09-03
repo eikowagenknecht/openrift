@@ -13,9 +13,9 @@ const SLOT_BORDER: Record<PackPull["slot"], string> = {
   uncommon: "ring-border",
   token: "ring-border",
   flex: "ring-border",
-  foil: "ring-sky-500/60",
-  showcase: "ring-amber-400/70",
-  ultimate: "ring-fuchsia-500/80",
+  foil: "ring-info/60",
+  showcase: "ring-border-accent/70",
+  ultimate: "ring-violet/80",
 };
 
 const SLOT_GLOW: Record<PackPull["slot"], string> = {

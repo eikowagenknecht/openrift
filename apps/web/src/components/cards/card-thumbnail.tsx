@@ -253,7 +253,7 @@ function CardArtImage({
   fade?: boolean;
   /** Invoked when the image fails to load (missing on the server, network error). */
   onError?: () => void;
-  /** Tint for the spacer behind the art (e.g. `bg-muted/40` front, `bg-muted` behind). */
+  /** Tint for the spacer behind the art (e.g. `bg-muted`, `bg-black`). */
   spacerClassName?: string;
 }) {
   // Cover cached/instant results where the browser fires load or error before
@@ -664,7 +664,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
       title="Not released in this language yet"
     >
-      <div className="absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] bg-amber-500 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
+      <div className="bg-warning text-warning-foreground absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider uppercase shadow-md select-none">
         Preview
       </div>
     </div>
@@ -684,7 +684,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           : [...banLines, "Legal in other constructed play."].join("\n")
       }
     >
-      <div className="absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] bg-red-600 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-red-50 uppercase shadow-md select-none">
+      <div className="bg-destructive absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-white uppercase shadow-md select-none">
         {soleModeBan ? `${soleModeBan.formatName} Ban` : "Banned"}
       </div>
     </div>
@@ -811,7 +811,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             card={card}
             showFoil={isFoilCard && gridFoil}
             fallbackArt={fallbackArt}
-            spacerClassName="bg-muted/40"
+            spacerClassName="bg-muted"
           />
         </div>
         {banDim}

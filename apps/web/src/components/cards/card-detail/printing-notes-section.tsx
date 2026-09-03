@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 
 import { PrintingCitationList } from "@/components/cards/card-detail/printing-citations";
 import { Badge } from "@/components/ui/badge";
+import { Callout } from "@/components/ui/callout";
+import { SectionHeading } from "@/components/ui/section-heading";
 
 const BREADCRUMB_SEP = " \u203A ";
 
@@ -31,9 +33,9 @@ export function PrintingNotesSection({ printing }: { printing: Printing }) {
   return (
     <div className="space-y-3">
       {(hasMarkers || hasChannels) && (
-        <section className="border-border/50 bg-muted/30 space-y-2 rounded-lg border px-3 py-2.5 text-sm">
+        <Callout className="space-y-2 px-3 py-2.5 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <h3 className="text-muted-foreground font-medium tracking-wide uppercase">Promo</h3>
+            <SectionHeading as="h3">Promo</SectionHeading>
             {hasMarkers && (
               <div className="flex flex-wrap justify-end gap-1">
                 {printing.markers.map((marker) => (
@@ -81,23 +83,21 @@ export function PrintingNotesSection({ printing }: { printing: Printing }) {
               ))}
             </ul>
           )}
-        </section>
+        </Callout>
       )}
 
       {citations.length > 0 && (
-        <section className="border-border/50 bg-muted/30 space-y-2 rounded-lg border px-3 py-2.5 text-sm">
-          <h3 className="text-muted-foreground font-medium tracking-wide uppercase">
-            {citations.length === 1 ? "Source" : "Sources"}
-          </h3>
+        <Callout className="space-y-2 px-3 py-2.5 text-sm">
+          <SectionHeading as="h3">{citations.length === 1 ? "Source" : "Sources"}</SectionHeading>
           <PrintingCitationList citations={citations} />
-        </section>
+        </Callout>
       )}
 
       {hasComment && printing.comment && (
-        <section className="border-border/50 bg-muted/30 space-y-2 rounded-lg border px-3 py-2.5 text-sm">
-          <h3 className="text-muted-foreground font-medium tracking-wide uppercase">Note</h3>
+        <Callout className="space-y-2 px-3 py-2.5 text-sm">
+          <SectionHeading as="h3">Note</SectionHeading>
           <p className="text-muted-foreground italic">{printing.comment}</p>
-        </section>
+        </Callout>
       )}
     </div>
   );

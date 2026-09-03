@@ -14,6 +14,7 @@ import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { DomainIcon } from "@/components/deck/domain-icon";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
@@ -298,7 +299,7 @@ export function DeckHero({
   const backdropThumb = cover?.thumbnail ?? legendThumb;
 
   return (
-    <section className="bg-card relative overflow-hidden rounded-xl border">
+    <Card className="relative gap-0 py-0">
       <ArtBandBackdrop
         thumbnail={backdropThumb}
         position={cover?.position ?? 20}
@@ -373,7 +374,7 @@ export function DeckHero({
                         onClick={onViewMissing}
                         className={chipButtonClass()}
                       >
-                        <PackageSearchIcon className="size-3 text-amber-700 dark:text-amber-500" />
+                        <PackageSearchIcon className="text-warning size-3" />
                         <span className="tabular-nums">
                           {ownershipData.requiredZoneNeeded > 0 && (
                             <>
@@ -381,12 +382,12 @@ export function DeckHero({
                               owned ·{" "}
                             </>
                           )}
-                          <span className="text-amber-700 dark:text-amber-500">{missingLabel}</span>
+                          <span className="text-warning">{missingLabel}</span>
                         </span>
                       </Button>
                     )}
                     {ownershipData && !signInHref && missingCount === 0 && (
-                      <span className={cn(CHIP_CLASS, "text-green-600 dark:text-green-500")}>
+                      <span className={cn(CHIP_CLASS, "text-success")}>
                         <CheckCircle2Icon className="size-3" />
                         {/* Borrowed copies close the shortfall without being
                             owned, so a deck completed with a friend's cards
@@ -396,7 +397,7 @@ export function DeckHero({
                     )}
                     {ownershipData && !signInHref && borrowedCount > 0 && (
                       <span
-                        className={cn(CHIP_CLASS, "text-violet-700 dark:text-violet-400")}
+                        className={cn(CHIP_CLASS, "text-violet")}
                         title="Copies you're borrowing from friends. They count as buildable while you have them, but they aren't part of your collection."
                       >
                         <HandHeartIcon className="size-3" />
@@ -544,6 +545,6 @@ export function DeckHero({
           className="relative h-1"
         />
       )}
-    </section>
+    </Card>
   );
 }

@@ -168,7 +168,7 @@ export function CardImage({
             className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
             title="Not released in this language yet"
           >
-            <div className="absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] bg-amber-500 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
+            <div className="bg-warning text-warning-foreground absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider uppercase shadow-md select-none">
               Preview
             </div>
           </div>

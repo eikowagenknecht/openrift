@@ -112,7 +112,7 @@ describe("CardMiniRow", () => {
     const { container } = render(<CardMiniRow src="/x.webp" foil />);
 
     const frame = container.querySelector("span span");
-    expect(frame?.className).toContain("ring-amber-400/60");
+    expect(frame?.className).toContain("ring-border-accent/60");
     expect(container.querySelector(".bg-foil")).not.toBeNull();
   });
 

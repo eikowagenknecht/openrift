@@ -10,6 +10,7 @@ import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Code } from "@/components/ui/code";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -349,8 +350,7 @@ function ServingCard({ serving }: { serving: ScanServing }) {
         )}
         {serving.status === "ready" && (
           <p className="text-muted-foreground tabular-nums">
-            Server bank <code className="bg-muted rounded px-1">{serving.assets.bankHash}</code> ·{" "}
-            {serving.assets.entryCount} entries
+            Server bank <Code>{serving.assets.bankHash}</Code> · {serving.assets.entryCount} entries
             {serving.assets.builtAt ? ` · built ${formatDayTime(serving.assets.builtAt)}` : ""}
           </p>
         )}
@@ -476,7 +476,7 @@ export function ScanTestPage() {
         </PageDescription>
 
         {deviceTooSlow && (
-          <Card className="mt-4 border-amber-500">
+          <Card className="border-warning mt-4">
             <CardContent className="pt-6">
               <p className="font-medium">This device is too slow for live scanning.</p>
               <p className="text-muted-foreground mt-2">
@@ -503,9 +503,8 @@ export function ScanTestPage() {
             <CardContent className="pt-6">
               <p className="font-medium">{loadError}</p>
               <p className="text-muted-foreground mt-2">
-                The manifest names a generation that is missing from{" "}
-                <code className="bg-muted rounded px-1 py-0.5">media/scan</code>. Rebuild the bank
-                to publish a fresh one, or copy the files from production.
+                The manifest names a generation that is missing from <Code>media/scan</Code>.
+                Rebuild the bank to publish a fresh one, or copy the files from production.
               </p>
             </CardContent>
           </Card>
@@ -581,9 +580,7 @@ export function ScanTestPage() {
               <p className="text-muted-foreground">
                 The camera needs a secure context, so it is unavailable over a plain http:// dev
                 server. Open the site over https (a tunnel, or Chrome&apos;s
-                <code className="bg-muted mx-1 rounded px-1 py-0.5">
-                  unsafely-treat-insecure-origin-as-secure
-                </code>
+                <Code className="mx-1">unsafely-treat-insecure-origin-as-secure</Code>
                 flag).
               </p>
             )}

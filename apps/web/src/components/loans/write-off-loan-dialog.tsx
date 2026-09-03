@@ -62,7 +62,7 @@ export function WriteOffLoanDialog({
           >
             <label
               htmlFor="write-off-remove"
-              className="hover:bg-muted/60 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+              className="hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-md border p-3"
             >
               <RadioGroupItem id="write-off-remove" value="remove" className="mt-0.5" />
               <span className="flex flex-col gap-0.5">
@@ -75,7 +75,7 @@ export function WriteOffLoanDialog({
             </label>
             <label
               htmlFor="write-off-keep"
-              className="hover:bg-muted/60 flex cursor-pointer items-start gap-3 rounded-md border p-3"
+              className="hover:bg-muted/50 flex cursor-pointer items-start gap-3 rounded-md border p-3"
             >
               <RadioGroupItem id="write-off-keep" value="keep" className="mt-0.5" />
               <span className="flex flex-col gap-0.5">

@@ -10,7 +10,7 @@ export function DefinitionList({
   children: ReactNode;
 }) {
   return (
-    <dl className={cn("border-border divide-border divide-y rounded-lg border text-sm", className)}>
+    <dl className={cn("divide-border divide-y rounded-lg border text-sm", className)}>
       {children}
     </dl>
   );

@@ -91,7 +91,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
             editingBanId === ban.id ? (
               <div
                 key={ban.id}
-                className="flex flex-wrap items-end gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
+                className="border-destructive/30 bg-destructive-soft flex flex-wrap items-end gap-2 rounded-md border px-3 py-1.5"
               >
                 <Badge variant="destructive" className="self-center">
                   {ban.formatName}
@@ -137,7 +137,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
             ) : (
               <div
                 key={ban.id}
-                className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
+                className="border-destructive/30 bg-destructive-soft flex items-center gap-2 rounded-md border px-3 py-1.5"
               >
                 <Badge variant="destructive">{ban.formatName}</Badge>
                 <span className="text-muted-foreground">since {ban.bannedAt}</span>

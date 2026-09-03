@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Slider } from "@/components/ui/slider";
 import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
 import { compactFormatterForMarketplace } from "@/lib/format";
@@ -144,9 +145,7 @@ export function MetaDeckCostFilter({
 }
 
 function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{children}</p>
-  );
+  return <SectionHeading as="h3">{children}</SectionHeading>;
 }
 
 function ToCompleteSection({

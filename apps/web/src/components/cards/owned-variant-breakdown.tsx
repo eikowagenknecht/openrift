@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { VariantCollectionBreakdownEntry } from "@/hooks/use-owned-count";
 import { cn } from "@/lib/utils";
@@ -25,14 +26,14 @@ export function OwnedVariantBreakdown({
     <div className="px-1 pb-1">
       {variants.map((variant) => (
         <div key={variant.printingId} className="px-1 pb-1 last:pb-0">
-          <div className="text-muted-foreground flex items-center gap-1.5 px-2 pt-1.5 pb-0.5 text-xs font-medium tracking-wide uppercase">
+          <SectionHeading as="h3" className="flex items-center gap-1.5 px-2 pt-1.5 pb-0.5">
             <span>{variant.shortCode}</span>
             <FinishIcon
               finish={variant.finish}
               title={labels.finishes[variant.finish]}
               iconClassName="size-3"
             />
-          </div>
+          </SectionHeading>
           <ul>
             {variant.collections.map((entry) => (
               <li key={entry.collectionId}>

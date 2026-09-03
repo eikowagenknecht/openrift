@@ -27,9 +27,9 @@ import { getImportBucket } from "@/lib/import-summary";
 import { cn } from "@/lib/utils";
 
 const BUCKET_CONFIG: Record<ImportBucket, { icon: React.ElementType; className: string }> = {
-  ready: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
-  "to-verify": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
-  "need-attention": { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
+  ready: { icon: CheckCircle2Icon, className: "text-success" },
+  "to-verify": { icon: AlertTriangleIcon, className: "text-warning" },
+  "need-attention": { icon: XCircleIcon, className: "text-destructive" },
 };
 
 interface ImportEntryRowProps {

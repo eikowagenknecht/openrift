@@ -142,7 +142,7 @@ export function PlayerPanel({
         "bg-card relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-between overflow-hidden rounded-lg border p-2 transition-all duration-150 select-none",
         // Team color stays on the border so the ring can layer winner / spotlight on top.
         teamsActive && cn("border-2", TEAM_PANEL_BORDER[player.team]),
-        isWinner && "ring-primary/40 ring-2",
+        isWinner && "ring-primary/60 ring-2",
         isSpotlit && "ring-primary scale-[1.03] shadow-lg ring-2",
         rotated && "rotate-180",
       )}
@@ -172,7 +172,7 @@ export function PlayerPanel({
             {isFirst && <FirstBadge />}
           </div>
         )}
-        <span className="text-muted-foreground text-2xs w-full truncate text-center font-semibold tracking-widest uppercase">
+        <span className="text-muted-foreground text-2xs w-full truncate text-center font-semibold tracking-wide uppercase">
           {player.name}
         </span>
       </div>
@@ -186,7 +186,7 @@ export function PlayerPanel({
             <Pressable
               aria-label={`Lower ${player.name}'s score`}
               onClick={() => correct(-1)}
-              className="border-border bg-background/60 text-foreground hover:border-primary hover:text-primary grid size-8 place-items-center rounded-full border text-lg leading-none"
+              className="bg-background/60 text-foreground hover:border-primary hover:text-primary grid size-8 place-items-center rounded-full border text-lg leading-none"
             >
               −
             </Pressable>
@@ -202,7 +202,7 @@ export function PlayerPanel({
             <Pressable
               aria-label={`Raise ${player.name}'s score`}
               onClick={() => correct(1)}
-              className="border-border bg-background/60 text-foreground hover:border-primary hover:text-primary grid size-8 place-items-center rounded-full border text-lg leading-none"
+              className="bg-background/60 text-foreground hover:border-primary hover:text-primary grid size-8 place-items-center rounded-full border text-lg leading-none"
             >
               +
             </Pressable>
@@ -229,7 +229,7 @@ export function PlayerPanel({
       {player.xpOpen ? (
         <div
           className={cn(
-            "border-border bg-background/60 absolute top-1/2 left-1 flex -translate-y-1/2 flex-col items-center overflow-hidden rounded-full border",
+            "bg-background/60 absolute top-1/2 left-1 flex -translate-y-1/2 flex-col items-center overflow-hidden rounded-full border",
             xpStyle.rail,
           )}
         >
@@ -245,7 +245,7 @@ export function PlayerPanel({
           </Pressable>
           <span className="border-border flex w-full flex-col items-center border-y py-0.5">
             <span className={cn("font-semibold tabular-nums", xpStyle.value)}>{player.xp}</span>
-            <span className="text-muted-foreground text-2xs font-bold tracking-wider">XP</span>
+            <span className="text-muted-foreground text-2xs font-bold tracking-wide">XP</span>
           </span>
           <Pressable
             aria-label={`Spend XP for ${player.name}`}
@@ -302,7 +302,7 @@ function ScoreMedallion({
         <Icon className={cn("text-primary", style.icon)} />
       </span>
       {style.label && (
-        <span className="text-muted-foreground text-2xs font-bold tracking-wider uppercase">
+        <span className="text-muted-foreground text-2xs font-bold tracking-wide uppercase">
           {label}
         </span>
       )}

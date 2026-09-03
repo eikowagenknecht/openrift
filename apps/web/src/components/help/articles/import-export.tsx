@@ -9,7 +9,9 @@ import {
 
 import { Heading } from "@/components/heading";
 import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
+import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Code } from "@/components/ui/code";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
@@ -40,10 +42,9 @@ export default function ImportExportArticle() {
       <section>
         <h3 className="mb-2 font-semibold">Step 1: Provide your data</h3>
         <p className="text-muted-foreground">
-          Paste a CSV into the text area, or click the upload button to pick a{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">.csv</code> file. Then click{" "}
-          <strong className="text-foreground">Parse</strong>. OpenRift auto-detects the source
-          format for the supported tools listed below.
+          Paste a CSV into the text area, or click the upload button to pick a <Code>.csv</Code>{" "}
+          file. Then click <strong className="text-foreground">Parse</strong>. OpenRift auto-detects
+          the source format for the supported tools listed below.
         </p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -145,21 +146,18 @@ export default function ImportExportArticle() {
 
         {/* Status table */}
         <DefinitionList className="mt-3">
-          <DefinitionRow
-            icon={<CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />}
-            label="Exact"
-          >
+          <DefinitionRow icon={<CheckCircle2Icon className="text-success size-4" />} label="Exact">
             Perfect match: code, finish, and art variant all resolved. Ready to import.
           </DefinitionRow>
           <DefinitionRow
-            icon={<AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400" />}
+            icon={<AlertTriangleIcon className="text-warning size-4" />}
             label="Needs review"
           >
             OpenRift found a likely match but isn&apos;t sure (e.g. multiple printings fit, or only
             a similar name was found). Use the dropdown to confirm or pick the right one.
           </DefinitionRow>
           <DefinitionRow
-            icon={<XCircleIcon className="size-4 text-red-600 dark:text-red-400" />}
+            icon={<XCircleIcon className="text-destructive size-4" />}
             label="Unresolved"
           >
             No match found. This row won&apos;t be imported.
@@ -167,8 +165,8 @@ export default function ImportExportArticle() {
         </DefinitionList>
 
         {/* Visual mock of a match row */}
-        <div className="border-border bg-muted/30 mt-4 rounded-lg border p-3">
-          <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wider uppercase">
+        <Callout className="mt-4 p-3">
+          <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
             Example preview
           </p>
           <div className="divide-border divide-y text-sm">
@@ -189,7 +187,7 @@ export default function ImportExportArticle() {
               tags={[]}
             />
           </div>
-        </div>
+        </Callout>
 
         <p className="text-muted-foreground mt-3">
           Exact matches appear first, followed by entries that need review and unresolved ones.
@@ -225,7 +223,7 @@ export default function ImportExportArticle() {
           promo a card is, RiftCore has no languages or conditions at all).
         </p>
 
-        <div className="border-border mt-3 overflow-x-auto rounded-lg border text-sm">
+        <div className="mt-3 overflow-x-auto rounded-lg border text-sm">
           <table className="w-full">
             <thead>
               <tr className="border-border border-b">
@@ -296,14 +294,12 @@ export default function ImportExportArticle() {
         <p className="text-muted-foreground mt-3">
           One row per unique printing, with the quantity summing all your copies of that printing.
           The file is named{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
+          <Code>
             openrift-<em>collection</em>-<em>date</em>.csv
-          </code>{" "}
-          (or <code className="bg-muted rounded px-1.5 py-0.5 text-xs">piltover-…</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">riftmana-…</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">riftcore-…</code> for the other
-          formats). The exported CSV uses the same short code format as import, so you can re-import
-          an OpenRift export into another account or after a reset.
+          </Code>{" "}
+          (or <Code>piltover-…</Code>, <Code>riftmana-…</Code>, <Code>riftcore-…</Code> for the
+          other formats). The exported CSV uses the same short code format as import, so you can
+          re-import an OpenRift export into another account or after a reset.
         </p>
       </section>
 
@@ -316,7 +312,7 @@ export default function ImportExportArticle() {
         <ol className="text-muted-foreground mt-2 list-inside list-decimal space-y-2">
           <li>
             <strong className="text-foreground">Code lookup:</strong> looks up the short code (e.g.{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">OGN-007</code>) in the{" "}
+            <Code>OGN-007</Code>) in the{" "}
             <a href="/cards" className="text-primary hover:underline">
               catalog
             </a>
@@ -360,7 +356,7 @@ function FormatCard({
         {columns.map((column) => (
           <span
             key={column}
-            className="bg-muted text-muted-foreground text-2xs rounded px-1.5 py-0.5 font-mono"
+            className="bg-muted text-muted-foreground text-2xs rounded-md px-1.5 py-0.5 font-mono"
           >
             {column}
           </span>
@@ -373,15 +369,15 @@ function FormatCard({
 const STATUS_ICONS: Record<string, { icon: React.ReactNode; className: string }> = {
   exact: {
     icon: <CheckCircle2Icon className="size-3.5" />,
-    className: "text-emerald-600 dark:text-emerald-400",
+    className: "text-success",
   },
   "needs-review": {
     icon: <AlertTriangleIcon className="size-3.5" />,
-    className: "text-amber-600 dark:text-amber-400",
+    className: "text-warning",
   },
   unresolved: {
     icon: <XCircleIcon className="size-3.5" />,
-    className: "text-red-600 dark:text-red-400",
+    className: "text-destructive",
   },
 };
 
@@ -408,18 +404,18 @@ function MockMatchRow({
       <span className="text-muted-foreground w-6 text-right text-xs tabular-nums">
         {quantity}&times;
       </span>
-      <code className="bg-muted text-2xs rounded px-1 py-0.5">{code}</code>
+      <code className="bg-muted text-2xs rounded-md px-1 py-0.5">{code}</code>
       <span className="min-w-0 flex-1 truncate text-xs">{name}</span>
       {tags.map((tag) => (
         <span
           key={tag}
-          className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5 font-medium"
+          className="bg-primary/10 text-primary text-2xs rounded-md px-1.5 py-0.5 font-medium"
         >
           {tag}
         </span>
       ))}
       {dropdown && (
-        <span className="border-border bg-background text-2xs flex items-center gap-1 rounded border px-1.5 py-0.5">
+        <span className="bg-background text-2xs flex items-center gap-1 rounded-md border px-1.5 py-0.5">
           {dropdown}
           <ChevronDownIcon className="text-muted-foreground size-2.5" />
         </span>

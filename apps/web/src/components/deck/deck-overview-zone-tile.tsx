@@ -176,7 +176,7 @@ export function ZoneTile({
   // Complete zones stay quiet (the green count says it); only problems get
   // an icon.
   const headerLabel = (
-    <span className="text-2xs font-semibold tracking-widest uppercase">{label}</span>
+    <span className="text-2xs font-semibold tracking-wide uppercase">{label}</span>
   );
 
   return (
@@ -201,7 +201,7 @@ export function ZoneTile({
           onClick={() => onToggleCollapsed(zone)}
           aria-label={collapsed ? `Expand ${label}` : `Collapse ${label}`}
           chevronClassName="size-3.5"
-          className="shrink-0 rounded"
+          className="shrink-0 rounded-md"
         />
         {onClick && !readOnly ? (
           <Pressable
@@ -225,7 +225,7 @@ export function ZoneTile({
                   variant="ghost"
                   size="icon-xs"
                   aria-label={`Show ${label} issues`}
-                  className="size-5 shrink-0 rounded"
+                  className="size-5 shrink-0 rounded-md"
                 />
               }
             >
@@ -248,7 +248,7 @@ export function ZoneTile({
             hasViolation
               ? "text-destructive"
               : isComplete
-                ? "text-green-600 dark:text-green-500"
+                ? "text-success"
                 : "text-muted-foreground",
           )}
         >

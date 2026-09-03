@@ -84,8 +84,7 @@ function SuggestionStrip({
     <div className="flex min-w-0 items-center gap-2.5">
       <CardArtThumbStack items={items} max={MAX_THUMBS} thumbClassName="w-8" />
       <span className="text-muted-foreground min-w-0 truncate text-sm">
-        <span className="font-medium text-green-700 dark:text-green-500">{strip.count}</span>{" "}
-        {label}
+        <span className="text-success font-medium">{strip.count}</span> {label}
       </span>
     </div>
   );
@@ -398,9 +397,7 @@ export function GroupsIndexPage() {
                       aria-hidden="true"
                       className={cn(
                         "size-1.5 rounded-full",
-                        row.recentTradedCardCount > 0
-                          ? "bg-green-600 dark:bg-green-500"
-                          : "bg-muted-foreground/50",
+                        row.recentTradedCardCount > 0 ? "bg-success" : "bg-muted-foreground/50",
                       )}
                     />
                     {tradeVolumeLabel(row.recentTradedCardCount, row.tradedCardCount)}

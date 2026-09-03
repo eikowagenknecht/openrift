@@ -60,7 +60,7 @@ function CollectionValueTooltipContent({
   // which way it went without leaning on hue.
   const { sign, magnitude, percent } = describePriceChange(point.value, point.baselineValue);
   return (
-    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-md">
       <p className="mb-1 font-medium">{formatDay(point.date)}</p>
       <div className="space-y-0.5">
         <div className="flex items-center gap-2">

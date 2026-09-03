@@ -191,7 +191,7 @@ function NewCollectionTile({ group }: { group: FriendGroupDetailResponse["group"
     <>
       <Pressable
         onClick={() => setCreateOpen(true)}
-        className="border-border hover:border-primary/40 text-muted-foreground hover:text-foreground flex h-full min-h-44 w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-6 text-center transition-colors"
+        className="border-border hover:border-primary/40 text-muted-foreground hover:text-foreground flex h-full min-h-44 w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed p-6 text-center transition-colors"
       >
         <PlusIcon aria-hidden="true" className="size-6" />
         <span className="text-foreground text-sm font-medium">New shared collection</span>

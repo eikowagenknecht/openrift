@@ -11,7 +11,6 @@ import {
   FILTER_TRIGGER_ACTIVE_CLASS,
   FILTER_TRIGGER_CLASS,
   MultiSelectCombobox,
-  NEUTRAL_HOVER_SCOPE,
 } from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
 import {
@@ -145,8 +144,7 @@ function DimensionSubmenu({
           <span className="text-muted-foreground tabular-nums">({activeCount})</span>
         )}
       </DropdownMenuSubTrigger>
-      {/* Portals out of the menu content, so it needs the neutral-hover scope too. */}
-      <DropdownMenuSubContent className={NEUTRAL_HOVER_SCOPE}>
+      <DropdownMenuSubContent>
         {options.map((option) => (
           <DropdownMenuCheckboxItem
             key={option.value}
@@ -278,11 +276,9 @@ function RangeSliderBlock({
   return (
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- the wrapper only guards keydown bubbling; the focusable controls are its slider children
     <div
-      // The other menu rows highlight via the menu's roving focus (focus:bg-accent);
-      // a slider block isn't a menu item, so we highlight it on hover and while a
-      // slider child is focused. bg-accent resolves to the neutral muted set by the
-      // menu's NEUTRAL_HOVER_SCOPE, so it matches every other row's hover.
-      className="hover:bg-accent focus-within:bg-accent flex flex-col gap-1.5 rounded-md px-1.5 py-1.5"
+      // The other menu rows highlight via the menu's roving focus; a slider block
+      // isn't a menu item, so it highlights on hover and while a slider child is focused.
+      className="hover:bg-muted focus-within:bg-muted flex flex-col gap-1.5 rounded-md px-1.5 py-1.5"
       onKeyDown={(event) => event.stopPropagation()}
     >
       <FilterRangeSections
@@ -655,10 +651,7 @@ export function FilterMoreMenu({
         <ChevronDownIcon />
       </DropdownMenuTrigger>
       {/* Widen to fit the slider rows when Stats/Price/Copies are present. */}
-      <DropdownMenuContent
-        align="start"
-        className={cn(NEUTRAL_HOVER_SCOPE, showWideContent ? "w-80" : "min-w-56")}
-      >
+      <DropdownMenuContent align="start" className={cn(showWideContent ? "w-80" : "min-w-56")}>
         {blocks.map((block, index) => (
           <Fragment key={block.id}>
             {index > 0 && <DropdownMenuSeparator />}

@@ -165,7 +165,7 @@ export function CardDetailHeader({
         )}
       </div>
       <p className="text-muted-foreground flex items-center gap-2 text-sm">
-        <span className={isCardIdStale ? "text-orange-600 line-through" : ""}>{cardId}</span>
+        <span className={isCardIdStale ? "text-warning line-through" : ""}>{cardId}</span>
         {isCardIdStale && (
           <>
             <span>&rarr; {expectedCardId}</span>

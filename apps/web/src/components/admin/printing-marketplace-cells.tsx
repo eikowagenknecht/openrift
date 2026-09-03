@@ -66,10 +66,7 @@ export function PrintingMarketplaceBadges({
         const state = cells[marketplace];
         if (state.owner) {
           return (
-            <Badge
-              key={marketplace}
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            >
+            <Badge key={marketplace} className="border-success/30 bg-success-soft text-success">
               <CheckIcon className="size-3" />
               {config.shortName} #{state.owner.externalId}
             </Badge>
@@ -77,10 +74,7 @@ export function PrintingMarketplaceBadges({
         }
         if (state.inherited) {
           return (
-            <Badge
-              key={marketplace}
-              className="border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400"
-            >
+            <Badge key={marketplace} className="border-info/30 bg-info-soft text-info">
               <LinkIcon className="size-3" />
               {config.shortName} #{state.inherited.externalId}
             </Badge>

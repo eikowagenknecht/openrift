@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { InfoIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 
 /**
  * @returns The four intro steps, with the battlefield step adjusted to the
@@ -46,7 +47,7 @@ export function DeckBuilderIntroBanner({
         ? "Every card must belong to your chosen regions, one battlefield is played, there is no sideboard, and signature cards need their champion in the deck. Violations show up as you build."
         : "You can build without rule restrictions.";
   return (
-    <div className="border-border bg-muted/30 relative rounded-lg border p-4">
+    <Callout>
       <Button
         type="button"
         variant="ghost"
@@ -71,7 +72,7 @@ export function DeckBuilderIntroBanner({
               {introSteps(format).map((step, index) => (
                 <li
                   key={step.title}
-                  className="border-border bg-background flex items-start gap-2 rounded-md border p-2"
+                  className="bg-background flex items-start gap-2 rounded-md border p-2"
                 >
                   <span className="bg-primary/10 text-primary flex size-5 shrink-0 items-center justify-center rounded-full font-semibold">
                     {index + 1}
@@ -113,6 +114,6 @@ export function DeckBuilderIntroBanner({
           </Link>
         </div>
       </div>
-    </div>
+    </Callout>
   );
 }

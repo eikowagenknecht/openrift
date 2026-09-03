@@ -94,7 +94,11 @@ export function ScanIdentifySheet({
       {/* The guide is an upright card outline whatever the card's orientation,
           so the snapshot always has the same shape. */}
       {snapshot !== null && (
-        <img src={snapshot} alt="" className="bg-muted h-32 w-24 shrink-0 rounded object-cover" />
+        <img
+          src={snapshot}
+          alt=""
+          className="bg-muted h-32 w-24 shrink-0 rounded-md object-cover"
+        />
       )}
       <div className="min-w-0 flex-1">
         {pending && (

@@ -429,7 +429,11 @@ function ProxyPrintPanel({
         {/* Captured card thumbnail preview */}
         {previewUrl && (
           <div className="flex justify-center">
-            <img src={previewUrl} alt="Last captured card" className="aspect-card w-48 rounded" />
+            <img
+              src={previewUrl}
+              alt="Last captured card"
+              className="aspect-card w-48 rounded-md"
+            />
           </div>
         )}
 

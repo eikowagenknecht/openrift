@@ -61,7 +61,7 @@ export function SharedListRow({
         <Link
           to="/groups/$slug/members/$userId"
           params={{ slug, userId: member.userId }}
-          className="hover:bg-muted/60 relative z-10 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
+          className="hover:bg-muted relative z-10 flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1"
         >
           <UserAvatar
             image={member.userImage}

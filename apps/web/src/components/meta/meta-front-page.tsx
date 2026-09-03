@@ -176,7 +176,7 @@ function UpcomingTeaser({ next, count }: { next: MetaEventSummary; count: number
         search={(prev) => prev}
         hash="coming-up"
         hashScrollIntoView
-        className="hover:bg-muted/40 focus-visible:ring-ring/50 flex items-center gap-3 px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
+        className="hover:bg-muted/50 focus-visible:ring-ring/50 flex items-center gap-3 px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
       >
         <DateLeaf month={leaf.month} day={leaf.day} size="sm" />
         <span className="flex min-w-0 flex-1 flex-col">
@@ -318,7 +318,7 @@ export function MetaFrontPage() {
                         {sections.competitive.length > 0 && (
                           <Section
                             title="Competitive"
-                            accent="bg-teal-600 dark:bg-teal-400"
+                            accent="bg-primary"
                             action={
                               <TierIndexLink
                                 tiers={["competitive"]}

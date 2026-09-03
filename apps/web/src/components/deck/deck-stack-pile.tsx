@@ -115,7 +115,7 @@ function StackStrip({
           borderRadius: geometry.restRadius,
         }}
         className={cn(
-          "bg-muted/60 text-muted-foreground flex shrink-0 items-center gap-1 truncate px-2 text-xs",
+          "bg-muted text-muted-foreground flex shrink-0 items-center gap-1 truncate px-2 text-xs",
           dimmed && "opacity-25",
         )}
       >
@@ -165,7 +165,7 @@ function StackStrip({
         {card.quantity > 1 && (copyIndex === null || copyIndex === undefined) && (
           <span
             className={cn(
-              "bg-background/85 text-foreground absolute right-1 rounded px-1.5 text-sm leading-tight font-medium tabular-nums",
+              "bg-background/85 text-foreground absolute right-1 rounded-md px-1.5 text-sm leading-tight font-medium tabular-nums",
               // Centered only in the thin middle slices so the larger size
               // never clips; the tall top anchor and the unfolded card keep
               // the grid badge's bottom-right corner.

@@ -287,7 +287,7 @@ function StaffInviteRow({
     // The role chip sits on its own line above the link rather than inside it:
     // ShareLinkRow already wraps its field and buttons, and squeezing a badge
     // into that row is what crushed the URL to a few pixels on a phone before.
-    <div className="bg-muted/40 flex flex-col gap-2 rounded-lg px-2.5 py-2">
+    <div className="bg-muted flex flex-col gap-2 rounded-lg px-2.5 py-2">
       <div className="flex items-center gap-2">
         <Badge variant="outline" className="shrink-0">
           {roleLabel}

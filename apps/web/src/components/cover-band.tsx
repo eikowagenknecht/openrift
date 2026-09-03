@@ -18,7 +18,7 @@ const COVER_BAND_GLOW =
 export function CoverBand({ className, style, ...props }: ComponentProps<"div">) {
   return (
     <div
-      className={cn("bg-muted/40 relative shrink-0", className)}
+      className={cn("bg-muted relative shrink-0", className)}
       style={{ backgroundImage: COVER_BAND_GLOW, ...style }}
       {...props}
     />

@@ -179,7 +179,7 @@ export function CardDetail({
       {/* Mobile header */}
       {onClose && (
         <div
-          className="bg-background/75 sticky top-0 z-10 px-4 pt-3 pb-4 backdrop-blur-lg md:hidden"
+          className="bg-background/80 sticky top-0 z-10 px-4 pt-3 pb-4 backdrop-blur-lg md:hidden"
           // The frosted fill lifts the title off the card art below; the domain tint
           // ties the bar to the card (matching the drawer root). No border here — only
           // the global header keeps a bottom border; the rest separate by blur + spacing.

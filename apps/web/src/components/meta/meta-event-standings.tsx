@@ -13,6 +13,7 @@ import {
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Medal } from "@/components/ui/podium";
@@ -414,7 +415,7 @@ export function MetaEventStandings({
         </div>
       )}
 
-      <div className="bg-card ring-foreground/10 overflow-hidden rounded-lg ring-1">
+      <Card className="gap-0 py-0">
         {matching.length === 0 ? (
           <p className="text-muted-foreground px-3 py-6 text-center text-sm">No entries match.</p>
         ) : (
@@ -473,7 +474,7 @@ export function MetaEventStandings({
             </Button>
           </div>
         )}
-      </div>
+      </Card>
     </section>
   );
 }

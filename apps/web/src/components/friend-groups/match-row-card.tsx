@@ -430,7 +430,7 @@ function MatchRow({
     <div
       ref={rowRef}
       {...hoverProps}
-      className="group bg-muted/30 hover:bg-muted flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3"
+      className="group bg-muted/30 hover:bg-muted/50 flex flex-col gap-2 rounded-md border border-dashed p-2 transition-colors sm:flex-row sm:items-center sm:gap-3"
     >
       {/* Identity: on phones its own top row (arrow + art + name/meta); from sm
           up the wrapper dissolves (sm:contents) so it flows into the inline row. */}
@@ -684,7 +684,7 @@ function MatchTradeRowGroup({
   return (
     // Suggestion group: dashed border + washed muted fill, matching MatchRow.
     <div className="bg-muted/30 overflow-hidden rounded-md border border-dashed">
-      <div className="hover:bg-muted flex flex-col gap-2 p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
+      <div className="hover:bg-muted/50 flex flex-col gap-2 p-2 transition-colors sm:flex-row sm:items-center sm:gap-3">
         {/* Identity + disclosure share the top row on phones; from sm up the
             wrapper dissolves (sm:contents) and the chevron's sm:order-last drops
             it to the far right, past the member chip and status. */}

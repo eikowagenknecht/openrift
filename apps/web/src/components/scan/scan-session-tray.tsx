@@ -310,7 +310,7 @@ function TrayRow({
         <WishlistHeart entries={wishEntries} align="end" />
         {ownedBefore === 0 && (
           <span
-            className="shrink-0 text-sm text-emerald-600 dark:text-emerald-400"
+            className="text-success shrink-0 text-sm"
             title="None in your collection before this session"
           >
             New
@@ -369,11 +369,11 @@ function TrayRow({
                     // The button that makes a card foil carries the same amber
                     // cue as a foil thumbnail. A rainbow wash sat over the
                     // label and cost it contrast, so the ring gets it instead.
-                    className={cn(toFoil && "ring-1 ring-amber-400/60")}
+                    className={cn(toFoil && "ring-border-accent/60 ring-1")}
                     onClick={() => onSwitchFinish(row, sibling)}
                     aria-label={`Mark one ${name} as ${finishLabels[sibling.finish]}`}
                   >
-                    <SparklesIcon className={cn(toFoil && "text-amber-500")} />
+                    <SparklesIcon className={cn(toFoil && "text-border-accent")} />
                     {finishLabels[sibling.finish]}
                   </Button>
                 );
@@ -450,7 +450,7 @@ function SessionSummary({
           <>
             <span className="text-muted-foreground">·</span>
             <span
-              className="text-emerald-600 tabular-nums dark:text-emerald-400"
+              className="text-success tabular-nums"
               title="Cards with no copy in your collection before this session"
             >
               {summary.newCards} new
@@ -460,10 +460,7 @@ function SessionSummary({
         {summary.wishedCards > 0 && (
           <>
             <span className="text-muted-foreground">·</span>
-            <span
-              className="text-rose-600 tabular-nums dark:text-rose-400"
-              title="Cards on your wishlists"
-            >
+            <span className="text-destructive tabular-nums" title="Cards on your wishlists">
               {summary.wishedCards} wished
             </span>
           </>
@@ -506,7 +503,7 @@ function UnidentifiedList({
     <ul className="flex flex-col gap-2">
       {cards.map((card) => (
         <li key={card.id} className="flex items-center gap-3">
-          <span className="bg-muted block h-14 w-10 shrink-0 overflow-hidden rounded">
+          <span className="bg-muted block h-14 w-10 shrink-0 overflow-hidden rounded-md">
             {card.thumbnail !== null && (
               <img src={card.thumbnail} alt="" className="h-full w-full object-cover" />
             )}

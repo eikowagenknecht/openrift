@@ -945,7 +945,7 @@ function PreviewStep({
         )}
 
         {/* Summary + deck options + import button */}
-        <div className="bg-muted/50 space-y-4 rounded-md border p-4">
+        <div className="bg-muted/30 space-y-4 rounded-md border p-4">
           <ImportStatusBadges
             readyCount={readyCount}
             toVerifyCount={toVerifyCount}
@@ -1043,9 +1043,9 @@ function PreviewStep({
 // ---------------------------------------------------------------------------
 
 const BUCKET_CONFIG: Record<ImportBucket, { icon: React.ElementType; className: string }> = {
-  ready: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
-  "to-verify": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
-  "need-attention": { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
+  ready: { icon: CheckCircle2Icon, className: "text-success" },
+  "to-verify": { icon: AlertTriangleIcon, className: "text-warning" },
+  "need-attention": { icon: XCircleIcon, className: "text-destructive" },
 };
 
 function DeckImportEntryRow({
@@ -1206,7 +1206,7 @@ function DeckImportEntryRow({
           buttons and the zone select would end up nested inside the trigger. */}
       {foldActions ? (
         <AccordionPrimitive.Header className="flex">
-          <AccordionPrimitive.Trigger className="group focus-visible:ring-ring hover:bg-muted/40 w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-inset">
+          <AccordionPrimitive.Trigger className="group focus-visible:ring-ring hover:bg-muted w-full cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-inset">
             {row}
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>

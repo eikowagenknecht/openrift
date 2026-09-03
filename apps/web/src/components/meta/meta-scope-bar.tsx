@@ -1,10 +1,7 @@
 import { SlidersHorizontalIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import {
-  MultiSelectCombobox,
-  NEUTRAL_HOVER_SCOPE,
-} from "@/components/filters/multi-select-combobox";
+import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -234,7 +231,7 @@ function ScopeFilterMenu({
         Filters
         {active > 0 && <span className="text-muted-foreground tabular-nums">({active})</span>}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className={NEUTRAL_HOVER_SCOPE}>
+      <DropdownMenuContent align="start">
         {formats.length > 0 && (
           <ScopeFacet
             label="Format"

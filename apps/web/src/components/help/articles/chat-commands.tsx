@@ -63,5 +63,5 @@ export default function ChatCommandsArticle() {
 }
 
 function InlineCode({ children }: { children: string }) {
-  return <code className="bg-muted rounded px-1 py-0.5 font-mono text-sm">{children}</code>;
+  return <code className="bg-muted rounded-md px-1 py-0.5 font-mono text-sm">{children}</code>;
 }

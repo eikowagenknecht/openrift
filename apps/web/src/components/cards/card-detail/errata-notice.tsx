@@ -35,7 +35,7 @@ export function ErrataNotice({
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="mt-1.5 space-y-1">
         <div className="text-muted-foreground/70 flex items-center gap-1 text-xs">
-          <TriangleAlertIcon className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
+          <TriangleAlertIcon className="text-warning size-3 shrink-0" />
           <span>
             Errata (
             {sourceUrl ? (
@@ -43,7 +43,7 @@ export function ErrataNotice({
                 href={sourceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="underline hover:text-amber-500 dark:hover:text-amber-400"
+                className="hover:text-warning underline"
               >
                 {sourceLabel}
               </a>
@@ -53,14 +53,14 @@ export function ErrataNotice({
             )
           </span>
         </div>
-        <CollapsibleTrigger className="text-muted-foreground/50 flex cursor-pointer items-center gap-1 text-xs hover:text-amber-500 dark:hover:text-amber-400">
+        <CollapsibleTrigger className="text-muted-foreground/50 hover:text-warning flex cursor-pointer items-center gap-1 text-xs">
           <ChevronDownIcon
             className={cn("size-3 shrink-0 transition-transform", open && "rotate-180")}
           />
           <span>{open ? "Hide" : "Show"} original printed text</span>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="border-border/30 bg-muted/20 mt-1 rounded border border-dashed px-2.5 py-2">
+          <div className="border-border/30 bg-muted/30 mt-1 rounded-md border border-dashed px-2.5 py-2">
             <p className="text-muted-foreground/50 text-xs leading-relaxed">
               <CardText text={printedText} onKeywordClick={onKeywordClick} />
             </p>

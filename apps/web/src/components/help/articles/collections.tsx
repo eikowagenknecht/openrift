@@ -16,6 +16,7 @@ import {
 import { Heading } from "@/components/heading";
 import { FeatureCard } from "@/components/help/article-cards";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Callout } from "@/components/ui/callout";
 import { cn } from "@/lib/utils";
 
 export default function CollectionsArticle() {
@@ -28,11 +29,11 @@ export default function CollectionsArticle() {
       </p>
 
       {/* Overview diagram */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
+      <Callout>
         <div className="flex flex-col gap-3 text-sm sm:flex-row">
           {/* Sidebar mock */}
-          <div className="bg-background border-border flex flex-col gap-1.5 rounded-lg border p-3 sm:w-48">
-            <span className="text-muted-foreground text-2xs mb-1 font-medium tracking-wider uppercase">
+          <div className="bg-background flex flex-col gap-1.5 rounded-lg border p-3 sm:w-48">
+            <span className="text-muted-foreground text-2xs mb-1 font-medium tracking-wide uppercase">
               Collections
             </span>
             <SidebarItem icon={<PackageIcon className="size-3.5" />} label="All Cards" count={94} />
@@ -63,22 +64,22 @@ export default function CollectionsArticle() {
           {/* Grid mock */}
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
-              <div className="bg-muted flex-1 rounded px-2 py-1 text-xs">
+              <div className="bg-muted flex-1 rounded-md px-2 py-1 text-xs">
                 <SearchIcon className="text-muted-foreground mr-1 inline size-3" />
                 <span className="text-muted-foreground">Search cards&hellip;</span>
               </div>
-              <div className="bg-primary/10 text-primary text-2xs rounded px-2 py-0.5 font-medium">
+              <div className="bg-primary/10 text-primary text-2xs rounded-md px-2 py-0.5 font-medium">
                 12 cards
               </div>
             </div>
             <div className="grid grid-cols-4 gap-1.5">
               {Array.from({ length: 8 }, (_, index) => (
-                <div key={index} className="bg-muted/60 aspect-card rounded" />
+                <div key={index} className="bg-muted aspect-card rounded-md" />
               ))}
             </div>
           </div>
         </div>
-      </div>
+      </Callout>
 
       {/* Concept: physical location */}
       <section>
@@ -206,7 +207,7 @@ export default function CollectionsArticle() {
           Collections support the same three view modes as the card browser. You can also filter,
           sort, and group cards inside any collection just like in the catalog.
         </p>
-        <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
+        <div className="divide-border mt-3 divide-y rounded-lg border text-sm">
           <ViewModeRow
             mode="Cards"
             description="One entry per unique card. Owned count sums across all printings of that card."
@@ -260,7 +261,7 @@ function SidebarItem({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded px-2 py-1 text-xs",
+        "flex items-center gap-2 rounded-md px-2 py-1 text-xs",
         active ? "bg-primary/10 text-primary font-medium" : "text-foreground",
       )}
     >

@@ -63,7 +63,7 @@ function MiniCardPreview() {
       <span aria-hidden="true" className="absolute inset-0" style={{ backgroundImage: ART_FILL }} />
       <span
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/85 via-black/55 to-transparent"
+        className="absolute inset-x-0 bottom-0 h-[55%] bg-linear-to-t from-black/85 via-black/55 to-transparent"
       />
       <span
         role="img"

@@ -29,7 +29,7 @@ function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   const { transformed, upserted } = result;
   return (
     <div className="text-muted-foreground space-y-0.5">
-      <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+      <p className="text-success flex items-center gap-1 text-sm">
         <CheckIcon className="size-4" />
         Fetched {transformed.groups} groups, {transformed.products} products, {transformed.prices}{" "}
         prices
@@ -51,7 +51,7 @@ function JobRunDisplay({ run }: { run: JobRunView }) {
   }
   if (run.status === "failed") {
     return (
-      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+      <p className="text-destructive flex items-center gap-1 text-sm">
         <XIcon className="size-4" />
         {run.errorMessage ?? "Refresh failed"}
       </p>
@@ -61,7 +61,7 @@ function JobRunDisplay({ run }: { run: JobRunView }) {
     return <PriceRefreshResult result={run.result} />;
   }
   return (
-    <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+    <p className="text-success flex items-center gap-1 text-sm">
       <CheckIcon className="size-4" />
       Completed
     </p>
@@ -129,13 +129,13 @@ function PriceSection({
         <CardContent className="pt-0">
           {latestRun.data && <JobRunDisplay run={latestRun.data} />}
           {refreshMutation.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <p className="text-destructive flex items-center gap-1 text-sm">
               <XIcon className="size-4" />
               {refreshMutation.error.message}
             </p>
           )}
           {clearMutation.isSuccess && (
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+            <p className="text-success flex items-center gap-1 text-sm">
               <CheckIcon className="size-4" />
               Cleared {clearMutation.data.deleted.products} products,{" "}
               {clearMutation.data.deleted.variants} variants, {clearMutation.data.deleted.prices}{" "}
@@ -143,7 +143,7 @@ function PriceSection({
             </p>
           )}
           {clearMutation.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <p className="text-destructive flex items-center gap-1 text-sm">
               <XIcon className="size-4" />
               {clearMutation.error.message}
             </p>

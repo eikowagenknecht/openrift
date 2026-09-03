@@ -2,6 +2,10 @@
 
 ## 2026-09-03
 
+### Highlights
+
+- feat(App): **One palette everywhere** — dark mode panels, menus and borders now carry the navy tint instead of gray, and status colors, badges, callouts and hover states share one set of shapes and tones across the app.
+
 ### Other
 
 - feat(Cards): **Overnumbered as its own filter** — a card past its set's printed total is now filtered and labelled separately from its artwork, so an alt art that is also overnumbered reads as both.

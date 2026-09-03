@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PickerGroup, PickerList, PickerRow } from "@/components/ui/picker-list";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCollections } from "@/hooks/use-collections";
 import { useMoveCopies } from "@/hooks/use-copies";
@@ -259,7 +260,7 @@ export function DeckBoxTab({
           </Link>
         </span>
         {complete && (
-          <Badge variant="muted" className="text-green-600 dark:text-green-500">
+          <Badge variant="muted" className="text-success">
             Ready to play
           </Badge>
         )}
@@ -284,9 +285,9 @@ export function DeckBoxTab({
         {plan.extras.length > 0 && (
           <section className={DECK_LIST_SECTION_CLASS}>
             <div className="flex h-6 items-center gap-2 border-b">
-              <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+              <SectionHeading as="span" size="sm">
                 Not in this deck
-              </span>
+              </SectionHeading>
               <span className="text-muted-foreground ml-auto text-xs tabular-nums">
                 {plan.extraCount}
               </span>
@@ -376,15 +377,13 @@ function ZoneSection({
   return (
     <section className={DECK_LIST_SECTION_CLASS}>
       <div className="flex h-6 items-center gap-2 border-b">
-        <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+        <SectionHeading as="span" size="sm">
           {ZONE_LABELS[zone]}
-        </span>
+        </SectionHeading>
         <span
           className={cn(
             "ml-auto text-xs tabular-nums",
-            inBox === zoneSlots.length
-              ? "text-green-600 dark:text-green-500"
-              : "text-muted-foreground",
+            inBox === zoneSlots.length ? "text-success" : "text-muted-foreground",
           )}
         >
           {inBox}/{zoneSlots.length}
@@ -743,8 +742,8 @@ function BoxRow({
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 rounded px-2 py-1 text-sm sm:gap-2",
-        onOpen ? "hover:bg-muted/50 cursor-pointer" : "hover:bg-muted/40",
+        "hover:bg-muted/50 flex items-center gap-1.5 rounded-md px-2 py-1 text-sm sm:gap-2",
+        onOpen !== undefined && "cursor-pointer",
       )}
       {...cardHoverProps(onHoverCard, card.cardId, copy?.printingId)}
       {...rowActivateProps(onOpen)}
@@ -795,7 +794,7 @@ function CopyDetails({
           <span
             className={cn(
               "text-muted-foreground shrink-0 text-xs",
-              copy.grade !== null && "text-amber-600 dark:text-amber-500",
+              copy.grade !== null && "text-warning",
             )}
           />
         }

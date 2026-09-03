@@ -20,10 +20,10 @@ const COUNTS_GAP_Y = 13;
 const RAIL_WIDTH = PAD_X + SLOT_WIDTH * 2 + PAD_X;
 const RAIL_HEIGHT = LANE_TOP_Y + LANE_GAP + 24;
 
-const CHIP_BASE = "rounded px-1.5 font-mono text-2xs font-bold tabular-nums";
-const ADD_CHIP = "bg-green-500/10 text-green-600 dark:text-green-500";
+const CHIP_BASE = "rounded-md px-1.5 font-mono text-2xs font-bold tabular-nums";
+const ADD_CHIP = "bg-success-soft text-success";
 const CUT_CHIP = "bg-destructive/10 text-destructive";
-const CHANGE_CHIP = "bg-amber-500/10 text-amber-700 dark:text-amber-500";
+const CHANGE_CHIP = "bg-warning-soft text-warning";
 
 const ROOT_X = PAD_X;
 const HEAD_X = PAD_X + SLOT_WIDTH;
@@ -115,7 +115,7 @@ function NodeLabel({
           </span>
         </span>
       )}
-      {draft && <span className="shrink-0 text-amber-700 dark:text-amber-500">Draft</span>}
+      {draft && <span className="text-warning shrink-0">Draft</span>}
     </span>
   );
 }
@@ -191,7 +191,7 @@ function StepDiff({
         <span className="truncate">{to}</span>
       </div>
       <div className="flex min-w-0 flex-col gap-1 text-sm">
-        <span className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+        <span className="text-muted-foreground text-2xs font-semibold tracking-wide uppercase">
           Main Deck
         </span>
         {entries.map((entry) => (

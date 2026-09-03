@@ -101,9 +101,9 @@ export function TradeBalanceBar({
           {/* Zero-value sides keep a sliver (min-width) so the bar always reads
               as two-sided rather than one color filling the rail. */}
           <div className="bg-muted flex h-1.5 overflow-hidden rounded-full">
-            <span className="min-w-1 bg-amber-500/80" style={{ flexGrow: giveShare }} />
+            <span className="bg-warning/80 min-w-1" style={{ flexGrow: giveShare }} />
             <span className="w-0.5 shrink-0" />
-            <span className="min-w-1 bg-green-500/80" style={{ flexGrow: 1 - giveShare }} />
+            <span className="bg-success/80 min-w-1" style={{ flexGrow: 1 - giveShare }} />
           </div>
           <div className="text-muted-foreground/70 flex justify-between gap-3 text-xs">
             <span>{deltaText}</span>

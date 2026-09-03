@@ -424,7 +424,7 @@ export function DeckStatsBand({
           onClick={() => onStatsOpenChange(!statsOpen)}
           className="text-muted-foreground hover:text-foreground flex-1 transition-colors"
         >
-          <span className="text-2xs font-semibold tracking-widest uppercase">Stats</span>
+          <span className="text-2xs font-semibold tracking-wide uppercase">Stats</span>
         </ExpandToggle>
         {headlineChips}
       </div>

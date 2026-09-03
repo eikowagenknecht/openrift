@@ -18,6 +18,7 @@ import { IndexSortButton } from "@/components/meta/meta-index-sort-button";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Medal } from "@/components/ui/podium";
 import { useMetaEvents, useMetaLegends } from "@/hooks/use-meta";
@@ -108,7 +109,7 @@ function LegendRow({ entry }: { entry: MetaLegendIndexEntry }) {
     <Link
       to="/meta/legends/$slug"
       params={{ slug: entry.slug }}
-      className="hover:bg-muted/40 focus-visible:ring-ring/50 block px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      className="hover:bg-muted/50 focus-visible:ring-ring/50 block px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-inset"
     >
       <div className={cn(LEGEND_INDEX_GRID, "hidden sm:grid")}>
         <LegendArt entry={entry} className="size-12" />
@@ -303,7 +304,7 @@ export function MetaLegendsPage() {
               />
             </div>
 
-            <div className="bg-card ring-foreground/10 mt-4 overflow-hidden rounded-lg ring-1">
+            <Card className="mt-4 gap-0 py-0">
               <SortHeader sort={sort} direction={direction} onSort={setSort} />
               {entries.length === 0 ? (
                 <Empty className="py-10">
@@ -320,7 +321,7 @@ export function MetaLegendsPage() {
                   ))}
                 </ul>
               )}
-            </div>
+            </Card>
           </>
         )}
       </div>

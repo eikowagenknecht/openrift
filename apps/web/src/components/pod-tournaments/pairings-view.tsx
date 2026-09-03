@@ -340,7 +340,7 @@ function RoundPenaltyStats({ round }: { round: PodRoundResponse }) {
       value: rematches,
       label: rematches === 1 ? "rematch" : "rematches",
       icon: RepeatIcon,
-      iconTone: rematches === 0 ? "green" : "gold",
+      iconTone: rematches === 0 ? "success" : "gold",
       tone: rematches === 0 ? "good" : "default",
     },
   ];
@@ -683,7 +683,7 @@ function PodCard({
         <CardTitle className="flex items-center gap-2">
           <IconChip
             icon={isMatch ? SwordsIcon : UsersIcon}
-            tone={reported ? "green" : "neutral"}
+            tone={reported ? "success" : "neutral"}
             size="sm"
             shape="round"
           />

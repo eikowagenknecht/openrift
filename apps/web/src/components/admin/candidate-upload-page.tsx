@@ -24,6 +24,7 @@ import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Code } from "@/components/ui/code";
 import {
   Command,
   CommandEmpty,
@@ -180,7 +181,7 @@ export function CandidateUploadPage() {
               </p>
             )}
             {parseError && (
-              <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+              <p className="text-destructive flex items-center gap-1 text-sm">
                 <XIcon className="size-4" />
                 {parseError}
               </p>
@@ -189,10 +190,10 @@ export function CandidateUploadPage() {
 
           <div className="space-y-2">
             <Label>
-              Provider name <span className="text-red-500">*</span>
+              Provider name <span className="text-destructive">*</span>
             </Label>
             <Popover open={providerOpen} onOpenChange={setProviderOpen}>
-              <PopoverTrigger className="border-input focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50">
+              <PopoverTrigger className="border-input focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full items-center justify-between rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50">
                 <span className={provider ? "text-foreground" : "text-muted-foreground"}>
                   {provider || "Select or type a provider name..."}
                 </span>
@@ -283,7 +284,7 @@ export function CandidateUploadPage() {
 
           {upload.isSuccess && (
             <div className="space-y-2">
-              <div className="flex items-start gap-1 text-sm text-green-600 dark:text-green-400">
+              <div className="text-success flex items-start gap-1 text-sm">
                 <CheckIcon className="mt-0.5 size-4 shrink-0" />
                 <div>
                   <p className="font-medium">
@@ -299,14 +300,12 @@ export function CandidateUploadPage() {
                     updated, {upload.data.printingsUnchanged ?? 0} unchanged
                   </p>
                   {upload.data.errors.length > 0 && (
-                    <p className="text-red-600 dark:text-red-400">
-                      {upload.data.errors.length} errors
-                    </p>
+                    <p className="text-destructive">{upload.data.errors.length} errors</p>
                   )}
                 </div>
               </div>
               {upload.data.errors.length > 0 && (
-                <ul className="ml-5 list-disc text-red-600 dark:text-red-400">
+                <ul className="text-destructive ml-5 list-disc">
                   {upload.data.errors.slice(0, 10).map((err, i) => (
                     <li key={i}>{err}</li>
                   ))}
@@ -337,7 +336,7 @@ export function CandidateUploadPage() {
           )}
 
           {upload.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <p className="text-destructive flex items-center gap-1 text-sm">
               <XIcon className="size-4" />
               {upload.error.message}
             </p>
@@ -393,51 +392,26 @@ function FormatHelp() {
       </summary>
       <div className="space-y-3 border-t px-3 py-3 text-sm">
         <p>
-          The file must contain a JSON array of entries (or an object with a{" "}
-          <code className="bg-muted rounded px-1">candidates</code> field holding the array). Each
-          entry has a <code className="bg-muted rounded px-1">card</code> object and a{" "}
-          <code className="bg-muted rounded px-1">printings</code> array. Field names use
-          snake_case.
+          The file must contain a JSON array of entries (or an object with a <Code>candidates</Code>{" "}
+          field holding the array). Each entry has a <Code>card</Code> object and a{" "}
+          <Code>printings</Code> array. Field names use snake_case.
         </p>
         <p>
-          <span className="font-medium">Required card fields:</span>{" "}
-          <code className="bg-muted rounded px-1">name</code>,{" "}
-          <code className="bg-muted rounded px-1">external_id</code>. Optional:{" "}
-          <code className="bg-muted rounded px-1">type</code>,{" "}
-          <code className="bg-muted rounded px-1">super_types</code>,{" "}
-          <code className="bg-muted rounded px-1">domains</code>,{" "}
-          <code className="bg-muted rounded px-1">might</code>,{" "}
-          <code className="bg-muted rounded px-1">energy</code>,{" "}
-          <code className="bg-muted rounded px-1">power</code>,{" "}
-          <code className="bg-muted rounded px-1">might_bonus</code>,{" "}
-          <code className="bg-muted rounded px-1">rules_text</code>,{" "}
-          <code className="bg-muted rounded px-1">effect_text</code>,{" "}
-          <code className="bg-muted rounded px-1">tags</code>,{" "}
-          <code className="bg-muted rounded px-1">short_code</code>,{" "}
-          <code className="bg-muted rounded px-1">extra_data</code>.
+          <span className="font-medium">Required card fields:</span> <Code>name</Code>,{" "}
+          <Code>external_id</Code>. Optional: <Code>type</Code>, <Code>super_types</Code>,{" "}
+          <Code>domains</Code>, <Code>might</Code>, <Code>energy</Code>, <Code>power</Code>,{" "}
+          <Code>might_bonus</Code>, <Code>rules_text</Code>, <Code>effect_text</Code>,{" "}
+          <Code>tags</Code>, <Code>short_code</Code>, <Code>extra_data</Code>.
         </p>
         <p>
-          <span className="font-medium">Required printing fields:</span>{" "}
-          <code className="bg-muted rounded px-1">short_code</code>,{" "}
-          <code className="bg-muted rounded px-1">external_id</code>. Optional:{" "}
-          <code className="bg-muted rounded px-1">set_id</code>,{" "}
-          <code className="bg-muted rounded px-1">set_name</code>,{" "}
-          <code className="bg-muted rounded px-1">rarity</code>,{" "}
-          <code className="bg-muted rounded px-1">art_variant</code>,{" "}
-          <code className="bg-muted rounded px-1">is_signed</code>,{" "}
-          <code className="bg-muted rounded px-1">marker_slugs</code>,{" "}
-          <code className="bg-muted rounded px-1">distribution_channel_slugs</code>,{" "}
-          <code className="bg-muted rounded px-1">finish</code>,{" "}
-          <code className="bg-muted rounded px-1">artist</code>,{" "}
-          <code className="bg-muted rounded px-1">public_code</code>,{" "}
-          <code className="bg-muted rounded px-1">printed_rules_text</code>,{" "}
-          <code className="bg-muted rounded px-1">printed_effect_text</code>,{" "}
-          <code className="bg-muted rounded px-1">image_url</code>,{" "}
-          <code className="bg-muted rounded px-1">flavor_text</code>,{" "}
-          <code className="bg-muted rounded px-1">language</code>,{" "}
-          <code className="bg-muted rounded px-1">printed_name</code>,{" "}
-          <code className="bg-muted rounded px-1">printed_year</code>,{" "}
-          <code className="bg-muted rounded px-1">extra_data</code>.
+          <span className="font-medium">Required printing fields:</span> <Code>short_code</Code>,{" "}
+          <Code>external_id</Code>. Optional: <Code>set_id</Code>, <Code>set_name</Code>,{" "}
+          <Code>rarity</Code>, <Code>art_variant</Code>, <Code>is_signed</Code>,{" "}
+          <Code>marker_slugs</Code>, <Code>distribution_channel_slugs</Code>, <Code>finish</Code>,{" "}
+          <Code>artist</Code>, <Code>public_code</Code>, <Code>printed_rules_text</Code>,{" "}
+          <Code>printed_effect_text</Code>, <Code>image_url</Code>, <Code>flavor_text</Code>,{" "}
+          <Code>language</Code>, <Code>printed_name</Code>, <Code>printed_year</Code>,{" "}
+          <Code>extra_data</Code>.
         </p>
         <p className="text-muted-foreground">
           Tip: use Export All Cards below to download a real file in the same format.
@@ -516,13 +490,13 @@ function DiffTable({
                   <td className="text-muted-foreground px-2 py-1">{item.shortCode ?? "\u2014"}</td>
                   <td className="px-2 py-1">{f.field}</td>
                   <td
-                    className="max-w-48 truncate px-2 py-1 text-red-600 dark:text-red-400"
+                    className="text-destructive max-w-48 truncate px-2 py-1"
                     title={JSON.stringify(f.from)}
                   >
                     {JSON.stringify(f.from)}
                   </td>
                   <td
-                    className="max-w-48 truncate px-2 py-1 text-green-600 dark:text-green-400"
+                    className="text-success max-w-48 truncate px-2 py-1"
                     title={JSON.stringify(f.to)}
                   >
                     {JSON.stringify(f.to)}
@@ -569,7 +543,7 @@ function RelinkCandidatesCard() {
           </p>
         )}
         {relink.isError && (
-          <p className="mt-2 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive mt-2 flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {relink.error.message}
           </p>
@@ -635,7 +609,7 @@ function ExportCardsCard() {
           )}
         </Button>
         {error && (
-          <p className="mt-2 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive mt-2 flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {error}
           </p>
@@ -686,7 +660,7 @@ function ProviderFavoriteCell({ row }: AdminCellSlotProps<ProviderRow>) {
       type="button"
       variant="ghost"
       size="icon-sm"
-      className={row.isFavorite ? "text-yellow-500" : "text-muted-foreground"}
+      className={row.isFavorite ? "text-border-accent" : "text-muted-foreground"}
       onClick={() => updateSetting.mutate({ provider: row.name, isFavorite: !row.isFavorite })}
       title={row.isFavorite ? "Remove from favorites" : "Add to favorites"}
       aria-label={row.isFavorite ? "Remove from favorites" : "Add to favorites"}
@@ -873,20 +847,20 @@ function ManageProvidersCard({
           actions={<ProviderCheckAction />}
         />
         {checkProvider.isSuccess && (
-          <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+          <p className="text-success flex items-center gap-1 text-sm">
             <CheckIcon className="size-4" />
             Checked {checkProvider.data.cardsChecked} cards, {checkProvider.data.printingsChecked}{" "}
             printings
           </p>
         )}
         {checkProvider.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {checkProvider.error.message}
           </p>
         )}
         {deleteProvider.isSuccess && (
-          <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+          <p className="text-success flex items-center gap-1 text-sm">
             <CheckIcon className="size-4" />
             Deleted {deleteProvider.data.deleted} candidates from &ldquo;
             {deleteProvider.data.provider}
@@ -894,7 +868,7 @@ function ManageProvidersCard({
           </p>
         )}
         {deleteProvider.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <p className="text-destructive flex items-center gap-1 text-sm">
             <XIcon className="size-4" />
             {deleteProvider.error.message}
           </p>

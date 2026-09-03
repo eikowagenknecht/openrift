@@ -14,6 +14,7 @@ import { Fragment, useState } from "react";
 import { PrintingVariantLabel } from "@/components/cards/printing-label";
 import { Button } from "@/components/ui/button";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { useOwnedCollectionsByVariants } from "@/hooks/use-owned-count";
 import { useRequiredUserId } from "@/lib/auth-session";
@@ -261,9 +262,9 @@ export function VariantLocationsPopover({
         onHighlightChange={setHighlightedId}
         header={
           <div className="px-2.5 pt-2 pb-0.5">
-            <p className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
+            <SectionHeading as="h3" size="sm">
               Add to collection
-            </p>
+            </SectionHeading>
           </div>
         }
       >

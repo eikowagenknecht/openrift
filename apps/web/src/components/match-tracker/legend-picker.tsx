@@ -122,7 +122,7 @@ function LegendGrid({
               onClick={() => onSelect(toTrackedLegend(option))}
               className={cn(
                 "bg-muted aspect-card relative flex items-end overflow-hidden rounded-md border p-1.5",
-                option.cardId === selectedCardId && "border-primary ring-primary/40 ring-2",
+                option.cardId === selectedCardId && "border-primary ring-primary ring-2",
               )}
             >
               {option.thumbnail && (
@@ -135,7 +135,7 @@ function LegendGrid({
                   className="absolute inset-0 size-full object-cover"
                 />
               )}
-              <span className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+              <span className="absolute inset-0 bg-linear-to-t from-black/90 via-black/25 to-transparent" />
               <span className="text-2xs relative w-full truncate font-semibold text-white">
                 {option.name}
               </span>

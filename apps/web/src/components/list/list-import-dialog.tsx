@@ -11,6 +11,7 @@ import {
 } from "@/components/import/import-preview-chrome";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Code } from "@/components/ui/code";
 import {
   Dialog,
   DialogContent,
@@ -53,11 +54,8 @@ export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListI
         <DialogHeader>
           <DialogTitle>Import list</DialogTitle>
           <DialogDescription>
-            Paste a CSV export or a plain list (
-            <code className="bg-muted rounded px-1 py-0.5 text-xs">
-              &lt;quantity&gt; &lt;card name&gt;
-            </code>{" "}
-            per line).{" "}
+            Paste a CSV export or a plain list (<Code>&lt;quantity&gt; &lt;card name&gt;</Code> per
+            line).{" "}
             {listKind === "printing"
               ? "Rows without enough detail to pin a printing are flagged for review."
               : "Quantities stack with what's already there."}
@@ -236,7 +234,7 @@ function PreviewStep({
           {exactEntries.map((item) => renderRow(item))}
         </ImportExactMatchesDisclosure>
 
-        <div className="bg-muted/50 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+        <div className="bg-muted/30 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
           <ImportStatusBadges
             readyCount={readyCount}
             toVerifyCount={toVerifyCount}

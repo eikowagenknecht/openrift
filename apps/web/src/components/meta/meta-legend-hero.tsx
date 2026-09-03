@@ -3,6 +3,7 @@ import { imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { DomainIcon } from "@/components/deck/domain-icon";
+import { Card } from "@/components/ui/card";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { deckGlowStyle } from "@/lib/domain";
@@ -75,7 +76,7 @@ export function MetaLegendHero({
   const { champion, title } = splitLegendName(legend.name);
 
   return (
-    <section className="bg-card ring-foreground/10 relative overflow-hidden rounded-xl ring-1">
+    <Card className="relative gap-0 py-0">
       <div
         aria-hidden
         className="absolute inset-0"
@@ -114,6 +115,6 @@ export function MetaLegendHero({
           lists they registered.
         </p>
       </div>
-    </section>
+    </Card>
   );
 }

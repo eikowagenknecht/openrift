@@ -22,7 +22,7 @@ describe("CardArtThumb", () => {
     const { container } = render(<CardArtThumb src="/x.webp" foil />);
 
     const frame = container.querySelector("span");
-    expect(frame?.className).toContain("ring-amber-400/60");
+    expect(frame?.className).toContain("ring-border-accent/60");
     // The still rainbow, not the shimmer keyframe: these frames lead list rows.
     const wash = container.querySelector(".bg-foil");
     expect(wash).not.toBeNull();
@@ -32,7 +32,7 @@ describe("CardArtThumb", () => {
   it("leaves the ring and the wash off a normal printing", () => {
     const { container } = render(<CardArtThumb src="/x.webp" />);
 
-    expect(container.querySelector("span")?.className).not.toContain("ring-amber");
+    expect(container.querySelector("span")?.className).not.toContain("ring-border-accent");
     expect(container.querySelector(".bg-foil")).toBeNull();
   });
 

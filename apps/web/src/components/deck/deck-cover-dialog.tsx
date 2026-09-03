@@ -188,7 +188,7 @@ export function DeckCoverDialog({
             </div>
           )}
           {draftCardId === null && (
-            <div className="text-muted-foreground bg-muted/40 flex h-24 items-center justify-center rounded-lg border border-dashed text-sm">
+            <div className="text-muted-foreground bg-muted/30 flex h-24 items-center justify-center rounded-lg border border-dashed text-sm">
               Default: the deck&rsquo;s Legend art
             </div>
           )}
@@ -221,7 +221,7 @@ export function DeckCoverDialog({
               onClick={() => setDraftCardId(null)}
               aria-pressed={draftCardId === null}
               className={cn(
-                "aspect-card bg-muted/40 text-muted-foreground flex w-24 shrink-0 items-center justify-center rounded-md border border-dashed p-1 text-center text-xs",
+                "aspect-card bg-muted/30 text-muted-foreground flex w-24 shrink-0 items-center justify-center rounded-md border border-dashed p-1 text-center text-xs",
                 draftCardId === null && "ring-primary ring-2",
               )}
             >

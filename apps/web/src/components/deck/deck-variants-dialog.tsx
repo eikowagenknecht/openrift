@@ -485,7 +485,7 @@ function VariantsDialogBody({
         )}
 
         {panel === "link" && (
-          <div className="bg-muted/40 flex min-w-0 flex-col gap-3 rounded-md p-3">
+          <div className="bg-muted flex min-w-0 flex-col gap-3 rounded-md p-3">
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="font-medium">Link another deck</span>
               <span className="text-muted-foreground text-sm">

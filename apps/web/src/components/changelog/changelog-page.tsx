@@ -38,7 +38,7 @@ function EntryItem({ entry }: { entry: ChangelogEntry }) {
       />
       <span>
         {entry.area && (
-          <span className="bg-muted text-muted-foreground text-2xs mr-1.5 rounded px-1.5 py-0.5 font-medium tracking-wide whitespace-nowrap uppercase">
+          <span className="bg-muted text-muted-foreground text-2xs mr-1.5 rounded-md px-1.5 py-0.5 font-medium tracking-wide whitespace-nowrap uppercase">
             {entry.area}
           </span>
         )}
@@ -77,7 +77,7 @@ export function ChangelogPage() {
           {changelogGroups.map((group) => (
             <div key={group.date}>
               <div
-                className="border-border bg-background/80 sticky z-10 flex items-baseline justify-between border-b py-2 pb-2 backdrop-blur-lg"
+                className="bg-background/80 sticky z-10 flex items-baseline justify-between py-2 pb-2 backdrop-blur-lg"
                 style={{ top: dateHeaderTop }}
               >
                 {/* One date per heading: the relative label falls back to the

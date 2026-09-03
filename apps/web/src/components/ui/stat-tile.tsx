@@ -59,10 +59,8 @@ function StatTile({
         // share one resting edge; hover mirrors cardLinkVariants' tint. Accent
         // keeps the shared bg-card and is carried by ring + icon chip alone.
         className: cn(
-          "group/stat-tile focus-visible:ring-ring/50 bg-card hover:bg-muted/40 relative flex flex-col gap-4 rounded-lg p-5 no-underline ring-1 transition-all outline-none hover:shadow-md focus-visible:ring-2 sm:min-h-28",
-          accent
-            ? "ring-primary/40 hover:ring-primary/50"
-            : "ring-foreground/10 hover:ring-primary/30",
+          "group/stat-tile focus-visible:ring-ring/50 bg-card hover:bg-muted/50 relative flex flex-col gap-4 rounded-lg p-5 no-underline ring-1 transition-all outline-none hover:shadow-md focus-visible:ring-2 sm:min-h-28",
+          accent ? "ring-primary/40 hover:ring-primary/50" : "ring-border hover:ring-primary/30",
           className,
         ),
         children: (

@@ -179,7 +179,7 @@ const CardRowContent = memo(function CardRowContent({
           // ⚠ p-0.75 mirrors BUTTON_PAD in card-grid-constants — update both together
           <div key={item.id} className="rounded-lg p-0.75">
             {addStripHeight > 0 && <div style={{ height: addStripHeight }} />}
-            <div className="bg-muted/40 aspect-card rounded-lg" />
+            <div className="bg-muted aspect-card rounded-lg" />
             {labelHeight > 0 && <div style={{ height: labelHeight }} />}
           </div>
         ))}

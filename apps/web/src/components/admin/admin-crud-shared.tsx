@@ -88,7 +88,10 @@ export function ColorCell<TRow extends { color: string | null }>({
   }
   return (
     <div className="flex items-center gap-2">
-      <span className="inline-block size-4 rounded border" style={{ backgroundColor: row.color }} />
+      <span
+        className="inline-block size-4 rounded-md border"
+        style={{ backgroundColor: row.color }}
+      />
       <span className="font-mono text-sm">{row.color}</span>
     </div>
   );

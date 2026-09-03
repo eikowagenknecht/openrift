@@ -504,7 +504,7 @@ function RuleBlock({
   const netOwned = useRuleEditorStore((state) => state.rules[index]?.netOwned ?? false);
 
   return (
-    <div className="border-border flex flex-col gap-3 rounded-lg border p-3">
+    <div className="flex flex-col gap-3 rounded-lg border p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-medium">{title}</span>

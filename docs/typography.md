@@ -88,7 +88,7 @@ For inline callouts in prose — "the goal", "limitations", "this is useful when
 
 ```tsx
 <Alert>
-  <TrophyIcon className="text-amber-600 dark:text-amber-400" />
+  <TrophyIcon className="text-warning" />
   <AlertTitle>The goal</AlertTitle>
   <AlertDescription>Score 8 points to win. You score by controlling battlefields.</AlertDescription>
 </Alert>

@@ -42,7 +42,7 @@ export function MetaFrontEventBlock({ event }: { event: MetaEventSummary }) {
       <Link
         to="/meta/$slug"
         params={{ slug: event.slug }}
-        className="hover:bg-muted/40 focus-visible:ring-ring/50 relative flex flex-col gap-2.5 px-4 py-3 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
+        className="hover:bg-muted/50 focus-visible:ring-ring/50 relative flex flex-col gap-2.5 px-4 py-3 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
       >
         <MetaEventHeading event={event} />
 

@@ -106,9 +106,7 @@ export function ScrollIndicator({
               STICKY_SURFACE_POPOVER,
               "text-popover-foreground inline-flex items-center rounded-md font-mono font-medium whitespace-nowrap shadow-md ring-1 select-none",
               coarsePointer ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",
-              indicator.dragging
-                ? "ring-primary/60 cursor-grabbing"
-                : "ring-primary/40 cursor-grab",
+              indicator.dragging ? "ring-primary cursor-grabbing" : "ring-primary/60 cursor-grab",
             )}
           >
             <span ref={cardIdRef}>{indicator.cardId || "\u00A0"}</span>

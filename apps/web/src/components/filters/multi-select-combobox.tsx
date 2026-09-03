@@ -178,19 +178,6 @@ export const FILTER_TRIGGER_CLASS =
 export const FILTER_TRIGGER_ACTIVE_CLASS = "bg-muted dark:bg-muted";
 
 /**
- * This app's brand theme sets `accent === primary` (gold), so the menu/combobox
- * primitives' default gold focus highlight is heavy in the filter chrome — and
- * unusable behind the gold-filled range sliders. Apply this to a popover/menu
- * surface to remap `accent` to the neutral muted highlight the rest of the app
- * uses (e.g. the header's `hover:bg-muted`), so every entry — combobox rows,
- * flags, dimension rows, and sliders — shares one subtle hover instead of gold.
- * Each portaled surface needs it directly (popups don't inherit it from a
- * parent's DOM subtree).
- */
-export const NEUTRAL_HOVER_SCOPE =
-  "[--accent:var(--muted)] [--accent-foreground:var(--foreground)]";
-
-/**
  * Namespace separator for group item ids. A space never appears in a slug, so a
  * group option's id (`" <groupIndex> <value>"`) can't collide with a primary
  * option's raw value or another group's, and `decodeId` can route a click back
@@ -554,7 +541,7 @@ export function MultiSelectCombobox({
             // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bespoke menu-item-row trigger; matches DropdownMenu item styling, no primitive covers it yet; label injected as ComboboxTrigger children below
             <button
               type="button"
-              className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-popup-open:bg-accent data-popup-open:text-accent-foreground flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none [&>svg:last-of-type]:hidden"
+              className="hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none [&>svg:last-of-type]:hidden"
             />
           }
         >
@@ -599,7 +586,7 @@ export function MultiSelectCombobox({
           its widest item (e.g. long breadcrumbs), capped at 90vw on narrow
           screens with an 18rem floor so the search input stays usable. */}
       <ComboboxContent
-        className={cn(NEUTRAL_HOVER_SCOPE, "w-max max-w-[90vw] min-w-72")}
+        className={cn("w-max max-w-[90vw] min-w-72")}
         // The popup portals out of the DOM but stays a React child of whatever
         // hosts the trigger, so keystrokes still bubble to that ancestor — and
         // in the compact bar's "More" menu (triggerStyle="menu") the menu's

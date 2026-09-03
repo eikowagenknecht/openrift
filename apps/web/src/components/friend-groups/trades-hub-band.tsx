@@ -42,10 +42,8 @@ function ShelfRow({
     <li className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
       <span
         className={cn(
-          "text-xs font-semibold tracking-wide uppercase sm:w-32 sm:shrink-0",
-          row.tone === "gold"
-            ? "text-amber-700 dark:text-amber-400"
-            : "text-green-700 dark:text-green-500",
+          "text-xs font-medium tracking-wide uppercase sm:w-32 sm:shrink-0",
+          row.tone === "warning" ? "text-warning" : "text-success",
         )}
       >
         {row.label}
@@ -91,7 +89,7 @@ export function TradesHubBand({ slug, data }: { slug: string; data: FriendGroupD
     <ActionBand
       render={<Link to="/groups/$slug/trades" params={{ slug }} />}
       icon={ZapIcon}
-      tone={needsAction ? "gold" : shelf.rows.length > 0 ? "green" : "neutral"}
+      tone={needsAction ? "gold" : shelf.rows.length > 0 ? "success" : "neutral"}
       accent={needsAction}
       label="Trades"
       value={shelf.headline}

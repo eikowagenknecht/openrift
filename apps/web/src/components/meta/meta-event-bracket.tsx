@@ -2,6 +2,7 @@ import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/
 
 import { Heading } from "@/components/heading";
 import { MetaIdentity } from "@/components/meta/meta-identity";
+import { Card } from "@/components/ui/card";
 import { accentGlow, Medal } from "@/components/ui/podium";
 import type { MetaBracketMatch, MetaBracketRound, MetaBracketSeat } from "@/lib/meta-bracket";
 import { metaEventBracket } from "@/lib/meta-bracket";
@@ -47,11 +48,8 @@ function BracketMatch({
   isFinal: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "bg-card flex flex-col overflow-hidden rounded-lg ring-1",
-        isFinal ? "ring-border-accent/50" : "ring-foreground/10",
-      )}
+    <Card
+      className={cn("gap-0 py-0", isFinal && "ring-border-accent/50")}
       style={isFinal ? { backgroundImage: FINAL_GLOW } : undefined}
     >
       {match.seats.map((seat, index) => (
@@ -61,7 +59,7 @@ function BracketMatch({
           player={seat.playerId === null ? undefined : players.get(seat.playerId)}
         />
       ))}
-    </div>
+    </Card>
   );
 }
 

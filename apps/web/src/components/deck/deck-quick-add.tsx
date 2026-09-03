@@ -167,7 +167,7 @@ function CardRowShell({
 }) {
   const className = cn(
     "group flex w-full items-center gap-3 px-3 py-2 text-sm transition-colors",
-    selected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+    selected ? "bg-muted text-foreground" : "hover:bg-muted",
   );
   if (!pressable) {
     return (
@@ -505,7 +505,7 @@ function QuickAddInner({
                 {targets.length > 1 ? (
                   <ChevronRightIcon
                     className={cn(
-                      "text-muted-foreground group-data-[selected=true]:text-accent-foreground size-4 shrink-0 transition-transform",
+                      "text-muted-foreground group-data-[selected=true]:text-foreground size-4 shrink-0 transition-transform",
                       isExpanded && "rotate-90",
                     )}
                   />
@@ -526,7 +526,7 @@ function QuickAddInner({
                     onMouseDown={keepInputFocus}
                   />
                 ) : (
-                  <PlusIcon className="text-muted-foreground group-data-[selected=true]:text-accent-foreground size-4 shrink-0" />
+                  <PlusIcon className="text-muted-foreground group-data-[selected=true]:text-foreground size-4 shrink-0" />
                 )}
               </CardRowShell>
 
@@ -535,9 +535,9 @@ function QuickAddInner({
                   {targets.map((target, index2) => {
                     const isTargetSelected = index2 === Math.min(targetIndex, targets.length - 1);
                     const zoneClassName = cn(
-                      "group flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors",
+                      "group flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
                       isTargetSelected && !target.disabled
-                        ? "bg-accent text-accent-foreground"
+                        ? "bg-muted text-foreground"
                         : "hover:bg-muted",
                       target.disabled && "text-muted-foreground opacity-60",
                     );

@@ -270,8 +270,8 @@ export function EntryHeader({
         </div>
       </div>
       {entry.unlockRequestedAt && (entry.state === "approved" || entry.state === "submitted") ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-500/60 bg-amber-500/10 p-3 text-sm">
-          <TriangleAlertIcon className="size-4 shrink-0 text-amber-600 dark:text-amber-500" />
+        <div className="border-warning/40 bg-warning-soft flex flex-wrap items-center gap-2 rounded-md border p-3 text-sm">
+          <TriangleAlertIcon className="text-warning size-4 shrink-0" />
           <span className="min-w-0 flex-1">
             The player asked to unlock this {entry.state === "approved" ? "approved" : "submitted"}{" "}
             deck for changes.
@@ -366,7 +366,7 @@ function SharingValue({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] 
           className={cn("flex items-center gap-1", !item.allowed && "text-muted-foreground/50")}
         >
           {item.allowed ? (
-            <CheckIcon className="size-3.5 text-green-600 dark:text-green-500" />
+            <CheckIcon className="text-success size-3.5" />
           ) : (
             <XIcon className="size-3.5" />
           )}

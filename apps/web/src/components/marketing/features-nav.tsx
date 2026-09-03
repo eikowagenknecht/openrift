@@ -145,7 +145,7 @@ export function FeaturesRail({ chapters }: { chapters: FeatureChapter[] }) {
   return (
     <nav
       aria-label="Chapters"
-      className="bg-background/60 fixed top-1/2 right-3 z-40 hidden -translate-y-1/2 flex-col py-1 backdrop-blur-sm xl:flex"
+      className="bg-background/80 fixed top-1/2 right-3 z-40 hidden -translate-y-1/2 flex-col py-1 backdrop-blur-lg xl:flex"
     >
       {chapters.map((chapter) => {
         const Icon = chapter.icon;

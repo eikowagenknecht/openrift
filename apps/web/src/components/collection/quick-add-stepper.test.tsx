@@ -23,28 +23,21 @@ function renderStepper(props: Partial<Parameters<typeof QuickAddStepper>[0]> = {
 
 describe("QuickAddStepper", () => {
   // The selected-vs-changed colours are decided by the cascade, which jsdom
-  // does not compute, so these assert on the emitted classes. What matters is
-  // that the green is scoped to unselected rows: as bare
-  // `text-green-600 dark:text-green-400` it tied on specificity (0,2,0) with
-  // `group-data-[selected=true]:text-accent-foreground` and won on source
-  // order, so a selected row's changed count came out green in dark mode only.
-  it("scopes the changed-green to unselected rows", () => {
+  // does not compute, so these assert on the emitted classes.
+  it("scopes the changed colour to unselected rows", () => {
     const classes = renderStepper({ changed: true }).className.split(" ");
 
-    expect(classes).toContain("group-data-[selected=true]:text-accent-foreground");
-    expect(classes).toContain("group-not-data-[selected=true]:text-green-600");
-    expect(classes).toContain("dark:group-not-data-[selected=true]:text-green-400");
-    // Unscoped greens would apply to selected rows too, which is the bug.
-    expect(classes).not.toContain("text-green-600");
-    expect(classes).not.toContain("dark:text-green-400");
+    expect(classes).toContain("group-data-[selected=true]:text-foreground");
+    expect(classes).toContain("group-not-data-[selected=true]:text-success");
+    expect(classes).not.toContain("text-success");
   });
 
   it("paints an untouched count as muted, deferring to the row when selected", () => {
     const classes = renderStepper({ changed: false }).className.split(" ");
 
     expect(classes).toContain("text-muted-foreground");
-    expect(classes).toContain("group-data-[selected=true]:text-accent-foreground/80");
-    expect(classes.some((name) => name.includes("green"))).toBe(false);
+    expect(classes).toContain("group-data-[selected=true]:text-foreground/80");
+    expect(classes.some((name) => name.includes("success"))).toBe(false);
   });
 
   it("shows the count between the buttons", () => {

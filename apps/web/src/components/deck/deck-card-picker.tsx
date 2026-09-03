@@ -154,7 +154,7 @@ export function CardChip({
         "min-w-0 items-center text-sm",
         field
           ? "dark:bg-input/30 border-input flex h-8 w-full gap-2 rounded-lg border bg-transparent px-2.5"
-          : "bg-muted/60 inline-flex gap-1.5 rounded-md py-0.5 pr-1 pl-1.5",
+          : "bg-muted inline-flex gap-1.5 rounded-md py-0.5 pr-1 pl-1.5",
       )}
       onMouseEnter={() => onHoverCard?.(cardId)}
       onMouseLeave={() => onHoverCard?.(null)}

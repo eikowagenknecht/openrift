@@ -43,7 +43,7 @@ export function MetaDeckFrame({
     <div
       className={cn(
         cardLinkVariants(),
-        "focus-within:ring-ring/50 ring-foreground/10 group relative rounded-lg ring-1 focus-within:ring-2",
+        "focus-within:ring-ring/50 ring-border group relative rounded-lg ring-1 focus-within:ring-2",
         className,
       )}
     >

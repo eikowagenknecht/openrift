@@ -114,7 +114,7 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
         to="/groups/$slug/shared"
         slug={slug}
         icon={FolderIcon}
-        tone="sky"
+        tone="info"
         label="Group collections"
         value={groupCollections.length}
         hint={
@@ -216,7 +216,7 @@ function MembersCard({ slug, data }: { slug: string; data: FriendGroupDetailResp
       to="/groups/$slug/members"
       slug={slug}
       icon={UsersIcon}
-      tone="green"
+      tone="success"
       label="Members"
       value={data.members.length}
     >
@@ -360,7 +360,7 @@ function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetail
           ))}
         </CardList>
       ) : (
-        <div className="border-border flex flex-col gap-2 rounded-lg border border-dashed p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed p-4">
           <p className="text-muted-foreground text-sm">
             {admin
               ? "No tournaments planned. Set one up for the next game night."

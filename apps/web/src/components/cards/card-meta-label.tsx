@@ -86,7 +86,7 @@ export function CardMetaLabel({
           {oversized && (
             <span
               title={sizeLabel}
-              className="bg-muted text-muted-foreground text-2xs rounded px-1 leading-tight font-semibold tracking-wide uppercase"
+              className="bg-muted text-muted-foreground text-2xs rounded-md px-1 leading-tight font-semibold tracking-wide uppercase"
             >
               {sizeLabel}
             </span>
@@ -98,12 +98,12 @@ export function CardMetaLabel({
                 .join("\n")}
               className="inline-flex"
             >
-              <TriangleAlertIcon className="size-3.5 text-red-500" />
+              <TriangleAlertIcon className="text-destructive size-3.5" />
             </span>
           )}
           {hasRulesDeviation && (
             <span title="Printed text differs from current rules" className="inline-flex">
-              <TriangleAlertIcon className="size-3.5 text-yellow-500" />
+              <TriangleAlertIcon className="text-warning size-3.5" />
             </span>
           )}
           {printingComment && (

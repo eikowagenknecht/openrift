@@ -17,12 +17,12 @@ import { cn } from "@/lib/utils";
 // `cardLinkVariants()`: cards with secondary interactive elements inside
 // (menus, inner links) keep the Card as the outer element, and non-Card link
 // tiles (the deck grid/list tiles) apply it to their own root alongside the
-// Card edge (`ring-1 ring-foreground/10`) and focus classes.
+// Card edge (`ring-1 ring-border`) and focus classes.
 
 // The hover treatment mirrors StatTile (shadow lift + 1px primary edge +
 // muted wash) so the two tile families read as siblings; keep them in sync.
 const cardLinkVariants = cva(
-  "transition-all hover:bg-muted/40 hover:shadow-md hover:ring-primary/30",
+  "transition-all hover:bg-muted/50 hover:shadow-md hover:ring-primary/30",
 );
 
 /**

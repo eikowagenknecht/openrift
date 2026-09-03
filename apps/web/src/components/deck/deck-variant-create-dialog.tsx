@@ -179,7 +179,7 @@ export function DeckVariantCreateForm({
 
   return (
     <form
-      className="bg-muted/40 flex min-w-0 flex-col gap-3 rounded-md p-3"
+      className="bg-muted flex min-w-0 flex-col gap-3 rounded-md p-3"
       onSubmit={(event) => {
         event.preventDefault();
         handleSubmit();

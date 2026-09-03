@@ -13,6 +13,7 @@ import {
   PORTRAIT_THUMB_STYLE,
 } from "@/components/deck/deck-thumb-metrics";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckItems } from "@/hooks/use-deck-items";
 import type { DeckTokenEntry } from "@/hooks/use-deck-tokens";
@@ -162,7 +163,7 @@ function TokenRow({
       onMouseEnter={() => onHoverCard?.(entry.printing.cardId, entry.printing.id)}
       onMouseLeave={() => onHoverCard?.(null)}
       title={tokenTitle(entry)}
-      className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm"
+      className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm"
     >
       <CardMiniRow
         className="self-stretch"
@@ -242,9 +243,9 @@ export function DeckTokensSection({
     return (
       <section className={DECK_LIST_SECTION_CLASS}>
         <div className="flex h-6 items-center gap-2 border-b">
-          <h3 className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+          <SectionHeading as="h3" size="sm">
             {TOKENS_LABEL}
-          </h3>
+          </SectionHeading>
           <TokensHint />
           {count}
         </div>
@@ -274,11 +275,11 @@ export function DeckTokensSection({
           onClick={() => toggleCollapsed("tokens")}
           aria-label={collapsed ? `Expand ${TOKENS_LABEL}` : `Collapse ${TOKENS_LABEL}`}
           chevronClassName="size-3.5"
-          className="shrink-0 rounded"
+          className="shrink-0 rounded-md"
         />
-        <h3 className="text-muted-foreground text-2xs font-semibold tracking-widest uppercase">
+        <SectionHeading as="h3" size="sm">
           {TOKENS_LABEL}
-        </h3>
+        </SectionHeading>
         <TokensHint />
         {count}
       </div>

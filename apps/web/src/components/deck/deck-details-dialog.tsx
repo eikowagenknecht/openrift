@@ -7,6 +7,7 @@ import type { LinkDraft } from "@/components/link-rows-field";
 import { LinkRowsField } from "@/components/link-rows-field";
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
+import { Code } from "@/components/ui/code";
 import {
   Dialog,
   DialogContent,
@@ -217,7 +218,7 @@ export function DeckDetailsDialog({
             <DialogTitle>Deck details</DialogTitle>
             <DialogDescription>
               The guide is Markdown. Type
-              <code className="bg-muted mx-1 rounded px-1">[[</code>
+              <Code className="mx-1">[[</Code>
               to link a card.
             </DialogDescription>
           </DialogHeader>

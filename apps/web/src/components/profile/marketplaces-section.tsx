@@ -87,7 +87,7 @@ export function MarketplacesSection() {
                       {MARKETPLACE_CURRENCY[marketplace]}
                     </span>
                     {enabled && index === 0 && (
-                      <Badge variant="subtle" className="text-2xs h-auto rounded px-1.5">
+                      <Badge variant="subtle" className="text-2xs h-auto rounded-md px-1.5">
                         Favorite
                       </Badge>
                     )}

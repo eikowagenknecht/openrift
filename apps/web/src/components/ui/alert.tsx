@@ -12,11 +12,11 @@ const alertVariants = cva(
         default: "bg-card text-card-foreground",
         destructive:
           "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
-        // custom: tonal amber warning — replaces inline `border-amber-200 bg-amber-50 ...` boxes used by import flows
+        // custom: tonal warning on the warning token — replaces inline amber callout boxes used by import flows
         warning:
-          "border-amber-200 bg-amber-50 text-amber-800 *:data-[slot=alert-description]:text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300 dark:*:data-[slot=alert-description]:text-amber-400 *:[svg]:text-current",
-        // custom: tonal sky info — neutral aside variant available for non-warning, non-destructive callouts
-        info: "border-sky-200 bg-sky-50 text-sky-800 *:data-[slot=alert-description]:text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300 dark:*:data-[slot=alert-description]:text-sky-400 *:[svg]:text-current",
+          "border-warning/40 bg-warning-soft text-warning *:data-[slot=alert-description]:text-warning/90 *:[svg]:text-current",
+        // custom: tonal info on the info token — neutral aside variant for non-warning, non-destructive callouts
+        info: "border-info/40 bg-info-soft text-info *:data-[slot=alert-description]:text-info/90 *:[svg]:text-current",
       },
     },
     defaultVariants: {

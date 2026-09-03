@@ -44,14 +44,14 @@ function JobRunStatusLine({ run, succeededText }: { run: JobRunView; succeededTe
   }
   if (run.status === "failed") {
     return (
-      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+      <p className="text-destructive flex items-center gap-1 text-sm">
         <XIcon className="size-4" />
         {run.errorMessage ?? "Failed"}
       </p>
     );
   }
   return (
-    <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+    <p className="text-success flex items-center gap-1 text-sm">
       <CheckIcon className="size-4" />
       {succeededText}
     </p>

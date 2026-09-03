@@ -25,7 +25,7 @@ export function StageVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[]
       <section className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2">
           <span className="font-semibold">On stream</span>
-          <span className="grid justify-items-end font-mono text-sm tracking-widest uppercase">
+          <span className="grid justify-items-end font-mono text-sm tracking-wide uppercase">
             <span className="text-muted-foreground motion-safe:animate-stage-idle col-start-1 row-start-1 opacity-0">
               Nothing up
             </span>
@@ -46,11 +46,11 @@ export function StageVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[]
                   <div className="text-xs leading-tight font-semibold text-balance">
                     Azir, Sovereign
                   </div>
-                  <div className="text-2xs mt-1 font-mono tracking-wider text-white/50 uppercase">
+                  <div className="text-2xs mt-1 font-mono tracking-wide text-white/50 uppercase">
                     SFD-177a/221 · Foil
                   </div>
                 </div>
-                <span className="text-2xs pb-0.5 font-mono tracking-widest text-white/45">
+                <span className="text-2xs pb-0.5 font-mono tracking-wide text-white/45">
                   openrift.app
                 </span>
               </div>

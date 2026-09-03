@@ -19,6 +19,7 @@ import { FixCardDialog } from "@/components/deck-check/deck-check-entry-dialogs"
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
@@ -310,18 +311,13 @@ function ZoneSection({
   const done = totalCopies > 0 && verifiedCopies === totalCopies;
 
   const heading = (
-    <h3
-      className={cn(
-        "flex items-center gap-1.5 text-sm font-medium tracking-wide uppercase",
-        done ? "text-green-600" : "text-muted-foreground",
-      )}
-    >
+    <SectionHeading as="h3" className={cn("flex items-center gap-1.5", done && "text-success")}>
       <span>{label}</span>
       <span>
         · {verifiedCopies}/{totalCopies}
       </span>
       {done ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
-    </h3>
+    </SectionHeading>
   );
 
   if (displayMode === "list") {
@@ -463,7 +459,7 @@ function ChecklistRow({
 
   return (
     <div
-      className="hover:bg-muted/40 flex items-center gap-2 rounded-md"
+      className="hover:bg-muted/50 flex items-center gap-2 rounded-md"
       onMouseEnter={() => {
         if (matched) {
           onHover?.(printing);
@@ -478,8 +474,8 @@ function ChecklistRow({
         <span
           aria-hidden
           className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded border",
-            found ? "border-green-600 bg-green-600 text-white" : "border-input",
+            "flex size-5 shrink-0 items-center justify-center rounded-md border",
+            found ? "border-success bg-success text-success-foreground" : "border-input",
           )}
         >
           {found ? <CheckIcon className="size-3.5" strokeWidth={3} /> : null}
@@ -631,7 +627,7 @@ function ChecklistCell({
   const foundOverlay = found ? (
     <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
       <div className="bg-background/80 rounded-full p-3 shadow-md">
-        <CheckIcon className="size-12 text-green-600" strokeWidth={3} />
+        <CheckIcon className="text-success size-12" strokeWidth={3} />
       </div>
     </div>
   ) : null;
@@ -707,7 +703,7 @@ function ChecklistCell({
           <Pressable
             onClick={() => void toggle()}
             className={cn(
-              "flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed border-amber-500/60 bg-amber-500/10 p-2 text-sm",
+              "border-warning/40 bg-warning-soft flex h-full w-full flex-col items-start gap-1 rounded-md border border-dashed p-2 text-sm",
               found && "opacity-60",
             )}
           >

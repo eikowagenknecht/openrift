@@ -67,7 +67,7 @@ export function LensBar({
           <h4 className="font-medium">{title}</h4>
         </div>
       )}
-      <div className="bg-muted/40 flex h-2.5 w-full overflow-hidden rounded-full">
+      <div className="bg-muted flex h-2.5 w-full overflow-hidden rounded-full">
         {rows
           .filter((row) => row.total > 0)
           .map((row) => {

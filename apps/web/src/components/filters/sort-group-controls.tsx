@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup } from "@/components/ui/radio-group";
+import { SectionHeading } from "@/components/ui/section-heading";
 import { cn } from "@/lib/utils";
 
 export interface SortGroupOption<TValue extends string> {
@@ -26,9 +27,7 @@ function SortGroupSection({
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center justify-between px-2.5">
-        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          {title}
-        </span>
+        <SectionHeading as="span">{title}</SectionHeading>
         {action}
       </div>
       {children}
@@ -47,7 +46,7 @@ function DirToggle({
     <Button
       variant="ghost"
       size="icon-xs"
-      className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
+      className="text-muted-foreground hover:text-foreground -mr-1 rounded-md p-0.5 transition-colors"
       onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
       title={dir === "asc" ? "Ascending, click to reverse" : "Descending, click to reverse"}
     >
@@ -179,8 +178,8 @@ export function SortGroupControls<
           value={option.value}
           className={cn(
             "rounded-md px-2.5 py-1 text-left text-sm transition-colors outline-none",
-            "data-checked:bg-accent data-checked:text-accent-foreground data-checked:font-medium",
-            "data-unchecked:text-muted-foreground data-unchecked:hover:bg-accent/50 data-unchecked:hover:text-foreground",
+            "data-checked:bg-muted data-checked:text-foreground data-checked:font-medium",
+            "data-unchecked:text-muted-foreground data-unchecked:hover:bg-muted/50 data-unchecked:hover:text-foreground",
           )}
         >
           {option.label}

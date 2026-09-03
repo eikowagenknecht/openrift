@@ -35,7 +35,7 @@ export function MissingRegionsBand({
         {players.map((player) => (
           <div
             key={player.id}
-            className="bg-muted/40 flex items-center gap-2.5 rounded-lg px-2.5 py-2"
+            className="bg-muted flex items-center gap-2.5 rounded-lg px-2.5 py-2"
           >
             <UserAvatar name={player.userName ?? player.displayName} className="size-7 shrink-0" />
             <span className="min-w-0 flex-1 truncate text-sm font-medium">

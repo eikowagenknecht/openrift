@@ -796,7 +796,7 @@ export function ScanPage() {
   const notices = (
     <>
       {deviceTooSlow && (
-        <Card className="mt-4 border-amber-500">
+        <Card className="border-warning mt-4">
           <CardContent className="pt-6">
             <p className="font-medium">This device is too slow for live scanning.</p>
             <p className="text-muted-foreground mt-2">

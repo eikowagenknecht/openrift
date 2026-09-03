@@ -400,7 +400,7 @@ export const CollectionGridCell = memo(function CollectionGridCell({
           onToggle={() => dispatchItemToggle(itemId)}
         />
         {isItemSelected && (
-          <div className="ring-primary/50 pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
+          <div className="ring-primary pointer-events-none absolute inset-1.5 z-10 rounded-lg ring-2" />
         )}
       </>
     ) : undefined;

@@ -115,7 +115,7 @@ function PanelIdentityHeader({
               violationCount > 0
                 ? "text-destructive"
                 : isComplete
-                  ? "text-green-600 dark:text-green-500"
+                  ? "text-success"
                   : "text-muted-foreground",
             )}
           >

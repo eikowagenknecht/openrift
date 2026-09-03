@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { Kbd } from "@/components/ui/kbd";
 
 interface ToolbarGuideRow {
@@ -67,7 +68,7 @@ export function CollectionIntroBanner({
 }) {
   const guideRows = [LIBRARY_ROW, VIEWS_ROW, MANAGE_ROW, DISPLAY_ROW];
   return (
-    <div className="border-border bg-muted/30 relative mb-3 rounded-lg border p-4">
+    <Callout className="mb-3">
       <Button
         type="button"
         variant="ghost"
@@ -132,7 +133,7 @@ export function CollectionIntroBanner({
           </p>
         </div>
       </div>
-    </div>
+    </Callout>
   );
 }
 
@@ -148,7 +149,7 @@ function GuideIcons({ icons }: { icons: readonly LucideIcon[] }) {
         // oxlint-disable-next-line react/no-array-index-key -- static icon list, never reordered
         <span
           key={index}
-          className="border-border bg-background flex size-6 items-center justify-center rounded-md border"
+          className="bg-background flex size-6 items-center justify-center rounded-md border"
         >
           <Icon className="size-3.5" />
         </span>

@@ -26,7 +26,7 @@ function ChipRemoveButton({
       data-slot="chip-remove-button"
       type="button"
       className={cn(
-        "hover:text-foreground focus-visible:ring-ring ml-0.5 cursor-pointer rounded-sm focus-visible:ring-2 focus-visible:outline-none",
+        "hover:text-foreground focus-visible:ring-ring/50 ml-0.5 cursor-pointer rounded-sm focus-visible:ring-2 focus-visible:outline-none",
         className,
       )}
       {...props}

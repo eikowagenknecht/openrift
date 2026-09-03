@@ -85,7 +85,7 @@ export function MetaEventRow({ event }: { event: MetaEventSummary }) {
     <Link
       to="/meta/$slug"
       params={{ slug: event.slug }}
-      className="hover:bg-muted/40 focus-visible:ring-ring/50 flex flex-col gap-1.5 px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
+      className="hover:bg-muted/50 focus-visible:ring-ring/50 flex flex-col gap-1.5 px-4 py-2.5 outline-none focus-visible:ring-2 focus-visible:-outline-offset-2"
     >
       <MetaEventHeading event={event} />
       {winners.length > 0 && (

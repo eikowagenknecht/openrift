@@ -1,4 +1,5 @@
 import { Heading } from "@/components/heading";
+import { Code } from "@/components/ui/code";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 
 const EXAMPLE_REQUEST = `POST /api/v1/ingest/deck-check
@@ -114,78 +115,58 @@ export default function TournamentDecklistApiArticle() {
           tournament, and the other way around.
         </p>
         <p className="text-muted-foreground mt-2">
-          A key looks like <code className="bg-muted rounded px-1.5 py-0.5 text-xs">orpk_…</code>{" "}
-          and is shown once, right when it is created. Store it like a password: it lets its holder
-          send decklists to every tournament of your account or organization. You can rename keys,
-          see when each was last used, and revoke one at any time. A revoked key stops working
-          immediately.
+          A key looks like <Code>orpk_…</Code> and is shown once, right when it is created. Store it
+          like a password: it lets its holder send decklists to every tournament of your account or
+          organization. You can rename keys, see when each was last used, and revoke one at any
+          time. A revoked key stops working immediately.
         </p>
       </section>
 
       <section>
         <Heading className="mb-2">Pushing decklists</Heading>
         <p className="text-muted-foreground">
-          Send a <code className="bg-muted rounded px-1.5 py-0.5 text-xs">POST</code> to{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">/api/v1/ingest/deck-check</code>{" "}
-          on this site, with your key in the{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">Authorization</code> header and a
-          JSON body:
+          Send a <Code>POST</Code> to <Code>/api/v1/ingest/deck-check</Code> on this site, with your
+          key in the <Code>Authorization</Code> header and a JSON body:
         </p>
         <pre className="bg-muted mt-3 overflow-x-auto rounded-md p-3 text-sm">
           {EXAMPLE_REQUEST}
         </pre>
         <ul className="text-muted-foreground mt-3 space-y-2">
           <li>
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">tournamentId</code> — the
-            tournament&apos;s id, copied from its Deck check tab.
+            <Code>tournamentId</Code> — the tournament&apos;s id, copied from its Deck check tab.
           </li>
           <li>
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">externalId</code> — your own id
-            for the player. Pushing the same id again updates that entry instead of creating a new
-            one. Ids starting with{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">openrift:</code> are reserved
-            for decks players submit themselves and are rejected.
+            <Code>externalId</Code> — your own id for the player. Pushing the same id again updates
+            that entry instead of creating a new one. Ids starting with <Code>openrift:</Code> are
+            reserved for decks players submit themselves and are rejected.
           </li>
           <li>
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">playerName</code> — shown to
-            judges next to the entry.{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">riotId</code> and{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">submittedAt</code> are optional
-            and also shown to judges.
+            <Code>playerName</Code> — shown to judges next to the entry. <Code>riotId</Code> and{" "}
+            <Code>submittedAt</Code> are optional and also shown to judges.
           </li>
           <li>
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">allowDeckPublishing</code>,{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">allowNameSharing</code>,{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">allowRiotIdSharing</code> — the
-            player&apos;s consent to publish their deck, name, and Riot ID after the event. Send{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">false</code> when a player
-            declined; omit a flag to keep what is already stored (new entries default to allowed).
+            <Code>allowDeckPublishing</Code>, <Code>allowNameSharing</Code>,{" "}
+            <Code>allowRiotIdSharing</Code> — the player&apos;s consent to publish their deck, name,
+            and Riot ID after the event. Send <Code>false</Code> when a player declined; omit a flag
+            to keep what is already stored (new entries default to allowed).
           </li>
           <li>
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">withdrawn</code> — set{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">true</code> to withdraw a
-            player. Pushing the entry again without the flag restores them.
+            <Code>withdrawn</Code> — set <Code>true</Code> to withdraw a player. Pushing the entry
+            again without the flag restores them.
           </li>
           <li>
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">cards</code> — one line per
-            card with its English name as printed, the quantity, and the deck section.
+            <Code>cards</Code> — one line per card with its English name as printed, the quantity,
+            and the deck section.
           </li>
         </ul>
         <p className="text-muted-foreground mt-3">
-          Sections map onto OpenRift&apos;s deck zones:{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">legend</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">champion</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">main</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">runes</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">battlefield</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">sideboard</code>, and{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">overflow</code>. Common variants
-          like <code className="bg-muted rounded px-1.5 py-0.5 text-xs">deck</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">maindeck</code>,{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">side</code>, and plurals work
-          too; any other section rejects the whole push, so nothing is half-imported. Card names
-          don&apos;t have to resolve, though: a misspelled or unknown name never blocks a push, the
-          line is flagged and judges see the raw name exactly as you sent it.
+          Sections map onto OpenRift&apos;s deck zones: <Code>legend</Code>, <Code>champion</Code>,{" "}
+          <Code>main</Code>, <Code>runes</Code>, <Code>battlefield</Code>, <Code>sideboard</Code>,
+          and <Code>overflow</Code>. Common variants like <Code>deck</Code>, <Code>maindeck</Code>,{" "}
+          <Code>side</Code>, and plurals work too; any other section rejects the whole push, so
+          nothing is half-imported. Card names don&apos;t have to resolve, though: a misspelled or
+          unknown name never blocks a push, the line is flagged and judges see the raw name exactly
+          as you sent it.
         </p>
       </section>
 
@@ -193,10 +174,9 @@ export default function TournamentDecklistApiArticle() {
         <Heading className="mb-2">What a push changes</Heading>
         <p className="text-muted-foreground">
           Pushes are partial: only the entries you send are touched, and leaving a player out of a
-          push never withdraws them. Withdrawing is always the explicit{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">withdrawn</code> flag. That makes
-          pushes safe to repeat: re-sending an unchanged entry does nothing, so you can push on
-          every registration event without bookkeeping.
+          push never withdraws them. Withdrawing is always the explicit <Code>withdrawn</Code> flag.
+          That makes pushes safe to repeat: re-sending an unchanged entry does nothing, so you can
+          push on every registration event without bookkeeping.
         </p>
         <p className="text-muted-foreground mt-2">
           When a re-pushed entry&apos;s card list actually changed, the stored deck is replaced. If
@@ -211,19 +191,17 @@ export default function TournamentDecklistApiArticle() {
         <Heading className="mb-2">The response and claim links</Heading>
         <p className="text-muted-foreground">
           A successful push returns counts of what happened plus one result per entry, keyed by your
-          own <code className="bg-muted rounded px-1.5 py-0.5 text-xs">externalId</code>:
+          own <Code>externalId</Code>:
         </p>
         <pre className="bg-muted mt-3 overflow-x-auto rounded-md p-3 text-sm">
           {EXAMPLE_RESPONSE}
         </pre>
         <p className="text-muted-foreground mt-3">
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">entryId</code> is the stable
-          OpenRift id for the entry.{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">claimUrl</code> is a personal
-          link for that player: put it in your confirmation email. A player who opens it signs in
-          (or creates an account), confirms, and from then on sees their own submitted deck in
-          OpenRift, and only their own. Nothing about the deck or the player is visible before the
-          claim is confirmed, and OpenRift never needs the player&apos;s email address for this.
+          <Code>entryId</Code> is the stable OpenRift id for the entry. <Code>claimUrl</Code> is a
+          personal link for that player: put it in your confirmation email. A player who opens it
+          signs in (or creates an account), confirms, and from then on sees their own submitted deck
+          in OpenRift, and only their own. Nothing about the deck or the player is visible before
+          the claim is confirmed, and OpenRift never needs the player&apos;s email address for this.
         </p>
         <p className="text-muted-foreground mt-2">
           The link is stable: re-pushing the same entry returns the same URL, so it is safe to
@@ -237,10 +215,9 @@ export default function TournamentDecklistApiArticle() {
         <p className="text-muted-foreground">
           A push carries at most 500 entries with up to 200 card lines each, the body is capped at 1
           MB, and each key may push 60 times per minute (responses include standard{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">RateLimit</code> headers). Larger
-          fields simply split across several pushes.
+          <Code>RateLimit</Code> headers). Larger fields simply split across several pushes.
         </p>
-        <div className="border-border mt-3 overflow-x-auto rounded-lg border text-sm">
+        <div className="mt-3 overflow-x-auto rounded-lg border text-sm">
           <table className="w-full">
             <thead>
               <tr className="border-border border-b">

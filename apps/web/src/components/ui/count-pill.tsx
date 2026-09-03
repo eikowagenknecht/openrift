@@ -13,13 +13,13 @@ import { cn } from "@/lib/utils";
 // against grid constants) can use countPillVariants directly.
 
 const countPillVariants = cva(
-  "inline-flex h-5 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium tabular-nums transition-colors",
+  "inline-flex h-5 items-center gap-1 rounded-4xl px-2 py-0.5 text-xs font-medium tabular-nums transition-colors",
   {
     variants: {
       variant: {
         muted: "bg-muted text-muted-foreground",
         primary: "bg-primary/10 text-primary",
-        success: "bg-green-500/10 text-green-700 dark:bg-green-500/20 dark:text-green-400",
+        success: "bg-success-soft text-success",
         // Background-less pill for informational chips in the card strips —
         // the interactive form regains a muted ground on hover (see
         // countPillHover) so tappability still reads on pointer devices.
@@ -37,7 +37,7 @@ const countPillVariants = cva(
 const countPillHover: Record<NonNullable<CountPillVariant>, string> = {
   muted: "hover:bg-muted/80",
   primary: "hover:bg-primary/20",
-  success: "hover:bg-green-500/20 dark:hover:bg-green-500/30",
+  success: "hover:bg-success/20",
   ghost: "hover:bg-muted/80",
 };
 
@@ -86,7 +86,7 @@ function CountPillButton({
       disabled={disabled}
       className={cn(
         countPillVariants({ variant }),
-        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+        "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
         disabled
           ? "cursor-not-allowed opacity-50"
           : cn("cursor-pointer", countPillHover[variant ?? "muted"]),

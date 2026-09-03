@@ -198,7 +198,7 @@ function ChangePasswordCard() {
               </Button>
             </Field>
             {success && (
-              <FieldDescription className="text-emerald-600">Password updated.</FieldDescription>
+              <FieldDescription className="text-success">Password updated.</FieldDescription>
             )}
           </FieldGroup>
         </form>

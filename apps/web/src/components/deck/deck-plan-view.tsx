@@ -195,7 +195,7 @@ export function DeckPlanView({
                     />
                     <SwapColumn
                       label="In"
-                      tone="text-green-600 dark:text-green-400"
+                      tone="text-success"
                       sign="+"
                       swaps={inSwaps}
                       lookup={lookup}

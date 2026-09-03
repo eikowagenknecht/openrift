@@ -248,7 +248,7 @@ function PreviewSummary({ preview }: { preview: DeckCheckSubmissionResultRespons
         {totalCopies} cards across {preview.cards.length} lines.
       </p>
       {unmatched.length > 0 ? (
-        <p className="flex items-start gap-1.5 text-amber-600 dark:text-amber-500">
+        <p className="text-warning flex items-start gap-1.5">
           <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
           <span>
             Not recognized: {unmatched.map((card) => card.rawName).join(", ")}. These show as
@@ -257,7 +257,7 @@ function PreviewSummary({ preview }: { preview: DeckCheckSubmissionResultRespons
         </p>
       ) : null}
       {preview.violations.length > 0 ? (
-        <ul className="flex list-disc flex-col gap-1 pl-5 text-amber-600 dark:text-amber-500">
+        <ul className="text-warning flex list-disc flex-col gap-1 pl-5">
           {preview.violations.map((violation) => (
             <li key={`${violation.zone}:${violation.code}:${violation.cardId ?? ""}`}>
               {violation.message}

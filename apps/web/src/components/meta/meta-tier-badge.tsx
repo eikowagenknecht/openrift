@@ -17,7 +17,7 @@ const TIER_STYLE: Record<MetaEventTier, { variant: "outline" | "muted"; classNam
   premier: { variant: "outline", className: "border-border-accent text-border-accent" },
   competitive: {
     variant: "outline",
-    className: "border-teal-600 text-teal-700 dark:border-teal-400 dark:text-teal-300",
+    className: "border-primary text-primary",
   },
   store: MUTED_TIER,
   casual: MUTED_TIER,

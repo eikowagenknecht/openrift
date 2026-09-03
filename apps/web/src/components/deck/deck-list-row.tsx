@@ -93,7 +93,7 @@ export function DeckListRow({
         cardLinkVariants(),
         // No hover wash here: the domain gradient is an inline style that overrides
         // the wash on legend decks, so drop it everywhere to keep rows consistent.
-        "ring-foreground/10 group relative flex items-center gap-3 rounded-lg px-3 py-2 ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
+        "ring-border group relative flex items-center gap-3 rounded-lg px-3 py-2 ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
         // The deck name's link stretches over the whole row through its ::after
         // instead of the row being one big anchor, because an anchor may not
         // contain the menu and the badges that live in here. It is the only
