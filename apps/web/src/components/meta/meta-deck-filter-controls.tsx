@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
-import type { MetaDeckCostFilterProps } from "@/components/meta/meta-deck-cost-filter";
+import type { MetaDeckCostFilterData } from "@/components/meta/meta-deck-cost-filter";
 import {
   MetaDeckCostFilter,
   metaCostBoundLabel,
   metaValueRangeLabel,
-  useMetaPriceFormat,
 } from "@/components/meta/meta-deck-cost-filter";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
+import { useMetaPriceFormat } from "@/hooks/use-meta-price-format";
 import { countryLabel } from "@/lib/country";
 import type { MetaDeckFilterCounts, MetaDeckFilterOptions } from "@/lib/meta-deck-filters";
 import { META_FINISH_OPTIONS, hasActiveMetaDeckFilters } from "@/lib/meta-deck-filters";
@@ -50,7 +50,7 @@ export function MetaDeckFilterControls({
   options: MetaDeckFilterOptions;
   counts: MetaDeckFilterCounts;
   eras: readonly MetaEra[];
-  cost: MetaDeckCostFilterProps;
+  cost: MetaDeckCostFilterData;
 }) {
   const filters = useMetaDeckFilters();
 
@@ -112,7 +112,18 @@ export function MetaDeckFilterControls({
           </SelectContent>
         </Select>
 
-        <MetaDeckCostFilter {...cost} />
+        <MetaDeckCostFilter
+          {...cost}
+          value={{
+            maxCost: filters.maxCost,
+            valueRange: filters.valueRange,
+            includeSideboard: filters.includeSideboard,
+          }}
+          onMaxCostChange={(next) => filters.setMaxCost(next)}
+          onValueRangeChange={(next) => filters.setValueRange(next)}
+          onIncludeSideboardChange={(next) => filters.setIncludeSideboard(next)}
+          onClear={() => filters.clearCostFilters()}
+        />
 
         {hasActiveMetaDeckFilters({
           ...filters,

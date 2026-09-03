@@ -5,12 +5,14 @@
 ### Highlights
 
 - feat(App): **One palette everywhere** — dark mode panels, menus and borders now carry the navy tint instead of gray, and status colors, badges, callouts and hover states share one set of shapes and tones across the app.
+- feat(Meta): **Decklists open as a card strip** — an expanded standings row now shows the whole list as card art sorted by energy, with the sideboard beside it, and every card opens its details.
 
 ### Other
 
 - feat(Cards): **Overnumbered as its own filter** — a card past its set's printed total is now filtered and labelled separately from its artwork, so an alt art that is also overnumbered reads as both.
 - feat(Collection): **Overnumbered column in exports** — the collection CSV now carries the flag in its own column, and older exports that named it as an art variant still import.
 - feat(Meta): **Filter standings by legend** — a legend filter sits next to the player search once a field has more than one legend on file.
+- feat(Meta): **Deck value in the standings** — each archived list shows what it is worth at your marketplace and, signed in, what completing it from your collection costs; a Cost filter narrows the field by value or by what a list costs you to complete, and the record sits under the rank with the legend art leading the row.
 - fix(Meta): **Consistent legend art** — a legend with no image on file now shows the same domain-tinted placeholder everywhere in the archive, instead of a plain grey square on the front page and event index. Standings and podium rows also drop their legend and decklist columns entirely for events the source published as bare placings, rather than filling every row with an empty placeholder.
 - fix(Meta): **Consistent event blocks with a crowned winner** — Premier and Competitive events now share Store & Casual's layout, add a fanned podium of the winning legends, and mark first place with a crown instead of a gold "1".
 - fix(Meta): **"Browse all" links show the full count** — tier and event-index links from the front page no longer land on a narrower scope than the count they promised.

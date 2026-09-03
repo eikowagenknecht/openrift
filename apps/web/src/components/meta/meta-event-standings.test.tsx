@@ -3,11 +3,62 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { MetaDeckCostFilterProps } from "@/components/meta/meta-deck-cost-filter";
+import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import { metaPlayer } from "@/test/meta-event-fixtures";
 
 const session = vi.hoisted(() => ({ userId: null as string | null }));
+const archive = vi.hoisted(() => ({
+  costs: undefined as ReadonlyMap<string, MetaDeckCost> | undefined,
+  withCollection: [] as boolean[],
+  includeSideboard: [] as boolean[],
+}));
 
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => session.userId }));
+vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => true }));
+vi.mock("@/hooks/use-meta-deck-costs", () => ({
+  useMetaDeckCosts: (side: boolean, options: { withCollection: boolean }) => {
+    archive.withCollection.push(options.withCollection);
+    archive.includeSideboard.push(side);
+    return archive.costs;
+  },
+}));
+
+// The real control is a popover over two sliders; these buttons drive the same callbacks.
+vi.mock("@/components/meta/meta-deck-cost-filter", () => ({
+  EMPTY_META_COST_FILTER: {
+    maxCost: null,
+    valueRange: { min: null, max: null },
+    includeSideboard: false,
+  },
+  MetaDeckCostFilter: (props: MetaDeckCostFilterProps) => (
+    <div>
+      <p>{`cost ready: ${props.ready}`}</p>
+      <p>{`cost noun: ${props.noun}`}</p>
+      <p>{`cost trigger: ${props.trigger}`}</p>
+      <p>{`cost collection: ${props.withCollection}`}</p>
+      <p>{`cost matches: ${props.countUnderCost(10)}`}</p>
+      <p>{`cost ceiling: ${props.maxValue}`}</p>
+      <p>{`completion ceiling: ${props.maxToComplete}`}</p>
+      <p>{`cost sideboard: ${props.value.includeSideboard}`}</p>
+      <button type="button" onClick={() => props.onMaxCostChange(10)}>
+        cost bound
+      </button>
+      <button type="button" onClick={() => props.onMaxCostChange(0)}>
+        buildable
+      </button>
+      <button type="button" onClick={() => props.onValueRangeChange({ min: null, max: 100 })}>
+        value bound
+      </button>
+      <button type="button" onClick={() => props.onIncludeSideboardChange(false)}>
+        drop sideboard
+      </button>
+      <button type="button" onClick={props.onClear}>
+        clear cost
+      </button>
+    </div>
+  ),
+}));
 
 vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: () => ({ orders: { domains: ["fury"] }, labels: { domains: { fury: "Fury" } } }),
@@ -17,6 +68,10 @@ vi.mock("@tanstack/react-router", async () => {
   const fixtures = await import("@/test/meta-event-fixtures");
   return { Link: fixtures.StubLink };
 });
+
+vi.mock("@/components/cards/card-detail-opener", () => ({
+  CardDetailOverlayProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 // The real preview suspends on the deck query and pulls the price feed with it.
 vi.mock("@/components/meta/meta-event-deck-preview", () => ({
@@ -50,6 +105,9 @@ function field(count: number, overrides: (index: number) => Partial<MetaEventPla
 describe("MetaEventStandings", () => {
   beforeEach(() => {
     session.userId = null;
+    archive.costs = undefined;
+    archive.withCollection = [];
+    archive.includeSideboard = [];
   });
 
   it("says nothing is on file rather than showing an empty field", () => {
@@ -136,12 +194,70 @@ describe("MetaEventStandings", () => {
     expect(phoneRow("Bo").querySelector('img[src*="art-120w"]')).not.toBeNull();
   });
 
-  it("drops both optional columns when the source published bare placings", () => {
+  it("drops every optional column when the source published bare placings", () => {
     renderStandings(field(2, () => ({ legend: null, champion: null })));
 
     expect(screen.queryByRole("columnheader", { name: "Legend" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Value" })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Decklist" })).not.toBeInTheDocument();
     expect(phoneRow("Player 0").querySelector('[data-slot="card-art-thumb"]')).toBeNull();
+  });
+
+  it("prices each archived list once the archive's prices are in", () => {
+    archive.costs = new Map([
+      ["d1", { needed: 40, owned: undefined, value: 123.4, toComplete: undefined }],
+    ]);
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", deckId: "d1", shareToken: "tok1" }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2 }),
+    ]);
+
+    expect(screen.getByRole("columnheader", { name: "Value" })).toBeInTheDocument();
+    expect(within(phoneRow("Ana")).getByText("123 €")).toBeInTheDocument();
+    expect(within(phoneRow("Bo")).queryByText(/€/u)).toBeNull();
+  });
+
+  it("leaves the value blank for a list some card of which has no price", () => {
+    archive.costs = new Map([
+      ["d1", { needed: 40, owned: undefined, value: undefined, toComplete: undefined }],
+    ]);
+    renderStandings([metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1" })]);
+
+    expect(within(phoneRow("Ana")).queryByText(/€|--/u)).toBeNull();
+  });
+
+  it("prices what a signed-in reader is missing under the value", () => {
+    session.userId = "u-1";
+    archive.costs = new Map([
+      ["d1", { needed: 40, owned: 28, value: 123.4, toComplete: 12.5 }],
+      ["d2", { needed: 40, owned: 40, value: 80, toComplete: 0 }],
+    ]);
+    renderStandings([
+      metaPlayer({ id: "p-1", playerName: "Ana", deckId: "d1", shareToken: "tok1" }),
+      metaPlayer({ id: "p-2", playerName: "Bo", rank: 2, deckId: "d2", shareToken: "tok2" }),
+    ]);
+
+    expect(archive.withCollection).toContain(true);
+    expect(within(phoneRow("Ana")).getByText("13 € missing")).toBeInTheDocument();
+    expect(within(phoneRow("Bo")).getByText("Buildable")).toBeInTheDocument();
+  });
+
+  it("prices the list alone for a signed-out reader", () => {
+    archive.costs = new Map([
+      ["d1", { needed: 40, owned: undefined, value: 123.4, toComplete: undefined }],
+    ]);
+    renderStandings([metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1" })]);
+
+    expect(archive.withCollection).not.toContain(true);
+    expect(within(phoneRow("Ana")).queryByText(/missing|Buildable/u)).toBeNull();
+  });
+
+  it("keeps the value column out of a field with no list on file", () => {
+    session.userId = "u-1";
+    renderStandings(field(2));
+
+    expect(screen.queryByRole("columnheader", { name: "Value" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Decklist" })).toBeInTheDocument();
   });
 
   it("keeps the legend column when a single entry names one", () => {
@@ -194,11 +310,16 @@ describe("MetaEventStandings", () => {
     expect(link.getAttribute("href")).toBe("/meta/legends/yasuo-yasuo-the-unforgiven");
   });
 
-  it("marks a linked list that is only partial", () => {
+  it("marks a linked list that is only partial in place of the decklist label", async () => {
+    const user = userEvent.setup();
     renderStandings([
       metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1", listStatus: "partial" }),
     ]);
-    expect(within(phoneRow("Ana")).getByText("Partial list")).toBeInTheDocument();
+    expect(within(phoneRow("Ana")).queryByText("Decklist")).toBeNull();
+    expect(within(phoneRow("Ana")).queryByRole("button")).toBeNull();
+
+    await user.click(within(phoneRow("Ana")).getByText("Partial list"));
+    expect(within(phoneRow("Ana")).getByText("Preview for tok1")).toBeInTheDocument();
   });
 
   it("leaves a full list unmarked", () => {
@@ -233,8 +354,29 @@ describe("MetaEventStandings", () => {
     renderStandings([metaPlayer({ playerName: "Ana", shareToken: "tok1" })]);
 
     expect(screen.queryByText("Preview for tok1")).toBeNull();
-    await user.click(within(phoneRow("Ana")).getByRole("button", { name: "Decklist" }));
+    await user.click(within(phoneRow("Ana")).getByText("Decklist"));
     expect(within(phoneRow("Ana")).getByText("Preview for tok1")).toBeInTheDocument();
+  });
+
+  it("opens and closes a decklist from the keyboard", async () => {
+    const user = userEvent.setup();
+    renderStandings([metaPlayer({ playerName: "Ana", shareToken: "tok1" })]);
+
+    const row = phoneRow("Ana");
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    row.focus();
+    await user.keyboard("{Enter}");
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(within(row).getByText("Preview for tok1")).toBeInTheDocument();
+
+    await user.keyboard(" ");
+    expect(screen.queryByText("Preview for tok1")).toBeNull();
+  });
+
+  it("gives a list-less row no disclosure to focus", () => {
+    renderStandings([metaPlayer({ playerName: "Ana" })]);
+    expect(phoneRow("Ana").hasAttribute("tabindex")).toBe(false);
+    expect(phoneRow("Ana").hasAttribute("aria-expanded")).toBe(false);
   });
 
   it("opens and closes a decklist from anywhere on the row", async () => {
@@ -263,8 +405,8 @@ describe("MetaEventStandings", () => {
       metaPlayer({ id: "p-2", playerName: "Bo", rank: 2, shareToken: "tok2" }),
     ]);
 
-    await user.click(within(phoneRow("Ana")).getByRole("button", { name: "Decklist" }));
-    await user.click(within(phoneRow("Bo")).getByRole("button", { name: "Decklist" }));
+    await user.click(within(phoneRow("Ana")).getByText("Decklist"));
+    await user.click(within(phoneRow("Bo")).getByText("Decklist"));
 
     expect(screen.queryByText("Preview for tok1")).toBeNull();
     expect(within(phoneRow("Bo")).getByText("Preview for tok2")).toBeInTheDocument();
@@ -331,5 +473,135 @@ describe("MetaEventStandings", () => {
   it("offers no toggle for a field that already fits", () => {
     renderStandings([metaPlayer()]);
     expect(screen.queryByRole("button", { name: /Show all/u })).toBeNull();
+  });
+
+  describe("cost filter", () => {
+    /** Two lists a signed-in reader could finish, one they could not, and an entry with none. */
+    function pricedField() {
+      session.userId = "u-1";
+      archive.costs = new Map([
+        ["d1", { needed: 40, owned: 20, value: 123.4, toComplete: 12.5 }],
+        ["d2", { needed: 40, owned: 40, value: 80, toComplete: 0 }],
+        ["d3", { needed: 40, owned: 30, value: 300, toComplete: 5 }],
+      ]);
+      renderStandings([
+        metaPlayer({ id: "p-1", playerName: "Ana", rank: 1, deckId: "d1", shareToken: "tok1" }),
+        metaPlayer({ id: "p-2", playerName: "Bo", rank: 2, deckId: "d2", shareToken: "tok2" }),
+        metaPlayer({ id: "p-3", playerName: "Cy", rank: 3, deckId: "d3", shareToken: "tok3" }),
+        metaPlayer({ id: "p-4", playerName: "Dee", rank: 4 }),
+      ]);
+    }
+
+    it("keeps the cost filter out of a field with no list on file", () => {
+      session.userId = "u-1";
+      renderStandings(field(2));
+
+      expect(screen.queryByText("cost trigger: control")).toBeNull();
+    });
+
+    it("asks the shared control for a toolbar trigger that talks about lists", () => {
+      pricedField();
+
+      expect(screen.getByText("cost trigger: control")).toBeInTheDocument();
+      expect(screen.getByText("cost noun: list")).toBeInTheDocument();
+    });
+
+    it("holds the cost filter unready until the archive's prices are in", () => {
+      renderStandings([metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1" })]);
+      expect(screen.getByText("cost ready: false")).toBeInTheDocument();
+    });
+
+    it("opens the cost filter once the prices are in", () => {
+      pricedField();
+      expect(screen.getByText("cost ready: true")).toBeInTheDocument();
+    });
+
+    it("tells the control whether a collection stands behind it", () => {
+      renderStandings([metaPlayer({ playerName: "Ana", deckId: "d1", shareToken: "tok1" })]);
+      expect(screen.getByText("cost collection: false")).toBeInTheDocument();
+    });
+
+    it("tells the control a signed-in reader has a collection", () => {
+      pricedField();
+      expect(screen.getByText("cost collection: true")).toBeInTheDocument();
+    });
+
+    it("hides the lists costing more than the bound, and the entries with no list at all", async () => {
+      const user = userEvent.setup();
+      pricedField();
+
+      await user.click(screen.getByRole("button", { name: "cost bound" }));
+
+      expect(phoneRow("Bo")).toBeInTheDocument();
+      expect(phoneRow("Cy")).toBeInTheDocument();
+      expect(screen.queryByText("Ana")).toBeNull();
+      expect(screen.queryByText("Dee")).toBeNull();
+    });
+
+    it("keeps only the lists a reader already owns at a bound of nothing", async () => {
+      const user = userEvent.setup();
+      pricedField();
+
+      await user.click(screen.getByRole("button", { name: "buildable" }));
+
+      expect(phoneRow("Bo")).toBeInTheDocument();
+      expect(screen.queryByText("Cy")).toBeNull();
+    });
+
+    it("narrows the field by what a list is worth", async () => {
+      const user = userEvent.setup();
+      pricedField();
+
+      await user.click(screen.getByRole("button", { name: "value bound" }));
+
+      expect(phoneRow("Bo")).toBeInTheDocument();
+      expect(screen.queryByText("Ana")).toBeNull();
+      expect(screen.queryByText("Cy")).toBeNull();
+    });
+
+    it("gives the whole field back when the cost filter is cleared", async () => {
+      const user = userEvent.setup();
+      pricedField();
+
+      await user.click(screen.getByRole("button", { name: "cost bound" }));
+      await user.click(screen.getByRole("button", { name: "clear cost" }));
+
+      expect(phoneRow("Ana")).toBeInTheDocument();
+      expect(phoneRow("Dee")).toBeInTheDocument();
+    });
+
+    it("counts a bound against the value range already in force, not against the raw field", async () => {
+      const user = userEvent.setup();
+      pricedField();
+
+      expect(screen.getByText("cost matches: 2")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "value bound" }));
+      expect(screen.getByText("cost matches: 1")).toBeInTheDocument();
+    });
+
+    it("scales the control against this event's own lists", () => {
+      pricedField();
+
+      expect(screen.getByText("cost ceiling: 300")).toBeInTheDocument();
+      expect(screen.getByText("completion ceiling: 12.5")).toBeInTheDocument();
+    });
+
+    it("prices the sideboard in by default, the way the value column does", () => {
+      pricedField();
+
+      expect(screen.getByText("cost sideboard: true")).toBeInTheDocument();
+      expect(archive.includeSideboard.at(-1)).toBe(true);
+    });
+
+    it("reprices the field without the sideboard when the reader drops it", async () => {
+      const user = userEvent.setup();
+      pricedField();
+
+      await user.click(screen.getByRole("button", { name: "drop sideboard" }));
+
+      expect(screen.getByText("cost sideboard: false")).toBeInTheDocument();
+      expect(archive.includeSideboard.at(-1)).toBe(false);
+    });
   });
 });

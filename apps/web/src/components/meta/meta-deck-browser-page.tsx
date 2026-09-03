@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 
 import {
   PageDescription,
@@ -8,6 +8,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { META_DECKS_DESCRIPTION } from "@/components/meta/meta-copy";
+import { MetaDeckCostsBridge } from "@/components/meta/meta-deck-costs-bridge";
 import { MetaDeckEventSection } from "@/components/meta/meta-deck-event-section";
 import {
   MetaDeckActiveFilters,
@@ -17,7 +18,6 @@ import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useMetaDecks, useMetaEvents } from "@/hooks/use-meta";
-import { useMetaDeckCosts } from "@/hooks/use-meta-deck-costs";
 import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
 import { useMetaEras } from "@/hooks/use-meta-eras";
 import { useSession } from "@/lib/auth-session";
@@ -169,25 +169,4 @@ export function MetaDeckBrowserPage() {
       </div>
     </div>
   );
-}
-
-/**
- * Compares the archive against the reader's collection, and only ever on the
- * client: the copies live query has no server snapshot, and the catalog it needs
- * to match printings back to cards is a payload this page otherwise never pulls.
- */
-function MetaDeckCostsBridge({
-  includeSideboard,
-  withCollection,
-  onChange,
-}: {
-  includeSideboard: boolean;
-  withCollection: boolean;
-  onChange: (value: ReadonlyMap<string, MetaDeckCost> | undefined) => void;
-}) {
-  const costs = useMetaDeckCosts(includeSideboard, { withCollection });
-  useEffect(() => {
-    onChange(costs);
-  }, [costs, onChange]);
-  return null;
 }

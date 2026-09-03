@@ -78,6 +78,14 @@ vi.mock("@/components/meta/meta-event-deck-preview", () => ({
   MetaEventDeckPreviewSkeleton: () => null,
 }));
 
+vi.mock("@/components/cards/card-detail-opener", () => ({
+  CardDetailOverlayProvider: ({ children }: { children?: ReactNode }) => children,
+}));
+
+vi.mock("@/components/meta/meta-deck-costs-bridge", () => ({
+  MetaDeckCostsBridge: () => null,
+}));
+
 vi.mock("@/components/layout/top-bar-breadcrumb", () => ({
   TopBarBreadcrumbSeparator: () => null,
   TopBarBreadcrumbTrail: () => null,

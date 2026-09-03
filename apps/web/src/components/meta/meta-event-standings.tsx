@@ -1,17 +1,23 @@
 import type { MetaEventPlayer } from "@openrift/shared";
 import { todayUtc } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
+import { ChevronRightIcon, SearchIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
+import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
 import { Heading } from "@/components/heading";
+import type { MetaCostFilterValue } from "@/components/meta/meta-deck-cost-filter";
+import {
+  EMPTY_META_COST_FILTER,
+  MetaDeckCostFilter,
+} from "@/components/meta/meta-deck-cost-filter";
+import { MetaDeckCostsBridge } from "@/components/meta/meta-deck-costs-bridge";
 import {
   MetaEventDeckPreview,
   MetaEventDeckPreviewSkeleton,
 } from "@/components/meta/meta-event-deck-preview";
 import { MetaIdentity } from "@/components/meta/meta-identity";
-import { MetaListStatusBadge } from "@/components/meta/meta-list-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
@@ -33,8 +39,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useHydrated } from "@/hooks/use-hydrated";
+import { useMetaPriceFormat } from "@/hooks/use-meta-price-format";
 import { useUserId } from "@/lib/auth-session";
+import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import { formatRank, formatRecord, MEDAL_RANKS } from "@/lib/meta-format";
+import {
+  costMatchesBounds,
+  countStandingsUnderCost,
+  highestStandingsCost,
+  isCostFilterActive,
+} from "@/lib/meta-standings-cost";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +88,7 @@ function legendOptions(players: readonly MetaEventPlayer[]): Record<string, stri
 
 interface StandingsColumns {
   legend: boolean;
+  value: boolean;
   deck: boolean;
 }
 
@@ -80,15 +96,17 @@ function standingsColumns(
   players: readonly MetaEventPlayer[],
   canSubmit: boolean,
 ): StandingsColumns {
+  const anyList = players.some((player) => player.shareToken !== null);
   return {
     legend: players.some((player) => player.legend !== null || player.champion !== null),
-    deck: canSubmit || players.some((player) => player.shareToken !== null),
+    value: anyList,
+    deck: canSubmit || anyList,
   };
 }
 
-/** Rank, player and record always stand; the other two are conditional. */
+/** Rank and player always stand; the other three are conditional. */
 function columnCount(columns: StandingsColumns): number {
-  return 3 + (columns.legend ? 1 : 0) + (columns.deck ? 1 : 0);
+  return 2 + (columns.legend ? 1 : 0) + (columns.value ? 1 : 0) + (columns.deck ? 1 : 0);
 }
 
 function Rank({ player }: { player: MetaEventPlayer }) {
@@ -96,9 +114,57 @@ function Rank({ player }: { player: MetaEventPlayer }) {
     return <Medal rank={player.rank} />;
   }
   return (
-    <span className="text-muted-foreground inline-block w-5 text-center tabular-nums">
+    <span className="text-muted-foreground tabular-nums">
       {formatRank(player.rank, player.rankIsTier)}
     </span>
+  );
+}
+
+function RankCell({ player, className }: { player: MetaEventPlayer; className?: string }) {
+  const record = formatRecord(player.wins, player.losses, player.draws);
+  return (
+    <div className={cn("flex flex-col items-center gap-0.5 leading-tight", className)}>
+      <Rank player={player} />
+      {record !== null && (
+        <span className="text-muted-foreground text-xs tabular-nums">{record}</span>
+      )}
+    </div>
+  );
+}
+
+function MissingLine({ cost }: { cost: MetaDeckCost }) {
+  const format = useMetaPriceFormat();
+  if (cost.owned === undefined || cost.needed === 0) {
+    return null;
+  }
+  if (cost.owned >= cost.needed) {
+    return <span className="text-border-accent text-xs font-medium">Buildable</span>;
+  }
+  if (cost.toComplete === undefined || cost.toComplete === 0) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-xs">{format(cost.toComplete)} missing</span>;
+}
+
+function DeckValue({
+  player,
+  costs,
+  className,
+}: {
+  player: MetaEventPlayer;
+  costs: ReadonlyMap<string, MetaDeckCost> | undefined;
+  className?: string;
+}) {
+  const format = useMetaPriceFormat();
+  const cost = player.deckId === null ? undefined : costs?.get(player.deckId);
+  if (cost === undefined) {
+    return null;
+  }
+  return (
+    <div className={cn("flex flex-col items-end gap-0.5 leading-tight tabular-nums", className)}>
+      {cost.value !== undefined && <span>{format(cost.value)}</span>}
+      <MissingLine cost={cost} />
+    </div>
   );
 }
 
@@ -127,25 +193,27 @@ function DeckCell({
   slug,
   canSubmit,
   expanded,
-  onToggle,
   className,
 }: {
   player: MetaEventPlayer;
   slug: string;
   canSubmit: boolean;
   expanded: boolean;
-  onToggle: () => void;
   className?: string;
 }) {
   if (player.shareToken !== null) {
     return (
-      <div className={cn("flex items-center gap-1.5", className)}>
-        <MetaListStatusBadge listStatus={player.listStatus} />
-        <Button variant="ghost" size="sm" aria-expanded={expanded} onClick={onToggle}>
-          Decklist
-          <ChevronDownIcon className={cn("transition-transform", expanded && "rotate-180")} />
-        </Button>
-      </div>
+      <span
+        className={cn(
+          "text-muted-foreground inline-flex items-center gap-1 whitespace-nowrap",
+          className,
+        )}
+      >
+        {player.listStatus === "partial" ? "Partial list" : "Decklist"}
+        <ChevronRightIcon
+          className={cn("size-4 shrink-0 transition-transform", expanded && "rotate-90")}
+        />
+      </span>
     );
   }
   if (!canSubmit) {
@@ -156,7 +224,7 @@ function DeckCell({
       to="/meta/$slug/submit"
       params={{ slug }}
       search={metaSubmitSearchForPlayer(player)}
-      className="text-primary font-medium whitespace-nowrap hover:underline"
+      className={cn("text-primary font-medium whitespace-nowrap hover:underline", className)}
     >
       + Add
     </Link>
@@ -176,53 +244,69 @@ interface RowProps {
   slug: string;
   canSubmit: boolean;
   columns: StandingsColumns;
+  costs: ReadonlyMap<string, MetaDeckCost> | undefined;
   expanded: boolean;
   onToggle: () => void;
 }
 
-function rowToggleHandler(onToggle: () => void) {
-  return (event: React.MouseEvent<HTMLElement>) => {
-    const target = event.target;
-    if (target instanceof Element && target.closest("a, button") !== null) {
-      return;
-    }
-    onToggle();
+function ownsClick(event: React.SyntheticEvent<HTMLElement>): boolean {
+  const target = event.target;
+  return target instanceof Element && target.closest("a, button, [role=menu]") !== null;
+}
+
+/** The row is the disclosure: click anywhere on it, or Enter / Space while it has focus. */
+function rowToggleProps(token: string | null, expanded: boolean, onToggle: () => void) {
+  if (token === null) {
+    return {};
+  }
+  return {
+    tabIndex: 0,
+    "aria-expanded": expanded,
+    onClick: (event: React.MouseEvent<HTMLElement>) => {
+      if (!ownsClick(event)) {
+        onToggle();
+      }
+    },
+    onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+      if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) {
+        return;
+      }
+      event.preventDefault();
+      onToggle();
+    },
   };
 }
 
-function DesktopRow({ player, slug, canSubmit, columns, expanded, onToggle }: RowProps) {
-  const record = formatRecord(player.wins, player.losses, player.draws);
+function DesktopRow({ player, slug, canSubmit, columns, costs, expanded, onToggle }: RowProps) {
   const token = player.shareToken;
 
   return (
     <>
       <TableRow
-        onClick={token === null ? undefined : rowToggleHandler(onToggle)}
+        {...rowToggleProps(token, expanded, onToggle)}
         className={cn(
+          "focus-visible:ring-ring aria-expanded:bg-muted/50 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
           player.rank === 1 && "bg-border-accent/10",
           token !== null && "cursor-pointer",
         )}
       >
         <TableCell>
-          <Rank player={player} />
+          <RankCell player={player} className="w-12" />
         </TableCell>
-        <TableCell className="font-medium">{player.playerName}</TableCell>
-        <TableCell className="text-right tabular-nums">{record}</TableCell>
         {columns.legend && (
           <TableCell>
             <LegendCell player={player} />
           </TableCell>
         )}
+        <TableCell className="truncate font-medium">{player.playerName}</TableCell>
+        {columns.value && (
+          <TableCell className="text-right">
+            <DeckValue player={player} costs={costs} />
+          </TableCell>
+        )}
         {columns.deck && (
           <TableCell className="text-right">
-            <DeckCell
-              player={player}
-              slug={slug}
-              canSubmit={canSubmit}
-              expanded={expanded}
-              onToggle={onToggle}
-              className="justify-end"
-            />
+            <DeckCell player={player} slug={slug} canSubmit={canSubmit} expanded={expanded} />
           </TableCell>
         )}
       </TableRow>
@@ -237,22 +321,21 @@ function DesktopRow({ player, slug, canSubmit, columns, expanded, onToggle }: Ro
   );
 }
 
-function PhoneRow({ player, slug, canSubmit, columns, expanded, onToggle }: RowProps) {
-  const record = formatRecord(player.wins, player.losses, player.draws);
+function PhoneRow({ player, slug, canSubmit, columns, costs, expanded, onToggle }: RowProps) {
   const token = player.shareToken;
 
   return (
-    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the row's keyboard path is the Decklist button inside it, which owns aria-expanded
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- the row is the disclosure, with aria-expanded and Enter / Space on itself
     <li
-      onClick={token === null ? undefined : rowToggleHandler(onToggle)}
+      {...rowToggleProps(token, expanded, onToggle)}
       className={cn(
-        "flex flex-col gap-2 px-3 py-2 text-sm not-last:border-b",
+        "focus-visible:ring-ring aria-expanded:bg-muted/50 flex flex-col gap-2 px-3 py-2 text-sm not-last:border-b focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
         player.rank === 1 && "bg-border-accent/10",
         token !== null && "cursor-pointer",
       )}
     >
       <div className="flex items-center gap-2.5">
-        <Rank player={player} />
+        <RankCell player={player} className="w-10 shrink-0" />
         {columns.legend && (
           <CardArtThumb
             imageId={player.legend?.imageId ?? player.champion?.imageId ?? null}
@@ -272,15 +355,9 @@ function PhoneRow({ player, slug, canSubmit, columns, expanded, onToggle }: RowP
           />
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5 leading-tight">
-          {record !== null && <span className="tabular-nums">{record}</span>}
+          {columns.value && <DeckValue player={player} costs={costs} />}
           {columns.deck && (
-            <DeckCell
-              player={player}
-              slug={slug}
-              canSubmit={canSubmit}
-              expanded={expanded}
-              onToggle={onToggle}
-            />
+            <DeckCell player={player} slug={slug} canSubmit={canSubmit} expanded={expanded} />
           )}
         </div>
       </div>
@@ -314,11 +391,18 @@ export function MetaEventStandings({
   eventDate: string;
 }) {
   const canSubmit = useUserId() !== null;
+  const hydrated = useHydrated();
+  const [costs, setCosts] = useState<ReadonlyMap<string, MetaDeckCost>>();
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StandingsFilter>("all");
   const [legendId, setLegendId] = useState(ANY_LEGEND);
   const [query, setQuery] = useState("");
+  // The Value column prices the sideboard in, so the filter has to price it in too.
+  const [costFilter, setCostFilter] = useState<MetaCostFilterValue>({
+    ...EMPTY_META_COST_FILTER,
+    includeSideboard: true,
+  });
 
   if (players.length === 0) {
     return (
@@ -341,11 +425,17 @@ export function MetaEventStandings({
   const withLists = players.filter((player) => player.shareToken !== null).length;
   const needle = query.trim().toLowerCase();
   const legends = legendOptions(players);
+  const costActive = costs !== undefined && isCostFilterActive(costFilter);
   const matching = players.filter(
     (player) =>
       (filter === "all" || player.shareToken !== null) &&
       (legendId === ANY_LEGEND || player.legend?.cardId === legendId) &&
-      (needle === "" || player.playerName.toLowerCase().includes(needle)),
+      (needle === "" || player.playerName.toLowerCase().includes(needle)) &&
+      (!costActive ||
+        costMatchesBounds(
+          player.deckId === null ? undefined : costs?.get(player.deckId),
+          costFilter,
+        )),
   );
   const shown = showAll ? matching : matching.slice(0, ROWS_SHOWN);
   const hidden = matching.length - shown.length;
@@ -354,127 +444,171 @@ export function MetaEventStandings({
   const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
 
   return (
-    <section className="mt-8">
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <Heading>Standings</Heading>
-        <p className="text-muted-foreground text-sm">{subtitleFor(players.length, withLists)}</p>
-      </div>
-
-      {(withLists > 0 || showSearch || showLegendFilter) && (
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {withLists > 0 && (
-            <ToggleGroup
-              variant="outline"
-              spacing={0}
-              value={[filter]}
-              onValueChange={([next]) => {
-                if (next === "all" || next === "withList") {
-                  setFilter(next);
-                }
-              }}
-              aria-label="Which entries to show"
-            >
-              <ToggleGroupItem value="all">All entries</ToggleGroupItem>
-              <ToggleGroupItem value="withList">With decklist ({withLists})</ToggleGroupItem>
-            </ToggleGroup>
-          )}
-          {showSearch && (
-            <div className="relative min-w-48 flex-1 sm:max-w-64">
-              <SearchIcon
-                aria-hidden
-                className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
-              />
-              <Input
-                type="search"
-                aria-label="Find a player"
-                placeholder="Find a player…"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="pl-8"
-              />
-            </div>
-          )}
-          {showLegendFilter && (
-            <Select
-              value={legendId}
-              onValueChange={(value) => setLegendId((value as string | null) ?? ANY_LEGEND)}
-              items={legends}
-            >
-              <SelectTrigger className="w-56" aria-label="Filter by legend">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(legends).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      )}
-
-      <Card className="gap-0 py-0">
-        {matching.length === 0 ? (
-          <p className="text-muted-foreground px-3 py-6 text-center text-sm">No entries match.</p>
-        ) : (
-          <>
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Rank</TableHead>
-                    <TableHead>Player</TableHead>
-                    <TableHead className="w-24 text-right">Record</TableHead>
-                    {columns.legend && <TableHead className="w-64">Legend</TableHead>}
-                    {columns.deck && <TableHead className="w-40 text-right">Decklist</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shown.map((player) => (
-                    <DesktopRow
-                      key={player.id}
-                      player={player}
-                      slug={slug}
-                      canSubmit={canSubmit}
-                      columns={columns}
-                      expanded={expandedId === player.id}
-                      onToggle={() => toggle(player.id)}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <ul className="flex flex-col md:hidden">
-              {shown.map((player) => (
-                <PhoneRow
-                  key={player.id}
-                  player={player}
-                  slug={slug}
-                  canSubmit={canSubmit}
-                  columns={columns}
-                  expanded={expandedId === player.id}
-                  onToggle={() => toggle(player.id)}
-                />
-              ))}
-            </ul>
-          </>
+    <CardDetailOverlayProvider>
+      <section className="mt-8">
+        {hydrated && columns.value && (
+          <Suspense fallback={null}>
+            <MetaDeckCostsBridge
+              includeSideboard={costFilter.includeSideboard}
+              withCollection={canSubmit}
+              onChange={setCosts}
+            />
+          </Suspense>
         )}
 
-        {matching.length > 0 && (hidden > 0 || showAll) && (
-          <div className="border-t">
-            <Button
-              variant="ghost"
-              className="w-full rounded-none"
-              onClick={() => setShowAll(!showAll)}
-            >
-              {showAll ? "Show fewer" : `Show all ${matching.length} entries`}
-            </Button>
+        <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <Heading>Standings</Heading>
+          <p className="text-muted-foreground text-sm">{subtitleFor(players.length, withLists)}</p>
+        </div>
+
+        {(withLists > 0 || showSearch || showLegendFilter) && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {withLists > 0 && (
+              <ToggleGroup
+                variant="outline"
+                spacing={0}
+                value={[filter]}
+                onValueChange={([next]) => {
+                  if (next === "all" || next === "withList") {
+                    setFilter(next);
+                  }
+                }}
+                aria-label="Which entries to show"
+              >
+                <ToggleGroupItem value="all">All entries</ToggleGroupItem>
+                <ToggleGroupItem value="withList">With decklist ({withLists})</ToggleGroupItem>
+              </ToggleGroup>
+            )}
+            {showSearch && (
+              <div className="relative min-w-48 flex-1 sm:max-w-64">
+                <SearchIcon
+                  aria-hidden
+                  className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
+                />
+                <Input
+                  type="search"
+                  aria-label="Find a player"
+                  placeholder="Find a player…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            )}
+            {showLegendFilter && (
+              <Select
+                value={legendId}
+                onValueChange={(value) => setLegendId((value as string | null) ?? ANY_LEGEND)}
+                items={legends}
+              >
+                <SelectTrigger className="w-56" aria-label="Filter by legend">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(legends).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {columns.value && (
+              <MetaDeckCostFilter
+                trigger="control"
+                noun="list"
+                ready={costs !== undefined}
+                withCollection={canSubmit}
+                countUnderCost={(maxCost) =>
+                  countStandingsUnderCost(players, costs, costFilter, maxCost)
+                }
+                maxToComplete={highestStandingsCost(players, costs, (cost) => cost.toComplete)}
+                maxValue={highestStandingsCost(players, costs, (cost) => cost.value)}
+                value={costFilter}
+                onMaxCostChange={(next) =>
+                  setCostFilter((current) => ({ ...current, maxCost: next }))
+                }
+                onValueRangeChange={(next) =>
+                  setCostFilter((current) => ({ ...current, valueRange: next }))
+                }
+                onIncludeSideboardChange={(next) =>
+                  setCostFilter((current) => ({ ...current, includeSideboard: next }))
+                }
+                onClear={() =>
+                  setCostFilter((current) => ({
+                    ...current,
+                    maxCost: null,
+                    valueRange: { min: null, max: null },
+                  }))
+                }
+              />
+            )}
           </div>
         )}
-      </Card>
-    </section>
+
+        <Card className="gap-0 py-0">
+          {matching.length === 0 ? (
+            <p className="text-muted-foreground px-3 py-6 text-center text-sm">No entries match.</p>
+          ) : (
+            <>
+              <div className="hidden md:block">
+                <Table className="table-fixed">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20 text-center">Rank</TableHead>
+                      {columns.legend && <TableHead className="w-64">Legend</TableHead>}
+                      <TableHead>Player</TableHead>
+                      {columns.value && <TableHead className="w-28 text-right">Value</TableHead>}
+                      {columns.deck && <TableHead className="w-36 text-right">Decklist</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {shown.map((player) => (
+                      <DesktopRow
+                        key={player.id}
+                        player={player}
+                        slug={slug}
+                        canSubmit={canSubmit}
+                        columns={columns}
+                        costs={costs}
+                        expanded={expandedId === player.id}
+                        onToggle={() => toggle(player.id)}
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <ul className="flex flex-col md:hidden">
+                {shown.map((player) => (
+                  <PhoneRow
+                    key={player.id}
+                    player={player}
+                    slug={slug}
+                    canSubmit={canSubmit}
+                    columns={columns}
+                    costs={costs}
+                    expanded={expandedId === player.id}
+                    onToggle={() => toggle(player.id)}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+
+          {matching.length > 0 && (hidden > 0 || showAll) && (
+            <div className="border-t">
+              <Button
+                variant="ghost"
+                className="w-full rounded-none"
+                onClick={() => setShowAll(!showAll)}
+              >
+                {showAll ? "Show fewer" : `Show all ${matching.length} entries`}
+              </Button>
+            </div>
+          )}
+        </Card>
+      </section>
+    </CardDetailOverlayProvider>
   );
 }

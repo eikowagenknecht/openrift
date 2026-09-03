@@ -1,21 +1,27 @@
 import type { MetaDeckDetailResponse, PublicDeckCardResponse } from "@openrift/shared";
-import { render, screen } from "@testing-library/react";
-import { useEffect } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
-import { createStoreResetter } from "@/test/store-helpers";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   deck: null as MetaDeckDetailResponse | null,
-  ownership: undefined as DeckOwnershipData | undefined,
   userId: null as string | null,
+  openCardDetail: null as ReturnType<typeof vi.fn> | null,
+  encode: vi.fn(),
+  copy: vi.fn(),
 }));
 
 vi.mock("@/hooks/use-meta", () => ({ useMetaDeck: () => ({ data: state.deck }) }));
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => state.userId }));
 vi.mock("@/hooks/use-decks", () => ({
   useCloneSharedDeck: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useEncodeDeckCards: () => ({ mutateAsync: state.encode, isPending: false }),
+}));
+vi.mock("@/hooks/use-copy-to-clipboard", () => ({
+  useCopyToClipboard: () => ({ copied: false, copy: state.copy, reset: vi.fn() }),
+}));
+vi.mock("@/components/cards/card-detail-opener", () => ({
+  useOpenCardDetail: () => state.openCardDetail,
 }));
 vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: () => ({
@@ -28,23 +34,7 @@ vi.mock("@tanstack/react-router", async () => {
   return { Link: fixtures.StubLink, useNavigate: () => vi.fn() };
 });
 
-// The real bridge needs the catalog, the price feed and a live query. The
-// preview only ever sees its result, so the mock publishes a fixture instead.
-vi.mock("@/components/deck/deck-ownership-bridge", () => ({
-  DeckOwnershipBridge: ({
-    onResult,
-  }: {
-    onResult: (data: DeckOwnershipData | undefined) => void;
-  }) => {
-    useEffect(() => {
-      onResult(state.ownership);
-    }, [onResult]);
-    return null;
-  },
-}));
-
 const { MetaEventDeckPreview } = await import("./meta-event-deck-preview");
-const { useDisplayStore } = await import("@/stores/display-store");
 
 const TOKEN = "aB3dE5gH7jK9";
 
@@ -69,7 +59,7 @@ function card(overrides: Partial<PublicDeckCardResponse>): PublicDeckCardRespons
     power: null,
     resolvedPrintingId: null,
     shortCode: null,
-    imageId: null,
+    imageId: "img-a",
     ...overrides,
   } as PublicDeckCardResponse;
 }
@@ -83,11 +73,66 @@ const CARDS: PublicDeckCardResponse[] = [
     cardTypes: ["legend"],
     tags: ["Azir"],
   }),
-  card({ cardId: "card-champion", zone: "champion", cardName: "Sivir, Battle Mistress" }),
-  card({ cardId: "card-unit", zone: "main", cardType: "unit", cardTypes: ["unit"], quantity: 12 }),
-  card({ cardId: "card-spell", zone: "main", quantity: 8 }),
-  card({ cardId: "card-gear", zone: "main", cardType: "gear", cardTypes: ["gear"], quantity: 3 }),
-  card({ cardId: "card-side", zone: "sideboard", quantity: 5 }),
+  card({
+    cardId: "card-champion",
+    zone: "champion",
+    cardName: "Sivir, Battle Mistress",
+    cardType: "unit",
+    cardTypes: ["unit"],
+    resolvedPrintingId: "p-champion",
+  }),
+  card({
+    cardId: "card-battlefield",
+    zone: "battlefield",
+    cardName: "Howling Abyss",
+    cardType: "battlefield",
+    cardTypes: ["battlefield"],
+    resolvedPrintingId: "p-battlefield",
+  }),
+  card({
+    cardId: "card-ruin",
+    zone: "main",
+    cardName: "Ruin Runner",
+    cardType: "unit",
+    cardTypes: ["unit"],
+    quantity: 3,
+    energy: 5,
+    resolvedPrintingId: "p-ruin",
+  }),
+  card({
+    cardId: "card-punch",
+    zone: "main",
+    quantity: 8,
+    energy: 1,
+    resolvedPrintingId: "p-punch",
+  }),
+  card({
+    cardId: "card-squire",
+    zone: "main",
+    cardName: "Blade Squire",
+    cardType: "unit",
+    cardTypes: ["unit"],
+    quantity: 9,
+    energy: 2,
+  }),
+  card({
+    cardId: "card-gadget",
+    zone: "main",
+    cardName: "Yordle Gadget",
+    cardType: "gear",
+    cardTypes: ["gear"],
+    quantity: 3,
+    energy: null,
+    preferredPrintingId: "p-gadget",
+  }),
+  card({
+    cardId: "card-side",
+    zone: "sideboard",
+    cardName: "Sideboard Sage",
+    quantity: 5,
+    energy: 3,
+    resolvedPrintingId: "p-side",
+  }),
   card({
     cardId: "card-rune-fury",
     zone: "runes",
@@ -105,6 +150,19 @@ const CARDS: PublicDeckCardResponse[] = [
     domains: ["calm"],
   }),
 ];
+
+/** The strip in render order: every thumb carries its card name as a title. */
+const STRIP_ORDER = [
+  "Sivir, Battle Mistress",
+  "Howling Abyss",
+  "Punch First",
+  "Blade Squire",
+  "Ruin Runner",
+  "Yordle Gadget",
+  "Sideboard Sage",
+];
+
+const SEQUENCE = ["p-champion", "p-battlefield", "p-punch", "p-ruin", "p-gadget", "p-side"];
 
 function metaDeck(
   meta: Partial<MetaDeckDetailResponse["meta"]> = {},
@@ -132,64 +190,95 @@ function metaDeck(
   } as unknown as MetaDeckDetailResponse;
 }
 
-function ownership(overrides: Partial<DeckOwnershipData> = {}): DeckOwnershipData {
-  return {
-    deckValueCents: 123.45,
-    mainValueCents: 100,
-    sideboardValueCents: 23.45,
-    totalOwned: 40,
-    totalNeeded: 56,
-    missingCount: 16,
-    ...overrides,
-  } as DeckOwnershipData;
+function renderPreview(): HTMLElement {
+  const { container } = render(<MetaEventDeckPreview token={TOKEN} />);
+  return container;
 }
 
-function renderPreview(): void {
-  render(<MetaEventDeckPreview token={TOKEN} />);
+function stripNames(container: HTMLElement): string[] {
+  return [...container.querySelectorAll("[title]")].map((el) => el.getAttribute("title") ?? "");
+}
+
+function groupKeys(container: HTMLElement): string[] {
+  return [...container.querySelectorAll<HTMLElement>("[data-group]")].map(
+    (el) => el.dataset.group ?? "",
+  );
 }
 
 describe("MetaEventDeckPreview", () => {
-  let resetDisplay: () => void;
-
   beforeEach(() => {
-    resetDisplay = createStoreResetter(useDisplayStore);
-    useDisplayStore.setState({ marketplaceOrder: ["cardmarket"] });
     state.deck = metaDeck();
-    state.ownership = ownership();
     state.userId = null;
+    state.openCardDetail = vi.fn();
+    state.encode = vi.fn(async () => ({ code: "RB1-TESTCODE", warnings: [] }));
+    state.copy = vi.fn();
   });
 
-  afterEach(() => {
-    resetDisplay();
+  it("leads the strip with the champion and its battlefields", () => {
+    const container = renderPreview();
+
+    expect(stripNames(container).slice(0, 2)).toEqual(["Sivir, Battle Mistress", "Howling Abyss"]);
   });
 
-  it("names the chosen champion, which the standings row does not", () => {
+  it("orders the main deck by energy, the costless cards last", () => {
+    const container = renderPreview();
+
+    expect(stripNames(container).slice(2, 6)).toEqual([
+      "Punch First",
+      "Blade Squire",
+      "Ruin Runner",
+      "Yordle Gadget",
+    ]);
+  });
+
+  it("badges a card only where several copies were played", () => {
     renderPreview();
 
-    expect(screen.getByText("Chosen champion")).toBeInTheDocument();
-    expect(screen.getByText("Sivir, Battle Mistress")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "3× Ruin Runner" })).toHaveTextContent("3");
+    expect(screen.getByRole("button", { name: "Sivir, Battle Mistress" }).textContent).toBe("");
   });
 
-  it("leaves what the standings row above it already carries to that row", () => {
-    state.deck = metaDeck({ listStatus: "partial" });
+  it("ends the strip with a dimmed sideboard", () => {
+    const container = renderPreview();
+
+    expect(stripNames(container).at(-1)).toBe("Sideboard Sage");
+    expect(screen.getByRole("button", { name: "5× Sideboard Sage" })).toHaveClass("opacity-55");
+    expect(groupKeys(container)).toEqual(["lead", "main", "sideboard"]);
+  });
+
+  it("drops the sideboard group from a list without one", () => {
+    state.deck = metaDeck(
+      {},
+      CARDS.filter((entry) => entry.zone !== "sideboard"),
+    );
+    const container = renderPreview();
+
+    expect(container.querySelector("[title='Sideboard Sage']")).toBeNull();
+    expect(groupKeys(container)).toEqual(["lead", "main"]);
+    expect(screen.queryByText(/Sideboard/u)).toBeNull();
+  });
+
+  it("says which zones a partial list is missing", () => {
+    state.deck = metaDeck(
+      { listStatus: "partial" },
+      CARDS.filter((entry) => entry.zone !== "battlefield"),
+    );
     renderPreview();
 
-    expect(screen.queryByText("Nova")).toBeNull();
-    expect(screen.queryByText("Partial list")).toBeNull();
-    expect(screen.queryByText("Azir Control")).toBeNull();
+    expect(screen.getByText(/the battlefields are not/u)).toBeInTheDocument();
   });
 
-  it("credits the contributors who typed the list in", () => {
-    state.deck = metaDeck({ contributors: ["Alice", "Bob"] });
+  it("says nothing about missing zones on a full list", () => {
     renderPreview();
 
-    expect(screen.getByText("Contributed by Alice and Bob")).toBeInTheDocument();
+    expect(screen.queryByText(/are not/u)).toBeNull();
   });
 
-  it("counts the main deck by type, sideboard excluded", () => {
+  it("splits the main deck by type without ever printing its total", () => {
     renderPreview();
 
     expect(screen.getByText("12 units · 8 spells · 3 gear")).toBeInTheDocument();
+    expect(screen.queryByText(/23/u)).toBeNull();
   });
 
   it("counts the runes per domain", () => {
@@ -199,73 +288,91 @@ describe("MetaEventDeckPreview", () => {
     expect(screen.getByAltText("Calm").closest("span.items-center")?.textContent).toBe("4");
   });
 
-  it("leaves the composition blocks out of a list holding neither", () => {
-    state.deck = metaDeck({}, [CARDS[0]!]);
+  it("counts the sideboard the strip only dims", () => {
     renderPreview();
 
-    expect(screen.queryByText("Card types")).not.toBeInTheDocument();
-    expect(screen.queryByText("Runes")).not.toBeInTheDocument();
+    expect(screen.getByText("Sideboard 5")).toBeInTheDocument();
   });
 
-  it("leads with the deck's value and splits the sideboard out", () => {
+  it("credits the contributors who typed the list in", () => {
+    state.deck = metaDeck({ contributors: ["Alice", "Bob"] });
     renderPreview();
 
-    expect(screen.getByText("123,45 €")).toBeInTheDocument();
-    expect(screen.getByText("Main deck 100,00 € · Sideboard 23,45 €")).toBeInTheDocument();
+    expect(screen.getByText("Contributed by Alice and Bob")).toBeInTheDocument();
   });
 
-  it("says nothing about a sideboard that costs nothing", () => {
-    state.ownership = ownership({ sideboardValueCents: 0 });
+  it("opens a clicked card's detail on the whole strip's sequence", async () => {
+    const user = userEvent.setup();
     renderPreview();
 
-    expect(screen.getByText("Main deck 100,00 €")).toBeInTheDocument();
-  });
+    await user.click(screen.getByRole("button", { name: "3× Ruin Runner" }));
 
-  it("says so when the marketplace has no prices for the list", () => {
-    state.ownership = ownership({
-      deckValueCents: undefined,
-      mainValueCents: undefined,
-      sideboardValueCents: undefined,
+    expect(state.openCardDetail).toHaveBeenCalledWith({
+      printingId: "p-ruin",
+      sequence: SEQUENCE,
     });
-    renderPreview();
-
-    expect(screen.getByText("No prices yet")).toBeInTheDocument();
-    expect(screen.queryByText(/Main deck/u)).not.toBeInTheDocument();
   });
 
-  it("measures a signed-in reader's collection against the list", () => {
+  it("falls back to the preferred printing where none resolved", async () => {
+    const user = userEvent.setup();
+    renderPreview();
+
+    await user.click(screen.getByRole("button", { name: "3× Yordle Gadget" }));
+
+    expect(state.openCardDetail).toHaveBeenCalledWith({
+      printingId: "p-gadget",
+      sequence: SEQUENCE,
+    });
+  });
+
+  it("leaves a card the catalog cannot open as plain art", () => {
+    const container = renderPreview();
+
+    expect(screen.queryByRole("button", { name: /Blade Squire/u })).toBeNull();
+    expect(container.querySelector("[title='Blade Squire']")?.tagName).toBe("SPAN");
+  });
+
+  it("makes nothing clickable without a card detail overlay above it", () => {
+    state.openCardDetail = null;
+    const container = renderPreview();
+
+    for (const name of STRIP_ORDER) {
+      expect(container.querySelector(`[title='${name}']`)?.tagName).toBe("SPAN");
+    }
+  });
+
+  it("labels the menu's fork by where the copy lands", async () => {
+    const user = userEvent.setup();
+    renderPreview();
+
+    await user.click(screen.getByRole("button", { name: "Decklist actions" }));
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Open in deck builder" }),
+    ).toBeInTheDocument();
+  });
+
+  it("labels the menu's fork as forking for a signed-in reader", async () => {
+    const user = userEvent.setup();
     state.userId = "user-1";
     renderPreview();
 
-    expect(screen.getByText("40 of 56 cards owned")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Decklist actions" }));
+
+    expect(await screen.findByRole("menuitem", { name: "Fork to my decks" })).toBeInTheDocument();
   });
 
-  it("calls out a list the reader owns in full", () => {
-    state.userId = "user-1";
-    state.ownership = ownership({ missingCount: 0 });
+  it("encodes the list before putting its code on the clipboard", async () => {
+    const user = userEvent.setup();
     renderPreview();
 
-    expect(screen.getByText("All 56 cards owned")).toBeInTheDocument();
-  });
+    await user.click(screen.getByRole("button", { name: "Decklist actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Copy deck code" }));
 
-  it("offers a signed-out reader the sign-in that would compare it", () => {
-    renderPreview();
-
-    const link = screen.getByRole("link", { name: "Sign in to compare with your collection" });
-    expect(link).toHaveAttribute("href", "/login?redirect=%2Fmeta%2Fsummoner-skirmish");
-    expect(screen.queryByText(/cards owned/u)).not.toBeInTheDocument();
-  });
-
-  it("labels the fork by where the copy lands", () => {
-    renderPreview();
-    expect(screen.getByRole("button", { name: "Open in deck builder" })).toBeInTheDocument();
-  });
-
-  it("labels the fork as forking for a signed-in reader", () => {
-    state.userId = "user-1";
-    renderPreview();
-
-    expect(screen.getByRole("button", { name: "Fork to my decks" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(state.copy).toHaveBeenCalledWith("RB1-TESTCODE");
+    });
+    expect(state.encode).toHaveBeenCalledTimes(1);
   });
 
   it("links on to the deck's own page", () => {
@@ -275,5 +382,20 @@ describe("MetaEventDeckPreview", () => {
       "href",
       `/meta/decks/${TOKEN}`,
     );
+  });
+
+  it("offers a signed-out reader the sign-in that would compare it", () => {
+    renderPreview();
+
+    expect(
+      screen.getByRole("link", { name: "Sign in to compare with your collection" }),
+    ).toHaveAttribute("href", "/login?redirect=%2Fmeta%2Fsummoner-skirmish");
+  });
+
+  it("says nothing about signing in to a reader already signed in", () => {
+    state.userId = "user-1";
+    renderPreview();
+
+    expect(screen.queryByText("Sign in to compare with your collection")).toBeNull();
   });
 });

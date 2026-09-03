@@ -1,5 +1,5 @@
 import { ChevronDownIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Slider } from "@/components/ui/slider";
-import { useMetaDeckFilters } from "@/hooks/use-meta-deck-filters";
-import { compactFormatterForMarketplace } from "@/lib/format";
-import { useDisplayStore } from "@/stores/display-store";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { MetaPriceFormat as PriceFormat } from "@/hooks/use-meta-price-format";
+import { useMetaPriceFormat } from "@/hooks/use-meta-price-format";
+import { cn } from "@/lib/utils";
+
+export interface MetaCostFilterValue {
+  maxCost: number | null;
+  valueRange: { min: number | null; max: number | null };
+  includeSideboard: boolean;
+}
+
+export const EMPTY_META_COST_FILTER: MetaCostFilterValue = {
+  maxCost: null,
+  valueRange: { min: null, max: null },
+  includeSideboard: false,
+};
 
 export interface MetaDeckCostFilterProps {
   ready: boolean;
@@ -18,14 +31,23 @@ export interface MetaDeckCostFilterProps {
   countUnderCost: (maxCost: number | null) => number;
   maxToComplete: number | undefined;
   maxValue: number | undefined;
+  value: MetaCostFilterValue;
+  onMaxCostChange: (next: number | null) => void;
+  onValueRangeChange: (next: { min: number | null; max: number | null }) => void;
+  onIncludeSideboardChange: (next: boolean) => void;
+  onClear: () => void;
+  trigger?: "badge" | "control";
+  noun?: "deck" | "list";
 }
 
-type PriceFormat = (value?: number | null) => string;
+export type MetaDeckCostFilterData = Pick<
+  MetaDeckCostFilterProps,
+  "ready" | "withCollection" | "countUnderCost" | "maxToComplete" | "maxValue"
+>;
 
-export function useMetaPriceFormat(): PriceFormat {
-  const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
-  return compactFormatterForMarketplace(marketplace);
-}
+const TO_COMPLETE_PRESETS = [10, 25, 50];
+const VALUE_PRESETS = [25, 50, 100];
+const ANY_PRESET = "any";
 
 export function metaCostBoundLabel(maxCost: number, format: PriceFormat): string {
   return maxCost === 0 ? "Buildable now" : `≤ ${format(maxCost)} to complete`;
@@ -54,7 +76,7 @@ function sliderScale(max: number | undefined): { max: number; step: number } {
   return { max: Math.ceil(ceiling / step) * step, step };
 }
 
-// Keeps a drag out of the URL until commit; the draft resets when the URL value changes.
+// Keeps a drag out of the bound until commit; the draft resets when the bound changes.
 function useSliderDraft<T>(external: T, key: string): [T, (next: T) => void] {
   const [draft, setDraft] = useState<T | null>(null);
   const [seen, setSeen] = useState(key);
@@ -82,15 +104,21 @@ export function MetaDeckCostFilter({
   countUnderCost,
   maxToComplete,
   maxValue,
+  value,
+  onMaxCostChange,
+  onValueRangeChange,
+  onIncludeSideboardChange,
+  onClear,
+  trigger = "badge",
+  noun = "deck",
 }: MetaDeckCostFilterProps) {
-  const filters = useMetaDeckFilters();
   const format = useMetaPriceFormat();
 
   const parts: string[] = [];
-  if (withCollection && filters.maxCost !== null) {
-    parts.push(metaCostBoundLabel(filters.maxCost, format));
+  if (withCollection && value.maxCost !== null) {
+    parts.push(metaCostBoundLabel(value.maxCost, format));
   }
-  const valueLabel = metaValueRangeLabel(filters.valueRange.min, filters.valueRange.max, format);
+  const valueLabel = metaValueRangeLabel(value.valueRange.min, value.valueRange.max, format);
   if (valueLabel !== null) {
     parts.push(valueLabel);
   }
@@ -101,41 +129,64 @@ export function MetaDeckCostFilter({
 
   return (
     <Popover>
-      <PopoverTrigger
-        disabled={!ready}
-        aria-label={triggerLabel}
-        render={
-          <Badge
-            variant={isActive ? "default" : "outline"}
-            className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-            // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; Badge owns all styling, the trigger carries aria-label
-            render={<button type="button" />}
-          />
-        }
-      >
-        <span className={isActive ? "text-primary-foreground/70" : "text-muted-foreground"}>
-          Cost
-        </span>
-        {ready && <span>{isActive ? summary : "Any"}</span>}
-        <ChevronDownIcon />
-      </PopoverTrigger>
+      {trigger === "control" ? (
+        <PopoverTrigger
+          disabled={!ready}
+          aria-label={triggerLabel}
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              className={cn(isActive && "border-primary text-primary")}
+            />
+          }
+        >
+          <span className="text-muted-foreground font-normal">Cost</span>
+          {ready && <span>{isActive ? summary : "Any"}</span>}
+          <ChevronDownIcon />
+        </PopoverTrigger>
+      ) : (
+        <PopoverTrigger
+          disabled={!ready}
+          aria-label={triggerLabel}
+          render={
+            <Badge
+              variant={isActive ? "default" : "outline"}
+              className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bare render slot; Badge owns all styling, the trigger carries aria-label
+              render={<button type="button" />}
+            />
+          }
+        >
+          <span className={isActive ? "text-primary-foreground/70" : "text-muted-foreground"}>
+            Cost
+          </span>
+          {ready && <span>{isActive ? summary : "Any"}</span>}
+          <ChevronDownIcon />
+        </PopoverTrigger>
+      )}
       <PopoverContent align="start" className="w-80 gap-3 p-2.5">
         <ToCompleteSection
           withCollection={withCollection}
           countUnderCost={countUnderCost}
           maxToComplete={maxToComplete}
           format={format}
+          noun={noun}
+          maxCost={value.maxCost}
+          includeSideboard={value.includeSideboard}
+          onMaxCostChange={onMaxCostChange}
+          onIncludeSideboardChange={onIncludeSideboardChange}
         />
         <div className="bg-border -mx-2.5 h-px" />
-        <ValueSection maxValue={maxValue} format={format} />
+        <ValueSection
+          maxValue={maxValue}
+          format={format}
+          valueRange={value.valueRange}
+          onValueRangeChange={onValueRangeChange}
+        />
         <div className="bg-border -mx-2.5 h-px" />
         <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => filters.clearCostFilters()}
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={() => onClear()}>
             Clear
           </Button>
         </div>
@@ -148,21 +199,64 @@ function SectionLabel({ children }: { children: string }) {
   return <SectionHeading as="h3">{children}</SectionHeading>;
 }
 
+function PresetPills({
+  label,
+  options,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string;
+  onSelect: (next: string) => void;
+}) {
+  return (
+    <ToggleGroup
+      variant="outline"
+      size="sm"
+      aria-label={label}
+      className="w-full flex-wrap gap-1"
+      value={[selected]}
+      onValueChange={([next]) => {
+        if (typeof next === "string") {
+          onSelect(next);
+        }
+      }}
+    >
+      {options.map((option) => (
+        <ToggleGroupItem key={option.value} value={option.value}>
+          {option.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+}
+
 function ToCompleteSection({
   withCollection,
   countUnderCost,
   maxToComplete,
   format,
+  noun,
+  maxCost,
+  includeSideboard,
+  onMaxCostChange,
+  onIncludeSideboardChange,
 }: {
   withCollection: boolean;
   countUnderCost: (maxCost: number | null) => number;
   maxToComplete: number | undefined;
   format: PriceFormat;
+  noun: "deck" | "list";
+  maxCost: number | null;
+  includeSideboard: boolean;
+  onMaxCostChange: (next: number | null) => void;
+  onIncludeSideboardChange: (next: boolean) => void;
 }) {
-  const filters = useMetaDeckFilters();
+  const sideboardId = useId();
   const scale = sliderScale(maxToComplete);
   const bound = Math.max(scale.max, scale.step);
-  const [value, setDraft] = useSliderDraft(filters.maxCost ?? bound, String(filters.maxCost));
+  const [value, setDraft] = useSliderDraft(maxCost ?? bound, String(maxCost));
 
   if (!withCollection) {
     return (
@@ -178,12 +272,25 @@ function ToCompleteSection({
   const matches = countUnderCost(value >= bound ? null : value);
   const commit = (next: number) => {
     setDraft(next);
-    filters.setMaxCost(next >= bound ? null : next);
+    onMaxCostChange(next >= bound ? null : next);
   };
 
   return (
     <div className="flex flex-col gap-2">
       <SectionLabel>To complete</SectionLabel>
+      <PresetPills
+        label="Cost to complete presets"
+        options={[
+          { value: ANY_PRESET, label: "Any" },
+          { value: "0", label: "Buildable" },
+          ...TO_COMPLETE_PRESETS.filter((preset) => preset <= bound).map((preset) => ({
+            value: String(preset),
+            label: `≤ ${format(preset)}`,
+          })),
+        ]}
+        selected={maxCost === null ? ANY_PRESET : String(maxCost)}
+        onSelect={(next) => onMaxCostChange(next === ANY_PRESET ? null : Number(next))}
+      />
       <Slider
         min={0}
         max={bound}
@@ -205,16 +312,16 @@ function ToCompleteSection({
           {value >= bound ? "Any" : value === 0 ? "Buildable now" : format(value)}
         </span>
         <span className="text-muted-foreground ml-auto text-xs tabular-nums">
-          {matches === 1 ? "1 deck matches" : `${matches} decks match`}
+          {matches === 1 ? `1 ${noun} matches` : `${matches} ${noun}s match`}
         </span>
       </div>
       <div className="flex items-center gap-2">
         <Checkbox
-          id="meta-cost-include-sideboard"
-          checked={filters.includeSideboard}
-          onCheckedChange={(checked) => filters.setIncludeSideboard(checked === true)}
+          id={sideboardId}
+          checked={includeSideboard}
+          onCheckedChange={(checked) => onIncludeSideboardChange(checked === true)}
         />
-        <Label htmlFor="meta-cost-include-sideboard" className="cursor-pointer font-normal">
+        <Label htmlFor={sideboardId} className="cursor-pointer font-normal">
           Count the sideboard too
         </Label>
       </div>
@@ -222,19 +329,33 @@ function ToCompleteSection({
   );
 }
 
-function ValueSection({ maxValue, format }: { maxValue: number | undefined; format: PriceFormat }) {
-  const filters = useMetaDeckFilters();
+function ValueSection({
+  maxValue,
+  format,
+  valueRange,
+  onValueRangeChange,
+}: {
+  maxValue: number | undefined;
+  format: PriceFormat;
+  valueRange: { min: number | null; max: number | null };
+  onValueRangeChange: (next: { min: number | null; max: number | null }) => void;
+}) {
   const scale = sliderScale(maxValue);
   const bound = Math.max(scale.max, scale.step);
-  const { min, max } = filters.valueRange;
+  const { min, max } = valueRange;
   const [range, setDraft] = useSliderDraft<[number, number]>(
     [min ?? 0, max ?? bound],
     `${min}:${max}`,
   );
 
+  let selectedPreset = "";
+  if (min === null) {
+    selectedPreset = max === null ? ANY_PRESET : String(max);
+  }
+
   const commit = (next: [number, number]) => {
     setDraft(next);
-    filters.setValueRange({
+    onValueRangeChange({
       min: next[0] <= 0 ? null : next[0],
       max: next[1] >= bound ? null : next[1],
     });
@@ -243,6 +364,22 @@ function ValueSection({ maxValue, format }: { maxValue: number | undefined; form
   return (
     <div className="flex flex-col gap-2">
       <SectionLabel>Deck value</SectionLabel>
+      <PresetPills
+        label="Deck value presets"
+        options={[
+          { value: ANY_PRESET, label: "Any" },
+          ...VALUE_PRESETS.filter((preset) => preset <= bound).map((preset) => ({
+            value: String(preset),
+            label: `≤ ${format(preset)}`,
+          })),
+        ]}
+        selected={selectedPreset}
+        onSelect={(next) =>
+          onValueRangeChange(
+            next === ANY_PRESET ? { min: null, max: null } : { min: null, max: Number(next) },
+          )
+        }
+      />
       <div className="flex items-center gap-2">
         <span className="text-muted-foreground w-12 shrink-0 text-right text-xs tabular-nums">
           {format(range[0])}
