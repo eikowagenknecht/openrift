@@ -8,7 +8,7 @@ import {
   sortLegendFinishes,
 } from "@/lib/meta-legend-page";
 
-export type MetaPlayerLegend = NonNullable<MetaPlayerFinish["legend"]>;
+type MetaPlayerLegend = NonNullable<MetaPlayerFinish["legend"]>;
 
 const TOP_CUT = 8;
 
