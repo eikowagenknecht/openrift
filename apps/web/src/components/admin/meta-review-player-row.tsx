@@ -11,7 +11,7 @@ import {
   PlayerMatches,
   SubmissionLedger,
 } from "@/components/admin/meta-review-overlay-detail";
-import { ConfirmActionButton } from "@/components/admin/meta-review-shared";
+import { ConfirmActionButton, rankLabel } from "@/components/admin/meta-review-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
@@ -20,13 +20,6 @@ import { useAcceptMetaPlayerOverlay, useRejectMetaOverlay } from "@/hooks/use-ad
 import { sourceProviderDisplay } from "@/lib/meta-source-review";
 
 export const PLAYER_ROW_COLUMNS = 6;
-
-function rankLabel(rank: number | null, rankIsTier: boolean | null): string {
-  if (rank === null) {
-    return "";
-  }
-  return rankIsTier === true ? `T${rank}` : String(rank);
-}
 
 function StandingsCell({ overlay }: { overlay: MetaOverlayQueueRow }) {
   const match = overlay.match;

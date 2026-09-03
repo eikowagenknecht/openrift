@@ -133,6 +133,24 @@ vi.mock("@/components/admin/meta-ignored-sources-dialog", () => ({
 vi.mock("@/components/admin/meta-card-name-picker", () => ({
   MetaCardNamePicker: ({ name }: { name: string }) => <span>{`picker:${name}`}</span>,
 }));
+vi.mock("@/components/admin/meta-event-search-picker", () => ({
+  MetaEventSearchPicker: ({ onPick }: { onPick: (id: string, name: string) => void }) => (
+    <button onClick={() => onPick("searched-1", "Searched Event")}>Search all events</button>
+  ),
+}));
+vi.mock("@/components/admin/meta-standings-row-picker", () => ({
+  MetaStandingsRowPicker: ({
+    currentPlayerId,
+    onPick,
+  }: {
+    currentPlayerId: string | null;
+    onPick: (id: string, name: string) => void;
+  }) => (
+    <button onClick={() => onPick("searched-row", "Searched Row")}>
+      {currentPlayerId === null ? "Pick a standings row" : "Pick another row"}
+    </button>
+  ),
+}));
 
 const { MetaOverlaysPage } = await import("@/components/admin/meta-overlays-page");
 
@@ -616,7 +634,7 @@ describe("MetaOverlaysPage", () => {
     expect(captured.acceptedEvent).toEqual([{ id: "e6", metaEventId: null }]);
   });
 
-  it("leads with the exact event match, so the case with no judgement in it stands out", () => {
+  it("styles an exact event match so the case with no judgement in it stands out", () => {
     captured.overlays = [proposal({ id: "e7" })];
     captured.eventSuggestions = [
       {
@@ -635,6 +653,47 @@ describe("MetaOverlaysPage", () => {
     render(<MetaOverlaysPage />);
 
     expect(screen.getByRole("button", { name: "Accept into this" })).toHaveClass("bg-primary");
+  });
+
+  it("shows only the best event match, leaving the rest to the search picker", () => {
+    captured.overlays = [proposal({ id: "e8" })];
+    captured.eventSuggestions = [
+      {
+        metaEventId: "live-1",
+        slug: "summoner-skirmish",
+        name: "Summoner Skirmish",
+        eventDate: "2026-08-30",
+        format: "constructed",
+        playerRowCount: 32,
+        score: 10,
+        reasons: ["same name"],
+      },
+      {
+        metaEventId: "live-2",
+        slug: "summoner-skirmish-2",
+        name: "Summoner Skirmish 2",
+        eventDate: "2026-08-29",
+        format: "constructed",
+        playerRowCount: 16,
+        score: 8,
+        reasons: ["similar name"],
+      },
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByText("Summoner Skirmish")).toBeInTheDocument();
+    expect(screen.queryByText("Summoner Skirmish 2")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search all events" })).toBeInTheDocument();
+  });
+
+  it("accepts into an event the search picker finds", async () => {
+    captured.overlays = [proposal({ id: "e9" })];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Search all events" }));
+
+    expect(captured.acceptedEvent).toEqual([{ id: "e9", metaEventId: "searched-1" }]);
   });
 
   it("keeps a proposal's own standings rows under it", () => {
@@ -752,6 +811,16 @@ describe("MetaOverlaysPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Link to this entry" }));
 
     expect(captured.linked).toEqual([{ id: "p3", metaEventPlayerId: "row-1" }]);
+  });
+
+  it("offers the standings picker even when nothing was suggested", async () => {
+    captured.overlays = [loose({ id: "p4" })];
+    captured.playerSuggestions = [];
+
+    render(<MetaOverlaysPage />);
+    await expandRow("Ashe Main");
+
+    expect(screen.getByRole("button", { name: "Pick a standings row" })).toBeInTheDocument();
   });
 
   it("collapses a group without losing it", async () => {

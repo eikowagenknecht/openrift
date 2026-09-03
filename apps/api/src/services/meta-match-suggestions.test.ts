@@ -245,23 +245,49 @@ describe("scorePlayerMatch", () => {
     expect(near.score).toBeLessThan(10);
   });
 
-  it("does not match on the finish alone, which a whole cut bucket shares", () => {
-    const { score, playerMatched } = scorePlayerMatch(
+  it("qualifies a row on the finish alone, the only signal a renaming source leaves", () => {
+    const { score, playerMatched, rankMatched } = scorePlayerMatch(
       { playerName: "Ekko", rank: 1 },
       player({ playerName: "Nova", rank: 1 }),
     );
-    expect(playerMatched).toBe(false);
+    expect({ playerMatched, rankMatched }).toEqual({ playerMatched: false, rankMatched: true });
     expect(score).toBe(1);
+  });
+
+  it("never calls a shared finish exact, since a cut bucket shares one", () => {
+    expect(
+      scorePlayerMatch({ playerName: "Ekko", rank: 1 }, player({ playerName: "Nova", rank: 1 }))
+        .isExact,
+    ).toBe(false);
+  });
+
+  it("keeps the faintest name overlap above a finish-only row", () => {
+    const faint = scorePlayerMatch(
+      { playerName: "Nova", rank: 9 },
+      player({ playerName: "Vayne" }),
+    );
+    const finish = scorePlayerMatch({ playerName: "Ekko", rank: 1 }, player());
+    expect(faint.playerMatched).toBe(true);
+    expect(faint.score).toBeGreaterThan(finish.score);
   });
 });
 
 describe("rankPlayerMatches", () => {
   it("orders by player, best first", () => {
     const ranked = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
-      player({ id: "other", playerName: "Novaa" }),
-      player({ id: "exact", playerName: "Nova" }),
+      player({ id: "finish", playerName: "Ekko", rank: 1 }),
+      player({ id: "exact", playerName: "Nova", rank: 6 }),
     ]);
-    expect(ranked.map((row) => row.metaEventPlayerId)).toEqual(["exact", "other"]);
+    expect(ranked.map((row) => row.metaEventPlayerId)).toEqual(["exact", "finish"]);
+  });
+
+  it("shortlists one row per signal, leaving the rest to the picker", () => {
+    const ranked = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ id: "exact", playerName: "Nova", rank: 1 }),
+      player({ id: "near", playerName: "Novaa", rank: 2 }),
+      player({ id: "nearer", playerName: "Novah", rank: 3 }),
+    ]);
+    expect(ranked.map((row) => row.metaEventPlayerId)).toEqual(["exact"]);
   });
 
   it("offers a standings-only row, which most of a field is", () => {
@@ -289,9 +315,17 @@ describe("rankPlayerMatches", () => {
     expect(ranked.map((row) => row.isCurrent)).toEqual([true, false]);
   });
 
-  it("offers nothing when no player name overlaps", () => {
+  it("offers the row at the same finish when no player name overlaps", () => {
+    const ranked = rankPlayerMatches({ playerName: "Nova", rank: 1 }, [
+      player({ id: "same-finish", playerName: "Ekko", rank: 1 }),
+    ]);
+    expect(ranked.map((row) => row.metaEventPlayerId)).toEqual(["same-finish"]);
+    expect(ranked[0]).toMatchObject({ isExact: false, reasons: ["same finish"] });
+  });
+
+  it("offers nothing when a row shares neither the name nor the finish", () => {
     expect(
-      rankPlayerMatches({ playerName: "Nova", rank: 1 }, [player({ playerName: "Ekko" })]),
+      rankPlayerMatches({ playerName: "Nova", rank: 1 }, [player({ playerName: "Ekko", rank: 7 })]),
     ).toEqual([]);
   });
 

@@ -164,6 +164,27 @@ export function useAdminMetaEvents(params: AdminMetaEventQueryParams) {
   return useSuspenseQuery(adminMetaEventsQueryOptions(params));
 }
 
+const searchMetaEvents = createServerFn({ method: "GET" })
+  .validator((search: string) => search)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<AdminMetaEventList> =>
+    apiOrpcClient(adminMetaContract, context.cookie).listEvents({
+      search: data === "" ? undefined : data,
+      limit: 8,
+      sort: META_EVENT_SORT_FALLBACK.sort,
+      direction: META_EVENT_SORT_FALLBACK.direction,
+    }),
+  );
+
+/** Free-text search over the whole archive. Empty returns the most recent events. */
+export function useMetaEventSearch(search: string) {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.eventSearch(search),
+    queryFn: () => searchMetaEvents({ data: search }),
+    staleTime: 60 * 1000,
+  });
+}
+
 const fetchMetaEvent = createServerFn({ method: "GET" })
   .validator((eventId: string) => eventId)
   .middleware([withCookies])

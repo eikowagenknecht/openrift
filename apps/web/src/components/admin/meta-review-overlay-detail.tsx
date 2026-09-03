@@ -4,7 +4,9 @@ import { ArchiveXIcon, CheckIcon, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { MetaCardNamePicker } from "@/components/admin/meta-card-name-picker";
-import { ConfirmActionButton } from "@/components/admin/meta-review-shared";
+import { MetaEventSearchPicker } from "@/components/admin/meta-event-search-picker";
+import { ConfirmActionButton, rankLabel } from "@/components/admin/meta-review-shared";
+import { MetaStandingsRowPicker } from "@/components/admin/meta-standings-row-picker";
 import { MetaSubmissionResolve } from "@/components/admin/meta-submission-resolve";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,43 +131,41 @@ export function EventMatches({
   if (data === undefined) {
     return null;
   }
-  if (data.suggestions.length === 0) {
-    return (
-      <p className="text-muted-foreground text-sm">
-        No archived event within {data.windowDays} day{data.windowDays === 1 ? "" : "s"} looks like
-        this one, so accepting mints a new one.
-      </p>
-    );
-  }
+  const [best] = data.suggestions;
+
   return (
-    <div className="bg-warning-soft space-y-2 rounded-md px-3 py-2 text-sm">
-      <p>
-        The archive already holds these, within {data.windowDays} day
-        {data.windowDays === 1 ? "" : "s"}. Accept into one rather than minting a duplicate.
-      </p>
-      <ul className="space-y-1">
-        {data.suggestions.map((suggestion) => (
-          <li key={suggestion.metaEventId} className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{suggestion.name}</span>
-            <span className="text-muted-foreground tabular-nums">
-              {formatDay(suggestion.eventDate)}
-            </span>
-            <Badge variant="outline">{suggestion.format}</Badge>
-            <span className="text-muted-foreground">{suggestion.reasons.join(", ")}</span>
-            <Button
-              size="sm"
-              variant={suggestion.isExact ? "default" : "outline"}
-              disabled={busy}
-              onClick={() => {
-                onAcceptInto(suggestion.metaEventId);
-              }}
-            >
-              <CheckIcon />
-              Accept into this
-            </Button>
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-2">
+      {best === undefined ? (
+        <p className="text-muted-foreground text-sm">
+          No archived event within {data.windowDays} day{data.windowDays === 1 ? "" : "s"} looks
+          like this one, so accepting mints a new one.
+        </p>
+      ) : (
+        <div className="bg-warning-soft flex flex-wrap items-center gap-2 rounded-md px-3 py-2 text-sm">
+          <span className="font-medium">{best.name}</span>
+          <span className="text-muted-foreground tabular-nums">{formatDay(best.eventDate)}</span>
+          <Badge variant="outline">{best.format}</Badge>
+          <span className="text-muted-foreground">{best.reasons.join(", ")}</span>
+          <Button
+            size="sm"
+            variant={best.isExact ? "default" : "outline"}
+            disabled={busy}
+            className="ml-auto"
+            onClick={() => {
+              onAcceptInto(best.metaEventId);
+            }}
+          >
+            <CheckIcon />
+            Accept into this
+          </Button>
+        </div>
+      )}
+      <MetaEventSearchPicker
+        disabled={busy}
+        onPick={(metaEventId) => {
+          onAcceptInto(metaEventId);
+        }}
+      />
     </div>
   );
 }
@@ -174,6 +174,7 @@ export function PlayerMatches({ overlay }: { overlay: MetaOverlayQueueRow }) {
   const linked = overlay.metaEventPlayerId !== null;
   const { data, isPending } = useMetaPlayerMatchSuggestions(overlay.id);
   const link = useLinkMetaPlayerOverlay();
+  const suggestions = data?.suggestions ?? [];
 
   async function handleLink(metaEventPlayerId: string, playerName: string): Promise<void> {
     try {
@@ -194,17 +195,18 @@ export function PlayerMatches({ overlay }: { overlay: MetaOverlayQueueRow }) {
           : "Not linked to a standings row yet. Pick the row this entry describes, or accepting files a second row beside it."}
       </p>
       {isPending && <Skeleton className="h-16 w-full" />}
-      {data !== undefined && data.suggestions.length === 0 && !linked && (
+      {data !== undefined && suggestions.length === 0 && !linked && (
         <p className="text-muted-foreground text-sm">
-          No standings row in this event reads as the same player, so accepting files a new one.
+          No standings row in this event shares this entry&apos;s name or its finish, so accepting
+          files a new one.
         </p>
       )}
-      {data !== undefined && data.suggestions.length > 0 && (
+      {suggestions.length > 0 && (
         <ul className="space-y-1 rounded-md border px-3 py-2 text-sm">
-          {data.suggestions.map((suggestion) => (
+          {suggestions.map((suggestion) => (
             <li key={suggestion.metaEventPlayerId} className="flex flex-wrap items-center gap-2">
               <span className="text-muted-foreground tabular-nums">
-                {suggestion.rankIsTier ? `T${suggestion.rank}` : suggestion.rank}
+                {rankLabel(suggestion.rank, suggestion.rankIsTier)}
               </span>
               <span className="font-medium">{suggestion.playerName}</span>
               {suggestion.isExact && !suggestion.isCurrent && (
@@ -230,6 +232,16 @@ export function PlayerMatches({ overlay }: { overlay: MetaOverlayQueueRow }) {
             </li>
           ))}
         </ul>
+      )}
+      {overlay.metaEventId !== null && (
+        <MetaStandingsRowPicker
+          metaEventId={overlay.metaEventId}
+          currentPlayerId={overlay.metaEventPlayerId}
+          disabled={link.isPending}
+          onPick={(metaEventPlayerId, playerName) => {
+            void handleLink(metaEventPlayerId, playerName);
+          }}
+        />
       )}
     </div>
   );

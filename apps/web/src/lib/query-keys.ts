@@ -354,6 +354,9 @@ export const queryKeys = {
         sort?: string;
         direction?: string;
       }) => ["admin", "meta", "events", "list", params] as const,
+      // The free-text picker over the whole archive (the event-match review
+      // panel's "Search all events"), nested under `events` for the same reason.
+      eventSearch: (search: string) => ["admin", "meta", "events", "search", search] as const,
       event: (eventId: string) => ["admin", "meta", "events", eventId] as const,
       eventPlayers: (eventId: string) => ["admin", "meta", "events", eventId, "players"] as const,
       // The event's citation list. Nested under `events` so an event write that

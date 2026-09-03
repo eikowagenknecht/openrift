@@ -11,7 +11,7 @@
  *
  * The signals: for an event, the same format, a close date, and a similar
  * name; for a player inside an already-linked event, the same normalized player
- * name, preferring an equal finish. Name comparison reuses
+ * name, else the same finish. Name comparison reuses
  * `normalizeNameForIdentity`, the same normalization the card matcher and the
  * deck ingest run on, so "Summoner Skirmish #4" and "summoner skirmish 4" are
  * one name here exactly as they are there.
@@ -63,7 +63,7 @@ export interface MetaPlayerMatchInput {
   rank: number;
 }
 
-/** How many suggestions a review screen is offered. Beyond this it is a search box, not a hint. */
+/** How many event suggestions a review screen is offered. Beyond this it is a search box, not a hint. */
 const MAX_SUGGESTIONS = 5;
 
 /**
@@ -190,16 +190,19 @@ export function scoreEventMatch(
 }
 
 /**
- * The player's name is the whole signal — an event's standings are told apart by
- * who played them — and the finish only breaks ties, because sources disagree
- * about placements far more often than about who was there. That is also why a
- * shared finish alone is not a match: eight entries of a top 8 share four tiers
- * between them.
+ * A shared finish also qualifies a row, scored below any name overlap and
+ * never exact: a top 8 shares four tiers between eight rows.
  */
 export function scorePlayerMatch(
   candidate: MetaPlayerMatchInput,
   live: { playerName: string; rank: number },
-): { score: number; reasons: string[]; playerMatched: boolean; isExact: boolean } {
+): {
+  score: number;
+  reasons: string[];
+  playerMatched: boolean;
+  rankMatched: boolean;
+  isExact: boolean;
+} {
   const reasons: string[] = [];
   let score = 0;
 
@@ -208,16 +211,18 @@ export function scorePlayerMatch(
     score += 10;
     reasons.push("same player");
   } else if (similarity > 0) {
-    score += similarity * 6;
+    // The flat +2 keeps even a faint name match above a finish-only row.
+    score += 2 + similarity * 6;
     reasons.push("similar player name");
   }
 
-  if (live.rank === candidate.rank) {
+  const rankMatched = live.rank === candidate.rank;
+  if (rankMatched) {
     score += 1;
     reasons.push("same finish");
   }
 
-  return { score, reasons, playerMatched: similarity > 0, isExact: similarity === 1 };
+  return { score, reasons, playerMatched: similarity > 0, rankMatched, isExact: similarity === 1 };
 }
 
 export async function suggestMetaEventMatches(
@@ -304,25 +309,43 @@ export async function suggestMetaPlayerMatches(
   return rankPlayerMatches({ playerName, rank }, players, candidate.metaEventPlayerId);
 }
 
+/**
+ * The shortlist is the linked row, every exact-name row, and the best other
+ * row by name and by finish.
+ */
 export function rankPlayerMatches(
   candidate: MetaPlayerMatchInput,
   players: readonly AdminMetaPlayerRow[],
   currentPlayerId: string | null = null,
 ): MetaPlayerMatchSuggestion[] {
-  return players
+  const scored = players
     .map((player) => ({
       player,
       isCurrent: player.id === currentPlayerId,
       ...scorePlayerMatch(candidate, player),
     }))
-    .filter((row) => row.playerMatched || row.isCurrent)
+    .filter((row) => row.playerMatched || row.rankMatched || row.isCurrent)
     .toSorted(
       (a, b) =>
         Number(b.isCurrent) - Number(a.isCurrent) ||
         b.score - a.score ||
         a.player.playerName.localeCompare(b.player.playerName),
-    )
-    .slice(0, MAX_SUGGESTIONS)
+    );
+
+  const others = scored.filter((row) => !row.isCurrent);
+  const picked = new Set<string>();
+  for (const shortlisted of [
+    ...scored.filter((row) => row.isCurrent || row.isExact),
+    others.find((row) => row.playerMatched),
+    others.find((row) => row.rankMatched),
+  ]) {
+    if (shortlisted !== undefined) {
+      picked.add(shortlisted.player.id);
+    }
+  }
+
+  return scored
+    .filter((row) => picked.has(row.player.id))
     .map((row) => ({
       metaEventPlayerId: row.player.id,
       playerName: row.player.playerName,

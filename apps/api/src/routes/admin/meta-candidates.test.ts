@@ -1043,23 +1043,39 @@ describe("GET /meta/overlays, the facts a grouped queue reads", () => {
       playerName: "Renata",
       rank: 2,
       rankIsTier: false,
-      candidateCount: 2,
+      candidateCount: 1,
     });
   });
 
-  it("reports candidates when only similar names exist, and none when nothing does", async () => {
+  it("reports candidates when only similar names exist", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([playerOverlay()]);
+    mockMeta.adminPlayersForEvent.mockResolvedValue([standing({ playerName: "Renatta", rank: 9 })]);
+
+    const [row] = await queue();
+
+    expect(row.match).toMatchObject({ state: "candidates", candidateCount: 1 });
+  });
+
+  it("offers the row at the same finish when the source renamed everyone", async () => {
     mockOverlays.pendingPlayerOverlays.mockResolvedValue([
-      playerOverlay({ id: PLAYER_OVERLAY_ID }),
       playerOverlay({ id: OTHER_PLAYER_ID, playerName: "Zilean" }),
     ]);
-    mockMeta.adminPlayersForEvent.mockResolvedValue([standing({ playerName: "Renatta" })]);
+    mockMeta.adminPlayersForEvent.mockResolvedValue([standing()]);
 
-    const rows = await queue();
+    const [row] = await queue();
 
-    expect(rows.map((row) => (row.match as { state: string }).state)).toEqual([
-      "candidates",
-      "none",
+    expect(row.match).toMatchObject({ state: "candidates", candidateCount: 1 });
+  });
+
+  it("reports none when nothing shares the name or the finish", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ id: OTHER_PLAYER_ID, playerName: "Zilean" }),
     ]);
+    mockMeta.adminPlayersForEvent.mockResolvedValue([standing({ rank: 9 })]);
+
+    const [row] = await queue();
+
+    expect(row.match).toMatchObject({ state: "none", candidateCount: 0 });
   });
 
   it("reads each event's standings once, however many rows land on it", async () => {
