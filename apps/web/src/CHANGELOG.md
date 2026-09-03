@@ -5,6 +5,7 @@
 ### Other
 
 - fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.
+- fix(Meta): **Decklist submissions no longer error** — submitting a list against an existing event failed with a server error every time; it now saves.
 
 ## 2026-09-03
 

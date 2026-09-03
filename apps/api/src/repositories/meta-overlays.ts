@@ -257,7 +257,7 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
       values: Insertable<MetaEventPlayerOverlaysTable>,
       cards: readonly Omit<Insertable<MetaEventPlayerOverlayCardsTable>, "overlayId">[],
     ): Promise<string> {
-      return await db.transaction().execute(async (trx) => {
+      const run = async (trx: Kysely<Database>): Promise<string> => {
         const row = await trx
           .insertInto("metaEventPlayerOverlays")
           .values(values)
@@ -270,7 +270,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
             .execute();
         }
         return row.id;
-      });
+      };
+      return db.isTransaction ? await run(db) : await db.transaction().execute(run);
     },
 
     /**
