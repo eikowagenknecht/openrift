@@ -541,6 +541,7 @@ describe("GET /catalogue/sync", () => {
         "meta.uvsgames_sync",
         "meta.uvsgames_backfill",
         "meta.uvsgames_recheck",
+        "meta.uvsgames_id_sweep",
         "meta.uvsgames_event_fetch",
         "meta.uvsgames_auto_accept",
       ],

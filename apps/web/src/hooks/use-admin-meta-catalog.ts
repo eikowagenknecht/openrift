@@ -357,6 +357,7 @@ const META_SYNC_TRIGGERS = [
   "runBackfill",
   "restartBackfill",
   "runRecheck",
+  "runIdSweep",
   "runAutoAccept",
   "runPlayloltcgSync",
   "runPlayloltcgRecheck",

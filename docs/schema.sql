@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict c9ACPA46vncwpc0ulq4HEfUhoPt6NBUoAmZjLa3mRFqJMx5UthrcIzjiP3KPUZb
+\restrict 1kqT3fyYqo42Sv907es5RdwZBChyzChf7mvmtl1moXfjgTNG0lOF4ORxDmjYqdQ
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -3571,6 +3571,21 @@ CREATE TABLE public.uvsgames_format_mappings (
 
 
 --
+-- Name: uvsgames_id_probes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.uvsgames_id_probes (
+    external_id bigint NOT NULL,
+    outcome text NOT NULL,
+    game_type text,
+    probed_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_uvsgames_id_probes_external_id CHECK ((external_id > 0)),
+    CONSTRAINT chk_uvsgames_id_probes_game_type CHECK (((game_type IS NULL) OR (game_type <> ''::text))),
+    CONSTRAINT chk_uvsgames_id_probes_outcome CHECK ((outcome = ANY (ARRAY['other_game'::text, 'absent'::text, 'unreadable'::text])))
+);
+
+
+--
 -- Name: uvsgames_players; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -5112,6 +5127,14 @@ ALTER TABLE ONLY public.uvsgames_events
 
 ALTER TABLE ONLY public.uvsgames_format_mappings
     ADD CONSTRAINT uvsgames_format_mappings_pkey PRIMARY KEY (source_format);
+
+
+--
+-- Name: uvsgames_id_probes uvsgames_id_probes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.uvsgames_id_probes
+    ADD CONSTRAINT uvsgames_id_probes_pkey PRIMARY KEY (external_id);
 
 
 --
@@ -8817,5 +8840,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict c9ACPA46vncwpc0ulq4HEfUhoPt6NBUoAmZjLa3mRFqJMx5UthrcIzjiP3KPUZb
+\unrestrict 1kqT3fyYqo42Sv907es5RdwZBChyzChf7mvmtl1moXfjgTNG0lOF4ORxDmjYqdQ
 

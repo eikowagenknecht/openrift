@@ -224,6 +224,7 @@ import * as m275 from "./275-meta-hand-entered-overlays.js";
 import * as m276 from "./276-meta-champion-from-list.js";
 import * as m277 from "./277-catalogue-paging-indexes.js";
 import * as m278 from "./278-job-schedules.js";
+import * as m279 from "./279-uvsgames-id-probes.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -507,4 +508,5 @@ export const migrations: Record<string, Migration> = {
   "276-meta-champion-from-list": m276,
   "277-catalogue-paging-indexes": m277,
   "278-job-schedules": m278,
+  "279-uvsgames-id-probes": m279,
 };

@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "@openrift/shared";
 import type {
+  MetaCancellableJob,
   MetaSource,
   MetaSyncTriggerResult,
 } from "@openrift/shared/contracts/admin/meta-catalog";
@@ -33,10 +34,12 @@ import {
   createMetaSyncDeps,
   deepFetchEvent,
   isCatalogSyncNoop,
+  isIdSweepNoop,
   isRecheckNoop,
   META_JOB_KINDS,
   processRechecks,
   RECHECK_BATCH_SIZE,
+  sweepEventIds,
   syncCatalog,
   acceptPlayloltcgEvent,
   autoAcceptPlayloltcgBacklog,
@@ -61,6 +64,18 @@ const DEFAULT_LIMIT = 50;
 /** The kinds each source's backfill resume point and cancel flag live under. */
 const BACKFILL_KIND = "meta.uvsgames_backfill";
 const PLAYLOLTCG_BACKFILL_KIND = "meta.playloltcg_backfill";
+const ID_SWEEP_KIND = "meta.uvsgames_id_sweep";
+
+/** The run kind each Stop targets. Not every source/job pair exists as a job. */
+const CANCELLABLE_KINDS: Partial<
+  Record<`${MetaSource}:${MetaCancellableJob}`, (typeof META_JOB_KINDS)[number]>
+> = {
+  "uvsgames:backfill": BACKFILL_KIND,
+  "uvsgames:recheck": "meta.uvsgames_recheck",
+  "uvsgames:id_sweep": ID_SWEEP_KIND,
+  "playloltcg:backfill": PLAYLOLTCG_BACKFILL_KIND,
+  "playloltcg:recheck": "meta.playloltcg_recheck",
+};
 
 function playloltcgDeps(context: ApiContext): PlayloltcgSyncDeps {
   return createPlayloltcgSyncDeps({
@@ -381,6 +396,17 @@ export const adminMetaCatalogRouter = {
     ),
   ),
 
+  // No resume point to look up here: the sweep's memory is `uvsgames_id_probes`.
+  runIdSweep: os.runIdSweep.handler(({ input, context }) =>
+    startJob(
+      context,
+      ID_SWEEP_KIND,
+      syncDeps,
+      (deps, runId) => sweepEventIds(deps, runId, input ?? {}),
+      isIdSweepNoop,
+    ),
+  ),
+
   cancelRun: os.cancelRun.handler(async ({ input, context }) => {
     const { source, job } = input;
     if (source === "playloltcg" && job === "recheck") {
@@ -390,16 +416,17 @@ export const adminMetaCatalogRouter = {
         "The playloltcg recheck cannot be stopped: it runs without a run id, so nothing there reads the flag.",
       );
     }
-    // Typed against the job list so a new source or job that has no run kind
-    // fails here rather than 404ing at runtime.
-    const kind: (typeof META_JOB_KINDS)[number] = `meta.${source}_${job}`;
+    const kind = CANCELLABLE_KINDS[`${source}:${job}`];
+    if (kind === undefined) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, `${source} runs no ${job}`);
+    }
     const running = await context.repos.jobRuns.findRunning(kind);
     if (!running) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `No ${job} is running`);
     }
-    // A recheck never writes a crawl checkpoint, so only the backfill has a
-    // shape to wait for here.
-    if (job === "backfill") {
+    // Only recheck cancels without a checkpoint; backfill and the sweep read
+    // the flag from their own heartbeat, so one must exist first.
+    if (job !== "recheck") {
       const current = await context.repos.jobRuns.getResult(running.id);
       if (!isCatalogCheckpoint(current)) {
         // The crawl has not written its first heartbeat yet, so there is

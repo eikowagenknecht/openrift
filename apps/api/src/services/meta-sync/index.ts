@@ -11,6 +11,8 @@ export type { MetaAutoAcceptSummary } from "./accept.js";
 export { backfillCatalog, syncCatalog, isCatalogSyncNoop } from "./catalog-sync.js";
 export type { MetaCatalogSyncResult } from "./catalog-sync.js";
 export { deepFetchEvent } from "./deep-fetch.js";
+export { isIdSweepNoop, MAX_PROBES_PER_SWEEP, sweepEventIds } from "./id-sweep.js";
+export type { IdSweepOptions, MetaIdSweepResult } from "./id-sweep.js";
 export type { MetaDeepFetchResult } from "./deep-fetch.js";
 export { isRecheckNoop, processRechecks, RECHECK_BATCH_SIZE } from "./recheck.js";
 export type { MetaRecheckResult } from "./recheck.js";
@@ -42,6 +44,7 @@ export const META_JOB_KINDS = [
   "meta.uvsgames_sync",
   "meta.uvsgames_backfill",
   "meta.uvsgames_recheck",
+  "meta.uvsgames_id_sweep",
   "meta.uvsgames_event_fetch",
   "meta.uvsgames_auto_accept",
   "meta.playloltcg_sync",

@@ -42,6 +42,16 @@ export interface UvsgamesUpsertInput {
   contentHash: string;
 }
 
+/** What a swept id that produced no catalogue row is remembered as. */
+export type UvsgamesProbeOutcome = "other_game" | "absent" | "unreadable";
+
+export interface UvsgamesIdProbeInput {
+  externalId: number;
+  outcome: UvsgamesProbeOutcome;
+  /** The source's game name, kept only for an `other_game` id. */
+  gameType: string | null;
+}
+
 export interface UvsgamesUpsertResult {
   /** Keys the listing had never shown before. */
   inserted: string[];
@@ -469,6 +479,74 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .where("missingSince", "is", null)
         .executeTakeFirst();
       return Number(result.numUpdatedRows ?? 0n);
+    },
+
+    /** The id range a sweep walks: the mirror's own min/max event id. */
+    async sweepBounds(): Promise<{ fromId: number; toId: number } | undefined> {
+      const row = await sql<{ fromId: string | null; toId: string | null }>`
+        select min(external_id::bigint)::text as "fromId",
+               max(external_id::bigint)::text as "toId"
+        from uvsgames_events
+        where external_id ~ '^[0-9]+$'
+      `.execute(db);
+      const bounds = row.rows[0];
+      if (bounds === undefined || bounds.fromId === null || bounds.toId === null) {
+        return undefined;
+      }
+      return { fromId: Number(bounds.fromId), toId: Number(bounds.toId) };
+    },
+
+    /**
+     * Ids in the range neither table has decided. Cast the id to text, not
+     * the column to bigint, or the anti-joins lose their primary-key index.
+     */
+    async sweepCandidates(fromId: number, toId: number, limit: number): Promise<number[]> {
+      const rows = await sql<{ id: string }>`
+        select gs.id::text as id
+        from generate_series(${fromId}::bigint, ${toId}::bigint) as gs(id)
+        where not exists (
+          select 1 from uvsgames_id_probes p where p.external_id = gs.id
+        ) and not exists (
+          select 1 from uvsgames_events e where e.external_id = gs.id::text
+        )
+        order by gs.id
+        limit ${limit}
+      `.execute(db);
+      return rows.rows.map((row) => Number(row.id));
+    },
+
+    /** Undecided ids left in the range. Assumes the two tables never overlap. */
+    async sweepRemaining(fromId: number, toId: number): Promise<number> {
+      const rows = await sql<{ remaining: string }>`
+        select (
+          (${toId}::bigint - ${fromId}::bigint + 1)
+          - (
+            select count(*) from uvsgames_id_probes
+            where external_id between ${fromId}::bigint and ${toId}::bigint
+          )
+          - (
+            select count(*) from uvsgames_events
+            where external_id ~ '^[0-9]+$'
+              and external_id::bigint between ${fromId}::bigint and ${toId}::bigint
+          )
+        )::text as remaining
+      `.execute(db);
+      return Number(rows.rows[0]?.remaining ?? 0);
+    },
+
+    async recordProbes(rows: readonly UvsgamesIdProbeInput[]): Promise<void> {
+      for (const batch of rowBatches(rows.map((row) => ({ ...row })))) {
+        await db
+          .insertInto("uvsgamesIdProbes")
+          .values(batch)
+          .onConflict((oc) =>
+            oc.column("externalId").doUpdateSet((eb) => ({
+              outcome: eb.ref("excluded.outcome"),
+              gameType: eb.ref("excluded.gameType"),
+            })),
+          )
+          .execute();
+      }
     },
 
     /** Every mirrored key running one template, for a scoped re-promote. */

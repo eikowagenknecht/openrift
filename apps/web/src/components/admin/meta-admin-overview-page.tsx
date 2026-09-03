@@ -99,6 +99,16 @@ const AUTO_ACCEPT_CONFIRM = {
   action: "Run the sweep",
 };
 
+const ID_SWEEP_DESCRIPTION =
+  "Asks the source about event ids the listing never returns, which is the only way to reach an unlisted or cancelled event. One request per id, so a run takes a bounded slice and the next one carries on.";
+
+const ID_SWEEP_CONFIRM = {
+  title: "Sweep event ids?",
+  body: () =>
+    "The sweep spends one request per id, up to 5,000 in a run, against a source the rest of the pipeline asks a few hundred times a week. Nothing is ever asked about twice, so stopping and continuing later costs nothing.",
+  action: "Run the sweep",
+};
+
 /** The manual jobs each source offers, in the order they are usually run. */
 const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
   uvsgames: [
@@ -124,6 +134,18 @@ const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
         label: "Stop fetching results",
         description:
           "A results fetch is running. Stopping keeps every event it already pulled, and the next run picks up the ones still due.",
+      },
+    },
+    {
+      trigger: "runIdSweep",
+      label: "Sweep event ids",
+      description: ID_SWEEP_DESCRIPTION,
+      confirm: ID_SWEEP_CONFIRM,
+      stop: {
+        job: "id_sweep",
+        label: "Stop the id sweep",
+        description:
+          "A sweep is running. Stopping keeps every id it already decided, and the next run carries on with the ones it has not asked about.",
       },
     },
   ],

@@ -1019,6 +1019,20 @@ interface UvsgamesPlayersTable {
  * deleted row: the row's existence records that the event was accepted, and
  * {@link checkStage} still says how far the ladder got.
  */
+/**
+ * An id a sweep asked about and got no catalogue row for. Riftbound ids are
+ * deliberately absent here — those land in `uvsgames_events` instead.
+ */
+interface UvsgamesIdProbesTable {
+  /** PK. Numeric, unlike uvsgames_events.externalId (text). CHECK: > 0. */
+  externalId: number;
+  /** other_game / absent / unreadable. CHECK: one of those three. */
+  outcome: string;
+  /** The source's game name for an `other_game` id, else null. CHECK: <> ''. */
+  gameType: string | null;
+  probedAt: Generated<Date>;
+}
+
 interface UvsgamesEventChecksTable {
   /** PK, FK → uvsgames_events.external_id ON DELETE CASCADE. */
   externalId: string;
@@ -3131,6 +3145,7 @@ export interface Database {
   uvsgamesFormatMappings: UvsgamesFormatMappingsTable;
   uvsgamesStores: UvsgamesStoresTable;
   uvsgamesPlayers: UvsgamesPlayersTable;
+  uvsgamesIdProbes: UvsgamesIdProbesTable;
   uvsgamesEventChecks: UvsgamesEventChecksTable;
   uvsgamesEventStandings: UvsgamesEventStandingsTable;
   uvsgamesEventPhases: UvsgamesEventPhasesTable;

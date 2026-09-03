@@ -362,12 +362,20 @@ export const metaSyncTriggerResultSchema = z
   })
   .openapi("MetaSyncTriggerResult");
 
+/** One sweep run's window. Every field optional; defaults to the mirror's own id span. */
+const idSweepWindowSchema = z
+  .object({
+    fromId: z.number().int().positive().optional(),
+    toId: z.number().int().positive().optional(),
+    maxProbes: z.number().int().positive().max(250_000).optional(),
+  })
+  .optional();
+
 /**
- * The jobs a Stop can be aimed at. A backfill reads the flag out of its own
- * crawl checkpoint and a recheck between batches, so neither stops on the spot;
- * the playloltcg recheck reads it nowhere at all and refuses the request.
+ * The jobs a Stop can be aimed at. Not every source/job pair exists: only
+ * uvsgames sweeps ids, and the playloltcg recheck answers no Stop at all.
  */
-export const META_CANCELLABLE_JOBS = ["backfill", "recheck"] as const;
+export const META_CANCELLABLE_JOBS = ["backfill", "recheck", "id_sweep"] as const;
 export const metaCancellableJobSchema = z.enum(META_CANCELLABLE_JOBS);
 
 /** What a cancel request did to the run it was aimed at. */
@@ -475,6 +483,12 @@ export const adminMetaCatalogContract = {
       tags: [TAG],
       successStatus: 202,
     })
+    .output(metaSyncTriggerResultSchema),
+
+  /** One slice of the id sweep — the only way to reach an event the listing won't serve. */
+  runIdSweep: authedRoute
+    .route({ method: "POST", path: `${BASE}/sync/id-sweep`, tags: [TAG], successStatus: 202 })
+    .input(idSweepWindowSchema)
     .output(metaSyncTriggerResultSchema),
 
   /**
