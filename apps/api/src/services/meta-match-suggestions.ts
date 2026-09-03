@@ -293,15 +293,14 @@ export async function suggestMetaPlayerMatches(
     return [];
   }
 
-  if (candidate.playerName === null || candidate.rank === null) {
+  const players = await repos.meta.adminPlayersForEvent(metaEventId);
+  const anchor = players.find((player) => player.id === candidate.metaEventPlayerId);
+  const playerName = candidate.playerName ?? anchor?.playerName ?? null;
+  const rank = candidate.rank ?? anchor?.rank ?? null;
+  if (playerName === null || rank === null) {
     return [];
   }
-  const players = await repos.meta.adminPlayersForEvent(metaEventId);
-  return rankPlayerMatches(
-    { playerName: candidate.playerName, rank: candidate.rank },
-    players,
-    candidate.metaEventPlayerId,
-  );
+  return rankPlayerMatches({ playerName, rank }, players, candidate.metaEventPlayerId);
 }
 
 export function rankPlayerMatches(

@@ -10,6 +10,7 @@ import {
   scoreEventMatch,
   scorePlayerMatch,
   suggestMetaEventMatches,
+  suggestMetaPlayerMatches,
 } from "./meta-match-suggestions.js";
 
 /** @returns A live event row with the fields the ranking reads. */
@@ -357,5 +358,58 @@ describe("suggestMetaEventMatches", () => {
 
     expect(await suggestMetaEventMatches(r, CANDIDATE_ID)).toEqual([]);
     expect(listEvents).not.toHaveBeenCalled();
+  });
+});
+
+describe("suggestMetaPlayerMatches", () => {
+  const OVERLAY_ID = "3f7a1c2e-0000-7000-8000-0000000000c1";
+  const LINKED_ID = "3f7a1c2e-0000-7000-8000-00000000000p";
+
+  function playerRepos(overlay: Record<string, unknown>, players: AdminMetaPlayerRow[]): Repos {
+    return {
+      meta: {
+        eventIdForPlayer: vi.fn().mockResolvedValue("live-1"),
+        adminPlayersForEvent: vi.fn().mockResolvedValue(players),
+      },
+      metaOverlays: {
+        playerOverlayById: vi.fn().mockResolvedValue(overlay),
+        eventOverlayById: vi.fn().mockResolvedValue(undefined),
+      },
+    } as unknown as Repos;
+  }
+
+  it("matches on the linked row once the link pruned the overlay's own name and finish", async () => {
+    const repos = playerRepos(
+      {
+        id: OVERLAY_ID,
+        metaEventId: null,
+        metaEventPlayerId: LINKED_ID,
+        eventOverlayId: null,
+        playerName: null,
+        rank: null,
+      },
+      [player({ id: LINKED_ID }), player({ id: "other", playerName: "Ekko", rank: 2 })],
+    );
+
+    const suggestions = await suggestMetaPlayerMatches(repos, OVERLAY_ID);
+
+    expect(suggestions.map((row) => row.metaEventPlayerId)).toEqual([LINKED_ID]);
+    expect(suggestions[0].isCurrent).toBe(true);
+  });
+
+  it("suggests nothing for an unlinked overlay that names no player of its own", async () => {
+    const repos = playerRepos(
+      {
+        id: OVERLAY_ID,
+        metaEventId: "live-1",
+        metaEventPlayerId: null,
+        eventOverlayId: null,
+        playerName: null,
+        rank: null,
+      },
+      [player()],
+    );
+
+    expect(await suggestMetaPlayerMatches(repos, OVERLAY_ID)).toEqual([]);
   });
 });

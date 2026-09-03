@@ -474,6 +474,7 @@ describe("MetaOverlaysPage", () => {
 
     expect(screen.getByText("linked")).toBeInTheDocument();
     expect(screen.getByText(/Pick another row to move it/u)).toBeInTheDocument();
+    expect(screen.queryByText(/accepting files a new one/u)).not.toBeInTheDocument();
   });
 
   it("shows the standings rows without asking for a toggle first", () => {

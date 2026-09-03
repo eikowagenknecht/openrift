@@ -225,7 +225,7 @@ function PlayerMatches({ overlay }: { overlay: MetaOverlayQueueRow }) {
           : "Not linked to a standings row yet. Pick the row this entry describes, or accepting files a second row beside it."}
       </p>
       {isPending && <Skeleton className="h-16 w-full" />}
-      {data !== undefined && data.suggestions.length === 0 && (
+      {data !== undefined && data.suggestions.length === 0 && !linked && (
         <p className="text-muted-foreground">
           No standings row in this event reads as the same player, so accepting files a new one.
         </p>
