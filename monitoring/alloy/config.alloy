@@ -87,6 +87,15 @@ loki.source.docker "containers" {
 }
 
 loki.process "pino" {
+  // Tempo 3.0's backend worker logs a NotFound error on every idle scheduler
+  // poll (15s). Remove once Tempo stops logging idle polls at error level.
+  stage.match {
+    selector = "{service=\"tempo\"}"
+    stage.drop {
+      expression = "no jobs found"
+    }
+  }
+
   // Only attempt JSON / level / trace-id extraction on services known to
   // emit pino logs. Without this guard, non-pino containers (Tempo,
   // Grafana, Loki, Prometheus, …) get a phantom `level="<no value>"` label

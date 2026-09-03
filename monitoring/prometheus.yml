@@ -13,10 +13,30 @@ scrape_configs:
     static_configs:
       - targets: ["cadvisor:8080"]
 
-  # PostgreSQL metrics
+  # PostgreSQL metrics, 60s because table and activity stats move slowly.
+  # RE2 has no negative lookahead, so kept names are marked before the drop.
   - job_name: "postgres-exporter"
+    scrape_interval: 60s
     static_configs:
       - targets: ["postgres-exporter:9187"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "pg_settings_max_connections"
+        target_label: __tmp_keep
+        replacement: "1"
+      - source_labels: [__name__, __tmp_keep]
+        regex: "pg_settings_.*;"
+        action: drop
+      - source_labels: [__name__]
+        regex: "pg_stat_database_conflicts.*|pg_stat_statements_(seconds_mean|rows_total)"
+        action: drop
+      - source_labels: [__name__]
+        regex: "pg_stat_user_tables_(seq_scan|seq_tup_read|idx_scan|n_tup_(ins|upd|del|hot_upd)|n_live_tup|n_dead_tup|table_size_bytes|index_size_bytes)"
+        target_label: __tmp_keep
+        replacement: "1"
+      - source_labels: [__name__, __tmp_keep]
+        regex: "pg_stat_user_tables_.*;"
+        action: drop
 
   # Hono API: per-route HTTP metrics + Node.js runtime metrics.
   # The API is reachable at the docker-network hostname when it runs in a
@@ -48,10 +68,14 @@ scrape_configs:
     static_configs:
       - targets: ["alloy:12345"]
 
-  # Loki self-monitoring (ingestion rate, query rate, retention)
+  # Loki self-monitoring, ingestion and error counters only.
   - job_name: "loki"
     static_configs:
       - targets: ["loki:3100"]
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: "up|scrape_.*|loki_build_info|loki_panic_total|loki_distributor_(lines|bytes)_received_total|loki_discarded_samples_total|loki_ingester_wal_discarded_samples_total|loki_ingester_memory_chunks|loki_request_duration_seconds_(count|sum)|loki_compactor_.*"
+        action: keep
 
   # Per-component telemetry disk usage arrives via node-exporter's textfile
   # collector: the disk-usage-exporter sidecar writes disk_usage.prom into a

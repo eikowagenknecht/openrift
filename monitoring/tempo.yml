@@ -1,7 +1,11 @@
 server:
   http_listen_port: 3200
+  log_level: warn
 
 distributor:
+  # The API caps db.query.text at 2048 chars; the default 2048-byte limit
+  # here truncates it again on multibyte text and logs a warning per span.
+  max_attribute_bytes: 4096
   receivers:
     otlp:
       protocols:
@@ -29,6 +33,14 @@ metrics_generator:
         send_exemplars: true
   processor:
     span_metrics:
+      # Internal spans (repo.* wrappers) are useful in traces, not as
+      # per-name histograms; the dashboards read SERVER and CLIENT only.
+      filter_policies:
+        - include:
+            match_type: regex
+            attributes:
+              - key: kind
+                value: SPAN_KIND_(SERVER|CLIENT)
       dimensions:
         - http.route
         - http.method

@@ -23,6 +23,7 @@ services:
       - "--path.rootfs=/rootfs"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run)($$|/)"
       - "--collector.textfile.directory=/textfile"
+      - "--collector.netdev.device-exclude=^(veth.*|br-.*|docker0)$$"
     logging:
       driver: json-file
       options:
@@ -30,13 +31,9 @@ services:
         max-file: "3"
     restart: unless-stopped
 
-  # Per-container metrics: CPU, memory, network, restarts.
-  # Defaults are chatty: housekeeping every 1s and every collector enabled,
-  # while Prometheus only scrapes every 15s. The flags below match the
-  # housekeeping interval to the scrape interval and disable collectors
-  # whose output we don't surface anywhere (NUMA, hugetlb, resctrl, etc.).
-  # Kept enabled: cpu, memory, network, oom_event, diskIO, tcp/udp,
-  # process, referenced_memory.
+  # Per-container metrics: CPU, memory, network, restarts. Docker containers
+  # only; host cgroups are node-exporter's job. referenced_memory logs a smaps
+  # warning per container per pass, so it stays off.
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.55.1
     privileged: true
@@ -45,7 +42,8 @@ services:
       - "--max_housekeeping_interval=20s"
       - "--event_storage_event_limit=default=0"
       - "--event_storage_age_limit=default=0"
-      - "--disable_metrics=disk,advtcp,sched,hugetlb,cpu_topology,resctrl,percpu"
+      - "--docker_only=true"
+      - "--disable_metrics=disk,diskIO,advtcp,tcp,udp,process,referenced_memory,sched,hugetlb,cpu_topology,resctrl,percpu"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -96,18 +94,19 @@ services:
         max-file: "3"
     restart: unless-stopped
 
-  # PostgreSQL metrics: connections, query stats, replication.
+  # PostgreSQL metrics: connections, database stats, top statements.
+  # stat_replication selects pg_stat_replication.slot_name, which PostgreSQL 18
+  # no longer has, so every scrape logs an ERROR + STATEMENT pair to the DB log.
+  # The other disabled collectors only carry data with standbys or WAL archiving.
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.20.1
-    # The stat_replication collector's query selects pg_stat_replication.slot_name,
-    # a column that does not exist in PostgreSQL 18, so every scrape fails with
-    # `column "slot_name" does not exist` and logs an ERROR + STATEMENT pair to the
-    # database log (~5.7k lines/day at a 15s scrape interval). It yields nothing
-    # here anyway: this is a single node with no standbys, so pg_stat_replication
-    # is always empty. The separate `replication` collector still provides
-    # pg_replication_lag_seconds / pg_replication_is_replica.
     command:
       - --no-collector.stat_replication
+      - --no-collector.replication
+      - --no-collector.replication_slots
+      - --no-collector.stat_archiver
+      - --no-collector.stat_progress_vacuum
+      - --no-collector.statio_user_tables
     environment:
       DATA_SOURCE_NAME: ${POSTGRES_CONNECTION}
       PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml
@@ -123,7 +122,7 @@ services:
         max-file: "3"
     restart: unless-stopped
 
-  # Scrapes all exporters, stores metrics for 90 days.
+  # Scrapes all exporters, stores metrics for 30 days.
   prometheus:
     image: prom/prometheus:v3.14.0
     user: "${UID:-1000}:${GID:-1000}"
@@ -144,7 +143,7 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}"
-      - "--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-5GB}"
+      - "--storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-2GB}"
       - "--web.console.libraries=/etc/prometheus/console_libraries"
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--web.enable-remote-write-receiver"

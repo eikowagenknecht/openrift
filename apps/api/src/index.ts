@@ -50,6 +50,9 @@ if (config.sentryDsn) {
     // transactions on its own. Errors continue to flow as before.
     tracesSampleRate: 0,
     skipOpenTelemetrySetup: true,
+    // Sentry's Bun.serve wrapper starts spans through the global OTel tracer
+    // despite tracesSampleRate 0: raw-URL INTERNAL spans with all headers in Tempo.
+    integrations: (defaults) => defaults.filter((i) => i.name !== "BunServer"),
     // Drop unhandled rejections that are just transient DNS/connectivity blips
     // against the database. postgres.js rejects a background reconnect promise
     // nobody awaits, so it arrives here as an unhandled rejection with no
