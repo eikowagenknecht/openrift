@@ -11,6 +11,7 @@ import type {
 import { isResumableCheckpoint } from "@openrift/shared/contracts/admin/meta-catalog";
 
 import type { MetaCoverageRow } from "@/components/admin/meta-coverage-chips";
+import { summarizeRunResult } from "@/lib/job-run-display";
 
 // Pure display helpers for the Meta Archive's catalogue triage and sync panels
 // (ADR-014). Kept out of the components so the source's own vocabulary, the
@@ -153,102 +154,6 @@ export function catalogDayBoundary(day: string, edge: "start" | "end"): string |
   return parsed.toISOString();
 }
 
-/**
- * A run's wall time, at the coarsest unit that still says something.
- *
- * @param ms - The run's duration, or null while it is still running.
- * @returns The duration, or an em-dash placeholder.
- */
-export function formatRunDuration(ms: number | null): string {
-  if (ms === null) {
-    return "—";
-  }
-  if (ms < 1000) {
-    return `${Math.round(ms)}ms`;
-  }
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-  return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`;
-}
-
-/** How many counters of a job result the compact summary shows. */
-const SUMMARY_LIMIT = 6;
-
-/** The counter that is the crawl's actual budget, so it leads the summary. */
-const BUDGET_COUNTER = "requests";
-
-/** The coverage note, and whether it has already spent the skipped counter. */
-interface CoverageNote {
-  text: string | null;
-  namesSkipped: boolean;
-}
-
-function coverageNote(result: Record<string, unknown> | null): CoverageNote {
-  if (result === null || result.complete !== false) {
-    return { text: null, namesSkipped: false };
-  }
-  if (result.cancelRequested === true) {
-    return { text: "cancelled", namesSkipped: false };
-  }
-  const skipped = typeof result.skipped === "number" ? result.skipped : 0;
-  if (skipped === 0) {
-    return { text: "incomplete", namesSkipped: false };
-  }
-  return { text: `incomplete, ${skipped.toLocaleString()} skipped`, namesSkipped: true };
-}
-
-/**
- * How a crawl that fell short of its own window reads. A partial pass is the
- * one thing the counters cannot say on their own: a crawl that stopped at the
- * first refused page still reports a healthy-looking row count, which is how a
- * third of the catalogue sat stale behind a green run for a week.
- *
- * @param result - The run's stored result.
- * @returns The warning, or null when the run covered everything it set out to.
- */
-export function coverageWarning(result: Record<string, unknown> | null): string | null {
-  return coverageNote(result).text;
-}
-
-/**
- * The countable part of a job's result, as one line. Every `meta.*` job
- * summarizes itself as a bag of counters, so the numbers are the summary and
- * the rest of the payload stays in the expandable detail.
- *
- * Requests come first whatever order the job wrote its counters in: they are
- * what a crawl spends, and a row count read as a cost makes a cheap poll look
- * alarming. A partial pass leads with saying so, ahead of every counter, and
- * the skipped count it names is dropped from the counters rather than printed
- * twice.
- *
- * @param result - The run's stored result.
- * @returns The counters, or an empty string when the result holds none.
- */
-export function summarizeRunResult(result: Record<string, unknown> | null): string {
-  if (result === null) {
-    return "";
-  }
-  const note = coverageNote(result);
-  const counters: [string, number][] = [];
-  for (const [key, value] of Object.entries(result)) {
-    if (typeof value === "number" && !(note.namesSkipped && key === "skipped")) {
-      counters.push([key, value]);
-    }
-  }
-  const budget = counters.filter(([key]) => key === BUDGET_COUNTER);
-  const rest = counters.filter(([key]) => key !== BUDGET_COUNTER);
-  return [
-    ...(note.text === null ? [] : [note.text]),
-    ...[...budget, ...rest]
-      .slice(0, SUMMARY_LIMIT)
-      .map(([key, value]) => `${value.toLocaleString()} ${key}`),
-  ].join(" · ");
-}
-
 /** What a manual trigger's outcome is announced as. */
 export interface SyncTriggerAnnouncement {
   title: string;
@@ -346,6 +251,7 @@ export function runningRunId(runs: MetaSyncStatus["runs"], kind: string): string
 /** Where an alert sends the maintainer to act on it. */
 export type MetaSyncAlertTarget =
   | "runs"
+  | "failed-runs"
   | "catalogue-accepted"
   | "catalogue-accepted-missing"
   | "review";
@@ -454,7 +360,7 @@ export function metaSyncAlerts(
     alerts.push({
       id: "failed-runs",
       message: `${failed.length} sync ${failed.length === 1 ? "run" : "runs"} failed in the last 24 hours.`,
-      target: "runs",
+      target: "failed-runs",
     });
   }
 

@@ -1,4 +1,10 @@
-import type { JobRunView, JobRunsListResponse } from "@openrift/shared/contracts/admin/job-runs";
+import type {
+  JobRunActivity,
+  JobRunView,
+  JobRunsListResponse,
+  JobStatus,
+  JobTrigger,
+} from "@openrift/shared/contracts/admin/job-runs";
 import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -19,6 +25,24 @@ export type JobRunsQueryParams = Omit<
   page: number;
 };
 
+export function jobRunsParamsFromSearch(search: {
+  page?: number;
+  runKind?: string;
+  runPrefix?: string;
+  runTrigger?: JobTrigger;
+  runStatus?: JobStatus;
+  runActivity?: JobRunActivity;
+}): JobRunsQueryParams {
+  return {
+    page: search.page ?? 1,
+    kind: search.runKind,
+    kindPrefix: search.runPrefix,
+    trigger: search.runTrigger,
+    status: search.runStatus,
+    activity: search.runActivity,
+  };
+}
+
 const fetchJobRuns = createServerFn({ method: "GET" })
   .validator((input: JobRunsQueryParams) => input)
   .middleware([withCookies])
@@ -27,6 +51,7 @@ const fetchJobRuns = createServerFn({ method: "GET" })
       page: data.page,
       limit: JOB_RUNS_PAGE_SIZE,
       kind: data.kind,
+      kindPrefix: data.kindPrefix,
       trigger: data.trigger,
       status: data.status,
       activity: data.activity,

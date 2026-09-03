@@ -70,6 +70,7 @@ describe("GET /job-runs", () => {
     // Default paging: page 1, limit 50, offset 0, no filters.
     expect(mockJobRuns.listPage).toHaveBeenCalledWith({
       kind: undefined,
+      kindPrefix: undefined,
       trigger: undefined,
       status: undefined,
       noop: undefined,
@@ -91,12 +92,24 @@ describe("GET /job-runs", () => {
     // page 2 with limit 10 → offset (2 - 1) * 10 = 10.
     expect(mockJobRuns.listPage).toHaveBeenCalledWith({
       kind: "foo",
+      kindPrefix: undefined,
       trigger: undefined,
       status: undefined,
       noop: undefined,
       limit: 10,
       offset: 10,
     });
+  });
+
+  it("passes a kind prefix through, so one job family reads as one list", async () => {
+    mockJobRuns.listPage.mockResolvedValue({ rows: [], total: 0 });
+    mockJobRuns.listKinds.mockResolvedValue([]);
+
+    const res = await app.request("/api/admin/v1/job-runs?kindPrefix=meta.uvsgames_");
+    expect(res.status).toBe(200);
+    expect(mockJobRuns.listPage).toHaveBeenCalledWith(
+      expect.objectContaining({ kindPrefix: "meta.uvsgames_" }),
+    );
   });
 
   it("nulls a non-object result and a null finishedAt", async () => {

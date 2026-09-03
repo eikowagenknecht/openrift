@@ -435,6 +435,24 @@ describe("MetaCatalogPage", () => {
     expect(captured.params).toMatchObject({ missing: true });
   });
 
+  it("switches source from the filter row, dropping the filters only uvsgames has", async () => {
+    const user = userEvent.setup();
+    searchStore.seed({ eventStatus: "complete", decklists: true, q: "skirmish", page: 3 });
+    render(<MetaCatalogPage />);
+
+    await user.click(screen.getByRole("combobox", { name: "Source" }));
+    await user.click(await screen.findByRole("option", { name: "Play LoL TCG" }));
+
+    expect(searchStore.get()).toEqual({
+      source: "playloltcg",
+      q: "skirmish",
+      page: undefined,
+      eventStatus: undefined,
+      decklists: undefined,
+      plStatus: undefined,
+    });
+  });
+
   it("leaves the default triage bucket out of the URL, and spells out any other", async () => {
     const user = userEvent.setup();
     searchStore.seed({ triage: "accepted" });

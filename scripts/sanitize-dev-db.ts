@@ -6,6 +6,10 @@ import { requireEnv } from "./env.js";
 
 const DEFAULT_PASSWORD = "1111";
 
+// `createLocalAccountIssuer("credential")` from better-auth, inlined for the
+// same reason as SCRYPT below.
+const CREDENTIAL_ISSUER = "local:credential";
+
 // scrypt parameters and the `salt:key` hex encoding come from
 // `@better-auth/utils/password`, which better-auth uses for credential
 // accounts. They are inlined because the root workspace cannot resolve
@@ -87,6 +91,7 @@ if (withoutCredentials.length > 0) {
         userId: user.id,
         accountId: user.id,
         providerId: "credential",
+        issuer: CREDENTIAL_ISSUER,
         password: hash,
       })),
     )

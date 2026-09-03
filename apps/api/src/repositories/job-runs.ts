@@ -20,6 +20,11 @@ export interface JobRun {
   noop: boolean | null;
 }
 
+/** Both LIKE wildcards are ordinary characters in a job kind (`meta.uvsgames_`). */
+function escapeLike(value: string): string {
+  return value.replaceAll(/[\\%_]/gu, String.raw`\$&`);
+}
+
 export function jobRunsRepo(db: Kysely<Database>) {
   return {
     /**
@@ -197,6 +202,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
      */
     async listPage(params: {
       kind?: string;
+      kindPrefix?: string;
       trigger?: JobTrigger;
       status?: JobStatus;
       /** Filter by activity: true = only no-ops, false = only runs that did
@@ -229,6 +235,11 @@ export function jobRunsRepo(db: Kysely<Database>) {
       if (params.kind !== undefined) {
         rowQuery = rowQuery.where("kind", "=", params.kind);
         countQuery = countQuery.where("kind", "=", params.kind);
+      }
+      if (params.kindPrefix !== undefined) {
+        const pattern = `${escapeLike(params.kindPrefix)}%`;
+        rowQuery = rowQuery.where("kind", "like", pattern);
+        countQuery = countQuery.where("kind", "like", pattern);
       }
       if (params.trigger !== undefined) {
         rowQuery = rowQuery.where("trigger", "=", params.trigger);

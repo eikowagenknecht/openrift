@@ -14,7 +14,7 @@ const os = implement(adminJobRunsContract).$context<ApiContext>().use(requireAut
 export const adminJobRunsRouter = {
   list: os.list.handler(async ({ input, context }): Promise<JobRunsListResponse> => {
     const { jobRuns } = context.repos;
-    const { kind, trigger, status, activity, page, limit } = input;
+    const { kind, kindPrefix, trigger, status, activity, page, limit } = input;
 
     const pageSize = limit ?? 50;
     const pageNumber = page ?? 1;
@@ -23,7 +23,7 @@ export const adminJobRunsRouter = {
     const noop = activity === undefined ? undefined : activity === "noop";
 
     const [{ rows, total }, kinds] = await Promise.all([
-      jobRuns.listPage({ kind, trigger, status, noop, limit: pageSize, offset }),
+      jobRuns.listPage({ kind, kindPrefix, trigger, status, noop, limit: pageSize, offset }),
       jobRuns.listKinds(),
     ]);
     const runs: JobRunView[] = rows.map((row) => ({

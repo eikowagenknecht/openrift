@@ -1,5 +1,7 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import type { MetaOverlayQueueRow } from "@openrift/shared";
 import { formatDayTime, formatRelativeTime } from "@openrift/shared";
+import type { JobStatus } from "@openrift/shared/contracts/admin/job-runs";
 import type {
   MetaCancellableJob,
   MetaCatalogTriage,
@@ -29,15 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogForm } from "@/components/ui/dialog-form";
-import { ExpandToggle } from "@/components/ui/expand-toggle";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { SectionHeading } from "@/components/ui/section-heading";
 import type { MetaSyncTrigger } from "@/hooks/use-admin-meta-catalog";
 import {
   SYNC_STATUS_POLL_MS,
@@ -46,6 +40,7 @@ import {
   useRunMetaSync,
 } from "@/hooks/use-admin-meta-catalog";
 import { useAdminMetaOverlays } from "@/hooks/use-admin-meta-overlays";
+import { summarizeRunResult } from "@/lib/job-run-display";
 import type {
   BackfillDisplay,
   MetaSyncAlert,
@@ -53,12 +48,10 @@ import type {
 } from "@/lib/meta-catalog-display";
 import {
   backfillDisplay,
-  formatRunDuration,
   META_SOURCE_LABELS,
   metaSyncAlerts,
   overlayCountsForProvider,
   runningRunId,
-  summarizeRunResult,
 } from "@/lib/meta-catalog-display";
 
 /** The tab a funnel stage or an alert opens, with its catalogue pre-filter. */
@@ -67,6 +60,11 @@ interface MetaAdminTarget {
   triage?: MetaCatalogTriage;
   missing?: boolean;
   awaitingResults?: boolean;
+}
+
+/** Every catalogue link must name its source; both sources render at once. */
+function catalogueSource(source: MetaSource): MetaSource | undefined {
+  return source === "uvsgames" ? undefined : source;
 }
 
 interface TriggerEntry {
@@ -224,6 +222,11 @@ const BACKFILL_TRIGGERS_BY_SOURCE: Record<
   },
 };
 
+const JOB_KIND_PREFIX: Record<MetaSource, string> = {
+  uvsgames: "meta.uvsgames_",
+  playloltcg: "meta.playloltcg_",
+};
+
 /** The backfill job kind for a source, so the phase reads the right runs. */
 const BACKFILL_KIND: Record<MetaSource, string> = {
   uvsgames: "meta.uvsgames_backfill",
@@ -234,18 +237,20 @@ function FunnelStage({
   label,
   value,
   detail,
+  source,
   target,
 }: {
   label: string;
   value: number;
   detail: string;
+  source: MetaSource;
   target: MetaAdminTarget;
 }) {
   return (
     <Link
       from="/admin/meta"
       to="/admin/meta"
-      search={(prev) => ({ ...prev, ...target })}
+      search={(prev) => ({ ...prev, source: catalogueSource(source), ...target })}
       className="hover:bg-muted/50 focus-visible:ring-ring block flex-1 rounded-md border px-3 py-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       <div className="text-muted-foreground text-sm">{label}</div>
@@ -274,6 +279,7 @@ function SyncFunnel({
   return (
     <div className="flex flex-col gap-2 lg:flex-row">
       <FunnelStage
+        source={source}
         label="Untriaged"
         value={counts.new}
         detail={`of ${catalog.total.toLocaleString()} catalogued`}
@@ -281,6 +287,7 @@ function SyncFunnel({
       />
       <FunnelArrow />
       <FunnelStage
+        source={source}
         label="Awaiting results"
         value={catalog.acceptedAwaitingResults}
         detail={`${catalog.dueRecheck.toLocaleString()} rechecks due`}
@@ -290,6 +297,7 @@ function SyncFunnel({
       {/* The queue itself is cross-source, so the stage names the source its
           count is scoped to; the Review tab's own badge counts every source. */}
       <FunnelStage
+        source={source}
         label={`Needs review from ${META_SOURCE_LABELS[source]}`}
         value={pendingReview}
         detail={`${unresolvedCards.toLocaleString()} unmatched card names`}
@@ -297,6 +305,7 @@ function SyncFunnel({
       />
       <FunnelArrow />
       <FunnelStage
+        source={source}
         label="Published"
         value={archive.events}
         detail={`${archive.decks.toLocaleString()} decks · ${archive.eventsWithDecklists.toLocaleString()} of ${catalog.decklistPublished.toLocaleString()} events with lists`}
@@ -321,17 +330,14 @@ function MirrorLine({ status }: { status: MetaSyncStatus }) {
   );
 }
 
-/**
- * Where an alert's action goes. The runs panel is not a search param, so it is
- * its own variant rather than a missing `target`: a link entry that forgot one
- * would otherwise compile into a link that goes nowhere.
- */
+/** A union, not an optional `target`: a forgotten one must fail to compile, not link nowhere. */
 type AlertDestination =
-  | { kind: "runs"; label: string }
+  | { kind: "runs"; label: string; status?: JobStatus }
   | { kind: "link"; label: string; target: MetaAdminTarget };
 
 const ALERT_TARGETS: Record<MetaSyncAlertTarget, AlertDestination> = {
   runs: { kind: "runs", label: "Recent runs" },
+  "failed-runs": { kind: "runs", label: "The failed runs", status: "failed" },
   "catalogue-accepted": {
     kind: "link",
     label: "Accepted events",
@@ -345,11 +351,20 @@ const ALERT_TARGETS: Record<MetaSyncAlertTarget, AlertDestination> = {
   review: { kind: "link", label: "Review queue", target: { tab: "review" } },
 };
 
-function AlertAction({ alert, onShowRuns }: { alert: MetaSyncAlert; onShowRuns: () => void }) {
+function AlertAction({ alert, source }: { alert: MetaSyncAlert; source: MetaSource }) {
   const destination = ALERT_TARGETS[alert.target];
   if (destination.kind === "runs") {
     return (
-      <Button variant="ghost" size="sm" onClick={onShowRuns}>
+      <Button
+        variant="ghost"
+        size="sm"
+        render={
+          <Link
+            to="/admin/job-runs"
+            search={{ runPrefix: JOB_KIND_PREFIX[source], runStatus: destination.status }}
+          />
+        }
+      >
         {destination.label}
       </Button>
     );
@@ -362,7 +377,7 @@ function AlertAction({ alert, onShowRuns }: { alert: MetaSyncAlert; onShowRuns: 
         <Link
           from="/admin/meta"
           to="/admin/meta"
-          search={(prev) => ({ ...prev, ...destination.target })}
+          search={(prev) => ({ ...prev, source: catalogueSource(source), ...destination.target })}
         />
       }
     >
@@ -371,19 +386,22 @@ function AlertAction({ alert, onShowRuns }: { alert: MetaSyncAlert; onShowRuns: 
   );
 }
 
-function HealthCard({ alerts, onShowRuns }: { alerts: MetaSyncAlert[]; onShowRuns: () => void }) {
+type SourcedAlert = MetaSyncAlert & { source: MetaSource };
+
+function HealthCard({ alerts }: { alerts: SourcedAlert[] }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>Health</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {alerts.length === 0 && <p className="text-muted-foreground">Sync looks healthy.</p>}
+        {alerts.length === 0 && <p className="text-muted-foreground">Both sources look healthy.</p>}
         {alerts.map((alert) => (
-          <div key={alert.id} className="flex items-center gap-2">
+          <div key={`${alert.source}-${alert.id}`} className="flex items-center gap-2">
             <CircleAlertIcon className="text-destructive size-4 shrink-0" />
+            <Badge variant="muted">{META_SOURCE_LABELS[alert.source]}</Badge>
             <span className="flex-1">{alert.message}</span>
-            <AlertAction alert={alert} onShowRuns={onShowRuns} />
+            <AlertAction alert={alert} source={alert.source} />
           </div>
         ))}
       </CardContent>
@@ -608,140 +626,60 @@ function TriggersCard({
           )}
         </div>
         {lastOutcome !== "" && <p className="text-muted-foreground">{lastOutcome}</p>}
+        <LastRunLine runs={runs} source={source} />
       </CardContent>
     </Card>
   );
 }
 
-function RunSummaryLine({ runs }: { runs: MetaSyncStatus["runs"] }) {
+function LastRunLine({ runs, source }: { runs: MetaSyncStatus["runs"]; source: MetaSource }) {
   const latest = runs[0];
-  if (latest === undefined) {
-    return <span className="text-muted-foreground">No sync has run yet.</span>;
-  }
   return (
-    <span className="text-muted-foreground flex items-center gap-2">
-      <span className="font-mono">{latest.kind}</span>
-      <JobStatusBadge status={latest.status} />
-      {formatRelativeTime(latest.startedAt)}
-    </span>
-  );
-}
-
-function RunsCard({
-  runs,
-  open,
-  onToggle,
-}: {
-  runs: MetaSyncStatus["runs"];
-  open: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <ExpandToggle expanded={open} onClick={onToggle} className="w-full">
-          <CardTitle>Recent runs</CardTitle>
-          {!open && <RunSummaryLine runs={runs} />}
-        </ExpandToggle>
-      </CardHeader>
-      {open && (
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Kind</TableHead>
-                <TableHead className="w-28">Trigger</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-36">Started</TableHead>
-                <TableHead className="w-28">Duration</TableHead>
-                <TableHead>Result</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {runs.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
-                    No sync has run yet.
-                  </TableCell>
-                </TableRow>
-              )}
-              {runs.map((run) => (
-                <TableRow key={run.id}>
-                  <TableCell className="font-mono">{run.kind}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono">
-                      {run.trigger}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <JobStatusBadge status={run.status} />
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono" title={formatDayTime(run.startedAt)}>
-                      {formatRelativeTime(run.startedAt, { seconds: true })}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono">{formatRunDuration(run.durationMs)}</TableCell>
-                  <TableCell className="whitespace-normal">
-                    {run.errorMessage === null ? (
-                      <span className="text-muted-foreground">
-                        {summarizeRunResult(run.result)}
-                      </span>
-                    ) : (
-                      <span className="text-destructive">{run.errorMessage}</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
+    <div className="text-muted-foreground flex flex-wrap items-center gap-2">
+      {latest === undefined ? (
+        <span>No sync has run yet.</span>
+      ) : (
+        <>
+          <span className="font-mono">{latest.kind}</span>
+          <JobStatusBadge status={latest.status} />
+          <span title={formatDayTime(latest.startedAt)}>
+            {formatRelativeTime(latest.startedAt, { seconds: true })}
+          </span>
+          {latest.errorMessage === null ? (
+            <span>{summarizeRunResult(latest.result)}</span>
+          ) : (
+            <span className="text-destructive">{latest.errorMessage}</span>
+          )}
+        </>
       )}
-    </Card>
+      <Button
+        variant="ghost"
+        size="sm"
+        render={<Link to="/admin/job-runs" search={{ runPrefix: JOB_KIND_PREFIX[source] }} />}
+      >
+        All runs
+      </Button>
+    </div>
   );
 }
 
-/**
- * The Meta Archive's overview (ADR-014): the pipeline an event walks from the
- * uvsgames listing to the public /meta pages, what is currently wrong with it,
- * and the manual form of every crawl the crons own.
- *
- * @returns The overview tab.
- */
-export function MetaAdminOverviewPage({ source }: { source: MetaSource }) {
-  const { data, refetch, isFetching, dataUpdatedAt } = useMetaSyncStatus(source);
+/** One source's funnel and manual crawl controls (ADR-014). */
+export function MetaSourceSyncSection({ source }: { source: MetaSource }) {
+  const { data } = useMetaSyncStatus(source);
   const overlays = useAdminMetaOverlays();
-  const [runsOpen, setRunsOpen] = useState(false);
 
   const { pendingReview, unresolvedCards } = overlayCountsForProvider(
     overlays.data.overlays,
     source,
   );
-  const alerts = data === undefined ? [] : metaSyncAlerts(data, unresolvedCards, new Date());
 
   return (
-    <div className="space-y-4">
-      <AdminPageTopBar
-        title="Meta Archive"
-        actions={
-          <RefreshCountdownButton
-            onRefresh={() => void refetch()}
-            isFetching={isFetching}
-            dataUpdatedAt={dataUpdatedAt}
-            intervalMs={SYNC_STATUS_POLL_MS}
-          />
-        }
-      />
-      <PageDescription>
-        Event data is read from each source&apos;s public API. The crawl reads only the event
-        overview; standings and decklists are fetched separately, and only for accepted events.
-      </PageDescription>
-
+    <section aria-label={META_SOURCE_LABELS[source]} className="space-y-4">
+      <SectionHeading>{META_SOURCE_LABELS[source]}</SectionHeading>
       {data === undefined ? (
         <p className="text-muted-foreground">Loading the sync status…</p>
       ) : (
         <>
-          <HealthCard alerts={alerts} onShowRuns={() => setRunsOpen(true)} />
           <SyncFunnel
             source={source}
             status={data}
@@ -759,9 +697,59 @@ export function MetaAdminOverviewPage({ source }: { source: MetaSource }) {
         backfill={backfillDisplay(data?.runs ?? [], BACKFILL_KIND[source])}
         pendingTriage={data?.counts.new ?? null}
       />
-      {data !== undefined && (
-        <RunsCard runs={data.runs} open={runsOpen} onToggle={() => setRunsOpen(!runsOpen)} />
-      )}
+    </section>
+  );
+}
+
+function sourceAlerts(
+  source: MetaSource,
+  status: MetaSyncStatus | undefined,
+  overlays: readonly MetaOverlayQueueRow[],
+  now: Date,
+): SourcedAlert[] {
+  if (status === undefined) {
+    return [];
+  }
+  const { unresolvedCards } = overlayCountsForProvider(overlays, source);
+  return metaSyncAlerts(status, unresolvedCards, now).map((alert) => ({ ...alert, source }));
+}
+
+/** The Meta Archive's overview (ADR-014): what is wrong, then each source's own stage. */
+export function MetaAdminOverviewPage() {
+  const uvsgames = useMetaSyncStatus("uvsgames");
+  const playloltcg = useMetaSyncStatus("playloltcg");
+  const overlays = useAdminMetaOverlays();
+
+  const now = new Date();
+  const alerts = [
+    ...sourceAlerts("uvsgames", uvsgames.data, overlays.data.overlays, now),
+    ...sourceAlerts("playloltcg", playloltcg.data, overlays.data.overlays, now),
+  ];
+
+  return (
+    <div className="space-y-4">
+      <AdminPageTopBar
+        title="Meta Archive"
+        actions={
+          <RefreshCountdownButton
+            onRefresh={() => {
+              void uvsgames.refetch();
+              void playloltcg.refetch();
+            }}
+            isFetching={uvsgames.isFetching || playloltcg.isFetching}
+            dataUpdatedAt={Math.min(uvsgames.dataUpdatedAt, playloltcg.dataUpdatedAt)}
+            intervalMs={SYNC_STATUS_POLL_MS}
+          />
+        }
+      />
+      <PageDescription>
+        Event data is read from each source&apos;s public API. The crawl reads only the event
+        overview; standings and decklists are fetched separately, and only for accepted events.
+      </PageDescription>
+
+      <HealthCard alerts={alerts} />
+      <MetaSourceSyncSection source="uvsgames" />
+      <MetaSourceSyncSection source="playloltcg" />
     </div>
   );
 }

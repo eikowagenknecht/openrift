@@ -251,6 +251,24 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(combined.rows[0]?.id).toBe(cron.id);
   });
 
+  it("listPage takes a kind prefix literally, wildcards and all", async () => {
+    const sync = await begin("meta.uvsgames_sync");
+    await repo.succeed(sync.id, { durationMs: 1 });
+    const recheck = await begin("meta.uvsgames_recheck");
+    await repo.succeed(recheck.id, { durationMs: 2 });
+    const other = await begin("meta.playloltcg_sync");
+    await repo.succeed(other.id, { durationMs: 3 });
+    const lookalike = await begin("meta.uvsgamesXsync");
+    await repo.succeed(lookalike.id, { durationMs: 4 });
+
+    const family = await repo.listPage({ kindPrefix: "meta.uvsgames_", limit: 10, offset: 0 });
+    expect(family.total).toBe(2);
+    expect(family.rows.map((row) => row.kind).toSorted()).toEqual([
+      "meta.uvsgames_recheck",
+      "meta.uvsgames_sync",
+    ]);
+  });
+
   it("listKinds returns distinct kinds sorted alphabetically", async () => {
     const b1 = await begin("kind.b");
     await repo.succeed(b1.id, { durationMs: 1 });

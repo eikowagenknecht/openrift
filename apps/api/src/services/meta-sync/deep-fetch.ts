@@ -227,6 +227,19 @@ export async function deepFetchEvent(
   runId?: string,
   knownDetail?: unknown,
 ): Promise<MetaDeepFetchResult> {
+  const result = await fetchEvent(deps, row, runId, knownDetail);
+  return {
+    ...result,
+    errors: result.errors.map((text) => `Event "${row.name}" (${row.externalId}): ${text}`),
+  };
+}
+
+async function fetchEvent(
+  deps: MetaSyncDeps,
+  row: UvsgamesListRow,
+  runId?: string,
+  knownDetail?: unknown,
+): Promise<MetaDeepFetchResult> {
   const before = deps.client.requests;
   const errors: string[] = [];
   const id = row.externalId;

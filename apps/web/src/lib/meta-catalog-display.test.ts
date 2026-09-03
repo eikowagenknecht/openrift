@@ -11,15 +11,12 @@ import {
   catalogStatusDisplay,
   catalogTriageDisplay,
   catalogVenueText,
-  coverageWarning,
-  formatRunDuration,
   metaSyncAlerts,
   overlayCountsForProvider,
   PLAYLOLTCG_STATUS_CHOICES,
   playloltcgCoverageRow,
   playloltcgStatusDisplay,
   runningRunId,
-  summarizeRunResult,
   syncTriggerAnnouncement,
 } from "./meta-catalog-display";
 
@@ -145,83 +142,6 @@ describe("catalogDayBoundary", () => {
 
   it("rejects a well-shaped day that is not a real one", () => {
     expect(catalogDayBoundary("2026-13-01", "start")).toBeUndefined();
-  });
-});
-
-describe("formatRunDuration", () => {
-  it("uses the coarsest unit that still says something", () => {
-    expect(formatRunDuration(420)).toBe("420ms");
-    expect(formatRunDuration(4200)).toBe("4s");
-    expect(formatRunDuration(125_000)).toBe("2m 5s");
-    expect(formatRunDuration(120_000)).toBe("2m");
-  });
-
-  it("has nothing to show for a run still going", () => {
-    expect(formatRunDuration(null)).toBe("—");
-  });
-});
-
-describe("summarizeRunResult", () => {
-  it("keeps the counters and drops everything else", () => {
-    expect(summarizeRunResult({ pages: 4, upserted: 30, provider: "uvsgames" })).toBe(
-      "4 pages · 30 upserted",
-    );
-  });
-
-  it("leads with the requests a crawl spent, not the rows it read", () => {
-    expect(summarizeRunResult({ pages: 31, rows: 1637, requests: 31 })).toBe(
-      "31 requests · 31 pages · 1,637 rows",
-    );
-  });
-
-  it("summarizes a run that stored nothing as nothing", () => {
-    expect(summarizeRunResult(null)).toBe("");
-    expect(summarizeRunResult({ provider: "uvsgames" })).toBe("");
-  });
-
-  it("stops at six counters so one run cannot fill the column", () => {
-    const result = Object.fromEntries(
-      Array.from({ length: 9 }, (_unused, index) => [`k${index}`, index]),
-    );
-    expect(summarizeRunResult(result).split(" · ")).toHaveLength(6);
-  });
-
-  it("keeps the requests even when nine other counters would crowd them out", () => {
-    const result = Object.fromEntries([
-      ...Array.from({ length: 9 }, (_unused, index) => [`k${index}`, index]),
-      ["requests", 31],
-    ]);
-    expect(summarizeRunResult(result)).toContain("31 requests · ");
-  });
-
-  it("leads with the coverage warning, ahead of every counter", () => {
-    expect(summarizeRunResult({ complete: false, skipped: 2, requests: 31 })).toBe(
-      "incomplete, 2 skipped · 31 requests",
-    );
-  });
-
-  it("keeps the skipped counter when the warning does not name it", () => {
-    expect(
-      summarizeRunResult({ complete: false, cancelRequested: true, skipped: 2, requests: 31 }),
-    ).toBe("cancelled · 31 requests · 2 skipped");
-  });
-});
-
-describe("coverageWarning", () => {
-  it("says nothing about a crawl that covered its window", () => {
-    expect(coverageWarning({ complete: true, skipped: 0 })).toBeNull();
-    expect(coverageWarning(null)).toBeNull();
-  });
-
-  it("counts what a partial crawl could not read", () => {
-    expect(coverageWarning({ complete: false, skipped: 1 })).toBe("incomplete, 1 skipped");
-    expect(coverageWarning({ complete: false, skipped: 0 })).toBe("incomplete");
-  });
-
-  it("names a cancel as a cancel rather than a gap in the source", () => {
-    expect(coverageWarning({ complete: false, skipped: 4, cancelRequested: true })).toBe(
-      "cancelled",
-    );
   });
 });
 

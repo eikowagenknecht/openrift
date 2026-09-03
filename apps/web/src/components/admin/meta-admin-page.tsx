@@ -1,5 +1,3 @@
-import { META_CATALOG_PROVIDERS } from "@openrift/shared";
-import type { MetaSource } from "@openrift/shared/contracts/admin/meta-catalog";
 import { useNavigate } from "@tanstack/react-router";
 
 import { MetaAdminOverviewPage } from "@/components/admin/meta-admin-overview-page";
@@ -9,9 +7,7 @@ import { MetaOverlaysPage } from "@/components/admin/meta-overlays-page";
 import { PlayloltcgCatalogPage } from "@/components/admin/playloltcg-catalog-page";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAdminMetaOverlays } from "@/hooks/use-admin-meta-overlays";
-import { META_SOURCE_LABELS } from "@/lib/meta-catalog-display";
 import { Route } from "@/routes/_app/_authenticated/admin/meta";
 
 /** The tabs that name themselves in the URL. Sync is the default. */
@@ -23,6 +19,8 @@ const OPT_IN_TABS = ["catalogue", "review", "public"] as const;
  * also what lets the two tables share the four unprefixed names below.
  */
 const CLEARED_TABLE_FILTERS = {
+  // The catalogue's own source picker; every other tab covers both sources.
+  source: undefined,
   // Shared by both paged tables.
   page: undefined,
   q: undefined,
@@ -75,10 +73,6 @@ export function MetaAdminPage() {
 
   const pendingCount = data.overlays.length;
 
-  // The source selector shows only on the tabs it drives; Review and Public are
-  // cross-source, so a per-source control there would be a lie.
-  const sourceScoped = tab === "sync" || tab === "catalogue";
-
   return (
     <Tabs
       value={tab}
@@ -90,46 +84,17 @@ export function MetaAdminPage() {
       }}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <div className="flex items-center justify-between gap-3">
-        <TabsList variant="line">
-          <TabsTrigger value="sync">Sync</TabsTrigger>
-          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
-          <TabsTrigger value="review">
-            Review
-            {pendingCount > 0 && <Badge variant="count">{pendingCount}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="public">Public</TabsTrigger>
-        </TabsList>
-        {sourceScoped && (
-          <ToggleGroup
-            variant="outline"
-            aria-label="Source"
-            value={[source]}
-            onValueChange={(value) => {
-              const next = value[0] as MetaSource | undefined;
-              if (next === undefined) {
-                return;
-              }
-              void navigate({
-                search: (prev) => ({
-                  ...prev,
-                  ...CLEARED_TABLE_FILTERS,
-                  source: next === "uvsgames" ? undefined : next,
-                }),
-                replace: true,
-              });
-            }}
-          >
-            {META_CATALOG_PROVIDERS.map((provider) => (
-              <ToggleGroupItem key={provider} value={provider}>
-                {META_SOURCE_LABELS[provider]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        )}
-      </div>
+      <TabsList variant="line">
+        <TabsTrigger value="sync">Sync</TabsTrigger>
+        <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
+        <TabsTrigger value="review">
+          Review
+          {pendingCount > 0 && <Badge variant="count">{pendingCount}</Badge>}
+        </TabsTrigger>
+        <TabsTrigger value="public">Public</TabsTrigger>
+      </TabsList>
       <TabsContent value="sync" className="flex min-h-0 flex-1 flex-col">
-        <MetaAdminOverviewPage source={source} />
+        <MetaAdminOverviewPage />
       </TabsContent>
       <TabsContent value="catalogue" className="flex min-h-0 flex-1 flex-col">
         {source === "playloltcg" ? <PlayloltcgCatalogPage /> : <MetaCatalogPage />}

@@ -5,6 +5,7 @@ import {
   JOB_STATUSES,
   JOB_TRIGGERS,
 } from "@openrift/shared/contracts/admin/job-runs";
+import { useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LoaderIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -23,10 +24,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { jobRunsRefreshIntervalMs, useAdminJobRuns } from "@/hooks/use-job-runs";
+import {
+  jobRunsParamsFromSearch,
+  jobRunsRefreshIntervalMs,
+  useAdminJobRuns,
+} from "@/hooks/use-job-runs";
 import { useCancelRegenerateImages } from "@/hooks/use-rehost";
 import { formatDuration } from "@/lib/format-duration";
+import { summarizeRunResult } from "@/lib/job-run-display";
 import type { JobRunView } from "@/lib/server-fns/api-types";
+import type { JobRunsSearch } from "@/routes/_app/_authenticated/admin/job-runs";
+import { Route } from "@/routes/_app/_authenticated/admin/job-runs";
 
 /** Job kinds that expose a cancel endpoint. Only resumable jobs that re-read
  *  `result` between batches can be cancelled mid-run; everything else has no
@@ -81,26 +89,50 @@ function hasResult(result: Record<string, unknown> | null): boolean {
   return result !== null && Object.keys(result).length > 0;
 }
 
+const PREFIX_MARK = "prefix:";
+
+function kindOptions(kinds: string[], prefix: string | undefined) {
+  const families = new Map<string, number>();
+  for (const kind of kinds) {
+    const dot = kind.indexOf(".");
+    if (dot > 0) {
+      const family = kind.slice(0, dot + 1);
+      families.set(family, (families.get(family) ?? 0) + 1);
+    }
+  }
+  if (prefix !== undefined && !families.has(prefix)) {
+    families.set(prefix, 0);
+  }
+  return [
+    { value: ANY, label: "All kinds" },
+    ...[...families]
+      .filter(([family, count]) => count > 1 || family === prefix)
+      .map(([family]) => ({ value: `${PREFIX_MARK}${family}`, label: `${family}*` })),
+    ...kinds.map((kind) => ({ value: kind, label: kind })),
+  ];
+}
+
 export function JobRunsPage() {
-  const [page, setPage] = useState(1);
-  const [kindFilter, setKindFilter] = useState(ANY);
-  const [triggerFilter, setTriggerFilter] = useState(ANY);
-  const [statusFilter, setStatusFilter] = useState(ANY);
-  const [activityFilter, setActivityFilter] = useState(ANY);
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const { data, refetch, isFetching, dataUpdatedAt } = useAdminJobRuns({
-    page,
-    kind: kindFilter === ANY ? undefined : kindFilter,
-    trigger: filterValue(JOB_TRIGGERS, triggerFilter),
-    status: filterValue(JOB_STATUSES, statusFilter),
-    activity: filterValue(JOB_RUN_ACTIVITIES, activityFilter),
-  });
+  const page = search.page ?? 1;
+  const { data, refetch, isFetching, dataUpdatedAt } = useAdminJobRuns(
+    jobRunsParamsFromSearch(search),
+  );
 
   // A filter change reframes the whole result set, so jump back to page 1.
-  function changeFilter(setFilter: (value: string) => void, value: string) {
-    setFilter(value);
-    setPage(1);
+  function changeFilter(next: Partial<JobRunsSearch>) {
+    void navigate({ search: (prev) => ({ ...prev, ...next, page: undefined }), replace: true });
+  }
+
+  function changeKind(value: string) {
+    changeFilter(
+      value.startsWith(PREFIX_MARK)
+        ? { runKind: undefined, runPrefix: value.slice(PREFIX_MARK.length) }
+        : { runKind: value === ANY ? undefined : value, runPrefix: undefined },
+    );
   }
 
   function toggleExpanded(id: string) {
@@ -141,32 +173,35 @@ export function JobRunsPage() {
       {topBar}
       <div className="flex flex-wrap items-center gap-2">
         <AdminFilterSelect
-          value={kindFilter}
-          onChange={(value) => changeFilter(setKindFilter, value)}
+          value={
+            search.runPrefix === undefined
+              ? (search.runKind ?? ANY)
+              : `${PREFIX_MARK}${search.runPrefix}`
+          }
+          onChange={changeKind}
           label="Job kind"
           className="w-52"
-          options={[
-            { value: ANY, label: "All kinds" },
-            ...kinds.map((kind) => ({ value: kind, label: kind })),
-          ]}
+          options={kindOptions(kinds, search.runPrefix)}
         />
         <AdminFilterSelect
-          value={triggerFilter}
-          onChange={(value) => changeFilter(setTriggerFilter, value)}
+          value={search.runTrigger ?? ANY}
+          onChange={(value) => changeFilter({ runTrigger: filterValue(JOB_TRIGGERS, value) })}
           label="Trigger"
           className="w-36"
           options={TRIGGER_OPTIONS}
         />
         <AdminFilterSelect
-          value={statusFilter}
-          onChange={(value) => changeFilter(setStatusFilter, value)}
+          value={search.runStatus ?? ANY}
+          onChange={(value) => changeFilter({ runStatus: filterValue(JOB_STATUSES, value) })}
           label="Status"
           className="w-36"
           options={STATUS_OPTIONS}
         />
         <AdminFilterSelect
-          value={activityFilter}
-          onChange={(value) => changeFilter(setActivityFilter, value)}
+          value={search.runActivity ?? ANY}
+          onChange={(value) =>
+            changeFilter({ runActivity: filterValue(JOB_RUN_ACTIVITIES, value) })
+          }
           label="Activity"
           className="w-36"
           options={ACTIVITY_OPTIONS}
@@ -182,13 +217,14 @@ export function JobRunsPage() {
             <TableHead className="w-28">Status</TableHead>
             <TableHead className="w-44">Started</TableHead>
             <TableHead className="w-32">Duration</TableHead>
+            <TableHead>Result</TableHead>
             <TableHead className="w-28" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {runs.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+              <TableCell colSpan={8} className="text-muted-foreground h-24 text-center">
                 {total === 0 ? "No job runs yet." : "No runs match the current filters."}
               </TableCell>
             </TableRow>
@@ -212,7 +248,12 @@ export function JobRunsPage() {
       <AdminPager
         page={page}
         totalPages={totalPages}
-        onPageChange={setPage}
+        onPageChange={(next) =>
+          void navigate({
+            search: (prev) => ({ ...prev, page: next === 1 ? undefined : next }),
+            replace: true,
+          })
+        }
         label="Job run pages"
       />
     </div>
@@ -284,6 +325,13 @@ function JobRunRow({
             formatDuration(run.durationMs)
           )}
         </TableCell>
+        <TableCell className="whitespace-normal">
+          {run.errorMessage === null ? (
+            <span className="text-muted-foreground">{summarizeRunResult(run.result)}</span>
+          ) : (
+            <span className="text-destructive">{run.errorMessage}</span>
+          )}
+        </TableCell>
         <TableCell className="p-1">
           {canCancel && (
             <Button
@@ -300,7 +348,7 @@ function JobRunRow({
       {isOpen && showDetails && (
         <TableRow>
           <TableCell />
-          <TableCell colSpan={6} className="whitespace-normal">
+          <TableCell colSpan={7} className="whitespace-normal">
             {run.errorMessage !== null && (
               <div className="mb-2">
                 <div className="text-muted-foreground uppercase">Error</div>

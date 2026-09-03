@@ -1,10 +1,13 @@
+import { META_CATALOG_PROVIDERS } from "@openrift/shared";
 import type {
   MetaCatalogRow,
+  MetaSource,
   MetaSyncTriggerResult,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminFilterSelect } from "@/components/admin/admin-filters";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -24,7 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDeckFormatList } from "@/hooks/use-enums";
-import { syncTriggerAnnouncement } from "@/lib/meta-catalog-display";
+import { META_SOURCE_LABELS, syncTriggerAnnouncement } from "@/lib/meta-catalog-display";
+import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 // Pieces the catalogue triage table and the sync panel both use (ADR-014).
 
@@ -45,6 +49,44 @@ export function announceSyncTrigger(label: string, result: MetaSyncTriggerResult
     return;
   }
   toast.error(announcement.title, options);
+}
+
+const SOURCE_OPTIONS = META_CATALOG_PROVIDERS.map((provider) => ({
+  value: provider,
+  label: META_SOURCE_LABELS[provider],
+}));
+
+/**
+ * The catalogue's source picker. Switching drops the filters only one source
+ * has; the rest mean the same on both tables and stay.
+ */
+export function CatalogSourceSelect({
+  source,
+  applyFilter,
+}: {
+  source: MetaSource;
+  applyFilter: (next: Partial<MetaSearch>) => void;
+}) {
+  return (
+    <AdminFilterSelect
+      value={source}
+      onChange={(value) => {
+        const next = META_CATALOG_PROVIDERS.find((provider) => provider === value);
+        if (next === undefined) {
+          return;
+        }
+        applyFilter({
+          source: next === "uvsgames" ? undefined : next,
+          eventStatus: undefined,
+          plStatus: undefined,
+          decklists: undefined,
+        });
+      }}
+      options={SOURCE_OPTIONS}
+      className="w-40"
+      label="Source"
+    />
+  );
 }
 
 /**

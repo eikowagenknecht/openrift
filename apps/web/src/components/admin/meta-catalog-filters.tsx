@@ -3,6 +3,7 @@ import type { MetaCatalogTriage } from "@openrift/shared/contracts/admin/meta-ca
 
 import { AdminFilterSelect, AdminFilterSwitch } from "@/components/admin/admin-filters";
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
+import { CatalogSourceSelect } from "@/components/admin/meta-catalog-shared";
 import type { TriageCounts } from "@/components/admin/meta-triage-filter";
 import { ANY, TriageFilterSelect } from "@/components/admin/meta-triage-filter";
 import { PageDescription } from "@/components/layout/page-top-bar";
@@ -62,6 +63,7 @@ export function CatalogFilters({
         updates them.
       </PageDescription>
       <div className="flex flex-wrap items-center gap-2">
+        <CatalogSourceSelect source={filters.source ?? "uvsgames"} applyFilter={applyFilter} />
         <DebouncedSearchInput
           urlValue={filters.q ?? ""}
           onCommit={(value) => applyFilter({ q: value === "" ? undefined : value })}

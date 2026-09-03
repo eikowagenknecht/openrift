@@ -411,6 +411,25 @@ describe("deepFetchEvent", () => {
     expect(result.errors.some((line) => line.includes("Round 1 matches"))).toBe(true);
   });
 
+  it("names the event in every error, so a merged run can tell whose round failed", async () => {
+    const { deps } = fakeDeps({
+      source: acceptedSource(),
+      detail: TWO_ROUND_DETAIL,
+      roundMatches: (roundId) => {
+        if (roundId === "901") {
+          throw new Error("HTTP 503");
+        }
+        return [matchRow(21, 22)];
+      },
+    });
+
+    const result = await deepFetchEvent(deps, catalogRow());
+
+    expect(result.errors).toEqual([
+      'Event "Riftbound Regional Qualifier - Bologna" (365708): Round 1 matches page 1: HTTP 503',
+    ]);
+  });
+
   it("stages nothing when a registrations page fails, rather than a short player list", async () => {
     const { deps, mirroredStandings } = fakeDeps({
       source: acceptedSource(),

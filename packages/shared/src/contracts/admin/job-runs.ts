@@ -41,6 +41,7 @@ const jobRunsListResponseSchema = z.object({
 
 const jobRunsQuerySchema = z.object({
   kind: z.string().optional(),
+  kindPrefix: z.string().optional(),
   trigger: triggerEnum.optional(),
   status: statusEnum.optional(),
   /** "did-work" keeps only runs that did something, "noop" only the idle ones. */
