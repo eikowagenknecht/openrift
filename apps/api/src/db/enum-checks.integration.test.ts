@@ -57,6 +57,7 @@ import {
   META_EVENT_OVERLAY_FIELDS,
   META_PLAYER_OVERLAY_FIELDS,
   META_SOURCE_FETCH_STATUSES,
+  UVSGAMES_PROBE_OUTCOMES,
   TRADE_PRICE_PREFS,
 } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
@@ -146,6 +147,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   chk_uvsgames_decklists_fetch_status: META_SOURCE_FETCH_STATUSES,
   chk_uvsgames_event_standings_entry_status: META_ENTRY_STATUSES,
   chk_uvsgames_event_templates_tier: metaEventTierSchema.options,
+  chk_uvsgames_id_probes_outcome: UVSGAMES_PROBE_OUTCOMES,
 };
 
 /**

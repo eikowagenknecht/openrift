@@ -147,6 +147,12 @@ export type MetaSourceFetchStatus = "fetched" | "refused";
 /** The {@link MetaSourceFetchStatus} values. */
 export const META_SOURCE_FETCH_STATUSES = ["fetched", "refused"] as const;
 
+/** Why a swept event id produced no catalogue row. */
+export type UvsgamesProbeOutcome = "other_game" | "absent" | "unreadable";
+
+/** The {@link UvsgamesProbeOutcome} values. */
+export const UVSGAMES_PROBE_OUTCOMES = ["other_game", "absent", "unreadable"] as const;
+
 /**
  * Where an overlay sits in review. An admin's correction is written straight to
  * `accepted`; a user's submission starts `pending`.

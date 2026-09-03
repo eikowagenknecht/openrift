@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared/types";
+import type { MetaEventTier, UvsgamesProbeOutcome } from "@openrift/shared/types";
 import type { Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 
@@ -41,9 +41,6 @@ export interface UvsgamesUpsertInput {
   eventConfigurationTemplate: string | null;
   contentHash: string;
 }
-
-/** What a swept id that produced no catalogue row is remembered as. */
-export type UvsgamesProbeOutcome = "other_game" | "absent" | "unreadable";
 
 export interface UvsgamesIdProbeInput {
   externalId: number;
