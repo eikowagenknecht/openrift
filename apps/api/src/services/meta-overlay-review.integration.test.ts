@@ -817,10 +817,11 @@ describe.skipIf(!ctx)("overlay review", () => {
 
       expect(await repo.rawStandingsForEvent(wrong)).toHaveLength(0);
       expect(await repo.eventById(wrong)).toMatchObject({ organizer: null });
-      expect(await repo.rawStandingsForEvent(right)).toHaveLength(1);
+      const moved = await repo.rawStandingsForEvent(right);
+      expect(moved).toHaveLength(1);
       expect(await repo.eventById(right)).toMatchObject({ organizer: "MOR Card Bazaar" });
       expect(await repos.metaOverlays.playerOverlayById(playerOverlayId)).toMatchObject({
-        metaEventId: right,
+        metaEventPlayerId: moved[0]?.id,
       });
     });
 

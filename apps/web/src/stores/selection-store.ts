@@ -6,7 +6,7 @@ import type { CardViewerItem } from "@/components/card-viewer-types";
 /**
  * Where a click landed, when the caller knows more than which printing it was.
  */
-export interface SelectionAnchor {
+interface SelectionAnchor {
   /**
    * Deck-overview only: which zone instance was clicked, for a card that appears
    * in several zones.

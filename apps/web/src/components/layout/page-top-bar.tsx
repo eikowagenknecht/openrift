@@ -110,7 +110,7 @@ export const PAGE_TOP_BAR_STICKY_BASE = `${STICKY_SURFACE} ${PAGE_TOP_BAR_GEOMET
 
 // The surface rides a 100vw `before:` layer because the wrapper sits inside
 // `<main>`, which CONTAINER_WIDTH caps, so a background on it stops mid-screen.
-export const PAGE_TOP_BAR_BLEED = `${PAGE_TOP_BAR_GEOMETRY} before:pointer-events-none before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-background [[data-frosted]_&]:before:bg-background/80 [[data-frosted]_&]:before:backdrop-blur-lg`;
+const PAGE_TOP_BAR_BLEED = `${PAGE_TOP_BAR_GEOMETRY} before:pointer-events-none before:absolute before:inset-y-0 before:left-1/2 before:-z-10 before:w-screen before:-translate-x-1/2 before:bg-background [[data-frosted]_&]:before:bg-background/80 [[data-frosted]_&]:before:backdrop-blur-lg`;
 
 export const PAGE_TOP_BAR_STICKY = `${PAGE_TOP_BAR_BLEED} px-safe`;
 
