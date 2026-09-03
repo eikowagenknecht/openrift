@@ -109,7 +109,7 @@ ENTRYPOINT ["wait-for-api"]
 CMD ["bun", "run", "apps/discord-bot/src/index.ts"]
 
 # ─── Stage 5: Proxy (nginx — reverse proxy + static asset serving) ──────────
-FROM nginx:1.31.4-alpine AS proxy
+FROM nginx:1.31.5-alpine AS proxy
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf
