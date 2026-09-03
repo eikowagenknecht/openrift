@@ -14,8 +14,8 @@ const toggleVariants = cva(
       variant: {
         default: "bg-transparent",
         outline:
-          // custom: dark:bg-input/30 fill — matches Button's outline variant in dark mode
-          "border border-input bg-transparent hover:bg-muted dark:bg-input/30 dark:hover:bg-input/50",
+          // custom: dark:bg-input/30 fill matches Button's outline variant; scoped to unpressed because the dark variant sorts after aria-pressed and would hide the pressed fill
+          "border border-input bg-transparent hover:bg-muted dark:not-aria-pressed:bg-input/30 dark:not-aria-pressed:hover:bg-input/50",
       },
       size: {
         default:
