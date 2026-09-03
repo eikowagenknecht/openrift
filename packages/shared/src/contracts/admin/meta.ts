@@ -537,6 +537,8 @@ export const metaEventMatchSuggestionSchema = z
     score: z.number(),
     /** Why it ranked, in the order the signals were weighed. */
     reasons: z.array(z.string()),
+    /** Same name, same date, same format: nothing is left for the reviewer to weigh. */
+    isExact: z.boolean(),
   })
   .openapi("MetaEventMatchSuggestion");
 
@@ -573,6 +575,8 @@ export const metaPlayerMatchSuggestionSchema = z
     score: z.number(),
     reasons: z.array(z.string()),
     isCurrent: z.boolean(),
+    /** The same player name, normalized: this is the row the overlay describes. */
+    isExact: z.boolean(),
   })
   .openapi("MetaPlayerMatchSuggestion");
 

@@ -250,6 +250,45 @@ describe("GET /meta/overlays", () => {
     ]);
   });
 
+  it("names the card a legend claim points at, since an id reviews as nothing", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ legendCardId: CARD_ID, claimedFields: ["legendCardId"] }),
+    ]);
+
+    const body = await readJson(await app.request("/api/admin/v1/meta/overlays"));
+    const overlays = body.overlays as { changes: unknown[] }[];
+
+    expect(overlays[0]?.changes).toEqual([{ field: "legendCardId", from: null, to: "Yasuo" }]);
+  });
+
+  it("keeps a card id the catalog no longer knows, rather than showing nothing", async () => {
+    mockCatalog.cardNamesByIds.mockResolvedValue(new Map());
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ championCardId: CARD_ID, claimedFields: ["championCardId"] }),
+    ]);
+
+    const body = await readJson(await app.request("/api/admin/v1/meta/overlays"));
+    const overlays = body.overlays as { changes: { to: string }[] }[];
+
+    expect(overlays[0]?.changes[0]?.to).toBe(CARD_ID);
+  });
+
+  it("reads every card a queue page names in one batch", async () => {
+    mockOverlays.pendingPlayerOverlays.mockResolvedValue([
+      playerOverlay({ legendCardId: CARD_ID, claimedFields: ["legendCardId"] }),
+      playerOverlay({
+        id: "c0000000-0001-4000-a000-000000000002",
+        championCardId: CARD_ID,
+        claimedFields: ["championCardId"],
+      }),
+    ]);
+
+    await app.request("/api/admin/v1/meta/overlays");
+
+    expect(mockCatalog.cardNamesByIds).toHaveBeenCalledTimes(1);
+    expect(mockCatalog.cardNamesByIds).toHaveBeenCalledWith([CARD_ID]);
+  });
+
   it("resolves each anchored row's live values in one batched read", async () => {
     mockOverlays.pendingPlayerOverlays.mockResolvedValue([
       playerOverlay({ metaEventId: null, metaEventPlayerId: LIVE_PLAYER_ID }),

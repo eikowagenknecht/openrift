@@ -98,6 +98,13 @@ describe("scoreEventMatch", () => {
     expect(reasons).toEqual(["same format", "same date", "same name"]);
   });
 
+  it("calls a match exact only when name, date and format all agree", () => {
+    expect(scoreEventMatch(CANDIDATE, event()).isExact).toBe(true);
+    expect(scoreEventMatch(CANDIDATE, event({ eventDate: "2026-08-02" })).isExact).toBe(false);
+    expect(scoreEventMatch(CANDIDATE, event({ format: "freeform" })).isExact).toBe(false);
+    expect(scoreEventMatch(CANDIDATE, event({ name: "Summoner Skirmish 2" })).isExact).toBe(false);
+  });
+
   it("still credits a date one day off, one point lower", () => {
     const { score, reasons, withinWindow } = scoreEventMatch(
       CANDIDATE,
@@ -216,6 +223,11 @@ describe("scorePlayerMatch", () => {
     );
     expect(score).toBe(11);
     expect(reasons).toEqual(["same player", "same finish"]);
+  });
+
+  it("calls the same name exact whatever the finish says, since sources disagree on placings", () => {
+    expect(scorePlayerMatch({ playerName: "nova", rank: 9 }, player()).isExact).toBe(true);
+    expect(scorePlayerMatch({ playerName: "Novaa", rank: 1 }, player()).isExact).toBe(false);
   });
 
   it("prefers an equal rank only as a tie-break", () => {

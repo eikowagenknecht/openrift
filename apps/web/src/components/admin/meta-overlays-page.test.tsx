@@ -83,6 +83,20 @@ vi.mock("@/hooks/use-admin-meta-overlays", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-enums", () => ({
+  useZoneOrder: () => ({
+    zoneOrder: ["legend", "champion", "main", "runes", "battlefield", "sideboard"],
+    zoneLabels: {
+      legend: "Legend",
+      champion: "Chosen Champion",
+      main: "Main Deck",
+      runes: "Runes",
+      battlefield: "Battlefields",
+      sideboard: "Sideboard",
+    },
+  }),
+}));
+
 vi.mock("@/hooks/use-admin-meta-submissions", () => ({
   useMetaSubmissionForPlayerOverlay: () => ({ data: { submission: null } }),
 }));
@@ -319,15 +333,93 @@ describe("MetaOverlaysPage", () => {
     expect(captured.acceptedEvent).toEqual([{ id: "e5", metaEventId: "live-1" }]);
   });
 
-  it("mints a new event when a proposal is accepted with the plain button", async () => {
+  it("mints a new event only after the warning is confirmed", async () => {
     captured.overlays = [
       overlay({ id: "e6", kind: "event", metaEventId: null, proposedName: "Brand New" }),
     ];
 
     render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Accept as new" }));
+
+    expect(captured.acceptedEvent).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "Mint a new event" }));
+    expect(captured.acceptedEvent).toEqual([{ id: "e6", metaEventId: null }]);
+  });
+
+  it("warns before filing a second standings row for an unlinked entry", async () => {
+    captured.overlays = [overlay({ id: "p6", metaEventPlayerId: null })];
+
+    render(<MetaOverlaysPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Accept as new" }));
+
+    expect(captured.acceptedPlayer).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "File a new row" }));
+    expect(captured.acceptedPlayer).toEqual(["p6"]);
+  });
+
+  it("accepts a linked entry without a warning, since it patches the row it names", async () => {
+    captured.overlays = [overlay({ id: "p5", metaEventPlayerId: "row-1" })];
+
+    render(<MetaOverlaysPage />);
     await userEvent.click(screen.getByRole("button", { name: "Accept" }));
 
-    expect(captured.acceptedEvent).toEqual([{ id: "e6", metaEventId: null }]);
+    expect(captured.acceptedPlayer).toEqual(["p5"]);
+  });
+
+  it("leads with the exact match, so the one case with no judgement in it stands out", () => {
+    captured.overlays = [
+      overlay({ id: "e7", kind: "event", metaEventId: null, proposedName: "Brand New" }),
+    ];
+    captured.eventSuggestions = [
+      {
+        metaEventId: "live-1",
+        slug: "summoner-skirmish",
+        name: "Summoner Skirmish",
+        eventDate: "2026-08-30",
+        format: "constructed",
+        playerRowCount: 32,
+        score: 10,
+        reasons: ["same format", "same date", "same name"],
+        isExact: true,
+      },
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByRole("button", { name: "Accept into this" })).toHaveClass("bg-primary");
+  });
+
+  it("hides a claim that repeats what the live row already holds", () => {
+    captured.overlays = [
+      overlay({
+        changes: [
+          { field: "playerName", from: "linsanity", to: "linsanity" },
+          { field: "listStatus", from: "none", to: "full" },
+        ],
+      }),
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.queryByText("playerName")).not.toBeInTheDocument();
+    expect(screen.getByText("listStatus")).toBeInTheDocument();
+  });
+
+  it("groups a decklist under one heading per zone", () => {
+    captured.overlays = [
+      overlay({
+        cards: [
+          { lineNumber: 0, zone: "main", quantity: 3, cardName: "Sabotage", cardId: "c1" },
+          { lineNumber: 1, zone: "legend", quantity: 1, cardName: "Master Yi", cardId: "c2" },
+          { lineNumber: 2, zone: "main", quantity: 2, cardName: "First Mate", cardId: "c3" },
+        ],
+      }),
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByText("Legend · 1")).toBeInTheDocument();
+    expect(screen.getByText("Main Deck · 5")).toBeInTheDocument();
   });
 
   it("dismisses an event row by the provider's own event key", async () => {
@@ -375,13 +467,34 @@ describe("MetaOverlaysPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("marks an anchored overlay as linked and still offers the link panel", () => {
+  it("marks an anchored overlay as linked and still offers to move it", () => {
     captured.overlays = [overlay({ metaEventPlayerId: "row-7" })];
 
     render(<MetaOverlaysPage />);
 
     expect(screen.getByText("linked")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Link to a standings row/u })).toBeInTheDocument();
+    expect(screen.getByText(/Pick another row to move it/u)).toBeInTheDocument();
+  });
+
+  it("shows the standings rows without asking for a toggle first", () => {
+    captured.overlays = [overlay({ id: "p4", metaEventPlayerId: null })];
+    captured.playerSuggestions = [
+      {
+        metaEventPlayerId: "row-1",
+        playerName: "Ashe Main",
+        rank: 2,
+        rankIsTier: false,
+        deckId: null,
+        score: 11,
+        reasons: ["same player", "same finish"],
+        isCurrent: false,
+        isExact: true,
+      },
+    ];
+
+    render(<MetaOverlaysPage />);
+
+    expect(screen.getByRole("button", { name: "Link to this entry" })).toBeInTheDocument();
   });
 
   it("links a standings overlay to the row a suggestion names", async () => {
@@ -399,7 +512,6 @@ describe("MetaOverlaysPage", () => {
     ];
 
     render(<MetaOverlaysPage />);
-    await userEvent.click(screen.getByRole("button", { name: /Link to a standings row/u }));
     await userEvent.click(screen.getByRole("button", { name: "Link to this entry" }));
 
     expect(captured.linked).toEqual([{ id: "p3", metaEventPlayerId: "row-1" }]);

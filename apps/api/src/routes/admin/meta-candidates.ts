@@ -108,18 +108,38 @@ function eventChanges(
   }));
 }
 
+const CARD_ID_FIELDS = ["legendCardId", "championCardId"] as const;
+
 function playerChanges(
   overlay: MetaPlayerOverlayRow,
   live: Record<string, unknown> | null,
+  cardNames: ReadonlyMap<string, string>,
 ): MetaOverlayQueueRow["changes"] {
   const values = overlay as unknown as Record<string, unknown>;
+  const show = (field: string, value: unknown): string | null => {
+    const text = display(value);
+    if (text === null || !(CARD_ID_FIELDS as readonly string[]).includes(field)) {
+      return text;
+    }
+    return cardNames.get(text) ?? text;
+  };
   return overlay.claimedFields
     .filter((field) => field !== "cards")
     .map((field) => ({
       field,
-      from: display(live?.[field] ?? null),
-      to: display(values[field] ?? null),
+      from: show(field, live?.[field] ?? null),
+      to: show(field, values[field] ?? null),
     }));
+}
+
+function cardIdsInChanges(rows: readonly (object | null | undefined)[]): string[] {
+  return rows.flatMap((row) =>
+    row === null || row === undefined
+      ? []
+      : CARD_ID_FIELDS.map((field) => (row as Record<string, unknown>)[field]).filter(
+          (id): id is string => typeof id === "string",
+        ),
+  );
 }
 
 function playerSourceIds(overlay: MetaPlayerOverlayRow): {
@@ -174,7 +194,7 @@ export const adminMetaCandidatesRouter = os.router({
   }),
 
   list: os.list.handler(async ({ context }) => {
-    const { metaOverlays, meta } = context.repos;
+    const { metaOverlays, meta, catalog } = context.repos;
     const [events, players] = await Promise.all([
       metaOverlays.pendingEventOverlays(),
       metaOverlays.pendingPlayerOverlays(),
@@ -194,6 +214,9 @@ export const adminMetaCandidatesRouter = os.router({
     ]);
     const liveEventsById = new Map(liveEvents.map((row) => [row.id, row]));
     const livePlayersById = new Map(livePlayers.map((row) => [row.id, row]));
+    const cardNames = await catalog.cardNamesByIds([
+      ...new Set(cardIdsInChanges([...players, ...livePlayers])),
+    ]);
 
     const eventRows: MetaOverlayQueueRow[] = events.map((overlay) => {
       const live =
@@ -239,7 +262,11 @@ export const adminMetaCandidatesRouter = os.router({
         playerName: overlay.playerName ?? live?.playerName ?? null,
         submittedBy: overlay.submittedByUserId,
         submissionNote: overlay.submissionNote,
-        changes: playerChanges(overlay, (live ?? null) as Record<string, unknown> | null),
+        changes: playerChanges(
+          overlay,
+          (live ?? null) as Record<string, unknown> | null,
+          cardNames,
+        ),
         cards: toCardRows(cards),
         unresolvedNames: [
           ...new Set(
@@ -260,7 +287,7 @@ export const adminMetaCandidatesRouter = os.router({
   }),
 
   detail: os.detail.handler(async ({ input, context, errors }) => {
-    const { metaOverlays, meta } = context.repos;
+    const { metaOverlays, meta, catalog } = context.repos;
     const eventOverlay = await metaOverlays.eventOverlayById(input.id);
     if (eventOverlay !== undefined) {
       const live =
@@ -294,6 +321,9 @@ export const adminMetaCandidatesRouter = os.router({
       playerOverlay.metaEventPlayerId === null
         ? null
         : await meta.playerById(playerOverlay.metaEventPlayerId);
+    const cardNames = await catalog.cardNamesByIds([
+      ...new Set(cardIdsInChanges([playerOverlay, live])),
+    ]);
     return {
       id: playerOverlay.id,
       kind: "player" as const,
@@ -307,7 +337,11 @@ export const adminMetaCandidatesRouter = os.router({
       playerName: playerOverlay.playerName ?? live?.playerName ?? null,
       submittedBy: playerOverlay.submittedByUserId,
       submissionNote: playerOverlay.submissionNote,
-      changes: playerChanges(playerOverlay, (live ?? null) as Record<string, unknown> | null),
+      changes: playerChanges(
+        playerOverlay,
+        (live ?? null) as Record<string, unknown> | null,
+        cardNames,
+      ),
       cards: toCardRows(playerOverlay.cards),
       unresolvedNames: [
         ...new Set(

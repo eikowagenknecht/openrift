@@ -519,17 +519,16 @@ const fetchPlayerSuggestions = createServerFn({ method: "GET" })
 /**
  * See {@link useMetaEventMatchSuggestions}, for standings rows.
  *
+ * Every standings overlay in the queue asks, so an upload of a whole top cut
+ * opens one request per row.
+ *
  * @param overlayId - The standings overlay being reviewed.
- * @param enabled - False while its disclosure is closed. Unlike the event
- *   suggestions, which only a proposal asks for, every standings row could ask,
- *   so the queue would open one request per row.
  * @returns The query holding the suggestions.
  */
-export function useMetaPlayerMatchSuggestions(overlayId: string, enabled: boolean) {
+export function useMetaPlayerMatchSuggestions(overlayId: string) {
   return useQuery({
     queryKey: queryKeys.admin.meta.playerSuggestions(overlayId),
     queryFn: () => fetchPlayerSuggestions({ data: overlayId }),
-    enabled,
     staleTime: 60 * 1000,
   });
 }

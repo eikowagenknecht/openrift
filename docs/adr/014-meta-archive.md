@@ -267,13 +267,15 @@ Typed columns rather than a jsonb patch, even though presence-of-key would be a 
 
 - every `claimed_fields` element is in the overlay's field vocabulary, declared once as a zod enum in shared and registered in that test;
 - one consistency CHECK per column, `CHECK (tier IS NULL OR 'tier' = ANY (claimed_fields))`, so a value set without being claimed cannot be stored and then silently ignored;
-- `claimed_fields` is non-empty, because an overlay claiming nothing is a bug.
+- every column an overlay does not claim is NULL, which the two above already enforce between them. An empty `claimed_fields` is allowed: an upload that agrees with the archive about everything still carries its source key, and an event overlay still parents the standings overlays filed under it.
 
 **One mechanism, two authors.** An admin correction and a user submission are the same row. What differs is `submitted_by_user_id` and `status`: an admin's overlay is born `accepted`, a user's starts `pending` and an admin settles it. Applying is therefore uniform, and "pending changes nothing" falls out of the status rather than out of a separate table. Automation that writes an overlay (there is none today, but a future rule-based correction would) authors it as the `meta-archive` system user; everything a person writes carries that person's id, so the audit trail costs nothing extra.
 
-**Admin corrections merge per author.** The event dialog and the drift view both write through the same call: one admin's edits on one event fold into a single accepted overlay row per `(event, author)`, so ten field edits over a session are one row claiming ten fields rather than ten rows a later promote replays in sequence, and `accepted_at` moves to now on every merge. A different submitter keeps a separate row. Handing a field back to the sources drops it from every accepted overlay claiming it: an admin-edit row whose last claim goes is deleted outright, while a submission keeps its row and is rejected instead, since its `claimed_fields` must stay non-empty and rejecting is what reads correctly in the submitter's own ledger. The admin's slug-rename endpoint is the one exception that writes `meta_events` directly; every other field goes through this path, so a re-promote can never silently revert an edit the way updating the live row in place once could.
+**Admin corrections merge per author.** The event dialog and the drift view both write through the same call: one admin's edits on one event fold into a single accepted overlay row per `(event, author)`, so ten field edits over a session are one row claiming ten fields rather than ten rows a later promote replays in sequence, and `accepted_at` moves to now on every merge. A different submitter keeps a separate row. Handing a field back to the sources drops it from every accepted overlay claiming it: an admin-edit row whose last claim goes is deleted outright, while a submission keeps its row and is rejected instead, because rejecting is what reads correctly in the submitter's own ledger. The admin's slug-rename endpoint is the one exception that writes `meta_events` directly; every other field goes through this path, so a re-promote can never silently revert an edit the way updating the live row in place once could.
 
 **A standings row is corrected the same way, and there is no PATCH for one.** A present key is claimed, a null on a nullable field clears it, and one admin's edits on one row merge into a single accepted overlay per `(row, author)`, exactly as `writeEventOverlayFields` does for the event. `playerName: null` claimed hands a source-keyed row's name back to whatever the source calls the player, propagating a source rename again; claiming it null on a row with no source identity is refused, since it would leave the row with nothing to display. Releasing a field works the same way as the event path, with one twist: releasing `cards` or `listStatus` releases both together, because a list and its completeness can never be claimed, or released, out of step with each other. A `cards` claim of zero lines is the opposite of a submitted list: it says there is no list, and promotion detaches the standings row's deck rather than leaving the sources free to reattach one, which is what makes the claim durable against a source that keeps publishing a decklist for that row. Its card lines carry `preferred_printing_id`, so a pasted deck code keeps the exact printings the admin chose rather than falling back to promotion's null default. The admin players list reports each row's `claimedFields`, aggregated from its accepted overlays, so the table shows which cells the sources no longer decide.
+
+**A claim is only ever a disagreement.** The moment an overlay gets a live target — a proposal accepted into an event that already exists, a standings overlay linked to the row it describes — every claim whose value the target already carries is dropped, and its column nulled with it. A source that agrees with the archive must not take the field off the mirror that published it: a claim holds until it is released, so claiming an agreed value would freeze it and silence every later correction the source publishes. `cards` is exempt (two decklists are not compared here) and `listStatus` stays whenever `cards` is claimed, since those two claim and release as one. What is left is what the upload actually adds, which is also what the review queue shows: an upload of Riot's top-cut decklists onto an official mirror's standings ends up claiming the champion, the list and its status, and nothing else. An upload the archive already agrees with entirely claims nothing at all, and is still worth accepting for its source key.
 
 **Ordering.** Overlays apply after promotion, oldest accepted first, so a later correction beats an earlier one on the same field. Two overlays claiming the same field is normal, not a conflict to resolve.
 
@@ -739,7 +741,7 @@ CREATE TABLE meta_event_overlays (
   external_id    text,          -- ditto; UNIQUE together so a re-upload updates
   name           text, event_date date, format text, player_count integer,
   organizer      text, notes    text, tier text, country text, location text,
-  claimed_fields text[] NOT NULL CHECK (cardinality(claimed_fields) > 0),
+  claimed_fields text[] NOT NULL,   -- may be empty: an upload that claims nothing
   status         text NOT NULL DEFAULT 'pending'
                    CHECK (status IN ('pending','accepted','rejected')),
   submitted_by_user_id text NOT NULL REFERENCES users(id),  -- 'meta-archive' for automation
@@ -774,7 +776,7 @@ CREATE TABLE meta_event_player_overlays (
   champion_card_id uuid REFERENCES cards(id),
   list_status      text CHECK (list_status IS NULL
                                OR list_status IN ('none','partial','full')),
-  claimed_fields   text[] NOT NULL CHECK (cardinality(claimed_fields) > 0),
+  claimed_fields   text[] NOT NULL,
   status           text NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending','accepted','rejected')),
   submitted_by_user_id text NOT NULL REFERENCES users(id),
@@ -887,8 +889,9 @@ Schema-level invariants exercised by integration tests:
 - Accepting a proposed event mints its live row and files the players hanging off that proposal under it.
 - Accepting a user-submitted deck writes one `meta_credits` row and settles its ledger row; declining settles it to the chosen resolution with the admin's note.
 - An overlay claiming a field beats promotion for that field and only that field, and survives a re-promote; a pending or rejected one changes nothing.
+- Linking a standings overlay to a row, or accepting a proposal into an existing event, drops every claim the target already agrees with, down to no claims at all.
 - Two admin edits on the same event from the same author merge into one overlay row; a different author's edit does not.
-- Releasing a field an admin-edit overlay claims deletes the overlay once its last claim is gone; releasing a submission's last claim rejects it instead, since its mask must stay non-empty.
+- Releasing a field an admin-edit overlay claims deletes the overlay once its last claim is gone; releasing a submission's last claim rejects it instead, which is what its ledger row has to say.
 - A standings-row correction merges into one overlay per `(row, author)` the same way, and releasing `cards` or `listStatus` always releases both together.
 - A `cards` claim with zero lines detaches the standings row's deck at the next promote, and a source that still publishes a list for that row does not reattach one.
 - Claiming `playerName: null` on a source-keyed row falls back to the source's name; claiming it on a row with no source identity is refused.

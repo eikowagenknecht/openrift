@@ -5,6 +5,7 @@ import { AppError } from "../errors.js";
 import { playerSourceKey } from "./ingest-meta-overlays.js";
 import {
   acceptMetaEventOverlay,
+  linkMetaPlayerOverlay,
   listMetaUploadsForEvent,
   moveMetaEventOverlay,
   revertMetaUpload,
@@ -25,6 +26,7 @@ const PROPOSAL = {
   eventDate: "2026-08-15",
   format: "constructed",
   status: "pending",
+  claimedFields: ["name", "eventDate", "format"],
 };
 
 const UPLOAD = {
@@ -35,6 +37,9 @@ const UPLOAD = {
 };
 
 const OTHER_EVENT_ID = "e0000000-0002-4000-a000-000000000002";
+const LIVE_EVENT_ID = "e0000000-0001-4000-a000-000000000001";
+const PLAYER_OVERLAY_ID = "c0000000-0001-4000-a000-000000000001";
+const LIVE_PLAYER_ID = "f0000000-0001-4000-a000-000000000001";
 
 const mockOverlays = {
   eventOverlayById: vi.fn(),
@@ -46,11 +51,16 @@ const mockOverlays = {
   playerOverlaysForSourceEvent: vi.fn(),
   playerOverlaysForSourceEvents: vi.fn(),
   eventOverlaysBySourceKeys: vi.fn(),
+  playerOverlayById: vi.fn(),
+  linkPlayerOverlay: vi.fn(),
+  updatePlayerOverlay: vi.fn(),
 };
 
 const mockMeta = {
   eventById: vi.fn(),
   mintedPlayerCounts: vi.fn(),
+  playerById: vi.fn(),
+  eventIdForPlayer: vi.fn(),
 };
 
 const repos = { metaOverlays: mockOverlays, meta: mockMeta } as unknown as Repos;
@@ -62,6 +72,7 @@ beforeEach(() => {
   mockOverlays.playerOverlaysForSourceEvent.mockResolvedValue([]);
   mockOverlays.eventOverlaysBySourceKeys.mockResolvedValue([]);
   mockMeta.eventById.mockResolvedValue({ id: OTHER_EVENT_ID });
+  mockMeta.eventIdForPlayer.mockResolvedValue(LIVE_EVENT_ID);
 });
 
 describe("moveMetaEventOverlay", () => {
@@ -228,5 +239,115 @@ describe("acceptMetaEventOverlay", () => {
         status: "accepted",
       }),
     );
+  });
+
+  it("gives up the claims the event it lands on already agrees with", async () => {
+    mockMeta.eventById.mockResolvedValue({
+      id: OTHER_EVENT_ID,
+      name: "Summoner Skirmish",
+      eventDate: "2026-08-15",
+      format: "freeform",
+    });
+
+    await acceptMetaEventOverlay(repos, OVERLAY_ID, OTHER_EVENT_ID);
+
+    expect(mockOverlays.updateEventOverlay).toHaveBeenCalledWith(
+      OVERLAY_ID,
+      expect.objectContaining({ claimedFields: ["format"], name: null, eventDate: null }),
+    );
+  });
+
+  it("lands a wholly redundant upload claiming nothing, keeping its source key", async () => {
+    mockMeta.eventById.mockResolvedValue({
+      id: OTHER_EVENT_ID,
+      name: "Summoner Skirmish",
+      eventDate: "2026-08-15",
+      format: "constructed",
+    });
+
+    await acceptMetaEventOverlay(repos, OVERLAY_ID, OTHER_EVENT_ID);
+
+    expect(mockOverlays.updateEventOverlay).toHaveBeenCalledWith(
+      OVERLAY_ID,
+      expect.objectContaining({ claimedFields: [], status: "accepted" }),
+    );
+    expect(mockOverlays.adoptProposedPlayers).toHaveBeenCalledWith(OVERLAY_ID, OTHER_EVENT_ID);
+  });
+});
+
+describe("linkMetaPlayerOverlay", () => {
+  function playerOverlay(overrides: Record<string, unknown> = {}) {
+    return {
+      id: PLAYER_OVERLAY_ID,
+      metaEventPlayerId: null,
+      status: "pending",
+      playerName: "linsanity",
+      rank: 4,
+      rankIsTier: false,
+      legendCardId: "d0000000-0001-4000-a000-000000000001",
+      championCardId: "d0000000-0001-4000-a000-000000000002",
+      listStatus: "full",
+      claimedFields: [
+        "playerName",
+        "rank",
+        "rankIsTier",
+        "legendCardId",
+        "championCardId",
+        "listStatus",
+        "cards",
+      ],
+      ...overrides,
+    };
+  }
+
+  const liveRow = {
+    id: LIVE_PLAYER_ID,
+    playerName: "linsanity",
+    rank: 4,
+    rankIsTier: false,
+    legendCardId: "d0000000-0001-4000-a000-000000000001",
+    championCardId: null,
+    listStatus: "none",
+  };
+
+  it("drops the claims the row it links to already carries", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue(playerOverlay());
+    mockMeta.playerById.mockResolvedValue(liveRow);
+
+    await linkMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, LIVE_PLAYER_ID);
+
+    expect(mockOverlays.updatePlayerOverlay).toHaveBeenCalledWith(PLAYER_OVERLAY_ID, {
+      claimedFields: ["championCardId", "listStatus", "cards"],
+      playerName: null,
+      rank: null,
+      rankIsTier: null,
+      legendCardId: null,
+    });
+  });
+
+  it("keeps `listStatus` beside a claimed list, which claim and release as one", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue(
+      playerOverlay({ championCardId: null, listStatus: "none" }),
+    );
+    mockMeta.playerById.mockResolvedValue(liveRow);
+
+    await linkMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, LIVE_PLAYER_ID);
+
+    const [, patch] = mockOverlays.updatePlayerOverlay.mock.calls[0] as [
+      string,
+      { claimedFields: string[] },
+    ];
+    expect(patch.claimedFields).toEqual(["listStatus", "cards"]);
+  });
+
+  it("writes nothing when the upload says something new about every field", async () => {
+    mockOverlays.playerOverlayById.mockResolvedValue(
+      playerOverlay({ claimedFields: ["rank"], rank: 9 }),
+    );
+    mockMeta.playerById.mockResolvedValue(liveRow);
+
+    await linkMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, LIVE_PLAYER_ID);
+
+    expect(mockOverlays.updatePlayerOverlay).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 import { formatDay, formatRelativeTime } from "@openrift/shared";
-import type { MetaOverlayQueueRow } from "@openrift/shared";
+import type { DeckZone, MetaOverlayQueueRow } from "@openrift/shared";
 import { ArchiveXIcon, CheckIcon, LinkIcon, UploadIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +9,7 @@ import { MetaCardNamePicker } from "@/components/admin/meta-card-name-picker";
 import { MetaEventCorrectionsPanel } from "@/components/admin/meta-event-corrections-panel";
 import { MetaIgnoredSourcesDialog } from "@/components/admin/meta-ignored-sources-dialog";
 import { MetaOverlayUploadDialog } from "@/components/admin/meta-overlay-upload-dialog";
-import { ConfirmActionButton, ReviewDisclosure } from "@/components/admin/meta-review-shared";
+import { ConfirmActionButton } from "@/components/admin/meta-review-shared";
 import { MetaSubmissionResolve } from "@/components/admin/meta-submission-resolve";
 import { PageDescription, PageTopBarButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,7 @@ import {
   useRejectMetaOverlay,
 } from "@/hooks/use-admin-meta-overlays";
 import { useMetaSubmissionForPlayerOverlay } from "@/hooks/use-admin-meta-submissions";
+import { useZoneOrder } from "@/hooks/use-enums";
 import { sourceDismissTarget, sourceProviderDisplay } from "@/lib/meta-source-review";
 
 // The overlay queue (ADR-014 revision 3). It is short by design: an admin's own
@@ -35,12 +36,14 @@ import { sourceDismissTarget, sourceProviderDisplay } from "@/lib/meta-source-re
 // row fetch its own match suggestions.
 
 function ChangeList({ changes }: { changes: MetaOverlayQueueRow["changes"] }) {
-  if (changes.length === 0) {
+  // A claim that repeats what live already holds is not a change to review.
+  const real = changes.filter((change) => change.from !== change.to);
+  if (real.length === 0) {
     return <p className="text-muted-foreground">No field changes.</p>;
   }
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-      {changes.map((change) => (
+      {real.map((change) => (
         <div key={change.field} className="contents">
           <dt className="text-muted-foreground font-mono text-sm">{change.field}</dt>
           <dd className="flex flex-wrap items-baseline gap-2">
@@ -51,6 +54,48 @@ function ChangeList({ changes }: { changes: MetaOverlayQueueRow["changes"] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * The lines of one decklist, under a heading per zone with its copy count.
+ *
+ * @returns One section per zone the list uses.
+ */
+function ZoneLines({ cards }: { cards: MetaOverlayQueueRow["cards"] }) {
+  const { zoneOrder, zoneLabels } = useZoneOrder();
+  const byZone = Map.groupBy(cards, (card) => card.zone);
+  // A zone the enum does not know still has to show its cards, so unknown
+  // zones follow the ordered ones under their raw slug.
+  const zones = [
+    ...zoneOrder.filter((zone) => byZone.has(zone)),
+    ...[...byZone.keys()].filter((zone) => !(zoneOrder as string[]).includes(zone)),
+  ];
+
+  return (
+    <div className="space-y-3">
+      {zones.map((zone) => {
+        const lines = byZone.get(zone) ?? [];
+        const copies = lines.reduce((sum, card) => sum + card.quantity, 0);
+        return (
+          <section key={zone} className="space-y-1">
+            <h3 className="text-muted-foreground text-sm font-medium">
+              {zoneLabels[zone as DeckZone] ?? zone} · {copies}
+            </h3>
+            <ul className="grid gap-1 sm:grid-cols-2">
+              {lines.map((card) => (
+                <li key={card.lineNumber} className="flex items-baseline gap-2">
+                  <span className="text-muted-foreground tabular-nums">{card.quantity}×</span>
+                  <span className={card.cardId === null ? "text-destructive" : undefined}>
+                    {card.cardName}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -82,17 +127,7 @@ function CardLines({ overlay }: { overlay: MetaOverlayQueueRow }) {
           </ul>
         </div>
       )}
-      <ul className="grid gap-1 sm:grid-cols-2">
-        {overlay.cards.map((card) => (
-          <li key={card.lineNumber} className="flex items-baseline gap-2">
-            <span className="text-muted-foreground tabular-nums">{card.quantity}×</span>
-            <span className={card.cardId === null ? "text-destructive" : undefined}>
-              {card.cardName}
-            </span>
-            <Badge variant="outline">{card.zone}</Badge>
-          </li>
-        ))}
-      </ul>
+      <ZoneLines cards={overlay.cards} />
     </div>
   );
 }
@@ -145,7 +180,7 @@ function EventMatches({
             <span className="text-muted-foreground">{suggestion.reasons.join(", ")}</span>
             <Button
               size="sm"
-              variant="outline"
+              variant={suggestion.isExact ? "default" : "outline"}
               disabled={busy}
               onClick={() => {
                 onAcceptInto(suggestion.metaEventId);
@@ -165,16 +200,16 @@ function EventMatches({
  * The standings rows this overlay might describe, the row it is anchored to
  * today among them.
  *
- * @returns The link disclosure.
+ * @returns The link list.
  */
-function PlayerMatches({ overlayId }: { overlayId: string }) {
-  const [open, setOpen] = useState(false);
-  const { data, isPending } = useMetaPlayerMatchSuggestions(overlayId, open);
+function PlayerMatches({ overlay }: { overlay: MetaOverlayQueueRow }) {
+  const linked = overlay.metaEventPlayerId !== null;
+  const { data, isPending } = useMetaPlayerMatchSuggestions(overlay.id);
   const link = useLinkMetaPlayerOverlay();
 
   async function handleLink(metaEventPlayerId: string, playerName: string): Promise<void> {
     try {
-      await link.mutateAsync({ id: overlayId, metaEventPlayerId });
+      await link.mutateAsync({ id: overlay.id, metaEventPlayerId });
     } catch {
       // Reported by the global mutation error toast.
       return;
@@ -183,10 +218,11 @@ function PlayerMatches({ overlayId }: { overlayId: string }) {
   }
 
   return (
-    <ReviewDisclosure title="Link to a standings row" onOpenChange={setOpen}>
-      <p className="text-muted-foreground mb-2">
-        A link can be moved afterwards: pick another row and the one it leaves is taken back on the
-        next promote, provided this upload is what minted it.
+    <div className="space-y-2 rounded-md border px-3 py-2">
+      <p className="text-muted-foreground">
+        {linked
+          ? "Linked. Pick another row to move it: the one it leaves is taken back on the next promote, provided this upload is what minted it."
+          : "Not linked to a standings row yet. Pick the row this entry describes, or accepting files a second row beside it."}
       </p>
       {isPending && <Skeleton className="h-16 w-full" />}
       {data !== undefined && data.suggestions.length === 0 && (
@@ -208,7 +244,7 @@ function PlayerMatches({ overlayId }: { overlayId: string }) {
               {!suggestion.isCurrent && (
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant={suggestion.isExact && !linked ? "default" : "outline"}
                   disabled={link.isPending}
                   onClick={() => {
                     void handleLink(suggestion.metaEventPlayerId, suggestion.playerName);
@@ -222,7 +258,7 @@ function PlayerMatches({ overlayId }: { overlayId: string }) {
           ))}
         </ul>
       )}
-    </ReviewDisclosure>
+    </div>
   );
 }
 
@@ -311,6 +347,13 @@ function OverlayCard({ overlay }: { overlay: MetaOverlayQueueRow }) {
       ? (overlay.metaEventName ?? overlay.proposedName ?? "Proposed event")
       : (overlay.playerName ?? "Standings entry");
   const isProposal = overlay.kind === "event" && overlay.metaEventId === null;
+  // Both mint a row the archive does not have: a second event for a tournament
+  // it may already hold, or a standings row beside the source's own.
+  const mints = isProposal || (overlay.kind === "player" && overlay.metaEventPlayerId === null);
+  const unmatched =
+    overlay.unresolvedNames.length === 0
+      ? ""
+      : ` ${String(overlay.unresolvedNames.length)} card${overlay.unresolvedNames.length === 1 ? "" : "s"} match nothing in the catalog, so it lands without a decklist.`;
   // A null provider is a person, which is what the "usersubmission" slug names.
   const provider = sourceProviderDisplay(overlay.provider ?? "usersubmission");
 
@@ -380,18 +423,36 @@ function OverlayCard({ overlay }: { overlay: MetaOverlayQueueRow }) {
       <CardLines overlay={overlay} />
 
       {isProposal && <EventMatches overlayId={overlay.id} busy={busy} onAcceptInto={onAccept} />}
-      {overlay.kind === "player" && <PlayerMatches overlayId={overlay.id} />}
+      {overlay.kind === "player" && <PlayerMatches overlay={overlay} />}
 
       <div className="flex items-center gap-2">
-        <Button
-          onClick={() => {
-            onAccept(null);
-          }}
-          disabled={busy}
-        >
-          <CheckIcon />
-          {confirming ? "Accept without a deck" : "Accept"}
-        </Button>
+        {mints ? (
+          <ConfirmActionButton
+            title={isProposal ? "Mint a new archived event?" : "File a new standings row?"}
+            description={
+              isProposal
+                ? `Nothing links this proposal to an archived event, so accepting mints a second one for this tournament.${unmatched}`
+                : `Nothing links this entry to a standings row, so accepting files a new one. The row the source published stays as it is, and the event ends up with two entries for this finish.${unmatched}`
+            }
+            confirmLabel={isProposal ? "Mint a new event" : "File a new row"}
+            onConfirm={() => accept(null)}
+            disabled={busy}
+            trigger={<Button variant="destructive" />}
+          >
+            <CheckIcon />
+            Accept as new
+          </ConfirmActionButton>
+        ) : (
+          <Button
+            onClick={() => {
+              onAccept(null);
+            }}
+            disabled={busy}
+          >
+            <CheckIcon />
+            {confirming ? "Accept without a deck" : "Accept"}
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={() => {

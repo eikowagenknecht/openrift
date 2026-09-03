@@ -32,6 +32,8 @@ export interface MetaEventMatchSuggestion {
   score: number;
   /** Why it ranked, in the order the signals were weighed. */
   reasons: string[];
+  /** Same name, same date, same format: nothing is left for the reviewer to weigh. */
+  isExact: boolean;
 }
 
 export interface MetaPlayerMatchSuggestion {
@@ -44,6 +46,8 @@ export interface MetaPlayerMatchSuggestion {
   deckId: string | null;
   score: number;
   reasons: string[];
+  /** The same player name, normalized: this is the row the overlay describes. */
+  isExact: boolean;
 }
 
 export interface MetaEventMatchInput {
@@ -155,7 +159,7 @@ export function nameSimilarity(a: string, b: string): number {
 export function scoreEventMatch(
   candidate: MetaEventMatchInput,
   live: { name: string; eventDate: string; format: string },
-): { score: number; reasons: string[]; withinWindow: boolean } {
+): { score: number; reasons: string[]; withinWindow: boolean; isExact: boolean } {
   const reasons: string[] = [];
   let score = 0;
 
@@ -180,7 +184,8 @@ export function scoreEventMatch(
     reasons.push(similarity === 1 ? "same name" : "similar name");
   }
 
-  return { score, reasons, withinWindow };
+  const isExact = similarity === 1 && delta === 0 && live.format === candidate.format;
+  return { score, reasons, withinWindow, isExact };
 }
 
 /**
@@ -193,7 +198,7 @@ export function scoreEventMatch(
 export function scorePlayerMatch(
   candidate: MetaPlayerMatchInput,
   live: { playerName: string; rank: number },
-): { score: number; reasons: string[]; playerMatched: boolean } {
+): { score: number; reasons: string[]; playerMatched: boolean; isExact: boolean } {
   const reasons: string[] = [];
   let score = 0;
 
@@ -211,7 +216,7 @@ export function scorePlayerMatch(
     reasons.push("same finish");
   }
 
-  return { score, reasons, playerMatched: similarity > 0 };
+  return { score, reasons, playerMatched: similarity > 0, isExact: similarity === 1 };
 }
 
 export async function suggestMetaEventMatches(
@@ -263,6 +268,7 @@ export function rankEventMatches(
       playerRowCount: row.event.playerRowCount,
       score: row.score,
       reasons: row.reasons,
+      isExact: row.isExact,
     }));
 }
 
@@ -326,5 +332,6 @@ export function rankPlayerMatches(
       score: row.score,
       reasons: row.reasons,
       isCurrent: row.isCurrent,
+      isExact: row.isExact,
     }));
 }

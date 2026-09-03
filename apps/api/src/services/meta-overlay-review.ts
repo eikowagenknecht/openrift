@@ -8,6 +8,7 @@ import type {
   MetaPlayerOverlayField,
 } from "@openrift/shared/types";
 import { META_EVENT_TIERS } from "@openrift/shared/types";
+import { stringifyUnknown } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 
 import type { MetaEventPlayerOverlaysTable } from "../db/index.js";
@@ -31,6 +32,42 @@ import { promoteMetaEvent, promoteNewEvent } from "./meta-promote.js";
  * apply path a user's submission takes, born accepted rather than pending, so
  * there is still exactly one way a field leaves the sources' hands.
  */
+
+/**
+ * Whether two values would read as the same to a reviewer. The two sides type
+ * dates and numbers differently, so the comparison is the display form.
+ */
+function sameValue(left: unknown, right: unknown): boolean {
+  if (left === null || left === undefined || right === null || right === undefined) {
+    return (left ?? null) === (right ?? null);
+  }
+  return stringifyUnknown(left) === stringifyUnknown(right);
+}
+
+/**
+ * Claims that would write back the value the live row already carries. A claim
+ * holds until it is released, so claiming an agreed value would freeze it and
+ * silence every later correction the source publishes. `cards` is never
+ * dropped, and `listStatus` stays while `cards` is claimed.
+ */
+function redundantClaims(
+  claimedFields: readonly string[],
+  overlay: Record<string, unknown>,
+  live: Record<string, unknown>,
+): string[] {
+  return claimedFields.filter((field) => {
+    if (field === "cards") {
+      return false;
+    }
+    if (field === "listStatus" && claimedFields.includes("cards")) {
+      return false;
+    }
+    if (!Object.hasOwn(live, field)) {
+      return false;
+    }
+    return sameValue(overlay[field], live[field]);
+  });
+}
 
 /**
  * Accepts an event overlay.
@@ -63,10 +100,19 @@ export async function acceptMetaEventOverlay(
     if (target === undefined) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "That archived event no longer exists.");
     }
+    const redundant = redundantClaims(
+      overlay.claimedFields,
+      overlay as unknown as Record<string, unknown>,
+      target as unknown as Record<string, unknown>,
+    );
     await repos.metaOverlays.updateEventOverlay(overlayId, {
       metaEventId: intoMetaEventId,
       status: "accepted",
       acceptedAt: now,
+      claimedFields: overlay.claimedFields.filter(
+        (field) => !redundant.includes(field),
+      ) as MetaEventOverlayField[],
+      ...Object.fromEntries(redundant.map((field) => [field, null])),
     });
     await repos.metaOverlays.adoptProposedPlayers(overlayId, intoMetaEventId);
     await promoteMetaEvent(repos, intoMetaEventId);
@@ -658,6 +704,19 @@ export async function linkMetaPlayerOverlay(
   }
 
   await repos.metaOverlays.linkPlayerOverlay(overlayId, metaEventPlayerId);
+  const redundant = redundantClaims(
+    overlay.claimedFields,
+    overlay as unknown as Record<string, unknown>,
+    player as unknown as Record<string, unknown>,
+  );
+  if (redundant.length > 0) {
+    await repos.metaOverlays.updatePlayerOverlay(overlayId, {
+      claimedFields: overlay.claimedFields.filter(
+        (field) => !redundant.includes(field),
+      ) as MetaPlayerOverlayField[],
+      ...Object.fromEntries(redundant.map((field) => [field, null])),
+    });
+  }
   const metaEventId = await repos.meta.eventIdForPlayer(metaEventPlayerId);
   if (overlay.status === "accepted" && metaEventId !== undefined) {
     await promoteMetaEvent(repos, metaEventId);

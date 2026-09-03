@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict FhNZV6Abf5a52YyiuhCfod1KFpsWd1xwpASeD8fkaXIlm9Lu7hYfj94oARl9aZf
+\restrict xpzLKUAvTw1CxrBDTYQJb5mYN4WMhF8McQVi48xDI3oTIs1LPYDTIgxBPO4ZnUo
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2186,7 +2186,6 @@ CREATE TABLE public.meta_event_overlays (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_meta_event_overlays_accepted_at CHECK (((status = 'accepted'::text) = (accepted_at IS NOT NULL))),
     CONSTRAINT chk_meta_event_overlays_claimed_fields_known CHECK ((claimed_fields <@ ARRAY['name'::text, 'eventDate'::text, 'format'::text, 'playerCount'::text, 'organizer'::text, 'notes'::text, 'tier'::text, 'country'::text, 'location'::text])),
-    CONSTRAINT chk_meta_event_overlays_claimed_nonempty CHECK ((cardinality(claimed_fields) > 0)),
     CONSTRAINT chk_meta_event_overlays_country CHECK (((country IS NULL) OR (country ~ '^[A-Z]{2}$'::text))),
     CONSTRAINT chk_meta_event_overlays_country_claimed CHECK (((country IS NULL) OR ('country'::text = ANY (claimed_fields)))),
     CONSTRAINT chk_meta_event_overlays_event_date_claimed CHECK (((event_date IS NULL) OR ('eventDate'::text = ANY (claimed_fields)))),
@@ -2290,7 +2289,6 @@ CREATE TABLE public.meta_event_player_overlays (
     CONSTRAINT chk_meta_event_player_overlays_accepted_at CHECK (((status = 'accepted'::text) = (accepted_at IS NOT NULL))),
     CONSTRAINT chk_meta_event_player_overlays_champion_card_id_claimed CHECK (((champion_card_id IS NULL) OR ('championCardId'::text = ANY (claimed_fields)))),
     CONSTRAINT chk_meta_event_player_overlays_claimed_fields_known CHECK ((claimed_fields <@ ARRAY['playerName'::text, 'rank'::text, 'rankIsTier'::text, 'wins'::text, 'losses'::text, 'draws'::text, 'matchPoints'::text, 'opponentMatchWinPct'::text, 'gameWinPct'::text, 'opponentGameWinPct'::text, 'entryStatus'::text, 'legendCardId'::text, 'championCardId'::text, 'listStatus'::text, 'cards'::text])),
-    CONSTRAINT chk_meta_event_player_overlays_claimed_nonempty CHECK ((cardinality(claimed_fields) > 0)),
     CONSTRAINT chk_meta_event_player_overlays_draws_claimed CHECK (((draws IS NULL) OR ('draws'::text = ANY (claimed_fields)))),
     CONSTRAINT chk_meta_event_player_overlays_entry_status CHECK (((entry_status IS NULL) OR (entry_status = ANY (ARRAY['complete'::text, 'eliminated'::text, 'dropped'::text])))),
     CONSTRAINT chk_meta_event_player_overlays_entry_status_claimed CHECK (((entry_status IS NULL) OR ('entryStatus'::text = ANY (claimed_fields)))),
@@ -8852,5 +8850,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FhNZV6Abf5a52YyiuhCfod1KFpsWd1xwpASeD8fkaXIlm9Lu7hYfj94oARl9aZf
+\unrestrict xpzLKUAvTw1CxrBDTYQJb5mYN4WMhF8McQVi48xDI3oTIs1LPYDTIgxBPO4ZnUo
 
