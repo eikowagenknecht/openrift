@@ -25,7 +25,7 @@ The `api` container:
 
 ## Release Strategy
 
-Development follows a trunk-based model: all work lands on `main` and immediately deploys to the preview instance. When ready to release, trigger the **Release** workflow manually from GitHub Actions (`workflow_dispatch`). It runs [semantic-release](https://semantic-release.gitbook.io/) to determine the next version from conventional commits, creates a GitHub release with the tag, builds images tagged as `v1.2.3` + `latest`, and deploys to the stable VPS — all in one workflow.
+Development follows a trunk-based model: all work lands on `main` and immediately deploys to the preview instance. When ready to release, trigger the **Release** workflow manually from GitHub Actions (`workflow_dispatch`). It runs [semantic-release](https://semantic-release.gitbook.io/) to determine the next version from conventional commits, creates a GitHub release with the tag, re-tags the images the preview build already pushed for that commit as `v1.2.3` + `latest`, and deploys to the stable VPS — all in one workflow. Nothing is rebuilt: preview and stable run the same image digest.
 
 ### Feature Flags
 
@@ -35,8 +35,8 @@ Incomplete features can be pushed to `main` behind feature flags, tested on prev
 
 ### CI/CD Pipeline
 
-1. **Push to `main`** → `preview.yml` builds all three images (api, web, proxy) with `:preview` tag, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
-2. **Manual release** → `release.yml` (triggered via `workflow_dispatch`) runs semantic-release to determine the next version, builds all three images with `:vX.Y.Z` + `:latest` tags, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
+1. **Push to `main`** → `preview.yml` builds all four images (api, web, proxy, bot) tagged `:preview` and `:sha-<commit>`, uploads Sentry source maps, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
+2. **Manual release** → `release.yml` (triggered via `workflow_dispatch`) waits until the `:sha-<commit>` images for the current `main` commit exist, runs semantic-release to determine the next version, tags those images `:vX.Y.Z` + `:latest` via `docker buildx imagetools create`, then SSHes to VPS and runs `./deploy.sh`. If the preview build for that commit was superseded before it finished, re-run the Preview workflow first.
 
 ### Deploy Script
 

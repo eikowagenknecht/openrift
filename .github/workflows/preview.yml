@@ -39,8 +39,11 @@ jobs:
         env:
           OWNER: ${{ github.repository_owner }}
           REF: preview
-          PUSH_LATEST: false
+          SHA_TAG: ${{ github.sha }}
           CACHE_SCOPE: main-build
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
   # A clean `vite build` and a green typecheck do not prove the SSR bundle
   # links: the web image ships only `.output`, so any dependency the bundler
@@ -62,7 +65,7 @@ jobs:
         run: |
           docker run -d --name web-smoke -p 3001:3001 \
             -e PORT=3001 -e API_WAIT_TIMEOUT=1 \
-            ghcr.io/${{ github.repository_owner }}/openrift-web:preview
+            ghcr.io/${{ github.repository_owner }}/openrift-web:sha-${{ github.sha }}
           for _ in $(seq 1 30); do
             if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/health)" = "200" ]; then
               echo "SSR server answered /health"

@@ -23,8 +23,6 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     exclude: ["src/**/*.integration.test.ts"],
     setupFiles: ["src/test/vitest-setup.ts"],
-    pool: "forks",
-    fileParallelism: false,
     coverage: {
       all: true,
       include: ["src/**/*.ts"],

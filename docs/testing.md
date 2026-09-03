@@ -75,7 +75,7 @@ import { describe, expect, it } from "vitest";
 Each workspace has its own `vitest.config.ts`:
 
 - `packages/shared/vitest.config.ts` — node environment, no aliases.
-- `apps/api/vitest.config.ts` — node environment, sequential pool (`forks`, `fileParallelism: false`), loads `DATABASE_URL` from the root `.env` so integration tests can find it.
+- `apps/api/vitest.config.ts` — node environment, loads `DATABASE_URL` from the root `.env` so integration tests can find it.
 - `apps/web/vitest.config.ts` — `jsdom` environment, `@/` → `src/` alias, React SWC plugin via Vite.
 
 Use `vi.mock()` when the module under test imports something with side effects or heavy dependencies (React components, DOM APIs, browser globals). If a utility only imports plain constants or types from such a module, mock just that export to avoid pulling in the entire dependency tree.

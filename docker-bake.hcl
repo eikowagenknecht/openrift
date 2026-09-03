@@ -1,7 +1,7 @@
 variable "REGISTRY"       { default = "ghcr.io" }
 variable "OWNER"          { default = "openrift" }
 variable "REF"            { default = "preview" }
-variable "PUSH_LATEST"    { default = false }
+variable "SHA_TAG"        { default = "" }
 variable "CACHE_SCOPE"    { default = "main-build" }
 variable "SENTRY_ORG"     { default = "" }
 variable "SENTRY_PROJECT" { default = "" }
@@ -18,7 +18,7 @@ target "_base" {
   # Sentry source-map upload runs during `bun run build` in stage 1. ORG and
   # PROJECT are non-sensitive build args. The auth token is a BuildKit secret
   # so it stays out of image history. When SENTRY_AUTH_TOKEN is empty, the
-  # Sentry Vite plugin skips upload (preview builds work this way).
+  # Sentry Vite plugin skips upload (local `docker build` works this way).
   args = {
     SENTRY_ORG     = SENTRY_ORG
     SENTRY_PROJECT = SENTRY_PROJECT
@@ -28,7 +28,10 @@ target "_base" {
 
 function "tags_for" {
   params = [image]
-  result = PUSH_LATEST ? ["${REGISTRY}/${OWNER}/${image}:${REF}", "${REGISTRY}/${OWNER}/${image}:latest"] : ["${REGISTRY}/${OWNER}/${image}:${REF}"]
+  result = concat(
+    ["${REGISTRY}/${OWNER}/${image}:${REF}"],
+    SHA_TAG != "" ? ["${REGISTRY}/${OWNER}/${image}:sha-${SHA_TAG}"] : [],
+  )
 }
 
 target "api" {
