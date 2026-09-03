@@ -190,7 +190,7 @@ services:
   # Queried by Grafana via :3100 on the internal network; host 3101 is for
   # ad-hoc curl (Grafana already binds 3100 on the host).
   loki:
-    image: grafana/loki:3.7.6
+    image: grafana/loki:3.7.7
     user: "${UID:-1000}:${GID:-1000}"
     command: ["-config.file=/etc/loki/loki.yml"]
     ports:
@@ -217,7 +217,7 @@ services:
   # stdout via the Docker socket, parses pino JSON, and ships to Loki with
   # trace_id as structured metadata for Tempo ↔ Loki pivots. UI on :12345.
   alloy:
-    image: grafana/alloy:v1.18.1
+    image: grafana/alloy:v1.19.2
     command:
       - "run"
       - "--server.http.listen-addr=0.0.0.0:12345"
