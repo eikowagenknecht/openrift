@@ -1266,6 +1266,11 @@ export interface MetaEventPlayersTable {
    */
   sourceIdentity: string | null;
   /**
+   * FK → meta_event_player_overlays.id ON DELETE SET NULL. Set only on rows
+   * promotion minted for an overlay; promotion may delete those and no others.
+   */
+  mintedByOverlayId: string | null;
+  /**
    * UNIQUE FK → decks.id ON DELETE RESTRICT. Deleting an archived deck must
    * not silently take a standings row with it: the admin path clears this and
    * {@link listStatus} first, then deletes the deck.

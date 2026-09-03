@@ -101,6 +101,7 @@ interface SourceFacts {
 export interface MetaPromoteResult {
   metaEventId: string;
   players: number;
+  removedPlayers: number;
   decks: number;
   matches: number;
   phases: number;
@@ -125,6 +126,7 @@ function emptyResult(metaEventId: string): MetaPromoteResult {
   return {
     metaEventId,
     players: 0,
+    removedPlayers: 0,
     decks: 0,
     matches: 0,
     phases: 0,
@@ -375,6 +377,7 @@ export async function promoteMetaEvent(
   await promoteEventRow(repos, metaEventId, live, collected);
   await promoteStandings(repos, metaEventId, collected, result, cardIndex);
   await applyPlayerOverlays(repos, metaEventId, result, cardIndex);
+  await dropOrphanMintedPlayers(repos, metaEventId, result);
   await promotePhasesAndMatches(repos, metaEventId, ordered, result);
   return result;
 }
@@ -852,6 +855,7 @@ async function resolveOverlayTarget(
     entryStatus: overlay.entryStatus,
     legendCardId: overlay.legendCardId,
     championCardId: overlay.championCardId,
+    mintedByOverlayId: overlay.id,
     deck: null,
   });
   if (created === undefined) {
@@ -861,6 +865,20 @@ async function resolveOverlayTarget(
   names.push({ id: created.metaEventPlayerId, name: overlay.playerName, rank: overlay.rank });
   result.players++;
   return created.metaEventPlayerId;
+}
+
+/** Deletes only rows carrying `mintedByOverlayId`; hand-entered and source-backed rows never qualify. */
+async function dropOrphanMintedPlayers(
+  repos: Repos,
+  metaEventId: string,
+  result: MetaPromoteResult,
+): Promise<void> {
+  const orphans = await repos.meta.orphanMintedPlayerIds(metaEventId);
+  for (const playerId of orphans) {
+    await repos.metaOverlays.unanchorPlayerOverlays(playerId, metaEventId);
+    await repos.meta.deletePlayer(playerId);
+    result.removedPlayers++;
+  }
 }
 
 /**

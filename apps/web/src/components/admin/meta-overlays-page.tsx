@@ -162,8 +162,8 @@ function EventMatches({
 }
 
 /**
- * The standings rows a loose overlay might describe. Only ever mounted for one
- * that names no row yet, so the request is never made for nothing.
+ * The standings rows this overlay might describe, the row it is anchored to
+ * today among them.
  *
  * @returns The link disclosure.
  */
@@ -184,6 +184,10 @@ function PlayerMatches({ overlayId }: { overlayId: string }) {
 
   return (
     <ReviewDisclosure title="Link to a standings row" onOpenChange={setOpen}>
+      <p className="text-muted-foreground mb-2">
+        A link can be moved afterwards: pick another row and the one it leaves is taken back on the
+        next promote, provided this upload is what minted it.
+      </p>
       {isPending && <Skeleton className="h-16 w-full" />}
       {data !== undefined && data.suggestions.length === 0 && (
         <p className="text-muted-foreground">
@@ -199,18 +203,21 @@ function PlayerMatches({ overlayId }: { overlayId: string }) {
               </span>
               <span className="font-medium">{suggestion.playerName}</span>
               {suggestion.deckId !== null && <Badge variant="outline">has a deck</Badge>}
+              {suggestion.isCurrent && <Badge>linked</Badge>}
               <span className="text-muted-foreground">{suggestion.reasons.join(", ")}</span>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={link.isPending}
-                onClick={() => {
-                  void handleLink(suggestion.metaEventPlayerId, suggestion.playerName);
-                }}
-              >
-                <LinkIcon />
-                Link to this entry
-              </Button>
+              {!suggestion.isCurrent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={link.isPending}
+                  onClick={() => {
+                    void handleLink(suggestion.metaEventPlayerId, suggestion.playerName);
+                  }}
+                >
+                  <LinkIcon />
+                  Link to this entry
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -373,9 +380,7 @@ function OverlayCard({ overlay }: { overlay: MetaOverlayQueueRow }) {
       <CardLines overlay={overlay} />
 
       {isProposal && <EventMatches overlayId={overlay.id} busy={busy} onAcceptInto={onAccept} />}
-      {overlay.kind === "player" && overlay.metaEventPlayerId === null && (
-        <PlayerMatches overlayId={overlay.id} />
-      )}
+      {overlay.kind === "player" && <PlayerMatches overlayId={overlay.id} />}
 
       <div className="flex items-center gap-2">
         <Button

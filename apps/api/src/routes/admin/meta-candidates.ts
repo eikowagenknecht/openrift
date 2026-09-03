@@ -28,9 +28,12 @@ import {
   acceptMetaEventOverlay,
   acceptMetaPlayerOverlay,
   linkMetaPlayerOverlay,
+  listMetaUploadsForEvent,
+  moveMetaEventOverlay,
   rejectMetaOverlay,
   releaseEventOverlayField,
   releaseMetaPlayerOverlayField,
+  revertMetaUpload,
   writeEventOverlayFields,
   writeMetaPlayerOverlayFields,
 } from "../../services/meta-overlay-review.js";
@@ -425,6 +428,11 @@ export const adminMetaCandidatesRouter = os.router({
       acceptMetaEventOverlay(context.repos, input.id, input.metaEventId),
   ),
 
+  moveEventOverlay: os.moveEventOverlay.handler(
+    ({ input, context }): Promise<MetaOverlayReviewResult> =>
+      moveMetaEventOverlay(context.repos, input.id, input.metaEventId),
+  ),
+
   acceptPlayerOverlay: os.acceptPlayerOverlay.handler(
     ({ input, context }): Promise<MetaOverlayReviewResult> =>
       acceptMetaPlayerOverlay(context.repos, input.id),
@@ -437,6 +445,14 @@ export const adminMetaCandidatesRouter = os.router({
 
   rejectOverlay: os.rejectOverlay.handler(({ input, context }): Promise<MetaOverlayReviewResult> =>
     rejectMetaOverlay(context.repos, { kind: input.kind, id: input.id }),
+  ),
+
+  eventUploads: os.eventUploads.handler(async ({ input, context }) => ({
+    uploads: await listMetaUploadsForEvent(context.repos, input.id),
+  })),
+
+  revertUpload: os.revertUpload.handler(({ input, context }) =>
+    revertMetaUpload(context.repos, input.provider, input.externalId),
   ),
 
   ignoreEvent: os.ignoreEvent.handler(async ({ input, context }): Promise<void> => {

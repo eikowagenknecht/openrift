@@ -12,6 +12,8 @@ import type {
   metaEventMatchSuggestionSchema,
   metaPlayerMatchSuggestionSchema,
   metaUploadResponseSchema,
+  metaUploadRevertResultSchema,
+  metaUploadSummarySchema,
   metaUploadSchema,
 } from "../../contracts/admin/meta.js";
 import type {
@@ -162,6 +164,12 @@ export type MetaEventMatchSuggestion = z.infer<typeof metaEventMatchSuggestionSc
 
 /** One ranked live standings row an unanchored player overlay might describe. */
 export type MetaPlayerMatchSuggestion = z.infer<typeof metaPlayerMatchSuggestionSchema>;
+
+/** One upload feeding a live event, as the event's uploads panel lists it. */
+export type MetaUploadSummary = z.infer<typeof metaUploadSummarySchema>;
+
+/** What reverting one upload settled. */
+export type MetaUploadRevertResult = z.infer<typeof metaUploadRevertResultSchema>;
 
 // ── User submissions (ADR-014, ADR-036) ──────────────────────────────────────
 

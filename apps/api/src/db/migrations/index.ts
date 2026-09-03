@@ -226,6 +226,7 @@ import * as m277 from "./277-catalogue-paging-indexes.js";
 import * as m278 from "./278-job-schedules.js";
 import * as m279 from "./279-uvsgames-id-probes.js";
 import * as m280 from "./280-printing-overnumbered-flag.js";
+import * as m281 from "./281-overlay-minted-players.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -511,4 +512,5 @@ export const migrations: Record<string, Migration> = {
   "278-job-schedules": m278,
   "279-uvsgames-id-probes": m279,
   "280-printing-overnumbered-flag": m280,
+  "281-overlay-minted-players": m281,
 };

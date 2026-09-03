@@ -517,6 +517,39 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       expect(result.errors[0]).toContain("MPI Ghost");
     });
 
+    it("takes back a minted row once its overlay stops claiming it", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-minted");
+      const overlayId = await acceptedPlayerOverlay({
+        metaEventId,
+        playerName: "MPI Minted",
+        rank: 4,
+        claimedFields: ["playerName", "rank"],
+      });
+      await promoteMetaEvent(repos, metaEventId);
+      expect(await repo.rawStandingsForEvent(metaEventId)).toHaveLength(1);
+
+      await repos.metaOverlays.setPlayerOverlayStatus(overlayId, "rejected", new Date());
+      const result = await promoteMetaEvent(repos, metaEventId);
+
+      expect(await repo.rawStandingsForEvent(metaEventId)).toEqual([]);
+      expect(result.removedPlayers).toBe(1);
+      expect(await repos.metaOverlays.playerOverlayById(overlayId)).toMatchObject({
+        status: "rejected",
+        metaEventId,
+        metaEventPlayerId: null,
+      });
+    });
+
+    it("never takes back a row a person entered by hand", async () => {
+      const metaEventId = await seedLiveEvent("mpi-overlay-handmade");
+      const playerId = await seedStandingsOnlyPlayer(metaEventId, "MPI Handmade", 1);
+
+      const result = await promoteMetaEvent(repos, metaEventId);
+
+      expect(await repo.rawStandingsForEvent(metaEventId)).toMatchObject([{ id: playerId }]);
+      expect(result.removedPlayers).toBe(0);
+    });
+
     it("applies overlays to an event whose sources hold no standings at all", async () => {
       const metaEventId = await seedLiveEvent("mpi-overlay-no-sources");
       const playerId = await seedStandingsOnlyPlayer(metaEventId, "MPI Solo", 1);

@@ -1,19 +1,16 @@
-import type { MetaIngestEvent, MetaIngestEventPlayer } from "@openrift/shared";
+import type { MetaIngestEvent } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
-import type {
-  MetaEntryStatus,
-  MetaEventOverlayField,
-  MetaEventTier,
-  MetaPlayerOverlayField,
-} from "@openrift/shared/types";
+import type { MetaEntryStatus, MetaEventOverlayField, MetaEventTier } from "@openrift/shared/types";
 import {
   META_ENTRY_STATUSES,
   META_EVENT_OVERLAY_FIELDS,
   META_EVENT_TIERS,
+  META_PLAYER_OVERLAY_FIELDS,
 } from "@openrift/shared/types";
 
 import type { Repos } from "../deps.js";
 import type { MetaEventOverlayRow, MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
+import { sourceEventKeyPrefix } from "../repositories/meta-overlays.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 
 /**
@@ -76,26 +73,15 @@ function asEntryStatus(value: string | null): MetaEntryStatus | null {
     : null;
 }
 
-function playerClaims(player: MetaIngestEventPlayer): MetaPlayerOverlayField[] {
-  const claims: MetaPlayerOverlayField[] = [
-    "playerName",
-    "rank",
-    "rankIsTier",
-    "wins",
-    "losses",
-    "draws",
-    "matchPoints",
-    "opponentMatchWinPct",
-    "gameWinPct",
-    "opponentGameWinPct",
-    "entryStatus",
-    "legendCardId",
-    "championCardId",
-  ];
-  if (player.cards !== null) {
-    claims.push("listStatus", "cards");
-  }
-  return claims;
+/** An upload claims a field only when it carries a value for it; absent, null and empty say nothing. */
+function claimedFrom<TField extends string>(
+  fields: readonly TField[],
+  values: Readonly<Record<string, unknown>>,
+): TField[] {
+  return fields.filter((field) => {
+    const value = values[field];
+    return value !== null && value !== undefined && value !== "";
+  });
 }
 
 export async function ingestMetaOverlays(
@@ -153,21 +139,22 @@ export async function ingestMetaOverlays(
       continue;
     }
 
-    const values = {
-      provider,
-      externalId: event.externalId,
+    const facts = {
       name: event.name,
       eventDate: event.eventDate,
       format: event.format,
       playerCount: event.playerCount,
       organizer: event.organizer,
-      notes: event.notes,
+      notes: event.notes === "" ? null : event.notes,
       tier: asTier(event.tier),
       country: event.country,
       location: event.location,
-      // An uploaded event claims every field the schema fills in, which is all
-      // of them: the producer is describing a whole event, not patching one.
-      claimedFields: [...META_EVENT_OVERLAY_FIELDS],
+    };
+    const values = {
+      provider,
+      externalId: event.externalId,
+      ...facts,
+      claimedFields: claimedFrom(META_EVENT_OVERLAY_FIELDS, facts),
       submittedByUserId,
     };
 
@@ -220,7 +207,7 @@ export async function ingestMetaOverlays(
  * the event id keeps the pair recoverable whatever either half holds.
  */
 export function playerSourceKey(eventExternalId: string, playerExternalId: string): string {
-  return `${eventExternalId.length}:${eventExternalId}${playerExternalId}`;
+  return `${sourceEventKeyPrefix(eventExternalId)}${playerExternalId}`;
 }
 
 /** The two provider keys back out of a stored {@link playerSourceKey}. */
@@ -369,7 +356,7 @@ async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<vo
     const legendCardId = namedLegendCardId ?? zoneCardId(cards, WellKnown.deckZone.LEGEND);
     const championCardId = namedChampionCardId ?? zoneCardId(cards, WellKnown.deckZone.CHAMPION);
 
-    const values = {
+    const facts = {
       playerName: player.playerName,
       rank: player.rank,
       rankIsTier: player.rankIsTier,
@@ -386,7 +373,10 @@ async function ingestPlayers(repos: Repos, ctx: PlayerIngestContext): Promise<vo
       // The mask CHECK refuses an unclaimed value, and a standings-only row
       // claims no list, so its status column stays NULL rather than "none".
       listStatus: player.cards === null ? null : player.listStatus,
-      claimedFields: playerClaims(player),
+    };
+    const values = {
+      ...facts,
+      claimedFields: claimedFrom(META_PLAYER_OVERLAY_FIELDS, { ...facts, cards: player.cards }),
       submittedByUserId: ctx.submittedByUserId,
     };
 

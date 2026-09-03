@@ -67,7 +67,8 @@ function FormatHelp() {
         staged copy in full, keyed by <code className="bg-muted rounded px-1">externalId</code>;
         events left out of the file are untouched. A player carries a list only when the source
         published one; the rest are standings rows with a legend. Card and legend names are matched
-        against the catalog on ingest.
+        against the catalog on ingest. A field the file leaves out is claimed by nothing and stays
+        with whichever source publishes it.
       </p>
       <pre className="bg-muted overflow-x-auto rounded-md p-3">
         <code>{EXAMPLE_UPLOAD_JSON}</code>

@@ -4,6 +4,7 @@ import type {
   MetaEntryStatus,
   MetaEventOverlayField,
   MetaListStatus,
+  MetaOverlayStatus,
   MetaPlayerOverlayField,
 } from "@openrift/shared/types";
 import { META_EVENT_TIERS } from "@openrift/shared/types";
@@ -12,6 +13,7 @@ import type { Insertable } from "kysely";
 import type { MetaEventPlayerOverlaysTable } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
+import { sourceEventKeyPrefix } from "../repositories/meta-overlays.js";
 import { promoteMetaEvent, promoteNewEvent } from "./meta-promote.js";
 
 /**
@@ -102,6 +104,137 @@ export async function acceptMetaEventOverlay(
   await promoteMetaEvent(repos, promoted.metaEventId);
 
   return { metaEventId: promoted.metaEventId, created: promoted.created };
+}
+
+export async function moveMetaEventOverlay(
+  repos: Repos,
+  overlayId: string,
+  intoMetaEventId: string,
+): Promise<MetaOverlayReviewResult> {
+  const overlay = await repos.metaOverlays.eventOverlayById(overlayId);
+  if (overlay === undefined) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "That overlay no longer exists.");
+  }
+  if (overlay.provider === null || overlay.externalId === null) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      "Only a provider's upload can be moved; a person's overlay is a correction to one event.",
+    );
+  }
+  if (overlay.metaEventId === intoMetaEventId) {
+    return { metaEventId: intoMetaEventId, created: false };
+  }
+  const target = await repos.meta.eventById(intoMetaEventId);
+  if (target === undefined) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "That archived event no longer exists.");
+  }
+
+  const leaving = overlay.metaEventId;
+  await repos.metaOverlays.reanchorPlayerOverlays(
+    overlay.provider,
+    overlay.externalId,
+    intoMetaEventId,
+  );
+  await repos.metaOverlays.updateEventOverlay(overlayId, { metaEventId: intoMetaEventId });
+  if (leaving !== null) {
+    await promoteMetaEvent(repos, leaving);
+  }
+  await promoteMetaEvent(repos, intoMetaEventId);
+  return { metaEventId: intoMetaEventId, created: false };
+}
+
+export interface MetaUploadSummary {
+  eventOverlayId: string;
+  provider: string;
+  externalId: string;
+  status: MetaOverlayStatus;
+  /** ISO 8601, as every other wire timestamp. */
+  acceptedAt: string | null;
+  acceptedPlayers: number;
+  pendingPlayers: number;
+  mintedPlayers: number;
+}
+
+export async function listMetaUploadsForEvent(
+  repos: Repos,
+  metaEventId: string,
+): Promise<MetaUploadSummary[]> {
+  const overlays = await repos.metaOverlays.pushOverlaysForEvent(metaEventId);
+  const allPlayers = await repos.metaOverlays.playerOverlaysForSourceEvents(overlays);
+  const accepted = allPlayers.filter((player) => player.status === "accepted");
+  const minted = await repos.meta.mintedPlayerCounts(accepted.map((player) => player.id));
+  return overlays.map((overlay) => {
+    const prefix = sourceEventKeyPrefix(overlay.externalId);
+    const players = allPlayers.filter(
+      (player) =>
+        player.provider === overlay.provider && player.sourcePlayerKey?.startsWith(prefix) === true,
+    );
+    return {
+      eventOverlayId: overlay.id,
+      provider: overlay.provider,
+      externalId: overlay.externalId,
+      status: overlay.status,
+      acceptedAt: overlay.acceptedAt?.toISOString() ?? null,
+      acceptedPlayers: players.filter((player) => player.status === "accepted").length,
+      pendingPlayers: players.filter((player) => player.status === "pending").length,
+      mintedPlayers: players.reduce((sum, player) => sum + (minted.get(player.id) ?? 0), 0),
+    };
+  });
+}
+
+export interface MetaUploadRevertResult {
+  metaEventIds: string[];
+  players: number;
+  eventRejected: boolean;
+}
+
+/**
+ * Rejects one upload whole, event overlay and every standings overlay it
+ * wrote. Nothing is deleted, so a corrected file can be accepted again.
+ */
+export async function revertMetaUpload(
+  repos: Repos,
+  provider: string,
+  eventExternalId: string,
+  now: Date = new Date(),
+): Promise<MetaUploadRevertResult> {
+  const players = await repos.metaOverlays.playerOverlaysForSourceEvent(provider, eventExternalId);
+  const [eventOverlay] = await repos.metaOverlays.eventOverlaysBySourceKeys(provider, [
+    eventExternalId,
+  ]);
+  if (eventOverlay === undefined && players.length === 0) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "No upload with that source key exists.");
+  }
+
+  const affected = new Set<string>();
+  for (const player of players) {
+    const metaEventId = await eventIdForPlayerOverlay(repos, player);
+    if (metaEventId !== null) {
+      affected.add(metaEventId);
+    }
+  }
+  if (eventOverlay !== undefined && eventOverlay.metaEventId !== null) {
+    affected.add(eventOverlay.metaEventId);
+  }
+
+  const settled = players.filter((player) => player.status !== "rejected");
+  await repos.metaOverlays.setPlayerOverlayStatuses(
+    settled.map((player) => player.id),
+    "rejected",
+    now,
+  );
+  let eventRejected = false;
+  if (eventOverlay !== undefined && eventOverlay.status !== "rejected") {
+    await repos.metaOverlays.setEventOverlayStatus(eventOverlay.id, "rejected", now);
+    eventRejected = true;
+  }
+
+  for (const metaEventId of affected) {
+    await promoteMetaEvent(repos, metaEventId);
+  }
+
+  return { metaEventIds: [...affected], players: settled.length, eventRejected };
 }
 
 export interface MetaEventFieldEdit {

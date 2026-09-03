@@ -179,6 +179,54 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
     expect(row.championCardId).toBe(cardId("imo-champion"));
   });
 
+  it("claims only the event fields the upload carries", async () => {
+    await upload(eventBody({ externalId: "imo-evt-sparse" }));
+
+    const [row] = await db
+      .selectFrom("metaEventOverlays")
+      .selectAll()
+      .where("provider", "=", PROVIDER)
+      .where("externalId", "=", "imo-evt-sparse")
+      .execute();
+
+    expect(row.claimedFields).toEqual(["name", "eventDate", "format", "playerCount", "organizer"]);
+  });
+
+  it("claims a standings column only where the source published one", async () => {
+    await upload(
+      eventBody({
+        externalId: "imo-evt-records",
+        players: [
+          {
+            externalId: "pr1",
+            playerName: "IMO Recorded",
+            rank: 1,
+            wins: 5,
+            entryStatus: "complete",
+          },
+          { externalId: "pr2", playerName: "IMO Placed", rank: 2 },
+        ],
+      }),
+    );
+
+    const rows = await db
+      .selectFrom("metaEventPlayerOverlays")
+      .select(["sourcePlayerKey", "claimedFields"])
+      .where("provider", "=", PROVIDER)
+      .where("sourcePlayerKey", "in", [
+        playerSourceKey("imo-evt-records", "pr1"),
+        playerSourceKey("imo-evt-records", "pr2"),
+      ])
+      .orderBy("sourcePlayerKey", "asc")
+      .execute();
+    const claims = (key: string) =>
+      rows.find((row) => row.sourcePlayerKey === playerSourceKey("imo-evt-records", key))
+        ?.claimedFields;
+
+    expect(claims("pr1")).toEqual(["playerName", "rank", "rankIsTier", "wins", "entryStatus"]);
+    expect(claims("pr2")).toEqual(["playerName", "rank", "rankIsTier"]);
+  });
+
   it("leaves a standings-only row claiming no list status at all", async () => {
     await upload(eventBody());
 

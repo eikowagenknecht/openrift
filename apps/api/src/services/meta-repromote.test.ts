@@ -10,6 +10,7 @@ function promoted(metaEventId: string, errors: string[] = []) {
   return {
     metaEventId,
     players: 0,
+    removedPlayers: 0,
     decks: 0,
     matches: 0,
     phases: 0,

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admin-table";
+import { MetaEventUploadsPanel } from "@/components/admin/meta-event-uploads-panel";
 import { MetaPlayerDialog } from "@/components/admin/meta-player-dialog";
 import { MetaPublicLinkButton } from "@/components/admin/meta-public-link";
 import {
@@ -268,6 +269,8 @@ export function MetaEventPlayersPage({ eventId }: { eventId: string }) {
           }),
         }}
       />
+
+      <MetaEventUploadsPanel eventId={eventId} />
 
       {dialog && (
         <MetaPlayerDialog

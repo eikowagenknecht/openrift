@@ -15,6 +15,7 @@ import {
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
   META_EVENT_SOURCE_FILTERS,
+  META_OVERLAY_STATUSES,
   META_PLAYER_OVERLAY_FIELDS,
 } from "../../types/enums.js";
 import { authedRoute } from "../_base.js";
@@ -539,7 +540,28 @@ export const metaEventMatchSuggestionSchema = z
   })
   .openapi("MetaEventMatchSuggestion");
 
-/** One live standings row an unanchored player overlay might describe, inside its event. */
+export const metaUploadSummarySchema = z
+  .object({
+    eventOverlayId: z.string(),
+    provider: z.string(),
+    externalId: z.string(),
+    status: z.enum(META_OVERLAY_STATUSES),
+    acceptedAt: isoDateTime.nullable(),
+    acceptedPlayers: z.number().int(),
+    pendingPlayers: z.number().int(),
+    mintedPlayers: z.number().int(),
+  })
+  .openapi("MetaUploadSummary");
+
+export const metaUploadRevertResultSchema = z
+  .object({
+    metaEventIds: z.array(z.string()),
+    players: z.number().int(),
+    eventRejected: z.boolean(),
+  })
+  .openapi("MetaUploadRevertResult");
+
+/** One live standings row a player overlay might describe, inside its event. */
 export const metaPlayerMatchSuggestionSchema = z
   .object({
     metaEventPlayerId: z.string(),
@@ -550,6 +572,7 @@ export const metaPlayerMatchSuggestionSchema = z
     deckId: z.string().nullable(),
     score: z.number(),
     reasons: z.array(z.string()),
+    isCurrent: z.boolean(),
   })
   .openapi("MetaPlayerMatchSuggestion");
 
@@ -871,6 +894,16 @@ export const adminMetaCandidatesContract = {
     })
     .output(metaOverlayReviewResultSchema),
 
+  /** Points an upload at another archived event, keeping its status, and re-promotes both. */
+  moveEventOverlay: authedRoute
+    .route({ method: "POST", path: `${BASE}/overlays/events/{id}/move`, tags: [OVERLAY_TAG] })
+    .input(idParamSchema.extend({ metaEventId: z.string() }))
+    .errors({
+      NOT_FOUND: { message: "Overlay or archived event not found" },
+      BAD_REQUEST: { message: "Only a provider's upload can be moved" },
+    })
+    .output(metaOverlayReviewResultSchema),
+
   acceptPlayerOverlay: authedRoute
     .route({ method: "POST", path: `${BASE}/overlays/players/{id}/accept`, tags: [OVERLAY_TAG] })
     .input(idParamSchema)
@@ -896,6 +929,18 @@ export const adminMetaCandidatesContract = {
     .input(idParamSchema.extend({ kind: z.enum(["event", "player"]) }))
     .errors({ NOT_FOUND: { message: "Overlay not found" } })
     .output(metaOverlayReviewResultSchema),
+
+  eventUploads: authedRoute
+    .route({ method: "GET", path: `${BASE}/events/{id}/uploads`, tags: [OVERLAY_TAG] })
+    .input(idParamSchema)
+    .output(z.object({ uploads: z.array(metaUploadSummarySchema) })),
+
+  /** Rejects an upload's event overlay and every standings overlay it wrote; nothing is deleted. */
+  revertUpload: authedRoute
+    .route({ method: "POST", path: `${BASE}/uploads/revert`, tags: [OVERLAY_TAG] })
+    .input(z.object({ provider: z.string().min(1), externalId: z.string().min(1) }))
+    .errors({ NOT_FOUND: { message: "No upload with that source key" } })
+    .output(metaUploadRevertResultSchema),
 
   ignoreEvent: authedRoute
     .route({ method: "POST", path: `${BASE}/source-events/ignore`, tags: [OVERLAY_TAG] })

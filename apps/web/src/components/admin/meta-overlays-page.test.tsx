@@ -375,15 +375,13 @@ describe("MetaOverlaysPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("marks an anchored overlay as linked instead of offering the link panel", () => {
+  it("marks an anchored overlay as linked and still offers the link panel", () => {
     captured.overlays = [overlay({ metaEventPlayerId: "row-7" })];
 
     render(<MetaOverlaysPage />);
 
     expect(screen.getByText("linked")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Link to a standings row/u }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Link to a standings row/u })).toBeInTheDocument();
   });
 
   it("links a standings overlay to the row a suggestion names", async () => {

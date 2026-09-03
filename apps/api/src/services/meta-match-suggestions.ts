@@ -36,6 +36,7 @@ export interface MetaEventMatchSuggestion {
 
 export interface MetaPlayerMatchSuggestion {
   metaEventPlayerId: string;
+  isCurrent: boolean;
   playerName: string;
   rank: number;
   rankIsTier: boolean;
@@ -213,17 +214,12 @@ export function scorePlayerMatch(
   return { score, reasons, playerMatched: similarity > 0 };
 }
 
-/**
- * The live events an unlinked candidate event probably describes, best first.
- * The date window is the only filter SQL applies; the scoring stays a pure
- * function over the rows it returns, so it is testable without a database.
- */
 export async function suggestMetaEventMatches(
   repos: Repos,
   eventOverlayId: string,
 ): Promise<MetaEventMatchSuggestion[]> {
   const candidate = await repos.metaOverlays.eventOverlayById(eventOverlayId);
-  if (candidate === undefined || candidate.metaEventId !== null) {
+  if (candidate === undefined) {
     return [];
   }
   // A proposal that names neither a date nor a format cannot be scored: both
@@ -243,14 +239,17 @@ export async function suggestMetaEventMatches(
   return rankEventMatches(
     { name: candidate.name, eventDate: candidate.eventDate, format: candidate.format },
     rows,
+    candidate.metaEventId,
   );
 }
 
 export function rankEventMatches(
   candidate: MetaEventMatchInput,
   events: readonly MetaEventWithCounts[],
+  currentMetaEventId: string | null = null,
 ): MetaEventMatchSuggestion[] {
   return events
+    .filter((event) => event.id !== currentMetaEventId)
     .map((event) => ({ event, ...scoreEventMatch(candidate, event) }))
     .filter((row) => row.withinWindow && row.score >= MIN_EVENT_SCORE)
     .toSorted((a, b) => b.score - a.score || a.event.name.localeCompare(b.event.name))
@@ -267,21 +266,19 @@ export function rankEventMatches(
     }));
 }
 
-/**
- * The live standings rows an unlinked candidate player probably describes, best
- * first. Scoped to the live event the candidate's own event resolves to,
- * because a candidate may only ever link inside its own event.
- */
 export async function suggestMetaPlayerMatches(
   repos: Repos,
   playerOverlayId: string,
 ): Promise<MetaPlayerMatchSuggestion[]> {
   const candidate = await repos.metaOverlays.playerOverlayById(playerOverlayId);
-  if (candidate === undefined || candidate.metaEventPlayerId !== null) {
+  if (candidate === undefined) {
     return [];
   }
 
   let metaEventId = candidate.metaEventId;
+  if (metaEventId === null && candidate.metaEventPlayerId !== null) {
+    metaEventId = (await repos.meta.eventIdForPlayer(candidate.metaEventPlayerId)) ?? null;
+  }
   if (metaEventId === null && candidate.eventOverlayId !== null) {
     const parent = await repos.metaOverlays.eventOverlayById(candidate.eventOverlayId);
     metaEventId = parent?.metaEventId ?? null;
@@ -294,17 +291,31 @@ export async function suggestMetaPlayerMatches(
     return [];
   }
   const players = await repos.meta.adminPlayersForEvent(metaEventId);
-  return rankPlayerMatches({ playerName: candidate.playerName, rank: candidate.rank }, players);
+  return rankPlayerMatches(
+    { playerName: candidate.playerName, rank: candidate.rank },
+    players,
+    candidate.metaEventPlayerId,
+  );
 }
 
 export function rankPlayerMatches(
   candidate: MetaPlayerMatchInput,
   players: readonly AdminMetaPlayerRow[],
+  currentPlayerId: string | null = null,
 ): MetaPlayerMatchSuggestion[] {
   return players
-    .map((player) => ({ player, ...scorePlayerMatch(candidate, player) }))
-    .filter((row) => row.playerMatched)
-    .toSorted((a, b) => b.score - a.score || a.player.playerName.localeCompare(b.player.playerName))
+    .map((player) => ({
+      player,
+      isCurrent: player.id === currentPlayerId,
+      ...scorePlayerMatch(candidate, player),
+    }))
+    .filter((row) => row.playerMatched || row.isCurrent)
+    .toSorted(
+      (a, b) =>
+        Number(b.isCurrent) - Number(a.isCurrent) ||
+        b.score - a.score ||
+        a.player.playerName.localeCompare(b.player.playerName),
+    )
     .slice(0, MAX_SUGGESTIONS)
     .map((row) => ({
       metaEventPlayerId: row.player.id,
@@ -314,5 +325,6 @@ export function rankPlayerMatches(
       deckId: row.player.deckId,
       score: row.score,
       reasons: row.reasons,
+      isCurrent: row.isCurrent,
     }));
 }

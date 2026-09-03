@@ -358,6 +358,9 @@ export const queryKeys = {
       // The event's citation list. Nested under `events` so an event write that
       // invalidates the list refetches the citations of whichever event is open.
       eventSources: (eventId: string) => ["admin", "meta", "events", eventId, "sources"] as const,
+      // The uploads feeding one event. Nested under `events` for the same
+      // reason the citations are: settling one refetches with the event.
+      eventUploads: (eventId: string) => ["admin", "meta", "events", eventId, "uploads"] as const,
       // The overlay review queue (ADR-014 revision 3). The suggestion keys nest
       // under it on purpose, so settling an overlay also refetches the ranked
       // targets that settling invalidates.

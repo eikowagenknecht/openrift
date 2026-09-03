@@ -368,6 +368,7 @@ export interface MetaEventPlayerInput {
   championCardId: string | null;
   /** The promotion identity this row is filed under; null for hand-entered rows. */
   sourceIdentity?: string | null;
+  mintedByOverlayId?: string | null;
   /** Null leaves the entry standings-only, which is what most of a field is. */
   deck: MetaArchivedDeckInput | null;
 }
@@ -1476,6 +1477,7 @@ export function metaRepo(db: Kysely<Database>) {
             legendCardId: input.legendCardId,
             championCardId: input.championCardId,
             sourceIdentity: input.sourceIdentity ?? null,
+            mintedByOverlayId: input.mintedByOverlayId ?? null,
           })
           .returning("id")
           .executeTakeFirstOrThrow();
@@ -1678,6 +1680,36 @@ export function metaRepo(db: Kysely<Database>) {
         await trx.deleteFrom("decks").where("id", "=", player.deckId).execute();
         return true;
       });
+    },
+
+    async orphanMintedPlayerIds(metaEventId: string): Promise<string[]> {
+      const rows = await db
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("metaEventPlayerOverlays as o", "o.id", "p.mintedByOverlayId")
+        .select("p.id")
+        .where("p.metaEventId", "=", metaEventId)
+        .where((eb) =>
+          eb.or([
+            eb("o.status", "=", "rejected"),
+            sql<boolean>`o.meta_event_player_id IS DISTINCT FROM p.id`,
+          ]),
+        )
+        .execute();
+      return rows.map((row) => row.id);
+    },
+
+    async mintedPlayerCounts(overlayIds: readonly string[]): Promise<Map<string, number>> {
+      if (overlayIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("metaEventPlayers")
+        .select(["mintedByOverlayId", (eb) => eb.fn.countAll<string>().as("count")])
+        .where("mintedByOverlayId", "in", [...overlayIds])
+        .groupBy("mintedByOverlayId")
+        .$narrowType<{ mintedByOverlayId: string }>()
+        .execute();
+      return new Map(rows.map((row) => [row.mintedByOverlayId, Number(row.count)]));
     },
 
     deletePlayer(playerId: string): Promise<boolean> {

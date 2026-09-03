@@ -6,6 +6,8 @@ import type {
   MetaPlayerMatchSuggestion,
   MetaUploadBody,
   MetaUploadResponse,
+  MetaUploadRevertResult,
+  MetaUploadSummary,
 } from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -243,6 +245,23 @@ export function useAcceptMetaEventOverlay() {
   });
 }
 
+const moveEventOverlayFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .validator(
+    (input: ContractInput<typeof adminMetaCandidatesContract, "moveEventOverlay">) => input,
+  )
+  .handler(({ context, data }): Promise<MetaOverlayReviewResult> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).moveEventOverlay(data),
+  );
+
+export function useMoveMetaEventOverlay() {
+  return useMutationWithInvalidation({
+    mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "moveEventOverlay">) =>
+      moveEventOverlayFn({ data: input }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
 const acceptPlayerOverlayFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .validator((id: string) => id)
@@ -276,6 +295,36 @@ export function useLinkMetaPlayerOverlay() {
   return useMutationWithInvalidation({
     mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "linkPlayerOverlay">) =>
       linkPlayerOverlayFn({ data: input }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const fetchEventUploads = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .validator((id: string) => id)
+  .handler(({ context, data }): Promise<{ uploads: MetaUploadSummary[] }> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).eventUploads({ id: data }),
+  );
+
+export function useMetaEventUploads(eventId: string) {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.eventUploads(eventId),
+    queryFn: () => fetchEventUploads({ data: eventId }),
+    staleTime: 60 * 1000,
+  });
+}
+
+const revertUploadFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .validator((input: ContractInput<typeof adminMetaCandidatesContract, "revertUpload">) => input)
+  .handler(({ context, data }): Promise<MetaUploadRevertResult> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).revertUpload(data),
+  );
+
+export function useRevertMetaUpload() {
+  return useMutationWithInvalidation({
+    mutationFn: (input: ContractInput<typeof adminMetaCandidatesContract, "revertUpload">) =>
+      revertUploadFn({ data: input }),
     invalidates: ALL_META_KEYS,
   });
 }
@@ -443,9 +492,8 @@ const fetchEventSuggestions = createServerFn({ method: "GET" })
   );
 
 /**
- * Ranked hints for which live event a proposal is, never applied
- * automatically. Comes back empty for an overlay that already patches a live
- * event, so callers need not know which they hold.
+ * Ranked hints for which live event an overlay describes, never applied
+ * automatically. An overlay already on an event is ranked minus that event.
  *
  * @param overlayId - The event overlay being reviewed.
  * @returns The query holding the suggestions and the day window they were

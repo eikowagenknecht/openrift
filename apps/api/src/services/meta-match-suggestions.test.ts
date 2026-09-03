@@ -197,6 +197,15 @@ describe("rankEventMatches", () => {
   it("returns nothing for an empty archive", () => {
     expect(rankEventMatches(CANDIDATE, [])).toEqual([]);
   });
+
+  it("never offers the event an upload already sits on, which is not a move", () => {
+    const ranked = rankEventMatches(
+      CANDIDATE,
+      [event({ id: "current" }), event({ id: "other" })],
+      "current",
+    );
+    expect(ranked.map((row) => row.metaEventId)).toEqual(["other"]);
+  });
 });
 
 describe("scorePlayerMatch", () => {
@@ -255,6 +264,16 @@ describe("rankPlayerMatches", () => {
     expect(ranked[0]).toMatchObject({ rank: 8, rankIsTier: true });
   });
 
+  it("keeps the row the overlay is anchored to, however little the names share", () => {
+    const ranked = rankPlayerMatches(
+      { playerName: "Nova", rank: 1 },
+      [player({ id: "wrong", playerName: "Ekko" }), player({ id: "right", playerName: "Nova" })],
+      "wrong",
+    );
+    expect(ranked.map((row) => row.metaEventPlayerId)).toEqual(["wrong", "right"]);
+    expect(ranked.map((row) => row.isCurrent)).toEqual([true, false]);
+  });
+
   it("offers nothing when no player name overlaps", () => {
     expect(
       rankPlayerMatches({ playerName: "Nova", rank: 1 }, [player({ playerName: "Ekko" })]),
@@ -310,11 +329,15 @@ describe("suggestMetaEventMatches", () => {
     expect(suggestions.map((row) => row.name)).toEqual(["Summoner Skirmish Berlin"]);
   });
 
-  it("suggests nothing for a candidate that is already linked, without querying at all", async () => {
-    const { repos: r, listEvents } = repos({ ...candidate, metaEventId: "live-1" });
+  it("ranks a linked candidate too, minus the event it is on, which is what a move picks from", async () => {
+    const { repos: r } = repos({ ...candidate, metaEventId: "live-1" }, [
+      event({ id: "live-1", name: "Summoner Skirmish Berlin" }),
+      event({ id: "live-2", name: "Summoner Skirmish Berlin" }),
+    ]);
 
-    expect(await suggestMetaEventMatches(r, CANDIDATE_ID)).toEqual([]);
-    expect(listEvents).not.toHaveBeenCalled();
+    const suggestions = await suggestMetaEventMatches(r, CANDIDATE_ID);
+
+    expect(suggestions.map((row) => row.metaEventId)).toEqual(["live-2"]);
   });
 
   it("suggests nothing for a candidate id that resolves to no row", async () => {

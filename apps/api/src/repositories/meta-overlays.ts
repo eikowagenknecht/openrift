@@ -28,11 +28,28 @@ import type {
 
 export type MetaEventOverlayRow = Selectable<MetaEventOverlaysTable>;
 export type MetaPlayerOverlayRow = Selectable<MetaEventPlayerOverlaysTable>;
+/** An event overlay a push provider wrote; the key-shape CHECK makes both halves non-null together. */
+export type MetaPushEventOverlayRow = MetaEventOverlayRow & {
+  provider: string;
+  externalId: string;
+};
 export type MetaOverlayCardRow = Selectable<MetaEventPlayerOverlayCardsTable>;
 
 export interface MetaSourcePlayerKey {
   eventExternalId: string;
   externalId: string;
+}
+
+/** The `<length>:<eventExternalId>` half every one of an event's player keys starts with. */
+export function sourceEventKeyPrefix(eventExternalId: string): string {
+  return `${eventExternalId.length}:${eventExternalId}`;
+}
+
+function escapeLike(value: string): string {
+  return value
+    .replaceAll("\\", String.raw`\\`)
+    .replaceAll("%", String.raw`\%`)
+    .replaceAll("_", String.raw`\_`);
 }
 
 /** A player overlay with the card lines it claims, which the review queue needs together. */
@@ -63,6 +80,18 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .where("status", "=", "accepted")
         .orderBy("acceptedAt", "asc")
         .orderBy("id", "asc")
+        .execute();
+    },
+
+    pushOverlaysForEvent(metaEventId: string): Promise<MetaPushEventOverlayRow[]> {
+      return db
+        .selectFrom("metaEventOverlays")
+        .selectAll()
+        .where("metaEventId", "=", metaEventId)
+        .where("provider", "is not", null)
+        .$narrowType<{ provider: string; externalId: string }>()
+        .orderBy("provider", "asc")
+        .orderBy("externalId", "asc")
         .execute();
     },
 
@@ -336,11 +365,94 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
 
     // ── Review ──────────────────────────────────────────────────────────────
 
+    playerOverlaysForSourceEvent(
+      provider: string,
+      eventExternalId: string,
+    ): Promise<MetaPlayerOverlayRow[]> {
+      return db
+        .selectFrom("metaEventPlayerOverlays")
+        .selectAll()
+        .where("provider", "=", provider)
+        .where("sourcePlayerKey", "like", `${escapeLike(sourceEventKeyPrefix(eventExternalId))}%`)
+        .execute();
+    },
+
+    /** The standings overlays of several uploads in one query; group them by {@link sourceEventKeyPrefix}. */
+    playerOverlaysForSourceEvents(
+      keys: readonly { provider: string; externalId: string }[],
+    ): Promise<MetaPlayerOverlayRow[]> {
+      if (keys.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("metaEventPlayerOverlays")
+        .selectAll()
+        .where((eb) =>
+          eb.or(
+            keys.map((key) =>
+              eb.and([
+                eb("provider", "=", key.provider),
+                eb(
+                  "sourcePlayerKey",
+                  "like",
+                  `${escapeLike(sourceEventKeyPrefix(key.externalId))}%`,
+                ),
+              ]),
+            ),
+          ),
+        )
+        .execute();
+    },
+
+    async reanchorPlayerOverlays(
+      provider: string,
+      eventExternalId: string,
+      metaEventId: string,
+    ): Promise<number> {
+      const result = await db
+        .updateTable("metaEventPlayerOverlays")
+        .set({ metaEventId, metaEventPlayerId: null, eventOverlayId: null })
+        .where("provider", "=", provider)
+        .where("sourcePlayerKey", "like", `${escapeLike(sourceEventKeyPrefix(eventExternalId))}%`)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
+    },
+
+    /**
+     * Frees the overlays anchored to a row about to be deleted, parking them on
+     * the event: the anchor FK cascades, and a rejected overlay has to outlive
+     * the row it minted so a corrected file can be accepted again.
+     */
+    async unanchorPlayerOverlays(metaEventPlayerId: string, metaEventId: string): Promise<number> {
+      const result = await db
+        .updateTable("metaEventPlayerOverlays")
+        .set({ metaEventPlayerId: null, metaEventId })
+        .where("metaEventPlayerId", "=", metaEventPlayerId)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
+    },
+
     /**
      * Settling an overlay is a status change, never a delete: a rejected patch
      * stays visible to whoever submitted it, and an accepted one has to survive
      * every future re-promote.
      */
+    async setPlayerOverlayStatuses(
+      ids: readonly string[],
+      status: MetaOverlayStatus,
+      now: Date,
+    ): Promise<number> {
+      if (ids.length === 0) {
+        return 0;
+      }
+      const result = await db
+        .updateTable("metaEventPlayerOverlays")
+        .set({ status, acceptedAt: status === "accepted" ? now : null })
+        .where("id", "in", [...ids])
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows);
+    },
+
     async setEventOverlayStatus(
       id: string,
       status: MetaOverlayStatus,

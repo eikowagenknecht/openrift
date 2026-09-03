@@ -49,6 +49,7 @@ vi.mock("@/hooks/use-admin-meta-overlays", () => ({
     },
     isPending: false,
   }),
+  useMetaEventUploads: () => ({ data: { uploads: [] } }),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock

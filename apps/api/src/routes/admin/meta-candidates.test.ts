@@ -18,6 +18,7 @@ vi.mock("../../services/meta-promote.js", async (importOriginal) => ({
     Promise.resolve({
       metaEventId: "e0000000-0001-4000-a000-000000000001",
       players: 0,
+      removedPlayers: 0,
       decks: 0,
       matches: 0,
       phases: 0,
@@ -830,6 +831,7 @@ describe("POST /meta/players/{id}/overlays", () => {
       return Promise.resolve({
         metaEventId: LIVE_EVENT_ID,
         players: 0,
+        removedPlayers: 0,
         decks: 0,
         matches: 0,
         phases: 0,

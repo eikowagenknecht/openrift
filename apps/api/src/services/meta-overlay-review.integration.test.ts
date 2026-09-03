@@ -8,8 +8,12 @@ import { createDbContext, seedTestUser, syncCardCardTypes } from "../test/integr
 import { playerSourceKey } from "./ingest-meta-overlays.js";
 import {
   acceptMetaEventOverlay,
+  acceptMetaPlayerOverlay,
+  linkMetaPlayerOverlay,
+  moveMetaEventOverlay,
   releaseEventOverlayField,
   releaseMetaPlayerOverlayField,
+  revertMetaUpload,
   writeEventOverlayFields,
   writeMetaPlayerOverlayFields,
 } from "./meta-overlay-review.js";
@@ -730,6 +734,125 @@ describe.skipIf(!ctx)("overlay review", () => {
         eventOverlayId: null,
       });
       expect(await repo.eventById(metaEventId)).toMatchObject({ organizer: "MOR Card Bazaar" });
+    });
+  });
+
+  describe("taking an upload back", () => {
+    async function acceptUpload(
+      externalId: string,
+      metaEventId: string,
+      playerName: string,
+    ): Promise<{ eventOverlayId: string; playerOverlayId: string }> {
+      const eventOverlayId = await repos.metaOverlays.insertEventOverlay({
+        metaEventId: null,
+        provider: "morpush",
+        externalId,
+        name: "MOR Summoner Skirmish",
+        eventDate: "2026-08-15",
+        format: "constructed",
+        organizer: "MOR Card Bazaar",
+        claimedFields: ["name", "eventDate", "format", "organizer"],
+        submittedByUserId: otherAdminId,
+      });
+      const playerOverlayId = await repos.metaOverlays.insertPlayerOverlay(
+        {
+          eventOverlayId,
+          playerName,
+          rank: 3,
+          claimedFields: ["playerName", "rank"],
+          provider: "morpush",
+          sourcePlayerKey: playerSourceKey(externalId, "p1"),
+          submittedByUserId: otherAdminId,
+        },
+        [],
+      );
+      await acceptMetaEventOverlay(repos, eventOverlayId, metaEventId);
+      await acceptMetaPlayerOverlay(repos, playerOverlayId);
+      return { eventOverlayId, playerOverlayId };
+    }
+
+    it("reverts a whole upload: claims released, minted rows taken back", async () => {
+      const metaEventId = await seedLiveEvent("mor-revert-upload");
+      await acceptUpload("mor-revert-evt", metaEventId, "MOR Nobody");
+
+      expect(await repo.rawStandingsForEvent(metaEventId)).toHaveLength(1);
+      expect(await repo.eventById(metaEventId)).toMatchObject({ organizer: "MOR Card Bazaar" });
+
+      const result = await revertMetaUpload(repos, "morpush", "mor-revert-evt");
+
+      expect(result).toMatchObject({ players: 1, eventRejected: true });
+      expect(await repo.rawStandingsForEvent(metaEventId)).toHaveLength(0);
+      expect(await repo.eventById(metaEventId)).toMatchObject({ organizer: null });
+    });
+
+    it("keeps the rejected overlays, so a corrected file can be accepted again", async () => {
+      const metaEventId = await seedLiveEvent("mor-revert-keeps-rows");
+      const { eventOverlayId, playerOverlayId } = await acceptUpload(
+        "mor-revert-keep",
+        metaEventId,
+        "MOR Kept",
+      );
+
+      await revertMetaUpload(repos, "morpush", "mor-revert-keep");
+
+      expect(await repos.metaOverlays.eventOverlayById(eventOverlayId)).toMatchObject({
+        status: "rejected",
+      });
+      expect(await repos.metaOverlays.playerOverlayById(playerOverlayId)).toMatchObject({
+        status: "rejected",
+        playerName: "MOR Kept",
+      });
+    });
+
+    it("moves an upload accepted into the wrong event, leaving nothing behind", async () => {
+      const wrong = await seedLiveEvent("mor-move-wrong");
+      const right = await seedLiveEvent("mor-move-right");
+      const { eventOverlayId, playerOverlayId } = await acceptUpload(
+        "mor-move-evt",
+        wrong,
+        "MOR Moved",
+      );
+
+      await moveMetaEventOverlay(repos, eventOverlayId, right);
+
+      expect(await repo.rawStandingsForEvent(wrong)).toHaveLength(0);
+      expect(await repo.eventById(wrong)).toMatchObject({ organizer: null });
+      expect(await repo.rawStandingsForEvent(right)).toHaveLength(1);
+      expect(await repo.eventById(right)).toMatchObject({ organizer: "MOR Card Bazaar" });
+      expect(await repos.metaOverlays.playerOverlayById(playerOverlayId)).toMatchObject({
+        metaEventId: right,
+      });
+    });
+
+    it("takes back the row a mis-linked overlay minted when it is linked to the right one", async () => {
+      const metaEventId = await seedLiveEvent("mor-relink");
+      const listed = await repo.createPlayer(
+        {
+          eventId: metaEventId,
+          rank: 1,
+          rankIsTier: false,
+          playerName: "MOR Listed",
+          wins: null,
+          losses: null,
+          draws: null,
+          legendCardId: null,
+          championCardId: null,
+          deck: null,
+        },
+        null,
+      );
+      const { playerOverlayId } = await acceptUpload("mor-relink-evt", metaEventId, "MOR Lsted");
+
+      expect(await repo.rawStandingsForEvent(metaEventId)).toHaveLength(2);
+
+      await linkMetaPlayerOverlay(repos, playerOverlayId, listed?.metaEventPlayerId ?? "");
+
+      const after = await repo.rawStandingsForEvent(metaEventId);
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({
+        id: listed?.metaEventPlayerId,
+        playerName: "MOR Lsted",
+      });
     });
   });
 });

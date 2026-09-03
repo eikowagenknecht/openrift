@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict rNF33BiszSZzcWj8Ywcm7i48BHGXrgwNoWSDEfTsyTIL7XtW56uJJddrhWiNy3f
+\restrict V06obrPfpjo0lsFy8gC6BiQe5HeTLJf9pgNO3dhKH7IpeTDoEffKmoDHkj5uKjH
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2343,6 +2343,7 @@ CREATE TABLE public.meta_event_players (
     opponent_game_win_pct double precision,
     entry_status text,
     source_identity text,
+    minted_by_overlay_id uuid,
     CONSTRAINT chk_meta_event_players_deck_status CHECK (((deck_id IS NULL) = (list_status = 'none'::text))),
     CONSTRAINT chk_meta_event_players_entry_status CHECK (((entry_status IS NULL) OR (entry_status = ANY (ARRAY['complete'::text, 'eliminated'::text, 'dropped'::text])))),
     CONSTRAINT chk_meta_event_players_identity CHECK (((player_name IS NOT NULL) OR (uvsgames_player_id IS NOT NULL))),
@@ -5760,6 +5761,13 @@ CREATE INDEX idx_meta_event_players_legend ON public.meta_event_players USING bt
 
 
 --
+-- Name: idx_meta_event_players_minted_by; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_meta_event_players_minted_by ON public.meta_event_players USING btree (minted_by_overlay_id) WHERE (minted_by_overlay_id IS NOT NULL);
+
+
+--
 -- Name: idx_meta_event_sources_event; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -8296,6 +8304,14 @@ ALTER TABLE ONLY public.meta_event_players
 
 
 --
+-- Name: meta_event_players meta_event_players_minted_by_overlay_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT meta_event_players_minted_by_overlay_id_fkey FOREIGN KEY (minted_by_overlay_id) REFERENCES public.meta_event_player_overlays(id) ON DELETE SET NULL;
+
+
+--
 -- Name: meta_event_players meta_event_players_uvsgames_player_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8843,5 +8859,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rNF33BiszSZzcWj8Ywcm7i48BHGXrgwNoWSDEfTsyTIL7XtW56uJJddrhWiNy3f
+\unrestrict V06obrPfpjo0lsFy8gC6BiQe5HeTLJf9pgNO3dhKH7IpeTDoEffKmoDHkj5uKjH
 
