@@ -287,6 +287,7 @@ export function toMetaEventPhase(row: MetaEventPhaseRow): MetaEventPhase {
     roundType: row.roundType,
     roundCount: row.roundCount,
     rankRequired: row.rankRequired,
+    maxGameWins: row.maxGameWins,
   };
 }
 

@@ -1,6 +1,7 @@
 import { imageUrl } from "@openrift/shared";
 
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+import { cn } from "@/lib/utils";
 
 /**
  * A legend's splash beside a record. The crop is pulled toward the top third,
@@ -30,13 +31,21 @@ export function MetaHeroArt({ imageId, alt }: { imageId: string | null; alt: str
 }
 
 /** One number an archive hero states about what the page's record holds. */
-export function MetaHeroCounter({ value, label }: { value: number; label: string }) {
+export function MetaHeroCounter({
+  value,
+  label,
+  className,
+}: {
+  value: number | string;
+  label: string;
+  className?: string;
+}) {
   return (
     <p className="flex flex-col gap-0.5">
-      <span className="font-heading text-2xl leading-none font-bold tabular-nums">
+      <span className={cn("font-heading text-2xl leading-none font-bold tabular-nums", className)}>
         {/* Pinned grouping: the page is server-rendered, and a server on another
             default locale would send "1.247" into a browser rendering "1,247". */}
-        {value.toLocaleString("en-US")}
+        {typeof value === "number" ? value.toLocaleString("en-US") : value}
       </span>
       <span className="text-muted-foreground text-xs">{label}</span>
     </p>

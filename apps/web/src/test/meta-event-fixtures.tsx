@@ -89,6 +89,7 @@ export function metaPhase(overrides: Partial<MetaEventPhase> = {}): MetaEventPha
     roundType: "RANKED_SINGLE_ELIMINATION",
     roundCount: 3,
     rankRequired: 8,
+    maxGameWins: 2,
     ...overrides,
   };
 }

@@ -204,6 +204,8 @@ export const metaEventPhaseSchema = z
     roundCount: z.number().int().nullable(),
     /** The standing that entered this phase — 8 for a Top 8. */
     rankRequired: z.number().int().nullable(),
+    /** Game wins a match of this phase took: 2 for best-of-three. Null when the source said nothing. */
+    maxGameWins: z.number().int().nullable(),
   })
   .openapi("MetaEventPhase");
 

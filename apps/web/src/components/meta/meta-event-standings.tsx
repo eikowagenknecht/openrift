@@ -1,4 +1,4 @@
-import type { MetaEventPlayer } from "@openrift/shared";
+import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
 import { todayUtc } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, SearchIcon } from "lucide-react";
@@ -19,6 +19,7 @@ import {
 } from "@/components/meta/meta-event-deck-preview";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaPlayerName } from "@/components/meta/meta-player-name";
+import { MetaRunStrip } from "@/components/meta/meta-run-strip";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,8 @@ import { useMetaPriceFormat } from "@/hooks/use-meta-price-format";
 import { useUserId } from "@/lib/auth-session";
 import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import { formatRank, formatRecord, MEDAL_RANKS } from "@/lib/meta-format";
+import type { MetaPlayerRound } from "@/lib/meta-player-run";
+import { metaPlayerRounds } from "@/lib/meta-player-run";
 import {
   costMatchesBounds,
   countStandingsUnderCost,
@@ -90,6 +93,7 @@ function legendOptions(players: readonly MetaEventPlayer[]): Record<string, stri
 
 interface StandingsColumns {
   legend: boolean;
+  run: boolean;
   value: boolean;
   deck: boolean;
 }
@@ -97,10 +101,12 @@ interface StandingsColumns {
 function standingsColumns(
   players: readonly MetaEventPlayer[],
   canSubmit: boolean,
+  hasRuns: boolean,
 ): StandingsColumns {
   const anyList = players.some((player) => player.shareToken !== null);
   return {
     legend: players.some((player) => player.legend !== null || player.champion !== null),
+    run: hasRuns,
     value: anyList,
     deck: canSubmit || anyList,
   };
@@ -185,6 +191,38 @@ function LegendCell({ player }: { player: MetaEventPlayer }) {
   );
 }
 
+function RunCell({
+  player,
+  slug,
+  rounds,
+  className,
+}: {
+  player: MetaEventPlayer;
+  slug: string;
+  rounds: readonly MetaPlayerRound[] | undefined;
+  className?: string;
+}) {
+  if (rounds === undefined || rounds.length === 0) {
+    return null;
+  }
+  if (player.playerKey === null) {
+    return <MetaRunStrip rounds={rounds} className={className} />;
+  }
+  return (
+    <Link
+      to="/meta/$slug/players/$key"
+      params={{ slug, key: player.playerKey }}
+      className={cn(
+        "text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5",
+        className,
+      )}
+    >
+      <MetaRunStrip rounds={rounds} />
+      <ChevronRightIcon className="size-4" />
+    </Link>
+  );
+}
+
 function DeckCell({
   player,
   slug,
@@ -249,6 +287,7 @@ interface RowProps extends RowSlot {
   canSubmit: boolean;
   columns: StandingsColumns;
   costs: ReadonlyMap<string, MetaDeckCost> | undefined;
+  rounds: readonly MetaPlayerRound[] | undefined;
   expanded: boolean;
   onToggle: () => void;
 }
@@ -288,6 +327,7 @@ function DesktopRow({
   canSubmit,
   columns,
   costs,
+  rounds,
   expanded,
   onToggle,
   ...slot
@@ -315,6 +355,11 @@ function DesktopRow({
       <TableCell className="min-w-0 flex-1 truncate font-medium">
         <MetaPlayerName name={player.playerName} playerKey={player.playerKey} />
       </TableCell>
+      {columns.run && (
+        <TableCell className="w-52 shrink-0">
+          <RunCell player={player} slug={slug} rounds={rounds} />
+        </TableCell>
+      )}
       {columns.value && (
         <TableCell className="w-28 shrink-0 text-right">
           <DeckValue player={player} costs={costs} />
@@ -340,6 +385,7 @@ function PhoneRow({
   canSubmit,
   columns,
   costs,
+  rounds,
   expanded,
   onToggle,
   ...slot
@@ -378,6 +424,7 @@ function PhoneRow({
             domains={player.legend?.domains}
             className="text-muted-foreground text-xs"
           />
+          {columns.run && <RunCell player={player} slug={slug} rounds={rounds} className="mt-1" />}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-0.5 leading-tight">
           {columns.value && <DeckValue player={player} costs={costs} />}
@@ -474,6 +521,7 @@ interface StandingsBodyProps {
   canSubmit: boolean;
   columns: StandingsColumns;
   costs: ReadonlyMap<string, MetaDeckCost> | undefined;
+  rounds: ReadonlyMap<string, readonly MetaPlayerRound[]>;
   expandedId: string | null;
   onToggle: (id: string) => void;
 }
@@ -484,6 +532,7 @@ function DesktopStandings({
   canSubmit,
   columns,
   costs,
+  rounds,
   expandedId,
   onToggle,
 }: StandingsBodyProps) {
@@ -499,6 +548,7 @@ function DesktopStandings({
               <TableHead className="flex w-64 shrink-0 items-center">Legend</TableHead>
             )}
             <TableHead className="flex min-w-0 flex-1 items-center">Player</TableHead>
+            {columns.run && <TableHead className="flex w-52 shrink-0 items-center">Run</TableHead>}
             {columns.value && (
               <TableHead className="flex w-28 shrink-0 items-center justify-end">Value</TableHead>
             )}
@@ -519,6 +569,7 @@ function DesktopStandings({
               canSubmit={canSubmit}
               columns={columns}
               costs={costs}
+              rounds={rounds.get(player.id)}
               expanded={expandedId === player.id}
               onToggle={() => onToggle(player.id)}
             />
@@ -535,6 +586,7 @@ function PhoneStandings({
   canSubmit,
   columns,
   costs,
+  rounds,
   expandedId,
   onToggle,
 }: StandingsBodyProps) {
@@ -551,6 +603,7 @@ function PhoneStandings({
           canSubmit={canSubmit}
           columns={columns}
           costs={costs}
+          rounds={rounds.get(player.id)}
           expanded={expandedId === player.id}
           onToggle={() => onToggle(player.id)}
         />
@@ -575,10 +628,14 @@ function subtitleFor(total: number, withLists: number): string {
  */
 export function MetaEventStandings({
   players,
+  matches,
+  phases,
   slug,
   eventDate,
 }: {
   players: readonly MetaEventPlayer[];
+  matches: readonly MetaEventMatch[];
+  phases: readonly MetaEventPhase[];
   slug: string;
   /** UTC date. */
   eventDate: string;
@@ -613,7 +670,8 @@ export function MetaEventStandings({
     );
   }
 
-  const columns = standingsColumns(players, canSubmit);
+  const rounds = metaPlayerRounds(matches, phases);
+  const columns = standingsColumns(players, canSubmit, rounds.size > 0);
   const withLists = players.filter((player) => player.shareToken !== null).length;
   const needle = query.trim().toLowerCase();
   const legends = legendOptions(players);
@@ -638,6 +696,7 @@ export function MetaEventStandings({
     canSubmit,
     columns,
     costs,
+    rounds,
     expandedId,
     onToggle: toggle,
   };

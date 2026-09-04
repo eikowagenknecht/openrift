@@ -2,7 +2,7 @@ import type { MetaEventSource } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { metaEvent, metaPhase, metaPlayer } from "@/test/meta-event-fixtures";
+import { metaEvent, metaMatch, metaPhase, metaPlayer } from "@/test/meta-event-fixtures";
 
 vi.mock("@tanstack/react-router", async () => {
   const fixtures = await import("@/test/meta-event-fixtures");
@@ -47,13 +47,23 @@ const swiss = metaPhase({
 function renderHeader({
   event = metaEvent(),
   players = [],
+  matches = [],
   phases = [],
 }: {
   event?: ReturnType<typeof metaEvent>;
   players?: ReturnType<typeof metaPlayer>[];
+  matches?: ReturnType<typeof metaMatch>[];
   phases?: ReturnType<typeof metaPhase>[];
 } = {}) {
-  return render(<MetaEventHeader event={event} players={players} phases={phases} />);
+  return render(
+    <MetaEventHeader
+      event={event}
+      players={players}
+      matches={matches}
+      phases={phases}
+      slug="summoner-skirmish"
+    />,
+  );
 }
 
 function sourcesText(): string | null {
@@ -101,7 +111,9 @@ describe("MetaEventHeader facts", () => {
   it("bylines the organizer, the format and how the event was run", () => {
     renderHeader({ phases: [swiss, metaPhase()] });
     expect(
-      screen.getByText("Organized by LGS Berlin · Freeform · 6 Swiss rounds, then a top 8 cut"),
+      screen.getByText(
+        "Organized by LGS Berlin · Freeform · 6 Swiss rounds, best of 3, then a top 8 cut",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -122,6 +134,33 @@ describe("MetaEventHeader counters", () => {
   it("leaves out the field size no source published", () => {
     renderHeader({ event: metaEvent({ playerCount: null }) });
     expect(screen.queryByText("players in the field")).toBeNull();
+  });
+
+  it("counts the record of the last standing that made the cut", () => {
+    renderHeader({
+      players: [
+        metaPlayer({ id: "p-1", rank: 1, wins: 13, losses: 0, draws: 1 }),
+        metaPlayer({ id: "p-8", rank: 8, wins: 11, losses: 2, draws: 1 }),
+      ],
+      phases: [swiss, metaPhase()],
+    });
+    expect(counterValue("record at the cut line")).toBe("11-2-1");
+  });
+
+  it("leaves out the cut line for an event that ran no cut", () => {
+    renderHeader({
+      players: [metaPlayer({ id: "p-8", rank: 8, wins: 11, losses: 2, draws: 1 })],
+      phases: [swiss],
+    });
+    expect(screen.queryByText("record at the cut line")).toBeNull();
+  });
+
+  it("leaves out the cut line when the standings bucket the last cut place", () => {
+    renderHeader({
+      players: [metaPlayer({ id: "p-8", rank: 8, rankIsTier: true, wins: 11, losses: 2 })],
+      phases: [swiss, metaPhase()],
+    });
+    expect(screen.queryByText("record at the cut line")).toBeNull();
   });
 
   it("counts nothing against the cut", () => {
@@ -170,6 +209,29 @@ describe("MetaEventHeader champion plate", () => {
       "href",
       "/meta/players/u1001",
     );
+  });
+
+  it("leads the champion to their run through the event", () => {
+    renderHeader({
+      players: [winner],
+      matches: [metaMatch({ player1Id: "p-1", player2Id: "p-2" })],
+    });
+
+    const link = screen.getByRole("link", { name: /Road to the title/u });
+    expect(link).toHaveAttribute("href", "/meta/summoner-skirmish/players/u1001");
+  });
+
+  it("offers no run for a champion whose event filed no round-by-round results", () => {
+    renderHeader({ players: [winner] });
+    expect(screen.queryByRole("link", { name: /Road to the title/u })).toBeNull();
+  });
+
+  it("offers no run for a champion the source filed under no identity", () => {
+    renderHeader({
+      players: [metaPlayer({ id: "p-1", rank: 1, playerKey: null })],
+      matches: [metaMatch({ player1Id: "p-1", player2Id: "p-2" })],
+    });
+    expect(screen.queryByRole("link", { name: /Road to the title/u })).toBeNull();
   });
 
   it("prints a champion the source filed under no identity as plain text", () => {

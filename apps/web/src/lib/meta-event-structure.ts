@@ -5,6 +5,7 @@ import { isSingleElimination } from "@/lib/meta-bracket";
 export interface MetaEventStructure {
   swissRounds: number | null;
   cutSize: number | null;
+  bestOf: number | null;
   sentence: string | null;
 }
 
@@ -33,16 +34,32 @@ function swissRoundsOf(phases: readonly MetaEventPhase[]): number | null {
   return total === 0 ? null : total;
 }
 
-function sentenceFor(swissRounds: number | null, cutSize: number | null): string | null {
+function bestOfOf(phases: readonly MetaEventPhase[]): number | null {
+  const wins = new Set<number>();
+  for (const phase of phases) {
+    if (phase.maxGameWins !== null && phase.maxGameWins > 0) {
+      wins.add(phase.maxGameWins);
+    }
+  }
+  const [maxGameWins] = wins;
+  return wins.size === 1 && maxGameWins !== undefined ? maxGameWins * 2 - 1 : null;
+}
+
+function sentenceFor(
+  swissRounds: number | null,
+  cutSize: number | null,
+  bestOf: number | null,
+): string | null {
   const rounds = swissRounds === 1 ? "1 Swiss round" : `${swissRounds} Swiss rounds`;
+  const games = bestOf === null ? "" : `, best of ${bestOf}`;
   if (swissRounds !== null && cutSize !== null) {
-    return `${rounds}, then a top ${cutSize} cut`;
+    return `${rounds}${games}, then a top ${cutSize} cut`;
   }
   if (swissRounds !== null) {
-    return rounds;
+    return `${rounds}${games}`;
   }
   if (cutSize !== null) {
-    return `Top ${cutSize} cut`;
+    return `Top ${cutSize} cut${games}`;
   }
   return null;
 }
@@ -50,5 +67,6 @@ function sentenceFor(swissRounds: number | null, cutSize: number | null): string
 export function describeEventStructure(phases: readonly MetaEventPhase[]): MetaEventStructure {
   const swissRounds = swissRoundsOf(phases);
   const cutSize = cutSizeOf(phases);
-  return { swissRounds, cutSize, sentence: sentenceFor(swissRounds, cutSize) };
+  const bestOf = bestOfOf(phases);
+  return { swissRounds, cutSize, bestOf, sentence: sentenceFor(swissRounds, cutSize, bestOf) };
 }

@@ -319,13 +319,21 @@ describe("GET /meta/events/{slug}", () => {
 
     const json = await readJson(res);
     expect(json.phases).toEqual([
-      { phaseOrder: 0, name: "Phase 1", roundType: "SWISS", roundCount: 8, rankRequired: null },
+      {
+        phaseOrder: 0,
+        name: "Phase 1",
+        roundType: "SWISS",
+        roundCount: 8,
+        rankRequired: null,
+        maxGameWins: 2,
+      },
       {
         phaseOrder: 1,
         name: "Phase 3",
         roundType: "RANKED_SINGLE_ELIMINATION",
         roundCount: 3,
         rankRequired: 8,
+        maxGameWins: 2,
       },
     ]);
   });

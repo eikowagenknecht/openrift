@@ -1,11 +1,11 @@
-import type { MetaEventPlayer } from "@openrift/shared";
+import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MetaDeckCostFilterProps } from "@/components/meta/meta-deck-cost-filter";
 import type { MetaDeckCost } from "@/lib/meta-deck-collection";
-import { metaPlayer } from "@/test/meta-event-fixtures";
+import { metaMatch, metaPhase, metaPlayer } from "@/test/meta-event-fixtures";
 
 const session = vi.hoisted(() => ({ userId: null as string | null }));
 const archive = vi.hoisted(() => ({
@@ -90,9 +90,35 @@ function phoneRow(name: string): HTMLElement {
   return within(list).getByText(name).closest("li") as HTMLElement;
 }
 
-function renderStandings(players: MetaEventPlayer[] = [metaPlayer()], eventDate = "2020-01-01") {
-  render(<MetaEventStandings players={players} slug="summoner-skirmish" eventDate={eventDate} />);
+function renderStandings(
+  players: MetaEventPlayer[] = [metaPlayer()],
+  eventDate = "2020-01-01",
+  rounds: { matches?: MetaEventMatch[]; phases?: MetaEventPhase[] } = {},
+) {
+  render(
+    <MetaEventStandings
+      players={players}
+      matches={rounds.matches ?? []}
+      phases={rounds.phases ?? []}
+      slug="summoner-skirmish"
+      eventDate={eventDate}
+    />,
+  );
 }
+
+const SWISS = metaPhase({ phaseOrder: 1, name: "Phase 1", roundType: "SWISS", rankRequired: null });
+
+const ANA_RUN = {
+  phases: [SWISS, metaPhase()],
+  matches: [
+    metaMatch({ phaseOrder: 1, roundNumber: 1, player2Id: null, winnerId: null, isBye: true }),
+    metaMatch({ phaseOrder: 1, roundNumber: 2, winnerId: "p-1" }),
+    metaMatch({ phaseOrder: 1, roundNumber: 3, winnerId: "p-2" }),
+    metaMatch({ phaseOrder: 1, roundNumber: 4, winnerId: null, isDraw: true }),
+    metaMatch({ roundNumber: 1, winnerId: "p-1" }),
+    metaMatch({ roundNumber: 2, winnerId: "p-1" }),
+  ],
+};
 
 function field(count: number, overrides: (index: number) => Partial<MetaEventPlayer> = () => ({})) {
   return Array.from({ length: count }, (_, index) =>
@@ -111,6 +137,76 @@ describe("MetaEventStandings", () => {
     archive.costs = undefined;
     archive.withCollection = [];
     archive.includeSideboard = [];
+  });
+
+  it("charts each player's run once the source filed round-by-round results", () => {
+    renderStandings([metaPlayer({ id: "p-1", playerName: "Ana" })], "2020-01-01", ANA_RUN);
+
+    expect(screen.getByRole("columnheader", { name: "Run" })).toBeInTheDocument();
+    const strip = within(phoneRow("Ana")).getByRole("img", {
+      name: "Round by round: bye, win, loss, draw, then the cut: win, win",
+    });
+    expect(strip.querySelectorAll("[title]")).toHaveLength(6);
+    expect(strip.querySelectorAll("span.w-1")).toHaveLength(1);
+  });
+
+  it("keeps the run column out of an event that arrived as bare standings", () => {
+    renderStandings([metaPlayer({ playerName: "Ana" })]);
+
+    expect(screen.queryByRole("columnheader", { name: "Run" })).toBeNull();
+    expect(within(phoneRow("Ana")).queryByRole("img", { name: /Round by round/u })).toBeNull();
+  });
+
+  it("leads a charted run to the player's page for the event", () => {
+    renderStandings(
+      [metaPlayer({ id: "p-1", playerName: "Ana", playerKey: "u1001" })],
+      "2020-01-01",
+      ANA_RUN,
+    );
+
+    const links = screen.getAllByRole("link", { name: /Round by round/u });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/meta/summoner-skirmish/players/u1001");
+    }
+  });
+
+  it("charts the run of a player the source filed under no identity without a link", () => {
+    renderStandings(
+      [metaPlayer({ id: "p-1", playerName: "Ana", playerKey: null })],
+      "2020-01-01",
+      ANA_RUN,
+    );
+
+    expect(
+      within(phoneRow("Ana")).getByRole("img", { name: /Round by round/u }),
+    ).toBeInTheDocument();
+    expect(within(phoneRow("Ana")).queryByRole("link", { name: /Round by round/u })).toBeNull();
+  });
+
+  it("leaves the run blank for a player the source paired in no round", () => {
+    renderStandings(
+      [
+        metaPlayer({ id: "p-1", playerName: "Ana" }),
+        metaPlayer({ id: "p-9", playerName: "Zed", rank: 9 }),
+      ],
+      "2020-01-01",
+      ANA_RUN,
+    );
+
+    expect(within(phoneRow("Zed")).queryByRole("img", { name: /Round by round/u })).toBeNull();
+  });
+
+  it("leaves a row's run link out of the decklist disclosure", async () => {
+    const user = userEvent.setup();
+    renderStandings(
+      [metaPlayer({ id: "p-1", playerName: "Ana", shareToken: "tok1" })],
+      "2020-01-01",
+      ANA_RUN,
+    );
+
+    await user.click(within(phoneRow("Ana")).getByRole("link", { name: /Round by round/u }));
+    expect(screen.queryByText("Preview for tok1")).toBeNull();
   });
 
   it("says nothing is on file rather than showing an empty field", () => {

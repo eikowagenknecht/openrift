@@ -4,6 +4,8 @@
 
 ### Highlights
 
+- feat(Meta): **Round-by-round player runs** — each standings row on an event with pairings on file opens the player's run: every round with the opponent, their legend and final finish, and the game score.
+- feat(Meta): **Best finish per legend** — an event page now lists each legend's highest-placed pilot above the standings, shows a result strip per row, and states the best-of and the record at the cut line in the header.
 - feat(Meta): **Archived decks as a sortable list** — the deck browser opens on Premier and Competitive lists from the current era as rows you can sort by finish, date, value or what completing them costs you, with a grid layout one click away and the same filter bar as the rest of the archive.
 - feat(Meta): **Archived decklists lead with the result** — the header now states the finish against the field, the player and the legend, and drops the generated deck name.
 - feat(Decks): **Save, print and export a shared deck** — shared and archived decklists get an overflow menu holding the deck image, the printable sheet, the exports and the deck code.

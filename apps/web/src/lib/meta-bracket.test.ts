@@ -26,6 +26,7 @@ function phase(overrides: Partial<MetaEventPhase> = {}): MetaEventPhase {
     roundType: "RANKED_SINGLE_ELIMINATION",
     roundCount: 3,
     rankRequired: 8,
+    maxGameWins: null,
     ...overrides,
   };
 }

@@ -1,6 +1,12 @@
-import type { MetaEventDetail, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
+import type {
+  MetaEventDetail,
+  MetaEventMatch,
+  MetaEventPhase,
+  MetaEventPlayer,
+} from "@openrift/shared";
 import { dateLeafPartsUtc, imageUrl } from "@openrift/shared";
-import { ExternalLinkIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import { Fragment } from "react";
 
 import { ArtBandBackdrop } from "@/components/art-band-backdrop";
@@ -17,6 +23,7 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 import { describeEventStructure } from "@/lib/meta-event-structure";
 import { formatRecord } from "@/lib/meta-format";
 import { metaEventWinners } from "@/lib/meta-front-page";
+import { metaCutLineRecord } from "@/lib/meta-player-run";
 
 /** Every citation is printed, never collapsed behind a "+2 more": this is attribution. */
 function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
@@ -59,7 +66,17 @@ function counterValue(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: string | null }) {
+function ChampionPlate({
+  player,
+  artId,
+  slug,
+  hasRun,
+}: {
+  player: MetaEventPlayer;
+  artId: string | null;
+  slug: string;
+  hasRun: boolean;
+}) {
   const record = formatRecord(player.wins, player.losses, player.draws);
 
   return (
@@ -87,6 +104,16 @@ function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: stri
             {record}
           </p>
         )}
+        {hasRun && player.playerKey !== null && (
+          <Link
+            to="/meta/$slug/players/$key"
+            params={{ slug, key: player.playerKey }}
+            className="text-primary inline-flex items-center gap-0.5 text-xs font-medium hover:underline"
+          >
+            Road to the title
+            <ChevronRightIcon className="size-3.5" />
+          </Link>
+        )}
       </div>
       {artId !== null && (
         <ImgWithFallback
@@ -112,11 +139,15 @@ function ChampionPlate({ player, artId }: { player: MetaEventPlayer; artId: stri
 export function MetaEventHeader({
   event,
   players,
+  matches,
   phases,
+  slug,
 }: {
   event: MetaEventDetail;
   players: readonly MetaEventPlayer[];
+  matches: readonly MetaEventMatch[];
   phases: readonly MetaEventPhase[];
+  slug: string;
 }) {
   const { labels: formatLabels } = useDeckFormatList();
   const leaf = dateLeafPartsUtc(event.eventDate);
@@ -125,6 +156,10 @@ export function MetaEventHeader({
   const winnerLegend =
     champion?.legend ?? metaEventWinners(event).find((winner) => winner.legend !== null)?.legend;
   const artId = winnerLegend?.imageId ?? null;
+  const cutLineRecord = metaCutLineRecord(players, structure.cutSize);
+  const championHasRun =
+    champion !== null &&
+    matches.some((match) => match.player1Id === champion.id || match.player2Id === champion.id);
 
   const byline: string[] = [];
   if (event.organizer !== null) {
@@ -174,6 +209,9 @@ export function MetaEventHeader({
             )}
             <Counter value={counterValue(event.playerRowCount)} label="results archived" />
             <Counter value={counterValue(event.deckCount)} label="decklists on file" />
+            {cutLineRecord !== null && (
+              <Counter value={cutLineRecord} label="record at the cut line" />
+            )}
           </div>
 
           {(event.sources.length > 0 || event.contributors.length > 0) && (
@@ -184,7 +222,9 @@ export function MetaEventHeader({
           )}
         </div>
 
-        {champion !== null && <ChampionPlate player={champion} artId={artId} />}
+        {champion !== null && (
+          <ChampionPlate player={champion} artId={artId} slug={slug} hasRun={championHasRun} />
+        )}
       </div>
     </Card>
   );

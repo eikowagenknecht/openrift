@@ -15,6 +15,7 @@ import { MetaEventBracket } from "@/components/meta/meta-event-bracket";
 import { MetaEventContributeBand } from "@/components/meta/meta-event-contribute-band";
 import { MetaEventCorrectionDialog } from "@/components/meta/meta-event-correction-dialog";
 import { MetaEventHeader } from "@/components/meta/meta-event-header";
+import { MetaEventLegendFinishes } from "@/components/meta/meta-event-legend-finishes";
 import { MetaEventStandings } from "@/components/meta/meta-event-standings";
 import {
   DropdownMenu,
@@ -97,7 +98,13 @@ export function MetaEventPage({ slug }: { slug: string }) {
       </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-10")}>
-        <MetaEventHeader event={event} players={players} phases={phases} />
+        <MetaEventHeader
+          event={event}
+          players={players}
+          matches={matches}
+          phases={phases}
+          slug={slug}
+        />
 
         {event.notes !== null && event.notes !== "" && (
           <div className="mt-4">
@@ -108,7 +115,15 @@ export function MetaEventPage({ slug }: { slug: string }) {
 
         <MetaEventBracket matches={matches} phases={phases} players={players} />
 
-        <MetaEventStandings players={players} slug={slug} eventDate={event.eventDate} />
+        <MetaEventLegendFinishes players={players} />
+
+        <MetaEventStandings
+          players={players}
+          matches={matches}
+          phases={phases}
+          slug={slug}
+          eventDate={event.eventDate}
+        />
 
         <div className="mt-8">
           <MetaEventContributeBand event={event} players={players} slug={slug} />

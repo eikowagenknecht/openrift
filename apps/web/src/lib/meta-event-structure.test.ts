@@ -10,6 +10,7 @@ function phase(overrides: Partial<MetaEventPhase> = {}): MetaEventPhase {
     roundType: "SWISS",
     roundCount: 6,
     rankRequired: null,
+    maxGameWins: null,
     ...overrides,
   };
 }
@@ -27,8 +28,37 @@ describe("describeEventStructure", () => {
     expect(describeEventStructure([phase(), cut])).toEqual({
       swissRounds: 6,
       cutSize: 8,
+      bestOf: null,
       sentence: "6 Swiss rounds, then a top 8 cut",
     });
+  });
+
+  it("names the games a match was played to when every phase agrees", () => {
+    const structure = describeEventStructure([
+      phase({ maxGameWins: 2 }),
+      { ...cut, maxGameWins: 2 },
+      phase({ phaseOrder: 3, roundType: "SINGLE_ELIMINATION", roundCount: 1, maxGameWins: 2 }),
+    ]);
+    expect(structure.bestOf).toBe(3);
+    expect(structure.sentence).toBe("6 Swiss rounds, best of 3, then a top 8 cut");
+  });
+
+  it("places the games after a lone Swiss and after a lone cut", () => {
+    expect(describeEventStructure([phase({ maxGameWins: 1 })]).sentence).toBe(
+      "6 Swiss rounds, best of 1",
+    );
+    expect(
+      describeEventStructure([cut, phase({ maxGameWins: 2, roundCount: null })]).sentence,
+    ).toBe("Top 8 cut, best of 3");
+  });
+
+  it("says nothing about games when the phases disagree", () => {
+    const structure = describeEventStructure([
+      phase({ maxGameWins: 1 }),
+      { ...cut, maxGameWins: 2 },
+    ]);
+    expect(structure.bestOf).toBeNull();
+    expect(structure.sentence).toBe("6 Swiss rounds, then a top 8 cut");
   });
 
   it("sums the rounds of an event that ran its Swiss over two days", () => {
@@ -48,6 +78,7 @@ describe("describeEventStructure", () => {
     expect(describeEventStructure([cut])).toEqual({
       swissRounds: null,
       cutSize: 8,
+      bestOf: null,
       sentence: "Top 8 cut",
     });
   });
@@ -78,6 +109,7 @@ describe("describeEventStructure", () => {
     expect(describeEventStructure([])).toEqual({
       swissRounds: null,
       cutSize: null,
+      bestOf: null,
       sentence: null,
     });
   });

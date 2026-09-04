@@ -362,6 +362,7 @@ describe("toMetaEventPhase", () => {
       roundType: "RANKED_SINGLE_ELIMINATION",
       roundCount: 3,
       rankRequired: 8,
+      maxGameWins: 2,
     });
   });
 
@@ -385,6 +386,7 @@ describe("toMetaEventPhase", () => {
       roundType: "SWISS",
       roundCount: null,
       rankRequired: null,
+      maxGameWins: null,
     });
   });
 });
