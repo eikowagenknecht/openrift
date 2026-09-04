@@ -4,6 +4,7 @@
 
 ### Other
 
+- feat(Deck): **"Show every copy" leaves runes stacked** — a nested toggle now lets the rune stacks join the rest of the deck's expanded copies, instead of every rune always splitting out.
 - fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.
 - fix(Meta): **Decklist submissions no longer error** — submitting a list against an existing event failed with a server error every time; it now saves.
 

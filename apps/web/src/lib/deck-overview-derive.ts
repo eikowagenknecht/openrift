@@ -134,6 +134,15 @@ export function expandCopies(
   );
 }
 
+/** Runes only expand when `showAllRuneCopies` is also on. */
+export function zoneShowsAllCopies(
+  zone: DeckZone,
+  showAllCopies: boolean,
+  showAllRuneCopies: boolean,
+): boolean {
+  return zone === WellKnown.deckZone.RUNES ? showAllCopies && showAllRuneCopies : showAllCopies;
+}
+
 /**
  * Gates the floating hover preview by display mode. Stacks mode has its own
  * hover language — a pile expands the card under the cursor in place — so the

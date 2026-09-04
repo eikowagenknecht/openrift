@@ -64,6 +64,14 @@ describe("useDeckOverviewViewStore", () => {
     expect(useDeckOverviewViewStore.getState().showAllCopies).toBe(true);
   });
 
+  it("keeps runes stacked by default and can expand them too", () => {
+    expect(useDeckOverviewViewStore.getState().showAllRuneCopies).toBe(false);
+    useDeckOverviewViewStore.getState().setShowAllRuneCopies(true);
+    expect(useDeckOverviewViewStore.getState().showAllRuneCopies).toBe(true);
+    useDeckOverviewViewStore.getState().setShowAllRuneCopies(false);
+    expect(useDeckOverviewViewStore.getState().showAllRuneCopies).toBe(false);
+  });
+
   it("defaults to expanded stats and can collapse them", () => {
     expect(useDeckOverviewViewStore.getState().statsOpen).toBe(true);
     useDeckOverviewViewStore.getState().setStatsOpen(false);
@@ -114,6 +122,7 @@ describe("rehydrate validation", () => {
           groupBy: "color",
           groupDir: "sideways",
           showAllCopies: "yes",
+          showAllRuneCopies: "yes",
           statsOpen: "nope",
           showOwnershipBands: "sure",
           showPrices: "yes",
@@ -130,6 +139,7 @@ describe("rehydrate validation", () => {
     expect(state.groupBy).toBe("type");
     expect(state.groupDir).toBe("asc");
     expect(state.showAllCopies).toBe(false);
+    expect(state.showAllRuneCopies).toBe(false);
     expect(state.statsOpen).toBe(true);
     expect(state.showOwnershipBands).toBe(true);
     expect(state.showPrices).toBe(false);
@@ -146,6 +156,8 @@ describe("rehydrate validation", () => {
           sortDir: "desc",
           groupBy: "energy",
           groupDir: "desc",
+          showAllCopies: true,
+          showAllRuneCopies: true,
           statsOpen: false,
           showOwnershipBands: false,
           showPrices: true,
@@ -161,6 +173,8 @@ describe("rehydrate validation", () => {
     expect(state.sortDir).toBe("desc");
     expect(state.groupBy).toBe("energy");
     expect(state.groupDir).toBe("desc");
+    expect(state.showAllCopies).toBe(true);
+    expect(state.showAllRuneCopies).toBe(true);
     expect(state.statsOpen).toBe(false);
     expect(state.showOwnershipBands).toBe(false);
     expect(state.showPrices).toBe(true);

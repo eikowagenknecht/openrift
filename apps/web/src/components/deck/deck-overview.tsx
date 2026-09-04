@@ -70,6 +70,7 @@ import {
   NO_ADD_ROOM,
   NO_BANDS,
   NO_PRICE_TEXTS,
+  zoneShowsAllCopies,
 } from "@/lib/deck-overview-derive";
 import type { DeckListSortContext } from "@/lib/deck-overview-list-sort";
 import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
@@ -271,6 +272,7 @@ export function DeckOverview({
   const storedColumns = useDeckOverviewViewStore((state) => state.columns);
   const storedPreferOwned = useDeckOverviewViewStore((state) => state.preferOwnedPrintings);
   const storedShowAllCopies = useDeckOverviewViewStore((state) => state.showAllCopies);
+  const storedShowAllRuneCopies = useDeckOverviewViewStore((state) => state.showAllRuneCopies);
   const listSortBy = useDeckOverviewViewStore((state) => state.sortBy);
   const listSortDir = useDeckOverviewViewStore((state) => state.sortDir);
   const storedGroupBy = useDeckOverviewViewStore((state) => state.groupBy);
@@ -286,6 +288,7 @@ export function DeckOverview({
   const displayMode = hydrated ? storedDisplayMode : "grid";
   const statsOpen = hydrated ? storedStatsOpen : true;
   const showAllCopies = hydrated && storedShowAllCopies;
+  const showAllRuneCopies = hydrated && storedShowAllRuneCopies;
   const showBands = hydrated ? storedShowBands : true;
   const canPreferOwned = ownershipData !== undefined && !signInHref;
   const preferOwned = hydrated && canPreferOwned && storedPreferOwned;
@@ -502,6 +505,7 @@ export function DeckOverview({
         minColumns={physicalMin}
         maxColumnsLimit={physicalMax}
         showAllCopies={showAllCopies}
+        showAllRuneCopies={showAllRuneCopies}
         showBands={showBands}
         showPrices={showPrices}
         preferOwned={preferOwned}
@@ -528,7 +532,7 @@ export function DeckOverview({
       priceTextByCardKey={priceTextByCardKey}
       addRoomByCardKey={addRoomByCardKey}
       resolveHoverPrintingId={resolveHoverPrintingId}
-      showAllCopies={showAllCopies}
+      showAllCopies={zoneShowsAllCopies(zone, showAllCopies, showAllRuneCopies)}
       statsFocus={statsFocus}
       groupCards={groupZoneCards}
       sortCards={sortZoneCards}

@@ -2,7 +2,7 @@ import { WellKnown } from "@openrift/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getDeckCardKey } from "@/lib/deck-builder-card";
-import { buildAddRoom, expandCopies } from "@/lib/deck-overview-derive";
+import { buildAddRoom, expandCopies, zoneShowsAllCopies } from "@/lib/deck-overview-derive";
 import { resetIdCounter, stubDeckBuilderCard } from "@/test/factories";
 
 beforeEach(() => {
@@ -104,5 +104,18 @@ describe("expandCopies", () => {
   it("leaves a single copy unindexed", () => {
     const card = stubDeckBuilderCard({ quantity: 1 });
     expect(expandCopies([card], true)).toEqual([{ card, copyIndex: null }]);
+  });
+});
+
+describe("zoneShowsAllCopies", () => {
+  it("expands a non-rune zone whenever the main switch is on", () => {
+    expect(zoneShowsAllCopies(WellKnown.deckZone.MAIN, true, false)).toBe(true);
+    expect(zoneShowsAllCopies(WellKnown.deckZone.MAIN, false, true)).toBe(false);
+  });
+
+  it("keeps runes stacked until their own switch is on as well", () => {
+    expect(zoneShowsAllCopies(WellKnown.deckZone.RUNES, true, false)).toBe(false);
+    expect(zoneShowsAllCopies(WellKnown.deckZone.RUNES, true, true)).toBe(true);
+    expect(zoneShowsAllCopies(WellKnown.deckZone.RUNES, false, true)).toBe(false);
   });
 });

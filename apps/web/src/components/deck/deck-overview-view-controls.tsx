@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckOverviewGroup } from "@/lib/deck-card-group";
+import { cn } from "@/lib/utils";
 import type { DeckOverviewDisplayMode, DeckOverviewSort } from "@/stores/deck-overview-view-store";
 import { useDeckOverviewViewStore } from "@/stores/deck-overview-view-store";
 
@@ -54,6 +55,7 @@ interface DeckOptionSwitch {
   checked: boolean;
   /** Whether the option currently sits away from its default. */
   modified: boolean;
+  nested?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }
 
@@ -65,16 +67,23 @@ function OptionSwitchRow({
   label,
   description,
   checked,
+  nested,
   onCheckedChange,
 }: {
   label: string;
   /** Optional second line, for options whose label doesn't carry the meaning. */
   description?: string;
   checked: boolean;
+  nested?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <Label className="justify-between gap-3 leading-normal font-normal">
+    <Label
+      className={cn(
+        "justify-between gap-3 leading-normal font-normal",
+        nested && "border-border ml-1 border-l pl-3",
+      )}
+    >
       <span className="flex flex-col gap-0.5">
         <span>{label}</span>
         {description && <span className="text-muted-foreground text-xs">{description}</span>}
@@ -128,10 +137,11 @@ interface DeckOverviewViewControlsProps {
   minColumns: number;
   maxColumnsLimit: number;
   /**
-   * The display switches' current values. All four are hydration-gated by the
-   * host, so SSR renders the defaults — keep the gates there, not here.
+   * The display switches' current values. All of them are hydration-gated by
+   * the host, so SSR renders the defaults — keep the gates there, not here.
    */
   showAllCopies: boolean;
+  showAllRuneCopies: boolean;
   showBands: boolean;
   showPrices: boolean;
   preferOwned: boolean;
@@ -161,6 +171,7 @@ export function DeckOverviewViewControls({
   minColumns,
   maxColumnsLimit,
   showAllCopies,
+  showAllRuneCopies,
   showBands,
   showPrices,
   preferOwned,
@@ -170,6 +181,7 @@ export function DeckOverviewViewControls({
   const setDisplayMode = useDeckOverviewViewStore((state) => state.setDisplayMode);
   const setColumns = useDeckOverviewViewStore((state) => state.setColumns);
   const setShowAllCopies = useDeckOverviewViewStore((state) => state.setShowAllCopies);
+  const setShowAllRuneCopies = useDeckOverviewViewStore((state) => state.setShowAllRuneCopies);
   const setShowOwnershipBands = useDeckOverviewViewStore((state) => state.setShowOwnershipBands);
   const setShowPrices = useDeckOverviewViewStore((state) => state.setShowPrices);
   const setPreferOwnedPrintings = useDeckOverviewViewStore(
@@ -247,6 +259,19 @@ export function DeckOverviewViewControls({
           },
         ]
       : []),
+    ...(hasThumbnails && showAllCopies
+      ? [
+          {
+            key: "rune-copies",
+            label: "Include runes",
+            description: "Expand the rune stacks too.",
+            checked: showAllRuneCopies,
+            modified: showAllRuneCopies,
+            nested: true,
+            onCheckedChange: setShowAllRuneCopies,
+          },
+        ]
+      : []),
     ...(hasThumbnails && canPreferOwned
       ? [
           {
@@ -290,6 +315,7 @@ export function DeckOverviewViewControls({
       label={option.label}
       description={option.description}
       checked={option.checked}
+      nested={option.nested}
       // oxlint-disable-next-line react/jsx-handler-names -- forwarded store setter, name fixed by the descriptor
       onCheckedChange={option.onCheckedChange}
     />

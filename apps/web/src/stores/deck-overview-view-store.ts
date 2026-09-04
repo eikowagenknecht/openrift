@@ -50,6 +50,8 @@ interface DeckOverviewViewState {
    */
   showAllCopies: boolean;
   setShowAllCopies: (showAllCopies: boolean) => void;
+  showAllRuneCopies: boolean;
+  setShowAllRuneCopies: (showAllRuneCopies: boolean) => void;
   /** Card ordering inside each zone sub-group, in every display mode. */
   sortBy: DeckOverviewSort;
   setSortBy: (sortBy: DeckOverviewSort) => void;
@@ -132,6 +134,8 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
       setPreferOwnedPrintings: (preferOwnedPrintings) => set({ preferOwnedPrintings }),
       showAllCopies: false,
       setShowAllCopies: (showAllCopies) => set({ showAllCopies }),
+      showAllRuneCopies: false,
+      setShowAllRuneCopies: (showAllRuneCopies) => set({ showAllRuneCopies }),
       sortBy: "default",
       setSortBy: (sortBy) => set({ sortBy }),
       sortDir: "asc",
@@ -165,6 +169,7 @@ export const useDeckOverviewViewStore = create<DeckOverviewViewState>()(
           preferOwnedPrintings:
             raw.preferOwnedPrintings === true ? true : current.preferOwnedPrintings,
           showAllCopies: raw.showAllCopies === true ? true : current.showAllCopies,
+          showAllRuneCopies: raw.showAllRuneCopies === true ? true : current.showAllRuneCopies,
           sortBy: keepAllowed(raw.sortBy, SORTS, current.sortBy),
           sortDir: raw.sortDir === "desc" ? "desc" : current.sortDir,
           groupBy: keepAllowed(raw.groupBy, GROUPS, current.groupBy),
