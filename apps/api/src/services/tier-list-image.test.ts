@@ -127,7 +127,7 @@ describe("renderTierListImage", () => {
     const meta = await defaultIo.sharp(png).metadata();
     expect(meta.width).toBe(2400);
     expect(meta.height).toBe(1260);
-  });
+  }, 30_000); // The 2× canvas rasterizes for a second locally; generous for cold CI.
 
   it("renders the vertical export at 1080x1920", async () => {
     const png = await renderTierListImage(
@@ -140,7 +140,7 @@ describe("renderTierListImage", () => {
     const meta = await defaultIo.sharp(png).metadata();
     expect(meta.width).toBe(1080);
     expect(meta.height).toBe(1920);
-  });
+  }, 30_000); // The tall canvas is close behind the 2× one; generous for cold CI.
 
   it("renders the vertical export at 2x", async () => {
     const png = await renderTierListImage(

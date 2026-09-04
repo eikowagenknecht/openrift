@@ -230,7 +230,7 @@ describe("renderShareImage (vertical)", () => {
     const meta = await defaultIo.sharp(png).metadata();
     expect(meta.width).toBe(2160);
     expect(meta.height).toBe(3840);
-  });
+  }, 30_000); // 2160×3840 is the heaviest canvas here; generous for cold CI.
 });
 
 // The live geometry: 1200x630 canvas, 24px padding, a 52px title row and a 10px
