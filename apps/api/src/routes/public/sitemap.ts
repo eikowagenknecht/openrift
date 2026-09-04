@@ -2,6 +2,7 @@ import type { SitemapDataResponse } from "@openrift/shared";
 import { sitemapContract } from "@openrift/shared/contracts/sitemap";
 import { implement } from "@orpc/server";
 
+import { archiveLegendSlug } from "../../lib/meta-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 
@@ -27,6 +28,13 @@ export const sitemapRouter = {
       products: productEntries,
       metaEvents: metaEntries.events,
       metaDecks: metaEntries.decks,
+      // The route key is composed from the card's champion tag, so it cannot be
+      // a column the repo selects.
+      metaLegends: metaEntries.legends.map((row) => ({
+        slug: archiveLegendSlug(row),
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+      metaPlayers: metaEntries.players,
     };
   }),
 };

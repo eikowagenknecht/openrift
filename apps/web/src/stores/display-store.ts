@@ -12,6 +12,7 @@ import {
   sanitizeDisplayMode,
   sanitizeFiltersExpanded,
   sanitizeFrostedBars,
+  sanitizeMetaDeckView,
   sanitizeOverrides,
   sanitizePaneDocked,
   sanitizeTierTileStep,
@@ -19,6 +20,9 @@ import {
 
 /** Whether the card browser renders a grid of cards or a table of rows. */
 export type DisplayMode = "grid" | "table";
+
+/** Whether the archived-deck browser renders rows or tiles. */
+export type MetaDeckView = "list" | "grid";
 
 /**
  * Tile widths the tier board steps through, in pixels. A ladder rather than a
@@ -106,6 +110,8 @@ interface DisplayState extends DisplayPreferences {
   toggleCardsShowCounts: () => void;
   displayMode: DisplayMode;
   setDisplayMode: (value: "grid" | "table") => void;
+  metaDeckView: MetaDeckView;
+  setMetaDeckView: (value: MetaDeckView) => void;
   /**
    * Whether the card detail pane stays docked beside the grid. Off by default:
    * a card click then opens the detail modal instead, so clicking never
@@ -230,6 +236,8 @@ export const useDisplayStore = create<DisplayState>()(
       toggleCardsShowCounts: () => set((state) => ({ cardsShowCounts: !state.cardsShowCounts })),
       displayMode: "grid" as const,
       setDisplayMode: (value) => set({ displayMode: value }),
+      metaDeckView: "list" as const,
+      setMetaDeckView: (value) => set({ metaDeckView: value }),
       paneDocked: false,
       setPaneDocked: (value) => set({ paneDocked: value }),
       frostedBars: false,
@@ -246,6 +254,7 @@ export const useDisplayStore = create<DisplayState>()(
         filtersExpanded: state.filtersExpanded,
         cardsShowCounts: state.cardsShowCounts,
         displayMode: state.displayMode,
+        metaDeckView: state.metaDeckView,
         paneDocked: state.paneDocked,
         frostedBars: state.frostedBars,
         tierTileStep: state.tierTileStep,
@@ -260,6 +269,7 @@ export const useDisplayStore = create<DisplayState>()(
           filtersExpanded: sanitizeFiltersExpanded(persisted, current.filtersExpanded),
           cardsShowCounts: sanitizeCardsShowCounts(persisted, current.cardsShowCounts),
           displayMode: sanitizeDisplayMode(persisted, current.displayMode),
+          metaDeckView: sanitizeMetaDeckView(persisted, current.metaDeckView),
           paneDocked: sanitizePaneDocked(persisted, current.paneDocked),
           frostedBars: sanitizeFrostedBars(persisted, current.frostedBars),
           tierTileStep: sanitizeTierTileStep(

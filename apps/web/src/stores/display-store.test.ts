@@ -192,6 +192,7 @@ describe("useDisplayStore", () => {
       store.setMaxColumns(4);
       store.setFiltersExpanded(true);
       store.toggleCardsShowCounts(); // true → false
+      store.setMetaDeckView("grid");
 
       useDisplayStore.getState().reset();
 
@@ -199,6 +200,7 @@ describe("useDisplayStore", () => {
       expect(state.maxColumns).toBe(4);
       expect(state.filtersExpanded).toBe(true);
       expect(state.cardsShowCounts).toBe(false);
+      expect(state.metaDeckView).toBe("grid");
     });
   });
 

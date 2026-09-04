@@ -1,4 +1,8 @@
-import type { DeckPlanCardMetaResponse, PublicDeckDetailResponse } from "@openrift/shared";
+import type {
+  DeckCatalogSubset,
+  DeckPlanCardMetaResponse,
+  PublicDeckDetailResponse,
+} from "@openrift/shared";
 import { isBaseBanFormat } from "@openrift/shared";
 import type { Selectable } from "kysely";
 
@@ -6,6 +10,43 @@ import type { DecksTable } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { isEmptyDeckPlan, toDeckPlan, toPublicDeck, toPublicDeckCard } from "./deck-presenters.js";
 import { gravatarHashForEmail } from "./gravatar.js";
+import {
+  buildCardsResponse,
+  buildPrintingsResponse,
+  loadPrintingDecorations,
+} from "./printing-presenters.js";
+
+/**
+ * Every catalogue row the page can ask for: the deck's own cards, plus the
+ * tokens they create, which the overview lists with artwork of their own. The
+ * whole set list rides along so a printing's set keeps the position the
+ * catalogue gives it.
+ *
+ * @returns The subset, in the same shapes `/catalog` serves.
+ */
+async function catalogSubsetForCards(
+  repos: Repos,
+  cardIds: readonly string[],
+): Promise<DeckCatalogSubset> {
+  const ids = [...cardIds];
+  const [sets, cardRows, printingRows, imageRows, banRows, errataRows] = await Promise.all([
+    repos.catalog.sets(),
+    repos.catalog.cardsByIds(ids),
+    repos.catalog.printingsByCardIds(ids),
+    repos.catalog.printingImagesByCardIds(ids),
+    repos.catalog.cardBansByCardIds(ids),
+    repos.catalog.cardErrataByCardIds(ids),
+  ]);
+  const decorations = await loadPrintingDecorations(
+    repos,
+    printingRows.map((row) => row.id),
+  );
+  return {
+    sets,
+    cards: buildCardsResponse(cardRows, banRows, errataRows),
+    printings: buildPrintingsResponse(printingRows, imageRows, decorations),
+  };
+}
 
 /** What `decksRepo.findByShareToken` hands back: the deck plus its owner's display fields. */
 export interface SharedDeckRow {
@@ -50,6 +91,9 @@ export async function buildPublicDeckDetail(
     catalog.cardBansByCardIds(uniqueCardIds),
   ]);
   const cardMetaById = new Map(cardMetas.map((meta) => [meta.id, meta]));
+  const catalogSubset = await catalogSubsetForCards(repos, [
+    ...new Set([...uniqueCardIds, ...cardMetas.flatMap((meta) => meta.tokenCardIds)]),
+  ]);
   // Only base-list bans invalidate a deck; mode-scoped ones (e.g. 2v2) stay
   // a display concern, so they never reach the share payload.
   const bannedCardIds = new Set(
@@ -115,5 +159,6 @@ export async function buildPublicDeckDetail(
     plan: visiblePlan,
     planCardMeta,
     customTagAssignments: Object.fromEntries(customTagAssignmentsMap),
+    catalog: catalogSubset,
   };
 }

@@ -1,7 +1,7 @@
 import type { MetaEventTier } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
-import type { MetaEra, MetaScope } from "@/lib/meta-scope";
+import type { MetaEra, MetaScope, ScopeFacetDefaults } from "@/lib/meta-scope";
 import { resolveScopeRange, scopeFacetValues } from "@/lib/meta-scope";
 
 /**
@@ -54,16 +54,17 @@ export function scopeMatches(
   event: ScopedEvent,
   scope: MetaScope,
   eras: readonly MetaEra[],
+  defaults: ScopeFacetDefaults = {},
 ): boolean {
-  const format = scopeFacetValues(scope, "formats");
+  const format = scopeFacetValues(scope, "formats", defaults);
   if (!axisMatches(event.format, format.included, format.excluded)) {
     return false;
   }
-  const tier = scopeFacetValues(scope, "tiers");
+  const tier = scopeFacetValues(scope, "tiers", defaults);
   if (!axisMatches(event.tier, tier.included, tier.excluded)) {
     return false;
   }
-  const country = scopeFacetValues(scope, "countries");
+  const country = scopeFacetValues(scope, "countries", defaults);
   if (
     !axisMatches(
       normalizeCountryCode(event.country),

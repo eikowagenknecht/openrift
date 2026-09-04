@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import { useMetaDeckCosts } from "@/hooks/use-meta-deck-costs";
 import type { MetaDeckCost } from "@/lib/meta-deck-collection";
+import type { MetaDateRange } from "@/lib/meta-scope";
 
 /**
  * Prices the archive, and compares it against the reader's collection when
@@ -13,13 +14,15 @@ import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 export function MetaDeckCostsBridge({
   includeSideboard,
   withCollection,
+  range,
   onChange,
 }: {
   includeSideboard: boolean;
   withCollection: boolean;
+  range?: MetaDateRange;
   onChange: (value: ReadonlyMap<string, MetaDeckCost> | undefined) => void;
 }) {
-  const costs = useMetaDeckCosts(includeSideboard, { withCollection });
+  const costs = useMetaDeckCosts(includeSideboard, { withCollection, range });
   useEffect(() => {
     onChange(costs);
   }, [costs, onChange]);

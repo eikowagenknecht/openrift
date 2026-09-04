@@ -22,11 +22,18 @@ const mockMeta = {
   contributorsForEvent: vi.fn(),
   playerCountInScope: vi.fn(),
   deckCountInScope: vi.fn(),
+  allDeckSummaries: vi.fn(),
+  allDeckCards: vi.fn(),
   archiveLegends: vi.fn(),
   archiveLegendEventRecords: vi.fn(),
   finishesForLegend: vi.fn(),
+  bestFinishesForLegend: vi.fn(),
+  legendRecordCounts: vi.fn(),
+  eventTierCounts: vi.fn(),
   finishesForPlayer: vi.fn(),
 };
+
+const NO_TIER_COUNTS = { premier: 0, competitive: 0, store: 0, casual: 0 };
 
 const mockCanonicalPrintings = { resolvePrintingMetaForRows: vi.fn() };
 
@@ -115,9 +122,14 @@ beforeEach(() => {
   mockMeta.phasesForEvent.mockResolvedValue([]);
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockMeta.contributorsForEvent.mockResolvedValue([]);
+  mockMeta.allDeckSummaries.mockResolvedValue({ rows: [], total: 0 });
+  mockMeta.allDeckCards.mockResolvedValue([]);
   mockMeta.archiveLegends.mockResolvedValue([]);
   mockMeta.archiveLegendEventRecords.mockResolvedValue([]);
-  mockMeta.finishesForLegend.mockResolvedValue([]);
+  mockMeta.finishesForLegend.mockResolvedValue({ rows: [], total: 0 });
+  mockMeta.bestFinishesForLegend.mockResolvedValue([]);
+  mockMeta.legendRecordCounts.mockResolvedValue({ wins: 0, finishes: 0, decklists: 0 });
+  mockMeta.eventTierCounts.mockResolvedValue(NO_TIER_COUNTS);
   mockMeta.finishesForPlayer.mockResolvedValue([]);
   mockCanonicalPrintings.resolvePrintingMetaForRows.mockResolvedValue([]);
 });
@@ -415,6 +427,30 @@ describe("GET /meta/events/{slug}", () => {
 });
 
 describe("GET /meta/events", () => {
+  it("asks for the whole archive when the request names no window", async () => {
+    mockMeta.allEvents.mockResolvedValue([]);
+
+    const res = await app.request("/api/v1/meta/events");
+
+    expect(res.status).toBe(200);
+    expect(mockMeta.allEvents).toHaveBeenCalledWith({});
+  });
+
+  it("forwards an inclusive window to the repo", async () => {
+    mockMeta.allEvents.mockResolvedValue([]);
+
+    await app.request("/api/v1/meta/events?from=2026-01-01&to=2026-06-30");
+
+    expect(mockMeta.allEvents).toHaveBeenCalledWith({ from: "2026-01-01", to: "2026-06-30" });
+  });
+
+  it("rejects a bound that is not a calendar day", async () => {
+    const res = await app.request("/api/v1/meta/events?to=2026-06");
+
+    expect(res.status).toBe(400);
+    expect(mockMeta.allEvents).not.toHaveBeenCalled();
+  });
+
   it("leaves the long-form fields off the list rows", async () => {
     mockMeta.allEvents.mockResolvedValue([eventRow({ playerRowCount: 64, deckCount: 8 })]);
 
@@ -659,25 +695,43 @@ describe("GET /meta/legends", () => {
 });
 
 describe("GET /meta/legends/{slug}", () => {
-  it("returns every archived finish for the legend the slug names", async () => {
+  it("returns one page of the record, the best placings and the scoped counts", async () => {
     mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
-    mockMeta.finishesForLegend.mockResolvedValue([
-      finishRow({ shareToken: "tok-1", listStatus: "full" }),
-      finishRow({
-        playerId: "p0000000-0001-4000-a000-000000000002",
-        rank: 4,
-        playerName: "Ekko",
-        eventTier: "premier",
-      }),
-    ]);
+    mockMeta.finishesForLegend.mockResolvedValue({
+      rows: [
+        finishRow({ shareToken: "tok-1", listStatus: "full" }),
+        finishRow({
+          playerId: "p0000000-0001-4000-a000-000000000002",
+          rank: 4,
+          playerName: "Ekko",
+          eventTier: "premier",
+        }),
+      ],
+      total: 31,
+    });
+    mockMeta.bestFinishesForLegend.mockResolvedValue([finishRow({ shareToken: "tok-1" })]);
+    mockMeta.legendRecordCounts.mockResolvedValue({ wins: 3, finishes: 31, decklists: 9 });
 
     const res = await app.request("/api/v1/meta/legends/kennen-heart-of-the-tempest");
 
     expect(res.status).toBe(200);
     const json = await readJson(res);
-    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith(LEGEND_ID);
+    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith(
+      LEGEND_ID,
+      { slug: "kennen-heart-of-the-tempest" },
+      { limit: 25, offset: 0 },
+    );
+    expect(mockMeta.bestFinishesForLegend).toHaveBeenCalledWith(
+      LEGEND_ID,
+      { slug: "kennen-heart-of-the-tempest" },
+      5,
+    );
     expect(json.slug).toBe("kennen-heart-of-the-tempest");
     expect(json.legend.name).toBe("Kennen, Heart of the Tempest");
+    expect(json.counts).toEqual({ wins: 3, finishes: 31, decklists: 9 });
+    expect(json.best).toHaveLength(1);
+    expect(json.total).toBe(31);
+    expect(json.page).toBe(1);
     expect(json.finishes).toHaveLength(2);
     expect(json.finishes[0]).toMatchObject({ rank: 1, shareToken: "tok-1", listStatus: "full" });
     expect(json.finishes[1].event).toMatchObject({
@@ -686,6 +740,40 @@ describe("GET /meta/legends/{slug}", () => {
       country: "DE",
       playerCount: 64,
     });
+  });
+
+  it("forwards the scope facets and the page the request asked for", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+
+    const res = await app.request(
+      "/api/v1/meta/legends/kennen-heart-of-the-tempest" +
+        "?from=2026-01-01&tiers[0]=premier&tiers[1]=competitive&countriesEx[0]=DE&page=3",
+    );
+
+    expect(res.status).toBe(200);
+    const scope = {
+      slug: "kennen-heart-of-the-tempest",
+      from: "2026-01-01",
+      tiers: ["premier", "competitive"],
+      countriesEx: ["DE"],
+      page: 3,
+    };
+    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith(LEGEND_ID, scope, {
+      limit: 25,
+      offset: 50,
+    });
+    expect(mockMeta.legendRecordCounts).toHaveBeenCalledWith(LEGEND_ID, scope);
+    const json = await readJson(res);
+    expect(json.page).toBe(3);
+  });
+
+  it("rejects a page that is not a positive whole number", async () => {
+    mockMeta.archiveLegends.mockResolvedValue([legendRow()]);
+
+    const res = await app.request("/api/v1/meta/legends/kennen-heart-of-the-tempest?page=0");
+
+    expect(res.status).toBe(400);
+    expect(mockMeta.finishesForLegend).not.toHaveBeenCalled();
   });
 
   it("separates two legends of one champion by their card slugs", async () => {
@@ -703,7 +791,11 @@ describe("GET /meta/legends/{slug}", () => {
 
     expect(res.status).toBe(200);
     const json = await readJson(res);
-    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith("f0000000-0001-4000-a000-000000000003");
+    expect(mockMeta.finishesForLegend).toHaveBeenCalledWith(
+      "f0000000-0001-4000-a000-000000000003",
+      expect.anything(),
+      expect.anything(),
+    );
     expect(json.legend.name).toBe("Master Yi, Wuju Bladesman");
   });
 
@@ -846,6 +938,129 @@ describe("GET /meta/players/{key}", () => {
   });
 });
 
+/** @returns One archived deck as the browser lists it, as the repo returns it. */
+function deckSummaryRow(overrides: Record<string, unknown> = {}) {
+  return {
+    playerId: "p0000000-0001-4000-a000-000000000001",
+    deckId: "d0000000-0001-4000-a000-000000000001",
+    shareToken: "tok-1",
+    listStatus: "full",
+    deckName: "Kennen Tempo",
+    deckFormat: "constructed",
+    legendCardId: LEGEND_ID,
+    legendName: "Heart of the Tempest",
+    legendSlug: "heart-of-the-tempest",
+    legendTypes: ["legend"],
+    legendTags: ["Kennen"],
+    championCardId: CHAMPION_ID,
+    championName: "Kennen",
+    playerName: "Renata",
+    sourceIdentity: "u347713",
+    rank: 1,
+    rankIsTier: false,
+    wins: 6,
+    losses: 1,
+    draws: 0,
+    eventSlug: "summoner-skirmish-2026",
+    eventName: "Summoner Skirmish",
+    eventDate: "2026-08-01",
+    eventFormat: "constructed",
+    eventTier: "store",
+    eventCountry: "DE",
+    ...overrides,
+  };
+}
+
+describe("GET /meta/decks", () => {
+  it("asks for the whole archive when the request names no window", async () => {
+    const res = await app.request("/api/v1/meta/decks");
+
+    expect(res.status).toBe(200);
+    expect(mockMeta.allDeckSummaries).toHaveBeenCalledWith({});
+  });
+
+  it("forwards an inclusive window to the repo", async () => {
+    const res = await app.request("/api/v1/meta/decks?from=2026-01-01&to=2026-06-30");
+
+    expect(res.status).toBe(200);
+    expect(mockMeta.allDeckSummaries).toHaveBeenCalledWith({
+      from: "2026-01-01",
+      to: "2026-06-30",
+    });
+  });
+
+  it("forwards an open-ended window", async () => {
+    await app.request("/api/v1/meta/decks?from=2026-07-01");
+
+    expect(mockMeta.allDeckSummaries).toHaveBeenCalledWith({ from: "2026-07-01" });
+  });
+
+  it("forwards the legend, the player and the cap", async () => {
+    await app.request(`/api/v1/meta/decks?legend=${LEGEND_ID}&player=renata&limit=12`);
+
+    expect(mockMeta.allDeckSummaries).toHaveBeenCalledWith({
+      legend: LEGEND_ID,
+      player: "renata",
+      limit: 12,
+    });
+  });
+
+  it("forwards a tier include and a country exclude", async () => {
+    await app.request("/api/v1/meta/decks?tiers[0]=premier&countriesEx[0]=DE&limit=8");
+
+    expect(mockMeta.allDeckSummaries).toHaveBeenCalledWith({
+      tiers: ["premier"],
+      countriesEx: ["DE"],
+      limit: 8,
+    });
+  });
+
+  it("reports the count before the cap alongside the rows", async () => {
+    mockMeta.allDeckSummaries.mockResolvedValue({ rows: [deckSummaryRow()], total: 40 });
+
+    const json = await readJson(await app.request("/api/v1/meta/decks?limit=1"));
+
+    expect(json.decks).toHaveLength(1);
+    expect(json.total).toBe(40);
+  });
+
+  it("rejects a bound that is not a calendar day", async () => {
+    const res = await app.request("/api/v1/meta/decks?from=last-week");
+
+    expect(res.status).toBe(400);
+    expect(mockMeta.allDeckSummaries).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cap that is not a positive whole number", async () => {
+    const res = await app.request("/api/v1/meta/decks?limit=0");
+
+    expect(res.status).toBe(400);
+    expect(mockMeta.allDeckSummaries).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /meta/deck-cards", () => {
+  it("asks for every archived list when the request names no window", async () => {
+    const res = await app.request("/api/v1/meta/deck-cards");
+
+    expect(res.status).toBe(200);
+    expect(mockMeta.allDeckCards).toHaveBeenCalledWith({});
+  });
+
+  it("forwards the window the deck list was scoped to", async () => {
+    await app.request("/api/v1/meta/deck-cards?from=2026-01-01&to=2026-06-30");
+
+    expect(mockMeta.allDeckCards).toHaveBeenCalledWith({ from: "2026-01-01", to: "2026-06-30" });
+  });
+
+  it("rejects a bound that is not a calendar day", async () => {
+    const res = await app.request("/api/v1/meta/deck-cards?to=2026-06");
+
+    expect(res.status).toBe(400);
+    expect(mockMeta.allDeckCards).not.toHaveBeenCalled();
+  });
+});
+
 describe("GET /meta/counts", () => {
   it("returns both scope counts and forwards the event-level filters", async () => {
     mockMeta.playerCountInScope.mockResolvedValue(240);
@@ -855,8 +1070,25 @@ describe("GET /meta/counts", () => {
 
     expect(res.status).toBe(200);
     const json = await readJson(res);
-    expect(json).toEqual({ totalPlayers: 240, decksWithMainDeck: 12 });
+    expect(json).toMatchObject({ totalPlayers: 240, decksWithMainDeck: 12 });
     expect(mockMeta.playerCountInScope).toHaveBeenCalledWith({ format: "constructed" });
     expect(mockMeta.deckCountInScope).toHaveBeenCalledWith({ format: "constructed" });
+  });
+
+  it("reports the archive's own event numbers, which the filters never narrow", async () => {
+    mockMeta.playerCountInScope.mockResolvedValue(0);
+    mockMeta.deckCountInScope.mockResolvedValue(0);
+    mockMeta.eventTierCounts.mockResolvedValue({
+      premier: 4,
+      competitive: 31,
+      store: 900,
+      casual: 12,
+    });
+
+    const json = await readJson(await app.request("/api/v1/meta/counts?format=constructed"));
+
+    expect(json.eventsByTier).toEqual({ premier: 4, competitive: 31, store: 900, casual: 12 });
+    expect(json.totalEvents).toBe(947);
+    expect(mockMeta.eventTierCounts).toHaveBeenCalledWith();
   });
 });

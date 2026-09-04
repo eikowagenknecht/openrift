@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/submissions")({
       }),
       // An accepted row names a deck id, while a public archive link is keyed by
       // the deck's share token. The archive payload is what maps one to the other.
-      context.queryClient.query({ ...metaDecksQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaDecksQueryOptions(), staleTime: "static" }),
     ]);
   },
   errorComponent: RouteErrorFallback,

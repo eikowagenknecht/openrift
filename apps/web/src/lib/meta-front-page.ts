@@ -19,10 +19,9 @@ function matchesSearch(event: MetaEventSummary, needle: string): boolean {
 
 /**
  * The archived events the scope bar and search box leave standing, newest
- * first. The whole archive already ships as one payload, so every list on the
- * page narrows from the same array rather than issuing its own request — which
- * is also what keeps the counts line and the lists under it describing one
- * scope.
+ * first. The era ships as one payload, so every list on the page narrows from
+ * the same array rather than issuing its own request, which is what keeps the
+ * counts line and the lists under it describing one scope.
  */
 export function filterMetaEvents(
   events: readonly MetaEventSummary[],
@@ -100,23 +99,4 @@ export function metaFrontSections(
     community: played.filter((event) => event.tier === "store" || event.tier === "casual"),
     upcoming,
   };
-}
-
-/** How many events each tier section's "Browse all" link opens on, results or not. */
-export function metaTierCounts(
-  events: readonly MetaEventSummary[],
-): Record<"premier" | "competitive" | "community", number> {
-  let premier = 0;
-  let competitive = 0;
-  let community = 0;
-  for (const event of events) {
-    if (event.tier === "premier") {
-      premier += 1;
-    } else if (event.tier === "competitive") {
-      competitive += 1;
-    } else {
-      community += 1;
-    }
-  }
-  return { premier, competitive, community };
 }

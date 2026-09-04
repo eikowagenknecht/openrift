@@ -15,6 +15,7 @@ import type {
   deckSummaryResponseSchema,
 } from "@openrift/shared/contracts/decks";
 import type {
+  deckCatalogSubsetSchema,
   deckPlanCardMetaResponseSchema,
   publicDeckCardResponseSchema,
   publicDeckDetailResponseSchema,
@@ -98,6 +99,9 @@ export type DeckPlanDetailResponse = z.infer<typeof deckPlanDetailResponseSchema
 export type DeckPlanCardMetaResponse = z.infer<typeof deckPlanCardMetaResponseSchema>;
 
 export type PublicDeckDetailResponse = z.infer<typeof publicDeckDetailResponseSchema>;
+
+/** The catalogue rows a deck page renders from, in place of the whole catalogue. */
+export type DeckCatalogSubset = z.infer<typeof deckCatalogSubsetSchema>;
 
 export type DeckShareResponse = z.infer<typeof deckShareResponseSchema>;
 

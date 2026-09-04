@@ -99,6 +99,7 @@ export function FannedPreview({
   coverImage,
   coverPosition,
   gradientStyle,
+  soloLegend = false,
 }: {
   legendImage?: PrintingImage | null;
   championImage?: PrintingImage | null;
@@ -107,10 +108,20 @@ export function FannedPreview({
   /** Vertical crop focus for the cover (percent from the top); null = default. */
   coverPosition?: number | null;
   gradientStyle?: React.CSSProperties;
+  /** No champion is ever expected here; center the legend instead of pairing it with a placeholder. */
+  soloLegend?: boolean;
 }) {
   const isEmpty = !legendImage && !championImage;
+  const isSolo = soloLegend && !championImage;
   const backdropImage = coverImage ?? legendImage;
-  const legendPlaceholder = (
+  const legendPlaceholder = isSolo ? (
+    <PlaceholderPreviewCard
+      iconSrc="/images/types/legend.svg"
+      label="Legend"
+      className="left-1/2"
+      style={{ transform: "translateX(-50%) rotate(-4deg)" }}
+    />
+  ) : (
     <PlaceholderPreviewCard
       iconSrc="/images/types/legend.svg"
       label="Legend"
@@ -169,7 +180,11 @@ export function FannedPreview({
           // Lift via `scale` only: it composes with the slot's inline
           // `transform` rotation, which a class-based translate would not.
           className="absolute h-[85%] rounded-lg object-cover shadow-md transition-[scale] duration-200 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-          style={{ left: "12%", transform: "rotate(-6deg)" }}
+          style={
+            isSolo
+              ? { left: "50%", transform: "translateX(-50%) rotate(-4deg)" }
+              : { left: "12%", transform: "rotate(-6deg)" }
+          }
           fallback={legendPlaceholder}
         />
       ) : (
@@ -185,7 +200,7 @@ export function FannedPreview({
           fallback={championPlaceholder}
         />
       ) : (
-        championPlaceholder
+        !isSolo && championPlaceholder
       )}
     </div>
   );

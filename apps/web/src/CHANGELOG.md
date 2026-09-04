@@ -4,12 +4,15 @@
 
 ### Highlights
 
+- feat(Meta): **Archived decks as a sortable list** — the deck browser opens on Premier and Competitive lists from the current era as rows you can sort by finish, date, value or what completing them costs you, with a grid layout one click away and the same filter bar as the rest of the archive.
 - feat(Meta): **Archived decklists lead with the result** — the header now states the finish against the field, the player and the legend, and drops the generated deck name.
 - feat(Decks): **Save, print and export a shared deck** — shared and archived decklists get an overflow menu holding the deck image, the printable sheet, the exports and the deck code.
+- fix(Meta): **Archive pages open from a direct link** — the deck browser, legend pages and player pages came back blank when opened from a bookmark or a shared link; they now load.
 
 ### Other
 
 - feat(Deck): **"Show every copy" leaves runes stacked** — a nested toggle now lets the rune stacks join the rest of the deck's expanded copies, instead of every rune always splitting out.
+- fix(Meta): **Partial lists show the legend alone** — an archived list without a known champion no longer draws an empty dashed champion slot next to the legend.
 - fix(Meta): **Archived decklists share correctly** — a link to one previewed the archive account and a generated deck name, and now shows the legend, the player and the finish.
 - fix(Decks): **One name for copying a deck** — the archive called it "Fork to my decks" where the share page called the same action "Copy to my decks", and both now say copy.
 - fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.

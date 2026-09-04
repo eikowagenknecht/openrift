@@ -2,11 +2,8 @@ import type { MetaDeckSummary, MetaPlayerFinish } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaFinishesView, MetaLegendScope } from "@/lib/meta-legend-page";
-import {
-  filterLegendFinishes,
-  metaLegendCountries,
-  sortLegendFinishes,
-} from "@/lib/meta-legend-page";
+import { metaLegendCountries } from "@/lib/meta-legend-page";
+import { scopeMatches } from "@/lib/meta-scope-match";
 
 type MetaPlayerLegend = NonNullable<MetaPlayerFinish["legend"]>;
 
@@ -24,36 +21,63 @@ export interface MetaPlayerCounts {
 }
 
 /**
- * `decklists` counts the decks the grid renders rather than the finishes that
- * claim a list, so the number and the grid can never disagree.
+ * `decklists` counts the share tokens the record carries, which is the set
+ * {@link metaPlayerDecks} resolves against the archive. Reading it off the
+ * finishes lets the hero render without the deck payload.
  */
-export function metaPlayerCounts(
-  finishes: readonly MetaPlayerFinish[],
-  decks: readonly MetaDeckSummary[],
-): MetaPlayerCounts {
+export function metaPlayerCounts(finishes: readonly MetaPlayerFinish[]): MetaPlayerCounts {
   const wonEvents = new Set(
     finishes.filter((finish) => finish.rank === 1).map((finish) => finish.event.slug),
+  );
+  const tokens = new Set(
+    finishes.map((finish) => finish.shareToken).filter((token) => token !== null),
   );
   return {
     eventWins: wonEvents.size,
     topEights: finishes.filter((finish) => finish.rank <= TOP_CUT).length,
     finishes: finishes.length,
-    decklists: decks.length,
+    decklists: tokens.size,
   };
 }
 
+/**
+ * The finishes inside the scope bar's selection. The player endpoint answers
+ * with the whole record, so this page narrows it itself.
+ */
 export function filterPlayerFinishes(
   finishes: readonly MetaPlayerFinish[],
   filter: MetaLegendScope,
 ): MetaPlayerFinish[] {
-  return filterLegendFinishes(finishes, filter);
+  return finishes.filter((finish) => scopeMatches(finish.event, filter.scope, filter.eras));
 }
 
+/**
+ * The finishes in the order a view shows them.
+ *
+ * `best` is the record's high-water marks: best placing first, and the most
+ * recent of an equal placing ahead of older ones, so a reader sees what the
+ * player has done lately rather than a five-year-old top 8 pinned to the top.
+ * `all` is the record as it happened, newest first, with the better placing
+ * first inside one day.
+ */
 export function sortPlayerFinishes(
   finishes: readonly MetaPlayerFinish[],
   view: MetaFinishesView,
 ): MetaPlayerFinish[] {
-  return sortLegendFinishes(finishes, view);
+  if (view === "best") {
+    return finishes.toSorted(
+      (a, b) =>
+        a.rank - b.rank ||
+        b.event.eventDate.localeCompare(a.event.eventDate) ||
+        a.event.name.localeCompare(b.event.name),
+    );
+  }
+  return finishes.toSorted(
+    (a, b) =>
+      b.event.eventDate.localeCompare(a.event.eventDate) ||
+      a.rank - b.rank ||
+      a.event.name.localeCompare(b.event.name),
+  );
 }
 
 export interface MetaPlayerLegendEntry {
@@ -180,9 +204,6 @@ export function metaPlayerFacts(finishes: readonly MetaPlayerFinish[]): MetaPlay
  * Read off the whole record rather than the scoped slice, so picking a country
  * never removes the others from the control that picked it.
  */
-export function metaPlayerCountries(
-  finishes: readonly MetaPlayerFinish[],
-  decks: readonly MetaDeckSummary[],
-): string[] {
-  return metaLegendCountries(finishes, decks);
+export function metaPlayerCountries(finishes: readonly MetaPlayerFinish[]): string[] {
+  return metaLegendCountries(finishes);
 }

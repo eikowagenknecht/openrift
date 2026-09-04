@@ -1,11 +1,12 @@
 import type { DeckLink, LinkHost } from "@openrift/shared";
 import { legendDisplayName, resolveLinkHost } from "@openrift/shared";
 import { ExternalLinkIcon, PlayIcon } from "lucide-react";
+import { Suspense } from "react";
 
 import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
-import { useCards } from "@/hooks/use-cards";
+import { useFullCatalog } from "@/hooks/use-cards";
 import { useHydrated } from "@/hooks/use-hydrated";
 import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -19,6 +20,9 @@ interface DeckDescriptionProps {
   /** Opens the card detail; card links fall back to plain text without it. */
   onCardClick?: (card: CardOpenTarget) => void;
 }
+
+/** The same span `expandCardLinks` rewrites, so nothing loads the catalogue for a description without one. */
+const CARD_REFERENCE = /\[\[[^[\]\n]{1,80}\]\]/u;
 
 /** The inline look of a resolved card reference inside the description. */
 const CARD_LINK_CLASS =
@@ -39,28 +43,33 @@ export function DeckDescription({
   onCardClick,
 }: DeckDescriptionProps) {
   const hydrated = useHydrated();
-  if (!hydrated) {
-    return (
-      <MarkdownText
-        text={text}
-        headings
-        className={className}
-        renderCardLink={(_name, children) => <span className={CARD_LINK_CLASS}>{children}</span>}
-      />
-    );
+  const plain = (
+    <MarkdownText
+      text={text}
+      headings
+      className={className}
+      renderCardLink={(_name, children) => <span className={CARD_LINK_CLASS}>{children}</span>}
+    />
+  );
+  if (!hydrated || !CARD_REFERENCE.test(text)) {
+    return plain;
   }
   return (
-    <ResolvedDeckDescription
-      text={text}
-      className={className}
-      onHoverCard={onHoverCard}
-      onCardClick={onCardClick}
-    />
+    <Suspense fallback={plain}>
+      <ResolvedDeckDescription
+        text={text}
+        className={className}
+        onHoverCard={onHoverCard}
+        onCardClick={onCardClick}
+      />
+    </Suspense>
   );
 }
 
 /**
- * Client half of {@link DeckDescription}; owns the catalog subscription.
+ * Client half of {@link DeckDescription}; owns the catalog subscription. A
+ * reference can name any card, including one a subset-serving page (the share
+ * and archive deck pages) never carries, so this reads the whole catalogue.
  * @returns The rendered description with resolved card links.
  */
 function ResolvedDeckDescription({
@@ -69,7 +78,7 @@ function ResolvedDeckDescription({
   onHoverCard,
   onCardClick,
 }: DeckDescriptionProps) {
-  const { printingsByCardId } = useCards();
+  const { printingsByCardId } = useFullCatalog();
 
   const cardByName = new Map<string, DeckBuilderCard>();
   for (const [cardId, printings] of printingsByCardId) {

@@ -40,6 +40,12 @@ const os = implement(metaContract).$context<ApiContext>().use(requireUser);
 /** Bursts on the front page's "Fresh in the archive" list. */
 const ACTIVITY_LIMIT = 6;
 
+/** Placings a legend's page leads with. */
+const BEST_FINISH_COUNT = 5;
+
+/** Rows of a legend's record per page. */
+const FINISH_PAGE_SIZE = 25;
+
 /**
  * Resolves the canonical front image of each card in one batch, so a standings
  * table or a deck list costs one printing lookup rather than one per row.
@@ -86,10 +92,10 @@ function referencedCardIds(
  * as an archive entry under someone else's byline.
  */
 export const metaRouter = {
-  events: os.events.handler(async ({ context }): Promise<MetaEventListResponse> => {
+  events: os.events.handler(async ({ input, context }): Promise<MetaEventListResponse> => {
     const { meta, canonicalPrintings } = context.repos;
 
-    const rows = await meta.allEvents();
+    const rows = await meta.allEvents(input);
     const finishes = await meta.topFinishesForEvents(rows.map((row) => row.id));
     // Legends only: a list row shows a finish's legend, never their champion.
     const images = await imageIdsForCards(
@@ -143,19 +149,21 @@ export const metaRouter = {
     };
   }),
 
-  decks: os.decks.handler(async ({ context }): Promise<MetaDeckListResponse> => {
+  decks: os.decks.handler(async ({ input, context }): Promise<MetaDeckListResponse> => {
     const { meta, canonicalPrintings } = context.repos;
 
-    const deckRows = await meta.allDeckSummaries();
-    const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(deckRows));
+    const { rows, total } = await meta.allDeckSummaries(input);
+    const images = await imageIdsForCards(canonicalPrintings, referencedCardIds(rows));
 
-    return { decks: deckRows.map((row) => toMetaDeckSummary(row, images)) };
+    return { decks: rows.map((row) => toMetaDeckSummary(row, images)), total };
   }),
 
-  deckCards: os.deckCards.handler(async ({ context }): Promise<MetaDeckCardIndexResponse> => {
-    const { meta } = context.repos;
-    return toMetaDeckCardIndex(await meta.allDeckCards());
-  }),
+  deckCards: os.deckCards.handler(
+    async ({ input, context }): Promise<MetaDeckCardIndexResponse> => {
+      const { meta } = context.repos;
+      return toMetaDeckCardIndex(await meta.allDeckCards(input));
+    },
+  ),
 
   deck: os.deck.handler(async ({ input, context, errors }): Promise<MetaDeckDetailResponse> => {
     const { decks, meta } = context.repos;
@@ -218,8 +226,14 @@ export const metaRouter = {
         throw errors.NOT_FOUND({ message: "Legend not found" });
       }
 
-      const [finishes, images] = await Promise.all([
-        meta.finishesForLegend(row.cardId),
+      const page = input.page ?? 1;
+      const [finishes, best, counts, images] = await Promise.all([
+        meta.finishesForLegend(row.cardId, input, {
+          limit: FINISH_PAGE_SIZE,
+          offset: (page - 1) * FINISH_PAGE_SIZE,
+        }),
+        meta.bestFinishesForLegend(row.cardId, input, BEST_FINISH_COUNT),
+        meta.legendRecordCounts(row.cardId, input),
         imageIdsForCards(canonicalPrintings, [row.cardId]),
       ]);
       const ref = toMetaLegendRef(row, images);
@@ -227,7 +241,11 @@ export const metaRouter = {
       return {
         slug: ref.slug,
         legend: ref.legend,
-        finishes: finishes.map((finish) => toMetaLegendFinish(finish)),
+        counts,
+        best: best.map((finish) => toMetaLegendFinish(finish)),
+        finishes: finishes.rows.map((finish) => toMetaLegendFinish(finish)),
+        total: finishes.total,
+        page,
       };
     },
   ),
@@ -256,10 +274,12 @@ export const metaRouter = {
 
   counts: os.counts.handler(async ({ input, context }): Promise<MetaCountsResponse> => {
     const { meta } = context.repos;
-    const [totalPlayers, decksWithMainDeck] = await Promise.all([
+    const [totalPlayers, decksWithMainDeck, eventsByTier] = await Promise.all([
       meta.playerCountInScope(input),
       meta.deckCountInScope(input),
+      meta.eventTierCounts(),
     ]);
-    return { totalPlayers, decksWithMainDeck };
+    const totalEvents = Object.values(eventsByTier).reduce((sum, count) => sum + count, 0);
+    return { totalPlayers, decksWithMainDeck, totalEvents, eventsByTier };
   }),
 };

@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/submit")({
     }
     await Promise.all([
       context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
-      context.queryClient.query({ ...metaEventsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaEventsQueryOptions(), staleTime: "static" }),
       // The catalog turns a pasted deck code's short codes into the card names
       // the submission endpoint takes.
       context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),

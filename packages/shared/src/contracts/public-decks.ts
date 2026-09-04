@@ -1,6 +1,9 @@
 import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import {
   cardTypeSchema,
+  catalogCardResponseSchema,
+  catalogPrintingResponseSchema,
+  catalogSetResponseSchema,
   deckFormatSchema,
   deckLinkSchema,
   deckPlanResponseSchema,
@@ -84,6 +87,21 @@ export const deckPlanCardMetaResponseSchema = z.object({
   imageId: z.string().nullable(),
 });
 
+/**
+ * The slice of the catalogue a deck page renders from: every printing of the
+ * deck's cards plus the printings of the tokens they create, the cards behind
+ * those printings, and the sets they belong to. Same shapes `/catalog` serves,
+ * so a page hands them to the shared catalogue helpers unchanged and never
+ * downloads the whole catalogue.
+ */
+export const deckCatalogSubsetSchema = z
+  .object({
+    sets: z.array(catalogSetResponseSchema),
+    cards: z.record(z.string(), catalogCardResponseSchema),
+    printings: z.array(catalogPrintingResponseSchema),
+  })
+  .openapi("DeckCatalogSubset");
+
 export const publicDeckDetailResponseSchema = z
   .object({
     deck: publicDeckResponseSchema,
@@ -92,6 +110,7 @@ export const publicDeckDetailResponseSchema = z
     plan: deckPlanResponseSchema.nullable(),
     planCardMeta: z.array(deckPlanCardMetaResponseSchema),
     customTagAssignments: z.record(z.string(), z.array(z.string())).openapi({ example: {} }),
+    catalog: deckCatalogSubsetSchema,
   })
   .openapi("PublicDeckDetailResponse");
 

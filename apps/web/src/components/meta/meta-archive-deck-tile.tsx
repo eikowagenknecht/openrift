@@ -117,6 +117,7 @@ export function MetaArchiveDeckTile({
         <FannedPreview
           legendImage={metaFrontImage(deck.legendImageId)}
           championImage={metaFrontImage(deck.championImageId)}
+          soloLegend
         />
         <PlacementPlate deck={deck} fieldSize={fieldSize} />
         {value !== undefined && (

@@ -24,7 +24,31 @@ const mockDeckPlansRepo = {
 
 const mockCatalogRepo = {
   cardsByIds: vi.fn(() => Promise.resolve([] as object[])),
-  cardBansByCardIds: vi.fn(() => Promise.resolve([] as { cardId: string; formatId: string }[])),
+  cardBansByCardIds: vi.fn(() =>
+    Promise.resolve(
+      [] as {
+        cardId: string;
+        formatId: string;
+        formatName: string;
+        bannedAt: string;
+        reason: string | null;
+      }[],
+    ),
+  ),
+  cardErrataByCardIds: vi.fn(() => Promise.resolve([] as object[])),
+  sets: vi.fn(() => Promise.resolve([] as object[])),
+  printingsByCardIds: vi.fn(() => Promise.resolve([] as { id: string }[])),
+  printingImagesByCardIds: vi.fn(() => Promise.resolve([] as object[])),
+  markersList: vi.fn(() => Promise.resolve([] as object[])),
+};
+
+const mockDistributionChannelsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as object[])),
+  listAll: vi.fn(() => Promise.resolve([] as object[])),
+};
+
+const mockPrintingCitationsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([] as object[])),
 };
 
 const mockCanonicalPrintingsRepo = {
@@ -52,6 +76,8 @@ app.use("*", async (c, next) => {
     catalog: mockCatalogRepo,
     canonicalPrintings: mockCanonicalPrintingsRepo,
     customTags: mockCustomTagsRepo,
+    distributionChannels: mockDistributionChannelsRepo,
+    printingCitations: mockPrintingCitationsRepo,
     // oxlint-disable-next-line no-explicit-any -- test mock doesn't match full Repos type
   } as any);
   await next();
@@ -102,6 +128,7 @@ const cardMeta = {
   tags: [],
   domains: ["fury"],
   superTypes: ["champion"],
+  tokenCardIds: [],
   comment: null,
 };
 
@@ -137,7 +164,13 @@ describe("GET /api/v1/decks/share/:token", () => {
     mockCatalogRepo.cardsByIds.mockResolvedValue([cardMeta]);
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([printingMeta]);
     mockCatalogRepo.cardBansByCardIds.mockResolvedValue([
-      { cardId: dbCard.cardId, formatId: WellKnown.banFormat.CONSTRUCTED },
+      {
+        cardId: dbCard.cardId,
+        formatId: WellKnown.banFormat.CONSTRUCTED,
+        formatName: "Constructed",
+        bannedAt: "2026-01-01",
+        reason: null,
+      },
     ]);
 
     const json = await readJson(await app.request("/api/v1/decks/share/tok-abc"));
@@ -154,7 +187,13 @@ describe("GET /api/v1/decks/share/:token", () => {
     mockCatalogRepo.cardsByIds.mockResolvedValue([cardMeta]);
     mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([printingMeta]);
     mockCatalogRepo.cardBansByCardIds.mockResolvedValue([
-      { cardId: dbCard.cardId, formatId: WellKnown.banFormat.TWO_V_TWO },
+      {
+        cardId: dbCard.cardId,
+        formatId: WellKnown.banFormat.TWO_V_TWO,
+        formatName: "2v2",
+        bannedAt: "2026-01-01",
+        reason: null,
+      },
     ]);
 
     const json = await readJson(await app.request("/api/v1/decks/share/tok-abc"));

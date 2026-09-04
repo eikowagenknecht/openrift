@@ -19,7 +19,13 @@ import {
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { countryLabel } from "@/lib/country";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
-import type { MetaEra, MetaScope, MetaScopeControls, MetaScopeFacet } from "@/lib/meta-scope";
+import type {
+  MetaEra,
+  MetaScope,
+  MetaScopeControls,
+  MetaScopeFacet,
+  ScopeFacetDefaults,
+} from "@/lib/meta-scope";
 import {
   cycleScopeFacet,
   defaultEraId,
@@ -45,6 +51,8 @@ export interface MetaScopeBarProps extends MetaScopeControls {
   extras?: ReactNode;
   /** Whether {@link extras} are narrowing anything, so Reset offers itself. */
   extrasActive?: boolean;
+  /** What a facet the URL says nothing about includes on this surface. */
+  facetDefaults?: ScopeFacetDefaults;
   showTier?: boolean;
   className?: string;
 }
@@ -66,6 +74,7 @@ export function MetaScopeBar({
   countries = [],
   extras,
   extrasActive = false,
+  facetDefaults,
   showTier = true,
   className,
 }: MetaScopeBarProps) {
@@ -133,6 +142,7 @@ export function MetaScopeBar({
           options={tierOptions}
           scope={scope}
           setScope={setScope}
+          defaults={facetDefaults}
         />
       )}
 
@@ -165,6 +175,7 @@ function ScopeFacet({
   scope,
   setScope,
   triggerStyle = "button",
+  defaults,
 }: {
   label: string;
   facet: MetaScopeFacet;
@@ -172,8 +183,9 @@ function ScopeFacet({
   scope: MetaScope;
   setScope: (patch: Partial<MetaScope>) => void;
   triggerStyle?: "button" | "menu";
+  defaults?: ScopeFacetDefaults;
 }) {
-  const { included, excluded } = scopeFacetValues(scope, facet);
+  const { included, excluded } = scopeFacetValues(scope, facet, defaults);
   return (
     <MultiSelectCombobox
       label={label}
@@ -184,7 +196,7 @@ function ScopeFacet({
       options={options}
       selected={[...included]}
       excluded={[...excluded]}
-      onCycle={(value) => setScope(cycleScopeFacet(scope, facet, value))}
+      onCycle={(value) => setScope(cycleScopeFacet(scope, facet, value, defaults))}
       searchPlaceholder={`Search ${label.toLowerCase()}…`}
     />
   );

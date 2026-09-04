@@ -29,7 +29,6 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: () => ({ orders: { domains: [] }, labels: { domains: {} } }),
 }));
-vi.mock("@/components/deck/deck-tile", () => ({ FannedPreview: () => null }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MetaArchiveDeckTile } from "./meta-archive-deck-tile";
@@ -159,5 +158,11 @@ describe("MetaArchiveDeckTile", () => {
 
     expect(screen.queryByRole("link", { name: "Nova" })).not.toBeInTheDocument();
     expect(screen.getByText("Nova")).toBeInTheDocument();
+  });
+
+  it("doesn't show a champion placeholder for a list with no champion on file", () => {
+    render(tile({ deck: { ...DECK, championImageId: null } }));
+
+    expect(screen.queryByText("Champion")).not.toBeInTheDocument();
   });
 });

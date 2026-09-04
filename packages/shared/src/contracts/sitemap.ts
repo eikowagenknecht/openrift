@@ -18,6 +18,10 @@ export const sitemapDataResponseSchema = z
     metaEvents: z.array(sitemapEntrySchema),
     /** Archived decks → `/meta/decks/{slug}`, where the slug is the share token. */
     metaDecks: z.array(sitemapEntrySchema),
+    /** Legends with an archive page → `/meta/legends/{slug}`. */
+    metaLegends: z.array(sitemapEntrySchema),
+    /** Players with a result at a listed tier → `/meta/players/{slug}`. */
+    metaPlayers: z.array(sitemapEntrySchema),
   })
   .openapi("SitemapDataResponse");
 

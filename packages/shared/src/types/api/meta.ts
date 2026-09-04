@@ -44,7 +44,9 @@ import type {
   metaEventFinishSchema,
   metaActivityItemSchema,
   metaActivityResponseSchema,
+  metaCountsQuerySchema,
   metaCountsResponseSchema,
+  metaScopeQuerySchema,
   metaLegendDetailResponseSchema,
   metaPlayerDetailResponseSchema,
   metaPlayerFinishSchema,
@@ -127,6 +129,12 @@ export type MetaPlayerFinish = z.infer<typeof metaPlayerFinishSchema>;
 
 /** GET /meta/players/{key} — one player and every finish on their record. */
 export type MetaPlayerDetailResponse = z.infer<typeof metaPlayerDetailResponseSchema>;
+
+/** The scope bar's selection on the wire: a window plus the three facet pairs. */
+export type MetaScopeQuery = z.infer<typeof metaScopeQuerySchema>;
+
+/** Which slice of the archive `GET /meta/counts` should count. */
+export type MetaCountsQuery = z.infer<typeof metaCountsQuerySchema>;
 
 /** Admin event row: every stored column plus the roster and deck counts. */
 export type AdminMetaEvent = z.infer<typeof adminMetaEventSchema>;

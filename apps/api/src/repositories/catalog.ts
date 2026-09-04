@@ -1001,6 +1001,32 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Every printing of a set of cards, for the surfaces that need a printing
+     * picker over a deck rather than over the whole catalogue.
+     */
+    printingsByCardIds(cardIds: string[]): Promise<CatalogPrintingRow[]> {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingsOrdered")
+        .select(PRINTING_VIEW_COLUMNS)
+        .where("printingsOrdered.cardId", "in", cardIds)
+        .orderBy("printingsOrdered.canonicalRank")
+        .execute();
+    },
+
+    printingImagesByCardIds(cardIds: string[]): Promise<CatalogPrintingImageRow[]> {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return selectPrintingImages(db)
+        .innerJoin("printings", "printings.id", "printingImages.printingId")
+        .where("printings.cardId", "in", cardIds)
+        .execute();
+    },
+
     printingsByIds(ids: string[]): Promise<CatalogPrintingRow[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);

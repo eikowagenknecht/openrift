@@ -1,4 +1,4 @@
-import type { MetaCreditVisibility, MetaListStatus } from "@openrift/shared/types";
+import type { MetaCreditVisibility, MetaEventTier, MetaListStatus } from "@openrift/shared/types";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { Repos } from "../deps.js";
@@ -96,6 +96,8 @@ async function seedEvent(
     name?: string;
     playerCount?: number | null;
     organizer?: string | null;
+    tier?: MetaEventTier;
+    country?: string | null;
   } = {},
 ): Promise<string> {
   const event = await repo.createEvent({
@@ -106,6 +108,8 @@ async function seedEvent(
     playerCount: overrides.playerCount === undefined ? 64 : overrides.playerCount,
     organizer: overrides.organizer === undefined ? "MTA Organizer" : overrides.organizer,
     notes: null,
+    tier: overrides.tier,
+    country: overrides.country ?? null,
   });
   createdEventIds.push(event.id);
   return event.id;
@@ -731,6 +735,21 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(mine[1].deckCount).toBe(0);
     });
 
+    it("keeps only the events inside an inclusive event-date window", async () => {
+      const before = await seedEvent(repo, "mta-events-before", { eventDate: "2027-03-31" });
+      const openDay = await seedEvent(repo, "mta-events-open", { eventDate: "2027-04-01" });
+      const closeDay = await seedEvent(repo, "mta-events-close", { eventDate: "2027-04-30" });
+      const after = await seedEvent(repo, "mta-events-after", { eventDate: "2027-05-01" });
+
+      const scoped = await repo.allEvents({ from: "2027-04-01", to: "2027-04-30" });
+      const ids = new Set(scoped.map((event) => event.id));
+
+      expect(ids.has(openDay)).toBe(true);
+      expect(ids.has(closeDay)).toBe(true);
+      expect(ids.has(before)).toBe(false);
+      expect(ids.has(after)).toBe(false);
+    });
+
     it("folds a legend's standings per event for the index, newest event first", async () => {
       const older = await seedEvent(repo, "mta-records-older", { eventDate: "2026-02-01" });
       const newer = await seedEvent(repo, "mta-records-newer", { eventDate: "2026-11-01" });
@@ -969,7 +988,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       await seedDecklessPlayer(repo, eventId, { playerName: "MTA Unlisted", rank: 8 });
 
       const summaries = await repo.allDeckSummaries();
-      const decks = summaries.filter((deck) => deck.eventSlug === "mta-summaries");
+      const decks = summaries.rows.filter((deck) => deck.eventSlug === "mta-summaries");
       expect(decks.map((deck) => deck.playerName)).toEqual(["MTA First", "MTA Second"]);
       expect(decks[0].legendName).toBe("MTA Legend");
       expect(decks[0].championName).toBe("MTA Champion");
@@ -977,6 +996,150 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(decks[0].eventDate).toBe("2026-08-01");
       expect(decks[0].deckName).toBe("MTA First Deck");
       expect(decks[1].wins).toBe(3);
+    });
+
+    it("keeps only the decks inside an inclusive event-date window", async () => {
+      const before = await seedEvent(repo, "mta-range-before", { eventDate: "2026-01-31" });
+      const inside = await seedEvent(repo, "mta-range-inside", { eventDate: "2026-02-01" });
+      const after = await seedEvent(repo, "mta-range-after", { eventDate: "2026-03-02" });
+      await seedListedPlayer(repo, before, { playerName: "MTA Before", rank: 1 });
+      await seedListedPlayer(repo, inside, { playerName: "MTA Inside", rank: 1 });
+      await seedListedPlayer(repo, after, { playerName: "MTA After", rank: 1 });
+
+      const scoped = await repo.allDeckSummaries({ from: "2026-02-01", to: "2026-03-01" });
+      const slugs = new Set(scoped.rows.map((deck) => deck.eventSlug));
+
+      expect(slugs.has("mta-range-inside")).toBe(true);
+      expect(slugs.has("mta-range-before")).toBe(false);
+      expect(slugs.has("mta-range-after")).toBe(false);
+    });
+
+    it("treats both window bounds as inclusive", async () => {
+      const openDay = await seedEvent(repo, "mta-range-open", { eventDate: "2026-04-01" });
+      const closeDay = await seedEvent(repo, "mta-range-close", { eventDate: "2026-04-30" });
+      await seedListedPlayer(repo, openDay, { playerName: "MTA Open", rank: 1 });
+      await seedListedPlayer(repo, closeDay, { playerName: "MTA Close", rank: 1 });
+
+      const scoped = await repo.allDeckSummaries({ from: "2026-04-01", to: "2026-04-30" });
+      const slugs = new Set(scoped.rows.map((deck) => deck.eventSlug));
+
+      expect(slugs.has("mta-range-open")).toBe(true);
+      expect(slugs.has("mta-range-close")).toBe(true);
+    });
+
+    it("returns every archived deck when the window names no bound", async () => {
+      const eventId = await seedEvent(repo, "mta-range-none", { eventDate: "2025-06-01" });
+      await seedListedPlayer(repo, eventId, { playerName: "MTA Unbounded", rank: 1 });
+
+      const all = await repo.allDeckSummaries();
+      const bounded = await repo.allDeckSummaries({});
+
+      expect(all.rows.some((deck) => deck.eventSlug === "mta-range-none")).toBe(true);
+      expect(bounded.rows.map((deck) => deck.playerId)).toEqual(
+        all.rows.map((deck) => deck.playerId),
+      );
+      expect(all.total).toBe(all.rows.length);
+    });
+
+    it("narrows the deck list to one legend and one player", async () => {
+      const eventId = await seedEvent(repo, "mta-deck-filters", { eventDate: "2027-01-05" });
+      await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Filter One",
+        rank: 1,
+        sourceIdentity: "mta-filter-one#1",
+      });
+      await seedListedPlayer(repo, eventId, {
+        playerName: "MTA Filter Two",
+        rank: 2,
+        sourceIdentity: "mta-filter-two#4",
+      });
+
+      const window = { from: "2027-01-05", to: "2027-01-05" };
+      const byLegend = await repo.allDeckSummaries({ ...window, legend: legendCardId });
+      const byOtherLegend = await repo.allDeckSummaries({ ...window, legend: championCardId });
+      const byPlayer = await repo.allDeckSummaries({ ...window, player: "mta-filter-two" });
+
+      expect(byLegend.rows.map((deck) => deck.playerName)).toEqual([
+        "MTA Filter One",
+        "MTA Filter Two",
+      ]);
+      expect(byOtherLegend.rows).toEqual([]);
+      expect(byPlayer.rows.map((deck) => deck.playerName)).toEqual(["MTA Filter Two"]);
+    });
+
+    it("narrows the deck list by an included tier and an excluded country", async () => {
+      const premier = await seedEvent(repo, "mta-deck-facets-premier", {
+        eventDate: "2027-08-02",
+        tier: "premier",
+        country: "FR",
+      });
+      const store = await seedEvent(repo, "mta-deck-facets-store", {
+        eventDate: "2027-08-03",
+        tier: "store",
+        country: "FR",
+      });
+      const german = await seedEvent(repo, "mta-deck-facets-de", {
+        eventDate: "2027-08-04",
+        tier: "premier",
+        country: "DE",
+      });
+      const unplaced = await seedEvent(repo, "mta-deck-facets-nowhere", {
+        eventDate: "2027-08-05",
+        tier: "premier",
+      });
+      await seedListedPlayer(repo, premier, { playerName: "MTA Facet Premier", rank: 1 });
+      await seedListedPlayer(repo, store, { playerName: "MTA Facet Store", rank: 1 });
+      await seedListedPlayer(repo, german, { playerName: "MTA Facet German", rank: 1 });
+      await seedListedPlayer(repo, unplaced, { playerName: "MTA Facet Unplaced", rank: 1 });
+
+      const window = { from: "2027-08-02", to: "2027-08-05" };
+      const tiered = await repo.allDeckSummaries({ ...window, tiers: ["premier"] });
+      const excluded = await repo.allDeckSummaries({ ...window, countriesEx: ["DE"] });
+
+      expect(tiered.rows.map((deck) => deck.playerName)).not.toContain("MTA Facet Store");
+      expect(tiered.total).toBe(3);
+      // An event with no country on file is inside every exclude: "all but
+      // Germany" is a claim about Germany, not about unplaced events.
+      expect(excluded.rows.map((deck) => deck.playerName)).toEqual([
+        "MTA Facet Unplaced",
+        "MTA Facet Store",
+        "MTA Facet Premier",
+      ]);
+    });
+
+    it("counts the whole match while returning only the capped rows", async () => {
+      const eventId = await seedEvent(repo, "mta-deck-limit", { eventDate: "2027-02-05" });
+      await seedListedPlayer(repo, eventId, { playerName: "MTA Cap One", rank: 1 });
+      await seedListedPlayer(repo, eventId, { playerName: "MTA Cap Two", rank: 2 });
+      await seedListedPlayer(repo, eventId, { playerName: "MTA Cap Three", rank: 3 });
+
+      const capped = await repo.allDeckSummaries({
+        from: "2027-02-05",
+        to: "2027-02-05",
+        limit: 2,
+      });
+
+      expect(capped.rows.map((deck) => deck.playerName)).toEqual(["MTA Cap One", "MTA Cap Two"]);
+      expect(capped.total).toBe(3);
+    });
+
+    it("keeps only the card rows of decks inside the window", async () => {
+      const inside = await seedEvent(repo, "mta-cards-inside", { eventDate: "2026-05-10" });
+      const outside = await seedEvent(repo, "mta-cards-outside", { eventDate: "2026-06-10" });
+      const { deckId: insideDeck } = await seedListedPlayer(repo, inside, {
+        playerName: "MTA Cards Inside",
+        rank: 1,
+      });
+      const { deckId: outsideDeck } = await seedListedPlayer(repo, outside, {
+        playerName: "MTA Cards Outside",
+        rank: 1,
+      });
+
+      const rows = await repo.allDeckCards({ from: "2026-05-01", to: "2026-05-31" });
+      const deckIds = new Set(rows.map((row) => row.deckId));
+
+      expect(deckIds.has(insideDeck)).toBe(true);
+      expect(deckIds.has(outsideDeck)).toBe(false);
     });
 
     it("reports each archived list's cards, summing every zone but the sideboard", async () => {
@@ -1628,9 +1791,98 @@ describe.skipIf(!ctx)("metaRepo", () => {
     });
   });
 
+  describe("legend record", () => {
+    /** A window this file's other events never touch, so a scope isolates itself. */
+    const WINDOW = { from: "2027-06-01", to: "2027-06-30" };
+
+    it("keeps only the finishes at an included tier, and drops an excluded one", async () => {
+      const premier = await seedEvent(repo, "mta-legend-premier", {
+        eventDate: "2027-06-02",
+        tier: "premier",
+      });
+      const store = await seedEvent(repo, "mta-legend-store", {
+        eventDate: "2027-06-03",
+        tier: "store",
+      });
+      await seedListedPlayer(repo, premier, { playerName: "MTA Tiered Premier", rank: 1 });
+      await seedListedPlayer(repo, store, { playerName: "MTA Tiered Store", rank: 1 });
+
+      const included = await repo.finishesForLegend(legendCardId, {
+        ...WINDOW,
+        tiers: ["premier"],
+      });
+      const excluded = await repo.finishesForLegend(legendCardId, {
+        ...WINDOW,
+        tiersEx: ["premier"],
+      });
+
+      expect(included.rows.map((row) => row.playerName)).toEqual(["MTA Tiered Premier"]);
+      expect(excluded.rows.map((row) => row.playerName)).toEqual(["MTA Tiered Store"]);
+    });
+
+    it("leaves an event with no country outside an include and inside an exclude", async () => {
+      const german = await seedEvent(repo, "mta-legend-de", {
+        eventDate: "2027-06-11",
+        country: "DE",
+      });
+      const unplaced = await seedEvent(repo, "mta-legend-nowhere", { eventDate: "2027-06-12" });
+      await seedListedPlayer(repo, german, { playerName: "MTA Country Known", rank: 1 });
+      await seedListedPlayer(repo, unplaced, { playerName: "MTA Country Unknown", rank: 1 });
+
+      const window = { from: "2027-06-11", to: "2027-06-12" };
+      const included = await repo.finishesForLegend(legendCardId, {
+        ...window,
+        countries: ["DE"],
+      });
+      const excluded = await repo.finishesForLegend(legendCardId, {
+        ...window,
+        countriesEx: ["DE"],
+      });
+
+      expect(included.rows.map((row) => row.playerName)).toEqual(["MTA Country Known"]);
+      expect(excluded.rows.map((row) => row.playerName)).toEqual(["MTA Country Unknown"]);
+    });
+
+    it("pages the record newest first while counting the whole scope", async () => {
+      const first = await seedEvent(repo, "mta-legend-page-1", { eventDate: "2027-06-21" });
+      const second = await seedEvent(repo, "mta-legend-page-2", { eventDate: "2027-06-22" });
+      const third = await seedEvent(repo, "mta-legend-page-3", { eventDate: "2027-06-23" });
+      await seedListedPlayer(repo, first, { playerName: "MTA Paged Oldest", rank: 1 });
+      await seedListedPlayer(repo, second, { playerName: "MTA Paged Middle", rank: 1 });
+      await seedListedPlayer(repo, third, { playerName: "MTA Paged Newest", rank: 1 });
+
+      const window = { from: "2027-06-21", to: "2027-06-23" };
+      const page1 = await repo.finishesForLegend(legendCardId, window, { limit: 2, offset: 0 });
+      const page2 = await repo.finishesForLegend(legendCardId, window, { limit: 2, offset: 2 });
+
+      expect(page1.rows.map((row) => row.playerName)).toEqual([
+        "MTA Paged Newest",
+        "MTA Paged Middle",
+      ]);
+      expect(page2.rows.map((row) => row.playerName)).toEqual(["MTA Paged Oldest"]);
+      expect(page1.total).toBe(3);
+      expect(page2.total).toBe(3);
+    });
+
+    it("leads with the best placings and counts events won, not rank-1 rows", async () => {
+      const eventId = await seedEvent(repo, "mta-legend-best", { eventDate: "2027-06-27" });
+      await seedListedPlayer(repo, eventId, { playerName: "MTA Best Winner", rank: 1 });
+      await seedListedPlayer(repo, eventId, { playerName: "MTA Best Cowinner", rank: 1 });
+      await seedDecklessPlayer(repo, eventId, { playerName: "MTA Best Fourth", rank: 4 });
+
+      const window = { from: "2027-06-27", to: "2027-06-27" };
+      const best = await repo.bestFinishesForLegend(legendCardId, window, 2);
+      const counts = await repo.legendRecordCounts(legendCardId, window);
+
+      expect(best.map((row) => row.rank)).toEqual([1, 1]);
+      expect(counts).toEqual({ wins: 1, finishes: 3, decklists: 2 });
+    });
+  });
+
   describe("sitemap", () => {
     it("lists event slugs and deck tokens with ISO timestamps", async () => {
       const eventId = await seedEvent(repo, "mta-sitemap");
+      await repo.updateEvent(eventId, { tier: "premier" });
       const { deckId } = await seedListedPlayer(repo, eventId, {
         playerName: "MTA Crawl",
         rank: 1,
@@ -1646,6 +1898,63 @@ describe.skipIf(!ctx)("metaRepo", () => {
         .where("id", "=", deckId)
         .executeTakeFirstOrThrow();
       expect(decks.some((entry) => entry.slug === deck.shareToken)).toBe(true);
+    });
+
+    it("lists only premier and competitive events and their decks", async () => {
+      const listed = await seedEvent(repo, "mta-sitemap-competitive");
+      const skipped = await seedEvent(repo, "mta-sitemap-store");
+      await repo.updateEvent(listed, { tier: "competitive" });
+      await repo.updateEvent(skipped, { tier: "store" });
+      const { deckId: listedDeck } = await seedListedPlayer(repo, listed, {
+        playerName: "MTA Listed",
+        rank: 1,
+      });
+      const { deckId: skippedDeck } = await seedListedPlayer(repo, skipped, {
+        playerName: "MTA Skipped",
+        rank: 1,
+      });
+      const tokens = await db
+        .selectFrom("decks")
+        .select(["id", "shareToken"])
+        .where("id", "in", [listedDeck, skippedDeck])
+        .execute();
+      const tokenOf = (id: string) => tokens.find((row) => row.id === id)?.shareToken;
+
+      const { events, decks } = await repo.sitemapEntries();
+      expect(events.some((entry) => entry.slug === "mta-sitemap-competitive")).toBe(true);
+      expect(events.some((entry) => entry.slug === "mta-sitemap-store")).toBe(false);
+      expect(decks.some((entry) => entry.slug === tokenOf(listedDeck))).toBe(true);
+      expect(decks.some((entry) => entry.slug === tokenOf(skippedDeck))).toBe(false);
+    });
+
+    it("lists every legend with an archive page, and the players of listed events", async () => {
+      const listed = await seedEvent(repo, "mta-sitemap-players", {
+        eventDate: "2027-07-01",
+        tier: "premier",
+      });
+      const skipped = await seedEvent(repo, "mta-sitemap-players-store", {
+        eventDate: "2027-07-02",
+        tier: "store",
+      });
+      await seedListedPlayer(repo, listed, {
+        playerName: "MTA Crawled Player",
+        rank: 1,
+        sourceIdentity: "mta-crawled#2",
+      });
+      await seedListedPlayer(repo, skipped, {
+        playerName: "MTA Uncrawled Player",
+        rank: 1,
+        sourceIdentity: "mta-uncrawled#2",
+      });
+
+      const { legends, players } = await repo.sitemapEntries();
+      const legend = legends.find((entry) => entry.cardId === legendCardId);
+
+      expect(legend?.slug).toBe("mta-legend");
+      expect(legend?.updatedAt.toISOString()).toMatch(/^\d{4}-\d{2}-\d{2}T/u);
+      // The `#n` suffix only tells two same-named entrants of one event apart.
+      expect(players.some((entry) => entry.slug === "mta-crawled")).toBe(true);
+      expect(players.some((entry) => entry.slug === "mta-uncrawled")).toBe(false);
     });
 
     it("omits a standings-only entry, which has no page to crawl", async () => {

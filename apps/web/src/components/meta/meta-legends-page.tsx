@@ -35,7 +35,7 @@ import {
 import type { MetaLegendIndexSort } from "@/lib/meta-legends-search";
 import { DEFAULT_LEGEND_DIRECTION, DEFAULT_LEGEND_SORT } from "@/lib/meta-legends-search";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, nextScopeSearch, resolveScopeRange } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/legends");
@@ -232,18 +232,18 @@ function SortHeader({
  * record inside the scope bar's selection: best finish, event wins, and how
  * much is on file.
  *
- * The whole archive ships as one payload (ADR-014), so the search box, the
- * scope bar and the column sort all run client-side, joining each legend's
- * per-event records against the events payload. Every number is a fact about
- * one legend's own record — nothing here is a rate, a share, or a computed
- * comparison.
+ * The era the scope names ships as one payload (ADR-014), so the search box, the
+ * remaining facets and the column sort all run client-side, joining each
+ * legend's per-event records against it. A record whose event fell outside the
+ * era drops out, which is what the scope did to it anyway. Every number is a
+ * fact about one legend's own record, never a rate or a share.
  */
 export function MetaLegendsPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const { data } = useMetaLegends();
-  const { data: eventsData } = useMetaEvents();
   const eras = useMetaEras();
+  const { data: eventsData } = useMetaEvents(resolveScopeRange(search, eras));
 
   const sort = search.by ?? DEFAULT_LEGEND_SORT;
   const direction = search.dir ?? DEFAULT_LEGEND_DIRECTION;

@@ -33,18 +33,19 @@ import { CardLink } from "@/components/ui/card-link";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { useIsAdmin } from "@/hooks/use-admin";
-import { useMetaActivity, useMetaEvents } from "@/hooks/use-meta";
+import { useMetaActivity, useMetaCounts, useMetaEvents } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
 import { useMetaSubmissions } from "@/hooks/use-meta-submissions";
 import { useUserId } from "@/lib/auth-session";
-import {
-  filterMetaEvents,
-  metaEventCountries,
-  metaFrontSections,
-  metaTierCounts,
-} from "@/lib/meta-front-page";
+import { filterMetaEvents, metaEventCountries, metaFrontSections } from "@/lib/meta-front-page";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, isScopeCustomized, nextScopeSearch, UNSCOPED } from "@/lib/meta-scope";
+import {
+  CLEARED_SCOPE,
+  isScopeCustomized,
+  nextScopeSearch,
+  resolveScopeRange,
+  UNSCOPED,
+} from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta");
@@ -207,7 +208,8 @@ export function MetaFrontPage() {
   const navigate = routeApi.useNavigate();
   const userId = useUserId();
   const eras = useMetaEras();
-  const { data: eventsData } = useMetaEvents();
+  const { data: eventsData } = useMetaEvents(resolveScopeRange(search, eras));
+  const { data: counts } = useMetaCounts();
   const { data: activityData } = useMetaActivity();
 
   const setScope = (patch: Partial<MetaScope>) => {
@@ -222,10 +224,9 @@ export function MetaFrontPage() {
     void navigate({ search: (prev) => nextScopeSearch({ ...prev, q: next }, {}) });
   };
 
-  const allEvents = eventsData.events;
-  const events = filterMetaEvents(allEvents, { scope: search, eras, search: search.q });
+  const fetchedEvents = eventsData.events;
+  const events = filterMetaEvents(fetchedEvents, { scope: search, eras, search: search.q });
   const sections = metaFrontSections(events);
-  const tierCounts = metaTierCounts(allEvents);
   const hasResults =
     sections.premier.length > 0 || sections.competitive.length > 0 || sections.community.length > 0;
   const playerResults = events.reduce((total, event) => total + event.playerRowCount, 0);
@@ -246,7 +247,7 @@ export function MetaFrontPage() {
       </PageTopBarSticky>
 
       <div className={cn(PAGE_WIDTH.capped, "px-safe flex flex-col gap-8 pt-3 pb-10")}>
-        {allEvents.length === 0 ? (
+        {counts.totalEvents === 0 ? (
           <MetaEmptyState />
         ) : (
           <>
@@ -258,7 +259,7 @@ export function MetaFrontPage() {
                   setScope={setScope}
                   clearScope={clearScope}
                   eras={eras}
-                  countries={metaEventCountries(allEvents)}
+                  countries={metaEventCountries(fetchedEvents)}
                   showTier={false}
                 />
               </div>
@@ -300,7 +301,10 @@ export function MetaFrontPage() {
                             title="Premier"
                             accent="bg-border-accent"
                             action={
-                              <TierIndexLink tiers={["premier"]} count={tierCounts.premier} />
+                              <TierIndexLink
+                                tiers={["premier"]}
+                                count={counts.eventsByTier.premier}
+                              />
                             }
                           >
                             <Card className="gap-0 p-0">
@@ -322,7 +326,7 @@ export function MetaFrontPage() {
                             action={
                               <TierIndexLink
                                 tiers={["competitive"]}
-                                count={tierCounts.competitive}
+                                count={counts.eventsByTier.competitive}
                               />
                             }
                           >
@@ -348,7 +352,7 @@ export function MetaFrontPage() {
                                 search={UNSCOPED}
                                 className="text-primary text-sm font-medium hover:underline"
                               >
-                                Browse all {allEvents.length} events
+                                Browse all {counts.totalEvents} events
                               </Link>
                             }
                           >

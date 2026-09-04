@@ -210,8 +210,20 @@ export function metaEventEmptyStatus(event: MetaCountedEvent, today = todayUtc()
   return event.eventDate > today ? "Not played yet" : "No results on file";
 }
 
+/**
+ * How many played an event: the source's own field size, else the standings rows
+ * the archive holds.
+ *
+ * @returns The size, or null when neither is known.
+ */
+export function metaEventFieldSize(
+  event: Pick<MetaCountedEvent, "playerCount" | "playerRowCount">,
+): number | null {
+  return event.playerCount ?? (event.playerRowCount === 0 ? null : event.playerRowCount);
+}
+
 export function metaEventCounts(event: MetaCountedEvent, today = todayUtc()): string[] {
-  const size = event.playerCount ?? (event.playerRowCount === 0 ? null : event.playerRowCount);
+  const size = metaEventFieldSize(event);
   const parts: string[] = [];
   if (size !== null) {
     parts.push(`${size.toLocaleString("en-US")} ${size === 1 ? "player" : "players"}`);

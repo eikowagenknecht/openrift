@@ -171,6 +171,11 @@ export interface MetaArchiveLegendRow {
   domains: string[] | null;
 }
 
+/** One legend as the sitemap lists it: the route key's ingredients plus its lastmod. */
+export interface MetaLegendSitemapRow extends MetaArchiveLegendRow {
+  updatedAt: Date;
+}
+
 /** One legend's standings rows at one event, folded for the index. */
 export interface MetaLegendEventRecordRow {
   legendCardId: string;
@@ -277,11 +282,56 @@ export interface LiveMetaPlayerRow {
   shareToken: string | null;
 }
 
+const SITEMAP_TIERS = ["premier", "competitive"] as const;
+
+/**
+ * Inclusive date-only bounds on the event a deck was played at. Either end may
+ * be open; both absent is the whole archive.
+ */
+export interface MetaDeckDateRange {
+  from?: string;
+  to?: string;
+}
+
 /** Applied to the *event's* fields, not the standings row's. */
 export interface MetaCountsFilters {
   format?: string;
   dateFrom?: string;
   dateTo?: string;
+}
+
+/**
+ * The archive scope bar's selection as a read applies it, over the event's own
+ * fields. Each facet is an include list or an exclude list, never both.
+ */
+export interface MetaScopeFilters extends MetaDeckDateRange {
+  formats?: readonly string[];
+  formatsEx?: readonly string[];
+  tiers?: readonly string[];
+  tiersEx?: readonly string[];
+  /** ISO 3166-1 alpha-2, matched case-insensitively against the stored code. */
+  countries?: readonly string[];
+  countriesEx?: readonly string[];
+}
+
+/** Which archived decks the browser is asking for, and how many rows of them. */
+export interface MetaDeckFilters extends MetaScopeFilters {
+  /** A legend's card id. */
+  legend?: string;
+  /** A player key, as {@link foldedPlayerIdentity} yields it. */
+  player?: string;
+  limit?: number;
+}
+
+/** How many events the archive holds at each tier. */
+export type MetaEventTierCounts = Record<MetaEventTier, number>;
+
+/** One legend's headline numbers inside a scope. */
+export interface MetaLegendRecordCounts {
+  /** Events won, not rank-1 rows: a shared first place at one event is one win. */
+  wins: number;
+  finishes: number;
+  decklists: number;
 }
 
 /**
@@ -520,6 +570,39 @@ const resolvedPlayerName = sql<string>`coalesce(p.player_name, up.display_name)`
  */
 const foldedPlayerIdentity = sql<string>`regexp_replace(p.source_identity, '#\\d+$', '')`;
 
+/**
+ * One facet as SQL over a column of the event alias `me`. An include list keeps
+ * only its values; an exclude list drops them and keeps a row whose column is
+ * null, since "all but Germany" is a claim about Germany and not about the
+ * events no source named a venue for. A facet carries at most one of the two.
+ */
+function facetCondition(
+  column: RawBuilder<unknown>,
+  included?: readonly string[],
+  excluded?: readonly string[],
+): RawBuilder<SqlBool> | undefined {
+  if (included !== undefined && included.length > 0) {
+    return sql<SqlBool>`${column} in (${sql.join(included.map((value) => sql`${value}`))})`;
+  }
+  if (excluded !== undefined && excluded.length > 0) {
+    const values = sql.join(excluded.map((value) => sql`${value}`));
+    return sql<SqlBool>`(${column} is null or ${column} not in (${values}))`;
+  }
+  return undefined;
+}
+
+/** Every condition a scope puts on the event alias `me`. */
+function scopeConditions(scope: MetaScopeFilters): RawBuilder<SqlBool>[] {
+  const upper = (values?: readonly string[]) => values?.map((value) => value.toUpperCase());
+  return [
+    scope.from === undefined ? undefined : sql<SqlBool>`me.event_date >= ${scope.from}`,
+    scope.to === undefined ? undefined : sql<SqlBool>`me.event_date <= ${scope.to}`,
+    facetCondition(sql`me.format`, scope.formats, scope.formatsEx),
+    facetCondition(sql`me.tier`, scope.tiers, scope.tiersEx),
+    facetCondition(sql`me.country`, upper(scope.countries), upper(scope.countriesEx)),
+  ].filter((condition) => condition !== undefined);
+}
+
 /** How one page of the live event list is filtered. */
 export interface MetaEventFilters {
   /** Matched against the event name and the organizer. */
@@ -707,6 +790,43 @@ export function metaRepo(db: Kysely<Database>) {
       .orderBy("mc.userId", "asc");
   }
 
+  /** One legend's standings rows inside a scope, before any ordering or select. */
+  function legendFinishQuery(legendCardId: string, scope: MetaScopeFilters) {
+    let query = db
+      .selectFrom("metaEventPlayers as p")
+      .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+      .leftJoin("decks as d", "d.id", "p.deckId")
+      .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+      .where("p.legendCardId", "=", legendCardId);
+    for (const condition of scopeConditions(scope)) {
+      query = query.where(condition);
+    }
+    return query;
+  }
+
+  /** Those rows with the columns a legend's page prints. */
+  function legendFinishRows(legendCardId: string, scope: MetaScopeFilters) {
+    return legendFinishQuery(legendCardId, scope).select([
+      "p.id as playerId",
+      "p.rank",
+      "p.rankIsTier",
+      resolvedPlayerName.as("playerName"),
+      "p.sourceIdentity",
+      "p.wins",
+      "p.losses",
+      "p.draws",
+      "d.shareToken",
+      "p.listStatus",
+      "me.slug as eventSlug",
+      "me.name as eventName",
+      "me.eventDate",
+      "me.format as eventFormat",
+      "me.tier as eventTier",
+      "me.country as eventCountry",
+      "me.playerCount as eventPlayerCount",
+    ]);
+  }
+
   /** Writes the `decks` row and its cards, and points the standings row at it. */
   async function insertDeckForPlayer(
     trx: Kysely<Database>,
@@ -747,12 +867,19 @@ export function metaRepo(db: Kysely<Database>) {
 
   return {
     /**
-     * Every archived event, unpaged. The public `/meta` list is the only caller
-     * that legitimately wants the whole archive in one payload; anything admin
-     * pages or narrows by date goes through {@link listEvents} instead.
+     * The archived events inside an inclusive event-date window, unpaged. The
+     * public `/meta` lists are the only callers; anything the admin pages or
+     * narrows by more than the date goes through {@link listEvents} instead.
      */
-    allEvents(): Promise<MetaEventWithCounts[]> {
-      return eventQuery().orderBy("eventDate", "desc").orderBy("name", "asc").execute();
+    allEvents(range: MetaDeckDateRange = {}): Promise<MetaEventWithCounts[]> {
+      let query = eventQuery();
+      if (range.from !== undefined) {
+        query = query.where("metaEvents.eventDate", ">=", range.from);
+      }
+      if (range.to !== undefined) {
+        query = query.where("metaEvents.eventDate", "<=", range.to);
+      }
+      return query.orderBy("eventDate", "desc").orderBy("name", "asc").execute();
     },
 
     async listEvents(
@@ -1079,57 +1206,82 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Unpaginated and unfiltered by design: the archive is curated and small,
-     * and the deck browser filters client-side. Only rows with a list appear —
-     * a standings-only entry has no deck to browse.
+     * The archived decks a browser is asking for, newest event first. Only rows
+     * with a list appear: a standings-only entry has no deck to browse.
+     *
+     * The scope's facets narrow the rows before the cap does, so a capped
+     * request fills its grid with rows that are already in scope.
+     *
+     * `total` counts the whole match, so a capped request can still say how much
+     * of what it found it is showing.
      */
-    allDeckSummaries(): Promise<MetaDeckSummaryRow[]> {
-      return (
-        db
-          .selectFrom("metaEventPlayers as p")
-          .innerJoin("decks as d", "d.id", "p.deckId")
-          .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
-          .leftJoin("cards as lc", "lc.id", "p.legendCardId")
-          .leftJoin("cards as cc", "cc.id", "p.championCardId")
-          .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
-          .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
-          .select([
-            "p.id as playerId",
-            "p.deckId",
-            "d.shareToken",
-            "p.listStatus",
-            "d.name as deckName",
-            "d.format as deckFormat",
-            "p.legendCardId",
-            "lc.name as legendName",
-            "lc.slug as legendSlug",
-            "lmca.types as legendTypes",
-            "lc.tags as legendTags",
-            "p.championCardId",
-            "cc.name as championName",
-            resolvedPlayerName.as("playerName"),
-            "p.sourceIdentity",
-            "p.rank",
-            "p.rankIsTier",
-            "p.wins",
-            "p.losses",
-            "p.draws",
-            "me.slug as eventSlug",
-            "me.name as eventName",
-            "me.eventDate",
-            "me.format as eventFormat",
-            "me.tier as eventTier",
-            "me.country as eventCountry",
-          ])
-          // A deck is minted with its permalink, so this only ever narrows the
-          // type; a token cleared by hand would leave a row with no page anyway.
-          .where("d.shareToken", "is not", null)
-          .$narrowType<{ deckId: string; shareToken: string }>()
-          .orderBy("me.eventDate", "desc")
-          .orderBy("p.rank", "asc")
-          .orderBy(resolvedPlayerName, "asc")
-          .execute()
-      );
+    async allDeckSummaries(
+      filters: MetaDeckFilters = {},
+    ): Promise<{ rows: MetaDeckSummaryRow[]; total: number }> {
+      let query = db
+        .selectFrom("metaEventPlayers as p")
+        .innerJoin("decks as d", "d.id", "p.deckId")
+        .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+        .leftJoin("cards as lc", "lc.id", "p.legendCardId")
+        .leftJoin("cards as cc", "cc.id", "p.championCardId")
+        .leftJoin("mvCardAggregates as lmca", "lmca.cardId", "p.legendCardId")
+        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
+        .select([
+          "p.id as playerId",
+          "p.deckId",
+          "d.shareToken",
+          "p.listStatus",
+          "d.name as deckName",
+          "d.format as deckFormat",
+          "p.legendCardId",
+          "lc.name as legendName",
+          "lc.slug as legendSlug",
+          "lmca.types as legendTypes",
+          "lc.tags as legendTags",
+          "p.championCardId",
+          "cc.name as championName",
+          resolvedPlayerName.as("playerName"),
+          "p.sourceIdentity",
+          "p.rank",
+          "p.rankIsTier",
+          "p.wins",
+          "p.losses",
+          "p.draws",
+          "me.slug as eventSlug",
+          "me.name as eventName",
+          "me.eventDate",
+          "me.format as eventFormat",
+          "me.tier as eventTier",
+          "me.country as eventCountry",
+        ])
+        // A deck is minted with its permalink, so this only ever narrows the
+        // type; a token cleared by hand would leave a row with no page anyway.
+        .where("d.shareToken", "is not", null)
+        .$narrowType<{ deckId: string; shareToken: string }>();
+      for (const condition of scopeConditions(filters)) {
+        query = query.where(condition);
+      }
+      if (filters.legend !== undefined) {
+        query = query.where("p.legendCardId", "=", filters.legend);
+      }
+      if (filters.player !== undefined) {
+        query = query.where(foldedPlayerIdentity, "=", filters.player);
+      }
+
+      const countQuery = query.clearSelect().select((eb) => eb.fn.countAll<string>().as("total"));
+      let rowQuery = query
+        .orderBy("me.eventDate", "desc")
+        .orderBy("p.rank", "asc")
+        .orderBy(resolvedPlayerName, "asc");
+      if (filters.limit !== undefined) {
+        rowQuery = rowQuery.limit(filters.limit);
+      }
+
+      const [rows, countRow] = await Promise.all([
+        rowQuery.execute(),
+        countQuery.executeTakeFirstOrThrow(),
+      ]);
+      return { rows, total: Number(countRow.total) };
     },
 
     /**
@@ -1180,42 +1332,67 @@ export function metaRepo(db: Kysely<Database>) {
     },
 
     /**
-     * One legend's whole record, best finish first and newest of an equal finish
-     * ahead of older ones.
+     * One page of a legend's record inside a scope, newest event first and the
+     * better placing first inside one day.
      *
      * Every row is a published standings row. The archive computes nothing from
      * them here beyond their order.
      */
-    finishesForLegend(legendCardId: string): Promise<MetaLegendFinishRow[]> {
-      return db
-        .selectFrom("metaEventPlayers as p")
-        .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
-        .leftJoin("decks as d", "d.id", "p.deckId")
-        .leftJoin("uvsgamesPlayers as up", "up.id", "p.uvsgamesPlayerId")
-        .select([
-          "p.id as playerId",
-          "p.rank",
-          "p.rankIsTier",
-          resolvedPlayerName.as("playerName"),
-          "p.sourceIdentity",
-          "p.wins",
-          "p.losses",
-          "p.draws",
-          "d.shareToken",
-          "p.listStatus",
-          "me.slug as eventSlug",
-          "me.name as eventName",
-          "me.eventDate",
-          "me.format as eventFormat",
-          "me.tier as eventTier",
-          "me.country as eventCountry",
-          "me.playerCount as eventPlayerCount",
-        ])
-        .where("p.legendCardId", "=", legendCardId)
+    async finishesForLegend(
+      legendCardId: string,
+      scope: MetaScopeFilters = {},
+      page?: { limit: number; offset: number },
+    ): Promise<{ rows: MetaLegendFinishRow[]; total: number }> {
+      let rowQuery = legendFinishRows(legendCardId, scope)
+        .orderBy("me.eventDate", "desc")
+        .orderBy("p.rank", "asc")
+        .orderBy("me.name", "asc");
+      if (page !== undefined) {
+        rowQuery = rowQuery.limit(page.limit).offset(page.offset);
+      }
+      const [rows, countRow] = await Promise.all([
+        rowQuery.execute(),
+        legendFinishQuery(legendCardId, scope)
+          .select((eb) => eb.fn.countAll<string>().as("total"))
+          .executeTakeFirstOrThrow(),
+      ]);
+      return { rows, total: Number(countRow.total) };
+    },
+
+    /**
+     * A legend's high-water marks in scope: best placing first, the most recent
+     * of an equal placing ahead of older ones.
+     */
+    bestFinishesForLegend(
+      legendCardId: string,
+      scope: MetaScopeFilters,
+      limit: number,
+    ): Promise<MetaLegendFinishRow[]> {
+      return legendFinishRows(legendCardId, scope)
         .orderBy("p.rank", "asc")
         .orderBy("me.eventDate", "desc")
-        .orderBy(resolvedPlayerName, "asc")
+        .orderBy("me.name", "asc")
+        .limit(limit)
         .execute();
+    },
+
+    /**
+     * One legend's headline numbers in scope. Wins count events and decklists
+     * count permalinks, never rows: a source that published a shared first place
+     * files two rows at one event, and counting rows would report the legend
+     * winning it twice.
+     */
+    legendRecordCounts(
+      legendCardId: string,
+      scope: MetaScopeFilters = {},
+    ): Promise<MetaLegendRecordCounts> {
+      return legendFinishQuery(legendCardId, scope)
+        .select([
+          sql<number>`count(distinct me.id) filter (where p.rank = 1)::int`.as("wins"),
+          sql<number>`count(*)::int`.as("finishes"),
+          sql<number>`count(distinct d.share_token)::int`.as("decklists"),
+        ])
+        .executeTakeFirstOrThrow();
     },
 
     finishesForPlayer(key: string): Promise<MetaPlayerFinishRow[]> {
@@ -1261,8 +1438,9 @@ export function metaRepo(db: Kysely<Database>) {
      * Unpaginated like {@link allDeckSummaries} and for the same reason.
      * The sideboard stays its own row; every other zone is summed together.
      */
-    async allDeckCards(): Promise<MetaDeckCardRow[]> {
+    async allDeckCards(range: MetaDeckDateRange = {}): Promise<MetaDeckCardRow[]> {
       const isSideboard = sql<boolean>`dc.zone = ${sql.lit(WellKnown.deckZone.SIDEBOARD)}`;
+      const { from, to } = range;
       const rows = await db
         .selectFrom("deckCards as dc")
         .select(({ fn }) => [
@@ -1275,14 +1453,28 @@ export function metaRepo(db: Kysely<Database>) {
         // however many standings rows reference it. `uq_meta_event_players_deck`
         // caps that at one today, and a join would silently double every
         // quantity the day it does not.
-        .where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom("metaEventPlayers as p")
-              .select(sql.lit(1).as("x"))
-              .whereRef("p.deckId", "=", "dc.deckId"),
-          ),
-        )
+        .where((eb) => {
+          if (from === undefined && to === undefined) {
+            return eb.exists(
+              eb
+                .selectFrom("metaEventPlayers as p")
+                .select(sql.lit(1).as("x"))
+                .whereRef("p.deckId", "=", "dc.deckId"),
+            );
+          }
+          let scoped = eb
+            .selectFrom("metaEventPlayers as p")
+            .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+            .select(sql.lit(1).as("x"))
+            .whereRef("p.deckId", "=", "dc.deckId");
+          if (from !== undefined) {
+            scoped = scoped.where("me.eventDate", ">=", from);
+          }
+          if (to !== undefined) {
+            scoped = scoped.where("me.eventDate", "<=", to);
+          }
+          return eb.exists(scoped);
+        })
         .groupBy(["dc.deckId", "dc.cardId", isSideboard])
         .orderBy("dc.deckId")
         .orderBy("dc.cardId")
@@ -1412,6 +1604,24 @@ export function metaRepo(db: Kysely<Database>) {
         .select((eb) => eb.cast<number>(eb.fn.countAll(), "integer").as("count"))
         .executeTakeFirst();
       return row?.count ?? 0;
+    },
+
+    /**
+     * Events per tier across the whole archive, every tier present whether or
+     * not an event sits at it. Deliberately unscoped: this is the archive's own
+     * size, which a page prints beside a scoped number.
+     */
+    async eventTierCounts(): Promise<MetaEventTierCounts> {
+      const rows = await db
+        .selectFrom("metaEvents")
+        .select((eb) => ["tier", eb.cast<number>(eb.fn.countAll(), "integer").as("count")])
+        .groupBy("tier")
+        .execute();
+      const counts: MetaEventTierCounts = { premier: 0, competitive: 0, store: 0, casual: 0 };
+      for (const row of rows) {
+        counts[row.tier as MetaEventTier] = row.count;
+      }
+      return counts;
     },
 
     adminPlayersForEvent(eventId: string): Promise<AdminMetaPlayerRow[]> {
@@ -2092,23 +2302,57 @@ export function metaRepo(db: Kysely<Database>) {
       return (result.numUpdatedRows ?? 0n) > 0n;
     },
 
-    /** `updatedAt` drives the `<lastmod>` the sitemap generator emits. */
+    /**
+     * `updatedAt` drives the `<lastmod>` the sitemap generator emits. Only the
+     * competitive tiers are listed while the archive ramps up: store nights are
+     * most of the archive and the least worth a crawler's budget.
+     */
     async sitemapEntries(): Promise<{
       events: { slug: string; updatedAt: string }[];
       decks: { slug: string; updatedAt: string }[];
+      legends: MetaLegendSitemapRow[];
+      players: { slug: string; updatedAt: string }[];
     }> {
-      const [events, decks] = await Promise.all([
+      const [events, decks, legends, players] = await Promise.all([
         db
           .selectFrom("metaEvents")
           .select(["slug", "updatedAt"])
+          .where("tier", "in", SITEMAP_TIERS)
           .orderBy("eventDate", "desc")
           .execute(),
         db
           .selectFrom("metaEventPlayers as p")
           .innerJoin("decks as d", "d.id", "p.deckId")
+          .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
           .select(["d.shareToken as slug", "d.updatedAt"])
           .where("d.shareToken", "is not", null)
+          .where("me.tier", "in", SITEMAP_TIERS)
           .$narrowType<{ slug: string }>()
+          .execute(),
+        // Unlike events and decks: dropping store-tier finishes would leave a linked page uncrawled.
+        db
+          .selectFrom("metaEventPlayers as p")
+          .innerJoin("cards as lc", "lc.id", "p.legendCardId")
+          .leftJoin("mvCardAggregates as mca", "mca.cardId", "lc.id")
+          .select([
+            "lc.id as cardId",
+            "lc.name",
+            "lc.slug",
+            "mca.types",
+            "lc.tags",
+            "mca.domains",
+            sql<Date>`max(p.updated_at)`.as("updatedAt"),
+          ])
+          .groupBy(["lc.id", "lc.name", "lc.slug", "mca.types", "lc.tags", "mca.domains"])
+          .orderBy("lc.name", "asc")
+          .execute(),
+        db
+          .selectFrom("metaEventPlayers as p")
+          .innerJoin("metaEvents as me", "me.id", "p.metaEventId")
+          .select([foldedPlayerIdentity.as("slug"), sql<Date>`max(p.updated_at)`.as("updatedAt")])
+          .where("p.sourceIdentity", "is not", null)
+          .where("me.tier", "in", SITEMAP_TIERS)
+          .groupBy(foldedPlayerIdentity)
           .execute(),
       ]);
       const toEntry = (row: { slug: string; updatedAt: Date }) => ({
@@ -2118,6 +2362,8 @@ export function metaRepo(db: Kysely<Database>) {
       return {
         events: events.map((row) => toEntry(row)),
         decks: decks.map((row) => toEntry(row)),
+        legends,
+        players: players.map((row) => toEntry(row)),
       };
     },
   };

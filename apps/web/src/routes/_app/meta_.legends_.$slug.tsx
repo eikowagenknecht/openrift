@@ -9,7 +9,9 @@ import { metaDecksQueryOptions, metaLegendQueryOptions } from "@/hooks/use-meta"
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { DECK_GRID_LIMIT } from "@/lib/meta-deck-grid";
 import { metaLegendSearchSchema } from "@/lib/meta-legends-search";
+import { deriveSetEras, metaScopeQueryFromScope } from "@/lib/meta-scope";
 import { breadcrumbJsonLd, seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
@@ -36,8 +38,8 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
     if (!data) {
       return seoHead({ siteUrl, title: "Legend", path, unlisted: true });
     }
-    const { legend, finishes } = data;
-    const description = `${legend.name} in the Riftbound meta archive: ${finishes.length} archived ${finishes.length === 1 ? "finish" : "finishes"}, the players behind them, and the decklists they registered.`;
+    const { legend, counts } = data;
+    const description = `${legend.name} in the Riftbound meta archive: ${counts.finishes} archived ${counts.finishes === 1 ? "finish" : "finishes"}, the players behind them, and the decklists they registered.`;
     const ogImage = toAbsoluteUrl(
       siteUrl,
       legend.imageId === null ? undefined : imageUrl(legend.imageId, "full"),
@@ -61,11 +63,14 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
       ],
     };
   },
+  // The scope is in the URL, so it is a loader dep: a reader who narrows the
+  // page gets the narrowed payload from the server rather than from a refetch.
+  loaderDeps: ({ search }) => search,
   // The flag check lives in the loader, not beforeLoad: a beforeLoad combined
   // with a head() that reads loaderData collapses the route-context type to
   // `never` in the current TanStack Router version. Same pattern as
   // meta_.$slug.tsx; the redirect still fires before anything renders.
-  loader: async ({ context, params }): Promise<MetaLegendDetailResponse> => {
+  loader: async ({ context, params, deps }): Promise<MetaLegendDetailResponse> => {
     const flags = (await context.queryClient.query({
       ...featureFlagsQueryOptions,
       staleTime: "static",
@@ -74,17 +79,27 @@ export const Route = createFileRoute("/_app/meta_/legends_/$slug")({
       throw redirect({ to: "/cards" });
     }
     try {
-      // The archive's whole deck payload backs the decklist grid: it is one
-      // cached response the rest of the archive already holds, and narrowing it
-      // by legend client-side is how every other archive surface filters it.
-      // The set list is here for the scope bar's eras, which are derived from
-      // set release dates rather than stored.
-      const [legend] = await Promise.all([
-        context.queryClient.query({ ...metaLegendQueryOptions(params.slug), staleTime: "static" }),
-        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
-        context.queryClient.query({ ...metaDecksQueryOptions, staleTime: "static" }),
+      // The set list carries the eras, which are derived from set release dates
+      // rather than stored, and which resolve the scope to a window.
+      const [sets] = await Promise.all([
         context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
+        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
       ]);
+      const query = metaScopeQueryFromScope(deps, deriveSetEras(sets.sets));
+      const legend = await context.queryClient.query({
+        ...metaLegendQueryOptions(params.slug, query),
+        staleTime: "static",
+      });
+      // After the legend, which is where its card id comes from. Capped at what
+      // the grid paints: the rest arrive when the reader asks for them.
+      await context.queryClient.query({
+        ...metaDecksQueryOptions({
+          ...query,
+          legend: legend.legend.cardId,
+          limit: DECK_GRID_LIMIT,
+        }),
+        staleTime: "static",
+      });
       return legend;
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {

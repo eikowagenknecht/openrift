@@ -4,6 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   events: [] as MetaEventSummary[],
+  ranges: [] as unknown[],
+  counts: {
+    totalPlayers: 0,
+    decksWithMainDeck: 0,
+    totalEvents: 0,
+    eventsByTier: { premier: 0, competitive: 0, store: 0, casual: 0 },
+  },
   activity: [] as MetaActivityItem[],
   search: {} as Record<string, string | string[] | undefined>,
   userId: null as string | null,
@@ -51,7 +58,11 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("@/hooks/use-meta", () => ({
-  useMetaEvents: () => ({ data: { events: captured.events } }),
+  useMetaEvents: (range?: unknown) => {
+    captured.ranges.push(range);
+    return { data: { events: captured.events } };
+  },
+  useMetaCounts: () => ({ data: captured.counts }),
   useMetaActivity: () => ({ data: { items: captured.activity } }),
 }));
 
@@ -156,6 +167,13 @@ function activityItem(overrides: Partial<MetaActivityItem> = {}): MetaActivityIt
 beforeEach(() => {
   navigate.mockReset();
   captured.events = [event()];
+  captured.ranges = [];
+  captured.counts = {
+    totalPlayers: 0,
+    decksWithMainDeck: 0,
+    totalEvents: 9,
+    eventsByTier: { premier: 4, competitive: 3, store: 1, casual: 1 },
+  };
   captured.activity = [activityItem()];
   captured.search = {};
   captured.userId = null;
@@ -317,6 +335,12 @@ describe("MetaFrontPage", () => {
 
   it("says the archive is empty rather than showing empty sections", () => {
     captured.events = [];
+    captured.counts = {
+      totalPlayers: 0,
+      decksWithMainDeck: 0,
+      totalEvents: 0,
+      eventsByTier: { premier: 0, competitive: 0, store: 0, casual: 0 },
+    };
 
     render(<MetaFrontPage />);
 
@@ -412,22 +436,33 @@ describe("MetaFrontPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("promises exactly the number of events the tier link narrows to", () => {
-    captured.events = [
-      event(),
-      event({ id: "evt-2", slug: "worlds", name: "Worlds", tier: "premier" }),
-      event({ id: "evt-3", slug: "store-night", name: "Store Night", tier: "store" }),
-    ];
-    // Scoped down to one event by search: the link still counts the whole
-    // tier, because that is what the narrowed index opens on.
-    captured.search = { q: "Worlds" };
+  it("promises the whole archive's tier count, not the era it fetched", () => {
+    captured.events = [event()];
 
     render(<MetaFrontPage />);
 
-    expect(within(section("Premier")).getByRole("link", { name: "Browse all 2" })).toHaveAttribute(
+    expect(within(section("Premier")).getByRole("link", { name: "Browse all 4" })).toHaveAttribute(
       "href",
       "/meta/events",
     );
+  });
+
+  it("counts the whole archive on the events link under the community section", () => {
+    captured.events = [event({ tier: "store" })];
+
+    render(<MetaFrontPage />);
+
+    expect(
+      within(section("Store & casual")).getByRole("link", { name: "Browse all 9 events" }),
+    ).toBeInTheDocument();
+  });
+
+  it("asks for the era the scope names rather than the whole archive", () => {
+    captured.search = { era: "custom", from: "2026-03-01", to: "2026-09-30" };
+
+    render(<MetaFrontPage />);
+
+    expect(captured.ranges).toContainEqual({ from: "2026-03-01", to: "2026-09-30" });
   });
 
   it("holds an event with no results out of the tier sections and in the rail", () => {

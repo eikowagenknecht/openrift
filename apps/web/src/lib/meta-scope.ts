@@ -1,5 +1,5 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
-import type { SetReleases } from "@openrift/shared";
+import type { MetaScopeQuery, SetReleases } from "@openrift/shared";
 import { earliestRelease, todayUtc } from "@openrift/shared";
 import { z } from "zod";
 
@@ -79,6 +79,21 @@ export interface MetaEra {
 export interface MetaDateRange {
   from?: string;
   to?: string;
+}
+
+/**
+ * Which archived decks a browser asks the API for: the whole scope, plus who
+ * the rows belong to and how many of them to send.
+ *
+ * The facets ride along rather than being applied to the answer, so a capped
+ * request comes back with a full grid of rows that are already in scope.
+ */
+export interface MetaDeckQuery extends MetaScopeQuery {
+  /** A legend's card id. */
+  legend?: string;
+  /** A player key, as `/meta/players/{key}` spells it. */
+  player?: string;
+  limit?: number;
 }
 
 /**
@@ -191,29 +206,45 @@ export type MetaScopeFacet = "formats" | "tiers" | "countries";
 export const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "countries"];
 
 /**
+ * What a facet the URL says nothing about includes, per surface. Formats always
+ * default to constructed; a page may add its own default for another facet.
+ */
+export type ScopeFacetDefaults = Partial<Record<MetaScopeFacet, readonly string[]>>;
+
+/**
  * One facet's two buckets, in the order the cycling helpers read them.
  *
- * A format facet the URL says nothing about at all resolves to
- * {@link DEFAULT_SCOPE_FORMATS}. A URL that carries either format key has been
- * written by the bar, so it is taken at its word, empty selection included.
+ * A facet the URL says nothing about at all resolves to its default. A URL that
+ * carries either of the facet's keys has been written by the bar, so it is taken
+ * at its word, empty selection included.
  */
 export function scopeFacetValues(
   scope: MetaScope,
   facet: MetaScopeFacet,
+  defaults: ScopeFacetDefaults = {},
 ): { included: readonly string[]; excluded: readonly string[] } {
+  const fallback = facet === "formats" ? DEFAULT_SCOPE_FORMATS : (defaults[facet] ?? []);
   switch (facet) {
     case "formats": {
       const untouched = scope.formats === undefined && scope.formatsEx === undefined;
       return {
-        included: scope.formats ?? (untouched ? DEFAULT_SCOPE_FORMATS : []),
+        included: scope.formats ?? (untouched ? fallback : []),
         excluded: scope.formatsEx ?? [],
       };
     }
     case "tiers": {
-      return { included: scope.tiers ?? [], excluded: scope.tiersEx ?? [] };
+      const untouched = scope.tiers === undefined && scope.tiersEx === undefined;
+      return {
+        included: scope.tiers ?? (untouched ? fallback : []),
+        excluded: scope.tiersEx ?? [],
+      };
     }
     default: {
-      return { included: scope.countries ?? [], excluded: scope.countriesEx ?? [] };
+      const untouched = scope.countries === undefined && scope.countriesEx === undefined;
+      return {
+        included: scope.countries ?? (untouched ? fallback : []),
+        excluded: scope.countriesEx ?? [],
+      };
     }
   }
 }
@@ -244,8 +275,9 @@ export function cycleScopeFacet(
   scope: MetaScope,
   facet: MetaScopeFacet,
   value: string,
+  defaults: ScopeFacetDefaults = {},
 ): Partial<MetaScope> {
-  const { included, excluded } = scopeFacetValues(scope, facet);
+  const { included, excluded } = scopeFacetValues(scope, facet, defaults);
   const next = cycleIncludeExclude(included, excluded, value);
   return facetPatch(facet, next.included, next.excluded);
 }
@@ -255,8 +287,9 @@ export function dropScopeFacetValue(
   scope: MetaScope,
   facet: MetaScopeFacet,
   value: string,
+  defaults: ScopeFacetDefaults = {},
 ): Partial<MetaScope> {
-  const { included, excluded } = scopeFacetValues(scope, facet);
+  const { included, excluded } = scopeFacetValues(scope, facet, defaults);
   return facetPatch(
     facet,
     included.filter((entry) => entry !== value),
@@ -284,9 +317,8 @@ export function nextScopeSearch(
         return false;
       }
       if (Array.isArray(value) && value.length === 0) {
-        // An emptied format survives: absent means constructed, so dropping the
-        // key would hand back the default the reader just turned off.
-        return key === "formats";
+        // Absent means the surface's default, so an emptied one must survive.
+        return key === "formats" || key === "tiers";
       }
       return true;
     }),
@@ -317,6 +349,48 @@ export function isScopeRestricting(scope: MetaScope, eras: readonly MetaEra[]): 
     const { included, excluded } = scopeFacetValues(scope, facet);
     return included.length > 0 || excluded.length > 0;
   });
+}
+
+/** Where each facet's excludes live on the wire. */
+const SCOPE_EXCLUDE_KEYS = {
+  formats: "formatsEx",
+  tiers: "tiersEx",
+  countries: "countriesEx",
+} as const satisfies Record<MetaScopeFacet, keyof MetaScopeQuery>;
+
+/**
+ * The scope bar's selection as the API takes it: the era resolved to a window,
+ * and each facet resolved to the lists {@link scopeMatches} would compare
+ * against, so a server-side narrowing agrees with the client-side one.
+ *
+ * A facet that narrows nothing is left off rather than sent empty, which is what
+ * keeps the request URL and the cache key of an unnarrowed page clean.
+ *
+ * @returns The query, holding only the fields that narrow.
+ */
+export function metaScopeQueryFromScope(
+  scope: MetaScope,
+  eras: readonly MetaEra[],
+  defaults: ScopeFacetDefaults = {},
+): MetaScopeQuery {
+  const range = resolveScopeRange(scope, eras);
+  const query: MetaScopeQuery = {};
+  if (range.from !== undefined) {
+    query.from = range.from;
+  }
+  if (range.to !== undefined) {
+    query.to = range.to;
+  }
+  for (const facet of META_SCOPE_FACETS) {
+    const { included, excluded } = scopeFacetValues(scope, facet, defaults);
+    if (included.length > 0) {
+      query[facet] = [...included];
+    }
+    if (excluded.length > 0) {
+      query[SCOPE_EXCLUDE_KEYS[facet]] = [...excluded];
+    }
+  }
+  return query;
 }
 
 /**

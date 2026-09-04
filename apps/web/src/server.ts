@@ -6,13 +6,19 @@
 import "./instrument.server.mjs";
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
 import "./tracing.server";
-import type { FeatureFlagsResponse, SitemapDataResponse } from "@openrift/shared";
+import type { FeatureFlagsResponse, SetListResponse, SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
-import { helpArticleList } from "./components/help/articles";
+import { deriveSetEras } from "./lib/meta-scope";
 import { applyPageCacheControl } from "./lib/page-cache";
-import { VALID_RULE_KINDS } from "./lib/rules-kinds";
 import { fetchApiJson } from "./lib/server-fns/fetch-api";
+import type { SitemapInput } from "./lib/sitemap";
+import {
+  parseSitemapPath,
+  renderSitemapFile,
+  renderSitemapIndex,
+  SITEMAP_INDEX_PATH,
+} from "./lib/sitemap";
 
 // Opt-in SSR timing instrumentation. Mirrors the API's LOG_REQUESTS flag:
 // default off, no overhead in prod unless explicitly enabled for benchmarking.
@@ -58,41 +64,10 @@ function buildProdRobotsTxt(): string {
     "Disallow: /reset-password",
     "Disallow: /verify-email",
     "",
-    `Sitemap: ${getSiteUrl()}/sitemap.xml`,
+    `Sitemap: ${getSiteUrl()}${SITEMAP_INDEX_PATH}`,
     "",
   ].join("\n");
 }
-
-interface StaticPage {
-  path: string;
-  priority: string;
-  changefreq: string;
-  // Only listed while this feature flag is enabled — the route redirects away
-  // when the flag is off, and crawlers shouldn't see URLs that depend on flag
-  // state (same rationale as the help articles below).
-  featureFlag?: string;
-}
-
-const STATIC_PAGES: StaticPage[] = [
-  { path: "/", priority: "1.0", changefreq: "weekly" },
-  { path: "/cards", priority: "0.8", changefreq: "weekly" },
-  { path: "/sets", priority: "0.7", changefreq: "weekly" },
-  { path: "/products", priority: "0.7", changefreq: "weekly" },
-  // /promos always 302s to the EN page, so list the redirect target — sitemaps
-  // should carry the final canonical URL (same rationale as the rules kinds).
-  { path: "/promos/EN", priority: "0.6", changefreq: "weekly" },
-  { path: "/meta", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
-  { path: "/meta/events", priority: "0.6", changefreq: "weekly", featureFlag: "meta" },
-  { path: "/meta/decks", priority: "0.5", changefreq: "weekly", featureFlag: "meta" },
-  { path: "/meta/legends", priority: "0.5", changefreq: "weekly", featureFlag: "meta" },
-  { path: "/rules", priority: "0.5", changefreq: "monthly" },
-  { path: "/help", priority: "0.4", changefreq: "monthly" },
-  { path: "/roadmap", priority: "0.3", changefreq: "monthly" },
-  { path: "/changelog", priority: "0.3", changefreq: "weekly" },
-  { path: "/developers", priority: "0.3", changefreq: "monthly", featureFlag: "developers" },
-  { path: "/legal-notice", priority: "0.1", changefreq: "yearly" },
-  { path: "/privacy-policy", priority: "0.1", changefreq: "yearly" },
-];
 
 // Global flag defaults for sitemap gating (anonymous view, no per-user
 // overrides). A failed fetch degrades to "all flags off": flag-gated entries
@@ -109,85 +84,50 @@ async function fetchGlobalFeatureFlags(): Promise<Record<string, boolean>> {
   }
 }
 
-async function generateSitemap(): Promise<string> {
-  const siteUrl = getSiteUrl();
-  const [data, flags] = await Promise.all([
+async function sitemapInput(): Promise<SitemapInput> {
+  const [data, flags, sets] = await Promise.all([
     fetchApiJson<SitemapDataResponse>({
       errorTitle: "Couldn't load sitemap data",
       path: "/api/v1/sitemap-data",
     }),
     fetchGlobalFeatureFlags(),
+    fetchApiJson<SetListResponse>({ errorTitle: "Couldn't load sets", path: "/api/v1/sets" }),
   ]);
+  return {
+    siteUrl: getSiteUrl(),
+    deployDate: DEPLOY_DATE,
+    data,
+    flags,
+    eras: deriveSetEras(sets.sets),
+  };
+}
 
-  const urls: string[] = [];
-  for (const page of STATIC_PAGES) {
-    if (page.featureFlag !== undefined && flags[page.featureFlag] !== true) {
-      continue;
-    }
-    urls.push(
-      `  <url><loc>${siteUrl}${page.path}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
-    );
-  }
-  // Help articles are static content shipped with the bundle, so the deploy
-  // date is the closest "lastmod" we have. Skip feature-flagged articles —
-  // crawlers shouldn't see URLs that may 404 depending on flag state.
-  for (const article of helpArticleList) {
-    if (article.featureFlag) {
-      continue;
-    }
-    urls.push(
-      `  <url><loc>${siteUrl}/help/${article.slug}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>`,
-    );
-  }
-  // Per-kind rules pages (core, tournament). Each 302s to its latest version,
-  // but the kind URL is the stable, version-independent entry worth indexing.
-  for (const kind of VALID_RULE_KINDS) {
-    urls.push(
-      `  <url><loc>${siteUrl}/rules/${kind}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
-    );
-  }
-  for (const entry of data.cards) {
-    const lastmod = entry.updatedAt.slice(0, 10);
-    urls.push(
-      `  <url><loc>${siteUrl}/cards/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>`,
-    );
-  }
-  for (const entry of data.sets) {
-    const lastmod = entry.updatedAt.slice(0, 10);
-    urls.push(
-      `  <url><loc>${siteUrl}/sets/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
-    );
-  }
-  for (const entry of data.products) {
-    const lastmod = entry.updatedAt.slice(0, 10);
-    urls.push(
-      `  <url><loc>${siteUrl}/products/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
-    );
-  }
-  // The meta archive ships behind its flag (ADR-014), so its URLs stay out of
-  // the sitemap until it is on — same reason flagged static pages and help
-  // articles are skipped above.
-  if (flags.meta === true) {
-    for (const entry of data.metaEvents) {
-      const lastmod = entry.updatedAt.slice(0, 10);
-      urls.push(
-        `  <url><loc>${siteUrl}/meta/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
-      );
-    }
-    for (const entry of data.metaDecks) {
-      const lastmod = entry.updatedAt.slice(0, 10);
-      urls.push(
-        `  <url><loc>${siteUrl}/meta/decks/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
-      );
-    }
-  }
+function xmlResponse(xml: string): Response {
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml",
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=7200",
+    },
+  });
+}
 
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...urls,
-    "</urlset>",
-  ].join("\n");
+/**
+ * The sitemap index and its section files. The archive alone holds more URLs
+ * than one sitemap may, so `/sitemap.xml` is an index and each section is its
+ * own file, split further once it outgrows the per-file limit.
+ *
+ * @returns The response, or null when the path is not a sitemap.
+ */
+async function sitemapResponse(pathname: string): Promise<Response | null> {
+  if (pathname === SITEMAP_INDEX_PATH) {
+    return xmlResponse(renderSitemapIndex(await sitemapInput()));
+  }
+  const file = parseSitemapPath(pathname);
+  if (file === null) {
+    return null;
+  }
+  const xml = renderSitemapFile(file.section, file.index, await sitemapInput());
+  return xml === null ? new Response("Not found", { status: 404 }) : xmlResponse(xml);
 }
 
 // Intentionally NOT wrapped in wrapFetchWithSentry. That wrapper string-injects
@@ -214,15 +154,12 @@ export default createServerEntry({
         },
       });
     }
-    if (url.pathname === "/sitemap.xml") {
+    if (url.pathname === SITEMAP_INDEX_PATH || url.pathname.startsWith("/sitemap-")) {
       try {
-        const xml = await generateSitemap();
-        return new Response(xml, {
-          headers: {
-            "Content-Type": "application/xml",
-            "Cache-Control": "public, max-age=3600, stale-while-revalidate=7200",
-          },
-        });
+        const sitemap = await sitemapResponse(url.pathname);
+        if (sitemap !== null) {
+          return sitemap;
+        }
       } catch {
         return new Response("Sitemap generation failed", { status: 500 });
       }

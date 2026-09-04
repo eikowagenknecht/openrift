@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   sanitizeCardsShowCounts,
   sanitizeDisplayMode,
+  sanitizeMetaDeckView,
   sanitizeFiltersExpanded,
   sanitizeOverrides,
   sanitizePaneDocked,
@@ -210,6 +211,19 @@ describe("sanitizeCardsShowCounts", () => {
     expect(sanitizeCardsShowCounts({}, true)).toBe(true);
     expect(sanitizeCardsShowCounts(null, false)).toBe(false);
     expect(sanitizeCardsShowCounts("off", true)).toBe(true);
+  });
+});
+
+describe("sanitizeMetaDeckView", () => {
+  it("keeps a value from the union", () => {
+    expect(sanitizeMetaDeckView({ metaDeckView: "grid" }, "list")).toBe("grid");
+    expect(sanitizeMetaDeckView({ metaDeckView: "list" }, "grid")).toBe("list");
+  });
+
+  it("falls back for anything outside the union", () => {
+    expect(sanitizeMetaDeckView({ metaDeckView: "table" }, "list")).toBe("list");
+    expect(sanitizeMetaDeckView({}, "grid")).toBe("grid");
+    expect(sanitizeMetaDeckView(undefined, "list")).toBe("list");
   });
 });
 

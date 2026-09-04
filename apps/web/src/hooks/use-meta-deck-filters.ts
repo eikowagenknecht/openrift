@@ -1,6 +1,8 @@
 import { getRouteApi } from "@tanstack/react-router";
 
-import type { MetaDeckSearch } from "@/lib/meta-deck-search";
+import { nextDeckSort } from "@/lib/meta-deck-filters";
+import type { MetaDeckSearch, MetaDeckSort, MetaDeckSortDirection } from "@/lib/meta-deck-search";
+import { DEFAULT_DECK_DIRECTION, DEFAULT_DECK_SORT } from "@/lib/meta-deck-search";
 import type { MetaScope, MetaScopeControls } from "@/lib/meta-scope";
 import { CLEARED_SCOPE, nextScopeSearch } from "@/lib/meta-scope";
 
@@ -17,6 +19,8 @@ export interface MetaDeckFilterState {
   maxCost: number | null;
   includeSideboard: boolean;
   valueRange: { min: number | null; max: number | null };
+  sort: MetaDeckSort;
+  direction: MetaDeckSortDirection;
 }
 
 export interface MetaDeckFilterActions {
@@ -32,6 +36,10 @@ export interface MetaDeckFilterActions {
   setMaxCost: (value: number | null) => void;
   setIncludeSideboard: (value: boolean) => void;
   setValueRange: (value: { min: number | null; max: number | null }) => void;
+  /** A click on a column header: the same column flips, a new one opens on its natural order. */
+  sortBy: (column: MetaDeckSort) => void;
+  /** An explicit order, for the grid's sort menu. */
+  setSort: (sort: MetaDeckSort, direction: MetaDeckSortDirection) => void;
   /** One navigation: two updaters back to back would resolve against the same stale search. */
   clearCostFilters: () => void;
   clearAllFilters: () => void;
@@ -55,12 +63,26 @@ export function useMetaDeckFilters(): MetaDeckFilterState &
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
 
-  const update = (patch: Partial<MetaDeckSearch>) => {
-    void navigate({ search: (prev) => nextScopeSearch(prev, patch) });
+  const update = (patch: Partial<MetaDeckSearch>, replace = false) => {
+    void navigate({ search: (prev) => nextScopeSearch(prev, patch), replace });
   };
 
   const events = search.events ?? [];
   const legends = search.legends ?? [];
+  const sort = search.by ?? DEFAULT_DECK_SORT;
+  const direction = search.dir ?? DEFAULT_DECK_DIRECTION;
+
+  const writeSort = (next: { sort: MetaDeckSort; direction: MetaDeckSortDirection }) =>
+    update(
+      {
+        by: next.sort === DEFAULT_DECK_SORT ? undefined : next.sort,
+        dir:
+          next.sort === DEFAULT_DECK_SORT && next.direction === DEFAULT_DECK_DIRECTION
+            ? undefined
+            : next.direction,
+      },
+      true,
+    );
 
   return {
     scope: search,
@@ -74,6 +96,8 @@ export function useMetaDeckFilters(): MetaDeckFilterState &
     maxCost: search.cost ?? null,
     includeSideboard: search.side === true,
     valueRange: { min: search.valueMin ?? null, max: search.valueMax ?? null },
+    sort,
+    direction,
 
     toggleEvent: (value) => update({ events: toggle(events, value) }),
     toggleLegend: (value) => update({ legends: toggle(legends, value) }),
@@ -85,6 +109,8 @@ export function useMetaDeckFilters(): MetaDeckFilterState &
     setIncludeSideboard: (value) => update({ side: value ? true : undefined }),
     setValueRange: (value) =>
       update({ valueMin: value.min ?? undefined, valueMax: value.max ?? undefined }),
+    sortBy: (column) => writeSort(nextDeckSort({ sort, direction }, column)),
+    setSort: (nextSort, nextDirection) => writeSort({ sort: nextSort, direction: nextDirection }),
     clearCostFilters: () => update({ cost: undefined, valueMin: undefined, valueMax: undefined }),
     clearAllFilters: () =>
       update({

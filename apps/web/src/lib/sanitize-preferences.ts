@@ -7,7 +7,7 @@ import type {
 } from "@openrift/shared";
 import { ALL_MARKETPLACES, CURRENCIES, PALETTES, RENAMED_LANGUAGES } from "@openrift/shared";
 
-import type { DisplayMode, DisplayOverrides } from "@/stores/display-store";
+import type { DisplayMode, DisplayOverrides, MetaDeckView } from "@/stores/display-store";
 import { NULL_OVERRIDES } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
@@ -193,6 +193,17 @@ export function sanitizeCardsShowCounts(data: unknown, fallback: boolean): boole
 export function sanitizeDisplayMode(data: unknown, fallback: DisplayMode): DisplayMode {
   const raw = asRecord(data).displayMode;
   return raw === "grid" || raw === "table" ? raw : fallback;
+}
+
+/**
+ * Reads the persisted archived-deck browser layout.
+ * @param data Raw persisted blob, any shape.
+ * @param fallback Value to keep when the blob carries no valid view.
+ * @returns The stored view.
+ */
+export function sanitizeMetaDeckView(data: unknown, fallback: MetaDeckView): MetaDeckView {
+  const raw = asRecord(data).metaDeckView;
+  return raw === "list" || raw === "grid" ? raw : fallback;
 }
 
 /**

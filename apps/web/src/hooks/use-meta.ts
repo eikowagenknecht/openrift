@@ -1,5 +1,7 @@
 import type {
   MetaActivityResponse,
+  MetaCountsQuery,
+  MetaCountsResponse,
   MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
   MetaDeckListResponse,
@@ -8,12 +10,14 @@ import type {
   MetaLegendDetailResponse,
   MetaLegendListResponse,
   MetaPlayerDetailResponse,
+  MetaScopeQuery,
 } from "@openrift/shared";
 import { metaContract } from "@openrift/shared/contracts/meta";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import type { MetaDateRange, MetaDeckQuery } from "@/lib/meta-scope";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -23,23 +27,84 @@ import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 // responses go through the shared `serverCache` rather than being refetched
 // per request.
 
+/** One page of a legend's record, which is a scope plus which page of it. */
+export type MetaLegendPageQuery = MetaScopeQuery & { page?: number };
+
+/**
+ * Drops the fields a caller left open, so an absent bound never reaches the
+ * wire as an empty query param and the cache key matches what was asked.
+ *
+ * @returns The query with only the fields that are set.
+ */
+function narrow<T extends object>(query?: T): T {
+  return Object.fromEntries(
+    Object.entries(query ?? {}).filter(([, value]) => value !== undefined),
+  ) as T;
+}
+
+/** A `serverCache` key segment per field, so two windows cannot share an entry. */
+function cacheKeyFor(query: Record<string, unknown>): unknown[] {
+  return Object.entries(query)
+    .toSorted(([left], [right]) => left.localeCompare(right))
+    .flat();
+}
+
 const fetchMetaEvents = createServerFn({ method: "GET" })
+  .validator((input: MetaDateRange) => input)
   .middleware([withCookies])
-  .handler(({ context }): Promise<MetaEventListResponse> =>
+  .handler(({ context, data: range }): Promise<MetaEventListResponse> =>
     serverCache.query({
-      queryKey: ["server-cache", "meta", "events"],
-      queryFn: () => apiOrpcClient(metaContract, context.cookie).events(),
+      queryKey: ["server-cache", "meta", "events", ...cacheKeyFor(range)],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).events(range),
     }),
   );
 
-export const metaEventsQueryOptions = queryOptions({
-  queryKey: queryKeys.meta.events,
-  queryFn: () => fetchMetaEvents(),
-  staleTime: 5 * 60 * 1000,
-});
+/**
+ * The archived events inside an inclusive window of event dates. Absent bounds
+ * still ask for the whole archive, which no page does.
+ *
+ * @returns Query options for the events in that window.
+ */
+export function metaEventsQueryOptions(range?: MetaDateRange) {
+  const narrowed = narrow(range);
+  return queryOptions({
+    queryKey: queryKeys.meta.events(narrowed),
+    queryFn: () => fetchMetaEvents({ data: narrowed }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
-export function useMetaEvents() {
-  return useSuspenseQuery(metaEventsQueryOptions);
+export function useMetaEvents(range?: MetaDateRange) {
+  return useSuspenseQuery(metaEventsQueryOptions(range));
+}
+
+const fetchMetaCounts = createServerFn({ method: "GET" })
+  .validator((input: MetaCountsQuery) => input)
+  .middleware([withCookies])
+  .handler(({ context, data: query }): Promise<MetaCountsResponse> =>
+    serverCache.query({
+      queryKey: ["server-cache", "meta", "counts", ...cacheKeyFor(query)],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).counts(query),
+    }),
+  );
+
+/**
+ * How much the archive holds: the standings rows and published decks inside the
+ * query, plus the archive's own all-time event numbers.
+ *
+ * @returns Query options for those counts.
+ */
+export function metaCountsQueryOptions(query?: MetaCountsQuery) {
+  const narrowed = narrow(query);
+  return queryOptions({
+    queryKey: queryKeys.meta.counts(narrowed),
+    queryFn: () => fetchMetaCounts({ data: narrowed }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useMetaCounts(query?: MetaCountsQuery) {
+  return useSuspenseQuery(metaCountsQueryOptions(query));
 }
 
 const fetchMetaActivity = createServerFn({ method: "GET" })
@@ -90,50 +155,64 @@ export function useMetaEvent(slug: string) {
 }
 
 const fetchMetaDecks = createServerFn({ method: "GET" })
+  .validator((input: MetaDeckQuery) => input)
   .middleware([withCookies])
-  .handler(({ context }): Promise<MetaDeckListResponse> =>
+  .handler(({ context, data: query }): Promise<MetaDeckListResponse> =>
     serverCache.query({
-      queryKey: ["server-cache", "meta", "decks"],
-      queryFn: () => apiOrpcClient(metaContract, context.cookie).decks(),
+      queryKey: ["server-cache", "meta", "decks", ...cacheKeyFor(query)],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).decks(query),
     }),
   );
 
 /**
- * The whole archive in one payload. The deck browser narrows it client-side
- * (ADR-014), so there is deliberately no per-filter query key.
+ * The archived decks a page renders: an inclusive window of event dates, one
+ * legend or one player, and a row cap. `total` counts the whole match, so a
+ * capped page can still say how much of it it is showing.
+ *
+ * @returns Query options for those decks.
  */
-export const metaDecksQueryOptions = queryOptions({
-  queryKey: queryKeys.meta.decks,
-  queryFn: () => fetchMetaDecks(),
-  staleTime: 5 * 60 * 1000,
-});
+export function metaDecksQueryOptions(query?: MetaDeckQuery) {
+  const narrowed = narrow(query);
+  return queryOptions({
+    queryKey: queryKeys.meta.decks(narrowed),
+    queryFn: () => fetchMetaDecks({ data: narrowed }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
-export function useMetaDecks() {
-  return useSuspenseQuery(metaDecksQueryOptions);
+export function useMetaDecks(query?: MetaDeckQuery) {
+  return useSuspenseQuery(metaDecksQueryOptions(query));
 }
 
 const fetchMetaDeckCards = createServerFn({ method: "GET" })
+  .validator((input: MetaDateRange) => input)
   .middleware([withCookies])
-  .handler(({ context }): Promise<MetaDeckCardIndexResponse> =>
+  .handler(({ context, data: range }): Promise<MetaDeckCardIndexResponse> =>
     serverCache.query({
-      queryKey: ["server-cache", "meta", "deck-cards"],
-      queryFn: () => apiOrpcClient(metaContract, context.cookie).deckCards(),
+      queryKey: ["server-cache", "meta", "deck-cards", range.from ?? null, range.to ?? null],
+      queryFn: () => apiOrpcClient(metaContract, context.cookie).deckCards(range),
     }),
   );
 
 /**
- * What every archived list is made of, for the browser's collection overlay.
- * Fetched on its own rather than folded into the deck payload: it is several
- * times the size, and only a signed-in reader has anything to compare it against.
+ * What every archived list is made of, for the browser's collection overlay,
+ * under the same window as {@link metaDecksQueryOptions}. Fetched on its own
+ * rather than folded into the deck payload: it is several times the size, and
+ * only a signed-in reader has anything to compare it against.
+ *
+ * @returns Query options for the card index in that window.
  */
-const metaDeckCardsQueryOptions = queryOptions({
-  queryKey: queryKeys.meta.deckCards,
-  queryFn: () => fetchMetaDeckCards(),
-  staleTime: 5 * 60 * 1000,
-});
+function metaDeckCardsQueryOptions(range?: MetaDateRange) {
+  const narrowed = narrow(range);
+  return queryOptions({
+    queryKey: queryKeys.meta.deckCards(narrowed),
+    queryFn: () => fetchMetaDeckCards({ data: narrowed }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
-export function useMetaDeckCards() {
-  return useSuspenseQuery(metaDeckCardsQueryOptions);
+export function useMetaDeckCards(range?: MetaDateRange) {
+  return useSuspenseQuery(metaDeckCardsQueryOptions(range));
 }
 
 const fetchMetaDeck = createServerFn({ method: "GET" })
@@ -182,12 +261,10 @@ export function useMetaLegends() {
 }
 
 const fetchMetaLegend = createServerFn({ method: "GET" })
-  .validator((input: string) => input)
+  .validator((input: MetaLegendPageQuery & { slug: string }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: slug }): Promise<MetaLegendDetailResponse> => {
-    const { error, data } = await safe(
-      apiOrpcClient(metaContract, context.cookie).legend({ slug }),
-    );
+  .handler(async ({ context, data: query }): Promise<MetaLegendDetailResponse> => {
+    const { error, data } = await safe(apiOrpcClient(metaContract, context.cookie).legend(query));
     if (error) {
       if (isDefinedError(error) && error.code === "NOT_FOUND") {
         throw new Error("NOT_FOUND");
@@ -197,16 +274,23 @@ const fetchMetaLegend = createServerFn({ method: "GET" })
     return data;
   });
 
-export function metaLegendQueryOptions(slug: string) {
+/**
+ * One legend's record inside a scope: its counts, its best placings, and one
+ * page of the record itself.
+ *
+ * @returns Query options for that page.
+ */
+export function metaLegendQueryOptions(slug: string, query?: MetaLegendPageQuery) {
+  const narrowed = narrow(query);
   return queryOptions({
-    queryKey: queryKeys.meta.legend(slug),
-    queryFn: () => fetchMetaLegend({ data: slug }),
+    queryKey: queryKeys.meta.legend(slug, narrowed),
+    queryFn: () => fetchMetaLegend({ data: { ...narrowed, slug } }),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useMetaLegend(slug: string) {
-  return useSuspenseQuery(metaLegendQueryOptions(slug));
+export function useMetaLegend(slug: string, query?: MetaLegendPageQuery) {
+  return useSuspenseQuery(metaLegendQueryOptions(slug, query));
 }
 
 const fetchMetaPlayer = createServerFn({ method: "GET" })

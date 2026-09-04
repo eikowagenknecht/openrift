@@ -9,6 +9,7 @@ import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { metaPlayerSearchSchema } from "@/lib/meta-player-search";
+import { deriveSetEras, metaScopeQueryFromScope } from "@/lib/meta-scope";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
@@ -46,11 +47,14 @@ export const Route = createFileRoute("/_app/meta_/players_/$key")({
       ],
     };
   },
+  // The scope is in the URL, so it is a loader dep: a reader who narrows the
+  // page gets the narrowed decks from the server rather than from a refetch.
+  loaderDeps: ({ search }) => search,
   // The flag check lives in the loader, not beforeLoad: a beforeLoad combined
   // with a head() that reads loaderData collapses the route-context type to
   // `never` in the current TanStack Router version. Same pattern as
   // meta_.legends_.$slug.tsx; the redirect still fires before anything renders.
-  loader: async ({ context, params }): Promise<MetaPlayerDetailResponse> => {
+  loader: async ({ context, params, deps }): Promise<MetaPlayerDetailResponse> => {
     const flags = (await context.queryClient.query({
       ...featureFlagsQueryOptions,
       staleTime: "static",
@@ -59,12 +63,20 @@ export const Route = createFileRoute("/_app/meta_/players_/$key")({
       throw redirect({ to: "/cards" });
     }
     try {
-      const [player] = await Promise.all([
+      const [player, sets] = await Promise.all([
         context.queryClient.query({ ...metaPlayerQueryOptions(params.key), staleTime: "static" }),
-        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
-        context.queryClient.query({ ...metaDecksQueryOptions, staleTime: "static" }),
         context.queryClient.query({ ...publicSetListQueryOptions, staleTime: "static" }),
+        context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
       ]);
+      // Uncapped: one player's lists inside an era are a few dozen rows, so the
+      // grid renders from the server and pages itself.
+      await context.queryClient.query({
+        ...metaDecksQueryOptions({
+          ...metaScopeQueryFromScope(deps, deriveSetEras(sets.sets)),
+          player: params.key,
+        }),
+        staleTime: "static",
+      });
       return player;
     } catch (error) {
       if (error instanceof Error && error.message === "NOT_FOUND") {

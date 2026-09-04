@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { EraSet } from "./meta-scope";
 import {
   CLEARED_SCOPE,
+  cycleScopeFacet,
   deriveSetEras,
   ERA_ALL,
   ERA_CUSTOM,
   isScopeCustomized,
   isScopeRestricting,
+  metaScopeQueryFromScope,
   metaScopeSearchSchema,
   nextScopeSearch,
   resolveScopeRange,
@@ -152,6 +154,30 @@ describe("scopeFacetValues", () => {
     expect(scopeFacetValues({}, "tiers")).toEqual({ included: [], excluded: [] });
     expect(scopeFacetValues({}, "countries")).toEqual({ included: [], excluded: [] });
   });
+
+  it("applies a surface's own default to an untouched facet", () => {
+    const defaults = { tiers: ["premier", "competitive"] };
+    expect(scopeFacetValues({}, "tiers", defaults)).toEqual({
+      included: ["premier", "competitive"],
+      excluded: [],
+    });
+    expect(scopeFacetValues({ tiers: [] }, "tiers", defaults)).toEqual({
+      included: [],
+      excluded: [],
+    });
+    expect(scopeFacetValues({ tiersEx: ["store"] }, "tiers", defaults)).toEqual({
+      included: [],
+      excluded: ["store"],
+    });
+  });
+
+  it("cycles off a defaulted value into an explicit selection", () => {
+    const defaults = { tiers: ["premier", "competitive"] };
+    expect(cycleScopeFacet({}, "tiers", "premier", defaults)).toEqual({
+      tiers: ["competitive"],
+      tiersEx: [],
+    });
+  });
 });
 
 describe("isScopeCustomized", () => {
@@ -222,8 +248,9 @@ describe("nextScopeSearch", () => {
     expect(nextScopeSearch({ era: "origins" }, { era: "" })).toEqual({});
   });
 
-  it("keeps an emptied format, which absent would read as the default", () => {
+  it("keeps an emptied format or tier, which absent would read as the default", () => {
     expect(nextScopeSearch({ formats: ["freeform"] }, { formats: [] })).toEqual({ formats: [] });
+    expect(nextScopeSearch({ tiers: ["premier"] }, { tiers: [] })).toEqual({ tiers: [] });
   });
 
   it("leaves params the scope knows nothing about alone", () => {
@@ -262,5 +289,58 @@ describe("metaScopeSearchSchema", () => {
       tiers: undefined,
       countries: ["de"],
     });
+  });
+});
+
+describe("metaScopeQueryFromScope", () => {
+  const eras = deriveSetEras(
+    [
+      set("origins", "Origins", "2026-01-01"),
+      set("proving-grounds", "Proving Grounds", "2026-07-01"),
+    ],
+    "2026-09-01",
+  );
+
+  it("resolves the era to the window the API takes", () => {
+    expect(metaScopeQueryFromScope({ era: "origins" }, eras)).toMatchObject({
+      from: "2026-01-01",
+      to: "2026-06-30",
+    });
+  });
+
+  it("leaves the window off for an all-time scope", () => {
+    const query = metaScopeQueryFromScope({ era: ERA_ALL, formats: [] }, eras);
+
+    expect(query).toEqual({});
+  });
+
+  it("sends the format default a scope with no format resolves to", () => {
+    expect(metaScopeQueryFromScope({ era: ERA_ALL }, eras).formats).toEqual(["constructed"]);
+  });
+
+  it("carries each facet's includes and excludes under their own keys", () => {
+    const query = metaScopeQueryFromScope(
+      { era: ERA_ALL, formats: [], tiers: ["premier"], countriesEx: ["DE"] },
+      eras,
+    );
+
+    expect(query).toEqual({ tiers: ["premier"], countriesEx: ["DE"] });
+  });
+
+  it("takes a surface's own default for a facet the URL says nothing about", () => {
+    const query = metaScopeQueryFromScope({ era: ERA_ALL, formats: [] }, eras, {
+      tiers: ["premier", "competitive"],
+    });
+
+    expect(query.tiers).toEqual(["premier", "competitive"]);
+  });
+
+  it("carries a custom window as the reader wrote it", () => {
+    const query = metaScopeQueryFromScope(
+      { era: ERA_CUSTOM, from: "2026-03-01", to: "2026-03-31", formats: [] },
+      eras,
+    );
+
+    expect(query).toEqual({ from: "2026-03-01", to: "2026-03-31" });
   });
 });

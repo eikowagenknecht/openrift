@@ -7,12 +7,13 @@ import { Card } from "@/components/ui/card";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { deckGlowStyle } from "@/lib/domain";
 import { splitLegendName } from "@/lib/meta-format";
-import type { MetaLegendCounts } from "@/lib/meta-legend-page";
+
+type MetaLegendCounts = MetaLegendDetailResponse["counts"];
 
 function FactCounters({ counts }: { counts: MetaLegendCounts }) {
   return (
     <div className="flex flex-wrap gap-x-9 gap-y-3">
-      <MetaHeroCounter value={counts.eventWins} label="event wins" />
+      <MetaHeroCounter value={counts.wins} label="event wins" />
       <MetaHeroCounter value={counts.finishes} label="archived finishes" />
       <MetaHeroCounter value={counts.decklists} label="decklists" />
     </div>

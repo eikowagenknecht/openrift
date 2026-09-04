@@ -1,7 +1,13 @@
-import type { Card, CatalogResponse, Printing } from "@openrift/shared";
+import type {
+  Card,
+  CatalogResponse,
+  CatalogResponsePrintingValue,
+  DeckCatalogSubset,
+  Printing,
+} from "@openrift/shared";
 import { joinCatalogPrintings } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
-import type { QueryClient } from "@tanstack/react-query";
+import type { QueryClient, UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -363,6 +369,58 @@ function enrichCatalogInner(catalog: CatalogResponse): UseCardsResult {
     sets: catalog.sets,
   };
 }
+
+// Memoized like `enrichCatalog`, keyed by the subset the API handed the page,
+// which react-query keeps identity-stable across renders.
+const enrichSubsetCache = new WeakMap<DeckCatalogSubset, UseCardsResult>();
+
+/**
+ * Enriches a page's own slice of the catalogue — the rows a deck detail
+ * response carries — through the same join and indexing the full catalogue
+ * runs, so a page reading a subset and a page reading everything derive their
+ * maps identically.
+ * @returns The enriched subset.
+ */
+export function enrichCatalogSubset(subset: DeckCatalogSubset): UseCardsResult {
+  const cached = enrichSubsetCache.get(subset);
+  if (cached) {
+    return cached;
+  }
+  const printings: Record<string, CatalogResponsePrintingValue> = {};
+  for (const { id, ...rest } of subset.printings) {
+    printings[id] = rest;
+  }
+  const result = enrichCatalogInner({
+    sets: subset.sets,
+    cards: subset.cards,
+    printings,
+    totalCopies: 0,
+    customTagAssignments: {},
+  });
+  enrichSubsetCache.set(subset, result);
+  return result;
+}
+
+const NO_CATALOG: CatalogResponse = {
+  sets: [],
+  cards: {},
+  printings: {},
+  totalCopies: 0,
+  customTagAssignments: {},
+};
+
+// A resolved stand-in so the unconditional useSuspenseQuery below never fetches or suspends.
+export const noCatalogQueryOptions: UseSuspenseQueryOptions<
+  CatalogResponse,
+  Error,
+  UseCardsResult
+> = {
+  queryKey: queryKeys.catalog.none,
+  queryFn: () => NO_CATALOG,
+  initialData: NO_CATALOG,
+  staleTime: Infinity,
+  select: enrichCatalog,
+};
 
 export const catalogQueryOptions = queryOptions({
   queryKey: queryKeys.catalog.all,

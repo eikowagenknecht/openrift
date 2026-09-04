@@ -12,7 +12,6 @@ import { MetaPlayerLegends } from "@/components/meta/meta-player-legends";
 import { MetaScopeBar } from "@/components/meta/meta-scope-bar";
 import { useMetaDecks, useMetaPlayer } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
-import { filterLegendDecks } from "@/lib/meta-legend-page";
 import {
   filterPlayerFinishes,
   metaPlayerCounts,
@@ -22,7 +21,13 @@ import {
   metaPlayerLegends,
 } from "@/lib/meta-player-page";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, isScopeRestricting, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
+import {
+  CLEARED_SCOPE,
+  isScopeRestricting,
+  metaScopeQueryFromScope,
+  nextScopeSearch,
+  scopeKey,
+} from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/players_/$key");
@@ -32,8 +37,13 @@ export function MetaPlayerPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const { data } = useMetaPlayer(key);
-  const { data: decksData } = useMetaDecks();
   const eras = useMetaEras();
+  // Uncapped and read by the loader: one player's lists are a few dozen rows,
+  // so the grid pages itself rather than the endpoint.
+  const { data: deckData } = useMetaDecks({
+    ...metaScopeQueryFromScope(search, eras),
+    player: key,
+  });
 
   // Replaced rather than pushed: a scope bar is one control the reader adjusts
   // several times, and each dropdown would otherwise cost a press of Back.
@@ -42,12 +52,12 @@ export function MetaPlayerPage() {
   };
   const clearScope = () => setScope(CLEARED_SCOPE);
 
-  const playerDecks = metaPlayerDecks(decksData.decks, data.finishes);
   const finishes = filterPlayerFinishes(data.finishes, { scope: search, eras });
-  const decks = filterLegendDecks(playerDecks, { scope: search, eras });
-  const counts = metaPlayerCounts(finishes, decks);
+  const counts = metaPlayerCounts(finishes);
   const facts = metaPlayerFacts(finishes);
   const legends = metaPlayerLegends(finishes);
+  const hasDecklists = data.finishes.some((finish) => finish.shareToken !== null);
+  const decks = metaPlayerDecks(deckData.decks, data.finishes);
   // Prefixed per section: two siblings sharing one key leave the first one's
   // DOM behind on the swap.
   const sectionKey = scopeKey(search);
@@ -73,7 +83,7 @@ export function MetaPlayerPage() {
             setScope={setScope}
             clearScope={clearScope}
             eras={eras}
-            countries={metaPlayerCountries(data.finishes, playerDecks)}
+            countries={metaPlayerCountries(data.finishes)}
           />
           <MetaPlayerHero name={data.name} facts={facts} counts={counts} />
         </div>
@@ -91,8 +101,13 @@ export function MetaPlayerPage() {
           narrowed={isScopeRestricting(search, eras)}
         />
 
-        {playerDecks.length > 0 && (
-          <MetaArchivedDecks key={`decks:${sectionKey}`} decks={decks} subject="player" />
+        {hasDecklists && (
+          <MetaArchivedDecks
+            key={`decks:${sectionKey}`}
+            decks={decks}
+            total={decks.length}
+            subject="player"
+          />
         )}
       </div>
     </div>

@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useMetaEvents } from "@/hooks/use-meta";
+import { useMetaCounts, useMetaEvents } from "@/hooks/use-meta";
 import { useMetaEras } from "@/hooks/use-meta-eras";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import {
@@ -47,7 +47,7 @@ import {
 } from "@/lib/meta-events-search";
 import { metaShownLabel } from "@/lib/meta-format";
 import type { MetaScope } from "@/lib/meta-scope";
-import { CLEARED_SCOPE, nextScopeSearch, scopeKey } from "@/lib/meta-scope";
+import { CLEARED_SCOPE, nextScopeSearch, resolveScopeRange, scopeKey } from "@/lib/meta-scope";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/events");
@@ -62,15 +62,16 @@ const ANY_HOLDINGS = "";
  * `/meta/events` — every archived tournament as one row: when and where it ran,
  * how much it counted for, how much of it the archive holds, and who won it.
  *
- * The whole archive ships as one payload (ADR-014), so the search box, the scope
- * bar and the column sort all run client-side and the count under the title is
- * always the truth about what is on screen.
+ * The era the scope names ships as one payload (ADR-014), so the search box, the
+ * remaining facets and the column sort all run client-side over it. The count
+ * under the title measures what is on screen against the whole archive.
  */
 export function MetaEventsPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
-  const { data } = useMetaEvents();
   const eras = useMetaEras();
+  const { data } = useMetaEvents(resolveScopeRange(search, eras));
+  const { data: counts } = useMetaCounts();
 
   const sort = search.by ?? DEFAULT_EVENT_SORT;
   const direction = search.dir ?? DEFAULT_EVENT_DIRECTION;
@@ -87,13 +88,13 @@ export function MetaEventsPage() {
   };
   const commitQuery = (value: string) => setSearchParams({ q: value === "" ? undefined : value });
 
-  const all = data.events;
+  const fetched = data.events;
   const events = sortMetaEvents(
-    filterMetaEvents(all, { query: search.q, scope: search, eras, holds: search.holds }),
+    filterMetaEvents(fetched, { query: search.q, scope: search, eras, holds: search.holds }),
     sort,
     direction,
   );
-  const countries = metaEventCountries(all);
+  const countries = metaEventCountries(fetched);
   // Reordering is not renarrowing: the same events in a new order stay expanded,
   // so the sort keys are deliberately absent here.
   const listKey = `${search.q ?? ""}|${search.holds ?? ""}|${scopeKey(search)}`;
@@ -105,7 +106,7 @@ export function MetaEventsPage() {
           <PageTopBarBack to="/meta" aria-label="Meta archive" />
           <PageTopBarTitle>Events</PageTopBarTitle>
           <span className="text-muted-foreground shrink-0 tabular-nums">
-            {metaShownLabel(events.length, all.length, {
+            {metaShownLabel(events.length, counts.totalEvents, {
               singular: "archived event",
               plural: "archived events",
             })}
@@ -116,7 +117,7 @@ export function MetaEventsPage() {
       <div className={cn(PAGE_WIDTH.capped, "px-safe pt-3 pb-6")}>
         <PageDescription className="pb-4">{META_EVENTS_DESCRIPTION}</PageDescription>
 
-        {all.length === 0 ? (
+        {counts.totalEvents === 0 ? (
           <EmptyState
             className="py-12"
             icon={TrophyIcon}

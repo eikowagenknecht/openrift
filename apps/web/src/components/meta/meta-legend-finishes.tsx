@@ -14,7 +14,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useUserId } from "@/lib/auth-session";
 import { formatRank, formatRecord, MEDAL_RANKS } from "@/lib/meta-format";
 import type { MetaFinishesView } from "@/lib/meta-legend-page";
-import { BEST_FINISH_COUNT, FINISH_PAGE_SIZE, sortLegendFinishes } from "@/lib/meta-legend-page";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 import { cn } from "@/lib/utils";
 
@@ -146,32 +145,32 @@ function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit:
  * as published.
  *
  * "Best" leads with the placings; "All" is the record in the order it happened
- * and grows a page at a time. Both views hold the same rows, so the count beside
- * the toggle is always the number the list can reach.
+ * and grows a page at a time, each page fetched under the page's scope. Both
+ * views are slices of the same `total`, so the count beside the toggle is always
+ * the number the list can reach.
  *
- * The rows arrive already narrowed by the page's scope bar; `narrowed` only
- * decides which empty state to write, since "nothing on record" and "nothing in
- * this scope" are different facts about the archive.
+ * `narrowed` only decides which empty state to write, since "nothing on record"
+ * and "nothing in this scope" are different facts about the archive.
  */
 export function MetaLegendFinishes({
+  best,
   finishes,
+  total,
+  loadingMore = false,
+  onShowMore,
   narrowed = false,
 }: {
+  best: readonly MetaLegendFinish[];
   finishes: readonly MetaLegendFinish[];
+  total: number;
+  loadingMore?: boolean;
+  onShowMore: () => void;
   narrowed?: boolean;
 }) {
   const canSubmit = useUserId() !== null;
   const [view, setView] = useState<MetaFinishesView>("best");
-  const [shown, setShown] = useState(FINISH_PAGE_SIZE);
 
-  // The footer says "Show all N", so it shows all N. Leaving `shown` at one page
-  // would page instead, and the button would have lied.
-  const showAll = () => {
-    setView("all");
-    setShown(finishes.length);
-  };
-
-  if (finishes.length === 0) {
+  if (total === 0) {
     return (
       <section className="flex flex-col gap-3">
         <Heading>Finishes</Heading>
@@ -188,9 +187,8 @@ export function MetaLegendFinishes({
     );
   }
 
-  const sorted = sortLegendFinishes(finishes, view);
-  const rows = view === "best" ? sorted.slice(0, BEST_FINISH_COUNT) : sorted.slice(0, shown);
-  const remaining = finishes.length - rows.length;
+  const rows = view === "best" ? best : finishes;
+  const remaining = total - rows.length;
 
   return (
     <section className="flex flex-col gap-3">
@@ -205,15 +203,12 @@ export function MetaLegendFinishes({
             onValueChange={([next]) => {
               if (next === "best" || next === "all") {
                 setView(next);
-                setShown(FINISH_PAGE_SIZE);
               }
             }}
             aria-label="Which finishes to show"
           >
             <ToggleGroupItem value="best">Best</ToggleGroupItem>
-            <ToggleGroupItem value="all">
-              All {finishes.length.toLocaleString("en-US")}
-            </ToggleGroupItem>
+            <ToggleGroupItem value="all">All {total.toLocaleString("en-US")}</ToggleGroupItem>
           </ToggleGroup>
         </div>
       </div>
@@ -230,10 +225,11 @@ export function MetaLegendFinishes({
             <Button
               variant="ghost"
               className="w-full rounded-none"
-              onClick={view === "best" ? showAll : () => setShown(shown + FINISH_PAGE_SIZE)}
+              disabled={view === "all" && loadingMore}
+              onClick={view === "best" ? () => setView("all") : onShowMore}
             >
               {view === "best"
-                ? `Show all ${finishes.length.toLocaleString("en-US")} finishes`
+                ? `Show all ${total.toLocaleString("en-US")} finishes`
                 : `${remaining.toLocaleString("en-US")} more ${remaining === 1 ? "finish" : "finishes"}`}
             </Button>
           </div>

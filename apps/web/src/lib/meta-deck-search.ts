@@ -9,7 +9,20 @@ import { metaScopeSearchSchema } from "@/lib/meta-scope";
  * and `.catch`es to undefined, so a stale bookmark loses the bad value instead
  * of crashing the route.
  */
+/** The columns the deck browser can be ordered by. */
+export const META_DECK_SORTS = ["date", "finish", "value", "cost"] as const;
+
+export type MetaDeckSort = (typeof META_DECK_SORTS)[number];
+
+export type MetaDeckSortDirection = "asc" | "desc";
+
+export const DEFAULT_DECK_SORT: MetaDeckSort = "date";
+export const DEFAULT_DECK_DIRECTION: MetaDeckSortDirection = "desc";
+
 export const metaDeckSearchSchema = metaScopeSearchSchema.extend({
+  /** Named `by`, not `sort`, for the same reason as the event index's key. */
+  by: z.enum(META_DECK_SORTS).optional().catch(undefined),
+  dir: z.enum(["asc", "desc"]).optional().catch(undefined),
   /** Event slugs, matched as a union. */
   events: z.array(z.string()).optional().catch(undefined),
   /** Legend card ids, matched as a union. */

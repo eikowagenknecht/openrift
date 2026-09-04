@@ -6,7 +6,6 @@ import {
   metaEventCountries,
   metaEventWinners,
   metaFrontSections,
-  metaTierCounts,
 } from "@/lib/meta-front-page";
 import type { MetaEra } from "@/lib/meta-scope";
 import { ERA_ALL, ERA_CUSTOM } from "@/lib/meta-scope";
@@ -292,29 +291,5 @@ describe("metaFrontSections", () => {
       "store-2",
       "casual",
     ]);
-  });
-});
-
-describe("metaTierCounts", () => {
-  it("counts every event by tier, results or not", () => {
-    expect(
-      metaTierCounts([
-        event({ id: "p1", tier: "premier", playerRowCount: 0 }),
-        event({ id: "p2", tier: "premier" }),
-        event({ id: "c", tier: "competitive" }),
-        event({ id: "s", tier: "store" }),
-        event({ id: "x", tier: "casual" }),
-      ]),
-    ).toEqual({ premier: 2, competitive: 1, community: 2 });
-  });
-
-  it("counts a future event same as a played one", () => {
-    expect(
-      metaTierCounts([event({ id: "future", tier: "premier", eventDate: "2099-01-01" })]),
-    ).toEqual({ premier: 1, competitive: 0, community: 0 });
-  });
-
-  it("returns zeros for an empty archive", () => {
-    expect(metaTierCounts([])).toEqual({ premier: 0, competitive: 0, community: 0 });
   });
 });

@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   events: [] as MetaEventSummary[],
+  /** What the archive holds all told, which the fetched era is measured against. */
+  totalEvents: 0,
+  ranges: [] as unknown[],
   search: {} as Record<string, unknown>,
   navigated: [] as Record<string, unknown>[],
 }));
@@ -28,7 +31,18 @@ vi.mock("@tanstack/react-router", () => {
 });
 
 vi.mock("@/hooks/use-meta", () => ({
-  useMetaEvents: () => ({ data: { events: captured.events } }),
+  useMetaEvents: (range?: unknown) => {
+    captured.ranges.push(range);
+    return { data: { events: captured.events } };
+  },
+  useMetaCounts: () => ({
+    data: {
+      totalPlayers: 0,
+      decksWithMainDeck: 0,
+      totalEvents: captured.totalEvents,
+      eventsByTier: { premier: 0, competitive: 0, store: 0, casual: 0 },
+    },
+  }),
 }));
 vi.mock("@/hooks/use-meta-eras", () => ({ useMetaEras: () => [] }));
 // Stubbed down to the slot the page fills: the bar's own controls have their
@@ -59,8 +73,13 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
   };
 }
 
-function renderPage(events: MetaEventSummary[], search: Record<string, unknown> = {}) {
+function renderPage(
+  events: MetaEventSummary[],
+  search: Record<string, unknown> = {},
+  totalEvents = events.length,
+) {
   captured.events = events;
+  captured.totalEvents = totalEvents;
   captured.search = search;
   const view = render(<MetaEventsPage />);
   return {
@@ -116,6 +135,8 @@ function rowNames(): string[] {
 
 beforeEach(() => {
   captured.events = [];
+  captured.totalEvents = 0;
+  captured.ranges = [];
   captured.search = {};
   captured.navigated = [];
 });
@@ -227,6 +248,16 @@ describe("MetaEventsPage", () => {
     renderPage([event()], { q: "piltover" });
     expect(screen.getByText("No events match these filters.")).toBeDefined();
     expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+  });
+
+  it("measures the era it fetched against the whole archive, not against itself", () => {
+    renderPage([event({ id: "a" }), event({ id: "b", name: "Nexus Night" })], {}, 6266);
+    expect(screen.getByText("2 of 6,266 archived events")).toBeDefined();
+  });
+
+  it("asks for the era the scope names rather than the whole archive", () => {
+    renderPage([event()], { era: "custom", from: "2026-03-01", to: "2026-09-30" });
+    expect(captured.ranges).toContainEqual({ from: "2026-03-01", to: "2026-09-30" });
   });
 
   it("invites the first event when the archive is empty", () => {

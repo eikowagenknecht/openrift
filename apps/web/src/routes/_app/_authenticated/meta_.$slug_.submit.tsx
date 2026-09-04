@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/$slug_/submit")
     }
     await Promise.all([
       context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
-      context.queryClient.query({ ...metaEventsQueryOptions, staleTime: "static" }),
+      context.queryClient.query({ ...metaEventsQueryOptions(), staleTime: "static" }),
       context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
       // The list a completion or a correction edits, in cache before the form
       // mounts so its paste box opens already holding it. A token that no

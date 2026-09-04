@@ -2,6 +2,7 @@ import type { DeckZone, PublicDeckDetailResponse } from "@openrift/shared";
 import { WellKnown, imageUrl } from "@openrift/shared";
 import { Suspense, useEffect, useRef, useState } from "react";
 
+import { CatalogSubsetProvider } from "@/components/cards/catalog-subset-provider";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { DeckOwnershipBridge } from "@/components/deck/deck-ownership-bridge";
@@ -81,6 +82,10 @@ interface PublicDeckSurfaceProps {
  * they differ only in where the payload came from and what the hero says, so
  * those are props and everything else lives here.
  *
+ * The payload carries the catalogue rows the deck needs, and they are provided
+ * here rather than fetched: `useCards` under this tree reads the subset, so
+ * neither page pulls the whole catalogue into its SSR payload.
+ *
  * No page top bar of its own: the hero already carries the deck's name and
  * status, so the share page opens straight with it. A caller that needs one
  * anyway — the archive, whose breadcrumb walks back to the event — hands it in
@@ -95,10 +100,12 @@ export function PublicDeckSurface({ topBar, ...props }: PublicDeckSurfaceProps) 
   const barHeight = useMeasuredHeight(barEl);
   return (
     <FilterSearchProvider value={EMPTY_FILTER_SEARCH}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {topBar ? <div ref={setBarEl}>{topBar}</div> : null}
-        <PublicDeckContent {...props} topBarHeight={barHeight} />
-      </div>
+      <CatalogSubsetProvider catalog={props.data.catalog}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {topBar ? <div ref={setBarEl}>{topBar}</div> : null}
+          <PublicDeckContent {...props} topBarHeight={barHeight} />
+        </div>
+      </CatalogSubsetProvider>
     </FilterSearchProvider>
   );
 }

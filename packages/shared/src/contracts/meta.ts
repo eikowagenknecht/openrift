@@ -328,7 +328,11 @@ export const metaEventDetailResponseSchema = z
   .openapi("MetaEventDetailResponse");
 
 export const metaDeckListResponseSchema = z
-  .object({ decks: z.array(metaDeckSummarySchema) })
+  .object({
+    decks: z.array(metaDeckSummarySchema),
+    /** Rows the query matched before `limit` cut it, which is what a count line prints. */
+    total: z.number().int().nonnegative(),
+  })
   .openapi("MetaDeckListResponse");
 
 /**
@@ -408,11 +412,22 @@ export const metaDeckDetailResponseSchema = publicDeckDetailResponseSchema
  * row, `decksWithMainDeck` the entries whose main deck is published (`full`
  * and `partial` alike, since a partial list's main deck is complete). Counts
  * about the archive itself, used to caption the page's lists.
+ *
+ * `totalEvents` and `eventsByTier` ignore the query's filters: they are the
+ * archive's own size, which a page prints beside a scoped number to say how
+ * much of the whole the reader is looking at.
  */
 export const metaCountsResponseSchema = z
   .object({
     totalPlayers: z.number().int().nonnegative(),
     decksWithMainDeck: z.number().int().nonnegative(),
+    totalEvents: z.number().int().nonnegative(),
+    eventsByTier: z.object({
+      premier: z.number().int().nonnegative(),
+      competitive: z.number().int().nonnegative(),
+      store: z.number().int().nonnegative(),
+      casual: z.number().int().nonnegative(),
+    }),
   })
   .openapi("MetaCountsResponse");
 
@@ -501,7 +516,8 @@ export const metaLegendListResponseSchema = z
   .openapi("MetaLegendListResponse");
 
 /**
- * Every archived finish for one legend, best first.
+ * One legend's record inside the scope the request asked for: the headline
+ * counts, the placings a reader came for, and one page of the record itself.
  *
  * Facts only: each entry is a standings row a tournament published. Nothing here
  * is a rate, a share, or a comparison against another legend.
@@ -510,7 +526,24 @@ export const metaLegendDetailResponseSchema = z
   .object({
     slug: z.string(),
     legend: metaCardRefSchema,
+    counts: z.object({
+      /**
+       * Events won, not rank-1 rows: a source that published a shared first
+       * place files two rows at one event, and counting rows would report the
+       * legend winning it twice.
+       */
+      wins: z.number().int().nonnegative(),
+      finishes: z.number().int().nonnegative(),
+      decklists: z.number().int().nonnegative(),
+    }),
+    /** The five best placings, best first, the newest of an equal placing ahead. */
+    best: z.array(metaLegendFinishSchema),
+    /** One page of the record, newest first. */
     finishes: z.array(metaLegendFinishSchema),
+    /** Finishes in scope, which is what the paging runs over. */
+    total: z.number().int().nonnegative(),
+    /** The 1-based page `finishes` holds. */
+    page: z.number().int().positive(),
   })
   .openapi("MetaLegendDetailResponse");
 
@@ -558,12 +591,70 @@ export const metaCountsQuerySchema = z.object({
 });
 
 /**
+ * Inclusive date-only bounds on the event a deck was played at. Both ends are
+ * optional and independent, so a caller can open either side of the window.
+ */
+export const metaDateRangeQuerySchema = z.object({
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+});
+
+/**
+ * One facet's include or exclude list. Kept as plain strings rather than the
+ * tier or format enums, so a stale bookmark carrying a value the archive
+ * retired narrows to nothing instead of failing the whole request.
+ */
+const scopeFacetList = z.array(z.string().min(1)).max(300).optional();
+
+/**
+ * The archive scope bar's selection as a query (ADR-014): a date window plus
+ * the three value facets, each an include list or an exclude list.
+ *
+ * An include list means "one of these", an exclude list "none of these", and a
+ * facet never carries both at once. An event no source named a country for is
+ * outside every include list and inside every exclude list, since "all but
+ * Germany" is a claim about Germany rather than about unplaced events.
+ */
+export const metaScopeQuerySchema = metaDateRangeQuerySchema.extend({
+  formats: scopeFacetList,
+  formatsEx: scopeFacetList,
+  tiers: scopeFacetList,
+  tiersEx: scopeFacetList,
+  /** ISO 3166-1 alpha-2. */
+  countries: scopeFacetList,
+  countriesEx: scopeFacetList,
+});
+
+/**
+ * Which archived decks a browser is asking for. The order is the endpoint's own
+ * and not a parameter: event date descending, then rank, then player.
+ *
+ * The scope's facets narrow it too, so a capped request returns a full grid of
+ * rows that are already in scope rather than a grid the page then thins.
+ */
+export const metaDeckQuerySchema = metaScopeQuerySchema.extend({
+  /** A legend's card id, for the decks filed under one legend. */
+  legend: z.string().min(1).optional(),
+  /** A player key, as `/meta/players/{key}` spells it. */
+  player: z.string().min(1).optional(),
+  /** Rows to return. `total` still counts the whole match. */
+  limit: z.coerce.number().int().positive().optional(),
+});
+
+/** One legend's page: the scope its counts are taken over, plus which page of it. */
+export const metaLegendQuerySchema = metaScopeQuerySchema.extend({
+  slug: z.string().min(1),
+  page: z.coerce.number().int().min(1).optional(),
+});
+
+/**
  * oRPC contract for the public meta archive (ADR-014), mounted under
  * `/api/v1/meta`. Every route is anonymous (`auth: "public"`) and SSR-facing.
  *
- * `decks` returns the whole archive unfiltered on purpose: filtering is a
- * client concern here (ADR-009), and the curated corpus is small enough that
- * one cacheable payload beats a filter matrix of uncacheable ones.
+ * Every read is scoped server-side to what its page renders: absent bounds
+ * still return the whole archive, but no page asks for that. `deckCards` keeps
+ * the date window alone, since it is fetched under the same window as the deck
+ * list it annotates.
  *
  * Domain codes: `event`, `deck`, `legend` → NOT_FOUND. `deck` also 404s for a
  * share token that resolves to a deck outside the archive, so a regular user's
@@ -573,6 +664,7 @@ export const metaContract = {
   events: oc
     .route({ method: "GET", path: `${BASE}/events`, tags: [TAG] })
     .meta({ auth: "public", cache: "medium", etag: true })
+    .input(metaDateRangeQuerySchema)
     .output(metaEventListResponseSchema),
 
   activity: oc
@@ -590,11 +682,13 @@ export const metaContract = {
   decks: oc
     .route({ method: "GET", path: `${BASE}/decks`, tags: [TAG] })
     .meta({ auth: "public", cache: "medium", etag: true })
+    .input(metaDeckQuerySchema)
     .output(metaDeckListResponseSchema),
 
   deckCards: oc
     .route({ method: "GET", path: `${BASE}/deck-cards`, tags: [TAG] })
     .meta({ auth: "public", cache: "medium", etag: true })
+    .input(metaDateRangeQuerySchema)
     .output(metaDeckCardIndexResponseSchema),
 
   deck: oc
@@ -612,7 +706,7 @@ export const metaContract = {
   legend: oc
     .route({ method: "GET", path: `${BASE}/legends/{slug}`, tags: [TAG] })
     .meta({ auth: "public", cache: "medium", etag: true })
-    .input(z.object({ slug: z.string().min(1) }))
+    .input(metaLegendQuerySchema)
     .errors({ NOT_FOUND: { message: "Legend not found" } })
     .output(metaLegendDetailResponseSchema),
 

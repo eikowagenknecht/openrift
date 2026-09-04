@@ -6,10 +6,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({
   player: {} as MetaPlayerDetailResponse,
   decks: [] as MetaDeckSummary[],
+  deckQueries: [] as Record<string, unknown>[],
   search: {} as Record<string, unknown>,
   navigated: [] as Record<string, unknown>[],
   replaced: [] as (boolean | undefined)[],
   countries: [] as readonly string[],
+  hydrated: true,
 }));
 
 vi.mock("@tanstack/react-router", () => {
@@ -58,8 +60,13 @@ vi.mock("@tanstack/react-router", () => {
 
 vi.mock("@/hooks/use-meta", () => ({
   useMetaPlayer: () => ({ data: captured.player }),
-  useMetaDecks: () => ({ data: { decks: captured.decks } }),
+  useMetaDecks: (query: Record<string, unknown>) => {
+    captured.deckQueries.push(query);
+    return { data: { decks: captured.decks, total: captured.decks.length } };
+  },
 }));
+
+vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => captured.hydrated }));
 
 vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: () => ({
@@ -158,6 +165,8 @@ beforeEach(() => {
   captured.navigated = [];
   captured.replaced = [];
   captured.decks = [];
+  captured.deckQueries = [];
+  captured.hydrated = true;
   captured.player = makeMetaPlayerDetail({
     name: "Renata",
     finishes: [
@@ -202,6 +211,14 @@ describe("MetaPlayerPage", () => {
   });
 
   it("offers the scope bar every country the whole record touches", () => {
+    captured.player = makeMetaPlayerDetail({
+      name: "Renata",
+      finishes: [
+        makeMetaPlayerFinish({ event: { slug: "a", country: "DE" } }),
+        makeMetaPlayerFinish({ event: { slug: "b", country: "FR" } }),
+        makeMetaPlayerFinish({ shareToken: "tok-1", event: { slug: "c", country: "US" } }),
+      ],
+    });
     captured.decks = [deck("d1", "tok-1", "US")];
     render(<MetaPlayerPage />);
     expect(captured.countries).toEqual(["DE", "FR", "US"]);
@@ -217,8 +234,35 @@ describe("MetaPlayerPage", () => {
   });
 
   it("leaves the decklists section out when the player registered none", () => {
+    captured.player = makeMetaPlayerDetail({
+      name: "Renata",
+      finishes: [makeMetaPlayerFinish({ shareToken: null, listStatus: "none" })],
+    });
     render(<MetaPlayerPage />);
     expect(screen.queryByText("Archived decklists")).not.toBeInTheDocument();
+  });
+
+  it("renders the decklist grid from the server, without waiting for hydration", () => {
+    captured.hydrated = false;
+    captured.decks = [deck("d1", "tok-1")];
+    render(<MetaPlayerPage />);
+
+    const grid = screen.getByRole("heading", { name: "Archived decklists" })
+      .parentElement as HTMLElement;
+    expect(within(grid).getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("asks the API for this player's lists inside the whole scope, not for the archive", () => {
+    captured.search = { era: "origins", tiers: ["premier"] };
+    render(<MetaPlayerPage />);
+
+    expect(captured.deckQueries.at(-1)).toEqual({
+      from: "2026-01-01",
+      to: "2026-07-31",
+      formats: ["constructed"],
+      tiers: ["premier"],
+      player: "pnrenata",
+    });
   });
 
   it("replaces the URL when the scope bar moves, so Back leaves the page", async () => {

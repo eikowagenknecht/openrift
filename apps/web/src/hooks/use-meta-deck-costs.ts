@@ -10,17 +10,19 @@ import {
   metaDeckCosts,
   ownedCountsByCardId,
 } from "@/lib/meta-deck-collection";
+import type { MetaDateRange } from "@/lib/meta-scope";
 import { useDisplayStore } from "@/stores/display-store";
 
 /**
  * Undefined while a requested collection is still loading. Reads a live query,
- * so it must sit under `useHydrated`.
+ * so it must sit under `useHydrated`. `range` narrows the card index to the
+ * same window of event dates the deck list is scoped to.
  */
 export function useMetaDeckCosts(
   includeSideboard: boolean,
-  options: { withCollection: boolean },
+  options: { withCollection: boolean; range?: MetaDateRange },
 ): ReadonlyMap<string, MetaDeckCost> | undefined {
-  const { data: index } = useMetaDeckCards();
+  const { data: index } = useMetaDeckCards(options.range);
   const { printingsByCardId } = useCards();
   const prices = usePrices();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");

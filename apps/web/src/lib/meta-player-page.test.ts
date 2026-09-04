@@ -89,11 +89,11 @@ beforeEach(() => {
 describe("metaPlayerCounts", () => {
   it("counts wins, top 8s, finishes and the decks the grid renders", () => {
     const finishes = [
-      makeMetaPlayerFinish({ rank: 1, event: { slug: "a" } }),
-      makeMetaPlayerFinish({ rank: 4, event: { slug: "b" } }),
-      makeMetaPlayerFinish({ rank: 17, event: { slug: "c" } }),
+      makeMetaPlayerFinish({ rank: 1, shareToken: "tok-1", event: { slug: "a" } }),
+      makeMetaPlayerFinish({ rank: 4, shareToken: "tok-2", event: { slug: "b" } }),
+      makeMetaPlayerFinish({ rank: 17, shareToken: null, event: { slug: "c" } }),
     ];
-    expect(metaPlayerCounts(finishes, [deck(), deck({ deckId: "d2" })])).toEqual({
+    expect(metaPlayerCounts(finishes)).toEqual({
       eventWins: 1,
       topEights: 2,
       finishes: 3,
@@ -106,7 +106,7 @@ describe("metaPlayerCounts", () => {
       makeMetaPlayerFinish({ rank: 1, event: { slug: "twin" } }),
       makeMetaPlayerFinish({ rank: 1, event: { slug: "twin" } }),
     ];
-    expect(metaPlayerCounts(finishes, []).eventWins).toBe(1);
+    expect(metaPlayerCounts(finishes).eventWins).toBe(1);
   });
 
   it("takes a rank of exactly 8 as a top 8 and 9 as outside it", () => {
@@ -114,11 +114,19 @@ describe("metaPlayerCounts", () => {
       makeMetaPlayerFinish({ rank: 8, event: { slug: "a" } }),
       makeMetaPlayerFinish({ rank: 9, event: { slug: "b" } }),
     ];
-    expect(metaPlayerCounts(finishes, []).topEights).toBe(1);
+    expect(metaPlayerCounts(finishes).topEights).toBe(1);
+  });
+
+  it("counts the lists the record claims, without waiting for the deck payload", () => {
+    const finishes = [
+      makeMetaPlayerFinish({ shareToken: "tok-1", event: { slug: "a" } }),
+      makeMetaPlayerFinish({ shareToken: null, event: { slug: "b" } }),
+    ];
+    expect(metaPlayerCounts(finishes).decklists).toBe(1);
   });
 
   it("reports zeroes for a record the scope emptied", () => {
-    expect(metaPlayerCounts([], [])).toEqual({
+    expect(metaPlayerCounts([])).toEqual({
       eventWins: 0,
       topEights: 0,
       finishes: 0,
@@ -178,6 +186,24 @@ describe("sortPlayerFinishes", () => {
       "mid",
       "old",
     ]);
+  });
+
+  it("breaks a full tie on the event name so the order is stable", () => {
+    const tied = [
+      makeMetaPlayerFinish({ event: { slug: "omega", name: "Omega Skirmish" } }),
+      makeMetaPlayerFinish({ event: { slug: "alpha", name: "Alpha Skirmish" } }),
+    ];
+    expect(sortPlayerFinishes(tied, "best").map((finish) => finish.event.slug)).toEqual([
+      "alpha",
+      "omega",
+    ]);
+  });
+
+  it("leaves the caller's array alone and handles an empty record", () => {
+    const input = [...finishes];
+    sortPlayerFinishes(input, "best");
+    expect(input.map((finish) => finish.event.slug)).toEqual(["mid", "old", "new"]);
+    expect(sortPlayerFinishes([], "best")).toEqual([]);
   });
 });
 
@@ -301,10 +327,8 @@ describe("metaPlayerCountries", () => {
     const finishes = [
       makeMetaPlayerFinish({ event: { slug: "a", country: "fr" } }),
       makeMetaPlayerFinish({ event: { slug: "b", country: null } }),
+      makeMetaPlayerFinish({ shareToken: "tok-1", event: { slug: "c", country: "DE" } }),
     ];
-    expect(metaPlayerCountries(finishes, [deck({ event: { country: "DE" } })])).toEqual([
-      "DE",
-      "FR",
-    ]);
+    expect(metaPlayerCountries(finishes)).toEqual(["DE", "FR"]);
   });
 });

@@ -6,10 +6,10 @@ import {
   countMetaDecksUnderCost,
   curateMetaDecks,
   filterMetaDecks,
-  groupMetaDecksByEvent,
   hasActiveMetaDeckFilters,
   metaDeckFilterCounts,
   metaDeckFilterOptions,
+  nextDeckSort,
   sortMetaDecks,
 } from "./meta-deck-filters";
 import type { MetaEra } from "./meta-scope";
@@ -22,9 +22,9 @@ const ERAS: MetaEra[] = [
 
 const EMPTY: MetaDeckFilterValues = {
   // The scope every case here narrows from is the opened-up one, so an axis
-  // under test is the only thing holding anything back. An absent era and
-  // format mean the current set and constructed, which these fixtures predate.
-  scope: { era: ERA_ALL, formats: [] },
+  // under test is the only thing holding anything back. An absent era, format
+  // and tier mean the current set, constructed and the competitive tiers.
+  scope: { era: ERA_ALL, formats: [], tiers: [] },
   eras: ERAS,
   events: [],
   legends: [],
@@ -115,6 +115,15 @@ describe("filterMetaDecks", () => {
 
   it("returns nothing for an empty archive", () => {
     expect(filterMetaDecks([], EMPTY)).toEqual([]);
+  });
+
+  it("opens on premier and competitive events while the URL names no tier", () => {
+    const untouched = { ...EMPTY, scope: { era: ERA_ALL, formats: [] } };
+    expect(ids(filterMetaDecks(decks, untouched))).toEqual(["a", "b"]);
+  });
+
+  it("lists every tier once the tier facet is emptied by hand", () => {
+    expect(ids(filterMetaDecks(decks, EMPTY))).toEqual(["a", "b", "c"]);
   });
 
   it("filters by the scope's format", () => {
@@ -308,12 +317,71 @@ describe("sortMetaDecks", () => {
     expect(ids(sortMetaDecks(shuffled))).toEqual(["a", "b", "c"]);
   });
 
+  it("keeps same-day events together", () => {
+    const sameDay = { ...decks[0].event, slug: "rift-open", name: "Rift Open" };
+    const interleaved = [
+      makeDeck({ deckId: "s1", rank: 1 }),
+      makeDeck({ deckId: "r1", rank: 1, event: sameDay }),
+      makeDeck({ deckId: "s2", rank: 2 }),
+      makeDeck({ deckId: "r2", rank: 2, event: sameDay }),
+    ];
+    expect(ids(sortMetaDecks(interleaved))).toEqual(["r1", "r2", "s1", "s2"]);
+  });
+
   it("breaks a rank tie on player name", () => {
     const tied = [
       makeDeck({ deckId: "z", playerName: "Zed", rank: 4 }),
       makeDeck({ deckId: "m", playerName: "Mel", rank: 4 }),
     ];
     expect(ids(sortMetaDecks(tied))).toEqual(["m", "z"]);
+  });
+
+  it("runs the dates the other way when asked", () => {
+    expect(ids(sortMetaDecks(decks, "date", "asc"))).toEqual(["c", "a", "b"]);
+  });
+
+  it("orders by finish across events, newest first on a tie", () => {
+    const rows = [
+      makeDeck({ deckId: "old-1", rank: 1, event: decks[2].event }),
+      makeDeck({ deckId: "new-4", rank: 4 }),
+      makeDeck({ deckId: "new-1", rank: 1 }),
+    ];
+    expect(ids(sortMetaDecks(rows, "finish", "asc"))).toEqual(["new-1", "old-1", "new-4"]);
+    expect(ids(sortMetaDecks(rows, "finish", "desc"))).toEqual(["new-4", "new-1", "old-1"]);
+  });
+
+  it("orders by cost to complete with unpriced lists last either way", () => {
+    expect(ids(sortMetaDecks(decks, "cost", "asc", COSTS))).toEqual(["a", "b", "c"]);
+    expect(ids(sortMetaDecks(decks, "cost", "desc", COSTS))).toEqual(["b", "a", "c"]);
+  });
+
+  it("orders by value with unpriced lists last either way", () => {
+    expect(ids(sortMetaDecks(decks, "value", "asc", COSTS))).toEqual(["b", "a", "c"]);
+    expect(ids(sortMetaDecks(decks, "value", "desc", COSTS))).toEqual(["a", "b", "c"]);
+  });
+
+  it("falls back to the date order before any cost is known", () => {
+    expect(ids(sortMetaDecks(decks, "cost", "asc"))).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("nextDeckSort", () => {
+  it("flips the direction of the column already sorted by", () => {
+    expect(nextDeckSort({ sort: "date", direction: "desc" }, "date")).toEqual({
+      sort: "date",
+      direction: "asc",
+    });
+  });
+
+  it("opens a new column on newest, best or cheapest first", () => {
+    expect(nextDeckSort({ sort: "finish", direction: "asc" }, "date")).toEqual({
+      sort: "date",
+      direction: "desc",
+    });
+    expect(nextDeckSort({ sort: "date", direction: "desc" }, "cost")).toEqual({
+      sort: "cost",
+      direction: "asc",
+    });
   });
 });
 
@@ -407,27 +475,6 @@ describe("hasActiveMetaDeckFilters", () => {
     expect(hasActiveMetaDeckFilters({ ...EMPTY, valueMin: 5 })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, valueMax: 5 })).toBe(true);
     expect(hasActiveMetaDeckFilters({ ...EMPTY, events: ["rift-open"] })).toBe(true);
-  });
-});
-
-describe("groupMetaDecksByEvent", () => {
-  it("gathers each event's lists in the order they arrived", () => {
-    const groups = groupMetaDecksByEvent(sortMetaDecks(decks));
-    expect(groups.map((group) => group.event.slug)).toEqual(["summoner-skirmish", "rift-open"]);
-    expect(groups.map((group) => ids(group.decks))).toEqual([["a", "b"], ["c"]]);
-  });
-
-  it("opens a new group for a slug that comes back after another event", () => {
-    const groups = groupMetaDecksByEvent([decks[0], decks[2], decks[1]]);
-    expect(groups.map((group) => group.event.slug)).toEqual([
-      "summoner-skirmish",
-      "rift-open",
-      "summoner-skirmish",
-    ]);
-  });
-
-  it("returns nothing for an empty list", () => {
-    expect(groupMetaDecksByEvent([])).toEqual([]);
   });
 });
 

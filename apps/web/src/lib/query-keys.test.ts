@@ -52,6 +52,106 @@ describe("queryKeys", () => {
     ]);
   });
 
+  it("meta.decks keys the whole archive when no window is given", () => {
+    expect(queryKeys.meta.decks()).toEqual(["meta", "decks"]);
+  });
+
+  it("meta.decks reads an empty window as the whole archive", () => {
+    expect(queryKeys.meta.decks({})).toEqual(queryKeys.meta.decks());
+  });
+
+  it("meta.decks keys each window apart", () => {
+    expect(queryKeys.meta.decks({ from: "2026-01-01", to: "2026-06-30" })).not.toEqual(
+      queryKeys.meta.decks({ from: "2026-07-01" }),
+    );
+  });
+
+  it("meta.decks keeps an open end apart from a closed one", () => {
+    expect(queryKeys.meta.decks({ from: "2026-01-01" })).toEqual([
+      "meta",
+      "decks",
+      {
+        from: "2026-01-01",
+        to: null,
+        formats: null,
+        formatsEx: null,
+        tiers: null,
+        tiersEx: null,
+        countries: null,
+        countriesEx: null,
+        legend: null,
+        player: null,
+        limit: null,
+      },
+    ]);
+  });
+
+  it("meta.decks keys a facet include apart from the matching exclude", () => {
+    expect(queryKeys.meta.decks({ tiers: ["premier"] })).not.toEqual(
+      queryKeys.meta.decks({ tiersEx: ["premier"] }),
+    );
+    expect(queryKeys.meta.decks({ countries: ["DE"] })).not.toEqual(
+      queryKeys.meta.decks({ countries: ["FR"] }),
+    );
+  });
+
+  it("meta.decks keys the legend, the player and the cap apart", () => {
+    expect(queryKeys.meta.decks({ legend: "card-1" })).not.toEqual(
+      queryKeys.meta.decks({ legend: "card-2" }),
+    );
+    expect(queryKeys.meta.decks({ player: "renata" })).not.toEqual(
+      queryKeys.meta.decks({ player: "ekko" }),
+    );
+    expect(queryKeys.meta.decks({ limit: 12 })).not.toEqual(queryKeys.meta.decks({ limit: 24 }));
+  });
+
+  it("meta.events keys the whole archive when no window is given", () => {
+    expect(queryKeys.meta.events()).toEqual(["meta", "events"]);
+    expect(queryKeys.meta.events({})).toEqual(queryKeys.meta.events());
+  });
+
+  it("meta.events keys each window apart, under the events base", () => {
+    expect(queryKeys.meta.events({ from: "2026-01-01" })).toEqual([
+      "meta",
+      "events",
+      { from: "2026-01-01", to: null },
+    ]);
+  });
+
+  it("meta.counts keys the unfiltered archive plainly", () => {
+    expect(queryKeys.meta.counts()).toEqual(["meta", "counts"]);
+    expect(queryKeys.meta.counts({ format: "constructed" })).toEqual([
+      "meta",
+      "counts",
+      { format: "constructed", dateFrom: null, dateTo: null },
+    ]);
+  });
+
+  it("meta.legend keys an unscoped page under the slug alone", () => {
+    expect(queryKeys.meta.legend("kennen")).toEqual(["meta", "legends", "kennen"]);
+    expect(queryKeys.meta.legend("kennen", {})).toEqual(queryKeys.meta.legend("kennen"));
+  });
+
+  it("meta.legend keys each facet and page apart", () => {
+    expect(queryKeys.meta.legend("kennen", { tiers: ["premier"] })).not.toEqual(
+      queryKeys.meta.legend("kennen", { tiersEx: ["premier"] }),
+    );
+    expect(queryKeys.meta.legend("kennen", { page: 2 })).not.toEqual(
+      queryKeys.meta.legend("kennen", { page: 3 }),
+    );
+    expect(queryKeys.meta.legend("kennen", { page: 2 })).not.toEqual(
+      queryKeys.meta.legend("ekko", { page: 2 }),
+    );
+  });
+
+  it("meta.deckCards keys under its own base", () => {
+    expect(queryKeys.meta.deckCards({ to: "2026-06-30" })).toEqual([
+      "meta",
+      "deck-cards",
+      { from: null, to: "2026-06-30" },
+    ]);
+  });
+
   it("decks.all keys per user", () => {
     expect(queryKeys.decks.all("user-1")).toEqual(["decks", "user-1"]);
   });

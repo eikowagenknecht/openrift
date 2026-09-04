@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({
   legends: [] as MetaLegendSummary[],
   events: [] as MetaEventSummary[],
+  ranges: [] as unknown[],
   search: {} as Record<string, unknown>,
   navigated: [] as Record<string, unknown>[],
 }));
@@ -48,7 +49,10 @@ vi.mock("@tanstack/react-router", () => {
 
 vi.mock("@/hooks/use-meta", () => ({
   useMetaLegends: () => ({ data: { legends: captured.legends } }),
-  useMetaEvents: () => ({ data: { events: captured.events } }),
+  useMetaEvents: (range?: unknown) => {
+    captured.ranges.push(range);
+    return { data: { events: captured.events } };
+  },
 }));
 vi.mock("@/hooks/use-meta-eras", () => ({ useMetaEras: () => [] }));
 // Stubbed away: the bar's own controls have their own tests, and this page adds
@@ -120,6 +124,7 @@ function renderPage(
 ) {
   captured.legends = legends;
   captured.events = events;
+  captured.ranges = [];
   captured.search = search;
   captured.navigated = [];
   render(<MetaLegendsPage />);
@@ -249,5 +254,32 @@ describe("MetaLegendsPage", () => {
   it("explains an archive with no standings yet", () => {
     renderPage([]);
     expect(screen.getByText("No legends on record yet")).toBeInTheDocument();
+  });
+
+  it("asks for the era the scope names rather than the whole archive", () => {
+    renderPage([legend("Kennen, Heart of the Tempest", "kennen-heart-of-the-tempest")], {
+      era: "custom",
+      from: "2026-08-01",
+      to: "2026-09-30",
+    });
+    expect(captured.ranges).toContainEqual({ from: "2026-08-01", to: "2026-09-30" });
+  });
+
+  it("drops a record whose event the fetched era left out", () => {
+    renderPage(
+      [
+        legend("Kennen, Heart of the Tempest", "kennen-heart-of-the-tempest", [
+          record("summoner-skirmish"),
+        ]),
+        legend("Azir, Emperor of the Sands", "azir-emperor-of-the-sands", [
+          record("worlds-2025", { bestRank: 1, won: true }),
+        ]),
+      ],
+      {},
+      [event()],
+    );
+    expect(screen.getAllByText("Kennen").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Azir")).not.toBeInTheDocument();
+    expect(screen.getByText("1 of 2 legends")).toBeInTheDocument();
   });
 });

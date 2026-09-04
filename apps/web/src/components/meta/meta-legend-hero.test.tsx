@@ -49,15 +49,13 @@ const legend = {
 
 describe("MetaLegendHero", () => {
   it("heads the hero with the champion and names the legend card beneath it", () => {
-    render(
-      <MetaLegendHero legend={legend} counts={{ eventWins: 5, finishes: 214, decklists: 38 }} />,
-    );
+    render(<MetaLegendHero legend={legend} counts={{ wins: 5, finishes: 214, decklists: 38 }} />);
     expect(screen.getByRole("heading", { level: 2, name: "Kennen" })).toBeInTheDocument();
     expect(screen.getByText("Heart of the Tempest · Legend")).toBeInTheDocument();
   });
 
   it("leads the champion's name at the card page, the one link off the archive", () => {
-    render(<MetaLegendHero legend={legend} counts={{ eventWins: 0, finishes: 0, decklists: 0 }} />);
+    render(<MetaLegendHero legend={legend} counts={{ wins: 0, finishes: 0, decklists: 0 }} />);
     expect(screen.getByRole("link", { name: "Kennen" })).toHaveAttribute(
       "href",
       "/cards/heart-of-the-tempest",
@@ -65,9 +63,7 @@ describe("MetaLegendHero", () => {
   });
 
   it("prints the three counts of what the archive holds", () => {
-    render(
-      <MetaLegendHero legend={legend} counts={{ eventWins: 5, finishes: 1214, decklists: 38 }} />,
-    );
+    render(<MetaLegendHero legend={legend} counts={{ wins: 5, finishes: 1214, decklists: 38 }} />);
     expect(screen.getByText("5")).toBeInTheDocument();
     expect(screen.getByText("event wins")).toBeInTheDocument();
     expect(screen.getByText("1,214")).toBeInTheDocument();
@@ -78,13 +74,13 @@ describe("MetaLegendHero", () => {
 
   it("shows no percentage, share or rate anywhere", () => {
     const { container } = render(
-      <MetaLegendHero legend={legend} counts={{ eventWins: 5, finishes: 214, decklists: 38 }} />,
+      <MetaLegendHero legend={legend} counts={{ wins: 5, finishes: 214, decklists: 38 }} />,
     );
     expect(container.textContent).not.toMatch(/%|\brate\b|\bshare\b/iu);
   });
 
   it("draws a rune per domain", () => {
-    render(<MetaLegendHero legend={legend} counts={{ eventWins: 0, finishes: 0, decklists: 0 }} />);
+    render(<MetaLegendHero legend={legend} counts={{ wins: 0, finishes: 0, decklists: 0 }} />);
     expect(screen.getByAltText("Fury")).toBeInTheDocument();
     expect(screen.getByAltText("Calm")).toBeInTheDocument();
   });
@@ -93,7 +89,7 @@ describe("MetaLegendHero", () => {
     render(
       <MetaLegendHero
         legend={{ ...legend, name: "Emperor of the Sands", imageId: null, domains: [] }}
-        counts={{ eventWins: 0, finishes: 0, decklists: 0 }}
+        counts={{ wins: 0, finishes: 0, decklists: 0 }}
       />,
     );
     expect(

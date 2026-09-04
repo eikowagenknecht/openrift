@@ -2,9 +2,20 @@ import type { MetaDeckSummary } from "@openrift/shared";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaDeckCost } from "@/lib/meta-deck-collection";
-import type { MetaEra, MetaScope } from "@/lib/meta-scope";
+import type { MetaDeckSort, MetaDeckSortDirection } from "@/lib/meta-deck-search";
+import { DEFAULT_DECK_DIRECTION, DEFAULT_DECK_SORT } from "@/lib/meta-deck-search";
+import type { MetaEra, MetaScope, ScopeFacetDefaults } from "@/lib/meta-scope";
 import { isScopeCustomized } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
+
+/**
+ * The tiers the browser opens on. Store nights and casual events outnumber the
+ * rest of the archive many times over and mostly hold partial lists, so a reader
+ * asking what did well starts with the events that counted.
+ */
+export const DEFAULT_DECK_TIERS: readonly string[] = ["premier", "competitive"];
+
+export const DECK_SCOPE_DEFAULTS: ScopeFacetDefaults = { tiers: DEFAULT_DECK_TIERS };
 
 /**
  * The meta deck browser's filter state: the archive-wide scope every page
@@ -98,7 +109,7 @@ function passesAxis(
       (filters.valueMax === null || value <= filters.valueMax)
     );
   }
-  return scopeMatches(deck.event, filters.scope, filters.eras);
+  return scopeMatches(deck.event, filters.scope, filters.eras, DECK_SCOPE_DEFAULTS);
 }
 
 const ALL_AXES: MetaDeckFilterAxis[] = ["scope", "events", "legends", "finish", "cost", "value"];
@@ -155,13 +166,41 @@ export function curateMetaDecks(
 }
 
 /**
- * Orders decks for the browser: newest event first, then best finish, then
- * player name so ties on one rank stay stable.
+ * Orders decks for the browser. Date keeps one event's lists together, best
+ * finish first; the other columns fall back to that order for ties. A deck whose
+ * value or cost is not known yet sorts last whichever way the column runs.
  */
-export function sortMetaDecks(decks: readonly MetaDeckSummary[]): MetaDeckSummary[] {
+export function sortMetaDecks(
+  decks: readonly MetaDeckSummary[],
+  sort: MetaDeckSort = DEFAULT_DECK_SORT,
+  direction: MetaDeckSortDirection = DEFAULT_DECK_DIRECTION,
+  costs?: ReadonlyMap<string, MetaDeckCost>,
+): MetaDeckSummary[] {
+  const sign = direction === "asc" ? 1 : -1;
+  const priced = (deck: MetaDeckSummary): number | undefined => {
+    const cost = costs?.get(deck.deckId);
+    return sort === "value" ? cost?.value : cost?.toComplete;
+  };
   return decks.toSorted((left, right) => {
+    if (sort === "value" || sort === "cost") {
+      const leftPrice = priced(left);
+      const rightPrice = priced(right);
+      if (leftPrice === undefined || rightPrice === undefined) {
+        if (leftPrice !== rightPrice) {
+          return leftPrice === undefined ? 1 : -1;
+        }
+      } else if (leftPrice !== rightPrice) {
+        return (leftPrice - rightPrice) * sign;
+      }
+    } else if (sort === "finish" && left.rank !== right.rank) {
+      return (left.rank - right.rank) * sign;
+    }
     if (left.event.eventDate !== right.event.eventDate) {
-      return left.event.eventDate < right.event.eventDate ? 1 : -1;
+      const newestFirst = left.event.eventDate < right.event.eventDate ? 1 : -1;
+      return sort === "date" ? newestFirst * -sign : newestFirst;
+    }
+    if (left.event.slug !== right.event.slug) {
+      return left.event.slug < right.event.slug ? -1 : 1;
     }
     if (left.rank !== right.rank) {
       return left.rank - right.rank;
@@ -169,6 +208,34 @@ export function sortMetaDecks(decks: readonly MetaDeckSummary[]): MetaDeckSummar
     return left.playerName.localeCompare(right.playerName);
   });
 }
+
+/**
+ * Where a click on a sort header lands: the same column flips, a new column
+ * opens on newest, best or cheapest first.
+ */
+export function nextDeckSort(
+  current: { sort: MetaDeckSort; direction: MetaDeckSortDirection },
+  column: MetaDeckSort,
+): { sort: MetaDeckSort; direction: MetaDeckSortDirection } {
+  if (current.sort === column) {
+    return { sort: column, direction: current.direction === "asc" ? "desc" : "asc" };
+  }
+  return { sort: column, direction: column === "date" ? "desc" : "asc" };
+}
+
+/** The grid's sort menu: one entry per column, in the order that reads first. */
+export const META_DECK_SORT_PRESETS: {
+  sort: MetaDeckSort;
+  direction: MetaDeckSortDirection;
+  label: string;
+}[] = [
+  { sort: "date", direction: "desc", label: "Newest first" },
+  { sort: "date", direction: "asc", label: "Oldest first" },
+  { sort: "finish", direction: "asc", label: "Best finish" },
+  { sort: "cost", direction: "asc", label: "Cheapest to complete" },
+  { sort: "value", direction: "asc", label: "Lowest value" },
+  { sort: "value", direction: "desc", label: "Highest value" },
+];
 
 // Curated after filtering, like the grid, or a count would promise decks the grid folds away.
 function shownWithoutAxis(
@@ -295,25 +362,6 @@ export function hasActiveMetaDeckFilters(filters: Omit<MetaDeckFilterValues, "er
     filters.valueMin !== null ||
     filters.valueMax !== null
   );
-}
-
-export interface MetaDeckEventGroup {
-  event: MetaDeckSummary["event"];
-  decks: MetaDeckSummary[];
-}
-
-/** Consecutive runs only: input must be sorted by {@link sortMetaDecks}. */
-export function groupMetaDecksByEvent(decks: readonly MetaDeckSummary[]): MetaDeckEventGroup[] {
-  const groups: MetaDeckEventGroup[] = [];
-  for (const deck of decks) {
-    const open = groups.at(-1);
-    if (open !== undefined && open.event.slug === deck.event.slug) {
-      open.decks.push(deck);
-      continue;
-    }
-    groups.push({ event: deck.event, decks: [deck] });
-  }
-  return groups;
 }
 
 export function countMetaDecksUnderCost(

@@ -65,16 +65,40 @@ function finish({ event, ...overrides }: FinishOverrides = {}): MetaLegendFinish
   };
 }
 
-/** Enough finishes to push the list past the "Best" cut. */
-function manyFinishes(count: number): MetaLegendFinish[] {
+function manyFinishes(count: number, from = 0): MetaLegendFinish[] {
   return Array.from({ length: count }, (_, index) =>
     finish({
-      playerId: `p${String(index)}`,
-      rank: index + 1,
-      playerName: `Pilot ${String(index)}`,
-      event: { name: `Event ${String(index)}`, eventDate: `2026-08-${String(index + 10)}` },
+      playerId: `p${String(from + index)}`,
+      rank: from + index + 1,
+      playerName: `Pilot ${String(from + index)}`,
+      event: { name: `Event ${String(from + index)}` },
     }),
   );
+}
+
+/** The section as a page hands it over: the API's five best plus one page of the record. */
+function renderFinishes(
+  rows: MetaLegendFinish[],
+  overrides: {
+    best?: MetaLegendFinish[];
+    total?: number;
+    loadingMore?: boolean;
+    onShowMore?: () => void;
+    narrowed?: boolean;
+  } = {},
+) {
+  const onShowMore = overrides.onShowMore ?? vi.fn();
+  render(
+    <MetaLegendFinishes
+      best={overrides.best ?? rows.slice(0, 5)}
+      finishes={rows}
+      total={overrides.total ?? rows.length}
+      loadingMore={overrides.loadingMore}
+      onShowMore={onShowMore}
+      narrowed={overrides.narrowed}
+    />,
+  );
+  return onShowMore;
 }
 
 beforeEach(() => {
@@ -83,21 +107,29 @@ beforeEach(() => {
 
 describe("MetaLegendFinishes", () => {
   it("says nothing has been archived rather than showing an empty table", () => {
-    render(<MetaLegendFinishes finishes={[]} />);
+    renderFinishes([]);
     expect(
       screen.getByText("No archived event has this legend on its standings yet."),
     ).toBeInTheDocument();
   });
 
+  it("says the scope holds nothing when it is the scope that emptied the record", () => {
+    renderFinishes([], { narrowed: true });
+    expect(
+      screen.getByText("No finish on this legend's record falls in this scope."),
+    ).toBeInTheDocument();
+  });
+
   it("prints the record in full and the event's own facts", () => {
-    render(<MetaLegendFinishes finishes={[finish()]} />);
+    renderFinishes([finish()]);
     expect(screen.getAllByText("12-1-0").length).toBeGreaterThan(0);
     expect(screen.getAllByText("2026-08-09 · 186 players").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Competitive").length).toBeGreaterThan(0);
   });
 
-  it("opens on the best placings and names the whole record on the toggle", async () => {
-    render(<MetaLegendFinishes finishes={manyFinishes(9)} />);
+  it("opens on the placings the API picked and names the whole record on the toggle", async () => {
+    const rows = manyFinishes(9);
+    renderFinishes(rows, { best: rows.slice(0, 5) });
 
     expect(screen.getByRole("button", { name: "All 9" })).toBeInTheDocument();
     expect(screen.getAllByText("Pilot 0").length).toBeGreaterThan(0);
@@ -108,63 +140,74 @@ describe("MetaLegendFinishes", () => {
   });
 
   it("switches to the whole record from the footer", async () => {
-    render(<MetaLegendFinishes finishes={manyFinishes(9)} />);
+    renderFinishes(manyFinishes(9));
 
     await userEvent.click(screen.getByRole("button", { name: "Show all 9 finishes" }));
     expect(screen.getAllByText("Pilot 6").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Show all/u })).not.toBeInTheDocument();
   });
 
-  it("grows the whole record a page at a time", async () => {
-    render(<MetaLegendFinishes finishes={manyFinishes(30)} />);
+  it("asks the page for the next server page rather than slicing what it holds", async () => {
+    const onShowMore = renderFinishes(manyFinishes(25), { total: 30 });
+
+    await userEvent.click(screen.getByRole("button", { name: "Show all 30 finishes" }));
+    await userEvent.click(screen.getByRole("button", { name: "5 more finishes" }));
+
+    expect(onShowMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts the rows still to come off the scope's total, not the page it holds", async () => {
+    renderFinishes(manyFinishes(25), { total: 26 });
+
+    await userEvent.click(screen.getByRole("button", { name: "All 26" }));
+    expect(screen.getByRole("button", { name: "1 more finish" })).toBeInTheDocument();
+  });
+
+  it("takes no second click while a page is on the way", async () => {
+    const onShowMore = renderFinishes(manyFinishes(25), { total: 30, loadingMore: true });
 
     await userEvent.click(screen.getByRole("button", { name: "All 30" }));
-    expect(screen.getByRole("button", { name: "5 more finishes" })).toBeInTheDocument();
-
     await userEvent.click(screen.getByRole("button", { name: "5 more finishes" }));
-    expect(screen.queryByRole("button", { name: /more finishes/u })).not.toBeInTheDocument();
+
+    expect(onShowMore).not.toHaveBeenCalled();
   });
 
   it("leads a finish with a list at the archived deck", () => {
-    render(<MetaLegendFinishes finishes={[finish({ shareToken: "tok-1", listStatus: "full" })]} />);
+    renderFinishes([finish({ shareToken: "tok-1", listStatus: "full" })]);
     expect(screen.getAllByRole("link", { name: "Decklist" }).length).toBeGreaterThan(0);
   });
 
   it("labels a partial list as partial", () => {
-    render(
-      <MetaLegendFinishes finishes={[finish({ shareToken: "tok-1", listStatus: "partial" })]} />,
-    );
+    renderFinishes([finish({ shareToken: "tok-1", listStatus: "partial" })]);
     expect(screen.getAllByRole("link", { name: "Partial" }).length).toBeGreaterThan(0);
   });
 
   it("offers no submission link to a signed-out reader", () => {
-    render(<MetaLegendFinishes finishes={[finish()]} />);
+    renderFinishes([finish()]);
     expect(screen.queryByText("+ Add")).not.toBeInTheDocument();
   });
 
   it("offers a signed-in reader the way to fill a listless finish", () => {
     captured.userId = "user-1";
-    render(<MetaLegendFinishes finishes={[finish()]} />);
+    renderFinishes([finish()]);
     expect(screen.getAllByRole("link", { name: "+ Add" }).length).toBeGreaterThan(0);
   });
 
   it("shows no footer when the whole record already fits the best view", () => {
-    render(<MetaLegendFinishes finishes={manyFinishes(3)} />);
+    renderFinishes(manyFinishes(3));
     expect(screen.queryByRole("button", { name: /Show all/u })).not.toBeInTheDocument();
   });
 
   it("leaves the record out for a finish the source published none for", () => {
-    render(
-      <MetaLegendFinishes
-        finishes={[finish({ wins: null, losses: null, draws: null, event: { playerCount: null } })]}
-      />,
-    );
+    renderFinishes([
+      finish({ wins: null, losses: null, draws: null, event: { playerCount: null } }),
+    ]);
     expect(screen.queryByText("12-1-0")).not.toBeInTheDocument();
     expect(screen.getAllByText("2026-08-09").length).toBeGreaterThan(0);
   });
 
   it("sends a player the archive has a page for to it", () => {
-    render(<MetaLegendFinishes finishes={[finish({ playerKey: "u4001" })]} />);
+    renderFinishes([finish({ playerKey: "u4001" })]);
 
     const links = screen.getAllByRole("link", { name: "P. Lefebvre" });
     expect(links.length).toBeGreaterThan(0);
@@ -174,7 +217,7 @@ describe("MetaLegendFinishes", () => {
   });
 
   it("prints a player the source filed under no identity as plain text", () => {
-    render(<MetaLegendFinishes finishes={[finish({ playerKey: null })]} />);
+    renderFinishes([finish({ playerKey: null })]);
 
     expect(screen.queryByRole("link", { name: "P. Lefebvre" })).not.toBeInTheDocument();
     expect(screen.getAllByText("P. Lefebvre").length).toBeGreaterThan(0);
