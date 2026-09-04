@@ -19,8 +19,10 @@ import { PLAYLOLTCG_PROVIDER } from "../../lib/playloltcg-catalog.js";
 import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
+import type { JobRun } from "../../repositories/job-runs.js";
 import type { UvsgamesListRow } from "../../repositories/uvsgames-events.js";
-import { repromoteMetaEvents } from "../../services/meta-repromote.js";
+import { isRepromoteNoop, repromoteMetaEvents } from "../../services/meta-repromote.js";
+import { isRetierNoop, retierMetaEvents } from "../../services/meta-retier.js";
 import type {
   MetaAutoAcceptSummary,
   MetaSyncDeps,
@@ -103,6 +105,23 @@ const SOURCE_PROVIDER: Record<MetaSource, string> = {
  */
 function jobKindsForSource(source: MetaSource): string[] {
   return META_JOB_KINDS.filter((kind) => kind.startsWith(`meta.${source}_`));
+}
+
+/** The passes that re-derive live rows, which belong to the archive and to no source. */
+const ARCHIVE_JOB_KINDS = ["meta.retier", "meta.repromote"];
+
+function toMetaSyncRun(run: JobRun) {
+  return {
+    id: run.id,
+    kind: run.kind,
+    trigger: run.trigger,
+    status: run.status,
+    startedAt: run.startedAt.toISOString(),
+    finishedAt: run.finishedAt?.toISOString() ?? null,
+    durationMs: run.durationMs,
+    errorMessage: run.errorMessage,
+    result: (run.result ?? null) as Record<string, unknown> | null,
+  };
 }
 
 /** A sweep that accepted nothing and hit no failure did no work. */
@@ -258,12 +277,8 @@ export const adminMetaCatalogRouter = {
         newValues: patch,
       });
     }
-    // A mapping edit is a rule change for exactly this template's events, so it
-    // reapplies itself. An accepted overlay still wins whatever it claims,
-    // because promotion applies those after the source either way.
-    if (input.tier !== undefined) {
-      await repromoteMetaEvents(context.repos, { templateId: input.templateId });
-    }
+    // Deliberately no promote: applying a mapping is `runRetier`, which the
+    // maintainer runs once after a batch of edits.
     return toMetaSourceTemplate(row);
   }),
 
@@ -322,6 +337,11 @@ export const adminMetaCatalogRouter = {
     return { ...row, updatedAt: row.updatedAt.toISOString() };
   }),
 
+  archiveJobs: os.archiveJobs.handler(async ({ context }) => {
+    const runs = await context.repos.jobRuns.listRecentByKinds(ARCHIVE_JOB_KINDS, STATUS_RUN_LIMIT);
+    return { runs: runs.map((run) => toMetaSyncRun(run)) };
+  }),
+
   syncStatus: os.syncStatus.handler(async ({ input, context }) => {
     const source = input.source;
     const sourceRepo =
@@ -346,17 +366,7 @@ export const adminMetaCatalogRouter = {
       },
       archive,
       counts,
-      runs: runs.map((run) => ({
-        id: run.id,
-        kind: run.kind,
-        trigger: run.trigger,
-        status: run.status,
-        startedAt: run.startedAt.toISOString(),
-        finishedAt: run.finishedAt?.toISOString() ?? null,
-        durationMs: run.durationMs,
-        errorMessage: run.errorMessage,
-        result: (run.result ?? null) as Record<string, unknown> | null,
-      })),
+      runs: runs.map((run) => toMetaSyncRun(run)),
       schedules: {
         "meta.uvsgames_sync": context.scheduler?.isEnabled("meta.uvsgames_sync") ?? false,
         "meta.uvsgames_recheck": context.scheduler?.isEnabled("meta.uvsgames_recheck") ?? false,
@@ -460,6 +470,26 @@ export const adminMetaCatalogRouter = {
       syncDeps,
       autoAcceptCatalogBacklog,
       isAutoAcceptNoop,
+    ),
+  ),
+
+  runRetier: os.runRetier.handler(({ context }) =>
+    startJob(
+      context,
+      "meta.retier",
+      (ctx) => ctx.repos,
+      (repos) => retierMetaEvents(repos),
+      isRetierNoop,
+    ),
+  ),
+
+  runRepromote: os.runRepromote.handler(({ context }) =>
+    startJob(
+      context,
+      "meta.repromote",
+      (ctx) => ctx.repos,
+      (repos) => repromoteMetaEvents(repos),
+      isRepromoteNoop,
     ),
   ),
 

@@ -52,6 +52,8 @@ export const META_JOB_KINDS = [
   "meta.playloltcg_recheck",
   "meta.playloltcg_event_fetch",
   "meta.playloltcg_auto_accept",
+  "meta.retier",
+  "meta.repromote",
 ] as const;
 
 export interface MetaSyncEnv {

@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";
-import { promoteMetaEvent } from "./meta-promote.js";
+import { createMetaPromoteContext, promoteMetaEvent } from "./meta-promote.js";
 import { repromoteMetaEvents } from "./meta-repromote.js";
 
-vi.mock("./meta-promote.js", () => ({ promoteMetaEvent: vi.fn() }));
+vi.mock("./meta-promote.js", () => ({
+  promoteMetaEvent: vi.fn(),
+  createMetaPromoteContext: vi.fn(() => Promise.resolve({ cardIndex: {} })),
+}));
 
 function promoted(metaEventId: string, errors: string[] = []) {
   return {
@@ -20,18 +23,10 @@ function promoted(metaEventId: string, errors: string[] = []) {
   };
 }
 
-function fakeRepos(options: {
-  eventIds?: string[];
-  externalIds?: string[];
-  sources?: { metaEventId: string }[];
-}): Repos {
+function fakeRepos(eventIds: string[] = []): Repos {
   return {
     meta: {
-      allEvents: () => Promise.resolve((options.eventIds ?? []).map((id) => ({ id }))),
-      sourcesByKeys: () => Promise.resolve(options.sources ?? []),
-    },
-    uvsgamesEvents: {
-      externalIdsForTemplate: () => Promise.resolve(options.externalIds ?? []),
+      allEventTiers: () => Promise.resolve(eventIds.map((id) => ({ id, tier: "store" }))),
     },
   } as unknown as Repos;
 }
@@ -41,12 +36,24 @@ beforeEach(() => {
 });
 
 describe("repromoteMetaEvents", () => {
-  it("promotes every archived event when no template scopes the pass", async () => {
+  it("promotes every archived event", async () => {
     vi.mocked(promoteMetaEvent).mockImplementation((_repos, id) => Promise.resolve(promoted(id)));
 
-    const result = await repromoteMetaEvents(fakeRepos({ eventIds: ["ev-1", "ev-2"] }));
+    const result = await repromoteMetaEvents(fakeRepos(["ev-1", "ev-2"]));
 
     expect(result).toEqual({ events: 2, failed: 0, errors: [] });
+  });
+
+  it("builds the shared rule context once for the whole pass", async () => {
+    vi.mocked(promoteMetaEvent).mockImplementation((_repos, id) => Promise.resolve(promoted(id)));
+
+    await repromoteMetaEvents(fakeRepos(["ev-1", "ev-2", "ev-3"]));
+
+    expect(vi.mocked(createMetaPromoteContext)).toHaveBeenCalledTimes(1);
+    const context = await vi.mocked(createMetaPromoteContext).mock.results[0]?.value;
+    for (const call of vi.mocked(promoteMetaEvent).mock.calls) {
+      expect(call[2]).toBe(context);
+    }
   });
 
   it("keeps going after one event throws, and records it as failed", async () => {
@@ -56,7 +63,7 @@ describe("repromoteMetaEvents", () => {
         : Promise.resolve(promoted(id)),
     );
 
-    const result = await repromoteMetaEvents(fakeRepos({ eventIds: ["ev-1", "ev-2", "ev-3"] }));
+    const result = await repromoteMetaEvents(fakeRepos(["ev-1", "ev-2", "ev-3"]));
 
     // One hard failure used to abort the batch, leaving every later event
     // unpromoted with nothing recorded about why.
@@ -70,7 +77,7 @@ describe("repromoteMetaEvents", () => {
       Promise.resolve(promoted(id, id === "ev-1" ? ["No mapping for that format."] : [])),
     );
 
-    const result = await repromoteMetaEvents(fakeRepos({ eventIds: ["ev-1", "ev-2"] }));
+    const result = await repromoteMetaEvents(fakeRepos(["ev-1", "ev-2"]));
 
     expect(result).toEqual({
       events: 2,
@@ -79,25 +86,11 @@ describe("repromoteMetaEvents", () => {
     });
   });
 
-  it("resolves a template's events through one batched citation lookup", async () => {
-    vi.mocked(promoteMetaEvent).mockImplementation((_repos, id) => Promise.resolve(promoted(id)));
-    const repos = fakeRepos({
-      externalIds: ["evt-1", "evt-2", "evt-3"],
-      // Two keys citing one event: the pass must promote it once.
-      sources: [{ metaEventId: "ev-1" }, { metaEventId: "ev-1" }, { metaEventId: "ev-2" }],
-    });
-    const byKeys = vi.spyOn(repos.meta, "sourcesByKeys");
-
-    const result = await repromoteMetaEvents(repos, { templateId: "tpl-1" });
-
-    expect(byKeys).toHaveBeenCalledTimes(1);
-    expect(result.events).toBe(2);
-  });
-
-  it("promotes nothing for a template no event runs", async () => {
-    const result = await repromoteMetaEvents(fakeRepos({}), { templateId: "tpl-unused" });
+  it("touches nothing, context included, for an empty archive", async () => {
+    const result = await repromoteMetaEvents(fakeRepos([]));
 
     expect(result).toEqual({ events: 0, failed: 0, errors: [] });
+    expect(vi.mocked(createMetaPromoteContext)).not.toHaveBeenCalled();
     expect(vi.mocked(promoteMetaEvent)).not.toHaveBeenCalled();
   });
 });

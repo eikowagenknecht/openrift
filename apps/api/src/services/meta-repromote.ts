@@ -1,16 +1,12 @@
 import type { Repos } from "../deps.js";
-import { UVSGAMES_PROVIDER } from "../lib/uvsgames-catalog.js";
-import { promoteMetaEvent } from "./meta-promote.js";
+import { createMetaPromoteContext, promoteMetaEvent } from "./meta-promote.js";
 import { errorText } from "./meta-sync/deps.js";
 
 /**
- * Re-runs promotion over the events a rule change affects.
- *
- * Under the derive-live model there is nothing to infer about what a human
- * touched: an overridden field is one an accepted overlay claims, promotion
- * applies those last, and re-running it is the whole repair. The unscoped pass
- * covers every event, mirrors or not, because overlays apply to hand-entered
- * events through the same promote.
+ * Re-runs promotion over every event in the archive: the general repair,
+ * deliberately unconditional and slow. Accepted overlays still win whatever
+ * they claim. The everyday case, a tier mapping that moved, is
+ * {@link retierMetaEvents}.
  */
 
 export interface MetaRepromoteResult {
@@ -21,23 +17,34 @@ export interface MetaRepromoteResult {
   errors: string[];
 }
 
+export async function repromoteMetaEvents(repos: Repos): Promise<MetaRepromoteResult> {
+  const events = await repos.meta.allEventTiers();
+  return await promoteEach(
+    repos,
+    events.map((event) => event.id),
+  );
+}
+
 /**
- * @param templateId Limits the pass to events running one uvsgames template,
- *   which is what editing that template's tier mapping affects. Omitted, every
- *   event is promoted again.
+ * Promotes a list of events, sharing one rule context across the whole pass.
+ *
+ * @returns How many events ran and what any of them reported.
  */
-export async function repromoteMetaEvents(
+export async function promoteEach(
   repos: Repos,
-  options?: { templateId?: string },
+  eventIds: readonly string[],
 ): Promise<MetaRepromoteResult> {
   const result: MetaRepromoteResult = { events: 0, failed: 0, errors: [] };
-  const eventIds = await targetEventIds(repos, options?.templateId);
+  if (eventIds.length === 0) {
+    return result;
+  }
+  const context = await createMetaPromoteContext(repos);
 
   for (const eventId of eventIds) {
     // One event's hard failure must not strand the rest of the batch
     // unpromoted with nothing recorded.
     try {
-      const promoted = await promoteMetaEvent(repos, eventId);
+      const promoted = await promoteMetaEvent(repos, eventId, context);
       result.events++;
       if (promoted.errors.length > 0) {
         result.failed++;
@@ -52,14 +59,6 @@ export async function repromoteMetaEvents(
   return result;
 }
 
-async function targetEventIds(repos: Repos, templateId?: string): Promise<string[]> {
-  if (templateId === undefined) {
-    const events = await repos.meta.allEvents();
-    return events.map((event) => event.id);
-  }
-  // Only the official source carries templates, so the scoped pass reads its
-  // mirror for the keys and resolves them through the citation table.
-  const externalIds = await repos.uvsgamesEvents.externalIdsForTemplate(templateId);
-  const sources = await repos.meta.sourcesByKeys(UVSGAMES_PROVIDER, externalIds);
-  return [...new Set(sources.map((source) => source.metaEventId))];
+export function isRepromoteNoop(result: MetaRepromoteResult): boolean {
+  return result.events === 0;
 }

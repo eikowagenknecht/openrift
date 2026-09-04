@@ -133,6 +133,7 @@ import {
 } from "./services/meta-overlay-review.js";
 import { promoteMetaEvent, promoteNewEvent } from "./services/meta-promote.js";
 import { repromoteMetaEvents } from "./services/meta-repromote.js";
+import { retierMetaEvents } from "./services/meta-retier.js";
 import { submitMetaDeck, submitMetaEventCorrection } from "./services/meta-submission.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
@@ -240,6 +241,7 @@ export interface Services {
   promoteMetaEvent: typeof promoteMetaEvent;
   promoteNewEvent: typeof promoteNewEvent;
   repromoteMetaEvents: typeof repromoteMetaEvents;
+  retierMetaEvents: typeof retierMetaEvents;
   acceptMetaEventOverlay: typeof acceptMetaEventOverlay;
   acceptMetaPlayerOverlay: typeof acceptMetaPlayerOverlay;
   acceptMetaPlayerOverlays: typeof acceptMetaPlayerOverlays;
@@ -461,6 +463,7 @@ export const services: Services = {
   promoteMetaEvent,
   promoteNewEvent,
   repromoteMetaEvents,
+  retierMetaEvents,
   acceptMetaEventOverlay,
   acceptMetaPlayerOverlay,
   acceptMetaPlayerOverlays,

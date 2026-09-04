@@ -24,11 +24,17 @@ import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
 import type {
   MetaArchivedDeckInput,
   MetaDeckCardInput,
+  MetaEventMatchRow,
+  MetaEventPhaseRow,
   MetaEventPlayerPatch,
   MetaEventPlayerUpdate,
+  MetaEventSourceRow,
   MetaStoredPlayerDeck,
+  NewMetaEventMatch,
+  NewMetaEventPhase,
 } from "../repositories/meta.js";
 import { deckCardMergeKey, mergeDeckCards, sameDeckCards } from "../repositories/meta.js";
+import type { CardNameIndex } from "./candidate-links.js";
 import { loadCardNameIndex, resolveCardIdByName } from "./candidate-links.js";
 import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.js";
 
@@ -49,6 +55,38 @@ import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.j
  * matches existing rows on their stored source identity and updates in place.
  * It never deletes and re-inserts a field it has already published.
  */
+
+/**
+ * The rule tables a promote reads and never writes. A bulk pass builds this
+ * once and hands it to every event it promotes.
+ */
+export interface MetaSourceContext {
+  formatMappings: ReadonlyMap<string, string>;
+  templateTiers: ReadonlyMap<string, MetaEventTier | null>;
+}
+
+/** {@link MetaSourceContext} plus what resolving decklist card names needs. */
+export interface MetaPromoteContext extends MetaSourceContext {
+  cardIndex: CardNameIndex;
+}
+
+/** @returns The mapping tables one pass reuses across every event it promotes. */
+async function createMetaSourceContext(repos: Repos): Promise<MetaSourceContext> {
+  const [formatMappings, templateTiers] = await Promise.all([
+    repos.uvsgamesEvents.formatMappings(),
+    repos.uvsgamesEvents.templateTiers(),
+  ]);
+  return { formatMappings, templateTiers };
+}
+
+/** @returns Everything {@link promoteMetaEvent} would otherwise load per event. */
+export async function createMetaPromoteContext(repos: Repos): Promise<MetaPromoteContext> {
+  const [source, cardIndex] = await Promise.all([
+    createMetaSourceContext(repos),
+    loadCardNameIndex(repos.ingest),
+  ]);
+  return { ...source, cardIndex };
+}
 
 /** The event columns promotion computes, before overlays. */
 export interface MetaPromotedEventFacts extends Record<string, unknown> {
@@ -160,19 +198,20 @@ function legacyIdentityOf(uvsgamesPlayerId: number | null, playerName: string | 
 
 // ── Source adapters ───────────────────────────────────────────────────────────
 
-async function uvsgamesFacts(repos: Repos, externalId: string): Promise<SourceFacts | null> {
+async function uvsgamesFacts(
+  repos: Repos,
+  externalId: string,
+  context: MetaSourceContext,
+): Promise<SourceFacts | null> {
   const listing = await repos.uvsgamesEvents.byKey(externalId);
   if (listing === undefined) {
     return null;
   }
 
-  const [mappings, templateTiers, standings] = await Promise.all([
-    repos.uvsgamesEvents.formatMappings(),
-    repos.uvsgamesEvents.templateTiers(),
-    repos.uvsgamesResults.standings(externalId),
-  ]);
+  const { formatMappings, templateTiers } = context;
+  const standings = await repos.uvsgamesResults.standings(externalId);
 
-  const format = mapSourceFormat(mappings, listing.eventFormat);
+  const format = mapSourceFormat(formatMappings, listing.eventFormat);
   if (format === null) {
     throw new UnmappableFormatError(
       `The source filed "${listing.name}" as a format the archive has no mapping for. Map it, then promote again.`,
@@ -317,9 +356,15 @@ export async function sourceEventFacts(
   repos: Repos,
   provider: string,
   externalId: string,
+  context?: MetaSourceContext,
 ): Promise<{ values: MetaPromotedEventFacts; raw: MetaSourceRawTerms } | null> {
   try {
-    const facts = await factsFor(repos, provider, externalId);
+    const facts = await factsFor(
+      repos,
+      provider,
+      externalId,
+      context ?? (await createMetaSourceContext(repos)),
+    );
     return facts === null ? null : { values: facts.event, raw: facts.raw };
   } catch {
     return null;
@@ -327,13 +372,18 @@ export async function sourceEventFacts(
 }
 
 /** The listing's player count, with the source's zero-means-unreported quirk applied. */
-function countOrNull(value: number | null): number | null {
+export function countOrNull(value: number | null): number | null {
   return value === null || value === 0 ? null : value;
 }
 
-function factsFor(repos: Repos, provider: string, externalId: string): Promise<SourceFacts | null> {
+function factsFor(
+  repos: Repos,
+  provider: string,
+  externalId: string,
+  context: MetaSourceContext,
+): Promise<SourceFacts | null> {
   if (provider === UVSGAMES_PROVIDER) {
-    return uvsgamesFacts(repos, externalId);
+    return uvsgamesFacts(repos, externalId, context);
   }
   if (provider === PLAYLOLTCG_PROVIDER) {
     return playloltcgFacts(repos, externalId);
@@ -355,11 +405,13 @@ function factsFor(repos: Repos, provider: string, externalId: string): Promise<S
 export async function promoteMetaEvent(
   repos: Repos,
   metaEventId: string,
+  context?: MetaPromoteContext,
 ): Promise<MetaPromoteResult> {
-  const live = await repos.meta.eventById(metaEventId);
+  const live = await repos.meta.eventRowById(metaEventId);
   if (live === undefined) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "That archived event no longer exists.");
   }
+  const ctx = context ?? (await createMetaPromoteContext(repos));
 
   const result = emptyResult(metaEventId);
   const sources = await repos.meta.sourcesForEvent(metaEventId);
@@ -370,7 +422,12 @@ export async function promoteMetaEvent(
   const collected: SourceFacts[] = [];
   for (const source of ordered) {
     try {
-      const facts = await factsFor(repos, source.provider as string, source.externalId as string);
+      const facts = await factsFor(
+        repos,
+        source.provider as string,
+        source.externalId as string,
+        ctx,
+      );
       if (facts !== null) {
         collected.push(facts);
       }
@@ -383,10 +440,9 @@ export async function promoteMetaEvent(
     }
   }
 
-  const cardIndex = await loadCardNameIndex(repos.ingest);
-  await promoteEventRow(repos, metaEventId, live, collected);
-  await promoteStandings(repos, metaEventId, collected, result, cardIndex);
-  await applyPlayerOverlays(repos, metaEventId, result, cardIndex);
+  const final = await promoteEventRow(repos, metaEventId, live, collected);
+  await promoteStandings(repos, metaEventId, final, ordered, collected, result, ctx.cardIndex);
+  await applyPlayerOverlays(repos, metaEventId, final.format, result, ctx.cardIndex);
   await dropOrphanMintedPlayers(repos, metaEventId, result);
   await promotePhasesAndMatches(repos, metaEventId, ordered, result);
   return result;
@@ -395,10 +451,9 @@ export async function promoteMetaEvent(
 async function promoteEventRow(
   repos: Repos,
   metaEventId: string,
-  /** Only the columns the row cannot hold as NULL, which are the only fallback. */
-  live: { name: string; eventDate: string; format: string; tier: MetaEventTier },
+  live: MetaPromotedEventFacts,
   collected: readonly SourceFacts[],
-): Promise<void> {
+): Promise<MetaPromotedEventFacts> {
   // Only the four columns the live row cannot hold as NULL fall back to it,
   // because they have no empty value to start from. Every other field starts
   // unset, so one that no source describes and no overlay claims ends up empty
@@ -444,17 +499,34 @@ async function promoteEventRow(
   );
   const final = applyOverlays(facts, patches);
 
-  await repos.meta.updateEvent(metaEventId, {
-    name: final.name,
-    eventDate: final.eventDate,
-    format: final.format,
-    playerCount: final.playerCount,
-    organizer: final.organizer,
-    notes: final.notes,
-    tier: final.tier,
-    country: final.country,
-    location: final.location,
-  });
+  if (!sameEventFacts(live, final)) {
+    await repos.meta.updateEvent(metaEventId, {
+      name: final.name,
+      eventDate: final.eventDate,
+      format: final.format,
+      playerCount: final.playerCount,
+      organizer: final.organizer,
+      notes: final.notes,
+      tier: final.tier,
+      country: final.country,
+      location: final.location,
+    });
+  }
+  return final;
+}
+
+function sameEventFacts(live: MetaPromotedEventFacts, next: MetaPromotedEventFacts): boolean {
+  return (
+    live.name === next.name &&
+    live.eventDate === next.eventDate &&
+    live.format === next.format &&
+    live.playerCount === next.playerCount &&
+    live.organizer === next.organizer &&
+    live.notes === next.notes &&
+    live.tier === next.tier &&
+    live.country === next.country &&
+    live.location === next.location
+  );
 }
 
 /**
@@ -468,9 +540,12 @@ async function promoteEventRow(
 async function promoteStandings(
   repos: Repos,
   metaEventId: string,
+  /** The event row as {@link promoteEventRow} just left it. */
+  live: MetaPromotedEventFacts,
+  sources: readonly MetaEventSourceRow[],
   collected: readonly SourceFacts[],
   result: MetaPromoteResult,
-  cardIndex: Awaited<ReturnType<typeof loadCardNameIndex>>,
+  cardIndex: CardNameIndex,
 ): Promise<void> {
   const merged = new Map<string, StandingFacts>();
   for (const source of collected) {
@@ -482,7 +557,6 @@ async function promoteStandings(
     return;
   }
 
-  const liveEvent = await repos.meta.eventById(metaEventId);
   const existing = await repos.meta.rawStandingsForEvent(metaEventId);
   const byIdentity = new Map(
     existing
@@ -496,7 +570,7 @@ async function promoteStandings(
   );
 
   const providers = new Set([...merged.values()].map((standing) => standing.provider));
-  const deckLines = await loadDeckLines(repos, metaEventId, providers);
+  const deckLines = await loadDeckLines(repos, sources, providers);
   // A row the source keys by user id stores no name of its own, so the deck's
   // default name has to reach for the same display name the read surfaces join.
   const displayNames = await repos.uvsgamesEvents.playerDisplayNames(
@@ -532,8 +606,8 @@ async function promoteStandings(
       standing,
       resolvedStandingName(standing, displayNames),
       legendCardId,
-      liveEvent?.format ?? WellKnown.deckFormat.CONSTRUCTED,
-      liveEvent?.name ?? "",
+      live.format,
+      live.name,
       deckLines,
       cardIndex,
       unresolved,
@@ -638,11 +712,10 @@ type SourceDeckLines = Map<string, { zone: string; quantity: number; cardName: s
 /** Every held decklist for the event's linked mirrors, one query per provider. */
 async function loadDeckLines(
   repos: Repos,
-  metaEventId: string,
+  sources: readonly MetaEventSourceRow[],
   providers: ReadonlySet<string>,
 ): Promise<SourceDeckLines> {
   const lines: SourceDeckLines = new Map();
-  const sources = await repos.meta.sourcesForEvent(metaEventId);
   for (const source of sources) {
     if (source.externalId === null) {
       continue;
@@ -683,7 +756,7 @@ function buildDeck(
   format: string,
   eventName: string,
   deckLines: SourceDeckLines,
-  cardIndex: Awaited<ReturnType<typeof loadCardNameIndex>>,
+  cardIndex: CardNameIndex,
   unresolved: Set<string>,
   mergedLines: Set<string>,
 ): MetaArchivedDeckInput | null {
@@ -770,8 +843,10 @@ function buildDeck(
 async function applyPlayerOverlays(
   repos: Repos,
   metaEventId: string,
+  /** The event's format as the row now holds it, for a list an overlay supplies. */
+  format: string,
   result: MetaPromoteResult,
-  cardIndex: Awaited<ReturnType<typeof loadCardNameIndex>>,
+  cardIndex: CardNameIndex,
 ): Promise<void> {
   const overlays = await repos.metaOverlays.acceptedPlayerOverlays(metaEventId);
   if (overlays.length === 0) {
@@ -797,7 +872,6 @@ async function applyPlayerOverlays(
     }
   }
 
-  const liveEvent = await repos.meta.eventById(metaEventId);
   const players = await repos.meta.rawStandingsForEvent(metaEventId);
   for (const player of players) {
     const patches = byPlayer.get(player.id);
@@ -852,13 +926,7 @@ async function applyPlayerOverlays(
     const withList = patches.filter((overlay) => overlay.claimedFields.includes("cards"));
     const latest = withList.at(-1);
     if (latest !== undefined) {
-      await applyOverlayList(
-        repos,
-        player.id,
-        latest.id,
-        liveEvent?.format ?? WellKnown.deckFormat.CONSTRUCTED,
-        cardIndex,
-      );
+      await applyOverlayList(repos, player.id, latest.id, format, cardIndex);
     }
   }
 }
@@ -948,7 +1016,7 @@ async function applyOverlayList(
   metaEventPlayerId: string,
   overlayId: string,
   format: string,
-  cardIndex: Awaited<ReturnType<typeof loadCardNameIndex>>,
+  cardIndex: CardNameIndex,
 ): Promise<void> {
   const overlay = await repos.metaOverlays.playerOverlayById(overlayId);
   if (overlay === undefined) {
@@ -1004,18 +1072,18 @@ async function promotePhasesAndMatches(
 
   const phases = await repos.uvsgamesResults.phases(uvs.externalId);
   if (phases.length > 0) {
-    await repos.meta.replaceEventPhases(
+    const rows = phases.map((phase) => ({
       metaEventId,
-      phases.map((phase) => ({
-        metaEventId,
-        phaseOrder: phase.phaseOrder,
-        name: phase.name,
-        roundType: phase.roundType,
-        roundCount: phase.roundCount,
-        rankRequired: phase.rankRequired,
-        maxGameWins: phase.maxGameWins,
-      })),
-    );
+      phaseOrder: phase.phaseOrder,
+      name: phase.name,
+      roundType: phase.roundType,
+      roundCount: phase.roundCount,
+      rankRequired: phase.rankRequired,
+      maxGameWins: phase.maxGameWins,
+    }));
+    if (!samePhases(await repos.meta.phasesForEvent(metaEventId), rows)) {
+      await repos.meta.replaceEventPhases(metaEventId, rows);
+    }
     result.phases = phases.length;
   }
 
@@ -1055,10 +1123,69 @@ async function promotePhasesAndMatches(
       sourceMatchId: match.sourceMatchId,
     });
   }
-  if (rows.length > 0) {
-    const upserted = await repos.meta.upsertEventMatches(rows);
-    result.matches = upserted.length;
+  result.matches = rows.length;
+  if (rows.length === 0) {
+    return;
   }
+  const changed = changedMatches(await repos.meta.matchesForEvent(metaEventId), rows);
+  if (changed.length > 0) {
+    await repos.meta.upsertEventMatches(changed);
+  }
+}
+
+function samePhases(
+  stored: readonly MetaEventPhaseRow[],
+  next: readonly NewMetaEventPhase[],
+): boolean {
+  if (stored.length !== next.length) {
+    return false;
+  }
+  return next.every((row, index) => {
+    const was = stored[index];
+    return (
+      was !== undefined &&
+      was.phaseOrder === row.phaseOrder &&
+      was.name === row.name &&
+      was.roundType === row.roundType &&
+      was.roundCount === row.roundCount &&
+      was.rankRequired === row.rankRequired &&
+      was.maxGameWins === row.maxGameWins
+    );
+  });
+}
+
+/** @returns The pairings whose stored row would actually move. */
+function changedMatches(
+  stored: readonly MetaEventMatchRow[],
+  next: readonly NewMetaEventMatch[],
+): NewMetaEventMatch[] {
+  const byKey = new Map(
+    stored.flatMap((row) =>
+      row.sourceMatchId === null ? [] : [[row.sourceMatchId, row] as const],
+    ),
+  );
+  return next.filter((row) => {
+    // A row the source gave no id to cannot be matched up, so it is always
+    // written and left to the seat index to converge.
+    if (row.sourceMatchId === null || row.sourceMatchId === undefined) {
+      return true;
+    }
+    const was = byKey.get(row.sourceMatchId);
+    return (
+      was === undefined ||
+      was.phaseOrder !== row.phaseOrder ||
+      was.roundNumber !== row.roundNumber ||
+      was.sourceRoundId !== row.sourceRoundId ||
+      was.tableNumber !== row.tableNumber ||
+      was.isBye !== row.isBye ||
+      was.isDraw !== row.isDraw ||
+      was.player1Id !== row.player1Id ||
+      was.player2Id !== row.player2Id ||
+      was.winnerId !== row.winnerId ||
+      was.gamesWonP1 !== row.gamesWonP1 ||
+      was.gamesWonP2 !== row.gamesWonP2
+    );
+  });
 }
 
 /**

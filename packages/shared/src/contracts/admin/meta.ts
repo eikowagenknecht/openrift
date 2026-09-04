@@ -699,25 +699,6 @@ export const adminMetaContract = {
     .input(idParamSchema)
     .errors({ NOT_FOUND: { message: "Event not found" } }),
 
-  /**
-   * Promotion run again over every event: the tier and country rules live
-   * there, and an accepted overlay still wins whatever it claims. This is how
-   * a rule change in code reaches rows classified under the old rules.
-   */
-  reclassifyEvents: authedRoute
-    .route({ method: "POST", path: `${BASE}/events/reclassify`, tags: [TAG] })
-    .output(
-      z
-        .object({
-          /** Events promotion ran over again. */
-          events: z.number().int().nonnegative(),
-          /** Of those, how many reported a problem. */
-          failed: z.number().int().nonnegative(),
-          errors: z.array(z.string()),
-        })
-        .openapi("MetaRepromoteResult"),
-    ),
-
   eventPlayers: authedRoute
     .route({ method: "GET", path: `${BASE}/events/{id}/players`, tags: [TAG] })
     .input(idParamSchema)

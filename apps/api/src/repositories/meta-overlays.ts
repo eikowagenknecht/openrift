@@ -1,5 +1,6 @@
-import type { MetaOverlayStatus } from "@openrift/shared/types";
-import type { Insertable, Kysely, Selectable } from "kysely";
+import type { MetaEventOverlayField, MetaOverlayStatus } from "@openrift/shared/types";
+import type { Insertable, Kysely, Selectable, SqlBool } from "kysely";
+import { sql } from "kysely";
 
 import type {
   Database,
@@ -81,6 +82,19 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
         .orderBy("acceptedAt", "asc")
         .orderBy("id", "asc")
         .execute();
+    },
+
+    /** @returns The events an accepted overlay claims `field` on, deduplicated. */
+    async eventIdsClaimingField(field: MetaEventOverlayField): Promise<string[]> {
+      const rows = await db
+        .selectFrom("metaEventOverlays")
+        .select("metaEventId")
+        .distinct()
+        .where("status", "=", "accepted")
+        .where("metaEventId", "is not", null)
+        .where(sql<SqlBool>`${sql.lit(field)} = any(claimed_fields)`)
+        .execute();
+      return rows.flatMap((row) => (row.metaEventId === null ? [] : [row.metaEventId]));
     },
 
     pushOverlaysForEvent(metaEventId: string): Promise<MetaPushEventOverlayRow[]> {

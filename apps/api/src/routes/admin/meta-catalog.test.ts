@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as metaRepromote from "../../services/meta-repromote.js";
+import type * as metaRetier from "../../services/meta-retier.js";
 import type * as metaSync from "../../services/meta-sync/index.js";
 import type * as runJob from "../../services/run-job.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
@@ -19,6 +21,7 @@ const {
   backfillCatalog,
   fetchPlayloltcgEvent,
   repromoteMetaEvents,
+  retierMetaEvents,
   runJobAsync,
 } = vi.hoisted(() => ({
   acceptPlayloltcgEvent: vi.fn(),
@@ -31,6 +34,9 @@ const {
   fetchPlayloltcgEvent: vi.fn(() => Promise.resolve({})),
   backfillCatalog: vi.fn(() => Promise.resolve({})),
   repromoteMetaEvents: vi.fn(() => Promise.resolve({ events: 0, failed: 0, errors: [] })),
+  retierMetaEvents: vi.fn(() =>
+    Promise.resolve({ events: 0, failed: 0, errors: [], scanned: 0, moved: 0 }),
+  ),
   runJobAsync: vi.fn(
     (
       _deps: unknown,
@@ -60,7 +66,15 @@ vi.mock("../../services/run-job.js", async (importOriginal) => ({
   runJobAsync,
 }));
 
-vi.mock("../../services/meta-repromote.js", () => ({ repromoteMetaEvents }));
+vi.mock("../../services/meta-repromote.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof metaRepromote>()),
+  repromoteMetaEvents,
+}));
+
+vi.mock("../../services/meta-retier.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof metaRetier>()),
+  retierMetaEvents,
+}));
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -459,16 +473,57 @@ describe("catalogue templates", () => {
     expect(repromoteMetaEvents).not.toHaveBeenCalled();
   });
 
-  it("reclassifies the template's events when its tier is un-mapped back to null", async () => {
+  it("stores a tier edit without promoting anything", async () => {
     mockUvsgamesEvents.updateTemplate.mockResolvedValue(templateRow({ tier: null }));
 
     const res = await patchTemplate({ templateId: TEMPLATE_ID, tier: null });
 
     expect(res.status).toBe(200);
     expect(mockUvsgamesEvents.updateTemplate).toHaveBeenCalledWith(TEMPLATE_ID, { tier: null });
-    expect(repromoteMetaEvents).toHaveBeenCalledWith(
+    expect(repromoteMetaEvents).not.toHaveBeenCalled();
+    expect(retierMetaEvents).not.toHaveBeenCalled();
+  });
+});
+
+describe("the archive's own passes", () => {
+  it("starts the tier pass as a job and answers with the run handle", async () => {
+    const res = await app.request("/api/admin/v1/meta/archive/retier", { method: "POST" });
+
+    expect(res.status).toBe(202);
+    expect(await readJson(res)).toMatchObject({ status: "running", runId: "run-1" });
+    expect(runJobAsync).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ templateId: TEMPLATE_ID }),
+      "meta.retier",
+      "admin",
+      expect.any(Function),
+      expect.anything(),
+    );
+    expect(retierMetaEvents).toHaveBeenCalled();
+  });
+
+  it("starts the whole-archive repair as its own job", async () => {
+    const res = await app.request("/api/admin/v1/meta/archive/repromote", { method: "POST" });
+
+    expect(res.status).toBe(202);
+    expect(runJobAsync).toHaveBeenCalledWith(
+      expect.anything(),
+      "meta.repromote",
+      "admin",
+      expect.any(Function),
+      expect.anything(),
+    );
+    expect(repromoteMetaEvents).toHaveBeenCalled();
+  });
+
+  it("lists the archive passes' runs, which belong to neither source's panel", async () => {
+    mockJobRuns.listRecentByKinds.mockResolvedValue([]);
+
+    const res = await app.request("/api/admin/v1/meta/archive/jobs");
+
+    expect(res.status).toBe(200);
+    expect(mockJobRuns.listRecentByKinds).toHaveBeenCalledWith(
+      ["meta.retier", "meta.repromote"],
+      expect.any(Number),
     );
   });
 });

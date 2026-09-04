@@ -11,6 +11,8 @@ const captured = vi.hoisted(() => ({
   formats: null as unknown,
   updateTemplate: vi.fn(),
   updateFormat: vi.fn(),
+  archiveRuns: [] as unknown[],
+  runSync: vi.fn(() => Promise.resolve({ status: "running", runId: "run-1" })),
 }));
 
 vi.mock("@/hooks/use-admin-meta-catalog", () => ({
@@ -18,6 +20,8 @@ vi.mock("@/hooks/use-admin-meta-catalog", () => ({
   useMetaSourceFormats: () => ({ data: captured.formats }),
   useUpdateMetaSourceTemplate: () => ({ mutate: captured.updateTemplate, isPending: false }),
   useUpdateMetaSourceFormat: () => ({ mutate: captured.updateFormat, isPending: false }),
+  useMetaArchiveJobs: () => ({ data: { runs: captured.archiveRuns } }),
+  useRunMetaSync: () => ({ mutateAsync: captured.runSync, isPending: false }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({
@@ -71,6 +75,8 @@ describe("MetaSourceVocabularyDialog", () => {
     vi.clearAllMocks();
     captured.templates = { templates: [template()] };
     captured.formats = { formats: [sourceFormat()] };
+    captured.archiveRuns = [];
+    captured.runSync.mockResolvedValue({ status: "running", runId: "run-1" });
   });
 
   it("shows the source's own name for a template", () => {
@@ -130,6 +136,34 @@ describe("MetaSourceVocabularyDialog", () => {
     await user.click(await screen.findByRole("option", { name: "Unmapped" }));
 
     expect(captured.updateTemplate).toHaveBeenCalledWith({ templateId: "tpl-1", tier: null });
+  });
+
+  it("stores a tier edit without applying it to the archive", async () => {
+    const user = userEvent.setup();
+    open();
+
+    await user.click(screen.getByRole("button", { name: "Suggest: Premier" }));
+
+    expect(captured.runSync).not.toHaveBeenCalled();
+  });
+
+  it("says where a stored tier edit is applied, and starts that pass", async () => {
+    const user = userEvent.setup();
+    open();
+
+    expect(
+      screen.getByText(/reaches the live events when the tier rules are reapplied/u),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reapply tier rules" }));
+
+    expect(captured.runSync).toHaveBeenCalledWith({ trigger: "runRetier" });
+  });
+
+  it("holds the reapply button while that pass is already running", () => {
+    captured.archiveRuns = [{ id: "run-1", kind: "meta.retier", status: "running" }];
+    open();
+
+    expect(screen.getByRole("button", { name: "Reapplying…" })).toBeDisabled();
   });
 
   it("offers no suggestion once a tier is mapped", () => {

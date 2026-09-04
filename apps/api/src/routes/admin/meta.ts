@@ -19,7 +19,6 @@ import type { MetaArchivedDeckInput, MetaDeckCardInput } from "../../repositorie
 import { createMetaEventPlayer } from "../../services/meta-event-players.js";
 import type { MetaEventFieldEdit } from "../../services/meta-overlay-review.js";
 import { writeEventOverlayFields } from "../../services/meta-overlay-review.js";
-import { repromoteMetaEvents } from "../../services/meta-repromote.js";
 
 const os = implement(adminMetaContract).$context<ApiContext>().use(requireAuthedUser);
 
@@ -215,13 +214,6 @@ export const adminMetaRouter = {
   deleteEvent: os.deleteEvent.handler(async ({ input, context }): Promise<void> => {
     assertExisted(await context.repos.meta.deleteEvent(input.id), "Event not found");
   }),
-
-  // Named for the button ("Reapply rules"), but under the derive-live model it
-  // is simply promotion run again: the rules live there, and an accepted
-  // overlay still wins whatever it claims.
-  reclassifyEvents: os.reclassifyEvents.handler(({ context }) =>
-    repromoteMetaEvents(context.repos),
-  ),
 
   eventPlayers: os.eventPlayers.handler(async ({ input, context }) => {
     const { meta, metaOverlays } = context.repos;

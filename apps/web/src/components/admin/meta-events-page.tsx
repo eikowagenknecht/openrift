@@ -3,7 +3,6 @@ import { formatDay, META_EVENT_SORTS } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { LayersIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { AdminPager } from "@/components/admin/admin-pager";
@@ -12,7 +11,7 @@ import type { AdminCellSlotProps, AdminColumnDef } from "@/components/admin/admi
 import { MetaEventDialog } from "@/components/admin/meta-event-dialog";
 import { EventFilters } from "@/components/admin/meta-events-filters";
 import { MetaPublicLinkButton } from "@/components/admin/meta-public-link";
-import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +20,6 @@ import {
   metaEventsParamsFromSearch,
   useAdminMetaEvents,
   useDeleteMetaEvent,
-  useReclassifyMetaEvents,
 } from "@/hooks/use-admin-meta";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { urlTableSort, useUrlTableFilters } from "@/hooks/use-url-table-filters";
@@ -202,20 +200,6 @@ export function MetaEventsPage() {
 
   const { data } = useAdminMetaEvents(metaEventsParamsFromSearch(filters));
 
-  const reclassifyEvents = useReclassifyMetaEvents();
-
-  async function handleReclassify() {
-    let summary;
-    try {
-      summary = await reclassifyEvents.mutateAsync();
-    } catch {
-      /* Reported by the global mutation error toast. */
-      return;
-    }
-    const failed = summary.failed > 0 ? `, ${summary.failed} could not be promoted` : "";
-    toast.success(`Re-promoted ${summary.events} events${failed}.`);
-  }
-
   const total = data.total;
   const totalPages = Math.max(1, Math.ceil(total / ADMIN_META_EVENT_PAGE_SIZE));
   const columns = eventColumns(formatLabels);
@@ -225,17 +209,9 @@ export function MetaEventsPage() {
       <AdminPageTopBar
         title="Meta Archive"
         actions={
-          <>
-            <PageTopBarButton
-              onClick={() => void handleReclassify()}
-              disabled={reclassifyEvents.isPending}
-            >
-              {reclassifyEvents.isPending ? "Reapplying…" : "Reapply tier rules"}
-            </PageTopBarButton>
-            <PageTopBarPrimaryButton onClick={() => setDialog({ mode: "create" })}>
-              Add Event
-            </PageTopBarPrimaryButton>
-          </>
+          <PageTopBarPrimaryButton onClick={() => setDialog({ mode: "create" })}>
+            Add Event
+          </PageTopBarPrimaryButton>
         }
       />
 

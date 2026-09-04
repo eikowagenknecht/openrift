@@ -172,6 +172,17 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       });
     });
 
+    it("writes nothing the second time, since promotion is idempotent", async () => {
+      const metaEventId = await seedLiveEvent("mpi-idempotent");
+      await promoteMetaEvent(repos, metaEventId);
+      const before = await repo.eventRowById(metaEventId);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const after = await repo.eventRowById(metaEventId);
+      expect(after?.updatedAt).toEqual(before?.updatedAt);
+    });
+
     it("keeps them when the only citation is a keyless submission", async () => {
       const metaEventId = await seedLiveEvent("mpi-keyless-citation");
       await cite(metaEventId, null, null);

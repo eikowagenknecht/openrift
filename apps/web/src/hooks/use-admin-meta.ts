@@ -268,36 +268,6 @@ export function useUpdateMetaEvent() {
   });
 }
 
-const reclassifyMetaEventsFn = createServerFn({ method: "POST" })
-  .middleware([withCookies])
-  .handler(({ context }) => apiOrpcClient(adminMetaContract, context.cookie).reclassifyEvents());
-
-/**
- * What a reclassify pass moves. It rewrites tier, country and location on the
- * candidates and on the live events they feed, so both review surfaces and the
- * public archive go stale — whether the pass was started from the Reapply
- * button or fell out of a template's tier mapping.
- */
-export const reclassifyInvalidates = [
-  queryKeys.admin.meta.catalogue,
-  queryKeys.admin.meta.events,
-  queryKeys.admin.meta.overlays,
-  queryKeys.meta.all,
-] as const;
-
-/**
- * Re-runs the tier and country rules over the pipeline's candidates and the
- * live events they feed; hand-set values are kept.
- *
- * @returns The mutation; resolves with what the pass changed and kept.
- */
-export function useReclassifyMetaEvents() {
-  return useMutationWithInvalidation({
-    mutationFn: () => reclassifyMetaEventsFn(),
-    invalidates: reclassifyInvalidates,
-  });
-}
-
 const deleteMetaEventFn = createServerFn({ method: "POST" })
   .validator((input: { id: string }) => input)
   .middleware([withCookies])

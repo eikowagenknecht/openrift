@@ -452,6 +452,8 @@ export const queryKeys = {
       playloltcgCatalogueList: (params: { page?: number; search?: string; triage?: string }) =>
         ["admin", "meta", "playloltcg", "catalogue", "list", params] as const,
       syncSettings: ["admin", "meta", "sync", "settings"] as const,
+      /** The archive's own passes, which belong to neither source's panel. */
+      archiveJobs: ["admin", "meta", "archive", "jobs"] as const,
       syncStatus: Object.assign(
         (source: string) => ["admin", "meta", "sync", "status", source] as const,
         { prefix: ["admin", "meta", "sync", "status"] as const },

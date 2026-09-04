@@ -61,6 +61,15 @@ export interface UvsgamesUpsertResult {
 /** Triage state, derived from the citation and the ignore table. */
 export type UvsgamesTriage = "new" | "accepted" | "dismissed";
 
+/** What {@link classifyMetaEventTier} needs from one mirrored listing, plus its live event. */
+export interface UvsgamesTierInputRow {
+  metaEventId: string;
+  externalId: string;
+  eventConfigurationTemplate: string | null;
+  eventFormat: string | null;
+  playerCount: number | null;
+}
+
 export interface UvsgamesListRow extends UvsgamesEventRow {
   triage: UvsgamesTriage;
   /** The live event this key feeds, through its citation row. */
@@ -546,14 +555,22 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
       }
     },
 
-    /** Every mirrored key running one template, for a scoped re-promote. */
-    async externalIdsForTemplate(templateId: string): Promise<string[]> {
-      const rows = await db
-        .selectFrom("uvsgamesEvents")
-        .select("externalId")
-        .where("eventConfigurationTemplate", "=", templateId)
+    // Joined, not keyed by an id list: one template covers 180,000 mirror
+    // rows, past the bind-parameter ceiling.
+    tierInputsForLiveEvents(): Promise<UvsgamesTierInputRow[]> {
+      return db
+        .selectFrom("uvsgamesEvents as e")
+        .innerJoin("metaEventSources as s", (join) =>
+          join.onRef("s.externalId", "=", "e.externalId").on("s.provider", "=", UVSGAMES_PROVIDER),
+        )
+        .select([
+          "s.metaEventId",
+          "e.externalId",
+          "e.eventConfigurationTemplate",
+          "e.eventFormat",
+          "e.playerCount",
+        ])
         .execute();
-      return rows.map((row) => row.externalId);
     },
 
     async byKey(externalId: string): Promise<UvsgamesListRow | undefined> {

@@ -76,7 +76,6 @@ vi.mock("@/hooks/use-admin-meta", async (importOriginal) => ({
     return { data: { events: captured.events, total: captured.total, page: 1, limit: 50 } };
   },
   useDeleteMetaEvent: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useReclassifyMetaEvents: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({

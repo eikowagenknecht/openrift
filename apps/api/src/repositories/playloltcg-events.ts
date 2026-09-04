@@ -51,6 +51,13 @@ export interface PlayloltcgShopInput {
 
 export type PlayloltcgTriage = "new" | "accepted" | "dismissed";
 
+/** See the uvsgames counterpart. */
+export interface PlayloltcgTierInputRow {
+  metaEventId: string;
+  activityShopId: number;
+  playerCount: number | null;
+}
+
 export interface PlayloltcgListRow extends PlayloltcgEventRow {
   triage: PlayloltcgTriage;
   metaEventId: string | null;
@@ -350,6 +357,19 @@ export function playloltcgEventsRepo(db: Kysely<Database>) {
 
     async byKey(activityShopId: number): Promise<PlayloltcgListRow | undefined> {
       return await listSelect().where("c.activityShopId", "=", activityShopId).executeTakeFirst();
+    },
+
+    /** See the uvsgames counterpart. This source maps no template, so field size is the whole rule. */
+    tierInputsForLiveEvents(): Promise<PlayloltcgTierInputRow[]> {
+      return db
+        .selectFrom("playloltcgEvents as e")
+        .innerJoin("metaEventSources as s", (join) =>
+          join
+            .on("s.provider", "=", PLAYLOLTCG_PROVIDER)
+            .on(sql<SqlBool>`s.external_id = e.activity_shop_id::text`),
+        )
+        .select(["s.metaEventId", "e.activityShopId", "e.playerCount"])
+        .execute();
     },
 
     /** The catalogue triage list: filtered, triaged, ordered, paginated. */

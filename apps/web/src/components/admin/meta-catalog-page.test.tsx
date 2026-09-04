@@ -96,6 +96,7 @@ vi.mock("@/hooks/use-admin-meta-catalog", () => ({
   useMetaSourceFormats: () => ({ data: { formats: [] } }),
   useUpdateMetaSourceTemplate: () => ({ mutate: vi.fn(), isPending: false }),
   useUpdateMetaSourceFormat: () => ({ mutate: vi.fn(), isPending: false }),
+  useMetaArchiveJobs: () => ({ data: { runs: [] } }),
 }));
 
 vi.mock("@/hooks/use-enums", () => ({

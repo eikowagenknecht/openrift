@@ -61,12 +61,14 @@ export interface UpsertedMetaEventMatch {
   sourceMatchId: string | null;
 }
 
+export type MetaEventRow = Selectable<MetaEventsTable>;
+
 /**
  * `playerRowCount` is the whole standings table; `deckCount` the subset a
  * decklist is known for. They differ for nearly every real event, which is the
  * point of the pyramid.
  */
-export type MetaEventWithCounts = Selectable<MetaEventsTable> & {
+export type MetaEventWithCounts = MetaEventRow & {
   playerRowCount: number;
   deckCount: number;
 };
@@ -946,6 +948,21 @@ export function metaRepo(db: Kysely<Database>) {
 
     eventById(id: string): Promise<MetaEventWithCounts | undefined> {
       return eventQuery().where("id", "=", id).executeTakeFirst();
+    },
+
+    /** The row's own columns, without the standings counts {@link eventById} joins for. */
+    eventRowById(id: string): Promise<MetaEventRow | undefined> {
+      return db.selectFrom("metaEvents").selectAll().where("id", "=", id).executeTakeFirst();
+    },
+
+    /** Every event's id and current tier, for the tier scan. */
+    allEventTiers(): Promise<{ id: string; tier: MetaEventTier }[]> {
+      return db.selectFrom("metaEvents").select(["id", "tier"]).execute();
+    },
+
+    /** Every citation there is, for a pass that walks the whole archive. */
+    allSources(): Promise<MetaEventSourceRow[]> {
+      return db.selectFrom("metaEventSources").selectAll().execute();
     },
 
     /**
@@ -2157,22 +2174,6 @@ export function metaRepo(db: Kysely<Database>) {
         .where("provider", "=", provider)
         .where("externalId", "=", externalId)
         .executeTakeFirst();
-    },
-
-    /** {@link sourceByKey} over a batch, for the scoped re-promote pass. */
-    async sourcesByKeys(
-      provider: string,
-      externalIds: readonly string[],
-    ): Promise<MetaEventSourceRow[]> {
-      if (externalIds.length === 0) {
-        return [];
-      }
-      return await db
-        .selectFrom("metaEventSources")
-        .selectAll()
-        .where("provider", "=", provider)
-        .where("externalId", "in", [...externalIds])
-        .execute();
     },
 
     /** Citations for a page of events, in one round trip for the admin list. */

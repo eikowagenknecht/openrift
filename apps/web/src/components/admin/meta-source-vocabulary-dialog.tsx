@@ -5,6 +5,7 @@ import type {
   MetaSourceTemplate,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 
+import { announceSyncTrigger } from "@/components/admin/meta-catalog-shared";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,12 +38,15 @@ import type {
   MetaSourceTemplateInput,
 } from "@/hooks/use-admin-meta-catalog";
 import {
+  useMetaArchiveJobs,
   useMetaSourceFormats,
   useMetaSourceTemplates,
+  useRunMetaSync,
   useUpdateMetaSourceFormat,
   useUpdateMetaSourceTemplate,
 } from "@/hooks/use-admin-meta-catalog";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { runningRunId } from "@/lib/meta-catalog-display";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 
 /** The Select value that stands for "mapped to nothing of ours". */
@@ -160,6 +164,40 @@ function TemplateRow({
   );
 }
 
+function RetierHint() {
+  const run = useRunMetaSync();
+  const { data } = useMetaArchiveJobs();
+  const running = runningRunId(data?.runs ?? [], "meta.retier") !== null;
+
+  async function start() {
+    let result;
+    try {
+      result = await run.mutateAsync({ trigger: "runRetier" });
+    } catch {
+      // Reported by the global mutation error toast.
+      return;
+    }
+    announceSyncTrigger("Reapply tier rules", result);
+  }
+
+  return (
+    <div className="bg-muted/40 flex flex-wrap items-center gap-3 rounded-md border px-3 py-2">
+      <p className="text-muted-foreground min-w-60 flex-1 text-sm">
+        A tier change is stored here and reaches the live events when the tier rules are reapplied.
+        Run that once you are done editing.
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={run.isPending || running}
+        onClick={() => void start()}
+      >
+        {running ? "Reapplying…" : "Reapply tier rules"}
+      </Button>
+    </div>
+  );
+}
+
 function TemplatesSection() {
   const { data } = useMetaSourceTemplates();
   const update = useUpdateMetaSourceTemplate();
@@ -171,12 +209,12 @@ function TemplatesSection() {
       <p className="text-muted-foreground text-sm">
         A watched template earns its events a badge on the catalogue, a place in the daily poll, and
         eligibility for the official auto-accept rule. The tier says how much a template&apos;s
-        events count for on the public meta page; mapping one reclassifies its events right away,
-        and an unmapped template&apos;s events fall back to a player-count guess. The average counts
-        only events that have already run, since anything from today on is still taking
-        registrations. Names come from the source, refreshed on every sync; a template with only an
-        id is one the source has stopped publishing.
+        events count for on the public meta page, and an unmapped template&apos;s events fall back
+        to a player-count guess. The average counts only events that have already run, since
+        anything from today on is still taking registrations. Names come from the source, refreshed
+        on every sync; a template with only an id is one the source has stopped publishing.
       </p>
+      <RetierHint />
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>

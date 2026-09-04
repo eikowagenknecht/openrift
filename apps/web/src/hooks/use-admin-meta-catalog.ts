@@ -5,6 +5,7 @@ import type {
   MetaCatalogSort,
   MetaCatalogSortDirection,
   MetaCatalogTriage,
+  MetaArchiveJobs,
   MetaSource,
   MetaSourceFormat,
   MetaSourceTemplate,
@@ -17,7 +18,6 @@ import { adminMetaCatalogContract } from "@openrift/shared/contracts/admin/meta-
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { reclassifyInvalidates } from "@/hooks/use-admin-meta";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -215,15 +215,14 @@ const updateMetaSourceTemplateFn = createServerFn({ method: "POST" })
   );
 
 /**
- * Watching a template badges catalogue rows and moves the funnel; mapping a
- * tier reclassifies the template's candidates and live events server-side, so
- * the archive caches move too.
+ * Watching a template badges catalogue rows. A tier mapping only writes here;
+ * the live events it maps move when the retier pass runs, not on this save.
  */
 const vocabularyInvalidates = [
   queryKeys.admin.meta.sourceTemplates,
   queryKeys.admin.meta.sourceFormats,
+  queryKeys.admin.meta.catalogue,
   queryKeys.admin.meta.syncStatus.prefix,
-  ...reclassifyInvalidates,
 ] as const;
 
 /**
@@ -351,6 +350,26 @@ export function useMetaSyncStatus(source: MetaSource) {
   });
 }
 
+const fetchMetaArchiveJobsFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<MetaArchiveJobs> =>
+    apiOrpcClient(adminMetaCatalogContract, context.cookie).archiveJobs(),
+  );
+
+/**
+ * Recent runs of the archive's own two passes. Polls on the same cadence as the
+ * source panels, because both passes outlive the request that starts them.
+ *
+ * @returns The query holding the runs.
+ */
+export function useMetaArchiveJobs() {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.archiveJobs,
+    queryFn: () => fetchMetaArchiveJobsFn(),
+    refetchInterval: SYNC_STATUS_POLL_MS,
+  });
+}
+
 /** The manual triggers, by the contract procedure each one calls. */
 const META_SYNC_TRIGGERS = [
   "runSync",
@@ -359,6 +378,8 @@ const META_SYNC_TRIGGERS = [
   "runRecheck",
   "runIdSweep",
   "runAutoAccept",
+  "runRetier",
+  "runRepromote",
   "runPlayloltcgSync",
   "runPlayloltcgRecheck",
   "runPlayloltcgAutoAccept",
@@ -379,6 +400,7 @@ const runMetaSyncFn = createServerFn({ method: "POST" })
 /** What a run touches: its own bookkeeping plus every catalogue row it wrote. */
 const syncRunInvalidates = [
   queryKeys.admin.meta.syncStatus.prefix,
+  queryKeys.admin.meta.archiveJobs,
   queryKeys.admin.meta.catalogue,
   queryKeys.admin.meta.playloltcgCatalogue,
   queryKeys.admin.jobRuns,

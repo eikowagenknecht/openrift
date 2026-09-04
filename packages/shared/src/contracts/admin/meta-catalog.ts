@@ -19,6 +19,9 @@ extendZodWithOpenApi(z);
 const TAG = "Admin - Meta catalogue";
 const BASE = "/api/admin/v1/meta/catalogue";
 
+/** The archive itself, which the catalogue feeds but does not own. */
+const ARCHIVE_BASE = "/api/admin/v1/meta/archive";
+
 /** What a crawl checkpoint carries, as both the API and the admin UI read it. */
 export interface CatalogCheckpoint {
   complete: boolean;
@@ -307,6 +310,11 @@ const metaSyncRunSchema = z.object({
   result: z.record(z.string(), z.any()).nullable(),
 });
 
+/** The archive's own passes, which belong to no one source. */
+export const metaArchiveJobsSchema = z
+  .object({ runs: z.array(metaSyncRunSchema) })
+  .openapi("MetaArchiveJobs");
+
 export const metaSyncStatusSchema = z
   .object({
     catalog: z.object({
@@ -519,6 +527,35 @@ export const adminMetaCatalogContract = {
     .route({ method: "POST", path: `${BASE}/sync/auto-accept`, tags: [TAG], successStatus: 202 })
     .output(metaSyncTriggerResultSchema),
 
+  // ── The archive itself ───────────────────────────────────────────────────
+  // Not a crawl: these two re-derive live rows from the mirrors already held.
+
+  /** Recent runs of the two archive passes, for the panel that starts them. */
+  archiveJobs: authedRoute
+    .route({ method: "GET", path: `${ARCHIVE_BASE}/jobs`, tags: [TAG] })
+    .output(metaArchiveJobsSchema),
+
+  /**
+   * Applies the tier rules to the events they now file somewhere else.
+   * Classifies the whole archive from bulk reads and promotes the movers.
+   */
+  runRetier: authedRoute
+    .route({ method: "POST", path: `${ARCHIVE_BASE}/retier`, tags: [TAG], successStatus: 202 })
+    .output(metaSyncTriggerResultSchema),
+
+  /**
+   * Promotion run again over every event, whether or not anything changed.
+   * Accepted overlays still win whatever they claim.
+   */
+  runRepromote: authedRoute
+    .route({
+      method: "POST",
+      path: `${ARCHIVE_BASE}/repromote`,
+      tags: [TAG],
+      successStatus: 202,
+    })
+    .output(metaSyncTriggerResultSchema),
+
   // ── playloltcg (the Chinese source) ──────────────────────────────────────
   runPlayloltcgSync: authedRoute
     .route({ method: "POST", path: `${BASE}/playloltcg/sync`, tags: [TAG], successStatus: 202 })
@@ -610,6 +647,7 @@ export type MetaCatalogSort = (typeof META_CATALOG_SORTS)[number];
 export type MetaCatalogSortDirection = (typeof META_CATALOG_SORT_DIRECTIONS)[number];
 export type MetaSyncSettings = z.infer<typeof metaSyncSettingsSchema>;
 export type MetaSyncStatus = z.infer<typeof metaSyncStatusSchema>;
+export type MetaArchiveJobs = z.infer<typeof metaArchiveJobsSchema>;
 export type MetaSyncTriggerResult = z.infer<typeof metaSyncTriggerResultSchema>;
 export type MetaSyncCancelResult = z.infer<typeof metaSyncCancelResultSchema>;
 export type MetaCancellableJob = (typeof META_CANCELLABLE_JOBS)[number];

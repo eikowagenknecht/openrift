@@ -13,6 +13,7 @@ const captured = vi.hoisted(() => ({
   prevSearch: {} as Record<string, unknown>,
   run: vi.fn(),
   cancelRun: vi.fn(),
+  archiveRuns: [] as unknown[],
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
@@ -51,6 +52,7 @@ vi.mock("@/hooks/use-admin-meta-catalog", () => ({
     dataUpdatedAt: 0,
   }),
   useRunMetaSync: () => ({ mutateAsync: captured.run, isPending: false, variables: undefined }),
+  useMetaArchiveJobs: () => ({ data: { runs: captured.archiveRuns } }),
   useCancelMetaRun: () => ({
     mutateAsync: captured.cancelRun,
     isPending: false,
@@ -463,6 +465,7 @@ describe("MetaAdminOverviewPage", () => {
     // Only uvsgames answers by default, so one source's alerts are unambiguous.
     captured.playloltcgStatus = undefined;
     captured.overlays = [];
+    captured.archiveRuns = [];
   });
 
   afterEach(() => {
@@ -567,5 +570,43 @@ describe("MetaAdminOverviewPage", () => {
 
     expect(screen.getByRole("region", { name: "UVS Games" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Play LoL TCG" })).toBeInTheDocument();
+  });
+
+  it("gives the archive its own section, because neither pass belongs to a source", () => {
+    render(<MetaAdminOverviewPage />);
+
+    expect(screen.getByRole("region", { name: "The archive" })).toBeInTheDocument();
+  });
+
+  it("starts the tier pass as a job rather than waiting on it", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    captured.run.mockResolvedValue({ status: "running", runId: "run-9" });
+    render(<MetaAdminOverviewPage />);
+
+    await user.click(screen.getByRole("button", { name: "Reapply tier rules" }));
+
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runRetier" });
+  });
+
+  it("asks before the whole-archive repair, which reads and writes everything", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    captured.run.mockResolvedValue({ status: "running", runId: "run-9" });
+    render(<MetaAdminOverviewPage />);
+
+    await user.click(screen.getByRole("button", { name: "Re-promote everything" }));
+    expect(captured.run).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Run the repair" }));
+    expect(captured.run).toHaveBeenCalledWith({ trigger: "runRepromote" });
+  });
+
+  it("holds both archive buttons while either pass is running", () => {
+    captured.archiveRuns = [{ id: "run-1", kind: "meta.repromote", status: "running" }];
+    render(<MetaAdminOverviewPage />);
+
+    // Both passes walk the same rows, and the tier scan would read a live tier
+    // the repair is halfway through rewriting.
+    expect(screen.getByRole("button", { name: "Reapply tier rules" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Re-promote everything" })).toBeDisabled();
   });
 });

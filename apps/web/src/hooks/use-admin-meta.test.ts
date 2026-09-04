@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
-
 import {
   adminMetaEventsQueryOptions,
   META_EVENT_SORT_FALLBACK,
   metaEventsParamsFromSearch,
-  reclassifyInvalidates,
 } from "./use-admin-meta";
 
 describe("metaEventsParamsFromSearch", () => {
@@ -61,22 +58,6 @@ describe("metaEventsParamsFromSearch", () => {
     const deepLink = metaEventsParamsFromSearch({ page: 2, liveFormat: "standard" });
     expect(adminMetaEventsQueryOptions(deepLink).queryKey).not.toEqual(
       adminMetaEventsQueryOptions(metaEventsParamsFromSearch({})).queryKey,
-    );
-  });
-});
-
-describe("reclassifyInvalidates", () => {
-  // The pass writes the candidates and the live events in one go, so a Reapply
-  // that only dropped the event list left the review queue showing the values
-  // it had just rewritten.
-  it("drops both sides of the pipeline the pass writes, not only the live events", () => {
-    expect(reclassifyInvalidates).toEqual(
-      expect.arrayContaining([
-        queryKeys.admin.meta.events,
-        queryKeys.admin.meta.overlays,
-        queryKeys.admin.meta.catalogue,
-        queryKeys.meta.all,
-      ]),
     );
   });
 });
