@@ -411,6 +411,11 @@ export const queryKeys = {
       // The uploads feeding one event. Nested under `events` for the same
       // reason the citations are: settling one refetches with the event.
       eventUploads: (eventId: string) => ["admin", "meta", "events", eventId, "uploads"] as const,
+      // The cross-mirror review for one event (ADR-014, "Two mirrors on one
+      // event"). Nested under `events` too: a link re-promotes, which moves the
+      // standings the panel ranks against.
+      crossSource: (eventId: string) =>
+        ["admin", "meta", "events", eventId, "cross-source"] as const,
       // The overlay review queue (ADR-014 revision 3). The suggestion keys nest
       // under it on purpose, so settling an overlay also refetches the ranked
       // targets that settling invalidates.

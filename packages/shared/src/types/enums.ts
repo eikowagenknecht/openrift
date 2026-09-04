@@ -263,6 +263,16 @@ export const META_EVENT_SORT_DIRECTIONS = ["asc", "desc"] as const;
 export const META_CATALOG_PROVIDERS = ["uvsgames", "playloltcg", "topdeck"] as const;
 
 /**
+ * Where one standings row of a cited-but-unread mirror stands in the
+ * cross-mirror review: it is a live row the event already lists, it is nobody
+ * the event lists, or nobody has said yet. The source contributes only once
+ * none of its rows is `unreviewed`.
+ */
+export const META_CROSS_SOURCE_STATES = ["linked", "distinct", "unreviewed"] as const;
+
+export type MetaCrossSourceState = (typeof META_CROSS_SOURCE_STATES)[number];
+
+/**
  * The live event list's source filter: the catalogued providers,
  * `usersubmission` (the provider accepted submissions are cited under), and
  * `manual` for events no provider feeds.

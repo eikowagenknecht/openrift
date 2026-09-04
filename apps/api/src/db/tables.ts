@@ -1857,6 +1857,30 @@ export interface MetaEventSourcesTable {
 }
 
 /**
+ * One decision on a cited-but-unread mirror's standing (ADR-014, "Two mirrors
+ * on one event"): the live row it is, or NULL for reviewed-and-distinct.
+ * Absence means unreviewed.
+ */
+export interface MetaPlayerLinksTable {
+  id: Generated<string>;
+  /** FK → meta_events.id ON DELETE CASCADE */
+  metaEventId: string;
+  /** CHECK: <> ''. */
+  provider: string;
+  /**
+   * Same string as {@link MetaEventPlayersTable.sourceIdentity}. UNIQUE with
+   * the event and the provider. CHECK: <> ''.
+   */
+  sourceIdentity: string;
+  /**
+   * Composite FK → meta_event_players(id, meta_event_id) ON DELETE CASCADE.
+   * UNIQUE with the provider where set.
+   */
+  metaEventPlayerId: string | null;
+  createdAt: CreatedAt;
+}
+
+/**
  * One contribution by a signed-in user, written in the same transaction as the
  * accept it belongs to. Never written for provider ingest or
  * hand entry.
@@ -3284,6 +3308,7 @@ export interface Database {
   ignoredMetaSourceEvents: IgnoredMetaSourceEventsTable;
   ignoredMetaSourcePlayers: IgnoredMetaSourcePlayersTable;
   metaEventSources: MetaEventSourcesTable;
+  metaPlayerLinks: MetaPlayerLinksTable;
   metaCredits: MetaCreditsTable;
   metaSubmissions: MetaSubmissionsTable;
 

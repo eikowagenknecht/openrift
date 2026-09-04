@@ -3,6 +3,7 @@ import { META_EVENT_TIERS } from "@openrift/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { MetaCrossSourcePanel } from "@/components/admin/meta-cross-source-panel";
 import { MetaEventDriftPanel } from "@/components/admin/meta-event-drift-panel";
 import { MetaEventSourcesEditor } from "@/components/admin/meta-event-sources-editor";
 import { ReviewDisclosure } from "@/components/admin/meta-review-shared";
@@ -73,6 +74,7 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
   );
   const [formError, setFormError] = useState("");
   const [driftOpen, setDriftOpen] = useState(false);
+  const [crossSourceOpen, setCrossSourceOpen] = useState(false);
 
   const isPending = createEvent.isPending || updateEvent.isPending || writeOverlay.isPending;
 
@@ -272,6 +274,12 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
         {event && (
           <ReviewDisclosure title="Source drift" onOpenChange={setDriftOpen}>
             <MetaEventDriftPanel metaEventId={event.id} enabled={driftOpen} />
+          </ReviewDisclosure>
+        )}
+
+        {event && (
+          <ReviewDisclosure title="Cross-source players" onOpenChange={setCrossSourceOpen}>
+            <MetaCrossSourcePanel metaEventId={event.id} enabled={crossSourceOpen} />
           </ReviewDisclosure>
         )}
 

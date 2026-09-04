@@ -5,6 +5,9 @@ import type {
   adminMetaEventSchema,
   adminMetaEventSourceSchema,
   adminMetaPlayerSchema,
+  metaCrossSourceCitationSchema,
+  metaCrossSourceReviewSchema,
+  metaCrossSourceRowSchema,
   metaEventDriftSchema,
   metaOverlayDetailSchema,
   metaOverlayBulkAcceptResultSchema,
@@ -191,6 +194,15 @@ export type MetaEventMatchSuggestion = z.infer<typeof metaEventMatchSuggestionSc
 
 /** One ranked live standings row an unanchored player overlay might describe. */
 export type MetaPlayerMatchSuggestion = z.infer<typeof metaPlayerMatchSuggestionSchema>;
+
+/** The cross-mirror review for one event: its mirror citations and their entries. */
+export type MetaCrossSourceReview = z.infer<typeof metaCrossSourceReviewSchema>;
+
+/** One standings row of a cited-but-unread mirror, with its shortlist. */
+export type MetaCrossSourceRow = z.infer<typeof metaCrossSourceRowSchema>;
+
+/** One mirror citation on an event, and how much of its review is left. */
+export type MetaCrossSourceCitation = z.infer<typeof metaCrossSourceCitationSchema>;
 
 /** One upload feeding a live event, as the event's uploads panel lists it. */
 export type MetaUploadSummary = z.infer<typeof metaUploadSummarySchema>;

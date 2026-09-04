@@ -69,7 +69,11 @@ const mockMeta = {
   renamePlayerDeck: vi.fn(),
   sourcesForEvent: vi.fn(),
   setEventSourcePriority: vi.fn(),
+  eventSourceById: vi.fn(),
+  setEventSourceContributes: vi.fn(),
 };
+
+const mockPlayerLinks = { forEvent: vi.fn(), putMany: vi.fn(), remove: vi.fn() };
 
 const mockCatalog = { cardNamesByIds: vi.fn() };
 
@@ -78,11 +82,14 @@ const mockUvsgames = {
   formatMappings: vi.fn(),
   templateTiers: vi.fn(),
   settings: vi.fn(),
+  playerDisplayNames: vi.fn(),
 };
 // Drift reads promotion's own view of each source, which reaches for the
 // mirror the fetch filled.
 const mockUvsgamesResults = { standings: vi.fn() };
 const mockPlayloltcg = { byKey: vi.fn() };
+const mockTopdeck = { byKey: vi.fn() };
+const mockTopdeckResults = { standings: vi.fn() };
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const EVENT_OVERLAY_ID = "b0000000-0001-4000-a000-000000000001";
@@ -91,6 +98,7 @@ const LIVE_EVENT_ID = "e0000000-0001-4000-a000-000000000001";
 const LIVE_PLAYER_ID = "f0000000-0001-4000-a000-000000000001";
 const CARD_ID = "d0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "d0000000-0001-4000-a000-000000000002";
+const TOPDECK_SOURCE_ID = "e0000000-0001-4000-a000-000000000002";
 
 const mockMetaSubmissions = {
   byPlayerOverlayId: vi.fn(),
@@ -103,9 +111,12 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     meta: mockMeta,
     metaOverlays: mockOverlays,
+    metaPlayerLinks: mockPlayerLinks,
     uvsgamesEvents: mockUvsgames,
     uvsgamesResults: mockUvsgamesResults,
     playloltcgEvents: mockPlayloltcg,
+    topdeckEvents: mockTopdeck,
+    topdeckResults: mockTopdeckResults,
     catalog: mockCatalog,
     metaSubmissions: mockMetaSubmissions,
   } as never);
@@ -130,13 +141,15 @@ function mirrorRow(overrides: Record<string, unknown> = {}) {
 }
 
 /** The citation linking one source key to the live event. */
-function citation(provider: string, externalId: string, priority = 0) {
+function citation(provider: string, externalId: string, priority = 0, contributes = true) {
   return {
     id: `src-${externalId}`,
+    metaEventId: LIVE_EVENT_ID,
     provider,
     externalId,
     label: provider,
     priority,
+    contributes,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
   };
 }
@@ -236,6 +249,9 @@ beforeEach(() => {
   mockUvsgames.templateTiers.mockResolvedValue(new Map());
   mockUvsgames.settings.mockResolvedValue({ competitivePlayerFloor: 128 });
   mockUvsgamesResults.standings.mockResolvedValue([]);
+  mockUvsgames.playerDisplayNames.mockResolvedValue(new Map());
+  mockTopdeckResults.standings.mockResolvedValue([]);
+  mockPlayerLinks.forEvent.mockResolvedValue([]);
 });
 
 describe("GET /meta/overlays", () => {
@@ -1359,5 +1375,322 @@ describe("POST /meta/event-sources/{id}/priority", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("the cross-mirror review", () => {
+  /** The live row the topdeck standing below is the same person as. */
+  function livePlayer(overrides: Record<string, unknown> = {}) {
+    return {
+      id: LIVE_PLAYER_ID,
+      playerName: "Ashe",
+      rank: 1,
+      rankIsTier: false,
+      deckId: null,
+      sourceIdentity: "pashe",
+      ...overrides,
+    };
+  }
+
+  /** An event uvsgames feeds and topdeck only cites. */
+  function twoMirrors(): void {
+    mockMeta.sourcesForEvent.mockResolvedValue([
+      citation("uvsgames", "evt-1"),
+      citation("topdeck", "tid-1", 1, false),
+    ]);
+    mockTopdeck.byKey.mockResolvedValue({
+      tid: "tid-1",
+      name: "Summoner Skirmish",
+      format: "Constructed",
+      startAt: new Date("2026-08-01T09:00:00Z"),
+      playerCount: 64,
+      longitude: 13.4,
+      country: "DE",
+      address: "Berlin",
+    });
+    mockTopdeckResults.standings.mockResolvedValue([
+      {
+        tid: "tid-1",
+        playerKey: "ashe",
+        playerName: "Ashe",
+        rank: 1,
+        wins: 5,
+        losses: 1,
+        draws: 0,
+        legendName: null,
+        sourceDeckId: null,
+      },
+    ]);
+    mockMeta.adminPlayersForEvent.mockResolvedValue([livePlayer()]);
+  }
+
+  describe("GET /meta/events/{id}/cross-source", () => {
+    it("ranks the unread mirror's entries against the live field", async () => {
+      twoMirrors();
+
+      const body = await readJson(
+        await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/cross-source`),
+      );
+      const rows = body.rows as {
+        sourceIdentity: string;
+        state: string;
+        suggestions: { metaEventPlayerId: string; isExact: boolean }[];
+      }[];
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.sourceIdentity).toBe("tashe");
+      expect(rows[0]?.state).toBe("unreviewed");
+      expect(rows[0]?.suggestions[0]).toMatchObject({
+        metaEventPlayerId: LIVE_PLAYER_ID,
+        isExact: true,
+      });
+    });
+
+    it("reports a decided entry rather than ranking it again", async () => {
+      twoMirrors();
+      mockPlayerLinks.forEvent.mockResolvedValue([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: null },
+      ]);
+
+      const body = await readJson(
+        await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/cross-source`),
+      );
+
+      expect((body.rows as { state: string }[])[0]?.state).toBe("distinct");
+    });
+
+    it("lists no entries when every mirror is read", async () => {
+      mockMeta.sourcesForEvent.mockResolvedValue([citation("uvsgames", "evt-1")]);
+
+      const body = await readJson(
+        await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/cross-source`),
+      );
+
+      expect(body.rows).toEqual([]);
+      expect(body.sources).toHaveLength(1);
+    });
+
+    it("404s an event that does not exist", async () => {
+      mockMeta.eventById.mockResolvedValue(undefined);
+
+      const response = await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/cross-source`);
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe("POST /meta/events/{id}/cross-source/link", () => {
+    beforeEach(() => {
+      mockMeta.adminPlayersForEvent.mockResolvedValue([livePlayer()]);
+    });
+
+    async function link(links: unknown[]): Promise<Response> {
+      return await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/cross-source/link`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ links }),
+      });
+    }
+
+    it("writes the decision and promotes once", async () => {
+      const response = await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      expect(response.status).toBe(200);
+      expect(mockPlayerLinks.putMany).toHaveBeenCalledWith([
+        {
+          metaEventId: LIVE_EVENT_ID,
+          provider: "topdeck",
+          sourceIdentity: "tashe",
+          metaEventPlayerId: LIVE_PLAYER_ID,
+        },
+      ]);
+      expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("takes a whole batch under one write and one promote", async () => {
+      await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+        { provider: "topdeck", sourceIdentity: "tjinx", metaEventPlayerId: null },
+      ]);
+
+      expect(mockPlayerLinks.putMany).toHaveBeenCalledTimes(1);
+      expect(mockPlayerLinks.putMany.mock.calls[0]?.[0]).toHaveLength(2);
+      expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("writes nothing when a decision names a row that is gone", async () => {
+      mockMeta.adminPlayersForEvent.mockResolvedValue([]);
+
+      const response = await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      expect(response.status).toBe(404);
+      expect(mockPlayerLinks.putMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a link while the entry's own promoted row still stands", async () => {
+      mockMeta.adminPlayersForEvent.mockResolvedValue([
+        livePlayer({ id: "f0000000-0001-4000-a000-000000000009", sourceIdentity: "tashe" }),
+        livePlayer(),
+      ]);
+
+      const response = await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      expect(response.status).toBe(409);
+      expect(mockPlayerLinks.putMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses two entries of one mirror reaching for the same live row", async () => {
+      const response = await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+        { provider: "topdeck", sourceIdentity: "tjinx", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      expect(response.status).toBe(409);
+      expect(mockPlayerLinks.putMany).not.toHaveBeenCalled();
+    });
+
+    it("refuses a live row another entry of the same mirror already holds", async () => {
+      mockPlayerLinks.forEvent.mockResolvedValue([
+        { provider: "topdeck", sourceIdentity: "tjinx", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      const response = await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      expect(response.status).toBe(409);
+      expect(mockPlayerLinks.putMany).not.toHaveBeenCalled();
+    });
+
+    it("lets an entry keep the row it already holds, which is what re-deciding does", async () => {
+      mockPlayerLinks.forEvent.mockResolvedValue([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      const response = await link([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("POST /meta/events/{id}/cross-source/unlink", () => {
+    async function unlink(): Promise<Response> {
+      return await app.request(`/api/admin/v1/meta/events/${LIVE_EVENT_ID}/cross-source/unlink`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "topdeck", sourceIdentity: "tashe" }),
+      });
+    }
+
+    it("takes a decision back while the source is only cited", async () => {
+      twoMirrors();
+      mockPlayerLinks.remove.mockResolvedValue(true);
+
+      const response = await unlink();
+
+      expect(response.status).toBe(200);
+      expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses to unlink under a source promotion is reading", async () => {
+      mockMeta.sourcesForEvent.mockResolvedValue([
+        citation("uvsgames", "evt-1"),
+        citation("topdeck", "tid-1", 1, true),
+      ]);
+
+      const response = await unlink();
+
+      expect(response.status).toBe(409);
+      expect(mockPlayerLinks.remove).not.toHaveBeenCalled();
+    });
+
+    it("404s an entry that was never reviewed", async () => {
+      twoMirrors();
+      mockPlayerLinks.remove.mockResolvedValue(false);
+
+      const response = await unlink();
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe("POST /meta/event-sources/{id}/contributes", () => {
+    async function setContributes(contributes: boolean): Promise<Response> {
+      return await app.request(
+        `/api/admin/v1/meta/event-sources/${TOPDECK_SOURCE_ID}/contributes`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ contributes }),
+        },
+      );
+    }
+
+    it("refuses to read a mirror while one of its entries is undecided", async () => {
+      twoMirrors();
+      mockMeta.eventSourceById.mockResolvedValue({
+        ...citation("topdeck", "tid-1", 1, false),
+        id: TOPDECK_SOURCE_ID,
+      });
+
+      const response = await setContributes(true);
+
+      expect(response.status).toBe(409);
+      expect(mockMeta.setEventSourceContributes).not.toHaveBeenCalled();
+    });
+
+    it("reads a mirror whose entries are all settled, and promotes", async () => {
+      twoMirrors();
+      mockMeta.eventSourceById.mockResolvedValue({
+        ...citation("topdeck", "tid-1", 1, false),
+        id: TOPDECK_SOURCE_ID,
+      });
+      mockPlayerLinks.forEvent.mockResolvedValue([
+        { provider: "topdeck", sourceIdentity: "tashe", metaEventPlayerId: LIVE_PLAYER_ID },
+      ]);
+
+      const response = await setContributes(true);
+
+      expect(response.status).toBe(200);
+      expect(mockMeta.setEventSourceContributes).toHaveBeenCalledWith(TOPDECK_SOURCE_ID, true);
+      expect(promoteMetaEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops reading a mirror without asking about its entries", async () => {
+      twoMirrors();
+      mockMeta.eventSourceById.mockResolvedValue({
+        ...citation("topdeck", "tid-1", 1, true),
+        id: TOPDECK_SOURCE_ID,
+      });
+
+      const response = await setContributes(false);
+
+      expect(response.status).toBe(200);
+      expect(mockMeta.setEventSourceContributes).toHaveBeenCalledWith(TOPDECK_SOURCE_ID, false);
+    });
+
+    it("400s a citation with no mirror to read", async () => {
+      mockMeta.eventSourceById.mockResolvedValue(citation("usersubmission", "u-1"));
+
+      const response = await setContributes(true);
+
+      expect(response.status).toBe(400);
+    });
+
+    it("404s a citation that is not there", async () => {
+      mockMeta.eventSourceById.mockResolvedValue(undefined);
+
+      const response = await setContributes(true);
+
+      expect(response.status).toBe(404);
+    });
   });
 });

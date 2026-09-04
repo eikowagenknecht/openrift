@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ClS4CFl6ftsf5HgTKg61rV0PKr4xvizk74eSN1932yOI9QsskA1Sp2wH2DcmGzI
+\restrict TaKErtgmpMWEkQgh1Uc7aXDW4MUbI72D9OodyVn5opRk7xCUKHCmVpUFOxVmsVp
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2406,6 +2406,22 @@ CREATE TABLE public.meta_events (
 
 
 --
+-- Name: meta_player_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.meta_player_links (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    meta_event_id uuid NOT NULL,
+    provider text NOT NULL,
+    source_identity text NOT NULL,
+    meta_event_player_id uuid,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_meta_player_links_provider CHECK ((provider <> ''::text)),
+    CONSTRAINT chk_meta_player_links_source_identity CHECK ((source_identity <> ''::text))
+);
+
+
+--
 -- Name: meta_submissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4559,6 +4575,14 @@ ALTER TABLE ONLY public.meta_events
 
 
 --
+-- Name: meta_player_links meta_player_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_player_links
+    ADD CONSTRAINT meta_player_links_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: meta_submissions meta_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5103,11 +5127,27 @@ ALTER TABLE ONLY public.meta_event_players
 
 
 --
+-- Name: meta_event_players uq_meta_event_players_id_event; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_event_players
+    ADD CONSTRAINT uq_meta_event_players_id_event UNIQUE (id, meta_event_id);
+
+
+--
 -- Name: meta_events uq_meta_events_slug; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.meta_events
     ADD CONSTRAINT uq_meta_events_slug UNIQUE (slug);
+
+
+--
+-- Name: meta_player_links uq_meta_player_links_source; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_player_links
+    ADD CONSTRAINT uq_meta_player_links_source UNIQUE (meta_event_id, provider, source_identity);
 
 
 --
@@ -6504,6 +6544,13 @@ CREATE UNIQUE INDEX uq_meta_event_players_uvsgames_player ON public.meta_event_p
 --
 
 CREATE UNIQUE INDEX uq_meta_event_sources_key ON public.meta_event_sources USING btree (provider, external_id) WHERE (provider IS NOT NULL);
+
+
+--
+-- Name: uq_meta_player_links_row; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_meta_player_links_row ON public.meta_player_links USING btree (meta_event_player_id, provider) WHERE (meta_event_player_id IS NOT NULL);
 
 
 --
@@ -8013,6 +8060,14 @@ ALTER TABLE ONLY public.loans
 
 
 --
+-- Name: meta_player_links fk_meta_player_links_player; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_player_links
+    ADD CONSTRAINT fk_meta_player_links_player FOREIGN KEY (meta_event_player_id, meta_event_id) REFERENCES public.meta_event_players(id, meta_event_id) ON DELETE CASCADE;
+
+
+--
 -- Name: printing_link_overrides fk_plo_printing_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8498,6 +8553,14 @@ ALTER TABLE ONLY public.meta_event_sources
 
 ALTER TABLE ONLY public.meta_events
     ADD CONSTRAINT meta_events_format_fkey FOREIGN KEY (format) REFERENCES public.deck_formats(slug);
+
+
+--
+-- Name: meta_player_links meta_player_links_meta_event_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.meta_player_links
+    ADD CONSTRAINT meta_player_links_meta_event_id_fkey FOREIGN KEY (meta_event_id) REFERENCES public.meta_events(id) ON DELETE CASCADE;
 
 
 --
@@ -9048,5 +9111,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ClS4CFl6ftsf5HgTKg61rV0PKr4xvizk74eSN1932yOI9QsskA1Sp2wH2DcmGzI
+\unrestrict TaKErtgmpMWEkQgh1Uc7aXDW4MUbI72D9OodyVn5opRk7xCUKHCmVpUFOxVmsVp
 

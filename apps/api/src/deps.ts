@@ -55,6 +55,7 @@ import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
 import { metaOverlaysRepo } from "./repositories/meta-overlays.js";
+import { metaPlayerLinksRepo } from "./repositories/meta-player-links.js";
 import { metaSubmissionsRepo } from "./repositories/meta-submissions.js";
 import { metaRepo } from "./repositories/meta.js";
 import { organizationsRepo } from "./repositories/organizations.js";
@@ -194,6 +195,7 @@ export interface Repos {
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   meta: ReturnType<typeof metaRepo>;
   metaOverlays: ReturnType<typeof metaOverlaysRepo>;
+  metaPlayerLinks: ReturnType<typeof metaPlayerLinksRepo>;
   uvsgamesEvents: ReturnType<typeof uvsgamesEventsRepo>;
   uvsgamesResults: ReturnType<typeof uvsgamesResultsRepo>;
   playloltcgEvents: ReturnType<typeof playloltcgEventsRepo>;
@@ -404,6 +406,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplaceAdmin: marketplaceAdminRepo(db),
     meta: metaRepo(db),
     metaOverlays: metaOverlaysRepo(db),
+    metaPlayerLinks: metaPlayerLinksRepo(db),
     uvsgamesEvents: uvsgamesEventsRepo(db),
     uvsgamesResults: uvsgamesResultsRepo(db),
     playloltcgEvents: playloltcgEventsRepo(db),

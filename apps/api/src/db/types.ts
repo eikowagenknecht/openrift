@@ -61,6 +61,7 @@ export type {
   MetaEventPlayerOverlayCardsTable,
   // Meta archive multi-source
   MetaEventSourcesTable,
+  MetaPlayerLinksTable,
   MetaSubmissionsTable,
   // Tier lists (migration 237)
   TierListCard,

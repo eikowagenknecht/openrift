@@ -140,12 +140,17 @@ export function topdeckEventsRepo(db: Kysely<Database>) {
      where dl.tid = c.tid and dl.fetch_status = 'fetched'
   )`;
 
-  /** Null until accepted, and null for the common case of an event only this source describes. */
+  /**
+   * Null until accepted, null for an event only this source describes, and
+   * null once the cross-mirror review has let this citation contribute.
+   */
   const rivalProvider = sql<string | null>`(
-    select min(o.provider) from meta_event_sources o
-     where o.meta_event_id = src.meta_event_id
-       and o.provider is not null
-       and o.provider <> ${TOPDECK_PROVIDER}
+    case when src.contributes then null else (
+      select min(o.provider) from meta_event_sources o
+       where o.meta_event_id = src.meta_event_id
+         and o.provider is not null
+         and o.provider <> ${TOPDECK_PROVIDER}
+    ) end
   )`;
 
   const isNew = sql<SqlBool>`i.provider is null and src.meta_event_id is null`;

@@ -4,6 +4,7 @@ import type {
   MetaOverlayReviewResult,
   MetaOverlayRowMatch,
 } from "@openrift/shared";
+import { META_CATALOG_PROVIDERS } from "@openrift/shared";
 import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types";
 import { stringifyUnknown } from "@openrift/shared/utils";
@@ -11,8 +12,6 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { assertExisted } from "../../lib/assertions.js";
-import { PLAYLOLTCG_PROVIDER } from "../../lib/playloltcg-catalog.js";
-import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type {
@@ -26,6 +25,12 @@ import type {
   MetaEventWithCounts,
 } from "../../repositories/meta.js";
 import { ingestMetaOverlays, splitSourcePlayerKey } from "../../services/ingest-meta-overlays.js";
+import {
+  linkMetaCrossSourcePlayers,
+  metaCrossSourceReview,
+  setMetaEventSourceContributes,
+  unlinkMetaCrossSourcePlayer,
+} from "../../services/meta-cross-source.js";
 import {
   MAX_EVENT_MATCH_DAY_DELTA,
   rankPlayerMatches,
@@ -71,7 +76,7 @@ import { recordAdminEvent } from "../../services/record-admin-event.js";
 const os = implement(adminMetaCandidatesContract).$context<ApiContext>().use(requireAuthedUser);
 
 /** Providers with a crawler, and therefore a mirror promotion can read. */
-const CRAWLED_PROVIDERS = new Set([UVSGAMES_PROVIDER, PLAYLOLTCG_PROVIDER]);
+const CRAWLED_PROVIDERS: ReadonlySet<string> = new Set(META_CATALOG_PROVIDERS);
 
 /**
  * Which linked source the live value came from.
@@ -589,4 +594,34 @@ export const adminMetaCandidatesRouter = os.router({
   playerMatchSuggestions: os.playerMatchSuggestions.handler(async ({ input, context }) => ({
     suggestions: await suggestMetaPlayerMatches(context.repos, input.id),
   })),
+
+  crossSourceReview: os.crossSourceReview.handler(async ({ input, context, errors }) => {
+    if ((await context.repos.meta.eventById(input.id)) === undefined) {
+      throw errors.NOT_FOUND();
+    }
+    return await metaCrossSourceReview(context.repos, input.id);
+  }),
+
+  linkCrossSourcePlayers: os.linkCrossSourcePlayers.handler(
+    async ({ input, context }): Promise<void> => {
+      await linkMetaCrossSourcePlayers(context.repos, input.id, input.links);
+    },
+  ),
+
+  unlinkCrossSourcePlayer: os.unlinkCrossSourcePlayer.handler(
+    async ({ input, context }): Promise<void> => {
+      await unlinkMetaCrossSourcePlayer(
+        context.repos,
+        input.id,
+        input.provider,
+        input.sourceIdentity,
+      );
+    },
+  ),
+
+  setSourceContributes: os.setSourceContributes.handler(
+    async ({ input, context }): Promise<void> => {
+      await setMetaEventSourceContributes(context.repos, input.id, input.contributes);
+    },
+  ),
 });

@@ -24,6 +24,7 @@ const KEYS = {
   sortC: "tdi-sort-c",
   sealed: "tdi-sealed",
   rival: "tdi-rival",
+  rivalRead: "tdi-rival-read",
 } as const;
 const ALL_KEYS = Object.values(KEYS);
 
@@ -224,6 +225,18 @@ describe.skipIf(!ctx)("topdeckEventsRepo", () => {
 
     it("says nothing for an event only this source describes", async () => {
       const stored = await repo.byKey(KEYS.sortC);
+      expect(stored?.rivalProvider).toBeNull();
+    });
+
+    it("says nothing once the cross-mirror review has let this citation contribute", async () => {
+      await repo.upsertBatch([row({ tid: KEYS.rivalRead })], SEEN);
+      const metaEventId = await seedAccepted(KEYS.rivalRead, PLAYLOLTCG_PROVIDER);
+      const meta = metaRepo(ctx!.db);
+      const sources = await meta.sourcesForEvent(metaEventId);
+      const own = sources.find((source) => source.provider === TOPDECK_PROVIDER);
+      await meta.setEventSourceContributes(own?.id ?? "", true);
+
+      const stored = await repo.byKey(KEYS.rivalRead);
       expect(stored?.rivalProvider).toBeNull();
     });
   });

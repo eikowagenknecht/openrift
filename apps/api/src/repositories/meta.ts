@@ -2179,6 +2179,10 @@ export function metaRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    eventSourceById(id: string): Promise<MetaEventSourceRow | undefined> {
+      return db.selectFrom("metaEventSources").selectAll().where("id", "=", id).executeTakeFirst();
+    },
+
     /** Citations for a page of events, in one round trip for the admin list. */
     async sourcesForEvents(eventIds: readonly string[]): Promise<MetaEventSourceRow[]> {
       if (eventIds.length === 0) {

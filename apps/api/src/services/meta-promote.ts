@@ -6,7 +6,9 @@ import type {
   MetaEventTier,
   MetaListStatus,
 } from "@openrift/shared/types";
+import type { Selectable } from "kysely";
 
+import type { MetaEventPlayersTable } from "../db/index.js";
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { classifyMetaEventTier, countryFromAddress } from "../lib/meta-event-classify.js";
@@ -22,6 +24,7 @@ import { TOPDECK_PROVIDER, topdeckFormat, topdeckLocalDay } from "../lib/topdeck
 import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgames-catalog.js";
 import { listStatusFor, withSingleChampion } from "../lib/uvsgames-transform.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
+import type { MetaPlayerLinkRow } from "../repositories/meta-player-links.js";
 import type {
   MetaArchivedDeckInput,
   MetaDeckCardInput,
@@ -105,7 +108,7 @@ export interface MetaPromotedEventFacts extends Record<string, unknown> {
 }
 
 /** One standings row as a source published it, plus the identity promotion files it under. */
-interface StandingFacts extends Record<string, unknown> {
+export interface StandingFacts extends Record<string, unknown> {
   /** Stable within the event, across re-fetches and renames. */
   identity: string;
   /**
@@ -444,6 +447,26 @@ export async function sourceEventFacts(
   }
 }
 
+/**
+ * One mirror's standings as promotion would read them, identities included.
+ * Never throws, for the same reason {@link sourceEventFacts} does not.
+ *
+ * @returns The rows, or none for a push provider and for a mirror row this
+ *   cannot make sense of.
+ */
+export async function sourceStandings(
+  repos: Repos,
+  provider: string,
+  externalId: string,
+): Promise<StandingFacts[]> {
+  try {
+    const facts = await factsFor(repos, provider, externalId, await createMetaSourceContext(repos));
+    return facts?.standings ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /** The listing's player count, with the source's zero-means-unreported quirk applied. */
 export function countOrNull(value: number | null): number | null {
   return value === null || value === 0 ? null : value;
@@ -609,6 +632,88 @@ function sameEventFacts(live: MetaPromotedEventFacts, next: MetaPromotedEventFac
   );
 }
 
+/** One standings row after folding, with the live row it already resolves to. */
+interface MergedStanding {
+  standing: StandingFacts;
+  /** Null when nothing resolves the standing to a live row. */
+  existing: Selectable<MetaEventPlayersTable> | null;
+}
+
+/**
+ * Folds two mirrors' standings for one player, in `priority` order. The later
+ * source wins each field it publishes; `identity`, `legacyIdentity`, and the
+ * deck reference stay tied to the row that already carries them.
+ */
+function foldStanding(under: StandingFacts, over: StandingFacts): StandingFacts {
+  const uvsgamesPlayerId = over.uvsgamesPlayerId ?? under.uvsgamesPlayerId;
+  const withDeck = over.sourceDeckId === null ? under : over;
+  return {
+    identity: under.identity,
+    legacyIdentity: under.legacyIdentity,
+    uvsgamesPlayerId,
+    playerName: uvsgamesPlayerId === null ? (over.playerName ?? under.playerName) : null,
+    rank: over.rank,
+    rankIsTier: over.rankIsTier,
+    wins: over.wins ?? under.wins,
+    losses: over.losses ?? under.losses,
+    draws: over.draws ?? under.draws,
+    matchPoints: over.matchPoints ?? under.matchPoints,
+    opponentMatchWinPct: over.opponentMatchWinPct ?? under.opponentMatchWinPct,
+    gameWinPct: over.gameWinPct ?? under.gameWinPct,
+    opponentGameWinPct: over.opponentGameWinPct ?? under.opponentGameWinPct,
+    entryStatus: over.entryStatus ?? under.entryStatus,
+    legendName: over.legendName ?? under.legendName,
+    sourceDeckId: withDeck.sourceDeckId,
+    provider: withDeck.provider,
+  };
+}
+
+/**
+ * Every source's standings, collapsed to one entry per player: a standing's
+ * own identity and a confirmed cross-mirror link both key to the same live row.
+ */
+function foldStandings(
+  collected: readonly SourceFacts[],
+  existing: readonly Selectable<MetaEventPlayersTable>[],
+  links: readonly MetaPlayerLinkRow[],
+): Map<string, MergedStanding> {
+  const linkedRows = new Map(
+    links
+      .filter((link) => link.metaEventPlayerId !== null)
+      .map((link) => [`${link.provider}:${link.sourceIdentity}`, link.metaEventPlayerId as string]),
+  );
+  // Both maps read every live row, not only the ones a source identity is
+  // stored on: a link may name a hand-entered row, which has none.
+  const byIdentity = new Map(
+    existing
+      .filter((row) => row.sourceIdentity !== null)
+      .map((row) => [row.sourceIdentity as string, row]),
+  );
+  const byRowId = new Map(existing.map((row) => [row.id, row]));
+
+  const merged = new Map<string, MergedStanding>();
+  for (const source of collected) {
+    for (const standing of source.standings) {
+      const rowId =
+        linkedRows.get(`${standing.provider}:${standing.identity}`) ??
+        byIdentity.get(standing.identity)?.id;
+      const liveRow = rowId === undefined ? null : (byRowId.get(rowId) ?? null);
+      const key = rowId === undefined ? `s:${standing.identity}` : `p:${rowId}`;
+      const held = merged.get(key);
+      merged.set(key, {
+        // A linked standing takes the live row's own identity: the key a later
+        // promote resolves it by.
+        standing:
+          held === undefined
+            ? { ...standing, identity: liveRow?.sourceIdentity ?? standing.identity }
+            : foldStanding(held.standing, standing),
+        existing: liveRow,
+      });
+    }
+  }
+  return merged;
+}
+
 /**
  * Reconciles the field.
  *
@@ -627,35 +732,26 @@ async function promoteStandings(
   result: MetaPromoteResult,
   cardIndex: CardNameIndex,
 ): Promise<void> {
-  const merged = new Map<string, StandingFacts>();
-  for (const source of collected) {
-    for (const standing of source.standings) {
-      merged.set(standing.identity, standing);
-    }
-  }
-  if (merged.size === 0) {
-    return;
-  }
-
   const existing = await repos.meta.rawStandingsForEvent(metaEventId);
-  const byIdentity = new Map(
-    existing
-      .filter((row) => row.sourceIdentity !== null)
-      .map((row) => [row.sourceIdentity as string, row]),
-  );
   const byLegacy = new Map(
     existing
       .filter((row) => row.sourceIdentity === null)
       .map((row) => [legacyIdentityOf(row.uvsgamesPlayerId, row.playerName), row]),
   );
+  const links = await repos.metaPlayerLinks.forEvent(metaEventId);
+  const merged = foldStandings(collected, existing, links);
+  if (merged.size === 0) {
+    return;
+  }
 
-  const providers = new Set([...merged.values()].map((standing) => standing.provider));
+  const standings = [...merged.values()];
+  const providers = new Set(standings.map((entry) => entry.standing.provider));
   const deckLines = await loadDeckLines(repos, sources, providers);
   // A row the source keys by user id stores no name of its own, so the deck's
   // default name has to reach for the same display name the read surfaces join.
   const displayNames = await repos.uvsgamesEvents.playerDisplayNames(
-    [...merged.values()].flatMap((standing) =>
-      standing.uvsgamesPlayerId === null ? [] : [standing.uvsgamesPlayerId],
+    standings.flatMap((entry) =>
+      entry.standing.uvsgamesPlayerId === null ? [] : [entry.standing.uvsgamesPlayerId],
     ),
   );
   const deckStates = await repos.meta.deckStatesForEvent(metaEventId);
@@ -664,7 +760,7 @@ async function promoteStandings(
   const updates: MetaEventPlayerUpdate[] = [];
   const deckWrites: { playerId: string; deck: MetaArchivedDeckInput }[] = [];
 
-  for (const standing of merged.values()) {
+  for (const { standing, existing: resolved } of standings) {
     const legendCardId =
       standing.legendName === null ? null : resolveCardIdByName(cardIndex, standing.legendName);
     if (standing.legendName !== null && legendCardId === null) {
@@ -675,10 +771,10 @@ async function promoteStandings(
     // naming the same player share a legacy identity, and letting both stamp
     // the row would leave it keyed by whichever ran last — the loser would
     // then insert a duplicate on the next promote.
-    let existingRow = byIdentity.get(standing.identity);
-    if (existingRow === undefined) {
-      existingRow = byLegacy.get(standing.legacyIdentity);
-      if (existingRow !== undefined) {
+    let existingRow = resolved;
+    if (existingRow === null) {
+      existingRow = byLegacy.get(standing.legacyIdentity) ?? null;
+      if (existingRow !== null) {
         byLegacy.delete(standing.legacyIdentity);
       }
     }
@@ -694,7 +790,7 @@ async function promoteStandings(
       mergedLines,
     );
 
-    if (existingRow === undefined) {
+    if (existingRow === null) {
       const created = await createMetaEventPlayer(repos.meta, {
         eventId: metaEventId,
         rank: standing.rank,

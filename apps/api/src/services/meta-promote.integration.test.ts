@@ -565,6 +565,118 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       expect(rows.map((row) => row.sourceIdentity).toSorted()).toEqual(["pu5002", "tuacct-1"]);
     });
 
+    /** A playloltcg mirror holding one entrant, which the live event reads. */
+    async function seedReadMirror(playerKey: string): Promise<number> {
+      const activityShopId = takeShopId();
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rift Open",
+          startAt: "2026-08-20",
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values({ activityShopId, playerKey, playerName: "MPI Ashe", rank: 1, wins: 5 })
+        .execute();
+      return activityShopId;
+    }
+
+    /** Cites both mirrors and lets the topdeck one contribute. */
+    async function readBothMirrors(
+      metaEventId: string,
+      activityShopId: number,
+      tid: string,
+    ): Promise<void> {
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      await cite(metaEventId, "topdeck", tid);
+      const sources = await repo.sourcesForEvent(metaEventId);
+      const topdeck = sources.find((row) => row.provider === "topdeck");
+      await repo.setEventSourceContributes(topdeck?.id ?? "", true);
+    }
+
+    it("folds a linked entry onto the live row instead of archiving the player twice", async () => {
+      const activityShopId = await seedReadMirror("u5010");
+      const tid = await seedTopdeckMirror("mpi-td-linked");
+      const metaEventId = await seedLiveEvent("mpi-linked-fold");
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      await promoteMetaEvent(repos, metaEventId);
+      const [live] = await repo.rawStandingsForEvent(metaEventId);
+      await repos.metaPlayerLinks.putMany([
+        {
+          metaEventId,
+          provider: "topdeck",
+          sourceIdentity: "tuacct-1",
+          metaEventPlayerId: live.id,
+        },
+      ]);
+      await cite(metaEventId, "topdeck", tid);
+      const sources = await repo.sourcesForEvent(metaEventId);
+      await repo.setEventSourceContributes(
+        sources.find((row) => row.provider === "topdeck")?.id ?? "",
+        true,
+      );
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const rows = await repo.rawStandingsForEvent(metaEventId);
+      expect(rows).toHaveLength(1);
+      // The identity the live row already holds, so the read mirror still
+      // resolves it on the next promote.
+      expect(rows[0].sourceIdentity).toBe("pu5010");
+      expect(rows[0].id).toBe(live.id);
+    });
+
+    it("takes the linked mirror's legend, which the read mirror never published", async () => {
+      const activityShopId = await seedReadMirror("u5011");
+      const tid = await seedTopdeckMirror("mpi-td-legend");
+      await db
+        .updateTable("topdeckEventStandings")
+        .set({ legendName: "MPI Spell" })
+        .where("tid", "=", tid)
+        .execute();
+      const metaEventId = await seedLiveEvent("mpi-linked-legend");
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      await promoteMetaEvent(repos, metaEventId);
+      const [live] = await repo.rawStandingsForEvent(metaEventId);
+      await repos.metaPlayerLinks.putMany([
+        {
+          metaEventId,
+          provider: "topdeck",
+          sourceIdentity: "tuacct-1",
+          metaEventPlayerId: live.id,
+        },
+      ]);
+      await readBothMirrors(metaEventId, activityShopId, tid);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const rows = await repo.rawStandingsForEvent(metaEventId);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].legendCardId).toBe(spellCardId);
+      // The read mirror still wins the fields it does publish.
+      expect(rows[0].wins).toBe(5);
+    });
+
+    it("mints a row for an entry reviewed as nobody the event lists", async () => {
+      const activityShopId = await seedReadMirror("u5012");
+      const tid = await seedTopdeckMirror("mpi-td-distinct");
+      const metaEventId = await seedLiveEvent("mpi-linked-distinct");
+      await repos.metaPlayerLinks.putMany([
+        { metaEventId, provider: "topdeck", sourceIdentity: "tuacct-1", metaEventPlayerId: null },
+      ]);
+      await readBothMirrors(metaEventId, activityShopId, tid);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const rows = await repo.rawStandingsForEvent(metaEventId);
+      expect(rows.map((row) => row.sourceIdentity).toSorted()).toEqual(["pu5012", "tuacct-1"]);
+    });
+
     it("leaves a hand-entered citation contributing, since it has no mirror to clash with", async () => {
       const tid = await seedTopdeckMirror("mpi-td-hand");
       const metaEventId = await seedLiveEvent("mpi-hand-citation");

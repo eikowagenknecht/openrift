@@ -11,6 +11,7 @@ import { idParamSchema, isoDate, isoDateTime, withParams } from "@openrift/share
 import { z } from "zod";
 
 import {
+  META_CROSS_SOURCE_STATES,
   META_EVENT_OVERLAY_FIELDS,
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
@@ -629,6 +630,48 @@ export const metaPlayerMatchSuggestionSchema = z
   .openapi("MetaPlayerMatchSuggestion");
 
 /**
+ * One standings row of a mirror the event cites but does not read, and the live
+ * row the reviewer decided it is.
+ */
+export const metaCrossSourceRowSchema = z
+  .object({
+    provider: z.string(),
+    /** The key promotion files this row under. */
+    sourceIdentity: z.string(),
+    playerName: z.string(),
+    rank: z.number().int(),
+    legendName: z.string().nullable(),
+    /** Whether the mirror published a list here, which is most of what a second mirror adds. */
+    hasDeck: z.boolean(),
+    state: z.enum(META_CROSS_SOURCE_STATES),
+    /** The live row a confirmed link names; null while unreviewed and for a distinct entry. */
+    metaEventPlayerId: z.string().nullable(),
+    /**
+     * The shortlist, ranked. Live rows another entry of the same mirror is
+     * already linked to are left out: one mirror contributes at most one
+     * standing per live row, so offering them would only be refused.
+     */
+    suggestions: z.array(metaPlayerMatchSuggestionSchema),
+  })
+  .openapi("MetaCrossSourceRow");
+
+export const metaCrossSourceCitationSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string(),
+    externalId: z.string(),
+    contributes: z.boolean(),
+  })
+  .openapi("MetaCrossSourceCitation");
+
+export const metaCrossSourceReviewSchema = z
+  .object({
+    sources: z.array(metaCrossSourceCitationSchema),
+    rows: z.array(metaCrossSourceRowSchema),
+  })
+  .openapi("MetaCrossSourceReview");
+
+/**
  * oRPC contract for curating the meta archive (ADR-014), mounted under
  * `/api/admin/v1/meta` — the prefix the Hono `requireAdmin` middleware gates,
  * so no handler re-checks the role. Full admin only: the archive is not a
@@ -1091,6 +1134,81 @@ export const adminMetaCandidatesContract = {
     })
     .input(idParamSchema)
     .output(z.object({ suggestions: z.array(metaPlayerMatchSuggestionSchema) })),
+
+  /**
+   * The cross-mirror review for one event (ADR-014, "Two mirrors on one
+   * event"): every standings row its cited-but-unread mirrors publish, each
+   * ranked against the live field. Empty for the ordinary event, which one
+   * mirror describes.
+   */
+  crossSourceReview: authedRoute
+    .route({ method: "GET", path: `${BASE}/events/{id}/cross-source`, tags: [OVERLAY_TAG] })
+    .input(idParamSchema)
+    .errors({ NOT_FOUND: { message: "Event not found" } })
+    .output(metaCrossSourceReviewSchema),
+
+  /**
+   * Records decisions. A null `metaEventPlayerId` says the entry is nobody the
+   * event lists.
+   *
+   * Plural because the review's own bulk action settles a whole field of exact
+   * matches at once, and every decision re-promotes the event: one call is one
+   * promote, where a loop of single writes would promote forty times.
+   */
+  linkCrossSourcePlayers: authedRoute
+    .route({ method: "POST", path: `${BASE}/events/{id}/cross-source/link`, tags: [OVERLAY_TAG] })
+    .input(
+      withParams(idParamSchema, {
+        links: z
+          .array(
+            z.object({
+              provider: z.string().min(1),
+              sourceIdentity: z.string().min(1),
+              metaEventPlayerId: z.string().nullable(),
+            }),
+          )
+          .min(1)
+          .max(1000),
+      }),
+    )
+    .errors({
+      NOT_FOUND: { message: "Standings row not found" },
+      CONFLICT: { message: "That entry, or that standings row, is already spoken for" },
+    })
+    .output(z.void()),
+
+  /**
+   * Takes one decision back. Refused while the source is read, since promotion
+   * folds on the link and would mint a duplicate row without it.
+   */
+  unlinkCrossSourcePlayer: authedRoute
+    .route({ method: "POST", path: `${BASE}/events/{id}/cross-source/unlink`, tags: [OVERLAY_TAG] })
+    .input(
+      withParams(idParamSchema, {
+        provider: z.string().min(1),
+        sourceIdentity: z.string().min(1),
+      }),
+    )
+    .errors({
+      NOT_FOUND: { message: "That entry has not been reviewed" },
+      CONFLICT: { message: "Stop reading this source before revising its links" },
+    })
+    .output(z.void()),
+
+  /**
+   * Lets a cited mirror be read again, or stops it being read. Turning it on is
+   * refused while any of its entries is undecided, since promotion would then
+   * archive someone twice.
+   */
+  setSourceContributes: authedRoute
+    .route({ method: "POST", path: `${BASE}/event-sources/{id}/contributes`, tags: [OVERLAY_TAG] })
+    .input(idParamSchema.extend({ contributes: z.boolean() }))
+    .errors({
+      NOT_FOUND: { message: "Citation not found" },
+      BAD_REQUEST: { message: "That citation has no standings to contribute" },
+      CONFLICT: { message: "Some entries are not linked yet" },
+    })
+    .output(z.void()),
 };
 
 export type AdminMetaCandidatesContract = typeof adminMetaCandidatesContract;

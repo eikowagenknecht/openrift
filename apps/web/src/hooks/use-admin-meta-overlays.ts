@@ -1,4 +1,5 @@
 import type {
+  MetaCrossSourceReview,
   MetaEventDrift,
   MetaEventMatchSuggestion,
   MetaOverlayBulkAcceptResult,
@@ -552,5 +553,98 @@ export function useMetaPlayerMatchSuggestions(overlayId: string) {
     queryKey: queryKeys.admin.meta.playerSuggestions(overlayId),
     queryFn: () => fetchPlayerSuggestions({ data: overlayId }),
     staleTime: 60 * 1000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Cross-mirror player links
+// ---------------------------------------------------------------------------
+
+const fetchCrossSourceReview = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .validator((id: string) => id)
+  .handler(({ context, data }): Promise<MetaCrossSourceReview> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).crossSourceReview({ id: data }),
+  );
+
+/**
+ * Every standings row the event's cited-but-unread mirrors publish, each ranked
+ * against the live field (ADR-014, "Two mirrors on one event").
+ *
+ * @param metaEventId - The event being reviewed.
+ * @param enabled - False while the panel is collapsed. The read walks a whole
+ *   mirror's standings and ranks every row against the live field, and most
+ *   events have no second mirror to review at all.
+ * @returns The query holding the review.
+ */
+export function useMetaCrossSourceReview(metaEventId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.admin.meta.crossSource(metaEventId),
+    queryFn: () => fetchCrossSourceReview({ data: metaEventId }),
+    enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+const linkCrossSourcePlayersFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .validator(
+    (input: ContractInput<typeof adminMetaCandidatesContract, "linkCrossSourcePlayers">) => input,
+  )
+  .handler(({ context, data }): Promise<void> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).linkCrossSourcePlayers(data),
+  );
+
+/**
+ * Records decisions: each of this mirror's entries is that live row, or is
+ * nobody the event lists. One call is one promote, which is why the bulk action
+ * sends its whole batch here rather than looping.
+ *
+ * @returns The mutation.
+ */
+export function useLinkMetaCrossSourcePlayers() {
+  return useMutationWithInvalidation({
+    mutationFn: (
+      input: ContractInput<typeof adminMetaCandidatesContract, "linkCrossSourcePlayers">,
+    ) => linkCrossSourcePlayersFn({ data: input }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const unlinkCrossSourcePlayerFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .validator(
+    (input: ContractInput<typeof adminMetaCandidatesContract, "unlinkCrossSourcePlayer">) => input,
+  )
+  .handler(({ context, data }): Promise<void> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).unlinkCrossSourcePlayer(data),
+  );
+
+/** Takes one decision back, returning the entry to the unreviewed pile. */
+export function useUnlinkMetaCrossSourcePlayer() {
+  return useMutationWithInvalidation({
+    mutationFn: (
+      input: ContractInput<typeof adminMetaCandidatesContract, "unlinkCrossSourcePlayer">,
+    ) => unlinkCrossSourcePlayerFn({ data: input }),
+    invalidates: ALL_META_KEYS,
+  });
+}
+
+const setSourceContributesFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .validator(
+    (input: ContractInput<typeof adminMetaCandidatesContract, "setSourceContributes">) => input,
+  )
+  .handler(({ context, data }): Promise<void> =>
+    apiOrpcClient(adminMetaCandidatesContract, context.cookie).setSourceContributes(data),
+  );
+
+/** Lets a cited mirror be read again, or stops it being read. The event is promoted either way. */
+export function useSetMetaSourceContributes() {
+  return useMutationWithInvalidation({
+    mutationFn: (
+      input: ContractInput<typeof adminMetaCandidatesContract, "setSourceContributes">,
+    ) => setSourceContributesFn({ data: input }),
+    invalidates: ALL_META_KEYS,
   });
 }

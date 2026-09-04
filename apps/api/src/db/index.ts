@@ -57,6 +57,7 @@ export type {
   MetaEventPlayerOverlaysTable,
   MetaEventPlayerOverlayCardsTable,
   MetaEventSourcesTable,
+  MetaPlayerLinksTable,
   MetaSubmissionsTable,
   TierListCard,
   TierListRow,
