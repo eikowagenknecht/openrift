@@ -25,7 +25,7 @@ function event(overrides: Partial<MetaEventWithCounts> = {}): MetaEventWithCount
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: null,
-    tier: "store",
+    tier: "local",
     country: "DE",
     location: null,
     createdAt: new Date("2026-08-02T10:00:00.000Z"),

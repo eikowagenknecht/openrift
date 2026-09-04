@@ -8,7 +8,7 @@ interface EventValues extends Record<string, unknown> {
   tier: string;
 }
 
-const BASE: EventValues = { name: "Summoner Skirmish", organizer: "LGS Berlin", tier: "store" };
+const BASE: EventValues = { name: "Summoner Skirmish", organizer: "LGS Berlin", tier: "local" };
 
 describe("applyOverlays", () => {
   it("returns the base untouched when nothing is claimed", () => {
@@ -61,7 +61,7 @@ describe("applyOverlays", () => {
       { claimedFields: ["tier"], values: { tier: "premier" } },
     ]);
 
-    expect(BASE.tier).toBe("store");
+    expect(BASE.tier).toBe("local");
   });
 });
 

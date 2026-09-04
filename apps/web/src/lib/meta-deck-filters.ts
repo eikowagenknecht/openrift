@@ -9,9 +9,9 @@ import { isScopeCustomized } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
 /**
- * The tiers the browser opens on. Store nights and casual events outnumber the
- * rest of the archive many times over and mostly hold partial lists, so a reader
- * asking what did well starts with the events that counted.
+ * The tiers the browser opens on. Local events outnumber the rest of the
+ * archive many times over and mostly hold partial lists, so a reader asking
+ * what did well starts with the events that counted.
  */
 const DEFAULT_DECK_TIERS: readonly string[] = ["premier", "competitive"];
 

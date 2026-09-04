@@ -33,7 +33,7 @@ const mockMeta = {
   finishesForPlayer: vi.fn(),
 };
 
-const NO_TIER_COUNTS = { premier: 0, competitive: 0, store: 0, casual: 0 };
+const NO_TIER_COUNTS = { premier: 0, competitive: 0, local: 0 };
 
 const mockCanonicalPrintings = { resolvePrintingMetaForRows: vi.fn() };
 
@@ -59,7 +59,7 @@ function eventRow(overrides: Record<string, unknown> = {}) {
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: "Top 8 lists only.",
-    tier: "store",
+    tier: "local",
     country: "DE",
     location: "Kartenstraße 1, 10115 Berlin, DE",
     playerRowCount: 0,
@@ -595,7 +595,7 @@ function finishRow(overrides: Record<string, unknown> = {}) {
     eventName: "Summoner Skirmish",
     eventDate: "2026-08-01",
     eventFormat: "constructed",
-    eventTier: "store",
+    eventTier: "local",
     eventCountry: "DE",
     eventPlayerCount: 64,
     ...overrides,
@@ -865,7 +865,7 @@ function playerFinishRow(overrides: Record<string, unknown> = {}) {
     eventName: "Summoner Skirmish",
     eventDate: "2026-08-01",
     eventFormat: "constructed",
-    eventTier: "store",
+    eventTier: "local",
     eventCountry: "DE",
     eventPlayerCount: 64,
     ...overrides,
@@ -965,7 +965,7 @@ function deckSummaryRow(overrides: Record<string, unknown> = {}) {
     eventName: "Summoner Skirmish",
     eventDate: "2026-08-01",
     eventFormat: "constructed",
-    eventTier: "store",
+    eventTier: "local",
     eventCountry: "DE",
     ...overrides,
   };
@@ -1078,16 +1078,11 @@ describe("GET /meta/counts", () => {
   it("reports the archive's own event numbers, which the filters never narrow", async () => {
     mockMeta.playerCountInScope.mockResolvedValue(0);
     mockMeta.deckCountInScope.mockResolvedValue(0);
-    mockMeta.eventTierCounts.mockResolvedValue({
-      premier: 4,
-      competitive: 31,
-      store: 900,
-      casual: 12,
-    });
+    mockMeta.eventTierCounts.mockResolvedValue({ premier: 4, competitive: 31, local: 912 });
 
     const json = await readJson(await app.request("/api/v1/meta/counts?format=constructed"));
 
-    expect(json.eventsByTier).toEqual({ premier: 4, competitive: 31, store: 900, casual: 12 });
+    expect(json.eventsByTier).toEqual({ premier: 4, competitive: 31, local: 912 });
     expect(json.totalEvents).toBe(947);
     expect(mockMeta.eventTierCounts).toHaveBeenCalledWith();
   });

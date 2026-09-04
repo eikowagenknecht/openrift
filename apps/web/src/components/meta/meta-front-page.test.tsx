@@ -9,7 +9,7 @@ const captured = vi.hoisted(() => ({
     totalPlayers: 0,
     decksWithMainDeck: 0,
     totalEvents: 0,
-    eventsByTier: { premier: 0, competitive: 0, store: 0, casual: 0 },
+    eventsByTier: { premier: 0, competitive: 0, local: 0 },
   },
   activity: [] as MetaActivityItem[],
   search: {} as Record<string, string | string[] | undefined>,
@@ -172,7 +172,7 @@ beforeEach(() => {
     totalPlayers: 0,
     decksWithMainDeck: 0,
     totalEvents: 9,
-    eventsByTier: { premier: 4, competitive: 3, store: 1, casual: 1 },
+    eventsByTier: { premier: 4, competitive: 3, local: 2 },
   };
   captured.activity = [activityItem()];
   captured.search = {};
@@ -289,8 +289,8 @@ describe("MetaFrontPage", () => {
     captured.events = [
       event(),
       event({ id: "evt-2", slug: "paris-regional", name: "Paris Regional", tier: "competitive" }),
-      event({ id: "evt-3", slug: "store-night", name: "Store Night", tier: "store" }),
-      event({ id: "evt-4", slug: "casual-clash", name: "Casual Clash", tier: "casual" }),
+      event({ id: "evt-3", slug: "store-night", name: "Store Night", tier: "local" }),
+      event({ id: "evt-4", slug: "casual-clash", name: "Casual Clash", tier: "local" }),
     ];
 
     render(<MetaFrontPage />);
@@ -299,27 +299,27 @@ describe("MetaFrontPage", () => {
       within(section("Premier")).getByText("Regional Qualifier Barcelona"),
     ).toBeInTheDocument();
     expect(within(section("Competitive")).getByText("Paris Regional")).toBeInTheDocument();
-    const community = section("Store & casual");
+    const community = section("Local");
     expect(within(community).getByText("Store Night")).toBeInTheDocument();
     expect(within(community).getByText("Casual Clash")).toBeInTheDocument();
   });
 
   it("leaves out a tier section with no events in scope", () => {
-    captured.events = [event({ tier: "store" })];
+    captured.events = [event({ tier: "local" })];
 
     render(<MetaFrontPage />);
 
     expect(screen.queryByRole("heading", { name: "Premier" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Competitive" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Store & casual" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Local" })).toBeInTheDocument();
   });
 
   it("names a store row's winner and the legend they played", () => {
-    captured.events = [event({ tier: "store" })];
+    captured.events = [event({ tier: "local" })];
 
     render(<MetaFrontPage />);
 
-    const community = section("Store & casual");
+    const community = section("Local");
     expect(within(community).getAllByText("M. Álvarez").length).toBeGreaterThan(0);
     expect(within(community).getAllByText("Azir").length).toBeGreaterThan(0);
   });
@@ -339,7 +339,7 @@ describe("MetaFrontPage", () => {
       totalPlayers: 0,
       decksWithMainDeck: 0,
       totalEvents: 0,
-      eventsByTier: { premier: 0, competitive: 0, store: 0, casual: 0 },
+      eventsByTier: { premier: 0, competitive: 0, local: 0 },
     };
 
     render(<MetaFrontPage />);
@@ -349,7 +349,7 @@ describe("MetaFrontPage", () => {
   });
 
   it("says so when a scope matches nothing, keeping the controls in place", () => {
-    captured.search = { tiers: ["casual"] };
+    captured.search = { tiers: ["local"] };
 
     render(<MetaFrontPage />);
 
@@ -448,12 +448,12 @@ describe("MetaFrontPage", () => {
   });
 
   it("counts the whole archive on the events link under the community section", () => {
-    captured.events = [event({ tier: "store" })];
+    captured.events = [event({ tier: "local" })];
 
     render(<MetaFrontPage />);
 
     expect(
-      within(section("Store & casual")).getByRole("link", { name: "Browse all 9 events" }),
+      within(section("Local")).getByRole("link", { name: "Browse all 9 events" }),
     ).toBeInTheDocument();
   });
 

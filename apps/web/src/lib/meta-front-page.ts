@@ -60,16 +60,14 @@ export function metaEventWinners(event: MetaEventSummary): MetaEventFinish[] {
 export interface MetaFrontSections {
   premier: MetaEventSummary[];
   competitive: MetaEventSummary[];
-  /** Store and casual events, which share one section. */
-  community: MetaEventSummary[];
+  local: MetaEventSummary[];
   upcoming: MetaEventSummary[];
 }
 
 const UPCOMING_TIER_RANK: Record<MetaEventTier, number> = {
   premier: 0,
   competitive: 1,
-  store: 2,
-  casual: 3,
+  local: 2,
 };
 
 /**
@@ -96,7 +94,7 @@ export function metaFrontSections(
   return {
     premier: played.filter((event) => event.tier === "premier"),
     competitive: played.filter((event) => event.tier === "competitive"),
-    community: played.filter((event) => event.tier === "store" || event.tier === "casual"),
+    local: played.filter((event) => event.tier === "local"),
     upcoming,
   };
 }

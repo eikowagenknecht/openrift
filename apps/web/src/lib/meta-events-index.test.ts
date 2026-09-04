@@ -22,7 +22,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     name: "Summoner Skirmish at Cardhouse Vienna",
     eventDate: "2026-08-29",
     format: "constructed",
-    tier: "store",
+    tier: "local",
     country: "AT",
     location: "Vienna",
     playerCount: 18,
@@ -184,16 +184,16 @@ describe("sortMetaEvents", () => {
 
   it("puts the tiers that count for most first when ascending", () => {
     const tiers = [
-      event({ id: "casual", name: "A", tier: "casual" }),
+      event({ id: "local-a", name: "A", tier: "local" }),
       event({ id: "premier", name: "B", tier: "premier" }),
-      event({ id: "store", name: "C", tier: "store" }),
+      event({ id: "local-c", name: "C", tier: "local" }),
       event({ id: "competitive", name: "D", tier: "competitive" }),
     ];
     expect(sortMetaEvents(tiers, "tier", "asc").map((e) => e.id)).toEqual([
       "premier",
       "competitive",
-      "store",
-      "casual",
+      "local-a",
+      "local-c",
     ]);
   });
 

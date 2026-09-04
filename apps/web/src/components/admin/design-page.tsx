@@ -2354,7 +2354,7 @@ function MetaArchiveSection() {
         label="MetaTierBadge"
         hint="Gold is the archive's colour for winning, so only Premier carries the accent hairline. Competitive's teal is written out for both themes because the dark primary is amber and a themed outline would land back on the Premier gold."
       >
-        {(["premier", "competitive", "store", "casual"] as const).map((tier) => (
+        {(["premier", "competitive", "local"] as const).map((tier) => (
           <Swatch key={tier} label={tier} colors>
             <MetaTierBadge tier={tier} />
           </Swatch>

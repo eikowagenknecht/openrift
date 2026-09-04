@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict cDrQnrNSemgeCQQ7DcebmbobbWk6TH0Ds6ZLUOvCwegnjBFpQqHJYNkPPiOLpkl
+\restrict eoBQyo3FUetTVvCthV75D9tPp2NznFKr3ciIk6INpqTLLCzBDxbSi0wgQSm91eB
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2206,7 +2206,7 @@ CREATE TABLE public.meta_event_overlays (
     CONSTRAINT chk_meta_event_overlays_provider CHECK (((provider IS NULL) OR (provider <> ''::text))),
     CONSTRAINT chk_meta_event_overlays_status CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'rejected'::text]))),
     CONSTRAINT chk_meta_event_overlays_submission_note CHECK (((submission_note IS NULL) OR (submission_note <> ''::text))),
-    CONSTRAINT chk_meta_event_overlays_tier CHECK (((tier IS NULL) OR (tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'store'::text, 'casual'::text])))),
+    CONSTRAINT chk_meta_event_overlays_tier CHECK (((tier IS NULL) OR (tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'local'::text])))),
     CONSTRAINT chk_meta_event_overlays_tier_claimed CHECK (((tier IS NULL) OR ('tier'::text = ANY (claimed_fields))))
 );
 
@@ -2390,7 +2390,7 @@ CREATE TABLE public.meta_events (
     notes text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    tier text DEFAULT 'store'::text NOT NULL,
+    tier text DEFAULT 'local'::text NOT NULL,
     country text,
     location text,
     CONSTRAINT chk_meta_events_country CHECK (((country IS NULL) OR (country ~ '^[A-Z]{2}$'::text))),
@@ -2400,7 +2400,7 @@ CREATE TABLE public.meta_events (
     CONSTRAINT chk_meta_events_organizer CHECK (((organizer IS NULL) OR ((length(organizer) >= 1) AND (length(organizer) <= 120)))),
     CONSTRAINT chk_meta_events_player_count CHECK (((player_count IS NULL) OR (player_count > 0))),
     CONSTRAINT chk_meta_events_slug CHECK ((slug ~ '^[a-z0-9][a-z0-9-]{2,49}$'::text)),
-    CONSTRAINT chk_meta_events_tier CHECK ((tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'store'::text, 'casual'::text])))
+    CONSTRAINT chk_meta_events_tier CHECK ((tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'local'::text])))
 );
 
 
@@ -3538,7 +3538,7 @@ CREATE TABLE public.uvsgames_event_templates (
     tier text,
     CONSTRAINT chk_uvsgames_event_templates_source_name CHECK (((source_name IS NULL) OR ((length(source_name) >= 1) AND (length(source_name) <= 200)))),
     CONSTRAINT chk_uvsgames_event_templates_template_id CHECK ((template_id <> ''::text)),
-    CONSTRAINT chk_uvsgames_event_templates_tier CHECK (((tier IS NULL) OR (tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'store'::text, 'casual'::text]))))
+    CONSTRAINT chk_uvsgames_event_templates_tier CHECK (((tier IS NULL) OR (tier = ANY (ARRAY['premier'::text, 'competitive'::text, 'local'::text]))))
 );
 
 
@@ -8879,5 +8879,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict cDrQnrNSemgeCQQ7DcebmbobbWk6TH0Ds6ZLUOvCwegnjBFpQqHJYNkPPiOLpkl
+\unrestrict eoBQyo3FUetTVvCthV75D9tPp2NznFKr3ciIk6INpqTLLCzBDxbSi0wgQSm91eB
 

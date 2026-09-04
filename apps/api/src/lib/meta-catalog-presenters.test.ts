@@ -192,15 +192,15 @@ describe("toMetaSourceTemplate", () => {
   });
 
   it("keeps the prefill beside a mapped tier rather than in place of it", () => {
-    const presented = toMetaSourceTemplate(templateRow({ tier: "store" }));
+    const presented = toMetaSourceTemplate(templateRow({ tier: "local" }));
 
-    expect(presented.tier).toBe("store");
+    expect(presented.tier).toBe("local");
     expect(presented.suggestedTier).toBe("premier");
   });
 
   it("suggests nothing for a template the source has stopped naming", () => {
     const presented = toMetaSourceTemplate(
-      templateRow({ sourceName: null, tier: "casual", lastStartAt: null }),
+      templateRow({ sourceName: null, tier: "local", lastStartAt: null }),
     );
 
     expect(presented.sourceName).toBeNull();

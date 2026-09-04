@@ -27,8 +27,7 @@ export const MEDAL_RANKS = 3;
 export const META_EVENT_TIER_LABELS: Record<MetaEventTier, string> = {
   premier: "Premier",
   competitive: "Competitive",
-  store: "Store",
-  casual: "Casual",
+  local: "Local",
 };
 
 /**

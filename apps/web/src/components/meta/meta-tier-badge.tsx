@@ -4,9 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 import { cn } from "@/lib/utils";
 
-/** Store and casual are deliberately alike: the label is what separates them. */
-const MUTED_TIER = { variant: "muted", className: "" } as const;
-
 /**
  * Gold is the archive's colour for winning, so only the top tier gets it. The
  * competitive teal is written out for both themes on purpose: the dark palette's
@@ -19,8 +16,7 @@ const TIER_STYLE: Record<MetaEventTier, { variant: "outline" | "muted"; classNam
     variant: "outline",
     className: "border-primary text-primary",
   },
-  store: MUTED_TIER,
-  casual: MUTED_TIER,
+  local: { variant: "muted", className: "" },
 };
 
 /**

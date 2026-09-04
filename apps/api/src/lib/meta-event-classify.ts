@@ -4,29 +4,28 @@ import type { MetaEventTier } from "@openrift/shared";
  * Files an event into the archive's tier vocabulary and reads a country off a
  * venue address.
  *
- * The tier's authority is the admin-curated template mapping
- * (`uvsgames_event_templates.tier`, migration 267): the template is the product
- * the organizer actually ran, and its vocabulary is a short finite list an
- * admin maps once. Free-text name matching guesses, so it classifies nothing —
- * it survives only as {@link suggestTierForTemplateName}, a prefill the mapping
- * UI shows for a human to confirm.
+ * `uvsgames_event_templates.tier` sets a floor {@link classifyMetaEventTier}
+ * can raise but never lower. Free-text name matching only feeds
+ * {@link suggestTierForTemplateName}'s admin-confirmed prefill.
  */
 
 /**
  * Matched against a template's name, for the mapping UI's suggestion. Order
  * matters: the side events run alongside a Regional Qualifier ("Pre-RQ
  * Challenge", "Regional Rebound", "Super Nexus Night") contain the premier and
- * casual needles, so their own patterns must claim them first.
+ * local needles, so their own patterns must claim them first.
  *
- * The casual needle is "league night", never a bare "league": the game's own
+ * The local needle is "league night", never a bare "league": the game's own
  * name is "Riftbound: League of Legends TCG", which templates spell out.
  */
 const SUGGESTION_RULES: readonly { pattern: RegExp; tier: MetaEventTier }[] = [
   { pattern: /pre-?regional|pre-?rq|regional rebound|super nexus night/u, tier: "competitive" },
   { pattern: /regional qualifier|national championship|world championship/u, tier: "premier" },
   { pattern: /showdown|city challenge|\b10k\b|invitational/u, tier: "competitive" },
-  { pattern: /skirmish/u, tier: "store" },
-  { pattern: /nexus night|open play|learn[ -]?to[ -]?play|league night/u, tier: "casual" },
+  {
+    pattern: /skirmish|nexus night|open play|learn[ -]?to[ -]?play|league night/u,
+    tier: "local",
+  },
 ];
 
 /**
@@ -51,20 +50,24 @@ export function suggestTierForTemplateName(name: string | null): MetaEventTier |
 /** Field sizes this large are competitive whatever the organizer named them. */
 const COMPETITIVE_PLAYER_FLOOR = 128;
 
+/** Most competitive first, so the lower number wins a comparison. */
+const TIER_RANK: Record<MetaEventTier, number> = { premier: 0, competitive: 1, local: 2 };
+
 /**
- * Files one event into a tier: the admin-mapped template tier when the event
- * runs a mapped template, else a player-count placeholder that stands in until
- * the template arrives on a refetch or an admin maps it.
+ * Files one event into a tier: the mapped template tier, raised to
+ * `competitive` if the field is large enough, never lowered. Size alone never
+ * reaches `premier`.
  *
- * @returns The tier, `"store"` when nothing claims more.
+ * @returns The tier, `"local"` when nothing claims more.
  */
 export function classifyMetaEventTier(event: {
   /** The admin-curated tier of the event's template, when it runs a mapped one. */
   templateTier?: MetaEventTier | null;
   playerCount?: number | null;
 }): MetaEventTier {
-  const playerCount = event.playerCount ?? 0;
-  return event.templateTier ?? (playerCount >= COMPETITIVE_PLAYER_FLOOR ? "competitive" : "store");
+  const bySize = (event.playerCount ?? 0) >= COMPETITIVE_PLAYER_FLOOR ? "competitive" : "local";
+  const mapped = event.templateTier ?? "local";
+  return TIER_RANK[mapped] <= TIER_RANK[bySize] ? mapped : bySize;
 }
 
 /**

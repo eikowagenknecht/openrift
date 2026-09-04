@@ -425,8 +425,7 @@ export const metaCountsResponseSchema = z
     eventsByTier: z.object({
       premier: z.number().int().nonnegative(),
       competitive: z.number().int().nonnegative(),
-      store: z.number().int().nonnegative(),
-      casual: z.number().int().nonnegative(),
+      local: z.number().int().nonnegative(),
     }),
   })
   .openapi("MetaCountsResponse");

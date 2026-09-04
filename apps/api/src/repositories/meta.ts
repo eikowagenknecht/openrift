@@ -1617,7 +1617,7 @@ export function metaRepo(db: Kysely<Database>) {
         .select((eb) => ["tier", eb.cast<number>(eb.fn.countAll(), "integer").as("count")])
         .groupBy("tier")
         .execute();
-      const counts: MetaEventTierCounts = { premier: 0, competitive: 0, store: 0, casual: 0 };
+      const counts: MetaEventTierCounts = { premier: 0, competitive: 0, local: 0 };
       for (const row of rows) {
         counts[row.tier as MetaEventTier] = row.count;
       }

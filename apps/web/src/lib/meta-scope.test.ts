@@ -165,9 +165,9 @@ describe("scopeFacetValues", () => {
       included: [],
       excluded: [],
     });
-    expect(scopeFacetValues({ tiersEx: ["store"] }, "tiers", defaults)).toEqual({
+    expect(scopeFacetValues({ tiersEx: ["local"] }, "tiers", defaults)).toEqual({
       included: [],
-      excluded: ["store"],
+      excluded: ["local"],
     });
   });
 
@@ -273,7 +273,7 @@ describe("metaScopeSearchSchema", () => {
     const scope = {
       era: "origins",
       formats: ["standard"],
-      tiers: ["premier", "store"],
+      tiers: ["premier", "local"],
       countriesEx: ["de"],
     };
     expect(metaScopeSearchSchema.parse(scope)).toEqual(scope);

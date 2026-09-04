@@ -239,7 +239,7 @@ export function makeMetaPlayerFinish(overrides: MetaPlayerFinishOverrides = {}):
       name: "Summoner Skirmish",
       eventDate: "2026-08-01",
       format: "constructed",
-      tier: "store",
+      tier: "local",
       country: "DE",
       playerCount: 64,
       ...event,

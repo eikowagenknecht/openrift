@@ -1075,7 +1075,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       });
       const store = await seedEvent(repo, "mta-deck-facets-store", {
         eventDate: "2027-08-03",
-        tier: "store",
+        tier: "local",
         country: "FR",
       });
       const german = await seedEvent(repo, "mta-deck-facets-de", {
@@ -1809,7 +1809,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       });
       const store = await seedEvent(repo, "mta-legend-store", {
         eventDate: "2027-06-03",
-        tier: "store",
+        tier: "local",
       });
       await seedListedPlayer(repo, premier, { playerName: "MTA Tiered Premier", rank: 1 });
       await seedListedPlayer(repo, store, { playerName: "MTA Tiered Store", rank: 1 });
@@ -1911,7 +1911,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       const listed = await seedEvent(repo, "mta-sitemap-competitive");
       const skipped = await seedEvent(repo, "mta-sitemap-store");
       await repo.updateEvent(listed, { tier: "competitive" });
-      await repo.updateEvent(skipped, { tier: "store" });
+      await repo.updateEvent(skipped, { tier: "local" });
       const { deckId: listedDeck } = await seedListedPlayer(repo, listed, {
         playerName: "MTA Listed",
         rank: 1,
@@ -1941,7 +1941,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       });
       const skipped = await seedEvent(repo, "mta-sitemap-players-store", {
         eventDate: "2027-07-02",
-        tier: "store",
+        tier: "local",
       });
       await seedListedPlayer(repo, listed, {
         playerName: "MTA Crawled Player",
@@ -2341,7 +2341,7 @@ describe.skipIf(!ctx)("promotion", () => {
       playerCount: null,
       organizer: null,
       notes: null,
-      tier: "store",
+      tier: "local",
       country: null,
       location: null,
     });

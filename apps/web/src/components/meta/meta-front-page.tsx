@@ -67,7 +67,7 @@ const ARCHIVE_INDEXES = [
 
 const PREMIER_LIMIT = 3;
 const COMPETITIVE_LIMIT = 4;
-const COMMUNITY_LIMIT = 5;
+const LOCAL_LIMIT = 5;
 const UPCOMING_LIMIT = 6;
 
 /**
@@ -228,7 +228,7 @@ export function MetaFrontPage() {
   const events = filterMetaEvents(fetchedEvents, { scope: search, eras, search: search.q });
   const sections = metaFrontSections(events);
   const hasResults =
-    sections.premier.length > 0 || sections.competitive.length > 0 || sections.community.length > 0;
+    sections.premier.length > 0 || sections.competitive.length > 0 || sections.local.length > 0;
   const playerResults = events.reduce((total, event) => total + event.playerRowCount, 0);
   const deckResults = events.reduce((total, event) => total + event.deckCount, 0);
   // The activity feed is archive-wide, so it hides while the page is narrowed.
@@ -342,9 +342,9 @@ export function MetaFrontPage() {
                           </Section>
                         )}
 
-                        {sections.community.length > 0 && (
+                        {sections.local.length > 0 && (
                           <Section
-                            title="Store & casual"
+                            title="Local"
                             accent="bg-muted-foreground/40"
                             action={
                               <Link
@@ -358,7 +358,7 @@ export function MetaFrontPage() {
                           >
                             <Card className="gap-0 p-0">
                               <ul className="divide-border divide-y">
-                                {sections.community.slice(0, COMMUNITY_LIMIT).map((event) => (
+                                {sections.local.slice(0, LOCAL_LIMIT).map((event) => (
                                   <li key={event.id}>
                                     <MetaEventRow event={event} />
                                   </li>

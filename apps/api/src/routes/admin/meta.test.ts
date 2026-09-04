@@ -82,7 +82,7 @@ function eventRow(overrides: Record<string, unknown> = {}) {
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: null,
-    tier: "store",
+    tier: "local",
     country: null,
     location: null,
     playerRowCount: 0,
@@ -180,7 +180,7 @@ describe("POST /meta/events", () => {
       playerCount: null,
       organizer: null,
       notes: null,
-      tier: "store",
+      tier: "local",
       country: null,
       location: null,
     });

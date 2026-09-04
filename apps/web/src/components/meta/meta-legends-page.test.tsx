@@ -105,7 +105,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     name: "Summoner Skirmish at Cardhouse Vienna",
     eventDate: "2026-08-29",
     format: "constructed",
-    tier: "store",
+    tier: "local",
     country: "AT",
     location: "Vienna",
     playerCount: 18,
@@ -224,7 +224,7 @@ describe("MetaLegendsPage", () => {
       { tiers: ["competitive"] },
       [
         event({ id: "e1", slug: "competitive-event", tier: "competitive" }),
-        event({ id: "e2", slug: "store-event", tier: "store" }),
+        event({ id: "e2", slug: "store-event", tier: "local" }),
       ],
     );
     expect(rowLinks()).toEqual(["/meta/legends/kennen-heart-of-the-tempest"]);

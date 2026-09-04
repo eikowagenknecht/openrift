@@ -99,7 +99,7 @@ function event(overrides: Partial<AdminMetaEvent> = {}): AdminMetaEvent {
     playerCount: 64,
     organizer: "Piltover Games",
     notes: null,
-    tier: "store",
+    tier: "local",
     country: null,
     location: null,
     playerRowCount: 64,

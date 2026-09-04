@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * One archived event with its podium as indented rows, for the front page's
- * premier and competitive sections: the store-and-casual row's anatomy plus the
+ * premier and competitive sections: the local row's anatomy plus the
  * deck hero's band, with the winner's legend art blurred behind it, the domain
  * glow, and the podium's legends as a `CardFan` beside the standings.
  *

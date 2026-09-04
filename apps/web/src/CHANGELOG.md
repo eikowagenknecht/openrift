@@ -20,6 +20,7 @@
 - feat(App): **Card-border accents** — headings, the footer, and the card detail text box now carry a gold rule and border motif drawn from the printed card's own edge, and the floating set header while scrolling the card browser no longer overlaps the header it is replacing.
 - fix(Cards): **Special versions no longer count as standard printings** — showcase prints, oversized battlefields, and unfoiled duplicates of foil cards were treated as the plain version, so a standard-printings list rule could pull in a card on its showcase price.
 - fix(Lists): **Clearing a rule filter no longer removes it** — emptying a price bound, the search box, or a multi-select's last option to type a new value dropped that filter row from a dynamic rule; it now stays until you remove it.
+- fix(Meta): **Store and Casual merge into Local** — the two tiers held the same events under different names, so they're now one Local tier, and a large field run under a generic template is filed as Competitive instead.
 
 ## 2026-09-03
 

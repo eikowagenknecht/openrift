@@ -93,7 +93,7 @@ const EVENT: MetaEventSummary = {
   format: "standard",
   playerCount: 64,
   organizer: "Rift Games Berlin",
-  tier: "store",
+  tier: "local",
   country: null,
   location: null,
   playerRowCount: 64,

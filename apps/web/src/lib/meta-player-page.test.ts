@@ -75,7 +75,7 @@ function deck({ event, ...overrides }: DeckOverrides = {}): MetaDeckSummary {
       name: "Summoner Skirmish",
       eventDate: "2026-08-01",
       format: "constructed",
-      tier: "store",
+      tier: "local",
       country: "DE",
       ...event,
     },
@@ -147,13 +147,13 @@ describe("filterPlayerFinishes", () => {
 
   it("narrows by country and by tier", () => {
     const finishes = [
-      makeMetaPlayerFinish({ event: { slug: "de", country: "DE", tier: "store" } }),
-      makeMetaPlayerFinish({ event: { slug: "fr", country: "FR", tier: "store" } }),
+      makeMetaPlayerFinish({ event: { slug: "de", country: "DE", tier: "local" } }),
+      makeMetaPlayerFinish({ event: { slug: "fr", country: "FR", tier: "local" } }),
       makeMetaPlayerFinish({ event: { slug: "de-major", country: "DE", tier: "competitive" } }),
     ];
     expect(
       filterPlayerFinishes(finishes, {
-        scope: { ...ALL_TIME.scope, countries: ["DE"], tiers: ["store"] },
+        scope: { ...ALL_TIME.scope, countries: ["DE"], tiers: ["local"] },
         eras: ERAS,
       }).map((finish) => finish.event.slug),
     ).toEqual(["de"]);

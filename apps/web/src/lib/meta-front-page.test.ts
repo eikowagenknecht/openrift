@@ -22,7 +22,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     name: "Summoner Skirmish",
     eventDate: "2026-08-15",
     format: "constructed",
-    tier: "store",
+    tier: "local",
     country: "DE",
     location: "Rift Games, Berlin",
     playerCount: 32,
@@ -127,7 +127,7 @@ describe("filterMetaEvents", () => {
   it("narrows by format, tier and country together", () => {
     const events = [
       event({ id: "match", format: "constructed", tier: "premier", country: "ES" }),
-      event({ id: "wrong-tier", format: "constructed", tier: "store", country: "ES" }),
+      event({ id: "wrong-tier", format: "constructed", tier: "local", country: "ES" }),
       event({ id: "wrong-country", format: "constructed", tier: "premier", country: "IT" }),
       event({ id: "wrong-format", format: "freeform", tier: "premier", country: "ES" }),
     ];
@@ -200,19 +200,19 @@ describe("metaEventWinners", () => {
 describe("metaFrontSections", () => {
   const TODAY = "2026-09-02";
 
-  it("splits events into the three tier buckets, store and casual sharing one", () => {
+  it("splits events into the three tier buckets", () => {
     const sections = metaFrontSections(
       [
         event({ id: "p", tier: "premier" }),
         event({ id: "c", tier: "competitive" }),
-        event({ id: "s", tier: "store" }),
-        event({ id: "x", tier: "casual" }),
+        event({ id: "l", tier: "local" }),
+        event({ id: "x", tier: "local" }),
       ],
       TODAY,
     );
     expect(sections.premier.map((row) => row.id)).toEqual(["p"]);
     expect(sections.competitive.map((row) => row.id)).toEqual(["c"]);
-    expect(sections.community.map((row) => row.id)).toEqual(["s", "x"]);
+    expect(sections.local.map((row) => row.id)).toEqual(["l", "x"]);
   });
 
   it("orders each bucket newest first rather than trusting the caller's order", () => {
@@ -231,7 +231,7 @@ describe("metaFrontSections", () => {
     expect(metaFrontSections([], TODAY)).toEqual({
       premier: [],
       competitive: [],
-      community: [],
+      local: [],
       upcoming: [],
     });
   });
@@ -276,20 +276,20 @@ describe("metaFrontSections", () => {
   it("breaks a same-day upcoming tie by tier, then name", () => {
     const sections = metaFrontSections(
       [
-        event({ id: "casual", name: "Zed", tier: "casual", eventDate: "2026-09-10" }),
-        event({ id: "store", name: "Alpha", tier: "store", eventDate: "2026-09-10" }),
+        event({ id: "local-zed", name: "Zed", tier: "local", eventDate: "2026-09-10" }),
+        event({ id: "local-alpha", name: "Alpha", tier: "local", eventDate: "2026-09-10" }),
         event({ id: "competitive", name: "Beta", tier: "competitive", eventDate: "2026-09-10" }),
         event({ id: "premier", name: "Gamma", tier: "premier", eventDate: "2026-09-10" }),
-        event({ id: "store-2", name: "Zulu", tier: "store", eventDate: "2026-09-10" }),
+        event({ id: "local-zulu", name: "Zulu", tier: "local", eventDate: "2026-09-10" }),
       ],
       TODAY,
     );
     expect(sections.upcoming.map((row) => row.id)).toEqual([
       "premier",
       "competitive",
-      "store",
-      "store-2",
-      "casual",
+      "local-alpha",
+      "local-zed",
+      "local-zulu",
     ]);
   });
 });

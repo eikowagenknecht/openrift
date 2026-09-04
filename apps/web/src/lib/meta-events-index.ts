@@ -12,14 +12,13 @@ import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";
 
 /**
- * Premier first, casual last. Ascending puts the events that count for most at
+ * Premier first, local last. Ascending puts the events that count for most at
  * the top, which is the order a reader means by "sort by tier".
  */
 const TIER_RANK: Record<MetaEventTier, number> = {
   premier: 0,
   competitive: 1,
-  store: 2,
-  casual: 3,
+  local: 2,
 };
 
 /**

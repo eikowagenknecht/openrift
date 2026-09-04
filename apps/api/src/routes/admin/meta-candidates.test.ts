@@ -192,7 +192,7 @@ function playerOverlay(overrides: Record<string, unknown> = {}) {
 const LIVE_EVENT = {
   id: LIVE_EVENT_ID,
   name: "Summoner Skirmish",
-  tier: "store",
+  tier: "local",
   format: "constructed",
   eventDate: "2026-08-01",
   playerCount: 64,
@@ -232,7 +232,7 @@ describe("GET /meta/overlays", () => {
     const body = await readJson(await app.request("/api/admin/v1/meta/overlays"));
     const overlays = body.overlays as { changes: unknown[] }[];
 
-    expect(overlays[0]?.changes).toEqual([{ field: "tier", from: "store", to: "premier" }]);
+    expect(overlays[0]?.changes).toEqual([{ field: "tier", from: "local", to: "premier" }]);
   });
 
   it("reports only the fields the overlay claims, not everything it carries", async () => {

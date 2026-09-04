@@ -51,7 +51,7 @@ export function metaEvent(overrides: Partial<MetaEventDetail> = {}): MetaEventDe
     format: "freeform",
     playerCount: 64,
     organizer: "LGS Berlin",
-    tier: "store",
+    tier: "local",
     country: null,
     location: null,
     playerRowCount: 0,

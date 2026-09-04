@@ -61,16 +61,16 @@ describe("scopeMatches", () => {
     expect(scopeMatches(event(), { formats: ["constructed"] }, ERAS)).toBe(true);
     expect(scopeMatches(event(), { formats: ["limited"] }, ERAS)).toBe(false);
     expect(scopeMatches(event(), { tiers: ["premier"] }, ERAS)).toBe(true);
-    expect(scopeMatches(event(), { tiers: ["store"] }, ERAS)).toBe(false);
+    expect(scopeMatches(event(), { tiers: ["local"] }, ERAS)).toBe(false);
   });
 
   it("keeps an event matching any one of a facet's picks", () => {
-    expect(scopeMatches(event(), { tiers: ["store", "premier"] }, ERAS)).toBe(true);
-    expect(scopeMatches(event(), { tiers: ["store", "casual"] }, ERAS)).toBe(false);
+    expect(scopeMatches(event(), { tiers: ["local", "premier"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { tiers: ["local", "competitive"] }, ERAS)).toBe(false);
   });
 
   it("keeps everything but the excluded values", () => {
-    expect(scopeMatches(event(), { tiersEx: ["store"] }, ERAS)).toBe(true);
+    expect(scopeMatches(event(), { tiersEx: ["local"] }, ERAS)).toBe(true);
     expect(scopeMatches(event(), { tiersEx: ["premier"] }, ERAS)).toBe(false);
     expect(scopeMatches(event({ country: "DE" }), { countriesEx: ["FR"] }, ERAS)).toBe(true);
     expect(scopeMatches(event({ country: "FR" }), { countriesEx: ["fr"] }, ERAS)).toBe(false);
@@ -104,6 +104,6 @@ describe("scopeMatches", () => {
       formats: ["constructed"],
     };
     expect(scopeMatches(event(), scope, ERAS)).toBe(true);
-    expect(scopeMatches(event({ tier: "store" }), scope, ERAS)).toBe(false);
+    expect(scopeMatches(event({ tier: "local" }), scope, ERAS)).toBe(false);
   });
 });

@@ -1186,9 +1186,9 @@ export interface MetaEventsTable {
   /** Markdown. CHECK: NULL or length <= 4000 */
   notes: string | null;
   /**
-   * How much the event counts for: premier / competitive / store / casual
-   * (CHECK). Classified by rule at ingest (`lib/meta-event-classify.ts`),
-   * admin-editable per event. Defaults to `store`, the tier that claims least.
+   * How much the event counts for: premier / competitive / local (CHECK).
+   * Classified by rule at ingest (`lib/meta-event-classify.ts`),
+   * admin-editable per event. Defaults to `local`, the tier that claims least.
    */
   tier: ColumnType<MetaEventTier, MetaEventTier | undefined, MetaEventTier>;
   /** ISO 3166-1 alpha-2, parsed from the venue address. CHECK: NULL or `~ '^[A-Z]{2}$'`. */

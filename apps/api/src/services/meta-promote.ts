@@ -1097,7 +1097,7 @@ export async function promoteNewEvent(
     playerCount: null,
     organizer: null,
     notes: null,
-    tier: "store",
+    tier: "local",
     country: null,
     location: null,
   });

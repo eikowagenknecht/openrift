@@ -7,19 +7,33 @@ import {
 } from "./meta-event-classify.js";
 
 describe("classifyMetaEventTier", () => {
-  it("takes the admin-mapped template tier as authoritative", () => {
+  it("keeps a mapped template tier a small field cannot reach", () => {
     expect(classifyMetaEventTier({ templateTier: "premier", playerCount: 8 })).toBe("premier");
-    expect(classifyMetaEventTier({ templateTier: "casual", playerCount: 2224 })).toBe("casual");
+    expect(classifyMetaEventTier({ templateTier: "competitive", playerCount: 59 })).toBe(
+      "competitive",
+    );
   });
 
-  it("falls back to competitive for an unmapped template with a large field", () => {
+  it("raises a local template a large field ran under", () => {
+    expect(classifyMetaEventTier({ templateTier: "local", playerCount: 710 })).toBe("competitive");
+  });
+
+  it("never lets a small field lower a premier template", () => {
+    expect(classifyMetaEventTier({ templateTier: "premier", playerCount: 4 })).toBe("premier");
+  });
+
+  it("never reaches premier on field size alone", () => {
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: 2224 })).toBe("competitive");
+  });
+
+  it("takes competitive from an unmapped template at the floor", () => {
     expect(classifyMetaEventTier({ templateTier: null, playerCount: 128 })).toBe("competitive");
   });
 
-  it("falls back to store for a small or unknown field", () => {
-    expect(classifyMetaEventTier({ templateTier: null, playerCount: 64 })).toBe("store");
-    expect(classifyMetaEventTier({ playerCount: null })).toBe("store");
-    expect(classifyMetaEventTier({})).toBe("store");
+  it("falls back to local for a small or unknown field", () => {
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: 64 })).toBe("local");
+    expect(classifyMetaEventTier({ playerCount: null })).toBe("local");
+    expect(classifyMetaEventTier({})).toBe("local");
   });
 });
 
@@ -34,15 +48,15 @@ describe("suggestTierForTemplateName", () => {
     expect(suggestTierForTemplateName("Super Nexus Night")).toBe("competitive");
   });
 
-  it("suggests store for skirmish templates and casual for play nights", () => {
-    expect(suggestTierForTemplateName("Vendetta Summoner Skirmish I")).toBe("store");
-    expect(suggestTierForTemplateName("Nexus Nights - 1v1")).toBe("casual");
-    expect(suggestTierForTemplateName("Riftbound Open Play")).toBe("casual");
-    expect(suggestTierForTemplateName("Learn-to-Play Event")).toBe("casual");
+  it("suggests local for skirmish templates and play nights alike", () => {
+    expect(suggestTierForTemplateName("Vendetta Summoner Skirmish I")).toBe("local");
+    expect(suggestTierForTemplateName("Nexus Nights - 1v1")).toBe("local");
+    expect(suggestTierForTemplateName("Riftbound Open Play")).toBe("local");
+    expect(suggestTierForTemplateName("Learn-to-Play Event")).toBe("local");
   });
 
-  it("suggests casual for a league night without claiming the game's own name", () => {
-    expect(suggestTierForTemplateName("Friday League Night")).toBe("casual");
+  it("suggests local for a league night without claiming the game's own name", () => {
+    expect(suggestTierForTemplateName("Friday League Night")).toBe("local");
     expect(suggestTierForTemplateName("Riftbound: League of Legends TCG Sealed")).toBeNull();
   });
 

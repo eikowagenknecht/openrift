@@ -174,7 +174,7 @@ describe("metaEventToDraft", () => {
       playerCount: null,
       organizer: null,
       notes: null,
-      tier: "store",
+      tier: "local",
       country: null,
       location: null,
       playerRowCount: 0,

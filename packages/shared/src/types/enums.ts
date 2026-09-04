@@ -118,22 +118,24 @@ export const META_ENTRY_STATUSES = ["complete", "eliminated", "dropped"] as cons
  * How much an archived event counts for, in the archive's own vocabulary
  * rather than any one source's product names:
  *
- * - `premier`: the main stage — Regional Qualifiers, and whatever nationals or
+ * - `premier`: the main stage. Regional Qualifiers, and whatever nationals or
  *   worlds the programme grows.
- * - `competitive`: serious open fields below the main stage — Showdown Series,
+ * - `competitive`: serious open fields below the main stage. Showdown Series,
  *   City Challenges, and the large side events run alongside a qualifier.
- * - `store`: an ordinary store tournament, such as a Summoner Skirmish.
- * - `casual`: play nights and teaching events — Nexus Nights, open play,
- *   learn-to-play.
+ * - `local`: the store-level tournaments that make up most of the archive.
  *
  * Sources are matched into these by rule at ingest and the value is
  * admin-editable per event, so a renamed product line is a rule change, not a
  * new tier.
+ *
+ * There is no casual tier: the archive's admission threshold
+ * (`meta_sync_settings.auto_accept_min_players`) keeps play nights out, so
+ * every event that reaches it is a tournament with standings on file.
  */
-export type MetaEventTier = "premier" | "competitive" | "store" | "casual";
+export type MetaEventTier = "premier" | "competitive" | "local";
 
 /** The {@link MetaEventTier} values, most to least competitive. */
-export const META_EVENT_TIERS = ["premier", "competitive", "store", "casual"] as const;
+export const META_EVENT_TIERS = ["premier", "competitive", "local"] as const;
 
 /**
  * Whether a source served a decklist when the fetcher asked for it.

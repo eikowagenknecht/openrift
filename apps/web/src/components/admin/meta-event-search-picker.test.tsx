@@ -21,7 +21,7 @@ function event(overrides: Partial<AdminMetaEvent> = {}): AdminMetaEvent {
     playerCount: 64,
     organizer: "LGS Berlin",
     notes: null,
-    tier: "store",
+    tier: "local",
     country: "DE",
     location: null,
     playerRowCount: 64,

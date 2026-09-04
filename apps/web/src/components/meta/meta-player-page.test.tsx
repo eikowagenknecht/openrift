@@ -153,7 +153,7 @@ function deck(deckId: string, shareToken: string, country = "DE"): MetaDeckSumma
       name: "Summoner Skirmish",
       eventDate: "2026-08-01",
       format: "constructed",
-      tier: "store",
+      tier: "local",
       country,
     },
   };

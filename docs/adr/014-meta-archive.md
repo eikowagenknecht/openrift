@@ -107,7 +107,7 @@ Events have their own page, slug, and permalink. Fields:
 - `player_count integer`: nullable; auto-filled from the source.
 - `organizer text`: nullable, free text (e.g. "Riot Games", "LGS Berlin").
 - `notes text`: nullable markdown, 4 000 char max, shown on the event page.
-- `tier text`: NOT NULL, one of `premier` / `competitive` / `store` / `casual`, default `store`. How much the event counts for, taken from the source's event template where one is mapped and editable per event.
+- `tier text`: NOT NULL, one of `premier` / `competitive` / `local`, default `local`. How much the event counts for. The source's event template sets a floor where one is mapped, a field of 128 or more players raises it to `competitive`, and the value is editable per event.
 - `country text`: nullable, ISO 3166-1 alpha-2, parsed from the venue address.
 - `location text`: nullable, 500 char max, the venue address as the source published it.
 - `created_at`, `updated_at timestamptz`.
@@ -144,7 +144,7 @@ Entities the listing repeats on every row are normalized into source-keyed satel
 
 - `uvsgames_stores`: the source's integer store id and current name, upserted on every crawl (a store rename propagates). The store's contact email is never stored. `uvsgames_events.store_name` survives as a nullable fallback for rows the source publishes without a keyed store; reads resolve the coalesce.
 - `uvsgames_players`: the source's integer user id and current display name, upserted on every deep fetch. See the standings section for how live rows use it.
-- `uvsgames_event_templates`: the source's own template vocabulary, fetched from `/api/v2/event-configuration-templates/?game_slug=riftbound` on every crawl, plus a nameless row for any `event_configuration_template` the mirror carries that the endpoint no longer publishes. Nameless rows are routine rather than exceptional: the endpoint lists only the templates in use today, and the archive is full of events that ran superseded ones (four of them with thousands of events each). Their names are unrecoverable, so those rows are recognized by the events under them. `source_name` is the source's; `watched` and `tier` are the admin's, and they are the only things a human supplies. A watched template drives the catalogue badge, the targeted poll query, and the official auto-accept rule, and its `tier` is what the events under it are filed as. No template id appears in source code; the Regional Qualifier template is seeded as watched by migration and named by the first sync.
+- `uvsgames_event_templates`: the source's own template vocabulary, fetched from `/api/v2/event-configuration-templates/?game_slug=riftbound` on every crawl, plus a nameless row for any `event_configuration_template` the mirror carries that the endpoint no longer publishes. Nameless rows are routine rather than exceptional: the endpoint lists only the templates in use today, and the archive is full of events that ran superseded ones (four of them with thousands of events each). Their names are unrecoverable, so those rows are recognized by the events under them. `source_name` is the source's; `watched` and `tier` are the admin's, and they are the only things a human supplies. A watched template drives the catalogue badge, the targeted poll query, and the official auto-accept rule, and its `tier` is the floor the events under it are filed at. No template id appears in source code; the Regional Qualifier template is seeded as watched by migration and named by the first sync.
 - `uvsgames_format_mappings`: discovered source format strings mapped to `deck_formats` slugs by the admin; absence of a row means unmapped, and unmapped events wait for a human. No format vocabulary in code.
 
 Observations about the listing stay on the mirror row (`first_seen_at`, `last_seen_at`, `missing_since`): the source deletes events, and a row a covering crawl no longer returns is flagged, not removed. The recheck queue is scheduler state, not source data, so it lives in its own table, `uvsgames_event_checks` (`next_check_at`, `check_stage`), with rows existing exactly for accepted events; an exhausted ladder keeps its row with a null next visit, preserving the "was accepted and ran the ladder" fact.
@@ -411,6 +411,7 @@ Two producers, two paths, converging on the live tables.
 
 - **The in-app fetchers** (uvsgames, playloltcg) write their own mirrors, then promote. Promotion is idempotent and re-runnable: it matches live rows to mirror rows on `meta_event_players.source_identity`, updates in place, inserts what is missing, and applies the accepted overlays afterwards. Live row identity survives, which it must, because `decks`, `meta_event_matches` and the public share tokens all hang off `meta_event_players.id`.
 - **Every event field starts from the live row.** Promotion computes all nine `meta_events` columns (name, date, format, player count, organizer, notes, tier, country, location) by starting from what the row already holds, then letting each linked source overwrite in priority order. An event with no usable source facts, hand-entered, or whose mirror is gone, keeps every field it has rather than resetting to a blank default; a source that contributes only some fields leaves the rest exactly where they were.
+- **Tier is a floor plus a size rule.** The event's template tier is what promotion starts from, and a field of 128 or more players raises it to `competitive`, never lowers it. Organizers do run a generic local template for a large paid event, and the source has no other field that tells one apart. Size never reaches `premier`, which is a programme designation, so an unmapped large event under-calls rather than inventing one.
 - **The push endpoint** (everything else): `POST /api/admin/v1/meta/upload` with `{ provider, events: [...] }`, admin API key auth. A push provider has no crawler and so no mirror; its payload becomes overlays, keyed `(provider, external_id)` for the event and `(provider, source_player_key)` for each player, so a re-upload updates rather than duplicates either. An unchanged row is left alone; a changed one restates the whole event or player and reopens review by resetting its status to `pending`. An upload claims only the fields it carries a value for, because absent, null and empty already mean "the source didn't say" on the wire: a provider covering decklists alone must not take the standings columns and the venue from the official mirror behind them and null them out at the next promote. Every upload is written to the admin event ledger under `meta-overlays.upload`, with the counts of new, updated, unchanged and ignored rows.
 
 Shared semantics:
@@ -485,7 +486,7 @@ CREATE TABLE uvsgames_event_templates (
   watched     boolean NOT NULL DEFAULT false,
   tier        text                          -- what events under it are filed as; NULL
     CHECK (tier IS NULL OR                  -- until an admin maps the template
-           tier IN ('premier','competitive','store','casual'))
+           tier IN ('premier','competitive','local'))
 );                                          -- watched and tier are the admin-owned columns
 CREATE TABLE uvsgames_format_mappings (
   source_format text PRIMARY KEY,
@@ -660,8 +661,8 @@ CREATE TABLE meta_events (
   player_count  integer CHECK (player_count IS NULL OR player_count > 0),
   organizer     text CHECK (organizer IS NULL OR length(organizer) BETWEEN 1 AND 120),
   notes         text CHECK (notes IS NULL OR length(notes) <= 4000),
-  tier          text NOT NULL DEFAULT 'store'
-                  CHECK (tier IN ('premier','competitive','store','casual')),
+  tier          text NOT NULL DEFAULT 'local'
+                  CHECK (tier IN ('premier','competitive','local')),
   country       text CHECK (country IS NULL OR country ~ '^[A-Z]{2}$'),
   location      text CHECK (location IS NULL OR length(location) BETWEEN 1 AND 500),
   created_at    timestamptz NOT NULL DEFAULT now(),

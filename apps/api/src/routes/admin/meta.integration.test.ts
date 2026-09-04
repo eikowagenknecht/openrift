@@ -734,7 +734,7 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
         name: "MTR mtr-public-deck",
         eventDate: "2026-08-01",
         format: FORMAT,
-        tier: "store",
+        tier: "local",
         country: null,
         playerCount: 32,
       },

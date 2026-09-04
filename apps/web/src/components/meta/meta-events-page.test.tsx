@@ -40,7 +40,7 @@ vi.mock("@/hooks/use-meta", () => ({
       totalPlayers: 0,
       decksWithMainDeck: 0,
       totalEvents: captured.totalEvents,
-      eventsByTier: { premier: 0, competitive: 0, store: 0, casual: 0 },
+      eventsByTier: { premier: 0, competitive: 0, local: 0 },
     },
   }),
 }));
@@ -61,7 +61,7 @@ function event(overrides: Partial<MetaEventSummary> = {}): MetaEventSummary {
     name: "Summoner Skirmish at Cardhouse Vienna",
     eventDate: "2026-08-29",
     format: "constructed",
-    tier: "store",
+    tier: "local",
     country: "AT",
     location: "Vienna",
     playerCount: 18,

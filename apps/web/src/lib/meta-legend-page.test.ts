@@ -49,7 +49,7 @@ function finish({ event, ...overrides }: FinishOverrides = {}): MetaLegendFinish
       name: "Summoner Skirmish",
       eventDate: "2026-08-01",
       format: "constructed",
-      tier: "store",
+      tier: "local",
       country: "DE",
       playerCount: 64,
       ...event,
@@ -91,7 +91,7 @@ function eventSummary(slug: string, overrides: Partial<MetaEventSummary> = {}): 
     name: `Event ${slug}`,
     eventDate: "2026-08-01",
     format: "constructed",
-    tier: "store",
+    tier: "local",
     country: "DE",
     location: null,
     playerCount: 64,
@@ -160,7 +160,7 @@ describe("metaLegendIndexEntries", () => {
     record("regional-lyon", { bestRank: 1, finishes: 1, decklists: 1, won: true }),
   ]);
   const events = [
-    eventSummary("skirmish", { eventDate: "2026-08-15", tier: "store" }),
+    eventSummary("skirmish", { eventDate: "2026-08-15", tier: "local" }),
     eventSummary("regional-lyon", { eventDate: "2026-02-01", tier: "competitive", country: "FR" }),
   ];
 
@@ -200,7 +200,7 @@ describe("metaLegendIndexEntries", () => {
 
   it("drops a legend with no finish in scope", () => {
     const entries = metaLegendIndexEntries([kennen, azir], events, {
-      scope: { era: ERA_ALL, formats: [], tiers: ["store"] },
+      scope: { era: ERA_ALL, formats: [], tiers: ["local"] },
       eras: ERAS,
     });
     expect(entries.map((entry) => entry.slug)).toEqual(["kennen-heart-of-the-tempest"]);

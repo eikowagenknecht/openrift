@@ -41,7 +41,7 @@ export const EMPTY_META_EVENT_DRAFT: MetaEventDraft = {
   name: "",
   eventDate: "",
   format: "",
-  tier: "store",
+  tier: "local",
   playerCount: "",
   organizer: "",
   country: "",

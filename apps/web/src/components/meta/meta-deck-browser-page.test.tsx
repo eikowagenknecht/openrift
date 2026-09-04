@@ -198,7 +198,7 @@ describe("MetaDeckBrowserPage", () => {
           name: "Store Night",
           eventDate: "2026-08-24",
           format: "constructed",
-          tier: "store",
+          tier: "local",
           country: "DE",
         },
       }),
@@ -221,7 +221,7 @@ describe("MetaDeckBrowserPage", () => {
           name: "Store Night",
           eventDate: "2026-08-24",
           format: "constructed",
-          tier: "store",
+          tier: "local",
           country: "DE",
         },
       }),
@@ -346,7 +346,7 @@ describe("MetaDeckBrowserPage", () => {
   });
 
   it("says so when nothing matches", () => {
-    captured.search = { tiers: ["casual"] };
+    captured.search = { tiers: ["local"] };
     render(<MetaDeckBrowserPage />);
     expect(seen("No decks match these filters.")).toBe(true);
   });

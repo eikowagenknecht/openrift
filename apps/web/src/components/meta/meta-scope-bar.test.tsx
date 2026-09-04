@@ -146,7 +146,7 @@ describe("MetaScopeBar", () => {
   it("offers every tier", async () => {
     const { user } = renderBar();
     await user.click(facet("Tier"));
-    for (const label of ["Premier", "Competitive", "Store", "Casual"]) {
+    for (const label of ["Premier", "Competitive", "Local"]) {
       expect(await option(label)).toBeInTheDocument();
     }
   });
@@ -161,8 +161,8 @@ describe("MetaScopeBar", () => {
   it("adds a second pick rather than replacing the first", async () => {
     const { setScope, user } = renderBar({ scope: { tiers: ["premier"] } });
     await user.click(facet("Premier"));
-    await user.click(await option("Store"));
-    expect(setScope).toHaveBeenCalledWith({ tiers: ["premier", "store"], tiersEx: [] });
+    await user.click(await option("Local"));
+    expect(setScope).toHaveBeenCalledWith({ tiers: ["premier", "local"], tiersEx: [] });
   });
 
   it("turns a sole pick into an exclusion on the second click", async () => {
