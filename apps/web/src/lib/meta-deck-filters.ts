@@ -13,7 +13,7 @@ import { scopeMatches } from "@/lib/meta-scope-match";
  * rest of the archive many times over and mostly hold partial lists, so a reader
  * asking what did well starts with the events that counted.
  */
-export const DEFAULT_DECK_TIERS: readonly string[] = ["premier", "competitive"];
+const DEFAULT_DECK_TIERS: readonly string[] = ["premier", "competitive"];
 
 export const DECK_SCOPE_DEFAULTS: ScopeFacetDefaults = { tiers: DEFAULT_DECK_TIERS };
 

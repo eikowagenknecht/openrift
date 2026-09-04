@@ -10,7 +10,7 @@ import { metaScopeSearchSchema } from "@/lib/meta-scope";
  * of crashing the route.
  */
 /** The columns the deck browser can be ordered by. */
-export const META_DECK_SORTS = ["date", "finish", "value", "cost"] as const;
+const META_DECK_SORTS = ["date", "finish", "value", "cost"] as const;
 
 export type MetaDeckSort = (typeof META_DECK_SORTS)[number];
 

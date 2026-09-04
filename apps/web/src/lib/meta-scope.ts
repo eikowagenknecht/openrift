@@ -203,7 +203,7 @@ export const UNSCOPED: Pick<MetaScope, "era" | "formats"> = { era: ERA_ALL, form
 export type MetaScopeFacet = "formats" | "tiers" | "countries";
 
 /** Every facet, for the callers that walk all three. */
-export const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "countries"];
+const META_SCOPE_FACETS: readonly MetaScopeFacet[] = ["formats", "tiers", "countries"];
 
 /**
  * What a facet the URL says nothing about includes, per surface. Formats always
@@ -280,21 +280,6 @@ export function cycleScopeFacet(
   const { included, excluded } = scopeFacetValues(scope, facet, defaults);
   const next = cycleIncludeExclude(included, excluded, value);
   return facetPatch(facet, next.included, next.excluded);
-}
-
-/** The patch that takes one value off a facet, whichever bucket it sits in. */
-export function dropScopeFacetValue(
-  scope: MetaScope,
-  facet: MetaScopeFacet,
-  value: string,
-  defaults: ScopeFacetDefaults = {},
-): Partial<MetaScope> {
-  const { included, excluded } = scopeFacetValues(scope, facet, defaults);
-  return facetPatch(
-    facet,
-    included.filter((entry) => entry !== value),
-    excluded.filter((entry) => entry !== value),
-  );
 }
 
 /**

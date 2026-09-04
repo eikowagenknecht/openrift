@@ -49,11 +49,11 @@ const TO_COMPLETE_PRESETS = [10, 25, 50];
 const VALUE_PRESETS = [25, 50, 100];
 const ANY_PRESET = "any";
 
-export function metaCostBoundLabel(maxCost: number, format: PriceFormat): string {
+function metaCostBoundLabel(maxCost: number, format: PriceFormat): string {
   return maxCost === 0 ? "Buildable now" : `≤ ${format(maxCost)} to complete`;
 }
 
-export function metaValueRangeLabel(
+function metaValueRangeLabel(
   min: number | null,
   max: number | null,
   format: PriceFormat,
