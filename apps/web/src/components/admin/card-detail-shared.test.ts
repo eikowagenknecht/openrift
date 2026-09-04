@@ -292,6 +292,7 @@ function acceptedPrinting(overrides: Partial<AdminPrintingResponse> = {}): Admin
     isSigned: false,
     markerSlugs: [],
     finish: "normal",
+    size: "standard",
     canonicalRank: 0,
     fallbackArtMode: "auto",
     fallbackImageFileId: null,

@@ -3104,8 +3104,14 @@ export interface MvCardAggregatesView {
   tokenCardIds: string[];
 }
 
-/** Every column of `printings` plus a precomputed `canonical_rank` integer. */
-type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
+/** Every column of `printings` plus the two precomputed catalog derivations. */
+type PrintingsOrderedView = PrintingsTable & { canonicalRank: number; hasFoilTwin: boolean };
+
+// oxlint-disable-next-line jsdoc/check-tag-names -- @public is consumed by knip to suppress the unused-export warning
+/** @public */
+export interface MvPrintingFoilTwinsView {
+  printingId: string;
+}
 
 export interface Database {
   sets: SetsTable;
@@ -3301,6 +3307,7 @@ export interface Database {
   mvLatestPrintingPrices: MvLatestPrintingPricesView;
   mvDailyPrintingPrices: MvDailyPrintingPricesView;
   mvCardAggregates: MvCardAggregatesView;
+  mvPrintingFoilTwins: MvPrintingFoilTwinsView;
 
   printingsOrdered: PrintingsOrderedView;
 }

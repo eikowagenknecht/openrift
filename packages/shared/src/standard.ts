@@ -8,7 +8,14 @@ import { LOW_RARITIES, WellKnown } from "./well-known.js";
  */
 type StandardCheckFields = Pick<
   Printing,
-  "artVariant" | "isSigned" | "isOvernumbered" | "markers" | "finish" | "rarity"
+  | "artVariant"
+  | "isSigned"
+  | "isOvernumbered"
+  | "markers"
+  | "finish"
+  | "rarity"
+  | "size"
+  | "hasFoilTwin"
 >;
 
 /** The additional fields the art-fallback search needs on each candidate. */
@@ -35,11 +42,15 @@ type FallbackCandidateFields = StandardCheckFields &
  * - the collector number is within the set's printed total,
  * - the printing is not signed,
  * - the printing carries no markers (not a promo / stamped printing),
+ * - the rarity is not `showcase` (a collector tier, never a plain version),
+ * - the card is the normal physical size,
  * - the finish is standard **for the rarity**:
  *   - `metal` / `metal-deluxe` are never standard, at any rarity;
  *   - low rarities (common / uncommon) are standard only with a `normal` finish;
- *   - all other rarities are standard with either a `normal` or `foil` finish
- *     (these are always-foil rarities, so foil is their plain version).
+ *   - the always-foil rarities are standard in `foil`, and in `normal` only when
+ *     no foil twin exists ({@link Printing.hasFoilTwin}) — a starter-deck rare
+ *     printed only unfoiled is that card's plain version, an unfoiled duplicate
+ *     of a foil pack card is not.
  *
  * @returns True when the printing is the standard version of its card.
  */
@@ -56,6 +67,12 @@ export function isStandardPrinting(printing: StandardCheckFields): boolean {
   if (printing.markers.length > 0) {
     return false;
   }
+  if (printing.rarity === WellKnown.rarity.SHOWCASE) {
+    return false;
+  }
+  if (printing.size !== WellKnown.cardSize.STANDARD) {
+    return false;
+  }
   const { finish, rarity } = printing;
   if (finish === WellKnown.finish.METAL || finish === WellKnown.finish.METAL_DELUXE) {
     return false;
@@ -63,7 +80,10 @@ export function isStandardPrinting(printing: StandardCheckFields): boolean {
   if (LOW_RARITIES.has(rarity)) {
     return finish === WellKnown.finish.NORMAL;
   }
-  return finish === WellKnown.finish.NORMAL || finish === WellKnown.finish.FOIL;
+  if (finish === WellKnown.finish.FOIL) {
+    return true;
+  }
+  return finish === WellKnown.finish.NORMAL && printing.hasFoilTwin !== true;
 }
 
 export interface StandardArtFallback<T = Printing> {

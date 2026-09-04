@@ -263,6 +263,8 @@ export const catalogPrintingResponseSchema = z.object({
   citations: z.array(printingCitationSchema).optional().openapi({ example: [] }),
   finish: finishSchema,
   size: cardSizeSchema,
+  // Omitted rather than sent as `false`; read it as `=== true`.
+  hasFoilTwin: z.literal(true).optional().openapi({ example: true }),
   images: z.array(printingImageSchema),
   artist: z.string().openapi({ example: "Kudos Productions" }),
   publicCode: z.string().openapi({ example: "OGN-202/298" }),

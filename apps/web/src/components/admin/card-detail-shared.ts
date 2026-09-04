@@ -233,6 +233,7 @@ export function findDerivedArtPrinting(
     isSigned: p.isSigned,
     isOvernumbered: p.isOvernumbered,
     finish: p.finish,
+    size: p.size,
     markers: p.markerSlugs.map((slug) => ({ id: slug, slug, label: slug, description: null })),
     images: printingImages
       .filter((img) => img.printingId === p.id && img.isActive && img.rehostedUrl !== null)

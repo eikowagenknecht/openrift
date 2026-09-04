@@ -22,9 +22,10 @@ const aMarker: Marker = { id: "m1", slug: "stamp", label: "Stamp", description: 
 
 describe("isStandardPrinting", () => {
   const lowRarities = ["common", "uncommon"];
-  const highRarities = ["rare", "epic", "showcase"];
+  const alwaysFoilRarities = ["rare", "epic"];
+  const allRarities = [...lowRarities, ...alwaysFoilRarities, "showcase"];
 
-  describe("finish × rarity matrix (normal art, unsigned, no markers)", () => {
+  describe("finish × rarity matrix (normal art, unsigned, no markers, no foil twin)", () => {
     for (const rarity of lowRarities) {
       it(`${rarity} + normal is standard`, () => {
         expect(isStandardPrinting(makePrinting({ rarity, finish: "normal" }))).toBe(true);
@@ -33,15 +34,20 @@ describe("isStandardPrinting", () => {
         expect(isStandardPrinting(makePrinting({ rarity, finish: "foil" }))).toBe(false);
       });
     }
-    for (const rarity of highRarities) {
-      it(`${rarity} + normal is standard`, () => {
+    for (const rarity of alwaysFoilRarities) {
+      it(`${rarity} + normal is standard when the card has no foil version`, () => {
         expect(isStandardPrinting(makePrinting({ rarity, finish: "normal" }))).toBe(true);
       });
       it(`${rarity} + foil is standard (foil is the plain version of always-foil rarities)`, () => {
         expect(isStandardPrinting(makePrinting({ rarity, finish: "foil" }))).toBe(true);
       });
     }
-    for (const rarity of [...lowRarities, ...highRarities]) {
+    for (const finish of ["normal", "foil"]) {
+      it(`showcase + ${finish} is NOT standard (a collector tier, never the plain version)`, () => {
+        expect(isStandardPrinting(makePrinting({ rarity: "showcase", finish }))).toBe(false);
+      });
+    }
+    for (const rarity of allRarities) {
       it(`${rarity} + metal is NOT standard`, () => {
         expect(isStandardPrinting(makePrinting({ rarity, finish: "metal" }))).toBe(false);
       });
@@ -49,6 +55,32 @@ describe("isStandardPrinting", () => {
         expect(isStandardPrinting(makePrinting({ rarity, finish: "metal-deluxe" }))).toBe(false);
       });
     }
+  });
+
+  describe("the foil twin exception", () => {
+    for (const rarity of alwaysFoilRarities) {
+      it(`${rarity} + normal is NOT standard when a foil twin exists`, () => {
+        expect(
+          isStandardPrinting(makePrinting({ rarity, finish: "normal", hasFoilTwin: true })),
+        ).toBe(false);
+      });
+      it(`${rarity} + foil stays standard even with the flag set`, () => {
+        expect(
+          isStandardPrinting(makePrinting({ rarity, finish: "foil", hasFoilTwin: true })),
+        ).toBe(true);
+      });
+    }
+    for (const rarity of lowRarities) {
+      it(`${rarity} + normal stays standard when a foil twin exists`, () => {
+        expect(
+          isStandardPrinting(makePrinting({ rarity, finish: "normal", hasFoilTwin: true })),
+        ).toBe(true);
+      });
+    }
+  });
+
+  it("an oversized printing is never standard", () => {
+    expect(isStandardPrinting(makePrinting({ size: "oversized" }))).toBe(false);
   });
 
   it("a signed printing is never standard", () => {

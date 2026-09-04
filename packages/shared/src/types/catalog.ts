@@ -157,6 +157,11 @@ export interface Printing {
   finish: Finish;
   /** Physical card size. `standard` for the normal print, `oversized` for the larger variety. */
   size: CardSize;
+  /**
+   * True when an otherwise identical printing of this card exists in `foil`.
+   * Omitted rather than `false`, so read it as `=== true`.
+   */
+  hasFoilTwin?: true;
   images: PrintingImage[];
   artist: string;
   publicCode: string;

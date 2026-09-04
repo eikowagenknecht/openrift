@@ -92,6 +92,7 @@ function stubPrinting(overrides: Partial<AdminPrintingResponse> = {}): AdminPrin
     artVariant: "normal",
     isSigned: false,
     finish: "foil",
+    size: "standard",
     canonicalRank: 0,
     fallbackArtMode: "auto",
     fallbackImageFileId: null,

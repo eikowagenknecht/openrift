@@ -10,6 +10,7 @@ import type { Repos } from "../deps.js";
 import {
   loadPrintingDecorations,
   resolveFallbackArt,
+  resolveFoilTwin,
   resolveMarkers,
 } from "../lib/printing-presenters.js";
 
@@ -79,11 +80,19 @@ export async function assembleCatalogResponse(repos: Repos): Promise<CatalogResp
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
   const printings: Record<string, CatalogResponsePrintingValue> = {};
-  for (const { id, markerSlugs, fallbackArtMode, fallbackImageId, ...rest } of printingRows) {
+  for (const {
+    id,
+    markerSlugs,
+    fallbackArtMode,
+    fallbackImageId,
+    hasFoilTwin,
+    ...rest
+  } of printingRows) {
     const citations = citationsByPrinting.get(id);
     printings[id] = {
       ...rest,
       ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
+      ...resolveFoilTwin({ hasFoilTwin }),
       markers: resolveMarkers(markerSlugs, markerBySlug),
       distributionChannels: channelsByPrinting.get(id) ?? [],
       // Omitted rather than empty — see `buildPrintingsResponse`. This is the

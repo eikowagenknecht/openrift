@@ -152,6 +152,8 @@ type CatalogPrintingRow = Omit<
   markerSlugs: string[];
   comment: string | null;
   canonicalRank: number;
+  /** See {@link Printing.hasFoilTwin}; from `mv_printing_foil_twins`. */
+  hasFoilTwin: boolean;
   /**
    * The pinned substitute's *servable* image id: the raw
    * `fallback_image_file_id` resolved through the same rehosted-or-nothing rule
@@ -207,6 +209,7 @@ const PRINTING_VIEW_COLUMNS = [
   "printingsOrdered.markerSlugs",
   "printingsOrdered.comment",
   "printingsOrdered.canonicalRank",
+  "printingsOrdered.hasFoilTwin",
   "printingsOrdered.fallbackArtMode",
   fallbackImageId("printingsOrdered"),
 ] as const;
@@ -269,6 +272,8 @@ function selectPrintingImages(db: Kysely<Database>) {
     .$narrowType<{ imageId: NotNull }>();
 }
 
+const CATALOG_SHAPE_VERSION = "2";
+
 /**
  * The stored-catalog aggregates both tokens share, WITHOUT any notion of
  * "today". Kept at module scope, and as a fragment rather than a query, so the
@@ -286,6 +291,7 @@ function selectPrintingImages(db: Kysely<Database>) {
  * data, which for a cache key is a correctness bug rather than a cosmetic one.
  */
 const STORED_CATALOG_AGGREGATES = sql<string>`
+      ${sql.lit(CATALOG_SHAPE_VERSION)} || '|' ||
       coalesce((SELECT count(*) FROM cards)::text, '') || ':' ||
       coalesce((SELECT max(updated_at) AT TIME ZONE 'UTC' FROM cards)::text, '') || '|' ||
       coalesce((SELECT count(*) FROM printings)::text, '') || ':' ||
@@ -829,6 +835,7 @@ export function catalogRepo(db: Kysely<Database>) {
         .innerJoin("finishes as f", "f.slug", "p.finish")
         .innerJoin("cardSizes as cs", "cs.slug", "p.size")
         .innerJoin("languages as l", "l.code", "p.language")
+        .leftJoin("mvPrintingFoilTwins as ft", "ft.printingId", "p.id")
         .select([
           "p.id",
           "p.cardId",
@@ -852,6 +859,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "p.comment",
           "p.fallbackArtMode",
           fallbackImageId("p"),
+          sql<boolean>`(ft.printing_id IS NOT NULL)`.as("hasFoilTwin"),
           sql<number>`(row_number() OVER (
             ORDER BY
               l.sort_order,
@@ -1217,9 +1225,9 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Card and printing mutations invalidate both catalog-derived materialized
-     * views, so they refresh together rather than leaving callers to remember
-     * the pair.
+     * Card and printing mutations invalidate every catalog-derived materialized
+     * view, so they refresh together rather than leaving callers to remember
+     * the set.
      */
     async refreshCatalogViews(): Promise<void> {
       // Not `this.refresh…()`: instrumentRepo rebinds these methods onto a new
@@ -1227,6 +1235,7 @@ export function catalogRepo(db: Kysely<Database>) {
       await Promise.all([
         sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db),
         sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printings_canonical_rank`.execute(db),
+        sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_printing_foil_twins`.execute(db),
       ]);
     },
   };

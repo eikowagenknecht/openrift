@@ -128,6 +128,17 @@ export function resolveFallbackArt(row: {
 }
 
 /**
+ * Narrows the foil-twin flag to what the wire carries: present only when true,
+ * so the catalog read spends nothing on the printings that have no twin.
+ * @returns The wire fragment to spread into a printing response.
+ */
+export function resolveFoilTwin(row: {
+  hasFoilTwin: boolean;
+}): Pick<CatalogPrintingResponse, "hasFoilTwin"> {
+  return row.hasFoilTwin ? { hasFoilTwin: true } : {};
+}
+
+/**
  * Resolves a printing's marker slug array against a slug→Marker map.
  * Skips slugs missing from the map (defensive for stale denormalized data).
  */
@@ -193,20 +204,23 @@ export function buildPrintingsResponse(
   const { markerBySlug, channelsByPrinting, citationsByPrinting } = decorations;
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-  return printingRows.map(({ markerSlugs, fallbackArtMode, fallbackImageId, ...rest }) => {
-    const citations = citationsByPrinting.get(rest.id);
-    return {
-      ...rest,
-      ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
-      markers: resolveMarkers(markerSlugs, markerBySlug),
-      distributionChannels: channelsByPrinting.get(rest.id) ?? [],
-      // Omitted rather than empty: `citations` is optional on the wire
-      // precisely so an uncited printing adds no bytes to the catalog read.
-      ...(citations === undefined ? {} : { citations }),
-      images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
-        face: i.face,
-        imageId: i.imageId,
-      })),
-    };
-  });
+  return printingRows.map(
+    ({ markerSlugs, fallbackArtMode, fallbackImageId, hasFoilTwin, ...rest }) => {
+      const citations = citationsByPrinting.get(rest.id);
+      return {
+        ...rest,
+        ...resolveFallbackArt({ fallbackArtMode, fallbackImageId }),
+        ...resolveFoilTwin({ hasFoilTwin }),
+        markers: resolveMarkers(markerSlugs, markerBySlug),
+        distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+        // Omitted rather than empty: `citations` is optional on the wire
+        // precisely so an uncited printing adds no bytes to the catalog read.
+        ...(citations === undefined ? {} : { citations }),
+        images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
+          face: i.face,
+          imageId: i.imageId,
+        })),
+      };
+    },
+  );
 }

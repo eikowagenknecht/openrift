@@ -1680,6 +1680,30 @@ describe("price-bounded rules (priceMarketplace + priceLookup)", () => {
     expect(out.map((e) => e.copyId)).toEqual(["x2"]);
   });
 
+  it("a standard-printings price floor ignores the card's showcase printing", () => {
+    const sonaCatalog = [
+      makePrinting("ogn-073", "sona", { rarity: "rare", finish: "foil" }),
+      makePrinting("ven-sp2", "sona", { rarity: "showcase", finish: "foil" }),
+    ];
+    const rule: ListRule = {
+      kind: "wish",
+      filter: filters({ isStandard: true, price: { min: 1.01, max: null } }),
+      priceMarketplace: "cardmarket",
+      quantity: { mode: "fixed", n: 1 },
+      netOwned: true,
+      countSpecialVersions: true,
+      excludeIds: [],
+    };
+    const out = evaluateListRule(rule, "card", {
+      catalog: sonaCatalog,
+      priceLookup: priceLookupFromMap({
+        "ogn-073": { cardmarket: 46 },
+        "ven-sp2": { cardmarket: 900 },
+      }),
+    });
+    expect(out).toEqual([]);
+  });
+
   it("ownedCopyPrintingScope applies the same price bound as evaluation", () => {
     const rule: ListRule = {
       kind: "trade",

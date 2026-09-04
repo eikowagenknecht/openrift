@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict swV4o6UOT8jhbtBgiudHAmU7PQpMgThp8NZpkaGkp37RokkQ7hFHYv9kFq1hgc0
+\restrict cDrQnrNSemgeCQQ7DcebmbobbWk6TH0Ds6ZLUOvCwegnjBFpQqHJYNkPPiOLpkl
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2593,6 +2593,19 @@ CREATE TABLE public.printings (
 
 
 --
+-- Name: mv_printing_foil_twins; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+--
+
+CREATE MATERIALIZED VIEW public.mv_printing_foil_twins AS
+ SELECT id AS printing_id
+   FROM public.printings p
+  WHERE ((finish <> 'foil'::text) AND (EXISTS ( SELECT 1
+           FROM public.printings q
+          WHERE ((q.card_id = p.card_id) AND (q.short_code = p.short_code) AND (q.language = p.language) AND (q.size = p.size) AND (q.art_variant = p.art_variant) AND (q.is_signed = p.is_signed) AND (q.is_overnumbered = p.is_overnumbered) AND (q.marker_slugs = p.marker_slugs) AND (q.finish = 'foil'::text)))))
+  WITH NO DATA;
+
+
+--
 -- Name: sets; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2970,9 +2983,11 @@ CREATE VIEW public.printings_ordered AS
     p.fallback_art_mode,
     p.fallback_image_file_id,
     p.is_overnumbered,
-    COALESCE(r.canonical_rank, 2147483647) AS canonical_rank
-   FROM (public.printings p
-     LEFT JOIN public.mv_printings_canonical_rank r ON ((r.printing_id = p.id)));
+    COALESCE(r.canonical_rank, 2147483647) AS canonical_rank,
+    (t.printing_id IS NOT NULL) AS has_foil_twin
+   FROM ((public.printings p
+     LEFT JOIN public.mv_printings_canonical_rank r ON ((r.printing_id = p.id)))
+     LEFT JOIN public.mv_printing_foil_twins t ON ((t.printing_id = p.id)));
 
 
 --
@@ -5833,6 +5848,13 @@ CREATE UNIQUE INDEX idx_mv_daily_printing_prices_pk ON public.mv_daily_printing_
 --
 
 CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printing_prices USING btree (printing_id, marketplace);
+
+
+--
+-- Name: idx_mv_printing_foil_twins_pk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mv_printing_foil_twins_pk ON public.mv_printing_foil_twins USING btree (printing_id);
 
 
 --
@@ -8857,5 +8879,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict swV4o6UOT8jhbtBgiudHAmU7PQpMgThp8NZpkaGkp37RokkQ7hFHYv9kFq1hgc0
+\unrestrict cDrQnrNSemgeCQQ7DcebmbobbWk6TH0Ds6ZLUOvCwegnjBFpQqHJYNkPPiOLpkl
 

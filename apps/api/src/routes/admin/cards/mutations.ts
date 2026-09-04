@@ -948,9 +948,9 @@ export const adminCardMutationsRouter = {
       newValues: { printingFields, candidatePrintingIds },
     });
 
-    // A brand-new printing has no rank row yet, so it would sort last until the
-    // next refresh.
-    await context.repos.catalog.refreshCanonicalRank();
+    // A brand-new printing has no rank row yet, and may complete an existing
+    // one's foil-twin pair — both need the full refresh, not just the rank one.
+    await context.repos.catalog.refreshCatalogViews();
 
     // Other providers' candidates for this printing were uploaded before it
     // existed, so their ingest-time key resolution missed it. Re-resolve now so
@@ -1016,9 +1016,9 @@ export const adminCardMutationsRouter = {
       newValues: printingFields,
     });
 
-    // A brand-new printing has no rank row yet, so it would sort last until the
-    // next refresh.
-    await context.repos.catalog.refreshCanonicalRank();
+    // A brand-new printing has no rank row yet, and may complete an existing
+    // one's foil-twin pair — both need the full refresh, not just the rank one.
+    await context.repos.catalog.refreshCatalogViews();
 
     return { printingId };
   }),
