@@ -101,7 +101,7 @@ beforeEach(() => {
 describe("retierMetaEvents", () => {
   it("promotes only the events whose tier the mapping now moves", async () => {
     const repos = fakeRepos({
-      ...uvsgamesEvent("moved", "store", "tpl-premier"),
+      ...uvsgamesEvent("moved", "local", "tpl-premier"),
       templateTiers: [["tpl-premier", "premier"]],
     });
 
@@ -129,7 +129,7 @@ describe("retierMetaEvents", () => {
   });
 
   it("falls back to the field size for a template nobody mapped", async () => {
-    const repos = fakeRepos(uvsgamesEvent("big", "store", "tpl-unmapped", 200));
+    const repos = fakeRepos(uvsgamesEvent("big", "local", "tpl-unmapped", 200));
 
     const result = await retierMetaEvents(repos);
 
@@ -139,7 +139,7 @@ describe("retierMetaEvents", () => {
 
   it("never moves an event an accepted overlay claims the tier of", async () => {
     const repos = fakeRepos({
-      ...uvsgamesEvent("claimed", "store", "tpl-premier"),
+      ...uvsgamesEvent("claimed", "local", "tpl-premier"),
       templateTiers: [["tpl-premier", "premier"]],
       tierClaims: ["claimed"],
     });
@@ -152,7 +152,7 @@ describe("retierMetaEvents", () => {
 
   it("ignores a source whose format the archive cannot map, as promotion does", async () => {
     const repos = fakeRepos({
-      events: [{ id: "unmappable", tier: "store" }],
+      events: [{ id: "unmappable", tier: "local" }],
       sources: [{ metaEventId: "unmappable", provider: "uvsgames", externalId: "key-1" }],
       uvsgames: [
         {
@@ -173,7 +173,7 @@ describe("retierMetaEvents", () => {
 
   it("takes the tier of the last citation by priority, as promotion merges them", async () => {
     const repos = fakeRepos({
-      events: [{ id: "two-sources", tier: "store" }],
+      events: [{ id: "two-sources", tier: "local" }],
       sources: [
         { metaEventId: "two-sources", provider: "uvsgames", externalId: "key-1", priority: 1 },
         { metaEventId: "two-sources", provider: "playloltcg", externalId: "77", priority: 2 },
@@ -208,7 +208,7 @@ describe("retierMetaEvents", () => {
   });
 
   it("treats a zero player count as unreported rather than a field of none", async () => {
-    const repos = fakeRepos(uvsgamesEvent("unreported", "store", null, 0));
+    const repos = fakeRepos(uvsgamesEvent("unreported", "local", null, 0));
 
     const result = await retierMetaEvents(repos);
 

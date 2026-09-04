@@ -1215,7 +1215,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
         eventName: "MTA Context",
         eventDate: "2026-08-01",
         eventFormat: FORMAT,
-        eventTier: "store",
+        eventTier: "local",
         eventCountry: null,
         eventPlayerCount: 64,
       });

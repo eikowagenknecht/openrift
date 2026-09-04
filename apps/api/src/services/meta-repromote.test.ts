@@ -26,7 +26,7 @@ function promoted(metaEventId: string, errors: string[] = []) {
 function fakeRepos(eventIds: string[] = []): Repos {
   return {
     meta: {
-      allEventTiers: () => Promise.resolve(eventIds.map((id) => ({ id, tier: "store" }))),
+      allEventTiers: () => Promise.resolve(eventIds.map((id) => ({ id, tier: "local" }))),
     },
   } as unknown as Repos;
 }
