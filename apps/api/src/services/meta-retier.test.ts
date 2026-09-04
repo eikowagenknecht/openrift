@@ -31,6 +31,7 @@ interface Fixture {
   playloltcg?: { metaEventId: string; activityShopId: number; playerCount: number | null }[];
   formatMappings?: [string, string][];
   templateTiers?: [string, MetaEventTier | null][];
+  competitivePlayerFloor?: number;
   tierClaims?: string[];
 }
 
@@ -52,6 +53,8 @@ function fakeRepos(fixture: Fixture): Repos {
       formatMappings: () =>
         Promise.resolve(new Map(fixture.formatMappings ?? [["standard", "standard"]])),
       templateTiers: () => Promise.resolve(new Map(fixture.templateTiers)),
+      settings: () =>
+        Promise.resolve({ competitivePlayerFloor: fixture.competitivePlayerFloor ?? 128 }),
     },
     playloltcgEvents: {
       tierInputsForLiveEvents: () => Promise.resolve(fixture.playloltcg ?? []),
@@ -135,6 +138,22 @@ describe("retierMetaEvents", () => {
 
     // 128 players and up is competitive whatever the organizer called it.
     expect(result.moved).toBe(1);
+  });
+
+  it("reads the field-size floor from the stored settings", async () => {
+    const under = fakeRepos({
+      ...uvsgamesEvent("mid", "local", "tpl-unmapped", 64),
+      competitivePlayerFloor: 128,
+    });
+    const underResult = await retierMetaEvents(under);
+    expect(underResult.moved).toBe(0);
+
+    const over = fakeRepos({
+      ...uvsgamesEvent("mid", "local", "tpl-unmapped", 64),
+      competitivePlayerFloor: 32,
+    });
+    const overResult = await retierMetaEvents(over);
+    expect(overResult.moved).toBe(1);
   });
 
   it("never moves an event an accepted overlay claims the tier of", async () => {

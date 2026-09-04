@@ -47,9 +47,6 @@ export function suggestTierForTemplateName(name: string | null): MetaEventTier |
   return null;
 }
 
-/** Field sizes this large are competitive whatever the organizer named them. */
-const COMPETITIVE_PLAYER_FLOOR = 128;
-
 /** Most competitive first, so the lower number wins a comparison. */
 const TIER_RANK: Record<MetaEventTier, number> = { premier: 0, competitive: 1, local: 2 };
 
@@ -58,14 +55,18 @@ const TIER_RANK: Record<MetaEventTier, number> = { premier: 0, competitive: 1, l
  * `competitive` if the field is large enough, never lowered. Size alone never
  * reaches `premier`.
  *
+ * @param competitivePlayerFloor - `meta_sync_settings.competitive_player_floor`.
  * @returns The tier, `"local"` when nothing claims more.
  */
-export function classifyMetaEventTier(event: {
-  /** The admin-curated tier of the event's template, when it runs a mapped one. */
-  templateTier?: MetaEventTier | null;
-  playerCount?: number | null;
-}): MetaEventTier {
-  const bySize = (event.playerCount ?? 0) >= COMPETITIVE_PLAYER_FLOOR ? "competitive" : "local";
+export function classifyMetaEventTier(
+  event: {
+    /** The admin-curated tier of the event's template, when it runs a mapped one. */
+    templateTier?: MetaEventTier | null;
+    playerCount?: number | null;
+  },
+  competitivePlayerFloor: number,
+): MetaEventTier {
+  const bySize = (event.playerCount ?? 0) >= competitivePlayerFloor ? "competitive" : "local";
   const mapped = event.templateTier ?? "local";
   return TIER_RANK[mapped] <= TIER_RANK[bySize] ? mapped : bySize;
 }

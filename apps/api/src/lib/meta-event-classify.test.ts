@@ -6,34 +6,52 @@ import {
   suggestTierForTemplateName,
 } from "./meta-event-classify.js";
 
+/** The stored default of `meta_sync_settings.competitive_player_floor`. */
+const FLOOR = 128;
+
 describe("classifyMetaEventTier", () => {
   it("keeps a mapped template tier a small field cannot reach", () => {
-    expect(classifyMetaEventTier({ templateTier: "premier", playerCount: 8 })).toBe("premier");
-    expect(classifyMetaEventTier({ templateTier: "competitive", playerCount: 59 })).toBe(
+    expect(classifyMetaEventTier({ templateTier: "premier", playerCount: 8 }, FLOOR)).toBe(
+      "premier",
+    );
+    expect(classifyMetaEventTier({ templateTier: "competitive", playerCount: 59 }, FLOOR)).toBe(
       "competitive",
     );
   });
 
   it("raises a local template a large field ran under", () => {
-    expect(classifyMetaEventTier({ templateTier: "local", playerCount: 710 })).toBe("competitive");
+    expect(classifyMetaEventTier({ templateTier: "local", playerCount: 710 }, FLOOR)).toBe(
+      "competitive",
+    );
   });
 
   it("never lets a small field lower a premier template", () => {
-    expect(classifyMetaEventTier({ templateTier: "premier", playerCount: 4 })).toBe("premier");
+    expect(classifyMetaEventTier({ templateTier: "premier", playerCount: 4 }, FLOOR)).toBe(
+      "premier",
+    );
   });
 
   it("never reaches premier on field size alone", () => {
-    expect(classifyMetaEventTier({ templateTier: null, playerCount: 2224 })).toBe("competitive");
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: 2224 }, FLOOR)).toBe(
+      "competitive",
+    );
   });
 
   it("takes competitive from an unmapped template at the floor", () => {
-    expect(classifyMetaEventTier({ templateTier: null, playerCount: 128 })).toBe("competitive");
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: FLOOR }, FLOOR)).toBe(
+      "competitive",
+    );
+  });
+
+  it("reads the floor from the caller", () => {
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: 32 }, 32)).toBe("competitive");
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: 32 }, 512)).toBe("local");
   });
 
   it("falls back to local for a small or unknown field", () => {
-    expect(classifyMetaEventTier({ templateTier: null, playerCount: 64 })).toBe("local");
-    expect(classifyMetaEventTier({ playerCount: null })).toBe("local");
-    expect(classifyMetaEventTier({})).toBe("local");
+    expect(classifyMetaEventTier({ templateTier: null, playerCount: 64 }, FLOOR)).toBe("local");
+    expect(classifyMetaEventTier({ playerCount: null }, FLOOR)).toBe("local");
+    expect(classifyMetaEventTier({}, FLOOR)).toBe("local");
   });
 });
 

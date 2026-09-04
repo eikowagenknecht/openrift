@@ -1157,6 +1157,8 @@ interface MetaSyncSettingsTable {
   autoAcceptNotable: Generated<boolean>;
   /** Accepts every event running a template the code recognizes as official. */
   autoAcceptOfficial: Generated<boolean>;
+  /** Field size that raises an event to `competitive` whatever its template says. CHECK: > 0. */
+  competitivePlayerFloor: Generated<number>;
   updatedAt: UpdatedAt;
 }
 

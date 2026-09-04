@@ -63,6 +63,7 @@ import { createMetaEventPlayer, setMetaPlayerList } from "./meta-event-players.j
 export interface MetaSourceContext {
   formatMappings: ReadonlyMap<string, string>;
   templateTiers: ReadonlyMap<string, MetaEventTier | null>;
+  competitivePlayerFloor: number;
 }
 
 /** {@link MetaSourceContext} plus what resolving decklist card names needs. */
@@ -72,11 +73,12 @@ export interface MetaPromoteContext extends MetaSourceContext {
 
 /** @returns The mapping tables one pass reuses across every event it promotes. */
 async function createMetaSourceContext(repos: Repos): Promise<MetaSourceContext> {
-  const [formatMappings, templateTiers] = await Promise.all([
+  const [formatMappings, templateTiers, settings] = await Promise.all([
     repos.uvsgamesEvents.formatMappings(),
     repos.uvsgamesEvents.templateTiers(),
+    repos.uvsgamesEvents.settings(),
   ]);
-  return { formatMappings, templateTiers };
+  return { formatMappings, templateTiers, competitivePlayerFloor: settings.competitivePlayerFloor };
 }
 
 /** @returns Everything {@link promoteMetaEvent} would otherwise load per event. */
@@ -208,7 +210,7 @@ async function uvsgamesFacts(
     return null;
   }
 
-  const { formatMappings, templateTiers } = context;
+  const { formatMappings, templateTiers, competitivePlayerFloor } = context;
   const standings = await repos.uvsgamesResults.standings(externalId);
 
   const format = mapSourceFormat(formatMappings, listing.eventFormat);
@@ -240,13 +242,16 @@ async function uvsgamesFacts(
       playerCount,
       organizer: listing.storeName === null ? null : listing.storeName.slice(0, 120),
       notes: null,
-      tier: classifyMetaEventTier({
-        templateTier:
-          listing.eventConfigurationTemplate === null
-            ? null
-            : (templateTiers.get(listing.eventConfigurationTemplate) ?? null),
-        playerCount,
-      }),
+      tier: classifyMetaEventTier(
+        {
+          templateTier:
+            listing.eventConfigurationTemplate === null
+              ? null
+              : (templateTiers.get(listing.eventConfigurationTemplate) ?? null),
+          playerCount,
+        },
+        competitivePlayerFloor,
+      ),
       country: countryFromAddress(location),
       location,
     },
@@ -277,7 +282,11 @@ async function uvsgamesFacts(
   };
 }
 
-async function playloltcgFacts(repos: Repos, externalId: string): Promise<SourceFacts | null> {
+async function playloltcgFacts(
+  repos: Repos,
+  externalId: string,
+  context: MetaSourceContext,
+): Promise<SourceFacts | null> {
   const activityShopId = Number(externalId);
   if (!Number.isInteger(activityShopId)) {
     return null;
@@ -308,7 +317,10 @@ async function playloltcgFacts(repos: Repos, externalId: string): Promise<Source
       playerCount,
       organizer: listing.shopName === null ? null : listing.shopName.slice(0, 120),
       notes: null,
-      tier: classifyMetaEventTier({ templateTier: null, playerCount }),
+      tier: classifyMetaEventTier(
+        { templateTier: null, playerCount },
+        context.competitivePlayerFloor,
+      ),
       country: "CN",
       location,
     },
@@ -386,7 +398,7 @@ function factsFor(
     return uvsgamesFacts(repos, externalId, context);
   }
   if (provider === PLAYLOLTCG_PROVIDER) {
-    return playloltcgFacts(repos, externalId);
+    return playloltcgFacts(repos, externalId, context);
   }
   // A push provider writes overlays, not a mirror, so there is nothing here to
   // promote and its citation still stands.

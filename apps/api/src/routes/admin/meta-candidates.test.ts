@@ -73,7 +73,12 @@ const mockMeta = {
 
 const mockCatalog = { cardNamesByIds: vi.fn() };
 
-const mockUvsgames = { byKey: vi.fn(), formatMappings: vi.fn(), templateTiers: vi.fn() };
+const mockUvsgames = {
+  byKey: vi.fn(),
+  formatMappings: vi.fn(),
+  templateTiers: vi.fn(),
+  settings: vi.fn(),
+};
 // Drift reads promotion's own view of each source, which reaches for the
 // mirror the fetch filled.
 const mockUvsgamesResults = { standings: vi.fn() };
@@ -222,6 +227,7 @@ beforeEach(() => {
   mockMeta.sourcesForEvent.mockResolvedValue([]);
   mockUvsgames.formatMappings.mockResolvedValue(new Map());
   mockUvsgames.templateTiers.mockResolvedValue(new Map());
+  mockUvsgames.settings.mockResolvedValue({ competitivePlayerFloor: 128 });
   mockUvsgamesResults.standings.mockResolvedValue([]);
 });
 

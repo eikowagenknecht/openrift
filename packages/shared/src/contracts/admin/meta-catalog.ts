@@ -242,6 +242,8 @@ export const metaSyncSettingsSchema = z
     autoAcceptNotable: z.boolean(),
     /** Accept every event running a recognized official template (Regional Qualifier, ...). */
     autoAcceptOfficial: z.boolean(),
+    /** Field size that files an event as competitive whatever its template says. */
+    competitivePlayerFloor: z.number().int().positive(),
     updatedAt: isoDateTime,
   })
   .openapi("MetaSyncSettings");
@@ -250,6 +252,7 @@ const metaSyncSettingsPatchSchema = z.object({
   autoAcceptMinPlayers: z.number().int().positive().nullable().optional(),
   autoAcceptNotable: z.boolean().optional(),
   autoAcceptOfficial: z.boolean().optional(),
+  competitivePlayerFloor: z.number().int().positive().optional(),
 });
 
 export const metaSourceTemplateSchema = z

@@ -297,12 +297,13 @@ export function useMetaSyncSettings() {
   });
 }
 
-/** A rule change. Fields left out keep their stored value. */
+/** A settings change. Fields left out keep their stored value. */
 export interface MetaSyncSettingsInput {
   /** Null turns the player-count rule off. */
   autoAcceptMinPlayers?: number | null;
   autoAcceptNotable?: boolean;
   autoAcceptOfficial?: boolean;
+  competitivePlayerFloor?: number;
 }
 
 const updateMetaSyncSettingsFn = createServerFn({ method: "POST" })
@@ -313,7 +314,7 @@ const updateMetaSyncSettingsFn = createServerFn({ method: "POST" })
   );
 
 /**
- * Saves the auto-accept rules.
+ * Saves the sync settings.
  *
  * @returns The mutation; resolves with the stored settings.
  */

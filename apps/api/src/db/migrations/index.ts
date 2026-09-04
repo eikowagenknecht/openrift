@@ -235,6 +235,7 @@ import * as m286 from "./286-overlay-claims-may-be-empty.js";
 import * as m287 from "./287-meta-player-key-index.js";
 import * as m288 from "./288-printing-foil-twins.js";
 import * as m289 from "./289-meta-tier-local.js";
+import * as m290 from "./290-meta-competitive-player-floor.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -529,4 +530,5 @@ export const migrations: Record<string, Migration> = {
   "287-meta-player-key-index": m287,
   "288-printing-foil-twins": m288,
   "289-meta-tier-local": m289,
+  "290-meta-competitive-player-floor": m290,
 };

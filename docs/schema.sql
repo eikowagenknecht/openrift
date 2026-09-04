@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict eoBQyo3FUetTVvCthV75D9tPp2NznFKr3ciIk6INpqTLLCzBDxbSi0wgQSm91eB
+\restrict ZFfuy8l4N7TSP02JPTcsal1yXc7w7XOXfavUuwXzNWD6Jk49WrWv6fsY4YqZIzG
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2454,6 +2454,8 @@ CREATE TABLE public.meta_sync_settings (
     auto_accept_notable boolean DEFAULT false NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     auto_accept_official boolean DEFAULT false NOT NULL,
+    competitive_player_floor integer DEFAULT 128 NOT NULL,
+    CONSTRAINT chk_meta_sync_settings_competitive_floor CHECK ((competitive_player_floor > 0)),
     CONSTRAINT chk_meta_sync_settings_min_players CHECK (((auto_accept_min_players IS NULL) OR (auto_accept_min_players > 0))),
     CONSTRAINT chk_meta_sync_settings_singleton CHECK ((id = 1))
 );
@@ -8879,5 +8881,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict eoBQyo3FUetTVvCthV75D9tPp2NznFKr3ciIk6INpqTLLCzBDxbSi0wgQSm91eB
+\unrestrict ZFfuy8l4N7TSP02JPTcsal1yXc7w7XOXfavUuwXzNWD6Jk49WrWv6fsY4YqZIzG
 

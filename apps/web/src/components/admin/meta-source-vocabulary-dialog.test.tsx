@@ -1,6 +1,7 @@
 import type {
   MetaSourceFormat,
   MetaSourceTemplate,
+  MetaSyncSettings,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,8 +10,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({
   templates: null as unknown,
   formats: null as unknown,
+  settings: null as unknown,
   updateTemplate: vi.fn(),
   updateFormat: vi.fn(),
+  updateSettings: vi.fn(),
   archiveRuns: [] as unknown[],
   runSync: vi.fn(() => Promise.resolve({ status: "running", runId: "run-1" })),
 }));
@@ -18,8 +21,10 @@ const captured = vi.hoisted(() => ({
 vi.mock("@/hooks/use-admin-meta-catalog", () => ({
   useMetaSourceTemplates: () => ({ data: captured.templates }),
   useMetaSourceFormats: () => ({ data: captured.formats }),
+  useMetaSyncSettings: () => ({ data: captured.settings }),
   useUpdateMetaSourceTemplate: () => ({ mutate: captured.updateTemplate, isPending: false }),
   useUpdateMetaSourceFormat: () => ({ mutate: captured.updateFormat, isPending: false }),
+  useUpdateMetaSyncSettings: () => ({ mutate: captured.updateSettings, isPending: false }),
   useMetaArchiveJobs: () => ({ data: { runs: captured.archiveRuns } }),
   useRunMetaSync: () => ({ mutateAsync: captured.runSync, isPending: false }),
 }));
@@ -62,6 +67,17 @@ function sourceFormat(overrides: Partial<MetaSourceFormat> = {}): MetaSourceForm
   };
 }
 
+function syncSettings(overrides: Partial<MetaSyncSettings> = {}): MetaSyncSettings {
+  return {
+    autoAcceptMinPlayers: 64,
+    autoAcceptNotable: true,
+    autoAcceptOfficial: true,
+    competitivePlayerFloor: 128,
+    updatedAt: "2026-08-20T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
 function templateRow(name: string) {
   return within(screen.getByRole("row", { name: new RegExp(name, "u") }));
 }
@@ -75,6 +91,7 @@ describe("MetaSourceVocabularyDialog", () => {
     vi.clearAllMocks();
     captured.templates = { templates: [template()] };
     captured.formats = { formats: [sourceFormat()] };
+    captured.settings = syncSettings();
     captured.archiveRuns = [];
     captured.runSync.mockResolvedValue({ status: "running", runId: "run-1" });
   });
@@ -157,6 +174,40 @@ describe("MetaSourceVocabularyDialog", () => {
     await user.click(screen.getByRole("button", { name: "Reapply tier rules" }));
 
     expect(captured.runSync).toHaveBeenCalledWith({ trigger: "runRetier" });
+  });
+
+  it("shows the stored player-count floor", () => {
+    captured.settings = syncSettings({ competitivePlayerFloor: 96 });
+    open();
+    expect(screen.getByLabelText("Events with at least")).toHaveValue(96);
+  });
+
+  it("saves an edited floor on the button rather than on every keystroke", async () => {
+    const user = userEvent.setup();
+    open();
+
+    await user.clear(screen.getByLabelText("Events with at least"));
+    await user.type(screen.getByLabelText("Events with at least"), "64");
+    expect(captured.updateSettings).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Save floor" }));
+
+    expect(captured.updateSettings).toHaveBeenCalledWith({ competitivePlayerFloor: 64 });
+  });
+
+  it("refuses a floor of zero or a blank field", async () => {
+    const user = userEvent.setup();
+    open();
+
+    await user.clear(screen.getByLabelText("Events with at least"));
+
+    expect(screen.getByText("Enter a whole number of players above zero.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save floor" })).toBeDisabled();
+  });
+
+  it("holds the save while the floor still matches what is stored", () => {
+    open();
+    expect(screen.getByRole("button", { name: "Save floor" })).toBeDisabled();
   });
 
   it("holds the reapply button while that pass is already running", () => {

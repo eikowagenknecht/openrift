@@ -172,10 +172,11 @@ export const adminMetaRouter = {
   }),
 
   createEvent: os.createEvent.handler(async ({ input, context }): Promise<AdminMetaEvent> => {
-    const { meta, deckFormats } = context.repos;
+    const { meta, deckFormats, uvsgamesEvents } = context.repos;
 
     await assertKnownFormat(deckFormats, input.format);
     assertSlugAvailable(await meta.eventBySlug(input.slug), input.slug, "Event");
+    const { competitivePlayerFloor } = await uvsgamesEvents.settings();
 
     // The row is minted with identity and the NOT NULL columns only. What the
     // admin typed is claimed by an overlay instead, the same way a later
@@ -189,7 +190,9 @@ export const adminMetaRouter = {
       playerCount: null,
       organizer: null,
       notes: null,
-      tier: input.tier ?? classifyMetaEventTier({ playerCount: input.playerCount ?? null }),
+      tier:
+        input.tier ??
+        classifyMetaEventTier({ playerCount: input.playerCount ?? null }, competitivePlayerFloor),
       country: null,
       location: null,
     });

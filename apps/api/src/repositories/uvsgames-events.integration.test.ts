@@ -153,6 +153,7 @@ afterAll(async () => {
       autoAcceptMinPlayers: null,
       autoAcceptNotable: false,
       autoAcceptOfficial: false,
+      competitivePlayerFloor: 128,
     })
     .where("id", "=", 1)
     .execute();
@@ -571,7 +572,11 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
     expect(await repo().settings()).toMatchObject({
       autoAcceptMinPlayers: 64,
       autoAcceptOfficial: true,
+      competitivePlayerFloor: 128,
     });
+
+    await repo().updateSettings({ competitivePlayerFloor: 64 });
+    expect(await repo().settings()).toMatchObject({ competitivePlayerFloor: 64 });
   });
 
   it("stores the source's event template and reads it back on the row", async () => {

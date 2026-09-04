@@ -133,6 +133,7 @@ export interface MetaSyncSettingsRow {
   autoAcceptMinPlayers: number | null;
   autoAcceptNotable: boolean;
   autoAcceptOfficial: boolean;
+  competitivePlayerFloor: number;
   updatedAt: Date;
 }
 
@@ -140,6 +141,7 @@ export interface MetaSyncSettingsPatch {
   autoAcceptMinPlayers?: number | null;
   autoAcceptNotable?: boolean;
   autoAcceptOfficial?: boolean;
+  competitivePlayerFloor?: number;
 }
 
 /** One event-configuration template, as the vocabulary list shows it. */
@@ -1022,7 +1024,13 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
     async settings(): Promise<MetaSyncSettingsRow> {
       const row = await db
         .selectFrom("metaSyncSettings")
-        .select(["autoAcceptMinPlayers", "autoAcceptNotable", "autoAcceptOfficial", "updatedAt"])
+        .select([
+          "autoAcceptMinPlayers",
+          "autoAcceptNotable",
+          "autoAcceptOfficial",
+          "competitivePlayerFloor",
+          "updatedAt",
+        ])
         .where("id", "=", SETTINGS_ID)
         .executeTakeFirstOrThrow();
       return row;
@@ -1033,7 +1041,13 @@ export function uvsgamesEventsRepo(db: Kysely<Database>) {
         .updateTable("metaSyncSettings")
         .set(patch)
         .where("id", "=", SETTINGS_ID)
-        .returning(["autoAcceptMinPlayers", "autoAcceptNotable", "autoAcceptOfficial", "updatedAt"])
+        .returning([
+          "autoAcceptMinPlayers",
+          "autoAcceptNotable",
+          "autoAcceptOfficial",
+          "competitivePlayerFloor",
+          "updatedAt",
+        ])
         .executeTakeFirstOrThrow();
       return row;
     },

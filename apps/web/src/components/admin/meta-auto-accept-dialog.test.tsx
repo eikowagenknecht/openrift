@@ -20,6 +20,7 @@ const settings: MetaSyncSettings = {
   autoAcceptMinPlayers: 64,
   autoAcceptNotable: true,
   autoAcceptOfficial: false,
+  competitivePlayerFloor: 128,
   updatedAt: "2026-08-20T10:00:00.000Z",
 };
 

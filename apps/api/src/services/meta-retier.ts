@@ -25,16 +25,26 @@ export interface MetaRetierResult extends MetaRepromoteResult {
 }
 
 export async function retierMetaEvents(repos: Repos): Promise<MetaRetierResult> {
-  const [events, sources, uvsInputs, playloltcgInputs, formatMappings, templateTiers, claimed] =
-    await Promise.all([
-      repos.meta.allEventTiers(),
-      repos.meta.allSources(),
-      repos.uvsgamesEvents.tierInputsForLiveEvents(),
-      repos.playloltcgEvents.tierInputsForLiveEvents(),
-      repos.uvsgamesEvents.formatMappings(),
-      repos.uvsgamesEvents.templateTiers(),
-      repos.metaOverlays.eventIdsClaimingField("tier"),
-    ]);
+  const [
+    events,
+    sources,
+    uvsInputs,
+    playloltcgInputs,
+    formatMappings,
+    templateTiers,
+    settings,
+    claimed,
+  ] = await Promise.all([
+    repos.meta.allEventTiers(),
+    repos.meta.allSources(),
+    repos.uvsgamesEvents.tierInputsForLiveEvents(),
+    repos.playloltcgEvents.tierInputsForLiveEvents(),
+    repos.uvsgamesEvents.formatMappings(),
+    repos.uvsgamesEvents.templateTiers(),
+    repos.uvsgamesEvents.settings(),
+    repos.metaOverlays.eventIdsClaimingField("tier"),
+  ]);
+  const floor = settings.competitivePlayerFloor;
 
   const uvsByKey = new Map(uvsInputs.map((row) => [row.externalId, row]));
   const playloltcgByKey = new Map(playloltcgInputs.map((row) => [String(row.activityShopId), row]));
@@ -54,22 +64,25 @@ export async function retierMetaEvents(repos: Repos): Promise<MetaRetierResult> 
         if (row === undefined || mapSourceFormat(formatMappings, row.eventFormat) === null) {
           return null;
         }
-        return classifyMetaEventTier({
-          templateTier:
-            row.eventConfigurationTemplate === null
-              ? null
-              : (templateTiers.get(row.eventConfigurationTemplate) ?? null),
-          playerCount: countOrNull(row.playerCount),
-        });
+        return classifyMetaEventTier(
+          {
+            templateTier:
+              row.eventConfigurationTemplate === null
+                ? null
+                : (templateTiers.get(row.eventConfigurationTemplate) ?? null),
+            playerCount: countOrNull(row.playerCount),
+          },
+          floor,
+        );
       },
       (externalId) => {
         const row = playloltcgByKey.get(externalId);
         return row === undefined
           ? null
-          : classifyMetaEventTier({
-              templateTier: null,
-              playerCount: countOrNull(row.playerCount),
-            });
+          : classifyMetaEventTier(
+              { templateTier: null, playerCount: countOrNull(row.playerCount) },
+              floor,
+            );
       },
     );
     if (expected !== event.tier) {

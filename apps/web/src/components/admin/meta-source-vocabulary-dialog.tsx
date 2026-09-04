@@ -4,6 +4,7 @@ import type {
   MetaSourceFormat,
   MetaSourceTemplate,
 } from "@openrift/shared/contracts/admin/meta-catalog";
+import { useState } from "react";
 
 import { announceSyncTrigger } from "@/components/admin/meta-catalog-shared";
 import { Heading } from "@/components/heading";
@@ -16,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -41,9 +43,11 @@ import {
   useMetaArchiveJobs,
   useMetaSourceFormats,
   useMetaSourceTemplates,
+  useMetaSyncSettings,
   useRunMetaSync,
   useUpdateMetaSourceFormat,
   useUpdateMetaSourceTemplate,
+  useUpdateMetaSyncSettings,
 } from "@/hooks/use-admin-meta-catalog";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { runningRunId } from "@/lib/meta-catalog-display";
@@ -164,6 +168,63 @@ function TemplateRow({
   );
 }
 
+/**
+ * The field size that files an event as competitive whatever its template
+ * says; saved on click since a half-typed number should not fire a request.
+ *
+ * @returns The player-count floor field.
+ */
+function PlayerFloorField() {
+  const { data } = useMetaSyncSettings();
+  const update = useUpdateMetaSyncSettings();
+  const [draft, setDraft] = useState("");
+  // A save answers with the stored row, so its stamp is what says the draft is
+  // stale and the server's value should be showing instead.
+  const [seenAt, setSeenAt] = useState<string | null>(null);
+  if (data !== undefined && data.updatedAt !== seenAt) {
+    setSeenAt(data.updatedAt);
+    setDraft(String(data.competitivePlayerFloor));
+  }
+
+  const valid = /^\d+$/u.test(draft) && Number(draft) > 0;
+  const changed = data !== undefined && valid && Number(draft) !== data.competitivePlayerFloor;
+
+  return (
+    <div className="bg-muted/40 space-y-2 rounded-md border px-3 py-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <Label htmlFor="meta-competitive-floor" className="text-sm">
+          Events with at least
+        </Label>
+        <Input
+          id="meta-competitive-floor"
+          type="number"
+          min={1}
+          value={draft}
+          disabled={data === undefined || update.isPending}
+          onChange={(event) => setDraft(event.target.value)}
+          className="w-24"
+        />
+        <p className="text-muted-foreground min-w-60 flex-1 text-sm">
+          players are competitive whatever their template says. A tier mapping can put an event
+          above this, never below it.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!changed || update.isPending}
+          onClick={() => update.mutate({ competitivePlayerFloor: Number(draft) })}
+        >
+          Save floor
+        </Button>
+      </div>
+      {!valid && data !== undefined && (
+        <p className="text-destructive text-sm">Enter a whole number of players above zero.</p>
+      )}
+    </div>
+  );
+}
+
 function RetierHint() {
   const run = useRunMetaSync();
   const { data } = useMetaArchiveJobs();
@@ -214,6 +275,7 @@ function TemplatesSection() {
         anything from today on is still taking registrations. Names come from the source, refreshed
         on every sync; a template with only an id is one the source has stopped publishing.
       </p>
+      <PlayerFloorField />
       <RetierHint />
       <div className="overflow-x-auto">
         <Table>

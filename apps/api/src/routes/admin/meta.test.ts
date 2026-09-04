@@ -34,6 +34,8 @@ const mockMeta = {
 
 const mockMetaOverlays = { acceptedPlayerOverlays: vi.fn() };
 
+const mockUvsgames = { settings: vi.fn() };
+
 const mockDeckFormats = { getBySlug: vi.fn() };
 const mockCustomTags = { listBySlugs: vi.fn() };
 
@@ -50,6 +52,7 @@ app.use("*", async (c, next) => {
   c.set("repos", {
     meta: mockMeta,
     metaOverlays: mockMetaOverlays,
+    uvsgamesEvents: mockUvsgames,
     deckFormats: mockDeckFormats,
     customTags: mockCustomTags,
   } as never);
@@ -148,6 +151,7 @@ function createPlayer(body: unknown) {
 beforeEach(() => {
   vi.resetAllMocks();
   mockDeckFormats.getBySlug.mockResolvedValue({ slug: "constructed" });
+  mockUvsgames.settings.mockResolvedValue({ competitivePlayerFloor: 128 });
 });
 
 describe("POST /meta/events", () => {
