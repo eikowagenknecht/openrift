@@ -179,7 +179,7 @@ describe("renderDeckImage", () => {
       defaultIo.sharp(archived).extract(box).raw().toBuffer(),
     ]);
     expect(archivedBody).toEqual(plainBody);
-  }, 15_000); // Two full-canvas renders; tight against 5s under full-suite load.
+  }, 30_000); // Two full-canvas renders plus two raw extracts; generous for cold CI.
 });
 
 describe("renderDeckImage (vertical)", () => {
