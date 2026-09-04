@@ -15,6 +15,7 @@
 - fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.
 - fix(Meta): **Decklist submissions no longer error** — submitting a list against an existing event failed with a server error every time; it now saves.
 - feat(App): **Card-border accents** — headings, the footer, and the card detail text box now carry a gold rule and border motif drawn from the printed card's own edge, and the floating set header while scrolling the card browser no longer overlaps the header it is replacing.
+- fix(Lists): **Clearing a rule filter no longer removes it** — emptying a price bound, the search box, or a multi-select's last option to type a new value dropped that filter row from a dynamic rule; it now stays until you remove it.
 
 ## 2026-09-03
 

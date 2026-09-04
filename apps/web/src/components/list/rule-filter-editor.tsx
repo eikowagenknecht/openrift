@@ -174,12 +174,14 @@ export function RuleFilterEditor({
   const shownMarketplace = priceMarketplace ?? marketplaceOrder[0] ?? "cardtrader";
   const available = getAvailableFilters(allPrintings, { orders, sets });
 
-  // Dimensions the user explicitly added but hasn't given a value yet. They
-  // render alongside the active ones; a value-bearing dimension is always shown
-  // regardless. Resets on remount (the dialog unmounts when closed).
-  const [added, setAdded] = useState<readonly string[]>([]);
+  // Dimensions pinned to a row: added from the menu or edited in place. Resets
+  // on remount (the dialog unmounts when closed).
+  const [shownKeys, setShownKeys] = useState<readonly string[]>([]);
 
   const patch = (next: Partial<CardFilters>) => onChange({ ...value, ...next });
+
+  const pin = (key: string) =>
+    setShownKeys((current) => (current.includes(key) ? current : [...current, key]));
 
   // The presence map with one dimension dropped, rebuilt without a dynamic
   // delete. Used both to set/clear a single presence (patchPresence) and to fold
@@ -254,7 +256,7 @@ export function RuleFilterEditor({
               next.presence = presenceWithout(presenceDimension);
             }
             patch(next);
-            setAdded((current) => current.filter((entry) => entry !== key));
+            setShownKeys((current) => current.filter((entry) => entry !== key));
           }}
         >
           <MultiSelectCombobox
@@ -268,6 +270,7 @@ export function RuleFilterEditor({
             excluded={value[excludeKey]}
             onCycle={(toggled) => {
               const next = cycleIncludeExclude(value[includeKey], value[excludeKey], toggled);
+              pin(key);
               patch({ [includeKey]: next.included, [excludeKey]: next.excluded });
             }}
             flagPosition="top"
@@ -283,6 +286,7 @@ export function RuleFilterEditor({
                           presenceState === "none" ? ["1"] : [],
                           "1",
                         );
+                        pin(key);
                         patchPresence(
                           presenceDimension,
                           cycled.included.length > 0
@@ -332,7 +336,7 @@ export function RuleFilterEditor({
           hint={hint}
           onRemove={() => {
             patch({ [field]: null });
-            setAdded((current) => current.filter((entry) => entry !== key));
+            setShownKeys((current) => current.filter((entry) => entry !== key));
           }}
         >
           <MultiSelectCombobox
@@ -349,6 +353,7 @@ export function RuleFilterEditor({
                 value[field] === false ? ["1"] : [],
                 "1",
               );
+              pin(key);
               patch({
                 [field]: next.included.length > 0 ? true : next.excluded.length > 0 ? false : null,
               });
@@ -375,6 +380,7 @@ export function RuleFilterEditor({
   // Writing a bound persists the displayed marketplace: the saved rule must
   // carry the marketplace its numbers are quoted in, not a viewer preference.
   const patchPrice = (price: FilterRange) => {
+    pin("price");
     patch({ price });
     if (priceMarketplace === null) {
       onPriceMarketplaceChange(shownMarketplace);
@@ -415,7 +421,7 @@ export function RuleFilterEditor({
           hint={PRICE_HINT}
           onRemove={() => {
             patch({ price: { min: null, max: null } });
-            setAdded((current) => current.filter((entry) => entry !== "price"));
+            setShownKeys((current) => current.filter((entry) => entry !== "price"));
           }}
         >
           <div className="flex items-center gap-1">
@@ -469,14 +475,17 @@ export function RuleFilterEditor({
         label="Search"
         onRemove={() => {
           patch({ search: "" });
-          setAdded((current) => current.filter((entry) => entry !== "search"));
+          setShownKeys((current) => current.filter((entry) => entry !== "search"));
         }}
       >
         <Input
           className="h-8 w-44"
           placeholder="Name, text, keyword…"
           value={value.search}
-          onChange={(event) => patch({ search: event.target.value })}
+          onChange={(event) => {
+            pin("search");
+            patch({ search: event.target.value });
+          }}
           aria-label="Search text"
         />
       </FilterRow>
@@ -623,10 +632,10 @@ export function RuleFilterEditor({
     priceEntry,
   ];
 
-  const addedSet = new Set(added);
-  const shown = entries.filter((entry) => entry.active || addedSet.has(entry.key));
+  const shownSet = new Set(shownKeys);
+  const shown = entries.filter((entry) => entry.active || shownSet.has(entry.key));
   const addable = entries.filter(
-    (entry) => entry.available && !entry.active && !addedSet.has(entry.key),
+    (entry) => entry.available && !entry.active && !shownSet.has(entry.key),
   );
   const addableInGroup = (group: DimGroup) => addable.filter((entry) => entry.group === group);
 
@@ -638,7 +647,7 @@ export function RuleFilterEditor({
     group.map((entry) => (
       <DropdownMenuItem
         key={entry.key}
-        onClick={() => setAdded((current) => [...current, entry.key])}
+        onClick={() => setShownKeys((current) => [...current, entry.key])}
       >
         {entry.label}
       </DropdownMenuItem>

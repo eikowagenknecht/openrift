@@ -3,6 +3,7 @@ import type { CardFilters } from "@openrift/shared";
 import { EMPTY_CARD_FILTERS } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // getAvailableFilters is fed real printings in the app; here we return a fixed
@@ -194,6 +195,34 @@ describe("RuleFilterEditor presence folding", () => {
 
     expect(screen.getByLabelText("Maximum price")).toHaveValue(5);
     expect(screen.getByRole("button", { name: "Remove Price filter" })).toBeInTheDocument();
+  });
+
+  it("keeps the Price row when its last bound is cleared, until it is removed", async () => {
+    const user = userEvent.setup();
+    function Harness() {
+      const [value, setValue] = useState<CardFilters>({
+        ...EMPTY_CARD_FILTERS,
+        price: { min: null, max: 5 },
+      });
+      return (
+        <RuleFilterEditor
+          value={value}
+          onChange={setValue}
+          priceMarketplace="cardmarket"
+          onPriceMarketplaceChange={() => {}}
+        />
+      );
+    }
+    render(<Harness />);
+
+    await user.clear(screen.getByLabelText("Maximum price"));
+
+    expect(screen.getByLabelText("Maximum price")).toHaveValue(null);
+    expect(screen.getByRole("button", { name: "Remove Price filter" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove Price filter" }));
+
+    expect(screen.queryByLabelText("Maximum price")).not.toBeInTheDocument();
   });
 
   it("clears include, exclude, and presence together in a single change on remove", async () => {
