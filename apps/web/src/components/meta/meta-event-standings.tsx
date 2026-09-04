@@ -2,7 +2,7 @@ import type { MetaEventPlayer } from "@openrift/shared";
 import { todayUtc } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, SearchIcon } from "lucide-react";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardDetailOverlayProvider } from "@/components/cards/card-detail-opener";
@@ -19,7 +19,6 @@ import {
 } from "@/components/meta/meta-event-deck-preview";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaPlayerName } from "@/components/meta/meta-player-name";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
@@ -53,8 +52,10 @@ import {
 } from "@/lib/meta-standings-cost";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 import { cn } from "@/lib/utils";
+import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 
 const ROWS_SHOWN = 16;
+const ROW_HEIGHT = 66;
 
 type StandingsFilter = "all" | "withList";
 
@@ -103,11 +104,6 @@ function standingsColumns(
     value: anyList,
     deck: canSubmit || anyList,
   };
-}
-
-/** Rank and player always stand; the other three are conditional. */
-function columnCount(columns: StandingsColumns): number {
-  return 2 + (columns.legend ? 1 : 0) + (columns.value ? 1 : 0) + (columns.deck ? 1 : 0);
 }
 
 function Rank({ player }: { player: MetaEventPlayer }) {
@@ -240,7 +236,14 @@ function DeckPreview({ token }: { token: string }) {
   );
 }
 
-interface RowProps {
+/** Offset and measurement for one row, empty on the pre-hydration opening slice. */
+interface RowSlot {
+  "data-index"?: number;
+  ref?: (node: HTMLElement | null) => void;
+  style?: React.CSSProperties;
+}
+
+interface RowProps extends RowSlot {
   player: MetaEventPlayer;
   slug: string;
   canSubmit: boolean;
@@ -278,58 +281,75 @@ function rowToggleProps(token: string | null, expanded: boolean, onToggle: () =>
   };
 }
 
-function DesktopRow({ player, slug, canSubmit, columns, costs, expanded, onToggle }: RowProps) {
+/** Flex-laid-out: a virtualized row needs its own translateY, which a `<tr>` in table layout ignores. */
+function DesktopRow({
+  player,
+  slug,
+  canSubmit,
+  columns,
+  costs,
+  expanded,
+  onToggle,
+  ...slot
+}: RowProps) {
   const token = player.shareToken;
 
   return (
-    <>
-      <TableRow
-        {...rowToggleProps(token, expanded, onToggle)}
-        className={cn(
-          "focus-visible:ring-ring aria-expanded:bg-muted/50 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
-          player.rank === 1 && "bg-border-accent/10",
-          token !== null && "cursor-pointer",
-        )}
-      >
-        <TableCell>
-          <RankCell player={player} className="w-12" />
-        </TableCell>
-        {columns.legend && (
-          <TableCell>
-            <LegendCell player={player} />
-          </TableCell>
-        )}
-        <TableCell className="truncate font-medium">
-          <MetaPlayerName name={player.playerName} playerKey={player.playerKey} />
-        </TableCell>
-        {columns.value && (
-          <TableCell className="text-right">
-            <DeckValue player={player} costs={costs} />
-          </TableCell>
-        )}
-        {columns.deck && (
-          <TableCell className="text-right">
-            <DeckCell player={player} slug={slug} canSubmit={canSubmit} expanded={expanded} />
-          </TableCell>
-        )}
-      </TableRow>
-      {expanded && token !== null && (
-        <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={columnCount(columns)} className="p-3 whitespace-normal">
-            <DeckPreview token={token} />
-          </TableCell>
-        </TableRow>
+    <TableRow
+      {...slot}
+      {...rowToggleProps(token, expanded, onToggle)}
+      className={cn(
+        "focus-visible:ring-ring aria-expanded:bg-muted/50 flex w-full flex-wrap items-center focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
+        player.rank === 1 && "bg-border-accent/10",
+        token !== null && "cursor-pointer",
       )}
-    </>
+    >
+      <TableCell className="w-20 shrink-0">
+        <RankCell player={player} className="w-12" />
+      </TableCell>
+      {columns.legend && (
+        <TableCell className="w-64 shrink-0">
+          <LegendCell player={player} />
+        </TableCell>
+      )}
+      <TableCell className="min-w-0 flex-1 truncate font-medium">
+        <MetaPlayerName name={player.playerName} playerKey={player.playerKey} />
+      </TableCell>
+      {columns.value && (
+        <TableCell className="w-28 shrink-0 text-right">
+          <DeckValue player={player} costs={costs} />
+        </TableCell>
+      )}
+      {columns.deck && (
+        <TableCell className="w-36 shrink-0 text-right">
+          <DeckCell player={player} slug={slug} canSubmit={canSubmit} expanded={expanded} />
+        </TableCell>
+      )}
+      {expanded && token !== null && (
+        <TableCell className="w-full p-3 whitespace-normal">
+          <DeckPreview token={token} />
+        </TableCell>
+      )}
+    </TableRow>
   );
 }
 
-function PhoneRow({ player, slug, canSubmit, columns, costs, expanded, onToggle }: RowProps) {
+function PhoneRow({
+  player,
+  slug,
+  canSubmit,
+  columns,
+  costs,
+  expanded,
+  onToggle,
+  ...slot
+}: RowProps) {
   const token = player.shareToken;
 
   return (
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- the row is the disclosure, with aria-expanded and Enter / Space on itself
     <li
+      {...slot}
       {...rowToggleProps(token, expanded, onToggle)}
       className={cn(
         "focus-visible:ring-ring aria-expanded:bg-muted/50 flex flex-col gap-2 px-3 py-2 text-sm not-last:border-b focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
@@ -371,6 +391,174 @@ function PhoneRow({ player, slug, canSubmit, columns, costs, expanded, onToggle 
   );
 }
 
+// A row in the rendering the breakpoint hides measures zero, and those zeros
+// would survive in the cache until the viewport crosses back over 768px.
+function measureRow(element: Element): number {
+  return element.getBoundingClientRect().height || ROW_HEIGHT;
+}
+
+interface RowWindow {
+  containerRef: (node: HTMLElement | null) => void;
+  height: number | undefined;
+  rows: { player: MetaEventPlayer; slot: RowSlot }[];
+}
+
+/** Before hydration, a fixed opening slice matches the server HTML. */
+function useRowWindow(players: readonly MetaEventPlayer[]): RowWindow {
+  const hydrated = useHydrated();
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useEffect(() => {
+    if (container === null) {
+      return;
+    }
+    const measure = () => {
+      const next = Math.round(container.getBoundingClientRect().top + globalThis.scrollY);
+      setScrollMargin((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    return () => observer.disconnect();
+  }, [container]);
+
+  const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh<HTMLElement>({
+    count: players.length,
+    estimateSize: () => ROW_HEIGHT,
+    getItemKey: (index) => players[index]?.id ?? index,
+    measureElement: measureRow,
+    scrollMargin,
+    overscan: 6,
+  });
+
+  if (!hydrated) {
+    return {
+      containerRef: setContainer,
+      height: undefined,
+      rows: players.slice(0, ROWS_SHOWN).map((player) => ({ player, slot: {} })),
+    };
+  }
+
+  return {
+    containerRef: setContainer,
+    height: totalSize,
+    rows: virtualItems.flatMap((item) => {
+      const player = players[item.index];
+      if (player === undefined) {
+        return [];
+      }
+      return [
+        {
+          player,
+          slot: {
+            "data-index": item.index,
+            ref: virtualizer.measureElement,
+            style: {
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${item.start - scrollMargin}px)`,
+            },
+          },
+        },
+      ];
+    }),
+  };
+}
+
+interface StandingsBodyProps {
+  players: readonly MetaEventPlayer[];
+  slug: string;
+  canSubmit: boolean;
+  columns: StandingsColumns;
+  costs: ReadonlyMap<string, MetaDeckCost> | undefined;
+  expandedId: string | null;
+  onToggle: (id: string) => void;
+}
+
+function DesktopStandings({
+  players,
+  slug,
+  canSubmit,
+  columns,
+  costs,
+  expandedId,
+  onToggle,
+}: StandingsBodyProps) {
+  const { containerRef, height, rows } = useRowWindow(players);
+
+  return (
+    <div className="hidden md:block">
+      <Table className="block">
+        <TableHeader className="block">
+          <TableRow className="flex w-full">
+            <TableHead className="flex w-20 shrink-0 items-center justify-center">Rank</TableHead>
+            {columns.legend && (
+              <TableHead className="flex w-64 shrink-0 items-center">Legend</TableHead>
+            )}
+            <TableHead className="flex min-w-0 flex-1 items-center">Player</TableHead>
+            {columns.value && (
+              <TableHead className="flex w-28 shrink-0 items-center justify-end">Value</TableHead>
+            )}
+            {columns.deck && (
+              <TableHead className="flex w-36 shrink-0 items-center justify-end">
+                Decklist
+              </TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody ref={containerRef} className="relative block" style={{ height }}>
+          {rows.map(({ player, slot }) => (
+            <DesktopRow
+              key={player.id}
+              {...slot}
+              player={player}
+              slug={slug}
+              canSubmit={canSubmit}
+              columns={columns}
+              costs={costs}
+              expanded={expandedId === player.id}
+              onToggle={() => onToggle(player.id)}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function PhoneStandings({
+  players,
+  slug,
+  canSubmit,
+  columns,
+  costs,
+  expandedId,
+  onToggle,
+}: StandingsBodyProps) {
+  const { containerRef, height, rows } = useRowWindow(players);
+
+  return (
+    <ul ref={containerRef} className="relative block md:hidden" style={{ height }}>
+      {rows.map(({ player, slot }) => (
+        <PhoneRow
+          key={player.id}
+          {...slot}
+          player={player}
+          slug={slug}
+          canSubmit={canSubmit}
+          columns={columns}
+          costs={costs}
+          expanded={expandedId === player.id}
+          onToggle={() => onToggle(player.id)}
+        />
+      ))}
+    </ul>
+  );
+}
+
 function subtitleFor(total: number, withLists: number): string {
   const entries = `${total.toLocaleString("en-US")} ${total === 1 ? "entry" : "entries"}`;
   if (withLists === 0) {
@@ -398,7 +586,6 @@ export function MetaEventStandings({
   const canSubmit = useUserId() !== null;
   const hydrated = useHydrated();
   const [costs, setCosts] = useState<ReadonlyMap<string, MetaDeckCost>>();
-  const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StandingsFilter>("all");
   const [legendId, setLegendId] = useState(ANY_LEGEND);
@@ -442,11 +629,18 @@ export function MetaEventStandings({
           costFilter,
         )),
   );
-  const shown = showAll ? matching : matching.slice(0, ROWS_SHOWN);
-  const hidden = matching.length - shown.length;
   const showSearch = players.length > 8;
   const showLegendFilter = showSearch && Object.keys(legends).length > 0;
   const toggle = (id: string) => setExpandedId(expandedId === id ? null : id);
+  const body = {
+    players: matching,
+    slug,
+    canSubmit,
+    columns,
+    costs,
+    expandedId,
+    onToggle: toggle,
+  };
 
   return (
     <CardDetailOverlayProvider>
@@ -556,61 +750,9 @@ export function MetaEventStandings({
             <p className="text-muted-foreground px-3 py-6 text-center text-sm">No entries match.</p>
           ) : (
             <>
-              <div className="hidden md:block">
-                <Table className="table-fixed">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-20 text-center">Rank</TableHead>
-                      {columns.legend && <TableHead className="w-64">Legend</TableHead>}
-                      <TableHead>Player</TableHead>
-                      {columns.value && <TableHead className="w-28 text-right">Value</TableHead>}
-                      {columns.deck && <TableHead className="w-36 text-right">Decklist</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {shown.map((player) => (
-                      <DesktopRow
-                        key={player.id}
-                        player={player}
-                        slug={slug}
-                        canSubmit={canSubmit}
-                        columns={columns}
-                        costs={costs}
-                        expanded={expandedId === player.id}
-                        onToggle={() => toggle(player.id)}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <ul className="flex flex-col md:hidden">
-                {shown.map((player) => (
-                  <PhoneRow
-                    key={player.id}
-                    player={player}
-                    slug={slug}
-                    canSubmit={canSubmit}
-                    columns={columns}
-                    costs={costs}
-                    expanded={expandedId === player.id}
-                    onToggle={() => toggle(player.id)}
-                  />
-                ))}
-              </ul>
+              <DesktopStandings {...body} />
+              <PhoneStandings {...body} />
             </>
-          )}
-
-          {matching.length > 0 && (hidden > 0 || showAll) && (
-            <div className="border-t">
-              <Button
-                variant="ghost"
-                className="w-full rounded-none"
-                onClick={() => setShowAll(!showAll)}
-              >
-                {showAll ? "Show fewer" : `Show all ${matching.length} entries`}
-              </Button>
-            </div>
           )}
         </Card>
       </section>

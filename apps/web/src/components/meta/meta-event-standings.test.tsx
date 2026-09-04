@@ -79,6 +79,9 @@ vi.mock("@/components/meta/meta-event-deck-preview", () => ({
   MetaEventDeckPreviewSkeleton: () => null,
 }));
 
+// jsdom has no window.scrollTo, and the window virtualizer calls it on mount.
+globalThis.scrollTo = () => {};
+
 const { MetaEventStandings } = await import("./meta-event-standings");
 
 /** The phone rendering, which is the one carrying every fact in one element. */
@@ -467,29 +470,31 @@ describe("MetaEventStandings", () => {
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 
-  it("opens a long field partly, then shows the rest on request", async () => {
-    const user = userEvent.setup();
-    renderStandings(field(20));
+  it("mounts only the rows a long field puts in view", () => {
+    renderStandings(field(200));
 
-    expect(screen.queryByText("Player 19")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Show all 20 entries" }));
-    expect(screen.getAllByText("Player 19").length).toBeGreaterThan(0);
-
-    await user.click(screen.getByRole("button", { name: "Show fewer" }));
-    expect(screen.queryByText("Player 19")).toBeNull();
+    expect(phoneRow("Player 0")).toBeInTheDocument();
+    expect(screen.queryByText("Player 199")).toBeNull();
   });
 
-  it("counts the narrowed field in the show-all button", async () => {
-    const user = userEvent.setup();
-    renderStandings(field(20, (index) => (index < 18 ? { shareToken: `tok-${index}` } : {})));
+  it("reserves the whole field's height so the scrollbar stays honest", () => {
+    renderStandings(field(200));
 
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- style.height carries a "px" suffix, which Number() cannot parse
+    const reserved = Number.parseInt(screen.getByRole("list").style.height, 10);
+    expect(reserved).toBeGreaterThan(200 * 40);
+  });
+
+  it("shrinks the reserved height to the narrowed field", async () => {
+    const user = userEvent.setup();
+    renderStandings(field(200, (index) => (index < 18 ? { shareToken: `tok-${index}` } : {})));
+
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- style.height carries a "px" suffix, which Number() cannot parse
+    const full = Number.parseInt(screen.getByRole("list").style.height, 10);
     await user.click(screen.getByRole("button", { name: "With decklist (18)" }));
-    expect(screen.getByRole("button", { name: "Show all 18 entries" })).toBeInTheDocument();
-  });
 
-  it("offers no toggle for a field that already fits", () => {
-    renderStandings([metaPlayer()]);
-    expect(screen.queryByRole("button", { name: /Show all/u })).toBeNull();
+    // oxlint-disable-next-line unicorn/prefer-number-coercion -- style.height carries a "px" suffix, which Number() cannot parse
+    expect(Number.parseInt(screen.getByRole("list").style.height, 10)).toBeLessThan(full);
   });
 
   describe("cost filter", () => {
