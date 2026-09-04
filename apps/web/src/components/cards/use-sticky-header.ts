@@ -12,6 +12,8 @@ interface UseStickyHeaderParams {
   virtualizer: Virtualizer<Window, Element>;
   scrollMargin: number;
   stickyOffset: number;
+  /** Height of a header row in px; the overlay waits until the whole row is out of view. */
+  headerHeight: number;
 }
 
 export function useStickyHeader({
@@ -21,6 +23,7 @@ export function useStickyHeader({
   virtualizer,
   scrollMargin,
   stickyOffset,
+  headerHeight,
 }: UseStickyHeaderParams) {
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
@@ -33,6 +36,7 @@ export function useStickyHeader({
   const virtualizerRef = useRef(virtualizer);
   const scrollMarginRef = useRef(scrollMargin);
   const stickyOffsetRef = useRef(stickyOffset);
+  const headerHeightRef = useRef(headerHeight);
 
   useEffect(() => {
     multipleGroupsRef.current = multipleGroups;
@@ -41,6 +45,7 @@ export function useStickyHeader({
     virtualizerRef.current = virtualizer;
     scrollMarginRef.current = scrollMargin;
     stickyOffsetRef.current = stickyOffset;
+    headerHeightRef.current = headerHeight;
   });
 
   if (!multipleGroups && activeHeaderRow !== null) {
@@ -67,8 +72,8 @@ export function useStickyHeader({
         virtualizerRef.current.getVirtualItems().map((item) => [item.index, item.start - margin]),
       );
 
-      // The active header is the last one whose top has reached/crossed the
-      // sticky threshold.
+      // The last header whose row has fully scrolled past the threshold, so
+      // the overlay never doubles up a header still sliding under the toolbar.
       let active: (VRow & { kind: "header" }) | null = null;
       let activeStart = 0;
       for (let i = 0; i < rows.length; i++) {
@@ -82,12 +87,7 @@ export function useStickyHeader({
           activeStart = start;
         }
       }
-
-      // Hide the overlay when the real header is at/near the sticky position
-      // (e.g. right after scrollToGroup jumps to a header).
-      // scrollToIndex lands the header exactly at the threshold (gap=0).
-      // The +1 in the activation check means we need to clear gap < 2.
-      if (active && threshold - activeStart < 2) {
+      if (active && activeStart + headerHeightRef.current > threshold + 1) {
         active = null;
       }
 

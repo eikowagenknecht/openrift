@@ -7,6 +7,7 @@ import { useStickyHeader } from "./use-sticky-header";
 
 const SCROLL_MARGIN = 200;
 const STICKY_OFFSET = 100;
+const HEADER_HEIGHT = 40;
 
 const header = (id: string): VRow => ({
   kind: "header",
@@ -37,6 +38,7 @@ function params(overrides: { multipleGroups?: boolean } = {}) {
     virtualizer: makeVirtualizer(),
     scrollMargin: SCROLL_MARGIN,
     stickyOffset: STICKY_OFFSET,
+    headerHeight: HEADER_HEIGHT,
   };
 }
 
@@ -81,12 +83,21 @@ describe("useStickyHeader", () => {
     expect(getVirtualItems).toHaveBeenCalled();
   });
 
-  it("activates the last header scrolled past the sticky threshold", () => {
+  it("activates the last header whose row has scrolled out of view", () => {
     vi.stubGlobal("scrollY", 550);
     const { result } = renderHook(() => useStickyHeader(params()));
 
     flushFrames();
     expect(result.current?.kind).toBe("header");
+    expect(result.current?.group.id).toBe("b");
+  });
+
+  it("activates as soon as the row's bottom edge reaches the threshold", () => {
+    // threshold 440 = header "b" (400) plus its 40px row.
+    vi.stubGlobal("scrollY", 540);
+    const { result } = renderHook(() => useStickyHeader(params()));
+
+    flushFrames();
     expect(result.current?.group.id).toBe("b");
   });
 
@@ -101,6 +112,17 @@ describe("useStickyHeader", () => {
     // threshold lands exactly on header "b" (400), so the real one is already
     // in place and the floating copy would double it up.
     vi.stubGlobal("scrollY", 500);
+    const { result } = renderHook(() => useStickyHeader(params()));
+
+    flushFrames();
+    expect(result.current).toBeNull();
+  });
+
+  it("hides the overlay while the real header is sliding under the toolbar", () => {
+    // Header "b" has crossed the threshold by 20px of its 40px row: part of it
+    // is still visible, and the previous group's cards are gone, so neither
+    // group's label belongs in the overlay.
+    vi.stubGlobal("scrollY", 520);
     const { result } = renderHook(() => useStickyHeader(params()));
 
     flushFrames();

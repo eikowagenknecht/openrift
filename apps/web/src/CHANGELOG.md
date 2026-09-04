@@ -14,6 +14,7 @@
 - fix(Decks): **One name for copying a deck** — the archive called it "Fork to my decks" where the share page called the same action "Copy to my decks", and both now say copy.
 - fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.
 - fix(Meta): **Decklist submissions no longer error** — submitting a list against an existing event failed with a server error every time; it now saves.
+- feat(App): **Card-border accents** — headings, the footer, and the card detail text box now carry a gold rule and border motif drawn from the printed card's own edge, and the floating set header while scrolling the card browser no longer overlaps the header it is replacing.
 
 ## 2026-09-03
 

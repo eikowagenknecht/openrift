@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { siDiscord, siGithub } from "simple-icons";
 
+import { OrnamentRule } from "@/components/ui/ornament";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { COMMIT_HASH } from "@/lib/env";
 import { SOCIAL_LINKS } from "@/lib/social-links";
@@ -10,6 +11,7 @@ export function Footer({ className }: { className?: string }) {
   const developersEnabled = useFeatureEnabled("developers");
   return (
     <footer className={cn("text-2xs text-muted-foreground/60 mx-auto text-center", className)}>
+      <OrnamentRule className="mx-auto mb-3 w-56" />
       <p>
         <Link to="/features" className="hover:text-muted-foreground">
           Features

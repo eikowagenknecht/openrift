@@ -12,6 +12,7 @@ import {
   MobileOptionsDrawer,
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
+import { OrnamentRule } from "@/components/ui/ornament";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP } from "@/hooks/use-responsive-columns";
 import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
@@ -137,16 +138,14 @@ export function FirstRowPreview() {
                 aria-hidden because the live grid renders an interactive button
                 with the same text; we just need the SSR HTML to occupy the
                 matching height/baseline. */}
-            <div className="flex items-center gap-3 pt-4 pb-2" aria-hidden="true">
-              <div className="bg-border-accent h-px flex-1" />
+            <OrnamentRule fade="tips" className="pt-4 pb-2" aria-hidden="true">
               <span className="flex flex-row gap-3 text-sm">
                 <span className="text-muted-foreground font-medium">{firstRow[0]?.setSlug}</span>
                 <span className="font-semibold">
                   {setLabels[firstRow[0]?.setSlug ?? ""] ?? firstRow[0]?.setSlug}
                 </span>
               </span>
-              <div className="bg-border-accent h-px flex-1" />
-            </div>
+            </OrnamentRule>
             {/* Nothing is measured yet, so the column count and the gap both
                 come from container-query classes that mirror the live rules
                 (useResponsiveColumns' table and card-grid-metrics). They query

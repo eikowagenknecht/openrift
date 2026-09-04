@@ -1,9 +1,11 @@
 import type { Printing } from "@openrift/shared";
 
 import { CardText } from "@/components/cards/card-text";
-import { Callout } from "@/components/ui/callout";
+import { OrnamentBase } from "@/components/ui/ornament";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainGradientStyle } from "@/lib/domain";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 import { ErrataNotice } from "./errata-notice";
@@ -24,9 +26,10 @@ export function CardDetailFlavorText({ printing }: { printing: Printing }) {
 }
 
 /**
- * Printed rules text, effect text and flavor, each with its errata notice when
- * the card has one.
- * @returns The card's text blocks.
+ * Printed rules text, effect text and flavor in one text box, each with its
+ * errata notice when the card has one. The box closes like the printed card's:
+ * the bracket base, with the rarity glyph in the medallion.
+ * @returns The card's text box, or null when the printing has no text.
  */
 export function CardDetailText({
   printing,
@@ -49,69 +52,91 @@ export function CardDetailText({
 }) {
   const { card } = printing;
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
+  const hasEffect =
+    Boolean(printing.printedEffectText) || (card.mightBonus !== null && card.mightBonus > 0);
+  const hasFlavor = showFlavorText && Boolean(printing.flavorText);
+  if (!printing.printedRulesText && !hasEffect && !hasFlavor) {
+    return null;
+  }
+  const rarityIcon = getFilterIconPath("rarities", printing.rarity);
 
   return (
-    <div className="space-y-3 pt-2">
-      {printing.printedRulesText && (
-        <Callout className="px-3 py-2.5">
-          <p className="text-muted-foreground text-sm">
-            <CardText
-              text={card.errata?.correctedRulesText ?? printing.printedRulesText}
-              onKeywordClick={onKeywordClick}
-              interactive={interactive}
-            />
-          </p>
-          {card.errata?.correctedRulesText &&
-            card.errata.correctedRulesText !== printing.printedRulesText && (
-              <ErrataNotice
-                printedText={printing.printedRulesText}
-                source={card.errata.source}
-                sourceUrl={card.errata.sourceUrl}
-                effectiveDate={card.errata.effectiveDate}
-                onKeywordClick={onKeywordClick}
-              />
-            )}
-        </Callout>
-      )}
-
-      {(printing.printedEffectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
-        <div
-          className="border-border/50 rounded-lg border px-3 py-2.5"
-          style={getDomainGradientStyle(card.domains, "18", domainColors)}
-        >
-          {printing.printedEffectText && (
+    <div className="flex flex-col pt-2">
+      <div className="bg-muted/30 border-border-accent space-y-3 rounded-t-lg border border-b-0 px-3 pt-2.5 pb-2">
+        {printing.printedRulesText && (
+          <div>
             <p className="text-muted-foreground text-sm">
               <CardText
-                text={card.errata?.correctedEffectText ?? printing.printedEffectText}
+                text={card.errata?.correctedRulesText ?? printing.printedRulesText}
                 onKeywordClick={onKeywordClick}
                 interactive={interactive}
               />
             </p>
-          )}
-          {card.errata?.correctedEffectText &&
-            printing.printedEffectText &&
-            card.errata.correctedEffectText !== printing.printedEffectText && (
-              <ErrataNotice
-                printedText={printing.printedEffectText}
-                source={card.errata.source}
-                sourceUrl={card.errata.sourceUrl}
-                effectiveDate={card.errata.effectiveDate}
-                onKeywordClick={onKeywordClick}
-              />
-            )}
-          {card.mightBonus !== null && card.mightBonus > 0 && (
-            <div className={cn(printing.printedEffectText && "mt-2")}>
-              <StatChip
-                label="Might Bonus"
-                value={`+${card.mightBonus}`}
-                icon="/images/might.svg"
-              />
-            </div>
-          )}
-        </div>
-      )}
+            {card.errata?.correctedRulesText &&
+              card.errata.correctedRulesText !== printing.printedRulesText && (
+                <ErrataNotice
+                  printedText={printing.printedRulesText}
+                  source={card.errata.source}
+                  sourceUrl={card.errata.sourceUrl}
+                  effectiveDate={card.errata.effectiveDate}
+                  onKeywordClick={onKeywordClick}
+                />
+              )}
+          </div>
+        )}
 
-      {showFlavorText && <CardDetailFlavorText printing={printing} />}
+        {hasEffect && (
+          <div
+            className="border-border/50 rounded-lg border px-3 py-2.5"
+            style={getDomainGradientStyle(card.domains, "18", domainColors)}
+          >
+            {printing.printedEffectText && (
+              <p className="text-muted-foreground text-sm">
+                <CardText
+                  text={card.errata?.correctedEffectText ?? printing.printedEffectText}
+                  onKeywordClick={onKeywordClick}
+                  interactive={interactive}
+                />
+              </p>
+            )}
+            {card.errata?.correctedEffectText &&
+              printing.printedEffectText &&
+              card.errata.correctedEffectText !== printing.printedEffectText && (
+                <ErrataNotice
+                  printedText={printing.printedEffectText}
+                  source={card.errata.source}
+                  sourceUrl={card.errata.sourceUrl}
+                  effectiveDate={card.errata.effectiveDate}
+                  onKeywordClick={onKeywordClick}
+                />
+              )}
+            {card.mightBonus !== null && card.mightBonus > 0 && (
+              <div className={cn(printing.printedEffectText && "mt-2")}>
+                <StatChip
+                  label="Might Bonus"
+                  value={`+${card.mightBonus}`}
+                  icon="/images/might.svg"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {hasFlavor && <CardDetailFlavorText printing={printing} />}
+      </div>
+      <OrnamentBase surfaceClassName="bg-muted/30" aria-hidden={false}>
+        {rarityIcon && (
+          <img
+            src={rarityIcon}
+            alt={labels.rarities[printing.rarity]}
+            title={labels.rarities[printing.rarity]}
+            width={28}
+            height={28}
+            className="size-4"
+          />
+        )}
+      </OrnamentBase>
     </div>
   );
 }

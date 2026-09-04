@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import { OrnamentRule } from "@/components/ui/ornament";
 import { Pressable } from "@/components/ui/pressable";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -98,16 +99,14 @@ const HeaderRow = memo(function HeaderRow({
   onScrollToGroup: (groupId: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 pt-4 pb-2">
-      <div className="bg-border-accent h-px flex-1" />
+    <OrnamentRule fade="tips" className="pt-4 pb-2">
       <GroupHeaderLabel
         slug={row.group.slug}
         name={row.group.name}
         groupId={row.group.id}
         onSelect={onScrollToGroup}
       />
-      <div className="bg-border-accent h-px flex-1" />
-    </div>
+    </OrnamentRule>
   );
 });
 
@@ -341,6 +340,7 @@ export function CardGrid({
     virtualizer,
     scrollMargin,
     stickyOffset,
+    headerHeight: HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB,
   });
 
   // ── Selected-card scroll + flash ───────────────────────────────────
@@ -485,16 +485,18 @@ export function CardGrid({
       <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
           <div className="pointer-events-none flex justify-center pt-2">
-            <GroupHeaderLabel
-              slug={activeHeaderRow.group.slug}
-              name={activeHeaderRow.group.name}
-              groupId={activeHeaderRow.group.id}
-              onSelect={scrollToGroup}
-              className={cn(
-                STICKY_SURFACE,
-                "ring-border/70 pointer-events-auto rounded-full px-3 py-1 shadow-sm ring-1",
-              )}
-            />
+            <OrnamentRule fade="tips" className="w-72 max-w-full">
+              <GroupHeaderLabel
+                slug={activeHeaderRow.group.slug}
+                name={activeHeaderRow.group.name}
+                groupId={activeHeaderRow.group.id}
+                onSelect={scrollToGroup}
+                className={cn(
+                  STICKY_SURFACE,
+                  "ring-border/70 pointer-events-auto rounded-lg px-3 py-1 shadow-sm ring-1",
+                )}
+              />
+            </OrnamentRule>
           </div>
         )}
       </div>

@@ -4,6 +4,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { Heading } from "@/components/heading";
 import { Reveal } from "@/components/marketing/reveal";
 import { ScanVignette } from "@/components/marketing/scan-vignette";
+import { OrnamentRule } from "@/components/ui/ornament";
 import type { LandingThumbnailCard } from "@/lib/landing-thumbnails";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +74,7 @@ export function FeatureShowcase({
               <Heading level={1} as="h2">
                 {feature.title}
               </Heading>
-              <span aria-hidden="true" className="bg-border-accent h-px w-8" />
+              <OrnamentRule className="w-40" />
               <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
               <span className="text-primary flex items-center gap-1.5 text-sm font-medium">
                 {feature.cta}

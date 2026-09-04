@@ -52,7 +52,8 @@ Boxed controls that share a horizontal row share a height. The form tier is **h-
 
 ## Accents
 
-- **Gold hairlines** (`--border-accent`): the emphasis border — landing vignette frames, heading rules, the hero's outline CTA. Use sparingly; it marks crafted moments, not generic borders.
+- **Gold hairlines** (`--border-accent`): the emphasis border — landing vignette frames, the hero's outline CTA. Use sparingly; it marks crafted moments, not generic borders.
+- **The card-border rule** (`OrnamentRule`, `apps/web/src/components/ui/ornament.tsx`): the gold hairline with a diamond gem, taken from the edge of the printed card text box. It replaces every bare gold heading rule: fading at both ends at `w-40` under marketing and landing headings and at `w-56` under a centered heading or above the footer, and edge to edge with only the tips fading (`fade="tips"`) and a label between two gems for the card-grid set headers. The same file holds `OrnamentBase` (the bracket base with stepped caps and a medallion), which closes the card detail text box with the rarity glyph in the medallion, and `OrnamentCorners` (chamfered corner brackets, on a `ClipFrame` via `ornament`), demoed on `/admin/design` and not yet placed. `tone="silver"` exists for the black stage ground only. Gold ornaments go only where the gold hairline already goes: never on Card edges, inputs, tables or menus.
 - **Display face** (`font-heading`, Chakra Petch): see `typography.md` for the exact scope (titles, wordmark, big numerals — never body or compact UI).
 
 ## Tiles and list rows

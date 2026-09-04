@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 import { StatChip } from "./stat-chip";
 
 /**
- * The chip row under the artwork: energy, power, might, domains, rarity,
- * finish and card size. Prev/next navigation is the caller's business — the
- * pane puts it beside this row on phones, the modal puts it under the art.
+ * The chip row under the artwork: energy, power, might, domains, finish and
+ * card size. Rarity sits in the text box's medallion instead. Prev/next
+ * navigation is the caller's business — the pane puts it beside this row on
+ * phones, the modal puts it under the art.
  * @returns The stats chip row.
  */
 export function CardDetailStats({
@@ -28,7 +29,6 @@ export function CardDetailStats({
 }) {
   const { card } = printing;
   const { labels } = useEnumOrders();
-  const rarityIcon = getFilterIconPath("rarities", printing.rarity);
 
   return (
     <div
@@ -59,16 +59,6 @@ export function CardDetailStats({
             />
           ) : null;
         })}
-      {rarityIcon && (
-        <img
-          src={rarityIcon}
-          alt={labels.rarities[printing.rarity]}
-          title={labels.rarities[printing.rarity]}
-          width={28}
-          height={28}
-          className="size-5"
-        />
-      )}
       {hasFinishIcon(printing.finish) && (
         <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
           <FinishIcon finish={printing.finish} />

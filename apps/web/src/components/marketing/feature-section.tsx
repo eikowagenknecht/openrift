@@ -2,13 +2,14 @@ import { ArrowRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Heading } from "@/components/heading";
+import { OrnamentRule } from "@/components/ui/ornament";
 import { cn } from "@/lib/utils";
 
 import { Reveal } from "./reveal";
 
-/** The gold hairline that sits under every marketing heading. */
+/** The gold rule that sits under every marketing heading. */
 export function SectionRule() {
-  return <span aria-hidden="true" className="bg-border-accent h-px w-8" />;
+  return <OrnamentRule className="w-40" />;
 }
 
 /**

@@ -6,6 +6,7 @@ import { ClipFrame } from "@/components/marketing/clip-frame";
 import { chapterAnchor, FEATURE_CHAPTERS } from "@/components/marketing/features-chapters";
 import { CHAPTER_TILE_CLASS, ChapterTileBody } from "@/components/marketing/features-hero";
 import { Reveal } from "@/components/marketing/reveal";
+import { OrnamentRule } from "@/components/ui/ornament";
 
 import { HeroCtas } from "./hero-ctas";
 
@@ -28,7 +29,7 @@ export function LandingClosing() {
           <Heading level={1} as="h2">
             Switching? Bring your collection.
           </Heading>
-          <span aria-hidden="true" className="bg-border-accent h-px w-8" />
+          <OrnamentRule className="w-40" />
           <p className="text-muted-foreground max-w-2xl leading-relaxed">
             Import a CSV from Piltover Archive, RiftCore, or RiftMana and you&rsquo;re set up in
             minutes. Export everything back out whenever you want. Your cards stay yours.
@@ -59,7 +60,7 @@ export function LandingClosing() {
           <Heading level={1} as="h2">
             And that&apos;s not even half of it
           </Heading>
-          <span aria-hidden="true" className="bg-border-accent h-px w-8" />
+          <OrnamentRule className="w-40" />
           <p className="text-muted-foreground max-w-2xl leading-relaxed">
             The full tour runs five chapters, from your first import to putting cards on stream.
             Jump into one, or take it from the top.
@@ -93,7 +94,7 @@ export function LandingClosing() {
         <Heading level={1} as="h2" className="md:text-4xl">
           Ready when you are.
         </Heading>
-        <span aria-hidden="true" className="bg-border-accent h-px w-8" />
+        <OrnamentRule className="w-56" />
         <HeroCtas />
       </Reveal>
     </section>

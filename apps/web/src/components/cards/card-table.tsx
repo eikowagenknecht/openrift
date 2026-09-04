@@ -4,6 +4,7 @@ import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useSt
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
+import { OrnamentRule } from "@/components/ui/ornament";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { buildGroups } from "@/lib/card-groups";
@@ -119,7 +120,7 @@ const GroupStickyLabel = memo(function GroupStickyLabel({
     <Button
       type="button"
       variant="glass-pill"
-      className="pointer-events-auto h-auto gap-3 px-3 py-1 text-sm font-normal"
+      className="pointer-events-auto h-auto gap-3 rounded-lg px-3 py-1 text-sm font-normal"
       onClick={() => onSelect(groupId)}
     >
       {slug && <span className="text-muted-foreground font-medium">{slug}</span>}
@@ -269,6 +270,7 @@ export function CardTable({
     virtualizer,
     scrollMargin,
     stickyOffset,
+    headerHeight: CARD_TABLE_HEADER_HEIGHT,
   });
 
   useEffect(() => {
@@ -340,13 +342,15 @@ export function CardTable({
       <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
           <div className="pointer-events-none flex justify-center pt-2">
-            <GroupStickyLabel
-              slug={activeHeaderRow.group.slug}
-              name={activeHeaderRow.group.name}
-              count={activeHeaderRow.cardCount}
-              groupId={activeHeaderRow.group.id}
-              onSelect={scrollToGroup}
-            />
+            <OrnamentRule fade="tips" className="w-72 max-w-full">
+              <GroupStickyLabel
+                slug={activeHeaderRow.group.slug}
+                name={activeHeaderRow.group.name}
+                count={activeHeaderRow.cardCount}
+                groupId={activeHeaderRow.group.id}
+                onSelect={scrollToGroup}
+              />
+            </OrnamentRule>
           </div>
         )}
       </div>

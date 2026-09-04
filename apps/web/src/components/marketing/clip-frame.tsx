@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { OrnamentCorners } from "@/components/ui/ornament";
 import { cn } from "@/lib/utils";
 
 /** The app's shape signature: a 45° cut off the bottom-right corner. */
@@ -20,6 +21,7 @@ export function ClipFrame({
   wrapperClassName,
   cut = 16,
   tone = "accent",
+  ornament = false,
 }: {
   children: ReactNode;
   /** Classes for the inner (content) layer. Must resolve to an opaque background. */
@@ -29,16 +31,24 @@ export function ClipFrame({
   cut?: number;
   /** Hairline color: gold accent for showpieces, plain border for quiet tiles. */
   tone?: "accent" | "border";
+  /** Card-border corner brackets on the three uncut corners. Accent tone only. */
+  ornament?: boolean;
 }) {
   const clip = cornerClip(cut);
   return (
     <div
-      className={cn(tone === "accent" ? "bg-border-accent" : "bg-border", "p-px", wrapperClassName)}
+      className={cn(
+        tone === "accent" ? "bg-border-accent" : "bg-border",
+        "p-px",
+        ornament && "relative",
+        wrapperClassName,
+      )}
       style={{ clipPath: clip }}
     >
       <div className={cn("bg-card p-4", className)} style={{ clipPath: clip }}>
         {children}
       </div>
+      {ornament && <OrnamentCorners />}
     </div>
   );
 }
