@@ -32,7 +32,7 @@ import {
   XIcon,
   ZapIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { Area, AreaChart } from "recharts";
 import { siDiscord, siTwitch, siYoutube } from "simple-icons";
@@ -53,6 +53,8 @@ import { SearchInput } from "@/components/filters/search-input";
 import { SearchPrefixChip, SearchScopeChip } from "@/components/filters/search-scope-menu";
 import { Heading } from "@/components/heading";
 import { LanguageChip } from "@/components/language-chip";
+import { PageToc, PageTocMobileTrigger } from "@/components/layout/page-toc";
+import type { PageTocItem } from "@/components/layout/page-toc";
 import {
   PageDescription,
   PageTopBar,
@@ -62,6 +64,7 @@ import {
   PageTopBarIconButton,
   PageTopBarPrimaryButton,
   PageTopBarTitle,
+  usePageTopBarHeight,
 } from "@/components/layout/page-top-bar";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
@@ -270,7 +273,7 @@ const BADGE_VARIANTS = [
  * this same list, so a section can never be on the page without a link to it
  * (Tiles was, for a while) and the two orders can never disagree.
  *
- * `title` repeats each section's own `DemoSection` title, which is what the nav
+ * `title` repeats each section's own `DemoSection` title, which is what the TOC
  * link reads.
  */
 const SECTIONS = [
@@ -296,6 +299,11 @@ const SECTIONS = [
   { id: "composites", title: "Composites", Component: CompositesSection },
 ] as const;
 
+const TOC_ITEMS: PageTocItem[] = SECTIONS.map((section) => ({
+  id: section.id,
+  label: section.title,
+}));
+
 /**
  * Admin-only kitchen sink: every `components/ui/` primitive rendered in its
  * variants so drift is visible at a glance. Toggle the app theme in the header
@@ -304,30 +312,32 @@ const SECTIONS = [
  * @returns The design review page.
  */
 export function DesignPage() {
-  return (
-    <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-10 pb-16")}>
-      <AdminPageTopBar title="Design" />
-      <div className="space-y-3">
-        <PageDescription>
-          Check both themes with the header toggle. Spec captions are measured live from the
-          rendered DOM.
-        </PageDescription>
-        <nav className="flex flex-wrap gap-x-4 gap-y-1">
-          {SECTIONS.map((section) => (
-            <a
-              key={section.id}
-              href={`#${section.id}`}
-              className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2"
-            >
-              {section.title}
-            </a>
-          ))}
-        </nav>
-      </div>
+  // The admin page top bar is sticky above this column, so the TOC has to
+  // offset past it instead of tucking underneath.
+  const topBarHeight = usePageTopBarHeight();
 
-      {SECTIONS.map((section) => (
-        <section.Component key={section.id} />
-      ))}
+  return (
+    <div
+      className={cn(PAGE_WIDTH.capped, "flex gap-6 pb-16")}
+      style={
+        { "--sticky-top": `calc(var(--header-height) + ${topBarHeight}px + 1rem)` } as CSSProperties
+      }
+    >
+      <AdminPageTopBar title="Design" />
+      <PageToc items={TOC_ITEMS} />
+      <div className="flex min-w-0 flex-1 flex-col gap-10">
+        <div className="flex items-start gap-3">
+          <PageDescription>
+            Check both themes with the header toggle. Spec captions are measured live from the
+            rendered DOM.
+          </PageDescription>
+          <PageTocMobileTrigger items={TOC_ITEMS} className="ml-auto shrink-0" />
+        </div>
+
+        {SECTIONS.map((section) => (
+          <section.Component key={section.id} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -346,7 +356,7 @@ function DemoSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-20 space-y-4">
+    <section id={id} className="scroll-mt-(--sticky-top) space-y-4">
       <div className="space-y-1">
         <Heading level={2}>{title}</Heading>
         {note && <p className="text-muted-foreground text-sm">{note}</p>}
