@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const captured = vi.hoisted(() => ({
   status: null as unknown,
   playloltcgStatus: null as unknown,
+  topdeckStatus: null as unknown,
   overlays: [] as unknown[],
   /** What the router would hand a functional `search`, i.e. the URL as it stands. */
   prevSearch: {} as Record<string, unknown>,
@@ -46,7 +47,9 @@ vi.mock("@/components/admin/admin-page-top-bar", () => ({
 vi.mock("@/hooks/use-admin-meta-catalog", () => ({
   SYNC_STATUS_POLL_MS: 15_000,
   useMetaSyncStatus: (source: string) => ({
-    data: source === "playloltcg" ? captured.playloltcgStatus : captured.status,
+    data:
+      { playloltcg: captured.playloltcgStatus, topdeck: captured.topdeckStatus }[source] ??
+      (source === "uvsgames" ? captured.status : undefined),
     refetch: vi.fn(),
     isFetching: false,
     dataUpdatedAt: 0,
@@ -180,6 +183,7 @@ describe("MetaSourceSyncSection", () => {
     captured.prevSearch = {};
     captured.status = status;
     captured.playloltcgStatus = status;
+    captured.topdeckStatus = status;
     captured.overlays = [overlay(), overlay({ id: "overlay-2" })];
     captured.run.mockResolvedValue({
       status: "running",
@@ -464,6 +468,7 @@ describe("MetaAdminOverviewPage", () => {
     captured.status = status;
     // Only uvsgames answers by default, so one source's alerts are unambiguous.
     captured.playloltcgStatus = undefined;
+    captured.topdeckStatus = undefined;
     captured.overlays = [];
     captured.archiveRuns = [];
   });
@@ -477,7 +482,7 @@ describe("MetaAdminOverviewPage", () => {
     captured.playloltcgStatus = captured.status;
     render(<MetaAdminOverviewPage />);
 
-    expect(screen.getByText("Both sources look healthy.")).toBeInTheDocument();
+    expect(screen.getByText("Every source looks healthy.")).toBeInTheDocument();
   });
 
   it("raises the events that vanished from the source and the unmatched card names", () => {

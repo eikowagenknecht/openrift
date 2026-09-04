@@ -15,10 +15,12 @@ import { defineJob } from "./services/job-scheduler.js";
 import {
   createMetaSyncDeps,
   createPlayloltcgSyncDeps,
+  createTopdeckSyncDeps,
   isCatalogSyncNoop,
   isPlayloltcgRecheckNoop,
   isPlayloltcgSyncNoop,
   isRecheckNoop,
+  isTopdeckSyncNoop,
   playloltcgCoolingDown,
   PLAYLOLTCG_RECHECK_BATCH_SIZE,
   processPlayloltcgRechecks,
@@ -26,6 +28,7 @@ import {
   RECHECK_BATCH_SIZE,
   syncCatalog,
   syncPlayloltcgCatalog,
+  syncTopdeckCatalog,
 } from "./services/meta-sync/index.js";
 import {
   refreshCardmarketPrices,
@@ -90,6 +93,17 @@ export function createJobDefinitions(deps: JobDefinitionDeps): AnyJobDefinition[
       fetch: globalThis.fetch,
       log: metaLog,
       baseUrl: config.metaSync.playloltcgBaseUrl,
+    });
+
+  const topdeckApiKey = config.metaSync.topdeckApiKey;
+  const topdeckDeps = () =>
+    createTopdeckSyncDeps({
+      repos,
+      transact,
+      fetch: globalThis.fetch,
+      log: metaLog,
+      baseUrl: config.metaSync.topdeckBaseUrl,
+      apiKey: topdeckApiKey ?? "",
     });
 
   return [
@@ -301,6 +315,19 @@ export function createJobDefinitions(deps: JobDefinitionDeps): AnyJobDefinition[
       execute: () => processPlayloltcgRechecks(playloltcgDeps(), PLAYLOLTCG_RECHECK_BATCH_SIZE),
       summarize: (result) => result,
       classifyNoop: isPlayloltcgRecheckNoop,
+    }),
+    defineJob({
+      kind: "meta.topdeck_sync",
+      title: "Topdeck event sync",
+      description:
+        "Reads the last month of Topdeck tournaments, with their standings and decklists.",
+      suggestedSchedule: "30 7 * * *",
+      log: metaLog,
+      skipCronTick: () =>
+        Promise.resolve(topdeckApiKey === null ? "TOPDECK_API_KEY is unset; skipping" : null),
+      execute: () => syncTopdeckCatalog(topdeckDeps()),
+      summarize: (result) => result,
+      classifyNoop: isTopdeckSyncNoop,
     }),
   ];
 }

@@ -1,4 +1,4 @@
-import { PLAYLOLTCG_STATUSES, formatRelativeTime } from "@openrift/shared";
+import { PLAYLOLTCG_STATUSES, TOPDECK_FORMATS, formatRelativeTime } from "@openrift/shared";
 import type { MetaOverlayQueueRow, PlayloltcgStatus } from "@openrift/shared";
 import type {
   MetaCatalogRow,
@@ -7,6 +7,7 @@ import type {
   MetaSyncStatus,
   MetaSyncTriggerResult,
   PlayloltcgCatalogRow,
+  TopdeckCatalogRow,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { isResumableCheckpoint } from "@openrift/shared/contracts/admin/meta-catalog";
 
@@ -22,6 +23,7 @@ import { summarizeRunResult } from "@/lib/job-run-display";
 export const META_SOURCE_LABELS: Record<MetaSource, string> = {
   uvsgames: "UVS Games",
   playloltcg: "Play LoL TCG",
+  topdeck: "TopDeck.gg",
 };
 
 /** A label and the Badge tone it is rendered with. */
@@ -102,6 +104,27 @@ export function playloltcgCoverageRow(row: PlayloltcgCatalogRow): MetaCoverageRo
     stagedDeckCount: row.stagedDeckCount,
     nextCheckAt: row.nextCheckAt,
     startAt: row.startAt === null ? null : `${row.startAt}T00:00:00.000Z`,
+  };
+}
+
+/** The source's own format vocabulary, as the catalogue's second filter axis. */
+export const TOPDECK_FORMAT_CHOICES = TOPDECK_FORMATS.map((format) => ({
+  value: format,
+  label: format,
+}));
+
+/** The search answers about completed tournaments only, so every row is complete and there is no recheck ladder to report. */
+export function topdeckCoverageRow(row: TopdeckCatalogRow): MetaCoverageRow {
+  return {
+    triage: row.triage,
+    displayStatus: "complete",
+    decklistStatus: null,
+    fetchedAt: row.fetchedAt,
+    stagedPlayerCount: row.stagedPlayerCount,
+    stagedLegendCount: row.stagedLegendCount,
+    stagedDeckCount: row.stagedDeckCount,
+    nextCheckAt: null,
+    startAt: row.startAt,
   };
 }
 

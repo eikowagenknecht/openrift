@@ -451,6 +451,9 @@ export const queryKeys = {
       playloltcgCatalogue: ["admin", "meta", "playloltcg", "catalogue"] as const,
       playloltcgCatalogueList: (params: { page?: number; search?: string; triage?: string }) =>
         ["admin", "meta", "playloltcg", "catalogue", "list", params] as const,
+      topdeckCatalogue: ["admin", "meta", "topdeck", "catalogue"] as const,
+      topdeckCatalogueList: (params: { page?: number; search?: string; triage?: string }) =>
+        ["admin", "meta", "topdeck", "catalogue", "list", params] as const,
       syncSettings: ["admin", "meta", "sync", "settings"] as const,
       /** The archive's own passes, which belong to neither source's panel. */
       archiveJobs: ["admin", "meta", "archive", "jobs"] as const,

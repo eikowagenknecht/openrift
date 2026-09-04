@@ -42,6 +42,7 @@ export type {
   // Meta archive catalogue sync
   UvsgamesEventsTable,
   PlayloltcgEventsTable,
+  TopdeckEventsTable,
   // Meta archive source mirrors (ADR-014 rev 3)
   UvsgamesEventStandingsTable,
   UvsgamesEventPhasesTable,
@@ -51,6 +52,9 @@ export type {
   PlayloltcgEventStandingsTable,
   PlayloltcgDecklistsTable,
   PlayloltcgDecklistCardsTable,
+  TopdeckEventStandingsTable,
+  TopdeckDecklistsTable,
+  TopdeckDecklistCardsTable,
   // Meta archive overlays
   MetaEventOverlaysTable,
   MetaEventPlayerOverlaysTable,

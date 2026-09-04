@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ZFfuy8l4N7TSP02JPTcsal1yXc7w7XOXfavUuwXzNWD6Jk49WrWv6fsY4YqZIzG
+\restrict ClS4CFl6ftsf5HgTKg61rV0PKr4xvizk74eSN1932yOI9QsskA1Sp2wH2DcmGzI
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -2367,6 +2367,7 @@ CREATE TABLE public.meta_event_sources (
     source_url text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     priority integer DEFAULT 0 NOT NULL,
+    contributes boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_meta_event_sources_external_id CHECK (((external_id IS NULL) OR (external_id <> ''::text))),
     CONSTRAINT chk_meta_event_sources_key_shape CHECK (((provider IS NULL) = (external_id IS NULL))),
     CONSTRAINT chk_meta_event_sources_label CHECK (((length(label) >= 1) AND (length(label) <= 60))),
@@ -3230,6 +3231,95 @@ CREATE TABLE public.tier_lists (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_tier_lists_tiers_array CHECK ((jsonb_typeof(tiers) = 'array'::text)),
     CONSTRAINT chk_tier_lists_title_not_empty CHECK ((title <> ''::text))
+);
+
+
+--
+-- Name: topdeck_decklist_cards; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.topdeck_decklist_cards (
+    source_deck_id text NOT NULL,
+    line_number integer NOT NULL,
+    zone text NOT NULL,
+    quantity integer NOT NULL,
+    card_name text NOT NULL,
+    CONSTRAINT chk_topdeck_decklist_cards_card_name CHECK ((card_name <> ''::text)),
+    CONSTRAINT chk_topdeck_decklist_cards_line CHECK ((line_number >= 0)),
+    CONSTRAINT chk_topdeck_decklist_cards_quantity CHECK ((quantity > 0)),
+    CONSTRAINT chk_topdeck_decklist_cards_zone CHECK ((zone <> ''::text))
+);
+
+
+--
+-- Name: topdeck_decklists; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.topdeck_decklists (
+    source_deck_id text NOT NULL,
+    tid text NOT NULL,
+    fetch_status text NOT NULL,
+    fetched_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_topdeck_decklists_fetch_status CHECK ((fetch_status = ANY (ARRAY['fetched'::text, 'refused'::text]))),
+    CONSTRAINT chk_topdeck_decklists_source_deck_id CHECK ((source_deck_id <> ''::text))
+);
+
+
+--
+-- Name: topdeck_event_standings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.topdeck_event_standings (
+    tid text NOT NULL,
+    player_key text NOT NULL,
+    source_player_id text,
+    player_name text NOT NULL,
+    rank integer,
+    wins smallint,
+    losses smallint,
+    draws smallint,
+    legend_name text,
+    source_deck_id text,
+    fetched_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_topdeck_event_standings_player_key CHECK ((player_key <> ''::text)),
+    CONSTRAINT chk_topdeck_event_standings_player_name CHECK (((length(player_name) >= 1) AND (length(player_name) <= 80))),
+    CONSTRAINT chk_topdeck_event_standings_rank CHECK (((rank IS NULL) OR (rank >= 1)))
+);
+
+
+--
+-- Name: topdeck_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.topdeck_events (
+    tid text NOT NULL,
+    name text NOT NULL,
+    format text NOT NULL,
+    start_at timestamp with time zone NOT NULL,
+    swiss_rounds integer,
+    top_cut integer,
+    player_count integer,
+    is_team_event boolean DEFAULT false NOT NULL,
+    team_size integer,
+    city text,
+    state text,
+    country text,
+    address text,
+    longitude double precision,
+    latitude double precision,
+    content_hash text NOT NULL,
+    first_seen_at timestamp with time zone DEFAULT now() NOT NULL,
+    last_seen_at timestamp with time zone NOT NULL,
+    missing_since timestamp with time zone,
+    CONSTRAINT chk_topdeck_events_content_hash CHECK ((content_hash <> ''::text)),
+    CONSTRAINT chk_topdeck_events_country CHECK (((country IS NULL) OR (country ~ '^[A-Z]{2}$'::text))),
+    CONSTRAINT chk_topdeck_events_format CHECK ((format <> ''::text)),
+    CONSTRAINT chk_topdeck_events_name CHECK ((length(name) >= 1)),
+    CONSTRAINT chk_topdeck_events_player_count CHECK (((player_count IS NULL) OR (player_count >= 0))),
+    CONSTRAINT chk_topdeck_events_swiss_rounds CHECK (((swiss_rounds IS NULL) OR (swiss_rounds >= 0))),
+    CONSTRAINT chk_topdeck_events_team_size CHECK (((team_size IS NULL) OR (team_size > 0))),
+    CONSTRAINT chk_topdeck_events_tid CHECK ((tid <> ''::text)),
+    CONSTRAINT chk_topdeck_events_top_cut CHECK (((top_cut IS NULL) OR (top_cut >= 0)))
 );
 
 
@@ -4845,6 +4935,38 @@ ALTER TABLE ONLY public.tier_lists
 
 
 --
+-- Name: topdeck_decklist_cards topdeck_decklist_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_decklist_cards
+    ADD CONSTRAINT topdeck_decklist_cards_pkey PRIMARY KEY (source_deck_id, line_number);
+
+
+--
+-- Name: topdeck_decklists topdeck_decklists_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_decklists
+    ADD CONSTRAINT topdeck_decklists_pkey PRIMARY KEY (source_deck_id);
+
+
+--
+-- Name: topdeck_event_standings topdeck_event_standings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_event_standings
+    ADD CONSTRAINT topdeck_event_standings_pkey PRIMARY KEY (tid, player_key);
+
+
+--
+-- Name: topdeck_events topdeck_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_events
+    ADD CONSTRAINT topdeck_events_pkey PRIMARY KEY (tid);
+
+
+--
 -- Name: tournament_participants tournament_participants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6053,6 +6175,27 @@ CREATE INDEX idx_tag_definitions_category_id ON public.tag_definitions USING btr
 --
 
 CREATE INDEX idx_tier_lists_user_id ON public.tier_lists USING btree (user_id);
+
+
+--
+-- Name: idx_topdeck_decklists_event; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_topdeck_decklists_event ON public.topdeck_decklists USING btree (tid);
+
+
+--
+-- Name: idx_topdeck_events_format; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_topdeck_events_format ON public.topdeck_events USING btree (format);
+
+
+--
+-- Name: idx_topdeck_events_start; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_topdeck_events_start ON public.topdeck_events USING btree (start_at);
 
 
 --
@@ -8670,6 +8813,30 @@ ALTER TABLE ONLY public.tier_lists
 
 
 --
+-- Name: topdeck_decklist_cards topdeck_decklist_cards_source_deck_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_decklist_cards
+    ADD CONSTRAINT topdeck_decklist_cards_source_deck_id_fkey FOREIGN KEY (source_deck_id) REFERENCES public.topdeck_decklists(source_deck_id) ON DELETE CASCADE;
+
+
+--
+-- Name: topdeck_decklists topdeck_decklists_tid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_decklists
+    ADD CONSTRAINT topdeck_decklists_tid_fkey FOREIGN KEY (tid) REFERENCES public.topdeck_events(tid) ON DELETE CASCADE;
+
+
+--
+-- Name: topdeck_event_standings topdeck_event_standings_tid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.topdeck_event_standings
+    ADD CONSTRAINT topdeck_event_standings_tid_fkey FOREIGN KEY (tid) REFERENCES public.topdeck_events(tid) ON DELETE CASCADE;
+
+
+--
 -- Name: tournament_participants tournament_participants_team_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -8881,5 +9048,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ZFfuy8l4N7TSP02JPTcsal1yXc7w7XOXfavUuwXzNWD6Jk49WrWv6fsY4YqZIzG
+\unrestrict ClS4CFl6ftsf5HgTKg61rV0PKr4xvizk74eSN1932yOI9QsskA1Sp2wH2DcmGzI
 

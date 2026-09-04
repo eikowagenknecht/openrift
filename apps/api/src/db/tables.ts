@@ -1550,6 +1550,100 @@ export interface PlayloltcgDecklistCardsTable {
 }
 
 /**
+ * One topdeck.gg tournament. The search body carries the event, its standings
+ * and every decklist together, so unlike the other two sources this mirror has
+ * no fetch queue: a row and its children are written by the same sync pass.
+ */
+export interface TopdeckEventsTable {
+  /** PK. The source's `TID`, a slug. CHECK: <> '' */
+  tid: string;
+  /** CHECK: length >= 1 */
+  name: string;
+  /** The source's own format word: `Constructed`, `Sealed`, `2v2`. CHECK: <> '' */
+  format: string;
+  /**
+   * The source's `startDate`, an instant. It publishes no timezone, so the
+   * venue-local day is derived from {@link longitude} at promotion rather than
+   * stored: the UTC day files an American evening event under the next date.
+   */
+  startAt: Date;
+  /** The source's `swissNum`. CHECK: NULL or >= 0. */
+  swissRounds: number | null;
+  /** CHECK: NULL or >= 0. */
+  topCut: number | null;
+  /** Standings rows the payload carried. CHECK: NULL or >= 0. */
+  playerCount: number | null;
+  isTeamEvent: Generated<boolean>;
+  /** CHECK: NULL or > 0. */
+  teamSize: number | null;
+  city: string | null;
+  state: string | null;
+  /** CHECK: NULL or two uppercase letters. */
+  country: string | null;
+  address: string | null;
+  longitude: number | null;
+  latitude: number | null;
+  /** Hash of the projection, so an unchanged row costs one timestamp write. CHECK: <> ''. */
+  contentHash: string;
+  firstSeenAt: Generated<Date>;
+  lastSeenAt: Date;
+  /** Set when a covering crawl stopped returning the row. The row is never deleted. */
+  missingSince: Date | null;
+}
+
+/**
+ * One topdeck standing. The payload orders the field by finish, so {@link rank}
+ * is the position in it. The source serves no match points and no opponent
+ * tiebreakers for Riftbound, which is why neither has a column.
+ */
+export interface TopdeckEventStandingsTable {
+  /** PK part. FK → topdeck_events.tid ON DELETE CASCADE */
+  tid: string;
+  /** PK part. `u<sourcePlayerId>`, else the name numbered among same-name rows. CHECK: <> '' */
+  playerKey: string;
+  /** The source's account id, stable across its events. */
+  sourcePlayerId: string | null;
+  /** CHECK: length 1..80 */
+  playerName: string;
+  /** CHECK: NULL or >= 1 */
+  rank: number | null;
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  legendName: string | null;
+  sourceDeckId: string | null;
+  fetchedAt: CreatedAt;
+}
+
+/**
+ * See {@link UvsgamesDecklistsTable}. The source has no deck id of its own —
+ * the list is inline on the standing — so the key is `<tid>:<player_key>`.
+ */
+export interface TopdeckDecklistsTable {
+  /** PK. CHECK: <> '' */
+  sourceDeckId: string;
+  /** FK → topdeck_events.tid ON DELETE CASCADE */
+  tid: string;
+  /** CHECK: 'fetched' | 'refused' */
+  fetchStatus: MetaSourceFetchStatus;
+  fetchedAt: CreatedAt;
+}
+
+/** See {@link UvsgamesDecklistCardsTable}. */
+export interface TopdeckDecklistCardsTable {
+  /** PK part. FK → topdeck_decklists.source_deck_id ON DELETE CASCADE */
+  sourceDeckId: string;
+  /** PK part. CHECK: >= 0 */
+  lineNumber: number;
+  /** CHECK: <> '' */
+  zone: string;
+  /** CHECK: > 0 */
+  quantity: number;
+  /** CHECK: <> '' */
+  cardName: string;
+}
+
+/**
  * A sparse patch on a live event, applied after promotion.
  *
  * Every payload column is nullable and {@link claimedFields} names the ones this
@@ -1757,6 +1851,8 @@ export interface MetaEventSourcesTable {
    * one field from a lower-priority source is an overlay, not a second knob.
    */
   priority: Generated<number>;
+  /** DEFAULT true. False cites the source without reading it, until a confirmed player link exists. */
+  contributes: Generated<boolean>;
   createdAt: CreatedAt;
 }
 
@@ -3173,6 +3269,10 @@ export interface Database {
   playloltcgEventStandings: PlayloltcgEventStandingsTable;
   playloltcgDecklists: PlayloltcgDecklistsTable;
   playloltcgDecklistCards: PlayloltcgDecklistCardsTable;
+  topdeckEvents: TopdeckEventsTable;
+  topdeckEventStandings: TopdeckEventStandingsTable;
+  topdeckDecklists: TopdeckDecklistsTable;
+  topdeckDecklistCards: TopdeckDecklistCardsTable;
   metaSyncSettings: MetaSyncSettingsTable;
   metaEvents: MetaEventsTable;
   metaEventPlayers: MetaEventPlayersTable;

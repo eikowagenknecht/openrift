@@ -35,6 +35,12 @@ export type {
   PlayloltcgRecheckResult,
   PlayloltcgSyncResult,
 } from "./playloltcg-sync.js";
+export { createTopdeckSyncDeps } from "./topdeck-deps.js";
+export type { TopdeckSyncDeps } from "./topdeck-deps.js";
+export { acceptTopdeckEvent, autoAcceptTopdeckBacklog } from "./topdeck-accept.js";
+export type { TopdeckAcceptSummary } from "./topdeck-accept.js";
+export { backfillTopdeck, isTopdeckSyncNoop, syncTopdeckCatalog } from "./topdeck-sync.js";
+export type { TopdeckBackfillOptions, TopdeckSyncResult } from "./topdeck-sync.js";
 
 /**
  * The kinds every meta sync run is recorded under. The admin sync panel reads
@@ -52,6 +58,9 @@ export const META_JOB_KINDS = [
   "meta.playloltcg_recheck",
   "meta.playloltcg_event_fetch",
   "meta.playloltcg_auto_accept",
+  "meta.topdeck_sync",
+  "meta.topdeck_backfill",
+  "meta.topdeck_auto_accept",
   "meta.retier",
   "meta.repromote",
 ] as const;

@@ -260,7 +260,7 @@ export const META_EVENT_SORTS = [
 export const META_EVENT_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
 /** The catalogued sources, the axis the admin Sync and Catalogue tabs select on. */
-export const META_CATALOG_PROVIDERS = ["uvsgames", "playloltcg"] as const;
+export const META_CATALOG_PROVIDERS = ["uvsgames", "playloltcg", "topdeck"] as const;
 
 /**
  * The live event list's source filter: the catalogued providers,
@@ -293,6 +293,11 @@ export const META_CATALOG_DISPLAY_STATUSES = ["upcoming", "inProgress", "complet
 export const PLAYLOLTCG_STATUSES = [1, 2, 3, 4, 5] as const;
 
 export type PlayloltcgStatus = (typeof PLAYLOLTCG_STATUSES)[number];
+
+/** topdeck's own format words, case included, since its search matches on them. */
+export const TOPDECK_FORMATS = ["Constructed", "Limited", "Sealed", "2v2", "Free-for-All"] as const;
+
+export type TopdeckFormat = (typeof TOPDECK_FORMATS)[number];
 
 /**
  * The columns the catalogue can be ordered by. The list is paged on the server

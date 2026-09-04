@@ -79,6 +79,8 @@ import { superTypesRepo } from "./repositories/super-types.js";
 import { tagCategoriesRepo } from "./repositories/tag-categories.js";
 import { tagDefinitionsRepo } from "./repositories/tag-definitions.js";
 import { tierListsRepo } from "./repositories/tier-lists.js";
+import { topdeckEventsRepo } from "./repositories/topdeck-events.js";
+import { topdeckResultsRepo } from "./repositories/topdeck-results.js";
 import { tournamentsRepo } from "./repositories/tournaments.js";
 import { userContactMethodsRepo } from "./repositories/user-contact-methods.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
@@ -196,6 +198,8 @@ export interface Repos {
   uvsgamesResults: ReturnType<typeof uvsgamesResultsRepo>;
   playloltcgEvents: ReturnType<typeof playloltcgEventsRepo>;
   playloltcgResults: ReturnType<typeof playloltcgResultsRepo>;
+  topdeckEvents: ReturnType<typeof topdeckEventsRepo>;
+  topdeckResults: ReturnType<typeof topdeckResultsRepo>;
   metaSubmissions: ReturnType<typeof metaSubmissionsRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   printingCitations: ReturnType<typeof printingCitationsRepo>;
@@ -404,6 +408,8 @@ export function createRepos(db: Kysely<Database>): Repos {
     uvsgamesResults: uvsgamesResultsRepo(db),
     playloltcgEvents: playloltcgEventsRepo(db),
     playloltcgResults: playloltcgResultsRepo(db),
+    topdeckEvents: topdeckEventsRepo(db),
+    topdeckResults: topdeckResultsRepo(db),
     metaSubmissions: metaSubmissionsRepo(db),
     printingImages: printingImagesRepo(db),
     printingCitations: printingCitationsRepo(db),

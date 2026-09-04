@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { META_CATALOG_PROVIDERS, WellKnown } from "@openrift/shared";
 import type {
   CardType,
   DeckFormatConfig,
@@ -342,6 +342,9 @@ export interface MetaLegendRecordCounts {
  * instead.
  */
 export type MetaEventSourceRow = Selectable<MetaEventSourcesTable>;
+
+/** The providers promotion reads a mirror for, as opposed to a push provider. */
+const MIRROR_PROVIDERS: ReadonlySet<string> = new Set(META_CATALOG_PROVIDERS);
 
 /**
  * `provider` and `externalId` are null together for a hand-entered citation (a
@@ -2200,12 +2203,36 @@ export function metaRepo(db: Kysely<Database>) {
       return Number(result.numUpdatedRows) > 0;
     },
 
-    insertEventSource(input: MetaEventSourceInput): Promise<MetaEventSourceRow> {
-      return db
+    /** A second mirror on an event is cited but not read, since nothing merges a player across two mirrors yet. */
+    async insertEventSource(input: MetaEventSourceInput): Promise<MetaEventSourceRow> {
+      const provider = input.provider;
+      const rival =
+        provider !== null && MIRROR_PROVIDERS.has(provider)
+          ? await db
+              .selectFrom("metaEventSources")
+              .select("id")
+              .where("metaEventId", "=", input.metaEventId)
+              .where("provider", "is not", null)
+              .where("provider", "!=", provider)
+              .where("provider", "in", [...MIRROR_PROVIDERS])
+              .where("contributes", "=", true)
+              .executeTakeFirst()
+          : undefined;
+      return await db
         .insertInto("metaEventSources")
-        .values(input)
+        .values({ ...input, contributes: rival === undefined })
         .returningAll()
         .executeTakeFirstOrThrow();
+    },
+
+    /** Turns a cited-but-unread source back on, once its players are linked. */
+    async setEventSourceContributes(id: string, contributes: boolean): Promise<boolean> {
+      const result = await db
+        .updateTable("metaEventSources")
+        .set({ contributes })
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows ?? 0n) > 0;
     },
 
     async deleteEventSource(id: string): Promise<boolean> {

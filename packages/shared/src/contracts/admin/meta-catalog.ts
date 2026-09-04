@@ -217,6 +217,71 @@ const playloltcgCatalogListResponseSchema = z
 
 const playloltcgKeySchema = z.object({ activityShopId: z.number().int() });
 
+// ── topdeck catalogue ────────────────────────────────────────────────────────
+// Leaner still: one search carries the tournament, its standings and its lists,
+// so there is no fetch queue and no recheck column to show.
+export const topdeckCatalogRowSchema = z
+  .object({
+    tid: z.string(),
+    name: z.string(),
+    /** The source's own format word, not ours: `Constructed`, `Sealed`, `2v2`. */
+    format: z.string(),
+    city: z.string().nullable(),
+    country: z.string().nullable(),
+    playerCount: z.number().int().nullable(),
+    topCut: z.number().int().nullable(),
+    isTeamEvent: z.boolean(),
+    /** The source publishes an instant; the venue-local day is derived at promotion. */
+    startAt: isoDateTime,
+    triage: triageSchema,
+    metaEventId: z.string().nullable(),
+    metaEventSlug: z.string().nullable(),
+    /** When the mirror last took this event's standings. */
+    fetchedAt: isoDateTime.nullable(),
+    /** Set when a covering crawl stopped returning the row; it is never deleted. */
+    missingSince: isoDateTime.nullable(),
+    stagedPlayerCount: z.number().int().nonnegative(),
+    stagedLegendCount: z.number().int().nonnegative(),
+    stagedDeckCount: z.number().int().nonnegative(),
+    /**
+     * The provider the linked live event already reads, when accepting this row
+     * left it cited but not promoted. Null for the ordinary case.
+     */
+    rivalProvider: z.string().nullable(),
+    /** The source's own page for the event, its citation URL. */
+    sourceUrl: z.string(),
+  })
+  .openapi("TopdeckCatalogRow");
+
+const topdeckCatalogListQuerySchema = z.object({
+  search: z.string().optional(),
+  /** The source's own format word; the axis playloltcg spends on its lifecycle. */
+  format: z.string().min(1).optional(),
+  minPlayers: z.coerce.number().int().min(0).optional(),
+  /** Inclusive calendar-day bounds, read against the instant `start_at` holds. */
+  dateFrom: isoDate.optional(),
+  dateTo: isoDate.optional(),
+  triage: triageSchema.optional(),
+  /** True keeps only rows a covering crawl stopped returning. */
+  missing: z.coerce.boolean().optional(),
+  sort: z.enum(META_CATALOG_SORTS).optional(),
+  direction: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+});
+
+const topdeckCatalogListResponseSchema = z
+  .object({
+    rows: z.array(topdeckCatalogRowSchema),
+    total: z.number().int(),
+    page: z.number().int(),
+    limit: z.number().int(),
+    counts: metaCatalogCountsSchema,
+  })
+  .openapi("TopdeckCatalogListResponse");
+
+const topdeckKeySchema = z.object({ tid: z.string().min(1) });
+
 const acceptCatalogEventSchema = catalogKeySchema.extend({
   /**
    * Overrides the format mapping, for an event whose source format maps to
@@ -629,6 +694,52 @@ export const adminMetaCatalogContract = {
     })
     .output(metaSyncTriggerResultSchema),
 
+  // ── topdeck (the English-language tournament platform) ───────────────────
+  runTopdeckSync: authedRoute
+    .route({ method: "POST", path: `${BASE}/topdeck/sync`, tags: [TAG], successStatus: 202 })
+    .output(metaSyncTriggerResultSchema),
+
+  /** The same backlog sweep for topdeck, where the rule is the threshold. */
+  runTopdeckAutoAccept: authedRoute
+    .route({ method: "POST", path: `${BASE}/topdeck/auto-accept`, tags: [TAG], successStatus: 202 })
+    .output(metaSyncTriggerResultSchema),
+
+  /** Continues the last topdeck backfill that stopped early, or starts one. */
+  runTopdeckBackfill: authedRoute
+    .route({ method: "POST", path: `${BASE}/topdeck/backfill`, tags: [TAG], successStatus: 202 })
+    .output(metaSyncTriggerResultSchema),
+
+  /** The topdeck backfill from the archive's first day, ignoring the resume point. */
+  restartTopdeckBackfill: authedRoute
+    .route({
+      method: "POST",
+      path: `${BASE}/topdeck/backfill/restart`,
+      tags: [TAG],
+      successStatus: 202,
+    })
+    .output(metaSyncTriggerResultSchema),
+
+  topdeckList: authedRoute
+    .route({ method: "GET", path: `${BASE}/topdeck/events`, tags: [TAG] })
+    .input(topdeckCatalogListQuerySchema)
+    .output(topdeckCatalogListResponseSchema),
+
+  topdeckAccept: authedRoute
+    .route({ method: "POST", path: `${BASE}/topdeck/events/accept`, tags: [TAG] })
+    .input(topdeckKeySchema)
+    .errors({ NOT_FOUND: { message: "Catalogue event not found" } })
+    .output(acceptedCatalogEventSchema),
+
+  topdeckDismiss: authedRoute
+    .route({ method: "POST", path: `${BASE}/topdeck/events/dismiss`, tags: [TAG] })
+    .input(topdeckKeySchema)
+    .errors({ NOT_FOUND: { message: "Catalogue event not found" } }),
+
+  topdeckUndismiss: authedRoute
+    .route({ method: "POST", path: `${BASE}/topdeck/events/undismiss`, tags: [TAG] })
+    .input(topdeckKeySchema)
+    .errors({ NOT_FOUND: { message: "Ignore entry not found" } }),
+
   /** Pulls one accepted event's results now, without waiting for its ladder step. */
   fetchEvent: authedRoute
     .route({ method: "POST", path: `${BASE}/sync/fetch`, tags: [TAG] })
@@ -645,6 +756,8 @@ export type MetaCatalogRow = z.infer<typeof metaCatalogRowSchema>;
 export type MetaCatalogListResponse = z.infer<typeof metaCatalogListResponseSchema>;
 export type PlayloltcgCatalogRow = z.infer<typeof playloltcgCatalogRowSchema>;
 export type PlayloltcgCatalogListResponse = z.infer<typeof playloltcgCatalogListResponseSchema>;
+export type TopdeckCatalogRow = z.infer<typeof topdeckCatalogRowSchema>;
+export type TopdeckCatalogListResponse = z.infer<typeof topdeckCatalogListResponseSchema>;
 export type MetaCatalogTriage = (typeof META_CATALOG_TRIAGE)[number];
 export type MetaCatalogSort = (typeof META_CATALOG_SORTS)[number];
 export type MetaCatalogSortDirection = (typeof META_CATALOG_SORT_DIRECTIONS)[number];

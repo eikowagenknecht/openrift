@@ -60,7 +60,7 @@ We reuse the `decks` shape with a synthetic owner, model results as a per-player
 
 The archive has two tiers and one side channel.
 
-- **Source mirrors** (`uvsgames_*`, `playloltcg_*`) hold what a source published, keyed by its own ids, in its own vocabulary. Card names are the names the source printed; nothing here is matched against the catalog.
+- **Source mirrors** (`uvsgames_*`, `playloltcg_*`, `topdeck_*`) hold what a source published, keyed by its own ids, in its own vocabulary. Card names are the names the source printed; nothing here is matched against the catalog.
 - **Live tables** (`meta_*`) hold the archive's answer. Promotion reads a mirror and writes live rows in place.
 - **Overlays** (`meta_event_overlays`, `meta_event_player_overlays`) are sparse patches on top. An admin correction and a user submission are the same kind of row, distinguished by who wrote it and whether it has been accepted.
 
@@ -128,7 +128,7 @@ One row per player per event, in `meta_event_players`:
 - `meta_event_id uuid`: NOT NULL, cascades from the event.
 - `rank integer` + `rank_is_tier boolean`: exact final standing where known (`rank_is_tier = false`, displayed "8th"); tier-only sources set the flag (`rank 8`, displayed "T8"). Ties are legal, so `(meta_event_id, rank)` is indexed but not unique.
 - `uvsgames_player_id integer` + `player_name text` (1–80 chars): exactly the player's identity, at least one required. A row filed from the official source stores the id with a null name and renders the `uvsgames_players` display name via coalesce, so a source rename propagates; a pushed or user-submitted row stores the name. An admin setting the local name wins the coalesce, which is the per-row override. `(meta_event_id, uvsgames_player_id)` is unique where the id is set.
-- `source_identity text`: the identity promotion actually filed the row under, stamped once and read on every later promote instead of re-derived from columns an overlay may have since rewritten. `u<uvsgamesPlayerId>` for a uvsgames-keyed row, `r<registrationId>` for a uvsgames row the source keys only by registration, `p<playerKey>` for a playloltcg row. `(meta_event_id, source_identity)` is unique where set. Rows written before this column existed match on a legacy identity derived the same way the pre-repair code did (`u<id>` where an id is known, else the normalized name); the match stamps `source_identity` so the row never falls back to the legacy path again.
+- `source_identity text`: the identity promotion actually filed the row under, stamped once and read on every later promote instead of re-derived from columns an overlay may have since rewritten. `u<uvsgamesPlayerId>` for a uvsgames-keyed row, `r<registrationId>` for a uvsgames row the source keys only by registration, `p<playerKey>` for a playloltcg row, `t<playerKey>` for a topdeck row. `(meta_event_id, source_identity)` is unique where set. Rows written before this column existed match on a legacy identity derived the same way the pre-repair code did (`u<id>` where an id is known, else the normalized name); the match stamps `source_identity` so the row never falls back to the legacy path again.
 - `wins`, `losses`, `draws smallint`: nullable, structured; display derives "5-1-0". Replaces the free-text `record`.
 - `legend_card_id`, `champion_card_id uuid`: nullable FKs to `cards`. The legend lives here even when a deck exists, so every surface reads one column; the accept flow syncs it from the deck's legend zone when a list lands, from `deck_defining_card` otherwise.
 - `deck_id uuid`: nullable UNIQUE FK to `decks`, ON DELETE RESTRICT. Deleting an archived deck must not silently delete a standings row; the admin path clears the reference and `list_status` first, then deletes the deck.
@@ -195,6 +195,26 @@ There is no template rule and no notable-name rule here. The source's `activityT
 Both sources promote into the same live tables under their own provider string, so linking, citations, overlays and the ignore tables are one pipeline with two producers. Scheduling stays per-source: `CRON_META_PLAYLOLTCG_SYNC` and `CRON_META_PLAYLOLTCG_RECHECK` sit beside the uvsgames pair, all four unset by default, and `META_PLAYLOLTCG_BASE_URL` aims the client at the source the way `META_SYNC_BASE_URL` does for uvsgames, so a test deployment can point either at a recorded fixture server.
 
 > Schedules now live in the `job_schedules` table, managed on `/admin/jobs`, not in `CRON_*` env vars (2026-09-02).
+
+### The topdeck source
+
+A third source is crawled: topdeck.gg, the English-language tournament platform, which is where most Western Riftbound events are run. It gets its own mirror for the same reason playloltcg does, but it is the leanest of the three, because it needs no queue at all: one `POST /v2/tournaments` returns the tournament, its standings and every submitted decklist in a single body. There is no deep fetch, no recheck ladder and no id sweep, and an accepted event is complete the moment it is accepted.
+
+Four tables hold it: `topdeck_events` keyed on the source's `TID` slug, `topdeck_event_standings`, `topdeck_decklists` and `topdeck_decklist_cards`. The source publishes the list inline on the standing and names no deck id of its own, so `source_deck_id` is `<tid>:<player_key>`.
+
+Three things about the source shape the crawl:
+
+- A search must name both a game and a format, so a pass is one request per Riftbound format (Constructed, Limited, Sealed, 2v2, Free-for-All). It answers about completed tournaments only, so the window never reaches into the future.
+- `decklist` is the column that carries the lists. Asking for `deckObj` without it returns neither, which is why the search always asks for both.
+- The source publishes an instant with no timezone, and 115 of 296 sampled events start after 22:00 UTC, so the UTC day files an American evening event under the next date. The venue-local day is derived from longitude: it is off by up to an hour against real zone borders and DST, and that never moves the day, because no sampled event begins within three hours of local midnight.
+
+Card resolution is by `short_code` first. Three quarters of the source's card entries carry one (`VEN-153`, `OGN-126`), and every code it published resolves against an EN printing, where a name does not: our catalogue spells a legend by its epithet alone ("Blind Monk") where the source writes "Lee Sin, Blind Monk". An entry with no code keeps the source's own spelling for promotion to match.
+
+There is no template rule here either, so the registered field size is the whole auto-accept rule, and a team event never auto-accepts: the archive has one row per player and a trios field would read as individual results.
+
+#### Two mirrors on one event
+
+topdeck is the first source that overlaps another: it and uvsgames describe the same Western events. Standings identity is provider-scoped, and nothing merges a player across two mirrors, so promoting both would insert a duplicate row per entrant. `meta_event_sources.contributes` settles this without losing the attribution: a second mirror citation on an event is written with the flag off, so it prints on the event page and promotion never reads it. `insertEventSource` sets it, so no caller can bypass it, and an admin turns it back on once confirmed player links exist. Those links are not built here; the ranking machinery (`suggestPlayerMatches`) already exists for overlay review and is the obvious foundation.
 
 ### Admin catalogue triage and auto-accept
 
@@ -409,7 +429,7 @@ The byline for an archived deck everywhere is player + rank + event, never an ac
 
 Two producers, two paths, converging on the live tables.
 
-- **The in-app fetchers** (uvsgames, playloltcg) write their own mirrors, then promote. Promotion is idempotent and re-runnable: it matches live rows to mirror rows on `meta_event_players.source_identity`, updates in place, inserts what is missing, and applies the accepted overlays afterwards. Live row identity survives, which it must, because `decks`, `meta_event_matches` and the public share tokens all hang off `meta_event_players.id`.
+- **The in-app fetchers** (uvsgames, playloltcg, topdeck) write their own mirrors, then promote. Promotion is idempotent and re-runnable: it matches live rows to mirror rows on `meta_event_players.source_identity`, updates in place, inserts what is missing, and applies the accepted overlays afterwards. Live row identity survives, which it must, because `decks`, `meta_event_matches` and the public share tokens all hang off `meta_event_players.id`.
 - **Every event field starts from the live row.** Promotion computes all nine `meta_events` columns (name, date, format, player count, organizer, notes, tier, country, location) by starting from what the row already holds, then letting each linked source overwrite in priority order. An event with no usable source facts, hand-entered, or whose mirror is gone, keeps every field it has rather than resetting to a blank default; a source that contributes only some fields leaves the rest exactly where they were.
 - **Tier is a floor plus a size rule.** The event's template tier is what promotion starts from, and a field at or above the admin-set player-count floor (`meta_sync_settings.competitive_player_floor`, 128 by default) raises it to `competitive`, never lowers it. Organizers do run a generic local template for a large paid event, and the source has no other field that tells one apart. Size never reaches `premier`, which is a programme designation, so an unmapped large event under-calls rather than inventing one.
 - **The push endpoint** (everything else): `POST /api/admin/v1/meta/upload` with `{ provider, events: [...] }`, admin API key auth. A push provider has no crawler and so no mirror; its payload becomes overlays, keyed `(provider, external_id)` for the event and `(provider, source_player_key)` for each player, so a re-upload updates rather than duplicates either. An unchanged row is left alone; a changed one restates the whole event or player and reopens review by resetting its status to `pending`. An upload claims only the fields it carries a value for, because absent, null and empty already mean "the source didn't say" on the wire: a provider covering decklists alone must not take the standings columns and the venue from the official mirror behind them and null them out at the next promote. Every upload is written to the admin event ledger under `meta-overlays.upload`, with the counts of new, updated, unchanged and ignored rows.

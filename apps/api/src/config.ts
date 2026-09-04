@@ -62,6 +62,9 @@ export function createConfig(env: Record<string, string | undefined>) {
     metaSync: {
       baseUrl: env.META_SYNC_BASE_URL ?? "https://api.riftbound.uvsgames.com",
       playloltcgBaseUrl: env.META_PLAYLOLTCG_BASE_URL ?? "https://lol-api.playloltcg.com",
+      topdeckBaseUrl: env.META_TOPDECK_BASE_URL ?? "https://topdeck.gg/api/",
+      // The only meta source that authenticates. Unset disables its jobs.
+      topdeckApiKey: env.TOPDECK_API_KEY ?? null,
     },
 
     discordWebhooks: {

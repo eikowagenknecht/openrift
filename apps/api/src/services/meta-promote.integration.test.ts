@@ -19,6 +19,7 @@ let nextShopId = SHOP_ID_BASE;
 
 const createdEventIds: string[] = [];
 const createdShopIds: number[] = [];
+const createdTids: string[] = [];
 const createdDeckIds: string[] = [];
 const createdCardIds: string[] = [];
 let spellCardId: string;
@@ -69,6 +70,7 @@ if (ctx) {
       .where("activityShopId", "in", createdShopIds)
       .execute();
     await db.deleteFrom("playloltcgEvents").where("activityShopId", "in", createdShopIds).execute();
+    await db.deleteFrom("topdeckEvents").where("tid", "in", createdTids).execute();
     await db.deleteFrom("cards").where("id", "in", createdCardIds).execute();
   });
 }
@@ -462,6 +464,115 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
         rank: untouched?.rank,
         playerName: untouched?.playerName,
       });
+    });
+  });
+
+  describe("multi-source citations", () => {
+    async function seedTopdeckMirror(tid: string): Promise<string> {
+      createdTids.push(tid);
+      await db
+        .insertInto("topdeckEvents")
+        .values({
+          tid,
+          name: "MPI Rift Open",
+          format: "Constructed",
+          startAt: new Date("2026-08-20T18:00:00Z"),
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("topdeckEventStandings")
+        .values({ tid, playerKey: "uacct-1", playerName: "MPI Topdeck Ashe", rank: 1, wins: 5 })
+        .execute();
+      return tid;
+    }
+
+    it("promotes a topdeck mirror that is the event's only source", async () => {
+      const tid = await seedTopdeckMirror("mpi-td-only");
+      const metaEventId = await seedLiveEvent("mpi-topdeck-only");
+      await cite(metaEventId, "topdeck", tid);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const rows = await repo.rawStandingsForEvent(metaEventId);
+      expect(rows.map((row) => row.sourceIdentity)).toEqual(["tuacct-1"]);
+    });
+
+    it("cites a second mirror without reading it, so no entrant is archived twice", async () => {
+      const activityShopId = takeShopId();
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rift Open",
+          startAt: "2026-08-20",
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values({ activityShopId, playerKey: "u5001", playerName: "MPI Ashe", rank: 1, wins: 5 })
+        .execute();
+      const tid = await seedTopdeckMirror("mpi-td-second");
+
+      const metaEventId = await seedLiveEvent("mpi-two-mirrors");
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      await cite(metaEventId, "topdeck", tid);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const sources = await repo.sourcesForEvent(metaEventId);
+      const rows = await repo.rawStandingsForEvent(metaEventId);
+      // Both citations print on the event page; only the first is read.
+      expect(sources).toHaveLength(2);
+      expect(sources.find((row) => row.provider === "topdeck")?.contributes).toBe(false);
+      expect(rows.map((row) => row.sourceIdentity)).toEqual(["pu5001"]);
+    });
+
+    it("reads the second mirror once an admin turns it on", async () => {
+      const activityShopId = takeShopId();
+      await db
+        .insertInto("playloltcgEvents")
+        .values({
+          activityShopId,
+          name: "MPI Rift Open",
+          startAt: "2026-08-20",
+          playerCount: 1,
+          contentHash: "mpi-hash",
+          lastSeenAt: new Date("2026-08-21T00:00:00Z"),
+        })
+        .execute();
+      await db
+        .insertInto("playloltcgEventStandings")
+        .values({ activityShopId, playerKey: "u5002", playerName: "MPI Ashe", rank: 1, wins: 5 })
+        .execute();
+      const tid = await seedTopdeckMirror("mpi-td-enabled");
+
+      const metaEventId = await seedLiveEvent("mpi-two-mirrors-on");
+      await cite(metaEventId, "playloltcg", String(activityShopId));
+      await cite(metaEventId, "topdeck", tid);
+      const sources = await repo.sourcesForEvent(metaEventId);
+      const topdeckSource = sources.find((row) => row.provider === "topdeck");
+      await repo.setEventSourceContributes(topdeckSource?.id ?? "", true);
+
+      await promoteMetaEvent(repos, metaEventId);
+
+      const rows = await repo.rawStandingsForEvent(metaEventId);
+      expect(rows.map((row) => row.sourceIdentity).toSorted()).toEqual(["pu5002", "tuacct-1"]);
+    });
+
+    it("leaves a hand-entered citation contributing, since it has no mirror to clash with", async () => {
+      const tid = await seedTopdeckMirror("mpi-td-hand");
+      const metaEventId = await seedLiveEvent("mpi-hand-citation");
+      await cite(metaEventId, "topdeck", tid);
+      await cite(metaEventId, null, null);
+
+      const sources = await repo.sourcesForEvent(metaEventId);
+      expect(sources.every((row) => row.contributes)).toBe(true);
     });
   });
 

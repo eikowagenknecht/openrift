@@ -24,6 +24,7 @@ export const SCHEDULED_JOB_KINDS = [
   "meta.uvsgames_recheck",
   "meta.playloltcg_sync",
   "meta.playloltcg_recheck",
+  "meta.topdeck_sync",
 ] as const;
 
 export const scheduledJobKindSchema = z.enum(SCHEDULED_JOB_KINDS);

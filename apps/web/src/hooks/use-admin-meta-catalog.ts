@@ -386,6 +386,10 @@ const META_SYNC_TRIGGERS = [
   "runPlayloltcgAutoAccept",
   "runPlayloltcgBackfill",
   "restartPlayloltcgBackfill",
+  "runTopdeckSync",
+  "runTopdeckAutoAccept",
+  "runTopdeckBackfill",
+  "restartTopdeckBackfill",
 ] as const;
 
 export type MetaSyncTrigger = (typeof META_SYNC_TRIGGERS)[number];

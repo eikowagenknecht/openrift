@@ -133,6 +133,7 @@ const ENUM_CHECKS: Record<string, readonly string[]> = {
   site_settings_scope_check: scopeEnum.options,
   chk_tournament_participants_claim_source: deckCheckClaimSourceSchema.options,
   chk_tournament_participants_status: tournamentParticipantStatusSchema.options,
+  chk_topdeck_decklists_fetch_status: META_SOURCE_FETCH_STATUSES,
   chk_tournament_staff_role: tournamentStaffRoleSchema.options,
   chk_tournaments_deck_phase: tournamentDeckPhaseSchema.options,
   chk_tournaments_deck_submission: tournamentDeckSubmissionSchema.options,

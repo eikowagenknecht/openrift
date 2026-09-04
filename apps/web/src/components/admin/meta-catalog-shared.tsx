@@ -79,7 +79,9 @@ export function CatalogSourceSelect({
           source: next === "uvsgames" ? undefined : next,
           eventStatus: undefined,
           plStatus: undefined,
+          tdFormat: undefined,
           decklists: undefined,
+          awaitingResults: undefined,
         });
       }}
       options={SOURCE_OPTIONS}

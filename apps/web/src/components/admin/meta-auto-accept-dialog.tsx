@@ -1,4 +1,4 @@
-import { formatDayTime } from "@openrift/shared";
+import { formatDayTime, META_CATALOG_PROVIDERS } from "@openrift/shared";
 import type { MetaSource, MetaSyncSettings } from "@openrift/shared/contracts/admin/meta-catalog";
 import { useState } from "react";
 
@@ -38,21 +38,24 @@ function toDraft(settings: MetaSyncSettings): RulesDraft {
 
 /**
  * What each source's crawl actually consults. Only uvsgames has templates and a
- * format mapping, so the other two rules would be dead switches on the second
- * source's tab rather than settings it ignores quietly.
+ * format mapping, so the other two rules would be dead switches on the other
+ * sources' tabs rather than settings they ignore quietly.
  */
 const SOURCE_INTRO: Record<MetaSource, string> = {
   uvsgames:
     "When a crawl sees an event matching any rule below, it is accepted automatically: the live event is created and its UVS Games standings are fetched and published without review. Events you dismissed never auto-accept, whatever they match.",
   playloltcg:
     "When a crawl sees an event matching the rule below, it is accepted automatically: the live event is created and its Play LoL TCG standings are fetched and published without review. Events you dismissed never auto-accept. This source publishes no event templates, so field size is the only rule it can be judged on.",
+  topdeck:
+    "When a crawl sees an event matching the rule below, it is accepted automatically: the live event is created and its TopDeck.gg standings and decklists are published without review. Events you dismissed never auto-accept, and neither do team events. This source publishes no event templates, so field size is the only rule it can be judged on.",
 };
 
-/** The other source the one shared rule also governs. */
-const OTHER_SOURCE: Record<MetaSource, MetaSource> = {
-  uvsgames: "playloltcg",
-  playloltcg: "uvsgames",
-};
+/** The other catalogues the one shared rule also governs. */
+function otherSourceLabels(source: MetaSource): string {
+  return META_CATALOG_PROVIDERS.filter((provider) => provider !== source)
+    .map((provider) => META_SOURCE_LABELS[provider])
+    .join(" and ");
+}
 
 function AutoAcceptForm({
   source,
@@ -116,8 +119,8 @@ function AutoAcceptForm({
           <p className="text-destructive">Enter a whole number of players above zero.</p>
         )}
         <p className="text-muted-foreground">
-          Both catalogues read this threshold, so a change here also governs{" "}
-          {META_SOURCE_LABELS[OTHER_SOURCE[source]]}.
+          Every catalogue reads this threshold, so a change here also governs{" "}
+          {otherSourceLabels(source)}.
         </p>
         {source === "uvsgames" && (
           <>

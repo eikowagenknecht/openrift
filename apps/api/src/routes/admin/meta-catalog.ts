@@ -16,6 +16,8 @@ import { AppError } from "../../errors.js";
 import { toMetaCatalogRow, toMetaSourceTemplate } from "../../lib/meta-catalog-presenters.js";
 import { toPlayloltcgCatalogRow } from "../../lib/playloltcg-catalog-presenters.js";
 import { PLAYLOLTCG_PROVIDER } from "../../lib/playloltcg-catalog.js";
+import { toTopdeckCatalogRow } from "../../lib/topdeck-catalog-presenters.js";
+import { TOPDECK_PROVIDER } from "../../lib/topdeck-catalog.js";
 import { UVSGAMES_PROVIDER } from "../../lib/uvsgames-catalog.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -28,6 +30,8 @@ import type {
   MetaSyncDeps,
   PlayloltcgAcceptSummary,
   PlayloltcgSyncDeps,
+  TopdeckAcceptSummary,
+  TopdeckSyncDeps,
 } from "../../services/meta-sync/index.js";
 import {
   acceptCatalogEvent,
@@ -53,6 +57,12 @@ import {
   PLAYLOLTCG_RECHECK_BATCH_SIZE,
   processPlayloltcgRechecks,
   syncPlayloltcgCatalog,
+  acceptTopdeckEvent,
+  autoAcceptTopdeckBacklog,
+  backfillTopdeck,
+  createTopdeckSyncDeps,
+  isTopdeckSyncNoop,
+  syncTopdeckCatalog,
 } from "../../services/meta-sync/index.js";
 import { recordAdminEvent } from "../../services/record-admin-event.js";
 import { runJobAsync } from "../../services/run-job.js";
@@ -66,6 +76,7 @@ const DEFAULT_LIMIT = 50;
 /** The kinds each source's backfill resume point and cancel flag live under. */
 const BACKFILL_KIND = "meta.uvsgames_backfill";
 const PLAYLOLTCG_BACKFILL_KIND = "meta.playloltcg_backfill";
+const TOPDECK_BACKFILL_KIND = "meta.topdeck_backfill";
 const ID_SWEEP_KIND = "meta.uvsgames_id_sweep";
 
 /** The run kind each Stop targets. Not every source/job pair exists as a job. */
@@ -77,6 +88,7 @@ const CANCELLABLE_KINDS: Partial<
   "uvsgames:id_sweep": ID_SWEEP_KIND,
   "playloltcg:backfill": PLAYLOLTCG_BACKFILL_KIND,
   "playloltcg:recheck": "meta.playloltcg_recheck",
+  "topdeck:backfill": TOPDECK_BACKFILL_KIND,
 };
 
 function playloltcgDeps(context: ApiContext): PlayloltcgSyncDeps {
@@ -89,6 +101,22 @@ function playloltcgDeps(context: ApiContext): PlayloltcgSyncDeps {
   });
 }
 
+/**
+ * The only source that authenticates. An unset key reaches the client as an
+ * empty Authorization header and the source answers 401, which is what the run
+ * reports; the scheduled job skips itself instead.
+ */
+function topdeckDeps(context: ApiContext): TopdeckSyncDeps {
+  return createTopdeckSyncDeps({
+    repos: context.repos,
+    transact: context.transact,
+    fetch: context.io.fetch,
+    log,
+    baseUrl: context.config.metaSync.topdeckBaseUrl,
+    apiKey: context.config.metaSync.topdeckApiKey ?? "",
+  });
+}
+
 /** How many of the selected source's runs the sync panel shows. */
 const STATUS_RUN_LIMIT = 25;
 
@@ -96,6 +124,7 @@ const STATUS_RUN_LIMIT = 25;
 const SOURCE_PROVIDER: Record<MetaSource, string> = {
   uvsgames: UVSGAMES_PROVIDER,
   playloltcg: PLAYLOLTCG_PROVIDER,
+  topdeck: TOPDECK_PROVIDER,
 };
 
 /**
@@ -125,7 +154,9 @@ function toMetaSyncRun(run: JobRun) {
 }
 
 /** A sweep that accepted nothing and hit no failure did no work. */
-function isAutoAcceptNoop(summary: MetaAutoAcceptSummary | PlayloltcgAcceptSummary): boolean {
+function isAutoAcceptNoop(
+  summary: MetaAutoAcceptSummary | PlayloltcgAcceptSummary | TopdeckAcceptSummary,
+): boolean {
   return summary.accepted === 0 && summary.failed === 0;
 }
 
@@ -344,8 +375,11 @@ export const adminMetaCatalogRouter = {
 
   syncStatus: os.syncStatus.handler(async ({ input, context }) => {
     const source = input.source;
-    const sourceRepo =
-      source === "playloltcg" ? context.repos.playloltcgEvents : context.repos.uvsgamesEvents;
+    const sourceRepo = {
+      uvsgames: context.repos.uvsgamesEvents,
+      playloltcg: context.repos.playloltcgEvents,
+      topdeck: context.repos.topdeckEvents,
+    }[source];
     const [overview, archive, counts, runs] = await Promise.all([
       sourceRepo.syncOverview(),
       context.repos.meta.archiveOverview(SOURCE_PROVIDER[source]),
@@ -372,6 +406,7 @@ export const adminMetaCatalogRouter = {
         "meta.uvsgames_recheck": context.scheduler?.isEnabled("meta.uvsgames_recheck") ?? false,
         "meta.playloltcg_sync": context.scheduler?.isEnabled("meta.playloltcg_sync") ?? false,
         "meta.playloltcg_recheck": context.scheduler?.isEnabled("meta.playloltcg_recheck") ?? false,
+        "meta.topdeck_sync": context.scheduler?.isEnabled("meta.topdeck_sync") ?? false,
       },
     };
   }),
@@ -627,6 +662,107 @@ export const adminMetaCatalogRouter = {
     return await startJob(context, "meta.playloltcg_event_fetch", playloltcgDeps, (deps) =>
       fetchPlayloltcgEvent(deps, row),
     );
+  }),
+
+  runTopdeckSync: os.runTopdeckSync.handler(({ context }) =>
+    startJob(context, "meta.topdeck_sync", topdeckDeps, syncTopdeckCatalog, isTopdeckSyncNoop),
+  ),
+
+  runTopdeckBackfill: os.runTopdeckBackfill.handler(async ({ context }) => {
+    const previous = await context.repos.jobRuns.findLatestForResume(TOPDECK_BACKFILL_KIND);
+    const prior = previous?.result;
+    const resumeFrom = isResumableCheckpoint(prior) ? new Date(prior.coveredThrough) : undefined;
+    return await startJob(
+      context,
+      TOPDECK_BACKFILL_KIND,
+      topdeckDeps,
+      (deps, runId) => backfillTopdeck(deps, runId, { resumeFrom }),
+      isTopdeckSyncNoop,
+    );
+  }),
+
+  restartTopdeckBackfill: os.restartTopdeckBackfill.handler(({ context }) =>
+    startJob(
+      context,
+      TOPDECK_BACKFILL_KIND,
+      topdeckDeps,
+      (deps, runId) => backfillTopdeck(deps, runId),
+      isTopdeckSyncNoop,
+    ),
+  ),
+
+  runTopdeckAutoAccept: os.runTopdeckAutoAccept.handler(({ context }) =>
+    startJob(
+      context,
+      "meta.topdeck_auto_accept",
+      topdeckDeps,
+      autoAcceptTopdeckBacklog,
+      isAutoAcceptNoop,
+    ),
+  ),
+
+  topdeckList: os.topdeckList.handler(async ({ input, context }) => {
+    const limit = input.limit ?? DEFAULT_LIMIT;
+    const page = input.page ?? 1;
+    const [{ rows, total }, counts] = await Promise.all([
+      context.repos.topdeckEvents.list(
+        {
+          search: input.search,
+          triage: input.triage,
+          format: input.format,
+          minPlayers: input.minPlayers,
+          dateFrom: input.dateFrom,
+          dateTo: input.dateTo,
+          missing: input.missing,
+        },
+        { limit, offset: (page - 1) * limit },
+        { sort: input.sort, direction: input.direction },
+      ),
+      context.repos.topdeckEvents.triageCounts(),
+    ]);
+    return { rows: rows.map((row) => toTopdeckCatalogRow(row)), total, page, limit, counts };
+  }),
+
+  topdeckAccept: os.topdeckAccept.handler(async ({ input, context }) => {
+    const row = await context.repos.topdeckEvents.byKey(input.tid);
+    if (row === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Catalogue event not found");
+    }
+    const accepted = await acceptTopdeckEvent(topdeckDeps(context), row);
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "meta-catalog.accept",
+      entityType: "meta-catalog",
+      entityId: `${TOPDECK_PROVIDER}:${row.tid}`,
+      entityLabel: row.name,
+      newValues: { metaEventId: accepted.metaEventId, slug: accepted.slug },
+    });
+    return accepted;
+  }),
+
+  topdeckDismiss: os.topdeckDismiss.handler(async ({ input, context }) => {
+    const row = await context.repos.topdeckEvents.byKey(input.tid);
+    if (row === undefined) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Catalogue event not found");
+    }
+    await context.repos.metaOverlays.ignoreEvent(TOPDECK_PROVIDER, row.tid);
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "meta-catalog.dismiss",
+      entityType: "meta-catalog",
+      entityId: `${TOPDECK_PROVIDER}:${row.tid}`,
+      entityLabel: row.name,
+    });
+  }),
+
+  topdeckUndismiss: os.topdeckUndismiss.handler(async ({ input, context }) => {
+    const removed = await context.repos.metaOverlays.unignoreEvent(TOPDECK_PROVIDER, input.tid);
+    if (!removed) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Ignore entry not found");
+    }
+    await recordAdminEvent(context.repos, context.userId, {
+      action: "meta-catalog.undismiss",
+      entityType: "meta-catalog",
+      entityId: `${TOPDECK_PROVIDER}:${input.tid}`,
+    });
   }),
 
   // Five upstream requests at a 30s timeout each, so waiting for it outlives

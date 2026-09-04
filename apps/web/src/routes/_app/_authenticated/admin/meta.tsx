@@ -50,6 +50,9 @@ export const metaSearchSchema = z.object({
       PLAYLOLTCG_STATUSES.some((status) => status === value),
     )
     .optional(),
+  // topdeck's second axis is its own format word rather than a lifecycle, and
+  // the vocabulary is the source's, so this is a free string.
+  tdFormat: z.string().optional(),
   eventSort: z.enum(META_CATALOG_SORTS).optional(),
   eventDir: z.enum(META_CATALOG_SORT_DIRECTIONS).optional(),
   minPlayers: z.coerce.number().int().min(0).optional(),

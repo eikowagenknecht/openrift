@@ -2,6 +2,7 @@ import type { MetaOverlayQueueRow } from "@openrift/shared";
 import type {
   MetaSyncStatus,
   PlayloltcgCatalogRow,
+  TopdeckCatalogRow,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { describe, expect, it } from "vitest";
 
@@ -18,6 +19,8 @@ import {
   playloltcgStatusDisplay,
   runningRunId,
   syncTriggerAnnouncement,
+  TOPDECK_FORMAT_CHOICES,
+  topdeckCoverageRow,
 } from "./meta-catalog-display";
 
 describe("catalogStatusDisplay", () => {
@@ -97,6 +100,69 @@ describe("playloltcgCoverageRow", () => {
 
   it("says nothing about published decklists, which the source never publishes", () => {
     expect(playloltcgCoverageRow(catalogRow()).decklistStatus).toBeNull();
+  });
+});
+
+describe("topdeckCoverageRow", () => {
+  function catalogRow(overrides: Partial<TopdeckCatalogRow> = {}): TopdeckCatalogRow {
+    return {
+      tid: "summoner-skirmish",
+      name: "Summoner Skirmish",
+      format: "Constructed",
+      city: "Kissimmee",
+      country: "US",
+      playerCount: 32,
+      topCut: 8,
+      isTeamEvent: false,
+      startAt: "2026-08-15T18:00:00.000Z",
+      triage: "accepted",
+      metaEventId: "event-1",
+      metaEventSlug: "summoner-skirmish",
+      fetchedAt: "2026-08-16T00:00:00.000Z",
+      missingSince: null,
+      stagedPlayerCount: 32,
+      stagedLegendCount: 30,
+      stagedDeckCount: 8,
+      rivalProvider: null,
+      sourceUrl: "https://topdeck.gg/event/summoner-skirmish",
+      ...overrides,
+    };
+  }
+
+  it("calls every row complete, since the search answers about finished tournaments", () => {
+    expect(topdeckCoverageRow(catalogRow()).displayStatus).toBe("complete");
+  });
+
+  it("says nothing about a next visit, since this source has no recheck ladder", () => {
+    expect(topdeckCoverageRow(catalogRow()).nextCheckAt).toBeNull();
+  });
+
+  it("says nothing about published decklists, which the source never publishes", () => {
+    expect(topdeckCoverageRow(catalogRow()).decklistStatus).toBeNull();
+  });
+
+  it("passes the start through, since the source already publishes an instant", () => {
+    expect(topdeckCoverageRow(catalogRow()).startAt).toBe("2026-08-15T18:00:00.000Z");
+  });
+
+  it("carries the staged counts the chips read", () => {
+    expect(topdeckCoverageRow(catalogRow())).toMatchObject({
+      stagedPlayerCount: 32,
+      stagedLegendCount: 30,
+      stagedDeckCount: 8,
+    });
+  });
+});
+
+describe("TOPDECK_FORMAT_CHOICES", () => {
+  it("offers the source's own format words, since it matches on them", () => {
+    expect(TOPDECK_FORMAT_CHOICES.map((choice) => choice.value)).toEqual([
+      "Constructed",
+      "Limited",
+      "Sealed",
+      "2v2",
+      "Free-for-All",
+    ]);
   });
 });
 

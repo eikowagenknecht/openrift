@@ -168,10 +168,25 @@ const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
       scheduleKey: "meta.playloltcg_recheck",
     },
   ],
+  topdeck: [
+    {
+      trigger: "runTopdeckSync",
+      label: "Sync the catalogue",
+      description:
+        "Reads the last 30 days of each format, with standings and decklists. There is no separate results fetch: one search carries them.",
+      scheduleKey: "meta.topdeck_sync",
+    },
+    {
+      trigger: "runTopdeckAutoAccept",
+      label: "Auto-accept backlog",
+      description: AUTO_ACCEPT_DESCRIPTION,
+      confirm: AUTO_ACCEPT_CONFIRM,
+    },
+  ],
 };
 
 /**
- * The backfill controls each phase shows, per source. Both sources are
+ * The backfill controls each phase shows, per source. Every source is
  * phase-aware: one "Full backfill" while idle, and "Continue" + "from scratch"
  * once a run stopped partway (the server resumes from the checkpoint either way).
  */
@@ -221,17 +236,40 @@ const BACKFILL_TRIGGERS_BY_SOURCE: Record<
       },
     ],
   },
+  topdeck: {
+    idle: [
+      {
+        trigger: "runTopdeckBackfill",
+        label: "Full backfill",
+        description: "Crawls the source's full history, resuming where the last run stopped.",
+      },
+    ],
+    resumable: [
+      {
+        trigger: "runTopdeckBackfill",
+        label: "Continue backfill",
+        description: "Picks up where the last one stopped.",
+      },
+      {
+        trigger: "restartTopdeckBackfill",
+        label: "Backfill from scratch",
+        description: "The same crawl from day one, ignoring the resume point.",
+      },
+    ],
+  },
 };
 
 const JOB_KIND_PREFIX: Record<MetaSource, string> = {
   uvsgames: "meta.uvsgames_",
   playloltcg: "meta.playloltcg_",
+  topdeck: "meta.topdeck_",
 };
 
 /** The backfill job kind for a source, so the phase reads the right runs. */
 const BACKFILL_KIND: Record<MetaSource, string> = {
   uvsgames: "meta.uvsgames_backfill",
   playloltcg: "meta.playloltcg_backfill",
+  topdeck: "meta.topdeck_backfill",
 };
 
 function FunnelStage({
@@ -396,7 +434,9 @@ function HealthCard({ alerts }: { alerts: SourcedAlert[] }) {
         <CardTitle>Health</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {alerts.length === 0 && <p className="text-muted-foreground">Both sources look healthy.</p>}
+        {alerts.length === 0 && (
+          <p className="text-muted-foreground">Every source looks healthy.</p>
+        )}
         {alerts.map((alert) => (
           <div key={`${alert.source}-${alert.id}`} className="flex items-center gap-2">
             <CircleAlertIcon className="text-destructive size-4 shrink-0" />
@@ -829,12 +869,14 @@ function sourceAlerts(
 export function MetaAdminOverviewPage() {
   const uvsgames = useMetaSyncStatus("uvsgames");
   const playloltcg = useMetaSyncStatus("playloltcg");
+  const topdeck = useMetaSyncStatus("topdeck");
   const overlays = useAdminMetaOverlays();
 
   const now = new Date();
   const alerts = [
     ...sourceAlerts("uvsgames", uvsgames.data, overlays.data.overlays, now),
     ...sourceAlerts("playloltcg", playloltcg.data, overlays.data.overlays, now),
+    ...sourceAlerts("topdeck", topdeck.data, overlays.data.overlays, now),
   ];
 
   return (
@@ -846,9 +888,14 @@ export function MetaAdminOverviewPage() {
             onRefresh={() => {
               void uvsgames.refetch();
               void playloltcg.refetch();
+              void topdeck.refetch();
             }}
-            isFetching={uvsgames.isFetching || playloltcg.isFetching}
-            dataUpdatedAt={Math.min(uvsgames.dataUpdatedAt, playloltcg.dataUpdatedAt)}
+            isFetching={uvsgames.isFetching || playloltcg.isFetching || topdeck.isFetching}
+            dataUpdatedAt={Math.min(
+              uvsgames.dataUpdatedAt,
+              playloltcg.dataUpdatedAt,
+              topdeck.dataUpdatedAt,
+            )}
             intervalMs={SYNC_STATUS_POLL_MS}
           />
         }
@@ -861,6 +908,7 @@ export function MetaAdminOverviewPage() {
       <HealthCard alerts={alerts} />
       <MetaSourceSyncSection source="uvsgames" />
       <MetaSourceSyncSection source="playloltcg" />
+      <MetaSourceSyncSection source="topdeck" />
 
       <section aria-label="The archive" className="space-y-4">
         <SectionHeading>The archive</SectionHeading>

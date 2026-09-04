@@ -18,6 +18,7 @@ import {
 import type { MetaEventOverlayPatch, MetaPlayerOverlayPatch } from "../lib/meta-overlay-apply.js";
 import { applyOverlays } from "../lib/meta-overlay-apply.js";
 import { PLAYLOLTCG_PROVIDER } from "../lib/playloltcg-catalog.js";
+import { TOPDECK_PROVIDER, topdeckFormat, topdeckLocalDay } from "../lib/topdeck-catalog.js";
 import { mapSourceFormat, UVSGAMES_PROVIDER, venueLocalDay } from "../lib/uvsgames-catalog.js";
 import { listStatusFor, withSingleChampion } from "../lib/uvsgames-transform.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";
@@ -348,6 +349,66 @@ async function playloltcgFacts(
   };
 }
 
+async function topdeckFacts(
+  repos: Repos,
+  externalId: string,
+  context: MetaSourceContext,
+): Promise<SourceFacts | null> {
+  const listing = await repos.topdeckEvents.byKey(externalId);
+  if (listing === undefined) {
+    return null;
+  }
+  const standings = await repos.topdeckResults.standings(externalId);
+  const location = listing.address === null ? null : listing.address.trim().slice(0, 500) || null;
+  const playerCount = countOrNull(listing.playerCount);
+
+  return {
+    raw: {
+      format: listing.format,
+      eventDate: listing.startAt.toISOString(),
+      // No template vocabulary here either, so field size is the whole rule.
+      tier: `${playerCount ?? 0} players`,
+      country: location ?? undefined,
+    },
+    event: {
+      name: listing.name.slice(0, 120),
+      eventDate: topdeckLocalDay(listing.startAt, listing.longitude),
+      format: topdeckFormat(listing.format),
+      playerCount,
+      notes: null,
+      // The source names no organizer, only where the event was held.
+      organizer: null,
+      tier: classifyMetaEventTier(
+        { templateTier: null, playerCount },
+        context.competitivePlayerFloor,
+      ),
+      country: listing.country,
+      location,
+    },
+    standings: standings
+      .filter((row) => row.rank !== null)
+      .map((row) => ({
+        identity: `t${row.playerKey}`,
+        legacyIdentity: legacyIdentityOf(null, row.playerName),
+        uvsgamesPlayerId: null,
+        playerName: row.playerName,
+        rank: row.rank as number,
+        rankIsTier: false,
+        wins: row.wins,
+        losses: row.losses,
+        draws: row.draws,
+        matchPoints: null,
+        opponentMatchWinPct: null,
+        gameWinPct: null,
+        opponentGameWinPct: null,
+        entryStatus: null,
+        legendName: row.legendName,
+        sourceDeckId: row.sourceDeckId,
+        provider: TOPDECK_PROVIDER,
+      })),
+  };
+}
+
 /**
  * What one source would contribute to an event's live row, without writing it.
  *
@@ -400,6 +461,9 @@ function factsFor(
   if (provider === PLAYLOLTCG_PROVIDER) {
     return playloltcgFacts(repos, externalId, context);
   }
+  if (provider === TOPDECK_PROVIDER) {
+    return topdeckFacts(repos, externalId, context);
+  }
   // A push provider writes overlays, not a mirror, so there is nothing here to
   // promote and its citation still stands.
   return Promise.resolve(null);
@@ -428,7 +492,11 @@ export async function promoteMetaEvent(
   const result = emptyResult(metaEventId);
   const sources = await repos.meta.sourcesForEvent(metaEventId);
   const ordered = sources
-    .filter((source) => source.provider !== null && source.externalId !== null)
+    // A citation with `contributes` off is printed and never read; see
+    // `insertEventSource`.
+    .filter(
+      (source) => source.provider !== null && source.externalId !== null && source.contributes,
+    )
     .toSorted((a, b) => a.priority - b.priority || a.createdAt.getTime() - b.createdAt.getTime());
 
   const collected: SourceFacts[] = [];
@@ -721,6 +789,14 @@ function sameStoredDeck(
 
 type SourceDeckLines = Map<string, { zone: string; quantity: number; cardName: string }[]>;
 
+/**
+ * Deck ids are only unique within a provider, so the map that holds every
+ * linked mirror's lists is keyed by both.
+ */
+function deckLineKey(provider: string, sourceDeckId: string): string {
+  return `${provider}:${sourceDeckId}`;
+}
+
 /** Every held decklist for the event's linked mirrors, one query per provider. */
 async function loadDeckLines(
   repos: Repos,
@@ -734,15 +810,20 @@ async function loadDeckLines(
     }
     if (source.provider === UVSGAMES_PROVIDER && providers.has(UVSGAMES_PROVIDER)) {
       for (const [deckId, rows] of await repos.uvsgamesResults.decklistCards(source.externalId)) {
-        lines.set(deckId, rows);
+        lines.set(deckLineKey(UVSGAMES_PROVIDER, deckId), rows);
       }
     }
     if (source.provider === PLAYLOLTCG_PROVIDER && providers.has(PLAYLOLTCG_PROVIDER)) {
       const activityShopId = Number(source.externalId);
       if (Number.isInteger(activityShopId)) {
         for (const [deckId, rows] of await repos.playloltcgResults.decklistCards(activityShopId)) {
-          lines.set(deckId, rows);
+          lines.set(deckLineKey(PLAYLOLTCG_PROVIDER, deckId), rows);
         }
+      }
+    }
+    if (source.provider === TOPDECK_PROVIDER && providers.has(TOPDECK_PROVIDER)) {
+      for (const [deckId, rows] of await repos.topdeckResults.decklistCards(source.externalId)) {
+        lines.set(deckLineKey(TOPDECK_PROVIDER, deckId), rows);
       }
     }
   }
@@ -775,7 +856,9 @@ function buildDeck(
   if (standing.sourceDeckId === null) {
     return null;
   }
-  const lines = withSingleChampion(deckLines.get(standing.sourceDeckId) ?? []);
+  const lines = withSingleChampion(
+    deckLines.get(deckLineKey(standing.provider, standing.sourceDeckId)) ?? [],
+  );
   if (lines.length === 0) {
     return null;
   }
