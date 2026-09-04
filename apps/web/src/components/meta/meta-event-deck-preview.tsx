@@ -1,7 +1,7 @@
 import type { DeckZone, PublicDeckCardResponse } from "@openrift/shared";
 import { getOrientation, WellKnown } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CheckIcon, CopyIcon, EllipsisVerticalIcon, GitForkIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, EllipsisVerticalIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCopyArchivedDeck } from "@/hooks/use-copy-archived-deck";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { useEncodeDeckCards } from "@/hooks/use-decks";
-import { useForkArchivedDeck } from "@/hooks/use-fork-archived-deck";
 import { useMetaDeck } from "@/hooks/use-meta";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { describeIncompleteList, unknownZoneCounts } from "@/lib/meta-deck-archive";
@@ -104,7 +104,7 @@ function StripCard({
 /** Suspends on the deck query; mount it under a Suspense boundary with {@link MetaEventDeckPreviewSkeleton}. */
 export function MetaEventDeckPreview({ token }: { token: string }) {
   const { data } = useMetaDeck(token);
-  const fork = useForkArchivedDeck();
+  const copyToMyDecks = useCopyArchivedDeck();
   const encodeMutation = useEncodeDeckCards();
   const { copied, copy } = useCopyToClipboard();
 
@@ -178,7 +178,7 @@ export function MetaEventDeckPreview({ token }: { token: string }) {
         {sideboardCount > 0 && <span className="tabular-nums">Sideboard {sideboardCount}</span>}
         {missing !== null && <span>{missing}</span>}
         <MetaContributors contributors={data.meta.contributors} className="text-xs" />
-        {!fork.isLoggedIn && (
+        {!copyToMyDecks.isLoggedIn && (
           <Link
             to="/login"
             search={{ redirect: `/meta/${data.meta.event.slug}`, email: undefined }}
@@ -197,11 +197,13 @@ export function MetaEventDeckPreview({ token }: { token: string }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                disabled={fork.isPending}
-                onClick={() => void fork.fork({ token, deck: data.deck, cards: data.cards })}
+                disabled={copyToMyDecks.isPending}
+                onClick={() =>
+                  void copyToMyDecks.copy({ token, deck: data.deck, cards: data.cards })
+                }
               >
-                <GitForkIcon />
-                {fork.label}
+                <CopyIcon />
+                {copyToMyDecks.label}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={encodeMutation.isPending}

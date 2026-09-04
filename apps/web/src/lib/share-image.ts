@@ -87,23 +87,26 @@ export function collectionOwnerImageUrl(
   );
 }
 
+/** The deck image routes speak the same three parameters as the grid routes. */
+export type DeckImageOptions = ShareImageOptions;
+
 /**
  * Absolute URL of the server-rendered share image for a shared deck (ADR-031),
- * used as the og:image. `size: "hq"` requests the 2× download variant.
+ * used as the og:image and as the download for a viewer who does not own the
+ * deck. `size: "hq"` requests the 2× variant.
  * @returns The deck image URL.
  */
 export function deckShareImageUrl(
   siteUrl: string,
   shareToken: string,
   version: number,
-  size?: "hq",
+  options: DeckImageOptions = {},
 ): string {
-  const base = `${siteUrl}${API_BASE}/decks/share/${shareToken}/image.png?v=${version}`;
-  return size === "hq" ? `${base}&size=hq` : base;
+  return withParams(
+    `${siteUrl}${API_BASE}/decks/share/${shareToken}/image.png?v=${version}`,
+    shareImageQueryParams(options),
+  );
 }
-
-/** The deck image routes speak the same three parameters as the grid routes. */
-export type DeckImageOptions = ShareImageOptions;
 
 /**
  * Absolute URL of the owner-authenticated image for one of the caller's own

@@ -13,8 +13,11 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 // The mark sits at the right end of the title row, which is exactly as tall as
 // the mark, so its box starts at the canvas padding on both axes.
 const WIDTH = 1200;
+const HEIGHT = 630;
 const PAD = 22;
 const HEADER_QR_SIZE = 104;
+/** Gap below the title row, `GAP` in deck-image-parts.ts. */
+const TITLE_GAP = 10;
 
 function card(
   cardName: string,
@@ -155,6 +158,28 @@ describe("renderDeckImage", () => {
     });
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
   });
+
+  it("renders an archive result line without moving the deck body", async () => {
+    const cards = constructedDeck;
+    const [plain, archived] = await Promise.all([
+      renderDeckImage(defaultIo, { ...baseInput, cards }),
+      renderDeckImage(defaultIo, {
+        ...baseInput,
+        cards,
+        resultLine: "1st of 3,283 · 14-1-0 · Summoner Skirmish Wuhan",
+      }),
+    ]);
+    expect(archived.subarray(0, 8)).toEqual(PNG_MAGIC);
+    expect(archived).not.toEqual(plain);
+
+    const bodyTop = PAD + HEADER_QR_SIZE + TITLE_GAP;
+    const box = { left: 0, top: bodyTop, width: WIDTH, height: HEIGHT - bodyTop };
+    const [plainBody, archivedBody] = await Promise.all([
+      defaultIo.sharp(plain).extract(box).raw().toBuffer(),
+      defaultIo.sharp(archived).extract(box).raw().toBuffer(),
+    ]);
+    expect(archivedBody).toEqual(plainBody);
+  }, 15_000); // Two full-canvas renders; tight against 5s under full-suite load.
 });
 
 describe("renderDeckImage (vertical)", () => {
@@ -199,6 +224,23 @@ describe("renderDeckImage (vertical)", () => {
       "vertical",
     );
     expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+  });
+
+  it("renders an archive result line as a third title line", async () => {
+    const png = await renderDeckImage(
+      defaultIo,
+      {
+        ...baseInput,
+        cards: constructedDeck,
+        resultLine: "1st of 3,283 · 14-1-0 · Summoner Skirmish Wuhan",
+      },
+      1,
+      "vertical",
+    );
+    expect(png.subarray(0, 8)).toEqual(PNG_MAGIC);
+    const meta = await defaultIo.sharp(png).metadata();
+    expect(meta.width).toBe(1080);
+    expect(meta.height).toBe(1920);
   });
 
   it("renders the 2× variant at 2160x3840", async () => {

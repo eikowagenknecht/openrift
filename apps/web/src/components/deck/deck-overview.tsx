@@ -164,6 +164,10 @@ interface DeckOverviewProps {
   variantRailSlot?: React.ReactNode;
   /** Forwarded to the hero: owner attribution next to the deck name. */
   heroByline?: React.ReactNode;
+  /** Forwarded to the hero: replaces the whole name-and-subtitle block. */
+  heroHeading?: React.ReactNode;
+  /** Forwarded to the hero: the block left of the text column. */
+  heroLead?: React.ReactNode;
   /** Forwarded to the hero: action row under the status chips (copy CTA). */
   heroActions?: React.ReactNode;
   /**
@@ -212,6 +216,8 @@ export function DeckOverview({
   planSlot,
   variantRailSlot,
   heroByline,
+  heroHeading,
+  heroLead,
   heroActions,
   notice,
   unknownZoneCounts,
@@ -610,6 +616,8 @@ export function DeckOverview({
             : undefined
         }
         byline={heroByline}
+        heading={heroHeading}
+        lead={heroLead}
         actions={heroActions}
       />
       {notice}

@@ -520,6 +520,7 @@ export function toMetaDeckContext(
       format: row.eventFormat,
       tier: row.eventTier,
       country: row.eventCountry,
+      playerCount: row.eventPlayerCount,
     },
     listStatus: row.listStatus,
     playerName: row.playerName,

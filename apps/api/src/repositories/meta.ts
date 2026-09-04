@@ -250,6 +250,7 @@ export interface MetaDeckContextRow {
   eventFormat: string;
   eventTier: MetaEventTier;
   eventCountry: string | null;
+  eventPlayerCount: number | null;
 }
 
 /** One standings row in the admin's event management table. */
@@ -1329,6 +1330,7 @@ export function metaRepo(db: Kysely<Database>) {
           "me.format as eventFormat",
           "me.tier as eventTier",
           "me.country as eventCountry",
+          "me.playerCount as eventPlayerCount",
         ])
         .where("p.deckId", "=", deckId)
         .executeTakeFirst();

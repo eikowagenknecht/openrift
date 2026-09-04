@@ -1,71 +1,25 @@
-import type { DeckFormat, DeckZone, MetaDeckDetailResponse } from "@openrift/shared";
-import { formatDay, WellKnown } from "@openrift/shared";
+import type { DeckFormat, DeckZone } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { CheckIcon, CopyIcon, GitForkIcon, InfoIcon } from "lucide-react";
-import { toast } from "sonner";
+import { CopyIcon, InfoIcon } from "lucide-react";
 
+import { PublicDeckActionsMenu } from "@/components/deck/public-deck-actions-menu";
 import { PublicDeckSurface } from "@/components/deck/public-deck-surface";
-import { PageTopBarButton, PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { MetaDeckArchiveBar } from "@/components/meta/meta-deck-archive-bar";
-import { MetaPlayerName } from "@/components/meta/meta-player-name";
+import { MetaDeckFinish, MetaDeckHeading } from "@/components/meta/meta-deck-hero";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Medal } from "@/components/ui/podium";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { useEncodeDeckCards } from "@/hooks/use-decks";
-import { useForkArchivedDeck } from "@/hooks/use-fork-archived-deck";
+import { useCopyArchivedDeck } from "@/hooks/use-copy-archived-deck";
 import { useMetaDeck } from "@/hooks/use-meta";
-import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import {
   archivedDeckIdentity,
   describeIncompleteList,
-  medalRank,
   unknownZoneCounts,
 } from "@/lib/meta-deck-archive";
-import { formatRank, formatRecord } from "@/lib/meta-format";
 import type { MetaSubmitSearch } from "@/lib/meta-submit-link";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
-
-/** Module scope so the copy handler's `try` stays branch-free (React Compiler). */
-function reportEncodeWarnings(warnings: readonly string[]): void {
-  if (warnings.length > 0) {
-    toast.warning("The deck code left some cards out.", { description: warnings.join(" ") });
-  }
-}
-
-/**
- * The archive's byline for one entry: the finish, who played it, their record,
- * and the tournament it was played at. Never an account owner — the archive
- * credits a player for the result and a contributor for the typing, and those
- * are two different lines.
- * @returns The byline.
- */
-function MetaDeckByline({ meta }: { meta: MetaDeckDetailResponse["meta"] }) {
-  const medal = medalRank(meta.rank, meta.rankIsTier);
-  const record = formatRecord(meta.wins, meta.losses, meta.draws);
-  return (
-    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-      {medal === null ? formatRank(meta.rank, meta.rankIsTier) : <Medal rank={medal} />}
-      <MetaPlayerName
-        name={meta.playerName}
-        playerKey={meta.playerKey}
-        className="text-foreground font-medium"
-      />
-      {record !== null && <span className="tabular-nums">{record}</span>}
-      <span aria-hidden>·</span>
-      <Link to="/meta/$slug" params={{ slug: meta.event.slug }} className="hover:underline">
-        {meta.event.name}
-      </Link>
-      {/* The date is the first fact to go: the byline shares its row with the
-          deck name, which phones need the width for. */}
-      <span aria-hidden className="hidden sm:inline">
-        ·
-      </span>
-      <span className="hidden sm:inline">{formatDay(meta.event.eventDate)}</span>
-    </span>
-  );
-}
 
 /**
  * What the page says about the record itself: which parts of the list the
@@ -123,28 +77,14 @@ function MetaDeckNotice({
  */
 export function MetaDeckPage({ token }: { token: string }) {
   const { data } = useMetaDeck(token);
-  const { fork, isPending: forkPending, isLoggedIn, label: forkLabel } = useForkArchivedDeck();
-  const encodeMutation = useEncodeDeckCards();
-  const { copied, copy } = useCopyToClipboard();
-
-  const handleFork = () => {
-    void fork({ token, deck: data.deck, cards: data.cards });
-  };
-
-  // The archived deck has no server row the viewer may export, so the code
-  // comes from the public stateless encoder — the same codecs the owner's
-  // export runs.
-  const encodeCards = toEncodeDeckCards(data.cards);
-  const handleCopyCode = async () => {
-    try {
-      const encoded = await encodeMutation.mutateAsync({ cards: encodeCards });
-      await copy(encoded.code);
-      // A partial list is exactly where a code comes back short, and the
-      // clipboard write is not a mutation the global handler ever sees.
-      reportEncodeWarnings(encoded.warnings);
-    } catch {
-      /* Reported by the global mutation error toast. */
-    }
+  const {
+    copy: copyToMyDecks,
+    isPending: copyPending,
+    isLoggedIn,
+    label: copyLabel,
+  } = useCopyArchivedDeck();
+  const handleCopyToMyDecks = () => {
+    void copyToMyDecks({ token, deck: data.deck, cards: data.cards });
   };
 
   const unknown = unknownZoneCounts(data.cards, data.deck.format, data.meta.listStatus);
@@ -183,26 +123,23 @@ export function MetaDeckPage({ token }: { token: string }) {
           listStatus={data.meta.listStatus}
           actions={
             <>
-              <PageTopBarButton
-                onClick={() => void handleCopyCode()}
-                disabled={encodeMutation.isPending}
-              >
-                {copied ? <CheckIcon /> : <CopyIcon />}
-                {/* Kept in the accessibility tree on phones, where the bar has
-                    room for the icon alone. */}
-                <span className="sr-only sm:not-sr-only">
-                  {copied ? "Copied" : "Copy deck code"}
-                </span>
-              </PageTopBarButton>
               <PageTopBarPrimaryButton
-                onClick={handleFork}
-                disabled={forkPending}
-                aria-label={forkPending ? "Copying…" : forkLabel}
+                onClick={handleCopyToMyDecks}
+                disabled={copyPending}
+                aria-label={copyPending ? "Copying…" : copyLabel}
               >
-                <GitForkIcon />
-                <span className="hidden sm:inline">{forkPending ? "Copying…" : forkLabel}</span>
-                <span className="sm:hidden">{forkPending ? "Copying…" : "Fork"}</span>
+                <CopyIcon />
+                <span className="hidden sm:inline">{copyPending ? "Copying…" : copyLabel}</span>
+                <span className="sm:hidden">{copyPending ? "Copying…" : "Copy"}</span>
               </PageTopBarPrimaryButton>
+              <PublicDeckActionsMenu
+                deckId={data.deck.id}
+                deckName={data.deck.name}
+                shareToken={token}
+                updatedAt={data.deck.updatedAt}
+                cards={data.cards}
+                inTopBar
+              />
             </>
           }
         />
@@ -232,7 +169,8 @@ export function MetaDeckPage({ token }: { token: string }) {
           </Link>
         </div>
       }
-      heroByline={<MetaDeckByline meta={data.meta} />}
+      heroLead={<MetaDeckFinish meta={data.meta} />}
+      heroHeading={<MetaDeckHeading meta={data.meta} identity={identity} />}
     />
   );
 }

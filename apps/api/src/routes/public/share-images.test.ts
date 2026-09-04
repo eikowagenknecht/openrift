@@ -54,6 +54,9 @@ const mockDecksRepo = {
 const mockCatalogRepo = {
   cardsByIds: vi.fn(),
 };
+const mockMetaRepo = {
+  contextForDeck: vi.fn(),
+};
 
 const app = new Hono<{ Variables: Variables }>()
   .use("*", async (c, next) => {
@@ -65,6 +68,7 @@ const app = new Hono<{ Variables: Variables }>()
       copies: mockCopiesRepo,
       decks: mockDecksRepo,
       catalog: mockCatalogRepo,
+      meta: mockMetaRepo,
     } as never);
     c.set("io", {} as never);
     // Comma-separated allow-list (as CORS_ORIGIN really is) to guard the footer
@@ -133,6 +137,8 @@ beforeEach(() => {
   mockDecksRepo.findByShareToken.mockReset();
   mockDecksRepo.cardsForDeck.mockReset();
   mockCatalogRepo.cardsByIds.mockReset();
+  mockMetaRepo.contextForDeck.mockReset();
+  mockMetaRepo.contextForDeck.mockResolvedValue(undefined);
 });
 
 describe("GET /api/v1/lists/share/:token/image.png", () => {
@@ -530,6 +536,125 @@ describe("GET /api/v1/decks/share/:token/image.png", () => {
     expect(res.status).toBe(404);
     expect(mockDecksRepo.cardsForDeck).not.toHaveBeenCalled();
     expect(renderDeckMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the result line out for a deck outside the archive", async () => {
+    setupDeck();
+
+    await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+    expect(renderDeckMock.mock.calls[0]![1].resultLine).toBeUndefined();
+  });
+
+  describe("archive entry", () => {
+    const metaContext = {
+      playerId: "p1",
+      listStatus: "full",
+      playerName: "adtoll",
+      sourceIdentity: null,
+      rank: 1,
+      rankIsTier: false,
+      wins: 14,
+      losses: 1,
+      draws: 0,
+      eventSlug: "summoner-skirmish-wuhan-2026",
+      eventName: "Summoner Skirmish Wuhan",
+      eventDate: "2026-03-14",
+      eventFormat: "constructed",
+      eventTier: "premier",
+      eventCountry: "CN",
+      eventPlayerCount: 3283,
+    };
+
+    function setupArchivedDeck() {
+      mockDecksRepo.findByShareToken.mockResolvedValue({
+        deck: { ...deck, name: "Blade Dancer (adtoll)" },
+        ownerName: "Meta Archive",
+        ownerEmail: "meta@example.test",
+      });
+      mockDecksRepo.cardsForDeck.mockResolvedValue([
+        { cardId: "card-1", zone: "legend", quantity: 1, preferredPrintingId: null },
+        { cardId: "card-2", zone: "main", quantity: 3, preferredPrintingId: null },
+      ]);
+      mockCatalogRepo.cardsByIds.mockResolvedValue([
+        {
+          id: "card-1",
+          name: "Blade Dancer",
+          types: ["legend"],
+          tags: ["Irelia"],
+          energy: null,
+          domains: ["fury"],
+        },
+        { id: "card-2", name: "Gust", types: ["spell"], tags: [], energy: 1, domains: ["fury"] },
+      ]);
+      mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([
+        { cardId: "card-1", imageId: "img-1" },
+        { cardId: "card-2", imageId: "img-2" },
+      ]);
+      mockMetaRepo.contextForDeck.mockResolvedValue(metaContext);
+    }
+
+    it("titles the image with the legend, bylines the player, and states the finish", async () => {
+      setupArchivedDeck();
+
+      const res = await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+      expect(res.status).toBe(200);
+      expect(mockMetaRepo.contextForDeck).toHaveBeenCalledWith(deck.id);
+      expect(renderDeckMock.mock.calls[0]![1]).toMatchObject({
+        deckName: "Irelia, Blade Dancer",
+        ownerName: "adtoll",
+        resultLine: "1st of 3,283 · 14-1-0 · Summoner Skirmish Wuhan",
+      });
+    });
+
+    it("points the QR at the archive page rather than the deck share link", async () => {
+      setupArchivedDeck();
+
+      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+      expect(renderDeckMock.mock.calls[0]![1].shareUrl).toBe(
+        "https://openrift.app/meta/decks/tok-deck",
+      );
+    });
+
+    it("still drops the QR when qr=0", async () => {
+      setupArchivedDeck();
+
+      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999&qr=0");
+
+      expect(renderDeckMock.mock.calls[0]![1].shareUrl).toBeUndefined();
+    });
+
+    it("titles a list with no legend zone with the player instead", async () => {
+      setupArchivedDeck();
+      mockDecksRepo.cardsForDeck.mockResolvedValue([
+        { cardId: "card-2", zone: "main", quantity: 3, preferredPrintingId: null },
+      ]);
+      mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([
+        { cardId: "card-2", imageId: "img-2" },
+      ]);
+
+      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+      expect(renderDeckMock.mock.calls[0]![1]).toMatchObject({ deckName: "adtoll" });
+      expect(renderDeckMock.mock.calls[0]![1].ownerName).toBeUndefined();
+    });
+
+    it("leaves the field size and the record unsaid when the source published neither", async () => {
+      setupArchivedDeck();
+      mockMetaRepo.contextForDeck.mockResolvedValue({
+        ...metaContext,
+        wins: null,
+        losses: null,
+        draws: null,
+        eventPlayerCount: null,
+      });
+
+      await app.request("/api/v1/decks/share/tok-deck/image.png?v=999");
+
+      expect(renderDeckMock.mock.calls[0]![1].resultLine).toBe("1st · Summoner Skirmish Wuhan");
+    });
   });
 });
 

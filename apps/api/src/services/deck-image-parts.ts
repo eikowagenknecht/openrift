@@ -46,6 +46,8 @@ export interface DeckImageInput {
   ownerName?: string;
   /** Presentable format label, e.g. "Constructed". */
   formatLabel: string;
+  /** What the list scored, e.g. "1st of 3,283 · Summoner Skirmish Wuhan"; set for an archive entry only. */
+  resultLine?: string;
   cards: readonly DeckImageCard[];
   /** Host shown in the footer (e.g. "openrift.app"); omitted when empty. */
   siteHost?: string;

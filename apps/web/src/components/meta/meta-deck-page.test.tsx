@@ -6,6 +6,11 @@ const captured = vi.hoisted(() => ({
     listStatus: string;
     contributors: string[];
     playerKey?: string | null;
+    rank?: number;
+    rankIsTier?: boolean;
+    wins?: number | null;
+    losses?: number | null;
+    event?: Record<string, unknown>;
   } | null,
   userId: null as string | null,
   cards: [] as Record<string, unknown>[],
@@ -19,25 +24,40 @@ vi.mock("@/components/deck/public-deck-surface", () => ({
     topBar,
     notice,
     footer,
-    heroByline,
+    heroHeading,
+    heroLead,
     unknownZoneCounts,
   }: {
     topBar?: React.ReactNode;
     notice?: React.ReactNode;
     footer?: React.ReactNode;
-    heroByline?: React.ReactNode;
+    heroHeading?: React.ReactNode;
+    heroLead?: React.ReactNode;
     unknownZoneCounts?: ReadonlyMap<string, number>;
   }) => {
     captured.unknownZoneCounts = unknownZoneCounts ?? null;
     return (
       <div>
         {topBar}
-        {heroByline}
+        {heroLead}
+        {heroHeading}
         {notice}
         {footer}
       </div>
     );
   },
+}));
+
+// The runes read the enum orders off a suspense query, which this file has no
+// client for; the legend's name is what the assertions are about.
+vi.mock("@/components/deck/domain-icon", () => ({
+  DomainIcon: ({ domain }: { domain: string }) => <span>{domain}</span>,
+}));
+
+// Mounts the print and export dialogs, which subscribe a draft collection this
+// file has no query client for. The menu is covered by its own tests.
+vi.mock("@/components/deck/public-deck-actions-menu", () => ({
+  PublicDeckActionsMenu: () => <div>Deck actions</div>,
 }));
 
 vi.mock("@/components/meta/meta-deck-archive-bar", () => ({
@@ -50,7 +70,6 @@ vi.mock("@/hooks/use-meta", () => ({
       deck: { format: "constructed", name: "Azir Control", formatConfig: null, links: [] },
       cards: captured.cards,
       meta: {
-        event: { slug: "summoner-skirmish", name: "Summoner Skirmish", eventDate: "2026-08-01" },
         playerName: "Nova",
         playerKey: "u2001",
         rank: 1,
@@ -59,6 +78,16 @@ vi.mock("@/hooks/use-meta", () => ({
         losses: 1,
         draws: null,
         ...captured.meta,
+        event: {
+          slug: "summoner-skirmish",
+          name: "Summoner Skirmish",
+          eventDate: "2026-08-01",
+          format: "constructed",
+          tier: "competitive",
+          country: "DE",
+          playerCount: 128,
+          ...captured.meta?.event,
+        },
       },
     },
   }),
@@ -113,7 +142,16 @@ function deckCard(zone: string, quantity: number): Record<string, unknown> {
 
 /** Renders the page for one archived deck's contributors and list status. */
 function renderDeck(
-  meta: { listStatus?: string; contributors?: string[]; playerKey?: string | null } = {},
+  meta: {
+    listStatus?: string;
+    contributors?: string[];
+    playerKey?: string | null;
+    rank?: number;
+    rankIsTier?: boolean;
+    wins?: number | null;
+    losses?: number | null;
+    event?: Record<string, unknown>;
+  } = {},
   cards: { zone: string; quantity: number }[] = [],
 ): void {
   captured.meta = { listStatus: "full", contributors: [], ...meta };
@@ -185,11 +223,44 @@ describe("MetaDeckPage archive frame", () => {
     captured.unknownZoneCounts = null;
   });
 
-  it("bylines the finish, the player, the record and the event", () => {
+  it("heads the page with the player, the finish, the record and the event", () => {
     renderDeck();
     expect(screen.getByText("Nova")).toBeDefined();
+    expect(screen.getByText("1st")).toBeDefined();
     expect(screen.getByText("5-1-0")).toBeDefined();
     expect(screen.getByText("Summoner Skirmish")).toBeDefined();
+  });
+
+  it("states the finish against the field the source reported", () => {
+    renderDeck();
+    expect(screen.getByText("of 128 players")).toBeDefined();
+  });
+
+  it("leaves the field unsaid when no source published one", () => {
+    renderDeck({ event: { playerCount: null } });
+    expect(screen.queryByText(/players$/u)).toBeNull();
+  });
+
+  // The event date renders as `2026-08-01`, which is the shape of a record too,
+  // so the assertion counts them rather than matching one.
+  it("leaves the record out when the source published none, rather than inventing 0-0-0", () => {
+    renderDeck({ wins: null, losses: null });
+    expect(screen.getAllByText(/^\d+-\d+-\d+$/u)).toHaveLength(1);
+  });
+
+  it("prints a cut bucket as a tier rather than an exact place", () => {
+    renderDeck({ rank: 8, rankIsTier: true });
+    expect(screen.getByText("T8")).toBeDefined();
+  });
+
+  it("never prints the generated deck name", () => {
+    renderDeck();
+    expect(screen.queryByText("Azir Control")).toBeNull();
+  });
+
+  it("names the legend the list was played on", () => {
+    renderDeck({}, [{ zone: "legend", quantity: 1 }]);
+    expect(screen.getAllByText("Punch First").length).toBeGreaterThan(0);
   });
 
   it("offers to complete a partial list", () => {
@@ -232,23 +303,23 @@ describe("MetaDeckPage archive frame", () => {
     expect(screen.queryByText(/Your collection/u)).toBeNull();
   });
 
-  it("labels the fork for a signed-out reader as opening the builder", () => {
+  it("labels the copy for a signed-out reader as opening the builder", () => {
     renderDeck();
     expect(screen.getByRole("button", { name: "Open in deck builder" })).toBeDefined();
   });
 
-  it("labels the fork for a signed-in reader as forking", () => {
+  it("labels the copy for a signed-in reader as copying", () => {
     captured.userId = "user-1";
     renderDeck();
-    expect(screen.getByRole("button", { name: "Fork to my decks" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Copy to my decks" })).toBeDefined();
   });
 
-  it("offers the deck code", () => {
+  it("offers the overflow menu beside the copy button", () => {
     renderDeck();
-    expect(screen.getByRole("button", { name: "Copy deck code" })).toBeDefined();
+    expect(screen.getByText("Deck actions")).toBeDefined();
   });
 
-  it("sends the byline's player to their page", () => {
+  it("sends the player to their page", () => {
     renderDeck();
     expect(screen.getByRole("link", { name: "Nova" })).toHaveAttribute(
       "href",

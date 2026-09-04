@@ -15,7 +15,7 @@ vi.mock("@/hooks/use-decks", () => ({
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => userId }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
-const { useForkArchivedDeck } = await import("./use-fork-archived-deck");
+const { useCopyArchivedDeck } = await import("./use-copy-archived-deck");
 const { useLocalDecksStore } = await import("@/stores/local-decks-store");
 
 const TOKEN = "aB3dE5gH7jK9";
@@ -32,7 +32,7 @@ const cards = [
   { zone: "main", cardId: "card-a", quantity: 3, preferredPrintingId: null },
 ] as unknown as MetaDeckDetailResponse["cards"];
 
-describe("useForkArchivedDeck", () => {
+describe("useCopyArchivedDeck", () => {
   let resetDecks: () => void;
 
   beforeEach(() => {
@@ -46,25 +46,25 @@ describe("useForkArchivedDeck", () => {
     resetDecks();
   });
 
-  it("labels the fork as opening the builder for a signed-out reader", () => {
-    const { result } = renderHook(() => useForkArchivedDeck());
+  it("labels the copy as opening the builder for a signed-out reader", () => {
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
     expect(result.current.label).toBe("Open in deck builder");
     expect(result.current.isLoggedIn).toBe(false);
   });
 
-  it("labels the fork as forking for a signed-in reader", () => {
+  it("labels the copy as copying for a signed-in reader", () => {
     userId = "user-1";
-    const { result } = renderHook(() => useForkArchivedDeck());
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
-    expect(result.current.label).toBe("Fork to my decks");
+    expect(result.current.label).toBe("Copy to my decks");
     expect(result.current.isLoggedIn).toBe(true);
   });
 
   it("builds a browser-local deck with the archived cards when signed out", async () => {
-    const { result } = renderHook(() => useForkArchivedDeck());
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
-    await result.current.fork({ token: TOKEN, deck, cards });
+    await result.current.copy({ token: TOKEN, deck, cards });
 
     const stored = Object.values(useLocalDecksStore.getState().decks);
     expect(stored).toHaveLength(1);
@@ -82,10 +82,10 @@ describe("useForkArchivedDeck", () => {
     expect(cloneMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("carries the format config and links over, so a Custom-Region fork keeps its regions", async () => {
-    const { result } = renderHook(() => useForkArchivedDeck());
+  it("carries the format config and links over, so a Custom-Region copy keeps its regions", async () => {
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
-    await result.current.fork({ token: TOKEN, deck, cards });
+    await result.current.copy({ token: TOKEN, deck, cards });
 
     const stored = Object.values(useLocalDecksStore.getState().decks)[0];
     expect(stored?.formatConfig).toEqual({ tagSlugs: ["shurima"] });
@@ -93,9 +93,9 @@ describe("useForkArchivedDeck", () => {
   });
 
   it("navigates to the local deck it just built", async () => {
-    const { result } = renderHook(() => useForkArchivedDeck());
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
-    await result.current.fork({ token: TOKEN, deck, cards });
+    await result.current.copy({ token: TOKEN, deck, cards });
 
     const localId = Object.keys(useLocalDecksStore.getState().decks)[0];
     expect(navigate).toHaveBeenCalledWith({ to: "/decks/$deckId", params: { deckId: localId } });
@@ -104,9 +104,9 @@ describe("useForkArchivedDeck", () => {
   it("clones the deck server-side and opens the copy when signed in", async () => {
     userId = "user-1";
     cloneMutateAsync.mockResolvedValue({ deckId: "deck-9" });
-    const { result } = renderHook(() => useForkArchivedDeck());
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
-    await result.current.fork({ token: TOKEN, deck, cards });
+    await result.current.copy({ token: TOKEN, deck, cards });
 
     expect(cloneMutateAsync).toHaveBeenCalledWith(TOKEN);
     expect(navigate).toHaveBeenCalledWith({ to: "/decks/$deckId", params: { deckId: "deck-9" } });
@@ -116,9 +116,9 @@ describe("useForkArchivedDeck", () => {
   it("swallows a rejected clone and navigates nowhere", async () => {
     userId = "user-1";
     cloneMutateAsync.mockRejectedValue(new Error("Deck not found"));
-    const { result } = renderHook(() => useForkArchivedDeck());
+    const { result } = renderHook(() => useCopyArchivedDeck());
 
-    await expect(result.current.fork({ token: TOKEN, deck, cards })).resolves.toBeUndefined();
+    await expect(result.current.copy({ token: TOKEN, deck, cards })).resolves.toBeUndefined();
     expect(navigate).not.toHaveBeenCalled();
   });
 });

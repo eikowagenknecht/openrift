@@ -17,6 +17,7 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
+import type { PublicDeckSource } from "@/lib/public-deck-source";
 import { isLocalDeckId } from "@/stores/local-decks-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
@@ -82,6 +83,8 @@ interface DeckExportDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Cards for a browser-local deck. Falls back to the live editor draft. */
   cards?: DeckBuilderCard[];
+  /** Set when the deck is only reachable by share token, never owned. */
+  publicSource?: PublicDeckSource;
 }
 
 /**
@@ -97,13 +100,16 @@ export function DeckExportDialog({
   open,
   onOpenChange,
   cards: cardsProp,
+  publicSource,
 }: DeckExportDialogProps) {
   const exportDeck = useExportDeck();
-  // A browser-local deck (ADR-035) has no server row to export by id; encode its
-  // cards through the public endpoint instead. Same codecs, same output.
+  // A browser-local deck (ADR-035) or one reached by share token has no server
+  // row to export by id; encode its cards through the public endpoint instead.
   const encodeDeck = useEncodeDeckCards();
-  const isLocal = isLocalDeckId(deckId);
-  const liveCards = useDeckCards(deckId);
+  const fromCards = publicSource !== undefined || isLocalDeckId(deckId);
+  // Subscribing the draft of a deck the viewer doesn't own would fetch someone
+  // else's deck, and a caller bringing its own cards never reads it anyway.
+  const liveCards = useDeckCards(cardsProp === undefined ? deckId : "");
   const { copied, copy, reset: resetCopied } = useCopyToClipboard();
   const [tab, setTab] = useState<ExportFormat>("text");
   const [formats, setFormats] = useState<Partial<Record<ExportFormat, DeckExportResponse>>>({});
@@ -133,7 +139,7 @@ export function DeckExportDialog({
   // Whichever mutation this deck exports through. In-flight and failed states
   // are read off it rather than mirrored into `formats`, which only caches the
   // code each format came back with.
-  const exportMutation = isLocal ? encodeDeck : exportDeck;
+  const exportMutation = fromCards ? encodeDeck : exportDeck;
 
   // The deck itself is read as it stands when a format is first opened, not
   // reactively: an edit landing behind the dialog must not silently refetch the
@@ -148,7 +154,7 @@ export function DeckExportDialog({
     const onSuccess = (data: DeckExportResponse) => {
       setFormats((prev) => ({ ...prev, [format]: data }));
     };
-    if (isLocal) {
+    if (fromCards) {
       // Use the passed-in cards when available (the list menu, where the draft
       // collection isn't hydrated); fall back to the live editor draft.
       encodeDeck.mutate(

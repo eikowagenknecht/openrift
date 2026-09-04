@@ -90,9 +90,30 @@ describe("deckShareImageUrl", () => {
   });
 
   it("appends size=hq for the high-resolution download variant", () => {
-    expect(deckShareImageUrl("https://openrift.app", "tok123", 42, "hq")).toBe(
+    expect(deckShareImageUrl("https://openrift.app", "tok123", 42, { size: "hq" })).toBe(
       "https://openrift.app/api/v1/decks/share/tok123/image.png?v=42&size=hq",
     );
+  });
+
+  it("appends the shape and QR options a public download varies", () => {
+    expect(
+      deckShareImageUrl("https://openrift.app", "tok123", 42, {
+        size: "hq",
+        aspect: "vertical",
+        qr: false,
+      }),
+    ).toBe(
+      "https://openrift.app/api/v1/decks/share/tok123/image.png?v=42&size=hq&aspect=vertical&qr=0",
+    );
+  });
+
+  it("leaves every option at its default out of the URL", () => {
+    expect(
+      deckShareImageUrl("https://openrift.app", "tok123", 42, {
+        aspect: "landscape",
+        qr: true,
+      }),
+    ).toBe("https://openrift.app/api/v1/decks/share/tok123/image.png?v=42");
   });
 });
 

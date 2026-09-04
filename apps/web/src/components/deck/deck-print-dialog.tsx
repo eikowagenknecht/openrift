@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import type { LocalDeckImageBody } from "@/components/deck/local-deck-image-body";
 import { useLocalDeckImageBody } from "@/components/deck/local-deck-image-body";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,11 +38,14 @@ import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
+import type { PublicDeckSource } from "@/lib/public-deck-source";
 import { queryKeys } from "@/lib/query-keys";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
+import type { DeckImageOptions } from "@/lib/share-image";
 import {
   deckImageFromCardsUrl,
   deckOwnerImageUrl,
+  deckShareImageUrl,
   fetchImageBlob,
   fetchImageBlobFromPost,
 } from "@/lib/share-image";
@@ -651,6 +655,24 @@ function RegistrationPrintPanel({
   );
 }
 
+/** Fetches the wide deck image the sheet wraps, from whichever route the deck is reachable on. */
+function fetchSheetImage(
+  deckId: string,
+  publicSource: PublicDeckSource | undefined,
+  options: DeckImageOptions,
+  imageBody: () => LocalDeckImageBody,
+): Promise<Blob> {
+  if (publicSource) {
+    return fetchImageBlob(
+      deckShareImageUrl(getSiteUrl(), publicSource.shareToken, publicSource.imageVersion, options),
+    );
+  }
+  if (isLocalDeckId(deckId)) {
+    return fetchImageBlobFromPost(deckImageFromCardsUrl(getSiteUrl(), options), imageBody());
+  }
+  return fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, options));
+}
+
 /**
  * The deck-sheet tab: the wide share image wrapped on a single A4 page.
  * @returns The deck sheet panel element.
@@ -659,10 +681,12 @@ function DeckSheetPrintPanel({
   deckId,
   deckName,
   cards,
+  publicSource,
 }: {
   deckId: string;
   deckName: string;
   cards?: DeckBuilderCard[];
+  publicSource?: PublicDeckSource;
 }) {
   const isLocal = isLocalDeckId(deckId);
   const imageBody = useLocalDeckImageBody(deckId, deckName, cards);
@@ -675,9 +699,7 @@ function DeckSheetPrintPanel({
     // It honours the QR choice, though: a printed decklist is exactly where
     // someone might not want a code on the page.
     const options = { size: "hq" as const, qr: isLocal ? false : qr };
-    const blob = isLocal
-      ? fetchImageBlobFromPost(deckImageFromCardsUrl(getSiteUrl(), options), imageBody())
-      : fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, options));
+    const blob = fetchSheetImage(deckId, publicSource, options, imageBody);
     // React Compiler can't yet lower try/finally, so reset in both paths.
     try {
       const downloadImageAsPdf = await loadImagePdfDownloader();
@@ -731,6 +753,8 @@ interface DeckPrintDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Cards to print. Falls back to the live editor draft when omitted. */
   cards?: DeckBuilderCard[];
+  /** Set when the deck is only reachable by share token, never owned. */
+  publicSource?: PublicDeckSource;
 }
 
 /**
@@ -746,6 +770,7 @@ export function DeckPrintDialog({
   open,
   onOpenChange,
   cards: cardsProp,
+  publicSource,
 }: DeckPrintDialogProps) {
   const [tab, setTab] = useState<PrintTab>("proxies");
   // The deck-list menus pass their own cards (the draft collection isn't
@@ -775,7 +800,12 @@ export function DeckPrintDialog({
             <RegistrationPrintPanel cards={cards} deckName={deckName} />
           </TabsContent>
           <TabsContent value="sheet" keepMounted>
-            <DeckSheetPrintPanel deckId={deckId} deckName={deckName} cards={cardsProp} />
+            <DeckSheetPrintPanel
+              deckId={deckId}
+              deckName={deckName}
+              cards={cardsProp}
+              publicSource={publicSource}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>

@@ -1,6 +1,7 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
 
+import { PublicDeckActionsMenu } from "@/components/deck/public-deck-actions-menu";
 import { PublicDeckSurface } from "@/components/deck/public-deck-surface";
 import { Button } from "@/components/ui/button";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
@@ -43,14 +44,23 @@ function SharedDeckPage() {
       // copy CTA under the status chips.
       heroByline={<>by {data.owner.displayName}</>}
       heroActions={
-        <Button onClick={() => void handleClone()} disabled={cloneMutation.isPending}>
-          <CopyIcon />
-          {cloneMutation.isPending
-            ? "Copying…"
-            : isLoggedIn
-              ? "Copy to my decks"
-              : "Sign in to copy"}
-        </Button>
+        <>
+          <Button onClick={() => void handleClone()} disabled={cloneMutation.isPending}>
+            <CopyIcon />
+            {cloneMutation.isPending
+              ? "Copying…"
+              : isLoggedIn
+                ? "Copy to my decks"
+                : "Sign in to copy"}
+          </Button>
+          <PublicDeckActionsMenu
+            deckId={data.deck.id}
+            deckName={data.deck.name}
+            shareToken={token}
+            updatedAt={data.deck.updatedAt}
+            cards={data.cards}
+          />
+        </>
       }
     />
   );

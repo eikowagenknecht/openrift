@@ -6,12 +6,14 @@ import { bodyLimit } from "hono/body-limit";
 
 import { AppError } from "../../errors.js";
 import { assertFound } from "../../lib/assertions.js";
+import { metaDeckImageFraming } from "../../lib/meta-share-image.js";
 import { renderCollectionImage } from "../../services/collection-image.js";
 import {
   buildDeckImageCards,
   buildDeckImageCardsFromRefs,
   renderDeckImage,
   resolveCoverImageId,
+  splitDeckZones,
 } from "../../services/deck-image.js";
 import {
   buildCards,
@@ -209,7 +211,14 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const found = await repos.decks.findByShareToken(token);
     assertFound(found, "Not found");
 
-    const cards = await buildDeckImageCards(repos, found.deck.id, found.deck.userId);
+    const [cards, metaContext] = await Promise.all([
+      buildDeckImageCards(repos, found.deck.id, found.deck.userId),
+      repos.meta.contextForDeck(found.deck.id),
+    ]);
+    const archive = metaContext
+      ? metaDeckImageFraming(metaContext, splitDeckZones(cards).legend?.cardName ?? null)
+      : null;
+
     // `?size=hq` renders the same layout at 2× for the download; default 1× is
     // the og:image. The rasterize cost grows super-linearly with output pixels,
     // so HQ is capped at 2× — still crisp for screen/print, ~half the render of 3×.
@@ -220,16 +229,18 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const aspect = aspectFromQuery(c.req.query("aspect"));
     // `?qr=0` leaves the scannable mark out, for a download that is going
     // somewhere the link would be noise. The og:image never sends it.
+    const path = archive ? `/meta/decks/${token}` : `/decks/share/${token}`;
     const shareUrl = qrFromQuery(c.req.query("qr"))
-      ? shareUrlFromOrigin(config.corsOrigin, `/decks/share/${token}`)
+      ? shareUrlFromOrigin(config.corsOrigin, path)
       : undefined;
 
     const png = await renderDeckImage(
       io,
       {
-        deckName: found.deck.name,
-        ownerName: found.ownerName ?? "Anonymous",
+        deckName: archive?.deckName ?? found.deck.name,
+        ownerName: archive ? archive.ownerName : (found.ownerName ?? "Anonymous"),
         formatLabel: sentenceCaseSlug(found.deck.format),
+        resultLine: archive?.resultLine,
         cards,
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl,

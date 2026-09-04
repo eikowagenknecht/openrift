@@ -364,7 +364,13 @@ export const metaDeckCardIndexResponseSchema = z
 export const metaDeckDetailResponseSchema = publicDeckDetailResponseSchema
   .extend({
     meta: z.object({
-      event: metaDeckEventSchema,
+      /**
+       * The deck's event, plus the field size the source reported. The hero
+       * states the finish against it ("1st of 3,283"), which is a claim about
+       * the tournament rather than about the rows the archive holds, so it is
+       * left unsaid when no source published one.
+       */
+      event: metaDeckEventSchema.extend({ playerCount: z.number().int().nullable() }),
       /**
        * Only ever `"full"` or `"partial"` here — a standings-only entry has no
        * deck and so no page. `"partial"` is what the page acts on: it tells the

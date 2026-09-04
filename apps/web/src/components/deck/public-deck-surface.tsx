@@ -54,8 +54,12 @@ interface PublicDeckSurfaceProps {
   /** Where a signed-out viewer comes back to after logging in. */
   returnPath: string;
   /** Rendered next to the deck name: the owner, or the archive's event facts. */
-  heroByline: React.ReactNode;
-  /** The copy / fork CTA under the status chips, for a page with no top bar. */
+  heroByline?: React.ReactNode;
+  /** Replaces the hero's name-and-subtitle block. */
+  heroHeading?: React.ReactNode;
+  /** Rendered left of the hero's text column. */
+  heroLead?: React.ReactNode;
+  /** The copy CTA under the status chips, for a page with no top bar. */
   heroActions?: React.ReactNode;
   /**
    * A sticky bar above the page, for a caller whose page needs a breadcrumb and
@@ -104,6 +108,8 @@ function PublicDeckContent({
   isLoggedIn,
   returnPath,
   heroByline,
+  heroHeading,
+  heroLead,
   heroActions,
   notice,
   footer,
@@ -246,6 +252,8 @@ function PublicDeckContent({
             notice={notice}
             unknownZoneCounts={unknownZoneCounts}
             heroByline={heroByline}
+            heroHeading={heroHeading}
+            heroLead={heroLead}
             heroActions={heroActions}
           />
         </div>

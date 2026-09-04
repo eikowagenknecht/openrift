@@ -7,8 +7,10 @@ import { initQueryOptions } from "@/hooks/use-init";
 import { metaDeckQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { archivedDeckIdentity } from "@/lib/meta-deck-archive";
 import { formatRank } from "@/lib/meta-format";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
+import { deckShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
 
@@ -21,15 +23,25 @@ export const Route = createFileRoute("/_app/meta_/decks_/$token")({
       return seoHead({ siteUrl, title: "Archived deck", path, unlisted: true });
     }
     const finish = formatRank(data.meta.rank, data.meta.rankIsTier);
-    const title = `${data.deck.name}, ${finish} at ${data.meta.event.name}`;
-    const description = `${data.meta.playerName} piloted this ${data.deck.format} deck to ${finish} at ${data.meta.event.name} (${data.meta.event.eventDate}).`;
+    // Every archived deck name is generated as "Legend (Player)", which the page
+    // itself no longer prints.
+    const legend = archivedDeckIdentity(data.cards)?.name ?? null;
+    const named = legend ?? data.meta.playerName;
+    const title = `${named}, ${finish} at ${data.meta.event.name}`;
+    const piloted = legend === null ? `this ${data.deck.format} deck` : legend;
+    const description = `${data.meta.playerName} piloted ${piloted} to ${finish} at ${data.meta.event.name} (${data.meta.event.eventDate}).`;
+    const ogImage = deckShareImageUrl(
+      siteUrl,
+      params.token,
+      shareImageVersion(data.deck.updatedAt),
+    );
     return {
-      ...seoHead({ siteUrl, title, description, path }),
+      ...seoHead({ siteUrl, title, description, path, ogImage }),
       scripts: [
         breadcrumbJsonLd(siteUrl, [
           { name: "Meta Archive", path: "/meta" },
           { name: data.meta.event.name, path: `/meta/${data.meta.event.slug}` },
-          { name: data.deck.name, path },
+          { name: named, path },
         ]),
       ],
     };

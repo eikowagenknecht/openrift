@@ -53,6 +53,8 @@ export type { StandardArtFallback } from "./standard.js";
 export { effectiveTournamentState } from "./tournament-lifecycle.js";
 export type { EffectiveTournamentState } from "./tournament-lifecycle.js";
 
+export { formatRank, formatRecord } from "./meta-standings.js";
+
 export {
   CARD_TRADE_LIVE_PHASES,
   cardTradeLivePhaseRank,

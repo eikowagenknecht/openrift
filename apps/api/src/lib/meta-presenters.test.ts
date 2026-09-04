@@ -772,6 +772,7 @@ describe("toMetaDeckContext", () => {
     eventFormat: "constructed",
     eventTier: "store",
     eventCountry: "DE",
+    eventPlayerCount: 128,
   };
 
   it("nests the event, keeps an absent draw count null, and credits nobody by default", () => {
@@ -783,6 +784,7 @@ describe("toMetaDeckContext", () => {
         format: "constructed",
         tier: "store",
         country: "DE",
+        playerCount: 128,
       },
       listStatus: "full",
       playerName: "Nova",
@@ -822,6 +824,10 @@ describe("toMetaDeckContext", () => {
 
   it("carries the list status through, so the page can flag an incomplete list", () => {
     expect(toMetaDeckContext({ ...row, listStatus: "partial" }, []).listStatus).toBe("partial");
+  });
+
+  it("leaves the field size null when no source reported one", () => {
+    expect(toMetaDeckContext({ ...row, eventPlayerCount: null }, []).event.playerCount).toBeNull();
   });
 });
 

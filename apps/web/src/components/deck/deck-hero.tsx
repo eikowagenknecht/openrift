@@ -60,6 +60,10 @@ interface DeckHeroProps {
   box?: { name: string; onOpen: () => void };
   /** Owner attribution rendered next to the deck name ("by …"). */
   byline?: React.ReactNode;
+  /** Replaces the name, domains, byline and legend subtitle. */
+  heading?: React.ReactNode;
+  /** Rendered left of the text column, before everything. */
+  lead?: React.ReactNode;
   /** Action row rendered under the status chips — the share page's copy CTA. */
   actions?: React.ReactNode;
 }
@@ -192,6 +196,8 @@ export function DeckHero({
   onCardClick,
   box,
   byline,
+  heading,
+  lead,
   actions,
 }: DeckHeroProps) {
   const domainColors = useDomainColors();
@@ -306,53 +312,58 @@ export function DeckHero({
         domains={legendDomains}
       />
       <div className="relative flex items-center gap-4 p-4 sm:gap-6 sm:p-5">
+        {lead}
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <div className="min-w-0">
-            {/* Wraps because a byline can be a whole line of its own: the
+          {heading ?? (
+            <div className="min-w-0">
+              {/* Wraps because a byline can be a whole line of its own: the
                 archive's is a finish, a player, a record, an event and a date,
                 and holding it beside the name on a phone would squeeze the name
                 to nothing. A short one ("by Alice") still sits inline. */}
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <p className="font-heading truncate text-2xl font-bold">{name}</p>
-              {/* The domains ride with the name, not on a row of their own.
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="font-heading truncate text-2xl font-bold">{name}</p>
+                {/* The domains ride with the name, not on a row of their own.
                   `self-center` because the row aligns on the text baseline,
                   which an image would meet with its bottom edge. */}
-              {legendDomains.length > 0 && (
-                <span className="flex shrink-0 items-center gap-1 self-center">
-                  {legendDomains.map((domain) => (
-                    <DomainIcon key={domain} domain={domain} />
-                  ))}
-                </span>
+                {legendDomains.length > 0 && (
+                  <span className="flex shrink-0 items-center gap-1 self-center">
+                    {legendDomains.map((domain) => (
+                      <DomainIcon key={domain} domain={domain} />
+                    ))}
+                  </span>
+                )}
+                {byline && <span className="text-muted-foreground min-w-0 text-sm">{byline}</span>}
+              </div>
+              {(legend || champion) && (
+                <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
+                  {identity.character !== undefined && (
+                    <span className="text-foreground shrink-0 font-medium">
+                      {identity.character}
+                    </span>
+                  )}
+                  {legend && (
+                    <SubtitlePivot
+                      label={identity.legend ?? ""}
+                      roleLabel="Legend"
+                      fullName={legendName ?? ""}
+                      card={legend}
+                      onCardClick={onCardClick}
+                    />
+                  )}
+                  {legend && champion && <span aria-hidden="true">·</span>}
+                  {champion && (
+                    <SubtitlePivot
+                      label={identity.champion ?? ""}
+                      roleLabel="Champion"
+                      fullName={champion.cardName}
+                      card={champion}
+                      onCardClick={onCardClick}
+                    />
+                  )}
+                </p>
               )}
-              {byline && <span className="text-muted-foreground min-w-0 text-sm">{byline}</span>}
             </div>
-            {(legend || champion) && (
-              <p className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
-                {identity.character !== undefined && (
-                  <span className="text-foreground shrink-0 font-medium">{identity.character}</span>
-                )}
-                {legend && (
-                  <SubtitlePivot
-                    label={identity.legend ?? ""}
-                    roleLabel="Legend"
-                    fullName={legendName ?? ""}
-                    card={legend}
-                    onCardClick={onCardClick}
-                  />
-                )}
-                {legend && champion && <span aria-hidden="true">·</span>}
-                {champion && (
-                  <SubtitlePivot
-                    label={identity.champion ?? ""}
-                    roleLabel="Champion"
-                    fullName={champion.cardName}
-                    card={champion}
-                    onCardClick={onCardClick}
-                  />
-                )}
-              </p>
-            )}
-          </div>
+          )}
 
           {/* Phones: the fanned pair sits beside the chips so the title above
               runs full width; from sm up both wrappers dissolve (contents) and

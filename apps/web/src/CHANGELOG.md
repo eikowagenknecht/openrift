@@ -2,9 +2,16 @@
 
 ## 2026-09-04
 
+### Highlights
+
+- feat(Meta): **Archived decklists lead with the result** — the header now states the finish against the field, the player and the legend, and drops the generated deck name.
+- feat(Decks): **Save, print and export a shared deck** — shared and archived decklists get an overflow menu holding the deck image, the printable sheet, the exports and the deck code.
+
 ### Other
 
 - feat(Deck): **"Show every copy" leaves runes stacked** — a nested toggle now lets the rune stacks join the rest of the deck's expanded copies, instead of every rune always splitting out.
+- fix(Meta): **Archived decklists share correctly** — a link to one previewed the archive account and a generated deck name, and now shows the legend, the player and the finish.
+- fix(Decks): **One name for copying a deck** — the archive called it "Fork to my decks" where the share page called the same action "Copy to my decks", and both now say copy.
 - fix(Meta): **Legends index rank column** — the rank column no longer clips ordinals like "11th" or "288th", and the legend and best-finish columns split the remaining width so neither crowds the other.
 - fix(Meta): **Decklist submissions no longer error** — submitting a list against an existing event failed with a server error every time; it now saves.
 

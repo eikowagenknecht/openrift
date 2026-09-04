@@ -352,14 +352,14 @@ describe("MetaEventDeckPreview", () => {
     ).toBeInTheDocument();
   });
 
-  it("labels the menu's fork as forking for a signed-in reader", async () => {
+  it("labels the menu's copy as copying for a signed-in reader", async () => {
     const user = userEvent.setup();
     state.userId = "user-1";
     renderPreview();
 
     await user.click(screen.getByRole("button", { name: "Decklist actions" }));
 
-    expect(await screen.findByRole("menuitem", { name: "Fork to my decks" })).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Copy to my decks" })).toBeInTheDocument();
   });
 
   it("encodes the list before putting its code on the clipboard", async () => {

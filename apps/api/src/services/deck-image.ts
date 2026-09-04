@@ -28,6 +28,7 @@ import {
   baselineNudge,
   cardTile,
   element,
+  elideTitle,
   qrDataUri,
   qrMark,
   renderTreeToPng,
@@ -76,6 +77,10 @@ interface DeckCanvas {
    * title lines already give the block most of the mark's height.
    */
   headerQr: number;
+  /** Height the archive result line adds to the title area, gap included. */
+  resultH: number;
+  /** Longest result line kept before eliding. */
+  resultMaxChars: number;
   /** Height the footer reserves once it is only the host label. */
   footerLabelH: number;
   /** Legend domain glyphs, shown beside the card count (no amounts). */
@@ -90,6 +95,8 @@ const LANDSCAPE: DeckCanvas = {
   bylineSize: 22,
   metaSize: 20,
   headerQr: 104,
+  resultH: 30,
+  resultMaxChars: 76,
   footerLabelH: 26,
   domainIcon: 30,
 };
@@ -105,6 +112,8 @@ const VERTICAL: DeckCanvas = {
   bylineSize: 28,
   metaSize: 26,
   headerQr: 132,
+  resultH: 38,
+  resultMaxChars: 58,
   footerLabelH: 32,
   domainIcon: 34,
 };
@@ -138,7 +147,27 @@ const VERTICAL_TITLE_MAX_CHARS = 32;
 // Re-exported so the routes, the oEmbed handler, and the tests keep importing
 // the deck image's public surface from one module.
 export type { DeckImageCard, DeckImageCardRef, DeckImageInput } from "./deck-image-parts.js";
-export { truncateTitle } from "./deck-image-parts.js";
+export { splitDeckZones, truncateTitle } from "./deck-image-parts.js";
+
+function titleTypeHeight(input: DeckImageInput, canvas: DeckCanvas): number {
+  return canvas.titleH + (input.resultLine === undefined ? 0 : canvas.resultH);
+}
+
+function resultLineElement(line: string, canvas: DeckCanvas, marginTop: number): Element {
+  return element(
+    "div",
+    {
+      display: "flex",
+      fontSize: canvas.metaSize,
+      lineHeight: 1,
+      fontWeight: 600,
+      color: COLORS.text,
+      marginTop,
+      whiteSpace: "nowrap",
+    },
+    elideTitle(line, canvas.resultMaxChars),
+  );
+}
 
 /** Honors the pinned cover printing the same way the web resolves it. */
 export async function resolveCoverImageId(
@@ -234,7 +263,8 @@ async function renderLandscapeDeckImage(
   const hasLeftPanel = legend !== null;
   const leftW = hasLeftPanel ? LANDSCAPE_LEFT_W : 0;
   const innerW = canvasW - canvas.pad * 2;
-  const titleH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
+  const typeH = titleTypeHeight(input, canvas);
+  const titleH = input.shareUrl ? Math.max(typeH, canvas.headerQr) : typeH;
   const bodyH = canvasH - canvas.pad * 2 - titleH - GAP;
   const rightW = innerW - leftW - (hasLeftPanel ? BODY_GAP : 0);
 
@@ -350,6 +380,83 @@ async function renderLandscapeDeckImage(
   const hasFooterMark = Boolean(input.siteHost);
 
   const domainIcons = domainIconElements(domainUris, canvas.domainIcon);
+  const titleTypeRow = element(
+    "div",
+    // The type group keeps its own height and is centred in the row by the
+    // row's `alignItems`, so growing the row for the QR does not drag the
+    // title down to sit on the row's bottom edge.
+    {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "flex-end",
+      ...(input.resultLine === undefined ? { flexGrow: 1 } : {}),
+    },
+    element(
+      "div",
+      {
+        display: "flex",
+        flexShrink: 1,
+        fontSize: canvas.titleSize,
+        lineHeight: 1,
+        fontWeight: 700,
+        color: COLORS.text,
+        maxWidth: 560,
+        whiteSpace: "nowrap",
+      },
+      truncateTitle(input.deckName),
+    ),
+    input.ownerName
+      ? element(
+          "div",
+          {
+            display: "flex",
+            flexShrink: 0,
+            marginLeft: 12,
+            fontSize: canvas.bylineSize,
+            lineHeight: 1,
+            fontWeight: 600,
+            color: COLORS.gold,
+            transform: `translateY(${baselineNudge(canvas.titleSize, canvas.bylineSize)}px)`,
+          },
+          // "by Name" rather than "· Name": the middle dot is a mid-height glyph
+          // that floats oddly beside the much larger deck title, whereas plain
+          // lowercase text shares the title's baseline cleanly.
+          `by ${input.ownerName}`,
+        )
+      : false,
+    element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
+    element(
+      "div",
+      {
+        display: "flex",
+        flexShrink: 0,
+        fontSize: canvas.metaSize,
+        lineHeight: 1,
+        color: COLORS.muted,
+        transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize)}px)`,
+      },
+      deckMetaLabel(input.formatLabel, mainCardCount, sideboardCount),
+    ),
+    domainIcons.length > 0
+      ? element(
+          "div",
+          {
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            marginLeft: 14,
+            gap: 6,
+            // The glyphs are art, not type, so they centre on the metadata run
+            // rather than sitting on its baseline. In a bottom-aligned row that
+            // means offsetting by the run's own nudge plus half the height
+            // difference between a glyph and the text box.
+            transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize) + (canvas.domainIcon - canvas.metaSize) / 2}px)`,
+          },
+          ...domainIcons,
+        )
+      : false,
+  );
+
   const titleRow = element(
     "div",
     {
@@ -359,77 +466,14 @@ async function renderLandscapeDeckImage(
       height: titleH,
       marginBottom: GAP,
     },
-    element(
-      "div",
-      // The type group keeps its own height and is centred in the row by the
-      // row's `alignItems`, so growing the row for the QR does not drag the
-      // title down to sit on the row's bottom edge.
-      { display: "flex", flexDirection: "row", alignItems: "flex-end", flexGrow: 1 },
-      element(
-        "div",
-        {
-          display: "flex",
-          flexShrink: 1,
-          fontSize: canvas.titleSize,
-          lineHeight: 1,
-          fontWeight: 700,
-          color: COLORS.text,
-          maxWidth: 560,
-          whiteSpace: "nowrap",
-        },
-        truncateTitle(input.deckName),
-      ),
-      input.ownerName
-        ? element(
-            "div",
-            {
-              display: "flex",
-              flexShrink: 0,
-              marginLeft: 12,
-              fontSize: canvas.bylineSize,
-              lineHeight: 1,
-              fontWeight: 600,
-              color: COLORS.gold,
-              transform: `translateY(${baselineNudge(canvas.titleSize, canvas.bylineSize)}px)`,
-            },
-            // "by Name" rather than "· Name": the middle dot is a mid-height glyph
-            // that floats oddly beside the much larger deck title, whereas plain
-            // lowercase text shares the title's baseline cleanly.
-            `by ${input.ownerName}`,
-          )
-        : false,
-      element("div", { display: "flex", flexGrow: 1, minWidth: 24 }),
-      element(
-        "div",
-        {
-          display: "flex",
-          flexShrink: 0,
-          fontSize: canvas.metaSize,
-          lineHeight: 1,
-          color: COLORS.muted,
-          transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize)}px)`,
-        },
-        deckMetaLabel(input.formatLabel, mainCardCount, sideboardCount),
-      ),
-      domainIcons.length > 0
-        ? element(
-            "div",
-            {
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              marginLeft: 14,
-              gap: 6,
-              // The glyphs are art, not type, so they centre on the metadata run
-              // rather than sitting on its baseline. In a bottom-aligned row that
-              // means offsetting by the run's own nudge plus half the height
-              // difference between a glyph and the text box.
-              transform: `translateY(${baselineNudge(canvas.titleSize, canvas.metaSize) + (canvas.domainIcon - canvas.metaSize) / 2}px)`,
-            },
-            ...domainIcons,
-          )
-        : false,
-    ),
+    input.resultLine === undefined
+      ? titleTypeRow
+      : element(
+          "div",
+          { display: "flex", flexDirection: "column", flexGrow: 1 },
+          titleTypeRow,
+          resultLineElement(input.resultLine, canvas, 10),
+        ),
     qrUri
       ? element(
           "div",
@@ -615,9 +659,8 @@ function verticalTitleBlock(
       flexDirection: "column",
       justifyContent: "center",
       flexGrow: 1,
-      // The two lines never fill the block once the QR sets its height, so they
-      // keep their own height and centre against the mark.
-      height: canvas.titleH,
+      // The QR can set this block taller than the type lines fill on their own.
+      height: titleTypeHeight(input, canvas),
     },
     element(
       "div",
@@ -676,6 +719,7 @@ function verticalTitleBlock(
           )
         : false,
     ),
+    input.resultLine === undefined ? false : resultLineElement(input.resultLine, canvas, 12),
   );
 
   return element(
@@ -713,7 +757,8 @@ async function renderVerticalDeckImage(
   const { legend, runeCards, battlefields, sideboard, gridCards } = zones;
 
   const innerW = canvasW - canvas.pad * 2;
-  const titleH = input.shareUrl ? Math.max(canvas.titleH, canvas.headerQr) : canvas.titleH;
+  const typeH = titleTypeHeight(input, canvas);
+  const titleH = input.shareUrl ? Math.max(typeH, canvas.headerQr) : typeH;
   const bodyH = canvasH - canvas.pad * 2 - titleH - GAP;
   const hasFooterMark = Boolean(input.siteHost);
   const footerH = hasFooterMark ? canvas.footerLabelH : 0;

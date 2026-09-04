@@ -1054,6 +1054,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
         eventFormat: FORMAT,
         eventTier: "store",
         eventCountry: null,
+        eventPlayerCount: 64,
       });
       expect(await repo.contextForDeck(crypto.randomUUID())).toBeUndefined();
     });
