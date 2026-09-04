@@ -1321,6 +1321,14 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
   describe("counts", () => {
     it("counts standings rows and decks within the scope", async () => {
+      // Every suite seeds into the same archive and the window is not this
+      // test's to own, so the assertion is on the movement it causes.
+      const scope = { dateFrom: "2026-06-01", dateTo: "2026-06-30" };
+      const before = {
+        players: await repo.playerCountInScope(scope),
+        decks: await repo.deckCountInScope(scope),
+      };
+
       const inScope = await seedEvent(repo, "mta-stats-in", { eventDate: "2026-06-15" });
       const outOfScope = await seedEvent(repo, "mta-stats-out", { eventDate: "2026-01-15" });
       await seedListedPlayer(repo, inScope, { playerName: "MTA Stats A", rank: 1 });
@@ -1333,9 +1341,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
       await seedDecklessPlayer(repo, inScope, { playerName: "MTA Stats C", rank: 3 });
       await seedListedPlayer(repo, outOfScope, { playerName: "MTA Stats D", rank: 1 });
 
-      const scope = { dateFrom: "2026-06-01", dateTo: "2026-06-30" };
-      expect(await repo.playerCountInScope(scope)).toBe(3);
-      expect(await repo.deckCountInScope(scope)).toBe(2);
+      expect(await repo.playerCountInScope(scope)).toBe(before.players + 3);
+      expect(await repo.deckCountInScope(scope)).toBe(before.decks + 2);
     });
 
     it("scopes by the event's format, not the deck's", async () => {

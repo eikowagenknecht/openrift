@@ -600,6 +600,17 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const anonApp = anonCtx!.app;
 
+  async function scopedCounts(
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<{ totalPlayers: number; decksWithMainDeck: number }> {
+    const res = await anonApp.fetch(
+      req("GET", `/meta/counts?dateFrom=${dateFrom}&dateTo=${dateTo}`),
+    );
+    expect(res.status).toBe(200);
+    return await readJson(res);
+  }
+
   it("renders the event list", async () => {
     const eventId = await createEvent("mtr-public-list");
     await createPlayer(eventId);
@@ -725,6 +736,7 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
         format: FORMAT,
         tier: "store",
         country: null,
+        playerCount: 32,
       },
       listStatus: "full",
       playerName: "MTR Detail",
@@ -776,20 +788,22 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
   });
 
   it("counts only the standings rows whose event falls inside the scope", async () => {
+    // Every integration file seeds into the same archive, so the assertion is
+    // on the movement this test causes.
+    const before = await scopedCounts("2026-05-01", "2026-05-31");
     const inScope = await createEvent("mtr-counts-in", { eventDate: "2026-05-10" });
     const outOfScope = await createEvent("mtr-counts-out", { eventDate: "2026-02-10" });
     await createPlayer(inScope, { playerName: "MTR Counts A" });
     await createPlayer(inScope, { playerName: "MTR Counts B", rank: 2 });
     await createPlayer(outOfScope, { playerName: "MTR Counts C" });
 
-    const res = await anonApp.fetch(
-      req("GET", "/meta/counts?dateFrom=2026-05-01&dateTo=2026-05-31"),
-    );
-    expect(res.status).toBe(200);
-    expect(await readJson(res)).toEqual({ totalPlayers: 2, decksWithMainDeck: 2 });
+    const after = await scopedCounts("2026-05-01", "2026-05-31");
+    expect(after.totalPlayers).toBe(before.totalPlayers + 2);
+    expect(after.decksWithMainDeck).toBe(before.decksWithMainDeck + 2);
   });
 
   it("reports two denominators, so a deckless entry deflates neither on its own", async () => {
+    const before = await scopedCounts("2026-04-01", "2026-04-30");
     const eventId = await createEvent("mtr-counts-pyramid", { eventDate: "2026-04-10" });
     await createPlayer(eventId, { playerName: "MTR Full" });
     // A partial list's main deck is complete, so it belongs on the deck side
@@ -801,11 +815,9 @@ describe.skipIf(!ctx || !anonCtx)("Meta archive public reads (anonymous)", () =>
     });
     await createPlayer(eventId, { playerName: "MTR Deckless", rank: 3, list: null });
 
-    const res = await anonApp.fetch(
-      req("GET", "/meta/counts?dateFrom=2026-04-01&dateTo=2026-04-30"),
-    );
-    expect(res.status).toBe(200);
-    expect(await readJson(res)).toEqual({ totalPlayers: 3, decksWithMainDeck: 2 });
+    const after = await scopedCounts("2026-04-01", "2026-04-30");
+    expect(after.totalPlayers).toBe(before.totalPlayers + 3);
+    expect(after.decksWithMainDeck).toBe(before.decksWithMainDeck + 2);
   });
 
   it("refuses an anonymous write to the admin surface", async () => {
