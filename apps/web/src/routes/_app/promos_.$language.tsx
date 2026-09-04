@@ -1,14 +1,17 @@
-import type { PromosListResponse } from "@openrift/shared";
 import { legendDisplayName, RENAMED_LANGUAGES } from "@openrift/shared";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
-import { catalogQueryOptions } from "@/lib/catalog-query";
 import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
+
+interface JsonLdItem {
+  name: string;
+  url: string;
+}
 
 const PROMOS_DESCRIPTION =
   "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.";
@@ -51,25 +54,8 @@ export const Route = createFileRoute("/_app/promos_/$language")({
       path,
     });
 
-    const tuple = loaderData as [PromosListResponse, unknown] | undefined;
-    const data = tuple?.[0];
-
-    const seenCardIds = new Set<string>();
-    const items: { name: string; url: string }[] = [];
-    for (const printing of data?.printings ?? []) {
-      if (printing.language !== params.language) {
-        continue;
-      }
-      if (seenCardIds.has(printing.cardId)) {
-        continue;
-      }
-      seenCardIds.add(printing.cardId);
-      const card = data?.cards[printing.cardId];
-      if (!card) {
-        continue;
-      }
-      items.push({ name: legendDisplayName(card), url: `/cards/${card.slug}` });
-    }
+    // beforeLoad throws a redirect, which narrows loaderData to never here.
+    const items = (loaderData as { items: JsonLdItem[] } | undefined)?.items ?? [];
 
     return {
       ...head,
@@ -85,20 +71,33 @@ export const Route = createFileRoute("/_app/promos_/$language")({
     };
   },
   loader: async ({ params, context }) => {
-    // Catalog is loaded for set metadata (setId → slug+name) so the Set
-    // filter chip can render readable names; PromosListResponse only carries
-    // setId for each printing.
-    const result = await Promise.all([
-      context.queryClient.query({ ...publicPromoListQueryOptions, staleTime: "static" }),
+    // Only the JSON-LD item list is returned — the loaderData return value is
+    // serialized on top of the dehydrated queries, doubling the payload.
+    const [data] = await Promise.all([
+      context.queryClient.query({
+        ...publicPromoListQueryOptions(params.language),
+        staleTime: "static",
+      }),
       context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
-      context.queryClient.query({ ...catalogQueryOptions, staleTime: "static" }),
     ]);
-    const [data] = result;
-    const hasLanguage = data.printings.some((printing) => printing.language === params.language);
-    if (!hasLanguage) {
+    if (data.printings.length === 0) {
       throw notFound();
     }
-    return result;
+
+    const seenCardIds = new Set<string>();
+    const items: JsonLdItem[] = [];
+    for (const printing of data.printings) {
+      if (seenCardIds.has(printing.cardId)) {
+        continue;
+      }
+      seenCardIds.add(printing.cardId);
+      const card = data.cards[printing.cardId];
+      if (!card) {
+        continue;
+      }
+      items.push({ name: legendDisplayName(card), url: `/cards/${card.slug}` });
+    }
+    return { items };
   },
   errorComponent: RouteErrorFallback,
 });

@@ -17,7 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMetaDecks } from "@/hooks/use-meta";
 import { useMetaSubmissions } from "@/hooks/use-meta-submissions";
 import {
   metaSubmissionExplanation,
@@ -105,11 +104,6 @@ function SubmissionRow({
  */
 export function MetaSubmissionsPage() {
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMetaSubmissions();
-  // The accepted-deck id is a deck id, but a public archive link is keyed by the
-  // deck's share token, so the archive payload (already cached for /meta/decks)
-  // is what turns one into the other.
-  const { data: archive } = useMetaDecks();
-  const tokensByDeckId = new Map(archive.decks.map((deck) => [deck.deckId, deck.shareToken]));
   const submissions = data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
@@ -152,11 +146,7 @@ export function MetaSubmissionsPage() {
           <SubmissionRow
             key={submission.id}
             submission={submission}
-            shareToken={
-              submission.acceptedDeckId
-                ? (tokensByDeckId.get(submission.acceptedDeckId) ?? null)
-                : null
-            }
+            shareToken={submission.acceptedDeckToken}
           />
         ))}
 

@@ -67,7 +67,7 @@ export interface MetaSubmissionResponse {
   status: MetaSubmissionRow["status"];
   resolutionReason: MetaSubmissionRow["resolutionReason"];
   resolutionNote: string | null;
-  acceptedDeckId: string | null;
+  acceptedDeckToken: string | null;
   createdAt: string;
   resolvedAt: string | null;
 }
@@ -588,11 +588,13 @@ export function toAdminMetaPlayer(row: AdminMetaPlayerRow): Omit<AdminMetaPlayer
 }
 
 /**
- * The submission as its contributor's own list shows it. The candidate id and
- * the provider key stay off the wire: they are staging details a contributor
- * has no use for, and staging is disposable.
+ * The submission as its contributor's own list shows it; the candidate id
+ * and provider key are staging details left off the wire.
  */
-export function toMetaSubmission(row: MetaSubmissionRow): MetaSubmissionResponse {
+export function toMetaSubmission(
+  row: MetaSubmissionRow,
+  acceptedDeckToken: string | null,
+): MetaSubmissionResponse {
   return {
     id: row.id,
     eventName: row.eventName,
@@ -602,7 +604,7 @@ export function toMetaSubmission(row: MetaSubmissionRow): MetaSubmissionResponse
     status: row.status,
     resolutionReason: row.resolutionReason,
     resolutionNote: row.resolutionNote,
-    acceptedDeckId: row.acceptedDeckId,
+    acceptedDeckToken,
     createdAt: row.createdAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };

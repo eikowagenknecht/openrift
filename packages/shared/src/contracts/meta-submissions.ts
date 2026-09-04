@@ -167,8 +167,8 @@ export const metaSubmissionSchema = z
     resolutionReason: metaSubmissionReasonSchema.nullable(),
     /** Free-text message from the admin, shown alongside the canned reason. */
     resolutionNote: z.string().nullable(),
-    /** Set once an accept produced an archived deck. */
-    acceptedDeckId: z.string().nullable(),
+    /** The archived deck's permalink slug, set once an accept produced one. */
+    acceptedDeckToken: z.string().nullable(),
     createdAt: z.string(),
     resolvedAt: z.string().nullable(),
   })

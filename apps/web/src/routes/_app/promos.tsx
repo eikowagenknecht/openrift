@@ -9,18 +9,19 @@ import { getSiteUrl } from "@/lib/site-config";
 const PROMOS_DESCRIPTION =
   "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.";
 
+const PROBE_LANGUAGE = "EN";
+
 /**
  * Picks a deterministic default language for the /promos redirect. Prefers EN
  * when present; otherwise falls back to the first language alphabetically.
  *
  * @returns The chosen language code, or null when no printings exist.
  */
-function pickDefaultLanguage(languages: ReadonlySet<string>): string | null {
-  if (languages.has("EN")) {
-    return "EN";
+function pickDefaultLanguage(languages: readonly string[]): string | null {
+  if (languages.includes(PROBE_LANGUAGE)) {
+    return PROBE_LANGUAGE;
   }
-  const sorted = [...languages].toSorted();
-  return sorted[0] ?? null;
+  return languages.toSorted()[0] ?? null;
 }
 
 export const Route = createFileRoute("/_app/promos")({
@@ -33,11 +34,13 @@ export const Route = createFileRoute("/_app/promos")({
     }),
   loader: async ({ context, location }) => {
     const [data] = await Promise.all([
-      context.queryClient.query({ ...publicPromoListQueryOptions, staleTime: "static" }),
+      context.queryClient.query({
+        ...publicPromoListQueryOptions(PROBE_LANGUAGE),
+        staleTime: "static",
+      }),
       context.queryClient.query({ ...initQueryOptions, staleTime: "static" }),
     ]);
-    const languages = new Set(data.printings.map((printing) => printing.language));
-    const defaultLanguage = pickDefaultLanguage(languages);
+    const defaultLanguage = pickDefaultLanguage(data.languages);
     if (defaultLanguage) {
       throw redirect({
         to: "/promos/$language",

@@ -89,6 +89,24 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Permalink slugs for the given deck ids. A deck with no token is absent
+     * from the map.
+     */
+    async shareTokensForDecks(deckIds: readonly string[]): Promise<Map<string, string>> {
+      if (deckIds.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("decks")
+        .select(["id", "shareToken"])
+        .where("id", "in", [...deckIds])
+        .where("shareToken", "is not", null)
+        .$narrowType<{ shareToken: string }>()
+        .execute();
+      return new Map(rows.map((row) => [row.id, row.shareToken]));
+    },
+
+    /**
      * Every unresolved correction to an event's own facts, oldest first, each
      * beside the event as it stands today.
      *

@@ -80,6 +80,7 @@ export const queryKeys = {
   },
   promos: {
     all: ["promos"] as const,
+    forLanguage: (language: string) => ["promos", language] as const,
   },
   products: {
     all: ["products"] as const,

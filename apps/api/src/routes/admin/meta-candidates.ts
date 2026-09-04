@@ -521,10 +521,11 @@ export const adminMetaCandidatesRouter = os.router({
       acceptMetaPlayerOverlay(context.repos, input.id, {
         metaEventPlayerId: input.metaEventPlayerId,
         fields: input.fields,
+        reviewedByUserId: context.userId,
       }),
   ),
   acceptPlayerOverlays: os.acceptPlayerOverlays.handler(({ input, context }) =>
-    acceptMetaPlayerOverlays(context.repos, input.items),
+    acceptMetaPlayerOverlays(context.repos, input.items, context.userId),
   ),
 
   linkPlayerOverlay: os.linkPlayerOverlay.handler(

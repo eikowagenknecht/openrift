@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { metaDecksQueryOptions } from "@/hooks/use-meta";
 import { metaSubmissionsQueryOptions } from "@/hooks/use-meta-submissions";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
@@ -24,15 +23,10 @@ export const Route = createFileRoute("/_app/_authenticated/meta_/submissions")({
     if (!featureEnabled(flags, "meta")) {
       throw redirect({ to: "/cards" });
     }
-    await Promise.all([
-      context.queryClient.infiniteQuery({
-        ...metaSubmissionsQueryOptions(context.userId),
-        staleTime: "static",
-      }),
-      // An accepted row names a deck id, while a public archive link is keyed by
-      // the deck's share token. The archive payload is what maps one to the other.
-      context.queryClient.query({ ...metaDecksQueryOptions(), staleTime: "static" }),
-    ]);
+    await context.queryClient.infiniteQuery({
+      ...metaSubmissionsQueryOptions(context.userId),
+      staleTime: "static",
+    });
   },
   errorComponent: RouteErrorFallback,
 });

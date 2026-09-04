@@ -92,6 +92,11 @@ const LIVE_PLAYER_ID = "f0000000-0001-4000-a000-000000000001";
 const CARD_ID = "d0000000-0001-4000-a000-000000000001";
 const PRINTING_ID = "d0000000-0001-4000-a000-000000000002";
 
+const mockMetaSubmissions = {
+  byPlayerOverlayId: vi.fn(),
+  recordAcceptance: vi.fn(),
+};
+
 const app = new Hono<{ Variables: Variables }>();
 app.use("*", async (c, next) => {
   c.set("user", { id: USER_ID } as never);
@@ -102,6 +107,7 @@ app.use("*", async (c, next) => {
     uvsgamesResults: mockUvsgamesResults,
     playloltcgEvents: mockPlayloltcg,
     catalog: mockCatalog,
+    metaSubmissions: mockMetaSubmissions,
   } as never);
   await next();
 });
@@ -216,6 +222,7 @@ beforeEach(() => {
   mockOverlays.adminEditOverlay.mockResolvedValue(undefined);
   mockOverlays.adminPlayerEditOverlay.mockResolvedValue(undefined);
   mockOverlays.acceptedPlayerOverlays.mockResolvedValue([]);
+  mockMetaSubmissions.byPlayerOverlayId.mockResolvedValue(null);
   mockMeta.eventIdForPlayer.mockResolvedValue(LIVE_EVENT_ID);
   // A row the source names, so clearing `playerName` has somewhere to fall back to.
   mockMeta.rawStandingsForEvent.mockResolvedValue([{ id: LIVE_PLAYER_ID, uvsgamesPlayerId: 4821 }]);

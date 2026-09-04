@@ -764,10 +764,42 @@ async function narrowPlayerClaims(
   });
 }
 
+/**
+ * Settles the ledger row and credit behind an accepted overlay. Must run
+ * after promotion, which resolves the overlay's live player row.
+ */
+async function recordOverlayAcceptance(
+  repos: Repos,
+  overlayId: string,
+  metaEventId: string,
+  reviewedByUserId: string | null,
+  now: Date,
+): Promise<void> {
+  const submission = await repos.metaSubmissions.byPlayerOverlayId(overlayId);
+  if (submission === null) {
+    return;
+  }
+  const settled = await repos.metaOverlays.playerOverlayById(overlayId);
+  const metaEventPlayerId = settled?.metaEventPlayerId ?? null;
+  const player =
+    metaEventPlayerId === null ? undefined : await repos.meta.playerById(metaEventPlayerId);
+  await repos.metaSubmissions.recordAcceptance({
+    submissionId: submission.id,
+    credit: { metaEventId, metaEventPlayerId, userId: submission.userId },
+    acceptedDeckId: player?.deckId ?? null,
+    resolvedAt: now,
+    resolvedByUserId: reviewedByUserId,
+  });
+}
+
 export async function acceptMetaPlayerOverlay(
   repos: Repos,
   overlayId: string,
-  options: { metaEventPlayerId?: string | null; fields?: MetaPlayerOverlayField[] | null } = {},
+  options: {
+    metaEventPlayerId?: string | null;
+    fields?: MetaPlayerOverlayField[] | null;
+    reviewedByUserId?: string | null;
+  } = {},
   now: Date = new Date(),
 ): Promise<MetaOverlayReviewResult> {
   const { overlay, player, metaEventId } = await loadPlayerAccept(
@@ -782,6 +814,13 @@ export async function acceptMetaPlayerOverlay(
   await narrowPlayerClaims(repos, overlayId, claimed, options.fields ?? null);
   await repos.metaOverlays.setPlayerOverlayStatus(overlayId, "accepted", now);
   await promoteMetaEvent(repos, metaEventId);
+  await recordOverlayAcceptance(
+    repos,
+    overlayId,
+    metaEventId,
+    options.reviewedByUserId ?? null,
+    now,
+  );
   return { metaEventId, created: false };
 }
 
@@ -796,6 +835,7 @@ export async function acceptMetaPlayerOverlays(
     metaEventPlayerId: string | null;
     fields?: MetaPlayerOverlayField[] | null;
   }[],
+  reviewedByUserId: string | null = null,
   now: Date = new Date(),
 ): Promise<MetaOverlayBulkAcceptResult> {
   const pending: PendingPlayerAccept[] = [];
@@ -816,6 +856,9 @@ export async function acceptMetaPlayerOverlays(
   const metaEventIds = [...new Set(pending.map((entry) => entry.metaEventId))];
   for (const metaEventId of metaEventIds) {
     await promoteMetaEvent(repos, metaEventId);
+  }
+  for (const { overlay, metaEventId } of pending) {
+    await recordOverlayAcceptance(repos, overlay.id, metaEventId, reviewedByUserId, now);
   }
   return { accepted: pending.length, metaEventIds };
 }

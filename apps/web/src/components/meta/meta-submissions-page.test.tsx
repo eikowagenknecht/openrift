@@ -1,11 +1,10 @@
-import type { MetaSubmission, MetaDeckSummary } from "@openrift/shared";
+import type { MetaSubmission } from "@openrift/shared";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   items: [] as MetaSubmission[],
-  decks: [] as MetaDeckSummary[],
   isPending: false,
   hasNextPage: false,
 }));
@@ -20,10 +19,6 @@ vi.mock("@/hooks/use-meta-submissions", () => ({
     isFetchingNextPage: false,
     fetchNextPage,
   }),
-}));
-
-vi.mock("@/hooks/use-meta", () => ({
-  useMetaDecks: () => ({ data: { decks: captured.decks } }),
 }));
 
 // Page chrome pulls the router; the rows are what these tests are about.
@@ -59,7 +54,7 @@ function submission(overrides: Partial<MetaSubmission> = {}): MetaSubmission {
     status: "pending",
     resolutionReason: null,
     resolutionNote: null,
-    acceptedDeckId: null,
+    acceptedDeckToken: null,
     createdAt: "2026-08-15T10:00:00.000Z",
     resolvedAt: null,
     ...overrides,
@@ -67,16 +62,14 @@ function submission(overrides: Partial<MetaSubmission> = {}): MetaSubmission {
 }
 
 /** Renders the ledger for the given rows. */
-function renderLedger(items: MetaSubmission[], decks: MetaDeckSummary[] = []): void {
+function renderLedger(items: MetaSubmission[]): void {
   captured.items = items;
-  captured.decks = decks;
   render(<MetaSubmissionsPage />);
 }
 
 beforeEach(() => {
   fetchNextPage.mockReset();
   captured.items = [];
-  captured.decks = [];
   captured.isPending = false;
   captured.hasNextPage = false;
 });
@@ -104,7 +97,7 @@ describe("MetaSubmissionsPage", () => {
     renderLedger([
       submission({
         status: "accepted",
-        acceptedDeckId: "deck-1",
+        acceptedDeckToken: "abc123",
         resolvedAt: "2026-08-17T09:00:00.000Z",
       }),
     ]);
@@ -152,10 +145,7 @@ describe("MetaSubmissionsPage", () => {
   });
 
   it("links to the archived deck once one exists", () => {
-    renderLedger(
-      [submission({ status: "accepted", acceptedDeckId: "deck-1" })],
-      [{ deckId: "deck-1", shareToken: "abc123" } as MetaDeckSummary],
-    );
+    renderLedger([submission({ status: "accepted", acceptedDeckToken: "abc123" })]);
     expect(screen.getByText("See the deck on the archive")).toBeInTheDocument();
   });
 

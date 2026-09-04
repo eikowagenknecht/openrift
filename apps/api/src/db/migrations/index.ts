@@ -237,6 +237,7 @@ import * as m288 from "./288-printing-foil-twins.js";
 import * as m289 from "./289-meta-tier-local.js";
 import * as m290 from "./290-meta-competitive-player-floor.js";
 import * as m291 from "./291-topdeck-source-tables.js";
+import * as m292 from "./292-meta-submission-acceptance-backfill.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -533,4 +534,5 @@ export const migrations: Record<string, Migration> = {
   "289-meta-tier-local": m289,
   "290-meta-competitive-player-floor": m290,
   "291-topdeck-source-tables": m291,
+  "292-meta-submission-acceptance-backfill": m292,
 };

@@ -87,7 +87,16 @@ export const metaSubmissionsRouter = {
       limit,
     });
 
-    return keysetPage(rows, limit, toMetaSubmission);
+    const tokens = await context.repos.metaSubmissions.shareTokensForDecks(
+      rows.map((row) => row.acceptedDeckId).filter((id) => id !== null),
+    );
+
+    return keysetPage(rows, limit, (row) =>
+      toMetaSubmission(
+        row,
+        row.acceptedDeckId === null ? null : (tokens.get(row.acceptedDeckId) ?? null),
+      ),
+    );
   }),
 
   creditVisibility: os.creditVisibility.handler(async ({ context }) => {

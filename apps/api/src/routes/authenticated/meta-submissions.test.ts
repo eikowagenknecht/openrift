@@ -11,7 +11,7 @@ import { metaSubmissionsRouter, mountMetaSubmissionsMiddleware } from "./meta-su
 // Mock repos and services
 // ---------------------------------------------------------------------------
 
-const mockSubmissions = { listByUser: vi.fn() };
+const mockSubmissions = { listByUser: vi.fn(), shareTokensForDecks: vi.fn() };
 const mockMeta = { creditVisibility: vi.fn(), setCreditVisibility: vi.fn() };
 const mockSubmitMetaDeck = vi.fn();
 const mockSubmitMetaEventCorrection = vi.fn();
@@ -87,6 +87,7 @@ function ledgerRow(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockSubmissions.shareTokensForDecks.mockResolvedValue(new Map());
 });
 
 describe("POST /meta/submissions", () => {
@@ -259,6 +260,36 @@ describe("GET /meta/submissions", () => {
     const json = await readJson(res);
     expect(json.items).toHaveLength(2);
     expect(json.nextCursor).toContain("2026-08-18T10:00:00.000Z");
+  });
+
+  it("names the accepted deck by its permalink, without reading the archive", async () => {
+    const deckId = "e0000000-0001-4000-a000-000000000001";
+    mockSubmissions.listByUser.mockResolvedValue([
+      ledgerRow({
+        status: "accepted",
+        acceptedDeckId: deckId,
+        resolvedAt: new Date("2026-08-19T09:00:00.000Z"),
+      }),
+    ]);
+    mockSubmissions.shareTokensForDecks.mockResolvedValue(new Map([[deckId, "abc123"]]));
+
+    const res = await app.request("/api/v1/meta/submissions");
+
+    const json = await readJson(res);
+    expect(json.items[0].acceptedDeckToken).toBe("abc123");
+    expect(json.items[0]).not.toHaveProperty("acceptedDeckId");
+    expect(mockSubmissions.shareTokensForDecks).toHaveBeenCalledWith([deckId]);
+  });
+
+  it("leaves the deck link empty when the accepted deck lost its permalink", async () => {
+    mockSubmissions.listByUser.mockResolvedValue([
+      ledgerRow({ status: "accepted", acceptedDeckId: "e0000000-0001-4000-a000-000000000002" }),
+    ]);
+
+    const res = await app.request("/api/v1/meta/submissions");
+    const json = await readJson(res);
+
+    expect(json.items[0].acceptedDeckToken).toBeNull();
   });
 
   it("carries a resolved submission's outcome", async () => {

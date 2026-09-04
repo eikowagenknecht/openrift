@@ -8,6 +8,7 @@ import { promosRouter } from "./promos";
 
 const mockCatalogRepo = {
   channelDistributedPrintings: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
+  sets: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
   cardsByIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
   cardBansByCardIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
   cardErrataByCardIds: vi.fn(() => Promise.resolve([] as Record<string, unknown>[])),
@@ -111,6 +112,7 @@ describe("GET /api/v1/promos", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockCatalogRepo.channelDistributedPrintings.mockResolvedValue([]);
+    mockCatalogRepo.sets.mockResolvedValue([]);
     mockCatalogRepo.cardsByIds.mockResolvedValue([]);
     mockCatalogRepo.cardBansByCardIds.mockResolvedValue([]);
     mockCatalogRepo.cardErrataByCardIds.mockResolvedValue([]);
@@ -122,7 +124,7 @@ describe("GET /api/v1/promos", () => {
   });
 
   it("returns an empty payload when there are no channel-distributed printings", async () => {
-    const res = await app.request("/api/v1/promos");
+    const res = await app.request("/api/v1/promos?language=EN");
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.channels).toEqual([]);
@@ -136,7 +138,7 @@ describe("GET /api/v1/promos", () => {
     mockCatalogRepo.cardsByIds.mockResolvedValue([dbCard]);
     mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([dbChannelLink]);
 
-    const res = await app.request("/api/v1/promos");
+    const res = await app.request("/api/v1/promos?language=EN");
     expect(res.status).toBe(200);
     const json = await readJson(res);
 
@@ -157,6 +159,49 @@ describe("GET /api/v1/promos", () => {
     expect(json.printings[0].id).toBe(PRINTING_ID);
     expect(json.printings[0].distributionChannels).toHaveLength(1);
     expect(json.printings[0].distributionChannels[0].channel.id).toBe(CHANNEL_ID);
+  });
+
+  it("serves only the language asked for, and names the ones that exist", async () => {
+    mockDistributionChannelsRepo.listAll.mockResolvedValue([dbChannel]);
+    mockCatalogRepo.channelDistributedPrintings.mockResolvedValue([
+      dbPrinting,
+      { ...dbPrinting, id: "p0000000-0002-4000-a000-000000000002", language: "SC" },
+    ]);
+    mockCatalogRepo.cardsByIds.mockResolvedValue([dbCard]);
+
+    const res = await app.request("/api/v1/promos?language=SC");
+    const json = await readJson(res);
+
+    expect(json.printings).toHaveLength(1);
+    expect(json.printings[0].language).toBe("SC");
+    expect(json.languages).toEqual(["EN", "SC"]);
+  });
+
+  it("carries only the sets its own printings reference", async () => {
+    mockDistributionChannelsRepo.listAll.mockResolvedValue([dbChannel]);
+    mockCatalogRepo.channelDistributedPrintings.mockResolvedValue([dbPrinting]);
+    mockCatalogRepo.cardsByIds.mockResolvedValue([dbCard]);
+    mockCatalogRepo.sets.mockResolvedValue([
+      { id: SET_ID, slug: "OGN", name: "Origins", setType: "main", releases: {} },
+      {
+        id: "s0000000-0002-4000-a000-000000000002",
+        slug: "FND",
+        name: "Founders",
+        setType: "main",
+        releases: {},
+      },
+    ]);
+
+    const res = await app.request("/api/v1/promos?language=EN");
+    const json = await readJson(res);
+
+    expect(json.sets).toHaveLength(1);
+    expect(json.sets[0].slug).toBe("OGN");
+  });
+
+  it("refuses a request that names no language", async () => {
+    const res = await app.request("/api/v1/promos");
+    expect(res.status).toBe(400);
   });
 
   it("maps bans and errata onto the keyed cards", async () => {
@@ -183,7 +228,7 @@ describe("GET /api/v1/promos", () => {
       },
     ]);
 
-    const res = await app.request("/api/v1/promos");
+    const res = await app.request("/api/v1/promos?language=EN");
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.cards[CARD_ID].bans).toHaveLength(1);
@@ -210,9 +255,10 @@ describe("promos route registration", () => {
     registerRouterForTest(mountedApp, promosRouter);
 
     mockCatalogRepo.channelDistributedPrintings.mockResolvedValue([]);
+    mockCatalogRepo.sets.mockResolvedValue([]);
     mockDistributionChannelsRepo.listAll.mockResolvedValue([]);
 
-    const res = await mountedApp.request("/api/v1/promos");
+    const res = await mountedApp.request("/api/v1/promos?language=EN");
     expect(res.status).toBe(200);
   });
 });

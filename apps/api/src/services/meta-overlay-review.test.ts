@@ -66,7 +66,16 @@ const mockMeta = {
   eventIdForPlayer: vi.fn(),
 };
 
-const repos = { metaOverlays: mockOverlays, meta: mockMeta } as unknown as Repos;
+const mockSubmissions = {
+  byPlayerOverlayId: vi.fn(),
+  recordAcceptance: vi.fn(),
+};
+
+const repos = {
+  metaOverlays: mockOverlays,
+  meta: mockMeta,
+  metaSubmissions: mockSubmissions,
+} as unknown as Repos;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -76,6 +85,7 @@ beforeEach(() => {
   mockOverlays.eventOverlaysBySourceKeys.mockResolvedValue([]);
   mockMeta.eventById.mockResolvedValue({ id: OTHER_EVENT_ID });
   mockMeta.eventIdForPlayer.mockResolvedValue(LIVE_EVENT_ID);
+  mockSubmissions.byPlayerOverlayId.mockResolvedValue(null);
 });
 
 describe("moveMetaEventOverlay", () => {
@@ -370,6 +380,41 @@ describe("acceptMetaPlayerOverlay", () => {
   beforeEach(() => {
     mockOverlays.playerOverlayById.mockResolvedValue(LOOSE);
     mockMeta.playerById.mockResolvedValue({ id: LIVE_PLAYER_ID, playerName: "Nova", rank: 4 });
+  });
+
+  it("settles the contributor's ledger row and credits them for the live entry", async () => {
+    const DECK_ID = "d0000000-0001-4000-a000-000000000009";
+    const CONTRIBUTOR_ID = "a0000000-0001-4000-a000-000000000001";
+    const ADMIN_ID = "a0000000-0002-4000-a000-000000000002";
+    mockSubmissions.byPlayerOverlayId.mockResolvedValue({
+      id: "s0000000-0001-4000-a000-000000000001",
+      userId: CONTRIBUTOR_ID,
+    });
+    mockOverlays.playerOverlayById.mockResolvedValue({
+      ...LOOSE,
+      metaEventPlayerId: LIVE_PLAYER_ID,
+    });
+    mockMeta.playerById.mockResolvedValue({ id: LIVE_PLAYER_ID, deckId: DECK_ID });
+
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID, { reviewedByUserId: ADMIN_ID });
+
+    expect(mockSubmissions.recordAcceptance).toHaveBeenCalledWith({
+      submissionId: "s0000000-0001-4000-a000-000000000001",
+      credit: {
+        metaEventId: LIVE_EVENT_ID,
+        metaEventPlayerId: LIVE_PLAYER_ID,
+        userId: CONTRIBUTOR_ID,
+      },
+      acceptedDeckId: DECK_ID,
+      resolvedAt: expect.any(Date),
+      resolvedByUserId: ADMIN_ID,
+    });
+  });
+
+  it("writes no ledger row for an upload nobody submitted", async () => {
+    await acceptMetaPlayerOverlay(repos, PLAYER_OVERLAY_ID);
+
+    expect(mockSubmissions.recordAcceptance).not.toHaveBeenCalled();
   });
 
   it("accepts and promotes without touching the anchor when no row is named", async () => {

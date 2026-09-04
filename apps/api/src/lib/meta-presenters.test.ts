@@ -963,7 +963,7 @@ function submissionRow(overrides: Partial<MetaSubmissionRow> = {}): MetaSubmissi
 
 describe("toMetaSubmission", () => {
   it("serializes the instants and keeps a pending row's outcome empty", () => {
-    const response = toMetaSubmission(submissionRow());
+    const response = toMetaSubmission(submissionRow(), null);
     expect(response.createdAt).toBe("2026-08-15T12:00:00.000Z");
     expect(response.resolvedAt).toBeNull();
     expect(response.status).toBe("pending");
@@ -977,25 +977,28 @@ describe("toMetaSubmission", () => {
         resolutionNote: "We already had this list.",
         resolvedAt: new Date("2026-08-16T09:30:00.000Z"),
       }),
+      null,
     );
     expect(response.status).toBe("already_correct");
     expect(response.resolutionReason).toBe("already_correct");
     expect(response.resolvedAt).toBe("2026-08-16T09:30:00.000Z");
   });
 
-  it("carries the archived deck an accept produced", () => {
+  it("carries the archived deck's permalink, never its id", () => {
     const response = toMetaSubmission(
       submissionRow({
         status: "accepted",
         acceptedDeckId: "3f7a1c2e-0000-7000-8000-00000000000d",
         resolvedAt: new Date("2026-08-16T09:30:00.000Z"),
       }),
+      "abc123",
     );
-    expect(response.acceptedDeckId).toBe("3f7a1c2e-0000-7000-8000-00000000000d");
+    expect(response.acceptedDeckToken).toBe("abc123");
+    expect(response).not.toHaveProperty("acceptedDeckId");
   });
 
   it("keeps the staging details off the wire", () => {
-    const response = toMetaSubmission(submissionRow());
+    const response = toMetaSubmission(submissionRow(), null);
     expect(response).not.toHaveProperty("playerOverlayId");
     expect(response).not.toHaveProperty("provider");
     expect(response).not.toHaveProperty("externalId");

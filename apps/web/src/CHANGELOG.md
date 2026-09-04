@@ -8,6 +8,9 @@
 - feat(Meta): **Archived decklists lead with the result** — the header now states the finish against the field, the player and the legend, and drops the generated deck name.
 - feat(Decks): **Save, print and export a shared deck** — shared and archived decklists get an overflow menu holding the deck image, the printable sheet, the exports and the deck code.
 - fix(Meta): **Archive pages open from a direct link** — the deck browser, legend pages and player pages came back blank when opened from a bookmark or a shared link; they now load.
+- fix(Meta): **Submissions page opens from a direct link** — your sent-decklists page came back blank the same way; it now loads too.
+- fix(Meta): **Accepted decklists show as accepted** — a decklist an admin approved kept reading "Waiting for review" and its submitter went uncredited; both now update once it's accepted.
+- fix(Cards): **Promo pages open from a direct link** — a promo language page came back blank when opened from a bookmark or a shared link; it now loads.
 
 ### Other
 

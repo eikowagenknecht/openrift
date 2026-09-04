@@ -15,19 +15,29 @@ const os = implement(promosContract).$context<ApiContext>().use(requireUser);
 /**
  * Public promos read: channel-distributed printings with their cards, bans,
  * errata, images, and per-channel rollup counts.
+ *
+ * Scoped to one language. The page is per-language, and serving every language
+ * to each of them put enough into the SSR stream to blank the page.
+ * `languages` still names all of them, so the switcher knows what exists.
  */
 export const promosRouter = {
-  list: os.list.handler(async ({ context }): Promise<PromosListResponse> => {
+  list: os.list.handler(async ({ input, context }): Promise<PromosListResponse> => {
     const repos = context.repos;
     const { catalog, distributionChannels } = repos;
 
-    const [allChannels, printingRows] = await Promise.all([
+    const [allChannels, allPrintingRows, allSets] = await Promise.all([
       distributionChannels.listAll(),
       catalog.channelDistributedPrintings(),
+      catalog.sets(),
     ]);
+
+    const languages = [...new Set(allPrintingRows.map((p) => p.language))].toSorted();
+    const printingRows = allPrintingRows.filter((p) => p.language === input.language);
 
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
     const printingIds = printingRows.map((p) => p.id);
+    const referencedSetIds = new Set(printingRows.map((p) => p.setId));
+    const sets = allSets.filter((set) => referencedSetIds.has(set.id));
 
     const [cardRows, banRows, errataRows, imageRows, decorations] = await Promise.all([
       catalog.cardsByIds(cardIds),
@@ -87,6 +97,6 @@ export const promosRouter = {
       printingCount: rollupPrintings.get(ch.id) ?? 0,
     }));
 
-    return { channels, cards, printings };
+    return { channels, cards, printings, sets, languages };
   }),
 };

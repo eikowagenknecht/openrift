@@ -1,6 +1,6 @@
 import type { Printing, SortDirection, SortOption } from "@openrift/shared";
 import { filterCards, getAvailableFilters, legendDisplayName, sortCards } from "@openrift/shared";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { LinkIcon, PackageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -66,7 +66,6 @@ import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
 import { buildGroups } from "@/lib/card-groups";
-import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
 import { groupByOptionsFor } from "@/lib/group-by-field";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
@@ -295,8 +294,8 @@ function buildFlatRenderItems(
 }
 
 function PromosPage() {
-  const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const { language: activeLanguage } = Route.useParams();
+  const { data } = useSuspenseQuery(publicPromoListQueryOptions(activeLanguage));
   const navigate = useNavigate();
   const location = useLocation();
   const showImages = useDisplayStore((s) => s.showImages);
@@ -331,7 +330,7 @@ function PromosPage() {
   const { setSearch } = useFilterActions();
   const isMobile = useIsMobile();
 
-  const presentLanguageSet = new Set(data.printings.map((p) => p.language));
+  const presentLanguageSet = new Set(data.languages);
   const presentLanguages = [
     ...languageOrder.filter((lang) => presentLanguageSet.has(lang)),
     ...[...presentLanguageSet].filter((lang) => !languageOrder.includes(lang)).toSorted(),
@@ -339,22 +338,13 @@ function PromosPage() {
 
   const viewMode: ViewMode = useDisplayStore((s) => s.displayMode);
 
-  const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
-  // Promos list printings across languages; the client's language-split fetch
-  // may not cover them all, so pull the tail right away (no-op when complete).
-  const promosQueryClient = useQueryClient();
-  useEffect(() => {
-    void loadCatalogTail(promosQueryClient);
-  }, [promosQueryClient]);
-  const setIdToSlug = new Map(catalog.sets.map((s) => [s.id, s.slug] as const));
-  const setSlugToName = new Map(catalog.sets.map((s) => [s.slug, s.name] as const));
+  // The promo read carries the sets its own printings reference, so the set
+  // filter and sort axes never pull the whole catalogue onto this page.
+  const promoSets = data.sets;
+  const setSlugToName = new Map(promoSets.map((s) => [s.slug, s.name] as const));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
-  const printingsWithSlug: Printing[] = data.printings.map((p) => ({
-    ...p,
-    setSlug: setIdToSlug.get(p.setId) ?? "",
-  }));
-  const activePrintings = printingsWithSlug.filter((p) => p.language === activeLanguage);
+  const activePrintings = data.printings;
 
   // Show the price filter only where there are prices to filter on, rather than
   // assuming English. Cardmarket and TCGplayer feeds carry no language and are
@@ -367,7 +357,7 @@ function PromosPage() {
 
   const availableFilters = getAvailableFilters(activePrintings, {
     orders: enumOrders,
-    sets: catalog.sets,
+    sets: promoSets,
     channels: data.channels,
     getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
   });
@@ -377,7 +367,7 @@ function PromosPage() {
   const sortPrintings = (printings: Printing[]) =>
     sortCards(printings, sortBy, {
       sortDir,
-      sets: catalog.sets,
+      sets: promoSets,
       rarityOrder: enumOrders.rarities,
       getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
     });
@@ -408,14 +398,14 @@ function PromosPage() {
   const orderedChannelTree =
     grouping === "channel" ? (groupDir === "desc" ? channelTree.toReversed() : channelTree) : [];
   // Every axis but the channel tree goes through the shared grouping engine and
-  // is adapted to this page's flat sections. catalog.sets feeds the "set" axis;
-  // there is no collection order because /promos never offers that axis.
+  // is adapted to this page's flat sections. The promo read's sets feed the
+  // "set" axis; there is no collection order, /promos never offers it.
   const flatKind: FlatSectionKind | null = grouping === "channel" ? null : grouping;
   const flatSections =
     flatKind === null
       ? undefined
       : toPromoSections(
-          buildGroups(selectionItems, flatKind, catalog.sets, groupDir, enumOrders, enumLabels),
+          buildGroups(selectionItems, flatKind, promoSets, groupDir, enumOrders, enumLabels),
         );
 
   const activePrefix = `lang-${activeLanguage}`;

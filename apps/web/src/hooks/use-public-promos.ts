@@ -9,11 +9,12 @@ import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 const fetchPromoList = createServerFn({ method: "GET" })
+  .validator((language: string) => language)
   .middleware([withCookies])
-  .handler(({ context }): Promise<PromosListResponse> =>
+  .handler(({ context, data: language }): Promise<PromosListResponse> =>
     serverCache.query({
-      queryKey: ["server-cache", "promos"],
-      queryFn: () => apiOrpcClient(promosContract, context.cookie).list(),
+      queryKey: ["server-cache", "promos", language],
+      queryFn: () => apiOrpcClient(promosContract, context.cookie).list({ language }),
     }),
   );
 
@@ -21,22 +22,32 @@ interface EnrichedPromoList {
   channels: PromosListResponse["channels"];
   printings: Printing[];
   cards: PromosListResponse["cards"];
+  sets: PromosListResponse["sets"];
+  languages: string[];
 }
 
 function enrichPromoList(response: PromosListResponse): EnrichedPromoList {
-  const setSlugPlaceholder = "";
+  const setSlugById = new Map(response.sets.map((set) => [set.id, set.slug]));
   const printings: Printing[] = response.printings.map((p) => ({
     ...p,
-    setSlug: setSlugPlaceholder,
+    setSlug: setSlugById.get(p.setId) ?? "",
     setReleased: true,
     card: response.cards[p.cardId],
   }));
-  return { channels: response.channels, printings, cards: response.cards };
+  return {
+    channels: response.channels,
+    printings,
+    cards: response.cards,
+    sets: response.sets,
+    languages: response.languages,
+  };
 }
 
-export const publicPromoListQueryOptions = queryOptions({
-  queryKey: queryKeys.promos.all,
-  queryFn: () => fetchPromoList(),
-  staleTime: 5 * 60 * 1000,
-  select: enrichPromoList,
-});
+export function publicPromoListQueryOptions(language: string) {
+  return queryOptions({
+    queryKey: queryKeys.promos.forLanguage(language),
+    queryFn: () => fetchPromoList({ data: language }),
+    staleTime: 5 * 60 * 1000,
+    select: enrichPromoList,
+  });
+}
