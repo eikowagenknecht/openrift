@@ -290,6 +290,21 @@ describe("processPlayloltcgRechecks", () => {
     ]);
   });
 
+  it("steps a finished event on even with its results unpublished", async () => {
+    vi.mocked(readPlayloltcgDetail).mockResolvedValueOnce({
+      shopId: null,
+      shopName: null,
+      isPublishResult: false,
+    });
+    const { deps, rechecks } = fakeDeps({ due: [dueRow()] });
+
+    await processPlayloltcgRechecks(deps);
+
+    expect(rechecks).toEqual([
+      { activityShopId: 109_991, nextCheckAt: new Date(NOW.getTime() + DAY_MS), checkStage: 1 },
+    ]);
+  });
+
   it("gives an unreadable detail an hour without moving the ladder", async () => {
     vi.mocked(readPlayloltcgDetail).mockResolvedValueOnce(null);
     const { deps, rechecks } = fakeDeps({ due: [dueRow({ checkStage: 3, fetchedAt: NOW })] });

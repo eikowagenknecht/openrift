@@ -1,5 +1,6 @@
 import { DECKLIST_PUBLISHED, nextRecheck } from "../../lib/meta-recheck-schedule.js";
 import {
+  PLAYLOLTCG_STATUS_FINISHED,
   PLAYLOLTCG_STATUS_IN_PROGRESS,
   projectEventRow,
   projectShopRow,
@@ -325,7 +326,7 @@ async function resumeSoon(
 
 /** The source's lifecycle read in the shared ladder's vocabulary. */
 function displayStatusOf(detail: PlayloltcgDetailFacts, status: number | null): string {
-  if (detail.isPublishResult) {
+  if (detail.isPublishResult || status === PLAYLOLTCG_STATUS_FINISHED) {
     return "complete";
   }
   return status === PLAYLOLTCG_STATUS_IN_PROGRESS ? "inProgress" : "upcoming";

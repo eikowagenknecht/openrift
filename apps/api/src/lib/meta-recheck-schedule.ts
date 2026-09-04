@@ -21,6 +21,9 @@ const WATCHED_EVENT_DAY_POLL_MS = 15 * 60 * 1000;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** How long past its start an event stays on the event-day poll before it decays. */
+const STALE_EVENT_DAYS = 3;
+
 /** The source's own status vocabulary; only `complete` ends the event-day poll. */
 const COMPLETE = "complete";
 
@@ -68,21 +71,27 @@ export interface MetaRecheckDecision {
  */
 export function nextRecheck(state: MetaRecheckState): MetaRecheckDecision {
   const nowMs = state.now.getTime();
+  const complete = state.displayStatus === COMPLETE;
 
-  if (state.displayStatus !== COMPLETE) {
+  if (!complete) {
     // Before the start time there is nothing to see, so the next visit is the
     // start itself; after it, polling until the source calls the event done —
     // every quarter hour for a watched event, hourly otherwise.
     const startMs = state.startAt.getTime();
-    const pollMs = state.watched ? WATCHED_EVENT_DAY_POLL_MS : EVENT_DAY_POLL_MS;
-    const nextMs = startMs > nowMs ? startMs : nowMs + pollMs;
-    return { nextCheckAt: new Date(nextMs), checkStage: 0, deepFetch: false };
+    if (startMs > nowMs) {
+      return { nextCheckAt: new Date(startMs), checkStage: 0, deepFetch: false };
+    }
+    if (nowMs - startMs < STALE_EVENT_DAYS * DAY_MS) {
+      const pollMs = state.watched ? WATCHED_EVENT_DAY_POLL_MS : EVENT_DAY_POLL_MS;
+      return { nextCheckAt: new Date(nowMs + pollMs), checkStage: 0, deepFetch: false };
+    }
   }
 
   const deepFetch =
-    !state.fetched ||
-    (state.decklistStatus === DECKLIST_PUBLISHED && !state.decksComplete) ||
-    state.playersPending;
+    complete &&
+    (!state.fetched ||
+      (state.decklistStatus === DECKLIST_PUBLISHED && !state.decksComplete) ||
+      state.playersPending);
 
   const step = Math.max(state.checkStage, 0);
   if (step >= RECHECK_LADDER_DAYS.length) {

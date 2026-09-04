@@ -46,6 +46,29 @@ describe("nextRecheck", () => {
     expect(decision.deepFetch).toBe(false);
   });
 
+  it("stops polling an event the source leaves unfinished for days", () => {
+    const decision = nextRecheck(
+      state({ displayStatus: "inProgress", startAt: new Date("2026-08-16T12:00:00Z") }),
+    );
+
+    expect(decision.nextCheckAt?.getTime()).toBe(NOW.getTime() + DAY_MS);
+    expect(decision.checkStage).toBe(1);
+    expect(decision.deepFetch).toBe(false);
+  });
+
+  it("drops a stale unfinished event once its ladder runs out", () => {
+    const decision = nextRecheck(
+      state({
+        displayStatus: "upcoming",
+        startAt: new Date("2026-06-01T12:00:00Z"),
+        checkStage: 5,
+      }),
+    );
+
+    expect(decision.nextCheckAt).toBeNull();
+    expect(decision.deepFetch).toBe(false);
+  });
+
   it("pulls the results the first time an event reads as complete", () => {
     const decision = nextRecheck(state());
 
