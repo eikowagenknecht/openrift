@@ -8,6 +8,10 @@ import { CHUNK_LOAD_ERROR_PATTERN } from "./stale-bundle-reload";
 
 type TanstackRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingIntegration>[0];
 
+// Extension and Firefox-iOS page-script injections run in the page's own
+// context, so their failures reach window.onerror indistinguishable from ours.
+export const INJECTED_SCRIPT_PATTERN = /__firefox__|window\.ethereum/u;
+
 // `@sentry/tanstackstart-react` doesn't re-export ErrorEvent/EventHint, and
 // `@sentry/core` isn't a direct dep — derive both from the init signature.
 type SentryBeforeSend = NonNullable<Parameters<typeof Sentry.init>[0]>["beforeSend"];
@@ -93,12 +97,15 @@ export function initClientSentry(router: TanstackRouter): void {
     // initChunkErrorReloader() in client.tsx — the user gets one reload and the
     // next page load is fine. Sentry's global handlers fire before our listener
     // gets to reload, so every recovered session pollutes the issue tracker.
+    // INJECTED_SCRIPT_PATTERN: page scripts the visitor's browser injected, not
+    // ours. Nothing in the app can prevent or fix them.
     ignoreErrors: [
       "NOT_FOUND",
       "Load failed",
       "Failed to fetch",
       "NetworkError when attempting to fetch resource",
       CHUNK_LOAD_ERROR_PATTERN,
+      INJECTED_SCRIPT_PATTERN,
     ],
     // Route envelopes through our own origin so they aren't dropped by Firefox
     // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io

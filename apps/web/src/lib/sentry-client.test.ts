@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { captureHydrationError, enrichBareThrow, initClientSentry } from "./sentry-client";
+import {
+  captureHydrationError,
+  enrichBareThrow,
+  INJECTED_SCRIPT_PATTERN,
+  initClientSentry,
+} from "./sentry-client";
 
 const { captureExceptionMock, initMock } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
@@ -173,6 +178,13 @@ describe("initClientSentry", () => {
     );
   });
 
+  test("ignores the page scripts the visitor's own browser injected", () => {
+    initClientSentry({} as Parameters<typeof initClientSentry>[0]);
+
+    const options = initMock.mock.calls[0]?.[0] as { ignoreErrors: unknown[] };
+    expect(options.ignoreErrors).toContain(INJECTED_SCRIPT_PATTERN);
+  });
+
   test("does not init without a DSN", () => {
     globalThis.__OPENRIFT_CONFIG__ = undefined;
 
@@ -205,5 +217,19 @@ describe("initClientSentry", () => {
 
     const options = initMock.mock.calls[0]?.[0] as { environment: string };
     expect(options.environment).toBe("development");
+  });
+});
+
+describe("INJECTED_SCRIPT_PATTERN", () => {
+  test.each([
+    "ReferenceError: Can't find variable: __firefox__",
+    "TypeError: undefined is not an object (evaluating 'window.__firefox__.reader')",
+    "TypeError: undefined is not an object (evaluating 'window.ethereum.selectedAddress = undefined')",
+  ])("matches %s", (message) => {
+    expect(INJECTED_SCRIPT_PATTERN.test(message)).toBe(true);
+  });
+
+  test("leaves an app error alone", () => {
+    expect(INJECTED_SCRIPT_PATTERN.test("TypeError: window.location is undefined")).toBe(false);
   });
 });
