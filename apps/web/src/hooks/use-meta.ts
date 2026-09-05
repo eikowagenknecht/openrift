@@ -42,6 +42,14 @@ function narrow<T extends object>(query?: T): T {
   ) as T;
 }
 
+/**
+ * The validator for a query whose every field is optional. A bare GET to the
+ * server function's own endpoint arrives with no payload at all.
+ */
+export function optionalQuery<T extends object>(input?: T): T {
+  return input ?? ({} as T);
+}
+
 /** A `serverCache` key segment per field, so two windows cannot share an entry. */
 function cacheKeyFor(query: Record<string, unknown>): unknown[] {
   return Object.entries(query)
@@ -50,7 +58,7 @@ function cacheKeyFor(query: Record<string, unknown>): unknown[] {
 }
 
 const fetchMetaEvents = createServerFn({ method: "GET" })
-  .validator((input: MetaDateRange) => input)
+  .validator(optionalQuery<MetaDateRange>)
   .middleware([withCookies])
   .handler(({ context, data: range }): Promise<MetaEventListResponse> =>
     serverCache.query({
@@ -79,7 +87,7 @@ export function useMetaEvents(range?: MetaDateRange) {
 }
 
 const fetchMetaCounts = createServerFn({ method: "GET" })
-  .validator((input: MetaCountsQuery) => input)
+  .validator(optionalQuery<MetaCountsQuery>)
   .middleware([withCookies])
   .handler(({ context, data: query }): Promise<MetaCountsResponse> =>
     serverCache.query({
@@ -155,7 +163,7 @@ export function useMetaEvent(slug: string) {
 }
 
 const fetchMetaDecks = createServerFn({ method: "GET" })
-  .validator((input: MetaDeckQuery) => input)
+  .validator(optionalQuery<MetaDeckQuery>)
   .middleware([withCookies])
   .handler(({ context, data: query }): Promise<MetaDeckListResponse> =>
     serverCache.query({
@@ -185,7 +193,7 @@ export function useMetaDecks(query?: MetaDeckQuery) {
 }
 
 const fetchMetaDeckCards = createServerFn({ method: "GET" })
-  .validator((input: MetaDateRange) => input)
+  .validator(optionalQuery<MetaDateRange>)
   .middleware([withCookies])
   .handler(({ context, data: range }): Promise<MetaDeckCardIndexResponse> =>
     serverCache.query({
