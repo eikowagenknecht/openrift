@@ -14,6 +14,7 @@ import { CardDetailLinks } from "./card-detail-links";
 import { CardDetailStats } from "./card-detail-stats";
 import { CardDetailText } from "./card-detail-text";
 import { CardFooter } from "./card-footer";
+import { CardHoldingsSection } from "./card-holdings-section";
 import { PrintingNotesSection } from "./printing-notes-section";
 import { PrintingPicker } from "./printing-picker";
 
@@ -100,6 +101,7 @@ export function CardDetail({
   const hasNav = onPrevCard !== undefined || onNextCard !== undefined;
 
   const notes = <PrintingNotesSection printing={printing} />;
+  const holdings = <CardHoldingsSection printing={printing} printings={printings} />;
   const footer = <CardFooter printing={printing} />;
   const picker = hasPicker ? (
     <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
@@ -155,6 +157,7 @@ export function CardDetail({
             <CardDetailStats printing={printing} />
             {text}
             {notes}
+            {holdings}
             {footer}
             {picker}
             {actions}
@@ -268,6 +271,8 @@ export function CardDetail({
 
         {/* Distribution & printing notes (markers, channels, per-printing comment) */}
         {notes}
+
+        {holdings}
 
         {footer}
 

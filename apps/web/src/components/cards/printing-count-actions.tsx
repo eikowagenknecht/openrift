@@ -13,8 +13,9 @@ import { dispatchDecrement, dispatchIncrement } from "@/stores/card-row-actions-
  * (primary count global, total widened across the card's variants).
  *
  * Deliberately narrower than the grid tile's strip: this is a printing, not one
- * specific copy, so the copy-level chips (loan, trade, metadata) have no anchor
- * here and stay on the tile they describe.
+ * specific copy, so the copy-level chips (condition, notes, links) have no
+ * anchor here. Loans and live trades are printing-wide and live in
+ * `CardHoldingsSection` instead.
  *
  * The parenthesised total is the count widened along whichever axis the caller
  * opened up: every collection when `collectionId` narrows the primary count,

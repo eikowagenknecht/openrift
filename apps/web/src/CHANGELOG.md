@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-05
+
+### Highlights
+
+- feat(Cards): **Loans and trades on the card detail** — opening a card now says which copies you lent out and to whom, which you borrowed and from whom, and what a live trade has promised away or is bringing in.
+
 ## 2026-09-04
 
 ### Highlights
