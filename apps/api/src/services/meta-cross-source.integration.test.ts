@@ -129,7 +129,7 @@ describe.skipIf(!ctx)("cross-mirror player links", () => {
     it("lists the unread mirror's entries with the live rows they might be", async () => {
       const { metaEventId } = await seedTwoMirrors("mcs-review", [
         { playerKey: "a", playerName: "MCS Ashe", rank: 1 },
-        { playerKey: "z", playerName: "MCS Someone Else", rank: 9 },
+        { playerKey: "z", playerName: "Gwen Voltari", rank: 9 },
       ]);
 
       const review = await metaCrossSourceReview(repos, metaEventId);
@@ -139,7 +139,8 @@ describe.skipIf(!ctx)("cross-mirror player links", () => {
       const ashe = review.rows.find((row) => row.sourceIdentity === "ta");
       expect(ashe?.state).toBe("unreviewed");
       expect(ashe?.suggestions[0]?.isExact).toBe(true);
-      // Neither the name nor the finish is shared, so nothing is offered.
+      // The name shares no bigram with either live row and the finish is its
+      // own, so nothing is offered.
       expect(review.rows.find((row) => row.sourceIdentity === "tz")?.suggestions).toEqual([]);
     });
 

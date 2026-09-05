@@ -1,11 +1,14 @@
 import { ERROR_CODES, META_CATALOG_PROVIDERS } from "@openrift/shared";
-import type { MetaCrossSourceState } from "@openrift/shared/types";
+import type {
+  MetaCrossSourceReview,
+  MetaCrossSourceRow,
+  MetaCrossSourceState,
+} from "@openrift/shared/types";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { resolvedStandingName } from "../lib/meta-event-naming.js";
 import type { MetaEventSourceRow } from "../repositories/meta.js";
-import type { MetaPlayerMatchSuggestion } from "./meta-match-suggestions.js";
 import { rankPlayerMatches } from "./meta-match-suggestions.js";
 import { promoteMetaEvent, sourceStandings } from "./meta-promote.js";
 
@@ -18,32 +21,6 @@ import { promoteMetaEvent, sourceStandings } from "./meta-promote.js";
  */
 
 const MIRROR_PROVIDERS: ReadonlySet<string> = new Set(META_CATALOG_PROVIDERS);
-
-/** One standings row of a cited-but-unread mirror, with what it might be. */
-export interface MetaCrossSourceRow {
-  provider: string;
-  sourceIdentity: string;
-  playerName: string;
-  rank: number;
-  legendName: string | null;
-  hasDeck: boolean;
-  state: MetaCrossSourceState;
-  metaEventPlayerId: string | null;
-  suggestions: MetaPlayerMatchSuggestion[];
-}
-
-/** One mirror citation on the event. How far its review has got is counted off {@link MetaCrossSourceReview.rows}. */
-export interface MetaCrossSourceCitation {
-  id: string;
-  provider: string;
-  externalId: string;
-  contributes: boolean;
-}
-
-export interface MetaCrossSourceReview {
-  sources: MetaCrossSourceCitation[];
-  rows: MetaCrossSourceRow[];
-}
 
 /** The event's mirror citations, in the order promotion reads them. */
 function mirrorCitations(sources: readonly MetaEventSourceRow[]) {

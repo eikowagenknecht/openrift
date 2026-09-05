@@ -586,6 +586,14 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       return activityShopId;
     }
 
+    /** Cites the topdeck mirror and lets it contribute. */
+    async function readTopdeckMirror(metaEventId: string, tid: string): Promise<void> {
+      await cite(metaEventId, "topdeck", tid);
+      const sources = await repo.sourcesForEvent(metaEventId);
+      const topdeck = sources.find((row) => row.provider === "topdeck");
+      await repo.setEventSourceContributes(topdeck?.id ?? "", true);
+    }
+
     /** Cites both mirrors and lets the topdeck one contribute. */
     async function readBothMirrors(
       metaEventId: string,
@@ -593,10 +601,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       tid: string,
     ): Promise<void> {
       await cite(metaEventId, "playloltcg", String(activityShopId));
-      await cite(metaEventId, "topdeck", tid);
-      const sources = await repo.sourcesForEvent(metaEventId);
-      const topdeck = sources.find((row) => row.provider === "topdeck");
-      await repo.setEventSourceContributes(topdeck?.id ?? "", true);
+      await readTopdeckMirror(metaEventId, tid);
     }
 
     it("folds a linked entry onto the live row instead of archiving the player twice", async () => {
@@ -614,12 +619,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
           metaEventPlayerId: live.id,
         },
       ]);
-      await cite(metaEventId, "topdeck", tid);
-      const sources = await repo.sourcesForEvent(metaEventId);
-      await repo.setEventSourceContributes(
-        sources.find((row) => row.provider === "topdeck")?.id ?? "",
-        true,
-      );
+      await readTopdeckMirror(metaEventId, tid);
 
       await promoteMetaEvent(repos, metaEventId);
 
@@ -651,7 +651,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
           metaEventPlayerId: live.id,
         },
       ]);
-      await readBothMirrors(metaEventId, activityShopId, tid);
+      await readTopdeckMirror(metaEventId, tid);
 
       await promoteMetaEvent(repos, metaEventId);
 
