@@ -7,6 +7,7 @@ import type {
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database, MetaEventsTable, MetaSubmissionsTable } from "../db/index.js";
+import { keyBatches } from "../lib/bind-batches.js";
 import { listOwnedByUser } from "./query-helpers.js";
 
 export type MetaSubmissionRow = Selectable<MetaSubmissionsTable>;
@@ -93,16 +94,18 @@ export function metaSubmissionsRepo(db: Kysely<Database>) {
      * from the map.
      */
     async shareTokensForDecks(deckIds: readonly string[]): Promise<Map<string, string>> {
-      if (deckIds.length === 0) {
-        return new Map();
+      const rows: { id: string; shareToken: string }[] = [];
+      for (const batch of keyBatches(deckIds)) {
+        rows.push(
+          ...(await db
+            .selectFrom("decks")
+            .select(["id", "shareToken"])
+            .where("id", "in", batch)
+            .where("shareToken", "is not", null)
+            .$narrowType<{ shareToken: string }>()
+            .execute()),
+        );
       }
-      const rows = await db
-        .selectFrom("decks")
-        .select(["id", "shareToken"])
-        .where("id", "in", [...deckIds])
-        .where("shareToken", "is not", null)
-        .$narrowType<{ shareToken: string }>()
-        .execute();
       return new Map(rows.map((row) => [row.id, row.shareToken]));
     },
 

@@ -8,6 +8,7 @@ import type {
   MetaEventPlayerOverlayCardsTable,
   MetaEventPlayerOverlaysTable,
 } from "../db/index.js";
+import { keyBatches, rowBatches } from "../lib/bind-batches.js";
 
 /**
  * The overlay layer: sparse patches applied on top of promotion (ADR-014
@@ -124,15 +125,18 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
       provider: string,
       externalIds: readonly string[],
     ): Promise<MetaEventOverlayRow[]> {
-      if (externalIds.length === 0) {
-        return [];
+      const rows: MetaEventOverlayRow[] = [];
+      for (const batch of keyBatches(externalIds)) {
+        rows.push(
+          ...(await db
+            .selectFrom("metaEventOverlays")
+            .selectAll()
+            .where("provider", "=", provider)
+            .where("externalId", "in", batch)
+            .execute()),
+        );
       }
-      return await db
-        .selectFrom("metaEventOverlays")
-        .selectAll()
-        .where("provider", "=", provider)
-        .where("externalId", "in", [...externalIds])
-        .execute();
+      return rows;
     },
 
     async insertEventOverlay(values: Insertable<MetaEventOverlaysTable>): Promise<string> {
@@ -235,15 +239,17 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
     async cardsByOverlayIds(
       overlayIds: readonly string[],
     ): Promise<Map<string, MetaOverlayCardRow[]>> {
-      if (overlayIds.length === 0) {
-        return new Map();
+      const rows: MetaOverlayCardRow[] = [];
+      for (const batch of keyBatches(overlayIds)) {
+        rows.push(
+          ...(await db
+            .selectFrom("metaEventPlayerOverlayCards")
+            .selectAll()
+            .where("overlayId", "in", batch)
+            .orderBy("lineNumber", "asc")
+            .execute()),
+        );
       }
-      const rows = await db
-        .selectFrom("metaEventPlayerOverlayCards")
-        .selectAll()
-        .where("overlayId", "in", [...overlayIds])
-        .orderBy("lineNumber", "asc")
-        .execute();
       return Map.groupBy(rows, (row) => row.overlayId);
     },
 
@@ -256,15 +262,18 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
       provider: string,
       sourcePlayerKeys: readonly string[],
     ): Promise<MetaPlayerOverlayRow[]> {
-      if (sourcePlayerKeys.length === 0) {
-        return [];
+      const rows: MetaPlayerOverlayRow[] = [];
+      for (const batch of keyBatches(sourcePlayerKeys)) {
+        rows.push(
+          ...(await db
+            .selectFrom("metaEventPlayerOverlays")
+            .selectAll()
+            .where("provider", "=", provider)
+            .where("sourcePlayerKey", "in", batch)
+            .execute()),
+        );
       }
-      return await db
-        .selectFrom("metaEventPlayerOverlays")
-        .selectAll()
-        .where("provider", "=", provider)
-        .where("sourcePlayerKey", "in", [...sourcePlayerKeys])
-        .execute();
+      return rows;
     },
 
     async insertPlayerOverlay(
@@ -277,11 +286,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
           .values(values)
           .returning("id")
           .executeTakeFirstOrThrow();
-        if (cards.length > 0) {
-          await trx
-            .insertInto("metaEventPlayerOverlayCards")
-            .values(cards.map((card) => ({ ...card, overlayId: row.id })))
-            .execute();
+        for (const batch of rowBatches(cards.map((card) => ({ ...card, overlayId: row.id })))) {
+          await trx.insertInto("metaEventPlayerOverlayCards").values(batch).execute();
         }
         return row.id;
       };
@@ -316,11 +322,8 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
           return;
         }
         await trx.deleteFrom("metaEventPlayerOverlayCards").where("overlayId", "=", id).execute();
-        if (cards.length > 0) {
-          await trx
-            .insertInto("metaEventPlayerOverlayCards")
-            .values(cards.map((card) => ({ ...card, overlayId: id })))
-            .execute();
+        for (const batch of rowBatches(cards.map((card) => ({ ...card, overlayId: id })))) {
+          await trx.insertInto("metaEventPlayerOverlayCards").values(batch).execute();
         }
       });
     },
@@ -457,15 +460,16 @@ export function metaOverlaysRepo(db: Kysely<Database>) {
       status: MetaOverlayStatus,
       now: Date,
     ): Promise<number> {
-      if (ids.length === 0) {
-        return 0;
+      let updated = 0;
+      for (const batch of keyBatches(ids)) {
+        const result = await db
+          .updateTable("metaEventPlayerOverlays")
+          .set({ status, acceptedAt: status === "accepted" ? now : null })
+          .where("id", "in", batch)
+          .executeTakeFirst();
+        updated += Number(result.numUpdatedRows);
       }
-      const result = await db
-        .updateTable("metaEventPlayerOverlays")
-        .set({ status, acceptedAt: status === "accepted" ? now : null })
-        .where("id", "in", [...ids])
-        .executeTakeFirst();
-      return Number(result.numUpdatedRows);
+      return updated;
     },
 
     async setEventOverlayStatus(
