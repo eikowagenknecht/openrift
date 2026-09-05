@@ -1,3 +1,5 @@
+import { taggedProcedure } from "./orpc-procedure-tag";
+
 /**
  * `beforeSend` filter for the SSR Sentry client (see instrument.server.mjs):
  * drops expected 4xx outcomes from a server function. A server function calls
@@ -31,4 +33,27 @@ export function dropExpectedClientErrors<EventT>(
     return null;
   }
   return event;
+}
+
+/**
+ * Splits the API's faults by the procedure that produced them. Without this
+ * every 5xx the API answers reaches Sentry as `Error: Internal server error`
+ * with oRPC's own two-frame stack, so hundreds of unrelated endpoints share a
+ * single issue that can never be triaged or resolved.
+ * @returns The event, fingerprinted when the failing procedure is known.
+ */
+export function fingerprintApiFaults<EventT extends { fingerprint?: string[] }>(
+  event: EventT,
+  hint?: { originalException?: unknown },
+): EventT {
+  const exception = hint?.originalException;
+  const procedure = taggedProcedure(exception);
+  if (procedure === undefined || event.fingerprint !== undefined) {
+    return event;
+  }
+  const { code } = exception as { code?: unknown };
+  return {
+    ...event,
+    fingerprint: ["api-fault", procedure, typeof code === "string" ? code : "UNKNOWN"],
+  };
 }

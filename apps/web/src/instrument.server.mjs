@@ -1,3 +1,4 @@
+/* oxlint-disable typescript/no-unsafe-member-access -- .mjs outside the TS project, so `process` resolves untyped */
 // Server-side Sentry bootstrap. Imported at the top of src/server.ts so it
 // runs before any request handling. We use the "without --import flag" pattern
 // because the web container runs under Bun (`bun run .output/server/index.mjs`)
@@ -18,7 +19,7 @@ import { parseAppEnv } from "@openrift/shared/app-env";
 import { trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/tanstackstart-react";
 
-import { dropExpectedClientErrors } from "./lib/sentry-server-filter";
+import { dropExpectedClientErrors, fingerprintApiFaults } from "./lib/sentry-server-filter";
 
 // Skip in local dev — keeps stray dev events out of the shared openrift-ssr
 // project. Preview deployments still report (APP_ENV === "preview").
@@ -49,7 +50,13 @@ if (dsn && appEnv !== "development") {
       /^AbortError: The connection was closed/u,
       /^Server function (?:info not found|module not resolved)/u,
     ],
-    beforeSend: dropExpectedClientErrors,
+    beforeSend: (event, hint) => {
+      const kept = dropExpectedClientErrors(event, hint);
+      if (kept === null) {
+        return null;
+      }
+      return fingerprintApiFaults(kept, hint);
+    },
     initialScope: { tags: { service: "web-ssr" } },
   });
 

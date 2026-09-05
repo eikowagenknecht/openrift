@@ -9,13 +9,25 @@ interface LinkOptions {
 }
 const linkOptions: LinkOptions[] = [];
 
+interface CapturedLink {
+  call: (path: readonly string[], input: unknown, options: unknown) => Promise<unknown>;
+}
+const mockLinkCall = vi.fn<() => Promise<unknown>>(() => Promise.resolve("ok"));
+const builtLinks: CapturedLink[] = [];
+
 vi.mock("@orpc/openapi-client/fetch", () => ({
   // `new OpenAPILink(contract, options)` — a named function so it is constructable.
-  OpenAPILink: function OpenAPILink(_contract: unknown, options: LinkOptions) {
+  OpenAPILink: function OpenAPILink(this: CapturedLink, _contract: unknown, options: LinkOptions) {
     linkOptions.push(options);
+    this.call = () => mockLinkCall();
   },
 }));
-vi.mock("@orpc/client", () => ({ createORPCClient: vi.fn(() => ({})) }));
+vi.mock("@orpc/client", () => ({
+  createORPCClient: vi.fn((link: CapturedLink) => {
+    builtLinks.push(link);
+    return {};
+  }),
+}));
 vi.mock("./api-url", () => ({ getApiUrl: () => "https://api.test" }));
 
 const mockActiveClientIp = vi.fn<() => string | undefined>(() => undefined);
@@ -32,12 +44,16 @@ vi.mock("@opentelemetry/api", () => ({
 }));
 
 const { apiOrpcClient, browserApiOrpcClient } = await import("./orpc-client");
+const { taggedProcedure } = await import("@/lib/orpc-procedure-tag");
 
 const dummyContract = {} as never;
 const headersOf = (index = 0): Record<string, string> => linkOptions[index].headers?.() ?? {};
 
 beforeEach(() => {
   linkOptions.length = 0;
+  builtLinks.length = 0;
+  mockLinkCall.mockReset();
+  mockLinkCall.mockResolvedValue("ok");
   mockActiveClientIp.mockReset();
   mockActiveClientIp.mockReturnValue(undefined);
   mockInject.mockClear();
@@ -101,5 +117,39 @@ describe("browserApiOrpcClient", () => {
         writable: true,
       });
     }
+  });
+});
+
+describe("procedure tagging", () => {
+  it("records the failing procedure on the error a call rejects with", async () => {
+    mockLinkCall.mockRejectedValue(new Error("Internal server error"));
+    apiOrpcClient(dummyContract);
+
+    await expect(builtLinks[0].call(["meta", "events"], {}, {})).rejects.toSatisfy(
+      (error: unknown) => taggedProcedure(error) === "meta.events",
+    );
+  });
+
+  it("tags a browser client's calls too", async () => {
+    mockLinkCall.mockRejectedValue(new Error("Internal server error"));
+    browserApiOrpcClient(dummyContract);
+
+    await expect(builtLinks[0].call(["cards"], {}, {})).rejects.toSatisfy(
+      (error: unknown) => taggedProcedure(error) === "cards",
+    );
+  });
+
+  it("passes a resolved call straight through", async () => {
+    apiOrpcClient(dummyContract);
+
+    await expect(builtLinks[0].call(["cards"], {}, {})).resolves.toBe("ok");
+  });
+
+  it("leaves a thrown non-object alone", async () => {
+    // oxlint-disable-next-line typescript/only-throw-error -- a bare throw is what this guards
+    mockLinkCall.mockRejectedValue("boom");
+    apiOrpcClient(dummyContract);
+
+    await expect(builtLinks[0].call(["cards"], {}, {})).rejects.toBe("boom");
   });
 });

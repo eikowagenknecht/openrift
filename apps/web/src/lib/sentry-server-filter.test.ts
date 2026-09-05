@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { dropExpectedClientErrors } from "./sentry-server-filter";
+import { tagProcedure } from "./orpc-procedure-tag";
+import { dropExpectedClientErrors, fingerprintApiFaults } from "./sentry-server-filter";
 
 describe("dropExpectedClientErrors", () => {
   const event = { event_id: "e1" };
@@ -65,5 +66,64 @@ describe("dropExpectedClientErrors", () => {
 
   test("keeps events with no hint at all", () => {
     expect(dropExpectedClientErrors(event)).toBe(event);
+  });
+});
+
+describe("fingerprintApiFaults", () => {
+  const event: { event_id: string; fingerprint?: string[] } = { event_id: "e1" };
+
+  function faultFrom(path: string[], code: string) {
+    const error = Object.assign(new Error("Internal server error"), { code, status: 500 });
+    tagProcedure(error, path);
+    return error;
+  }
+
+  test("splits two endpoints answering the same internal error", () => {
+    const events = ["events", "decks"].map(
+      (procedure) =>
+        fingerprintApiFaults(event, {
+          originalException: faultFrom([procedure], "INTERNAL_SERVER_ERROR"),
+        }).fingerprint,
+    );
+
+    expect(events[0]).toEqual(["api-fault", "events", "INTERNAL_SERVER_ERROR"]);
+    expect(events[1]).toEqual(["api-fault", "decks", "INTERNAL_SERVER_ERROR"]);
+  });
+
+  test("splits two codes from the same endpoint", () => {
+    const timeout = fingerprintApiFaults(event, {
+      originalException: faultFrom(["meta", "events"], "TIMEOUT"),
+    });
+
+    expect(timeout.fingerprint).toEqual(["api-fault", "meta.events", "TIMEOUT"]);
+  });
+
+  test("falls back when the error carries no code", () => {
+    const error = new Error("Internal server error");
+    tagProcedure(error, ["events"]);
+
+    expect(fingerprintApiFaults(event, { originalException: error }).fingerprint).toEqual([
+      "api-fault",
+      "events",
+      "UNKNOWN",
+    ]);
+  });
+
+  test("leaves an untagged error to Sentry's own grouping", () => {
+    expect(fingerprintApiFaults(event, { originalException: new Error("boom") })).toBe(event);
+  });
+
+  test("leaves an event that already carries a fingerprint alone", () => {
+    const fingerprinted = { event_id: "e1", fingerprint: ["bare-throw", "/cards"] };
+
+    expect(
+      fingerprintApiFaults(fingerprinted, {
+        originalException: faultFrom(["events"], "INTERNAL_SERVER_ERROR"),
+      }),
+    ).toBe(fingerprinted);
+  });
+
+  test("leaves events with no hint at all", () => {
+    expect(fingerprintApiFaults(event)).toBe(event);
   });
 });

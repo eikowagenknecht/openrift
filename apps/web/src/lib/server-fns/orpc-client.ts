@@ -1,4 +1,5 @@
 import { context, propagation } from "@opentelemetry/api";
+import type { ClientContext, ClientLink } from "@orpc/client";
 import { createORPCClient } from "@orpc/client";
 import type {
   AnyContractRouter,
@@ -7,8 +8,31 @@ import type {
 } from "@orpc/contract";
 import { OpenAPILink } from "@orpc/openapi-client/fetch";
 
+import { tagProcedure } from "@/lib/orpc-procedure-tag";
+
 import { getApiUrl } from "./api-url";
 import { activeClientIp } from "./client-ip-context";
+
+/**
+ * Wraps a link so a rejected call carries the procedure it was made against.
+ * See {@link tagProcedure} for why the error alone is not enough to tell one
+ * endpoint's fault from another's.
+ * @returns The wrapped link.
+ */
+function withProcedureTag<TContext extends ClientContext>(
+  link: ClientLink<TContext>,
+): ClientLink<TContext> {
+  return {
+    call: async (path, input, options) => {
+      try {
+        return await link.call(path, input, options);
+      } catch (error) {
+        tagProcedure(error, path);
+        throw error;
+      }
+    },
+  };
+}
 
 /**
  * Builds the per-request header set for an oRPC OpenAPI link, mirroring the SSR
@@ -50,7 +74,7 @@ export function apiOrpcClient<TContract extends AnyContractRouter>(
     url: getApiUrl(),
     headers: () => requestHeaders(cookie),
   });
-  return createORPCClient(link);
+  return createORPCClient(withProcedureTag(link));
 }
 
 /**
@@ -70,7 +94,7 @@ export function browserApiOrpcClient<TContract extends AnyContractRouter>(
   contract: TContract,
 ): ContractRouterClient<TContract> {
   const link = new OpenAPILink(contract, { url: () => globalThis.location.origin });
-  return createORPCClient(link);
+  return createORPCClient(withProcedureTag(link));
 }
 
 /**
