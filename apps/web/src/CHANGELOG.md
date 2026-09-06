@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09-06
+
+### Other
+
+- fix(Collection): **Readable quick-add selected rows** — some color schemes painted the selected row's text the same shade as its own background in the collection and deck quick-add search.
+
 ## 2026-09-05
 
 ### Highlights

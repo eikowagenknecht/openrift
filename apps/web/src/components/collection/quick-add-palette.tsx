@@ -513,7 +513,7 @@ function PaletteInner({
         {results.map((card, index) => {
           const isSelected = index === selectedIndex && !expandedCardId;
           const isExpanded = expandedCardId === card.cardId;
-          const shortCodes = card.printings.map((p) => p.shortCode);
+          const shortCodes = [...new Set(card.printings.map((p) => p.shortCode))];
           return (
             <div key={card.cardId}>
               {/* Card row — always expands to show printings */}
@@ -537,12 +537,12 @@ function PaletteInner({
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{card.cardName}</div>
-                  <div className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-xs">
+                  <div className="text-muted-foreground group-data-[selected=true]:text-foreground/80 text-xs">
                     {shortCodes.join(" · ")}
                   </div>
                 </div>
                 {card.ownedCount > 0 && (
-                  <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 shrink-0 text-xs tabular-nums">
+                  <span className="text-muted-foreground group-data-[selected=true]:text-foreground/80 shrink-0 text-xs tabular-nums">
                     ×{card.ownedCount}
                   </span>
                 )}
@@ -587,21 +587,14 @@ function PaletteInner({
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
                         <div className="flex w-full items-center gap-1 text-xs">
-                          {/* The shared row mutes its short code, which is
-                              unreadable on the selected row's accent fill, so
-                              the selected state recolors it from out here
-                              rather than teaching the shared row about
-                              selection. */}
-                          <div className="group-data-[selected=true]:[&_.text-muted-foreground]:text-accent-foreground/80 flex min-w-0 flex-1 items-center px-2 py-1.5">
+                          <div className="group-data-[selected=true]:[&_.text-muted-foreground]:text-foreground/80 flex min-w-0 flex-1 items-center px-2 py-1.5">
                             <PrintingRowContent printing={printing} siblings={card.printings} />
                           </div>
                           {price !== undefined && (
                             <span
                               className={cn(
                                 "text-2xs shrink-0 tabular-nums",
-                                isPrintingSelected
-                                  ? "text-accent-foreground/80"
-                                  : priceColorClass(price),
+                                isPrintingSelected ? "text-foreground/80" : priceColorClass(price),
                               )}
                             >
                               {compactFmt(price)}
@@ -637,13 +630,13 @@ function PaletteInner({
                         {/* Per-source breakdown for the selected row in move mode */}
                         {sources !== null &&
                           (sources.length === 0 ? (
-                            <div className="text-2xs text-accent-foreground/80 px-2 pb-1.5">
+                            <div className="text-2xs text-foreground/80 px-2 pb-1.5">
                               No copies available to move
                             </div>
                           ) : (
                             moveFrom === MOVE_FROM_ANYWHERE && (
                               <div className="text-2xs flex flex-wrap items-center gap-1 px-2 pb-1.5">
-                                <span className="text-accent-foreground/80">from</span>
+                                <span className="text-foreground/80">from</span>
                                 {sources.map((source, chipIndex) => {
                                   const isActiveSource =
                                     chipIndex === Math.min(move.sourceIndex, sources.length - 1);
@@ -654,8 +647,8 @@ function PaletteInner({
                                       className={cn(
                                         "rounded-full border px-2 py-0.5 tabular-nums",
                                         isActiveSource
-                                          ? "bg-accent-foreground text-accent border-transparent"
-                                          : "border-accent-foreground/30 hover:bg-accent-foreground/10",
+                                          ? "bg-foreground text-background border-transparent"
+                                          : "border-foreground/30 hover:bg-foreground/10",
                                       )}
                                       onClick={() => {
                                         move.setSourceIndex(chipIndex);

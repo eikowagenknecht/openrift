@@ -487,7 +487,7 @@ function QuickAddInner({
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{card.cardName}</div>
-                  <div className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 text-xs">
+                  <div className="text-muted-foreground group-data-[selected=true]:text-foreground/80 text-xs">
                     {rowDefault
                       ? rowDefault.kind === "legend"
                         ? rowDefault.label
@@ -498,7 +498,7 @@ function QuickAddInner({
                   </div>
                 </div>
                 {targets.length > 1 && inDeck > 0 && (
-                  <span className="text-muted-foreground group-data-[selected=true]:text-accent-foreground/80 shrink-0 text-xs tabular-nums">
+                  <span className="text-muted-foreground group-data-[selected=true]:text-foreground/80 shrink-0 text-xs tabular-nums">
                     ×{inDeck} in deck
                   </span>
                 )}
