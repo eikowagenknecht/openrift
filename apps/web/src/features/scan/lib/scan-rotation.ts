@@ -4,7 +4,7 @@
  * rotation.
  */
 
-export const ROTATION_STREAK_TO_ADOPT = 2;
+const ROTATION_STREAK_TO_ADOPT = 2;
 
 export interface RotationTracker {
   turns: () => number;

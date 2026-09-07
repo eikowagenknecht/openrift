@@ -11,8 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { CatchUpVerdict } from "../../apps/web/src/lib/scan-catchup.js";
-import { catchUpVerdict } from "../../apps/web/src/lib/scan-catchup.js";
+import type { CatchUpVerdict } from "../../apps/web/src/features/scan/lib/scan-catchup.js";
+import { catchUpVerdict } from "../../apps/web/src/features/scan/lib/scan-catchup.js";
 import type { OpenCvLike } from "../../packages/shared/src/scan/detect-cv.js";
 import type { EmbedBank, EmbedKind } from "../../packages/shared/src/scan/embed.js";
 import { quadIou } from "../../packages/shared/src/scan/geometry.js";
@@ -273,7 +273,7 @@ async function runClip(
   let unlockedSincePlacement = 0;
   let missedPlacements = 0;
   let nextProcessableFrame = 0;
-  // Second look (apps/web/src/lib/scan-catchup.ts): replays the settled
+  // Second look (apps/web/src/features/scan/lib/scan-catchup.ts): replays the settled
   // frame through a never-locking session once the placement is written off.
   const catchUp = !process.argv.includes("--no-catch-up");
   let pendingFrame: RgbaImage | null = null;

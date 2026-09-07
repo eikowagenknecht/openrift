@@ -18,7 +18,7 @@
     "apps/web": {
       "entry": [
         "src/routes/**/*.tsx",
-        "src/components/cards/card-detail/index.tsx",
+        "src/features/cards/components/card-detail/index.tsx",
         "src/client.tsx",
         "src/router.ts",
         "src/server.ts",

@@ -7,7 +7,7 @@ export const PAUSED_POLL_MS = 250;
 export const IDLE_PACE_MIN_FRAME_MS = 400;
 export const SETTLE_TRUST_MS = 500;
 export const PUBLISH_THROTTLE_MS = 150;
-export const FPS_WINDOW_MS = 1000;
+const FPS_WINDOW_MS = 1000;
 
 export interface IdlePace {
   streak: number;
