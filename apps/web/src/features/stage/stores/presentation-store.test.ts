@@ -1,0 +1,196 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { MAX_CARD_SCALE, MIN_CARD_SCALE } from "@/features/cards/lib/card-scale";
+import { createStoreResetter } from "@/test/store-helpers";
+
+import { usePresentationStore } from "./presentation-store";
+
+const reset = createStoreResetter(usePresentationStore);
+
+beforeEach(reset);
+afterEach(reset);
+
+describe("presentation store", () => {
+  it("starts with every layer off — the card alone is the default show", () => {
+    const state = usePresentationStore.getState();
+    expect(state.showText).toBe(false);
+    expect(state.showStrip).toBe(false);
+    expect(state.showHelp).toBe(false);
+  });
+
+  it("toggles the text panel independently of the strip", () => {
+    usePresentationStore.getState().toggleText();
+
+    expect(usePresentationStore.getState().showText).toBe(true);
+    expect(usePresentationStore.getState().showStrip).toBe(false);
+  });
+
+  it("toggles the strip independently of the text panel", () => {
+    usePresentationStore.getState().toggleStrip();
+
+    expect(usePresentationStore.getState().showStrip).toBe(true);
+    expect(usePresentationStore.getState().showText).toBe(false);
+  });
+
+  it("toggles back off", () => {
+    usePresentationStore.getState().toggleText();
+    usePresentationStore.getState().toggleText();
+
+    expect(usePresentationStore.getState().showText).toBe(false);
+  });
+
+  it("starts the text panel with every line on", () => {
+    expect(usePresentationStore.getState().plateFields).toEqual({
+      name: true,
+      code: true,
+      stats: true,
+      rulesText: true,
+      flavorText: true,
+    });
+  });
+
+  it("switches one line of the text panel without touching the others", () => {
+    usePresentationStore.getState().togglePlateField("flavorText");
+
+    const { plateFields } = usePresentationStore.getState();
+    expect(plateFields.flavorText).toBe(false);
+    expect(plateFields.rulesText).toBe(true);
+    expect(plateFields.name).toBe(true);
+  });
+
+  it("switches a line back on", () => {
+    usePresentationStore.getState().togglePlateField("stats");
+    usePresentationStore.getState().togglePlateField("stats");
+
+    expect(usePresentationStore.getState().plateFields.stats).toBe(true);
+  });
+
+  it("leaves the panel itself alone when a line is switched off", () => {
+    usePresentationStore.getState().toggleText();
+
+    usePresentationStore.getState().togglePlateField("name");
+
+    expect(usePresentationStore.getState().showText).toBe(true);
+  });
+
+  it("closes help without touching the other layers", () => {
+    usePresentationStore.getState().toggleText();
+    usePresentationStore.getState().toggleHelp();
+
+    usePresentationStore.getState().closeHelp();
+
+    expect(usePresentationStore.getState().showHelp).toBe(false);
+    expect(usePresentationStore.getState().showText).toBe(true);
+  });
+
+  it("closing help when it is already closed is a no-op", () => {
+    usePresentationStore.getState().closeHelp();
+
+    expect(usePresentationStore.getState().showHelp).toBe(false);
+  });
+
+  it("starts a ranking on the whole board, walked from the top tier down", () => {
+    const state = usePresentationStore.getState();
+    expect(state.boardMode).toBe(true);
+    expect(state.showHero).toBe(true);
+    expect(state.showRank).toBe(true);
+    expect(state.reveal).toBe(false);
+    expect(state.direction).toBe("best-first");
+  });
+
+  it("hides the tier badge without taking the card with it", () => {
+    usePresentationStore.getState().toggleRank();
+
+    expect(usePresentationStore.getState().showRank).toBe(false);
+    expect(usePresentationStore.getState().showHero).toBe(true);
+
+    usePresentationStore.getState().toggleRank();
+
+    expect(usePresentationStore.getState().showRank).toBe(true);
+  });
+
+  it("hides the card beside the board without touching the rules text", () => {
+    usePresentationStore.getState().toggleText();
+
+    usePresentationStore.getState().toggleHero();
+
+    expect(usePresentationStore.getState().showHero).toBe(false);
+    expect(usePresentationStore.getState().showText).toBe(true);
+  });
+
+  it("hides the rules text without taking the card with it", () => {
+    usePresentationStore.getState().toggleText();
+    usePresentationStore.getState().toggleText();
+
+    expect(usePresentationStore.getState().showText).toBe(false);
+    expect(usePresentationStore.getState().showHero).toBe(true);
+  });
+
+  it("drops the board layout for one card at a time, without arming the reveal", () => {
+    usePresentationStore.getState().toggleBoard();
+
+    expect(usePresentationStore.getState().boardMode).toBe(false);
+    expect(usePresentationStore.getState().reveal).toBe(false);
+  });
+
+  it("turns the reveal on without touching the layout", () => {
+    usePresentationStore.getState().toggleReveal();
+
+    expect(usePresentationStore.getState().reveal).toBe(true);
+    expect(usePresentationStore.getState().boardMode).toBe(true);
+  });
+
+  it("flips the run between the two ends of the ladder", () => {
+    usePresentationStore.getState().toggleDirection();
+
+    expect(usePresentationStore.getState().direction).toBe("worst-first");
+
+    usePresentationStore.getState().toggleDirection();
+
+    expect(usePresentationStore.getState().direction).toBe("best-first");
+  });
+
+  it("starts with the card filling the stage", () => {
+    expect(usePresentationStore.getState().cardScale).toBe(MAX_CARD_SCALE);
+  });
+
+  it("sets a card scale inside the supported range", () => {
+    usePresentationStore.getState().setCardScale(0.6);
+
+    expect(usePresentationStore.getState().cardScale).toBe(0.6);
+  });
+
+  it("clamps a scale outside the range instead of shrinking the card to nothing", () => {
+    usePresentationStore.getState().setCardScale(0);
+
+    expect(usePresentationStore.getState().cardScale).toBe(MIN_CARD_SCALE);
+
+    usePresentationStore.getState().setCardScale(4);
+
+    expect(usePresentationStore.getState().cardScale).toBe(MAX_CARD_SCALE);
+  });
+
+  it("starts on black, so nothing is keyed out until it is asked for", () => {
+    expect(usePresentationStore.getState().ground).toBe("black");
+  });
+
+  it("switches the ground to a chroma colour and back", () => {
+    usePresentationStore.getState().setGround("green");
+
+    expect(usePresentationStore.getState().ground).toBe("green");
+
+    usePresentationStore.getState().setGround("black");
+
+    expect(usePresentationStore.getState().ground).toBe("black");
+  });
+
+  it("leaves the other layers alone when the ground changes", () => {
+    usePresentationStore.getState().toggleText();
+    usePresentationStore.getState().setGround("magenta");
+
+    const state = usePresentationStore.getState();
+    expect(state.ground).toBe("magenta");
+    expect(state.showText).toBe(true);
+    expect(state.cardScale).toBe(MAX_CARD_SCALE);
+  });
+});

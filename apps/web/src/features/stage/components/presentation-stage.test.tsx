@@ -1,0 +1,358 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { PresentationItem } from "@/features/stage/lib/presentation-queue";
+import { usePresentationStore } from "@/features/stage/stores/presentation-store";
+import { stubPrinting } from "@/test/factories";
+import { createStoreResetter } from "@/test/store-helpers";
+
+import { PresentationStage } from "./presentation-stage";
+
+const { mockPushBoard, mockSetReveal, mockClear, mockSetHidden, channelHidden } = vi.hoisted(
+  () => ({
+    mockPushBoard: vi.fn(() => Promise.resolve()),
+    mockSetReveal: vi.fn(() => Promise.resolve()),
+    mockClear: vi.fn(),
+    mockSetHidden: vi.fn(),
+    // Undefined stands for a channel that has not loaded yet.
+    channelHidden: vi.fn<() => boolean | undefined>(() => false),
+  }),
+);
+
+vi.mock("@/features/stage/hooks/use-overlay", () => ({
+  usePushOverlayCard: () => ({ mutate: vi.fn() }),
+  usePushOverlayBoard: () => ({ mutateAsync: mockPushBoard }),
+  useSetOverlayBoardReveal: () => ({ mutateAsync: mockSetReveal }),
+  useClearOverlay: () => ({ mutate: mockClear }),
+  useSetOverlayHidden: () => ({ mutate: mockSetHidden }),
+  useOverlayChannel: () => {
+    const hidden = channelHidden();
+    return { data: hidden === undefined ? undefined : { payload: { hidden } } };
+  },
+}));
+
+vi.mock("@/features/stage/hooks/use-stage-presets", () => ({
+  useStagePresets: () => ({ data: [] }),
+  useCreateStagePreset: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+const userId = vi.fn<() => string | null>(() => null);
+vi.mock("@/lib/auth-session", () => ({
+  useUserId: () => userId(),
+}));
+
+vi.mock("@/features/stage/components/presentation-filmstrip", () => ({
+  PresentationFilmstrip: () => <div data-testid="filmstrip" />,
+}));
+
+const resetPresentation = createStoreResetter(usePresentationStore);
+
+const items: PresentationItem[] = [
+  { id: "a", printing: stubPrinting(), contextLabel: "S" },
+  { id: "b", printing: stubPrinting(), contextLabel: "A" },
+];
+
+const obsBoard = {
+  title: "Best legends",
+  tiers: [{ label: "S", cards: [{ cardId: "card-a", printingId: null }] }],
+  direction: "best-first" as const,
+  revealCount: 1,
+};
+
+interface StageOptions {
+  items?: PresentationItem[];
+  editing?: boolean;
+  withEdit?: boolean;
+  withObsBoard?: boolean;
+  index?: number;
+}
+
+function renderStage({
+  items: queue = items,
+  editing = false,
+  withEdit = true,
+  withObsBoard = true,
+  index = 0,
+}: StageOptions = {}) {
+  const onIndexChange = vi.fn();
+  const onToggle = vi.fn();
+  const onExit = vi.fn();
+  render(
+    <PresentationStage
+      items={queue}
+      index={index}
+      onIndexChange={onIndexChange}
+      onExit={onExit}
+      title="Best legends"
+      boardControls
+      obsBoard={withObsBoard ? obsBoard : undefined}
+      edit={withEdit ? { editing, onToggle, status: "Saved" } : undefined}
+    >
+      <div data-testid="main">{editing ? "editor" : "show"}</div>
+    </PresentationStage>,
+  );
+  return { onIndexChange, onToggle, onExit };
+}
+
+function press(key: string) {
+  fireEvent.keyDown(document, { key });
+}
+
+beforeEach(() => {
+  userId.mockReturnValue(null);
+  mockSetHidden.mockReset();
+  channelHidden.mockReturnValue(false);
+});
+
+afterEach(() => {
+  resetPresentation();
+  vi.clearAllMocks();
+});
+
+describe("PresentationStage while presenting", () => {
+  it("marks the position in the queue", () => {
+    renderStage();
+    expect(screen.getByText(/S · 1 \/ 2/u)).toBeInTheDocument();
+  });
+
+  it("steps through the queue with the arrows", () => {
+    const { onIndexChange } = renderStage();
+    press("ArrowRight");
+    expect(onIndexChange).toHaveBeenCalledWith(1);
+  });
+
+  it("shows the filmstrip when it is switched on", () => {
+    usePresentationStore.setState({ showStrip: true });
+    renderStage();
+    expect(screen.getByTestId("filmstrip")).toBeInTheDocument();
+  });
+
+  it("switches into the editor on E", () => {
+    const { onToggle } = renderStage();
+    press("e");
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves E alone without disabling the rest of the stage on a source with nothing to edit", () => {
+    const { onToggle, onIndexChange } = renderStage({ withEdit: false });
+    press("e");
+    expect(onToggle).not.toHaveBeenCalled();
+    press("ArrowRight");
+    expect(onIndexChange).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("PresentationStage while editing", () => {
+  it("puts the save state in the corner instead of the queue position", () => {
+    renderStage({ editing: true });
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.queryByText(/1 \/ 2/u)).not.toBeInTheDocument();
+  });
+
+  it("renders whatever the source put in the middle", () => {
+    renderStage({ editing: true });
+    expect(screen.getByTestId("main")).toHaveTextContent("editor");
+  });
+
+  // dnd-kit's PointerSensor doesn't listen to the keyboard, so this covers a real gap:
+  // nothing else stops an arrow key from stepping a queue the creator can't see.
+  it("hands the walk's keys back rather than stepping a hidden queue", () => {
+    const { onIndexChange } = renderStage({ editing: true });
+    for (const key of ["ArrowRight", "ArrowLeft", " ", "Home", "End"]) {
+      press(key);
+    }
+    expect(onIndexChange).not.toHaveBeenCalled();
+  });
+
+  it("leaves the show's layer toggles alone", () => {
+    renderStage({ editing: true });
+    for (const key of ["t", "f", "b", "c", "k", "r", "d"]) {
+      press(key);
+    }
+    const state = usePresentationStore.getState();
+    expect(state).toMatchObject({
+      showText: false,
+      showStrip: false,
+      boardMode: true,
+      showHero: true,
+      showRank: true,
+      reveal: false,
+      direction: "best-first",
+    });
+  });
+
+  it("keeps the key list on ?", () => {
+    renderStage({ editing: true });
+    press("?");
+    expect(usePresentationStore.getState().showHelp).toBe(true);
+    expect(screen.getByText("Back to the show")).toBeInTheDocument();
+  });
+
+  it("does not list the keys it just stood down", () => {
+    renderStage({ editing: true });
+    press("?");
+    expect(screen.queryByText("Step through the queue")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fill the board as you go")).not.toBeInTheDocument();
+  });
+
+  it("switches back to the show on E", () => {
+    const { onToggle } = renderStage({ editing: true });
+    press("e");
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the filmstrip down even when it is switched on", () => {
+    usePresentationStore.setState({ showStrip: true });
+    renderStage({ editing: true });
+    expect(screen.queryByTestId("filmstrip")).not.toBeInTheDocument();
+  });
+
+  it("leaves the OBS push key to the show", () => {
+    userId.mockReturnValue("user-1");
+    renderStage({ editing: true });
+    press("?");
+    // The curtain is deliberately not checked here: it covers the overlay, not the walk.
+    expect(screen.queryByText(/Push this card/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show this board/u)).not.toBeInTheDocument();
+  });
+});
+
+describe("PresentationStage board on OBS", () => {
+  beforeEach(() => {
+    userId.mockReturnValue("user-1");
+  });
+
+  it("puts the board up as the stage has it", () => {
+    renderStage();
+
+    press("o");
+
+    expect(mockPushBoard).toHaveBeenCalledWith({
+      board: { ...obsBoard, revealCount: 1 },
+    });
+  });
+
+  it("takes it back down when the switch goes off again", () => {
+    renderStage();
+
+    press("o");
+    press("o");
+
+    expect(mockClear).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists the key while a board can be mirrored", () => {
+    renderStage();
+    press("?");
+    expect(screen.getByText("Show this board on the OBS overlay")).toBeInTheDocument();
+  });
+
+  it("leaves O alone on a source with no board to mirror", () => {
+    renderStage({ withObsBoard: false });
+
+    press("o");
+    press("?");
+
+    expect(mockPushBoard).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Show this board/u)).not.toBeInTheDocument();
+  });
+
+  it("leaves O alone while signed out, since there is no channel to push to", () => {
+    userId.mockReturnValue(null);
+    renderStage();
+
+    press("o");
+
+    expect(mockPushBoard).not.toHaveBeenCalled();
+  });
+
+  it("stands the mirror down while the board is being ranked", () => {
+    renderStage({ editing: true });
+
+    press("o");
+
+    expect(mockPushBoard).not.toHaveBeenCalled();
+  });
+});
+
+describe("PresentationStage curtain", () => {
+  beforeEach(() => {
+    userId.mockReturnValue("u-1");
+  });
+
+  it("drops the curtain on H", () => {
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: true });
+  });
+
+  it("raises it again from the state the channel reports", () => {
+    channelHidden.mockReturnValue(true);
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: false });
+  });
+
+  it("stays live while the board is being ranked, unlike the walk's keys", () => {
+    renderStage({ editing: true });
+
+    press("h");
+
+    expect(mockSetHidden).toHaveBeenCalledWith({ hidden: true });
+  });
+
+  it("leaves H alone while signed out, since there is no channel to reach", () => {
+    userId.mockReturnValue(null);
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).not.toHaveBeenCalled();
+  });
+
+  it("leaves H alone until the channel has loaded", () => {
+    channelHidden.mockReturnValue(undefined);
+    renderStage();
+
+    press("h");
+
+    expect(mockSetHidden).not.toHaveBeenCalled();
+  });
+
+  it("lists the key, in the show and in the editor alike", () => {
+    renderStage();
+    press("?");
+    expect(screen.getByText("Hide / show the OBS overlay")).toBeInTheDocument();
+  });
+
+  it("keeps the key listed while editing, unlike the push", () => {
+    renderStage({ editing: true });
+
+    press("?");
+
+    expect(screen.getByText("Hide / show the OBS overlay")).toBeInTheDocument();
+    expect(screen.queryByText(/Push this card/u)).not.toBeInTheDocument();
+  });
+});
+
+describe("PresentationStage with nothing queued", () => {
+  it("points a freshly created, unranked source at the way to fill it", () => {
+    renderStage({ items: [] });
+    expect(screen.getByText(/Press E to start ranking/u)).toBeInTheDocument();
+  });
+
+  it("says so plainly when there is nothing to edit either", () => {
+    renderStage({ items: [], withEdit: false });
+    expect(screen.getByText("Nothing to show here.")).toBeInTheDocument();
+  });
+
+  it("still opens the editor, which is the whole point of an empty board", () => {
+    renderStage({ items: [], editing: true });
+    expect(screen.getByTestId("main")).toHaveTextContent("editor");
+    expect(screen.queryByText(/Press E to start ranking/u)).not.toBeInTheDocument();
+  });
+});
