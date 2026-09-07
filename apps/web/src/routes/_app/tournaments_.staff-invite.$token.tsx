@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { tournamentStaffInviteLandingQueryOptions } from "@/hooks/use-tournaments";
+import { tournamentStaffInviteLandingQueryOptions } from "@/features/tournaments/hooks/use-tournaments";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

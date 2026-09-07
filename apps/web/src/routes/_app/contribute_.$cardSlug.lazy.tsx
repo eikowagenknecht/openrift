@@ -3,11 +3,11 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
 
-import { ContributeForm } from "@/components/contribute/contribute-form";
 import { Heading } from "@/components/heading";
 import { Pressable } from "@/components/ui/pressable";
-import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
-import { prefillFromCard } from "@/lib/contribute-json";
+import { cardDetailQueryOptions } from "@/features/cards/hooks/use-card-detail";
+import { ContributeForm } from "@/features/contribute/components/contribute-form";
+import { prefillFromCard } from "@/features/contribute/lib/contribute-json";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/contribute_/$cardSlug")({

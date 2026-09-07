@@ -1,18 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { META_DESCRIPTION } from "@/components/meta/meta-copy";
-import { initQueryOptions } from "@/hooks/use-init";
+import { publicSetListQueryOptions } from "@/features/cards/hooks/use-public-sets";
+import { META_DESCRIPTION } from "@/features/meta/components/meta-copy";
 import {
   metaActivityQueryOptions,
   metaCountsQueryOptions,
   metaEventsQueryOptions,
-} from "@/hooks/use-meta";
-import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
+} from "@/features/meta/hooks/use-meta";
+import { metaOverviewSearchSchema } from "@/features/meta/lib/meta-deck-search";
+import { deriveSetEras, resolveScopeRange } from "@/features/meta/lib/meta-scope";
+import { initQueryOptions } from "@/hooks/use-init";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { metaOverviewSearchSchema } from "@/lib/meta-deck-search";
-import { deriveSetEras, resolveScopeRange } from "@/lib/meta-scope";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

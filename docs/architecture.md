@@ -63,7 +63,7 @@ Playwright specs that run against a real browser and a temporary database. See [
 
 ## Code layout
 
-Both apps are layered, and imports only point down: `lib` < `stores` < `hooks` < `components` < `routes` in the web app, `db` < `repositories` < `lib` < `services` < `routes` in the API, where those four homes sit inside one directory per domain under `src/modules/`. oxlint enforces the direction per directory, type imports included, so a directory name tells you what a module may depend on. The rules, what belongs in each layer, and the shared-package import rule are in [contributing.md](contributing.md); the decision is [ADR-046](adr/046-layered-module-layout.md).
+Both apps are layered, and imports only point down: `lib` < `stores` < `hooks` < `components` < `routes` in the web app, where those four directories repeat inside each `src/features/<feature>/` and at the top level for shared code, `db` < `repositories` < `lib` < `services` < `routes` in the API, where those four homes sit inside one directory per domain under `src/modules/`. oxlint enforces the direction per directory, type imports included, so a directory name tells you what a module may depend on. The rules, what belongs in each layer, and the shared-package import rule are in [contributing.md](contributing.md); the decision is [ADR-046](adr/046-layered-module-layout.md).
 
 ## Infrastructure
 

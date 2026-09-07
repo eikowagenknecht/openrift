@@ -1,12 +1,12 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { CardDesignerPage } from "@/components/card-designer/card-designer-page";
 import {
   PageDescription,
   PageTopBar,
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
+import { CardDesignerPage } from "@/features/designer/components/card-designer-page";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/card-designer")({

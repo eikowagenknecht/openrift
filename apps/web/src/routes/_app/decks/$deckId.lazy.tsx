@@ -1,12 +1,12 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { DeckEditorPage } from "@/components/deck/deck-editor-page";
 import { NotFoundFallback } from "@/components/error-message";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
+import { DeckEditorPage } from "@/features/decks/components/deck-editor-page";
+import { isLocalDeckId } from "@/features/decks/lib/local-deck";
+import { useLocalDecksStore } from "@/features/decks/stores/local-decks-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
-import { isLocalDeckId } from "@/lib/local-deck";
-import { FilterSearchProvider } from "@/lib/search-schemas";
-import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 export const Route = createLazyFileRoute("/_app/decks/$deckId")({
   component: DeckEditor,

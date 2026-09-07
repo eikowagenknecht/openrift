@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { ensureFriendGroupDetailCanonical } from "@/hooks/use-friend-groups";
-import { groupTournamentsQueryOptions } from "@/hooks/use-tournaments";
+import { ensureFriendGroupDetailCanonical } from "@/features/groups/hooks/use-friend-groups";
+import { groupTournamentsQueryOptions } from "@/features/tournaments/hooks/use-tournaments";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { MetaDeckPage } from "@/components/meta/meta-deck-page";
+import { MetaDeckPage } from "@/features/meta/components/meta-deck-page";
 
 export const Route = createLazyFileRoute("/_app/meta_/decks_/$token")({
   component: MetaDeckRoute,

@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { CollectionGrid } from "@/components/collection/collection-grid";
+import { CollectionGrid } from "@/features/collections/components/collection-grid";
 import { useHydrated } from "@/hooks/use-hydrated";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/")({

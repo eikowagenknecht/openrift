@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { buildSpotlightSequence, chooseRandomId, spotlightStepDelay } from "@/lib/match-helpers";
-import { useMatchTrackerStore } from "@/stores/match-tracker-store";
+import { useMatchTrackerStore } from "@/features/match-tracker/stores/match-tracker-store";
+import {
+  buildSpotlightSequence,
+  chooseRandomId,
+  spotlightStepDelay,
+} from "@/features/tournaments/lib/match-helpers";
 
 export function useFirstPlayerSpotlight() {
   const playerIds = useMatchTrackerStore(useShallow((state) => state.players.map((p) => p.id)));

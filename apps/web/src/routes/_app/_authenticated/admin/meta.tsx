@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminMetaEventsQueryOptions, metaEventsParamsFromSearch } from "@/hooks/use-admin-meta";
-import { adminMetaOverlaysQueryOptions } from "@/hooks/use-admin-meta-overlays";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import {
+  adminMetaEventsQueryOptions,
+  metaEventsParamsFromSearch,
+} from "@/features/admin/hooks/use-admin-meta";
+import { adminMetaOverlaysQueryOptions } from "@/features/admin/hooks/use-admin-meta-overlays";
+import { metaSearchSchema } from "@/features/admin/lib/admin-meta-search";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaSearchSchema } from "@/lib/admin-meta-search";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/meta")({

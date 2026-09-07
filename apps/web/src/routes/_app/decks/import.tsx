@@ -1,10 +1,10 @@
 import { isAllowedLinkUrl } from "@openrift/shared/link-hosts";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { deckDetailQueryOptions } from "@/hooks/use-decks";
+import { deckDetailQueryOptions } from "@/features/decks/hooks/use-decks";
+import { isLocalDeckId } from "@/features/decks/lib/local-deck";
 import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { isLocalDeckId } from "@/lib/local-deck";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

@@ -1,12 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { catalogQueryOptions } from "@/hooks/catalog-query";
+import { catalogQueryOptions } from "@/features/cards/hooks/catalog-query";
+import { metaDeckQueryOptions, metaEventsQueryOptions } from "@/features/meta/hooks/use-meta";
+import { parseMetaSubmitSearch } from "@/features/meta/lib/meta-submit-link";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaDeckQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { parseMetaSubmitSearch } from "@/lib/meta-submit-link";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { visibleHelpArticles } from "@/components/help/articles";
+import { visibleHelpArticles } from "@/features/marketing/components/articles";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { faqPageJsonLd, seoHead } from "@/lib/seo";

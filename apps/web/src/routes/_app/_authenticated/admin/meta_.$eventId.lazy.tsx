@@ -1,6 +1,6 @@
 import { createLazyFileRoute, useParams } from "@tanstack/react-router";
 
-import { MetaEventPlayersPage } from "@/components/admin/meta-event-players-page";
+import { MetaEventPlayersPage } from "@/features/admin/components/meta-event-players-page";
 
 function MetaEventDecksRoute() {
   const { eventId } = useParams({ from: "/_app/_authenticated/admin/meta_/$eventId" });

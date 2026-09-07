@@ -12,8 +12,6 @@ import {
   XIcon,
 } from "lucide-react";
 
-import { PrintingRowContent } from "@/components/cards/printing-row";
-import { visibleHelpArticles } from "@/components/help/articles";
 import type { NavFlags } from "@/components/layout/nav-items";
 import { MORE_NAV_SECTIONS, PRIMARY_NAV_ITEMS } from "@/components/layout/nav-items";
 import {
@@ -25,9 +23,11 @@ import {
 } from "@/components/ui/command";
 import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
-import { useCards } from "@/hooks/use-cards";
+import { PrintingRowContent } from "@/features/cards/components/printing-row";
+import { useCards } from "@/features/cards/hooks/use-cards";
+import { useQuickAddSearch } from "@/features/collections/hooks/use-quick-add-search";
+import { visibleHelpArticles } from "@/features/marketing/components/articles";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
 import { useSession } from "@/lib/auth-session";
 import type { PaletteRow } from "@/lib/command-palette-results";
 import { buildPaletteGroups } from "@/lib/command-palette-results";

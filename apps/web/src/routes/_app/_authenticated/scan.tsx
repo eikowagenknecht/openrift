@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { catalogQueryOptions } from "@/hooks/catalog-query";
-import { loadCatalogTail } from "@/lib/catalog-query";
-import { collectionsQueryOptions } from "@/lib/collections-query";
+import { catalogQueryOptions } from "@/features/cards/hooks/catalog-query";
+import { loadCatalogTail } from "@/features/cards/lib/catalog-query";
+import { collectionsQueryOptions } from "@/features/collections/lib/collections-query";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

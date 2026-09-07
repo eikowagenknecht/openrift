@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { ListPage } from "@/components/list/list-page";
+import { ListPage } from "@/features/lists/components/list-page";
 import { useHydrated } from "@/hooks/use-hydrated";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/lists/$listId")({

@@ -1,6 +1,6 @@
+import type { QuickAddCardResult } from "@/features/collections/lib/quick-add-result";
 import type { HelpArticle } from "@/lib/help-article";
 import type { NavItemConfig } from "@/lib/nav-items";
-import type { QuickAddCardResult } from "@/lib/quick-add-result";
 
 export type QuickAddVerb = "add" | "move";
 

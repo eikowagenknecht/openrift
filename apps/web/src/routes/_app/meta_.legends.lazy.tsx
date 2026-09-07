@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { MetaLegendsPage } from "@/components/meta/meta-legends-page";
+import { MetaLegendsPage } from "@/features/meta/components/meta-legends-page";
 
 export const Route = createLazyFileRoute("/_app/meta_/legends")({
   component: MetaLegendsPage,

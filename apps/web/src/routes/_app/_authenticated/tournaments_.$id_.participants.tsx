@@ -4,11 +4,11 @@ import { RouteErrorFallback } from "@/components/error-message";
 import {
   loadTournamentDetail,
   redirectToTournamentOverview,
-} from "@/hooks/tournament-route-guards";
-import { tournamentParticipantsQueryOptions } from "@/hooks/use-tournaments";
+} from "@/features/tournaments/hooks/tournament-route-guards";
+import { tournamentParticipantsQueryOptions } from "@/features/tournaments/hooks/use-tournaments";
+import { isTournamentStaff } from "@/features/tournaments/lib/tournament-display";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { isTournamentStaff } from "@/lib/tournament-display";
 
 export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/participants")({
   ssr: "data-only",

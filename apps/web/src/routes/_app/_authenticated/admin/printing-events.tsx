@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminPrintingEventsQueryOptions } from "@/hooks/use-flush-printing-events";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { adminPrintingEventsQueryOptions } from "@/features/admin/hooks/use-flush-printing-events";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/printing-events")({

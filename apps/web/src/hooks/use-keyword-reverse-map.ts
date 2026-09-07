@@ -1,5 +1,5 @@
+import { buildTranslationReverseMap } from "@/features/cards/lib/keywords";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
-import { buildTranslationReverseMap } from "@/lib/keywords";
 
 export function useKeywordReverseMap(): Map<string, string> {
   "use memo";

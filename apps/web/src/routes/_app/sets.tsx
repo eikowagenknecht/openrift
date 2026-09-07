@@ -3,7 +3,7 @@ import type { SetListResponse } from "@openrift/shared/types/api/catalog";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
+import { publicSetListQueryOptions } from "@/features/cards/hooks/use-public-sets";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

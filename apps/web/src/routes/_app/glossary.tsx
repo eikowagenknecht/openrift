@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { publicSetListQueryOptions } from "@/features/cards/hooks/use-public-sets";
 import { initQueryOptions } from "@/hooks/use-init";
-import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";

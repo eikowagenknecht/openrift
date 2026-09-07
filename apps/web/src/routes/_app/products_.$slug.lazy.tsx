@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { ProductDetailView } from "@/components/products/product-detail-view";
-import { useProductDetail } from "@/hooks/use-products";
+import { ProductDetailView } from "@/features/cards/components/product-detail-view";
+import { useProductDetail } from "@/features/cards/hooks/use-products";
 
 export const Route = createLazyFileRoute("/_app/products_/$slug")({
   component: ProductDetailPage,

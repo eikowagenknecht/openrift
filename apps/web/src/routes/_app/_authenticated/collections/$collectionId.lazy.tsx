@@ -1,7 +1,7 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { CollectionGrid } from "@/components/collection/collection-grid";
-import { useCollectionsMap } from "@/hooks/use-collections";
+import { CollectionGrid } from "@/features/collections/components/collection-grid";
+import { useCollectionsMap } from "@/features/collections/hooks/use-collections";
 import { useHydrated } from "@/hooks/use-hydrated";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/$collectionId")({

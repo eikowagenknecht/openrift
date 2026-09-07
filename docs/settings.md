@@ -120,7 +120,7 @@ Each job shows a suggested schedule on the page. "Enable suggested" turns on one
 
 Feature flags gate incomplete or experimental features. They are stored in the `feature_flags` database table and managed from the admin panel at `/admin/feature-flags`. Changes take effect on the next page load with no rebuild needed.
 
-See [feature-flags.md](feature-flags.md) for the full lifecycle, code usage, and API details. The canonical list of known flags lives in the `KNOWN_FLAGS` array in `apps/web/src/components/admin/feature-flags-page.tsx`.
+See [feature-flags.md](feature-flags.md) for the full lifecycle, code usage, and API details. The canonical list of known flags lives in the `KNOWN_FLAGS` array in `apps/web/src/features/admin/components/feature-flags-page.tsx`.
 
 ## Site Settings
 
@@ -144,4 +144,4 @@ The site settings system is generic (any kebab-case key works), but only the key
 
 **Discord notifications:** Webhook URLs are configured via environment variables (`DISCORD_WEBHOOK_*`, see above), **not** site settings. When configured, a cron job flushes pending printing events to Discord every 15 minutes. New printings are posted to the new-printings channel; field changes (with before/after values) are posted to the changes channel. Events are consolidated per printing within each flush window to reduce noise.
 
-To add a new site setting that code actually reads, use `useSiteSettingValue("your-key")` on the frontend or query the `site_settings` table on the API side. Also add the key to the `KNOWN_SETTINGS` array in `apps/web/src/components/admin/site-settings-page.tsx` so it appears in the admin UI.
+To add a new site setting that code actually reads, use `useSiteSettingValue("your-key")` on the frontend or query the `site_settings` table on the API side. Also add the key to the `KNOWN_SETTINGS` array in `apps/web/src/features/admin/components/site-settings-page.tsx` so it appears in the admin UI.

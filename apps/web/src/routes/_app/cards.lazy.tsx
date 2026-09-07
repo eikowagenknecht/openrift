@@ -1,12 +1,12 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { Suspense } from "react";
 
-import { CardBrowser } from "@/components/card-browser";
-import { FirstRowPreview } from "@/components/cards/first-row-preview";
+import { CardBrowser } from "@/features/cards/components/card-browser";
+import { FirstRowPreview } from "@/features/cards/components/first-row-preview";
+import { seedCatalogVersion } from "@/features/cards/lib/catalog-version";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
-import { seedCatalogVersion } from "@/lib/catalog-version";
-import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/cards")({

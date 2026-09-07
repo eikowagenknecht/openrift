@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminJobSchedulesQueryOptions } from "@/hooks/use-job-schedules";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { adminJobSchedulesQueryOptions } from "@/features/admin/hooks/use-job-schedules";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/jobs")({

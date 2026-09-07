@@ -1,10 +1,10 @@
 import type { ListIntent } from "@openrift/shared/types/api/list";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { SharedListContent } from "@/components/list/shared-list-content";
-import { PublicShareCta } from "@/components/signed-out-cta";
-import { usePublicList } from "@/hooks/use-lists";
-import { FilterSearchProvider } from "@/lib/search-schemas";
+import { PublicShareCta } from "@/features/account/components/signed-out-cta";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
+import { SharedListContent } from "@/features/lists/components/shared-list-content";
+import { usePublicList } from "@/features/lists/hooks/use-lists";
 
 const CTA_BY_INTENT: Record<ListIntent, { title: string; body: string }> = {
   wish: {

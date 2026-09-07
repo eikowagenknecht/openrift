@@ -4,8 +4,8 @@ import {
   MembersInviteAction,
   MembersPageContent,
   MembersTradedAction,
-} from "@/components/friend-groups/friend-group-members-page";
-import { FriendGroupSectionFrame } from "@/components/friend-groups/friend-group-shell";
+} from "@/features/groups/components/friend-group-members-page";
+import { FriendGroupSectionFrame } from "@/features/groups/components/friend-group-shell";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/members")({
   component: GroupMembersRoute,

@@ -7,7 +7,6 @@ import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { BookOpenIcon, GlobeIcon, HeartIcon, UsersIcon } from "lucide-react";
 
 import { Heading } from "@/components/heading";
-import { PublicListRow } from "@/components/list/public-list-row";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -18,7 +17,8 @@ import {
 } from "@/components/ui/empty";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { UserAvatar } from "@/components/user-avatar";
-import { usePublicUserBundle } from "@/hooks/use-user-share";
+import { usePublicUserBundle } from "@/features/groups/hooks/use-user-share";
+import { PublicListRow } from "@/features/lists/components/public-list-row";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_WIDTH, PAGE_PADDING } from "@/lib/utils";
 

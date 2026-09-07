@@ -1,10 +1,10 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { OverlayFrame } from "@/components/overlay/overlay-frame";
-import { useCards } from "@/hooks/use-cards";
+import { useCards } from "@/features/cards/hooks/use-cards";
+import { OverlayFrame } from "@/features/stage/components/overlay-frame";
+import { useOverlayState } from "@/features/stage/hooks/use-overlay";
+import { deriveOverlayBoardScene } from "@/features/stage/lib/overlay-board-scene";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { useOverlayState } from "@/hooks/use-overlay";
-import { deriveOverlayBoardScene } from "@/lib/overlay-board-scene";
 
 export const Route = createLazyFileRoute("/stage_/source/$token")({
   component: OverlaySourcePage,

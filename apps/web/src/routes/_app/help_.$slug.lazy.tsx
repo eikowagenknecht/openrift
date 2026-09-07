@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { helpArticles } from "@/components/help/articles";
-import { HelpArticlePage } from "@/components/help/help-article-page";
+import { helpArticles } from "@/features/marketing/components/articles";
+import { HelpArticlePage } from "@/features/marketing/components/help-article-page";
 
 export const Route = createLazyFileRoute("/_app/help_/$slug")({
   component: HelpArticleRoute,

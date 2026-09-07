@@ -3,12 +3,12 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import { metaDeckQueryOptions } from "@/features/meta/hooks/use-meta";
+import { archivedDeckIdentity } from "@/features/meta/lib/meta-deck-archive";
+import { formatRank } from "@/features/meta/lib/meta-format";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaDeckQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { archivedDeckIdentity } from "@/lib/meta-deck-archive";
-import { formatRank } from "@/lib/meta-format";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { deckShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";

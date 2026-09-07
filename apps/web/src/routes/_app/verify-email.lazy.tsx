@@ -4,11 +4,11 @@ import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { AuthPageLayout } from "@/components/layout/auth-page-layout";
-import { SixDigitOtpInput } from "@/components/six-digit-otp-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldError, FieldGroup } from "@/components/ui/field";
-import { authClient } from "@/lib/auth-client";
+import { SixDigitOtpInput } from "@/features/account/components/six-digit-otp-input";
+import { authClient } from "@/features/account/lib/auth-client";
 import { otpErrorMessage } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 

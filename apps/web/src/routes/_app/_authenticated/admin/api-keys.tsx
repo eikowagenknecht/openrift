@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
 import { adminSeoHead } from "@/lib/seo";
 
 // No loader: the key list is fetched client-side via better-auth (the

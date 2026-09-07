@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { catalogQueryOptions } from "@/hooks/catalog-query";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
 import {
   adminMetaEventPlayersQueryOptions,
   adminMetaEventQueryOptions,
-} from "@/hooks/use-admin-meta";
+} from "@/features/admin/hooks/use-admin-meta";
+import { catalogQueryOptions } from "@/features/cards/hooks/catalog-query";
 import { initQueryOptions } from "@/hooks/use-init";
 import { adminSeoHead } from "@/lib/seo";
 

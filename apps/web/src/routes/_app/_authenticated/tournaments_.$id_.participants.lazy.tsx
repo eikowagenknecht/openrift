@@ -1,12 +1,12 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TournamentSectionFrame } from "@/components/tournaments/tournament-detail-frame";
+import { TournamentSectionFrame } from "@/features/tournaments/components/tournament-detail-frame";
 import {
   AddParticipantButton,
   TournamentParticipantsTab,
-} from "@/components/tournaments/tournament-participants-tab";
-import { useTournamentDetail } from "@/hooks/use-tournaments";
-import { canManageTournament } from "@/lib/tournament-display";
+} from "@/features/tournaments/components/tournament-participants-tab";
+import { useTournamentDetail } from "@/features/tournaments/hooks/use-tournaments";
+import { canManageTournament } from "@/features/tournaments/lib/tournament-display";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/tournaments_/$id_/participants")({
   component: TournamentParticipantsRoute,

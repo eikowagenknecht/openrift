@@ -24,7 +24,7 @@ vi.mock("@/lib/auth-session", () => ({ useUserId: () => "test-user-id" }));
 let hydratedValue = true;
 vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => hydratedValue }));
 
-const { useEmailNotifications } = await import("./use-email-notifications");
+const { useEmailNotifications } = await import("@/features/account/hooks/use-email-notifications");
 
 interface FetchCall {
   method: string;

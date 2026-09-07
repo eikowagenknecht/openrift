@@ -4,11 +4,11 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import { metaEventQueryOptions } from "@/features/meta/hooks/use-meta";
+import { metaEventPlayerByKey, metaPlayerRun } from "@/features/meta/lib/meta-player-run";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaEventQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { metaEventPlayerByKey, metaPlayerRun } from "@/lib/meta-player-run";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";

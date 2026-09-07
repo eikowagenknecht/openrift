@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminAccessQueryOptions } from "@/hooks/use-admin";
-import { ADMIN_SECTION_ROUTES, adminSectionForPathname } from "@/lib/admin-sections";
+import { adminAccessQueryOptions } from "@/features/admin/hooks/use-admin";
+import { ADMIN_SECTION_ROUTES, adminSectionForPathname } from "@/features/admin/lib/admin-sections";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

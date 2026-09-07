@@ -19,7 +19,7 @@ const GlobalPaletteBody = lazy(async () => {
   return { default: m.GlobalPaletteBody };
 });
 const CardDetailOverlay = lazy(async () => {
-  const m = await import("@/components/cards/card-detail-overlay");
+  const m = await import("@/features/cards/components/card-detail-overlay");
   return { default: m.CardDetailOverlay };
 });
 

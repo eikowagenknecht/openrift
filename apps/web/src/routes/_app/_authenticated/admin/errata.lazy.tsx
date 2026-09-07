@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { ErrataUploadPage } from "@/components/admin/errata-upload-page";
+import { ErrataUploadPage } from "@/features/admin/components/errata-upload-page";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/errata")({
   component: ErrataUploadPage,

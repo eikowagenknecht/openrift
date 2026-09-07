@@ -1,9 +1,12 @@
 import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
-import { SharedCollectionView } from "@/components/collection/shared-collection-view";
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
-import { useFriendGroupDetail, useFriendGroupSharedCollection } from "@/hooks/use-friend-groups";
+import { SharedCollectionView } from "@/features/collections/components/shared-collection-view";
+import {
+  useFriendGroupDetail,
+  useFriendGroupSharedCollection,
+} from "@/features/groups/hooks/use-friend-groups";
 
 export const Route = createLazyFileRoute(
   "/_app/_authenticated/groups/$slug_/collections/$collectionId",

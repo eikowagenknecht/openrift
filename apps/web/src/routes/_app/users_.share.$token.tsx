@@ -3,7 +3,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
-import { publicUserBundleQueryOptions } from "@/hooks/use-user-share";
+import { publicUserBundleQueryOptions } from "@/features/groups/hooks/use-user-share";
 import { seoHead } from "@/lib/seo";
 import { bundleShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";

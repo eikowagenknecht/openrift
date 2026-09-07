@@ -53,7 +53,7 @@ const {
   useSetListSidebarHidden,
   useUpdateList,
   useUpdateListEntry,
-} = await import("./use-lists");
+} = await import("@/features/lists/hooks/use-lists");
 
 function stubFetchJson(payload: unknown) {
   const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(payload));

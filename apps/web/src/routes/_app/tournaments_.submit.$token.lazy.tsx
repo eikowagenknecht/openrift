@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TournamentSubmitPage } from "@/components/tournaments/tournament-submit-page";
+import { TournamentSubmitPage } from "@/features/tournaments/components/tournament-submit-page";
 
 export const Route = createLazyFileRoute("/_app/tournaments_/submit/$token")({
   component: SubmitRoute,

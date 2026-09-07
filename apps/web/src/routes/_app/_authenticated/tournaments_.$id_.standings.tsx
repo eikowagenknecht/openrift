@@ -5,7 +5,7 @@ import {
   loadTournamentDetail,
   loadTournamentRunState,
   redirectToTournamentOverview,
-} from "@/hooks/tournament-route-guards";
+} from "@/features/tournaments/hooks/tournament-route-guards";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

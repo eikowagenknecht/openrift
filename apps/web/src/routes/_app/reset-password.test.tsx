@@ -18,14 +18,14 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 
-vi.mock("@/lib/auth-client", () => ({
+vi.mock("@/features/account/lib/auth-client", () => ({
   authClient: {
     emailOtp: { sendVerificationOtp: vi.fn(), resetPassword: vi.fn() },
   },
 }));
 
 await import("./reset-password.lazy");
-const { authClient } = await import("@/lib/auth-client");
+const { authClient } = await import("@/features/account/lib/auth-client");
 const sendVerificationOtp = vi.mocked(authClient.emailOtp.sendVerificationOtp);
 
 function renderResetPassword() {

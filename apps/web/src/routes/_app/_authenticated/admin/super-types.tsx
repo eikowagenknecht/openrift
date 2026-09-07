@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
 import { adminSuperTypesQueryOptions } from "@/hooks/use-super-types";
 import { adminSeoHead } from "@/lib/seo";
 

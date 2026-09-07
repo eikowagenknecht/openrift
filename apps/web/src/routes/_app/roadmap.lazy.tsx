@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { RoadmapPage } from "@/components/roadmap/roadmap-page";
+import { RoadmapPage } from "@/features/marketing/components/roadmap-page";
 
 export const Route = createLazyFileRoute("/_app/roadmap")({
   component: RoadmapRoute,

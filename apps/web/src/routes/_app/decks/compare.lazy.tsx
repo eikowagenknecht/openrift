@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { DeckComparePage } from "@/components/deck/deck-compare-page";
+import { DeckComparePage } from "@/features/decks/components/deck-compare-page";
 import { useHydrated } from "@/hooks/use-hydrated";
 
 export const Route = createLazyFileRoute("/_app/decks/compare")({

@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-import type { BrandIconData } from "@/lib/source-brand";
+import type { BrandIconData } from "@/features/admin/lib/source-brand";
 import { cn } from "@/lib/utils";
 
 interface BrandGlyphProps {

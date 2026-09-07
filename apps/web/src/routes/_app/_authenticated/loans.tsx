@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { loansQueryOptions } from "@/hooks/use-loans";
+import { loansQueryOptions } from "@/features/groups/hooks/use-loans";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

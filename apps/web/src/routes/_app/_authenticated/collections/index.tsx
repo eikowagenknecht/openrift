@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { CollectionPending } from "@/components/collection/collection-pending";
 import { RouteErrorFallback } from "@/components/error-message";
-import { collectionsQueryOptions } from "@/lib/collections-query";
-import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
+import { cleanedSearchForRedirect, filterSearchSchema } from "@/features/cards/lib/search-schemas";
+import { CollectionPending } from "@/features/collections/components/collection-pending";
+import { collectionsQueryOptions } from "@/features/collections/lib/collections-query";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

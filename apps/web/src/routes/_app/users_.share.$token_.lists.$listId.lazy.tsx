@@ -1,9 +1,9 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { PageTopBarBack } from "@/components/layout/page-top-bar";
-import { SharedListContent } from "@/components/list/shared-list-content";
-import { usePublicUserBundleList } from "@/hooks/use-user-share";
-import { FilterSearchProvider } from "@/lib/search-schemas";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
+import { usePublicUserBundleList } from "@/features/groups/hooks/use-user-share";
+import { SharedListContent } from "@/features/lists/components/shared-list-content";
 
 export const Route = createLazyFileRoute("/_app/users_/share/$token_/lists/$listId")({
   component: BundleListPage,

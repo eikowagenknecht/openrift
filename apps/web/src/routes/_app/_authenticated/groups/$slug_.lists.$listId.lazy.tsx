@@ -2,11 +2,14 @@ import type { PublicListDetailResponse } from "@openrift/shared/types/api/list";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";
-import type { ListExchangeContext } from "@/components/list/shared-list-content";
-import { SharedListContent } from "@/components/list/shared-list-content";
-import { useFriendGroupDetail, useFriendGroupSharedList } from "@/hooks/use-friend-groups";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
+import {
+  useFriendGroupDetail,
+  useFriendGroupSharedList,
+} from "@/features/groups/hooks/use-friend-groups";
+import type { ListExchangeContext } from "@/features/lists/components/shared-list-content";
+import { SharedListContent } from "@/features/lists/components/shared-list-content";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { FilterSearchProvider } from "@/lib/search-schemas";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/lists/$listId")({
   component: SharedListRoute,

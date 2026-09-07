@@ -1,8 +1,8 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { LandingPage } from "@/components/landing/landing-page";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { LandingPage } from "@/features/marketing/components/landing-page";
 import { FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/")({

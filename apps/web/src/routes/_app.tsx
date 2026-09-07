@@ -4,7 +4,7 @@ import { CommandPalette } from "@/components/command-palette/command-palette";
 import { AppBackground } from "@/components/layout/app-background";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
-import { usePreferencesSync } from "@/hooks/use-preferences-sync";
+import { usePreferencesSync } from "@/features/account/hooks/use-preferences-sync";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { cn, CONTAINER_WIDTH, FOOTER_PADDING_NO_TOP } from "@/lib/utils";

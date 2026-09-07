@@ -1,7 +1,7 @@
 import type { RuleKind } from "@openrift/shared/types/api/rules";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { RulesPage } from "@/components/rules/rules-page";
+import { RulesPage } from "@/features/rules/components/rules-page";
 
 export const Route = createLazyFileRoute("/_app/rules_/$kind")({
   component: RulesEmptyPage,

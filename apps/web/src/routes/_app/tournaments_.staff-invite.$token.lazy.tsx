@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TournamentStaffInvitePage } from "@/components/tournaments/tournament-staff-invite-page";
+import { TournamentStaffInvitePage } from "@/features/tournaments/components/tournament-staff-invite-page";
 
 export const Route = createLazyFileRoute("/_app/tournaments_/staff-invite/$token")({
   component: StaffInviteRoute,

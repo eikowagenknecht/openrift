@@ -3,7 +3,7 @@ import { imageUrl } from "@openrift/shared/image-url";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { productsListQueryOptions } from "@/hooks/use-products";
+import { productsListQueryOptions } from "@/features/cards/hooks/use-products";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

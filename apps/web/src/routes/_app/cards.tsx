@@ -1,22 +1,30 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { CardBrowserLayout } from "@/components/card-browser-layout";
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
-import { catalogQueryOptions } from "@/hooks/catalog-query";
-import { initQueryOptions } from "@/hooks/use-init";
-import { pricesQueryOptions } from "@/hooks/use-prices";
-import type { AvailableFiltersWire, CardCounts, FilterCountsWire } from "@/lib/cards-facets";
-import { fetchCardCounts, fetchCardFacets, fetchCardFilterCounts } from "@/lib/cards-facets";
-import type { FirstRowCard } from "@/lib/cards-first-row";
-import { fetchFirstRowCards } from "@/lib/cards-first-row";
-import { cardsSearchSchema } from "@/lib/cards-search-schema";
+import { CardBrowserLayout } from "@/features/cards/components/card-browser-layout";
+import { catalogQueryOptions } from "@/features/cards/hooks/catalog-query";
+import { pricesQueryOptions } from "@/features/cards/hooks/use-prices";
+import type {
+  AvailableFiltersWire,
+  CardCounts,
+  FilterCountsWire,
+} from "@/features/cards/lib/cards-facets";
+import {
+  fetchCardCounts,
+  fetchCardFacets,
+  fetchCardFilterCounts,
+} from "@/features/cards/lib/cards-facets";
+import type { FirstRowCard } from "@/features/cards/lib/cards-first-row";
+import { fetchFirstRowCards } from "@/features/cards/lib/cards-first-row";
+import { cardsSearchSchema } from "@/features/cards/lib/cards-search-schema";
 import {
   catalogFetchUrl,
   normalizeCatalogLangs,
   readCatalogVersionFromServerCache,
-} from "@/lib/catalog-query";
-import { cleanedSearchForRedirect } from "@/lib/search-schemas";
+} from "@/features/cards/lib/catalog-query";
+import { cleanedSearchForRedirect } from "@/features/cards/lib/search-schemas";
+import { initQueryOptions } from "@/hooks/use-init";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING_NO_TOP } from "@/lib/utils";

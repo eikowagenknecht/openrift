@@ -7,9 +7,9 @@ import type { Card, Printing } from "@openrift/shared/types/catalog";
 import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
 import type { Marketplace } from "@openrift/shared/types/pricing";
 
+import type { DeckBuilderCard } from "@/features/decks/lib/deck-builder-card";
+import type { CardOwnership } from "@/features/decks/lib/deck-ownership-types";
 import type { CardViewerItem } from "@/lib/card-viewer-types";
-import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import type { CardOwnership } from "@/lib/deck-ownership-types";
 
 export const EMPTY_TRADE_PREFERENCE: TradePreference = {
   pricePref: null,

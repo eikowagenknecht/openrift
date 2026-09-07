@@ -14,13 +14,13 @@ const PAGE_COLUMN = /max-w-(?:2xl|3xl|4xl|5xl|6xl|7xl)\b/u;
 
 // Component or marketing-layout widths that deliberately aren't a page width.
 const EXEMPT = new Set([
-  "components/deck/deck-builder-intro-banner.tsx",
-  "components/deck/deck-mobile-dock.tsx",
-  "components/landing/feature-showcase.tsx",
-  "components/landing/landing-closing.tsx",
-  "components/landing/landing-page.tsx",
-  "components/promos/promo-compact-section.tsx",
-  "components/promos/promo-section-divider.tsx",
+  "features/decks/components/deck-builder-intro-banner.tsx",
+  "features/decks/components/deck-mobile-dock.tsx",
+  "features/marketing/components/feature-showcase.tsx",
+  "features/marketing/components/landing-closing.tsx",
+  "features/marketing/components/landing-page.tsx",
+  "features/cards/components/promo-compact-section.tsx",
+  "features/cards/components/promo-section-divider.tsx",
 ]);
 
 async function listSourceFiles(dir: string): Promise<string[]> {

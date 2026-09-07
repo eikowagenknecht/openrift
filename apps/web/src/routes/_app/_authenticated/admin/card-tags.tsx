@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminCardTagsQueryOptions, adminTagCategoriesQueryOptions } from "@/hooks/use-card-tags";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import {
+  adminCardTagsQueryOptions,
+  adminTagCategoriesQueryOptions,
+} from "@/features/cards/hooks/use-card-tags";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/card-tags")({

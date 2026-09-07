@@ -1,8 +1,8 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import { Button } from "@/components/ui/button";
+import { AdminPageTopBar } from "@/features/admin/components/admin-page-top-bar";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/error-test")({
   component: ErrorTestPage,

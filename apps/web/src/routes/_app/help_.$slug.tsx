@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { helpArticles } from "@/components/help/articles";
+import { helpArticles } from "@/features/marketing/components/articles";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { articleJsonLd, breadcrumbJsonLd, seoHead } from "@/lib/seo";

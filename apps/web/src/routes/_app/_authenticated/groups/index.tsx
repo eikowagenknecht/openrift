@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { friendGroupsQueryOptions } from "@/hooks/use-friend-groups";
+import { friendGroupsQueryOptions } from "@/features/groups/hooks/use-friend-groups";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

@@ -1,7 +1,7 @@
 import { createLazyFileRoute, useParams, useSearch } from "@tanstack/react-router";
 
-import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { ExistingCardDetailPage } from "@/components/admin/existing-card-detail-page";
+import { AdminPageTopBar } from "@/features/admin/components/admin-page-top-bar";
+import { ExistingCardDetailPage } from "@/features/admin/components/existing-card-detail-page";
 
 function ExistingCardPage() {
   const { cardSlug } = useParams({ from: "/_app/_authenticated/admin/cards_/$cardSlug" });

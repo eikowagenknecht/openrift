@@ -1,8 +1,8 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TournamentDeckCheckEntry } from "@/components/deck-check/deck-check-entry-page";
-import { useTournamentDetail } from "@/hooks/use-tournaments";
-import { canManageTournament } from "@/lib/tournament-display";
+import { TournamentDeckCheckEntry } from "@/features/tournaments/components/deck-check-entry-page";
+import { useTournamentDetail } from "@/features/tournaments/hooks/use-tournaments";
+import { canManageTournament } from "@/features/tournaments/lib/tournament-display";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/tournaments_/$id_/decks_/$entryId")({
   component: TournamentDeckEntryRoute,

@@ -1,14 +1,14 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { META_EVENTS_DESCRIPTION } from "@/components/meta/meta-copy";
+import { publicSetListQueryOptions } from "@/features/cards/hooks/use-public-sets";
+import { META_EVENTS_DESCRIPTION } from "@/features/meta/components/meta-copy";
+import { metaCountsQueryOptions, metaEventsQueryOptions } from "@/features/meta/hooks/use-meta";
+import { metaEventsSearchSchema } from "@/features/meta/lib/meta-events-search";
+import { deriveSetEras, resolveScopeRange } from "@/features/meta/lib/meta-scope";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaCountsQueryOptions, metaEventsQueryOptions } from "@/hooks/use-meta";
-import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { metaEventsSearchSchema } from "@/lib/meta-events-search";
-import { deriveSetEras, resolveScopeRange } from "@/lib/meta-scope";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

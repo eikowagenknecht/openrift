@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { rulesSearchSchema } from "@/lib/rules-search-schema";
+import { rulesSearchSchema } from "@/features/rules/lib/rules-search-schema";
 
 export const Route = createFileRoute("/_app/rules")({
   validateSearch: rulesSearchSchema,

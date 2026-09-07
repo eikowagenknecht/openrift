@@ -3,8 +3,8 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import { metaEventQueryOptions } from "@/features/meta/hooks/use-meta";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaEventQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";

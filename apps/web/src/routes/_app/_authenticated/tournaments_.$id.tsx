@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { loadTournamentDetail } from "@/hooks/tournament-route-guards";
-import { tournamentParticipantsQueryOptions } from "@/hooks/use-tournaments";
+import { loadTournamentDetail } from "@/features/tournaments/hooks/tournament-route-guards";
+import { tournamentParticipantsQueryOptions } from "@/features/tournaments/hooks/use-tournaments";
+import { isTournamentStaff } from "@/features/tournaments/lib/tournament-display";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { isTournamentStaff } from "@/lib/tournament-display";
 
 export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id")({
   ssr: "data-only",

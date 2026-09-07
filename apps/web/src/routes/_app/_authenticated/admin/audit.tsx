@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { auditEventsQueryOptions } from "@/hooks/use-admin-audit";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { auditEventsQueryOptions } from "@/features/admin/hooks/use-admin-audit";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/audit")({

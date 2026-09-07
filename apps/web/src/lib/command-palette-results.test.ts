@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { QuickAddCardResult } from "@/features/collections/lib/quick-add-result";
 import { buildPaletteGroups } from "@/lib/command-palette-results";
 import type { HelpArticle } from "@/lib/help-article";
 import type { NavItemConfig } from "@/lib/nav-items";
-import type { QuickAddCardResult } from "@/lib/quick-add-result";
 import { stubPrinting } from "@/test/factories";
 
 function navItem(label: string, to: string, description?: string): NavItemConfig {

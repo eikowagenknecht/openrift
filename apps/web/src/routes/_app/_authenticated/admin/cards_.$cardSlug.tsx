@@ -1,15 +1,18 @@
 import type { AdminCardDetailResponse } from "@openrift/shared/types/api/admin";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminAccessQueryOptions } from "@/hooks/use-admin";
-import { adminCardDetailQueryOptions, allCardsQueryOptions } from "@/hooks/use-admin-card-queries";
-import { adminDistinctArtistsQueryOptions } from "@/hooks/use-distinct-artists";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { adminAccessQueryOptions } from "@/features/admin/hooks/use-admin";
+import {
+  adminCardDetailQueryOptions,
+  allCardsQueryOptions,
+} from "@/features/admin/hooks/use-admin-card-queries";
+import { providerSettingsQueryOptions } from "@/features/admin/hooks/use-provider-settings";
+import { unifiedMappingsForCardQueryOptions } from "@/features/admin/hooks/use-unified-mappings";
+import { adminDistinctArtistsQueryOptions } from "@/features/cards/hooks/use-distinct-artists";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
 import { adminMarkersQueryOptions } from "@/hooks/use-markers";
-import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
-import { unifiedMappingsForCardQueryOptions } from "@/hooks/use-unified-mappings";
 import { adminSeoHead } from "@/lib/seo";
 
 const FOCUSABLE_MARKETPLACES = new Set(["tcgplayer", "cardmarket", "cardtrader"]);

@@ -1,8 +1,9 @@
 import { API_FORMAT_HEADER, API_FORMAT_VERSION } from "@openrift/shared/contracts/api-format";
 import { toast } from "sonner";
 
+import { appendScanJournal, hasScanJournal } from "@/features/scan/lib/scan-journal";
+
 import { COMMIT_HASH } from "./env";
-import { appendScanJournal, hasScanJournal } from "./scan-journal";
 import {
   _resetReloadStateForTesting,
   forceReload,

@@ -58,23 +58,23 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/user-avatar";
-import { useAdminAccess } from "@/hooks/use-admin";
-import { useTradeActionCounts } from "@/hooks/use-card-trades";
+import { signOut } from "@/features/account/lib/auth-client";
+import { useAdminAccess } from "@/features/admin/hooks/use-admin";
+import { useAddModeStore } from "@/features/collections/stores/add-mode-store";
+import { usePaletteStore } from "@/features/collections/stores/palette-store";
+import { useDeckBuilderUiStore } from "@/features/decks/stores/deck-builder-ui-store";
+import { useTradeActionCounts } from "@/features/groups/hooks/use-card-trades";
+import { useFriendGroupPendingRequestsCount } from "@/features/groups/hooks/use-friend-groups";
+import { useLoanActionCounts } from "@/features/groups/hooks/use-loans";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
-import { useFriendGroupPendingRequestsCount } from "@/hooks/use-friend-groups";
-import { useLoanActionCounts } from "@/hooks/use-loans";
-import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
 import type { LockedFeatureKey, NavBadgeCounts, NavItemConfig } from "@/lib/nav-items";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
-import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
-import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
-import { usePaletteStore } from "@/stores/palette-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 function LogoLink({ className }: { className?: string }) {

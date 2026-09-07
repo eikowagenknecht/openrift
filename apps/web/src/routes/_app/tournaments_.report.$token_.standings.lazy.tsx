@@ -1,9 +1,9 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { RegionOverview } from "@/components/pod-tournaments/region-overview";
-import { StandingsPodium } from "@/components/pod-tournaments/standings-podium";
-import { StandingsTable } from "@/components/pod-tournaments/standings-table";
-import { TournamentReportFrame } from "@/components/pod-tournaments/tournament-shell";
+import { RegionOverview } from "@/features/tournaments/components/region-overview";
+import { StandingsPodium } from "@/features/tournaments/components/standings-podium";
+import { StandingsTable } from "@/features/tournaments/components/standings-table";
+import { TournamentReportFrame } from "@/features/tournaments/components/tournament-shell";
 import { useRegionLabel } from "@/hooks/use-region-label";
 
 export const Route = createLazyFileRoute("/_app/tournaments_/report/$token_/standings")({

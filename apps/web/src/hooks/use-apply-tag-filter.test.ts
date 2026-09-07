@@ -12,7 +12,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { FilterSearchProvider } from "@/lib/search-schemas";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { useApplyTagFilter } from "./use-apply-tag-filter";

@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminAccessQueryOptions } from "@/hooks/use-admin";
-import { adminCardListQueryOptions, allCardsQueryOptions } from "@/hooks/use-admin-card-queries";
-import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
-import { setsQueryOptions } from "@/hooks/use-sets";
-import { unifiedMappingsQueryOptions } from "@/hooks/use-unified-mappings";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { adminAccessQueryOptions } from "@/features/admin/hooks/use-admin";
+import {
+  adminCardListQueryOptions,
+  allCardsQueryOptions,
+} from "@/features/admin/hooks/use-admin-card-queries";
+import { providerSettingsQueryOptions } from "@/features/admin/hooks/use-provider-settings";
+import { unifiedMappingsQueryOptions } from "@/features/admin/hooks/use-unified-mappings";
+import { setsQueryOptions } from "@/features/cards/hooks/use-sets";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards")({

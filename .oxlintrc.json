@@ -222,7 +222,7 @@
       // Imports point down the layer order lib < stores < hooks < components < routes
       // (docs/contributing.md, Web module layout). Type imports count. An override
       // replaces the base rule, so each layer repeats the base entries.
-      "files": ["apps/web/src/lib/**"],
+      "files": ["apps/web/src/**/lib/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -239,7 +239,7 @@
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {
-                "group": ["@/stores/**", "@/hooks/**", "@/components/**", "@/routes/**"],
+                "group": ["@/**/stores/**", "@/**/hooks/**", "@/**/components/**", "@/routes/**"],
                 "message": "lib/ is the bottom layer and imports nothing above it. Move the type or helper down into lib/, or move this module up to the layer it belongs to."
               }
             ]
@@ -248,7 +248,7 @@
       }
     },
     {
-      "files": ["apps/web/src/stores/**"],
+      "files": ["apps/web/src/**/stores/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -265,7 +265,7 @@
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {
-                "group": ["@/hooks/**", "@/components/**", "@/routes/**"],
+                "group": ["@/**/hooks/**", "@/**/components/**", "@/routes/**"],
                 "message": "stores/ sits below hooks/, components/ and routes/. Move the type down into lib/ or stores/."
               }
             ]
@@ -274,7 +274,7 @@
       }
     },
     {
-      "files": ["apps/web/src/hooks/**"],
+      "files": ["apps/web/src/**/hooks/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -291,7 +291,7 @@
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {
-                "group": ["@/components/**", "@/routes/**"],
+                "group": ["@/**/components/**", "@/routes/**"],
                 "message": "hooks/ sits below components/ and routes/. Move the type or helper down into lib/ or hooks/; a route object comes from getRouteApi()."
               }
             ]
@@ -300,7 +300,7 @@
       }
     },
     {
-      "files": ["apps/web/src/components/**"],
+      "files": ["apps/web/src/**/components/**"],
       "rules": {
         "no-restricted-imports": [
           "error",

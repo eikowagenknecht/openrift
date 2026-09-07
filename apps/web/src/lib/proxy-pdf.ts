@@ -7,7 +7,7 @@ import { preferredPrinting } from "@openrift/shared/utils";
 import { WellKnown } from "@openrift/shared/well-known";
 import type { jsPDF } from "jspdf";
 
-import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckBuilderCard } from "@/features/decks/lib/deck-builder-card";
 import { createPdfDocument } from "@/lib/pdf-document";
 import { loadLogoDataUrl } from "@/lib/pdf-logo";
 

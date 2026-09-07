@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
-import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { cardDetailQueryOptions } from "@/features/cards/hooks/use-card-detail";
 import { sessionQueryOptions } from "@/lib/auth-session";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";

@@ -1,10 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { decksQueryOptions } from "@/hooks/use-decks";
+import { cleanedSearchForRedirect } from "@/features/cards/lib/search-schemas";
+import { decksQueryOptions } from "@/features/decks/hooks/use-decks";
+import { deckListSearchSchema } from "@/features/decks/lib/deck-list-search";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { deckListSearchSchema } from "@/lib/deck-list-search";
-import { cleanedSearchForRedirect } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

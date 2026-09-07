@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { OrganizationPage } from "@/components/organizations/organization-page";
+import { OrganizationPage } from "@/features/tournaments/components/organization-page";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/organizations_/$id")({
   component: OrganizationRoute,

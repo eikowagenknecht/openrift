@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
 import {
   adminCustomTagCategoriesQueryOptions,
   adminCustomTagsQueryOptions,
-} from "@/hooks/use-custom-tags";
+} from "@/features/collections/hooks/use-custom-tags";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/custom-tags")({

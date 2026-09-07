@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { metaSubmissionsQueryOptions } from "@/hooks/use-meta-submissions";
+import { metaSubmissionsQueryOptions } from "@/features/meta/hooks/use-meta-submissions";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";

@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
-import { tournamentReportQueryOptions } from "@/hooks/use-tournaments";
+import { tournamentReportQueryOptions } from "@/features/tournaments/hooks/use-tournaments";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

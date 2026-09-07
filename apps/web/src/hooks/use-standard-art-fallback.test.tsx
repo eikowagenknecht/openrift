@@ -5,7 +5,7 @@ import { renderHook } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
 
-import { useStandardArtFallback } from "@/hooks/use-standard-art-fallback";
+import { useStandardArtFallback } from "@/features/cards/hooks/use-standard-art-fallback";
 import { queryKeys } from "@/lib/query-keys";
 import { stubPrinting } from "@/test/factories";
 

@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { SupportPage } from "@/components/support/support-page";
+import { SupportPage } from "@/features/marketing/components/support-page";
 
 export const Route = createLazyFileRoute("/_app/support")({
   component: SupportRoute,

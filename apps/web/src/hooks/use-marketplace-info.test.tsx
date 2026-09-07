@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMarketplaceInfo } from "./use-marketplace-info";
+import { useMarketplaceInfo } from "@/features/cards/hooks/use-marketplace-info";
 
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMatchTrackerStore } from "@/stores/match-tracker-store";
+import { useMatchTrackerStore } from "@/features/match-tracker/stores/match-tracker-store";
 import { createStoreResetter } from "@/test/store-helpers";
 
 import { useFirstPlayerSpotlight } from "./use-first-player-spotlight";

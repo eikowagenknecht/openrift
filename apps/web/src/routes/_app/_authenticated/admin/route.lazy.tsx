@@ -1,7 +1,6 @@
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { Footer } from "@/components/layout/footer";
 import {
   PAGE_TOP_BAR_STICKY_BASE,
@@ -10,6 +9,7 @@ import {
 } from "@/components/layout/page-top-bar";
 import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AdminSidebar } from "@/features/admin/components/admin-sidebar";
 import { cn } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin")({

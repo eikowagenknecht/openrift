@@ -1,10 +1,10 @@
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
 
-import { PublicDeckActionsMenu } from "@/components/deck/public-deck-actions-menu";
-import { PublicDeckSurface } from "@/components/deck/public-deck-surface";
 import { Button } from "@/components/ui/button";
-import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
+import { PublicDeckActionsMenu } from "@/features/decks/components/public-deck-actions-menu";
+import { PublicDeckSurface } from "@/features/decks/components/public-deck-surface";
+import { useCloneSharedDeck, usePublicDeck } from "@/features/decks/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
 
 export const Route = createLazyFileRoute("/_app/decks_/share/$token")({

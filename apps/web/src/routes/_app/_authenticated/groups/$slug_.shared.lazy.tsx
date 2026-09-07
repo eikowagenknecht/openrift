@@ -3,8 +3,8 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import {
   SharedCollectionAction,
   SharedPageContent,
-} from "@/components/friend-groups/friend-group-shared-page";
-import { FriendGroupSectionFrame } from "@/components/friend-groups/friend-group-shell";
+} from "@/features/groups/components/friend-group-shared-page";
+import { FriendGroupSectionFrame } from "@/features/groups/components/friend-group-shell";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/shared")({
   component: GroupSharedRoute,

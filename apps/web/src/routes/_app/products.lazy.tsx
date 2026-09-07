@@ -7,7 +7,6 @@ import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
-import { CardFan, CardFanOutline } from "@/components/cards/card-fan";
 import { CoverBand } from "@/components/cover-band";
 import { Heading } from "@/components/heading";
 import {
@@ -16,14 +15,15 @@ import {
   PageTopBarSticky,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import { ProductAddDialog } from "@/components/products/product-add-dialog";
 import { Button } from "@/components/ui/button";
 import { CardLink } from "@/components/ui/card-link";
-import { useProductsList } from "@/hooks/use-products";
+import { CardFan, CardFanOutline } from "@/features/cards/components/card-fan";
+import { ProductAddDialog } from "@/features/cards/components/product-add-dialog";
+import { useProductsList } from "@/features/cards/hooks/use-products";
+import { groupProductsBySet } from "@/features/cards/lib/group-products-by-set";
+import { formatProductCounts } from "@/features/cards/lib/product-counts";
 import { useSession } from "@/lib/auth-session";
-import { groupProductsBySet } from "@/lib/group-products-by-set";
 import { markdownTeaser } from "@/lib/markdown-teaser";
-import { formatProductCounts } from "@/lib/product-counts";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { PRODUCTS_DESCRIPTION } from "@/routes/_app/products";
 

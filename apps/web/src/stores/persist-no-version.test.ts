@@ -4,16 +4,31 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// Directories that contain persist()-backed Zustand state (stores/ plus the
-// persist()-wrapped hooks like use-admin-settings).
-const SCANNED_DIRS = [import.meta.dirname, join(import.meta.dirname, "..", "hooks")];
+const SRC_DIR = join(import.meta.dirname, "..");
+
+// Directories that contain persist()-backed Zustand state: every stores/ plus
+// the persist()-wrapped hooks like use-admin-settings, top level and per feature.
+async function scannedDirs(): Promise<string[]> {
+  const dirs = [join(SRC_DIR, "stores"), join(SRC_DIR, "hooks")];
+  const features = await readdir(join(SRC_DIR, "features"), { withFileTypes: true });
+  for (const feature of features) {
+    if (!feature.isDirectory()) {
+      continue;
+    }
+    dirs.push(
+      join(SRC_DIR, "features", feature.name, "stores"),
+      join(SRC_DIR, "features", feature.name, "hooks"),
+    );
+  }
+  return dirs;
+}
 
 // A `version:` property key on its own line, as it would appear in persist()
 // options. Deliberately line-anchored so prose mentions in comments don't match.
 const VERSION_OPTION = /^\s*version\s*:/mu;
 
 async function listSourceFiles(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
   return entries
     .filter(
       (entry) =>
@@ -27,7 +42,7 @@ async function listSourceFiles(dir: string): Promise<string[]> {
 describe("persisted Zustand stores", () => {
   it("never set the zustand persist `version` option", async () => {
     const offenders: string[] = [];
-    for (const dir of SCANNED_DIRS) {
+    for (const dir of await scannedDirs()) {
       for (const file of await listSourceFiles(dir)) {
         const contents = await readFile(file, "utf-8");
         if (contents.includes("persist(") && VERSION_OPTION.test(contents)) {

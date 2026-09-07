@@ -5,11 +5,15 @@ import type { OrbCvLike } from "@openrift/shared/scan/orb";
 import type { FrameOutcome, ScanSession } from "@openrift/shared/scan/session";
 import type { RgbaImage } from "@openrift/shared/scan/types";
 
-import { loadScanBank } from "@/lib/scan-bank";
-import { embedderImageSize, loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
-import { loadOpenCvInWorker } from "@/lib/scan-opencv";
-import type { ScanSessionPlan } from "@/lib/scan-session";
-import { createConfiguredScanSession } from "@/lib/scan-session";
+import { loadScanBank } from "@/features/scan/lib/scan-bank";
+import {
+  embedderImageSize,
+  loadScanEmbedder,
+  measuredEmbedMsPerImage,
+} from "@/features/scan/lib/scan-embedder";
+import { loadOpenCvInWorker } from "@/features/scan/lib/scan-opencv";
+import type { ScanSessionPlan } from "@/features/scan/lib/scan-session";
+import { createConfiguredScanSession } from "@/features/scan/lib/scan-session";
 
 export type SessionKind = "live" | "catchUp";
 

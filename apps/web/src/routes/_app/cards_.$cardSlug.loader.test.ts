@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/use-card-detail", () => ({
+vi.mock("@/features/cards/hooks/use-card-detail", () => ({
   cardDetailQueryOptions: (cardSlug: string) => ({ queryKey: ["cards", "detail", cardSlug] }),
 }));
 vi.mock("@/hooks/use-init", () => ({
   initQueryOptions: { queryKey: ["init"] },
 }));
-vi.mock("@/hooks/use-prices", () => ({
+vi.mock("@/features/cards/hooks/use-prices", () => ({
   pricesQueryOptions: { queryKey: ["prices"] },
   fetchPricesForSeo: vi.fn(() => Promise.resolve(PRICES)),
 }));
 
-const { fetchPricesForSeo } = await import("@/hooks/use-prices");
+const { fetchPricesForSeo } = await import("@/features/cards/hooks/use-prices");
 const { Route } = await import("./cards_.$cardSlug");
 
 const PRICES = {

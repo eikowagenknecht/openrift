@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminUsersQueryOptions } from "@/hooks/use-admin-users";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { adminUsersQueryOptions } from "@/features/admin/hooks/use-admin-users";
 import {
   adminFeatureFlagOverridesQueryOptions,
   adminFeatureFlagsQueryOptions,

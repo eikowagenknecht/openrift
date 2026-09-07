@@ -1,8 +1,8 @@
 import type { SitemapDataResponse } from "@openrift/shared/types/api/catalog";
 
+import type { MetaEra } from "@/features/meta/lib/meta-scope";
+import { VALID_RULE_KINDS } from "@/features/rules/lib/rules-kinds";
 import type { HelpArticle } from "@/lib/help-article";
-import type { MetaEra } from "@/lib/meta-scope";
-import { VALID_RULE_KINDS } from "@/lib/rules-kinds";
 
 export const SITEMAP_FILE_LIMIT = 40_000;
 

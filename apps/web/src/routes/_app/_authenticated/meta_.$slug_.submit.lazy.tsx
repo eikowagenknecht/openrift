@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { MetaSubmitPage } from "@/components/meta/meta-submit-page";
-import { metaDeckQueryOptions } from "@/hooks/use-meta";
-import { metaSubmissionTextFromCards } from "@/lib/meta-submission-form";
+import { MetaSubmitPage } from "@/features/meta/components/meta-submit-page";
+import { metaDeckQueryOptions } from "@/features/meta/hooks/use-meta";
+import { metaSubmissionTextFromCards } from "@/features/meta/lib/meta-submission-form";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/meta_/$slug_/submit")({
   component: MetaEventSubmitRoute,

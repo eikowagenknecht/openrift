@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { RouteErrorFallback } from "@/components/error-message";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { publicDeckQueryOptions } from "@/hooks/use-decks";
+import { publicDeckQueryOptions } from "@/features/decks/hooks/use-decks";
 import { seoHead } from "@/lib/seo";
 import { deckShareImageUrl, shareImageVersion } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";

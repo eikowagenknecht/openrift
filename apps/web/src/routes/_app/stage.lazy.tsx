@@ -10,24 +10,27 @@ import {
   PageTopBarPrimaryButton,
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
-import { DeckPresentation } from "@/components/present/deck-presentation";
-import { PresentCardBrowser } from "@/components/present/present-card-browser";
-import { PresentQueuePanel } from "@/components/present/present-queue-panel";
-import { QueuePresentation } from "@/components/present/queue-presentation";
-import type { QueueSource } from "@/components/present/queue-source-picker";
-import { StageDndContext } from "@/components/present/stage-dnd-context";
-import { StageOutputBlock } from "@/components/present/stage-output-block";
+import { Badge } from "@/components/ui/badge";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
+import { DeckPresentation } from "@/features/stage/components/deck-presentation";
+import { PresentCardBrowser } from "@/features/stage/components/present-card-browser";
+import { PresentQueuePanel } from "@/features/stage/components/present-queue-panel";
+import { QueuePresentation } from "@/features/stage/components/queue-presentation";
+import type { QueueSource } from "@/features/stage/components/queue-source-picker";
+import { StageDndContext } from "@/features/stage/components/stage-dnd-context";
+import { StageOutputBlock } from "@/features/stage/components/stage-output-block";
 import {
   OwnedTierListPresentation,
   SharedTierListPresentation,
-} from "@/components/present/tier-list-presentation";
-import { Badge } from "@/components/ui/badge";
-import { useStagePresets } from "@/hooks/use-stage-presets";
-import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
-import { queueDraftSearch, startPresentingSearch } from "@/lib/presentation-queue-search";
-import { FilterSearchProvider } from "@/lib/search-schemas";
-import { usePresentQueueStore } from "@/stores/present-queue-store";
-import { applyStagePresetConfig } from "@/stores/stage-preset-actions";
+} from "@/features/stage/components/tier-list-presentation";
+import { useStagePresets } from "@/features/stage/hooks/use-stage-presets";
+import { MAX_QUEUE_LENGTH } from "@/features/stage/lib/presentation-queue";
+import {
+  queueDraftSearch,
+  startPresentingSearch,
+} from "@/features/stage/lib/presentation-queue-search";
+import { usePresentQueueStore } from "@/features/stage/stores/present-queue-store";
+import { applyStagePresetConfig } from "@/features/stage/stores/stage-preset-actions";
 
 export const Route = createLazyFileRoute("/_app/stage")({
   component: StagePage,

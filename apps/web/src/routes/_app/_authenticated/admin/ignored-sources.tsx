@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { ignoredCandidatesQueryOptions } from "@/hooks/use-ignored-candidates";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { ignoredCandidatesQueryOptions } from "@/features/admin/hooks/use-ignored-candidates";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/ignored-sources")({

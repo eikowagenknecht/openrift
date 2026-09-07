@@ -1,9 +1,9 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
-import { ContributeForm } from "@/components/contribute/contribute-form";
 import { Heading } from "@/components/heading";
 import { Button } from "@/components/ui/button";
-import { emptyFormState } from "@/lib/contribute-json";
+import { ContributeForm } from "@/features/contribute/components/contribute-form";
+import { emptyFormState } from "@/features/contribute/lib/contribute-json";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/contribute")({

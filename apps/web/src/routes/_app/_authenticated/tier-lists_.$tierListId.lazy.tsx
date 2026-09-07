@@ -1,8 +1,8 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TierListBuilderPage } from "@/components/tier-lists/tier-list-builder-page";
-import { useTierList } from "@/hooks/use-tier-lists";
-import { FilterSearchProvider } from "@/lib/search-schemas";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
+import { TierListBuilderPage } from "@/features/stage/components/tier-list-builder-page";
+import { useTierList } from "@/features/stage/hooks/use-tier-lists";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/tier-lists_/$tierListId")({
   component: TierListBuilderRoute,

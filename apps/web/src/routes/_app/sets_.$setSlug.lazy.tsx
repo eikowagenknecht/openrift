@@ -3,7 +3,6 @@ import { deduplicateByCard } from "@openrift/shared/utils";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import {
   PageTopBar,
   PageTopBarActions,
@@ -13,9 +12,10 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
+import { CardThumbnail } from "@/features/cards/components/card-thumbnail";
+import { useCardThumbnailDisplay } from "@/features/cards/hooks/use-card-thumbnail-display";
+import { publicSetDetailQueryOptions } from "@/features/cards/hooks/use-public-sets";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
-import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
 import { PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 

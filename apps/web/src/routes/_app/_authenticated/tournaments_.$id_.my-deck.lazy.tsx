@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { PlayerDeckPage } from "@/components/deck-check/player-deck-page";
+import { PlayerDeckPage } from "@/features/tournaments/components/player-deck-page";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/tournaments_/$id_/my-deck")({
   component: MyTournamentDeckRoute,

@@ -1,6 +1,6 @@
 # Extracting card frame templates from existing card images
 
-The card designer ([ADR-023](adr/023-card-designer.md)) draws the entire card frame in CSS: energy gem, might shield, power runes, the domain-tinted name banner with its rune icons, the type label, the rules box, the footer ornaments, gradients and noise. That is a single ~360-line component (`apps/web/src/components/cards/card-placeholder-image.tsx`) that only ever approximates the real Riftbound chrome.
+The card designer ([ADR-023](adr/023-card-designer.md)) draws the entire card frame in CSS: energy gem, might shield, power runes, the domain-tinted name banner with its rune icons, the type label, the rules box, the footer ornaments, gradients and noise. That is a single ~360-line component (`apps/web/src/features/cards/components/card-placeholder-image.tsx`) that only ever approximates the real Riftbound chrome.
 
 An alternative is to treat the frame as a **template image** per card combination (type x rarity x domain x has-power-cost, ...) and draw only the few dynamic elements on top (art behind, energy/might/power numbers, name, type, rules/flavor text). We don't have these template images, only the ~2100 finished card images that were produced from them.
 
@@ -91,7 +91,7 @@ convert base.png \
   template.png
 ```
 
-Region coordinates above are for the unit layout at 744x1039; they are constant across buckets at the same layout, so they are written once. The same coordinates feed the dynamic-text overlay in the designer, and most of that math already exists in `apps/web/src/lib/card-designer.ts`.
+Region coordinates above are for the unit layout at 744x1039; they are constant across buckets at the same layout, so they are written once. The same coordinates feed the dynamic-text overlay in the designer, and most of that math already exists in `apps/web/src/features/designer/lib/card-designer.ts`.
 
 ## Limitations (the hand-edit that remains)
 

@@ -69,7 +69,7 @@ The two sides differ, and the difference is the whole reason the API snippet abo
 
 ## Active flags
 
-The canonical list of known flags lives in the `KNOWN_FLAGS` array in `apps/web/src/components/admin/feature-flags-page.tsx`. Unconfigured known flags appear in the admin UI under "Available flags" for easy setup.
+The canonical list of known flags lives in the `KNOWN_FLAGS` array in `apps/web/src/features/admin/components/feature-flags-page.tsx`. Unconfigured known flags appear in the admin UI under "Available flags" for easy setup.
 
 When adding a new flag, add an entry to `KNOWN_FLAGS` so it shows up in the admin panel with a description and one-click setup.
 

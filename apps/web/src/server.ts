@@ -7,8 +7,8 @@ import type { SetListResponse, SitemapDataResponse } from "@openrift/shared/type
 import type { FeatureFlagsResponse } from "@openrift/shared/types/api/feature-flags";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
-import { helpArticleList } from "./components/help/articles";
-import { deriveSetEras } from "./lib/meta-scope";
+import { helpArticleList } from "./features/marketing/components/articles";
+import { deriveSetEras } from "./features/meta/lib/meta-scope";
 import { applyPageCacheControl } from "./lib/page-cache";
 import { fetchApiJson } from "./lib/server-fns/fetch-api";
 import type { SitemapInput } from "./lib/sitemap";

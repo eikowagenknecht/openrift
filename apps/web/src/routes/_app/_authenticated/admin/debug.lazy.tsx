@@ -1,6 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
 import {
   SectionHeader,
   SectionHeaderDescription,
@@ -9,7 +8,8 @@ import {
 } from "@/components/section-header";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useAdminSettingsStore } from "@/hooks/use-admin-settings";
+import { AdminPageTopBar } from "@/features/admin/components/admin-page-top-bar";
+import { useAdminSettingsStore } from "@/features/admin/hooks/use-admin-settings";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin/debug")({
   component: SettingsPage,

@@ -1,9 +1,9 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { SharedCollectionAccessNotice } from "@/components/collection/shared-collection-access-notice";
-import { SharedCollectionView } from "@/components/collection/shared-collection-view";
-import { PublicShareCta } from "@/components/signed-out-cta";
-import { usePublicCollection } from "@/hooks/use-collections";
+import { PublicShareCta } from "@/features/account/components/signed-out-cta";
+import { SharedCollectionAccessNotice } from "@/features/collections/components/shared-collection-access-notice";
+import { SharedCollectionView } from "@/features/collections/components/shared-collection-view";
+import { usePublicCollection } from "@/features/collections/hooks/use-collections";
 
 export const Route = createLazyFileRoute("/_app/collections_/share/$token")({
   component: SharedCollectionPage,

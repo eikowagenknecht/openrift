@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { catalogQueryOptions } from "@/hooks/catalog-query";
+import { catalogQueryOptions } from "@/features/cards/hooks/catalog-query";
+import { metaEventsQueryOptions } from "@/features/meta/hooks/use-meta";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaEventsQueryOptions } from "@/hooks/use-meta";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";

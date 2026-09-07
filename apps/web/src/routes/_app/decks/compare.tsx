@@ -2,10 +2,10 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
-import { deckDetailQueryOptions, decksQueryOptions } from "@/hooks/use-decks";
+import { deckDetailQueryOptions, decksQueryOptions } from "@/features/decks/hooks/use-decks";
+import { isLocalDeckId } from "@/features/decks/lib/local-deck";
 import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { isLocalDeckId } from "@/lib/local-deck";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

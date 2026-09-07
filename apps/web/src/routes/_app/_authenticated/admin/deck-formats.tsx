@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { adminDeckFormatsQueryOptions } from "@/hooks/use-deck-formats";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { adminDeckFormatsQueryOptions } from "@/features/decks/hooks/use-deck-formats";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/deck-formats")({

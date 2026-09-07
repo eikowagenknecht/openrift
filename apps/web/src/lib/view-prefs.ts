@@ -1,7 +1,7 @@
 import type { SortDirection } from "@openrift/shared/types/search";
 import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared/types/search";
 
-import { PROMO_GROUPINGS } from "@/lib/promo-groupings";
+import { PROMO_GROUPINGS } from "@/features/cards/lib/promo-groupings";
 
 // Shared by the Zustand stores in stores/view-prefs-store.ts and the SSR
 // cookie resolver below, so both paths clamp identically and the SSR paint

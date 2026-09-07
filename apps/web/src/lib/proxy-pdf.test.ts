@@ -5,7 +5,7 @@ import type {
 } from "@openrift/shared/types/api/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
+import { sortCardsLikeSidebar } from "@/features/decks/lib/deck-card-order";
 import { resolveProxyCards } from "@/lib/proxy-pdf";
 import { resetIdCounter, stubCard, stubDeckBuilderCard, stubPrinting } from "@/test/factories";
 

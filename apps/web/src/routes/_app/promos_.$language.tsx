@@ -3,9 +3,9 @@ import { RENAMED_LANGUAGES } from "@openrift/shared/well-known";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { publicPromoListQueryOptions } from "@/features/cards/hooks/use-public-promos";
+import { cleanedSearchForRedirect, filterSearchSchema } from "@/features/cards/lib/search-schemas";
 import { initQueryOptions } from "@/hooks/use-init";
-import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
-import { cleanedSearchForRedirect, filterSearchSchema } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

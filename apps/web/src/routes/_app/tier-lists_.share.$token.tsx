@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { RouteErrorFallback } from "@/components/error-message";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { publicTierListQueryOptions } from "@/hooks/use-tier-lists";
+import { publicTierListQueryOptions } from "@/features/stage/hooks/use-tier-lists";
 import { seoHead } from "@/lib/seo";
 import { shareImageVersion, tierListShareImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";

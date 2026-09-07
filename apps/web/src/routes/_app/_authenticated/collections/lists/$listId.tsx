@@ -1,8 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { CollectionPending } from "@/components/collection/collection-pending";
 import { RouteErrorFallback } from "@/components/error-message";
-import { listDetailQueryOptions } from "@/hooks/use-lists";
+import { CollectionPending } from "@/features/collections/components/collection-pending";
+import { listDetailQueryOptions } from "@/features/lists/hooks/use-lists";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

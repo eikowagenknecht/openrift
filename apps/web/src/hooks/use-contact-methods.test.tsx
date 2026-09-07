@@ -22,7 +22,8 @@ vi.mock("@/lib/server-fns/middleware", () => ({ withCookies: () => {} }));
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => "test-user-id" }));
 vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => true }));
 
-const { useContactMethods, useCreateContactMethod } = await import("./use-contact-methods");
+const { useContactMethods, useCreateContactMethod } =
+  await import("@/features/account/hooks/use-contact-methods");
 
 interface FetchCall {
   url: string;

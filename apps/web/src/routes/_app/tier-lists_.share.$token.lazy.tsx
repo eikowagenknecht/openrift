@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TierListShareView } from "@/components/tier-lists/tier-list-share-view";
-import { usePublicTierList } from "@/hooks/use-tier-lists";
+import { TierListShareView } from "@/features/stage/components/tier-list-share-view";
+import { usePublicTierList } from "@/features/stage/hooks/use-tier-lists";
 
 export const Route = createLazyFileRoute("/_app/tier-lists_/share/$token")({
   component: SharedTierListPage,

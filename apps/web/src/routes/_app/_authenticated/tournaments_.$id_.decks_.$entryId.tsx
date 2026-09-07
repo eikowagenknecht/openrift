@@ -4,10 +4,10 @@ import { RouteErrorFallback } from "@/components/error-message";
 import {
   loadTournamentDetail,
   redirectToTournamentOverview,
-} from "@/hooks/tournament-route-guards";
+} from "@/features/tournaments/hooks/tournament-route-guards";
+import { canCheckDecks } from "@/features/tournaments/lib/tournament-display";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { canCheckDecks } from "@/lib/tournament-display";
 
 export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/decks_/$entryId")({
   ssr: "data-only",

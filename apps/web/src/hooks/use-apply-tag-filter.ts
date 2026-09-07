@@ -1,7 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { useContext } from "react";
 
-import { FilterSearchProvider } from "@/lib/search-schemas";
+import { FilterSearchProvider } from "@/features/cards/lib/search-schemas";
 
 /**
  * Returns null outside a `FilterSearchProvider`; callers must then fall back

@@ -1,7 +1,7 @@
 import { createLazyFileRoute, useParams, useSearch } from "@tanstack/react-router";
 
-import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { CreatePrintingPage } from "@/components/admin/create-printing-page";
+import { AdminPageTopBar } from "@/features/admin/components/admin-page-top-bar";
+import { CreatePrintingPage } from "@/features/admin/components/create-printing-page";
 
 function CreatePrintingRoute() {
   const { cardSlug } = useParams({

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { BinderSheetOptions } from "./binder-sheet-pdf";
-import { buildBinderSheetDoc } from "./binder-sheet-pdf";
+import type { BinderSheetOptions } from "@/features/collections/lib/binder-sheet-pdf";
+import { buildBinderSheetDoc } from "@/features/collections/lib/binder-sheet-pdf";
 
 // jsdom neither fetches nor decodes the logo SVG, and an unresolved image
 // would hang the export; fail it immediately to exercise the no-logo path.

@@ -1,6 +1,6 @@
 # Authentication
 
-OpenRift uses [better-auth](https://www.better-auth.com/) for authentication. The server-side config lives in `apps/api/src/auth.ts` and the client in `apps/web/src/lib/auth-client.ts`.
+OpenRift uses [better-auth](https://www.better-auth.com/) for authentication. The server-side config lives in `apps/api/src/auth.ts` and the client in `apps/web/src/features/account/lib/auth-client.ts`.
 
 ## Account Creation (Email + Password)
 

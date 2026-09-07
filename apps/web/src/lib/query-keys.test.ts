@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { SourceMappingConfig } from "@/lib/price-mappings-types";
+import type { SourceMappingConfig } from "@/features/admin/lib/price-mappings-types";
 
 import { queryKeys } from "./query-keys";
 

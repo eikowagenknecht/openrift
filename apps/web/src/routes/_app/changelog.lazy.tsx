@@ -1,6 +1,6 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { ChangelogPage } from "@/components/changelog/changelog-page";
+import { ChangelogPage } from "@/features/marketing/components/changelog-page";
 
 export const Route = createLazyFileRoute("/_app/changelog")({
   component: ChangelogRoute,

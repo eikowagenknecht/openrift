@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
-import { typographyReviewQueryOptions } from "@/hooks/use-typography-review";
+import { AdminPending } from "@/features/admin/components/admin-route-components";
+import { typographyReviewQueryOptions } from "@/features/admin/hooks/use-typography-review";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/typography-review")({

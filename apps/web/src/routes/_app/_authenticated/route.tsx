@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { useSessionExpiredRedirect } from "@/hooks/use-session-expired-redirect";
+import { useSessionExpiredRedirect } from "@/features/account/hooks/use-session-expired-redirect";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/_app/_authenticated")({

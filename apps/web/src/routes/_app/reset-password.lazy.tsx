@@ -3,12 +3,12 @@ import { useState } from "react";
 
 import { Heading } from "@/components/heading";
 import { AuthPageLayout } from "@/components/layout/auth-page-layout";
-import { SixDigitOtpInput } from "@/components/six-digit-otp-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth-client";
+import { SixDigitOtpInput } from "@/features/account/components/six-digit-otp-input";
+import { authClient } from "@/features/account/lib/auth-client";
 import { otpErrorMessage, requestOtpErrorMessage } from "@/lib/auth-errors";
 
 export const Route = createLazyFileRoute("/_app/reset-password")({

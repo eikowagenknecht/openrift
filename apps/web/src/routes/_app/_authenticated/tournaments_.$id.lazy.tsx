@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { TournamentOverviewFrame } from "@/components/tournaments/tournament-detail-frame";
-import { TournamentOverviewTab } from "@/components/tournaments/tournament-overview-tab";
+import { TournamentOverviewFrame } from "@/features/tournaments/components/tournament-detail-frame";
+import { TournamentOverviewTab } from "@/features/tournaments/components/tournament-overview-tab";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/tournaments_/$id")({
   component: TournamentOverviewRoute,

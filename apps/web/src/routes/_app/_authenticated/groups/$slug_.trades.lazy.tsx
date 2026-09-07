@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 
-import { FriendGroupSectionFrame } from "@/components/friend-groups/friend-group-shell";
-import { TradesPageContent } from "@/components/friend-groups/friend-group-trades-page";
+import { FriendGroupSectionFrame } from "@/features/groups/components/friend-group-shell";
+import { TradesPageContent } from "@/features/groups/components/friend-group-trades-page";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/groups/$slug_/trades")({
   component: GroupTradesRoute,

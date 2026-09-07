@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { publicPromoListQueryOptions } from "@/features/cards/hooks/use-public-promos";
 import { initQueryOptions } from "@/hooks/use-init";
-import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

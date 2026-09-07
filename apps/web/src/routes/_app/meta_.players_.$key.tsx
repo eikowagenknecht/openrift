@@ -3,13 +3,13 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import { publicSetListQueryOptions } from "@/features/cards/hooks/use-public-sets";
+import { metaDecksQueryOptions, metaPlayerQueryOptions } from "@/features/meta/hooks/use-meta";
+import { metaPlayerSearchSchema } from "@/features/meta/lib/meta-player-search";
+import { deriveSetEras, metaScopeQueryFromScope } from "@/features/meta/lib/meta-scope";
 import { initQueryOptions } from "@/hooks/use-init";
-import { metaDecksQueryOptions, metaPlayerQueryOptions } from "@/hooks/use-meta";
-import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { metaPlayerSearchSchema } from "@/lib/meta-player-search";
-import { deriveSetEras, metaScopeQueryFromScope } from "@/lib/meta-scope";
 import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_WIDTH, PAGE_PADDING, cn } from "@/lib/utils";
