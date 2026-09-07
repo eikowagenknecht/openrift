@@ -1,0 +1,307 @@
+import { enumLabel } from "@openrift/shared/enum-label";
+import { CopyIcon, HeartIcon } from "lucide-react";
+import { Suspense } from "react";
+import { siDiscord, siGithub, siGithubsponsors, siKofi, siX } from "simple-icons";
+
+import { Heading } from "@/components/heading";
+import { MarketplaceLink } from "@/components/marketplace-link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardText } from "@/features/cards/components/card-text";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { useEnumOrders } from "@/hooks/use-enums";
+import { getFilterIconPath } from "@/lib/icons";
+import { getSiteUrl } from "@/lib/site-config";
+import { SOCIAL_LINKS } from "@/lib/social-links";
+import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
+
+const GITHUB_SPONSORS_URL = "https://github.com/sponsors/eikowagenknecht";
+const KOFI_URL = "https://ko-fi.com/eikowagenknecht";
+
+interface SupportTier {
+  rarity: string;
+  price: string;
+  effect: string;
+}
+
+const tiers: SupportTier[] = [
+  {
+    rarity: "common",
+    price: "$1/mo",
+    effect: "I see you over there. [Reaction]: I nod in your general direction.",
+  },
+  {
+    rarity: "uncommon",
+    price: "$3/mo",
+    effect: "A warm fuzzy feeling. [Shield]: Protects me from existential dread for 72 hours.",
+  },
+  {
+    rarity: "rare",
+    price: "$5/mo",
+    effect: "My server gains +1 :rb_might:. It survives approximately 4.7 more minutes per month.",
+  },
+  {
+    rarity: "epic",
+    price: "$10/mo",
+    effect: "You're keeping the lights on. [Deathknell]: I name a bug after you.",
+  },
+  {
+    rarity: "showcase",
+    price: "$25/mo",
+    effect:
+      "You basically own the site now. [Buff]: My morale goes through the roof. A sticker may or may not materialize.",
+  },
+];
+
+function SimpleIcon({ icon, className }: { icon: { path: string }; className?: string }) {
+  return (
+    <svg role="img" viewBox="0 0 24 24" className={cn("size-4 fill-current", className)}>
+      <path d={icon.path} />
+    </svg>
+  );
+}
+
+function TierCard({ tier, label }: { tier: SupportTier; label: string }) {
+  const rarityIcon = getFilterIconPath("rarities", tier.rarity, { size: "full" });
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {rarityIcon && (
+            <img src={rarityIcon} alt={label} width={28} height={28} className="size-5" />
+          )}
+          <span>{label}</span>
+          <span className="text-muted-foreground ml-auto text-sm font-normal">{tier.price}</span>
+        </CardTitle>
+        <CardDescription className="italic">
+          <Suspense fallback={tier.effect}>
+            <CardText text={tier.effect} interactive={false} />
+          </Suspense>
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+/** One share action: a link out when `href` is set, a plain action otherwise. */
+export function ShareButton({
+  label,
+  icon,
+  onClick,
+  href,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+  href?: string;
+}) {
+  // Button-styled anchor, not Button-in-<a> (invalid) or BaseUI's `render` escape
+  // hatch (it stamps role="button" on the anchor, so it stops announcing as a link).
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full gap-2")}
+      >
+        {icon}
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <Button variant="outline" size="lg" className="w-full gap-2" onClick={onClick}>
+      {icon}
+      {label}
+    </Button>
+  );
+}
+
+function CopyButton({ text, label, icon }: { text: string; label: string; icon: React.ReactNode }) {
+  const { copied, copy } = useCopyToClipboard();
+
+  return (
+    <ShareButton label={copied ? "Copied!" : label} icon={icon} onClick={() => void copy(text)} />
+  );
+}
+
+export function SupportPage() {
+  const siteUrl = getSiteUrl();
+  const shareText = `Check out OpenRift, a free card browser for Riftbound! ${siteUrl}`;
+  const tweetText = encodeURIComponent(shareText);
+  const { labels } = useEnumOrders();
+
+  return (
+    <div className={cn(PAGE_WIDTH.capped, "flex flex-1 flex-col", PAGE_PADDING)}>
+      <div className="mb-10">
+        <Heading level={1} className="mb-4">
+          Support the Rift
+        </Heading>
+        <div className="text-muted-foreground space-y-3 text-sm leading-relaxed">
+          <p>
+            Every day, my server burns Energy to keep the Rift open so you can browse cards instead
+            of whatever you were supposed to be doing.
+          </p>
+          <p>
+            This site has no ads, no trackers, and no venture capital guys asking about my
+            &ldquo;growth metrics.&rdquo; Just me, a database, and an alarming hosting bill. (Just
+            kidding, this is running on a Hetzner CPX32 found in a Falkenstein scrapyard. But
+            upgrading it would be nice.)
+          </p>
+          <p>
+            However you pitch in, whether it&apos;s a donation, a share, or just showing up to
+            browse, it genuinely helps. Thanks for being here.
+          </p>
+        </div>
+      </div>
+
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Fuel the Rift</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Add Energy to the pool.{" "}
+          <span className="italic">
+            These tiers are purely cosmetic. Like foils, but for your soul.
+          </span>
+        </p>
+        <div className="space-y-3">
+          {tiers.map((tier) => (
+            <TierCard
+              key={tier.rarity}
+              tier={tier}
+              label={enumLabel(labels.rarities, tier.rarity)}
+            />
+          ))}
+        </div>
+        <div className="mt-4 flex justify-center gap-3">
+          <a
+            href={KOFI_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants(), "gap-2")}
+          >
+            <SimpleIcon icon={siKofi} className="size-4" />
+            Support on Ko-fi
+          </a>
+          <a
+            href={GITHUB_SPONSORS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
+          >
+            <SimpleIcon icon={siGithubsponsors} className="size-4" />
+            Sponsor on GitHub
+          </a>
+        </div>
+        <p className="text-muted-foreground mt-2 text-center text-sm">
+          Recurring or one-time, every contribution helps keep the Rift open.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Widen the Rift</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Can&apos;t spare the Energy? Cast a sharing spell instead. Every share adds Power to the
+          community.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ShareButton
+            label="Star on GitHub"
+            icon={<SimpleIcon icon={siGithub} />}
+            href={SOCIAL_LINKS.githubRepo}
+          />
+          <ShareButton
+            label="Summon your X followers"
+            icon={<SimpleIcon icon={siX} />}
+            href={`https://x.com/intent/tweet?text=${tweetText}`}
+          />
+          <CopyButton
+            label="Send a Carrier Pigeon"
+            icon={<CopyIcon className="size-4" />}
+            text={shareText}
+          />
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Shop Through the Rift</h2>
+        <p className="text-muted-foreground text-sm">
+          When you click a{" "}
+          <MarketplaceLink
+            marketplace="tcgplayer"
+            href="https://partner.tcgplayer.com/openrift?u=https%3A%2F%2Fwww.tcgplayer.com%2F"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            TCGplayer
+          </MarketplaceLink>{" "}
+          or{" "}
+          <MarketplaceLink
+            marketplace="cardtrader"
+            href="https://www.cardtrader.com/?share_code=openrift"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Cardtrader
+          </MarketplaceLink>{" "}
+          link from a card&apos;s prices and end up buying something, I get a very small commission
+          at no extra cost to you. (Cardmarket doesn&apos;t do this, so those links are just regular
+          links.) Buying cards you were going to buy anyway through these links is a sneaky-easy way
+          to help out.
+        </p>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Join the Party</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Got feedback, questions, or just want to nerd out about Riftbound? Come hang out on
+          Discord.
+        </p>
+        <a
+          href={SOCIAL_LINKS.discordInvite}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(buttonVariants(), "gap-2 bg-[#5865F2] text-white [a]:hover:bg-[#4752C4]")}
+        >
+          <SimpleIcon icon={siDiscord} className="size-4" />
+          Join the Discord
+        </a>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Gear Up</h2>
+        <Card size="sm" className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-muted-foreground flex items-center gap-2 italic">
+              Coming Soon&trade;
+            </CardTitle>
+            <CardDescription>
+              My Gear department (population: one) is working on it. Check back before the heat
+              death of the universe.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm italic">
+              <Suspense fallback="[Equip]: Attach one mass-produced mug to your desk. It reads: &ldquo;I fund the Rift and all I got was this Common-rarity mug.&rdquo;">
+                <CardText
+                  text='[Equip]: Attach one mass-produced mug to your desk. It reads: "I fund the Rift and all I got was this Common-rarity mug."'
+                  interactive={false}
+                />
+              </Suspense>
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="text-muted-foreground mt-auto border-t pt-6 text-center text-sm">
+        <p>
+          OpenRift is a free, open-source project. No one here is getting rich (well, except in
+          Power, and you can&apos;t pay hosting bills with Power).
+        </p>
+        <p className="mt-2 font-medium">
+          Built with Fury. Maintained with Calm. Funded by people like you.
+        </p>
+        <HeartIcon className="text-primary/40 mx-auto mt-4 size-5" />
+      </section>
+    </div>
+  );
+}

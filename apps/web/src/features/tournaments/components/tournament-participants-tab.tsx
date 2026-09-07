@@ -1,0 +1,504 @@
+import type {
+  TournamentDetailResponse,
+  TournamentParticipantStatus,
+} from "@openrift/shared/types/api/tournament";
+import { CheckIcon, GlobeIcon, UserPlusIcon, UserXIcon } from "lucide-react";
+import { useState } from "react";
+
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DialogForm } from "@/components/ui/dialog-form";
+import { Input } from "@/components/ui/input";
+import { SectionHeading } from "@/components/ui/section-heading";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { StatStripItem } from "@/components/ui/stat-strip";
+import { StatStrip } from "@/components/ui/stat-strip";
+import { SearchInput } from "@/features/cards/components/search-input";
+import { MissingRegionsBand } from "@/features/tournaments/components/missing-regions-band";
+import type {
+  ParticipantAction,
+  ParticipantTarget,
+} from "@/features/tournaments/components/participant-row";
+import {
+  ParticipantRow,
+  participantMissesRegion,
+} from "@/features/tournaments/components/participant-row";
+import {
+  TeamsSection,
+  teammateNamesById,
+  unteamedActivePlayers,
+} from "@/features/tournaments/components/teams-section";
+import { useTournamentDeckCheckEntries } from "@/features/tournaments/hooks/use-tournament-deck-check";
+import {
+  useAddParticipant,
+  useParticipantAction,
+  useTournamentParticipants,
+  useUpdateParticipant,
+} from "@/features/tournaments/hooks/use-tournaments";
+import { canCheckDecks, canManageTournament } from "@/features/tournaments/lib/tournament-display";
+import { useCustomTagList } from "@/hooks/use-enums";
+
+const ROSTER_GROUPS: {
+  key: string;
+  heading: string;
+  statuses: TournamentParticipantStatus[];
+  icon?: typeof UserPlusIcon;
+  dimmed?: boolean;
+}[] = [
+  { key: "requested", heading: "Join requests", statuses: ["requested"], icon: UserPlusIcon },
+  { key: "invited", heading: "Invited", statuses: ["invited"] },
+  { key: "active", heading: "Active", statuses: ["active"] },
+  { key: "inactive", heading: "Dropped", statuses: ["dropped", "no_show"], dimmed: true },
+];
+
+export function TournamentParticipantsTab({
+  id,
+  detail,
+}: {
+  id: string;
+  detail: TournamentDetailResponse;
+}) {
+  const manage = canManageTournament(detail.myRoles);
+  const canAssignRegion = detail.regionsEnabled && canCheckDecks(detail.myRoles);
+  const { data } = useTournamentParticipants(id);
+  const participants = data.items;
+  const updateParticipant = useUpdateParticipant();
+  const participantAction = useParticipantAction();
+
+  // The deck-check endpoint 404s when deck submission is off; only fetch when
+  // the viewer can manage and the tournament collects decks.
+  const { data: deckCheck } = useTournamentDeckCheckEntries(
+    id,
+    manage && detail.deckSubmission !== "none",
+  );
+  const entryByParticipant = new Map(
+    (deckCheck?.entries ?? [])
+      .filter((entry) => entry.participantId !== null)
+      .map((entry) => [entry.participantId as string, entry]),
+  );
+
+  const [search, setSearch] = useState("");
+  const [renameTarget, setRenameTarget] = useState<ParticipantTarget | null>(null);
+  const [regionTarget, setRegionTarget] = useState<(ParticipantTarget & { region: string }) | null>(
+    null,
+  );
+  const [fixedTableTarget, setFixedTableTarget] = useState<
+    (ParticipantTarget & { fixedTable: string }) | null
+  >(null);
+  const [removeTarget, setRemoveTarget] = useState<ParticipantTarget | null>(null);
+
+  const missingRegionPlayers = participants.filter((participant) =>
+    participantMissesRegion(participant, detail.regionsEnabled),
+  );
+  const activeCount = participants.filter((participant) => participant.status === "active").length;
+  const droppedCount = participants.filter(
+    (participant) => participant.status === "dropped" || participant.status === "no_show",
+  ).length;
+  const withRegionCount = activeCount - missingRegionPlayers.length;
+  const teamMode = detail.playMode === "2v2";
+  const unteamedCount = teamMode ? unteamedActivePlayers(participants).length : 0;
+  const teammateNames = teamMode ? teammateNamesById(participants) : new Map<string, string>();
+
+  const stats: StatStripItem[] = [
+    { key: "active", value: activeCount, label: "active", icon: CheckIcon, iconTone: "success" },
+    { key: "dropped", value: droppedCount, label: "dropped", icon: UserXIcon },
+    ...(teamMode
+      ? [
+          {
+            key: "teamed",
+            value: `${activeCount - unteamedCount}/${activeCount}`,
+            label: "on a team",
+            icon: CheckIcon,
+            tone: (unteamedCount === 0 && activeCount > 0
+              ? "good"
+              : "default") as StatStripItem["tone"],
+          },
+        ]
+      : []),
+    ...(detail.regionsEnabled
+      ? [
+          {
+            key: "regions",
+            value: `${withRegionCount}/${activeCount}`,
+            label: "with region",
+            icon: GlobeIcon,
+            iconTone: "info" as const,
+            tone: (missingRegionPlayers.length === 0 && activeCount > 0
+              ? "good"
+              : "default") as StatStripItem["tone"],
+          },
+        ]
+      : []),
+  ];
+
+  const needle = search.trim().toLowerCase();
+  const visible = needle
+    ? participants.filter((participant) =>
+        [participant.displayName, participant.userName].some((field) =>
+          field?.toLowerCase().includes(needle),
+        ),
+      )
+    : participants;
+
+  async function run(action: () => Promise<unknown>) {
+    try {
+      await action();
+    } catch {
+      // Reported by the global mutation onError toast.
+    }
+  }
+
+  function fireAction(participantId: string, action: ParticipantAction) {
+    void run(() => participantAction.mutateAsync({ id, participantId, action }));
+  }
+
+  const groups = ROSTER_GROUPS.map((group) => ({
+    ...group,
+    players: visible
+      .filter((participant) => group.statuses.includes(participant.status))
+      .toSorted((a, b) => a.displayName.localeCompare(b.displayName)),
+  })).filter((group) => group.players.length > 0);
+
+  async function handleRename() {
+    const displayName = renameTarget?.name.trim();
+    if (!renameTarget || !displayName) {
+      return;
+    }
+    await run(() =>
+      updateParticipant.mutateAsync({
+        id,
+        participantId: renameTarget.participantId,
+        displayName,
+      }),
+    );
+    setRenameTarget(null);
+  }
+
+  async function handleSetRegion() {
+    if (!regionTarget) {
+      return;
+    }
+    const region = regionTarget.region === "none" ? null : regionTarget.region;
+    await run(() =>
+      updateParticipant.mutateAsync({ id, participantId: regionTarget.participantId, region }),
+    );
+    setRegionTarget(null);
+  }
+
+  async function handleSetFixedTable() {
+    if (!fixedTableTarget) {
+      return;
+    }
+    const parsed = parseFixedTable(fixedTableTarget.fixedTable);
+    if (parsed === undefined) {
+      return;
+    }
+    await run(() =>
+      updateParticipant.mutateAsync({
+        id,
+        participantId: fixedTableTarget.participantId,
+        fixedTable: parsed,
+      }),
+    );
+    setFixedTableTarget(null);
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {canAssignRegion && missingRegionPlayers.length > 0 ? (
+        <MissingRegionsBand players={missingRegionPlayers} onSetRegion={setRegionTarget} />
+      ) : null}
+
+      {teamMode ? <TeamsSection id={id} participants={participants} manage={manage} /> : null}
+
+      {participants.length > 0 ? (
+        <>
+          <StatStrip items={stats} />
+          <SearchInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Search players"
+            ariaLabel="Search players"
+            className="w-full max-w-xs"
+          />
+        </>
+      ) : null}
+
+      {participants.length === 0 ? (
+        <p className="text-muted-foreground">No participants yet.</p>
+      ) : groups.length === 0 ? (
+        <p className="text-muted-foreground">No players match the search.</p>
+      ) : (
+        groups.map((group) => (
+          <section key={group.key} className="flex flex-col gap-2">
+            <SectionHeading count={group.players.length} icon={group.icon} tone="gold">
+              {group.heading}
+            </SectionHeading>
+            <ul className="flex flex-col gap-2">
+              {group.players.map((participant) => (
+                <li key={participant.id}>
+                  <ParticipantRow
+                    participant={participant}
+                    tournamentId={id}
+                    regionsEnabled={detail.regionsEnabled}
+                    manage={manage}
+                    canAssignRegion={canAssignRegion}
+                    dimmed={group.dimmed}
+                    teammateName={teammateNames.get(participant.id)}
+                    deckEntryId={entryByParticipant.get(participant.id)?.id}
+                    actionPending={participantAction.isPending}
+                    onAction={fireAction}
+                    onRename={setRenameTarget}
+                    onSetRegion={setRegionTarget}
+                    onSetFixedTable={setFixedTableTarget}
+                    onRemove={setRemoveTarget}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )}
+
+      <Dialog open={renameTarget !== null} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent>
+          <DialogForm onSubmit={() => void handleRename()}>
+            <DialogHeader>
+              <DialogTitle>Rename participant</DialogTitle>
+            </DialogHeader>
+            <Input
+              value={renameTarget?.name ?? ""}
+              maxLength={120}
+              onChange={(event) =>
+                setRenameTarget((prev) => (prev ? { ...prev, name: event.target.value } : prev))
+              }
+              aria-label="New name"
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRenameTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!renameTarget?.name.trim() || updateParticipant.isPending}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={regionTarget !== null} onOpenChange={(open) => !open && setRegionTarget(null)}>
+        <DialogContent>
+          <DialogForm onSubmit={() => void handleSetRegion()}>
+            <DialogHeader>
+              <DialogTitle>Set region for {regionTarget?.name}</DialogTitle>
+              <DialogDescription>
+                The region this player represents. Pairings avoid same-region matchups.
+              </DialogDescription>
+            </DialogHeader>
+            <RegionSelect
+              value={regionTarget?.region ?? "none"}
+              onChange={(value) =>
+                setRegionTarget((prev) => (prev ? { ...prev, region: value } : prev))
+              }
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRegionTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateParticipant.isPending}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={fixedTableTarget !== null}
+        onOpenChange={(open) => !open && setFixedTableTarget(null)}
+      >
+        <DialogContent>
+          <DialogForm onSubmit={() => void handleSetFixedTable()}>
+            <DialogHeader>
+              <DialogTitle>Set fixed table for {fixedTableTarget?.name}</DialogTitle>
+              <DialogDescription>
+                Pairings are unaffected. When two fixed-table players meet, the match goes to the
+                lower table for that round.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              type="number"
+              min={1}
+              max={999}
+              inputMode="numeric"
+              value={fixedTableTarget?.fixedTable ?? ""}
+              onChange={(event) =>
+                setFixedTableTarget((prev) =>
+                  prev ? { ...prev, fixedTable: event.target.value } : prev,
+                )
+              }
+              placeholder="No fixed table"
+              aria-label="Fixed table number"
+            />
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setFixedTableTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  updateParticipant.isPending ||
+                  parseFixedTable(fixedTableTarget?.fixedTable ?? "") === undefined
+                }
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={removeTarget !== null} onOpenChange={(open) => !open && setRemoveTarget(null)}>
+        <DialogContent>
+          <DialogForm
+            onSubmit={() => {
+              if (removeTarget) {
+                fireAction(removeTarget.participantId, "remove");
+                setRemoveTarget(null);
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Remove {removeTarget?.name}?</DialogTitle>
+              <DialogDescription>
+                Removes them from the tournament, including any submitted decklist. Cannot be
+                undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setRemoveTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={participantAction.isPending}>
+                Remove
+              </Button>
+            </DialogFooter>
+          </DialogForm>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Empty clears the fixed table (null); undefined means the draft is invalid.
+function parseFixedTable(draft: string): number | null | undefined {
+  const trimmed = draft.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 999) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function RegionSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { byCategory } = useCustomTagList();
+  const items = [
+    { value: "none", label: "No region" },
+    ...(byCategory.get("region") ?? []).map((tag) => ({ value: tag.slug, label: tag.label })),
+  ];
+  return (
+    <Select items={items} value={value} onValueChange={(next) => next && onChange(next)}>
+      <SelectTrigger aria-label="Region">
+        <SelectValue placeholder="Region" />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function AddParticipantButton({ id }: { id: string }) {
+  const addParticipant = useAddParticipant();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  async function submit() {
+    const displayName = name.trim();
+    if (!displayName) {
+      return;
+    }
+    try {
+      await addParticipant.mutateAsync({ id, displayName });
+      setName("");
+      setOpen(false);
+    } catch {
+      // Reported by the global mutation error toast.
+    }
+  }
+
+  return (
+    <>
+      <PageTopBarPrimaryButton onClick={() => setOpen(true)}>
+        <UserPlusIcon className="size-4" />
+        Add player
+      </PageTopBarPrimaryButton>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add player</DialogTitle>
+            <DialogDescription>
+              Not linked to an account. Share their claim link later so they can attach it.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+          >
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={120}
+              placeholder="Player name"
+              aria-label="Player name"
+            />
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!name.trim() || addParticipant.isPending}>
+                Add
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

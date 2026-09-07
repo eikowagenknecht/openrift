@@ -1,0 +1,148 @@
+import { placementsFromGamePoints, pointsForPlacements } from "@openrift/shared/pairing/points";
+import type { PodResponse, PodScoringScheme } from "@openrift/shared/types/api/pod-tournament";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ordinalPlace } from "@/features/tournaments/lib/tournament-display";
+
+interface PodResultFormProps {
+  pod: PodResponse;
+  scheme: PodScoringScheme;
+  onSubmit: (results: { playerId: string; gamePoints: number }[]) => Promise<void> | void;
+  submitting: boolean;
+  onCancel?: () => void;
+}
+
+// Scheme points can be fractional (a tied place averages, e.g. 1.75); show up to two decimals
+// then, so a value like 1.75 isn't rounded down to 1.8.
+function formatPoints(points: number): string {
+  return Number.isInteger(points) ? String(points) : Number(points.toFixed(2)).toString();
+}
+
+/** Parses a controlled points input to a whole, non-negative game-point count. */
+export function parsePoints(value: string): number | null {
+  if (value.trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
+/**
+ * Result entry for one pod: raw game points per player, with derived placement
+ * and scheme points previewed live once every value is entered.
+ */
+export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: PodResultFormProps) {
+  const [points, setPoints] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      pod.members.map((member) => [
+        member.playerId,
+        member.gamePoints === null ? "" : String(member.gamePoints),
+      ]),
+    ),
+  );
+  // Snapshot at open (or last sync); a mismatch against the current pod means
+  // someone else saved mid-edit.
+  const [serverBaseline, setServerBaseline] = useState<Record<string, number | null>>(() =>
+    Object.fromEntries(pod.members.map((member) => [member.playerId, member.gamePoints])),
+  );
+  const changedRemotely = pod.members.some(
+    (member) => serverBaseline[member.playerId] !== member.gamePoints,
+  );
+  const parsed = pod.members.map((member) => parsePoints(points[member.playerId] ?? ""));
+
+  function loadLatest() {
+    setServerBaseline(
+      Object.fromEntries(pod.members.map((member) => [member.playerId, member.gamePoints])),
+    );
+    setPoints(
+      Object.fromEntries(
+        pod.members.map((member) => [
+          member.playerId,
+          member.gamePoints === null ? "" : String(member.gamePoints),
+        ]),
+      ),
+    );
+  }
+  const allSet = parsed.every((value) => value !== null);
+  const placements = allSet ? placementsFromGamePoints(parsed as number[]) : null;
+  // Swiss matches (size 2) use SwissResultForm instead; the placement tables
+  // only exist for 3/4-pods, so guard the preview accordingly.
+  const previewPoints =
+    placements && pod.size !== 2 ? pointsForPlacements(placements, pod.size, scheme) : null;
+
+  async function handleSubmit() {
+    if (!allSet) {
+      return;
+    }
+    const results = pod.members.map((member, index) => ({
+      playerId: member.playerId,
+      gamePoints: parsed[index] as number,
+    }));
+    try {
+      await onSubmit(results);
+    } catch {
+      /* Reported by the global mutation error toast. */
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {pod.members.map((member, index) => (
+        // No flex-wrap: a long name would push the points field onto its own
+        // line, breaking the column of inputs. The name truncates instead.
+        <div key={member.playerId} className="flex items-center justify-between gap-x-3">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium" title={member.displayName}>
+              {member.displayName}
+            </span>
+            {previewPoints && placements ? (
+              <span className="text-muted-foreground shrink-0 tabular-nums">
+                {ordinalPlace(placements[index] ?? 1)} · +{formatPoints(previewPoints[index] ?? 0)}
+              </span>
+            ) : null}
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            <Label htmlFor={`pts-${member.playerId}`} className="text-muted-foreground">
+              Points
+            </Label>
+            <Input
+              id={`pts-${member.playerId}`}
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={points[member.playerId] ?? ""}
+              onChange={(event) =>
+                setPoints((prev) => ({ ...prev, [member.playerId]: event.target.value }))
+              }
+              className="w-20 tabular-nums"
+            />
+          </span>
+        </div>
+      ))}
+      <p className="text-muted-foreground">
+        Game points per player (8 wins, more is possible). Places are worked out automatically.
+      </p>
+      {changedRemotely ? (
+        <div className="text-warning flex flex-wrap items-center justify-between gap-2">
+          <span>Someone else saved scores for this pod while you were editing.</span>
+          <Button variant="outline" size="sm" onClick={loadLatest}>
+            Show latest
+          </Button>
+        </div>
+      ) : null}
+      <div className="flex justify-end gap-2">
+        {onCancel ? (
+          <Button variant="ghost" onClick={onCancel} disabled={submitting}>
+            Cancel
+          </Button>
+        ) : null}
+        <Button onClick={() => void handleSubmit()} disabled={!allSet || submitting}>
+          {submitting ? "Saving…" : "Save result"}
+        </Button>
+      </div>
+    </div>
+  );
+}
