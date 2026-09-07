@@ -10,7 +10,7 @@ import { ClipFrame } from "./clip-frame";
 // Matches BRACKET_FRACTION in scan-overlay.ts, like the real viewfinder.
 const BRACKET_SIZE = "18%";
 
-// RETICLE_COLORS.locked in scan-overlay.ts.
+// RETICLE_COLOR in scan-overlay.ts.
 const LOCKED_COLOR = "rgba(74,222,128,0.95)";
 
 const BRACKET_CORNERS = [

@@ -22,6 +22,7 @@ import type { LoadedScanBank } from "@/lib/scan-bank";
 import type * as ScanEmbedderModule from "@/lib/scan-embedder";
 import { loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
 import { loadOpenCv } from "@/lib/scan-opencv";
+import { GUIDE_COLOR, RETICLE_COLOR } from "@/lib/scan-overlay";
 import { fetchReference } from "@/lib/scan-reference-image";
 
 import type { IdentifyAttempt, LockedCard, ScannerSettings } from "./use-card-scanner";
@@ -305,6 +306,14 @@ function scenePixels(width: number, height: number): Uint8ClampedArray {
 }
 
 const fakeContexts = new WeakMap<HTMLCanvasElement, CanvasRenderingContext2D>();
+const strokes: { canvas: HTMLCanvasElement; style: string; dash: number[] }[] = [];
+
+/** Solid strokes only: the lock ring is dashed, the brackets are not. */
+function solidStrokeStyles(canvas: HTMLCanvasElement): string[] {
+  return strokes
+    .filter((stroke) => stroke.canvas === canvas && stroke.dash.length === 0)
+    .map((stroke) => stroke.style);
+}
 
 /**
  * A permissive fake 2d context: known reads are answered, everything else is
@@ -315,8 +324,16 @@ function fakeContextFor(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   if (existing) {
     return existing;
   }
+  let dash: number[] = [];
   const backing: Record<string | symbol, unknown> = {
     canvas,
+    setLineDash: (next: number[]) => {
+      dash = next;
+    },
+    stroke: () => {
+      const style = backing.strokeStyle;
+      strokes.push({ canvas, style: typeof style === "string" ? style : "", dash: [...dash] });
+    },
     getImageData: (_x: number, _y: number, width: number, height: number) => ({
       data: scenePixels(width, height),
       width,
@@ -528,6 +545,7 @@ describe("useCardScanner", () => {
     nowMs = 10_000;
     sceneSeed = 0;
     rafQueue = [];
+    strokes.length = 0;
     bankState = createBank({ "k-a": 0.9 });
     currentInliers = () => 0;
     embedFailure = null;
@@ -838,6 +856,25 @@ describe("useCardScanner", () => {
       expect(readout.locks).toEqual([]);
       // The guide session always proposes the guide rect itself.
       expect(readout.candidate).not.toBeNull();
+    });
+
+    it("brackets the card only once a frame verifies it", async () => {
+      cardAbsent();
+      const { hook, overlay } = await mountReadyScanner();
+      await act(async () => {
+        await hook.result.current.start();
+      });
+
+      await runFrames(2);
+
+      // The guide session proposes the guide rect on every empty frame; that
+      // proposal is not evidence of a card and must not draw brackets.
+      expect(new Set(solidStrokeStyles(overlay))).toEqual(new Set([GUIDE_COLOR]));
+
+      cardPresent();
+      await runFrames(2);
+
+      expect(solidStrokeStyles(overlay)).toContain(RETICLE_COLOR);
     });
 
     it("locks a recognised card, reports it and publishes the lock", async () => {

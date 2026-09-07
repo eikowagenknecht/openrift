@@ -7,12 +7,10 @@
 
 import type { Point, Quad } from "@openrift/shared/scan";
 
-import type { ReticleGrade } from "@/lib/scan-overlay";
 import {
   BRACKET_FRACTION,
   GUIDE_COLOR,
-  GUIDE_MATCH_PX,
-  RETICLE_COLORS,
+  RETICLE_COLOR,
   RETICLE_HOLD_FRAMES,
   RETICLE_JUMP_FRACTION,
   RING_EASE,
@@ -24,7 +22,6 @@ import {
   lockRingDash,
   mapQuad,
   quadMatches,
-  quadsWithin,
   reticleLineWidth,
   ringRadiusFor,
   roundedRectPerimeter,
@@ -44,8 +41,6 @@ export interface OverlayTarget {
   frameWidth: number;
   frameHeight: number;
   turns: number;
-  grade: ReticleGrade;
-  dashed: boolean;
   focus: number;
   lockFraction: number;
   lockRun: number;
@@ -98,10 +93,7 @@ export function createDrawState(): OverlayDrawState {
 }
 
 function detectionFrom(target: OverlayTarget, state: OverlayDrawState): readonly Point[] | null {
-  const quad =
-    target.quad && !(target.guide && quadsWithin(target.quad, target.guide, GUIDE_MATCH_PX))
-      ? target.quad
-      : null;
+  const quad = target.quad;
   if (!quad) {
     return null;
   }
@@ -127,7 +119,7 @@ function aimAt(target: OverlayTarget, state: OverlayDrawState): void {
       state.holding = false;
     }
   }
-  const source = detected ?? (state.holding ? state.held : target.guide);
+  const source = detected ?? (state.holding ? state.held : null);
   if (!source) {
     state.smoothing = false;
     return;
@@ -260,7 +252,7 @@ export function paintOverlay(
       context.setLineDash(lockRingDash(perimeter, state.ring));
       context.lineWidth = 4;
       context.lineCap = "round";
-      context.strokeStyle = RETICLE_COLORS.locked;
+      context.strokeStyle = RETICLE_COLOR;
       context.stroke();
       context.setLineDash([]);
     }
@@ -271,13 +263,11 @@ export function paintOverlay(
   }
   context.lineWidth = reticleLineWidth(target.focus);
   context.lineCap = "round";
-  context.strokeStyle = target.grade.color;
-  context.setLineDash(target.dashed ? [10, 7] : []);
+  context.strokeStyle = RETICLE_COLOR;
   context.beginPath();
   for (const leg of bracketSegments(state.points, BRACKET_FRACTION)) {
     context.moveTo(leg.ax, leg.ay);
     context.lineTo(leg.bx, leg.by);
   }
   context.stroke();
-  context.setLineDash([]);
 }

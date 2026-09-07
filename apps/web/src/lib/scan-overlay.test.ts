@@ -5,23 +5,18 @@ import {
   BRACKET_FRACTION,
   FOCUS_SHARP,
   FOCUS_SOFT,
-  HOLD_STEADY_MAX_INLIERS,
-  HOLD_STEADY_MIN_INLIERS,
-  RETICLE_COLORS,
   RETICLE_WIDTH_MAX,
   RETICLE_WIDTH_MIN,
   boundsOfQuad,
   bracketSegments,
   copyQuad,
   coverMapping,
-  gradeReticle,
   lockRingDash,
   lockRingFraction,
   mapQuad,
   quadDiagonal,
   quadMatches,
   quadOffsetTo,
-  quadsWithin,
   reticleLineWidth,
   ringRadiusFor,
   roundedRectPerimeter,
@@ -32,10 +27,6 @@ import {
   unrotatePoint,
 } from "./scan-overlay";
 
-function signals(overrides: Partial<Parameters<typeof gradeReticle>[0]> = {}) {
-  return { hasCandidate: true, bestInliers: 0, refused: false, isWinner: false, ...overrides };
-}
-
 function rect(x: number, y: number, width: number, height: number): Point[] {
   return [
     { x, y },
@@ -44,43 +35,6 @@ function rect(x: number, y: number, width: number, height: number): Point[] {
     { x, y: y + height },
   ];
 }
-
-describe("gradeReticle", () => {
-  it("grades a verified winner green, whatever else the frame says", () => {
-    const grade = gradeReticle(signals({ isWinner: true, refused: true, bestInliers: 2 }));
-
-    expect(grade.state).toBe("locked");
-    expect(grade.color).toBe(RETICLE_COLORS.locked);
-  });
-
-  it("grades a refused frame amber", () => {
-    expect(gradeReticle(signals({ refused: true, bestInliers: 30 })).state).toBe("refused");
-  });
-
-  it("falls back to idle when no candidate was settled on", () => {
-    const grade = gradeReticle(signals({ hasCandidate: false }));
-
-    expect(grade.state).toBe("idle");
-    expect(grade.color).toBe(RETICLE_COLORS.idle);
-  });
-
-  it("grades a seen but far-from-verified card neutral", () => {
-    expect(gradeReticle(signals({ bestInliers: HOLD_STEADY_MIN_INLIERS - 1 })).state).toBe(
-      "seeking",
-    );
-  });
-
-  it("grades both ends of the hold-steady band amber", () => {
-    expect(gradeReticle(signals({ bestInliers: HOLD_STEADY_MIN_INLIERS })).state).toBe("steady");
-    expect(gradeReticle(signals({ bestInliers: HOLD_STEADY_MAX_INLIERS })).state).toBe("steady");
-  });
-
-  it("leaves the band again one inlier past its top", () => {
-    expect(gradeReticle(signals({ bestInliers: HOLD_STEADY_MAX_INLIERS + 1 })).state).toBe(
-      "seeking",
-    );
-  });
-});
 
 describe("stepToward", () => {
   it("closes a fraction of the gap per step", () => {
@@ -177,17 +131,6 @@ describe("copyQuad", () => {
 
     expect(out[2]).toEqual({ x: 110, y: 220 });
     expect(out[0]).toBe(first);
-  });
-});
-
-describe("quadsWithin", () => {
-  it("accepts corners inside the tolerance and rejects one outside it", () => {
-    expect(quadsWithin(rect(0, 0, 100, 200), rect(0.4, 0, 100, 200), 0.5)).toBe(true);
-    expect(quadsWithin(rect(0, 0, 100, 200), rect(0, 0, 100, 201), 0.5)).toBe(false);
-  });
-
-  it("rejects quads of different lengths", () => {
-    expect(quadsWithin(rect(0, 0, 100, 200), [{ x: 0, y: 0 }], 100)).toBe(false);
   });
 });
 

@@ -212,7 +212,7 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   fancyFan: true,
   foilEffect: false,
   cardTilt: true,
-  theme: "auto",
+  theme: "dark",
   palette: "default",
   marketplaceOrder: [...ALL_MARKETPLACES],
   languages: [WellKnown.language.EN],

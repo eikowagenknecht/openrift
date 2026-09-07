@@ -26,19 +26,19 @@ describe("resolveThemeFromCookie", () => {
     expect(resolveThemeFromCookie(JSON.stringify({ state: { preference: "auto" } }))).toBe("light");
   });
 
-  it("defaults to light when the cookie is missing", () => {
-    expect(resolveThemeFromCookie(null)).toBe("light");
-    expect(resolveThemeFromCookie(undefined)).toBe("light");
-    expect(resolveThemeFromCookie("")).toBe("light");
+  it("defaults to dark when the cookie is missing", () => {
+    expect(resolveThemeFromCookie(null)).toBe("dark");
+    expect(resolveThemeFromCookie(undefined)).toBe("dark");
+    expect(resolveThemeFromCookie("")).toBe("dark");
   });
 
-  it("defaults to light on malformed JSON", () => {
-    expect(resolveThemeFromCookie("{not json")).toBe("light");
+  it("defaults to dark on malformed JSON", () => {
+    expect(resolveThemeFromCookie("{not json")).toBe("dark");
   });
 
-  it("defaults to light when the envelope has no preference", () => {
-    expect(resolveThemeFromCookie(JSON.stringify({ state: {} }))).toBe("light");
-    expect(resolveThemeFromCookie(JSON.stringify({}))).toBe("light");
+  it("defaults to dark when the envelope has no preference", () => {
+    expect(resolveThemeFromCookie(JSON.stringify({ state: {} }))).toBe("dark");
+    expect(resolveThemeFromCookie(JSON.stringify({}))).toBe("dark");
   });
 });
 

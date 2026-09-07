@@ -9,73 +9,18 @@ import type { Point } from "@openrift/shared/scan";
 
 import { clamp } from "@/lib/math";
 
-/** Must match the scan page's hold-steady band, or the reticle and the cue disagree. */
-export const HOLD_STEADY_MIN_INLIERS = 6;
-export const HOLD_STEADY_MAX_INLIERS = 10;
-
 const RETICLE_EASE = 0.15;
 const RETICLE_SNAP_PX = 0.5;
 const RETICLE_TARGET_EASE = 0.5;
 export const RETICLE_HOLD_FRAMES = 3;
 export const RETICLE_JUMP_FRACTION = 0.08;
 
-/**
- * A candidate within this distance of the guide rect counts as the guide
- * fallback, not a detection, or it would defeat {@link RETICLE_HOLD_FRAMES}.
- */
-export const GUIDE_MATCH_PX = 0.5;
-
 export const RING_EASE = 0.18;
 export const RING_SNAP = 0.004;
 export const BRACKET_FRACTION = 0.18;
 
-export type ReticleState = "idle" | "seeking" | "steady" | "refused" | "locked";
-
-export const RETICLE_COLORS: Record<ReticleState, string> = {
-  idle: "rgba(255, 255, 255, 0.45)",
-  seeking: "rgba(148, 163, 184, 0.9)",
-  steady: "rgba(251, 191, 36, 0.95)",
-  refused: "rgba(251, 191, 36, 0.95)",
-  locked: "rgba(74, 222, 128, 0.95)",
-};
-
+export const RETICLE_COLOR = "rgba(74, 222, 128, 0.95)";
 export const GUIDE_COLOR = "rgba(255, 255, 255, 0.18)";
-
-export interface ReticleGrade {
-  state: ReticleState;
-  color: string;
-}
-
-export interface ReticleSignals {
-  hasCandidate: boolean;
-  bestInliers: number;
-  refused: boolean;
-  isWinner: boolean;
-}
-
-export function gradeReticle(signals: ReticleSignals): ReticleGrade {
-  const state = reticleStateFor(signals);
-  return { state, color: RETICLE_COLORS[state] };
-}
-
-function reticleStateFor(signals: ReticleSignals): ReticleState {
-  if (signals.isWinner) {
-    return "locked";
-  }
-  if (signals.refused) {
-    return "refused";
-  }
-  if (!signals.hasCandidate) {
-    return "idle";
-  }
-  if (
-    signals.bestInliers >= HOLD_STEADY_MIN_INLIERS &&
-    signals.bestInliers <= HOLD_STEADY_MAX_INLIERS
-  ) {
-    return "steady";
-  }
-  return "seeking";
-}
 
 export function stepToward(current: number, target: number, factor: number, snap: number): number {
   const delta = target - current;
@@ -155,13 +100,6 @@ export function copyQuad(quad: readonly Point[], out: Point[]): void {
       point.y = from.y;
     }
   }
-}
-
-export function quadsWithin(a: readonly Point[], b: readonly Point[], px: number): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  return a.every((point, index) => Math.hypot(point.x - b[index].x, point.y - b[index].y) <= px);
 }
 
 export function quadDiagonal(quad: readonly Point[]): number {

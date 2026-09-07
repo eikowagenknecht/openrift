@@ -8,14 +8,17 @@ import { PALETTES } from "@openrift/shared";
 // THEME_SCRIPT corrects the class on the client.
 export function resolveThemeFromCookie(raw: string | null | undefined): "light" | "dark" {
   if (!raw) {
-    return "light";
+    return "dark";
   }
   try {
     const parsed = JSON.parse(raw) as { state?: { preference?: unknown } } | null;
     const preference = parsed?.state?.preference;
-    return preference === "dark" ? "dark" : "light";
+    if (preference === "light" || preference === "auto") {
+      return "light";
+    }
+    return "dark";
   } catch {
-    return "light";
+    return "dark";
   }
 }
 

@@ -93,10 +93,10 @@ function safeOrigin(url: string | undefined): string | null {
 // check matchMedia. Must stay in sync with the cookie format in theme-store.ts.
 const THEME_SCRIPT = [
   "(function(){try{",
-  'var pref="auto";',
+  'var pref="dark";',
   String.raw`var m=document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);`,
   "if(m){var p=JSON.parse(decodeURIComponent(m[1]));pref=p&&p.state&&p.state.preference||pref}",
-  'if(pref==="dark"||(pref==="auto"||!pref)&&matchMedia("(prefers-color-scheme:dark)").matches)',
+  'if(pref==="dark"||pref==="auto"&&matchMedia("(prefers-color-scheme:dark)").matches)',
   'document.documentElement.classList.add("dark")',
   "}catch(e){}})()",
 ].join("");

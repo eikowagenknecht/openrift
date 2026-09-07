@@ -1,5 +1,6 @@
 import { Radio } from "@base-ui/react/radio";
 import type { DefaultCardView, Palette, Theme } from "@openrift/shared";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -153,7 +154,7 @@ export function DisplaySection() {
   );
 }
 
-const THEME_OPTIONS: { value: Theme | "auto"; label: string }[] = [
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
   { value: "auto", label: "Auto" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
@@ -168,8 +169,10 @@ function ThemePicker({
 }) {
   return (
     <SegmentedRadio
-      value={value ?? "auto"}
-      onValueChange={(next) => onChange(next === "auto" ? null : (next as Theme))}
+      value={value ?? PREFERENCE_DEFAULTS.theme}
+      onValueChange={(next) =>
+        onChange(next === PREFERENCE_DEFAULTS.theme ? null : (next as Theme))
+      }
       options={THEME_OPTIONS}
     />
   );

@@ -1,7 +1,7 @@
 import type { Quad } from "@openrift/shared/scan";
 import { describe, expect, it, vi } from "vitest";
 
-import { GUIDE_COLOR, RETICLE_COLORS, RETICLE_HOLD_FRAMES, gradeReticle } from "@/lib/scan-overlay";
+import { GUIDE_COLOR, RETICLE_COLOR, RETICLE_HOLD_FRAMES } from "@/lib/scan-overlay";
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
 import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
 
@@ -58,14 +58,6 @@ function target(overrides: Partial<OverlayTarget> = {}): OverlayTarget {
     frameWidth: 200,
     frameHeight: 400,
     turns: 0,
-    // Deliberately not a winner: the lock ring strokes in the winner colour.
-    grade: gradeReticle({
-      hasCandidate: true,
-      bestInliers: 8,
-      refused: false,
-      isWinner: false,
-    }),
-    dashed: false,
     focus: 80,
     lockFraction: 0,
     lockRun: 3,
@@ -88,32 +80,25 @@ describe("createDrawState", () => {
 });
 
 describe("paintOverlay", () => {
-  it("strokes the guide faintly and the brackets in the grade colour", () => {
+  it("strokes the guide faintly and the brackets in the match colour", () => {
     const { context, strokes } = fakeContext();
-    const aimed = target();
 
-    paintOverlay(fakeCanvas(), context, aimed, createDrawState());
+    paintOverlay(fakeCanvas(), context, target(), createDrawState());
 
     expect(strokes[0].style).toBe(GUIDE_COLOR);
-    expect(strokes.at(-1)?.style).toBe(aimed.grade.color);
+    expect(strokes.at(-1)?.style).toBe(RETICLE_COLOR);
+    expect(strokes.at(-1)?.dash).toEqual([]);
     // A sharp frame draws the widest brackets.
     expect(strokes.at(-1)?.width).toBe(4);
   });
 
-  it("dashes the brackets for an unverified guess", () => {
-    const { context, strokes } = fakeContext();
-
-    paintOverlay(fakeCanvas(), context, target({ dashed: true }), createDrawState());
-
-    expect(strokes.at(-1)?.dash).toEqual([10, 7]);
-  });
-
-  it("falls back to the guide when the frame settled on nothing", () => {
+  it("draws the guide alone when the frame matched nothing", () => {
     const { context, strokes } = fakeContext();
 
     paintOverlay(fakeCanvas(), context, target({ quad: null }), createDrawState());
 
-    expect(strokes.at(-1)?.style).not.toBe(GUIDE_COLOR);
+    expect(strokes).toHaveLength(1);
+    expect(strokes[0].style).toBe(GUIDE_COLOR);
   });
 
   it("skips the whole repaint once the scene has settled", () => {
@@ -158,9 +143,9 @@ describe("paintOverlay", () => {
     const { context, strokes } = fakeContext();
     const state = createDrawState();
 
-    paintOverlay(fakeCanvas(), context, target({ lockFraction: 1 }), state);
+    paintOverlay(fakeCanvas(), context, target({ quad: null, lockFraction: 1 }), state);
 
-    const ring = strokes.find((stroke) => stroke.style === RETICLE_COLORS.locked);
+    const ring = strokes.find((stroke) => stroke.style === RETICLE_COLOR);
     expect(ring).toBeDefined();
     expect(ring?.dash[0]).toBeLessThan(ring?.dash[1] ?? 0);
     expect(state.settled).toBe(false);
@@ -185,8 +170,8 @@ describe("paintOverlay", () => {
 
     paintOverlay(fakeCanvas(), context, target(), state);
     paintOverlay(fakeCanvas(), context, jumped, state);
-    // The detectors propose the card's printed inner frame about as readily as
-    // its outer edge, and the two alternate on a motionless card.
+    // A verified quad that lands somewhere else is a different card, so one
+    // frame of it is not enough to move the brackets off this one.
     expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
 
     paintOverlay(fakeCanvas(), context, target({ quad: rect(20, 90, 100, 200) }), state);
@@ -204,27 +189,19 @@ describe("paintOverlay", () => {
     expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
   });
 
-  it("treats the session's guide fallback as a dropout, not a detection", () => {
-    const { context } = fakeContext();
-    const state = createDrawState();
-    const guide = rect(10, 20, 120, 240);
-
-    paintOverlay(fakeCanvas(), context, target({ guide }), state);
-    paintOverlay(fakeCanvas(), context, target({ quad: guide, guide }), state);
-
-    expect(state.smoothed[0]).toEqual({ x: 20, y: 40 });
-  });
-
   it("releases the hold once the dropout outlasts it", () => {
-    const { context } = fakeContext();
+    const { context, strokes } = fakeContext();
     const state = createDrawState();
 
     paintOverlay(fakeCanvas(), context, target(), state);
-    for (let frame = 0; frame < RETICLE_HOLD_FRAMES + 1; frame++) {
+    for (let frame = 0; frame < RETICLE_HOLD_FRAMES; frame++) {
       paintOverlay(fakeCanvas(), context, target({ quad: null }), state);
+      expect(state.shown).toBe(true);
     }
+    strokes.length = 0;
+    paintOverlay(fakeCanvas(), context, target({ quad: null }), state);
 
-    expect(state.smoothed[0].x).toBeLessThan(20);
+    expect(strokes.map((stroke) => stroke.style)).toEqual([GUIDE_COLOR]);
   });
 
   it("starts the aim over when the frame geometry changes", () => {
@@ -242,9 +219,10 @@ describe("paintOverlay", () => {
   it("draws no lock ring for a one-frame run", () => {
     const { context, strokes } = fakeContext();
 
-    paintOverlay(fakeCanvas(), context, target({ lockFraction: 1, lockRun: 1 }), createDrawState());
+    const once = target({ quad: null, lockFraction: 1, lockRun: 1 });
+    paintOverlay(fakeCanvas(), context, once, createDrawState());
 
-    expect(strokes.some((stroke) => stroke.style === RETICLE_COLORS.locked)).toBe(false);
+    expect(strokes.some((stroke) => stroke.style === RETICLE_COLOR)).toBe(false);
   });
 });
 

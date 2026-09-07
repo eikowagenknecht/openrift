@@ -23,9 +23,9 @@ describe("useThemeStore", () => {
       expect(useThemeStore.getState().preference).toBeNull();
     });
 
-    it("resolves to a concrete theme", () => {
-      const { theme } = useThemeStore.getState();
-      expect(theme === "light" || theme === "dark").toBe(true);
+    it("resolves to the dark default", () => {
+      expect(PREFERENCE_DEFAULTS.theme).toBe("dark");
+      expect(useThemeStore.getState().theme).toBe("dark");
     });
   });
 
@@ -55,16 +55,14 @@ describe("useThemeStore", () => {
       expect(state.theme === "light" || state.theme === "dark").toBe(true);
     });
 
-    it("sets null preference (same as auto/default)", () => {
-      useThemeStore.getState().setTheme("dark");
+    it("sets null preference (falls back to the dark default)", () => {
+      useThemeStore.getState().setTheme("light");
       useThemeStore.getState().setTheme(null);
 
       const state = useThemeStore.getState();
       expect(state.preference).toBeNull();
-      const defaultTheme = PREFERENCE_DEFAULTS.theme;
-      if (defaultTheme === "light" || defaultTheme === "dark") {
-        expect(state.theme).toBe(defaultTheme);
-      }
+      expect(state.theme).toBe("dark");
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
     });
 
     it("applies dark class to documentElement", () => {
@@ -77,30 +75,35 @@ describe("useThemeStore", () => {
   });
 
   describe("toggleTheme", () => {
-    it("cycles light → dark → auto → light", () => {
-      useThemeStore.getState().setTheme("light");
+    it("cycles dark → light → auto → dark", () => {
+      useThemeStore.getState().setTheme("dark");
       useThemeStore.getState().toggleTheme();
-      expect(useThemeStore.getState().preference).toBe("dark");
+      expect(useThemeStore.getState().preference).toBe("light");
 
       useThemeStore.getState().toggleTheme();
       expect(useThemeStore.getState().preference).toBe("auto");
 
+      useThemeStore.getState().toggleTheme();
+      expect(useThemeStore.getState().preference).toBe("dark");
+    });
+
+    it("starts the cycle at light for a user with no stored preference", () => {
       useThemeStore.getState().toggleTheme();
       expect(useThemeStore.getState().preference).toBe("light");
     });
   });
 
   describe("reset", () => {
-    it("clears the stored preference and removes the dark class", () => {
-      useThemeStore.getState().setTheme("dark");
-      expect(document.documentElement.classList.contains("dark")).toBe(true);
+    it("clears the stored preference and reapplies the dark default", () => {
+      useThemeStore.getState().setTheme("light");
+      expect(document.documentElement.classList.contains("dark")).toBe(false);
 
       useThemeStore.getState().reset();
 
       const state = useThemeStore.getState();
       expect(state.preference).toBeNull();
-      expect(state.theme === "light" || state.theme === "dark").toBe(true);
-      expect(document.documentElement.classList.contains("dark")).toBe(state.theme === "dark");
+      expect(state.theme).toBe("dark");
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
     });
   });
 });

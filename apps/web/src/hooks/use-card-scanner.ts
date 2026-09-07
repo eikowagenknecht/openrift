@@ -2,6 +2,7 @@ import type {
   CardCandidate,
   FrameOutcome,
   PlacementDetector,
+  Quad,
   RankedEmbed,
   RgbaImage,
   ScanSession,
@@ -31,8 +32,7 @@ import {
   measuredEmbedMsPerImage,
 } from "@/lib/scan-embedder";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
-import type { ReticleGrade } from "@/lib/scan-overlay";
-import { gradeReticle, lockRingFraction } from "@/lib/scan-overlay";
+import { lockRingFraction } from "@/lib/scan-overlay";
 import type { OverlayTarget } from "@/lib/scan-overlay-paint";
 import { createDrawState, paintOverlay, syncOverlaySize } from "@/lib/scan-overlay-paint";
 import { createPlacementTally } from "@/lib/scan-placement-counts";
@@ -486,8 +486,7 @@ export function useCardScanner(
    * on its own; the animation-frame painter owns drawing from this target.
    */
   function updateOverlayTarget(
-    candidate: CardCandidate | null,
-    grade: ReticleGrade,
+    matchedQuad: Quad | null,
     frameWidth: number,
     frameHeight: number,
     turns: number,
@@ -504,13 +503,11 @@ export function useCardScanner(
     // cadence, not the painter's.
     syncOverlaySize(canvas, video);
     overlayTargetRef.current = {
-      quad: candidate?.quad ?? null,
+      quad: matchedQuad,
       guide: settingsRef.current.mode === "pan" ? null : centeredGuideQuad(frameWidth, frameHeight),
       frameWidth,
       frameHeight,
       turns,
-      grade,
-      dashed: grade.state === "seeking",
       focus,
       lockFraction: lockRingFraction(runLength, lockRun),
       lockRun,
@@ -958,21 +955,15 @@ export function useCardScanner(
     // ones, matching what the accept layer actually scores.
     const runLength = result.run ? Math.min(result.run.weight, lockRun) : 0;
 
-    const grade = gradeReticle({
-      hasCandidate: outcome.candidate !== null,
-      bestInliers: outcome.bestInliers,
-      refused: outcome.refused,
-      isWinner: outcome.winner !== null,
-    });
-    // Measured on the same candidate the reticle grades and in the same
-    // frame coordinates the quads live in; not derivable outside this hook.
+    // Measured in the frame coordinates the quads live in; not derivable
+    // outside this hook.
     const areaFraction =
       outcome.candidate === null
         ? 0
         : areaFractionOfGuide(outcome.candidate.quad, centeredGuideQuad(frame.width, frame.height));
+    const matchedQuad = outcome.winner === null ? null : (outcome.candidate?.quad ?? null);
     updateOverlayTarget(
-      outcome.candidate,
-      grade,
+      matchedQuad,
       frame.width,
       frame.height,
       turns,
@@ -1138,7 +1129,6 @@ export function useCardScanner(
       );
       updateOverlayTarget(
         null,
-        gradeReticle({ hasCandidate: false, bestInliers: 0, refused: false, isWinner: false }),
         Math.round(video.videoWidth * scale),
         Math.round(video.videoHeight * scale),
         0,

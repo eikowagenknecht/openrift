@@ -45,12 +45,13 @@ export const useThemeStore = create<ThemeState>()(
       },
       toggleTheme: () =>
         set((state) => {
-          const nextMap: Record<string, Theme | null> = {
-            light: "dark",
-            dark: "auto",
+          const nextMap: Record<Theme, Theme> = {
+            dark: "light",
+            light: "auto",
+            auto: "dark",
           };
           const effective = state.preference ?? PREFERENCE_DEFAULTS.theme;
-          const next = effective === "auto" ? "light" : (nextMap[effective] ?? null);
+          const next = nextMap[effective];
           const resolved = resolveTheme(next);
           applyTheme(resolved);
           return { preference: next, theme: resolved };
