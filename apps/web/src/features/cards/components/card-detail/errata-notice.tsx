@@ -1,0 +1,72 @@
+import { formatMonth } from "@openrift/shared/format-date";
+import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
+import { useState } from "react";
+
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CardText } from "@/features/cards/components/card-text";
+import { cn } from "@/lib/utils";
+
+interface ErrataNoticeProps {
+  printedText: string;
+  source: string;
+  sourceUrl?: string | null;
+  effectiveDate?: string | null;
+  onKeywordClick?: (keyword: string) => void;
+}
+
+function formatSource(source: string, effectiveDate?: string | null): string {
+  if (effectiveDate) {
+    return `${source}, ${formatMonth(effectiveDate)}`;
+  }
+  return source;
+}
+
+export function ErrataNotice({
+  printedText,
+  source,
+  sourceUrl,
+  effectiveDate,
+  onKeywordClick,
+}: ErrataNoticeProps) {
+  const [open, setOpen] = useState(false);
+  const sourceLabel = formatSource(source, effectiveDate);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="mt-1.5 space-y-1">
+        <div className="text-muted-foreground/70 flex items-center gap-1 text-xs">
+          <TriangleAlertIcon className="text-warning size-3 shrink-0" />
+          <span>
+            Errata (
+            {sourceUrl ? (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-warning underline"
+              >
+                {sourceLabel}
+              </a>
+            ) : (
+              sourceLabel
+            )}
+            )
+          </span>
+        </div>
+        <CollapsibleTrigger className="text-muted-foreground/50 hover:text-warning flex cursor-pointer items-center gap-1 text-xs">
+          <ChevronDownIcon
+            className={cn("size-3 shrink-0 transition-transform", open && "rotate-180")}
+          />
+          <span>{open ? "Hide" : "Show"} original printed text</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="border-border/30 bg-muted/30 mt-1 rounded-md border border-dashed px-2.5 py-2">
+            <p className="text-muted-foreground/50 text-xs leading-relaxed">
+              <CardText text={printedText} onKeywordClick={onKeywordClick} />
+            </p>
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}

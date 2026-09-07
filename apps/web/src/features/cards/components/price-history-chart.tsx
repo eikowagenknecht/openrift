@@ -1,0 +1,306 @@
+import { formatDay } from "@openrift/shared/format-date";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import type { AnySnapshot } from "@openrift/shared/types/api/pricing";
+import type { Marketplace, TimeRange } from "@openrift/shared/types/pricing";
+import { Loader2Icon } from "lucide-react";
+import { useState } from "react";
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
+
+import { MarketplaceIcon } from "@/components/marketplace-icon";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import type { ChartConfig } from "@/components/ui/chart";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TIME_RANGES } from "@/features/cards/components/price-history-chart-constants";
+import { PriceTrend } from "@/features/cards/components/price-trend";
+import { usePriceHistory } from "@/features/cards/hooks/use-price-history";
+import { formatterForMarketplace } from "@/lib/format";
+import { useDisplayStore } from "@/stores/display-store";
+
+const chartConfig = {
+  value: { label: "Market", color: "var(--chart-1)" },
+  low: { label: "Low", color: "var(--chart-2)" },
+} satisfies ChartConfig;
+
+interface PriceHistoryTooltipContentProps {
+  active?: boolean;
+  payload?: { payload: { date: string; value: number | null; low: number | null } }[];
+  source: Marketplace;
+  currencyFormatter: (value: number) => string;
+}
+
+function PriceHistoryTooltipContent({
+  active,
+  payload,
+  source,
+  currencyFormatter,
+}: PriceHistoryTooltipContentProps) {
+  const snap = payload?.[0]?.payload;
+  if (!active || !snap) {
+    return null;
+  }
+  const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
+  return (
+    <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-md">
+      <p className="mb-1 font-medium">{formatDay(snap.date)}</p>
+      <div className="space-y-0.5">
+        {snap.value !== null && snap.value !== undefined && (
+          <div className="flex items-center gap-2">
+            <span
+              className="size-2 rounded-full"
+              style={{ backgroundColor: "var(--color-value)" }}
+            />
+            <span className="text-muted-foreground">{headlineLabel}</span>
+            <span className="ml-auto font-mono font-medium tabular-nums">
+              {currencyFormatter(snap.value)}
+            </span>
+          </div>
+        )}
+        {snap.low !== null && snap.low !== undefined && (
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full" style={{ backgroundColor: "var(--color-low)" }} />
+            <span className="text-muted-foreground">Low</span>
+            <span className="ml-auto font-mono font-medium tabular-nums">
+              {currencyFormatter(snap.low)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface PriceHistoryChartProps {
+  printingId: string;
+  range?: TimeRange;
+  onRangeChange?: (range: TimeRange) => void;
+  highlightedDate?: string | null;
+  onDateHover?: (date: string | null) => void;
+  source?: Marketplace;
+  onSourceChange?: (source: Marketplace) => void;
+  hideControls?: boolean;
+}
+
+export function PriceHistoryChart({
+  printingId,
+  range: controlledRange,
+  onRangeChange,
+  highlightedDate,
+  onDateHover,
+  source: controlledSource,
+  onSourceChange,
+  hideControls,
+}: PriceHistoryChartProps) {
+  const [internalRange, setInternalRange] = useState<TimeRange>("30d");
+  const range = controlledRange ?? internalRange;
+  const setRange = onRangeChange ?? setInternalRange;
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const [internalSource, setInternalSource] = useState<Marketplace>(
+    marketplaceOrder[0] ?? "cardtrader",
+  );
+  const source = controlledSource ?? internalSource;
+  const setSource = onSourceChange ?? setInternalSource;
+
+  const { data: allData } = usePriceHistory(printingId, "all");
+
+  const allSnapshots = allData?.[source]?.snapshots;
+  const spanSnapshots = allSnapshots && allSnapshots.length >= 2 ? allSnapshots : undefined;
+  const firstSnapshot = spanSnapshots?.[0];
+  const lastSnapshot = spanSnapshots?.at(-1);
+  const dataSpanDays =
+    firstSnapshot && lastSnapshot
+      ? Math.round(
+          (new Date(lastSnapshot.date).getTime() - new Date(firstSnapshot.date).getTime()) /
+            86_400_000,
+        )
+      : null;
+
+  const availableRanges = TIME_RANGES.filter(
+    (tr) => tr.days === 0 || dataSpanDays === null || dataSpanDays >= tr.days,
+  );
+
+  const effectiveRange = availableRanges.some((tr) => tr.value === range)
+    ? range
+    : ("all" as TimeRange);
+
+  const { data, isLoading, error } = usePriceHistory(printingId, effectiveRange);
+
+  const currencyFormatter = formatterForMarketplace(source);
+  const sourceData = data?.[source];
+  // CardTrader returns null for days before zero_low_cents existed; don't
+  // fall back to the overall low here or those snapshots plot a false drop.
+  const rawSnapshots: AnySnapshot[] = sourceData?.snapshots ?? [];
+  const snapshots = rawSnapshots.map((s) => ({
+    date: s.date,
+    value: "market" in s ? s.market : s.zeroLow,
+    low: s.low,
+  }));
+
+  const hasLow = snapshots.some((s) => s.low !== null);
+  const plottedValues = snapshots.reduce<number[]>((values, s) => {
+    if (s.value !== null) {
+      values.push(s.value);
+    }
+    return values;
+  }, []);
+
+  const btnSize = "sm" as const;
+
+  return (
+    <div className="space-y-3">
+      {!hideControls && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <ToggleGroup
+            variant="outline"
+            size={btnSize}
+            spacing={0}
+            value={[effectiveRange]}
+            onValueChange={([next]) => {
+              const match = availableRanges.find((tr) => tr.value === next);
+              if (match) {
+                setRange(match.value);
+              }
+            }}
+            aria-label="Time range"
+          >
+            {availableRanges.map((tr) => (
+              <ToggleGroupItem key={tr.value} value={tr.value}>
+                {tr.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+            {marketplaceLabel(source)}
+            <PriceTrend values={plottedValues} range={effectiveRange} />
+          </span>
+          <ToggleGroup
+            variant="outline"
+            size={btnSize}
+            spacing={0}
+            value={[source]}
+            onValueChange={([next]) => {
+              const match = marketplaceOrder.find((s) => s === next);
+              if (match) {
+                setSource(match);
+              }
+            }}
+            aria-label="Price source"
+            className="ml-auto"
+          >
+            {marketplaceOrder.map((s) => {
+              const available = data?.[s]?.available ?? false;
+              const label = marketplaceLabel(s);
+              return (
+                <Tooltip key={s}>
+                  <TooltipTrigger
+                    render={
+                      <ToggleGroupItem
+                        value={s}
+                        disabled={!available && Boolean(data)}
+                        aria-label={label}
+                      />
+                    }
+                  >
+                    <MarketplaceIcon marketplace={s} />
+                  </TooltipTrigger>
+                  <TooltipContent>{label}</TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </ToggleGroup>
+        </div>
+      )}
+
+      {/* Full chart-height placeholder avoids a layout jump when the history loads. */}
+      {isLoading && (
+        <div className="flex aspect-[2.5/1] w-full items-center justify-center">
+          <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
+        </div>
+      )}
+
+      {error && (
+        <p className="text-destructive py-8 text-center text-sm">Failed to load price history.</p>
+      )}
+
+      {!isLoading && !error && snapshots.length === 0 && (
+        <p className="text-muted-foreground py-8 text-center text-sm">
+          No price data available for this time range.
+        </p>
+      )}
+
+      {!isLoading && !error && snapshots.length > 0 && (
+        <ChartContainer config={chartConfig} className="aspect-[2.5/1] w-full">
+          <ComposedChart
+            data={snapshots}
+            margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+            onMouseMove={(state: Record<string, unknown>) => {
+              const activePayload = state?.activePayload as
+                | { payload?: Record<string, unknown> }[]
+                | undefined;
+              const date = activePayload?.[0]?.payload?.date as string | undefined;
+              if (onDateHover && date) {
+                onDateHover(date);
+              }
+            }}
+            onMouseLeave={() => onDateHover?.(null)}
+          >
+            <defs>
+              <linearGradient id="marketFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" />
+            {highlightedDate && (
+              <ReferenceLine
+                x={highlightedDate}
+                stroke="var(--color-value)"
+                strokeWidth={2}
+                strokeOpacity={0.6}
+              />
+            )}
+            <XAxis
+              dataKey="date"
+              tickFormatter={formatDay}
+              tick={{ fontSize: 11 }}
+              interval={Math.max(0, Math.ceil(snapshots.length / 4) - 1)}
+            />
+            <YAxis
+              tickFormatter={(v: number) => currencyFormatter(v)}
+              tick={{ fontSize: 11 }}
+              width={48}
+              padding={{ top: 8 }}
+            />
+            <ChartTooltip
+              content={
+                <PriceHistoryTooltipContent source={source} currencyFormatter={currencyFormatter} />
+              }
+            />
+            <Area
+              dataKey="value"
+              type="monotone"
+              stroke="var(--color-value)"
+              strokeWidth={2}
+              fill="url(#marketFill)"
+              dot={false}
+              connectNulls
+              isAnimationActive={false}
+            />
+            {hasLow && (
+              <Line
+                dataKey="low"
+                type="monotone"
+                stroke="var(--color-low)"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            )}
+          </ComposedChart>
+        </ChartContainer>
+      )}
+    </div>
+  );
+}
