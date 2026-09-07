@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import { buildStacks } from "@/hooks/use-stacked-copies";

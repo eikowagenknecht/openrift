@@ -1,4 +1,4 @@
-import { formatDayTimeLocal } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared/format-date";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Building2Icon, CalendarIcon, UsersIcon } from "lucide-react";
 

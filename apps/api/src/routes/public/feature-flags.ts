@@ -1,5 +1,5 @@
-import type { FeatureFlagsResponse } from "@openrift/shared";
 import { featureFlagsContract } from "@openrift/shared/contracts/feature-flags";
+import type { FeatureFlagsResponse } from "@openrift/shared/types/api/feature-flags";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

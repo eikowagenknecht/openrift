@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { LoaderIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 

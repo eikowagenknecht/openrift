@@ -1,6 +1,7 @@
-import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
-import type { Printing } from "@openrift/shared";
+import { EMPTY_PRICE_LOOKUP } from "@openrift/shared/price-lookup";
 import { makePrinting } from "@openrift/shared/test-factories";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 

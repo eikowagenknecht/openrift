@@ -1,10 +1,13 @@
+import { copiesContract } from "@openrift/shared/contracts/copies";
+import {
+  definedCopyMetadataFields,
+  normalizeCopyMetadataPatch,
+} from "@openrift/shared/copy-metadata";
 import type {
   CopyListMembershipsResponse,
   CopyMetadataPatch,
   CopyResponse,
-} from "@openrift/shared";
-import { definedCopyMetadataFields, normalizeCopyMetadataPatch } from "@openrift/shared";
-import { copiesContract } from "@openrift/shared/contracts/copies";
+} from "@openrift/shared/types/api/collection";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import type { QueryClient } from "@tanstack/react-query";

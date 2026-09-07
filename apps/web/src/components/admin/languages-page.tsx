@@ -1,4 +1,4 @@
-import type { LanguageResponse } from "@openrift/shared";
+import type { LanguageResponse } from "@openrift/shared/types/api/admin";
 
 import { ColorCell, ColorInput, validateHexColor } from "@/components/admin/admin-crud-shared";
 import { AdminTable } from "@/components/admin/admin-table";

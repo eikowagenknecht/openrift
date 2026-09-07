@@ -1,12 +1,10 @@
-import type { Card, DeckListItemResponse, Domain } from "@openrift/shared";
-import {
-  foldForSearch,
-  legendDisplayName,
-  matchesDomains,
-  noneExcluded,
-  squashForSearch,
-  WellKnown,
-} from "@openrift/shared";
+import { matchesDomains, noneExcluded } from "@openrift/shared/filters";
+import { foldForSearch, squashForSearch } from "@openrift/shared/search-fold";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
+import type { Domain } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 export type DeckListValidity = "all" | "valid" | "invalid";
 

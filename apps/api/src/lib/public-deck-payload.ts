@@ -2,8 +2,8 @@ import type {
   DeckCatalogSubset,
   DeckPlanCardMetaResponse,
   PublicDeckDetailResponse,
-} from "@openrift/shared";
-import { isBaseBanFormat } from "@openrift/shared";
+} from "@openrift/shared/types/api/deck";
+import { isBaseBanFormat } from "@openrift/shared/well-known";
 import type { Selectable } from "kysely";
 
 import type { DecksTable } from "../db/index.js";

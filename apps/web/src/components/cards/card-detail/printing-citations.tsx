@@ -1,4 +1,4 @@
-import type { PrintingCitation } from "@openrift/shared";
+import type { PrintingCitation } from "@openrift/shared/types/catalog";
 import { LinkIcon } from "lucide-react";
 
 import { BrandGlyph } from "@/components/ui/brand-glyph";

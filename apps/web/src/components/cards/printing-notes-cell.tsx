@@ -1,4 +1,4 @@
-import type { Marker, PrintingCitation } from "@openrift/shared";
+import type { Marker, PrintingCitation } from "@openrift/shared/types/catalog";
 import { InfoIcon, LinkIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

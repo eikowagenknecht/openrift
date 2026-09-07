@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { useEffect } from "react";
 
 import { useIncomingTradeCounts } from "@/hooks/use-card-trades";

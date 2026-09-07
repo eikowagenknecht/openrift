@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
 import path from "node:path";
 
-import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import { EMPTY_PRICE_LOOKUP } from "@openrift/shared/price-lookup";
 import { describe, expect, it, beforeEach } from "vitest";
 
 import {

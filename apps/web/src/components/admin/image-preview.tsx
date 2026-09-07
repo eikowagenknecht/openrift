@@ -1,4 +1,7 @@
-import type { CandidatePrintingResponse, ProviderSettingResponse } from "@openrift/shared";
+import type {
+  CandidatePrintingResponse,
+  ProviderSettingResponse,
+} from "@openrift/shared/types/api/admin";
 import { useState } from "react";
 
 import {

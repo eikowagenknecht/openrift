@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import type { Repos } from "../deps.js";
 import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";

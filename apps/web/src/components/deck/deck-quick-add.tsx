@@ -1,5 +1,6 @@
-import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { WellKnown, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { ChevronRightIcon, PlusIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 

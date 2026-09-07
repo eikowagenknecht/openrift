@@ -8,8 +8,8 @@ import {
   META_EVENT_SORTS,
   META_EVENT_SOURCE_FILTERS,
   PLAYLOLTCG_STATUSES,
-} from "@openrift/shared";
-import type { PlayloltcgStatus } from "@openrift/shared";
+} from "@openrift/shared/types/enums";
+import type { PlayloltcgStatus } from "@openrift/shared/types/enums";
 import { z } from "zod";
 
 /**

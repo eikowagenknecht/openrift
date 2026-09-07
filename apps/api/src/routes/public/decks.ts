@@ -1,5 +1,5 @@
-import type { DeckExportResponse, PublicDeckDetailResponse } from "@openrift/shared";
 import { publicDecksContract } from "@openrift/shared/contracts/public-decks";
+import type { DeckExportResponse, PublicDeckDetailResponse } from "@openrift/shared/types/api/deck";
 import { implement } from "@orpc/server";
 
 import { buildPublicDeckDetail } from "../../lib/public-deck-payload.js";

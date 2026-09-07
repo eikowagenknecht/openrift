@@ -1,4 +1,4 @@
-import type { PublicCollectionDetailResponse } from "@openrift/shared";
+import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

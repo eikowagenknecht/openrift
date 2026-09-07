@@ -1,4 +1,4 @@
-import type { ListIntent } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import { useQuery } from "@tanstack/react-query";
 import { UsersIcon } from "lucide-react";
 

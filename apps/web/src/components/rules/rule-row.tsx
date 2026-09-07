@@ -1,4 +1,4 @@
-import type { RuleResponse } from "@openrift/shared";
+import type { RuleResponse } from "@openrift/shared/types/api/rules";
 
 import { Badge } from "@/components/ui/badge";
 import { ExpandToggle } from "@/components/ui/expand-toggle";

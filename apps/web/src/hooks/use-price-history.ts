@@ -1,5 +1,6 @@
-import type { PriceHistoryResponse, TimeRange } from "@openrift/shared";
 import { pricesContract } from "@openrift/shared/contracts/prices";
+import type { PriceHistoryResponse } from "@openrift/shared/types/api/pricing";
+import type { TimeRange } from "@openrift/shared/types/pricing";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

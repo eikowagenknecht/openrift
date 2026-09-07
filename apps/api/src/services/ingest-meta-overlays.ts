@@ -1,12 +1,16 @@
-import type { MetaIngestEvent } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
-import type { MetaEntryStatus, MetaEventOverlayField, MetaEventTier } from "@openrift/shared/types";
+import type { MetaIngestEvent } from "@openrift/shared/types/api/meta";
+import type {
+  MetaEntryStatus,
+  MetaEventOverlayField,
+  MetaEventTier,
+} from "@openrift/shared/types/enums";
 import {
   META_ENTRY_STATUSES,
   META_EVENT_OVERLAY_FIELDS,
   META_EVENT_TIERS,
   META_PLAYER_OVERLAY_FIELDS,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Repos } from "../deps.js";
 import type { MetaEventOverlayRow, MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";

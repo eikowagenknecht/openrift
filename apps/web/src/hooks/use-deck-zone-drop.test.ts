@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { isZoneDropRejected } from "@/hooks/use-deck-zone-drop";

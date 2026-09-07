@@ -1,9 +1,9 @@
+import { cardsContract } from "@openrift/shared/contracts/cards";
 import type {
   CardDetailResponse,
   CatalogCardResponse,
   CatalogPrintingResponse,
-} from "@openrift/shared";
-import { cardsContract } from "@openrift/shared/contracts/cards";
+} from "@openrift/shared/types/api/catalog";
 import { implement } from "@orpc/server";
 
 import { buildPrintingsResponse, loadPrintingDecorations } from "../../lib/printing-presenters.js";

@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { Domain } from "@openrift/shared/types/enums";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

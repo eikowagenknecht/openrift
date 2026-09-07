@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
 import { MAX_COPIES_PER_ADD } from "@openrift/shared/contracts/copies";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { randomUuid } from "@/lib/random-uuid";
 

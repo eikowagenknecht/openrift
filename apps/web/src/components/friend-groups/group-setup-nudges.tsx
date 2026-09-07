@@ -1,4 +1,4 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
+import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
 import { Link } from "@tanstack/react-router";
 import { HandshakeIcon, MessageCircleIcon, XIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";

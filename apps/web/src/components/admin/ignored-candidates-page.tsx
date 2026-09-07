@@ -1,4 +1,4 @@
-import { formatDayTime } from "@openrift/shared";
+import { formatDayTime } from "@openrift/shared/format-date";
 import { Undo2Icon } from "lucide-react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";

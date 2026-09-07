@@ -2,8 +2,10 @@
 // `localStorage`, keyed by a synthetic `local:` id, never on the server. The
 // merged `/decks` list offers to claim them into the account once signed in.
 
-import type { DeckFormat, DeckFormatConfig, DeckLink, DeckZone } from "@openrift/shared";
-import { isAllowedLinkUrl, WellKnown } from "@openrift/shared";
+import { isAllowedLinkUrl } from "@openrift/shared/link-hosts";
+import type { DeckFormatConfig, DeckLink } from "@openrift/shared/types/api/deck";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { toast } from "sonner";
 import { create } from "zustand";
 import type { StateStorage } from "zustand/middleware";

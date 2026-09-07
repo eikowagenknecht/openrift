@@ -1,13 +1,14 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
+import { linkHostLabel } from "@openrift/shared/link-hosts";
 import type {
-  DeckFormat,
   DeckFormatConfig,
   DeckResponse,
-  DeckZone,
-  Printing,
   PublicDeckDetailResponse,
-} from "@openrift/shared";
-import { WellKnown, cardSearchAltNames, legendDisplayName, linkHostLabel } from "@openrift/shared";
+} from "@openrift/shared/types/api/deck";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {

@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { Link } from "@tanstack/react-router";
 import { ExternalLinkIcon, HeartPlusIcon, PackagePlusIcon } from "lucide-react";
 import type { ReactNode } from "react";

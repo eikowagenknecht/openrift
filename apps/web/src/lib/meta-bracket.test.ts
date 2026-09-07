@@ -1,4 +1,4 @@
-import type { MetaEventMatch, MetaEventPhase } from "@openrift/shared";
+import type { MetaEventMatch, MetaEventPhase } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import { metaEventBracket } from "./meta-bracket";

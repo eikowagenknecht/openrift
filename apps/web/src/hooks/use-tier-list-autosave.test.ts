@@ -1,4 +1,4 @@
-import type { TierRow } from "@openrift/shared";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

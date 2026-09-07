@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 

@@ -1,5 +1,9 @@
-import type { Card, DeckListItemResponse, Printing } from "@openrift/shared";
-import { ZONE_LABELS, WellKnown, getOrientation, imageUrl } from "@openrift/shared";
+import { ZONE_LABELS } from "@openrift/shared/deck-zones";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
+import { getOrientation } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {

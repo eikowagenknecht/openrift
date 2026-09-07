@@ -1,4 +1,4 @@
-import type { SortDirection } from "@openrift/shared";
+import type { SortDirection } from "@openrift/shared/types/search";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import type { PersistOptions, PersistStorage } from "zustand/middleware";

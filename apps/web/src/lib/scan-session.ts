@@ -4,21 +4,16 @@
  * {@link sessionOptionsFor} resolves that flag back into a function.
  */
 
-import type {
-  CardEmbedder,
-  EmbedBank,
-  EncoderGates,
-  OpenCvLike,
-  OrbCvLike,
-  ScanSession,
-  ScanSessionOptions,
-} from "@openrift/shared/scan";
+import type { OpenCvLike } from "@openrift/shared/scan/detect-cv";
+import type { CardEmbedder, EmbedBank } from "@openrift/shared/scan/embed";
+import type { OrbCvLike } from "@openrift/shared/scan/orb";
+import type { EncoderGates, ScanSession, ScanSessionOptions } from "@openrift/shared/scan/session";
 import {
   DEFAULT_SESSION_OPTIONS,
   centeredGuideQuad,
   createScanSession,
   gatesForEmbedDim,
-} from "@openrift/shared/scan";
+} from "@openrift/shared/scan/session";
 
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey } from "@/lib/scan-bank";

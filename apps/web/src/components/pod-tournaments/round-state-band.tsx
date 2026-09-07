@@ -1,4 +1,4 @@
-import type { PodRoundResponse } from "@openrift/shared";
+import type { PodRoundResponse } from "@openrift/shared/types/api/pod-tournament";
 import { SwordsIcon, TrophyIcon } from "lucide-react";
 
 import { ActionBand } from "@/components/ui/action-band";

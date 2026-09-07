@@ -1,4 +1,4 @@
-import type { MetaOverlayQueueRow, MetaUploadBody } from "@openrift/shared";
+import type { MetaOverlayQueueRow, MetaUploadBody } from "@openrift/shared/types/api/meta";
 
 /** What a source is called and how its badge is toned. */
 export interface SourceProviderDisplay {

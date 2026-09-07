@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 import type { DeckDiffCard } from "@/lib/deck-diff";
 import { ZONE_DIFF_ORDER } from "@/lib/deck-diff";

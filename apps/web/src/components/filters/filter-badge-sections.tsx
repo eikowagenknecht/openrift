@@ -1,4 +1,4 @@
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
 
 import { FilterSection } from "@/components/filters/filter-badge-row";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";

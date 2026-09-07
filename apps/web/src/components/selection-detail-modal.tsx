@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { XIcon } from "lucide-react";
 import { Suspense, lazy, useRef } from "react";
 import type { ReactNode } from "react";

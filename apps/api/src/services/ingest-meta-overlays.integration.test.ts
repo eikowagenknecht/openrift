@@ -1,5 +1,5 @@
-import type { MetaIngestEvent } from "@openrift/shared";
 import { metaUploadSchema } from "@openrift/shared/contracts/admin/meta";
+import type { MetaIngestEvent } from "@openrift/shared/types/api/meta";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { Repos } from "../deps.js";

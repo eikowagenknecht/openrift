@@ -1,4 +1,4 @@
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
 import { Link } from "@tanstack/react-router";
 
 import { FinishIcon } from "@/components/cards/finish-icon";

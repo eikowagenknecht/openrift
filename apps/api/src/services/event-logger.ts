@@ -1,4 +1,4 @@
-import type { ActivityAction } from "@openrift/shared";
+import type { ActivityAction } from "@openrift/shared/types/enums";
 
 import type { Repos } from "../deps.js";
 

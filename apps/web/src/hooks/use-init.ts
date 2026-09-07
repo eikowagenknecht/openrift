@@ -1,5 +1,5 @@
-import type { InitResponse } from "@openrift/shared";
 import { initContract } from "@openrift/shared/contracts/init";
+import type { InitResponse } from "@openrift/shared/types/api/init";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

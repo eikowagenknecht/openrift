@@ -1,5 +1,7 @@
-import type { DeckViolation, DeckZone } from "@openrift/shared";
-import { WellKnown, copyLimitFor } from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import { copyLimitFor } from "@openrift/shared/deck-rules";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { AlertTriangleIcon, BanIcon } from "lucide-react";
 import { useState } from "react";
 

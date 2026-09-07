@@ -2,8 +2,11 @@
 // points per player (like pods), so a preset is just a labeled pair of game
 // points; the server derives placement and match points from them.
 
-import { placementsFromGamePoints, swissPointsForPlacements } from "@openrift/shared";
-import type { TournamentMatchFormat } from "@openrift/shared";
+import {
+  placementsFromGamePoints,
+  swissPointsForPlacements,
+} from "@openrift/shared/pairing/points";
+import type { TournamentMatchFormat } from "@openrift/shared/types/api/tournament";
 
 export interface SwissResultPreset {
   label: string;

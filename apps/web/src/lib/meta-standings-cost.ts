@@ -1,4 +1,4 @@
-import type { MetaEventPlayer } from "@openrift/shared";
+import type { MetaEventPlayer } from "@openrift/shared/types/api/meta";
 
 import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 

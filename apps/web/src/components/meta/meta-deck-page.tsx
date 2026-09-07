@@ -1,5 +1,5 @@
-import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Link } from "@tanstack/react-router";
 import { CopyIcon, InfoIcon } from "lucide-react";
 

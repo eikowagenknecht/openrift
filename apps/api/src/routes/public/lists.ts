@@ -1,5 +1,5 @@
-import type { PublicListDetailResponse } from "@openrift/shared";
 import { publicListsContract } from "@openrift/shared/contracts/public-lists";
+import type { PublicListDetailResponse } from "@openrift/shared/types/api/list";
 import { implement } from "@orpc/server";
 
 import { gravatarHashForEmail } from "../../lib/gravatar.js";

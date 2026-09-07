@@ -1,4 +1,4 @@
-import type { ListResponse } from "@openrift/shared";
+import type { ListResponse } from "@openrift/shared/types/api/list";
 import { ListIcon } from "lucide-react";
 import { useState } from "react";
 

@@ -1,7 +1,8 @@
-import { ERROR_CODES, WellKnown } from "@openrift/shared";
-import type { AdminMetaEvent } from "@openrift/shared";
 import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
-import type { MetaEventOverlayField, MetaListStatus } from "@openrift/shared/types";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { AdminMetaEvent } from "@openrift/shared/types/api/meta";
+import type { MetaEventOverlayField, MetaListStatus } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -1,4 +1,4 @@
-import type { Quad } from "@openrift/shared/scan";
+import type { Quad } from "@openrift/shared/scan/types";
 import { describe, expect, it, vi } from "vitest";
 
 import { GUIDE_COLOR, RETICLE_COLOR, RETICLE_HOLD_FRAMES } from "@/lib/scan-overlay";

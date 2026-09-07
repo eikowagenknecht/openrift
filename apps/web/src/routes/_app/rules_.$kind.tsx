@@ -1,4 +1,4 @@
-import type { RuleKind } from "@openrift/shared";
+import type { RuleKind } from "@openrift/shared/types/api/rules";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";

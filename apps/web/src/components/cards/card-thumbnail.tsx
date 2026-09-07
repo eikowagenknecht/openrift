@@ -1,12 +1,10 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Domain, Printing, Rarity, StandardArtFallback } from "@openrift/shared";
-import {
-  WellKnown,
-  getOrientation,
-  imageUrl,
-  isBaseBanFormat,
-  legendDisplayName,
-} from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { StandardArtFallback } from "@openrift/shared/standard";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Domain, Rarity } from "@openrift/shared/types/enums";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown, isBaseBanFormat } from "@openrift/shared/well-known";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useEffect, useRef, useState } from "react";
 

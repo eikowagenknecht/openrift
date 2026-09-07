@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { deduplicateByCard } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { deduplicateByCard } from "@openrift/shared/utils";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 

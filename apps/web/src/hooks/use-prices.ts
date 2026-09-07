@@ -1,6 +1,6 @@
-import type { PriceLookup, PricesResponse } from "@openrift/shared";
-import { priceLookupFromMap } from "@openrift/shared";
 import { pricesContract } from "@openrift/shared/contracts/prices";
+import { priceLookupFromMap } from "@openrift/shared/price-lookup";
+import type { PriceLookup, PricesResponse } from "@openrift/shared/types/api/pricing";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

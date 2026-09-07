@@ -1,4 +1,7 @@
-import type { CardTradeResponse, CardTradeSheetResponse } from "@openrift/shared";
+import type {
+  CardTradeResponse,
+  CardTradeSheetResponse,
+} from "@openrift/shared/types/api/card-trade";
 import { Link } from "@tanstack/react-router";
 import {
   BellIcon,

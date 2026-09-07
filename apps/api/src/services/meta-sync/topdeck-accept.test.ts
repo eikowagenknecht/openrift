@@ -1,5 +1,5 @@
-import { WellKnown } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
+import { WellKnown } from "@openrift/shared/well-known";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../../deps.js";

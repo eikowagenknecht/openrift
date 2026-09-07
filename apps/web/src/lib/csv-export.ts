@@ -1,12 +1,9 @@
-import type { CopyResponse, Printing } from "@openrift/shared";
-import {
-  enumLabel,
-  formatDay,
-  isAlwaysFoilRarity,
-  legendDisplayName,
-  straightenApostrophes,
-  WellKnown,
-} from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { formatDay } from "@openrift/shared/format-date";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName, straightenApostrophes } from "@openrift/shared/utils";
+import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared/well-known";
 
 import { conditionShortCode } from "@/lib/condition-codes";
 import { languageNameForCode } from "@/lib/language-names";

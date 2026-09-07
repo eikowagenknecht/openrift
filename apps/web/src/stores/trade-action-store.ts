@@ -1,4 +1,4 @@
-import type { CardTradeStatus } from "@openrift/shared";
+import type { CardTradeStatus } from "@openrift/shared/types/api/card-trade";
 import { create } from "zustand";
 
 interface TradeActionState {

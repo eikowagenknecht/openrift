@@ -1,9 +1,10 @@
-import { appendSetTotal, fixTypography, ERROR_CODES } from "@openrift/shared";
-import type { CardType, Domain, SuperType } from "@openrift/shared";
 import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
 import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
 import { cardFieldRules, printingFieldRules } from "@openrift/shared/db-field-rules";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { appendSetTotal, fixTypography } from "@openrift/shared/fix-typography";
 import { extractKeywords } from "@openrift/shared/keywords";
+import type { CardType, Domain, SuperType } from "@openrift/shared/types/enums";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";

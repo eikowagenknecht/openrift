@@ -1,16 +1,12 @@
-import {
-  arrangeSeating,
-  assignTableNumbers,
-  foldSeatingHistory,
-  placementsFromGamePoints,
-} from "@openrift/shared";
+import { placementsFromGamePoints } from "@openrift/shared/pairing/points";
+import { arrangeSeating, foldSeatingHistory } from "@openrift/shared/pairing/seating";
+import { assignTableNumbers } from "@openrift/shared/pairing/table-assignment";
+import type { PairingPlayer, PairingResult } from "@openrift/shared/pairing/types";
 import type {
-  PairingPlayer,
-  PairingResult,
   PodPlayerStatus,
   PodSnapshotPlayer,
   PodStandingRow,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/pod-tournament";
 import type { Kysely, Selectable } from "kysely";
 
 import type {

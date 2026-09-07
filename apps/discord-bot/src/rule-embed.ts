@@ -1,5 +1,6 @@
-import type { RuleKind } from "@openrift/shared";
-import { RULE_REFERENCE_REGEX, truncateWithEllipsis } from "@openrift/shared";
+import { RULE_REFERENCE_REGEX } from "@openrift/shared/rules";
+import type { RuleKind } from "@openrift/shared/types/api/rules";
+import { truncateWithEllipsis } from "@openrift/shared/utils";
 import type { APIEmbed } from "discord.js";
 
 import { EMBED_COLOR } from "./card-embed.js";

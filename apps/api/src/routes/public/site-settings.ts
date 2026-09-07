@@ -1,5 +1,5 @@
-import type { SiteSettingsResponse } from "@openrift/shared";
 import { siteSettingsContract } from "@openrift/shared/contracts/site-settings";
+import type { SiteSettingsResponse } from "@openrift/shared/types/api/site-settings";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

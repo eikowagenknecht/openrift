@@ -1,18 +1,11 @@
-import type {
-  Card,
-  CardType,
-  CopyResponse,
-  DeckZone,
-  Domain,
-  Marketplace,
-  MetaPlayerDetailResponse,
-  MetaPlayerFinish,
-  PriceLookup,
-  Printing,
-  SuperType,
-  TradePreference,
-} from "@openrift/shared";
 import { makeCard, makePrinting } from "@openrift/shared/test-factories";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { MetaPlayerDetailResponse, MetaPlayerFinish } from "@openrift/shared/types/api/meta";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { TradePreference } from "@openrift/shared/types/api/trade-preferences";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
+import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import type { CardViewerItem } from "@/lib/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

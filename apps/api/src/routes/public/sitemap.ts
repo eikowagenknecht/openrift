@@ -1,5 +1,5 @@
-import type { SitemapDataResponse } from "@openrift/shared";
 import { sitemapContract } from "@openrift/shared/contracts/sitemap";
+import type { SitemapDataResponse } from "@openrift/shared/types/api/catalog";
 import { implement } from "@orpc/server";
 
 import { archiveLegendSlug } from "../../lib/meta-presenters.js";

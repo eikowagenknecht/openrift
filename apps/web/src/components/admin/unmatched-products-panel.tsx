@@ -1,5 +1,6 @@
-import type { StagedProductResponse } from "@openrift/shared";
-import { formatCents, formatDayTime } from "@openrift/shared";
+import { formatDayTime } from "@openrift/shared/format-date";
+import type { StagedProductResponse } from "@openrift/shared/types/api/admin";
+import { formatCents } from "@openrift/shared/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangleIcon, BanIcon, EllipsisVerticalIcon, LinkIcon, XIcon } from "lucide-react";
 import React, { useState } from "react";

@@ -1,7 +1,7 @@
-import type { JobRunStartedResponse } from "@openrift/shared";
 import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs";
 import type { JobRunsListResponse } from "@openrift/shared/contracts/admin/job-runs";
 import { adminOperationsContract } from "@openrift/shared/contracts/admin/operations";
+import type { JobRunStartedResponse } from "@openrift/shared/types/api/admin";
 import { createServerFn } from "@tanstack/react-start";
 
 import { withCookies } from "@/lib/server-fns/middleware";

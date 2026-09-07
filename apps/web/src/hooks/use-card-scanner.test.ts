@@ -5,13 +5,10 @@
  * identity through a WeakMap keyed by their pixel array, following the
  * harness in `packages/shared/src/scan/session.test.ts`.
  */
-import type {
-  CardEmbedder,
-  EmbedBank,
-  OpenCvLike,
-  OrbCvLike,
-  RgbaImage,
-} from "@openrift/shared/scan";
+import type { OpenCvLike } from "@openrift/shared/scan/detect-cv";
+import type { CardEmbedder, EmbedBank } from "@openrift/shared/scan/embed";
+import type { OrbCvLike } from "@openrift/shared/scan/orb";
+import type { RgbaImage } from "@openrift/shared/scan/types";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

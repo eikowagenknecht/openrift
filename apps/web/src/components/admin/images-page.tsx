@@ -1,5 +1,5 @@
-import type { RehostImageResponse } from "@openrift/shared";
 import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
+import type { RehostImageResponse } from "@openrift/shared/types/api/admin";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";

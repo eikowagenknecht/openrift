@@ -1,6 +1,10 @@
-import type { RuleKind, RulesListResponse, RuleVersionsListResponse } from "@openrift/shared";
 import { adminRulesContract } from "@openrift/shared/contracts/admin/rules";
 import { rulesContract } from "@openrift/shared/contracts/rules";
+import type {
+  RuleKind,
+  RulesListResponse,
+  RuleVersionsListResponse,
+} from "@openrift/shared/types/api/rules";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

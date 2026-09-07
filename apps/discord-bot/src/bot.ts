@@ -1,12 +1,8 @@
-import type { CardSearchIndex, MarketplaceInfoResponse } from "@openrift/shared";
-import {
-  buildCardIndex,
-  cardSearchAltNames,
-  findCard,
-  legendDisplayName,
-  parsePiltoverDeckCode,
-  searchCards,
-} from "@openrift/shared";
+import type { CardSearchIndex } from "@openrift/shared/card-search";
+import { buildCardIndex, findCard, searchCards } from "@openrift/shared/card-search";
+import { parsePiltoverDeckCode } from "@openrift/shared/deck-code";
+import type { MarketplaceInfoResponse } from "@openrift/shared/types/api/pricing";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
 import { isDefinedError, safe } from "@orpc/client";
 import type {
   AutocompleteInteraction,

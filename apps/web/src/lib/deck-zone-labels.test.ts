@@ -1,5 +1,6 @@
-import type { DeckFormat } from "@openrift/shared";
-import { WellKnown, ZONE_EXPECTED } from "@openrift/shared";
+import { ZONE_EXPECTED } from "@openrift/shared/deck-zones";
+import type { DeckFormat } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { describe, expect, it } from "vitest";
 
 import {

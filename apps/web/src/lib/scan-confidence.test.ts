@@ -1,4 +1,4 @@
-import { DEFAULT_SESSION_OPTIONS } from "@openrift/shared/scan";
+import { DEFAULT_SESSION_OPTIONS } from "@openrift/shared/scan/session";
 import { describe, expect, it } from "vitest";
 
 import { ghostConfidence } from "./scan-confidence";

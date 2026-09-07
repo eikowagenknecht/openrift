@@ -1,4 +1,4 @@
-import type { AdminMetaEvent } from "@openrift/shared";
+import type { AdminMetaEvent } from "@openrift/shared/types/api/meta";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

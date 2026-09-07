@@ -1,10 +1,10 @@
-import { CONTACT_METHOD_LABELS, formatDay } from "@openrift/shared";
+import { CONTACT_METHOD_LABELS } from "@openrift/shared/contact-methods";
+import { formatDay } from "@openrift/shared/format-date";
 import type {
   FriendGroupDetailResponse,
   FriendGroupShareableListResponse,
-  ListIntent,
-  ListKind,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/friend-group";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,

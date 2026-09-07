@@ -1,4 +1,5 @@
-import { aspectFromQuery, ERROR_CODES, qrFromQuery } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { aspectFromQuery, qrFromQuery } from "@openrift/shared/share-image-params";
 import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { Hono } from "hono";
 import { rateLimiter } from "hono-rate-limiter";

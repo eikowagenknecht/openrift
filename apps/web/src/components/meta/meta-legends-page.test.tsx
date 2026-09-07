@@ -1,4 +1,5 @@
-import type { MetaEventSummary, MetaLegendEventRecord, MetaLegendSummary } from "@openrift/shared";
+import type { MetaLegendEventRecord } from "@openrift/shared/contracts/meta";
+import type { MetaEventSummary, MetaLegendSummary } from "@openrift/shared/types/api/meta";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";

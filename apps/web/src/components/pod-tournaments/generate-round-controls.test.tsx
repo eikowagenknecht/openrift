@@ -1,4 +1,4 @@
-import type { PodPlayerResponse, PodStandingRow } from "@openrift/shared";
+import type { PodPlayerResponse, PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";

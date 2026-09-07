@@ -1,4 +1,4 @@
-import type { DeckListItemResponse } from "@openrift/shared";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";

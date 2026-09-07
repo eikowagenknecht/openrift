@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 import { DeckCardGroupHeader } from "@/components/deck/deck-card-group-header";
 import { StackPile } from "@/components/deck/deck-stack-pile";

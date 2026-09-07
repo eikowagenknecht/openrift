@@ -1,4 +1,4 @@
-import type { PublicTournamentLandingResponse } from "@openrift/shared";
+import type { PublicTournamentLandingResponse } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon } from "lucide-react";
 import { useState } from "react";

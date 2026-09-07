@@ -1,5 +1,5 @@
 import { useDroppable } from "@dnd-kit/core";
-import type { ListIntent, ListKind } from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import type { ReactNode } from "react";
 
 import type { AnyDragData } from "@/components/collection/dnd-types";

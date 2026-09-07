@@ -1,5 +1,6 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
-import { capitalize, formatDayTimeLocal } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared/format-date";
+import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
+import { capitalize } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, FolderIcon, HeartIcon, TrophyIcon, UsersIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";

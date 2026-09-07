@@ -1,4 +1,4 @@
-import type { MetaEventFieldEdits } from "@openrift/shared";
+import type { MetaEventFieldEdits } from "@openrift/shared/types/api/meta";
 
 interface MetaEventCorrectionRow {
   field: keyof MetaEventFieldEdits;

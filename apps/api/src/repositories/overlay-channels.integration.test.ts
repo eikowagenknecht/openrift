@@ -1,5 +1,5 @@
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
-import type { OverlayPayload } from "@openrift/shared/types";
+import type { OverlayPayload } from "@openrift/shared/contracts/overlay";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { createDbContext, seedTestUser } from "../test/integration-context.js";

@@ -1,4 +1,4 @@
-import type { PodStandingRow } from "@openrift/shared";
+import type { PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
 
 import { SectionHeading } from "@/components/ui/section-heading";
 import { computeRegionOverview } from "@/lib/region-overview";

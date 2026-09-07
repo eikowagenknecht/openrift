@@ -3,7 +3,7 @@ import type {
   MetaEventMatch,
   MetaEventPhase,
   MetaEventPlayer,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/meta";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

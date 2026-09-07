@@ -1,19 +1,14 @@
-import type {
-  CardCandidate,
-  FrameOutcome,
-  PlacementDetector,
-  Quad,
-  RankedEmbed,
-  RgbaImage,
-  ScanSession,
-} from "@openrift/shared/scan";
+import type { RankedEmbed } from "@openrift/shared/scan/embed";
+import { toGray } from "@openrift/shared/scan/image";
+import type { PlacementDetector } from "@openrift/shared/scan/placement";
+import { createPlacementDetector } from "@openrift/shared/scan/placement";
+import type { FrameOutcome, ScanSession } from "@openrift/shared/scan/session";
 import {
   DEFAULT_SESSION_OPTIONS,
   IDLE_AFTER_NO_WINNER_FRAMES,
   centeredGuideQuad,
-  createPlacementDetector,
-  toGray,
-} from "@openrift/shared/scan";
+} from "@openrift/shared/scan/session";
+import type { CardCandidate, Quad, RgbaImage } from "@openrift/shared/scan/types";
 import { useEffect, useRef, useState } from "react";
 
 import { cameraErrorMessage } from "@/lib/camera-error";

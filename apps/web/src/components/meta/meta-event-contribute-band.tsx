@@ -1,4 +1,4 @@
-import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared";
+import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 
 import { BAND_GLOW } from "@/components/meta/meta-contribute-band";

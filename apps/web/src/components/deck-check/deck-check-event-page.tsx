@@ -1,4 +1,4 @@
-import type { DeckCheckEntrySummaryResponse } from "@openrift/shared";
+import type { DeckCheckEntrySummaryResponse } from "@openrift/shared/types/api/deck-check";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BanIcon,

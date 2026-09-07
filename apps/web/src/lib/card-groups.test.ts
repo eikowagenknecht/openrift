@@ -1,4 +1,4 @@
-import type { EnumOrders } from "@openrift/shared";
+import type { EnumOrders } from "@openrift/shared/types/enums";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { GroupInfo } from "@/lib/card-group-types";

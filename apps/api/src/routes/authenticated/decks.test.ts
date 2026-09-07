@@ -1,4 +1,4 @@
-import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { Hono } from "hono";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 

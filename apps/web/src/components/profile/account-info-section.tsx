@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { validateRiotId } from "@openrift/shared";
+import { validateRiotId } from "@openrift/shared/riot-id";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";

@@ -1,4 +1,8 @@
-import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
+import type {
+  MetaEventMatch,
+  MetaEventPhase,
+  MetaEventPlayer,
+} from "@openrift/shared/types/api/meta";
 
 import { Heading } from "@/components/heading";
 import { MetaIdentity } from "@/components/meta/meta-identity";

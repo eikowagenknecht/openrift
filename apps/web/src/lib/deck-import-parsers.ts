@@ -1,9 +1,12 @@
-import type { DeckImportEntry, PublicDeckCardResponse } from "@openrift/shared";
-import { isDeckCode, sourceSlotForZone, ZONE_LABELS } from "@openrift/shared";
+import type { DeckImportEntry } from "@openrift/shared/deck-code";
+import { isDeckCode } from "@openrift/shared/deck-code";
 import type { DeckCodeFormat } from "@openrift/shared/deck-codecs";
 import { parseDeckImportData } from "@openrift/shared/deck-codecs";
+import { ZONE_LABELS } from "@openrift/shared/deck-zones";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import { sourceSlotForZone } from "@openrift/shared/zone-inference";
 
-export type { DeckImportEntry } from "@openrift/shared";
+export type { DeckImportEntry } from "@openrift/shared/deck-code";
 export { parseDeckImportData } from "@openrift/shared/deck-codecs";
 
 export type DeckImportFormat = DeckCodeFormat;

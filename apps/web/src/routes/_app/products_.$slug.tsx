@@ -1,5 +1,5 @@
-import { legendDisplayName } from "@openrift/shared";
 import type { ProductDetailResponse } from "@openrift/shared/contracts/products";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

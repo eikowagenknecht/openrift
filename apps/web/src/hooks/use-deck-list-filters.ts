@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { Domain } from "@openrift/shared/types/enums";
 import { getRouteApi } from "@tanstack/react-router";
 
 import type { DeckListSearch } from "@/lib/deck-list-search";

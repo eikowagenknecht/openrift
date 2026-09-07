@@ -1,5 +1,5 @@
-import type { Domain, Rarity } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { Domain, Rarity } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { CSSProperties } from "react";
 import { useId } from "react";
 

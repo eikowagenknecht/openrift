@@ -1,4 +1,4 @@
-import type { MetaListStatus } from "@openrift/shared";
+import type { MetaListStatus } from "@openrift/shared/types/enums";
 
 import { Badge } from "@/components/ui/badge";
 import { META_LIST_STATUS_LABELS } from "@/lib/meta-format";

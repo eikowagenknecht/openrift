@@ -1,5 +1,5 @@
-import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
+import type { PriceRefreshResponse } from "@openrift/shared/types/api/admin";
 
 import type { UpsertCounts } from "./types.js";
 

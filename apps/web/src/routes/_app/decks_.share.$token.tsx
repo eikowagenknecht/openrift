@@ -1,4 +1,4 @@
-import type { PublicDeckDetailResponse } from "@openrift/shared";
+import type { PublicDeckDetailResponse } from "@openrift/shared/types/api/deck";
 import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Link2OffIcon } from "lucide-react";

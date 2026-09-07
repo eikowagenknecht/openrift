@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render } from "@testing-library/react";
 import type { PropsWithChildren, ReactNode } from "react";

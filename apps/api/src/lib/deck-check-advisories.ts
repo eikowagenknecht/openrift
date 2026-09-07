@@ -1,14 +1,10 @@
-import { inferZone, validateDeck, WellKnown } from "@openrift/shared";
-import type {
-  CardType,
-  DeckCheckMatchStatus,
-  DeckViolation,
-  DeckZone,
-  Domain,
-  SuperType,
-  TournamentPlayMode,
-  ZoneSuggestion,
-} from "@openrift/shared";
+import { validateDeck } from "@openrift/shared/deck-rules";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import type { DeckCheckMatchStatus, ZoneSuggestion } from "@openrift/shared/types/api/deck-check";
+import type { TournamentPlayMode } from "@openrift/shared/types/api/tournament";
+import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
+import { inferZone } from "@openrift/shared/zone-inference";
 
 import type { Repos } from "../deps.js";
 

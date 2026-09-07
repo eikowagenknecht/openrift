@@ -1,5 +1,10 @@
-import type { CardDetailResponse, CatalogPrintingResponse, Printing } from "@openrift/shared";
-import { imageUrl, legendDisplayName, preferredPrinting } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type {
+  CardDetailResponse,
+  CatalogPrintingResponse,
+} from "@openrift/shared/types/api/catalog";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName, preferredPrinting } from "@openrift/shared/utils";
 
 import { formatPrice, formatPriceEur } from "@/lib/format";
 

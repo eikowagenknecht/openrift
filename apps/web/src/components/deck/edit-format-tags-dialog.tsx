@@ -1,4 +1,4 @@
-import { capitalize } from "@openrift/shared";
+import { capitalize } from "@openrift/shared/utils";
 import { useState } from "react";
 
 import { TagMultiSelect } from "@/components/deck/format-tag-multi-select";

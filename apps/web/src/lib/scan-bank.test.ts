@@ -1,4 +1,4 @@
-import type { CardLabels } from "@openrift/shared/scan";
+import type { CardLabels } from "@openrift/shared/scan/labels";
 import { describe, expect, it } from "vitest";
 
 import { describeKey, isLandscapeKey } from "@/lib/scan-bank";

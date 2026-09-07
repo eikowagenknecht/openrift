@@ -1,4 +1,4 @@
-import type { LandingSummaryResponse } from "@openrift/shared";
+import type { LandingSummaryResponse } from "@openrift/shared/types/api/catalog";
 import { describe, expect, it } from "vitest";
 
 import { landingThumbnailCards } from "./landing-thumbnails";

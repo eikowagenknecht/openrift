@@ -8,8 +8,8 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import type { Card, Printing } from "@openrift/shared";
-import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierColor } from "@openrift/shared/tier-colors";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import type { ReactNode } from "react";
 import { useState } from "react";
 

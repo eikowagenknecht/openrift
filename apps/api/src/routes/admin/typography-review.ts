@@ -1,6 +1,7 @@
-import { ERROR_CODES, fixTypography } from "@openrift/shared";
 import type { TypographyTarget } from "@openrift/shared/contracts/admin/typography-review";
 import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/typography-review";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { fixTypography } from "@openrift/shared/fix-typography";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 

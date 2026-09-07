@@ -1,4 +1,5 @@
-import type { MetaDeckDetailResponse, PublicDeckCardResponse } from "@openrift/shared";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { MetaDeckDetailResponse } from "@openrift/shared/types/api/meta";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";

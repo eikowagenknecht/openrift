@@ -1,10 +1,10 @@
+import { loansContract } from "@openrift/shared/contracts/loans";
 import type {
   LoanActionCountsResponse,
   LoanBorrowerOptionsResponse,
   LoanListResponse,
   LoanResponse,
-} from "@openrift/shared";
-import { loansContract } from "@openrift/shared/contracts/loans";
+} from "@openrift/shared/types/api/loan";
 import { implement } from "@orpc/server";
 
 import { toLoanResponse } from "../../lib/loan-presenters.js";

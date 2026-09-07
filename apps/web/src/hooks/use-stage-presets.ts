@@ -3,7 +3,7 @@ import type {
   StagePreset,
   StagePresetListResponse,
   UpdateStagePreset,
-} from "@openrift/shared";
+} from "@openrift/shared/contracts/stage-presets";
 import { stagePresetsContract } from "@openrift/shared/contracts/stage-presets";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

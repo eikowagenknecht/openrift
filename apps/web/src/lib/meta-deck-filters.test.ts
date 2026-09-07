@@ -1,4 +1,4 @@
-import type { MetaDeckSummary } from "@openrift/shared";
+import type { MetaDeckSummary } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import type { MetaDeckFilterValues } from "./meta-deck-filters";

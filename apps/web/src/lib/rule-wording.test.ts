@@ -1,5 +1,5 @@
-import type { ListIntent, ListKind } from "@openrift/shared";
-import { defaultRuleCombine, ruleCombineMatchesKind } from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
+import { defaultRuleCombine, ruleCombineMatchesKind } from "@openrift/shared/types/list-rule";
 import { describe, expect, it } from "vitest";
 
 import { matchLabel, netOwnedHint, ruleCountLabel, ruleWording } from "./rule-wording";

@@ -4,7 +4,7 @@ import type {
   TournamentStatus,
   TournamentSummaryResponse,
   TournamentViewerRole,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 import { describe, expect, it } from "vitest";
 
 import {

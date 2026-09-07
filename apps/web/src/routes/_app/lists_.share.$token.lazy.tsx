@@ -1,4 +1,4 @@
-import type { ListIntent } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { SharedListContent } from "@/components/list/shared-list-content";

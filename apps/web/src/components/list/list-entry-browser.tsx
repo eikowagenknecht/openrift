@@ -1,11 +1,7 @@
-import type {
-  CardTradeLiveAnnotation,
-  Currency,
-  ListEntryDetailResponse,
-  ListKind,
-  ListRule,
-  TradePreference,
-} from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
+import type { ListRule } from "@openrift/shared/types/list-rule";
 import { LibraryBigIcon, ListIcon, Trash2Icon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";

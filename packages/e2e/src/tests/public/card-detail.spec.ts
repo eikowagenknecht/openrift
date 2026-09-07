@@ -1,4 +1,5 @@
-import { ALL_MARKETPLACES, EUR_MARKETPLACES, marketplaceLabel } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import { ALL_MARKETPLACES, EUR_MARKETPLACES } from "@openrift/shared/types/pricing";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 

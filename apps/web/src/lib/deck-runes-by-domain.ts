@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";

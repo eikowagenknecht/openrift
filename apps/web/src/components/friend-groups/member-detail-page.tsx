@@ -1,5 +1,5 @@
-import type { ListIntent } from "@openrift/shared";
-import { isTradedCardTrade } from "@openrift/shared";
+import { isTradedCardTrade } from "@openrift/shared/card-trade-lifecycle";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import { Link } from "@tanstack/react-router";
 import { HandshakeIcon } from "lucide-react";
 

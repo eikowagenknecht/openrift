@@ -1,5 +1,8 @@
-import type { Marketplace, Printing } from "@openrift/shared";
-import { EUR_MARKETPLACES, formatPrintingVariantLabelParts, WellKnown } from "@openrift/shared";
+import { formatPrintingVariantLabelParts } from "@openrift/shared/printing-label";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { EUR_MARKETPLACES } from "@openrift/shared/types/pricing";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { EnumLabels } from "@/lib/enum-labels";
 

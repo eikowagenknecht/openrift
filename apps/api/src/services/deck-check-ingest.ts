@@ -1,18 +1,19 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
 import { createHash, randomUUID } from "node:crypto";
 
+import type { createDeckCheckEntrySchema } from "@openrift/shared/contracts/deck-check";
+import type { deckCheckIngestSchema } from "@openrift/shared/contracts/deck-check-ingest";
 import {
   buildContentHashInput,
   diffCardLines,
-  ERROR_CODES,
   MANUAL_ENTRY_EXTERNAL_ID_PREFIX,
   mapSectionToZone,
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
-  WellKnown,
-} from "@openrift/shared";
-import type { DeckCheckCardLine, DeckCheckIngestResultResponse } from "@openrift/shared";
-import type { createDeckCheckEntrySchema } from "@openrift/shared/contracts/deck-check";
-import type { deckCheckIngestSchema } from "@openrift/shared/contracts/deck-check-ingest";
+} from "@openrift/shared/deck-check";
+import type { DeckCheckCardLine } from "@openrift/shared/deck-check";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { DeckCheckIngestResultResponse } from "@openrift/shared/types/api/deck-check";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { z } from "zod";
 
 import type { Repos } from "../deps.js";

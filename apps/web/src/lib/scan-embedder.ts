@@ -1,5 +1,5 @@
-import type { CardEmbedder } from "@openrift/shared/scan";
-import { EMBED_IMAGE_SIZE, embedImageSizeOf } from "@openrift/shared/scan";
+import type { CardEmbedder } from "@openrift/shared/scan/embed";
+import { EMBED_IMAGE_SIZE, embedImageSizeOf } from "@openrift/shared/scan/embed";
 
 import { fetchWithProgress } from "@/lib/fetch-progress";
 import { scanAssetError } from "@/lib/scan-asset-hint";

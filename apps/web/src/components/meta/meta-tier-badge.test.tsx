@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

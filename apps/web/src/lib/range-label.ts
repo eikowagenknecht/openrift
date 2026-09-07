@@ -1,4 +1,4 @@
-import { NONE } from "@openrift/shared";
+import { NONE } from "@openrift/shared/types/search";
 
 /** Label for an active numeric range filter, handling the NONE sentinel and open-ended bounds. */
 export function rangeBadgeLabel(

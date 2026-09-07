@@ -1,4 +1,4 @@
-import type { MetaEventSummary } from "@openrift/shared";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
 import { getRouteApi } from "@tanstack/react-router";
 import { TrophyIcon } from "lucide-react";
 import { useState } from "react";

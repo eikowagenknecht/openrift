@@ -1,4 +1,4 @@
-import { mergeListEntriesByTarget } from "@openrift/shared";
+import { mergeListEntriesByTarget } from "@openrift/shared/list-entries";
 
 import type { Repos } from "../deps.js";
 import type { ListEntryRow } from "../repositories/lists.js";

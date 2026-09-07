@@ -1,5 +1,5 @@
-import type { CatalogResponse } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileTextIcon, Loader2Icon, PrinterIcon } from "lucide-react";
 import { Suspense, useRef, useState } from "react";

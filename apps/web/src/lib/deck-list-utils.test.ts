@@ -1,4 +1,5 @@
-import type { DeckListItemResponse, Domain } from "@openrift/shared";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
+import type { Domain } from "@openrift/shared/types/enums";
 import { describe, expect, it } from "vitest";
 
 import type { DeckListItemWithNames } from "./deck-list-utils";

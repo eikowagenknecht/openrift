@@ -1,14 +1,14 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { collectionsContract } from "@openrift/shared/contracts/collections";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
   ClearCollectionResponse,
-  CollectionGroupSharesResponse,
   CollectionListResponse,
   CollectionResponse,
   CollectionShareResponse,
   CopyListResponse,
   ResetCollectionsResponse,
-} from "@openrift/shared";
-import { collectionsContract } from "@openrift/shared/contracts/collections";
+} from "@openrift/shared/types/api/collection";
+import type { CollectionGroupSharesResponse } from "@openrift/shared/types/api/friend-group";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 

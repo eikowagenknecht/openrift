@@ -1,4 +1,5 @@
-import { enumLabel, legendDisplayName } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 

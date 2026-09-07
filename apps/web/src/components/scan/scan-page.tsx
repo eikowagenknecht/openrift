@@ -1,6 +1,6 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import type { Printing } from "@openrift/shared";
-import { getOrientation, legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
 import {
   CameraIcon,
   CameraOffIcon,

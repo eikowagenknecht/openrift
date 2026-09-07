@@ -1,4 +1,4 @@
-import type { PresenceDimension } from "@openrift/shared";
+import type { PresenceDimension } from "@openrift/shared/types/search";
 
 export type PresenceParamValue = "any" | "none" | null;
 

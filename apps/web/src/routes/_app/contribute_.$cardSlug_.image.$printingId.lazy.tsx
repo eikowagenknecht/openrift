@@ -1,4 +1,4 @@
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createLazyFileRoute,

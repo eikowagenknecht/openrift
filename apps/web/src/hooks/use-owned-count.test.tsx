@@ -1,4 +1,5 @@
-import type { CopyResponse, Finish } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { Finish } from "@openrift/shared/types/enums";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";

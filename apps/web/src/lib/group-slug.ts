@@ -1,5 +1,5 @@
-import { slugifyName } from "@openrift/shared";
 import { RESERVED_FRIEND_GROUP_SLUGS } from "@openrift/shared/contracts/friend-groups";
+import { slugifyName } from "@openrift/shared/utils";
 
 const MIN_LENGTH = 3;
 const MAX_LENGTH = 30;

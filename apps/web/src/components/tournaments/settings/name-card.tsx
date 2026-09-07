@@ -1,4 +1,4 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

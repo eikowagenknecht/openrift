@@ -1,4 +1,8 @@
-import type { MetaCreditVisibility, MetaEventTier, MetaListStatus } from "@openrift/shared/types";
+import type {
+  MetaCreditVisibility,
+  MetaEventTier,
+  MetaListStatus,
+} from "@openrift/shared/types/enums";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { Repos } from "../deps.js";

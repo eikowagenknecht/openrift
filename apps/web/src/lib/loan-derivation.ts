@@ -1,4 +1,4 @@
-import type { LoanResponse, LoanStatus } from "@openrift/shared";
+import type { LoanResponse, LoanStatus } from "@openrift/shared/types/api/loan";
 
 export function loanStatusLabel(status: LoanStatus): string {
   switch (status) {

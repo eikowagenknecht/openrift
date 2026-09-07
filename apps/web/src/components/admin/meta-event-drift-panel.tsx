@@ -1,6 +1,6 @@
-import type { MetaEventDrift } from "@openrift/shared";
-import type { MetaEventOverlayField } from "@openrift/shared/types";
-import { META_EVENT_OVERLAY_FIELDS, META_EVENT_TIERS } from "@openrift/shared/types";
+import type { MetaEventDrift } from "@openrift/shared/types/api/meta";
+import type { MetaEventOverlayField } from "@openrift/shared/types/enums";
+import { META_EVENT_OVERLAY_FIELDS, META_EVENT_TIERS } from "@openrift/shared/types/enums";
 import {
   CheckIcon,
   ChevronDownIcon,

@@ -1,5 +1,5 @@
-import type { CollectionListResponse } from "@openrift/shared";
 import { collectionsContract } from "@openrift/shared/contracts/collections";
+import type { CollectionListResponse } from "@openrift/shared/types/api/collection";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

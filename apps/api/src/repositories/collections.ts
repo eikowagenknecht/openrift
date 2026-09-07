@@ -1,4 +1,4 @@
-import type { FriendGroupRole } from "@openrift/shared";
+import type { FriendGroupRole } from "@openrift/shared/types/api/friend-group";
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 

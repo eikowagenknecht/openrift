@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared/types";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 import type { Repos } from "../deps.js";
 import { classifyMetaEventTier } from "../lib/meta-event-classify.js";

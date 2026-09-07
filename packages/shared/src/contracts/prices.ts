@@ -2,8 +2,8 @@ import { extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
 import { oc } from "@orpc/contract";
 import { z } from "zod";
 
-import { TIME_RANGE_DAYS } from "../index.js";
-import type { TimeRange } from "../index.js";
+import { TIME_RANGE_DAYS } from "../types/pricing.js";
+import type { TimeRange } from "../types/pricing.js";
 
 extendZodWithOpenApi(z);
 

@@ -1,4 +1,4 @@
-import { NONE } from "@openrift/shared";
+import { NONE } from "@openrift/shared/types/search";
 import { describe, expect, it } from "vitest";
 
 import { rangeBadgeLabel } from "./range-label";

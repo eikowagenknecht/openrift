@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Card } from "@openrift/shared/types/catalog";
 import { Link } from "@tanstack/react-router";
 import { ExternalLinkIcon, PencilLineIcon, ShieldIcon } from "lucide-react";
 

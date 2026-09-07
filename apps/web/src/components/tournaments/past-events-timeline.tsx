@@ -1,5 +1,8 @@
-import type { TournamentSummaryResponse, TournamentWinner } from "@openrift/shared";
-import { dateLeafParts, formatDayTimeLocal } from "@openrift/shared";
+import { dateLeafParts, formatDayTimeLocal } from "@openrift/shared/format-date";
+import type {
+  TournamentSummaryResponse,
+  TournamentWinner,
+} from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon, TrophyIcon, UsersIcon } from "lucide-react";
 

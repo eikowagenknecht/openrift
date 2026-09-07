@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { Domain } from "@openrift/shared/types/enums";
 
 export type CompletionGroupBy = "set" | "domain" | "rarity" | "type";
 

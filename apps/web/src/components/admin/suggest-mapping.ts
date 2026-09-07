@@ -1,10 +1,7 @@
-import type { AdminMarketplaceName } from "@openrift/shared";
-import {
-  marketplaceCarriesLanguage,
-  marketplaceFinish,
-  normalizeNameForIdentity,
-  WellKnown,
-} from "@openrift/shared";
+import type { AdminMarketplaceName } from "@openrift/shared/types/api/admin";
+import { marketplaceCarriesLanguage } from "@openrift/shared/types/pricing";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
+import { marketplaceFinish, WellKnown } from "@openrift/shared/well-known";
 
 import type {
   MappingGroup,

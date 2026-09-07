@@ -1,4 +1,4 @@
-import type { GroupByField } from "@openrift/shared";
+import type { GroupByField } from "@openrift/shared/types/search";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 

@@ -1,5 +1,6 @@
-import type { DistributionChannelWithCount, PromosListResponse } from "@openrift/shared";
 import { promosContract } from "@openrift/shared/contracts/promos";
+import type { PromosListResponse } from "@openrift/shared/types/api/catalog";
+import type { DistributionChannelWithCount } from "@openrift/shared/types/catalog";
 import { implement } from "@orpc/server";
 
 import {

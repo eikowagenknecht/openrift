@@ -1,5 +1,5 @@
+import type { PodScoringScheme } from "@openrift/shared/types/api/pod-tournament";
 import type {
-  PodScoringScheme,
   TournamentClaimSource,
   TournamentDeckPhase,
   TournamentDeckSubmission,
@@ -11,7 +11,7 @@ import type {
   TournamentPlayMode,
   TournamentStaffRole,
   TournamentStatus,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

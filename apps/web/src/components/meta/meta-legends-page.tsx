@@ -1,4 +1,4 @@
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { SwordsIcon } from "lucide-react";
 

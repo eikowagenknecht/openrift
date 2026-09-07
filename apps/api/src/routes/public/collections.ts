@@ -1,5 +1,5 @@
-import type { PublicCollectionDetailResponse } from "@openrift/shared";
 import { publicCollectionsContract } from "@openrift/shared/contracts/public-collections";
+import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
 import { implement } from "@orpc/server";
 
 import { toPublicCollection } from "../../lib/collection-presenters.js";

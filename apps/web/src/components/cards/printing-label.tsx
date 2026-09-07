@@ -1,5 +1,6 @@
-import type { Printing, VariantLabelPrinting } from "@openrift/shared";
-import { formatPrintingVariantLabelParts } from "@openrift/shared";
+import type { VariantLabelPrinting } from "@openrift/shared/printing-label";
+import { formatPrintingVariantLabelParts } from "@openrift/shared/printing-label";
+import type { Printing } from "@openrift/shared/types/catalog";
 import type { ReactNode } from "react";
 
 import { LanguageChip } from "@/components/language-chip";

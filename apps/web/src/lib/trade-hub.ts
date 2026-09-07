@@ -1,5 +1,9 @@
-import type { CardTradeResponse } from "@openrift/shared";
-import { cardTradeState, isTradedCardTrade, needsViewerAction } from "@openrift/shared";
+import {
+  cardTradeState,
+  isTradedCardTrade,
+  needsViewerAction,
+} from "@openrift/shared/card-trade-lifecycle";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
 
 import { distinctPrintingIds } from "./friend-group-activity";
 import type { MatchDirection, MatchSuggestionFields } from "./trade-derivation";

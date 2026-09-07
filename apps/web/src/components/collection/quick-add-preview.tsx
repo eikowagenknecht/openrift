@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { getOrientation, legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
 
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";

@@ -1,4 +1,3 @@
-import type { META_CATALOG_DISPLAY_STATUSES, MetaEventTier } from "@openrift/shared";
 import type {
   MetaCancellableJob,
   MetaCatalogListResponse,
@@ -15,6 +14,7 @@ import type {
   MetaSyncTriggerResult,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { adminMetaCatalogContract } from "@openrift/shared/contracts/admin/meta-catalog";
+import type { META_CATALOG_DISPLAY_STATUSES, MetaEventTier } from "@openrift/shared/types/enums";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

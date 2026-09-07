@@ -1,4 +1,4 @@
-import type { MetaEventSummary } from "@openrift/shared";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import {

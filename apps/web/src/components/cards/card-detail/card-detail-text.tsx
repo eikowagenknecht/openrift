@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { CardText } from "@/components/cards/card-text";
 import { OrnamentBase } from "@/components/ui/ornament";

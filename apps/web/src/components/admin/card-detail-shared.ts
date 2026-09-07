@@ -1,12 +1,13 @@
+import { cardFieldsSchema } from "@openrift/shared/contracts/admin/card-mutations";
+import { appendSetTotal, fixTypography } from "@openrift/shared/fix-typography";
+import { findStandardArtFallback } from "@openrift/shared/standard";
 import type {
   AdminPrintingImageResponse,
   AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
-} from "@openrift/shared";
-import { appendSetTotal, findStandardArtFallback, fixTypography } from "@openrift/shared";
-import { cardFieldsSchema } from "@openrift/shared/contracts/admin/card-mutations";
+} from "@openrift/shared/types/api/admin";
 
 import type {
   CandidateCardFieldKey,

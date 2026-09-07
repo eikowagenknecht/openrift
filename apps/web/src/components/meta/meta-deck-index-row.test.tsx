@@ -1,4 +1,4 @@
-import type { MetaDeckSummary } from "@openrift/shared";
+import type { MetaDeckSummary } from "@openrift/shared/types/api/meta";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 

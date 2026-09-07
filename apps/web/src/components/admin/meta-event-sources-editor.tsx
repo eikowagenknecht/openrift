@@ -1,4 +1,4 @@
-import type { AdminMetaEventSource } from "@openrift/shared";
+import type { AdminMetaEventSource } from "@openrift/shared/types/api/meta";
 import { LinkIcon } from "lucide-react";
 
 import { SourceCitationsEditor } from "@/components/admin/source-citations-editor";

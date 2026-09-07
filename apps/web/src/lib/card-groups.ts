@@ -1,5 +1,6 @@
-import type { EnumOrders, GroupByField } from "@openrift/shared";
-import { orderSetsMainFirst } from "@openrift/shared";
+import { orderSetsMainFirst } from "@openrift/shared/set-order";
+import type { EnumOrders } from "@openrift/shared/types/enums";
+import type { GroupByField } from "@openrift/shared/types/search";
 
 import type { CardGroup, GroupInfo } from "@/lib/card-group-types";
 import type { CardViewerItem } from "@/lib/card-viewer-types";

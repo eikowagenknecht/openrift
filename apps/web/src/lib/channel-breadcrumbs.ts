@@ -1,4 +1,4 @@
-import type { DistributionChannel } from "@openrift/shared";
+import type { DistributionChannel } from "@openrift/shared/types/catalog";
 
 const SEP = " › ";
 

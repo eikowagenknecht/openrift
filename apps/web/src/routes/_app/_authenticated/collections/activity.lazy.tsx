@@ -1,5 +1,8 @@
-import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
-import { enumLabel, formatDayLocal, formatTimeLocal, legendDisplayName } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { formatDayLocal, formatTimeLocal } from "@openrift/shared/format-date";
+import type { CollectionEventResponse } from "@openrift/shared/types/api/collection-event";
+import type { ActivityAction } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,

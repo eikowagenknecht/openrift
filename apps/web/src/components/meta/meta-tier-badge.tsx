@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 import { Badge } from "@/components/ui/badge";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";

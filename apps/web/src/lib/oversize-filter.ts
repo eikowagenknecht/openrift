@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 
 export function oversizeState(cardSizes: readonly string[]): boolean | null {
   if (cardSizes.length === 1 && cardSizes[0] === WellKnown.cardSize.OVERSIZED) {

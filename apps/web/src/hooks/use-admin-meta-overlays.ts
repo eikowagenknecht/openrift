@@ -1,3 +1,4 @@
+import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import type {
   MetaCrossSourceReview,
   MetaEventDrift,
@@ -10,8 +11,7 @@ import type {
   MetaUploadResponse,
   MetaUploadRevertResult,
   MetaUploadSummary,
-} from "@openrift/shared";
-import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
+} from "@openrift/shared/types/api/meta";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

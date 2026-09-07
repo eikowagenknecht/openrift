@@ -1,5 +1,9 @@
-import type { Marketplace, PackPull, PackResult, PriceLookup } from "@openrift/shared";
-import { WellKnown, enumLabel, legendDisplayName } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { PackPull, PackResult } from "@openrift/shared/pack-opener/types";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

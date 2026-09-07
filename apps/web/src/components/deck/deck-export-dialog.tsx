@@ -1,4 +1,4 @@
-import type { DeckExportResponse } from "@openrift/shared";
+import type { DeckExportResponse } from "@openrift/shared/types/api/deck";
 import { CheckIcon, CopyIcon, Loader2Icon } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 

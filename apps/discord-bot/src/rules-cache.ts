@@ -1,4 +1,4 @@
-import type { RuleKind, RulesListResponse } from "@openrift/shared";
+import type { RuleKind, RulesListResponse } from "@openrift/shared/types/api/rules";
 
 export interface RulesSnapshot {
   core: RulesListResponse;

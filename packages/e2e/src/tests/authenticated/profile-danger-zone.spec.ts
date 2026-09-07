@@ -244,16 +244,19 @@ test.describe("profile danger zone", () => {
       await loginViaForm(page, email, password);
 
       const sql = loadDb();
-      let userId: string | undefined;
+      let foundUserId: string | undefined;
       try {
         const rows = await sql<{ id: string }[]>`
           SELECT id FROM users WHERE email = ${email}
         `;
-        userId = rows[0]?.id;
+        foundUserId = rows[0]?.id;
       } finally {
         await sql.end();
       }
-      expect(userId).toBeDefined();
+      if (foundUserId === undefined) {
+        throw new Error(`no user row for ${email}`);
+      }
+      const userId = foundUserId;
 
       await page.goto("/profile");
 

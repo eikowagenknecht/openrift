@@ -1,5 +1,5 @@
-import type { MetaDeckCardIndexResponse } from "@openrift/shared";
-import { priceLookupFromMap } from "@openrift/shared";
+import { priceLookupFromMap } from "@openrift/shared/price-lookup";
+import type { MetaDeckCardIndexResponse } from "@openrift/shared/types/api/meta";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

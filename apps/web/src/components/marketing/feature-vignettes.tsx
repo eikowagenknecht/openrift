@@ -1,4 +1,4 @@
-import { marketplaceLabel } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpenIcon,

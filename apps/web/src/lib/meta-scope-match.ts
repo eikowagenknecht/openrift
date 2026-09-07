@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaEra, MetaScope, ScopeFacetDefaults } from "@/lib/meta-scope";

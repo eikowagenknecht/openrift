@@ -1,4 +1,4 @@
-import type { CompletionScopePreference } from "@openrift/shared";
+import type { CompletionScopePreference } from "@openrift/shared/types/api/preferences";
 
 import type { FilterSearch } from "@/lib/search-schemas";
 import type { CompletionCountMode, CompletionGroupBy } from "@/lib/stat-types";

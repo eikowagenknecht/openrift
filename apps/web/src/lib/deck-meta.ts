@@ -1,5 +1,5 @@
-import type { DeckListItemResponse } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
 
 export type DeckMetaPartKey = "box" | "missing" | "value" | "updated";
 

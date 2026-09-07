@@ -1,4 +1,8 @@
-import type { Marker, PrintingCitation, PrintingDistributionChannel } from "@openrift/shared";
+import type {
+  Marker,
+  PrintingCitation,
+  PrintingDistributionChannel,
+} from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import {

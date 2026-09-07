@@ -1,4 +1,4 @@
-import type { ListKind } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
 
 import type { CardOwnership } from "@/lib/deck-ownership-types";
 import type { CardmarketWant } from "@/lib/list-export";

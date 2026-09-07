@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import { PlusSquareIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

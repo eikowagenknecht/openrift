@@ -2,7 +2,7 @@ import type {
   MappingGroupHeader,
   MappingPrintingResponse,
   StagedProductResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 
 export type {
   AssignableCardResponse as AssignableCard,
@@ -11,7 +11,7 @@ export type {
   StagedProductResponse as StagedProduct,
   UnifiedMappingGroupResponse as UnifiedMappingGroup,
   UnifiedMappingPrintingResponse as UnifiedMappingPrinting,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 
 export interface SourceMappingConfig {
   source: string;

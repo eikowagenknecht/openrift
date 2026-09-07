@@ -2,7 +2,7 @@ import type {
   AdminPrintingImageResponse,
   AdminPrintingResponse,
   CandidatePrintingResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

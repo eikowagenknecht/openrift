@@ -1,5 +1,8 @@
-import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { formatHasSideboard, imageUrl, WellKnown, legendDisplayName } from "@openrift/shared";
+import { formatHasSideboard } from "@openrift/shared/deck-rules";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 

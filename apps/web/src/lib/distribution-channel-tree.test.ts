@@ -1,4 +1,4 @@
-import type { DistributionChannelResponse } from "@openrift/shared";
+import type { DistributionChannelResponse } from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import { buildChannelTree, canReparent, leafChannels } from "./distribution-channel-tree";

@@ -1,4 +1,4 @@
-import { META_SUBMISSION_REASONS } from "@openrift/shared";
+import { META_SUBMISSION_REASONS } from "@openrift/shared/types/enums";
 import { describe, expect, it } from "vitest";
 
 import {

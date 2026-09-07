@@ -1,4 +1,4 @@
-import type { CatalogResponse } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

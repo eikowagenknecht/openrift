@@ -1,5 +1,5 @@
-import { formatDay } from "@openrift/shared";
 import type { CardSubmissionStatusResponse } from "@openrift/shared/contracts/card-submissions";
+import { formatDay } from "@openrift/shared/format-date";
 import { Link } from "@tanstack/react-router";
 import { FileTextIcon } from "lucide-react";
 

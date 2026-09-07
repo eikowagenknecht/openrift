@@ -1,4 +1,5 @@
-import type { Marketplace, MetaDeckSummary, MetaEventSummary } from "@openrift/shared";
+import type { MetaDeckSummary, MetaEventSummary } from "@openrift/shared/types/api/meta";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 

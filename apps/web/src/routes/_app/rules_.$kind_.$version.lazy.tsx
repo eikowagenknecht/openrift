@@ -1,4 +1,4 @@
-import type { RuleKind } from "@openrift/shared";
+import type { RuleKind } from "@openrift/shared/types/api/rules";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { RulesPage } from "@/components/rules/rules-page";

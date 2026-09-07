@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import { useNavigate } from "@tanstack/react-router";
 import { EyeIcon, EyeOffIcon, LayersIcon, PencilIcon, Share2Icon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";

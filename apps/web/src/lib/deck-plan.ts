@@ -1,5 +1,5 @@
-import type { DeckPlanResponse } from "@openrift/shared";
 import type { decksContract } from "@openrift/shared/contracts/decks";
+import type { DeckPlanResponse } from "@openrift/shared/types/api/deck";
 
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 

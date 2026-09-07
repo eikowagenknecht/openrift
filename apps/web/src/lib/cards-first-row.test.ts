@@ -3,7 +3,7 @@ import type {
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
 import { describe, expect, it } from "vitest";
 
 import type { FilterSearch } from "@/lib/search-schemas";

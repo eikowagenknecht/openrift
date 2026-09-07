@@ -1,4 +1,4 @@
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
 import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { MyDeckCheckKeysSection } from "@/components/deck-check/deck-check-keys-section";

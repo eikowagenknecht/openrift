@@ -1,5 +1,5 @@
-import type { MetaOverlayQueueRow, MetaOverlayRowMatch } from "@openrift/shared";
 import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/meta-submissions";
+import type { MetaOverlayQueueRow, MetaOverlayRowMatch } from "@openrift/shared/types/api/meta";
 import type * as Router from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

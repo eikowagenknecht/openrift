@@ -1,4 +1,4 @@
-import type { ListIntent, ListKind } from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 

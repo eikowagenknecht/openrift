@@ -1,5 +1,6 @@
-import type { Printing } from "@openrift/shared";
-import { WellKnown, enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { useEnumOrders } from "@/hooks/use-enums";

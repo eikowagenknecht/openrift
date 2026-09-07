@@ -1,4 +1,4 @@
-import type { CatalogResponse } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { catalogQueryOptions } from "@/hooks/catalog-query";

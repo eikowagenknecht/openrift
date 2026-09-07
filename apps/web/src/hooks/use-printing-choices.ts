@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { useCards } from "@/hooks/use-cards";
 import { useDisplayStore } from "@/stores/display-store";

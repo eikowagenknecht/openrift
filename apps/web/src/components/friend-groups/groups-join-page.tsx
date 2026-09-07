@@ -1,4 +1,4 @@
-import type { FriendGroupJoinPreviewResponse } from "@openrift/shared";
+import type { FriendGroupJoinPreviewResponse } from "@openrift/shared/types/api/friend-group";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 

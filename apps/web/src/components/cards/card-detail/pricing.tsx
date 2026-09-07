@@ -1,5 +1,7 @@
-import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
-import { MARKETPLACE_LINKS, snapshotHeadline } from "@openrift/shared";
+import { MARKETPLACE_LINKS } from "@openrift/shared/marketplace";
+import { snapshotHeadline } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace, TimeRange } from "@openrift/shared/types/pricing";
 
 import { MarketplaceIcon } from "@/components/marketplace-icon";
 import { MarketplaceLink } from "@/components/marketplace-link";

@@ -1,9 +1,10 @@
-import type { EmbedBank, EncoderGates } from "@openrift/shared/scan";
+import type { EmbedBank } from "@openrift/shared/scan/embed";
+import type { EncoderGates } from "@openrift/shared/scan/session";
 import {
   DEFAULT_SESSION_OPTIONS,
   centeredGuideQuad,
   gatesForEmbedDim,
-} from "@openrift/shared/scan";
+} from "@openrift/shared/scan/session";
 import { describe, expect, it } from "vitest";
 
 import type { ScannerMode } from "@/lib/scan-session";

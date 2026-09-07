@@ -1,10 +1,7 @@
-import type {
-  GroupByField,
-  ListEntryDetailResponse,
-  ListKind,
-  ListRule,
-  Printing,
-} from "@openrift/shared";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { ListRule } from "@openrift/shared/types/list-rule";
+import type { GroupByField } from "@openrift/shared/types/search";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

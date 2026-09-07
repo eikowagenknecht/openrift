@@ -4,8 +4,8 @@
  * only the Discord side: custom emojis for glyphs, inline code for keywords.
  */
 
-import type { CardTextToken } from "@openrift/shared";
-import { tokenizeCardText } from "@openrift/shared";
+import type { CardTextToken } from "@openrift/shared/card-text";
+import { tokenizeCardText } from "@openrift/shared/card-text";
 
 import type { GlyphEmojis } from "./glyph-emoji.js";
 

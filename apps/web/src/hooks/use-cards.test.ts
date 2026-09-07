@@ -2,7 +2,7 @@ import type {
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 

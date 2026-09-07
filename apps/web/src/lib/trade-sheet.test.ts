@@ -1,5 +1,5 @@
-import type { CardTradeResponse } from "@openrift/shared";
-import { cardTradeState } from "@openrift/shared";
+import { cardTradeState } from "@openrift/shared/card-trade-lifecycle";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
 import { describe, expect, it } from "vitest";
 
 import { splitTradeLedger, stepSequence } from "./trade-sheet";

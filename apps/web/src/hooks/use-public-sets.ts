@@ -1,6 +1,7 @@
-import type { Printing, SetDetailResponse, SetListResponse } from "@openrift/shared";
-import { isReleasedIn, todayUtc } from "@openrift/shared";
 import { setsContract } from "@openrift/shared/contracts/sets";
+import { isReleasedIn, todayUtc } from "@openrift/shared/set-release";
+import type { SetDetailResponse, SetListResponse } from "@openrift/shared/types/api/catalog";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

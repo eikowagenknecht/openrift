@@ -1,4 +1,4 @@
-import type { RuleChangesResponse } from "@openrift/shared";
+import type { RuleChangesResponse } from "@openrift/shared/types/api/rules";
 
 import type { RuleMoves } from "@/lib/rules-changes";
 

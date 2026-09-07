@@ -1,5 +1,6 @@
-import type { CardBan, Rarity } from "@openrift/shared";
-import { LOW_RARITIES, WellKnown } from "@openrift/shared";
+import type { CardBan } from "@openrift/shared/types/catalog";
+import type { Rarity } from "@openrift/shared/types/enums";
+import { LOW_RARITIES, WellKnown } from "@openrift/shared/well-known";
 import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

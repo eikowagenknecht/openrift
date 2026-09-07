@@ -1,4 +1,4 @@
-import { isAllowedLinkUrl } from "@openrift/shared";
+import { isAllowedLinkUrl } from "@openrift/shared/link-hosts";
 import type { ReactNode } from "react";
 import { isValidElement } from "react";
 import type { Components } from "react-markdown";

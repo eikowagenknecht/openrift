@@ -1,5 +1,5 @@
-import { WellKnown } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

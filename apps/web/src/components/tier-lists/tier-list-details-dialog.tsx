@@ -1,4 +1,4 @@
-import type { TierListResponse } from "@openrift/shared";
+import type { TierListResponse } from "@openrift/shared/types/api/tier-list";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

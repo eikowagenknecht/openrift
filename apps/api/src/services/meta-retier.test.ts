@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared/types";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";

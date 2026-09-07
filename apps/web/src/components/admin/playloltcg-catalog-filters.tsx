@@ -1,5 +1,5 @@
-import { PLAYLOLTCG_STATUSES } from "@openrift/shared";
 import type { MetaCatalogTriage } from "@openrift/shared/contracts/admin/meta-catalog";
+import { PLAYLOLTCG_STATUSES } from "@openrift/shared/types/enums";
 
 import { AdminFilterSelect, AdminFilterSwitch } from "@/components/admin/admin-filters";
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";

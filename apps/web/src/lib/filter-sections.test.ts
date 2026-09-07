@@ -1,5 +1,5 @@
-import type { AvailableFilters } from "@openrift/shared";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import type { AvailableFilters } from "@openrift/shared/filters";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { describe, expect, it } from "vitest";
 
 import {

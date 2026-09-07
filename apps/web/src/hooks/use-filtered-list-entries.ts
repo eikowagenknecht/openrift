@@ -1,5 +1,5 @@
-import type { ListEntryDetailResponse } from "@openrift/shared";
-import { filterCards } from "@openrift/shared";
+import { filterCards } from "@openrift/shared/filters";
+import type { ListEntryDetailResponse } from "@openrift/shared/types/api/list";
 
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";

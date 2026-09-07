@@ -1,4 +1,4 @@
-import type { ListEntryDetailResponse, ListKind } from "@openrift/shared";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
 import { DownloadIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";

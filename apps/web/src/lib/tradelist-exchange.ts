@@ -1,9 +1,6 @@
-import type {
-  CardTradeResponse,
-  FriendGroupShareableListResponse,
-  ListIntent,
-  ListKind,
-} from "@openrift/shared";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
+import type { FriendGroupShareableListResponse } from "@openrift/shared/types/api/friend-group";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 
 export interface PendingRequest {
   tradeId: string;

@@ -1,4 +1,4 @@
-import type { CompletionScopePreference } from "@openrift/shared";
+import type { CompletionScopePreference } from "@openrift/shared/types/api/preferences";
 import { describe, expect, it } from "vitest";
 
 import { buildMissingSearch } from "./stats-missing-search";

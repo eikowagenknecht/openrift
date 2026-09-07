@@ -1,5 +1,8 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { TournamentPairingStyle, TournamentStatus } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type {
+  TournamentPairingStyle,
+  TournamentStatus,
+} from "@openrift/shared/types/api/tournament";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";

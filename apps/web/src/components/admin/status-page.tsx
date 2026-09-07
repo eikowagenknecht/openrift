@@ -1,4 +1,4 @@
-import { formatRelativeTime } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared/format-date";
 import {
   ActivityIcon,
   BugIcon,

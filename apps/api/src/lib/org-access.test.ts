@@ -1,4 +1,4 @@
-import type { OrganizationRole } from "@openrift/shared";
+import type { OrganizationRole } from "@openrift/shared/types/api/tournament";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";

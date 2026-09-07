@@ -1,5 +1,5 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
-import { needsViewerAction } from "@openrift/shared";
+import { needsViewerAction } from "@openrift/shared/card-trade-lifecycle";
+import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, ZapIcon } from "lucide-react";
 

@@ -1,5 +1,9 @@
-import type { AdminMetaPlayer, Card, DeckZone, MetaListStatus } from "@openrift/shared";
-import { META_LIST_STATUSES, WellKnown, legendDisplayName } from "@openrift/shared";
+import type { AdminMetaPlayer } from "@openrift/shared/types/api/meta";
+import type { Card } from "@openrift/shared/types/catalog";
+import type { DeckZone, MetaListStatus } from "@openrift/shared/types/enums";
+import { META_LIST_STATUSES } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { XIcon } from "lucide-react";
 import { useState } from "react";

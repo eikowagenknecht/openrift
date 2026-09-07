@@ -1,5 +1,5 @@
-import type { FriendGroupJoinPreviewResponse } from "@openrift/shared";
 import { publicFriendGroupsContract } from "@openrift/shared/contracts/public-friend-groups";
+import type { FriendGroupJoinPreviewResponse } from "@openrift/shared/types/api/friend-group";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

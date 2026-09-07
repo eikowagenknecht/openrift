@@ -1,3 +1,5 @@
+import { listsContract } from "@openrift/shared/contracts/lists";
+import { publicListsContract } from "@openrift/shared/contracts/public-lists";
 import type {
   ListBulkAddResponse,
   ListDetailResponse,
@@ -8,9 +10,7 @@ import type {
   ListResponse,
   ListShareResponse,
   PublicListDetailResponse,
-} from "@openrift/shared";
-import { listsContract } from "@openrift/shared/contracts/lists";
-import { publicListsContract } from "@openrift/shared/contracts/public-lists";
+} from "@openrift/shared/types/api/list";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

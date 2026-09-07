@@ -1,4 +1,4 @@
-import type { MetaEventDetail } from "@openrift/shared";
+import type { MetaEventDetail } from "@openrift/shared/types/api/meta";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 

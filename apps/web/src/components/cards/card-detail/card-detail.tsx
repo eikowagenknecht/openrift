@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

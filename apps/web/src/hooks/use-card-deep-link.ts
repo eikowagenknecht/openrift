@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 

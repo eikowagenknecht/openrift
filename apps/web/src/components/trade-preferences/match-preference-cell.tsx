@@ -1,9 +1,9 @@
+import type { MarketplaceInfo } from "@openrift/shared/types/api/pricing";
 import type {
   EffectiveTradePreference,
-  Marketplace,
-  MarketplaceInfo,
   TradePricePref,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/trade-preferences";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 

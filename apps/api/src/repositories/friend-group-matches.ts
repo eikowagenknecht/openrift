@@ -1,23 +1,19 @@
 import {
   evaluateListRules,
   expandList,
-  hydrateListRules,
   ownedCopyPrintingScope,
-  resolveEffectiveTradePreference,
-  ruleFiltersOnPrice,
-} from "@openrift/shared";
+} from "@openrift/shared/list-rule-eval";
+import type { ManualEntryRow, OwnedCopyRow } from "@openrift/shared/list-rule-eval";
+import type { ListKind } from "@openrift/shared/types/api/list";
+import { resolveEffectiveTradePreference } from "@openrift/shared/types/api/trade-preferences";
 import type {
   Currency,
   EffectiveTradePreference,
-  Finish,
-  ListKind,
-  ListRuleCombine,
-  ListRules,
-  ManualEntryRow,
-  OwnedCopyRow,
-  Rarity,
   TradePreference,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/trade-preferences";
+import type { Finish, Rarity } from "@openrift/shared/types/enums";
+import { hydrateListRules, ruleFiltersOnPrice } from "@openrift/shared/types/list-rule";
+import type { ListRuleCombine, ListRules } from "@openrift/shared/types/list-rule";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 

@@ -2,25 +2,23 @@ import { foldCached, foldForSearch, squashCached, squashForSearch } from "./sear
 import type { SetOrderInfo } from "./set-order.js";
 import { orderSetsMainFirst, setIndexById, UNKNOWN_SET_INDEX } from "./set-order.js";
 import { isStandardPrinting } from "./standard.js";
+import type { DistributionChannel, Marker, Printing } from "./types/catalog.js";
+import type { EnumOrders } from "./types/enums.js";
 import type {
   CardFilters,
-  DistributionChannel,
-  EnumOrders,
   FilterRange,
-  Marker,
   PresenceDimension,
-  Printing,
   SearchField,
   SortDirection,
   SortOption,
-} from "./types/index.js";
+} from "./types/search.js";
 import {
   ALL_SEARCH_FIELDS,
   EMPTY_CARD_FILTERS,
   NONE,
   PRESENCE_DIMENSIONS,
   SEARCH_PREFIX_MAP,
-} from "./types/index.js";
+} from "./types/search.js";
 import { cardSearchAltNames, legendDisplayName } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 

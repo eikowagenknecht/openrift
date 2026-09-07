@@ -1,5 +1,7 @@
-import type { CollectionResponse, Printing } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import {
   ArrowRightIcon,
   ArrowRightLeftIcon,

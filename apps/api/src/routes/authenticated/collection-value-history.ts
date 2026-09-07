@@ -1,6 +1,6 @@
-import { TIME_RANGE_DAYS } from "@openrift/shared";
-import type { TimeRange } from "@openrift/shared";
 import { collectionValueHistoryContract } from "@openrift/shared/contracts/collection-value-history";
+import { TIME_RANGE_DAYS } from "@openrift/shared/types/pricing";
+import type { TimeRange } from "@openrift/shared/types/pricing";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

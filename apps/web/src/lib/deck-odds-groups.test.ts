@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { describe, expect, it } from "vitest";
 
 import { chanceToDraw, OPENING_HAND_SIZE } from "@/lib/deck-draw-odds";

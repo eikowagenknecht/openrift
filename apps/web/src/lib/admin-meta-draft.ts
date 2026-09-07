@@ -1,12 +1,11 @@
+import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
+import type { AdminMetaEvent, AdminMetaPlayer } from "@openrift/shared/types/api/meta";
 import type {
-  AdminMetaEvent,
-  AdminMetaPlayer,
   MetaEventOverlayField,
   MetaEventTier,
   MetaListStatus,
-} from "@openrift/shared";
-import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared";
-import { RESERVED_META_EVENT_SLUGS } from "@openrift/shared/contracts/admin/meta";
+} from "@openrift/shared/types/enums";
+import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types/enums";
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 

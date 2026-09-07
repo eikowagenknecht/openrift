@@ -1,4 +1,5 @@
-import type { FrameWinner, RgbaImage } from "@openrift/shared/scan";
+import type { FrameWinner } from "@openrift/shared/scan/accept";
+import type { RgbaImage } from "@openrift/shared/scan/types";
 import { describe, expect, it } from "vitest";
 
 import type { CatchUpEntry } from "@/lib/scan-catchup";

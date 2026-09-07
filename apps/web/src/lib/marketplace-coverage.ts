@@ -1,5 +1,7 @@
-import type { UnifiedMappingGroupResponse } from "@openrift/shared";
-import { marketplaceCarriesLanguage, marketplaceLabel, WellKnown } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import type { UnifiedMappingGroupResponse } from "@openrift/shared/types/api/admin";
+import { marketplaceCarriesLanguage } from "@openrift/shared/types/pricing";
+import { WellKnown } from "@openrift/shared/well-known";
 
 type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
 

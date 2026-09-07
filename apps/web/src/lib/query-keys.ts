@@ -1,4 +1,5 @@
-import type { MetaCountsQuery, MetaScopeQuery, TimeRange } from "@openrift/shared";
+import type { MetaCountsQuery, MetaScopeQuery } from "@openrift/shared/types/api/meta";
+import type { TimeRange } from "@openrift/shared/types/pricing";
 
 import type { MetaDateRange, MetaDeckQuery } from "@/lib/meta-scope";
 import type { SourceMappingConfig } from "@/lib/price-mappings-types";

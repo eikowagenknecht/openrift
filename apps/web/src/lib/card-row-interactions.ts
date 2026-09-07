@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 export interface CardOpenTarget {
   cardId: string;

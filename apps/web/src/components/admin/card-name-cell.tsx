@@ -1,4 +1,4 @@
-import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import type { CandidateCardSummaryResponse } from "@openrift/shared/types/api/admin";
 import { extractCardIdFromShortCode } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import { ImagePlusIcon, LinkIcon, LoaderIcon } from "lucide-react";

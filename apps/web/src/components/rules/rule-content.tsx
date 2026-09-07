@@ -1,4 +1,4 @@
-import { formatRuleNumber } from "@openrift/shared";
+import { formatRuleNumber } from "@openrift/shared/rules";
 import { Link } from "@tanstack/react-router";
 import type { MouseEvent, ReactNode } from "react";
 import { flushSync } from "react-dom";
@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
 
 // Re-exported from @openrift/shared: the Discord bot's /rule command uses these too.
-export { buildTermAnchors, formatRuleNumber } from "@openrift/shared";
+export { buildTermAnchors, formatRuleNumber } from "@openrift/shared/rules";
 
 export async function copyRuleLink(ruleNumber: string): Promise<void> {
   const url = `${globalThis.location.origin}${globalThis.location.pathname}#rule-${ruleNumber}`;

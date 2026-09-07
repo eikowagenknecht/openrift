@@ -1,10 +1,9 @@
 import type {
-  Currency,
   ListEntryDetailResponse,
   ListIntent,
   ListKind,
-  TradePreference,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/list";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 

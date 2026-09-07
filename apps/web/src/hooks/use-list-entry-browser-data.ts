@@ -1,4 +1,4 @@
-import type { ListEntryDetailResponse, ListKind } from "@openrift/shared";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
 import { useEffect } from "react";
 
 import { useCardData } from "@/hooks/use-card-data";

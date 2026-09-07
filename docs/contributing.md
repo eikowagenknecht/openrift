@@ -3,6 +3,7 @@
 ## Code Style
 
 - **Imports** — use `@/` path alias in `apps/web` instead of relative parent imports (`../`).
+- **Shared package imports** — `@openrift/shared` has no barrel. Import from the leaf module that declares the symbol (`@openrift/shared/deck-rules`, `@openrift/shared/types/api/decks`); every `src/*.ts` file is exported through the `./*` pattern in its package.json. The only aggregate entries are `./contracts` (the API's router input) and `./deck-codecs`. Do not add an index file to re-export siblings, and do not re-export a shared symbol from an app module.
 - **Styling** — Tailwind utility classes with `cn()` from `@/lib/utils` for conditional class merging.
 - **React Compiler** — auto-memoizes everything. Do not add `useMemo`, `useCallback`, or `React.memo`.
 - **Page chrome and card browsers** — page widths, top bars, sticky stacking, and the shared card-browser pieces are documented in [ui-composition.md](./ui-composition.md).

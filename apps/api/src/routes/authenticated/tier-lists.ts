@@ -1,10 +1,10 @@
+import { DEFAULT_TIER_LABELS, tierListsContract } from "@openrift/shared/contracts/tier-lists";
 import type {
   TierListListResponse,
   TierListResponse,
   TierListShareResponse,
-} from "@openrift/shared";
-import { trimToNull } from "@openrift/shared";
-import { DEFAULT_TIER_LABELS, tierListsContract } from "@openrift/shared/contracts/tier-lists";
+} from "@openrift/shared/types/api/tier-list";
+import { trimToNull } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
 import type { TierListRow } from "../../db/index.js";

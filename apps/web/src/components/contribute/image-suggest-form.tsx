@@ -1,4 +1,4 @@
-import type { Card, Printing } from "@openrift/shared";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import { CheckCircle2Icon, ChevronRightIcon, SendIcon } from "lucide-react";
 import { useState } from "react";
 

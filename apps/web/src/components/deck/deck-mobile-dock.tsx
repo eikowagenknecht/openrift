@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 import { Redo2Icon, Undo2Icon } from "lucide-react";
 
 import { useDeckUndo } from "@/components/deck/deck-undo-controls";

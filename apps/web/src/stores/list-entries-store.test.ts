@@ -1,4 +1,4 @@
-import type { ListEntryDetailResponse } from "@openrift/shared";
+import type { ListEntryDetailResponse } from "@openrift/shared/types/api/list";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { useListEntriesStore } from "./list-entries-store";

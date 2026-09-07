@@ -1,9 +1,10 @@
+import { imageUrl } from "@openrift/shared/image-url";
 import type {
   DeckMatchupSwapResponse,
   DeckPlanCardMetaResponse,
   DeckPlanResponse,
-} from "@openrift/shared";
-import { getOrientation, imageUrl } from "@openrift/shared";
+} from "@openrift/shared/types/api/deck";
+import { getOrientation } from "@openrift/shared/utils";
 
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { cn } from "@/lib/utils";

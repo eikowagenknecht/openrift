@@ -1,5 +1,5 @@
-import type { RuleChangesResponse, RuleResponse } from "@openrift/shared";
-import { compareRuleNumbers, RULE_REFERENCE_REGEX } from "@openrift/shared";
+import { compareRuleNumbers, RULE_REFERENCE_REGEX } from "@openrift/shared/rules";
+import type { RuleChangesResponse, RuleResponse } from "@openrift/shared/types/api/rules";
 
 import { hasVisibleRuleChanges } from "@/lib/rules-markdown";
 

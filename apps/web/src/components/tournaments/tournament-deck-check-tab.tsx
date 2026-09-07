@@ -1,4 +1,4 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 
 import { TournamentDeckCheckEntries } from "@/components/deck-check/deck-check-event-page";
 import { DeckCheckIngestGuide } from "@/components/deck-check/deck-check-ingest-guide";

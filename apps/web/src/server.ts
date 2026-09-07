@@ -3,7 +3,8 @@
 import "./instrument.server.mjs";
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect instrumentation bootstrap
 import "./tracing.server";
-import type { FeatureFlagsResponse, SetListResponse, SitemapDataResponse } from "@openrift/shared";
+import type { SetListResponse, SitemapDataResponse } from "@openrift/shared/types/api/catalog";
+import type { FeatureFlagsResponse } from "@openrift/shared/types/api/feature-flags";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 import { helpArticleList } from "./components/help/articles";

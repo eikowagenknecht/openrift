@@ -1,4 +1,5 @@
-import { enumLabel, slugifyName } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { slugifyName } from "@openrift/shared/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";

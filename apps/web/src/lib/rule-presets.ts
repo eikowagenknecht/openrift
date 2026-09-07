@@ -1,5 +1,5 @@
-import type { ListIntent, ListKind } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { DraftRule } from "@/lib/rule-draft";
 import { emptyDraft } from "@/lib/rule-draft";

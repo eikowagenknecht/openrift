@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
 import path from "node:path";
 
-import type { UserPreferencesResponse } from "@openrift/shared";
+import type { UserPreferencesResponse } from "@openrift/shared/types/api/preferences";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";

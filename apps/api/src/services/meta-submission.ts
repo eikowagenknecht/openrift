@@ -1,3 +1,7 @@
+// One definition of the reserved provider string, on the wire side: the
+// database keys `(provider, external_id)` on it, and a second copy is exactly
+// the pair that drifts.
+import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
 /**
  * Ingest one signed-in user's decklist submission to the meta archive.
  *
@@ -16,16 +20,11 @@
  *     the live event and adopts the entries hanging off it, so both are
  *     reviewed as one thing.
  */
-import { ERROR_CODES, formatCompactUtcStamp, WellKnown } from "@openrift/shared";
-// One definition of the reserved provider string, on the wire side: the
-// database keys `(provider, external_id)` on it, and a second copy is exactly
-// the pair that drifts.
-import { META_USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/meta-submissions";
-import type {
-  MetaEventFieldEdits,
-  MetaListStatus,
-  MetaSubmissionKind,
-} from "@openrift/shared/types";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { formatCompactUtcStamp } from "@openrift/shared/format-date";
+import type { MetaEventFieldEdits } from "@openrift/shared/types/api/meta";
+import type { MetaListStatus, MetaSubmissionKind } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";

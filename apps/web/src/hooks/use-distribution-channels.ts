@@ -1,6 +1,6 @@
-import type { DistributionChannelResponse } from "@openrift/shared";
 import type { AdminDistributionChannelsResponse } from "@openrift/shared/contracts/admin/distribution-channels";
 import { adminDistributionChannelsContract } from "@openrift/shared/contracts/admin/distribution-channels";
+import type { DistributionChannelResponse } from "@openrift/shared/types/api/admin";
 import { createServerFn } from "@tanstack/react-start";
 
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";

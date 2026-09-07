@@ -1,10 +1,11 @@
+import { appendSetTotal } from "@openrift/shared/fix-typography";
 import type {
   AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
-} from "@openrift/shared";
-import { appendSetTotal, formatPrintingLabel, stringifyUnknown } from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
+import { formatPrintingLabel, stringifyUnknown } from "@openrift/shared/utils";
 import {
   ArrowRightIcon,
   CheckCheckIcon,

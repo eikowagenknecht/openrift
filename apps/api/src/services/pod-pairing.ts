@@ -1,22 +1,17 @@
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { pickAutoBye } from "@openrift/shared/pairing/auto-bye";
+import { evaluatePairing } from "@openrift/shared/pairing/evaluate";
+import { generatePairing, InvalidPlayerCountError } from "@openrift/shared/pairing/local-search";
+import { placementsFromGamePoints } from "@openrift/shared/pairing/points";
 import {
   buildTeamUnits,
   collapseTeamByes,
   collapseTeamPods,
-  ERROR_CODES,
-  evaluatePairing,
   expandTeamPairing,
-  generatePairing,
-  InvalidPlayerCountError,
-  pickAutoBye,
-  placementsFromGamePoints,
-} from "@openrift/shared";
-import type {
-  PairingMode,
-  PairingResult,
-  Pod,
-  PodSnapshotPlayer,
-  TeamSnapshotPlayer,
-} from "@openrift/shared";
+} from "@openrift/shared/pairing/team-units";
+import type { TeamSnapshotPlayer } from "@openrift/shared/pairing/team-units";
+import type { PairingMode, PairingResult, Pod } from "@openrift/shared/pairing/types";
+import type { PodSnapshotPlayer } from "@openrift/shared/types/api/pod-tournament";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";

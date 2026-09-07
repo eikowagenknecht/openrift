@@ -1,4 +1,4 @@
-import type { Card } from "@openrift/shared";
+import type { Card } from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import { stubCard } from "@/test/factories";

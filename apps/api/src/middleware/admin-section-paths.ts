@@ -1,4 +1,4 @@
-import type { AdminSectionSlug } from "@openrift/shared";
+import type { AdminSectionSlug } from "@openrift/shared/admin-sections";
 
 function underPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);

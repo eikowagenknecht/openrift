@@ -1,4 +1,4 @@
-import type { EmailNotificationPreference } from "@openrift/shared/types";
+import type { EmailNotificationPreference } from "@openrift/shared/types/api/preferences";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";

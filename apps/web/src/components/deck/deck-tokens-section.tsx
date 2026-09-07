@@ -1,4 +1,6 @@
-import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import { getOrientation } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { ImageOffIcon, InfoIcon } from "lucide-react";
 import { useState } from "react";
 

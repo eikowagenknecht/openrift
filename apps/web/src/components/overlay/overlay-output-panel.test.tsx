@@ -1,4 +1,4 @@
-import type { OverlayBoard } from "@openrift/shared";
+import type { OverlayBoard } from "@openrift/shared/contracts/overlay";
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
 import { fireEvent, render } from "@testing-library/react";
 import type { ReactNode } from "react";

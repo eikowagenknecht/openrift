@@ -1,9 +1,9 @@
+import type { MetaEventFieldEdits } from "@openrift/shared/types/api/meta";
 import type {
-  MetaEventFieldEdits,
   MetaSubmissionKind,
   MetaSubmissionReason,
   MetaSubmissionStatus,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database, MetaEventsTable, MetaSubmissionsTable } from "../db/index.js";

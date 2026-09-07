@@ -1,4 +1,4 @@
-import { legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import type { CardGroup } from "@/lib/card-group-types";
 import type { CardViewerItem } from "@/lib/card-viewer-types";

@@ -1,4 +1,4 @@
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
 import { Undo2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 

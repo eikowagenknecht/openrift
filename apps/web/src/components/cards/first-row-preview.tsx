@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 import { getRouteApi } from "@tanstack/react-router";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";

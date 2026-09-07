@@ -1,5 +1,5 @@
-import { formatDay } from "@openrift/shared";
-import type { AdminMetaEvent } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { AdminMetaEvent } from "@openrift/shared/types/api/meta";
 import { useState } from "react";
 
 import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";

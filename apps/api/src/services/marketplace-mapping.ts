@@ -1,11 +1,11 @@
 import type {
   MappingGroupHeader,
   MappingPrintingResponse,
-  Marketplace,
   MarketplaceAssignmentResponse as MarketplaceAssignment,
   MarketplaceGroupKind,
   StagedProductResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos, Transact } from "../deps.js";

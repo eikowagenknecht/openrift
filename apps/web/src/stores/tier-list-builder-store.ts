@@ -1,9 +1,9 @@
-import type { TierCard, TierRow } from "@openrift/shared";
 import {
   MAX_CARDS_PER_TIER,
   MAX_TIER_LIST_CARDS,
   MAX_TIER_ROWS,
 } from "@openrift/shared/contracts/tier-lists";
+import type { TierCard, TierRow } from "@openrift/shared/types/api/tier-list";
 import { create } from "zustand";
 
 interface TierListBuilderState {

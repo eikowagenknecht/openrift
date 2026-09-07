@@ -1,4 +1,4 @@
-import type { CopyListMembershipsResponse } from "@openrift/shared";
+import type { CopyListMembershipsResponse } from "@openrift/shared/types/api/collection";
 
 export const DISPOSE_TYPE_CONFIRM_THRESHOLD = 20;
 

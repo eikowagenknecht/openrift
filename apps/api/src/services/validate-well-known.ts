@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Database } from "../db/index.js";
 import type { wellKnownRepo } from "../repositories/well-known.js";

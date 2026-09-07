@@ -2,7 +2,7 @@ import type {
   PublicTierListResponse,
   TierListResponse,
   TierListSummaryResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tier-list";
 
 import type { TierListCard, TierListRow } from "../db/index.js";
 import type { TierList } from "../repositories/tier-lists.js";

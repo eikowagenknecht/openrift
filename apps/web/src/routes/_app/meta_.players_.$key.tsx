@@ -1,4 +1,4 @@
-import type { MetaPlayerDetailResponse } from "@openrift/shared";
+import type { MetaPlayerDetailResponse } from "@openrift/shared/types/api/meta";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

@@ -1,4 +1,4 @@
-import type { LoanResponse } from "@openrift/shared";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import { describe, expect, it, vi } from "vitest";
 
 // The hooks in use-loans.ts pull in server-fn machinery; the pure helper is

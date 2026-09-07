@@ -1,11 +1,11 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { PodTournamentDetailResponse } from "@openrift/shared/types/api/pod-tournament";
 import type {
-  PodTournamentDetailResponse,
   TournamentDetailResponse,
   TournamentListResponse,
   TournamentParticipantListResponse,
-} from "@openrift/shared";
-import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
+} from "@openrift/shared/types/api/tournament";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

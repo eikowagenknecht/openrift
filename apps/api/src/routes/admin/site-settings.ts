@@ -1,6 +1,6 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { SiteSettingResponse } from "@openrift/shared";
 import { adminSiteSettingsContract } from "@openrift/shared/contracts/admin/site-settings";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { SiteSettingResponse } from "@openrift/shared/types/api/admin";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -1,5 +1,6 @@
-import { formatDay, META_CATALOG_SORTS } from "@openrift/shared";
 import type { TopdeckCatalogRow } from "@openrift/shared/contracts/admin/meta-catalog";
+import { formatDay } from "@openrift/shared/format-date";
+import { META_CATALOG_SORTS } from "@openrift/shared/types/enums";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { ArchiveXIcon, CheckIcon, LayersIcon, SlidersHorizontalIcon, UndoIcon } from "lucide-react";
 import { useState } from "react";

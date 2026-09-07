@@ -1,5 +1,6 @@
-import type { Printing } from "@openrift/shared";
-import { WellKnown, getOrientation } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { getOrientation } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";

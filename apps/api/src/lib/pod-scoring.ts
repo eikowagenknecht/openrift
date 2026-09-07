@@ -1,4 +1,5 @@
-import type { PodScoringScheme, TournamentPlayMode } from "@openrift/shared";
+import type { PodScoringScheme } from "@openrift/shared/types/api/pod-tournament";
+import type { TournamentPlayMode } from "@openrift/shared/types/api/tournament";
 
 import type { Tournament } from "../repositories/tournaments.js";
 

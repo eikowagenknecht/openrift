@@ -1,5 +1,8 @@
-import type { DeckImportEntry, DeckZone } from "@openrift/shared";
-import { inferZone, legendDisplayName, WellKnown } from "@openrift/shared";
+import type { DeckImportEntry } from "@openrift/shared/deck-code";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
+import { inferZone } from "@openrift/shared/zone-inference";
 import type { APIEmbed } from "discord.js";
 
 import { EMBED_COLOR } from "./card-embed.js";

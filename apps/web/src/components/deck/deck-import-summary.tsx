@@ -1,5 +1,7 @@
-import type { DeckFormat, DeckFormatConfig, Marketplace } from "@openrift/shared";
-import { validateDeck } from "@openrift/shared";
+import { validateDeck } from "@openrift/shared/deck-rules";
+import type { DeckFormatConfig } from "@openrift/shared/types/api/deck";
+import type { DeckFormat } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { TagIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 

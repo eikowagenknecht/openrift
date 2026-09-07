@@ -3,7 +3,7 @@ import type {
   AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";

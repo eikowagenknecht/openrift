@@ -1,5 +1,6 @@
-import type { FrameWinner, RgbaImage } from "@openrift/shared/scan";
-import { MAX_FRAME_WEIGHT, frameWeight } from "@openrift/shared/scan";
+import type { FrameWinner } from "@openrift/shared/scan/accept";
+import { MAX_FRAME_WEIGHT, frameWeight } from "@openrift/shared/scan/accept";
+import type { RgbaImage } from "@openrift/shared/scan/types";
 
 export const CATCH_UP_CAPACITY = 3;
 

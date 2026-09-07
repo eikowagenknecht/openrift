@@ -1,6 +1,11 @@
+import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-pod-tournaments";
+import { publicTournamentsContract } from "@openrift/shared/contracts/public-tournaments";
+import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
 import type {
   PodReportResponse,
   PodTournamentDetailResponse,
+} from "@openrift/shared/types/api/pod-tournament";
+import type {
   PublicTournamentJoinResponse,
   PublicTournamentLandingResponse,
   TournamentDetailResponse,
@@ -9,10 +14,7 @@ import type {
   TournamentStaffCandidateListResponse,
   TournamentStaffInviteLandingResponse,
   TournamentStaffRole,
-} from "@openrift/shared";
-import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-pod-tournaments";
-import { publicTournamentsContract } from "@openrift/shared/contracts/public-tournaments";
-import { tournamentsContract } from "@openrift/shared/contracts/tournaments";
+} from "@openrift/shared/types/api/tournament";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

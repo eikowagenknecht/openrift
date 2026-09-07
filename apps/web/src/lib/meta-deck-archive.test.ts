@@ -1,4 +1,4 @@
-import type { PublicDeckCardResponse } from "@openrift/shared";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
 import { describe, expect, it } from "vitest";
 
 import {

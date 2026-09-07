@@ -1,5 +1,5 @@
-import { formatDayTime } from "@openrift/shared";
 import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/meta-submissions";
+import { formatDayTime } from "@openrift/shared/format-date";
 import { Link } from "@tanstack/react-router";
 
 import { MetaSubmissionResolve } from "@/components/admin/meta-submission-resolve";

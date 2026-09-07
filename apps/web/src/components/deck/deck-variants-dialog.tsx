@@ -1,5 +1,5 @@
-import type { DeckSummaryResponse } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { DeckSummaryResponse } from "@openrift/shared/types/api/deck";
 import { Link } from "@tanstack/react-router";
 import { CopyIcon, EllipsisVerticalIcon, Link2Icon, Trash2Icon } from "lucide-react";
 import { Suspense, useState } from "react";

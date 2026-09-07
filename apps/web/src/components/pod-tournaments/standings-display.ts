@@ -1,4 +1,4 @@
-import type { PodStandingRow } from "@openrift/shared";
+import type { PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
 
 /**
  * Renders as an integer when whole, otherwise up to two decimals (avoids

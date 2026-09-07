@@ -3,7 +3,7 @@ import type {
   DistributionChannelWithCount,
   Printing,
   PrintingDistributionChannel,
-} from "@openrift/shared";
+} from "@openrift/shared/types/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { resetIdCounter, stubPrinting } from "@/test/factories";

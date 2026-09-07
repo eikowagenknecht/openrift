@@ -1,5 +1,5 @@
-import type { PodResponse, PodScoringScheme } from "@openrift/shared";
-import { placementsFromGamePoints, pointsForPlacements } from "@openrift/shared";
+import { placementsFromGamePoints, pointsForPlacements } from "@openrift/shared/pairing/points";
+import type { PodResponse, PodScoringScheme } from "@openrift/shared/types/api/pod-tournament";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

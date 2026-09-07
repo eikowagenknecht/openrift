@@ -1,4 +1,4 @@
-import type { MetaEventPhase } from "@openrift/shared";
+import type { MetaEventPhase } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import { describeEventStructure } from "./meta-event-structure";

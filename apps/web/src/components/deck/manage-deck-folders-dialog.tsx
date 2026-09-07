@@ -3,7 +3,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { DeckFolderResponse } from "@openrift/shared";
+import type { DeckFolderResponse } from "@openrift/shared/types/api/deck";
 import {
   ChevronDownIcon,
   ChevronUpIcon,

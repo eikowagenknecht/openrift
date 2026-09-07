@@ -1,4 +1,4 @@
-import type { ContactMethod } from "@openrift/shared";
+import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";

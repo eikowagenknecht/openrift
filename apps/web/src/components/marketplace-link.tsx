@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { AnchorHTMLAttributes } from "react";
 
 import { trackEvent } from "@/lib/analytics";

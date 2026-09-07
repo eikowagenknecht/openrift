@@ -1,11 +1,8 @@
-import type {
-  CardTradeLiveAnnotation,
-  Currency,
-  ListKind,
-  Printing,
-  TradePreference,
-} from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { ListKind } from "@openrift/shared/types/api/list";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { ListIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";

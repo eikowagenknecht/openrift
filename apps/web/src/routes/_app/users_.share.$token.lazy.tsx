@@ -1,8 +1,8 @@
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import type {
-  ListIntent,
   PublicUserBundleCollectionResponse,
   PublicUserBundleListResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/user-share";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { BookOpenIcon, GlobeIcon, HeartIcon, UsersIcon } from "lucide-react";
 

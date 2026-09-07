@@ -1,5 +1,10 @@
-import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
-import { imageUrl, isReleasedIn, preferredPrinting, todayUtc, WellKnown } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import { isReleasedIn, todayUtc } from "@openrift/shared/set-release";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
+import type { Rarity } from "@openrift/shared/types/enums";
+import { preferredPrinting } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

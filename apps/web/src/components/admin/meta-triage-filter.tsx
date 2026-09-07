@@ -1,5 +1,5 @@
-import { META_CATALOG_TRIAGE } from "@openrift/shared";
 import type { MetaCatalogTriage } from "@openrift/shared/contracts/admin/meta-catalog";
+import { META_CATALOG_TRIAGE } from "@openrift/shared/types/enums";
 
 import { AdminFilterSelect } from "@/components/admin/admin-filters";
 import type { MetaSearch } from "@/lib/admin-meta-search";

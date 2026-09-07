@@ -1,7 +1,7 @@
 import hankenGroteskLatinWoff2 from "@fontsource-variable/hanken-grotesk/files/hanken-grotesk-latin-wght-normal.woff2?url";
-import type { Palette } from "@openrift/shared";
 import type { AppEnv } from "@openrift/shared/app-env";
 import { parseAppEnv } from "@openrift/shared/app-env";
+import type { Palette } from "@openrift/shared/types/api/preferences";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";

@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
 import { adminChangelogContract } from "@openrift/shared/contracts/admin/changelog";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

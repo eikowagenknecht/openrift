@@ -1,4 +1,4 @@
-import type { Currency, TradePreference } from "@openrift/shared";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

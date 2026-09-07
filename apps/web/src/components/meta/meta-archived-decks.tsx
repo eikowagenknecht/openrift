@@ -1,4 +1,4 @@
-import type { MetaDeckSummary } from "@openrift/shared";
+import type { MetaDeckSummary } from "@openrift/shared/types/api/meta";
 import { useState } from "react";
 
 import { Heading } from "@/components/heading";

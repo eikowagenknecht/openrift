@@ -1,5 +1,5 @@
-import type { JobRunStartedResponse } from "@openrift/shared";
 import { adminOperationsContract } from "@openrift/shared/contracts/admin/operations";
+import type { JobRunStartedResponse } from "@openrift/shared/types/api/admin";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

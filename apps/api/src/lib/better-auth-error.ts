@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { ErrorCode } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { ErrorCode } from "@openrift/shared/error-codes";
 import type { APIError } from "better-auth/api";
 
 import { codeForStatus } from "../errors.js";

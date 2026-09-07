@@ -1,4 +1,4 @@
-import type { PodStandingRow } from "@openrift/shared";
+import type { PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

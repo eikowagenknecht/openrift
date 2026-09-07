@@ -1,4 +1,6 @@
-import type { Card, DeckCardResponse, DeckZone } from "@openrift/shared";
+import type { DeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
 import { describe, expect, it } from "vitest";
 
 import { stubCard } from "@/test/factories";

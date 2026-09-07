@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { useState } from "react";
 
 import { VariantLocationsPopover } from "@/components/collection/variant-locations-popover";

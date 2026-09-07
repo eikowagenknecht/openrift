@@ -1,12 +1,12 @@
+import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
+import { isAcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import type {
   AdminCardResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
-} from "@openrift/shared";
-import type { AcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
-import { isAcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
-import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+} from "@openrift/shared/types/api/admin";
 import { BanIcon, CheckCheckIcon, CopyCheckIcon, MessageSquareIcon } from "lucide-react";
 import { useState } from "react";
 

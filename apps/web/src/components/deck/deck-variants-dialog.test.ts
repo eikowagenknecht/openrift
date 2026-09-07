@@ -1,5 +1,5 @@
-import type { DeckSummaryResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckSummaryResponse } from "@openrift/shared/types/api/deck";
+import { WellKnown } from "@openrift/shared/well-known";
 import { describe, expect, it } from "vitest";
 
 import { linkableDeckOptions, parentOptions } from "@/components/deck/deck-variants-dialog";

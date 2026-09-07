@@ -1,4 +1,4 @@
-import type { CardTradeLivePhase, CardTradeRole } from "@openrift/shared";
+import type { CardTradeLivePhase, CardTradeRole } from "@openrift/shared/types/api/card-trade";
 import { ArrowDownLeftIcon, ArrowUpRightIcon } from "lucide-react";
 import { describe, expect, it } from "vitest";
 

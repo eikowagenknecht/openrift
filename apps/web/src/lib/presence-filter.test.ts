@@ -1,4 +1,4 @@
-import { PRESENCE_DIMENSIONS } from "@openrift/shared";
+import { PRESENCE_DIMENSIONS } from "@openrift/shared/types/search";
 import { describe, expect, it } from "vitest";
 
 import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "./presence-filter";

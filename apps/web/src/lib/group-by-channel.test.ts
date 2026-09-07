@@ -1,4 +1,7 @@
-import type { DistributionChannel, PrintingDistributionChannel } from "@openrift/shared";
+import type {
+  DistributionChannel,
+  PrintingDistributionChannel,
+} from "@openrift/shared/types/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { stubCardViewerItem, resetIdCounter } from "@/test/factories";

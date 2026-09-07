@@ -1,5 +1,5 @@
-import type { ContactMethod, CopyLink } from "@openrift/shared";
-import { cardTradeLivePhaseRank, copyHasMetadata, copyMetadataWeight } from "@openrift/shared";
+import { cardTradeLivePhaseRank } from "@openrift/shared/card-trade-lifecycle";
+import { copyHasMetadata, copyMetadataWeight } from "@openrift/shared/copy-metadata";
 import type {
   CardTradeActionNeeded,
   CardTradeCopyOption,
@@ -13,7 +13,9 @@ import type {
   CardTradeSheetGroup,
   CardTradeSheetMatchRow,
   CardTradeStatus,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/api/card-trade";
+import type { CopyLink } from "@openrift/shared/types/api/collection";
+import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
 import type { MatchRow } from "../repositories/friend-group-matches.js";

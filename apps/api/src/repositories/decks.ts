@@ -1,14 +1,13 @@
-import { WellKnown } from "@openrift/shared";
+import type { DeckOddsConfig } from "@openrift/shared/contracts/decks";
+import type { DeckFormatConfig, DeckLink } from "@openrift/shared/types/api/deck";
 import type {
   CardType,
   DeckFormat,
-  DeckFormatConfig,
-  DeckLink,
-  DeckOddsConfig,
   DeckZone,
   Domain,
   SuperType,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 

@@ -1,5 +1,8 @@
-import type { DeckCheckChangeSummary, DeckCheckEntryDetailResponse } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type {
+  DeckCheckChangeSummary,
+  DeckCheckEntryDetailResponse,
+} from "@openrift/shared/types/api/deck-check";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { RefreshCwIcon, WandSparklesIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

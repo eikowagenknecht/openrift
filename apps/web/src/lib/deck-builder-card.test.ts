@@ -1,11 +1,7 @@
-import type {
-  CardBan,
-  CardType,
-  DeckZone,
-  PublicDeckCardResponse,
-  SuperType,
-} from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { CardBan } from "@openrift/shared/types/catalog";
+import type { CardType, DeckZone, SuperType } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { describe, expect, it } from "vitest";
 
 import {

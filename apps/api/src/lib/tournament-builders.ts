@@ -1,4 +1,8 @@
-import { effectiveTournamentState } from "@openrift/shared";
+import {
+  TOURNAMENT_COVER_LEGEND_COUNT,
+  TOURNAMENT_PARTICIPANT_PREVIEW_COUNT,
+} from "@openrift/shared/contracts/tournaments";
+import { effectiveTournamentState } from "@openrift/shared/tournament-lifecycle";
 import type {
   TournamentCoverLegend,
   TournamentDetailResponse,
@@ -9,11 +13,7 @@ import type {
   TournamentSummaryResponse,
   TournamentViewerRole,
   TournamentWinner,
-} from "@openrift/shared";
-import {
-  TOURNAMENT_COVER_LEGEND_COUNT,
-  TOURNAMENT_PARTICIPANT_PREVIEW_COUNT,
-} from "@openrift/shared/contracts/tournaments";
+} from "@openrift/shared/types/api/tournament";
 
 import type { Repos } from "../deps.js";
 import type { Tournament, TournamentSummaryRow } from "../repositories/tournaments.js";

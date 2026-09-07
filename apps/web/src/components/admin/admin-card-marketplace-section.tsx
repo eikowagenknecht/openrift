@@ -2,7 +2,7 @@ import type {
   AdminMarketplaceName,
   UnifiedMappingGroupResponse,
   UnifiedMappingsCardResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";

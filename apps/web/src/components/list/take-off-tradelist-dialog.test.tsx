@@ -1,4 +1,4 @@
-import type { CopyListMembershipsResponse } from "@openrift/shared";
+import type { CopyListMembershipsResponse } from "@openrift/shared/types/api/collection";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

@@ -1,4 +1,5 @@
-import type { Currency, ListIntent, TradePreference } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared/types/api/list";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,

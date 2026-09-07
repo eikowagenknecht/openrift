@@ -1,4 +1,6 @@
-import type { CatalogResponse, DeckCatalogSubset, Printing } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import type { DeckCatalogSubset } from "@openrift/shared/types/api/deck";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";

@@ -1,5 +1,5 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
-import type { DeckFormat, DeckZone } from "@openrift/shared";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { isCardAllowedInZone, isDeckZoneFullForDrag } from "@/lib/deck-builder-card";

@@ -2,7 +2,7 @@
  * Ranks candidate live events/players against a meta archive overlay for
  * manual linking. Ranks only; never applies a suggestion.
  */
-import type { MetaOverlayRowMatch } from "@openrift/shared";
+import type { MetaOverlayRowMatch } from "@openrift/shared/types/api/meta";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";

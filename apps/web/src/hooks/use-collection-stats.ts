@@ -1,21 +1,18 @@
-import type {
-  CardType,
-  CompletionScopePreference,
-  Domain,
-  Marketplace,
-  Printing,
-  PriceLookup,
-  SetListEntry,
-} from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import { getPlaysetSize } from "@openrift/shared/playset";
+import { isStandardPrinting } from "@openrift/shared/standard";
+import type { SetListEntry } from "@openrift/shared/types/api/catalog";
+import type { CompletionScopePreference } from "@openrift/shared/types/api/preferences";
 import {
   COMPLETION_SCOPE_ARRAY_KEYS,
   COMPLETION_SCOPE_SCALAR_KEYS,
-  WellKnown,
-  getPlaysetSize,
-  imageUrl,
-  isStandardPrinting,
-  legendDisplayName,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/preferences";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { CardType, Domain } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";

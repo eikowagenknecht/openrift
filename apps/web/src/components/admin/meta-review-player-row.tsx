@@ -1,5 +1,5 @@
-import { formatRelativeTime } from "@openrift/shared";
-import type { MetaOverlayQueueRow } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared/format-date";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
 import { CheckIcon, LinkIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

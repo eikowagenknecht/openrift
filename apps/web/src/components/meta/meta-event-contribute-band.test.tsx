@@ -1,4 +1,4 @@
-import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared";
+import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared/types/api/meta";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

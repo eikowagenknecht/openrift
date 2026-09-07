@@ -1,5 +1,6 @@
-import type { AdminSectionSlug } from "@openrift/shared";
-import { ERROR_CODES, isAdminSectionSlug } from "@openrift/shared";
+import type { AdminSectionSlug } from "@openrift/shared/admin-sections";
+import { isAdminSectionSlug } from "@openrift/shared/admin-sections";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type { MiddlewareHandler } from "hono";
 
 import type { Repos } from "../deps.js";

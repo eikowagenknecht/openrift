@@ -1,4 +1,4 @@
-import type { MetaEventTier, UvsgamesProbeOutcome } from "@openrift/shared/types";
+import type { MetaEventTier, UvsgamesProbeOutcome } from "@openrift/shared/types/enums";
 import type { Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 

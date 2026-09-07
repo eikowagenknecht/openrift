@@ -1,4 +1,4 @@
-import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import type { CandidateCardSummaryResponse } from "@openrift/shared/types/api/admin";
 import { formatShortCodesArray } from "@openrift/shared/utils";
 
 export function PrintingsCell({ row }: { row: CandidateCardSummaryResponse }) {

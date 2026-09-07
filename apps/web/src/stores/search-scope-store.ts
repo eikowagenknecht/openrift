@@ -1,5 +1,5 @@
-import type { SearchField } from "@openrift/shared";
-import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE } from "@openrift/shared";
+import type { SearchField } from "@openrift/shared/types/search";
+import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE } from "@openrift/shared/types/search";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

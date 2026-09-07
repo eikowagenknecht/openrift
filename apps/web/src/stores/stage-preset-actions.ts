@@ -1,4 +1,4 @@
-import type { StagePresetConfig } from "@openrift/shared";
+import type { StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 
 import { presetToStagePatch } from "@/lib/stage-preset-apply";
 import { useDisplayStore } from "@/stores/display-store";

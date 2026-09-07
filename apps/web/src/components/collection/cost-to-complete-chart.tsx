@@ -1,11 +1,11 @@
-import type {
-  CardType,
-  CompletionScopePreference,
-  Marketplace,
-  PriceLookup,
-  Printing,
-} from "@openrift/shared";
-import { getPlaysetSize, imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import { getPlaysetSize } from "@openrift/shared/playset";
+import type { CompletionScopePreference } from "@openrift/shared/types/api/preferences";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { CardType } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";

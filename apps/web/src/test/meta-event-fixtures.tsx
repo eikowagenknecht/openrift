@@ -3,8 +3,8 @@ import type {
   MetaEventMatch,
   MetaEventPhase,
   MetaEventPlayer,
-} from "@openrift/shared";
-import { stringifyUnknown } from "@openrift/shared";
+} from "@openrift/shared/types/api/meta";
+import { stringifyUnknown } from "@openrift/shared/utils";
 import type { ReactNode } from "react";
 
 /**

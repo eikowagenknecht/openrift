@@ -1,5 +1,6 @@
+import type { EffectiveTournamentState } from "@openrift/shared/tournament-lifecycle";
+import { effectiveTournamentState } from "@openrift/shared/tournament-lifecycle";
 import type {
-  EffectiveTournamentState,
   TournamentDeckPhase,
   TournamentDeckSubmission,
   TournamentMatchFormat,
@@ -10,8 +11,7 @@ import type {
   TournamentStaffRole,
   TournamentSummaryResponse,
   TournamentViewerRole,
-} from "@openrift/shared";
-import { effectiveTournamentState } from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 
 export const DECK_SUBMISSION_LABEL: Record<TournamentDeckSubmission, string> = {
   none: "No decklist",
@@ -236,8 +236,8 @@ export function formatStartsIn(iso: string, now: Date = new Date()): string | nu
   return `in ${days} days`;
 }
 
-export { effectiveTournamentState } from "@openrift/shared";
-export type { EffectiveTournamentState } from "@openrift/shared";
+export { effectiveTournamentState } from "@openrift/shared/tournament-lifecycle";
+export type { EffectiveTournamentState } from "@openrift/shared/tournament-lifecycle";
 
 export const EFFECTIVE_STATE_LABEL: Record<EffectiveTournamentState, string> = {
   upcoming: "Upcoming",

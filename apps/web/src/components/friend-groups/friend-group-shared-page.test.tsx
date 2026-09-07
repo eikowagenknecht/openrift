@@ -1,9 +1,9 @@
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import type {
-  CollectionResponse,
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupMemberResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/friend-group";
 import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";

@@ -1,11 +1,12 @@
-import { ERROR_CODES, WellKnown } from "@openrift/shared";
-import type { DeckZone } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
+  DeckZone,
   MetaEntryStatus,
   MetaEventOverlayField,
   MetaEventTier,
   MetaListStatus,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Selectable } from "kysely";
 
 import type { MetaEventPlayersTable } from "../db/index.js";

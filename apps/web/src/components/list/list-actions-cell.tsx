@@ -1,9 +1,5 @@
-import type {
-  Currency,
-  ListEntryDetailResponse,
-  ListKind,
-  TradePreference,
-} from "@openrift/shared";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 
 import type { TableRowSlotProps } from "@/components/cards/card-table";
 import { ListEntryTableActions } from "@/components/list/list-entry-table-actions";

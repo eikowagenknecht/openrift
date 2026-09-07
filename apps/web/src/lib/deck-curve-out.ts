@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 

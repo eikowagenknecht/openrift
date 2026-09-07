@@ -1,4 +1,4 @@
-import type { TournamentStatus } from "./types/index.js";
+import type { TournamentStatus } from "./types/api/tournament.js";
 
 export type EffectiveTournamentState = "upcoming" | "in_progress" | "completed" | "cancelled";
 

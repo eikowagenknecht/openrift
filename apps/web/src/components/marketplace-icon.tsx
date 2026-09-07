@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import { cn } from "@/lib/utils";
 

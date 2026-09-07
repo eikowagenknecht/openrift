@@ -1,4 +1,4 @@
-import type { AvailableFilters, FilterCounts } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
 import type { ReactNode } from "react";
 import { createContext, use } from "react";
 

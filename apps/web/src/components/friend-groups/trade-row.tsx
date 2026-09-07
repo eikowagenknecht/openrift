@@ -1,5 +1,6 @@
-import type { CardTradeResponse } from "@openrift/shared";
-import { enumLabel, getOrientation } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
+import { getOrientation } from "@openrift/shared/utils";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardDetailNameButton } from "@/components/cards/card-detail-opener";

@@ -1,4 +1,4 @@
-import type { CardType } from "@openrift/shared";
+import type { CardType } from "@openrift/shared/types/enums";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";

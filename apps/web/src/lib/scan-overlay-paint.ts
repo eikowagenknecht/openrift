@@ -5,7 +5,7 @@
  * touch each other's state.
  */
 
-import type { Point, Quad } from "@openrift/shared/scan";
+import type { Point, Quad } from "@openrift/shared/scan/types";
 
 import {
   BRACKET_FRACTION,

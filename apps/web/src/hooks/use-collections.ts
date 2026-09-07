@@ -1,12 +1,12 @@
+import { collectionsContract } from "@openrift/shared/contracts/collections";
+import { publicCollectionsContract } from "@openrift/shared/contracts/public-collections";
 import type {
   ClearCollectionResponse,
   CollectionResponse,
   CollectionShareResponse,
   PublicCollectionDetailResponse,
   ResetCollectionsResponse,
-} from "@openrift/shared";
-import { collectionsContract } from "@openrift/shared/contracts/collections";
-import { publicCollectionsContract } from "@openrift/shared/contracts/public-collections";
+} from "@openrift/shared/types/api/collection";
 import { isDefinedError, safe } from "@orpc/client";
 import { useLiveQuery } from "@tanstack/react-db";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";

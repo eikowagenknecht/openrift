@@ -1,4 +1,4 @@
-import type { MetaEventPhase } from "@openrift/shared";
+import type { MetaEventPhase } from "@openrift/shared/types/api/meta";
 
 import { isSingleElimination } from "@/lib/meta-bracket";
 

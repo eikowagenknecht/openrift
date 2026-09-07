@@ -1,6 +1,6 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { AdminPrintingCitation } from "@openrift/shared";
 import { adminPrintingCitationsContract } from "@openrift/shared/contracts/admin/printing-citations";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { AdminPrintingCitation } from "@openrift/shared/types/api/admin";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

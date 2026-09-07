@@ -1,5 +1,6 @@
-import type { Domain, Rarity } from "@openrift/shared";
-import { WellKnown, enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { Domain, Rarity } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { EraserIcon } from "lucide-react";
 
 import { CardTextInput } from "@/components/contribute/card-text-input";

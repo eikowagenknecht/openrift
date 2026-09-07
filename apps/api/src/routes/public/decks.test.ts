@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";

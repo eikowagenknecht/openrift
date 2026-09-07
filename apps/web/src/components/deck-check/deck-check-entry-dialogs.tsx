@@ -1,9 +1,11 @@
+import { enumLabel } from "@openrift/shared/enum-label";
 import type {
   DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
-  Printing,
-} from "@openrift/shared";
-import { WellKnown, cardSearchAltNames, enumLabel, legendDisplayName } from "@openrift/shared";
+} from "@openrift/shared/types/api/deck-check";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useMemo, useState } from "react";
 
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";

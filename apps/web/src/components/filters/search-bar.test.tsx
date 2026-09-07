@@ -1,5 +1,5 @@
-import { ALL_SEARCH_FIELDS } from "@openrift/shared";
-import type { SearchField } from "@openrift/shared";
+import { ALL_SEARCH_FIELDS } from "@openrift/shared/types/search";
+import type { SearchField } from "@openrift/shared/types/search";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";

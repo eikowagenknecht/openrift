@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE, SEARCH_PREFIX_MAP } from "./types";
 import { snapshotHeadline } from "./types/api/pricing";
+import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE, SEARCH_PREFIX_MAP } from "./types/search.js";
 import { getOrientation } from "./utils";
 
 describe("getOrientation", () => {

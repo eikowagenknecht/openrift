@@ -1,4 +1,4 @@
-import type { Point } from "@openrift/shared/scan";
+import type { Point } from "@openrift/shared/scan/types";
 import { describe, expect, it } from "vitest";
 
 import {

@@ -1,4 +1,4 @@
-import type { DeckCheckEntryCardResponse } from "@openrift/shared";
+import type { DeckCheckEntryCardResponse } from "@openrift/shared/types/api/deck-check";
 import { describe, expect, it } from "vitest";
 
 import { deckCardsFromCheckEntry } from "@/lib/deck-check-save";

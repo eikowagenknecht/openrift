@@ -1,6 +1,7 @@
-import { ERROR_CODES, normalizeCopyMetadataPatch } from "@openrift/shared";
-import type { CopyLink, CopyMetadataPatch } from "@openrift/shared";
+import { normalizeCopyMetadataPatch } from "@openrift/shared/copy-metadata";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { createLogger } from "@openrift/shared/logger";
+import type { CopyLink, CopyMetadataPatch } from "@openrift/shared/types/api/collection";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";

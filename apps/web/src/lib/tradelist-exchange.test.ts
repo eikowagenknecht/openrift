@@ -1,4 +1,5 @@
-import type { CardTradeResponse, FriendGroupShareableListResponse } from "@openrift/shared";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
+import type { FriendGroupShareableListResponse } from "@openrift/shared/types/api/friend-group";
 import { describe, expect, it } from "vitest";
 
 import type { ListTargetOption } from "./tradelist-exchange";

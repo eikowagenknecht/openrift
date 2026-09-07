@@ -1,5 +1,6 @@
-import type { CardTextToken, KeywordsResponse } from "@openrift/shared";
-import { tokenizeCardText } from "@openrift/shared";
+import type { CardTextToken } from "@openrift/shared/card-text";
+import { tokenizeCardText } from "@openrift/shared/card-text";
+import type { KeywordsResponse } from "@openrift/shared/types/api/keyword";
 
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";

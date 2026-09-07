@@ -1,4 +1,4 @@
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
 import { ChevronRightIcon } from "lucide-react";
 
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";

@@ -1,4 +1,4 @@
-import type { ListEntryDetailResponse } from "@openrift/shared";
+import type { ListEntryDetailResponse } from "@openrift/shared/types/api/list";
 import { describe, expect, it } from "vitest";
 
 import { EMPTY_TRADE_PREFERENCE } from "@/test/factories";

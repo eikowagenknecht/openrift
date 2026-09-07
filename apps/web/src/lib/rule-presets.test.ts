@@ -1,4 +1,5 @@
-import { EMPTY_CARD_FILTERS, listRulesSchema } from "@openrift/shared";
+import { listRulesSchema } from "@openrift/shared/types/list-rule";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { describe, expect, it } from "vitest";
 
 import { serializeRules } from "@/lib/rule-draft";

@@ -1,7 +1,8 @@
 // oxlint-disable typescript/dot-notation -- record keys are CSV column headers; bracket access stays uniform across headers that do and don't contain spaces
 
-import type { ArtVariant, CopyLink, Finish } from "@openrift/shared";
-import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared";
+import type { CopyLink } from "@openrift/shared/types/api/collection";
+import type { ArtVariant, Finish } from "@openrift/shared/types/enums";
+import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared/well-known";
 
 import { conditionSlugFromSource } from "@/lib/condition-codes";
 import { parseCSV, parseCSVWithHeaders } from "@/lib/csv";

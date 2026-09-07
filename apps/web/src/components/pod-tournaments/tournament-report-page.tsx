@@ -1,4 +1,4 @@
-import type { PodReportResponse } from "@openrift/shared";
+import type { PodReportResponse } from "@openrift/shared/types/api/pod-tournament";
 import { toast } from "sonner";
 
 import { useRegionLabel } from "@/hooks/use-region-label";

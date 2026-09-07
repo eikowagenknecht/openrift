@@ -1,5 +1,5 @@
-import type { ShareImageAspect } from "@openrift/shared";
-import { SHARE_IMAGE_CANVAS } from "@openrift/shared";
+import type { ShareImageAspect } from "@openrift/shared/share-image-params";
+import { SHARE_IMAGE_CANVAS } from "@openrift/shared/share-image-params";
 
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";

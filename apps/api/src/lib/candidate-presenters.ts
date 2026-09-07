@@ -1,4 +1,7 @@
-import type { CandidateCardResponse, CandidatePrintingResponse } from "@openrift/shared";
+import type {
+  CandidateCardResponse,
+  CandidatePrintingResponse,
+} from "@openrift/shared/types/api/admin";
 import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";

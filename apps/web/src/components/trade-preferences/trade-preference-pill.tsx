@@ -1,5 +1,9 @@
-import type { Currency, EffectiveTradePreference, TradePreference } from "@openrift/shared";
-import { resolveEffectiveTradePreference } from "@openrift/shared";
+import type {
+  Currency,
+  EffectiveTradePreference,
+  TradePreference,
+} from "@openrift/shared/types/api/trade-preferences";
+import { resolveEffectiveTradePreference } from "@openrift/shared/types/api/trade-preferences";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";

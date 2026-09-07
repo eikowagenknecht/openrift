@@ -1,4 +1,4 @@
-import type { DistributionChannelResponse } from "@openrift/shared";
+import type { DistributionChannelResponse } from "@openrift/shared/types/api/admin";
 
 export interface ChannelLike {
   id: string;

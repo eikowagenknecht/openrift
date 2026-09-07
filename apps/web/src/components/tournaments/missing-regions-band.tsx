@@ -1,4 +1,4 @@
-import type { TournamentParticipantResponse } from "@openrift/shared";
+import type { TournamentParticipantResponse } from "@openrift/shared/types/api/tournament";
 import { GlobeIcon } from "lucide-react";
 
 import type { ParticipantTarget } from "@/components/tournaments/participant-row";

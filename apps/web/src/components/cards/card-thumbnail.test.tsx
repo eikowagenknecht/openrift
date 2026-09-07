@@ -1,5 +1,6 @@
-import type { Printing, StandardArtFallback } from "@openrift/shared";
-import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import { EMPTY_PRICE_LOOKUP } from "@openrift/shared/price-lookup";
+import type { StandardArtFallback } from "@openrift/shared/standard";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render } from "@testing-library/react";
 import type { PropsWithChildren, ReactNode } from "react";

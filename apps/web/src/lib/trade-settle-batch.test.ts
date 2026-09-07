@@ -2,7 +2,7 @@ import type {
   CardTradeCopyOptionsResponse,
   CardTradeResponse,
   CardTradeRole,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/card-trade";
 import { describe, expect, it, vi } from "vitest";
 
 import { runSettleBatch } from "./trade-settle-batch";

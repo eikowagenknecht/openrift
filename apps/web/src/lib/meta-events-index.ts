@@ -1,5 +1,6 @@
-import type { MetaEventSummary, MetaEventTier } from "@openrift/shared";
-import { todayUtc } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared/set-release";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type {

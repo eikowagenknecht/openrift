@@ -1,5 +1,5 @@
-import type { SetDetailResponse } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { SetDetailResponse } from "@openrift/shared/types/api/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

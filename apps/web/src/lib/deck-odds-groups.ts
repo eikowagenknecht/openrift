@@ -1,5 +1,5 @@
-import type { DeckOddsGroup } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckOddsGroup } from "@openrift/shared/contracts/decks";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { chanceToDraw, EARLY_DRAWS, OPENING_HAND_SIZE } from "@/lib/deck-draw-odds";

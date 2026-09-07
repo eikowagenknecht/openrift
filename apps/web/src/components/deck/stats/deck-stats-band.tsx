@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useState } from "react";
 
 import { SECTION_SCROLL_MARGIN } from "@/components/deck/deck-overview-tabs";

@@ -1,8 +1,8 @@
 import type {
-  CollectionEventResponse,
   CollectionResponse,
   PublicCollectionResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/collection";
+import type { CollectionEventResponse } from "@openrift/shared/types/api/collection-event";
 import type { Selectable } from "kysely";
 
 import type { CollectionsTable } from "../db/index.js";

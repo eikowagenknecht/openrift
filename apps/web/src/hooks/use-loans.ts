@@ -1,5 +1,5 @@
-import type { LoanResponse } from "@openrift/shared";
 import { loansContract } from "@openrift/shared/contracts/loans";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

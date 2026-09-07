@@ -1,4 +1,4 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import { SettingsIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";

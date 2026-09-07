@@ -1,4 +1,4 @@
-import type { JobTrigger } from "@openrift/shared";
+import type { JobTrigger } from "@openrift/shared/contracts/admin/job-runs";
 import type { Logger } from "@openrift/shared/logger";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 import * as Sentry from "@sentry/bun";

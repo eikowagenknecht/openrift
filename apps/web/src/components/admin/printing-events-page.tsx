@@ -1,4 +1,4 @@
-import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
+import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared/format-date";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, RotateCcwIcon, SendIcon, XIcon } from "lucide-react";
 import { useState } from "react";

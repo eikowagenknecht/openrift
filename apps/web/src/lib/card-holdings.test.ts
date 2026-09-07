@@ -1,4 +1,5 @@
-import type { CardTradeLiveAnnotation, LoanResponse } from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import { describe, expect, it } from "vitest";
 
 import { cardHoldingLines } from "@/lib/card-holdings";

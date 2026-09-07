@@ -1,5 +1,6 @@
-import type { CardTradeLiveAnnotation, CopyResponse } from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import { FileTextIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

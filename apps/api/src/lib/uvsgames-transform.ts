@@ -1,5 +1,7 @@
-import { META_ENTRY_STATUSES, REQUIRED_ZONES, WellKnown, ZONE_EXPECTED } from "@openrift/shared";
-import type { MetaEntryStatus } from "@openrift/shared";
+import { REQUIRED_ZONES, ZONE_EXPECTED } from "@openrift/shared/deck-zones";
+import { META_ENTRY_STATUSES } from "@openrift/shared/types/enums";
+import type { MetaEntryStatus } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 /**
  * Projects one deep fetch's responses into the source mirror's columns.

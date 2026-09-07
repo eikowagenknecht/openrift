@@ -1,7 +1,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
-import { ERROR_CODES } from "@openrift/shared";
-import type { ApiErrorResponse } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type { Logger } from "@openrift/shared/logger";
+import type { ApiErrorResponse } from "@openrift/shared/types/api/error";
 import * as Sentry from "@sentry/bun";
 import { isAPIError } from "better-auth/api";
 import { Hono } from "hono";

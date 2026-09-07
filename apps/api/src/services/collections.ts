@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { ResetCollectionsResponse } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { ResetCollectionsResponse } from "@openrift/shared/types/api/collection";
 
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";

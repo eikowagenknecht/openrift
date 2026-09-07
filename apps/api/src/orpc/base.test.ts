@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { oc } from "@orpc/contract";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { implement } from "@orpc/server";

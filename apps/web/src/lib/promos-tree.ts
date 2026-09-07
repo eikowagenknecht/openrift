@@ -1,4 +1,4 @@
-import type { DistributionChannelWithCount, Printing } from "@openrift/shared";
+import type { DistributionChannelWithCount, Printing } from "@openrift/shared/types/catalog";
 
 export interface ChannelNode {
   channel: DistributionChannelWithCount;

@@ -1,4 +1,5 @@
-import type { CollectionResponse, Printing } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import type { PendingAnnotatedDispose } from "@/hooks/use-quick-add-actions";
 import { useCollectionOverlayStore } from "@/stores/collection-overlay-store";

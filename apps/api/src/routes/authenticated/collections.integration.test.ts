@@ -1,4 +1,7 @@
-import type { CollectionResponse, CollectionShareResponse } from "@openrift/shared";
+import type {
+  CollectionResponse,
+  CollectionShareResponse,
+} from "@openrift/shared/types/api/collection";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";

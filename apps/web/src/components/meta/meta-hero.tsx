@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { cn } from "@/lib/utils";

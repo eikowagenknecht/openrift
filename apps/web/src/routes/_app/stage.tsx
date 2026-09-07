@@ -1,5 +1,5 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 

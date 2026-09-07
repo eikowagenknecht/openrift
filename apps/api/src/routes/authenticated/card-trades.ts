@@ -1,4 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
   CardTradeActionCountsResponse,
   CardTradeCopyOptionsResponse,
@@ -6,8 +7,7 @@ import type {
   CardTradeLiveByPrintingResponse,
   CardTradeResponse,
   CardTradeSheetResponse,
-} from "@openrift/shared";
-import { cardTradesContract } from "@openrift/shared/contracts/card-trades";
+} from "@openrift/shared/types/api/card-trade";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

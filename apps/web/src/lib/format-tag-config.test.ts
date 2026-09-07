@@ -1,4 +1,4 @@
-import type { CustomTag } from "@openrift/shared";
+import type { CustomTag } from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import { getFormatTagConfig, resolveFormatTagSummary } from "./format-tag-config";

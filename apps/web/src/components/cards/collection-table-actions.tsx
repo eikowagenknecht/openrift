@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { CountWithAddControls } from "@/components/cards/count-with-add-controls";
 import { useOwnedCountFor, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";

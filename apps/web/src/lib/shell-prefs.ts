@@ -1,5 +1,5 @@
-import type { Palette } from "@openrift/shared";
-import { PALETTES } from "@openrift/shared";
+import type { Palette } from "@openrift/shared/types/api/preferences";
+import { PALETTES } from "@openrift/shared/types/api/preferences";
 
 // The client-side resolver here MUST NOT fetch over HTTP: root beforeLoad runs on every
 // navigation, including search-param-only ones, and a network round trip would block it.

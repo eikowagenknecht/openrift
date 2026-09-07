@@ -1,5 +1,6 @@
-import type { ListKind, Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useState } from "react";
 
 import { AddToWishlistDialog } from "@/components/list/add-to-wishlist-dialog";

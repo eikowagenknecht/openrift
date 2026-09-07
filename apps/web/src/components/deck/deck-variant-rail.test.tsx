@@ -1,5 +1,6 @@
-import type { Card, DeckCardResponse, DeckDetailResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckCardResponse, DeckDetailResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { act } from "react";

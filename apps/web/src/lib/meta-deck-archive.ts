@@ -1,10 +1,8 @@
-import type {
-  DeckFormat,
-  DeckZone,
-  MetaListStatus,
-  PublicDeckCardResponse,
-} from "@openrift/shared";
-import { legendDisplayName, REQUIRED_ZONES, WellKnown, zoneExpected } from "@openrift/shared";
+import { REQUIRED_ZONES, zoneExpected } from "@openrift/shared/deck-zones";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { DeckFormat, DeckZone, MetaListStatus } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 export interface ArchivedDeckIdentity {
   cardId: string;

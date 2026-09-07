@@ -1,4 +1,5 @@
-import type { PodStandingRow, TournamentPlayMode } from "@openrift/shared";
+import type { PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
+import type { TournamentPlayMode } from "@openrift/shared/types/api/tournament";
 
 import type { PodiumSeat } from "@/components/ui/podium";
 import { Podium } from "@/components/ui/podium";

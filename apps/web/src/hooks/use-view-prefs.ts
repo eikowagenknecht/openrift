@@ -1,4 +1,4 @@
-import type { SortDirection } from "@openrift/shared";
+import type { SortDirection } from "@openrift/shared/types/search";
 import { createContext, useContext } from "react";
 
 import type {

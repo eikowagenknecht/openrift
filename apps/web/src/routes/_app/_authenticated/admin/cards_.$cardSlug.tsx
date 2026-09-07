@@ -1,4 +1,4 @@
-import type { AdminCardDetailResponse } from "@openrift/shared";
+import type { AdminCardDetailResponse } from "@openrift/shared/types/api/admin";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminPending } from "@/components/admin/admin-route-components";

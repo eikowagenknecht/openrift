@@ -1,4 +1,4 @@
-import type { MetaSubmission } from "@openrift/shared";
+import type { MetaSubmission } from "@openrift/shared/types/api/meta";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

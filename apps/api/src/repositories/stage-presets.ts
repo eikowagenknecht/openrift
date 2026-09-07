@@ -1,4 +1,4 @@
-import type { StagePresetConfig } from "@openrift/shared";
+import type { StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 import type { Kysely, Selectable } from "kysely";
 
 import type { Database, StagePresetsTable } from "../db/index.js";

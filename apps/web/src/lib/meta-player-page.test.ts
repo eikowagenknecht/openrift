@@ -1,4 +1,4 @@
-import type { MetaDeckSummary } from "@openrift/shared";
+import type { MetaDeckSummary } from "@openrift/shared/types/api/meta";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {

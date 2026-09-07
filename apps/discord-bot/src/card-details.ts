@@ -1,4 +1,5 @@
-import { describeCardStats, legendDisplayName, truncateWithEllipsis } from "@openrift/shared";
+import { describeCardStats } from "@openrift/shared/card-stat-line";
+import { legendDisplayName, truncateWithEllipsis } from "@openrift/shared/utils";
 import type { APIEmbed, APIEmbedField } from "discord.js";
 
 import { cardTextFields, EMBED_COLOR, FIELD_LIMIT, printingFooter } from "./card-embed.js";

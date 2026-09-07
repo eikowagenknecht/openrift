@@ -1,4 +1,7 @@
-import type { DeckCheckEntryState, DeckCheckReviewOutcome } from "@openrift/shared";
+import type {
+  DeckCheckEntryState,
+  DeckCheckReviewOutcome,
+} from "@openrift/shared/types/api/deck-check";
 import { describe, expect, it } from "vitest";
 
 import { canRequestChanges } from "./deck-check-actions";

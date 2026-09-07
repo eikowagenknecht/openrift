@@ -1,5 +1,7 @@
-import type { EnumOrders, GroupByField } from "@openrift/shared";
-import { enumLabel, WellKnown } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { EnumOrders } from "@openrift/shared/types/enums";
+import type { GroupByField } from "@openrift/shared/types/search";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { CardGroup, GroupInfo } from "@/lib/card-group-types";
 import type { CardViewerItem } from "@/lib/card-viewer-types";

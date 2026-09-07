@@ -1,4 +1,7 @@
-import type { MetaCrossSourceRow, MetaPlayerMatchSuggestion } from "@openrift/shared";
+import type {
+  MetaCrossSourceRow,
+  MetaPlayerMatchSuggestion,
+} from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import { crossSourceAutoLinks, crossSourceProgress } from "./meta-cross-source";

@@ -1,4 +1,4 @@
-import type { MissingImageCard } from "@openrift/shared";
+import type { MissingImageCard } from "@openrift/shared/types/api/admin";
 
 export interface MissingImageLanguageSummary {
   language: string;

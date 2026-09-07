@@ -1,5 +1,5 @@
-import type { CollectionEventListResponse } from "@openrift/shared";
 import { collectionEventsContract } from "@openrift/shared/contracts/collection-events";
+import type { CollectionEventListResponse } from "@openrift/shared/types/api/collection-event";
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

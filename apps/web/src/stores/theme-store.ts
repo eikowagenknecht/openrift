@@ -1,5 +1,5 @@
-import type { Theme } from "@openrift/shared";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import type { Theme } from "@openrift/shared/types/api/preferences";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

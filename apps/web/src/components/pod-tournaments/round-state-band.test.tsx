@@ -1,4 +1,4 @@
-import type { PodResponse, PodRoundResponse } from "@openrift/shared";
+import type { PodResponse, PodRoundResponse } from "@openrift/shared/types/api/pod-tournament";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

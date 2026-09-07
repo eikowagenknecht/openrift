@@ -1,4 +1,4 @@
-import type { MetaEventMatch, MetaEventPhase } from "@openrift/shared";
+import type { MetaEventMatch, MetaEventPhase } from "@openrift/shared/types/api/meta";
 
 export interface MetaBracketSeat {
   playerId: string | null;

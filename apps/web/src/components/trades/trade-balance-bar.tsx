@@ -1,5 +1,5 @@
-import type { CardTradeResponse } from "@openrift/shared";
-import { marketplaceLabel } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
 import type { ReactNode } from "react";
 
 import { usePrices } from "@/hooks/use-prices";

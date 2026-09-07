@@ -1,21 +1,20 @@
+import type { DeckOddsConfig } from "@openrift/shared/contracts/decks";
+import { decksContract } from "@openrift/shared/contracts/decks";
+import { publicDecksContract } from "@openrift/shared/contracts/public-decks";
 import type {
   DeckCardResponse,
   DeckCloneResponse,
   DeckDetailResponse,
   DeckExportResponse,
-  DeckFormat,
   DeckFormatConfig,
   DeckLink,
   DeckListResponse,
-  DeckOddsConfig,
   DeckResponse,
   DeckShareResponse,
-  DeckZone,
   PublicDeckDetailResponse,
-} from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
-import { decksContract } from "@openrift/shared/contracts/decks";
-import { publicDecksContract } from "@openrift/shared/contracts/public-decks";
+} from "@openrift/shared/types/api/deck";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { isDefinedError, safe } from "@orpc/client";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

@@ -1,5 +1,6 @@
-import type { SetReleases } from "@openrift/shared";
-import { foldForSearch, formatReleasePeriod, isReleasedAnywhere } from "@openrift/shared";
+import { foldForSearch } from "@openrift/shared/search-fold";
+import type { SetReleases } from "@openrift/shared/set-release";
+import { formatReleasePeriod, isReleasedAnywhere } from "@openrift/shared/set-release";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";

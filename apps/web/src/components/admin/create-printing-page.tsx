@@ -1,5 +1,7 @@
-import type { AdminCardDetailResponse } from "@openrift/shared";
-import { WellKnown, enumLabel, fixTypography } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { fixTypography } from "@openrift/shared/fix-typography";
+import type { AdminCardDetailResponse } from "@openrift/shared/types/api/admin";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";

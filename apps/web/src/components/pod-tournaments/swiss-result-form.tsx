@@ -1,4 +1,5 @@
-import type { PodResponse, TournamentMatchFormat } from "@openrift/shared";
+import type { PodResponse } from "@openrift/shared/types/api/pod-tournament";
+import type { TournamentMatchFormat } from "@openrift/shared/types/api/tournament";
 import { Fragment, useState } from "react";
 
 import { Button } from "@/components/ui/button";

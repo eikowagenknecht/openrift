@@ -2,7 +2,7 @@ import type {
   DeckCheckEntryDetailResponse,
   DeckCheckEntryState,
   DeckCheckReviewOutcome,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/deck-check";
 import { CheckIcon, RotateCcwIcon, ThumbsUpIcon } from "lucide-react";
 
 interface JudgeActionEntry {

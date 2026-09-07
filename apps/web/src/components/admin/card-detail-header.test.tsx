@@ -1,4 +1,4 @@
-import type { AdminCardResponse } from "@openrift/shared";
+import type { AdminCardResponse } from "@openrift/shared/types/api/admin";
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

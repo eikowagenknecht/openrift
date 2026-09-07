@@ -1,3 +1,9 @@
+import type { IngestCard, IngestPrinting } from "@openrift/shared/contracts/admin/card-mutations";
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+import type {
+  CardSubmissionInput,
+  CardSubmissionKind,
+} from "@openrift/shared/contracts/card-submissions";
 /**
  * Not `ingestCandidates`: that function deletes candidate rows absent from
  * its payload, and all user submissions share `provider = "usersubmission"`,
@@ -5,13 +11,7 @@
  * candidate card with a per-submission-unique `external_id` and never deletes.
  * Payload mapping and link resolution are shared with candidate-fields.ts / candidate-links.ts.
  */
-import { WellKnown } from "@openrift/shared";
-import type { IngestCard, IngestPrinting } from "@openrift/shared/contracts/admin/card-mutations";
-import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
-import type {
-  CardSubmissionInput,
-  CardSubmissionKind,
-} from "@openrift/shared/contracts/card-submissions";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Insertable } from "kysely";
 
 import type { CandidateCardsTable } from "../db/index.js";

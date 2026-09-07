@@ -1,5 +1,5 @@
-import type { AvailableFilters } from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { AvailableFilters } from "@openrift/shared/filters";
 
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";

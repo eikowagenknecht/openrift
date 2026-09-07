@@ -1,4 +1,4 @@
-import type { CardErrata } from "@openrift/shared";
+import type { CardErrata } from "@openrift/shared/types/catalog";
 import { CheckIcon, FileWarningIcon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 

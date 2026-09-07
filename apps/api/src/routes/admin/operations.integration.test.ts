@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type { Io } from "../../io.js";

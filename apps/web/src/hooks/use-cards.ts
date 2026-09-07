@@ -1,4 +1,4 @@
-import { sortByLanguageAndCanonicalRank } from "@openrift/shared";
+import { sortByLanguageAndCanonicalRank } from "@openrift/shared/utils";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { use } from "react";
 

@@ -1,4 +1,5 @@
-import type { Marketplace, PriceRefreshUpsertCounts } from "@openrift/shared";
+import type { PriceRefreshUpsertCounts } from "@openrift/shared/types/api/admin";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 export interface UpsertCounts {
   prices: PriceRefreshUpsertCounts;

@@ -1,5 +1,6 @@
-import type { AvailableFilters, RangeKey } from "@openrift/shared";
-import { NONE } from "@openrift/shared";
+import type { AvailableFilters } from "@openrift/shared/filters";
+import type { RangeKey } from "@openrift/shared/types/search";
+import { NONE } from "@openrift/shared/types/search";
 import { CircleSlashIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";

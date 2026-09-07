@@ -1,5 +1,7 @@
-import type { Card, DeckCardResponse, DeckDetailResponse } from "@openrift/shared";
-import { ZONE_LABELS, formatDay } from "@openrift/shared";
+import { ZONE_LABELS } from "@openrift/shared/deck-zones";
+import { formatDay } from "@openrift/shared/format-date";
+import type { DeckCardResponse, DeckDetailResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, GitBranchIcon, GitCompareArrowsIcon, PlusIcon } from "lucide-react";

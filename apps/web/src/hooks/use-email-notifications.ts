@@ -1,9 +1,9 @@
+import { preferencesContract } from "@openrift/shared/contracts/preferences";
 import type {
   EmailNotificationChannel,
   TradeRequestEmailCadence,
   UserPreferencesResponse,
-} from "@openrift/shared";
-import { preferencesContract } from "@openrift/shared/contracts/preferences";
+} from "@openrift/shared/types/api/preferences";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

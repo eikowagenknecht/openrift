@@ -1,4 +1,4 @@
-import { DEFAULT_DOMAIN_COLORS } from "@openrift/shared";
+import { DEFAULT_DOMAIN_COLORS } from "@openrift/shared/domain-colors";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";

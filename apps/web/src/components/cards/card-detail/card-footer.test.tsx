@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitForElementToBeRemoved } from "@testing-library/react";
 import type { PropsWithChildren } from "react";

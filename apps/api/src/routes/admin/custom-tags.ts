@@ -1,12 +1,12 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { adminCustomTagsContract } from "@openrift/shared/contracts/admin/custom-tags";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
   AdminCustomTagAssignmentsResponse,
   AdminCustomTagCategoryListResponse,
   AdminCustomTagListResponse,
   CustomTagCategoryResponse,
   CustomTagResponse,
-} from "@openrift/shared";
-import { adminCustomTagsContract } from "@openrift/shared/contracts/admin/custom-tags";
+} from "@openrift/shared/types/api/admin";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

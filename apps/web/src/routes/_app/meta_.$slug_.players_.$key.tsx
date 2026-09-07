@@ -1,5 +1,5 @@
-import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared";
-import { formatRank } from "@openrift/shared";
+import { formatRank } from "@openrift/shared/meta-standings";
+import type { MetaEventDetail, MetaEventPlayer } from "@openrift/shared/types/api/meta";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

@@ -1,6 +1,7 @@
-import { formatDayTime, slugifyName } from "@openrift/shared";
 import type { ProductSummary } from "@openrift/shared/contracts/products";
 import { RESERVED_PRODUCT_SLUGS, productSlugRegex } from "@openrift/shared/contracts/products";
+import { formatDayTime } from "@openrift/shared/format-date";
+import { slugifyName } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";

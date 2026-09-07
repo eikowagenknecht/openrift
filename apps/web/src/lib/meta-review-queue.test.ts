@@ -1,5 +1,5 @@
-import type { MetaOverlayQueueRow, MetaOverlayRowMatch } from "@openrift/shared";
 import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/meta-submissions";
+import type { MetaOverlayQueueRow, MetaOverlayRowMatch } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import {

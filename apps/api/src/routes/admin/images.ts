@@ -1,8 +1,8 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { RegenerateImagesCheckpoint } from "@openrift/shared";
 import { adminImagesContract } from "@openrift/shared/contracts/admin/images";
 import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { createLogger } from "@openrift/shared/logger";
+import type { RegenerateImagesCheckpoint } from "@openrift/shared/types/api/admin";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

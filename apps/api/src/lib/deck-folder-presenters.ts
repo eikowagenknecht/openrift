@@ -1,4 +1,4 @@
-import type { DeckFolderResponse } from "@openrift/shared";
+import type { DeckFolderResponse } from "@openrift/shared/types/api/deck";
 
 import type { DeckFolderWithCount } from "../repositories/deck-folders.js";
 

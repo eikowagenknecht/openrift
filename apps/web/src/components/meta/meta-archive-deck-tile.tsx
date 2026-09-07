@@ -1,4 +1,5 @@
-import type { Marketplace, MetaDeckSummary } from "@openrift/shared";
+import type { MetaDeckSummary } from "@openrift/shared/types/api/meta";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import { FannedPreview } from "@/components/deck/deck-tile";
 import { MetaDeckFrame, metaFrontImage } from "@/components/meta/meta-deck-card";

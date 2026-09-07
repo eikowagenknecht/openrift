@@ -1,4 +1,8 @@
 import type {
+  AdminMetaEventCorrection,
+  AdminMetaSubmission,
+} from "@openrift/shared/contracts/admin/meta-submissions";
+import type {
   AdminMetaEvent,
   AdminMetaPlayer,
   MetaDeckCardIndexResponse,
@@ -14,13 +18,9 @@ import type {
   MetaLegendFinish,
   MetaLegendSummary,
   MetaPlayerFinish,
-} from "@openrift/shared";
-import { legendDisplayName, metaLegendSlug, metaPlayerKey } from "@openrift/shared";
-import type {
-  AdminMetaEventCorrection,
-  AdminMetaSubmission,
-} from "@openrift/shared/contracts/admin/meta-submissions";
-import type { CardType, MetaEventTier } from "@openrift/shared/types";
+} from "@openrift/shared/types/api/meta";
+import type { CardType, MetaEventTier } from "@openrift/shared/types/enums";
+import { legendDisplayName, metaLegendSlug, metaPlayerKey } from "@openrift/shared/utils";
 
 import type {
   MetaEventCorrectionRow,

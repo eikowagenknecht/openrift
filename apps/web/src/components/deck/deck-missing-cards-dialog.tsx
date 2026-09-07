@@ -1,5 +1,6 @@
-import type { ListKind, Marketplace } from "@openrift/shared";
-import { straightenApostrophes } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { straightenApostrophes } from "@openrift/shared/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDownLeftIcon, HeartIcon, LockIcon, ShoppingCartIcon } from "lucide-react";
 import { Suspense, useState } from "react";

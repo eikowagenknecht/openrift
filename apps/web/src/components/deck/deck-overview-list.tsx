@@ -1,13 +1,11 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
-import type { DeckFormat, DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
-import {
-  formatHasSideboard,
-  getOrientation,
-  setIndexById,
-  SIDEBOARD_MAXIMUM,
-  WellKnown,
-  legendDisplayName,
-} from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import { formatHasSideboard, SIDEBOARD_MAXIMUM } from "@openrift/shared/deck-rules";
+import { setIndexById } from "@openrift/shared/set-order";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-react";
 

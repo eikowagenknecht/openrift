@@ -1,4 +1,4 @@
-import type { DeckImportEntry } from "@openrift/shared";
+import type { DeckImportEntry } from "@openrift/shared/deck-code";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildSnapshot } from "./catalog-cache.js";

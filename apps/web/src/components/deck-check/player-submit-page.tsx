@@ -1,4 +1,4 @@
-import { formatDayTimeLocal } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared/format-date";
 import { useNavigate } from "@tanstack/react-router";
 
 import { DeckCheckInfoCardSkeleton } from "@/components/deck-check/deck-check-skeletons";

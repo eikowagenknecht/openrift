@@ -1,4 +1,4 @@
-import type { RuleKind } from "@openrift/shared";
+import type { RuleKind } from "@openrift/shared/types/api/rules";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

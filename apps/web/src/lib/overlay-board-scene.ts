@@ -1,4 +1,5 @@
-import type { Card, OverlayBoard, Printing } from "@openrift/shared";
+import type { OverlayBoard } from "@openrift/shared/contracts/overlay";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 
 import type { ResolvedTierRow } from "@/lib/tier-list-presentation";
 import { resolveTierRows, revealedRows, tierRowsToQueue } from "@/lib/tier-list-presentation";

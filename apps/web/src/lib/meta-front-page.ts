@@ -1,5 +1,6 @@
-import type { MetaEventFinish, MetaEventSummary, MetaEventTier } from "@openrift/shared";
-import { todayUtc } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared/set-release";
+import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared/types/api/meta";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 import type { MetaEra, MetaScope } from "@/lib/meta-scope";
 import { scopeMatches } from "@/lib/meta-scope-match";

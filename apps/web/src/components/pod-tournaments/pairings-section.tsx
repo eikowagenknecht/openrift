@@ -1,5 +1,5 @@
-import { suggestedRoundCount } from "@openrift/shared";
-import type { PodTournamentDetailResponse } from "@openrift/shared";
+import { suggestedRoundCount } from "@openrift/shared/pairing/pod-sizes";
+import type { PodTournamentDetailResponse } from "@openrift/shared/types/api/pod-tournament";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 

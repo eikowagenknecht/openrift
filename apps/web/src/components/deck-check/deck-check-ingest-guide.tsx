@@ -1,4 +1,4 @@
-import type { TournamentHostInfo } from "@openrift/shared";
+import type { TournamentHostInfo } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 
 import { getSiteUrl } from "@/lib/site-config";

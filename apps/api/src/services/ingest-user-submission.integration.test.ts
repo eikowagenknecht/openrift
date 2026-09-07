@@ -1,6 +1,6 @@
-import { formatCompactUtcStamp } from "@openrift/shared";
 import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
+import { formatCompactUtcStamp } from "@openrift/shared/format-date";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";

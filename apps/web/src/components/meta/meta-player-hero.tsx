@@ -1,4 +1,4 @@
-import { formatDay, formatMonth } from "@openrift/shared";
+import { formatDay, formatMonth } from "@openrift/shared/format-date";
 import type { ReactNode } from "react";
 import { Fragment } from "react";
 

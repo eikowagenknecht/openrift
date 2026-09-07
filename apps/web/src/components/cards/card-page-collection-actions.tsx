@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useQuery } from "@tanstack/react-query";
 import { PackageIcon } from "lucide-react";
 import { useState } from "react";

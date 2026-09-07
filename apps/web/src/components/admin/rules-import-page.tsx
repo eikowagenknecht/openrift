@@ -1,4 +1,4 @@
-import type { RuleKind, RuleVersionResponse } from "@openrift/shared";
+import type { RuleKind, RuleVersionResponse } from "@openrift/shared/types/api/rules";
 import { useState } from "react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";

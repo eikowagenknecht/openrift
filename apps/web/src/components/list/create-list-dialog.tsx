@@ -1,10 +1,5 @@
-import type {
-  Currency,
-  ListIntent,
-  ListKind,
-  ListResponse,
-  TradePreference,
-} from "@openrift/shared";
+import type { ListIntent, ListKind, ListResponse } from "@openrift/shared/types/api/list";
+import type { Currency, TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { ChevronDownIcon, CopyIcon, SquareIcon, SquareStackIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { useState } from "react";

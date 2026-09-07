@@ -1,4 +1,4 @@
-import type { ListIntent } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";

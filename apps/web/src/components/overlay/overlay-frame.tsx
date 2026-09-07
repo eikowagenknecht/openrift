@@ -3,9 +3,10 @@ import type {
   OverlayPayload,
   OverlayPlateFields,
   OverlayPlatePosition,
-  Printing,
-} from "@openrift/shared";
-import { getOrientation, imageUrl, legendDisplayName } from "@openrift/shared";
+} from "@openrift/shared/contracts/overlay";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
 import { useEffect, useState } from "react";
 
 import { CardPlateContent, hasCardPlateContent } from "@/components/cards/card-plate";

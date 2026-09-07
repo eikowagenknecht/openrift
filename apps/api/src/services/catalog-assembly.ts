@@ -1,10 +1,10 @@
+import { joinCatalogPrintings } from "@openrift/shared/catalog-join";
 import type {
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
-  Printing,
-} from "@openrift/shared";
-import { joinCatalogPrintings } from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import type { Repos } from "../deps.js";
 import {

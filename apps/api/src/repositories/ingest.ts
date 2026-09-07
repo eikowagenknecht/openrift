@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 

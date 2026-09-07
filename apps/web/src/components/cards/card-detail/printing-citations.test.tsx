@@ -1,4 +1,4 @@
-import type { PrintingCitation } from "@openrift/shared";
+import type { PrintingCitation } from "@openrift/shared/types/catalog";
 import { render, screen } from "@testing-library/react";
 import { siYoutube } from "simple-icons";
 import { describe, expect, it } from "vitest";

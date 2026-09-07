@@ -1,4 +1,7 @@
-import type { StagedProductResponse, UnifiedMappingsCardResponse } from "@openrift/shared";
+import type {
+  StagedProductResponse,
+  UnifiedMappingsCardResponse,
+} from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import type { UnifiedMappingGroup, UnifiedMappingPrinting } from "@/lib/price-mappings-types";

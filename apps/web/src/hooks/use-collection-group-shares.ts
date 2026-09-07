@@ -1,5 +1,5 @@
-import type { CollectionGroupSharesResponse } from "@openrift/shared";
 import { collectionsContract } from "@openrift/shared/contracts/collections";
+import type { CollectionGroupSharesResponse } from "@openrift/shared/types/api/friend-group";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

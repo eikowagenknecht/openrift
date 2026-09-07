@@ -1,4 +1,4 @@
-import type { MetaEventDetailResponse } from "@openrift/shared";
+import type { MetaEventDetailResponse } from "@openrift/shared/types/api/meta";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

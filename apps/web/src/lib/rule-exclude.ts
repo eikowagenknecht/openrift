@@ -1,11 +1,8 @@
-import type {
-  CardFilters,
-  ListEntryDetailResponse,
-  ListKind,
-  ListRule,
-  Printing,
-} from "@openrift/shared";
-import { filterCards } from "@openrift/shared";
+import { filterCards } from "@openrift/shared/filters";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { ListRule } from "@openrift/shared/types/list-rule";
+import type { CardFilters } from "@openrift/shared/types/search";
 
 /**
  * The card/printing/copy a user picked to drop from a list's dynamic rules.

@@ -1,4 +1,4 @@
-import { formatRank, formatRecord } from "@openrift/shared";
+import { formatRank, formatRecord } from "@openrift/shared/meta-standings";
 
 import type { MetaDeckContextRow } from "../repositories/meta.js";
 

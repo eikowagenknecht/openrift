@@ -1,5 +1,9 @@
-import type { CardTradeCopyOptionsResponse, CardTradeResponse } from "@openrift/shared";
-import { enumLabel, getOrientation } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type {
+  CardTradeCopyOptionsResponse,
+  CardTradeResponse,
+} from "@openrift/shared/types/api/card-trade";
+import { getOrientation } from "@openrift/shared/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon, HandshakeIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";

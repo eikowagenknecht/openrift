@@ -1,4 +1,4 @@
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 
 import type { FilterDimensionAvailability } from "@/lib/filter-dimensions";
 import { sectionHasContent } from "@/lib/filter-dimensions";

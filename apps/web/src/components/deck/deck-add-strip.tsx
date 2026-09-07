@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { LayersIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 
 import { CardStrip, StripActionButton, StripIconButton } from "@/components/cards/card-strip";

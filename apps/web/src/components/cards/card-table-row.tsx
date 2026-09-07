@@ -1,5 +1,6 @@
-import type { GroupByField, Printing } from "@openrift/shared";
-import { getOrientation, legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { GroupByField } from "@openrift/shared/types/search";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
 import { LinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment } from "react";

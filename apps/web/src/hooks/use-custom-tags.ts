@@ -1,5 +1,8 @@
-import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/shared";
 import { adminCustomTagsContract } from "@openrift/shared/contracts/admin/custom-tags";
+import type {
+  CustomTagCategoryResponse,
+  CustomTagResponse,
+} from "@openrift/shared/types/api/admin";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,9 +1,9 @@
-import type { MetaOverlayQueueRow } from "@openrift/shared";
 import type {
   MetaSyncStatus,
   PlayloltcgCatalogRow,
   TopdeckCatalogRow,
 } from "@openrift/shared/contracts/admin/meta-catalog";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import {

@@ -1,4 +1,4 @@
-import type { CardTradeResponse } from "@openrift/shared";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

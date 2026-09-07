@@ -1,11 +1,11 @@
-import type {
-  CollectionValueHistoryResponse,
-  CompletionScopePreference,
-  Marketplace,
-  TimeRange,
-} from "@openrift/shared";
-import { COMPLETION_SCOPE_ARRAY_KEYS, COMPLETION_SCOPE_SCALAR_KEYS } from "@openrift/shared";
 import { collectionValueHistoryContract } from "@openrift/shared/contracts/collection-value-history";
+import type { CollectionValueHistoryResponse } from "@openrift/shared/types/api/collection-value-history";
+import type { CompletionScopePreference } from "@openrift/shared/types/api/preferences";
+import {
+  COMPLETION_SCOPE_ARRAY_KEYS,
+  COMPLETION_SCOPE_SCALAR_KEYS,
+} from "@openrift/shared/types/api/preferences";
+import type { Marketplace, TimeRange } from "@openrift/shared/types/pricing";
 import type { ContractRouterClient } from "@orpc/contract";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

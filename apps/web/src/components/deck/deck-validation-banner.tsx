@@ -1,4 +1,4 @@
-import type { DeckViolation } from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

@@ -1,4 +1,4 @@
-import type { MetaDeckDetailResponse } from "@openrift/shared";
+import type { MetaDeckDetailResponse } from "@openrift/shared/types/api/meta";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

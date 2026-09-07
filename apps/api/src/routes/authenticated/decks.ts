@@ -1,27 +1,25 @@
+import { decksContract } from "@openrift/shared/contracts/decks";
+import type { updateDeckPlanSchema } from "@openrift/shared/contracts/decks";
+import { isValidInDeckList, summarizeDeckCards } from "@openrift/shared/deck-list-summary";
+import { requiredZoneProgress } from "@openrift/shared/deck-zones";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
-  CardType,
   DeckDetailResponse,
   DeckExportResponse,
-  DeckFormat,
   DeckListItemResponse,
   DeckListResponse,
   DeckShareResponse,
+} from "@openrift/shared/types/api/deck";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
+import type {
+  CardType,
+  DeckFormat,
   DeckZone,
   Domain,
   SuperType,
-} from "@openrift/shared";
-import {
-  WellKnown,
-  isBaseBanFormat,
-  isValidInDeckList,
-  legendDisplayName,
-  requiredZoneProgress,
-  summarizeDeckCards,
-  ERROR_CODES,
-} from "@openrift/shared";
-import { decksContract } from "@openrift/shared/contracts/decks";
-import type { updateDeckPlanSchema } from "@openrift/shared/contracts/decks";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown, isBaseBanFormat } from "@openrift/shared/well-known";
 import { implement } from "@orpc/server";
 import type { z } from "zod";
 

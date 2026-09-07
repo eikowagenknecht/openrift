@@ -1,5 +1,5 @@
-import type { CardTradeResponse } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import { CopyTextButton } from "@/components/share/copy-text-button";
 import {

@@ -1,5 +1,5 @@
-import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { describe, expect, it } from "vitest";
 
 import { buildTargets } from "@/components/deck/deck-quick-add";

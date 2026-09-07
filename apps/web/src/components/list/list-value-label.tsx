@@ -1,4 +1,5 @@
-import type { ListEntryDetailResponse, ListKind, Printing } from "@openrift/shared";
+import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";

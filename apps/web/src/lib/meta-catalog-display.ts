@@ -1,5 +1,3 @@
-import { PLAYLOLTCG_STATUSES, TOPDECK_FORMATS, formatRelativeTime } from "@openrift/shared";
-import type { MetaOverlayQueueRow, PlayloltcgStatus } from "@openrift/shared";
 import type {
   MetaCatalogRow,
   MetaCatalogTriage,
@@ -10,6 +8,10 @@ import type {
   TopdeckCatalogRow,
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { isResumableCheckpoint } from "@openrift/shared/contracts/admin/meta-catalog";
+import { formatRelativeTime } from "@openrift/shared/format-date";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
+import { PLAYLOLTCG_STATUSES, TOPDECK_FORMATS } from "@openrift/shared/types/enums";
+import type { PlayloltcgStatus } from "@openrift/shared/types/enums";
 
 import { summarizeRunResult } from "@/lib/job-run-display";
 

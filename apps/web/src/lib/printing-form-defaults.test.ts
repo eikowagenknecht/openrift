@@ -1,4 +1,4 @@
-import type { AdminPrintingResponse } from "@openrift/shared";
+import type { AdminPrintingResponse } from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import { printingFormDefaults } from "./printing-form-defaults";

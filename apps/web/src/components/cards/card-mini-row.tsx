@@ -1,4 +1,4 @@
-import type { ImageVariant } from "@openrift/shared";
+import type { ImageVariant } from "@openrift/shared/image-url";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { getPipBackgroundStyle } from "@/lib/domain";

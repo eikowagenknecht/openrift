@@ -1,4 +1,7 @@
-import type { TournamentDeckSubmission, TournamentPlayMode } from "@openrift/shared";
+import type {
+  TournamentDeckSubmission,
+  TournamentPlayMode,
+} from "@openrift/shared/types/api/tournament";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 

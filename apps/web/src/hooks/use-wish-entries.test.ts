@@ -1,4 +1,4 @@
-import type { ListDetailResponse } from "@openrift/shared";
+import type { ListDetailResponse } from "@openrift/shared/types/api/list";
 import { describe, expect, it } from "vitest";
 
 import { buildWishMembership } from "./use-wish-entries";

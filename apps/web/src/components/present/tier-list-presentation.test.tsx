@@ -1,4 +1,5 @@
-import type { Card, Printing, TierRow } from "@openrift/shared";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import { act, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

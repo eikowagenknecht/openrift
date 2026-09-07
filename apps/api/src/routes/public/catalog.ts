@@ -1,5 +1,5 @@
-import type { CatalogResponse } from "@openrift/shared";
 import { catalogContract } from "@openrift/shared/contracts/catalog";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import { implement } from "@orpc/server";
 
 import { requireUser } from "../../orpc/base.js";

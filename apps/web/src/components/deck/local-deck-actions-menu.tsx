@@ -1,4 +1,4 @@
-import type { DeckListItemResponse } from "@openrift/shared";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
 import {
   CopyIcon,
   DownloadIcon,

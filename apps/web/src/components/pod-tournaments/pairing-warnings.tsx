@@ -1,4 +1,6 @@
-import type { PairingWarning, PodSnapshotPlayer, TeamSnapshotPlayer } from "@openrift/shared";
+import type { TeamSnapshotPlayer } from "@openrift/shared/pairing/team-units";
+import type { PairingWarning } from "@openrift/shared/pairing/warnings";
+import type { PodSnapshotPlayer } from "@openrift/shared/types/api/pod-tournament";
 import { TriangleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";

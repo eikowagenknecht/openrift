@@ -1,5 +1,5 @@
-import type { CardFace, MissingImageCard, ProviderStatsResponse } from "@openrift/shared";
-import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
+import type { MissingImageCard, ProviderStatsResponse } from "@openrift/shared/types/api/admin";
+import type { CardFace, ArtVariant, Finish, Rarity } from "@openrift/shared/types/enums";
 import type {
   DeleteResult,
   Expression,

@@ -1,4 +1,4 @@
-import type { CardTradeResponse } from "@openrift/shared";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
 import { useState } from "react";
 
 import {

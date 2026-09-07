@@ -2,7 +2,7 @@ import type {
   EmailNotificationChannel,
   EmailNotificationPreference,
   TradeRequestEmailCadence,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/preferences";
 import {
   getTradeRequestEmailCadence,
   isCardSubmissionEmailEnabled,
@@ -11,7 +11,7 @@ import {
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   isTradeStatusEmailEnabled,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/preferences";
 
 export interface EmailNotificationGates {
   tradeMatches: boolean;

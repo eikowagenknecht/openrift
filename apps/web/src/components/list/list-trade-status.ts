@@ -1,9 +1,9 @@
 import type {
   CardTradeLiveAnnotation,
   CardTradeLivePhase,
-  ListEntryDetailResponse,
-  Printing,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/card-trade";
+import type { ListEntryDetailResponse } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { collapseTradeAnnotations, groupTradeAnnotationsByPrinting } from "@/lib/trade-derivation";
 

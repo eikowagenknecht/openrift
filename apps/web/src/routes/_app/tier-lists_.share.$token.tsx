@@ -1,4 +1,4 @@
-import type { PublicTierListDetailResponse } from "@openrift/shared";
+import type { PublicTierListDetailResponse } from "@openrift/shared/types/api/tier-list";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Link2OffIcon } from "lucide-react";
 

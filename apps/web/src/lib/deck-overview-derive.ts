@@ -1,5 +1,8 @@
-import type { DeckFormat, DeckZone, Marketplace, PriceLookup } from "@openrift/shared";
-import { WellKnown, copyLimitFor } from "@openrift/shared";
+import { copyLimitFor } from "@openrift/shared/deck-rules";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

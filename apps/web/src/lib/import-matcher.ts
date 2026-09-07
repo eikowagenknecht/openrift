@@ -1,10 +1,7 @@
-import type { CardResolution, CardSearchIndex, Printing, SearchableCard } from "@openrift/shared";
-import {
-  buildCardIndex,
-  cardSearchAltNames,
-  legendDisplayName,
-  resolveCard,
-} from "@openrift/shared";
+import type { CardResolution, CardSearchIndex, SearchableCard } from "@openrift/shared/card-search";
+import { buildCardIndex, resolveCard } from "@openrift/shared/card-search";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
 
 import type { ImportEntry } from "@/lib/import-parsers";
 

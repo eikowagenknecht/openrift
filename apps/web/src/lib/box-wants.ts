@@ -1,4 +1,4 @@
-import type { FriendGroupBoxWantRow } from "@openrift/shared";
+import type { FriendGroupBoxWantRow } from "@openrift/shared/types/api/friend-group";
 
 /** The quantity is already netted against live trades server-side. */
 export type BoxWantRow = FriendGroupBoxWantRow;

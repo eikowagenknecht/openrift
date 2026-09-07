@@ -30,8 +30,8 @@ import {
   keyParamSchema,
   withParams,
 } from "./schemas";
-import { EMPTY_CARD_FILTERS } from "./types/index.js";
-import type { ListRule } from "./types/index.js";
+import type { ListRule } from "./types/list-rule.js";
+import { EMPTY_CARD_FILTERS } from "./types/search.js";
 
 describe("createCollectionSchema", () => {
   it("accepts valid input", () => {

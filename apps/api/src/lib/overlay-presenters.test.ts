@@ -1,4 +1,4 @@
-import type { OverlayPayload } from "@openrift/shared";
+import type { OverlayPayload } from "@openrift/shared/contracts/overlay";
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
 import { describe, expect, it } from "vitest";
 

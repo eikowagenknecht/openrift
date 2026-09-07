@@ -1,4 +1,4 @@
-import type { MetaLegendFinish, MetaScopeQuery } from "@openrift/shared";
+import type { MetaLegendFinish, MetaScopeQuery } from "@openrift/shared/types/api/meta";
 import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { useState } from "react";

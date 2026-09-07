@@ -1,5 +1,6 @@
-import type { DeckZone, Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { useCards } from "@/hooks/use-cards";
 import { useDeckTokens } from "@/hooks/use-deck-tokens";

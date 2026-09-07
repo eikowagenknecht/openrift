@@ -1,5 +1,6 @@
-import type { DeckZone } from "@openrift/shared";
-import { SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
+import { SIDEBOARD_MAXIMUM } from "@openrift/shared/deck-rules";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { jsPDF, jsPDFOptions } from "jspdf";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

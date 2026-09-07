@@ -1,6 +1,7 @@
-import type { MetaOverlayQueueRow, MetaPlayerOverlayField } from "@openrift/shared";
-import { META_PLAYER_OVERLAY_FIELDS } from "@openrift/shared";
 import type { AdminMetaEventCorrection } from "@openrift/shared/contracts/admin/meta-submissions";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
+import type { MetaPlayerOverlayField } from "@openrift/shared/types/enums";
+import { META_PLAYER_OVERLAY_FIELDS } from "@openrift/shared/types/enums";
 
 export const META_REVIEW_TRIAGE = [
   "ready",

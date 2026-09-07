@@ -1,4 +1,6 @@
-import type { Marketplace, Printing, PublicCollectionDetailResponse } from "@openrift/shared";
+import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { ReactNode } from "react";
 import { Suspense, useState } from "react";
 

@@ -1,4 +1,4 @@
-import type { MetaEventFieldEdits } from "@openrift/shared";
+import type { MetaEventFieldEdits } from "@openrift/shared/types/api/meta";
 
 /**
  * An unchanged box and an emptied box both propose nothing: clearing a value

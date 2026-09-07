@@ -1,5 +1,5 @@
 import { apiKey } from "@better-auth/api-key";
-import { validateRiotId } from "@openrift/shared";
+import { validateRiotId } from "@openrift/shared/riot-id";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins/email-otp";

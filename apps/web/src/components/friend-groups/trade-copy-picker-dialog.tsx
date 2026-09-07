@@ -1,10 +1,10 @@
+import { enumLabel } from "@openrift/shared/enum-label";
 import type {
   CardTradeCopyOption,
   CardTradeCopyOptionsResponse,
   CardTradeRole,
-  CopyResponse,
-} from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+} from "@openrift/shared/types/api/card-trade";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 

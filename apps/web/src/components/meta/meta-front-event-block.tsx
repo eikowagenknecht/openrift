@@ -1,5 +1,5 @@
-import type { MetaEventSummary } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 
 import { ArtBandBackdrop } from "@/components/art-band-backdrop";

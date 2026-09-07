@@ -1,4 +1,5 @@
-import type { DeckFolderResponse, Domain } from "@openrift/shared";
+import type { DeckFolderResponse } from "@openrift/shared/types/api/deck";
+import type { Domain } from "@openrift/shared/types/enums";
 
 import { FilterIconCluster, useClusterLabelsFit } from "@/components/filters/compact-filter-bar";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";

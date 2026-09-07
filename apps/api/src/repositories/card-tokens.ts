@@ -1,6 +1,6 @@
-import { WellKnown } from "@openrift/shared";
 import type { TokenCardName } from "@openrift/shared/card-tokens";
 import { findTokenReferences } from "@openrift/shared/card-tokens";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";

@@ -1,4 +1,4 @@
-import { normalizeNameForIdentity } from "@openrift/shared";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import { parseDeckImportData } from "@/lib/deck-import-parsers";
 

@@ -1,7 +1,7 @@
 import type {
   AdminMarketplaceName,
   AdminPrintingMarketplaceMappingResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { CheckIcon, LinkIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

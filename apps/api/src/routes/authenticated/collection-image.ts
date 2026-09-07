@@ -1,4 +1,4 @@
-import { aspectFromQuery, qrFromQuery, scaleFromQuery } from "@openrift/shared";
+import { aspectFromQuery, qrFromQuery, scaleFromQuery } from "@openrift/shared/share-image-params";
 import { Hono } from "hono";
 
 import { assertFound } from "../../lib/assertions.js";

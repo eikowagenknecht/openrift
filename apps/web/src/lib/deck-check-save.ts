@@ -1,4 +1,4 @@
-import type { DeckCheckEntryCardResponse } from "@openrift/shared";
+import type { DeckCheckEntryCardResponse } from "@openrift/shared/types/api/deck-check";
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 import { dedupeMatchedEntries } from "@/lib/deck-import-cards";

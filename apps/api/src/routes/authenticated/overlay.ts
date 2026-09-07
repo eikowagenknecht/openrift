@@ -1,4 +1,4 @@
-import type { OverlayBoard, OverlayChannelResponse } from "@openrift/shared";
+import type { OverlayBoard, OverlayChannelResponse } from "@openrift/shared/contracts/overlay";
 import { overlayContract } from "@openrift/shared/contracts/overlay";
 import { implement } from "@orpc/server";
 

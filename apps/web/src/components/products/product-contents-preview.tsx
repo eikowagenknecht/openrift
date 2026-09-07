@@ -1,5 +1,6 @@
-import type { Printing } from "@openrift/shared";
-import { getOrientation, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { getOrientation } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";

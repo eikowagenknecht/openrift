@@ -1,4 +1,4 @@
-import type { ListIntent } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

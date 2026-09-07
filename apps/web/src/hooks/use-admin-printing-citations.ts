@@ -1,5 +1,5 @@
-import type { AdminPrintingCitation } from "@openrift/shared";
 import { adminPrintingCitationsContract } from "@openrift/shared/contracts/admin/printing-citations";
+import type { AdminPrintingCitation } from "@openrift/shared/types/api/admin";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

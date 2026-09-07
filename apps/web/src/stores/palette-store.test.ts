@@ -1,4 +1,4 @@
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";

@@ -1,6 +1,6 @@
-import type * as Shared from "@openrift/shared";
-import type { CardFilters } from "@openrift/shared";
-import { EMPTY_CARD_FILTERS } from "@openrift/shared";
+import type * as Shared from "@openrift/shared/filters";
+import type { CardFilters } from "@openrift/shared/types/search";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -25,7 +25,7 @@ const AVAILABLE = {
   hasSigned: false,
 };
 
-vi.mock("@openrift/shared", async (importOriginal) => {
+vi.mock("@openrift/shared/filters", async (importOriginal) => {
   const actual = await importOriginal<typeof Shared>();
   return { ...actual, getAvailableFilters: () => AVAILABLE };
 });

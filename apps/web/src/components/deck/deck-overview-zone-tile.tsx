@@ -1,5 +1,6 @@
-import type { DeckFormat, DeckViolation, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { PlusIcon, AlertTriangleIcon } from "lucide-react";
 
 import { GroupedThumbs } from "@/components/deck/deck-grouped-thumbs";

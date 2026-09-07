@@ -1,5 +1,7 @@
-import type { OverlayPlateFields, Printing } from "@openrift/shared";
-import { WellKnown, legendDisplayName } from "@openrift/shared";
+import type { OverlayPlateFields } from "@openrift/shared/contracts/overlay";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { CardDetailStats } from "@/components/cards/card-detail/card-detail-stats";
 import {

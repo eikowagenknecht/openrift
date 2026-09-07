@@ -1,4 +1,4 @@
-import type { CardType, DeckZone } from "@openrift/shared";
+import type { CardType, DeckZone } from "@openrift/shared/types/enums";
 import { describe, expect, it } from "vitest";
 
 import { curveOutRate, deckCompositionSeed, mulberry32 } from "@/lib/deck-curve-out";

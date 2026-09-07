@@ -1,4 +1,5 @@
-import type { DeckFormat, DeckFormatConfig, DeckLink, DeckZone } from "@openrift/shared";
+import type { DeckFormatConfig, DeckLink } from "@openrift/shared/types/api/deck";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
 
 export const LOCAL_DECK_PREFIX = "local:";
 

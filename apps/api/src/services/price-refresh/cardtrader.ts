@@ -1,6 +1,7 @@
-import { WellKnown } from "@openrift/shared";
-import type { Marketplace, PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
+import type { PriceRefreshResponse } from "@openrift/shared/types/api/admin";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";

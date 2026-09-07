@@ -1,5 +1,5 @@
-import type { LandingSummaryResponse } from "@openrift/shared";
 import { landingSummaryContract } from "@openrift/shared/contracts/landing-summary";
+import type { LandingSummaryResponse } from "@openrift/shared/types/api/catalog";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

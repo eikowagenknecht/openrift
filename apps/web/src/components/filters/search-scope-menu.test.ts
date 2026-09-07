@@ -1,4 +1,4 @@
-import { ALL_SEARCH_FIELDS } from "@openrift/shared";
+import { ALL_SEARCH_FIELDS } from "@openrift/shared/types/search";
 import { describe, expect, it } from "vitest";
 
 import { SEARCH_FIELD_LABELS, scopeSummary } from "./search-scope-menu";

@@ -1,5 +1,5 @@
-import type { MetaCreditVisibility } from "@openrift/shared";
-import { META_CREDIT_VISIBILITIES } from "@openrift/shared";
+import type { MetaCreditVisibility } from "@openrift/shared/types/enums";
+import { META_CREDIT_VISIBILITIES } from "@openrift/shared/types/enums";
 import { Link } from "@tanstack/react-router";
 
 import { MetaContributors } from "@/components/meta/meta-contributors";

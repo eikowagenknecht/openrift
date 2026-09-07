@@ -1,10 +1,6 @@
-import type {
-  OverlayBoardDirection,
-  OverlayPlateFields,
-  StageGround,
-  StagePreset,
-  TierRow,
-} from "@openrift/shared";
+import type { OverlayBoardDirection, OverlayPlateFields } from "@openrift/shared/contracts/overlay";
+import type { StageGround, StagePreset } from "@openrift/shared/contracts/stage-presets";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
 import { BookmarkPlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";

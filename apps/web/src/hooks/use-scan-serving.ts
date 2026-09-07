@@ -1,7 +1,7 @@
-import type { JobRunStartedResponse } from "@openrift/shared";
 import { adminScanContract } from "@openrift/shared/contracts/admin/scan";
 import type { ScanManifest } from "@openrift/shared/contracts/scan";
 import { scanContract } from "@openrift/shared/contracts/scan";
+import type { JobRunStartedResponse } from "@openrift/shared/types/api/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

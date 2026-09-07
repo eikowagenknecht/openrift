@@ -1,12 +1,13 @@
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
   AdminMarketplaceName,
   AdminPrintingMarketplaceMappingResponse,
   CandidateCardSummaryResponse,
   CandidatePrintingGroupResponse,
-} from "@openrift/shared";
-import { WellKnown, ERROR_CODES } from "@openrift/shared";
-import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+} from "@openrift/shared/types/api/admin";
 import { formatPrintingLabel, mostCommonValue, slugifyName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias
 import { AppError } from "../errors.js";

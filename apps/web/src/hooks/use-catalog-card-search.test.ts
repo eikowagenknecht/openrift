@@ -1,5 +1,5 @@
-import type { Card, Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

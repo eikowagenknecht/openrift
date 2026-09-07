@@ -1,4 +1,4 @@
-import { RENAMED_LANGUAGES, WellKnown } from "@openrift/shared";
+import { RENAMED_LANGUAGES, WellKnown } from "@openrift/shared/well-known";
 
 /** Must stay in sync with `NAME_TO_CODE` below. */
 const CODE_TO_NAME: Record<string, string> = {

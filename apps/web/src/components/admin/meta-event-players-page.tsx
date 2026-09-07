@@ -1,5 +1,5 @@
-import type { AdminMetaPlayer } from "@openrift/shared";
-import type { MetaPlayerOverlayField } from "@openrift/shared/types";
+import type { AdminMetaPlayer } from "@openrift/shared/types/api/meta";
+import type { MetaPlayerOverlayField } from "@openrift/shared/types/enums";
 import { ExternalLinkIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

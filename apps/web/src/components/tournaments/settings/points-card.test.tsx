@@ -1,4 +1,4 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";

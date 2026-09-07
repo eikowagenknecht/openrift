@@ -1,4 +1,4 @@
-import type { TradeRequestEmailCadence } from "@openrift/shared";
+import type { TradeRequestEmailCadence } from "@openrift/shared/types/api/preferences";
 
 import { Label } from "@/components/ui/label";
 import {

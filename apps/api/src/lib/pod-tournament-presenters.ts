@@ -1,5 +1,5 @@
-import { pointsForPlacements, swissPointsForPlacements } from "@openrift/shared";
-import type { PodResponse, PodRoundResponse } from "@openrift/shared";
+import { pointsForPlacements, swissPointsForPlacements } from "@openrift/shared/pairing/points";
+import type { PodResponse, PodRoundResponse } from "@openrift/shared/types/api/pod-tournament";
 
 import type { Pod, PodRound } from "../repositories/pod-tournaments.js";
 import type { PodScoring } from "./pod-scoring.js";

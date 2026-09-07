@@ -2,8 +2,8 @@
 // code }` envelope — shared by the API and the web app — so they live in
 // @openrift/shared. Import them from there directly (not via this module);
 // errors.ts owns only the server-side AppError + codeForStatus.
-import { ERROR_CODES } from "@openrift/shared";
-import type { ErrorCode } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { ErrorCode } from "@openrift/shared/error-codes";
 
 export class AppError extends Error {
   readonly status: number;

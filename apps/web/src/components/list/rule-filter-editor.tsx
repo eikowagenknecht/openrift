@@ -1,11 +1,11 @@
+import { filterCards, getAvailableFilters } from "@openrift/shared/filters";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import type {
   CardFilters,
   FilterRange,
-  Marketplace,
   PresenceDimension,
   PresenceState,
-} from "@openrift/shared";
-import { filterCards, getAvailableFilters } from "@openrift/shared";
+} from "@openrift/shared/types/search";
 import { PlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";

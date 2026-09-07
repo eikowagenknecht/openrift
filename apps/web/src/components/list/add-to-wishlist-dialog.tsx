@@ -1,4 +1,4 @@
-import type { ListKind } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
 import { HeartIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

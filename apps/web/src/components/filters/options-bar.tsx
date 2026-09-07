@@ -1,5 +1,6 @@
-import type { AvailableFilters, FilterCounts, GroupByField, SortOption } from "@openrift/shared";
-import { GROUP_BY_FIELDS } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
+import type { GroupByField, SortOption } from "@openrift/shared/types/search";
+import { GROUP_BY_FIELDS } from "@openrift/shared/types/search";
 import {
   CopyIcon,
   LayoutGridIcon,

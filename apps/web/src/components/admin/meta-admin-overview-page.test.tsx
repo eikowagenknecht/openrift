@@ -1,5 +1,5 @@
-import type { MetaOverlayQueueRow } from "@openrift/shared";
 import type { MetaSyncStatus } from "@openrift/shared/contracts/admin/meta-catalog";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";

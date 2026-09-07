@@ -8,7 +8,7 @@ import type {
   LowResImagesResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 
 import type { Io } from "../../io.js";
 import type { printingImagesRepo } from "../../repositories/printing-images.js";

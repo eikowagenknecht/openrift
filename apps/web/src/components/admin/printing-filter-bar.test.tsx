@@ -1,4 +1,4 @@
-import type { AdminPrintingResponse } from "@openrift/shared";
+import type { AdminPrintingResponse } from "@openrift/shared/types/api/admin";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

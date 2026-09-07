@@ -1,4 +1,5 @@
-import type { CardTradeLiveAnnotation, Printing } from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

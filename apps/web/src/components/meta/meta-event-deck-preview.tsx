@@ -1,5 +1,7 @@
-import type { DeckZone, PublicDeckCardResponse } from "@openrift/shared";
-import { getOrientation, WellKnown } from "@openrift/shared";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { getOrientation } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, EllipsisVerticalIcon } from "lucide-react";
 import { toast } from "sonner";

@@ -2,7 +2,7 @@ import type {
   CatalogResponse,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { sortCardsLikeSidebar } from "@/lib/deck-card-order";

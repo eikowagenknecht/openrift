@@ -1,5 +1,11 @@
-import type { DisplayPreferenceKey, DisplayPreferences } from "@openrift/shared";
-import { DISPLAY_PREFERENCE_KEYS, PREFERENCE_DEFAULTS } from "@openrift/shared";
+import type {
+  DisplayPreferenceKey,
+  DisplayPreferences,
+} from "@openrift/shared/types/api/preferences";
+import {
+  DISPLAY_PREFERENCE_KEYS,
+  PREFERENCE_DEFAULTS,
+} from "@openrift/shared/types/api/preferences";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

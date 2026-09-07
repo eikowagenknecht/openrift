@@ -1,6 +1,6 @@
-import type { DeckLink } from "@openrift/shared";
-import { ALLOWED_LINK_SITE_NAMES, isAllowedLinkUrl } from "@openrift/shared";
 import { MAX_DECK_LINKS } from "@openrift/shared/contracts/decks";
+import { ALLOWED_LINK_SITE_NAMES, isAllowedLinkUrl } from "@openrift/shared/link-hosts";
+import type { DeckLink } from "@openrift/shared/types/api/deck";
 import { useRef, useState } from "react";
 
 import type { LinkDraft } from "@/components/link-rows-field";

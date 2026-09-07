@@ -1,5 +1,8 @@
 import type { Logger } from "@openrift/shared/logger";
-import { getTradeRequestEmailCadence, isTradeStatusEmailEnabled } from "@openrift/shared/types";
+import {
+  getTradeRequestEmailCadence,
+  isTradeStatusEmailEnabled,
+} from "@openrift/shared/types/api/preferences";
 
 import type { Repos } from "../deps.js";
 import type { createEmailSender } from "../email.js";

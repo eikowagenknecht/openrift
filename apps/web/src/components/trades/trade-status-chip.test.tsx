@@ -1,4 +1,8 @@
-import type { CardTradeLiveAnnotation, CardTradeLivePhase, CardTradeRole } from "@openrift/shared";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeLivePhase,
+  CardTradeRole,
+} from "@openrift/shared/types/api/card-trade";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

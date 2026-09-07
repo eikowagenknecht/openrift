@@ -1,7 +1,7 @@
-/* oxlint-disable no-restricted-imports -- api has no @/ alias */
-import { formatCompactUtcStamp } from "@openrift/shared";
 import type { IngestCard } from "@openrift/shared/contracts/admin/card-mutations";
 import type { CardSubmissionInput } from "@openrift/shared/contracts/card-submissions";
+/* oxlint-disable no-restricted-imports -- api has no @/ alias */
+import { formatCompactUtcStamp } from "@openrift/shared/format-date";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";

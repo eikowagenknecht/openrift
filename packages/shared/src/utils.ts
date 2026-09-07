@@ -1,4 +1,5 @@
-import type { Card, CardType, Printing } from "./types/index.js";
+import type { Card, Printing } from "./types/catalog.js";
+import type { CardType } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
 export function slugifyName(name: string): string {

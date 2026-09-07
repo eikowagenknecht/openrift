@@ -1,11 +1,11 @@
+import { publicTierListsContract } from "@openrift/shared/contracts/public-tier-lists";
+import { tierListsContract } from "@openrift/shared/contracts/tier-lists";
 import type {
   PublicTierListDetailResponse,
   TierListListResponse,
   TierListResponse,
   TierListShareResponse,
-} from "@openrift/shared";
-import { publicTierListsContract } from "@openrift/shared/contracts/public-tier-lists";
-import { tierListsContract } from "@openrift/shared/contracts/tier-lists";
+} from "@openrift/shared/types/api/tier-list";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

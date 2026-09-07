@@ -1,4 +1,4 @@
-import type { OverlayBoard } from "@openrift/shared";
+import type { OverlayBoard } from "@openrift/shared/contracts/overlay";
 
 interface OverlayBoardIntent {
   board: Omit<OverlayBoard, "revealCount"> | null;

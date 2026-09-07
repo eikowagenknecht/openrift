@@ -1,4 +1,5 @@
-import { DEFAULT_DOMAIN_COLORS, DOMAIN_COLOR_FALLBACK, WellKnown } from "@openrift/shared";
+import { DEFAULT_DOMAIN_COLORS, DOMAIN_COLOR_FALLBACK } from "@openrift/shared/domain-colors";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Io } from "../io.js";
 import type { Child, Element } from "./share-image-core.js";

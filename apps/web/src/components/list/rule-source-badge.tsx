@@ -1,4 +1,4 @@
-import type { EntrySource } from "@openrift/shared";
+import type { EntrySource } from "@openrift/shared/types/api/list";
 import { BanIcon, SparklesIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

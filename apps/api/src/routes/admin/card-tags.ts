@@ -1,10 +1,10 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { adminCardTagsContract } from "@openrift/shared/contracts/admin/card-tags";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
   AdminCardTagListResponse,
   AdminTagCategoryListResponse,
   TagCategoryResponse,
-} from "@openrift/shared";
-import { adminCardTagsContract } from "@openrift/shared/contracts/admin/card-tags";
+} from "@openrift/shared/types/api/admin";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

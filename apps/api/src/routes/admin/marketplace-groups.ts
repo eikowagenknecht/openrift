@@ -1,6 +1,6 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { MarketplaceGroupResponse } from "@openrift/shared";
 import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts/admin/marketplace-groups";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { MarketplaceGroupResponse } from "@openrift/shared/types/api/admin";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

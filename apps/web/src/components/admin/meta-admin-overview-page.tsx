@@ -1,6 +1,4 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import type { MetaOverlayQueueRow } from "@openrift/shared";
-import { formatDayTime, formatRelativeTime } from "@openrift/shared";
 import type { JobStatus } from "@openrift/shared/contracts/admin/job-runs";
 import type {
   MetaCancellableJob,
@@ -8,6 +6,8 @@ import type {
   MetaSource,
   MetaSyncStatus,
 } from "@openrift/shared/contracts/admin/meta-catalog";
+import { formatDayTime, formatRelativeTime } from "@openrift/shared/format-date";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, CircleAlertIcon, PlayIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
 import { useState } from "react";

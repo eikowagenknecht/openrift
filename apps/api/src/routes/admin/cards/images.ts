@@ -1,8 +1,8 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem path join
 import { join } from "node:path";
 
-import { ERROR_CODES } from "@openrift/shared";
 import { adminCardImagesContract } from "@openrift/shared/contracts/admin/card-images";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { implement } from "@orpc/server";
 import { v7 as uuidv7 } from "uuid";
 

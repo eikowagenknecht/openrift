@@ -1,4 +1,4 @@
-import type { SitemapDataResponse } from "@openrift/shared";
+import type { SitemapDataResponse } from "@openrift/shared/types/api/catalog";
 
 import type { HelpArticle } from "@/lib/help-article";
 import type { MetaEra } from "@/lib/meta-scope";

@@ -1,5 +1,6 @@
-import type { CardTradeLiveAnnotation, LoanResponse } from "@openrift/shared";
-import { CARD_TRADE_LIVE_PHASES } from "@openrift/shared";
+import { CARD_TRADE_LIVE_PHASES } from "@openrift/shared/card-trade-lifecycle";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import type { LucideIcon } from "lucide-react";
 import { HandCoinsIcon, HandHeartIcon } from "lucide-react";
 

@@ -1,4 +1,6 @@
-import { formatDay, imageUrl, legendDisplayName } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import { imageUrl } from "@openrift/shared/image-url";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";

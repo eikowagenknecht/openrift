@@ -1,5 +1,6 @@
-import type { Printing, PromosListResponse } from "@openrift/shared";
 import { promosContract } from "@openrift/shared/contracts/promos";
+import type { PromosListResponse } from "@openrift/shared/types/api/catalog";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

@@ -1,5 +1,5 @@
-import type { UserContactMethodsResponse } from "@openrift/shared";
 import { contactMethodsContract } from "@openrift/shared/contracts/contact-methods";
+import type { UserContactMethodsResponse } from "@openrift/shared/types/api/contact-method";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

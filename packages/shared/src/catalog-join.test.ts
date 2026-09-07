@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { joinCatalogPrintings } from "./catalog-join";
-import type { CatalogResponse } from "./types";
+import type { CatalogResponse } from "./types/api/catalog.js";
 
 const CARD_ID = "00000000-0000-0000-0000-000000000001";
 const SET_ID = "00000000-0000-0000-0000-0000000000a1";

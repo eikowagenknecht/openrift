@@ -1,8 +1,9 @@
+import { formatDay, formatDayTimeLocal } from "@openrift/shared/format-date";
 import type {
   DeckCheckEntryCardResponse,
   PlayerDeckCheckEntryDetailResponse,
-} from "@openrift/shared";
-import { formatDay, formatDayTimeLocal, WellKnown } from "@openrift/shared";
+} from "@openrift/shared/types/api/deck-check";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useNavigate } from "@tanstack/react-router";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";

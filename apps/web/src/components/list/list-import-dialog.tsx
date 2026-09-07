@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { FileUpIcon, Loader2Icon, UploadIcon } from "lucide-react";
 import { useEffect } from "react";
 

@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useLiveQuery } from "@tanstack/react-db";
 import { useQueries, useQuery } from "@tanstack/react-query";
 

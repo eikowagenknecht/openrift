@@ -1,4 +1,4 @@
-import type { PackRandom as Random } from "@openrift/shared";
+import type { Random } from "@openrift/shared/pack-opener/rng";
 import { describe, expect, it } from "vitest";
 
 import { buildSpotlightSequence, chooseRandomId, spotlightStepDelay } from "./match-helpers";

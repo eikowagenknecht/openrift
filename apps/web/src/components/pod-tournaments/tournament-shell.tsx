@@ -1,4 +1,7 @@
-import type { PodReportResponse, PodTournamentStatus } from "@openrift/shared";
+import type {
+  PodReportResponse,
+  PodTournamentStatus,
+} from "@openrift/shared/types/api/pod-tournament";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 

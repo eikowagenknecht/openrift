@@ -1,8 +1,9 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
 import { createHash } from "node:crypto";
 
-import { inferZone, WellKnown } from "@openrift/shared";
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
+import { inferZone } from "@openrift/shared/zone-inference";
 
 import { countryFromAddress } from "./meta-event-classify.js";
 

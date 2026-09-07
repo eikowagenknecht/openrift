@@ -1,5 +1,6 @@
-import type { Printing, StandardArtFallback } from "@openrift/shared";
-import { findStandardArtFallback } from "@openrift/shared";
+import type { StandardArtFallback } from "@openrift/shared/standard";
+import { findStandardArtFallback } from "@openrift/shared/standard";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { useQuery } from "@tanstack/react-query";
 
 import { catalogQueryOptions } from "@/hooks/catalog-query";

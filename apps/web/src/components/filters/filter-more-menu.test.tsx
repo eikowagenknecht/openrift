@@ -1,5 +1,5 @@
-import type { AvailableFilters, FilterCounts } from "@openrift/shared";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";

@@ -149,7 +149,7 @@ function csvFields(line: string): string[] {
   let inQuotes = false;
   let index = 0;
   while (index < line.length) {
-    const char = line[index];
+    const char = line.charAt(index);
     if (inQuotes) {
       if (char === '"' && line[index + 1] === '"') {
         current += '"';

@@ -1,9 +1,6 @@
-import type {
-  AvailableFilters,
-  DefaultCardView,
-  PresenceDimension,
-  SortDirection,
-} from "@openrift/shared";
+import type { AvailableFilters } from "@openrift/shared/filters";
+import type { DefaultCardView } from "@openrift/shared/types/api/preferences";
+import type { PresenceDimension, SortDirection } from "@openrift/shared/types/search";
 
 import { oversizeState } from "@/lib/oversize-filter";
 import type { PresenceParamValue } from "@/lib/presence-filter";

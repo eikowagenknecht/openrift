@@ -1,5 +1,5 @@
-import type { Marketplace } from "@openrift/shared";
-import { MARKETPLACE_LINKS } from "@openrift/shared";
+import { MARKETPLACE_LINKS } from "@openrift/shared/marketplace";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 interface MarketplaceMeta {
   label: string;

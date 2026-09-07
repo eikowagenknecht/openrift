@@ -1,10 +1,10 @@
-import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared";
 import type { JobRunActivity } from "@openrift/shared/contracts/admin/job-runs";
 import {
   JOB_RUN_ACTIVITIES,
   JOB_STATUSES,
   JOB_TRIGGERS,
 } from "@openrift/shared/contracts/admin/job-runs";
+import { formatDayTimeLocal, formatRelativeTime } from "@openrift/shared/format-date";
 import { getRouteApi } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LoaderIcon } from "lucide-react";
 import { useState } from "react";

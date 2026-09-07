@@ -1,4 +1,4 @@
-import type { StagePresetConfig } from "@openrift/shared";
+import type { StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 import { sql } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 

@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 

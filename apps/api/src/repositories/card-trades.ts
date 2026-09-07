@@ -1,12 +1,12 @@
-import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared";
+import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared/card-trade-lifecycle";
 import type {
   CardTradeActionCountsResponse,
   CardTradeInitiator,
   CardTradeLivePhase,
   CardTradeRole,
   CardTradeStatus,
-  ContactMethod,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/api/card-trade";
+import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

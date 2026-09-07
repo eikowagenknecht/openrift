@@ -1,4 +1,7 @@
-import type { CardTradeCopyOption, CardTradeCopyOptionsResponse } from "@openrift/shared";
+import type {
+  CardTradeCopyOption,
+  CardTradeCopyOptionsResponse,
+} from "@openrift/shared/types/api/card-trade";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

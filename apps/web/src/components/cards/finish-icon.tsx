@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { AnvilIcon, SparkleIcon, TrophyIcon } from "lucide-react";
 import type { ComponentPropsWithoutRef, ElementType } from "react";
 

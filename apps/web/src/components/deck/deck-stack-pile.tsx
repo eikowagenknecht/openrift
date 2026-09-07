@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { DeckZone } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useState } from "react";
 
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";

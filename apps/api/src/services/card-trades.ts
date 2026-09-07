@@ -1,9 +1,10 @@
-import { ERROR_CODES, formatDay } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { formatDay } from "@openrift/shared/format-date";
 import type {
   CardTradeCopyOptionsResponse,
   CardTradeResponse,
   CardTradeRole,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/api/card-trade";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";

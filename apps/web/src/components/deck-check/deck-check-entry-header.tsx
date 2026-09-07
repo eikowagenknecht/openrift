@@ -1,5 +1,8 @@
-import type { DeckCheckEntryCardResponse, DeckCheckEntryDetailResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type {
+  DeckCheckEntryCardResponse,
+  DeckCheckEntryDetailResponse,
+} from "@openrift/shared/types/api/deck-check";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Link } from "@tanstack/react-router";
 import {
   BanIcon,

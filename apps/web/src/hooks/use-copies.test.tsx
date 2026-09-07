@@ -1,4 +1,4 @@
-import type { CopyResponse } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import { createCollection } from "@tanstack/react-db";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

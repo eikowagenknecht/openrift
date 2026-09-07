@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 /** An empty language list means "show all", matching the rest of the filter pipeline. */
 export function filterPrintingsByLanguages(

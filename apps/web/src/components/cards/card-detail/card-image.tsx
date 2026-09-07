@@ -1,5 +1,6 @@
-import type { Printing } from "@openrift/shared";
-import { imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";

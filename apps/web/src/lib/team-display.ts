@@ -2,7 +2,7 @@
 // identity. Every surface groups per-player rows into team rows through
 // these helpers so the grouping rules can't drift apart.
 
-import type { PodMemberResponse, PodStandingRow } from "@openrift/shared";
+import type { PodMemberResponse, PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
 
 export function teamDisplayName(memberNames: readonly string[]): string {
   return memberNames.join(" & ");

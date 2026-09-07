@@ -1,6 +1,7 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 import type {
-  ContactMethod,
   FriendGroupActivityEvent,
   FriendGroupActivityResponse,
   FriendGroupCollectionShareResponse,
@@ -23,10 +24,8 @@ import type {
   FriendGroupSharedCollectionDetailResponse,
   FriendGroupSharedListDetailResponse,
   FriendGroupSummaryResponse,
-  ListIntent,
-  ListKind,
-} from "@openrift/shared";
-import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
+} from "@openrift/shared/types/api/friend-group";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

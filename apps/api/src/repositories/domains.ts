@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared/types";
+import type { Domain } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";

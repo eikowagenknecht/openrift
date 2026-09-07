@@ -1,4 +1,4 @@
-import { findCard } from "@openrift/shared";
+import { findCard } from "@openrift/shared/card-search";
 import * as Sentry from "@sentry/bun";
 import { Hono } from "hono";
 

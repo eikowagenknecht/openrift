@@ -1,4 +1,7 @@
-import type { EmailNotificationChannel, EmailNotificationPreference } from "@openrift/shared/types";
+import type {
+  EmailNotificationChannel,
+  EmailNotificationPreference,
+} from "@openrift/shared/types/api/preferences";
 import {
   EMAIL_NOTIFICATION_CHANNEL_LABELS,
   isCardSubmissionEmailEnabled,
@@ -7,7 +10,7 @@ import {
   isTradeMatchDigestEnabled,
   isTradeRequestEmailEnabled,
   isTradeStatusEmailEnabled,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/api/preferences";
 
 import type { Repos } from "../deps.js";
 import { verifyUnsubscribeToken } from "../emails/unsubscribe-token.js";

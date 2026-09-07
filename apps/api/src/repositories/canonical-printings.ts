@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 

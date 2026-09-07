@@ -1,11 +1,7 @@
-import type {
-  GroupByField,
-  Marketplace,
-  PriceLookup,
-  Printing,
-  SortDirection,
-  SortOption,
-} from "@openrift/shared";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import type { GroupByField, SortDirection, SortOption } from "@openrift/shared/types/search";
 import { useDeferredValue, useEffect, useState } from "react";
 
 import { useCardData } from "@/hooks/use-card-data";

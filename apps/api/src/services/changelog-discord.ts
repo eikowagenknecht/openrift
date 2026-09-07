@@ -1,5 +1,5 @@
-import type { ChangelogEntry } from "@openrift/shared";
-import { parseChangelog } from "@openrift/shared";
+import type { ChangelogEntry } from "@openrift/shared/changelog";
+import { parseChangelog } from "@openrift/shared/changelog";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Fetch } from "../io.js";

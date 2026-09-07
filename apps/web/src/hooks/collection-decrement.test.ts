@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildOnDecrement } from "./collection-decrement";

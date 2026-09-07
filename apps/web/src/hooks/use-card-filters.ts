@@ -4,15 +4,17 @@ import type {
   CardType,
   Domain,
   Finish,
+  Rarity,
+  SuperType,
+} from "@openrift/shared/types/enums";
+import type {
   GroupByField,
   PresenceDimension,
   PresenceState,
   RangeKey,
-  Rarity,
   SortDirection,
   SortOption,
-  SuperType,
-} from "@openrift/shared";
+} from "@openrift/shared/types/search";
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 

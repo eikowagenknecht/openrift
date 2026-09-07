@@ -1,4 +1,4 @@
-import type { AdminPrintingResponse } from "@openrift/shared";
+import type { AdminPrintingResponse } from "@openrift/shared/types/api/admin";
 import { useState } from "react";
 
 import { LanguageChip } from "@/components/language-chip";

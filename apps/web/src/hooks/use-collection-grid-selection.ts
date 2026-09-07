@@ -1,5 +1,6 @@
-import type { GroupByField, Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { GroupByField } from "@openrift/shared/types/search";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useEffect } from "react";
 
 import { buildOnDecrement } from "@/hooks/collection-decrement";

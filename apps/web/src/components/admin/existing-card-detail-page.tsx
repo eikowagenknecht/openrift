@@ -1,9 +1,9 @@
+import { earliestRelease } from "@openrift/shared/set-release";
 import type {
   AdminCardDetailResponse,
   AdminMarketplaceName,
   AdminPrintingResponse,
-} from "@openrift/shared";
-import { earliestRelease } from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { ArrowRightIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 

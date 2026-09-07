@@ -1,10 +1,10 @@
 import type {
   ListEntryDetailResponse,
   ListKind,
-  Printing,
   PublicListDetailResponse,
-} from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+} from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { HandshakeIcon, HeartIcon, ListIcon, XIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 

@@ -1,5 +1,5 @@
-import type { SetListResponse } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { SetListResponse } from "@openrift/shared/types/api/catalog";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";

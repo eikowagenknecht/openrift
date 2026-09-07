@@ -1,10 +1,12 @@
+import { enumLabel } from "@openrift/shared/enum-label";
+import { dateLeafPartsUtc } from "@openrift/shared/format-date";
+import { imageUrl } from "@openrift/shared/image-url";
 import type {
   MetaEventDetail,
   MetaEventMatch,
   MetaEventPhase,
   MetaEventPlayer,
-} from "@openrift/shared";
-import { dateLeafPartsUtc, enumLabel, imageUrl } from "@openrift/shared";
+} from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import { Fragment } from "react";

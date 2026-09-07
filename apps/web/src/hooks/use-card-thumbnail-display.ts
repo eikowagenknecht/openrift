@@ -1,4 +1,5 @@
-import type { Marketplace, PriceLookup } from "@openrift/shared";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useDomainColors } from "@/hooks/use-domain-colors";

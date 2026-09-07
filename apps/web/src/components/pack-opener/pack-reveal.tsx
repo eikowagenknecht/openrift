@@ -1,4 +1,5 @@
-import type { CatalogPrintingResponse, PackResult } from "@openrift/shared";
+import type { PackResult } from "@openrift/shared/pack-opener/types";
+import type { CatalogPrintingResponse } from "@openrift/shared/types/api/catalog";
 import { useEffect, useState } from "react";
 
 import { CardBack } from "@/components/pack-opener/card-back";

@@ -1,4 +1,5 @@
-import type { CatalogResponse, Printing } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook } from "@testing-library/react";
 import type { PropsWithChildren } from "react";

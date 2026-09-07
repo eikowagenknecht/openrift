@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import { InboxIcon, BookOpenIcon } from "lucide-react";
 import { useState } from "react";
 

@@ -1,4 +1,4 @@
-import { legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 

@@ -1,10 +1,8 @@
-import type {
-  Marketplace,
-  PriceLookup,
-  Printing,
-  SortCardsOptions,
-  SortOption,
-} from "@openrift/shared";
+import type { SortCardsOptions } from "@openrift/shared/filters";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import type { SortOption } from "@openrift/shared/types/search";
 
 /** In the marketplace's major units. */
 export interface PriceRange {

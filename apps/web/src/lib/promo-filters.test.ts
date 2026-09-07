@@ -1,4 +1,7 @@
-import type { DistributionChannelWithCount, PrintingDistributionChannel } from "@openrift/shared";
+import type {
+  DistributionChannelWithCount,
+  PrintingDistributionChannel,
+} from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import { stubPrinting } from "@/test/factories";

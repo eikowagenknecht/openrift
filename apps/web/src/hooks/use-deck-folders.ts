@@ -1,5 +1,5 @@
-import type { DeckFolderListResponse, DeckFolderResponse } from "@openrift/shared";
 import { deckFoldersContract } from "@openrift/shared/contracts/deck-folders";
+import type { DeckFolderListResponse, DeckFolderResponse } from "@openrift/shared/types/api/deck";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

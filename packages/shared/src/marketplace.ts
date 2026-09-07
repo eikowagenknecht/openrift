@@ -1,4 +1,4 @@
-import type { Marketplace } from "./types/index.js";
+import type { Marketplace } from "./types/pricing.js";
 
 const AFFILIATE_BASE = "https://partner.tcgplayer.com/openrift";
 

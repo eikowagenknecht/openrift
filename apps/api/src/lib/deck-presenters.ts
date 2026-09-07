@@ -1,15 +1,13 @@
+import { descriptionSnippet } from "@openrift/shared/description-snippet";
 import type {
-  CardType,
   DeckCardResponse,
   DeckPlanResponse,
   DeckResponse,
   DeckSummaryResponse,
-  Domain,
   PublicDeckCardResponse,
   PublicDeckResponse,
-  SuperType,
-} from "@openrift/shared";
-import { descriptionSnippet } from "@openrift/shared";
+} from "@openrift/shared/types/api/deck";
+import type { CardType, Domain, SuperType } from "@openrift/shared/types/enums";
 import type { Selectable } from "kysely";
 
 import type { DecksTable } from "../db/index.js";

@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
 import path from "node:path";
 
-import type { Card, Domain, Printing, SetListEntry } from "@openrift/shared";
-import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import { EMPTY_PRICE_LOOKUP } from "@openrift/shared/price-lookup";
+import type { SetListEntry } from "@openrift/shared/types/api/catalog";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
+import type { Domain } from "@openrift/shared/types/enums";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { StackedEntry } from "@/lib/stacked-entry";

@@ -1,14 +1,14 @@
+import type { CardStatLabels } from "@openrift/shared/card-stat-line";
+import type { VariantLabelEnumLabels } from "@openrift/shared/printing-label";
 import type {
-  CardStatLabels,
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
-  InitResponse,
-  PricesResponse,
-  VariantLabelEnumLabels,
-} from "@openrift/shared";
-import { labelMap } from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
+import type { InitResponse } from "@openrift/shared/types/api/init";
+import type { PricesResponse } from "@openrift/shared/types/api/pricing";
+import { labelMap } from "@openrift/shared/utils";
 
 export type CatalogCard = CatalogResponseCardValue & { id: string };
 export type CatalogPrinting = CatalogResponsePrintingValue & { id: string };

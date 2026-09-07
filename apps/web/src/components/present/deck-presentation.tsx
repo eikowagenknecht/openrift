@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 import { CardStageMain } from "@/components/present/card-stage-main";
 import { PresentationStage } from "@/components/present/presentation-stage";

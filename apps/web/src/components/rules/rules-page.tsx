@@ -1,4 +1,4 @@
-import type { RuleKind, RuleResponse } from "@openrift/shared";
+import type { RuleKind, RuleResponse } from "@openrift/shared/types/api/rules";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 

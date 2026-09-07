@@ -1,4 +1,4 @@
-import type { OverlayPlateFields } from "@openrift/shared";
+import type { OverlayPlateFields } from "@openrift/shared/contracts/overlay";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { captureStagePreset } from "@/lib/stage-preset-apply";

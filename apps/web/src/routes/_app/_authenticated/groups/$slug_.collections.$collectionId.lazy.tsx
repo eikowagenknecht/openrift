@@ -1,4 +1,4 @@
-import type { PublicCollectionDetailResponse } from "@openrift/shared";
+import type { PublicCollectionDetailResponse } from "@openrift/shared/types/api/collection";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { SharedCollectionView } from "@/components/collection/shared-collection-view";

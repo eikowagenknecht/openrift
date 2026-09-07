@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@openrift/shared";
+import type { ErrorCode } from "@openrift/shared/error-codes";
 
 /**
  * Thrown by {@link fetchApi} on a non-ok response. Properties are own fields

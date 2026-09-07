@@ -1,32 +1,25 @@
-import type {
-  ArtVariant,
-  AvailableFilters,
-  CardSize,
-  CardType,
-  CatalogResponse,
-  Domain,
-  EnumOrders,
-  FilterCounts,
-  Finish,
-  InitResponse,
-  Marketplace,
-  PresenceDimension,
-  PresenceState,
-  PricesResponse,
-  Printing,
-  Rarity,
-  SuperType,
-} from "@openrift/shared";
-import {
-  computeFilterCounts,
-  DEFAULT_SEARCH_SCOPE,
-  EMPTY_CARD_FILTERS,
-  filterCards,
-  getAvailableFilters,
-  priceLookupFromMap,
-} from "@openrift/shared";
 import { initContract } from "@openrift/shared/contracts/init";
 import { pricesContract } from "@openrift/shared/contracts/prices";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
+import { computeFilterCounts, filterCards, getAvailableFilters } from "@openrift/shared/filters";
+import { priceLookupFromMap } from "@openrift/shared/price-lookup";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import type { InitResponse } from "@openrift/shared/types/api/init";
+import type { PricesResponse } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type {
+  ArtVariant,
+  CardSize,
+  CardType,
+  Domain,
+  EnumOrders,
+  Finish,
+  Rarity,
+  SuperType,
+} from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import type { PresenceDimension, PresenceState } from "@openrift/shared/types/search";
+import { DEFAULT_SEARCH_SCOPE, EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { createServerFn } from "@tanstack/react-start";
 
 import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";

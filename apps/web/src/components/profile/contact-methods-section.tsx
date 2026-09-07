@@ -1,5 +1,6 @@
-import { CONTACT_METHOD_LABELS, CONTACT_METHOD_TYPES } from "@openrift/shared";
-import type { ContactMethod, ContactMethodType } from "@openrift/shared";
+import { CONTACT_METHOD_LABELS } from "@openrift/shared/contact-methods";
+import { CONTACT_METHOD_TYPES } from "@openrift/shared/types/api/contact-method";
+import type { ContactMethod, ContactMethodType } from "@openrift/shared/types/api/contact-method";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

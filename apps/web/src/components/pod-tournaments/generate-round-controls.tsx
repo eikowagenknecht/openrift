@@ -1,4 +1,5 @@
-import type { PodPlayerResponse, PodStandingRow, TournamentPlayMode } from "@openrift/shared";
+import type { PodPlayerResponse, PodStandingRow } from "@openrift/shared/types/api/pod-tournament";
+import type { TournamentPlayMode } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import { RotateCcwIcon, TriangleAlertIcon, UserMinusIcon, UserXIcon } from "lucide-react";
 import { useState } from "react";

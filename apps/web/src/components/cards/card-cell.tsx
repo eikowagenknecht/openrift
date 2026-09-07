@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import type { MouseEvent as ReactMouseEvent, ReactElement, ReactNode } from "react";
 import { cloneElement } from "react";
 

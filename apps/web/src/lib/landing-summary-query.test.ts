@@ -1,4 +1,4 @@
-import type { LandingSummaryResponse } from "@openrift/shared";
+import type { LandingSummaryResponse } from "@openrift/shared/types/api/catalog";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Importing the module evaluates createServerFn(...).handler(...) at the top

@@ -1,4 +1,4 @@
-import { isAllowedLinkUrl } from "@openrift/shared";
+import { isAllowedLinkUrl } from "@openrift/shared/link-hosts";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { deckDetailQueryOptions } from "@/hooks/use-decks";

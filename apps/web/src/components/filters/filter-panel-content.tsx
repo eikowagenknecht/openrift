@@ -1,4 +1,4 @@
-import type { AvailableFilters, FilterCounts } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
 import { ChevronRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";

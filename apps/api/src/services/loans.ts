@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { LoanResponse } from "@openrift/shared/types";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";

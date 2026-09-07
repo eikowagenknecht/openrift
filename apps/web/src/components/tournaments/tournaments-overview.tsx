@@ -1,4 +1,4 @@
-import type { TournamentSummaryResponse } from "@openrift/shared";
+import type { TournamentSummaryResponse } from "@openrift/shared/types/api/tournament";
 
 import { NextEventHero } from "@/components/tournaments/next-event-hero";
 import { PastEventsTimeline } from "@/components/tournaments/past-events-timeline";

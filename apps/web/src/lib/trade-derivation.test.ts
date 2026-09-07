@@ -1,4 +1,7 @@
-import type { CardTradeLiveAnnotation, CardTradeResponse } from "@openrift/shared";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeResponse,
+} from "@openrift/shared/types/api/card-trade";
 import { describe, expect, it } from "vitest";
 
 import type { MatchCopyDetail, MatchSuggestionFields } from "./trade-derivation";

@@ -1,4 +1,4 @@
-import type { MarkerResponse } from "@openrift/shared";
+import type { MarkerResponse } from "@openrift/shared/types/api/admin";
 
 import {
   DescriptionCell,

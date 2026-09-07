@@ -1,5 +1,7 @@
-import type { Marketplace, Printing } from "@openrift/shared";
-import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
+import { copyHasMetadata } from "@openrift/shared/copy-metadata";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpenIcon,

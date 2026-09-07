@@ -1,5 +1,6 @@
-import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { cardSearchAltNames, legendDisplayName, WellKnown } from "@openrift/shared";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { AlertTriangleIcon, ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { use, useState } from "react";

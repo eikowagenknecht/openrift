@@ -1,4 +1,4 @@
-import type { ListBulkAddResponse } from "@openrift/shared";
+import type { ListBulkAddResponse } from "@openrift/shared/types/api/list";
 
 export function describeListAdd(result: ListBulkAddResponse, listName: string): string {
   const tail = result.skipped > 0 ? ` (${result.skipped} not owned)` : "";

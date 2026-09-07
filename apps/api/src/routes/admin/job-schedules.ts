@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
 import { adminJobSchedulesContract } from "@openrift/shared/contracts/admin/job-schedules";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

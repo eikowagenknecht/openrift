@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { PriceRange } from "@/lib/card-price-sort";

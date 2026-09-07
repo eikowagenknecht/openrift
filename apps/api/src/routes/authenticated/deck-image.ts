@@ -1,4 +1,4 @@
-import { aspectFromQuery, qrFromQuery } from "@openrift/shared";
+import { aspectFromQuery, qrFromQuery } from "@openrift/shared/share-image-params";
 import { sentenceCaseSlug } from "@openrift/shared/utils";
 import { Hono } from "hono";
 

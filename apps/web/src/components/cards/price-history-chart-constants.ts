@@ -1,4 +1,4 @@
-import type { TimeRange } from "@openrift/shared";
+import type { TimeRange } from "@openrift/shared/types/pricing";
 
 export const TIME_RANGES = [
   { value: "7d", label: "7D", days: 7 },

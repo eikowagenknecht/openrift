@@ -1,4 +1,5 @@
-import type { OverlayBoardDirection, TierRow } from "@openrift/shared";
+import type { OverlayBoardDirection } from "@openrift/shared/contracts/overlay";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
 import { useEffect, useRef } from "react";
 
 import {

@@ -3,7 +3,7 @@ import type {
   AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

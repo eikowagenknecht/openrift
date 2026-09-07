@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { cardSearchAltNames, legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
 import { useMemo, useState } from "react";
 
 import { CatalogSearchCombobox } from "@/components/cards/card-search-dropdown";

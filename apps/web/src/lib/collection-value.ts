@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 
 /** Excludes shared group collections: their copies are communal, not the viewer's own. */
 export function aggregatePersonalCollectionValue(collections: readonly CollectionResponse[]): {

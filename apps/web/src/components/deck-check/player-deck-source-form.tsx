@@ -1,4 +1,4 @@
-import type { DeckCheckSubmissionResultResponse } from "@openrift/shared";
+import type { DeckCheckSubmissionResultResponse } from "@openrift/shared/types/api/deck-check";
 import { TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 

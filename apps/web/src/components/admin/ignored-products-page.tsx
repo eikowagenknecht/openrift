@@ -1,5 +1,6 @@
-import type { IgnoredProductResponse } from "@openrift/shared";
-import { formatDayTime, marketplaceLabel } from "@openrift/shared";
+import { formatDayTime } from "@openrift/shared/format-date";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import type { IgnoredProductResponse } from "@openrift/shared/types/api/admin";
 import { Undo2Icon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";

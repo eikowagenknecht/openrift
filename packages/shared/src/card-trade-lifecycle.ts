@@ -1,4 +1,4 @@
-import type { CardTradeStatus } from "./types/index.js";
+import type { CardTradeStatus } from "./types/api/card-trade.js";
 
 const LIVE_CARD_TRADE_STATUSES = ["pending", "reserved"] as const;
 

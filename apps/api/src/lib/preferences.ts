@@ -1,5 +1,5 @@
-import type { Marketplace } from "@openrift/shared";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import type { Repos } from "../deps.js";
 

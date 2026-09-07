@@ -1,4 +1,4 @@
-import type { ErrorCode } from "@openrift/shared";
+import type { ErrorCode } from "@openrift/shared/error-codes";
 import { ORPCError } from "@orpc/server";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";

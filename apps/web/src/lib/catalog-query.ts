@@ -1,11 +1,10 @@
+import { joinCatalogPrintings } from "@openrift/shared/catalog-join";
 import type {
-  Card,
   CatalogResponse,
   CatalogResponsePrintingValue,
-  DeckCatalogSubset,
-  Printing,
-} from "@openrift/shared";
-import { joinCatalogPrintings } from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
+import type { DeckCatalogSubset } from "@openrift/shared/types/api/deck";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import { context, propagation } from "@opentelemetry/api";
 import type { QueryClient, UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

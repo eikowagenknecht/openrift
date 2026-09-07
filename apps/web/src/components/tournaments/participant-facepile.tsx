@@ -1,4 +1,4 @@
-import type { TournamentParticipantPreview } from "@openrift/shared";
+import type { TournamentParticipantPreview } from "@openrift/shared/types/api/tournament";
 
 import { UserAvatarStack } from "@/components/user-avatar-stack";
 

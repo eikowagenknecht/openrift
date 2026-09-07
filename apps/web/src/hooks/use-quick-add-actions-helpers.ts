@@ -1,5 +1,5 @@
-import type { CopyResponse } from "@openrift/shared";
-import { copyHasMetadata } from "@openrift/shared";
+import { copyHasMetadata } from "@openrift/shared/copy-metadata";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 
 import { isTempCopyId } from "@/lib/temp-copy-id";
 

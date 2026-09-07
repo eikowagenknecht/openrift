@@ -1,4 +1,5 @@
-import type { Marketplace, MarketplaceGroupKind } from "@openrift/shared";
+import type { MarketplaceGroupKind } from "@openrift/shared/types/api/admin";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 

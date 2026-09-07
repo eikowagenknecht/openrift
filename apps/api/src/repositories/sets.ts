@@ -1,4 +1,4 @@
-import type { SetReleases } from "@openrift/shared";
+import type { SetReleases } from "@openrift/shared/set-release";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

@@ -1,4 +1,5 @@
-import type { GroupByField, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { GroupByField } from "@openrift/shared/types/search";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 

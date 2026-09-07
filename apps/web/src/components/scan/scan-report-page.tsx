@@ -1,4 +1,4 @@
-import { formatDayTimeLocal } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared/format-date";
 import { useState } from "react";
 
 import { PageTopBar, PageTopBarSticky, PageTopBarTitle } from "@/components/layout/page-top-bar";

@@ -1,7 +1,7 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { dirname, join } from "node:path";
 
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 
 import { AppError } from "../../errors.js";
 import type { Io } from "../../io.js";

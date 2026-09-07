@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { makePrinting as stubPrinting } from "./test-factories.js";
-import type { CardType, Printing } from "./types/index";
+import type { Printing } from "./types/catalog.js";
+import type { CardType } from "./types/enums.js";
 import {
   boundsOf,
   capitalize,

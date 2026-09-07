@@ -1,4 +1,4 @@
-import { deckCheckEntrySource } from "@openrift/shared";
+import { deckCheckEntrySource } from "@openrift/shared/deck-check";
 import type {
   DeckCheckEntryCardResponse,
   DeckCheckEntryDetailResponse,
@@ -6,8 +6,8 @@ import type {
   DeckCheckEntrySummaryResponse,
   DeckCheckEventSummaryResponse,
   DeckCheckKeyResponse,
-  DeckZone,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/deck-check";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 import type { Repos } from "../deps.js";
 import type { DeckCheckKey } from "../repositories/deck-check-keys.js";

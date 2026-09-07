@@ -1,11 +1,11 @@
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
 import type {
-  CardTradeLiveAnnotation,
   CopyLink,
   CopyMetadataPatch,
   CopyResponse,
-  Printing,
-} from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+} from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftIcon, HandHeartIcon } from "lucide-react";
 import { useState } from "react";

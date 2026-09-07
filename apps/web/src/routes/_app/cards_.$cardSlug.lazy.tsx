@@ -1,24 +1,15 @@
-import type {
-  CardDetailRelatedCard,
-  CardErrata,
-  Marketplace,
-  Printing,
-  TimeRange,
-} from "@openrift/shared";
-import {
-  ALL_MARKETPLACES,
-  enumLabel,
-  formatMonth,
-  findStandardArtFallback,
-  getOrientation,
-  imageUrl,
-  isBaseBanFormat,
-  legendDisplayName,
-  MARKETPLACE_CURRENCY,
-  marketplaceLabel,
-  snapshotHeadline,
-  WellKnown,
-} from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { formatMonth } from "@openrift/shared/format-date";
+import { imageUrl } from "@openrift/shared/image-url";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import { findStandardArtFallback } from "@openrift/shared/standard";
+import type { CardDetailRelatedCard } from "@openrift/shared/types/api/catalog";
+import { snapshotHeadline } from "@openrift/shared/types/api/pricing";
+import type { CardErrata, Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace, TimeRange } from "@openrift/shared/types/pricing";
+import { ALL_MARKETPLACES, MARKETPLACE_CURRENCY } from "@openrift/shared/types/pricing";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
+import { isBaseBanFormat, WellKnown } from "@openrift/shared/well-known";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {

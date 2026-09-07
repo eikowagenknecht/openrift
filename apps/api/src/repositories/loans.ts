@@ -1,4 +1,4 @@
-import type { LoanCounterparty } from "@openrift/shared/types";
+import type { LoanCounterparty } from "@openrift/shared/types/api/loan";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

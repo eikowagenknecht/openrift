@@ -1,4 +1,5 @@
-import { legendDisplayName, UNKNOWN_SET_INDEX } from "@openrift/shared";
+import { UNKNOWN_SET_INDEX } from "@openrift/shared/set-order";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import type { CatalogPosition } from "@/lib/catalog-position";
 import { compareCatalogPosition } from "@/lib/catalog-position";

@@ -1,4 +1,6 @@
-import type { CardEmbedder, OpenCvLike, OrbCvLike } from "@openrift/shared/scan";
+import type { OpenCvLike } from "@openrift/shared/scan/detect-cv";
+import type { CardEmbedder } from "@openrift/shared/scan/embed";
+import type { OrbCvLike } from "@openrift/shared/scan/orb";
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

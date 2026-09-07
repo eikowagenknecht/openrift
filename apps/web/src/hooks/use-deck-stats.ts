@@ -1,5 +1,5 @@
-import type { DeckZone, Domain } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckZone, Domain } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

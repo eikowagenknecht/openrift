@@ -1,5 +1,5 @@
-import type { Palette } from "@openrift/shared";
-import { PALETTES, PREFERENCE_DEFAULTS } from "@openrift/shared";
+import type { Palette } from "@openrift/shared/types/api/preferences";
+import { PALETTES, PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 

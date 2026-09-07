@@ -1,4 +1,4 @@
-import type { StageGround } from "@openrift/shared";
+import type { StageGround } from "@openrift/shared/contracts/stage-presets";
 import { SettingsIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";

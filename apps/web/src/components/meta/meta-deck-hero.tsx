@@ -1,5 +1,5 @@
-import type { MetaDeckDetailResponse } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { MetaDeckDetailResponse } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 
 import { MetaIdentity } from "@/components/meta/meta-identity";

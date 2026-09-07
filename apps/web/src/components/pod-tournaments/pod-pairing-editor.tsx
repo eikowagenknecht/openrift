@@ -9,13 +9,16 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import type { PairingWarning, Pod, PodRoundResponse, PodSnapshotPlayer } from "@openrift/shared";
-import {
-  assignTableNumbers,
-  buildTeamUnits,
-  computePairingWarnings,
-  evaluatePod,
-} from "@openrift/shared";
+import { evaluatePod } from "@openrift/shared/pairing/evaluate";
+import { assignTableNumbers } from "@openrift/shared/pairing/table-assignment";
+import { buildTeamUnits } from "@openrift/shared/pairing/team-units";
+import type { Pod } from "@openrift/shared/pairing/types";
+import type { PairingWarning } from "@openrift/shared/pairing/warnings";
+import { computePairingWarnings } from "@openrift/shared/pairing/warnings";
+import type {
+  PodRoundResponse,
+  PodSnapshotPlayer,
+} from "@openrift/shared/types/api/pod-tournament";
 import { GripVerticalIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 

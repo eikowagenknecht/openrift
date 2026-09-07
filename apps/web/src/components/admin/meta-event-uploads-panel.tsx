@@ -1,5 +1,5 @@
-import { formatDay, formatDayTime } from "@openrift/shared";
-import type { MetaUploadSummary } from "@openrift/shared";
+import { formatDay, formatDayTime } from "@openrift/shared/format-date";
+import type { MetaUploadSummary } from "@openrift/shared/types/api/meta";
 import { ArrowRightLeftIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

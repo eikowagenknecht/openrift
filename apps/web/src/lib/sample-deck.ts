@@ -1,4 +1,5 @@
-import type { DeckFormat, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckFormat } from "@openrift/shared/types/enums";
 
 import type { ImportedDeckCard } from "@/lib/deck-import-cards";
 import { dedupeMatchedEntries } from "@/lib/deck-import-cards";

@@ -1,11 +1,8 @@
-import type {
-  CatalogResponse,
-  CatalogSetResponse,
-  InitResponse,
-  PricesResponse,
-  RuleResponse,
-} from "@openrift/shared";
 import { makeCatalogCard, makeCatalogPrinting } from "@openrift/shared/test-factories";
+import type { CatalogResponse, CatalogSetResponse } from "@openrift/shared/types/api/catalog";
+import type { InitResponse } from "@openrift/shared/types/api/init";
+import type { PricesResponse } from "@openrift/shared/types/api/pricing";
+import type { RuleResponse } from "@openrift/shared/types/api/rules";
 
 import type { CatalogCard, CatalogPrinting } from "../catalog-cache.js";
 import type { RulesSnapshot } from "../rules-cache.js";

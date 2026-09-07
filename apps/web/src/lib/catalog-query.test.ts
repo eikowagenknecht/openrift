@@ -1,4 +1,4 @@
-import type { CatalogResponse } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import { describe, expect, it } from "vitest";
 
 import { hasPrintingsOutside } from "./catalog-query";

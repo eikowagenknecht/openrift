@@ -1,8 +1,8 @@
-import { ERROR_CODES } from "@openrift/shared";
 import type {
   JobScheduleView,
   ScheduledJobKind,
 } from "@openrift/shared/contracts/admin/job-schedules";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type { Logger } from "@openrift/shared/logger";
 import { Cron } from "croner";
 

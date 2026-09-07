@@ -1,5 +1,6 @@
-import type { ChangelogEntry } from "@openrift/shared";
-import { formatRelativeDay, parseChangelog } from "@openrift/shared";
+import type { ChangelogEntry } from "@openrift/shared/changelog";
+import { parseChangelog } from "@openrift/shared/changelog";
+import { formatRelativeDay } from "@openrift/shared/format-date";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";

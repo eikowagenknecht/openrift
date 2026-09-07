@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";

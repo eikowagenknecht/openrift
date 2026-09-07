@@ -1,4 +1,5 @@
-import type { CopyResponse, Printing } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import type { StackedEntry } from "@/lib/stacked-entry";

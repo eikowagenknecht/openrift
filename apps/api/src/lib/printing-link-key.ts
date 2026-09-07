@@ -2,7 +2,7 @@
  * Not in `services/candidate-links.ts`: the card-submission repository keys on
  * this, and a repository must not reach into a service.
  */
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 
 /**
  * Short codes are uppercased on both sides so source-side casing drift

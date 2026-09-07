@@ -1,7 +1,7 @@
-import type { Marketplace } from "@openrift/shared";
 import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
 import { adminStagingCardOverridesContract } from "@openrift/shared/contracts/admin/staging-card-overrides";
 import { adminUnifiedMappingsContract } from "@openrift/shared/contracts/admin/unified-mappings";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import {
   queryOptions,
   useMutation,

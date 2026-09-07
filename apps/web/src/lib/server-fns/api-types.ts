@@ -1,8 +1,8 @@
 import type {
   CandidateCardSummaryResponse,
-  CollectionListResponse,
   ProviderStatsResponse as ProviderStatsItem,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
+import type { CollectionListResponse } from "@openrift/shared/types/api/collection";
 
 export type {
   UploadCandidatesBody,

@@ -1,5 +1,7 @@
-import type { MetaEventSummary, MetaSubmissionResult, Printing } from "@openrift/shared";
-import { enumLabel, formatDay } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import { formatDay } from "@openrift/shared/format-date";
+import type { MetaEventSummary, MetaSubmissionResult } from "@openrift/shared/types/api/meta";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
 import { useDeferredValue, useState } from "react";

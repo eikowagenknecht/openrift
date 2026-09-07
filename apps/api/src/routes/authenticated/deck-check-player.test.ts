@@ -1,4 +1,4 @@
-import { parsePiltoverDeckCode } from "@openrift/shared";
+import { parsePiltoverDeckCode } from "@openrift/shared/deck-code";
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 
@@ -12,7 +12,7 @@ import { deckCheckPlayerRouter } from "./deck-check-player.js";
 // are only reachable this way — services/deck-check-player.test.ts covers
 // claimParticipantByToken alone.
 
-vi.mock("@openrift/shared", async (importOriginal) => ({
+vi.mock("@openrift/shared/deck-code", async (importOriginal) => ({
   ...(await importOriginal()),
   parsePiltoverDeckCode: vi.fn(() => ({
     entries: [],

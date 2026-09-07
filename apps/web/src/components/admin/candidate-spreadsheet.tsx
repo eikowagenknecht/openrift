@@ -1,9 +1,11 @@
-import type { EnumOrders, ProviderSettingResponse } from "@openrift/shared";
-import { fixTypography, stringifyUnknown } from "@openrift/shared";
 import type {
   AcceptCardField,
   AcceptPrintingField,
 } from "@openrift/shared/contracts/admin/card-mutations";
+import { fixTypography } from "@openrift/shared/fix-typography";
+import type { ProviderSettingResponse } from "@openrift/shared/types/api/admin";
+import type { EnumOrders } from "@openrift/shared/types/enums";
+import { stringifyUnknown } from "@openrift/shared/utils";
 import {
   ArrowRightLeftIcon,
   CheckIcon,

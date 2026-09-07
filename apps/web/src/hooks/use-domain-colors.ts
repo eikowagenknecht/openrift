@@ -1,4 +1,4 @@
-import { DEFAULT_DOMAIN_COLORS } from "@openrift/shared";
+import { DEFAULT_DOMAIN_COLORS } from "@openrift/shared/domain-colors";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";

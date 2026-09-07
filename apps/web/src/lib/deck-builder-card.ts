@@ -1,15 +1,15 @@
+import type { DeckCard } from "@openrift/shared/deck-rules";
+import { copyLimitFor, formatHasSideboard } from "@openrift/shared/deck-rules";
+import type { DeckCardResponse, PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
 import type {
-  Card,
   CardType,
-  DeckCard,
-  DeckCardResponse,
   DeckFormat,
   DeckZone,
   Domain,
-  PublicDeckCardResponse,
   SuperType,
-} from "@openrift/shared";
-import { WellKnown, copyLimitFor, formatHasSideboard, isBaseBanFormat } from "@openrift/shared";
+} from "@openrift/shared/types/enums";
+import { WellKnown, isBaseBanFormat } from "@openrift/shared/well-known";
 
 const EMPTY_ARRAY: string[] = [];
 

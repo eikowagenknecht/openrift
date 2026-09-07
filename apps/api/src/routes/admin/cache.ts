@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
 import { adminCacheContract } from "@openrift/shared/contracts/admin/cache";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { createLogger } from "@openrift/shared/logger";
 import { implement } from "@orpc/server";
 

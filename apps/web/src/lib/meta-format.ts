@@ -1,8 +1,13 @@
-import type { MetaEventTier, MetaListStatus, MetaPlayerOverlayField } from "@openrift/shared";
-import { META_PLAYER_OVERLAY_FIELDS, todayUtc } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared/set-release";
+import type {
+  MetaEventTier,
+  MetaListStatus,
+  MetaPlayerOverlayField,
+} from "@openrift/shared/types/enums";
+import { META_PLAYER_OVERLAY_FIELDS } from "@openrift/shared/types/enums";
 
 // The deck share image also uses these; they live in `shared` for both to import.
-export { formatRank, formatRecord } from "@openrift/shared";
+export { formatRank, formatRecord } from "@openrift/shared/meta-standings";
 
 export const META_LIST_STATUS_LABELS: Record<MetaListStatus, string> = {
   full: "Full list",

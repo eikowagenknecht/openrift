@@ -1,5 +1,6 @@
-import type { DeckFormat, DeckZone } from "@openrift/shared";
-import { SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
+import { SIDEBOARD_MAXIMUM } from "@openrift/shared/deck-rules";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 export {
   REQUIRED_ZONES,
@@ -7,7 +8,7 @@ export {
   requiredZoneProgress,
   zoneExpected,
   zoneLabel,
-} from "@openrift/shared";
+} from "@openrift/shared/deck-zones";
 
 /** Prefer `zoneEmptyHint` — this misses the Custom-Region battlefield override. */
 export const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {

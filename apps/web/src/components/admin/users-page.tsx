@@ -1,5 +1,6 @@
-import type { AdminUserResponse } from "@openrift/shared";
-import { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS, formatDay } from "@openrift/shared";
+import { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS } from "@openrift/shared/admin-sections";
+import { formatDay } from "@openrift/shared/format-date";
+import type { AdminUserResponse } from "@openrift/shared/types/api/admin";
 import { EllipsisVerticalIcon } from "lucide-react";
 
 import { AdminTable } from "@/components/admin/admin-table";

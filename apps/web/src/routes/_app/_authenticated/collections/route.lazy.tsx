@@ -8,7 +8,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
-import { legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";

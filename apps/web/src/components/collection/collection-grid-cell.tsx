@@ -1,5 +1,6 @@
-import type { Printing } from "@openrift/shared";
-import { copyHasMetadata, legendDisplayName } from "@openrift/shared";
+import { copyHasMetadata } from "@openrift/shared/copy-metadata";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { ArrowDownToLineIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";

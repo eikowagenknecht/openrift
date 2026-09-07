@@ -1,4 +1,5 @@
-import type { GroupByField, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { GroupByField } from "@openrift/shared/types/search";
 
 /**
  * Surfaces gate per-tile behavior (click-navigation by printing vs. card,

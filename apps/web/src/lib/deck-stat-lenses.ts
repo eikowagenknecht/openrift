@@ -1,5 +1,6 @@
-import type { DeckZone } from "@openrift/shared";
-import { enumLabel, WellKnown } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";

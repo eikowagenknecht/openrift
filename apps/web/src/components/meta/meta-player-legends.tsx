@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 
 import { Heading } from "@/components/heading";
 import { MetaIdentity } from "@/components/meta/meta-identity";

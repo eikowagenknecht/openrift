@@ -1,11 +1,8 @@
-import type {
-  DeckFormat,
-  DeckFormatConfig,
-  DeckViolation,
-  DeckZone,
-  Domain,
-} from "@openrift/shared";
-import { WellKnown, copyLimitFor, validateDeck } from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import { copyLimitFor, validateDeck } from "@openrift/shared/deck-rules";
+import type { DeckFormatConfig } from "@openrift/shared/types/api/deck";
+import type { DeckFormat, DeckZone, Domain } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 

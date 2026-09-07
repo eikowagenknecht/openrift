@@ -1,4 +1,4 @@
-import type { Rarity } from "@openrift/shared";
+import type { Rarity } from "@openrift/shared/types/enums";
 
 export interface OwnershipPrinting {
   id: string;

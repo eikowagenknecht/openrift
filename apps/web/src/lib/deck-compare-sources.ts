@@ -1,5 +1,7 @@
-import type { Card, DeckListItemResponse, DeckZone, Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import type { DeckDiffCard } from "@/lib/deck-diff";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";

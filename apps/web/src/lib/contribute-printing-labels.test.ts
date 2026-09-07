@@ -1,4 +1,4 @@
-import { formatPrintingVariantLabel } from "@openrift/shared";
+import { formatPrintingVariantLabel } from "@openrift/shared/printing-label";
 import { describe, expect, it } from "vitest";
 
 import type { ContributeFormPrinting } from "@/lib/contribute-json";

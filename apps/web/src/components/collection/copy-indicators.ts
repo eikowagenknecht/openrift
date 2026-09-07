@@ -1,4 +1,4 @@
-import type { CopyResponse } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import type { LucideIcon } from "lucide-react";
 import { FileTextIcon, LinkIcon, LockIcon, PaintbrushIcon } from "lucide-react";
 

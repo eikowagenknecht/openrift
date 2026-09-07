@@ -1,4 +1,4 @@
-import type { AdminMetaPlayer } from "@openrift/shared";
+import type { AdminMetaPlayer } from "@openrift/shared/types/api/meta";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";

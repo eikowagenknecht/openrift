@@ -1,4 +1,5 @@
-import { normalizeNameForIdentity, resolveCard } from "@openrift/shared";
+import { resolveCard } from "@openrift/shared/card-search";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
 import type { CardResolution } from "../repositories/deck-check.js";

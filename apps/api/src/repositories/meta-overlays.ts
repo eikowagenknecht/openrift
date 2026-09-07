@@ -1,4 +1,4 @@
-import type { MetaEventOverlayField, MetaOverlayStatus } from "@openrift/shared/types";
+import type { MetaEventOverlayField, MetaOverlayStatus } from "@openrift/shared/types/enums";
 import type { Insertable, Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 

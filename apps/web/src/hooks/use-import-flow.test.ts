@@ -1,4 +1,4 @@
-import type { ListKind } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
 import { describe, expect, it } from "vitest";
 
 import { toImportableListOptions } from "./use-import-flow";

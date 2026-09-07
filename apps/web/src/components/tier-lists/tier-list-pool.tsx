@@ -1,6 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import type { Printing } from "@openrift/shared";
-import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared/tier-colors";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { useState } from "react";
 
 import { CardCell } from "@/components/cards/card-cell";

@@ -1,4 +1,4 @@
-import type { CardTradeLiveAnnotation } from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
 import { describe, expect, it } from "vitest";
 
 import { aggregateIncomingTradeCounts } from "./use-card-trades";

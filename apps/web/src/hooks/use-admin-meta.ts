@@ -1,15 +1,17 @@
+import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
 import type {
   AdminMetaEvent,
   AdminMetaEventList,
   AdminMetaEventSource,
   AdminMetaPlayer,
+} from "@openrift/shared/types/api/meta";
+import type {
   DeckZone,
   META_EVENT_SORT_DIRECTIONS,
   META_EVENT_SORTS,
   MetaEventSourceFilter,
   MetaListStatus,
-} from "@openrift/shared";
-import { adminMetaContract } from "@openrift/shared/contracts/admin/meta";
+} from "@openrift/shared/types/enums";
 import { keepPreviousData, queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

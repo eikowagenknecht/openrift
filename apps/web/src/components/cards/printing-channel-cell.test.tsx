@@ -1,4 +1,4 @@
-import type { PrintingDistributionChannel } from "@openrift/shared";
+import type { PrintingDistributionChannel } from "@openrift/shared/types/catalog";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 

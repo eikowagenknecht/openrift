@@ -4,10 +4,10 @@
  * manual admin mapping.
  */
 
-import { WellKnown } from "@openrift/shared";
-import type { PriceRefreshResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
+import type { PriceRefreshResponse } from "@openrift/shared/types/api/admin";
 import { toCents } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";

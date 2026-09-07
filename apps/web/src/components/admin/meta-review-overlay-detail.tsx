@@ -1,5 +1,6 @@
-import { formatDay } from "@openrift/shared";
-import type { DeckZone, MetaOverlayQueueRow } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
+import type { DeckZone } from "@openrift/shared/types/enums";
 import { ArchiveXIcon, CheckIcon, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 

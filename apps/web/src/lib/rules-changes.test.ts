@@ -1,4 +1,4 @@
-import type { RuleChangesResponse, RuleResponse } from "@openrift/shared";
+import type { RuleChangesResponse, RuleResponse } from "@openrift/shared/types/api/rules";
 import { describe, expect, it } from "vitest";
 
 import {

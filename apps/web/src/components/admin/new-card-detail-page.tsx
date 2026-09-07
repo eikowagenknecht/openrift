@@ -1,9 +1,9 @@
+import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import type {
   CandidateCardResponse,
   CandidatePrintingResponse,
   UnmatchedCardDetailResponse,
-} from "@openrift/shared";
-import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
+} from "@openrift/shared/types/api/admin";
 import { useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightIcon,

@@ -1,5 +1,5 @@
-import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared";
-import { compareRuleNumbers } from "@openrift/shared";
+import { compareRuleNumbers } from "@openrift/shared/rules";
+import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared/types/api/rules";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";

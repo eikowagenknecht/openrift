@@ -1,4 +1,4 @@
-import type { FriendGroupRole } from "@openrift/shared";
+import type { FriendGroupRole } from "@openrift/shared/types/api/friend-group";
 import { describe, expect, it } from "vitest";
 
 import { AppError } from "../errors.js";

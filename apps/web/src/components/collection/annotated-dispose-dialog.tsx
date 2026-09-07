@@ -1,5 +1,6 @@
-import type { CopyResponse } from "@openrift/shared";
-import { enumLabel, legendDisplayName } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import {
   AlertDialog,

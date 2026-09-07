@@ -1,4 +1,4 @@
-import type { OverlayStateResponse } from "@openrift/shared";
+import type { OverlayStateResponse } from "@openrift/shared/contracts/overlay";
 import { DEFAULT_OVERLAY_PAYLOAD } from "@openrift/shared/contracts/overlay";
 import { publicOverlayContract } from "@openrift/shared/contracts/public-overlay";
 import { implement } from "@orpc/server";

@@ -1,4 +1,5 @@
-import type { ListEntryDetailResponse, Printing } from "@openrift/shared";
+import type { ListEntryDetailResponse } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {

@@ -1,6 +1,6 @@
-import type { PriceRefreshResponse } from "@openrift/shared";
-import { formatRelativeTime } from "@openrift/shared";
 import { priceRefreshResponseSchema } from "@openrift/shared/contracts/admin/job-results";
+import { formatRelativeTime } from "@openrift/shared/format-date";
+import type { PriceRefreshResponse } from "@openrift/shared/types/api/admin";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";

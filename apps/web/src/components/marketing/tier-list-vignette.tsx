@@ -1,4 +1,4 @@
-import { TIER_LABEL_INK, tierColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierColor } from "@openrift/shared/tier-colors";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";

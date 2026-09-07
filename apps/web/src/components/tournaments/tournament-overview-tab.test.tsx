@@ -1,8 +1,8 @@
+import type { PodTournamentDetailResponse } from "@openrift/shared/types/api/pod-tournament";
 import type {
-  PodTournamentDetailResponse,
   TournamentDetailResponse,
   TournamentParticipantResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";

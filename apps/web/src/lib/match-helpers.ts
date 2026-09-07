@@ -1,5 +1,5 @@
-import { mathRandom } from "@openrift/shared";
-import type { PackRandom as Random } from "@openrift/shared";
+import { mathRandom } from "@openrift/shared/pack-opener/rng";
+import type { Random } from "@openrift/shared/pack-opener/rng";
 
 export function chooseRandomId(ids: string[], random: Random = mathRandom): string | null {
   if (ids.length === 0) {

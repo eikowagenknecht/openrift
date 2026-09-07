@@ -1,5 +1,10 @@
-import type { DeckResponse, DeckZone, Marketplace, Printing } from "@openrift/shared";
-import { copyLimitFor, imageUrl, WellKnown } from "@openrift/shared";
+import { copyLimitFor } from "@openrift/shared/deck-rules";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { DeckResponse } from "@openrift/shared/types/api/deck";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Suspense, useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";

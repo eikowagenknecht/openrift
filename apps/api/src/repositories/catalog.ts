@@ -1,6 +1,6 @@
-import { WellKnown } from "@openrift/shared";
-import type { SetReleases } from "@openrift/shared";
-import type { CardType, Domain, SuperType } from "@openrift/shared/types";
+import type { SetReleases } from "@openrift/shared/set-release";
+import type { CardType, Domain, SuperType } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, NotNull, RawBuilder, Selectable } from "kysely";
 import { sql } from "kysely";
 

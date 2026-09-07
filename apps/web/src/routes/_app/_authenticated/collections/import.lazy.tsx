@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { sortCards } from "@openrift/shared";
+import { sortCards } from "@openrift/shared/filters";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { useQuery } from "@tanstack/react-query";
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { DownloadIcon, FileUpIcon, Loader2Icon, UploadIcon } from "lucide-react";

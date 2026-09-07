@@ -2,9 +2,9 @@ import type {
   CardTradeLiveAnnotation,
   CardTradeLivePhase,
   CardTradeRole,
-  SearchField,
-} from "@openrift/shared";
-import { ALL_SEARCH_FIELDS } from "@openrift/shared";
+} from "@openrift/shared/types/api/card-trade";
+import type { SearchField } from "@openrift/shared/types/search";
+import { ALL_SEARCH_FIELDS } from "@openrift/shared/types/search";
 import { Link } from "@tanstack/react-router";
 import {
   BellIcon,

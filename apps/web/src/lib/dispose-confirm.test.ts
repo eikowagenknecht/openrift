@@ -1,4 +1,4 @@
-import type { CopyListMembershipsResponse } from "@openrift/shared";
+import type { CopyListMembershipsResponse } from "@openrift/shared/types/api/collection";
 import { describe, expect, it } from "vitest";
 
 import { DISPOSE_TYPE_CONFIRM_THRESHOLD, disposeConfirmState } from "./dispose-confirm";

@@ -1,5 +1,5 @@
-import type { FriendGroupDetailResponse } from "@openrift/shared";
-import { formatRelativeTime } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared/format-date";
+import type { FriendGroupDetailResponse } from "@openrift/shared/types/api/friend-group";
 import { CheckIcon, UserPlusIcon, XIcon } from "lucide-react";
 
 import { ActionBand } from "@/components/ui/action-band";

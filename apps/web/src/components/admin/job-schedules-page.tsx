@@ -1,5 +1,5 @@
-import { formatDayTime, formatRelativeTime } from "@openrift/shared";
 import type { JobScheduleView } from "@openrift/shared/contracts/admin/job-schedules";
+import { formatDayTime, formatRelativeTime } from "@openrift/shared/format-date";
 import { CalendarPlusIcon, LoaderIcon, PlayIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

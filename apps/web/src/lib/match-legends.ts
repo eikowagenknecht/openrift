@@ -1,5 +1,7 @@
-import type { Printing } from "@openrift/shared";
-import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 // The tracker works offline; the catalog is only read while the legend
 // picker is open, so nothing here may be a live catalog reference.

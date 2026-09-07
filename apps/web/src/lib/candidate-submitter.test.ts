@@ -1,4 +1,4 @@
-import type { CandidateCardResponse } from "@openrift/shared";
+import type { CandidateCardResponse } from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import { buildSourceSubmitters, submitterLabel } from "@/lib/candidate-submitter";

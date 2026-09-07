@@ -1,4 +1,4 @@
-import type { CardStatLabels } from "@openrift/shared";
+import type { CardStatLabels } from "@openrift/shared/card-stat-line";
 import { describe, expect, it } from "vitest";
 
 import type { ChatCard } from "./chat-presenters.js";

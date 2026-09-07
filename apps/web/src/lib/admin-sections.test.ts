@@ -1,4 +1,4 @@
-import { ADMIN_SECTION_SLUGS } from "@openrift/shared";
+import { ADMIN_SECTION_SLUGS } from "@openrift/shared/admin-sections";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_SECTION_ROUTES, adminSectionForPathname } from "./admin-sections";

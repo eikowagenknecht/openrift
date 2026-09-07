@@ -1,5 +1,7 @@
-import type { CardTradeStatus, Finish, Rarity } from "@openrift/shared";
-import { marketplaceLabel, formatRelativeTime } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared/format-date";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import type { CardTradeStatus } from "@openrift/shared/types/api/card-trade";
+import type { Finish, Rarity } from "@openrift/shared/types/enums";
 import { ArrowDownLeftIcon, ArrowUpRightIcon, BellIcon, CheckIcon, ClockIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

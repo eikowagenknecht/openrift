@@ -1,5 +1,14 @@
-import type { Currency, TradePreference, TradePricePref, TradeType } from "@openrift/shared";
-import { CURRENCIES, TRADE_PRICE_PREFS, TRADE_TYPES } from "@openrift/shared";
+import type {
+  Currency,
+  TradePreference,
+  TradePricePref,
+  TradeType,
+} from "@openrift/shared/types/api/trade-preferences";
+import {
+  CURRENCIES,
+  TRADE_PRICE_PREFS,
+  TRADE_TYPES,
+} from "@openrift/shared/types/api/trade-preferences";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

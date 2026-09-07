@@ -1,4 +1,4 @@
-import type { DeckZone } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { DeckCardDragData } from "@/lib/deck-dnd-data";

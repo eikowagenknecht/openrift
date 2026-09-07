@@ -1,4 +1,4 @@
-import { priceLookupFromMap } from "@openrift/shared";
+import { priceLookupFromMap } from "@openrift/shared/price-lookup";
 import { describe, expect, it } from "vitest";
 
 import {

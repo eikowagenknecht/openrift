@@ -5,7 +5,7 @@ import {
   piltoverCodec,
 } from "@openrift/shared/deck-codecs";
 import type { DeckCodecCard, DeckCodeFormat, EncodeResult } from "@openrift/shared/deck-codecs";
-import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types";
+import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
 
 import type { canonicalPrintingsRepo } from "../../repositories/canonical-printings.js";
 

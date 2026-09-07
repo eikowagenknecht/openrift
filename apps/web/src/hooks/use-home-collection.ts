@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import { useQuery } from "@tanstack/react-query";
 
 import { useUserId } from "@/lib/auth-session";

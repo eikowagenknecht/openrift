@@ -1,11 +1,13 @@
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
+} from "@openrift/shared/types/api/catalog";
+import type {
   DistributionChannelKind,
   Marker,
   PrintingCitation,
   PrintingDistributionChannel,
-} from "@openrift/shared";
+} from "@openrift/shared/types/catalog";
 
 import type { Repos } from "../deps.js";
 

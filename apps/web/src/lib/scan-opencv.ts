@@ -1,4 +1,5 @@
-import type { OpenCvLike, OrbCvLike } from "@openrift/shared/scan";
+import type { OpenCvLike } from "@openrift/shared/scan/detect-cv";
+import type { OrbCvLike } from "@openrift/shared/scan/orb";
 
 import { fetchWithProgress } from "@/lib/fetch-progress";
 import { scanAssetError } from "@/lib/scan-asset-hint";

@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { PlusSquareIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";

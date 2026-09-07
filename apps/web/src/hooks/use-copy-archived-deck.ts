@@ -1,4 +1,4 @@
-import type { MetaDeckDetailResponse } from "@openrift/shared";
+import type { MetaDeckDetailResponse } from "@openrift/shared/types/api/meta";
 import { useNavigate } from "@tanstack/react-router";
 
 import { useCloneSharedDeck } from "@/hooks/use-decks";

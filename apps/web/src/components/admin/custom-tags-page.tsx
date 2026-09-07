@@ -1,5 +1,8 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import type { CustomTagCategoryResponse, CustomTagResponse } from "@openrift/shared";
+import type {
+  CustomTagCategoryResponse,
+  CustomTagResponse,
+} from "@openrift/shared/types/api/admin";
 import { useState } from "react";
 
 import {

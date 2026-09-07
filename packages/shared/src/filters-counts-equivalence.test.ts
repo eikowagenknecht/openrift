@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { computeFilterCounts, filterCards } from "./filters";
 import type { FilterCounts } from "./filters";
-import type { Card, CardFilters, FilterRange, PresenceDimension, Printing } from "./types";
-import { EMPTY_CARD_FILTERS, NONE, PRESENCE_DIMENSIONS } from "./types";
+import type { Card, Printing } from "./types/catalog.js";
+import type { CardFilters, FilterRange, PresenceDimension } from "./types/search.js";
+import { EMPTY_CARD_FILTERS, NONE, PRESENCE_DIMENSIONS } from "./types/search.js";
 import { boundsOf } from "./utils";
 
 interface RefOptions {

@@ -1,4 +1,4 @@
-import type { OrganizationRole } from "@openrift/shared";
+import type { OrganizationRole } from "@openrift/shared/types/api/tournament";
 import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 
 import type { Database, OrganizationMembersTable, OrganizationsTable } from "../db/index.js";

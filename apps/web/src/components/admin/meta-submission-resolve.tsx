@@ -1,9 +1,9 @@
-import type { MetaSubmissionReason } from "@openrift/shared";
-import { formatDayTime } from "@openrift/shared";
 import type {
   AdminMetaSubmission,
   MetaSubmissionResolution,
 } from "@openrift/shared/contracts/admin/meta-submissions";
+import { formatDayTime } from "@openrift/shared/format-date";
+import type { MetaSubmissionReason } from "@openrift/shared/types/enums";
 import { UndoIcon } from "lucide-react";
 import { useState } from "react";
 

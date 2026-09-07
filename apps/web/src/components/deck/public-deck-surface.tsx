@@ -1,5 +1,7 @@
-import type { DeckZone, PublicDeckDetailResponse } from "@openrift/shared";
-import { WellKnown, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { PublicDeckDetailResponse } from "@openrift/shared/types/api/deck";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Suspense, useEffect, useRef, useState } from "react";
 
 import { CatalogSubsetProvider } from "@/components/cards/catalog-subset-provider";

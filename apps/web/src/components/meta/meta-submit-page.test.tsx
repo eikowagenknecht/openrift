@@ -1,4 +1,5 @@
-import type { MetaEventSummary, Printing } from "@openrift/shared";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";

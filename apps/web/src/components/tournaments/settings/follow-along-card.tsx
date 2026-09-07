@@ -1,4 +1,4 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 import { useState } from "react";
 
 import { ShareLinkRow } from "@/components/share/share-link-row";

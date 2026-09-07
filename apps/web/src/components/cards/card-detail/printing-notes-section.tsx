@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { Link } from "@tanstack/react-router";
 
 import { PrintingCitationList } from "@/components/cards/card-detail/printing-citations";

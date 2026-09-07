@@ -1,5 +1,6 @@
-import type { CopyResponse, Printing } from "@openrift/shared";
-import { formatPrintingVariantLabelParts } from "@openrift/shared";
+import { formatPrintingVariantLabelParts } from "@openrift/shared/printing-label";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { DeckBoxCopy, DeckBoxInput, DeckBoxPlan } from "@/lib/deck-box";

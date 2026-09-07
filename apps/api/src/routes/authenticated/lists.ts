@@ -1,16 +1,17 @@
-import { ERROR_CODES, ruleCombineMatchesKind, ruleKindForListKind } from "@openrift/shared";
+import { listsContract } from "@openrift/shared/contracts/lists";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { ListGroupSharesResponse } from "@openrift/shared/types/api/friend-group";
 import type {
   ListBulkAddResponse,
   ListDetailResponse,
   ListEntryResponse,
-  ListGroupSharesResponse,
   ListKind,
   ListListResponse,
   ListMoveResponse,
   ListResponse,
   ListShareResponse,
-} from "@openrift/shared";
-import { listsContract } from "@openrift/shared/contracts/lists";
+} from "@openrift/shared/types/api/list";
+import { ruleCombineMatchesKind, ruleKindForListKind } from "@openrift/shared/types/list-rule";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

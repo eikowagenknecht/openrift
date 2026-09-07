@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useRef, useState } from "react";
 
 import { BackgroundImageControl } from "@/components/card-designer/background-image-control";

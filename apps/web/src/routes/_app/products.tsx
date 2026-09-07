@@ -1,5 +1,5 @@
-import { imageUrl } from "@openrift/shared";
 import type { ProductsListResponse } from "@openrift/shared/contracts/products";
+import { imageUrl } from "@openrift/shared/image-url";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";

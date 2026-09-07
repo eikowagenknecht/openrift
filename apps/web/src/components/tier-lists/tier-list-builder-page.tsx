@@ -1,5 +1,6 @@
-import type { TierListResponse } from "@openrift/shared";
-import { getOrientation, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { TierListResponse } from "@openrift/shared/types/api/tier-list";
+import { getOrientation } from "@openrift/shared/utils";
 import { useNavigate } from "@tanstack/react-router";
 import {
   EllipsisVerticalIcon,

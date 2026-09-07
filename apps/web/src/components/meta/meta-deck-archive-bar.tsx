@@ -1,4 +1,4 @@
-import type { MetaListStatus } from "@openrift/shared";
+import type { MetaListStatus } from "@openrift/shared/types/enums";
 import { Link } from "@tanstack/react-router";
 
 import {

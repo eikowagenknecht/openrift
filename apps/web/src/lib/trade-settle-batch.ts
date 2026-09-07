@@ -1,4 +1,7 @@
-import type { CardTradeCopyOptionsResponse, CardTradeResponse } from "@openrift/shared";
+import type {
+  CardTradeCopyOptionsResponse,
+  CardTradeResponse,
+} from "@openrift/shared/types/api/card-trade";
 
 export interface SettleStep {
   trade: CardTradeResponse;

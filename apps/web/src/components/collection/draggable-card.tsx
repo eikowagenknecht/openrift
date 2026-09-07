@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import type { ReactNode } from "react";
 
 import { useIsMobile } from "@/hooks/use-is-mobile";

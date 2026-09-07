@@ -1,5 +1,7 @@
-import type { DeckZone } from "@openrift/shared";
-import { legendDisplayName, SIDEBOARD_MAXIMUM, WellKnown } from "@openrift/shared";
+import { SIDEBOARD_MAXIMUM } from "@openrift/shared/deck-rules";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

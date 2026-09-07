@@ -1,4 +1,4 @@
-import { formatDayTimeLocal } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared/format-date";
 import { RefreshCwIcon } from "lucide-react";
 
 import { PageTopBarButton } from "@/components/layout/page-top-bar";

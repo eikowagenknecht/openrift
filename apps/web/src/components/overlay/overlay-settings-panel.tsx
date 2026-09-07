@@ -3,7 +3,7 @@ import type {
   OverlayCorner,
   OverlayPlateFields,
   OverlayPlatePosition,
-} from "@openrift/shared";
+} from "@openrift/shared/contracts/overlay";
 import { RefreshCwIcon } from "lucide-react";
 
 import { OverlayPresetsSection } from "@/components/overlay/overlay-presets-section";

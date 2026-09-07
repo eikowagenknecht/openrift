@@ -1,13 +1,13 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side file needs filesystem access
 import { join } from "node:path";
 
+import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
+import type { Logger } from "@openrift/shared/logger";
 import type {
   RegenerateImagesCheckpoint,
   RehostImageResponse,
   UnrehostImagesResponse,
-} from "@openrift/shared";
-import { isRegenerateImagesCheckpoint } from "@openrift/shared/contracts/admin/job-results";
-import type { Logger } from "@openrift/shared/logger";
+} from "@openrift/shared/types/api/admin";
 
 import type { Io } from "../../io.js";
 import type { jobRunsRepo } from "../../repositories/job-runs.js";

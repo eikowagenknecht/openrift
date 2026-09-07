@@ -1,6 +1,7 @@
-import type { CandidatePrintingResponse, EnumOrders } from "@openrift/shared";
-import { fixTypography } from "@openrift/shared";
 import { isAcceptCardField } from "@openrift/shared/contracts/admin/card-mutations";
+import { fixTypography } from "@openrift/shared/fix-typography";
+import type { CandidatePrintingResponse } from "@openrift/shared/types/api/admin";
+import type { EnumOrders } from "@openrift/shared/types/enums";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

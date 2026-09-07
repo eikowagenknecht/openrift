@@ -1,4 +1,5 @@
-import type { DistributionChannelKind, DistributionChannelResponse } from "@openrift/shared";
+import type { DistributionChannelResponse } from "@openrift/shared/types/api/admin";
+import type { DistributionChannelKind } from "@openrift/shared/types/catalog";
 
 import {
   DescriptionCell,

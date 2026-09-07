@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { Suspense, lazy } from "react";
 import type { ReactNode } from "react";
 

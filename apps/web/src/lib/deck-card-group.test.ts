@@ -1,4 +1,4 @@
-import type { CardType, Domain } from "@openrift/shared";
+import type { CardType, Domain } from "@openrift/shared/types/enums";
 import { describe, expect, it } from "vitest";
 
 import type { DeckCardGroupContext } from "@/lib/deck-card-group";

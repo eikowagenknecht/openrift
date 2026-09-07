@@ -1,6 +1,10 @@
-import type { ContactMethod, FriendGroupInviteDirection, FriendGroupRole } from "@openrift/shared";
-import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared";
+import { TRADED_CARD_TRADE_STATUSES } from "@openrift/shared/card-trade-lifecycle";
 import { TRADE_VOLUME_WINDOW_DAYS } from "@openrift/shared/contracts/friend-groups";
+import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
+import type {
+  FriendGroupInviteDirection,
+  FriendGroupRole,
+} from "@openrift/shared/types/api/friend-group";
 import { sql } from "kysely";
 import type { ExpressionBuilder, Insertable, Kysely, Selectable, Updateable } from "kysely";
 

@@ -1,5 +1,7 @@
-import type { DeckZone, MetaSubmissionInput, Printing } from "@openrift/shared";
 import { encodeText } from "@openrift/shared/deck-codecs";
+import type { MetaSubmissionInput } from "@openrift/shared/types/api/meta";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
 
 import type { DeckMatchedEntry } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";

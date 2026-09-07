@@ -1,4 +1,4 @@
-import type { MetaCrossSourceCitation, MetaCrossSourceRow } from "@openrift/shared";
+import type { MetaCrossSourceCitation, MetaCrossSourceRow } from "@openrift/shared/types/api/meta";
 import { LinkIcon, UnlinkIcon, UserXIcon } from "lucide-react";
 import { toast } from "sonner";
 

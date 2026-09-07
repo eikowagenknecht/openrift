@@ -1,5 +1,5 @@
-import { EMPTY_CARD_FILTERS } from "@openrift/shared";
 import { listDetailResponseSchema } from "@openrift/shared/contracts/lists";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { describe, expect, it } from "vitest";
 
 import {

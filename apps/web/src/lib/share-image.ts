@@ -1,8 +1,8 @@
 // Share images are served with a long immutable cache keyed by URL, so the `?v=`
 // version must change whenever the underlying content changes.
 
-import type { ShareImageQuery } from "@openrift/shared";
-import { shareImageQueryParams } from "@openrift/shared";
+import type { ShareImageQuery } from "@openrift/shared/share-image-params";
+import { shareImageQueryParams } from "@openrift/shared/share-image-params";
 
 const API_BASE = "/api/v1";
 

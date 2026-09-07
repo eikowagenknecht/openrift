@@ -1,5 +1,6 @@
-import type { CustomTag, DeckFormatConfig } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckFormatConfig } from "@openrift/shared/types/api/deck";
+import type { CustomTag } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 
 /** A tag-locked format stores `tagSlugs` in `decks.format_config`, keyed by format slug. */
 export interface FormatTagConfig {

@@ -1,4 +1,4 @@
-import type { PrintingDistributionChannel } from "@openrift/shared";
+import type { PrintingDistributionChannel } from "@openrift/shared/types/catalog";
 
 import { cn } from "@/lib/utils";
 

@@ -1,3 +1,4 @@
+import { metaContract } from "@openrift/shared/contracts/meta";
 import type {
   MetaActivityResponse,
   MetaCountsQuery,
@@ -11,8 +12,7 @@ import type {
   MetaLegendListResponse,
   MetaPlayerDetailResponse,
   MetaScopeQuery,
-} from "@openrift/shared";
-import { metaContract } from "@openrift/shared/contracts/meta";
+} from "@openrift/shared/types/api/meta";
 import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";

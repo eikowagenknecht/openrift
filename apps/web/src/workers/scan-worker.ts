@@ -1,12 +1,9 @@
-import type {
-  ArtTrack,
-  CardEmbedder,
-  FrameOutcome,
-  OpenCvLike,
-  OrbCvLike,
-  RgbaImage,
-  ScanSession,
-} from "@openrift/shared/scan";
+import type { ArtTrack } from "@openrift/shared/scan/accept";
+import type { OpenCvLike } from "@openrift/shared/scan/detect-cv";
+import type { CardEmbedder } from "@openrift/shared/scan/embed";
+import type { OrbCvLike } from "@openrift/shared/scan/orb";
+import type { FrameOutcome, ScanSession } from "@openrift/shared/scan/session";
+import type { RgbaImage } from "@openrift/shared/scan/types";
 
 import { loadScanBank } from "@/lib/scan-bank";
 import { embedderImageSize, loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";

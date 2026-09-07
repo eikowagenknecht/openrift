@@ -1,5 +1,5 @@
-import { ERROR_CODES } from "@openrift/shared";
 import { metaSubmissionsContract } from "@openrift/shared/contracts/meta-submissions";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { implement } from "@orpc/server";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";

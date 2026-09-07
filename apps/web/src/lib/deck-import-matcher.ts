@@ -1,21 +1,10 @@
-import type {
-  CardResolution,
-  CardSearchIndex,
-  CardType,
-  DeckZone,
-  Domain,
-  Printing,
-  SearchableCard,
-  SuperType,
-} from "@openrift/shared";
-import {
-  buildCardIndex,
-  cardSearchAltNames,
-  inferZone,
-  legendDisplayName,
-  resolveCard,
-  WellKnown,
-} from "@openrift/shared";
+import type { CardResolution, CardSearchIndex, SearchableCard } from "@openrift/shared/card-search";
+import { buildCardIndex, resolveCard } from "@openrift/shared/card-search";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared/types/enums";
+import { cardSearchAltNames, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
+import { inferZone } from "@openrift/shared/zone-inference";
 
 import type { DeckImportEntry } from "@/lib/deck-import-parsers";
 

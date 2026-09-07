@@ -1,5 +1,5 @@
-import type { MetaEventPlayer } from "@openrift/shared";
-import { formatRank, formatRecord } from "@openrift/shared";
+import { formatRank, formatRecord } from "@openrift/shared/meta-standings";
+import type { MetaEventPlayer } from "@openrift/shared/types/api/meta";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { ChevronRightIcon } from "lucide-react";
 

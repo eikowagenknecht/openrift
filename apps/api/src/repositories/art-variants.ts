@@ -1,4 +1,4 @@
-import type { ArtVariant } from "@openrift/shared/types";
+import type { ArtVariant } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";

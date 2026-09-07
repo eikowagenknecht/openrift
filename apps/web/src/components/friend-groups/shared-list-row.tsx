@@ -1,8 +1,8 @@
 import type {
   FriendGroupMemberResponse,
   FriendGroupShareResponse,
-  ListIntent,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/friend-group";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import { Link } from "@tanstack/react-router";
 
 import { Card } from "@/components/ui/card";

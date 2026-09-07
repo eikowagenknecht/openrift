@@ -1,5 +1,7 @@
-import type { SetListResponse, VariantLabelPrinting } from "@openrift/shared";
-import { WellKnown, enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { VariantLabelPrinting } from "@openrift/shared/printing-label";
+import type { SetListResponse } from "@openrift/shared/types/api/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   CheckCircle2Icon,

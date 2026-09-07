@@ -1,5 +1,5 @@
-import type { CandidateCardSummaryResponse } from "@openrift/shared";
-import { matchesCardQuery } from "@openrift/shared";
+import { matchesCardQuery } from "@openrift/shared/card-search";
+import type { CandidateCardSummaryResponse } from "@openrift/shared/types/api/admin";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";

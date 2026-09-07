@@ -1,11 +1,10 @@
-import type { DeckZone, Marketplace, PriceLookup, Printing } from "@openrift/shared";
-import {
-  WellKnown,
-  getOrientation,
-  isCountedZone,
-  legendDisplayName,
-  preferredPrinting,
-} from "@openrift/shared";
+import { isCountedZone } from "@openrift/shared/deck-zones";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { getOrientation, legendDisplayName, preferredPrinting } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type {

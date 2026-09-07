@@ -1,4 +1,5 @@
-import type { CopyResponse, Printing } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

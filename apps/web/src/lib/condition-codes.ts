@@ -4,7 +4,7 @@
  * (TCGplayer-style NM/LP/MP/HP/DMG, Cardmarket-style MT/EX/GD/PL/PO).
  */
 
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
 
 const SOURCE_TO_SLUG: Record<string, string> = {
   mint: "mint",

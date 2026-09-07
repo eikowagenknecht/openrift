@@ -1,4 +1,4 @@
-import { isGroupApprovalEmailEnabled } from "@openrift/shared/types";
+import { isGroupApprovalEmailEnabled } from "@openrift/shared/types/api/preferences";
 
 import type { Repos } from "../deps.js";
 import { buildGroupApprovedEmail, buildGroupJoinRequestEmail } from "../emails/group-emails.js";

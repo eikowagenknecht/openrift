@@ -1,12 +1,12 @@
+import type { ListKind } from "@openrift/shared/types/api/list";
 import type {
-  CardFilters,
-  ListKind,
   ListRule,
   ListRuleCombine,
-  Marketplace,
   RuleQuantity,
   TradeKeepPer,
-} from "@openrift/shared";
+} from "@openrift/shared/types/list-rule";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import type { CardFilters } from "@openrift/shared/types/search";
 import { create } from "zustand";
 
 import type { DraftRule } from "@/lib/rule-draft";

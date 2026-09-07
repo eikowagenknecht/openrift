@@ -1,5 +1,5 @@
-import type { DeckResponse } from "@openrift/shared";
-import { capitalize } from "@openrift/shared";
+import type { DeckResponse } from "@openrift/shared/types/api/deck";
+import { capitalize } from "@openrift/shared/utils";
 import { useState } from "react";
 
 import { TagMultiSelect, useCategoryTagSlugs } from "@/components/deck/format-tag-multi-select";

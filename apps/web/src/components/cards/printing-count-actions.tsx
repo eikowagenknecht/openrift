@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { useHydrated } from "@/hooks/use-hydrated";

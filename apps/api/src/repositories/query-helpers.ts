@@ -1,5 +1,5 @@
-import { legendDisplayName } from "@openrift/shared";
-import type { CardType, Finish, Rarity } from "@openrift/shared/types";
+import type { CardType, Finish, Rarity } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
 import type {
   Expression,
   ExpressionBuilder,

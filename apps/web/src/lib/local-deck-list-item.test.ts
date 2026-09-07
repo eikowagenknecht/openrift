@@ -1,5 +1,5 @@
-import type { Card } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { Card } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 import { describe, expect, it } from "vitest";
 
 import type { LocalDeck } from "@/lib/local-deck";

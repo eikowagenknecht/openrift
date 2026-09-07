@@ -1,4 +1,5 @@
-import { normalizeNameForIdentity, WellKnown } from "@openrift/shared";
+import { normalizeNameForIdentity } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { ImportEntry } from "@/lib/import-parsers";
 import { detectImportFormat, parseImportData } from "@/lib/import-parsers";

@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1, PRINTING_2 } from "../test/fixtures/constants.js";

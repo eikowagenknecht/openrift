@@ -5,7 +5,7 @@
  * {@link mapQuad} are the only bridge between them.
  */
 
-import type { Point } from "@openrift/shared/scan";
+import type { Point } from "@openrift/shared/scan/types";
 
 import { clamp } from "@/lib/math";
 

@@ -1,4 +1,4 @@
-import type { JobStatus, JobTrigger } from "@openrift/shared";
+import type { JobStatus, JobTrigger } from "@openrift/shared/contracts/admin/job-runs";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 

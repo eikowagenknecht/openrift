@@ -1,4 +1,4 @@
-import type { SitemapDataResponse } from "@openrift/shared";
+import type { SitemapDataResponse } from "@openrift/shared/types/api/catalog";
 import { describe, expect, it } from "vitest";
 
 import type { HelpArticle } from "./help-article";

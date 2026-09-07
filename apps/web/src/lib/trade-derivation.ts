@@ -1,14 +1,14 @@
-import type {
-  CardTradeLiveAnnotation,
-  CardTradeResponse,
-  FriendGroupMatchRow,
-} from "@openrift/shared";
 import {
   cardTradeLivePhaseRank,
   cardTradeState,
-  enumLabel,
   isLiveCardTradeStatus,
-} from "@openrift/shared";
+} from "@openrift/shared/card-trade-lifecycle";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type {
+  CardTradeLiveAnnotation,
+  CardTradeResponse,
+} from "@openrift/shared/types/api/card-trade";
+import type { FriendGroupMatchRow } from "@openrift/shared/types/api/friend-group";
 
 export type TradeSection = "action-needed" | "active" | "history";
 

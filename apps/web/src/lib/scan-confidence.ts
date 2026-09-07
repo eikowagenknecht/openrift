@@ -1,4 +1,4 @@
-import { DEFAULT_SESSION_OPTIONS } from "@openrift/shared/scan";
+import { DEFAULT_SESSION_OPTIONS } from "@openrift/shared/scan/session";
 
 const INLIER_WEIGHT = 0.55;
 const RUN_WEIGHT = 1 - INLIER_WEIGHT;

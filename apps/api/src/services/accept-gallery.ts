@@ -1,5 +1,6 @@
-import { slugifyName, WellKnown } from "@openrift/shared";
-import type { CardType, Domain, SuperType } from "@openrift/shared/types";
+import type { CardType, Domain, SuperType } from "@openrift/shared/types/enums";
+import { slugifyName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";

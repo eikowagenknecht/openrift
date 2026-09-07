@@ -1,5 +1,7 @@
-import type { DeckOddsConfig, DeckZone } from "@openrift/shared";
-import { WellKnown, enumLabel } from "@openrift/shared";
+import type { DeckOddsConfig } from "@openrift/shared/contracts/decks";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { HandIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 

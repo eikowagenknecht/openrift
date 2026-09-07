@@ -1,10 +1,6 @@
-import type {
-  FilterRange,
-  ListIntent,
-  ListKind,
-  ListRuleCombine,
-  TradeKeepPer,
-} from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
+import type { ListRuleCombine, TradeKeepPer } from "@openrift/shared/types/list-rule";
+import type { FilterRange } from "@openrift/shared/types/search";
 
 /**
  * A rule's shape follows the list's kind (card/printing lists match the catalog,

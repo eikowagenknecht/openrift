@@ -1,4 +1,4 @@
-import type { PodRoundResponse } from "@openrift/shared";
+import type { PodRoundResponse } from "@openrift/shared/types/api/pod-tournament";
 import { describe, expect, it } from "vitest";
 
 import {

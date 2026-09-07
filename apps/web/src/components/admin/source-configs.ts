@@ -1,4 +1,4 @@
-import { MARKETPLACE_LINKS } from "@openrift/shared";
+import { MARKETPLACE_LINKS } from "@openrift/shared/marketplace";
 
 import type { SourceMappingConfig } from "@/lib/price-mappings-types";
 

@@ -1,11 +1,11 @@
+import { formatMonth } from "@openrift/shared/format-date";
 import type {
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupMemberResponse,
   FriendGroupRole,
   FriendGroupShareResponse,
-} from "@openrift/shared";
-import { formatMonth } from "@openrift/shared";
+} from "@openrift/shared/types/api/friend-group";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronRightIcon,

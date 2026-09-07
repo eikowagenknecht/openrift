@@ -1,4 +1,4 @@
-import type { TournamentParticipantResponse } from "@openrift/shared";
+import type { TournamentParticipantResponse } from "@openrift/shared/types/api/tournament";
 import { TriangleAlertIcon, UsersIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

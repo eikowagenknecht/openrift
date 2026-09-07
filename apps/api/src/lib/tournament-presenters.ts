@@ -1,14 +1,16 @@
 import type {
+  PodPlayerResponse,
+  PodTournamentResponse,
+} from "@openrift/shared/types/api/pod-tournament";
+import type {
   OrganizationMemberResponse,
   OrganizationResponse,
   OrganizationSummaryResponse,
-  PodPlayerResponse,
-  PodTournamentResponse,
   TournamentModuleFlags,
   TournamentParticipantResponse,
   TournamentParticipantStatus,
   TournamentStaffMemberResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 
 import type {
   Organization,

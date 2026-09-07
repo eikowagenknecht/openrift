@@ -1,4 +1,4 @@
-import type { CardTradeLiveAnnotation } from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
 
 import { CountPill } from "@/components/ui/count-pill";
 import type { LiveTradeStatusDescriptor } from "@/lib/trade-status-labels";

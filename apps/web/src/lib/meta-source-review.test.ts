@@ -1,4 +1,4 @@
-import type { MetaOverlayQueueRow } from "@openrift/shared";
+import type { MetaOverlayQueueRow } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import {

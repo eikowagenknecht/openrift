@@ -1,4 +1,4 @@
-import { formatDayTime } from "@openrift/shared";
+import { formatDayTime } from "@openrift/shared/format-date";
 import { CameraIcon, CameraOffIcon, LoaderIcon, RotateCcwIcon } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";

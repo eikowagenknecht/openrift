@@ -1,4 +1,4 @@
-import type { PublicListDetailResponse } from "@openrift/shared";
+import type { PublicListDetailResponse } from "@openrift/shared/types/api/list";
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
 
 import { TopBarBreadcrumbTrail } from "@/components/layout/top-bar-breadcrumb";

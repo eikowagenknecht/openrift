@@ -1,5 +1,5 @@
-import type { Printing, PrintingImage } from "@openrift/shared";
-import { preferredPrinting } from "@openrift/shared";
+import type { Printing, PrintingImage } from "@openrift/shared/types/catalog";
+import { preferredPrinting } from "@openrift/shared/utils";
 
 import { useCards } from "@/hooks/use-cards";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";

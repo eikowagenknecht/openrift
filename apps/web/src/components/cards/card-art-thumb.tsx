@@ -1,5 +1,5 @@
-import type { ImageVariant } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import type { ImageVariant } from "@openrift/shared/image-url";
+import { imageUrl } from "@openrift/shared/image-url";
 import { ImageOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

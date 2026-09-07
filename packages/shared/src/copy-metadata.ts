@@ -1,4 +1,4 @@
-import type { CopyLink, CopyMetadataPatch } from "./types/index.js";
+import type { CopyLink, CopyMetadataPatch } from "./types/api/collection.js";
 
 export interface CopyMetadata {
   condition: string | null;

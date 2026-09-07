@@ -1,5 +1,9 @@
-import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
-import { formatRecord } from "@openrift/shared";
+import { formatRecord } from "@openrift/shared/meta-standings";
+import type {
+  MetaEventMatch,
+  MetaEventPhase,
+  MetaEventPlayer,
+} from "@openrift/shared/types/api/meta";
 
 import { isSingleElimination } from "@/lib/meta-bracket";
 

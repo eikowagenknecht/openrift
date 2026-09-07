@@ -1,7 +1,7 @@
-import { META_CATALOG_PROVIDERS, WellKnown } from "@openrift/shared";
+import type { DeckFormatConfig } from "@openrift/shared/types/api/deck";
+import { META_CATALOG_PROVIDERS } from "@openrift/shared/types/enums";
 import type {
   CardType,
-  DeckFormatConfig,
   DeckZone,
   META_EVENT_SORTS,
   MetaCreditVisibility,
@@ -9,7 +9,8 @@ import type {
   MetaEventSourceFilter,
   MetaEventTier,
   MetaListStatus,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import type {
   ExpressionBuilder,
   Insertable,

@@ -1,5 +1,6 @@
-import type { CopyLink, OwnedCopyRow } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { OwnedCopyRow } from "@openrift/shared/list-rule-eval";
+import type { CopyLink } from "@openrift/shared/types/api/collection";
+import { legendDisplayName } from "@openrift/shared/utils";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

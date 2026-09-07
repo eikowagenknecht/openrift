@@ -1,12 +1,12 @@
-import { META_SUBMISSION_REASONS } from "@openrift/shared";
+import type { MetaSubmissionResolution } from "@openrift/shared/contracts/admin/meta-submissions";
+import { META_SUBMISSION_REASONS } from "@openrift/shared/types/enums";
 import type {
   MetaCreditVisibility,
   MetaListStatus,
   MetaSubmissionKind,
   MetaSubmissionReason,
   MetaSubmissionStatus,
-} from "@openrift/shared";
-import type { MetaSubmissionResolution } from "@openrift/shared/contracts/admin/meta-submissions";
+} from "@openrift/shared/types/enums";
 
 export const metaSubmissionKindLabels: Record<MetaSubmissionKind, string> = {
   new_list: "New list",

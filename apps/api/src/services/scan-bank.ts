@@ -4,15 +4,16 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 
 import type { Logger } from "@openrift/shared/logger";
-import type { CardLabels, EmbedBank, RgbaImage } from "@openrift/shared/scan";
+import type { EmbedBank } from "@openrift/shared/scan/embed";
 import {
-  EMBED_BANK_VERSION,
   embedImageSizeOf,
-  encodeEmbedBank,
   normalizeEmbeddings,
   preprocessCardInto,
-  rotateRgbaCw,
-} from "@openrift/shared/scan";
+} from "@openrift/shared/scan/embed";
+import { EMBED_BANK_VERSION, encodeEmbedBank } from "@openrift/shared/scan/embed-format";
+import { rotateRgbaCw } from "@openrift/shared/scan/image";
+import type { CardLabels } from "@openrift/shared/scan/labels";
+import type { RgbaImage } from "@openrift/shared/scan/types";
 
 import type { Io } from "../io.js";
 import type { ScanReferenceRow, catalogRepo } from "../repositories/catalog.js";

@@ -1,4 +1,4 @@
-import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
+import type { DeckListItemResponse, DeckResponse } from "@openrift/shared/types/api/deck";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronRightIcon, CircleHelpIcon, PlusIcon, SwordsIcon, UploadIcon } from "lucide-react";

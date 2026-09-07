@@ -1,5 +1,5 @@
-import type { MetaLegendDetailResponse } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { MetaLegendDetailResponse } from "@openrift/shared/types/api/meta";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

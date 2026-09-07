@@ -1,4 +1,4 @@
-import type { KeywordsResponse } from "@openrift/shared";
+import type { KeywordsResponse } from "@openrift/shared/types/api/keyword";
 import { describe, expect, it } from "vitest";
 
 import { buildTranslationReverseMap, getKeywordStyle } from "./keywords";

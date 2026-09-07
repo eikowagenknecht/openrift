@@ -1,4 +1,4 @@
-import type { DeckFormat } from "@openrift/shared";
+import type { DeckFormat } from "@openrift/shared/types/enums";
 
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useSession } from "@/lib/auth-session";

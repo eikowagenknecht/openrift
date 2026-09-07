@@ -1,5 +1,6 @@
-import type { CardFilters } from "@openrift/shared";
-import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
+import { EMPTY_PRICE_LOOKUP } from "@openrift/shared/price-lookup";
+import type { CardFilters } from "@openrift/shared/types/search";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

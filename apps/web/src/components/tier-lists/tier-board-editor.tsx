@@ -1,6 +1,6 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import type { Card, Printing } from "@openrift/shared";
 import { MAX_TIER_ROWS } from "@openrift/shared/contracts/tier-lists";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import {
   ChevronDownIcon,
   ChevronUpIcon,

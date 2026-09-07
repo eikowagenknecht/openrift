@@ -1,14 +1,17 @@
+import { buildTeamUnits, collapseTeamPods } from "@openrift/shared/pairing/team-units";
+import type { PairingWarning } from "@openrift/shared/pairing/warnings";
+import { computePairingWarnings } from "@openrift/shared/pairing/warnings";
 import type {
-  PairingWarning,
   PodMemberResponse,
   PodResponse,
   PodRoundResponse,
   PodScoringScheme,
   PodSnapshotPlayer,
+} from "@openrift/shared/types/api/pod-tournament";
+import type {
   TournamentMatchFormat,
   TournamentPlayMode,
-} from "@openrift/shared";
-import { buildTeamUnits, collapseTeamPods, computePairingWarnings } from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 import {
   ArrowUpDownIcon,
   CheckIcon,

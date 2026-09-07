@@ -1,4 +1,4 @@
-import type { PrintingImage } from "@openrift/shared";
+import type { PrintingImage } from "@openrift/shared/types/catalog";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 

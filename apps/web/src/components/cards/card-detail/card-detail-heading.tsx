@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import { Heading } from "@/components/heading";
 import { getTypeIconPaths } from "@/lib/icons";

@@ -1,8 +1,8 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Printing } from "@openrift/shared";
-import { getOrientation, legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
 import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 

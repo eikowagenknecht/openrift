@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { findStandardArtFallback, isStandardPrinting } from "./standard.js";
 import { makePrinting as stubPrinting } from "./test-factories.js";
-import type { Marker, Printing } from "./types/index.js";
+import type { Marker, Printing } from "./types/catalog.js";
 
 function makePrinting(overrides: Partial<Printing> = {}): Printing {
   return stubPrinting({

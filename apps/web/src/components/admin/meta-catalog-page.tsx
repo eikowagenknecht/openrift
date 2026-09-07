@@ -1,5 +1,6 @@
-import { formatDay, formatDayTime, META_CATALOG_SORTS } from "@openrift/shared";
 import type { MetaCatalogRow } from "@openrift/shared/contracts/admin/meta-catalog";
+import { formatDay, formatDayTime } from "@openrift/shared/format-date";
+import { META_CATALOG_SORTS } from "@openrift/shared/types/enums";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import {
   ArchiveXIcon,

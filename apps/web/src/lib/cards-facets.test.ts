@@ -1,13 +1,15 @@
+import { getAvailableFilters } from "@openrift/shared/filters";
+import { priceLookupFromMap } from "@openrift/shared/price-lookup";
 import type {
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
-  EnumOrders,
-  PricesResponse,
-  Printing,
-} from "@openrift/shared";
-import { MARKETPLACE_CURRENCY, getAvailableFilters, priceLookupFromMap } from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
+import type { PricesResponse } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { EnumOrders } from "@openrift/shared/types/enums";
+import { MARKETPLACE_CURRENCY } from "@openrift/shared/types/pricing";
 import { describe, expect, it } from "vitest";
 
 import {

@@ -4,8 +4,8 @@
  * products panel and fuzzy name match read `marketplace_products` directly.
  */
 
-import type { Marketplace } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 import type { Repos } from "../../deps.js";
 import type { LoadedIgnoredKeys } from "../../repositories/price-refresh.js";

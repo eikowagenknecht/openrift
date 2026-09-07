@@ -1,5 +1,5 @@
-import type { CardTradeResponse } from "@openrift/shared";
-import { cardTradeState, needsViewerAction } from "@openrift/shared";
+import { cardTradeState, needsViewerAction } from "@openrift/shared/card-trade-lifecycle";
+import type { CardTradeResponse } from "@openrift/shared/types/api/card-trade";
 
 import { sortNeedsYou } from "./trade-hub";
 

@@ -1,5 +1,8 @@
-import type { DeckZone } from "@openrift/shared";
-import { formatHasSideboard, getOrientation, imageUrl, WellKnown } from "@openrift/shared";
+import { formatHasSideboard } from "@openrift/shared/deck-rules";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { getOrientation } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {

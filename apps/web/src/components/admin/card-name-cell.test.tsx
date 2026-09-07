@@ -1,4 +1,4 @@
-import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import type { CandidateCardSummaryResponse } from "@openrift/shared/types/api/admin";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";

@@ -1,5 +1,5 @@
-import type { SearchField } from "@openrift/shared";
-import { ALL_SEARCH_FIELDS } from "@openrift/shared";
+import type { SearchField } from "@openrift/shared/types/search";
+import { ALL_SEARCH_FIELDS } from "@openrift/shared/types/search";
 import { ChevronDownIcon } from "lucide-react";
 import type { RefObject } from "react";
 import { useId } from "react";

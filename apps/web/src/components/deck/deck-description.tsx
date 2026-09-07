@@ -1,5 +1,7 @@
-import type { DeckLink, LinkHost } from "@openrift/shared";
-import { legendDisplayName, resolveLinkHost } from "@openrift/shared";
+import type { LinkHost } from "@openrift/shared/link-hosts";
+import { resolveLinkHost } from "@openrift/shared/link-hosts";
+import type { DeckLink } from "@openrift/shared/types/api/deck";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { ExternalLinkIcon, PlayIcon } from "lucide-react";
 import { Suspense } from "react";
 

@@ -1,9 +1,9 @@
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import type {
-  CollectionResponse,
   FriendGroupCollectionShareResponse,
   FriendGroupDetailResponse,
   FriendGroupMemberResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/friend-group";
 import { useLiveQuery } from "@tanstack/react-db";
 import { Link } from "@tanstack/react-router";
 import { PlusIcon, Share2Icon } from "lucide-react";

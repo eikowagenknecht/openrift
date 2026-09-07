@@ -1,12 +1,11 @@
+import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
 import type {
   MetaEventDrift,
   MetaOverlayQueueRow,
   MetaOverlayReviewResult,
   MetaOverlayRowMatch,
-} from "@openrift/shared";
-import { META_CATALOG_PROVIDERS } from "@openrift/shared";
-import { adminMetaCandidatesContract } from "@openrift/shared/contracts/admin/meta";
-import { META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types";
+} from "@openrift/shared/types/api/meta";
+import { META_CATALOG_PROVIDERS, META_EVENT_OVERLAY_FIELDS } from "@openrift/shared/types/enums";
 import { stringifyUnknown } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 

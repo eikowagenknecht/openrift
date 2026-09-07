@@ -1,5 +1,5 @@
-import type { SetDetailResponse, SetListResponse } from "@openrift/shared";
 import { setsContract } from "@openrift/shared/contracts/sets";
+import type { SetDetailResponse, SetListResponse } from "@openrift/shared/types/api/catalog";
 import { implement } from "@orpc/server";
 
 import {

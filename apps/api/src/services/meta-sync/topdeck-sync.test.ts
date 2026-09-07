@@ -1,5 +1,5 @@
-import { TOPDECK_FORMATS } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
+import { TOPDECK_FORMATS } from "@openrift/shared/types/enums";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../../deps.js";

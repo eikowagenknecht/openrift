@@ -1,4 +1,4 @@
-import type { MetaDeckSummary, MetaPlayerFinish } from "@openrift/shared";
+import type { MetaDeckSummary, MetaPlayerFinish } from "@openrift/shared/types/api/meta";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaFinishesView, MetaLegendScope } from "@/lib/meta-legend-page";

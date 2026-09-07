@@ -5,7 +5,7 @@ import type {
   OverlaySetBoardReveal,
   OverlaySetHidden,
   OverlaySettings,
-} from "@openrift/shared";
+} from "@openrift/shared/contracts/overlay";
 import { overlayContract } from "@openrift/shared/contracts/overlay";
 import { publicOverlayContract } from "@openrift/shared/contracts/public-overlay";
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

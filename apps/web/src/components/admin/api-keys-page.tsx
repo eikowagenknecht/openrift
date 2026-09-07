@@ -1,5 +1,5 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
 import { CheckIcon, CopyIcon, KeyRoundIcon, LoaderIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

@@ -1,4 +1,4 @@
-import type { CopyListMembershipsResponse } from "@openrift/shared";
+import type { CopyListMembershipsResponse } from "@openrift/shared/types/api/collection";
 import { LoaderIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 

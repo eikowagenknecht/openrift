@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Printing } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { MinusIcon, PlusIcon } from "lucide-react";
 
 import { CardCell } from "@/components/cards/card-cell";

@@ -1,4 +1,4 @@
-import type { MetaActivityItem, MetaEventSummary } from "@openrift/shared";
+import type { MetaActivityItem, MetaEventSummary } from "@openrift/shared/types/api/meta";
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

@@ -1,4 +1,4 @@
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
 import { MinusIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

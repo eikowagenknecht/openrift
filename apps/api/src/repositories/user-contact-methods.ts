@@ -1,4 +1,4 @@
-import type { ContactMethod, ContactMethodType } from "@openrift/shared";
+import type { ContactMethod, ContactMethodType } from "@openrift/shared/types/api/contact-method";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";

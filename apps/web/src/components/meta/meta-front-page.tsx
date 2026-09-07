@@ -1,5 +1,6 @@
-import type { MetaEventSummary, MetaEventTier } from "@openrift/shared";
-import { dateLeafPartsUtc } from "@openrift/shared";
+import { dateLeafPartsUtc } from "@openrift/shared/format-date";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 import { Link, getRouteApi } from "@tanstack/react-router";
 import {
   ChevronDownIcon,

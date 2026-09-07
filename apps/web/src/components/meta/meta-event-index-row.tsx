@@ -1,5 +1,5 @@
-import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared";
-import { dateLeafPartsUtc, formatDay } from "@openrift/shared";
+import { dateLeafPartsUtc, formatDay } from "@openrift/shared/format-date";
+import type { MetaEventFinish, MetaEventSummary } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";

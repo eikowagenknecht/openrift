@@ -1,3 +1,4 @@
+import { metaContract } from "@openrift/shared/contracts/meta";
 import type {
   MetaDeckCardIndexResponse,
   MetaDeckDetailResponse,
@@ -9,8 +10,7 @@ import type {
   MetaLegendDetailResponse,
   MetaLegendListResponse,
   MetaPlayerDetailResponse,
-} from "@openrift/shared";
-import { metaContract } from "@openrift/shared/contracts/meta";
+} from "@openrift/shared/types/api/meta";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

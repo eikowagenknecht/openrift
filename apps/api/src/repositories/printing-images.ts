@@ -1,4 +1,4 @@
-import type { FallbackArtMode } from "@openrift/shared";
+import type { FallbackArtMode } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";

@@ -4,7 +4,7 @@ import type {
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import type { FieldDef } from "@/components/admin/candidate-spreadsheet";

@@ -1,4 +1,4 @@
-import { WellKnown } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared/well-known";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cardInteractiveProps, deckCardDragData } from "@/lib/deck-card-interaction";

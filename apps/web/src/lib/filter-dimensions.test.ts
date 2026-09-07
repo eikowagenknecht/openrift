@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared";
+import type { AvailableFilters } from "@openrift/shared/filters";
 import { describe, expect, it } from "vitest";
 
 import type {

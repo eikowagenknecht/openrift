@@ -1,4 +1,4 @@
-import type { CandidateCardResponse } from "@openrift/shared";
+import type { CandidateCardResponse } from "@openrift/shared/types/api/admin";
 
 /**
  * Attribution for a candidate contributed through the /contribute forms.

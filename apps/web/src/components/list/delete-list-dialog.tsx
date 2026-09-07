@@ -1,4 +1,4 @@
-import type { ListKind } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 

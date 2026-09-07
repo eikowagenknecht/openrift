@@ -1,5 +1,5 @@
-import type { DeckPlanDetailResponse } from "@openrift/shared";
 import { decksContract } from "@openrift/shared/contracts/decks";
+import type { DeckPlanDetailResponse } from "@openrift/shared/types/api/deck";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

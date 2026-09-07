@@ -1,11 +1,9 @@
-import type { DeckZone, VariantLabelEnumLabels, VariantLabelPrinting } from "@openrift/shared";
-import {
-  enumLabel,
-  formatPrintingVariantLabelParts,
-  getOrientation,
-  legendDisplayName,
-  WellKnown,
-} from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { VariantLabelEnumLabels, VariantLabelPrinting } from "@openrift/shared/printing-label";
+import { formatPrintingVariantLabelParts } from "@openrift/shared/printing-label";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRightIcon, BoxIcon, HandHeartIcon, PackageSearchIcon } from "lucide-react";
 import { useState } from "react";

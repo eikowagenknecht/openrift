@@ -1,5 +1,5 @@
-import type { DeckViolation } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import { WellKnown } from "@openrift/shared/well-known";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
 import { ViolationBadge } from "@/components/deck/deck-validation-banner";

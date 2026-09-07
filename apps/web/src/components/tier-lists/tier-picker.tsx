@@ -1,4 +1,4 @@
-import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared";
+import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared/tier-colors";
 import { CornerUpLeftIcon } from "lucide-react";
 import type { MouseEvent, ReactElement } from "react";
 import { cloneElement } from "react";

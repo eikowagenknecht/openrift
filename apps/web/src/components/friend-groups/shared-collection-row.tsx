@@ -1,4 +1,4 @@
-import type { FriendGroupCollectionShareResponse } from "@openrift/shared";
+import type { FriendGroupCollectionShareResponse } from "@openrift/shared/types/api/friend-group";
 import { Link } from "@tanstack/react-router";
 import { FolderIcon } from "lucide-react";
 

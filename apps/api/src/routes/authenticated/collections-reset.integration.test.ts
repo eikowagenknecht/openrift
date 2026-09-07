@@ -1,4 +1,4 @@
-import type { ResetCollectionsResponse } from "@openrift/shared";
+import type { ResetCollectionsResponse } from "@openrift/shared/types/api/collection";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 

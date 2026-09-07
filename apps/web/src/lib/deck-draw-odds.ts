@@ -1,5 +1,5 @@
-import type { DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 /** Riftbound opening hand size; the mulligan swaps up to {@link MULLIGAN_LIMIT} of these once. */
 export const OPENING_HAND_SIZE = 4;

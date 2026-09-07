@@ -1,4 +1,8 @@
-import type { CopyLink, CopyResponse, PublicCopyResponse } from "@openrift/shared";
+import type {
+  CopyLink,
+  CopyResponse,
+  PublicCopyResponse,
+} from "@openrift/shared/types/api/collection";
 
 interface CopyMetadataFields {
   condition: string | null;

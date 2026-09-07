@@ -1,4 +1,3 @@
-import { WellKnown } from "@openrift/shared";
 import type {
   ArtVariant,
   CardSize,
@@ -7,7 +6,8 @@ import type {
   Finish,
   Rarity,
   SuperType,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 import { sql } from "kysely";
 import type { Kysely, Selectable, Updateable } from "kysely";
 

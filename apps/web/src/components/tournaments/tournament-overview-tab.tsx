@@ -1,4 +1,5 @@
-import type { PodTournamentDetailResponse, TournamentDetailResponse } from "@openrift/shared";
+import type { PodTournamentDetailResponse } from "@openrift/shared/types/api/pod-tournament";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {

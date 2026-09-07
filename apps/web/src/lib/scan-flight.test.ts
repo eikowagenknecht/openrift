@@ -1,4 +1,4 @@
-import { CARD_ASPECT } from "@openrift/shared/scan";
+import { CARD_ASPECT } from "@openrift/shared/scan/types";
 import { describe, expect, it } from "vitest";
 
 import {

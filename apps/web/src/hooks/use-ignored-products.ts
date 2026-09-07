@@ -1,5 +1,5 @@
-import type { Marketplace } from "@openrift/shared";
 import { adminIgnoredProductsContract } from "@openrift/shared/contracts/admin/ignored-products";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

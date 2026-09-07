@@ -1,4 +1,5 @@
-import { copyLimitFor, WellKnown } from "@openrift/shared";
+import { copyLimitFor } from "@openrift/shared/deck-rules";
+import { WellKnown } from "@openrift/shared/well-known";
 
 /** `tags` is the champion-identifier vocabulary a Legend and its Champion share ("Rengar", "Darius"). */
 export interface ChampionFacts {

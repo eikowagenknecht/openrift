@@ -1,4 +1,7 @@
-import type { TournamentDetailResponse, TournamentParticipantStatus } from "@openrift/shared";
+import type {
+  TournamentDetailResponse,
+  TournamentParticipantStatus,
+} from "@openrift/shared/types/api/tournament";
 import { CheckIcon, GlobeIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { useState } from "react";
 

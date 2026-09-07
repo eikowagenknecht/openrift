@@ -1,4 +1,4 @@
-import type { PublicUserBundleResponse } from "@openrift/shared";
+import type { PublicUserBundleResponse } from "@openrift/shared/types/api/user-share";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message";

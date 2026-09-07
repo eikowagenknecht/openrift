@@ -1,4 +1,4 @@
-import type { LoanResponse } from "@openrift/shared";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import { describe, expect, it } from "vitest";
 
 import {

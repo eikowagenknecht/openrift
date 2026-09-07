@@ -1,5 +1,6 @@
-import type { DeckListItemResponse, PrintingImage } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
+import type { PrintingImage } from "@openrift/shared/types/catalog";
 import { Link } from "@tanstack/react-router";
 import { ArchiveIcon, PinIcon } from "lucide-react";
 

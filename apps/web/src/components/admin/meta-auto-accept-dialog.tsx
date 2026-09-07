@@ -1,5 +1,6 @@
-import { formatDayTime, META_CATALOG_PROVIDERS } from "@openrift/shared";
 import type { MetaSource, MetaSyncSettings } from "@openrift/shared/contracts/admin/meta-catalog";
+import { formatDayTime } from "@openrift/shared/format-date";
+import { META_CATALOG_PROVIDERS } from "@openrift/shared/types/enums";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";

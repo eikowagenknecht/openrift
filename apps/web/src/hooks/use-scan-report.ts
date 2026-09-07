@@ -1,6 +1,6 @@
-import type { ScanReportResponse } from "@openrift/shared";
 import { scanReportsContract } from "@openrift/shared/contracts/scan-reports";
 import type { CreateScanReportInput } from "@openrift/shared/contracts/scan-reports";
+import type { ScanReportResponse } from "@openrift/shared/types/api/scan-report";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

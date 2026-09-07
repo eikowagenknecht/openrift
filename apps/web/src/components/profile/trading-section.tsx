@@ -1,5 +1,5 @@
-import type { Currency } from "@openrift/shared";
-import { CURRENCIES } from "@openrift/shared";
+import type { Currency } from "@openrift/shared/types/api/trade-preferences";
+import { CURRENCIES } from "@openrift/shared/types/api/trade-preferences";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";

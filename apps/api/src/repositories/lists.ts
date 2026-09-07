@@ -1,26 +1,21 @@
 import {
   evaluateListRules,
   expandList,
-  hydrateListRules,
-  legendDisplayName,
   ownedCopyPrintingScope,
-  ruleFiltersOnPrice,
-} from "@openrift/shared";
+} from "@openrift/shared/list-rule-eval";
 import type {
-  EntrySource,
-  Finish,
   KeepPriorityOrders,
-  ListIntent,
-  ListKind,
-  ListRuleCombine,
-  ListRules,
   ManualEntryRow,
   OwnedCopyRow,
-  PriceLookup,
-  Printing,
-  Rarity,
-  TradePreference,
-} from "@openrift/shared";
+} from "@openrift/shared/list-rule-eval";
+import type { EntrySource, ListIntent, ListKind } from "@openrift/shared/types/api/list";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { TradePreference } from "@openrift/shared/types/api/trade-preferences";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Finish, Rarity } from "@openrift/shared/types/enums";
+import { hydrateListRules, ruleFiltersOnPrice } from "@openrift/shared/types/list-rule";
+import type { ListRuleCombine, ListRules } from "@openrift/shared/types/list-rule";
+import { legendDisplayName } from "@openrift/shared/utils";
 import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { DeleteResult, sql } from "kysely";
 

@@ -1,4 +1,4 @@
-import type { KeepPriorityOrders } from "@openrift/shared";
+import type { KeepPriorityOrders } from "@openrift/shared/list-rule-eval";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

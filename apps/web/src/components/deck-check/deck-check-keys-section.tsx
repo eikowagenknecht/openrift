@@ -1,5 +1,5 @@
-import type { DeckCheckKeyResponse } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { DeckCheckKeyResponse } from "@openrift/shared/types/api/deck-check";
 import { CheckIcon, CopyIcon, PencilIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

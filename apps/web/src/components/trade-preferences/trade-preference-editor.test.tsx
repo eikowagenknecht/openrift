@@ -1,4 +1,4 @@
-import type { TradePreference } from "@openrift/shared";
+import type { TradePreference } from "@openrift/shared/types/api/trade-preferences";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 

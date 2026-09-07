@@ -1,5 +1,9 @@
-import type { AdminPrintingImageResponse, ProviderSettingResponse } from "@openrift/shared";
-import { hostSlugFromUrl, imageUrl } from "@openrift/shared";
+import { hostSlugFromUrl } from "@openrift/shared/host-slug";
+import { imageUrl } from "@openrift/shared/image-url";
+import type {
+  AdminPrintingImageResponse,
+  ProviderSettingResponse,
+} from "@openrift/shared/types/api/admin";
 import {
   DownloadIcon,
   EyeIcon,

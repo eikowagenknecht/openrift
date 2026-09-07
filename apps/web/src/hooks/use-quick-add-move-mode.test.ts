@@ -1,4 +1,4 @@
-import type { CollectionResponse, CopyResponse } from "@openrift/shared";
+import type { CollectionResponse, CopyResponse } from "@openrift/shared/types/api/collection";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

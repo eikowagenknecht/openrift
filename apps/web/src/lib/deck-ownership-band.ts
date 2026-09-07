@@ -1,4 +1,4 @@
-import { isCountedZone } from "@openrift/shared";
+import { isCountedZone } from "@openrift/shared/deck-zones";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";

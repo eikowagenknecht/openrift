@@ -1,10 +1,10 @@
-import type { SearchableCard, SearchablePrintingCodes } from "@openrift/shared";
+import type { SearchableCard, SearchablePrintingCodes } from "@openrift/shared/card-search";
 import {
   buildCardIndex,
   CARD_SEARCH_MIN_QUERY_LENGTH,
   CARD_SEARCH_RESULT_LIMIT,
   searchCards,
-} from "@openrift/shared";
+} from "@openrift/shared/card-search";
 import { useMemo } from "react";
 
 import type { CardSearchResult } from "@/lib/card-search-result";

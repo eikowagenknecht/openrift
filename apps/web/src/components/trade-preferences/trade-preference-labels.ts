@@ -1,4 +1,8 @@
-import type { Currency, TradePricePref, TradeType } from "@openrift/shared";
+import type {
+  Currency,
+  TradePricePref,
+  TradeType,
+} from "@openrift/shared/types/api/trade-preferences";
 
 export const PRICE_PREF_LABEL: Record<TradePricePref, string> = {
   cm_lowest: "Marketplace (Cardmarket)",

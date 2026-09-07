@@ -1,5 +1,5 @@
-import { META_EVENT_SOURCE_FILTERS } from "@openrift/shared";
-import type { MetaEventSourceFilter } from "@openrift/shared";
+import { META_EVENT_SOURCE_FILTERS } from "@openrift/shared/types/enums";
+import type { MetaEventSourceFilter } from "@openrift/shared/types/enums";
 
 import { AdminFilterSelect, AdminFilterSwitch } from "@/components/admin/admin-filters";
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";

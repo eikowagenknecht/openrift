@@ -1,17 +1,19 @@
-import { WellKnown } from "@openrift/shared";
+import type { DeckCheckCardLine } from "@openrift/shared/deck-check";
 import type {
-  DeckCheckCardLine,
   DeckCheckChangeSummary,
   DeckCheckClaimSource,
   DeckCheckEntryState,
   DeckCheckListLockMode,
   DeckCheckMatchStatus,
   DeckCheckReviewOutcome,
+} from "@openrift/shared/types/api/deck-check";
+import type {
   TournamentHostType,
   TournamentParticipantStatus,
   TournamentPlayMode,
   TournamentStatus,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 

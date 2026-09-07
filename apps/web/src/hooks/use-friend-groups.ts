@@ -1,3 +1,5 @@
+import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
+import { publicFriendGroupsContract } from "@openrift/shared/contracts/public-friend-groups";
 import type {
   FriendGroupActivityResponse,
   FriendGroupDetailResponse,
@@ -15,9 +17,7 @@ import type {
   FriendGroupShareableListsResponse,
   FriendGroupSharedCollectionDetailResponse,
   FriendGroupSharedListDetailResponse,
-} from "@openrift/shared";
-import { friendGroupsContract } from "@openrift/shared/contracts/friend-groups";
-import { publicFriendGroupsContract } from "@openrift/shared/contracts/public-friend-groups";
+} from "@openrift/shared/types/api/friend-group";
 import { isDefinedError, safe } from "@orpc/client";
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";

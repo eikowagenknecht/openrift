@@ -1,13 +1,16 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { MetaOverlayBulkAcceptResult, MetaOverlayReviewResult } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type {
+  MetaOverlayBulkAcceptResult,
+  MetaOverlayReviewResult,
+} from "@openrift/shared/types/api/meta";
 import type {
   MetaEntryStatus,
   MetaEventOverlayField,
   MetaListStatus,
   MetaOverlayStatus,
   MetaPlayerOverlayField,
-} from "@openrift/shared/types";
-import { META_EVENT_TIERS } from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { META_EVENT_TIERS } from "@openrift/shared/types/enums";
 import { stringifyUnknown } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 

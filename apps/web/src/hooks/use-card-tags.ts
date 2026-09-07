@@ -1,5 +1,5 @@
-import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared";
 import { adminCardTagsContract } from "@openrift/shared/contracts/admin/card-tags";
+import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared/types/api/admin";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

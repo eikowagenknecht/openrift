@@ -1,5 +1,5 @@
-import type { AdminSectionSlug } from "@openrift/shared";
-import { ADMIN_SECTION_SLUGS } from "@openrift/shared";
+import type { AdminSectionSlug } from "@openrift/shared/admin-sections";
+import { ADMIN_SECTION_SLUGS } from "@openrift/shared/admin-sections";
 
 export const ADMIN_SECTION_ROUTES = {
   "card-review": "/admin/cards",

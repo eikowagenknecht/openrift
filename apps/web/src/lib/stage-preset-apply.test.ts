@@ -1,4 +1,4 @@
-import type { OverlayPayload, OverlayPlateFields } from "@openrift/shared";
+import type { OverlayPayload, OverlayPlateFields } from "@openrift/shared/contracts/overlay";
 import { describe, expect, it } from "vitest";
 
 import {

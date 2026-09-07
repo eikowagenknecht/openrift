@@ -1,6 +1,9 @@
-import { ERROR_CODES } from "@openrift/shared";
-import type { StagePreset, StagePresetListResponse } from "@openrift/shared";
+import type {
+  StagePreset,
+  StagePresetListResponse,
+} from "@openrift/shared/contracts/stage-presets";
 import { MAX_STAGE_PRESETS, stagePresetsContract } from "@openrift/shared/contracts/stage-presets";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

@@ -1,5 +1,6 @@
-import type { AdminMetaEvent, MetaEventTier } from "@openrift/shared";
-import { META_EVENT_TIERS } from "@openrift/shared";
+import type { AdminMetaEvent } from "@openrift/shared/types/api/meta";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
+import { META_EVENT_TIERS } from "@openrift/shared/types/enums";
 import { useState } from "react";
 import { toast } from "sonner";
 

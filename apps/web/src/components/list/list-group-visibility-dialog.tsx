@@ -1,4 +1,4 @@
-import type { ListIntent } from "@openrift/shared";
+import type { ListIntent } from "@openrift/shared/types/api/list";
 import { Suspense, useState } from "react";
 
 import { Button } from "@/components/ui/button";

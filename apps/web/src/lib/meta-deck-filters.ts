@@ -1,4 +1,4 @@
-import type { MetaDeckSummary } from "@openrift/shared";
+import type { MetaDeckSummary } from "@openrift/shared/types/api/meta";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaDeckCost } from "@/lib/meta-deck-collection";

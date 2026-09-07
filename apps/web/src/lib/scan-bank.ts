@@ -1,6 +1,7 @@
-import { WellKnown } from "@openrift/shared";
-import type { CardLabels, EmbedBank } from "@openrift/shared/scan";
-import { decodeEmbedBank } from "@openrift/shared/scan";
+import type { EmbedBank } from "@openrift/shared/scan/embed";
+import { decodeEmbedBank } from "@openrift/shared/scan/embed-format";
+import type { CardLabels } from "@openrift/shared/scan/labels";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { scanAssetError } from "@/lib/scan-asset-hint";
 

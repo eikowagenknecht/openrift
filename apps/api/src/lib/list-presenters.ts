@@ -1,16 +1,15 @@
 import type {
   EntrySource,
-  Finish,
   ListDetailListResponse,
   ListEntryDetailResponse,
   ListEntryResponse,
   ListResponse,
-  ListRules,
   PublicListResponse,
-  Rarity,
-  TradePreference,
-} from "@openrift/shared";
-import { hydrateListRules } from "@openrift/shared";
+} from "@openrift/shared/types/api/list";
+import type { TradePreference } from "@openrift/shared/types/api/trade-preferences";
+import type { Finish, Rarity } from "@openrift/shared/types/enums";
+import type { ListRules } from "@openrift/shared/types/list-rule";
+import { hydrateListRules } from "@openrift/shared/types/list-rule";
 import type { Selectable } from "kysely";
 
 import type { ListEntriesTable, ListsTable } from "../db/index.js";

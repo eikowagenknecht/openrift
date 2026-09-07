@@ -1,5 +1,5 @@
-import type { Domain } from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { Domain } from "@openrift/shared/types/enums";
 import { useState } from "react";
 import { Bar, BarChart, Cell, LabelList, XAxis } from "recharts";
 

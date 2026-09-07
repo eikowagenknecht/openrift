@@ -1,4 +1,9 @@
-import type { LoanCounterparty, LoanResponse, LoanRole, LoanStatus } from "@openrift/shared/types";
+import type {
+  LoanCounterparty,
+  LoanResponse,
+  LoanRole,
+  LoanStatus,
+} from "@openrift/shared/types/api/loan";
 
 import { gravatarHashForEmail } from "./gravatar.js";
 

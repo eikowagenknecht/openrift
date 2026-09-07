@@ -1,4 +1,4 @@
-import type { TradeType } from "@openrift/shared";
+import type { TradeType } from "@openrift/shared/types/api/trade-preferences";
 import { ArrowLeftRightIcon, CoinsIcon, TagIcon } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 

@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { Callout } from "@/components/ui/callout";
 import { SectionHeading } from "@/components/ui/section-heading";

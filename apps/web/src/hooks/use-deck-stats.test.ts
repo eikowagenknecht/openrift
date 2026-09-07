@@ -1,4 +1,4 @@
-import type { CardType, DeckZone, Domain, EnumOrders } from "@openrift/shared";
+import type { CardType, DeckZone, Domain, EnumOrders } from "@openrift/shared/types/enums";
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

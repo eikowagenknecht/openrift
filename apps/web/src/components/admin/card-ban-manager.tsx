@@ -1,4 +1,4 @@
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
 import { BanIcon, CheckIcon, PencilIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 

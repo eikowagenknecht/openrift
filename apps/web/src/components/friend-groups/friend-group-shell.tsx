@@ -1,4 +1,7 @@
-import type { FriendGroupDetailResponse, FriendGroupRole } from "@openrift/shared";
+import type {
+  FriendGroupDetailResponse,
+  FriendGroupRole,
+} from "@openrift/shared/types/api/friend-group";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 

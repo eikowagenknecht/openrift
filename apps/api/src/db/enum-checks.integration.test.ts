@@ -1,4 +1,3 @@
-import { CONTACT_METHOD_TYPES, listRuleCombineSchema } from "@openrift/shared";
 import { fallbackArtModeSchema } from "@openrift/shared/contracts/admin/card-detail-schemas";
 import { channelKindEnum } from "@openrift/shared/contracts/admin/distribution-channels";
 import { JOB_STATUSES, JOB_TRIGGERS } from "@openrift/shared/contracts/admin/job-runs";
@@ -51,15 +50,17 @@ import {
   podRoundStatusSchema,
   tradeTypeResponseSchema,
 } from "@openrift/shared/response-schemas";
+import { CONTACT_METHOD_TYPES } from "@openrift/shared/types/api/contact-method";
+import { TRADE_PRICE_PREFS } from "@openrift/shared/types/api/trade-preferences";
 import {
-  marketplaceEnum,
   META_ENTRY_STATUSES,
   META_EVENT_OVERLAY_FIELDS,
   META_PLAYER_OVERLAY_FIELDS,
   META_SOURCE_FETCH_STATUSES,
   UVSGAMES_PROBE_OUTCOMES,
-  TRADE_PRICE_PREFS,
-} from "@openrift/shared/types";
+} from "@openrift/shared/types/enums";
+import { listRuleCombineSchema } from "@openrift/shared/types/list-rule";
+import { marketplaceEnum } from "@openrift/shared/types/pricing";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

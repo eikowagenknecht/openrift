@@ -1,5 +1,5 @@
-import type { MetaEventPlayer } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { MetaEventPlayer } from "@openrift/shared/types/api/meta";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 

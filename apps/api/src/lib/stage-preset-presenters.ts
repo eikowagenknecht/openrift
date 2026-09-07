@@ -1,4 +1,4 @@
-import type { StagePreset, StagePresetConfig } from "@openrift/shared";
+import type { StagePreset, StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 import { stagePresetConfigSchema } from "@openrift/shared/contracts/stage-presets";
 
 import type { StagePresetRow } from "../repositories/stage-presets.js";

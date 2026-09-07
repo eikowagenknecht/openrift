@@ -1,6 +1,6 @@
 import { Radio } from "@base-ui/react/radio";
-import type { DefaultCardView, Palette, Theme } from "@openrift/shared";
-import { PREFERENCE_DEFAULTS } from "@openrift/shared";
+import type { DefaultCardView, Palette, Theme } from "@openrift/shared/types/api/preferences";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";

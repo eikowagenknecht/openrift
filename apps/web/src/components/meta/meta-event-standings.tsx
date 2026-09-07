@@ -1,5 +1,9 @@
-import type { MetaEventMatch, MetaEventPhase, MetaEventPlayer } from "@openrift/shared";
-import { todayUtc } from "@openrift/shared";
+import { todayUtc } from "@openrift/shared/set-release";
+import type {
+  MetaEventMatch,
+  MetaEventPhase,
+  MetaEventPlayer,
+} from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, SearchIcon } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";

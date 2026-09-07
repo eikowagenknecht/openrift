@@ -1,9 +1,9 @@
+import { copiesContract } from "@openrift/shared/contracts/copies";
 import type {
   CopyAddResponse,
   CopyListMembershipsResponse,
   CopyListResponse,
-} from "@openrift/shared";
-import { copiesContract } from "@openrift/shared/contracts/copies";
+} from "@openrift/shared/types/api/collection";
 import { implement } from "@orpc/server";
 
 import { clampCopiesLimit } from "../../lib/copies-page-limit.js";

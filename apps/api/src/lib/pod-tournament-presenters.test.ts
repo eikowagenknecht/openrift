@@ -1,4 +1,4 @@
-import type { PodPenaltyBreakdown } from "@openrift/shared";
+import type { PodPenaltyBreakdown } from "@openrift/shared/pairing/types";
 import { describe, expect, it } from "vitest";
 
 import type { Pod, PodRound } from "../repositories/pod-tournaments.js";

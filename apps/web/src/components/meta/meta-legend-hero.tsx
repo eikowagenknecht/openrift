@@ -1,4 +1,4 @@
-import type { MetaLegendDetailResponse } from "@openrift/shared";
+import type { MetaLegendDetailResponse } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 
 import { DomainIcon } from "@/components/deck/domain-icon";

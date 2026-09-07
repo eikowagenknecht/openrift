@@ -1,4 +1,4 @@
-import { LOW_RARITIES, WellKnown } from "@openrift/shared";
+import { LOW_RARITIES, WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

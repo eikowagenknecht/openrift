@@ -1,4 +1,5 @@
-import type { GroupByField, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { GroupByField } from "@openrift/shared/types/search";
 
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
 import { cardsViewTileKey, tileSiblings } from "@/lib/card-tiles";

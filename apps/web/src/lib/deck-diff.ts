@@ -1,5 +1,8 @@
-import type { Card, DeckCardResponse, DeckZone } from "@openrift/shared";
-import { legendDisplayName, WellKnown } from "@openrift/shared";
+import type { DeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 
 export interface DeckDiffCard {
   cardId: string;

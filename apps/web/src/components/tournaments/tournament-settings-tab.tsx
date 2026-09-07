@@ -1,4 +1,4 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 import { Suspense } from "react";
 
 import type { PageTocItem } from "@/components/layout/page-toc";

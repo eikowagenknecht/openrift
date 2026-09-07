@@ -1,5 +1,5 @@
-import type { RuleKind, RuleResponse } from "@openrift/shared";
-import { buildTermAnchors, compareRuleNumbers, formatRuleNumber } from "@openrift/shared";
+import { buildTermAnchors, compareRuleNumbers, formatRuleNumber } from "@openrift/shared/rules";
+import type { RuleKind, RuleResponse } from "@openrift/shared/types/api/rules";
 
 import type { RulesSnapshot } from "./rules-cache.js";
 

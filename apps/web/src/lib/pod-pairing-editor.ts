@@ -1,4 +1,4 @@
-import type { PodRoundResponse } from "@openrift/shared";
+import type { PodRoundResponse } from "@openrift/shared/types/api/pod-tournament";
 
 /** A pod in the manual editor: just the seated player ids (size is derived from length). */
 interface EditorPod {

@@ -4,8 +4,8 @@
  * handling must stay identical between them.
  */
 
-import { imageUrl } from "@openrift/shared";
-import type { RgbaImage } from "@openrift/shared/scan";
+import { imageUrl } from "@openrift/shared/image-url";
+import type { RgbaImage } from "@openrift/shared/scan/types";
 
 /** The slice of a 2D context the decode uses, shared by both canvas kinds. */
 interface ReferenceContext {

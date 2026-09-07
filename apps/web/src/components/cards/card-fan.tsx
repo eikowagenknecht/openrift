@@ -1,4 +1,4 @@
-import { imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 import type { CSSProperties, ComponentType, SVGProps } from "react";
 
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";

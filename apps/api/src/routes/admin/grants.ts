@@ -1,4 +1,4 @@
-import { isAdminSectionSlug } from "@openrift/shared";
+import { isAdminSectionSlug } from "@openrift/shared/admin-sections";
 import { adminGrantsContract } from "@openrift/shared/contracts/admin/grants";
 import { implement, ORPCError } from "@orpc/server";
 

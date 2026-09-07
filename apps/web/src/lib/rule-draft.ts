@@ -1,12 +1,9 @@
-import type {
-  CardFilters,
-  ListKind,
-  ListRule,
-  Marketplace,
-  RuleQuantity,
-  TradeKeepPer,
-} from "@openrift/shared";
-import { EMPTY_CARD_FILTERS, ruleKindForListKind } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
+import type { ListRule, RuleQuantity, TradeKeepPer } from "@openrift/shared/types/list-rule";
+import { ruleKindForListKind } from "@openrift/shared/types/list-rule";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import type { CardFilters } from "@openrift/shared/types/search";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 
 export interface DraftRule {
   filter: CardFilters;

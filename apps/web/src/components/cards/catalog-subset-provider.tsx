@@ -1,4 +1,4 @@
-import type { DeckCatalogSubset } from "@openrift/shared";
+import type { DeckCatalogSubset } from "@openrift/shared/types/api/deck";
 import type { ReactNode } from "react";
 
 import { CatalogSubsetContext } from "@/hooks/catalog-subset-context";

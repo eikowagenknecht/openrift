@@ -1,4 +1,4 @@
-import type { PodTournamentDetailResponse } from "@openrift/shared";
+import type { PodTournamentDetailResponse } from "@openrift/shared/types/api/pod-tournament";
 
 import type { Repos } from "../deps.js";
 import type { Tournament } from "../repositories/tournaments.js";

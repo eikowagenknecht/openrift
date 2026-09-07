@@ -1,5 +1,6 @@
-import type { Printing } from "@openrift/shared";
-import { legendDisplayName, snapshotHeadline } from "@openrift/shared";
+import { snapshotHeadline } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useState } from "react";
 
 import { PrintingLanguageTabs } from "@/components/cards/printing-language-tabs";

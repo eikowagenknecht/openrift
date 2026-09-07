@@ -1,4 +1,4 @@
-import { RULE_REFERENCE_REGEX } from "@openrift/shared";
+import { RULE_REFERENCE_REGEX } from "@openrift/shared/rules";
 import { fromMarkdown } from "mdast-util-from-markdown";
 
 export interface MdNode {

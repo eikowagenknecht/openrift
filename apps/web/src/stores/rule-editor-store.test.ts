@@ -1,5 +1,5 @@
-import { EMPTY_CARD_FILTERS } from "@openrift/shared";
-import type { ListRule } from "@openrift/shared";
+import type { ListRule } from "@openrift/shared/types/list-rule";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { DraftRule } from "@/lib/rule-draft";

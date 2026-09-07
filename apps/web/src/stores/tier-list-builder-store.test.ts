@@ -1,9 +1,9 @@
-import type { TierRow } from "@openrift/shared";
 import {
   MAX_CARDS_PER_TIER,
   MAX_TIER_LIST_CARDS,
   MAX_TIER_ROWS,
 } from "@openrift/shared/contracts/tier-lists";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createStoreResetter } from "@/test/store-helpers";

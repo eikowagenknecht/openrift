@@ -4,11 +4,10 @@
 // iteration so both benches measure the same work.
 
 import type {
-  Card,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
-  Printing,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/catalog";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import { bench, describe } from "vitest";
 
 const SET_COUNT = 7;

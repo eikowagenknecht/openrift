@@ -1,4 +1,4 @@
-import type { MetaEventOverlayField, MetaPlayerOverlayField } from "@openrift/shared/types";
+import type { MetaEventOverlayField, MetaPlayerOverlayField } from "@openrift/shared/types/enums";
 
 /** `organizer: null` claimed means "clear it"; unclaimed means "say nothing" (needed to clear a nullable column). */
 export interface OverlayPatch<TField extends string, TValues> {

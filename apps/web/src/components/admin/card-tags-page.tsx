@@ -1,4 +1,4 @@
-import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared";
+import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared/types/api/admin";
 import { useState } from "react";
 
 import {

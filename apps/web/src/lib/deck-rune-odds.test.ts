@@ -1,4 +1,4 @@
-import type { DeckZone, Domain } from "@openrift/shared";
+import type { DeckZone, Domain } from "@openrift/shared/types/enums";
 import { describe, expect, it } from "vitest";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

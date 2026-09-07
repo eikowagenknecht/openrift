@@ -1,4 +1,5 @@
-import { foldForSearch, legendDisplayName, squashForSearch } from "@openrift/shared";
+import { foldForSearch, squashForSearch } from "@openrift/shared/search-fold";
+import { legendDisplayName } from "@openrift/shared/utils";
 
 import type { CatalogCard, CatalogPrinting } from "./catalog-cache.js";
 import type { TradelistHolders } from "./group-tradelists.js";

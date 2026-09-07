@@ -1,10 +1,10 @@
-import type {
-  PublicListDetailResponse,
-  PublicUserBundleResponse,
-  UserShareStateResponse,
-} from "@openrift/shared";
 import { publicUserShareContract } from "@openrift/shared/contracts/public-user-share";
 import { userShareContract } from "@openrift/shared/contracts/user-share";
+import type { PublicListDetailResponse } from "@openrift/shared/types/api/list";
+import type {
+  PublicUserBundleResponse,
+  UserShareStateResponse,
+} from "@openrift/shared/types/api/user-share";
 import { isDefinedError, safe } from "@orpc/client";
 import {
   queryOptions,

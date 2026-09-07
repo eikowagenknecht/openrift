@@ -1,5 +1,5 @@
-import type { TournamentDetailResponse } from "@openrift/shared";
-import { formatDayTimeLocal } from "@openrift/shared";
+import { formatDayTimeLocal } from "@openrift/shared/format-date";
+import type { TournamentDetailResponse } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import { Building2Icon, CalendarIcon, UsersIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";

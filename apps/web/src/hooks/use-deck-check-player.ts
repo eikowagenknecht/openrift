@@ -1,12 +1,12 @@
+import { deckCheckClaimContract } from "@openrift/shared/contracts/deck-check-claim";
+import { deckCheckPlayerContract } from "@openrift/shared/contracts/deck-check-player";
 import type {
   DeckCheckClaimLandingResponse,
   DeckCheckClaimResultResponse,
   DeckCheckSubmissionPageResponse,
   DeckCheckSubmissionResultResponse,
   PlayerDeckCheckEntryDetailResponse,
-} from "@openrift/shared";
-import { deckCheckClaimContract } from "@openrift/shared/contracts/deck-check-claim";
-import { deckCheckPlayerContract } from "@openrift/shared/contracts/deck-check-player";
+} from "@openrift/shared/types/api/deck-check";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

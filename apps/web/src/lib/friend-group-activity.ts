@@ -1,5 +1,5 @@
-import type { FriendGroupActivityEvent } from "@openrift/shared";
 import { TRADE_VOLUME_WINDOW_DAYS } from "@openrift/shared/contracts/friend-groups";
+import type { FriendGroupActivityEvent } from "@openrift/shared/types/api/friend-group";
 
 export function tradeVolumeLabel(recent: number, lifetime: number): string {
   if (recent > 0) {

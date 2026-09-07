@@ -1,9 +1,9 @@
-import type { MetaEventTier } from "@openrift/shared";
-import { formatDay, formatRelativeTime } from "@openrift/shared";
 import type {
   MetaSourceFormat,
   MetaSourceTemplate,
 } from "@openrift/shared/contracts/admin/meta-catalog";
+import { formatDay, formatRelativeTime } from "@openrift/shared/format-date";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 import { useState } from "react";
 
 import { announceSyncTrigger } from "@/components/admin/meta-catalog-shared";

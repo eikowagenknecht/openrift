@@ -1,4 +1,5 @@
-import type { Card, OverlayBoard, Printing } from "@openrift/shared";
+import type { OverlayBoard } from "@openrift/shared/contracts/overlay";
+import type { Card, Printing } from "@openrift/shared/types/catalog";
 import { describe, expect, it } from "vitest";
 
 import { stubCard, stubPrinting } from "@/test/factories";

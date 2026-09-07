@@ -1,4 +1,4 @@
-import { legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";

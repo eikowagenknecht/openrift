@@ -1,4 +1,7 @@
-import type { CandidatePrintingGroupResponse, CandidatePrintingResponse } from "@openrift/shared";
+import type {
+  CandidatePrintingGroupResponse,
+  CandidatePrintingResponse,
+} from "@openrift/shared/types/api/admin";
 
 export interface PrintingGroup {
   candidates: CandidatePrintingResponse[];

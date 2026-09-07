@@ -1,4 +1,5 @@
-import type { DeckZone, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { DeckZone } from "@openrift/shared/types/enums";
 import { create } from "zustand";
 
 import type { CardViewerItem } from "@/lib/card-viewer-types";

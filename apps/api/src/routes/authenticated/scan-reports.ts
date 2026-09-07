@@ -1,6 +1,6 @@
-import type { ScanReportResponse } from "@openrift/shared";
-import { ERROR_CODES } from "@openrift/shared";
 import { scanReportsContract } from "@openrift/shared/contracts/scan-reports";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { ScanReportResponse } from "@openrift/shared/types/api/scan-report";
 import { implement } from "@orpc/server";
 import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";

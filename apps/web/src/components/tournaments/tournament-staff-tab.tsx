@@ -2,7 +2,7 @@ import type {
   TournamentDetailResponse,
   TournamentStaffMemberResponse,
   TournamentStaffRole,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import {
   EllipsisVerticalIcon,

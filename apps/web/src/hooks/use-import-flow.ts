@@ -1,4 +1,4 @@
-import type { ListKind } from "@openrift/shared";
+import type { ListKind } from "@openrift/shared/types/api/list";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";

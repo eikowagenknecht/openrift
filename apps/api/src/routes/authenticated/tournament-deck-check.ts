@@ -1,6 +1,10 @@
-import { ERROR_CODES, mapSectionToZone } from "@openrift/shared";
-import type { DeckCheckEntryDetailResponse, DeckCheckEventDetailResponse } from "@openrift/shared";
 import { tournamentDeckCheckContract } from "@openrift/shared/contracts/tournament-deck-check";
+import { mapSectionToZone } from "@openrift/shared/deck-check";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type {
+  DeckCheckEntryDetailResponse,
+  DeckCheckEventDetailResponse,
+} from "@openrift/shared/types/api/deck-check";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

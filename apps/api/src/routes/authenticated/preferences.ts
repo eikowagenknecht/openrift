@@ -1,9 +1,9 @@
-import type { UserPreferencesResponse } from "@openrift/shared";
 import {
   preferencesContract,
   userPreferencesResponseSchema,
 } from "@openrift/shared/contracts/preferences";
 import { createLogger } from "@openrift/shared/logger";
+import type { UserPreferencesResponse } from "@openrift/shared/types/api/preferences";
 import { implement } from "@orpc/server";
 
 import { requireAuthedUser } from "../../orpc/base.js";

@@ -3,19 +3,16 @@ import { createHash } from "node:crypto";
 
 import {
   buildContentHashInput,
-  ERROR_CODES,
-  inferZone,
   mapSectionToZone,
-  parsePiltoverDeckCode,
   SELF_SUBMIT_EXTERNAL_ID_PREFIX,
-  WellKnown,
-} from "@openrift/shared";
-import type {
-  CardType,
-  DeckCheckCardLine,
-  DeckCheckClaimResultResponse,
-  SuperType,
-} from "@openrift/shared";
+} from "@openrift/shared/deck-check";
+import type { DeckCheckCardLine } from "@openrift/shared/deck-check";
+import { parsePiltoverDeckCode } from "@openrift/shared/deck-code";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { DeckCheckClaimResultResponse } from "@openrift/shared/types/api/deck-check";
+import type { CardType, SuperType } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
+import { inferZone } from "@openrift/shared/zone-inference";
 
 import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";

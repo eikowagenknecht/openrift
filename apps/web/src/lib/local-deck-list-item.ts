@@ -1,10 +1,8 @@
-import type { Card, DeckListItemResponse } from "@openrift/shared";
-import {
-  descriptionSnippet,
-  isValidInDeckList,
-  requiredZoneProgress,
-  summarizeDeckCards,
-} from "@openrift/shared";
+import { isValidInDeckList, summarizeDeckCards } from "@openrift/shared/deck-list-summary";
+import { requiredZoneProgress } from "@openrift/shared/deck-zones";
+import { descriptionSnippet } from "@openrift/shared/description-snippet";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
+import type { Card } from "@openrift/shared/types/catalog";
 
 import { toDeckBuilderCard, toRuleEngineCard } from "@/lib/deck-builder-card";
 import type { LocalDeck } from "@/lib/local-deck";

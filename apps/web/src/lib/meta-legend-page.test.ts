@@ -1,9 +1,9 @@
+import type { MetaLegendEventRecord } from "@openrift/shared/contracts/meta";
 import type {
   MetaEventSummary,
-  MetaLegendEventRecord,
   MetaLegendFinish,
   MetaLegendSummary,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import {

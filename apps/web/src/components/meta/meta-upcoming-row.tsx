@@ -1,5 +1,5 @@
-import type { MetaEventSummary } from "@openrift/shared";
-import { dateLeafPartsUtc } from "@openrift/shared";
+import { dateLeafPartsUtc } from "@openrift/shared/format-date";
+import type { MetaEventSummary } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 
 import { MetaTierBadge } from "@/components/meta/meta-tier-badge";

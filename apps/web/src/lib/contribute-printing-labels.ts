@@ -1,5 +1,6 @@
-import type { VariantLabelPrinting } from "@openrift/shared";
-import { enumLabel, WellKnown } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { VariantLabelPrinting } from "@openrift/shared/printing-label";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { ContributeFormPrinting } from "@/lib/contribute-json";
 

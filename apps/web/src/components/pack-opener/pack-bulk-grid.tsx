@@ -1,5 +1,6 @@
-import type { CatalogPrintingResponse, PackResult } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { PackResult } from "@openrift/shared/pack-opener/types";
+import type { CatalogPrintingResponse } from "@openrift/shared/types/api/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import { PullCard } from "@/components/pack-opener/pull-card";
 

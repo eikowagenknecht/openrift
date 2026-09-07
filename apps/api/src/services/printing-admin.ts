@@ -1,5 +1,7 @@
-import { appendSetTotal, fixTypography, WellKnown, ERROR_CODES } from "@openrift/shared";
-import type { ArtVariant, CardSize, Finish, Rarity } from "@openrift/shared/types";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { appendSetTotal, fixTypography } from "@openrift/shared/fix-typography";
+import type { ArtVariant, CardSize, Finish, Rarity } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { Transact } from "../deps.js";
 import { AppError } from "../errors.js";

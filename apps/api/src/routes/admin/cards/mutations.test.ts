@@ -1,4 +1,4 @@
-import { appendSetTotal, fixTypography } from "@openrift/shared";
+import { appendSetTotal, fixTypography } from "@openrift/shared/fix-typography";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,7 +30,7 @@ vi.mock("../../../services/relink-candidates.js", () => ({
   relinkCandidatePrintings: vi.fn(),
 }));
 
-vi.mock("@openrift/shared", async (importOriginal) => ({
+vi.mock("@openrift/shared/fix-typography", async (importOriginal) => ({
   ...(await importOriginal()),
   fixTypography: vi.fn((text: string) => text),
   appendSetTotal: vi.fn((code: string) => code),

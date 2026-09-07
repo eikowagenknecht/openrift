@@ -1,5 +1,5 @@
-import type { MetaLegendFinish } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { MetaLegendFinish } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 

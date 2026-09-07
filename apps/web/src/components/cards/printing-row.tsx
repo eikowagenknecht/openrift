@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import type { ReactNode } from "react";
 
 import { PrintingVariantLabel } from "@/components/cards/printing-label";

@@ -1,3 +1,4 @@
+import { isAcceptPrintingField } from "@openrift/shared/contracts/admin/card-mutations";
 import type {
   AdminPrintingImageResponse,
   AdminPrintingMarketplaceMappingResponse,
@@ -5,8 +6,7 @@ import type {
   CandidateCardResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
-} from "@openrift/shared";
-import { isAcceptPrintingField } from "@openrift/shared/contracts/admin/card-mutations";
+} from "@openrift/shared/types/api/admin";
 import { Link } from "@tanstack/react-router";
 import {
   CheckCheckIcon,

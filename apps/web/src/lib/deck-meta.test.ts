@@ -1,4 +1,4 @@
-import type { DeckListItemResponse } from "@openrift/shared";
+import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
 import { describe, expect, it } from "vitest";
 
 import type { DeckMetaPartKey } from "./deck-meta";

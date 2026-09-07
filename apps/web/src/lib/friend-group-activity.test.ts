@@ -1,4 +1,4 @@
-import type { FriendGroupActivityEvent } from "@openrift/shared";
+import type { FriendGroupActivityEvent } from "@openrift/shared/types/api/friend-group";
 import { describe, expect, it } from "vitest";
 
 import type { AggregatedActivityRow } from "./friend-group-activity";

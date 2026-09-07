@@ -1,7 +1,6 @@
 // oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
 import { createHash, timingSafeEqual } from "node:crypto";
 
-import { ERROR_CODES } from "@openrift/shared";
 import type {
   DiscordBotAllTradeChannelsResponse,
   DiscordBotRedeemLinkResponse,
@@ -9,6 +8,7 @@ import type {
   DiscordBotTradelistHoldersResponse,
 } from "@openrift/shared/contracts/discord-bot";
 import { discordBotContract } from "@openrift/shared/contracts/discord-bot";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import { implement } from "@orpc/server";
 
 import { AppError } from "../../errors.js";

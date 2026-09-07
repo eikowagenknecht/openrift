@@ -1,5 +1,4 @@
 import type {
-  Marketplace,
   AssignableCardResponse,
   MappingGroupHeader,
   MappingPrintingResponse,
@@ -9,7 +8,8 @@ import type {
   UnifiedMappingGroupResponse,
   UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";

@@ -1,4 +1,4 @@
-import type { DistributionChannelWithCount, Printing } from "@openrift/shared";
+import type { DistributionChannelWithCount, Printing } from "@openrift/shared/types/catalog";
 
 import type { ChannelNode } from "./promos-tree";
 import { buildPromoTree } from "./promos-tree";

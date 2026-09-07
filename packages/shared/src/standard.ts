@@ -1,4 +1,4 @@
-import type { Printing, PrintingImage } from "./types/index.js";
+import type { Printing, PrintingImage } from "./types/catalog.js";
 import { LOW_RARITIES, WellKnown } from "./well-known.js";
 
 type StandardCheckFields = Pick<

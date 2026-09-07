@@ -1,4 +1,4 @@
-import type { MetaEventSummary, MetaLegendSummary } from "@openrift/shared";
+import type { MetaEventSummary, MetaLegendSummary } from "@openrift/shared/types/api/meta";
 
 import { normalizeCountryCode } from "@/lib/country";
 import type { MetaLegendIndexSort, MetaLegendIndexSortDirection } from "@/lib/meta-legends-search";

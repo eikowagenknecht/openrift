@@ -1,5 +1,6 @@
-import type { ListRule, Printing } from "@openrift/shared";
-import { EMPTY_CARD_FILTERS } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { ListRule } from "@openrift/shared/types/list-rule";
+import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import { describe, expect, it } from "vitest";
 
 import { stubPrinting } from "@/test/factories";

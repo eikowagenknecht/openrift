@@ -1,4 +1,4 @@
-import type { TierRow } from "@openrift/shared";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 

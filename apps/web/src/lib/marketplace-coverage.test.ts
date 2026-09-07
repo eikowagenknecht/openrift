@@ -2,7 +2,7 @@ import type {
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import {

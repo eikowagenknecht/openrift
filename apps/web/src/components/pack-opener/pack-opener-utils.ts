@@ -1,4 +1,5 @@
-import type { PackPrinting, Printing } from "@openrift/shared";
+import type { PackPrinting } from "@openrift/shared/pack-opener/types";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 export function toPackPrinting(p: Printing): PackPrinting {
   return {

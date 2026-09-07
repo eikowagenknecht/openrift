@@ -1,18 +1,15 @@
 import type {
   CompletionScopePreference,
-  Currency,
   DisplayPreferenceOverrides,
-  Marketplace,
   Palette,
   Theme,
-} from "@openrift/shared";
-import {
-  ALL_MARKETPLACES,
-  CURRENCIES,
-  DISPLAY_PREFERENCE_KEYS,
-  PALETTES,
-  RENAMED_LANGUAGES,
-} from "@openrift/shared";
+} from "@openrift/shared/types/api/preferences";
+import { DISPLAY_PREFERENCE_KEYS, PALETTES } from "@openrift/shared/types/api/preferences";
+import type { Currency } from "@openrift/shared/types/api/trade-preferences";
+import { CURRENCIES } from "@openrift/shared/types/api/trade-preferences";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { ALL_MARKETPLACES } from "@openrift/shared/types/pricing";
+import { RENAMED_LANGUAGES } from "@openrift/shared/well-known";
 
 export type DisplayMode = "grid" | "table";
 

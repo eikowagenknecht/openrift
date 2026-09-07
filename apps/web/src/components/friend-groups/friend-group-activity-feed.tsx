@@ -1,5 +1,6 @@
-import type { FriendGroupActivityEvent } from "@openrift/shared";
-import { getOrientation, dateLeafParts, formatRelativeTime } from "@openrift/shared";
+import { dateLeafParts, formatRelativeTime } from "@openrift/shared/format-date";
+import type { FriendGroupActivityEvent } from "@openrift/shared/types/api/friend-group";
+import { getOrientation } from "@openrift/shared/utils";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeftRightIcon, FolderIcon, SparklesIcon } from "lucide-react";
 import type { ReactNode } from "react";

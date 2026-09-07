@@ -1,5 +1,6 @@
-import type { AvailableFilters, FilterCounts, PresenceDimension } from "@openrift/shared";
-import { enumLabel } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
+import type { PresenceDimension } from "@openrift/shared/types/search";
 
 import type { MultiSelectComboboxProps } from "@/components/filters/multi-select-combobox";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";

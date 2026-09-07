@@ -1,4 +1,8 @@
-import type { CopyCollectionBreakdownEntry, CopyResponse, Finish } from "@openrift/shared";
+import type {
+  CopyCollectionBreakdownEntry,
+  CopyResponse,
+} from "@openrift/shared/types/api/collection";
+import type { Finish } from "@openrift/shared/types/enums";
 import { eq, inArray, useLiveQuery } from "@tanstack/react-db";
 import { useQuery } from "@tanstack/react-query";
 

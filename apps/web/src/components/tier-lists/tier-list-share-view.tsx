@@ -1,4 +1,4 @@
-import type { PublicTierListDetailResponse } from "@openrift/shared";
+import type { PublicTierListDetailResponse } from "@openrift/shared/types/api/tier-list";
 import { Link } from "@tanstack/react-router";
 import { MonitorPlayIcon } from "lucide-react";
 import { Suspense } from "react";

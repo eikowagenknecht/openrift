@@ -1,4 +1,4 @@
-import type { MetaEventTier } from "@openrift/shared";
+import type { MetaEventTier } from "@openrift/shared/types/enums";
 
 /**
  * `uvsgames_event_templates.tier` sets a floor {@link classifyMetaEventTier}

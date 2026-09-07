@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { stubPrinting } from "@/test/factories";

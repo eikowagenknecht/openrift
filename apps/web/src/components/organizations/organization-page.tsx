@@ -1,4 +1,4 @@
-import type { OrganizationRole } from "@openrift/shared";
+import type { OrganizationRole } from "@openrift/shared/types/api/tournament";
 import { useState } from "react";
 
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";

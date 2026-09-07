@@ -1,4 +1,7 @@
-import type { TournamentDetailResponse, TournamentStaffMemberResponse } from "@openrift/shared";
+import type {
+  TournamentDetailResponse,
+  TournamentStaffMemberResponse,
+} from "@openrift/shared/types/api/tournament";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";

@@ -1,4 +1,4 @@
-import type { OverlayBoard } from "@openrift/shared";
+import type { OverlayBoard } from "@openrift/shared/contracts/overlay";
 import { describe, expect, it, vi } from "vitest";
 
 import { createOverlayBoardSync } from "./overlay-board-sync";

@@ -1,4 +1,4 @@
-import { formatMonth } from "@openrift/shared";
+import { formatMonth } from "@openrift/shared/format-date";
 import { ChevronDownIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 

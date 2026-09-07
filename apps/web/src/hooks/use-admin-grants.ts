@@ -1,4 +1,4 @@
-import type { AdminSectionSlug } from "@openrift/shared";
+import type { AdminSectionSlug } from "@openrift/shared/admin-sections";
 import type { AdminGrantsResponse } from "@openrift/shared/contracts/admin/grants";
 import { adminGrantsContract } from "@openrift/shared/contracts/admin/grants";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";

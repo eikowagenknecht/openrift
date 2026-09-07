@@ -1,5 +1,5 @@
 import type { useRender } from "@base-ui/react/use-render";
-import type { ListIntent, ListKind } from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import { FolderIcon, HandshakeIcon, HeartIcon } from "lucide-react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 

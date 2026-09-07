@@ -1,4 +1,4 @@
-import type { MissingImageCard } from "@openrift/shared";
+import type { MissingImageCard } from "@openrift/shared/types/api/admin";
 import { describe, expect, it } from "vitest";
 
 import {

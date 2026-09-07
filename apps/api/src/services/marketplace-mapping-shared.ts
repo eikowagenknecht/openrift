@@ -1,4 +1,4 @@
-import type { MarketplaceGroupKind, StagedProductResponse } from "@openrift/shared";
+import type { MarketplaceGroupKind, StagedProductResponse } from "@openrift/shared/types/api/admin";
 
 import type { MarketplaceConfig, ProductInfo, StagingRow } from "../lib/marketplace-configs.js";
 

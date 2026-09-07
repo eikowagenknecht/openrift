@@ -1,4 +1,4 @@
-import type { CollectionResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
 import { describe, expect, it } from "vitest";
 
 import { aggregatePersonalCollectionValue } from "./collection-value";

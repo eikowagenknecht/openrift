@@ -9,8 +9,10 @@ import {
   sortCards,
 } from "./filters";
 import { makePrinting as stubPrinting } from "./test-factories.js";
-import { ALL_SEARCH_FIELDS, EMPTY_CARD_FILTERS, NONE } from "./types";
-import type { Card, CardFilters, EnumOrders, Printing } from "./types";
+import type { Card, Printing } from "./types/catalog.js";
+import type { EnumOrders } from "./types/enums.js";
+import { ALL_SEARCH_FIELDS, EMPTY_CARD_FILTERS, NONE } from "./types/search.js";
+import type { CardFilters } from "./types/search.js";
 
 const TEST_ORDERS: EnumOrders = {
   domains: ["fury", "calm", "mind", "body", "chaos", "order", "colorless"],

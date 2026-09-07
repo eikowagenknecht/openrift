@@ -1,4 +1,4 @@
-import type { Marker } from "@openrift/shared";
+import type { Marker } from "@openrift/shared/types/catalog";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { resetIdCounter, stubCardViewerItem } from "@/test/factories";

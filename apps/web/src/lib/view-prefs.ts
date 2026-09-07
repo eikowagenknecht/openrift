@@ -1,5 +1,5 @@
-import type { SortDirection } from "@openrift/shared";
-import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared";
+import type { SortDirection } from "@openrift/shared/types/search";
+import { GROUP_BY_FIELDS, SORT_DIRECTIONS, SORT_OPTIONS } from "@openrift/shared/types/search";
 
 import { PROMO_GROUPINGS } from "@/lib/promo-groupings";
 

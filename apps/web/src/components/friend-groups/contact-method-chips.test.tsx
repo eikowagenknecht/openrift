@@ -1,4 +1,4 @@
-import type { ContactMethod } from "@openrift/shared";
+import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";

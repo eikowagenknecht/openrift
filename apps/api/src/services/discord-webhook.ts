@@ -1,5 +1,6 @@
-import { imageUrl, WellKnown } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
 import type { Logger } from "@openrift/shared/logger";
+import { WellKnown } from "@openrift/shared/well-known";
 
 import type { EnrichedPrintingEvent } from "../repositories/printing-events.js";
 

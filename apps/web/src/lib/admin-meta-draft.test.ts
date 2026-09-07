@@ -1,4 +1,4 @@
-import type { AdminMetaEvent, AdminMetaPlayer } from "@openrift/shared";
+import type { AdminMetaEvent, AdminMetaPlayer } from "@openrift/shared/types/api/meta";
 import { describe, expect, it } from "vitest";
 
 import {

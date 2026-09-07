@@ -1,5 +1,5 @@
-import { WellKnown } from "@openrift/shared";
 import { PRODUCT_COVER_CARD_COUNT } from "@openrift/shared/contracts/products";
+import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

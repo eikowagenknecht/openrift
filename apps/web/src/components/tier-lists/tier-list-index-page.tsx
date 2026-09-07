@@ -1,5 +1,5 @@
-import type { TierListSummaryResponse } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { TierListSummaryResponse } from "@openrift/shared/types/api/tier-list";
 import { Link } from "@tanstack/react-router";
 import { EllipsisVerticalIcon, LayersIcon, PlusIcon, Share2Icon, Trash2Icon } from "lucide-react";
 import { useState } from "react";

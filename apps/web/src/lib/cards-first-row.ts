@@ -1,14 +1,13 @@
-import type { CatalogResponse, GroupByField, SortOption } from "@openrift/shared";
+import { filterCards, sortCards } from "@openrift/shared/filters";
+import { setIndexById, UNKNOWN_SET_INDEX } from "@openrift/shared/set-order";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
+import type { GroupByField, SortOption } from "@openrift/shared/types/search";
 import {
-  filterCards,
   getOrientation,
   legendDisplayName,
-  PREFERENCE_DEFAULTS,
-  setIndexById,
   sortByLanguageAndCanonicalRank,
-  sortCards,
-  UNKNOWN_SET_INDEX,
-} from "@openrift/shared";
+} from "@openrift/shared/utils";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 

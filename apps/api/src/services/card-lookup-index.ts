@@ -1,5 +1,6 @@
-import type { CardSearchIndex } from "@openrift/shared";
-import { buildCardIndex, cardSearchAltNames } from "@openrift/shared";
+import type { CardSearchIndex } from "@openrift/shared/card-search";
+import { buildCardIndex } from "@openrift/shared/card-search";
+import { cardSearchAltNames } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
 import type { CatalogCardRow } from "../repositories/catalog.js";

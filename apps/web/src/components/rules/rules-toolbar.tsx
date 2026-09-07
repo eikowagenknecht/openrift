@@ -1,4 +1,4 @@
-import type { RuleKind } from "@openrift/shared";
+import type { RuleKind } from "@openrift/shared/types/api/rules";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronsDownUpIcon, ChevronsUpDownIcon, FileClockIcon } from "lucide-react";

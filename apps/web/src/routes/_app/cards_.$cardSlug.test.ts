@@ -1,4 +1,7 @@
-import type { CardDetailResponse, CatalogPrintingResponse } from "@openrift/shared";
+import type {
+  CardDetailResponse,
+  CatalogPrintingResponse,
+} from "@openrift/shared/types/api/catalog";
 import { describe, expect, it } from "vitest";
 
 import { Route } from "./cards_.$cardSlug";

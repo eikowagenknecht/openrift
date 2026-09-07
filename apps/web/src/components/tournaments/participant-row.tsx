@@ -1,4 +1,4 @@
-import type { TournamentParticipantResponse } from "@openrift/shared";
+import type { TournamentParticipantResponse } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import {
   ArmchairIcon,

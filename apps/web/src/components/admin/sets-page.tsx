@@ -1,10 +1,11 @@
-import type { AdminSetResponse, ReleasePrecision, SetRelease, SetReleases } from "@openrift/shared";
+import type { ReleasePrecision, SetRelease, SetReleases } from "@openrift/shared/set-release";
 import {
   formatReleasePeriod,
   isReleased,
   normalizeToPeriodStart,
-  WellKnown,
-} from "@openrift/shared";
+} from "@openrift/shared/set-release";
+import type { AdminSetResponse } from "@openrift/shared/types/api/admin";
+import { WellKnown } from "@openrift/shared/well-known";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 

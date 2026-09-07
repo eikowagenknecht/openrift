@@ -1,4 +1,4 @@
-import type { DeckFormatConfig } from "@openrift/shared";
+import type { DeckFormatConfig } from "@openrift/shared/types/api/deck";
 import { PencilIcon } from "lucide-react";
 import { useState } from "react";
 

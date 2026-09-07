@@ -1,4 +1,5 @@
-import type { DeckFolderResponse, Domain } from "@openrift/shared";
+import type { DeckFolderResponse } from "@openrift/shared/types/api/deck";
+import type { Domain } from "@openrift/shared/types/enums";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import type { ReactNode } from "react";
 

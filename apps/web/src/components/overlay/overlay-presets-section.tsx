@@ -1,4 +1,5 @@
-import type { OverlayChannelResponse, StagePreset } from "@openrift/shared";
+import type { OverlayChannelResponse } from "@openrift/shared/contracts/overlay";
+import type { StagePreset } from "@openrift/shared/contracts/stage-presets";
 import {
   BookmarkPlusIcon,
   EllipsisVerticalIcon,

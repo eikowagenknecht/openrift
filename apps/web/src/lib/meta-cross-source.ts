@@ -1,4 +1,4 @@
-import type { MetaCrossSourceRow } from "@openrift/shared";
+import type { MetaCrossSourceRow } from "@openrift/shared/types/api/meta";
 
 export interface MetaCrossSourceProgress {
   total: number;

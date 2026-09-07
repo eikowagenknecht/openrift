@@ -1,4 +1,4 @@
-import type { ActivityAction, CardType } from "@openrift/shared/types";
+import type { ActivityAction, CardType } from "@openrift/shared/types/enums";
 import type { Kysely, Selectable } from "kysely";
 
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";

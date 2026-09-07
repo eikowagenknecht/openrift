@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import type { CardViewerItem } from "@/lib/card-viewer-types";
 import type { StackedEntry } from "@/lib/stacked-entry";

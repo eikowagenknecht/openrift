@@ -1,4 +1,4 @@
-import type { CopyResponse } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import { describe, expect, it } from "vitest";
 
 import { stubCopy } from "@/test/factories";

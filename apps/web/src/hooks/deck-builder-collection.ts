@@ -1,4 +1,4 @@
-import type { DeckDetailResponse } from "@openrift/shared";
+import type { DeckDetailResponse } from "@openrift/shared/types/api/deck";
 import type { Collection } from "@tanstack/react-db";
 import { createCollection, localOnlyCollectionOptions } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";

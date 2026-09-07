@@ -1,5 +1,5 @@
-import type { CardStatLabels } from "@openrift/shared";
-import { labelMap } from "@openrift/shared";
+import type { CardStatLabels } from "@openrift/shared/card-stat-line";
+import { labelMap } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
 import type { CardLookupIndex } from "./card-lookup-index.js";

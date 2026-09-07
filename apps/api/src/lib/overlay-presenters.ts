@@ -3,8 +3,8 @@ import type {
   OverlayPayload,
   OverlaySettings,
   OverlayStateResponse,
-  StagePresetConfig,
-} from "@openrift/shared";
+} from "@openrift/shared/contracts/overlay";
+import type { StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 
 import type { OverlayChannel } from "../repositories/overlay-channels.js";
 

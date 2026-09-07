@@ -1,5 +1,5 @@
-import type { MetaActivityItem } from "@openrift/shared";
-import { formatRelativeTime } from "@openrift/shared";
+import { formatRelativeTime } from "@openrift/shared/format-date";
+import type { MetaActivityItem } from "@openrift/shared/types/api/meta";
 import { Link } from "@tanstack/react-router";
 import { CalendarPlusIcon, ChevronRightIcon, ListOrderedIcon, ListPlusIcon } from "lucide-react";
 import type { ComponentType } from "react";

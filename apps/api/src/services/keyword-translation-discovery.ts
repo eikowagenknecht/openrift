@@ -1,4 +1,4 @@
-import { extractBracketedTerms } from "@openrift/shared";
+import { extractBracketedTerms } from "@openrift/shared/keywords";
 
 import type { keywordsRepo } from "../repositories/keywords.js";
 

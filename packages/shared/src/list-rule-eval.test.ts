@@ -14,13 +14,12 @@ import type {
 } from "./list-rule-eval.js";
 import { priceLookupFromMap } from "./price-lookup.js";
 import { makePrinting as stubPrinting } from "./test-factories.js";
-import {
-  EMPTY_CARD_FILTERS,
-  listRulesSchema,
-  MAX_LIST_RULES,
-  ruleQuantitySchema,
-} from "./types/index.js";
-import type { CardFilters, ListRule, Printing, TradePreference } from "./types/index.js";
+import type { TradePreference } from "./types/api/trade-preferences.js";
+import type { Printing } from "./types/catalog.js";
+import { listRulesSchema, MAX_LIST_RULES, ruleQuantitySchema } from "./types/list-rule.js";
+import type { ListRule } from "./types/list-rule.js";
+import { EMPTY_CARD_FILTERS } from "./types/search.js";
+import type { CardFilters } from "./types/search.js";
 
 const EMPTY_TRADE: TradePreference = { pricePref: null, priceAbsoluteCents: null, tradeType: null };
 

@@ -1,4 +1,7 @@
-import type { CatalogResponse, DeckCatalogSubset, InitResponse, Printing } from "@openrift/shared";
+import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
+import type { DeckCatalogSubset } from "@openrift/shared/types/api/deck";
+import type { InitResponse } from "@openrift/shared/types/api/init";
+import type { Printing } from "@openrift/shared/types/catalog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook } from "@testing-library/react";
 import type { PropsWithChildren } from "react";

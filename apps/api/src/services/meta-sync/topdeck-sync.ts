@@ -1,4 +1,4 @@
-import { TOPDECK_FORMATS } from "@openrift/shared";
+import { TOPDECK_FORMATS } from "@openrift/shared/types/enums";
 import type { Insertable } from "kysely";
 
 import type { TopdeckDecklistCardsTable, TopdeckEventStandingsTable } from "../../db/index.js";

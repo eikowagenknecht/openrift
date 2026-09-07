@@ -1,5 +1,6 @@
-import type { Marketplace } from "@openrift/shared";
-import { ALL_MARKETPLACES, MARKETPLACE_CURRENCY, MARKETPLACE_LINKS } from "@openrift/shared";
+import { MARKETPLACE_LINKS } from "@openrift/shared/marketplace";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { ALL_MARKETPLACES, MARKETPLACE_CURRENCY } from "@openrift/shared/types/pricing";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";

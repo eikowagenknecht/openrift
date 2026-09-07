@@ -1,11 +1,9 @@
-import type { CardDetailResponse, PricesResponse } from "@openrift/shared";
-import {
-  ALL_MARKETPLACES,
-  legendDisplayName,
-  MARKETPLACE_CURRENCY,
-  marketplaceLabel,
-  priceLookupFromMap,
-} from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import { priceLookupFromMap } from "@openrift/shared/price-lookup";
+import type { CardDetailResponse } from "@openrift/shared/types/api/catalog";
+import type { PricesResponse } from "@openrift/shared/types/api/pricing";
+import { ALL_MARKETPLACES, MARKETPLACE_CURRENCY } from "@openrift/shared/types/pricing";
+import { legendDisplayName } from "@openrift/shared/utils";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 

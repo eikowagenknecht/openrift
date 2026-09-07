@@ -1,5 +1,6 @@
-import type { AdminMetaEvent } from "@openrift/shared";
-import { formatDay, META_EVENT_SORTS } from "@openrift/shared";
+import { formatDay } from "@openrift/shared/format-date";
+import type { AdminMetaEvent } from "@openrift/shared/types/api/meta";
+import { META_EVENT_SORTS } from "@openrift/shared/types/enums";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import { LayersIcon } from "lucide-react";
 import { useState } from "react";

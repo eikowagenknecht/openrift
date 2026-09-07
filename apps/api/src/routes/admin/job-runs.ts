@@ -1,4 +1,4 @@
-import type { JobRunsListResponse, JobRunView } from "@openrift/shared";
+import type { JobRunsListResponse, JobRunView } from "@openrift/shared/contracts/admin/job-runs";
 import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs";
 import { implement } from "@orpc/server";
 

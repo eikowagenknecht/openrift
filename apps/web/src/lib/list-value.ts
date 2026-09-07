@@ -1,4 +1,7 @@
-import type { ListEntryDetailResponse, Marketplace, PriceLookup, Printing } from "@openrift/shared";
+import type { ListEntryDetailResponse } from "@openrift/shared/types/api/list";
+import type { PriceLookup } from "@openrift/shared/types/api/pricing";
+import type { Printing } from "@openrift/shared/types/catalog";
+import type { Marketplace } from "@openrift/shared/types/pricing";
 
 export interface ListValueResult {
   value: number;

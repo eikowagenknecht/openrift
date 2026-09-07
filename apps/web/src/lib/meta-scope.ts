@@ -1,6 +1,7 @@
 /* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
-import type { MetaScopeQuery, SetReleases } from "@openrift/shared";
-import { earliestRelease, todayUtc } from "@openrift/shared";
+import type { SetReleases } from "@openrift/shared/set-release";
+import { earliestRelease, todayUtc } from "@openrift/shared/set-release";
+import type { MetaScopeQuery } from "@openrift/shared/types/api/meta";
 import { z } from "zod";
 
 import { cycleIncludeExclude } from "@/lib/filter-cycle";

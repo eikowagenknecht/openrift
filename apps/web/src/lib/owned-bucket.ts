@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { getPlaysetSize } from "@openrift/shared";
+import { getPlaysetSize } from "@openrift/shared/playset";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import type { OwnedBucket } from "@/lib/search-schemas";
 

@@ -1,5 +1,5 @@
-import type { JobRunStartedResponse } from "@openrift/shared";
 import { adminPrintingEventsContract } from "@openrift/shared/contracts/admin/printing-events";
+import type { JobRunStartedResponse } from "@openrift/shared/types/api/admin";
 import { useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

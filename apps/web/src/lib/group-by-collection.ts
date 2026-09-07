@@ -1,4 +1,4 @@
-import type { GroupByField } from "@openrift/shared";
+import type { GroupByField } from "@openrift/shared/types/search";
 
 import type { CardGroup, GroupInfo } from "@/lib/card-group-types";
 import type { CardViewerItem } from "@/lib/card-viewer-types";

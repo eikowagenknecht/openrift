@@ -1,12 +1,12 @@
+import { metaSubmissionsContract } from "@openrift/shared/contracts/meta-submissions";
 import type {
-  MetaCreditVisibility,
   MetaCreditVisibilityResponse,
   MetaEventCorrectionInput,
   MetaSubmissionInput,
   MetaSubmissionListResponse,
   MetaSubmissionResult,
-} from "@openrift/shared";
-import { metaSubmissionsContract } from "@openrift/shared/contracts/meta-submissions";
+} from "@openrift/shared/types/api/meta";
+import type { MetaCreditVisibility } from "@openrift/shared/types/enums";
 import { isDefinedError, safe } from "@orpc/client";
 import {
   infiniteQueryOptions,

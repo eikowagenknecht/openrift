@@ -1,5 +1,6 @@
-import type { LoanResponse } from "@openrift/shared";
-import { enumLabel, getOrientation } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared/enum-label";
+import type { LoanResponse } from "@openrift/shared/types/api/loan";
+import { getOrientation } from "@openrift/shared/utils";
 import { ChevronRightIcon, EllipsisVerticalIcon, HandHeartIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

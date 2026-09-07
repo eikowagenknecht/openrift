@@ -1,4 +1,4 @@
-import { ERROR_CODES } from "@openrift/shared";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type { Selectable } from "kysely";
 
 import type { Database, ReferenceTable } from "../db/index.js";

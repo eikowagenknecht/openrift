@@ -1,5 +1,5 @@
-import type { MarketplaceGroupKind } from "@openrift/shared";
-import { marketplaceLabel } from "@openrift/shared";
+import { marketplaceLabel } from "@openrift/shared/marketplace";
+import type { MarketplaceGroupKind } from "@openrift/shared/types/api/admin";
 import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";

@@ -1,4 +1,4 @@
-import type { OrganizationSummaryResponse } from "@openrift/shared";
+import type { OrganizationSummaryResponse } from "@openrift/shared/types/api/tournament";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";

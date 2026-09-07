@@ -1,11 +1,11 @@
-import { formatContactMethodsSummary } from "@openrift/shared";
+import { formatContactMethodsSummary } from "@openrift/shared/contact-methods";
 import type { Logger } from "@openrift/shared/logger";
 import {
   getTradeRequestEmailCadence,
   isTradeRequestEmailEnabled,
   TRADE_REQUEST_EMAIL_CADENCE_MINUTES,
-} from "@openrift/shared/types";
-import type { TradeRequestEmailCadence } from "@openrift/shared/types";
+} from "@openrift/shared/types/api/preferences";
+import type { TradeRequestEmailCadence } from "@openrift/shared/types/api/preferences";
 
 import type { Repos } from "../deps.js";
 import type { createEmailSender } from "../email.js";

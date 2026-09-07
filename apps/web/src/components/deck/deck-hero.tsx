@@ -1,5 +1,7 @@
-import type { DeckFormat, DeckViolation, Marketplace } from "@openrift/shared";
-import { deckIdentityLabels, legendDisplayName } from "@openrift/shared";
+import type { DeckViolation } from "@openrift/shared/deck-rules";
+import type { DeckFormat } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { deckIdentityLabels, legendDisplayName } from "@openrift/shared/utils";
 import {
   BoxIcon,
   CheckCircle2Icon,

@@ -1,4 +1,4 @@
-import type { ShareImageAspect } from "@openrift/shared";
+import type { ShareImageAspect } from "@openrift/shared/share-image-params";
 
 import type { DeckImageInput } from "./deck-image-parts.js";
 import type { ShareImageInput, ShareImageOptions } from "./share-image.js";

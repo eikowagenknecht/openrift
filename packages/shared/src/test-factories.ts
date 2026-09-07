@@ -4,11 +4,10 @@
  */
 
 import type {
-  Card,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
-  Printing,
-} from "./types/index.js";
+} from "./types/api/catalog.js";
+import type { Card, Printing } from "./types/catalog.js";
 
 /** The wire card as `/catalog` sends it, carrying its own id. */
 export type CatalogCardFixture = CatalogResponseCardValue & { id: string };

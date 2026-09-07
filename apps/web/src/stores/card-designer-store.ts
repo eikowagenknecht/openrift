@@ -1,4 +1,4 @@
-import type { Domain, Rarity } from "@openrift/shared";
+import type { Domain, Rarity } from "@openrift/shared/types/enums";
 import { create } from "zustand";
 
 import { clampImageTransform } from "@/lib/card-designer";

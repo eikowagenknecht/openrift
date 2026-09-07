@@ -1,6 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { DeckZone } from "@openrift/shared";
-import { WellKnown, legendDisplayName } from "@openrift/shared";
+import type { DeckZone } from "@openrift/shared/types/enums";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import {
   AlertTriangleIcon,
   HandHeartIcon,

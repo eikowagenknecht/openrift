@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { Printing } from "@openrift/shared/types/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 import { AlertTriangleIcon, CheckCircle2Icon, SearchIcon, XCircleIcon } from "lucide-react";
 import { useState } from "react";
 

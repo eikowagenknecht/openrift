@@ -1,4 +1,8 @@
-import type { ListBulkAddResponse, ListDetailResponse, ListResponse } from "@openrift/shared";
+import type {
+  ListBulkAddResponse,
+  ListDetailResponse,
+  ListResponse,
+} from "@openrift/shared/types/api/list";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";

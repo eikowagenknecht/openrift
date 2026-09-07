@@ -1,4 +1,4 @@
-import { getOrientation, legendDisplayName } from "@openrift/shared";
+import { getOrientation, legendDisplayName } from "@openrift/shared/utils";
 import { useEffect, useRef } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";

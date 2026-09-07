@@ -2,7 +2,7 @@
 // entry and marks it orphaned. cleanup() is never called directly; TanStack DB's auto-GC
 // fires it once subscriberCount hits 0.
 
-import type { CopyResponse } from "@openrift/shared";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { Collection } from "@tanstack/react-db";
 import { createCollection } from "@tanstack/react-db";

@@ -1,4 +1,5 @@
-import { foldForSearch, formatPrintingVariantLabelParts, squashForSearch } from "@openrift/shared";
+import { formatPrintingVariantLabelParts } from "@openrift/shared/printing-label";
+import { foldForSearch, squashForSearch } from "@openrift/shared/search-fold";
 
 import type { CatalogCard, CatalogPrinting, CatalogSnapshot } from "./catalog-cache.js";
 import { representativePrinting } from "./catalog-cache.js";

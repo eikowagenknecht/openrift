@@ -1,7 +1,8 @@
 import { useDndContext, useDndMonitor } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import type { CollectionResponse, ListIntent, ListResponse } from "@openrift/shared";
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
+import type { ListIntent, ListResponse } from "@openrift/shared/types/api/list";
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,

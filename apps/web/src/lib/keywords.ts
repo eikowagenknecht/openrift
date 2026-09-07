@@ -1,5 +1,5 @@
-import type { KeywordsResponse } from "@openrift/shared";
-import { foldForSearch } from "@openrift/shared";
+import { foldForSearch } from "@openrift/shared/search-fold";
+import type { KeywordsResponse } from "@openrift/shared/types/api/keyword";
 
 const FALLBACK_COLOR = "#6a6a6a";
 

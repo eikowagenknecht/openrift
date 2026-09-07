@@ -1,24 +1,18 @@
+import type { OwnedCopyRow } from "@openrift/shared/list-rule-eval";
+import { evaluateListRule, evaluateListRules, expandList } from "@openrift/shared/list-rule-eval";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
+import type { Printing } from "@openrift/shared/types/catalog";
 import type {
-  CopyResponse,
-  ListIntent,
-  ListKind,
   ListRule,
   ListRuleCombine,
-  Marketplace,
-  OwnedCopyRow,
-  Printing,
   RuleQuantity,
   TradeKeepPer,
-} from "@openrift/shared";
-import {
-  defaultRuleCombine,
-  evaluateListRule,
-  evaluateListRules,
-  expandList,
-  legendDisplayName,
-  MAX_LIST_RULES,
-  WellKnown,
-} from "@openrift/shared";
+} from "@openrift/shared/types/list-rule";
+import { defaultRuleCombine, MAX_LIST_RULES } from "@openrift/shared/types/list-rule";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { legendDisplayName } from "@openrift/shared/utils";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";

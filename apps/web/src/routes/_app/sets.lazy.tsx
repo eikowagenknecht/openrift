@@ -1,5 +1,7 @@
-import type { SetListEntry } from "@openrift/shared";
-import { formatReleasePeriod, WellKnown, imageUrl } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared/image-url";
+import { formatReleasePeriod } from "@openrift/shared/set-release";
+import type { SetListEntry } from "@openrift/shared/types/api/catalog";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";

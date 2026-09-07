@@ -2,9 +2,8 @@ import type {
   OverlayPayload,
   OverlayPlateFields,
   OverlaySettings,
-  StageGround,
-  StagePresetConfig,
-} from "@openrift/shared";
+} from "@openrift/shared/contracts/overlay";
+import type { StageGround, StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 
 import { clampCardScale } from "@/lib/card-scale";
 

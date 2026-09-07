@@ -1,12 +1,13 @@
-import { ERROR_CODES, SELF_SUBMIT_EXTERNAL_ID_PREFIX } from "@openrift/shared";
+import { deckCheckPlayerContract } from "@openrift/shared/contracts/deck-check-player";
+import { SELF_SUBMIT_EXTERNAL_ID_PREFIX } from "@openrift/shared/deck-check";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type {
   DeckCheckClaimResultResponse,
   DeckCheckEntryCardResponse,
   DeckCheckSubmissionPageResponse,
   DeckCheckSubmissionResultResponse,
   PlayerDeckCheckEntryDetailResponse,
-} from "@openrift/shared";
-import { deckCheckPlayerContract } from "@openrift/shared/contracts/deck-check-player";
+} from "@openrift/shared/types/api/deck-check";
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";

@@ -1,5 +1,6 @@
-import type { Domain, PublicDeckCardResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import type { PublicDeckCardResponse } from "@openrift/shared/types/api/deck";
+import type { Domain } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
 
 export interface DeckTypeSplit {
   units: number;

@@ -1,18 +1,11 @@
-import type {
-  DeckFormat,
-  DeckFormatConfig,
-  DeckLink,
-  DeckOddsConfig,
-  DeckZone,
-  Marketplace,
-} from "@openrift/shared";
-import {
-  WellKnown,
-  formatHasSideboard,
-  imageUrl,
-  setIndexById,
-  validateDeck,
-} from "@openrift/shared";
+import type { DeckOddsConfig } from "@openrift/shared/contracts/decks";
+import { formatHasSideboard, validateDeck } from "@openrift/shared/deck-rules";
+import { imageUrl } from "@openrift/shared/image-url";
+import { setIndexById } from "@openrift/shared/set-order";
+import type { DeckFormatConfig, DeckLink } from "@openrift/shared/types/api/deck";
+import type { DeckFormat, DeckZone } from "@openrift/shared/types/enums";
+import type { Marketplace } from "@openrift/shared/types/pricing";
+import { WellKnown } from "@openrift/shared/well-known";
 import { useQuery } from "@tanstack/react-query";
 import { PencilIcon } from "lucide-react";
 import { Suspense, useState } from "react";

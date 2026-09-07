@@ -1,4 +1,6 @@
-import type { CardTradeLiveAnnotation, CopyResponse, Printing } from "@openrift/shared";
+import type { CardTradeLiveAnnotation } from "@openrift/shared/types/api/card-trade";
+import type { CopyResponse } from "@openrift/shared/types/api/collection";
+import type { Printing } from "@openrift/shared/types/catalog";
 
 import { collapseTradeAnnotations, groupTradeAnnotationsByPrinting } from "@/lib/trade-derivation";
 import { liveTradeStatus, tradeStatusTitle } from "@/lib/trade-status-labels";

@@ -1,9 +1,9 @@
-import { META_CATALOG_PROVIDERS } from "@openrift/shared";
 import type {
   MetaCatalogRow,
   MetaSource,
   MetaSyncTriggerResult,
 } from "@openrift/shared/contracts/admin/meta-catalog";
+import { META_CATALOG_PROVIDERS } from "@openrift/shared/types/enums";
 import { useState } from "react";
 import { toast } from "sonner";
 

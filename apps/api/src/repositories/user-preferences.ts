@@ -1,4 +1,7 @@
-import type { EmailNotificationPreference, UserPreferencesResponse } from "@openrift/shared/types";
+import type {
+  EmailNotificationPreference,
+  UserPreferencesResponse,
+} from "@openrift/shared/types/api/preferences";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 

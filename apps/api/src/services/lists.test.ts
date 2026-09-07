@@ -2,7 +2,7 @@
    no-empty-function,
    unicorn/no-useless-undefined
    -- test file: mocks require empty fns and explicit undefined */
-import type { ListIntent, ListKind } from "@openrift/shared";
+import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import type { DeleteResult, Selectable } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 

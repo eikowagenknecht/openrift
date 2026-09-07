@@ -1,4 +1,4 @@
-import type { TierRow } from "@openrift/shared";
+import type { TierRow } from "@openrift/shared/types/api/tier-list";
 import { useDebouncer } from "@tanstack/react-pacer";
 import { useEffect } from "react";
 

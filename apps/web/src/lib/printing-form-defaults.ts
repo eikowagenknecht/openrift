@@ -1,4 +1,4 @@
-import type { AdminPrintingResponse } from "@openrift/shared";
+import type { AdminPrintingResponse } from "@openrift/shared/types/api/admin";
 
 export interface PrintingFormFallbacks {
   setSlug: string;

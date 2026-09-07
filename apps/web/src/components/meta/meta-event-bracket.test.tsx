@@ -1,4 +1,4 @@
-import type { MetaEventMatch } from "@openrift/shared";
+import type { MetaEventMatch } from "@openrift/shared/types/api/meta";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 

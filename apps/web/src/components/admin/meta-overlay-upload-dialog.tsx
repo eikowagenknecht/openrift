@@ -1,4 +1,4 @@
-import type { MetaUploadBody, MetaUploadResponse } from "@openrift/shared";
+import type { MetaUploadBody, MetaUploadResponse } from "@openrift/shared/types/api/meta";
 import { UploadIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 

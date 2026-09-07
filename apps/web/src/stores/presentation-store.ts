@@ -1,4 +1,5 @@
-import type { OverlayPlateFields, StageGround } from "@openrift/shared";
+import type { OverlayPlateFields } from "@openrift/shared/contracts/overlay";
+import type { StageGround } from "@openrift/shared/contracts/stage-presets";
 import { create } from "zustand";
 
 import { clampCardScale, MAX_CARD_SCALE } from "@/lib/card-scale";
