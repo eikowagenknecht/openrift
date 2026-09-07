@@ -72,6 +72,7 @@ import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { raritiesRepo } from "./repositories/rarities.js";
 import { rulesRepo } from "./repositories/rules.js";
 import { scanIndexRepo } from "./repositories/scan-index.js";
+import { scanReportsRepo } from "./repositories/scan-reports.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { stagePresetsRepo } from "./repositories/stage-presets.js";
@@ -138,6 +139,7 @@ import { promoteMetaEvent, promoteNewEvent } from "./services/meta-promote.js";
 import { repromoteMetaEvents } from "./services/meta-repromote.js";
 import { retierMetaEvents } from "./services/meta-retier.js";
 import { submitMetaDeck, submitMetaEventCorrection } from "./services/meta-submission.js";
+import { createScanReport } from "./services/scan-reports.js";
 import type { TradeEmailDeps } from "./services/trade-notifications.js";
 
 export interface Repos {
@@ -227,6 +229,7 @@ export interface Repos {
   jobRuns: ReturnType<typeof jobRunsRepo>;
   jobSchedules: ReturnType<typeof jobSchedulesRepo>;
   scanIndex: ReturnType<typeof scanIndexRepo>;
+  scanReports: ReturnType<typeof scanReportsRepo>;
 }
 
 export interface Services {
@@ -244,6 +247,7 @@ export interface Services {
   ingestCandidates: typeof ingestCandidates;
   ingestMetaOverlays: typeof ingestMetaOverlays;
   ingestUserSubmission: typeof ingestUserSubmission;
+  createScanReport: typeof createScanReport;
   promoteMetaEvent: typeof promoteMetaEvent;
   promoteNewEvent: typeof promoteNewEvent;
   repromoteMetaEvents: typeof repromoteMetaEvents;
@@ -409,6 +413,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     jobRuns: jobRunsRepo(db),
     jobSchedules: jobSchedulesRepo(db),
     scanIndex: scanIndexRepo(db),
+    scanReports: scanReportsRepo(db),
   };
   return Object.fromEntries(
     Object.entries(raw).map(([name, repo]) => [
@@ -440,6 +445,7 @@ export const services: Services = {
   ingestCandidates,
   ingestMetaOverlays,
   ingestUserSubmission,
+  createScanReport,
   promoteMetaEvent,
   promoteNewEvent,
   repromoteMetaEvents,

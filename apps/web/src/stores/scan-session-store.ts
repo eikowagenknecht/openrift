@@ -12,10 +12,17 @@ interface PersistedScanRow {
   count: number;
 }
 
+export interface ScanPendingAdd {
+  batchId: string;
+  collectionId: string;
+  jobs: { id: string; printingId: string }[];
+}
+
 interface PersistedScanSession {
   rows: PersistedScanRow[];
   scans: number;
   lastScanAt: number | null;
+  pending: ScanPendingAdd | null;
 }
 
 interface RestoredScanSession {
@@ -29,12 +36,15 @@ interface ScanSessionState {
   lastScanAt: number | null;
   restored: PersistedScanSession | null;
   resumed: RestoredScanSession | null;
+  pending: ScanPendingAdd | null;
   add: (printing: Printing) => void;
   remove: (printingId: string) => void;
   move: (fromPrintingId: string, to: Printing) => void;
   take: (counts: ReadonlyMap<string, number>) => void;
   putBack: (rows: readonly ScanSessionRow[]) => void;
   clear: () => ScanSessionRow[];
+  setPending: (pending: ScanPendingAdd) => void;
+  clearPending: () => void;
   restore: (lookupPrinting: (printingId: string) => Printing | undefined) => void;
   dismissResumed: () => void;
   reset: () => void;
@@ -72,7 +82,35 @@ function toPersisted(state: ScanSessionState): PersistedScanSession {
     }
     rows.push({ printingId: row.printing.id, count: row.count });
   }
-  return { rows, scans: state.scans, lastScanAt: state.lastScanAt };
+  return { rows, scans: state.scans, lastScanAt: state.lastScanAt, pending: state.pending };
+}
+
+function readPersistedPending(value: unknown): ScanPendingAdd | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const pending = value as Record<string, unknown>;
+  if (typeof pending.batchId !== "string" || typeof pending.collectionId !== "string") {
+    return null;
+  }
+  if (!Array.isArray(pending.jobs)) {
+    return null;
+  }
+  const jobs: { id: string; printingId: string }[] = [];
+  for (const entry of pending.jobs) {
+    if (typeof entry !== "object" || entry === null) {
+      return null;
+    }
+    const job = entry as Record<string, unknown>;
+    if (typeof job.id !== "string" || typeof job.printingId !== "string") {
+      return null;
+    }
+    jobs.push({ id: job.id, printingId: job.printingId });
+  }
+  if (jobs.length === 0) {
+    return null;
+  }
+  return { batchId: pending.batchId, collectionId: pending.collectionId, jobs };
 }
 
 export const useScanSessionStore = create<ScanSessionState>()(
@@ -83,6 +121,7 @@ export const useScanSessionStore = create<ScanSessionState>()(
       lastScanAt: null,
       restored: null,
       resumed: null,
+      pending: null,
 
       add: (printing) =>
         set((state) => {
@@ -168,9 +207,13 @@ export const useScanSessionStore = create<ScanSessionState>()(
 
       clear: () => {
         const cleared = [...get().rows.values()];
-        set({ rows: new Map(), resumed: null });
+        set({ rows: new Map(), resumed: null, pending: null });
         return cleared;
       },
+
+      setPending: (pending) => set({ pending }),
+
+      clearPending: () => set({ pending: null }),
 
       restore: (lookupPrinting) => {
         const payload = get().restored;
@@ -200,6 +243,7 @@ export const useScanSessionStore = create<ScanSessionState>()(
             scans: state.scans + payload.scans,
             lastScanAt: state.lastScanAt ?? payload.lastScanAt,
             restored: null,
+            pending: state.pending ?? payload.pending,
           };
         });
         set({ resumed: cards === 0 ? null : { cards, lastScanAt: payload.lastScanAt } });
@@ -208,7 +252,14 @@ export const useScanSessionStore = create<ScanSessionState>()(
       dismissResumed: () => set({ resumed: null }),
 
       reset: () =>
-        set({ rows: new Map(), scans: 0, lastScanAt: null, restored: null, resumed: null }),
+        set({
+          rows: new Map(),
+          scans: 0,
+          lastScanAt: null,
+          restored: null,
+          resumed: null,
+          pending: null,
+        }),
     }),
     {
       name: "openrift-scan-session",
@@ -224,7 +275,8 @@ export const useScanSessionStore = create<ScanSessionState>()(
             }
           }
         }
-        if (rows.length === 0) {
+        const pending = readPersistedPending(raw.pending);
+        if (rows.length === 0 && pending === null) {
           return current;
         }
         return {
@@ -233,6 +285,7 @@ export const useScanSessionStore = create<ScanSessionState>()(
             rows,
             scans: typeof raw.scans === "number" ? raw.scans : rows.length,
             lastScanAt: typeof raw.lastScanAt === "number" ? raw.lastScanAt : null,
+            pending,
           },
         };
       },

@@ -75,6 +75,7 @@ import { metaSubmissionsRouter } from "../routes/authenticated/meta-submissions.
 import { organizationsRouter } from "../routes/authenticated/organizations.js";
 import { overlayRouter } from "../routes/authenticated/overlay.js";
 import { preferencesRouter } from "../routes/authenticated/preferences.js";
+import { scanReportsRouter } from "../routes/authenticated/scan-reports.js";
 import { stagePresetsRouter } from "../routes/authenticated/stage-presets.js";
 import { tierListsRouter } from "../routes/authenticated/tier-lists.js";
 import { tournamentDeckCheckRouter } from "../routes/authenticated/tournament-deck-check.js";
@@ -164,6 +165,7 @@ const apiRouter = {
   adminUnifiedMappingsRouter,
   adminUsersRouter,
   cardSubmissionsRouter,
+  scanReportsRouter,
   cardTradesRouter,
   collectionEventsRouter,
   collectionValueHistoryRouter,

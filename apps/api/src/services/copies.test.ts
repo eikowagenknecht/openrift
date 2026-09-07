@@ -20,6 +20,13 @@ function createMockRepos(overrides: {
     printingId: string;
     collectionId: string;
   }[];
+  existingCopies?: {
+    id: string;
+    printingId: string;
+    collectionId: string;
+  }[];
+  insertedValues?: { id?: string }[][];
+  loggedCopyIds?: string[];
   collections?: { id: string; name: string; groupId?: string | null }[];
   targetCollection?: { id: string; name: string } | undefined;
   fetchedCopies?: {
@@ -67,14 +74,30 @@ function createMockRepos(overrides: {
         ),
     },
     copies: {
-      insertBatch: () => Promise.resolve(overrides.insertedCopies ?? []),
+      insertBatch: (values: { id?: string }[]) => {
+        overrides.insertedValues?.push(values);
+        return Promise.resolve(overrides.insertedCopies ?? []);
+      },
+      findByIdsInCollections: (copyIds: readonly string[], collectionIds: readonly string[]) =>
+        Promise.resolve(
+          (overrides.existingCopies ?? []).filter(
+            (row) => copyIds.includes(row.id) && collectionIds.includes(row.collectionId),
+          ),
+        ),
       listWithCollectionContext: () => Promise.resolve(overrides.fetchedCopies ?? []),
       lockByIds: (copyIds: string[]) => Promise.resolve(copyIds),
       moveBatchById: () => Promise.resolve(),
       deleteBatchById: () => Promise.resolve(),
     },
     collectionEvents: {
-      insert: () => Promise.resolve(),
+      insert: (events: { copyId: string | null }[]) => {
+        for (const event of events) {
+          if (event.copyId !== null && overrides.loggedCopyIds) {
+            overrides.loggedCopyIds.push(event.copyId);
+          }
+        }
+        return Promise.resolve();
+      },
     },
     cardTrades: {
       filterReservedCopyIds: (copyIds: readonly string[]) =>
@@ -170,6 +193,134 @@ describe("addCopies", () => {
 
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
     expect(result).toHaveLength(1);
+  });
+
+  it("passes a client-supplied id straight to the insert", async () => {
+    const insertedValues: { id?: string }[][] = [];
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      insertedCopies: [{ id: "given-1", printingId: "p-1", collectionId: "col-1" }],
+      collections: [{ id: "col-1", name: "Main" }],
+      insertedValues,
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [
+      { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+    ]);
+
+    expect(insertedValues[0][0].id).toBe("given-1");
+    expect(result[0].id).toBe("given-1");
+  });
+
+  it("returns the same rows and logs nothing again when every id is replayed", async () => {
+    const loggedCopyIds: string[] = [];
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      insertedCopies: [],
+      existingCopies: [
+        { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+        { id: "given-2", printingId: "p-2", collectionId: "col-1" },
+      ],
+      collections: [{ id: "col-1", name: "Main" }],
+      loggedCopyIds,
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [
+      { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+      { id: "given-2", printingId: "p-2", collectionId: "col-1" },
+    ]);
+
+    expect(result.map((row) => row.id)).toEqual(["given-1", "given-2"]);
+    expect(loggedCopyIds).toEqual([]);
+  });
+
+  it("keeps request order when only some ids are new, and logs only the new one", async () => {
+    const loggedCopyIds: string[] = [];
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      insertedCopies: [{ id: "given-2", printingId: "p-2", collectionId: "col-1" }],
+      existingCopies: [{ id: "given-1", printingId: "p-1", collectionId: "col-1" }],
+      collections: [{ id: "col-1", name: "Main" }],
+      loggedCopyIds,
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [
+      { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+      { id: "given-2", printingId: "p-2", collectionId: "col-1" },
+    ]);
+
+    expect(result.map((row) => row.id)).toEqual(["given-1", "given-2"]);
+    expect(loggedCopyIds).toEqual(["given-2"]);
+  });
+
+  it("rejects a replayed id whose row sits in another collection of the same request", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1", "col-2"],
+      insertedCopies: [],
+      existingCopies: [{ id: "given-1", printingId: "p-1", collectionId: "col-2" }],
+      collections: [
+        { id: "col-1", name: "Main" },
+        { id: "col-2", name: "Other" },
+      ],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(
+      addCopies(repos, transact, "user-1", [
+        { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+        { printingId: "p-9", collectionId: "col-2" },
+      ]),
+    ).rejects.toThrow("One or more copy ids are already taken");
+  });
+
+  it("rejects a replayed id whose row holds a different printing", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      insertedCopies: [],
+      existingCopies: [{ id: "given-1", printingId: "p-other", collectionId: "col-1" }],
+      collections: [{ id: "col-1", name: "Main" }],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(
+      addCopies(repos, transact, "user-1", [
+        { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+      ]),
+    ).rejects.toThrow("One or more copy ids are already taken");
+  });
+
+  it("accepts a replayed id destined for the inbox when the row sits there", async () => {
+    const repos = createMockRepos({
+      insertedCopies: [],
+      existingCopies: [{ id: "given-1", printingId: "p-1", collectionId: "inbox-id" }],
+      collections: [{ id: "inbox-id", name: "Inbox" }],
+    });
+    const transact = mockTransact(repos);
+
+    const result = await addCopies(repos, transact, "user-1", [
+      { id: "given-1", printingId: "p-1" },
+    ]);
+
+    expect(result.map((row) => row.id)).toEqual(["given-1"]);
+  });
+
+  it("rejects an id whose row sits in a collection the request may not write to", async () => {
+    const repos = createMockRepos({
+      writableCollections: ["col-1"],
+      insertedCopies: [],
+      existingCopies: [{ id: "given-1", printingId: "p-1", collectionId: "someone-elses" }],
+      collections: [{ id: "col-1", name: "Main" }],
+    });
+    const transact = mockTransact(repos);
+
+    await expect(
+      addCopies(repos, transact, "user-1", [
+        { id: "given-1", printingId: "p-1", collectionId: "col-1" },
+      ]),
+    ).rejects.toThrow("One or more copy ids are already taken");
   });
 });
 

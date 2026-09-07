@@ -36,10 +36,12 @@ const METADATA_CONSISTENCY_MESSAGE =
 export const MAX_COPIES_PER_ADD = 500;
 
 export const addCopiesSchema = z.object({
+  batchId: z.uuid().optional(),
   copies: z
     .array(
       z
         .object({
+          id: z.uuid().optional(),
           printingId: z.uuid(),
           collectionId: z.uuid().optional(),
           ...copyMetadataInputShape,
@@ -47,7 +49,23 @@ export const addCopiesSchema = z.object({
         .refine(metadataConsistent, METADATA_CONSISTENCY_MESSAGE),
     )
     .min(1)
-    .max(MAX_COPIES_PER_ADD),
+    .max(MAX_COPIES_PER_ADD)
+    .superRefine((copies, ctx) => {
+      const seen = new Set<string>();
+      for (const [index, copy] of copies.entries()) {
+        if (copy.id === undefined) {
+          continue;
+        }
+        if (seen.has(copy.id)) {
+          ctx.addIssue({
+            code: "custom",
+            message: "Duplicate copy id in one request",
+            path: [index, "id"],
+          });
+        }
+        seen.add(copy.id);
+      }
+    }),
 });
 
 // Absent keys stay untouched; explicit nulls clear.
@@ -99,7 +117,10 @@ export const copiesContract = {
   add: authedRoute
     .route({ method: "POST", path: "/api/v1/copies", tags: ["Copies"], successStatus: 201 })
     .input(addCopiesSchema)
-    .errors({ BAD_REQUEST: { message: "One or more printings do not exist" } })
+    .errors({
+      BAD_REQUEST: { message: "One or more printings do not exist" },
+      CONFLICT: { message: "One or more copy ids already belong to someone else" },
+    })
     .output(copyAddResponseSchema),
   move: authedRoute
     .route({ method: "POST", path: "/api/v1/copies/move", tags: ["Copies"], successStatus: 204 })

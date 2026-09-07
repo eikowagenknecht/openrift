@@ -220,6 +220,65 @@ describe("copy mutations refresh derived collection totals", () => {
   });
 });
 
+describe("adding copies with client-minted ids", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    copiesCollectionHolder.current = null;
+  });
+
+  it("sends the id so a replayed add cannot create a second row", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedSession(client, "user-1");
+
+    let sentBody: unknown;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      sentBody = await (input as Request).clone().json();
+      return Response.json(
+        { items: [stubCopy({ id: "given-1", printingId: "p1", collectionId: "c1" })] },
+        { status: 201 },
+      );
+    }) as typeof fetch;
+
+    const { result } = renderHook(() => useAddCopies(), { wrapper: wrap(client) });
+    await result.current.mutateAsync({
+      copies: [{ id: "given-1", printingId: "p1", collectionId: "c1" }],
+      clientIds: ["given-1"],
+    });
+
+    expect(sentBody).toEqual({
+      copies: [{ id: "given-1", printingId: "p1", collectionId: "c1" }],
+    });
+  });
+
+  it("removes the optimistic row and refetches copies when the add fails, since a lost response may still have created it", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    seedSession(client, "user-1");
+    const collection = await makeRealCopiesCollection(client, [stubCopy({ id: "given-1" })]);
+    copiesCollectionHolder.current = collection;
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+
+    globalThis.fetch = vi.fn(async () =>
+      Response.json({ message: "boom" }, { status: 500 }),
+    ) as typeof fetch;
+
+    const { result } = renderHook(() => useAddCopies(), { wrapper: wrap(client) });
+
+    await expect(
+      result.current.mutateAsync({
+        copies: [{ id: "given-1", printingId: "p1", collectionId: "c1" }],
+        clientIds: ["given-1"],
+      }),
+    ).rejects.toThrow();
+
+    expect(collection.toArray.map((copy) => copy.id)).toEqual([]);
+    expect(invalidateSpy.mock.calls.map(([arg]) => arg)).toContainEqual({
+      queryKey: ["copies", "user-1"],
+    });
+  });
+});
+
 describe("batch mutations reject when every selected id is still an optimistic temp id", () => {
   afterEach(() => {
     copiesCollectionHolder.current = null;

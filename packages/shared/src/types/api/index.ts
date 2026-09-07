@@ -24,6 +24,7 @@ export type * from "./pod-tournament.js";
 export * from "./preferences.js";
 export * from "./pricing.js";
 export type * from "./rules.js";
+export type * from "./scan-report.js";
 export type * from "./site-settings.js";
 export type * from "./stage-preset.js";
 export type * from "./tier-list.js";

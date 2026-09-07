@@ -209,6 +209,25 @@ describe("POST /api/v1/copies — service arguments", () => {
       expect.anything(),
       USER_ID,
       copies,
+      { batchId: undefined },
+    );
+  });
+
+  it("passes the batch id through to the service", async () => {
+    mockAddCopies.mockResolvedValue([]);
+    const copies = [{ printingId: PRINTING_ID, collectionId: COLLECTION_ID }];
+    const batchId = "0191a9c4-2f3e-7c1d-9b4a-3f0c6d2e8a11";
+    await app.request("/api/v1/copies", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copies, batchId }),
+    });
+    expect(mockAddCopies).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      USER_ID,
+      copies,
+      { batchId },
     );
   });
 });

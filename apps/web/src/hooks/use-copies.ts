@@ -117,7 +117,10 @@ function rethrowAsNetworkError(error: unknown): never {
 }
 
 async function addCopiesApi(
-  body: { copies: { printingId: string; collectionId?: string }[] },
+  body: {
+    batchId?: string;
+    copies: { id?: string; printingId: string; collectionId?: string }[];
+  },
   signal: AbortSignal,
 ): Promise<AddCopyResult[]> {
   try {
@@ -157,18 +160,21 @@ export function useAddCopies() {
     // the optimistic temp row stuck with no feedback.
     networkMode: "always",
     mutationFn: async (body: {
-      copies: { printingId: string; collectionId?: string }[];
+      batchId?: string;
+      copies: { id?: string; printingId: string; collectionId?: string }[];
       tempIds?: string[];
+      clientIds?: string[];
     }): Promise<AddCopyResult[]> => {
       if (!userId) {
         throw new Error("Cannot add copies while signed out");
       }
       const controller = new AbortController();
       const tempIds = body.tempIds ?? [];
-      const hasTempIds = tempIds.length > 0;
+      const rollbackIds = [...tempIds, ...(body.clientIds ?? [])];
+      const hasRollback = rollbackIds.length > 0;
       try {
         const apiResult = await withTimeout(
-          addCopiesApi({ copies: body.copies }, controller.signal),
+          addCopiesApi({ batchId: body.batchId, copies: body.copies }, controller.signal),
           {
             label: "Add copies",
             abortController: controller,
@@ -179,14 +185,10 @@ export function useAddCopies() {
           groupId: groupIdForCollection(queryClient, userId, item.collectionId),
         }));
         if (copiesCollection) {
-          if (hasTempIds) {
-            copiesCollection.utils.writeBatch(() => {
-              copiesCollection.utils.writeDelete(tempIds);
-              copiesCollection.utils.writeInsert(realRows);
-            });
-          } else {
-            copiesCollection.utils.writeInsert(realRows);
-          }
+          copiesCollection.utils.writeBatch(() => {
+            copiesCollection.utils.writeDelete(tempIds);
+            copiesCollection.utils.writeUpsert(realRows);
+          });
         }
         // Marks the cache stale without refetching, so a later refetch (e.g. on
         // reconnect) doesn't hand back pre-mutation data and clobber the synced store.
@@ -200,9 +202,12 @@ export function useAddCopies() {
         trackEvent("collection-add", { count: apiResult.length });
         return apiResult;
       } catch (error) {
-        if (hasTempIds && copiesCollection) {
-          copiesCollection.utils.writeDelete(tempIds);
+        if (hasRollback && copiesCollection) {
+          copiesCollection.utils.writeDelete(rollbackIds);
         }
+        // A lost response may still have created the rows, so resync rather
+        // than trust the rollback.
+        void queryClient.invalidateQueries({ queryKey: queryKeys.copies.all(userId) });
         throw error;
       }
     },
@@ -343,7 +348,9 @@ const BATCH_DELAY = 300;
 interface PendingAdd {
   printingId: string;
   collectionId: string;
-  tempId: string;
+  rowId: string;
+  copyId?: string;
+  batchId?: string;
   resolve: (result: AddCopyResult) => void;
   reject: (error: unknown) => void;
 }
@@ -376,13 +383,22 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
   const batcher = useBatcher<PendingAdd>(
     (pending) => {
       const printingIds = pending.map((entry) => entry.printingId);
+      const batchIds = new Set(pending.map((entry) => entry.batchId));
+      const shared = batchIds.size === 1 ? [...batchIds][0] : undefined;
       addCopies.mutate(
         {
+          batchId: shared,
           copies: pending.map((entry) => ({
+            id: entry.copyId,
             printingId: entry.printingId,
             collectionId: entry.collectionId,
           })),
-          tempIds: pending.map((entry) => entry.tempId),
+          tempIds: pending
+            .filter((entry) => entry.copyId === undefined)
+            .map((entry) => entry.rowId),
+          clientIds: pending
+            .filter((entry) => entry.copyId !== undefined)
+            .map((entry) => entry.rowId),
         },
         {
           onSuccess: (data) => {
@@ -406,13 +422,15 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
   const add = (
     printingId: string,
     collectionId: string,
-  ): { tempId: string; result: Promise<AddCopyResult> } => {
-    const tempId = `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
+    copyId?: string,
+    batchId?: string,
+  ): { rowId: string; result: Promise<AddCopyResult> } => {
+    const rowId = copyId ?? `${TEMP_COPY_ID_PREFIX}${randomUuid()}`;
     if (copiesCollection) {
       const groupId = userId ? groupIdForCollection(queryClient, userId, collectionId) : null;
-      copiesCollection.utils.writeInsert([
+      copiesCollection.utils.writeUpsert([
         {
-          id: tempId,
+          id: rowId,
           printingId,
           collectionId,
           groupId,
@@ -424,9 +442,9 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
     }
     // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
     const result = new Promise<AddCopyResult>((resolve, reject) => {
-      batcher.addItem({ printingId, collectionId, tempId, resolve, reject });
+      batcher.addItem({ printingId, collectionId, rowId, copyId, batchId, resolve, reject });
     });
-    return { tempId, result };
+    return { rowId, result };
   };
 
   return { add, isPending: addCopies.isPending };

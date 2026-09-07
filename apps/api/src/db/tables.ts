@@ -6,6 +6,7 @@ import type {
   DeckCheckReviewOutcome,
   PodPenaltyBreakdown,
 } from "@openrift/shared";
+import type { ScanReportJournalEntry } from "@openrift/shared/contracts/scan-reports";
 import type {
   ActivityAction,
   ArtVariant,
@@ -1506,6 +1507,16 @@ export interface CardSubmissionsTable {
   updatedAt: UpdatedAt;
 }
 
+export interface ScanReportsTable {
+  id: Generated<string>;
+  userId: string;
+  createdAt: CreatedAt;
+  reference: string;
+  note: string | null;
+  userAgent: string | null;
+  journal: ScanReportJournalEntry[];
+}
+
 interface PrintingLinkOverridesTable {
   externalId: string;
   finish: string;
@@ -2009,6 +2020,7 @@ export interface Database {
   ignoredCandidatePrintings: IgnoredCandidatePrintingsTable;
 
   cardSubmissions: CardSubmissionsTable;
+  scanReports: ScanReportsTable;
 
   printingLinkOverrides: PrintingLinkOverridesTable;
 

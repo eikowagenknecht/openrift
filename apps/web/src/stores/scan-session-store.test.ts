@@ -285,7 +285,12 @@ describe("useScanSessionStore", () => {
     it("clears the rows, the scan count, the timestamp and any staged restore", () => {
       state().add(stubPrinting({ id: "p1" }));
       useScanSessionStore.setState({
-        restored: { rows: [{ printingId: "p2", count: 1 }], scans: 1, lastScanAt: 42 },
+        restored: {
+          rows: [{ printingId: "p2", count: 1 }],
+          scans: 1,
+          lastScanAt: 42,
+          pending: null,
+        },
       });
       state().reset();
 
@@ -293,6 +298,45 @@ describe("useScanSessionStore", () => {
       expect(state().scans).toBe(0);
       expect(state().lastScanAt).toBeNull();
       expect(state().restored).toBeNull();
+    });
+  });
+
+  describe("pending", () => {
+    const pending = {
+      batchId: "batch-1",
+      collectionId: "col-1",
+      jobs: [
+        { id: "job-1", printingId: "p1" },
+        { id: "job-2", printingId: "p1" },
+      ],
+    };
+
+    it("keeps the minted jobs so a retry can replay the same ids", () => {
+      state().setPending(pending);
+
+      expect(state().pending).toEqual(pending);
+    });
+
+    it("drops the jobs once the add is confirmed", () => {
+      state().setPending(pending);
+      state().clearPending();
+
+      expect(state().pending).toBeNull();
+    });
+
+    it("drops the jobs when the list is cleared", () => {
+      state().add(stubPrinting({ id: "p1" }));
+      state().setPending(pending);
+      state().clear();
+
+      expect(state().pending).toBeNull();
+    });
+
+    it("drops the jobs on reset", () => {
+      state().setPending(pending);
+      state().reset();
+
+      expect(state().pending).toBeNull();
     });
   });
 
@@ -319,10 +363,28 @@ describe("useScanSessionStore", () => {
           rows: [{ printingId: "p1", count: 2 }],
           scans: 3,
           lastScanAt: 123,
+          pending: null,
         };
         useScanSessionStore.setState({ restored: staged });
         const partialize = useScanSessionStore.persist.getOptions().partialize;
         expect(partialize?.(state())).toEqual(staged);
+      });
+
+      it("stores the jobs of an add that has not finished", () => {
+        state().add(stubPrinting({ id: "p1" }));
+        state().setPending({
+          batchId: "batch-1",
+          collectionId: "col-1",
+          jobs: [{ id: "job-1", printingId: "p1" }],
+        });
+
+        const partialize = useScanSessionStore.persist.getOptions().partialize;
+
+        expect(partialize?.(state())?.pending).toEqual({
+          batchId: "batch-1",
+          collectionId: "col-1",
+          jobs: [{ id: "job-1", printingId: "p1" }],
+        });
       });
     });
 
@@ -338,6 +400,7 @@ describe("useScanSessionStore", () => {
           rows: [{ printingId: "p1", count: 2 }],
           scans: 3,
           lastScanAt: 42,
+          pending: null,
         });
         expect(merged?.rows.size).toBe(0);
       });
@@ -387,6 +450,81 @@ describe("useScanSessionStore", () => {
         expect(merged?.restored?.lastScanAt).toBeNull();
       });
 
+      it("stages the jobs of an add that never reported back", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const merged = merge?.(
+          {
+            rows: [{ printingId: "p1", count: 1 }],
+            scans: 1,
+            lastScanAt: 42,
+            pending: {
+              batchId: "batch-1",
+              collectionId: "col-1",
+              jobs: [{ id: "job-1", printingId: "p1" }],
+            },
+          },
+          state(),
+        );
+
+        expect(merged?.restored?.pending).toEqual({
+          batchId: "batch-1",
+          collectionId: "col-1",
+          jobs: [{ id: "job-1", printingId: "p1" }],
+        });
+      });
+
+      it("stages a pending batch whose rows were all confirmed before the reload", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const merged = merge?.(
+          {
+            rows: [],
+            scans: 4,
+            lastScanAt: 42,
+            pending: {
+              batchId: "batch-1",
+              collectionId: "col-1",
+              jobs: [{ id: "job-1", printingId: "p1" }],
+            },
+          },
+          state(),
+        );
+
+        expect(merged?.restored?.rows).toEqual([]);
+        expect(merged?.restored?.pending?.batchId).toBe("batch-1");
+      });
+
+      it("stages nothing when there are neither rows nor pending jobs", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const current = state();
+
+        expect(merge?.({ rows: [], scans: 0, lastScanAt: null, pending: null }, current)).toBe(
+          current,
+        );
+      });
+
+      it("stages no jobs when the persisted pending block is malformed", () => {
+        const merge = useScanSessionStore.persist.getOptions().merge;
+        const staged = (pending: unknown) =>
+          merge?.({ rows: [{ printingId: "p1", count: 1 }], pending }, state())?.restored?.pending;
+
+        expect(staged("junk")).toBeNull();
+        expect(staged({ jobs: [{ id: "job-1", printingId: "p1" }] })).toBeNull();
+        expect(
+          staged({ collectionId: "col-1", jobs: [{ id: "job-1", printingId: "p1" }] }),
+        ).toBeNull();
+        expect(staged({ batchId: "batch-1", collectionId: "col-1", jobs: [] })).toBeNull();
+        expect(
+          staged({
+            batchId: "batch-1",
+            collectionId: "col-1",
+            jobs: [{ id: 5, printingId: "p1" }],
+          }),
+        ).toBeNull();
+        expect(
+          staged({ batchId: "batch-1", collectionId: "col-1", jobs: [{ id: "job-1" }] }),
+        ).toBeNull();
+      });
+
       it("survives a null persisted blob", () => {
         const merge = useScanSessionStore.persist.getOptions().merge;
         const current = state();
@@ -409,6 +547,7 @@ describe("useScanSessionStore", () => {
             ],
             scans: 5,
             lastScanAt: 42,
+            pending: null,
           },
         });
 
@@ -431,6 +570,7 @@ describe("useScanSessionStore", () => {
             ],
             scans: 3,
             lastScanAt: null,
+            pending: null,
           },
         });
 
@@ -446,7 +586,12 @@ describe("useScanSessionStore", () => {
         state().add(p1);
         state().add(p2);
         useScanSessionStore.setState({
-          restored: { rows: [{ printingId: "p1", count: 1 }], scans: 1, lastScanAt: 42 },
+          restored: {
+            rows: [{ printingId: "p1", count: 1 }],
+            scans: 1,
+            lastScanAt: 42,
+            pending: null,
+          },
         });
 
         state().restore(lookupFrom([p1, p2]));
@@ -457,6 +602,29 @@ describe("useScanSessionStore", () => {
         expect(state().lastScanAt).not.toBe(42);
       });
 
+      it("brings back the jobs of an add that never reported back", () => {
+        useScanSessionStore.setState({
+          restored: {
+            rows: [{ printingId: "p1", count: 1 }],
+            scans: 1,
+            lastScanAt: 42,
+            pending: {
+              batchId: "batch-1",
+              collectionId: "col-1",
+              jobs: [{ id: "job-1", printingId: "p1" }],
+            },
+          },
+        });
+
+        state().restore(lookupFrom([stubPrinting({ id: "p1" })]));
+
+        expect(state().pending).toEqual({
+          batchId: "batch-1",
+          collectionId: "col-1",
+          jobs: [{ id: "job-1", printingId: "p1" }],
+        });
+      });
+
       it("announces nothing when nothing was staged", () => {
         state().restore(() => undefined);
         expect(state().resumed).toBeNull();
@@ -464,7 +632,12 @@ describe("useScanSessionStore", () => {
 
       it("announces nothing and clears the stage when no printing resolves", () => {
         useScanSessionStore.setState({
-          restored: { rows: [{ printingId: "p-gone", count: 1 }], scans: 1, lastScanAt: 42 },
+          restored: {
+            rows: [{ printingId: "p-gone", count: 1 }],
+            scans: 1,
+            lastScanAt: 42,
+            pending: null,
+          },
         });
         state().restore(() => undefined);
 
@@ -474,7 +647,12 @@ describe("useScanSessionStore", () => {
 
       it("clears the banner without touching the restored rows", () => {
         useScanSessionStore.setState({
-          restored: { rows: [{ printingId: "p1", count: 1 }], scans: 1, lastScanAt: 42 },
+          restored: {
+            rows: [{ printingId: "p1", count: 1 }],
+            scans: 1,
+            lastScanAt: 42,
+            pending: null,
+          },
         });
         state().restore(lookupFrom([stubPrinting({ id: "p1" })]));
         state().dismissResumed();

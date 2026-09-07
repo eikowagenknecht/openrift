@@ -229,6 +229,7 @@ export function copiesRepo(db: Kysely<Database>) {
       const rows = await db
         .insertInto("copies")
         .values(values)
+        .onConflict((oc) => oc.column("id").doNothing())
         .returning([
           "id",
           "printingId",
@@ -244,6 +245,30 @@ export function copiesRepo(db: Kysely<Database>) {
         .execute();
       // A freshly inserted copy is never out on a loan.
       return rows.map((row) => ({ ...row, onLoan: false, reserved: false }));
+    },
+
+    async findByIdsInCollections(
+      copyIds: readonly string[],
+      collectionIds: readonly string[],
+    ): Promise<Omit<CopyRow, "groupId" | "createdAt">[]> {
+      if (copyIds.length === 0 || collectionIds.length === 0) {
+        return [];
+      }
+      return await db
+        .selectFrom("copies as cp")
+        .leftJoin("loanCopies as lc", "lc.copyId", "cp.id")
+        .leftJoin("cardTradeCopies as ctc", "ctc.copyId", "cp.id")
+        .select([
+          "cp.id",
+          "cp.printingId",
+          "cp.collectionId",
+          ...COPY_METADATA_COLUMNS,
+          sql<boolean>`(lc.copy_id is not null)`.as("onLoan"),
+          sql<boolean>`(ctc.copy_id is not null)`.as("reserved"),
+        ])
+        .where("cp.id", "in", copyIds)
+        .where("cp.collectionId", "in", collectionIds)
+        .execute();
     },
 
     /**

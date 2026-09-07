@@ -46,12 +46,14 @@ import { useScanLayout } from "@/hooks/use-scan-layout";
 import { useScanServing } from "@/hooks/use-scan-serving";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { useWishEntries } from "@/hooks/use-wish-entries";
+import { randomUuid } from "@/lib/random-uuid";
 import type { LoadedScanBank } from "@/lib/scan-bank";
 import { describeKey, isLandscapeKey, loadScanBank } from "@/lib/scan-bank";
-import { addInChunks, addJobsFor, settleAdd } from "@/lib/scan-commit";
+import { addInChunks, addJobsFor, reconcileJobs, settleAdd } from "@/lib/scan-commit";
 import { ghostConfidence } from "@/lib/scan-confidence";
 import { playLockTick } from "@/lib/scan-feedback";
 import { guideRectIn, snapshotVideoRect } from "@/lib/scan-flight";
+import { appendScanJournal } from "@/lib/scan-journal";
 import { buildScanPrintingIndex, resolveLock, sortForPicker } from "@/lib/scan-resolve";
 import type { ScannerMode } from "@/lib/scan-session";
 import { cn } from "@/lib/utils";
@@ -85,6 +87,11 @@ function describeLastScan(lastScanAt: number | null): string {
 
 function cardWord(count: number): string {
   return count === 1 ? "card" : "cards";
+}
+
+function recordScanned(printing: Printing): void {
+  useScanSessionStore.getState().add(printing);
+  appendScanJournal({ type: "scan", printingId: printing.id });
 }
 
 const ANY_LANGUAGE = "any";
@@ -124,10 +131,26 @@ export function ScanPage() {
       return;
     }
     const byId = new Map(allPrintings.map((printing) => [printing.id, printing]));
+    const staged = useScanSessionStore.getState().restored !== null;
     useScanSessionStore.getState().restore((printingId) => byId.get(printingId));
+    const after = useScanSessionStore.getState();
+    let cards = 0;
+    for (const row of after.rows.values()) {
+      cards += row.count;
+    }
+    const pendingBatchId = after.pending?.batchId ?? null;
+    appendScanJournal({ type: "open", rows: after.rows.size, cards, pending: pendingBatchId });
+    if (staged) {
+      appendScanJournal({
+        type: "restore",
+        cards: after.resumed?.cards ?? 0,
+        pending: pendingBatchId,
+      });
+    }
   }, [allPrintings]);
 
   const resumed = useScanSessionStore((state) => state.resumed);
+  const pendingAdd = useScanSessionStore((state) => state.pending);
   const resumeNotice =
     resumed !== null && shouldPromptResume(resumed.lastScanAt)
       ? { cards: resumed.cards, when: describeLastScan(resumed.lastScanAt) }
@@ -237,7 +260,7 @@ export function ScanPage() {
     }
     // Must run before the card leaves the guide.
     launchFlight();
-    useScanSessionStore.getState().add(resolution.printing);
+    recordScanned(resolution.printing);
   }
 
   function handleFlightEnd(id: string) {
@@ -264,7 +287,7 @@ export function ScanPage() {
     }
     setPickerQueue((queue) => queue.filter((queued) => queued !== entry));
     toast.success(`Recognised ${legendDisplayName(resolution.printing.card)}`);
-    useScanSessionStore.getState().add(resolution.printing);
+    recordScanned(resolution.printing);
   }
 
   // Destructured before any JSX: member access on the hook's return object
@@ -444,7 +467,7 @@ export function ScanPage() {
     if (!muted) {
       playLockTick();
     }
-    useScanSessionStore.getState().add(printing);
+    recordScanned(printing);
   }
 
   function handlePickerDismiss() {
@@ -452,7 +475,7 @@ export function ScanPage() {
   }
 
   function handleAddOne(row: ScanSessionRow) {
-    useScanSessionStore.getState().add(row.printing);
+    recordScanned(row.printing);
   }
 
   function handleRemoveOne(row: ScanSessionRow) {
@@ -462,6 +485,13 @@ export function ScanPage() {
   const [adding, setAdding] = useState(false);
   const [failedCount, setFailedCount] = useState(0);
 
+  let shownFailedCount = failedCount;
+  if (adding) {
+    shownFailedCount = 0;
+  } else if (failedCount === 0 && pendingAdd !== null) {
+    shownFailedCount = pendingAdd.jobs.length;
+  }
+
   function handleClear() {
     const cleared = useScanSessionStore.getState().clear();
     setFailedCount(0);
@@ -469,6 +499,7 @@ export function ScanPage() {
     if (count === 0) {
       return;
     }
+    appendScanJournal({ type: "clear", cards: count });
     toast.success(`Cleared ${count} ${cardWord(count)}`, {
       action: {
         label: "Undo",
@@ -482,12 +513,13 @@ export function ScanPage() {
   >([]);
   const wish = useWishEntries(true);
 
-  async function handleUndoAdd(copyIds: string[], rows: ScanSessionRow[]) {
+  async function handleUndoAdd(batchId: string, copyIds: string[], rows: ScanSessionRow[]) {
     if (copyIds.length === 0) {
       return;
     }
     try {
       await disposeCopies.mutateAsync({ copyIds });
+      appendScanJournal({ type: "undo-add", batchId, copies: copyIds.length });
       useScanSessionStore.getState().putBack(rows);
     } catch {
       // Reported by the global mutation error toast.
@@ -495,21 +527,30 @@ export function ScanPage() {
   }
 
   async function handleAddAll(collectionId: string) {
-    const rowsNow = [...useScanSessionStore.getState().rows.values()];
-    const jobs = addJobsFor(rowsNow);
+    const store = useScanSessionStore.getState();
+    const rowsNow = [...store.rows.values()];
+    const reusable = store.pending?.collectionId === collectionId ? store.pending : null;
+    const jobs = reusable ? reconcileJobs(reusable.jobs, rowsNow) : addJobsFor(rowsNow);
     if (jobs.length === 0) {
       return;
     }
+    const batchId = reusable ? reusable.batchId : randomUuid();
+    store.setPending({ batchId, collectionId, jobs });
+    appendScanJournal({ type: "add-start", batchId, collectionId, jobs: jobs.length });
     setAdding(true);
     setFailedCount(0);
     const outcomes = await addInChunks(
       jobs,
-      (printingId) => batchedAdd.add(printingId, collectionId).result,
+      (job) => batchedAdd.add(job.printingId, collectionId, job.id, batchId).result,
     );
     setAdding(false);
     const { confirmed, copyIds, failed } = settleAdd(jobs, outcomes);
+    appendScanJournal({ type: "add-settled", batchId, confirmed: copyIds.length, failed });
     useScanSessionStore.getState().take(confirmed);
     setFailedCount(failed);
+    if (failed === 0) {
+      useScanSessionStore.getState().clearPending();
+    }
     if (confirmed.size > 0) {
       useScanSessionStore.getState().dismissResumed();
     }
@@ -524,7 +565,7 @@ export function ScanPage() {
       toast.success(`Added ${added} ${cardWord(added)} to ${collectionName}`, {
         action: {
           label: "Undo",
-          onClick: () => void handleUndoAdd(copyIds, confirmedRows),
+          onClick: () => void handleUndoAdd(batchId, copyIds, confirmedRows),
         },
       });
     }
@@ -755,7 +796,7 @@ export function ScanPage() {
       collections={collections}
       destination={destination}
       adding={adding}
-      failedCount={failedCount}
+      failedCount={shownFailedCount}
       compact={layout === "portrait"}
       resumed={resumeNotice !== null}
       notice={

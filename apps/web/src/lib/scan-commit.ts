@@ -1,7 +1,10 @@
 import type { Printing } from "@openrift/shared";
 import { MAX_COPIES_PER_ADD } from "@openrift/shared/contracts/copies";
 
+import { randomUuid } from "@/lib/random-uuid";
+
 export interface ScanAddJob {
+  id: string;
   printingId: string;
 }
 
@@ -16,7 +19,27 @@ export function addJobsFor(rows: readonly { printing: Printing; count: number }[
   const jobs: ScanAddJob[] = [];
   for (const row of rows) {
     for (let i = 0; i < row.count; i++) {
-      jobs.push({ printingId: row.printing.id });
+      jobs.push({ id: randomUuid(), printingId: row.printing.id });
+    }
+  }
+  return jobs;
+}
+
+export function reconcileJobs(
+  pendingJobs: readonly ScanAddJob[],
+  rows: readonly { printing: Printing; count: number }[],
+): ScanAddJob[] {
+  const available = new Map<string, string[]>();
+  for (const job of pendingJobs) {
+    const ids = available.get(job.printingId) ?? [];
+    ids.push(job.id);
+    available.set(job.printingId, ids);
+  }
+  const jobs: ScanAddJob[] = [];
+  for (const row of rows) {
+    const ids = available.get(row.printing.id) ?? [];
+    for (let i = 0; i < row.count; i++) {
+      jobs.push({ id: ids[i] ?? randomUuid(), printingId: row.printing.id });
     }
   }
   return jobs;
@@ -25,13 +48,13 @@ export function addJobsFor(rows: readonly { printing: Printing; count: number }[
 /** Chunked to the contract's per-request cap, which a whole booster box can exceed. */
 export async function addInChunks(
   jobs: readonly ScanAddJob[],
-  addOne: (printingId: string) => Promise<{ id: string }>,
+  addOne: (job: ScanAddJob) => Promise<{ id: string }>,
 ): Promise<PromiseSettledResult<{ id: string }>[]> {
   const outcomes: PromiseSettledResult<{ id: string }>[] = [];
   for (let i = 0; i < jobs.length; i += MAX_COPIES_PER_ADD) {
     const chunk = jobs.slice(i, i + MAX_COPIES_PER_ADD);
     // Queued in one tick so the batcher folds the chunk into a single POST.
-    const settled = await Promise.allSettled(chunk.map((job) => addOne(job.printingId)));
+    const settled = await Promise.allSettled(chunk.map((job) => addOne(job)));
     outcomes.push(...settled);
   }
   return outcomes;

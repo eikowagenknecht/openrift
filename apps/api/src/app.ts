@@ -37,6 +37,7 @@ import { collectionImageRoute } from "./routes/authenticated/collection-image.js
 import { deckImageRoute } from "./routes/authenticated/deck-image.js";
 import { listImageRoute } from "./routes/authenticated/list-image.js";
 import { mountMetaSubmissionsMiddleware } from "./routes/authenticated/meta-submissions.js";
+import { mountScanReportsMiddleware } from "./routes/authenticated/scan-reports.js";
 import { tierListImageRoute } from "./routes/authenticated/tier-list-image.js";
 import { createPublicChatRoute } from "./routes/public/chat.js";
 import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
@@ -386,6 +387,7 @@ export function createApp(deps: AppDeps) {
   app.use("/api/v1/tournaments/staff-invite/*", loadSession);
   mountDeckCheckIngestMiddleware(app);
   mountCardSubmissionsMiddleware(app);
+  mountScanReportsMiddleware(app);
   mountMetaSubmissionsMiddleware(app);
   for (const path of ETAG_PATHS) {
     // immutableWhenVersionMatches reads the ETag header etag() sets, so it must run

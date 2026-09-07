@@ -34,7 +34,9 @@ export const copiesRouter = {
     const userId = context.userId;
     let created;
     try {
-      created = await addCopiesService(repos, transact, userId, input.copies);
+      created = await addCopiesService(repos, transact, userId, input.copies, {
+        batchId: input.batchId,
+      });
     } catch (error) {
       // 23503 = foreign_key_violation: printingId does not exist.
       if (error instanceof Error && "code" in error && error.code === "23503") {

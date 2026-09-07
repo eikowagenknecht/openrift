@@ -123,6 +123,61 @@ describe("addCopiesSchema", () => {
     }));
     expect(addCopiesSchema.safeParse({ copies }).success).toBe(false);
   });
+
+  it("accepts a client-supplied id per copy", () => {
+    const result = addCopiesSchema.safeParse({
+      copies: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440010",
+          printingId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440011",
+          printingId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a non-uuid id", () => {
+    const result = addCopiesSchema.safeParse({
+      copies: [{ id: "not-a-uuid", printingId: "550e8400-e29b-41d4-a716-446655440000" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a batch id for the whole request", () => {
+    const result = addCopiesSchema.safeParse({
+      batchId: "550e8400-e29b-41d4-a716-446655440020",
+      copies: [{ printingId: "550e8400-e29b-41d4-a716-446655440000" }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a non-uuid batch id", () => {
+    const result = addCopiesSchema.safeParse({
+      batchId: "batch-1",
+      copies: [{ printingId: "550e8400-e29b-41d4-a716-446655440000" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects the same id twice in one request", () => {
+    const result = addCopiesSchema.safeParse({
+      copies: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440010",
+          printingId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440010",
+          printingId: "550e8400-e29b-41d4-a716-446655440001",
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("moveCopiesSchema", () => {

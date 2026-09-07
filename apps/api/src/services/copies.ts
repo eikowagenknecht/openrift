@@ -1,5 +1,6 @@
 import { ERROR_CODES, normalizeCopyMetadataPatch } from "@openrift/shared";
 import type { CopyLink, CopyMetadataPatch } from "@openrift/shared";
+import { createLogger } from "@openrift/shared/logger";
 
 import type { Repos, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
@@ -8,7 +9,10 @@ import { autoCancelUnfillablePendingTrades } from "./card-trades.js";
 import { logEvents } from "./event-logger.js";
 import { ensureInbox } from "./inbox.js";
 
+const log = createLogger("copies");
+
 interface AddCopyInput {
+  id?: string;
   printingId: string;
   collectionId?: string;
   condition?: string | null;
@@ -44,6 +48,7 @@ export async function addCopies(
   transact: Transact,
   userId: string,
   copies: AddCopyInput[],
+  options?: { batchId?: string },
 ): Promise<AddCopyResult[]> {
   const inboxId = await ensureInbox(repos, userId);
 
@@ -59,10 +64,11 @@ export async function addCopies(
     }
   }
 
-  const created = await transact(async (trxRepos) => {
+  const outcome = await transact(async (trxRepos) => {
     // Copies carry no owner column — ownership derives from the collection.
     // The acting `userId` is recorded only as the event actor below.
     const copyValues = copies.map((item) => ({
+      id: item.id,
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
       condition: item.condition ?? null,
@@ -74,16 +80,49 @@ export async function addCopies(
       links: item.links ?? undefined,
     }));
 
-    const copyRows = await trxRepos.copies.insertBatch(copyValues);
+    const insertedRows = await trxRepos.copies.insertBatch(copyValues);
+    const insertedById = new Map(insertedRows.map((row) => [row.id, row]));
 
-    const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
+    const suppliedIds = copies.map((item) => item.id).filter((id) => id !== undefined);
+    const missingIds = suppliedIds.filter((id) => !insertedById.has(id));
+    const replayedRows = await trxRepos.copies.findByIdsInCollections(missingIds, [
+      ...new Set([...explicitIds, inboxId]),
+    ]);
+    const replayedById = new Map(replayedRows.map((row) => [row.id, row]));
+
+    const supplied = new Set(suppliedIds);
+    const generated = insertedRows.filter((row) => !supplied.has(row.id));
+    let generatedIndex = 0;
+    const rows = copies.map((item) => {
+      if (item.id === undefined) {
+        const row = generated[generatedIndex];
+        generatedIndex += 1;
+        assertFound(row, "Copy was not created");
+        return row;
+      }
+      const inserted = insertedById.get(item.id);
+      if (inserted) {
+        return inserted;
+      }
+      const replayed = replayedById.get(item.id);
+      const sameCopy =
+        replayed !== undefined &&
+        replayed.collectionId === (item.collectionId ?? inboxId) &&
+        replayed.printingId === item.printingId;
+      if (!sameCopy) {
+        throw new AppError(409, ERROR_CODES.CONFLICT, "One or more copy ids are already taken");
+      }
+      return replayed;
+    });
+
+    const collectionIds = [...new Set(rows.map((row) => row.collectionId))];
     const collectionRows = await trxRepos.collections.listIdNameGroupByIds(collectionIds);
     const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
     const collectionGroupIds = new Map(collectionRows.map((col) => [col.id, col.groupId]));
 
     await logEvents(
       trxRepos,
-      copyRows.map((row) => ({
+      insertedRows.map((row) => ({
         userId,
         action: "added" as const,
         printingId: row.printingId,
@@ -93,13 +132,28 @@ export async function addCopies(
       })),
     );
 
-    return copyRows.map((row) => ({
-      ...row,
-      groupId: collectionGroupIds.get(row.collectionId) ?? null,
-    }));
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        groupId: collectionGroupIds.get(row.collectionId) ?? null,
+      })),
+      inserted: insertedRows.length,
+      replayed: replayedRows.length,
+    };
   });
 
-  return created;
+  log.info(
+    {
+      userId,
+      batchId: options?.batchId,
+      requested: copies.length,
+      inserted: outcome.inserted,
+      replayed: outcome.replayed,
+    },
+    "copies added",
+  );
+
+  return outcome.rows;
 }
 
 /**

@@ -239,6 +239,7 @@ import * as m290 from "./290-meta-competitive-player-floor.js";
 import * as m291 from "./291-topdeck-source-tables.js";
 import * as m292 from "./292-meta-submission-acceptance-backfill.js";
 import * as m293 from "./293-meta-player-links.js";
+import * as m294 from "./294-scan-reports.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -537,4 +538,5 @@ export const migrations: Record<string, Migration> = {
   "291-topdeck-source-tables": m291,
   "292-meta-submission-acceptance-backfill": m292,
   "293-meta-player-links": m293,
+  "294-scan-reports": m294,
 };

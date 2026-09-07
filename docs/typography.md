@@ -30,7 +30,7 @@ Everything else — body copy, buttons, form labels, inputs, tables, badges, dro
 
 ## Display numerals
 
-One narrow exception sits above the Hero size: a **display numeral** — a single number meant to be read at a glance from across a room, not body or heading text. The only use today is the match-tracker scorepad, where the score scales with the card from `text-4xl` up to `text-9xl` (`scoreSizeClass` in `apps/web/src/lib/match-layout.ts`). Display numerals carry `font-heading`. This is deliberately not a general-purpose tier: don't reach for `text-6xl`+ on ordinary headings or copy. If you have a new display-numeral case, add it here.
+One narrow exception sits above the Hero size: a **display numeral** — a single number meant to be read at a glance from across a room, not body or heading text. Two uses today: the match-tracker scorepad, where the score scales with the card from `text-4xl` up to `text-9xl` (`scoreSizeClass` in `apps/web/src/lib/match-layout.ts`), and the reference a sent scan report prints for the user to read out (`text-4xl font-bold`, `apps/web/src/components/scan/scan-report-page.tsx`). Display numerals carry `font-heading`. This is deliberately not a general-purpose tier: don't reach for `text-6xl`+ on ordinary headings or copy. If you have a new display-numeral case, add it here.
 
 ## Rules
 

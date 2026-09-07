@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict TaKErtgmpMWEkQgh1Uc7aXDW4MUbI72D9OodyVn5opRk7xCUKHCmVpUFOxVmsVp
+\restrict 5l1STjORQ5jPZFkuzvvmO5yzj9lR0bWzAIcm2EJ1BuEQygSzHw75pusjw7W32lm
 
 -- Dumped from database version 18.6
 -- Dumped by pg_dump version 18.6
@@ -3125,6 +3125,23 @@ CREATE TABLE public.scan_index (
 
 
 --
+-- Name: scan_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.scan_reports (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    user_id text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    reference text NOT NULL,
+    note text,
+    user_agent text,
+    journal jsonb NOT NULL,
+    CONSTRAINT chk_scan_reports_journal_shape CHECK ((jsonb_typeof(journal) = 'array'::text)),
+    CONSTRAINT chk_scan_reports_reference CHECK ((reference <> ''::text))
+);
+
+
+--
 -- Name: sessions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -4855,6 +4872,22 @@ ALTER TABLE ONLY public.scan_index
 
 
 --
+-- Name: scan_reports scan_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scan_reports
+    ADD CONSTRAINT scan_reports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scan_reports scan_reports_reference_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scan_reports
+    ADD CONSTRAINT scan_reports_reference_key UNIQUE (reference);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -6187,6 +6220,13 @@ CREATE INDEX idx_products_set ON public.products USING btree (set_id);
 --
 
 CREATE INDEX idx_rules_kind_version_sort ON public.rules USING btree (kind, version, sort_order);
+
+
+--
+-- Name: idx_scan_reports_user_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_scan_reports_user_created ON public.scan_reports USING btree (user_id, created_at DESC);
 
 
 --
@@ -8828,6 +8868,14 @@ ALTER TABLE ONLY public.rules
 
 
 --
+-- Name: scan_reports scan_reports_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scan_reports
+    ADD CONSTRAINT scan_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9111,5 +9159,5 @@ ALTER TABLE ONLY public.uvsgames_format_mappings
 -- PostgreSQL database dump complete
 --
 
-\unrestrict TaKErtgmpMWEkQgh1Uc7aXDW4MUbI72D9OodyVn5opRk7xCUKHCmVpUFOxVmsVp
+\unrestrict 5l1STjORQ5jPZFkuzvvmO5yzj9lR0bWzAIcm2EJ1BuEQygSzHw75pusjw7W32lm
 

@@ -73,6 +73,21 @@ describe("copiesRepo", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("findByIdsInCollections returns the matching copies", async () => {
+    const db = createMockDb([{ id: "cp-1", printingId: "p-1", collectionId: "col-1" }]);
+    const repo = copiesRepo(db);
+    expect(await repo.findByIdsInCollections(["cp-1"], ["col-1"])).toEqual([
+      { id: "cp-1", printingId: "p-1", collectionId: "col-1" },
+    ]);
+  });
+
+  it("findByIdsInCollections issues no query for an empty id or collection list", async () => {
+    const db = createMockDb([{ id: "cp-1" }]);
+    const repo = copiesRepo(db);
+    expect(await repo.findByIdsInCollections([], ["col-1"])).toEqual([]);
+    expect(await repo.findByIdsInCollections(["cp-1"], [])).toEqual([]);
+  });
+
   it("listWithCollectionContext returns copies with collection name", async () => {
     const db = createMockDb([
       {
