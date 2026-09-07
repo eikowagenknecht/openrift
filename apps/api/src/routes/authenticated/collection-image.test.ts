@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
-import { renderCollectionImage } from "../../services/collection-image.js";
+import { buildCollectionShareInput } from "../../services/collection-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { collectionImageRoute } from "./collection-image.js";
@@ -10,7 +11,10 @@ import { collectionImageRoute } from "./collection-image.js";
 // Only the heavy renderer is mocked; the route's auth scoping, ownership check
 // and param parsing run for real.
 vi.mock("../../services/collection-image.js", () => ({
-  renderCollectionImage: vi.fn(() =>
+  buildCollectionShareInput: vi.fn(() => Promise.resolve({ cards: [], totalCount: 0 })),
+}));
+vi.mock("../../services/render-pool.js", () => ({
+  renderImage: vi.fn(() =>
     Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   ),
 }));
@@ -67,7 +71,7 @@ describe("collectionImageRoute", () => {
     );
 
     expect(res.status).toBe(404);
-    expect(vi.mocked(renderCollectionImage)).not.toHaveBeenCalled();
+    expect(vi.mocked(renderImage)).not.toHaveBeenCalled();
   });
 
   it("serves the image to the authenticated owner, with no QR for a private collection", async () => {
@@ -86,10 +90,10 @@ describe("collectionImageRoute", () => {
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect(mockCollectionsRepo.getByIdForUser).toHaveBeenCalledWith("abc", "user-1");
-    const call = vi.mocked(renderCollectionImage).mock.calls[0];
-    const data = call?.[1];
-    const scale = call?.[2];
-    const options = call?.[3];
+    const data = vi.mocked(buildCollectionShareInput).mock.calls[0]?.[0];
+    const job = vi.mocked(renderImage).mock.calls[0]?.[0];
+    const scale = job?.scale;
+    const options = job?.kind === "share" ? job.options : undefined;
     expect(data).toMatchObject({
       collectionId: "abc",
       collectionName: "My Binder",
@@ -115,7 +119,7 @@ describe("collectionImageRoute", () => {
       "/api/v1/collections/abc/image.png",
     );
 
-    const data = vi.mocked(renderCollectionImage).mock.calls[0]?.[1];
+    const data = vi.mocked(buildCollectionShareInput).mock.calls[0]?.[0];
     expect(data?.shareUrl).toBe("https://openrift.app/collections/share/tok-col");
   });
 
@@ -131,9 +135,9 @@ describe("collectionImageRoute", () => {
       "/api/v1/collections/abc/image.png?size=hq&aspect=vertical&qr=0",
     );
 
-    const call = vi.mocked(renderCollectionImage).mock.calls[0];
-    const scale = call?.[2];
-    const options = call?.[3];
+    const job = vi.mocked(renderImage).mock.calls[0]?.[0];
+    const scale = job?.scale;
+    const options = job?.kind === "share" ? job.options : undefined;
     expect(scale).toBe(2);
     expect(options).toEqual({ aspect: "vertical", qr: false });
   });
@@ -150,7 +154,7 @@ describe("collectionImageRoute", () => {
       "/api/v1/collections/abc/image.png?scale=3",
     );
 
-    const scale = vi.mocked(renderCollectionImage).mock.calls[0]?.[2];
+    const scale = vi.mocked(renderImage).mock.calls[0]?.[0].scale;
     expect(scale).toBe(3);
   });
 });

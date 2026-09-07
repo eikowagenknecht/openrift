@@ -17,6 +17,7 @@ import { createJobDefinitions } from "./jobs.js";
 import { isDroppableTransientRejection } from "./lib/transient-network-error.js";
 import { wellKnownRepo } from "./repositories/well-known.js";
 import { createJobScheduler } from "./services/job-scheduler.js";
+import { configureRenderPool } from "./services/render-pool.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
 const env = process.env as Record<string, string | undefined>;
@@ -107,6 +108,8 @@ const scheduler = createJobScheduler({
   log,
 });
 await scheduler.start();
+
+configureRenderPool(config.render);
 
 const app = createApp({ db, auth, config, log, sendEmail, scheduler });
 

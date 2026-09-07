@@ -5,12 +5,9 @@ import { Hono } from "hono";
 import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import {
-  buildDeckImageCards,
-  renderDeckImage,
-  resolveCoverImageId,
-} from "../../services/deck-image.js";
+import { buildDeckImageCards, resolveCoverImageId } from "../../services/deck-image.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -24,7 +21,6 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
   .get("/:id/image.png", requireAuth, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const userId = getUserId(c);
     const id = c.req.param("id");
     const scale = c.req.query("size") === "hq" ? 2 : 1;
@@ -42,9 +38,9 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
         ? `${firstOrigin}/decks/share/${deck.shareToken}`
         : undefined;
 
-    const png = await renderDeckImage(
-      io,
-      {
+    const png = await renderImage({
+      kind: "deck",
+      input: {
         deckName: deck.name,
         ownerName: c.get("user")?.name ?? undefined,
         formatLabel: sentenceCaseSlug(deck.format),
@@ -55,7 +51,7 @@ export const deckImageRoute = new Hono<{ Variables: Variables }>()
       },
       scale,
       aspect,
-    );
+    });
 
     return new Response(png, {
       status: 200,

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import type * as DeckImageModule from "../../services/deck-image.js";
-import { renderDeckImage } from "../../services/deck-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { deckImageRoute } from "./deck-image.js";
@@ -12,7 +12,9 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 vi.mock("../../services/deck-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof DeckImageModule>()),
   buildDeckImageCards: vi.fn(() => Promise.resolve([])),
-  renderDeckImage: vi.fn(() => Promise.resolve(PNG_MAGIC)),
+}));
+vi.mock("../../services/render-pool.js", () => ({
+  renderImage: vi.fn(() => Promise.resolve(PNG_MAGIC)),
 }));
 
 const mockDecksRepo = {
@@ -95,11 +97,13 @@ describe("deckImageRoute auth scoping", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/decks/abc/image.png");
 
-    expect(renderDeckImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      1,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "deck",
+        input: expect.anything(),
+        scale: 1,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -115,11 +119,13 @@ describe("deckImageRoute auth scoping", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(renderDeckImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      1,
-      "vertical",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "deck",
+        input: expect.anything(),
+        scale: 1,
+        aspect: "vertical",
+      }),
     );
   });
 
@@ -137,11 +143,13 @@ describe("deckImageRoute auth scoping", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(renderDeckImage).toHaveBeenCalledWith(
-      expect.objectContaining({}),
-      expect.objectContaining({ shareUrl: undefined }),
-      1,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "deck",
+        input: expect.objectContaining({ shareUrl: undefined }),
+        scale: 1,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -156,13 +164,15 @@ describe("deckImageRoute auth scoping", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/decks/abc/image.png");
 
-    expect(renderDeckImage).toHaveBeenCalledWith(
-      expect.objectContaining({}),
+    expect(renderImage).toHaveBeenCalledWith(
       expect.objectContaining({
-        shareUrl: "https://openrift.app/decks/share/AbCdEfGhIjKl",
+        kind: "deck",
+        input: expect.objectContaining({
+          shareUrl: "https://openrift.app/decks/share/AbCdEfGhIjKl",
+        }),
+        scale: 1,
+        aspect: "landscape",
       }),
-      1,
-      "landscape",
     );
   });
 });

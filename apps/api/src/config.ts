@@ -50,6 +50,12 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     appBaseUrl: env.BETTER_AUTH_URL ?? "",
 
+    render: {
+      workers: Number(env.RENDER_WORKERS ?? 2),
+      queueLimit: Number(env.RENDER_QUEUE_LIMIT ?? 6),
+      timeoutMs: Number(env.RENDER_TIMEOUT_MS ?? 30_000),
+    },
+
     logRequests: env.LOG_REQUESTS === "true",
     logRequestBodies: env.LOG_REQUEST_BODIES === "true",
     logResponseBodies: env.LOG_RESPONSE_BODIES === "true",

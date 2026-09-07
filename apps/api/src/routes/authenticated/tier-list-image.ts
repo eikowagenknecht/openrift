@@ -5,7 +5,8 @@ import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { siteHostFromOrigin } from "../../services/list-image.js";
-import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
+import { renderImage } from "../../services/render-pool.js";
+import { buildTierListImageRows } from "../../services/tier-list-image.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -19,7 +20,6 @@ export const tierListImageRoute = new Hono<{ Variables: Variables }>()
   .get("/:id/image.png", requireAuth, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const userId = getUserId(c);
     const scale = scaleFromQuery(c.req.query("scale"), c.req.query("size"));
     const aspect = aspectFromQuery(c.req.query("aspect"));
@@ -36,9 +36,9 @@ export const tierListImageRoute = new Hono<{ Variables: Variables }>()
         ? `${firstOrigin}/tier-lists/share/${tierList.shareToken}`
         : undefined;
 
-    const png = await renderTierListImage(
-      io,
-      {
+    const png = await renderImage({
+      kind: "tierList",
+      input: {
         title: tierList.title,
         ownerName: c.get("user")?.name ?? undefined,
         rows,
@@ -47,7 +47,7 @@ export const tierListImageRoute = new Hono<{ Variables: Variables }>()
       },
       scale,
       aspect,
-    );
+    });
 
     return new Response(png, {
       status: 200,

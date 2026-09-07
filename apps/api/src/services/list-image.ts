@@ -1,10 +1,8 @@
 import { mergeListEntriesByTarget } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
-import type { Io } from "../io.js";
 import type { ListEntryRow } from "../repositories/lists.js";
-import type { ShareImageCard, ShareImageOptions } from "./share-image.js";
-import { renderShareImage } from "./share-image.js";
+import type { ShareImageCard, ShareImageInput } from "./share-image.js";
 
 /**
  * Prepares a single list's enriched entries into a share image. Shared by the
@@ -104,31 +102,20 @@ export interface ListImageData {
   canonicalPrintings: Repos["canonicalPrintings"];
 }
 
-/** `scale` renders the same layout at N× for the HQ download; `options` picks the
- * canvas and whether the mark carries a scannable code. */
-export async function renderListImage(
-  io: Io,
-  data: ListImageData,
-  scale = 1,
-  options: ShareImageOptions = {},
-): Promise<Buffer> {
+/** Runs the art lookup on the caller's thread; the result crosses to a render worker. */
+export async function buildListShareInput(data: ListImageData): Promise<ShareImageInput> {
   // Trade (copy) lists carry one entry per physical copy; merge copies of the
   // same printing so the grid shows one tile per printing with the total count.
   const display = data.kind === "copy" ? mergeListEntriesByTarget(data.entries) : data.entries;
   const cards = await buildCards(topByQuantity(display), data.canonicalPrintings);
-  return renderShareImage(
-    io,
-    {
-      ownerName: data.ownerName,
-      title: data.listName,
-      intentLabel: intentLabel(data.intent),
-      unit: unitForKind(data.kind),
-      cards,
-      totalCount: display.length,
-      siteHost: data.siteHost,
-      shareUrl: data.shareUrl,
-    },
-    scale,
-    options,
-  );
+  return {
+    ownerName: data.ownerName,
+    title: data.listName,
+    intentLabel: intentLabel(data.intent),
+    unit: unitForKind(data.kind),
+    cards,
+    totalCount: display.length,
+    siteHost: data.siteHost,
+    shareUrl: data.shareUrl,
+  };
 }

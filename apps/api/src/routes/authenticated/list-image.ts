@@ -5,10 +5,11 @@ import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import {
-  renderListImage,
+  buildListShareInput,
   shareUrlFromOrigin,
   siteHostFromOrigin,
 } from "../../services/list-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -23,7 +24,6 @@ export const listImageRoute = new Hono<{ Variables: Variables }>()
   .get("/:id/image.png", requireAuth, async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const userId = getUserId(c);
     const id = c.req.param("id");
 
@@ -34,24 +34,28 @@ export const listImageRoute = new Hono<{ Variables: Variables }>()
     // Only a list that is *currently* public gets a QR: `findByShareToken`
     // requires `is_public`, so encoding a revoked list's stale token would put a
     // 404 on the image. No token, no mark — the renderer drops it.
-    const png = await renderListImage(
-      io,
-      {
-        ownerName: c.get("user")?.name ?? "Anonymous",
-        listName: list.name,
-        intent: list.intent,
-        kind: list.kind,
-        entries,
-        siteHost: siteHostFromOrigin(config.corsOrigin),
-        shareUrl:
-          list.isPublic && list.shareToken
-            ? shareUrlFromOrigin(config.corsOrigin, `/lists/share/${list.shareToken}`)
-            : undefined,
-        canonicalPrintings,
+    const input = await buildListShareInput({
+      ownerName: c.get("user")?.name ?? "Anonymous",
+      listName: list.name,
+      intent: list.intent,
+      kind: list.kind,
+      entries,
+      siteHost: siteHostFromOrigin(config.corsOrigin),
+      shareUrl:
+        list.isPublic && list.shareToken
+          ? shareUrlFromOrigin(config.corsOrigin, `/lists/share/${list.shareToken}`)
+          : undefined,
+      canonicalPrintings,
+    });
+    const png = await renderImage({
+      kind: "share",
+      input,
+      scale: scaleFromQuery(c.req.query("scale"), c.req.query("size")),
+      options: {
+        aspect: aspectFromQuery(c.req.query("aspect")),
+        qr: qrFromQuery(c.req.query("qr")),
       },
-      scaleFromQuery(c.req.query("scale"), c.req.query("size")),
-      { aspect: aspectFromQuery(c.req.query("aspect")), qr: qrFromQuery(c.req.query("qr")) },
-    );
+    });
 
     return new Response(png, {
       status: 200,

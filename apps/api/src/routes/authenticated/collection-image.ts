@@ -4,8 +4,9 @@ import { Hono } from "hono";
 import { assertFound } from "../../lib/assertions.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
-import { renderCollectionImage } from "../../services/collection-image.js";
+import { buildCollectionShareInput } from "../../services/collection-image.js";
 import { shareUrlFromOrigin, siteHostFromOrigin } from "../../services/list-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -19,7 +20,6 @@ export const collectionImageRoute = new Hono<{ Variables: Variables }>()
   .get("/:id/image.png", requireAuth, async (c) => {
     const { collections, copies } = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const userId = getUserId(c);
     const id = c.req.param("id");
 
@@ -35,19 +35,23 @@ export const collectionImageRoute = new Hono<{ Variables: Variables }>()
         ? shareUrlFromOrigin(config.corsOrigin, `/collections/share/${collection.shareToken}`)
         : undefined;
 
-    const png = await renderCollectionImage(
-      io,
-      {
-        collectionId: collection.id,
-        ownerName: c.get("user")?.name ?? "Anonymous",
-        collectionName: collection.name,
-        siteHost: siteHostFromOrigin(config.corsOrigin),
-        shareUrl,
-        copies,
+    const input = await buildCollectionShareInput({
+      collectionId: collection.id,
+      ownerName: c.get("user")?.name ?? "Anonymous",
+      collectionName: collection.name,
+      siteHost: siteHostFromOrigin(config.corsOrigin),
+      shareUrl,
+      copies,
+    });
+    const png = await renderImage({
+      kind: "share",
+      input,
+      scale: scaleFromQuery(c.req.query("scale"), c.req.query("size")),
+      options: {
+        aspect: aspectFromQuery(c.req.query("aspect")),
+        qr: qrFromQuery(c.req.query("qr")),
       },
-      scaleFromQuery(c.req.query("scale"), c.req.query("size")),
-      { aspect: aspectFromQuery(c.req.query("aspect")), qr: qrFromQuery(c.req.query("qr")) },
-    );
+    });
 
     return new Response(png, {
       status: 200,

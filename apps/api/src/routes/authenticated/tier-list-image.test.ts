@@ -13,10 +13,12 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 vi.mock("../../services/tier-list-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof TierListImageModule>()),
   buildTierListImageRows: vi.fn(() => Promise.resolve([])),
-  renderTierListImage: vi.fn(() => Promise.resolve(PNG_MAGIC)),
+}));
+vi.mock("../../services/render-pool.js", () => ({
+  renderImage: vi.fn(() => Promise.resolve(PNG_MAGIC)),
 }));
 
-const { renderTierListImage } = await import("../../services/tier-list-image.js");
+const { renderImage } = await import("../../services/render-pool.js");
 
 const mockTierListsRepo = {
   getByIdForUser: vi.fn(),
@@ -103,13 +105,15 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(renderImage).toHaveBeenCalledWith(
       expect.objectContaining({
-        shareUrl: "https://openrift.app/tier-lists/share/AbCdEfGhIjKl",
+        kind: "tierList",
+        input: expect.objectContaining({
+          shareUrl: "https://openrift.app/tier-lists/share/AbCdEfGhIjKl",
+        }),
+        scale: 1,
+        aspect: "landscape",
       }),
-      1,
-      "landscape",
     );
   });
 
@@ -120,11 +124,13 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ shareUrl: undefined }),
-      1,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.objectContaining({ shareUrl: undefined }),
+        scale: 1,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -133,11 +139,13 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?size=hq");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      2,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.anything(),
+        scale: 2,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -146,11 +154,13 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?qr=0");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ shareUrl: undefined }),
-      1,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.objectContaining({ shareUrl: undefined }),
+        scale: 1,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -159,11 +169,13 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?scale=3");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      3,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.anything(),
+        scale: 3,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -172,11 +184,13 @@ describe("tierListImageRoute rendering", () => {
 
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/tier-lists/abc/image.png?scale=99");
 
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      1,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.anything(),
+        scale: 1,
+        aspect: "landscape",
+      }),
     );
   });
 
@@ -188,11 +202,13 @@ describe("tierListImageRoute rendering", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      1,
-      "vertical",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.anything(),
+        scale: 1,
+        aspect: "vertical",
+      }),
     );
   });
 
@@ -204,11 +220,13 @@ describe("tierListImageRoute rendering", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(renderTierListImage).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ shareUrl: undefined }),
-      1,
-      "landscape",
+    expect(renderImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "tierList",
+        input: expect.objectContaining({ shareUrl: undefined }),
+        scale: 1,
+        aspect: "landscape",
+      }),
     );
   });
 });

@@ -3,14 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../errors.js";
 import type * as ListImageModule from "../../services/list-image.js";
-import { renderListImage } from "../../services/list-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";
 import { listImageRoute } from "./list-image.js";
 
 vi.mock("../../services/list-image.js", async (importOriginal) => ({
   ...(await importOriginal<typeof ListImageModule>()),
-  renderListImage: vi.fn(() =>
+  buildListShareInput: vi.fn(() => Promise.resolve({ cards: [], totalCount: 0 })),
+}));
+vi.mock("../../services/render-pool.js", () => ({
+  renderImage: vi.fn(() =>
     Promise.resolve(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   ),
 }));
@@ -91,9 +94,9 @@ describe("listImageRoute render params", () => {
   it("defaults to the landscape canvas with the mark on at 1x", async () => {
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/lists/abc/image.png");
 
-    const call = vi.mocked(renderListImage).mock.calls[0];
-    const scale = call?.[2];
-    const options = call?.[3];
+    const job = vi.mocked(renderImage).mock.calls[0]?.[0];
+    const scale = job?.scale;
+    const options = job?.kind === "share" ? job.options : undefined;
     expect(scale).toBe(1);
     expect(options).toEqual({ aspect: "landscape", qr: true });
   });
@@ -103,9 +106,9 @@ describe("listImageRoute render params", () => {
       "/api/v1/lists/abc/image.png?size=hq&aspect=vertical&qr=0",
     );
 
-    const call = vi.mocked(renderListImage).mock.calls[0];
-    const scale = call?.[2];
-    const options = call?.[3];
+    const job = vi.mocked(renderImage).mock.calls[0]?.[0];
+    const scale = job?.scale;
+    const options = job?.kind === "share" ? job.options : undefined;
     expect(scale).toBe(2);
     expect(options).toEqual({ aspect: "vertical", qr: false });
   });
@@ -113,7 +116,7 @@ describe("listImageRoute render params", () => {
   it("honors an explicit 3x scale on the owner-only download", async () => {
     await buildApp({ user: { id: "user-1" } }).request("/api/v1/lists/abc/image.png?scale=3");
 
-    const scale = vi.mocked(renderListImage).mock.calls[0]?.[2];
+    const scale = vi.mocked(renderImage).mock.calls[0]?.[0].scale;
     expect(scale).toBe(3);
   });
 });

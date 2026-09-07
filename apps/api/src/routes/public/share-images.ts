@@ -7,24 +7,23 @@ import { bodyLimit } from "hono/body-limit";
 import { AppError } from "../../errors.js";
 import { assertFound } from "../../lib/assertions.js";
 import { metaDeckImageFraming } from "../../lib/meta-share-image.js";
-import { renderCollectionImage } from "../../services/collection-image.js";
+import { buildCollectionShareInput } from "../../services/collection-image.js";
 import {
   buildDeckImageCards,
   buildDeckImageCardsFromRefs,
-  renderDeckImage,
   resolveCoverImageId,
   splitDeckZones,
 } from "../../services/deck-image.js";
 import {
   buildCards,
-  renderListImage,
+  buildListShareInput,
   shareUrlFromOrigin,
   siteHostFromOrigin,
   topByQuantity,
 } from "../../services/list-image.js";
+import { renderImage } from "../../services/render-pool.js";
 import type { ShareImageCard, ShareImageOptions } from "../../services/share-image.js";
-import { renderShareImage } from "../../services/share-image.js";
-import { buildTierListImageRows, renderTierListImage } from "../../services/tier-list-image.js";
+import { buildTierListImageRows } from "../../services/tier-list-image.js";
 import type { Variables } from "../../types.js";
 
 /**
@@ -102,28 +101,28 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   .get("/lists/share/:token/image.png", async (c) => {
     const { lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const token = c.req.param("token");
 
     const found = await lists.findByShareToken(token);
     assertFound(found, "Not found");
 
     const entries = await lists.entriesWithDetailsAnon(found.list.id, found.list.kind);
-    const png = await renderListImage(
-      io,
-      {
-        ownerName: found.ownerName ?? "Anonymous",
-        listName: found.list.name,
-        intent: found.list.intent,
-        kind: found.list.kind,
-        entries,
-        siteHost: siteHostFromOrigin(config.corsOrigin),
-        shareUrl: shareUrlFromOrigin(config.corsOrigin, `/lists/share/${token}`),
-        canonicalPrintings,
-      },
-      c.req.query("size") === "hq" ? 2 : 1,
-      imageOptions(c.req.query("aspect"), c.req.query("qr")),
-    );
+    const input = await buildListShareInput({
+      ownerName: found.ownerName ?? "Anonymous",
+      listName: found.list.name,
+      intent: found.list.intent,
+      kind: found.list.kind,
+      entries,
+      siteHost: siteHostFromOrigin(config.corsOrigin),
+      shareUrl: shareUrlFromOrigin(config.corsOrigin, `/lists/share/${token}`),
+      canonicalPrintings,
+    });
+    const png = await renderImage({
+      kind: "share",
+      input,
+      scale: c.req.query("size") === "hq" ? 2 : 1,
+      options: imageOptions(c.req.query("aspect"), c.req.query("qr")),
+    });
 
     return pngResponse(png);
   })
@@ -131,7 +130,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   .get("/users/share/:token/image.png", async (c) => {
     const { userShares, lists, canonicalPrintings } = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const token = c.req.param("token");
 
     const owner = await userShares.findOwnerByShareToken(token);
@@ -147,9 +145,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       await buildCards(topByQuantity(entriesPerList.flat()), canonicalPrintings),
     );
 
-    const png = await renderShareImage(
-      io,
-      {
+    const png = await renderImage({
+      kind: "share",
+      input: {
         ownerName: owner.displayName ?? "Anonymous",
         title: "Wish & trade lists",
         intentLabel: `${summaries.length} ${summaries.length === 1 ? "list" : "lists"}`,
@@ -159,9 +157,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
         siteHost: siteHostFromOrigin(config.corsOrigin),
         shareUrl: shareUrlFromOrigin(config.corsOrigin, `/users/share/${token}`),
       },
-      c.req.query("size") === "hq" ? 2 : 1,
-      imageOptions(c.req.query("aspect"), c.req.query("qr")),
-    );
+      scale: c.req.query("size") === "hq" ? 2 : 1,
+      options: imageOptions(c.req.query("aspect"), c.req.query("qr")),
+    });
 
     return pngResponse(png);
   })
@@ -169,7 +167,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   .get("/collections/share/:token/image.png", async (c) => {
     const { collections, copies } = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const token = c.req.param("token");
 
     // findByShareToken only resolves public collections, so a private token (or
@@ -177,19 +174,20 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const found = await collections.findByShareToken(token);
     assertFound(found, "Not found");
 
-    const png = await renderCollectionImage(
-      io,
-      {
-        collectionId: found.collection.id,
-        ownerName: found.ownerName ?? "Anonymous",
-        collectionName: found.collection.name,
-        siteHost: siteHostFromOrigin(config.corsOrigin),
-        shareUrl: shareUrlFromOrigin(config.corsOrigin, `/collections/share/${token}`),
-        copies,
-      },
-      c.req.query("size") === "hq" ? 2 : 1,
-      imageOptions(c.req.query("aspect"), c.req.query("qr")),
-    );
+    const input = await buildCollectionShareInput({
+      collectionId: found.collection.id,
+      ownerName: found.ownerName ?? "Anonymous",
+      collectionName: found.collection.name,
+      siteHost: siteHostFromOrigin(config.corsOrigin),
+      shareUrl: shareUrlFromOrigin(config.corsOrigin, `/collections/share/${token}`),
+      copies,
+    });
+    const png = await renderImage({
+      kind: "share",
+      input,
+      scale: c.req.query("size") === "hq" ? 2 : 1,
+      options: imageOptions(c.req.query("aspect"), c.req.query("qr")),
+    });
 
     return pngResponse(png);
   })
@@ -197,7 +195,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   .get("/decks/share/:token/image.png", async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const token = c.req.param("token");
 
     const found = await repos.decks.findByShareToken(token);
@@ -219,9 +216,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       ? shareUrlFromOrigin(config.corsOrigin, path)
       : undefined;
 
-    const png = await renderDeckImage(
-      io,
-      {
+    const png = await renderImage({
+      kind: "deck",
+      input: {
         deckName: archive?.deckName ?? found.deck.name,
         ownerName: archive ? archive.ownerName : (found.ownerName ?? "Anonymous"),
         formatLabel: sentenceCaseSlug(found.deck.format),
@@ -233,7 +230,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       },
       scale,
       aspect,
-    );
+    });
 
     return pngResponse(png);
   })
@@ -241,7 +238,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   .get("/tier-lists/share/:token/image.png", async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
     const token = c.req.param("token");
 
     // findByShareToken requires is_public, so a revoked link 404s here exactly
@@ -256,9 +252,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       ? shareUrlFromOrigin(config.corsOrigin, `/tier-lists/share/${token}`)
       : undefined;
 
-    const png = await renderTierListImage(
-      io,
-      {
+    const png = await renderImage({
+      kind: "tierList",
+      input: {
         title: found.tierList.title,
         ownerName: found.ownerName ?? "Anonymous",
         rows,
@@ -267,7 +263,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       },
       scale,
       aspect,
-    );
+    });
 
     return pngResponse(png);
   })
@@ -277,7 +273,6 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
   .post("/decks/image", renderRateLimit, renderBodyLimit, async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
-    const io = c.get("io");
 
     const body = (await c.req.json().catch(() => null)) as {
       deckName?: unknown;
@@ -301,9 +296,9 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
     const scale = c.req.query("size") === "hq" ? 2 : 1;
     const aspect = aspectFromQuery(c.req.query("aspect"));
     const imageCards = await buildDeckImageCardsFromRefs(repos, refs, { skipUnknown: true });
-    const png = await renderDeckImage(
-      io,
-      {
+    const png = await renderImage({
+      kind: "deck",
+      input: {
         deckName:
           typeof body?.deckName === "string" && body.deckName
             ? body.deckName.slice(0, MAX_RENDER_TEXT_LENGTH)
@@ -322,7 +317,7 @@ export const publicShareImagesRoute = new Hono<{ Variables: Variables }>()
       },
       scale,
       aspect,
-    );
+    });
 
     return new Response(png, {
       status: 200,
