@@ -53,12 +53,13 @@ export function ScanStage({
               ? // Below the tray's z-50; the app header is hidden separately
                 // via the `data-scan-immersive` rules in index.css.
                 cn(
-                  "fixed bottom-0 left-0 z-40",
+                  "fixed left-0 z-40",
                   fullscreen ? "top-0" : "top-(--header-height)",
-                  landscape ? LANDSCAPE_PANEL_INSET : "right-0",
+                  landscape ? cn(LANDSCAPE_PANEL_INSET, "bottom-0") : "right-0",
                 )
               : "aspect-3/4 rounded-lg sm:aspect-video md:col-start-1 md:row-start-2 md:aspect-auto md:h-full",
           )}
+          style={immersive && !landscape ? { bottom: SCAN_TRAY_PEEK } : undefined}
         >
           {viewfinder}
 
@@ -83,12 +84,9 @@ export function ScanStage({
             className={cn(
               "absolute z-10 flex flex-col items-center gap-2",
               landscape && "px-safe inset-x-0 bottom-2 [&>*]:max-w-md",
-              !landscape && immersive && "inset-x-0 px-3",
+              !landscape && immersive && "inset-x-0 bottom-3 px-3",
               !immersive && "inset-x-0 bottom-4 px-3",
             )}
-            style={
-              !landscape && immersive ? { bottom: `calc(${SCAN_TRAY_PEEK} + 0.75rem)` } : undefined
-            }
           >
             <div className="w-full empty:hidden">{immersive ? notices : null}</div>
             {!landscape && <div className="flex flex-col items-center gap-2">{controls}</div>}

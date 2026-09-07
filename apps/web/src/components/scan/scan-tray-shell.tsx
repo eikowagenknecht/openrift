@@ -4,8 +4,8 @@ import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import type { ScanLayout } from "@/hooks/use-scan-layout";
 import { cn } from "@/lib/utils";
 
-// Fits the handle, the header, one row and the pinned footer. The stage's
-// bottom control stack clears the same height.
+// Fits the handle, the header, one row and the pinned footer. The portrait
+// viewfinder ends at this line.
 export const SCAN_TRAY_PEEK = "15rem";
 
 const LANDSCAPE_PANEL_WIDTH = "w-72";

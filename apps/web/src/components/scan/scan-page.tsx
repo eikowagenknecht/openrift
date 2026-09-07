@@ -32,7 +32,12 @@ import { ScanPrintingPicker } from "@/components/scan/scan-printing-picker";
 import { ScanSessionTray } from "@/components/scan/scan-session-tray";
 import { ScanSettingsMenu } from "@/components/scan/scan-settings-menu";
 import { ScanStage } from "@/components/scan/scan-stage";
-import { ScanStartPanel, ScanTips } from "@/components/scan/scan-start-panel";
+import {
+  ScanLoading,
+  ScanStartHint,
+  ScanStartPanel,
+  ScanTips,
+} from "@/components/scan/scan-start-panel";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -744,8 +749,6 @@ export function ScanPage() {
           ready={ready}
           cameraAvailable={cameraAvailable}
           bankLoaded={loaded !== null}
-          cvReady={cvReady}
-          embedderReady={embedderReady}
           engineProgress={engineProgress}
           showPhoneHint={phoneHandoff}
           immersive={immersive}
@@ -808,7 +811,16 @@ export function ScanPage() {
           </Button>
         </div>
       )}
-      {immersive && !active && <ScanTips className="justify-center text-white/70" />}
+      {immersive && !active && (
+        <div className="flex flex-col items-center gap-3 text-white">
+          {ready ? (
+            <ScanStartHint />
+          ) : (
+            <ScanLoading bankLoaded={loaded !== null} engineProgress={engineProgress} />
+          )}
+          <ScanTips className="max-w-64 justify-center text-white/70" />
+        </div>
+      )}
       {!active && shutter && (
         <Shutter
           icon={<CameraIcon />}

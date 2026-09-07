@@ -1,9 +1,10 @@
 import { CameraIcon, LayersIcon, ScanSquareIcon, SunIcon } from "lucide-react";
 
-import { ScanLoadRow } from "@/components/scan/scan-load-row";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { QrCode } from "@/components/ui/qr-code";
 import type { EngineProgress } from "@/hooks/use-scan-engine";
+import { scanLoadProgress } from "@/lib/scan-load-progress";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
@@ -28,13 +29,37 @@ export function ScanTips({ className }: { className?: string }) {
   );
 }
 
-interface ScanStartPanelProps {
+export function ScanStartHint({ className }: { className?: string }) {
+  return (
+    <p className={cn("max-w-64 text-center text-white/70", className)}>
+      Hold a card in the frame. Recognised cards appear in the list{" "}
+      <span className="md:hidden">below</span>
+      <span className="hidden md:inline">on the right</span>.
+    </p>
+  );
+}
+
+interface ScanLoadingProps {
+  bankLoaded: boolean;
+  engineProgress: EngineProgress;
+}
+
+export function ScanLoading({ bankLoaded, engineProgress }: ScanLoadingProps) {
+  const { percent, phase } = scanLoadProgress(bankLoaded, engineProgress);
+  return (
+    <div className="flex w-64 max-w-full flex-col items-center gap-3 text-center">
+      <p>Getting the scanner ready</p>
+      <Progress value={percent} aria-label="Scanner loading progress" className="w-full" />
+      <p className="text-sm text-white/60">
+        {phase === "downloading" ? "Downloading the recognition model…" : "Starting up…"}
+      </p>
+    </div>
+  );
+}
+
+interface ScanStartPanelProps extends ScanLoadingProps {
   ready: boolean;
   cameraAvailable: boolean | null;
-  bankLoaded: boolean;
-  cvReady: boolean;
-  embedderReady: boolean;
-  engineProgress: EngineProgress;
   showPhoneHint: boolean;
   immersive: boolean;
   onStart: () => void;
@@ -43,51 +68,39 @@ interface ScanStartPanelProps {
 export function ScanStartPanel({
   ready,
   cameraAvailable,
-  bankLoaded,
-  cvReady,
-  embedderReady,
-  engineProgress,
   showPhoneHint,
   immersive,
   onStart,
+  ...load
 }: ScanStartPanelProps) {
   return (
-    <div className="absolute inset-0 grid place-items-center overflow-hidden bg-radial from-neutral-800 to-neutral-950 text-white">
-      {/* h-[70%] must match guideRectIn's height fraction. */}
-      <div aria-hidden className="absolute aspect-[63/88] h-[70%] border-2 border-white/15">
+    <div className="[container-type:size] absolute inset-0 grid place-items-center overflow-hidden bg-radial from-neutral-800 to-neutral-950 text-white">
+      {/* Same geometry as centeredGuideQuad: 70% of the height, capped at 90% of the width. */}
+      <div
+        aria-hidden
+        className="absolute aspect-[63/88] w-[min(90%,calc(70cqh*63/88))] border-2 border-white/15"
+      >
         <Bracket className="-top-0.5 -left-0.5 border-t-2 border-l-2" />
         <Bracket className="-top-0.5 -right-0.5 border-t-2 border-r-2" />
         <Bracket className="-bottom-0.5 -left-0.5 border-b-2 border-l-2" />
         <Bracket className="-right-0.5 -bottom-0.5 border-r-2 border-b-2" />
       </div>
 
-      <div className="relative flex w-64 max-w-full flex-col items-center gap-4 px-3 text-center">
-        {ready ? (
-          <>
-            <p className="text-white/70">
-              Hold a card in the frame. Recognised cards appear in the list{" "}
-              <span className="md:hidden">below</span>
-              <span className="hidden md:inline">on the right</span>.
-            </p>
-            {!immersive && (
+      {!immersive && (
+        <div className="relative flex w-64 max-w-full flex-col items-center gap-4 px-3">
+          {ready ? (
+            <>
+              <ScanStartHint />
               <Button onClick={onStart} disabled={cameraAvailable !== true}>
                 <CameraIcon />
                 Start camera
               </Button>
-            )}
-          </>
-        ) : (
-          <div className="flex w-full flex-col items-center gap-3">
-            <ScanLoadRow label="Card index" done={bankLoaded} />
-            <ScanLoadRow label="OpenCV" done={cvReady} progress={engineProgress.opencv} />
-            <ScanLoadRow
-              label="Recognition model"
-              done={embedderReady}
-              progress={engineProgress.encoder}
-            />
-          </div>
-        )}
-      </div>
+            </>
+          ) : (
+            <ScanLoading {...load} />
+          )}
+        </div>
+      )}
 
       {/* The tray lives in this browser's local storage; the QR code does
           not carry the scanning session to the phone. */}
