@@ -1,0 +1,316 @@
+import type { CollectionResponse } from "@openrift/shared/types/api/collection";
+import type {
+  FriendGroupCollectionShareResponse,
+  FriendGroupDetailResponse,
+  FriendGroupMemberResponse,
+} from "@openrift/shared/types/api/friend-group";
+import { useLiveQuery } from "@tanstack/react-db";
+import { Link } from "@tanstack/react-router";
+import { PlusIcon, Share2Icon } from "lucide-react";
+import { Suspense, useState } from "react";
+
+import { CoverBand } from "@/components/cover-band";
+import { PageTopBarPrimaryButton } from "@/components/layout/page-top-bar";
+import { Button } from "@/components/ui/button";
+import { CardLink } from "@/components/ui/card-link";
+import { CardList } from "@/components/ui/card-list";
+import { CountPill } from "@/components/ui/count-pill";
+import { Pressable } from "@/components/ui/pressable";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { UserAvatar } from "@/components/user-avatar";
+import { CardFan, CardFanOutline } from "@/features/cards/components/card-fan";
+import { useCards } from "@/features/cards/hooks/use-cards";
+import { frontImageId } from "@/features/cards/lib/card-meta";
+import { CreateCollectionDialog } from "@/features/collections/components/create-collection-dialog";
+import { useCollections } from "@/features/collections/hooks/use-collections";
+import { deriveCollectionCovers } from "@/features/collections/lib/collection-cover-art";
+import { useCopiesCollection } from "@/features/collections/lib/copies-collection";
+import {
+  useFriendGroupDetail,
+  useFriendGroupShareableCollections,
+} from "@/features/groups/hooks/use-friend-groups";
+import { useRequiredUserId } from "@/lib/auth-session";
+
+import { ContactMethodChips } from "./contact-method-chips";
+import { ShareCollectionsWithGroupDialog } from "./share-collections-with-group-dialog";
+import { SharedCollectionRow } from "./shared-collection-row";
+
+const TILE_COVER_COUNT = 4;
+
+export function SharedPageContent({
+  slug,
+  data,
+}: {
+  slug: string;
+  data: FriendGroupDetailResponse;
+}) {
+  return (
+    <div className="flex flex-col gap-8">
+      <GroupCollectionsSection data={data} />
+      <MemberSharesSection slug={slug} data={data} />
+    </div>
+  );
+}
+
+export function SharedCollectionAction({ slug }: { slug: string }) {
+  const { data } = useFriendGroupDetail(slug);
+  const [createOpen, setCreateOpen] = useState(false);
+  return (
+    <>
+      <PageTopBarPrimaryButton onClick={() => setCreateOpen(true)}>
+        <PlusIcon className="size-4" />
+        New shared collection
+      </PageTopBarPrimaryButton>
+      <CreateCollectionDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        groupSlug={data.group.slug}
+        groupName={data.group.name}
+      />
+    </>
+  );
+}
+
+function useGroupCollectionCoverFans(): Map<string, { key: string; imageId: string }[]> {
+  const copiesCollection = useCopiesCollection();
+  const { printingsById } = useCards();
+  // Same SSR/sign-out guard as useCollections: null query on the server
+  // or mid-sign-out (collection evicted).
+  const { data: copies } = useLiveQuery({
+    query: (q) =>
+      globalThis.window === undefined || !copiesCollection
+        ? null
+        : q.from({ copy: copiesCollection }),
+  });
+  const covers = deriveCollectionCovers(copies ?? [], TILE_COVER_COUNT);
+  return new Map(
+    [...covers].map(([collectionId, printingIds]) => [
+      collectionId,
+      printingIds.flatMap((printingId) => {
+        const imageId = frontImageId(printingsById[printingId]);
+        return imageId ? [{ key: printingId, imageId }] : [];
+      }),
+    ]),
+  );
+}
+
+function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) {
+  const { data: collections } = useCollections();
+  const groupCollections = collections.filter((col) => col.groupId === data.group.id);
+  const coverFans = useGroupCollectionCoverFans();
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Group collections</SectionHeading>
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {groupCollections.map((col) => (
+          <li key={col.id}>
+            <GroupCollectionTile collection={col} covers={coverFans.get(col.id) ?? []} />
+          </li>
+        ))}
+        <li>
+          <NewCollectionTile group={data.group} />
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+function GroupCollectionTile({
+  collection,
+  covers,
+}: {
+  collection: CollectionResponse;
+  covers: { key: string; imageId: string }[];
+}) {
+  const noun = collection.copyCount === 1 ? "copy" : "copies";
+  return (
+    <CardLink
+      render={
+        <Link
+          to="/collections/$collectionId"
+          params={{ collectionId: collection.id }}
+          search={(prev) => prev}
+        />
+      }
+      className="flex-col gap-0 py-0"
+    >
+      {/* overflow-hidden crops the fan's bottom bleed so rotated corners
+          don't paint over the name below. */}
+      <CoverBand aria-hidden="true" className="h-32 overflow-hidden">
+        {covers.length === 0 ? <CardFanOutline /> : <CardFan covers={covers} />}
+      </CoverBand>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-4">
+        <span className="truncate font-medium">{collection.name}</span>
+        <span className="text-muted-foreground text-xs">
+          {collection.copyCount} {noun}
+        </span>
+      </div>
+    </CardLink>
+  );
+}
+
+function NewCollectionTile({ group }: { group: FriendGroupDetailResponse["group"] }) {
+  const [createOpen, setCreateOpen] = useState(false);
+  return (
+    <>
+      <Pressable
+        onClick={() => setCreateOpen(true)}
+        className="border-border hover:border-primary/40 text-muted-foreground hover:text-foreground flex h-full min-h-44 w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed p-6 text-center transition-colors"
+      >
+        <PlusIcon aria-hidden="true" className="size-6" />
+        <span className="text-foreground text-sm font-medium">New shared collection</span>
+        <span className="text-xs">
+          A pooled inventory the whole group can add to and remove from.
+        </span>
+      </Pressable>
+      <CreateCollectionDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        groupSlug={group.slug}
+        groupName={group.name}
+      />
+    </>
+  );
+}
+
+interface OwnerShares {
+  member: FriendGroupMemberResponse;
+  collections: FriendGroupCollectionShareResponse[];
+}
+
+function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
+  const viewerId = useRequiredUserId();
+  const membersById = new Map(data.members.map((member) => [member.userId, member]));
+  const byOwner = new Map<string, OwnerShares>();
+  const bucketFor = (userId: string): OwnerShares | undefined => {
+    const member = membersById.get(userId);
+    if (!member) {
+      return undefined;
+    }
+    let bucket = byOwner.get(userId);
+    if (!bucket) {
+      bucket = { member, collections: [] };
+      byOwner.set(userId, bucket);
+    }
+    return bucket;
+  };
+  for (const share of data.collectionShares) {
+    bucketFor(share.userId)?.collections.push(share);
+  }
+  // Kept even when they've shared nothing, so the viewer always has a block.
+  bucketFor(viewerId);
+  const owners = [...byOwner.values()]
+    .filter((owner) => owner.collections.length > 0 || owner.member.userId === viewerId)
+    .sort((a, b) => {
+      if (a.member.userId !== b.member.userId) {
+        if (a.member.userId === viewerId) {
+          return -1;
+        }
+        if (b.member.userId === viewerId) {
+          return 1;
+        }
+      }
+      const aName = a.member.userName ?? "￿";
+      const bName = b.member.userName ?? "￿";
+      return aName.localeCompare(bName);
+    });
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Member collections</SectionHeading>
+      {owners.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No shared collections yet.</p>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {owners.map(({ member, collections }) => (
+            <MemberSharesBlock
+              key={member.userId}
+              slug={slug}
+              groupName={data.group.name}
+              member={member}
+              collections={collections}
+              isViewer={member.userId === viewerId}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MemberSharesBlock({
+  slug,
+  groupName,
+  member,
+  collections,
+  isViewer,
+}: {
+  slug: string;
+  groupName: string;
+  member: FriendGroupMemberResponse;
+  collections: FriendGroupCollectionShareResponse[];
+  isViewer: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex min-w-0 items-center gap-2 px-0.5">
+        <UserAvatar
+          image={member.userImage}
+          name={member.userName}
+          gravatarHash={member.gravatarHash}
+          size="sm"
+        />
+        <span className="truncate font-medium">{member.userName ?? "Member"}</span>
+        {collections.length > 0 ? (
+          <CountPill>{collections.length}</CountPill>
+        ) : (
+          <span className="text-muted-foreground text-xs">nothing shared yet</span>
+        )}
+        {isViewer ? (
+          <span className="ml-auto shrink-0">
+            <Suspense fallback={null}>
+              <ShareMoreButton slug={slug} groupName={groupName} />
+            </Suspense>
+          </span>
+        ) : null}
+      </div>
+      <ContactMethodChips methods={member.contactMethods} className="-mt-1 ml-8" />
+      {collections.length > 0 ? (
+        <CardList>
+          {collections.map((share) => (
+            <li key={share.collectionId}>
+              <SharedCollectionRow slug={slug} share={share} />
+            </li>
+          ))}
+        </CardList>
+      ) : null}
+    </div>
+  );
+}
+
+/** Renders null when nothing is left to share; must be wrapped in Suspense. */
+function ShareMoreButton({ slug, groupName }: { slug: string; groupName: string }) {
+  const { data } = useFriendGroupShareableCollections(slug);
+  const [open, setOpen] = useState(false);
+
+  const hasShareable = data.items.some((item) => item.sharedAt === null);
+  if (!hasShareable) {
+    return null;
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="outline" className="shrink-0" onClick={() => setOpen(true)}>
+        <Share2Icon />
+        Share more
+      </Button>
+      <ShareCollectionsWithGroupDialog
+        slug={slug}
+        groupName={groupName}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
+  );
+}
