@@ -9,8 +9,8 @@ import { PageDescription } from "@/components/layout/page-top-bar";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
+import type { MetaSearch } from "@/lib/admin-meta-search";
 import { TOPDECK_FORMAT_CHOICES } from "@/lib/meta-catalog-display";
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 const FORMAT_OPTIONS = [{ value: ANY, label: "Any format" }, ...TOPDECK_FORMAT_CHOICES];
 

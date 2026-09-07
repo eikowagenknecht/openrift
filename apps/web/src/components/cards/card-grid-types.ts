@@ -1,21 +1,5 @@
-import type { CardViewerItem } from "@/components/card-viewer-types";
-
-export interface GroupInfo {
-  id: string;
-  slug: string;
-  name: string;
-  setType?: "main" | "supplemental";
-}
-
-/**
- * A section of cards in a viewer: its header info plus the items it contains.
- * Every grouping axis (`lib/group-by-*.ts`) returns this shape, and the grid and
- * table viewers lay it out into their own virtual rows.
- */
-export interface CardGroup {
-  group: GroupInfo;
-  items: CardViewerItem[];
-}
+import type { GroupInfo } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 export type VRow =
   | { kind: "header"; group: GroupInfo; cardCount: number }

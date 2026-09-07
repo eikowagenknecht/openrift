@@ -7,7 +7,7 @@ import type { Card, Domain, Printing, SetListEntry } from "@openrift/shared";
 import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import { resetIdCounter, stubPriceLookup, stubPrinting } from "@/test/factories";
 
 import {

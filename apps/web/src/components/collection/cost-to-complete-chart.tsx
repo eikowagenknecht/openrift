@@ -12,15 +12,16 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { trackMarketplaceClick } from "@/components/marketplace-link";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import type { CompletionCountMode, CustomTagAssignments } from "@/hooks/use-collection-stats";
+import type { CustomTagAssignments } from "@/hooks/use-collection-stats";
 import {
   countsInPlaysetMode,
   filterByScope,
   filterStacksByScope,
 } from "@/hooks/use-collection-stats";
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
+import type { StackedEntry } from "@/lib/stacked-entry";
+import type { CompletionCountMode } from "@/lib/stat-types";
 
 interface CurvePoint {
   cost: number;

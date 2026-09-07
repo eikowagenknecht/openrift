@@ -1,10 +1,10 @@
 import type { DeckZone, Printing } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckTokens } from "@/hooks/use-deck-tokens";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortOverviewCards } from "@/lib/deck-card-sort";
 

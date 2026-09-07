@@ -2,13 +2,10 @@ import type { Domain } from "@openrift/shared";
 import { getRouteApi } from "@tanstack/react-router";
 
 import type { DeckListSearch } from "@/lib/deck-list-search";
+import type { DeckListDrafts, DeckListValidity } from "@/lib/deck-list-utils";
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
 
 const routeApi = getRouteApi("/_app/decks/");
-
-export type DeckListValidity = "all" | "valid" | "invalid";
-
-export type DeckListDrafts = "all" | "hide" | "only";
 
 export interface DeckListFilterValues {
   search: string;

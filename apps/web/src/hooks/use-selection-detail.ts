@@ -1,8 +1,8 @@
 import type { Printing } from "@openrift/shared";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { useApplyTagFilter } from "@/hooks/use-apply-tag-filter";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface UseCardDetailNavigationParams {

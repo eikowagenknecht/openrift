@@ -21,10 +21,10 @@ import {
 import { Pressable } from "@/components/ui/pressable";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { missingCardsToListEntries, missingCardsToWants } from "@/lib/deck-missing-export";
+import type { CardOwnership } from "@/lib/deck-ownership-types";
 import { zoneLabel } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";

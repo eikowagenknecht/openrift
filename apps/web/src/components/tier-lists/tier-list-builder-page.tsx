@@ -24,7 +24,6 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { TierBoardEditor } from "@/components/tier-lists/tier-board-editor";
-import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { TierListDetailsDialog } from "@/components/tier-lists/tier-list-details-dialog";
 import { TierListDndContext } from "@/components/tier-lists/tier-list-dnd-context";
 import { TierListPool } from "@/components/tier-lists/tier-list-pool";
@@ -52,6 +51,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDeleteTierList, useUpdateTierList } from "@/hooks/use-tier-lists";
 import { frontImageId } from "@/lib/card-meta";
+import type { TierCardView } from "@/lib/tier-list-presentation";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 interface TierListBuilderPageProps {

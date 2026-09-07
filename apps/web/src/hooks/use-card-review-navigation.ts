@@ -9,7 +9,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { buildPrintingGroups } from "@/components/admin/card-detail-shared";
 import {
   useCheckAllCandidateCards,
   useCheckAllCandidatePrintings,
@@ -22,6 +21,7 @@ import {
 import { useUnifiedMappingsWhen } from "@/hooks/use-unified-mappings";
 import { selectAdminCardPrevNext } from "@/lib/admin-card-nav";
 import type { PrevNextSlugs } from "@/lib/admin-card-nav";
+import { buildPrintingGroups } from "@/lib/candidate-printing-groups";
 import { ALL_ASSIGNABLE_SCOPE, buildPriceAssignBucketsBySlug } from "@/lib/marketplace-coverage";
 
 /** Everything one "Check all & next" run has to mark as checked. */

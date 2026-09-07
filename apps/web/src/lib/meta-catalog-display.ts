@@ -11,8 +11,19 @@ import type {
 } from "@openrift/shared/contracts/admin/meta-catalog";
 import { isResumableCheckpoint } from "@openrift/shared/contracts/admin/meta-catalog";
 
-import type { MetaCoverageRow } from "@/components/admin/meta-coverage-chips";
 import { summarizeRunResult } from "@/lib/job-run-display";
+
+export interface MetaCoverageRow {
+  triage: MetaCatalogRow["triage"];
+  displayStatus: string;
+  decklistStatus: string | null;
+  fetchedAt: string | null;
+  stagedPlayerCount: number;
+  stagedLegendCount: number;
+  stagedDeckCount: number;
+  nextCheckAt: string | null;
+  startAt: string | null;
+}
 
 export const META_SOURCE_LABELS: Record<MetaSource, string> = {
   uvsgames: "UVS Games",

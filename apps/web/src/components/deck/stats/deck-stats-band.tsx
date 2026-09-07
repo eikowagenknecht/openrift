@@ -8,7 +8,6 @@ import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { InfoHint } from "@/components/ui/info-hint";
 import { Pressable } from "@/components/ui/pressable";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import type { useEnumOrders } from "@/hooks/use-enums";
 import { useMeasuredWidth } from "@/hooks/use-measured-width";
@@ -18,6 +17,7 @@ import { formatChancePct } from "@/lib/deck-draw-odds";
 import { oddsGroupPresets, oddsGroupRow } from "@/lib/deck-odds-groups";
 import { NO_CARDS } from "@/lib/deck-overview-derive";
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import {
   buildOwnershipRows,
   buildRarityByCardKey,

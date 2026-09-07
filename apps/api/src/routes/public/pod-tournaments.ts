@@ -3,10 +3,10 @@ import { publicPodTournamentsContract } from "@openrift/shared/contracts/public-
 import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
+import { scoringOf } from "../../lib/pod-scoring.js";
 import { toRoundResponse } from "../../lib/pod-tournament-presenters.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { scoringOf } from "../../repositories/pod-tournaments.js";
 import type { Tournament } from "../../repositories/tournaments.js";
 import { submitPodPlayerResult, submitPodResult } from "../../services/pod-pairing.js";
 

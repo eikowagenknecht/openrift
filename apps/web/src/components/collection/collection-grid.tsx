@@ -17,13 +17,10 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { PrintingCountActions } from "@/components/cards/printing-count-actions";
 import { CollectionGridCell } from "@/components/collection/collection-grid-cell";
 import { CollectionGridOverlays } from "@/components/collection/collection-grid-overlays";
@@ -37,6 +34,7 @@ import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { VariantLocationsPopoverHost } from "@/components/collection/variant-locations-popover-host";
 import { EmptyState } from "@/components/empty-state";
 import { defaultGroupByOptions } from "@/components/filters/options-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { AddToListDialog } from "@/components/list/add-to-list-dialog";
 import { LendCardDialog } from "@/components/loans/lend-card-dialog";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
@@ -46,6 +44,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Toggle } from "@/components/ui/toggle";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionGridData } from "@/hooks/use-collection-grid-data";
 import { useCollectionGridSelection } from "@/hooks/use-collection-grid-selection";
@@ -61,9 +60,10 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useWishEntries } from "@/hooks/use-wish-entries";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
 import { tileSiblings } from "@/lib/card-tiles";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { collectionTableActionsColumn } from "@/lib/collection-table";
 import { aggregatePersonalCollectionValue } from "@/lib/collection-value";
 import { useCopiesCollection } from "@/lib/copies-collection";
@@ -71,8 +71,8 @@ import { formatterForMarketplace } from "@/lib/format";
 import { isCopiesOnlyGrouping } from "@/lib/group-by-collection";
 import { GROUP_BY_LABELS } from "@/lib/group-by-field";
 import { getSiteUrl } from "@/lib/site-config";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import { isTempCopyId } from "@/lib/temp-copy-id";
-import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";
 import {

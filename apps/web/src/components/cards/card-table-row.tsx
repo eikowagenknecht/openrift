@@ -10,13 +10,12 @@ import { PrintingChannelCell } from "@/components/cards/printing-channel-cell";
 import { PrintingNotesCell } from "@/components/cards/printing-notes-cell";
 import { Pressable } from "@/components/ui/pressable";
 import { rowActivateProps } from "@/lib/card-row-interactions";
+import type { ActionsColumn } from "@/lib/collection-table";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 export const CARD_TABLE_ROW_HEIGHT = 56;
 export const CARD_TABLE_HEADER_HEIGHT = 48;
-
-export type ActionsColumn = "none" | "narrow" | "stepper" | "wide";
 
 type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity" | "channel" | "notes";
 

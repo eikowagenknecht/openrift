@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { EmptyState } from "@/components/empty-state";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia } from "@/components/ui/empty";
@@ -37,7 +38,6 @@ import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/activity")({

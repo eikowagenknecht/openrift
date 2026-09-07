@@ -33,9 +33,9 @@ import {
   useTournamentDeckCheckEntry,
 } from "@/hooks/use-tournament-deck-check";
 import { zoneFixAllowed } from "@/lib/deck-check-actions";
+import type { DeckCheckSort } from "@/lib/deck-check-sort";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
-import type { DeckCheckSort } from "@/stores/deck-check-view-store";
 
 const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
   { value: "deck", label: "Deck order" },

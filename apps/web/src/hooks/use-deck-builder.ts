@@ -9,18 +9,20 @@ import { WellKnown, copyLimitFor, validateDeck } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 
+import { useDeckDraftCollection } from "@/hooks/deck-builder-collection";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useChampionIdentifierTags } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
+  canAddRune,
   COPY_LIMIT_ZONES,
   deckCardKey,
   isCardAllowedInZone,
   RUNE_TARGET,
+  runeTotalOf,
   toRuleEngineCard,
 } from "@/lib/deck-builder-card";
-import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDeckUndoStore } from "@/stores/deck-undo-store";
 
@@ -30,16 +32,6 @@ type DeckCollection = Collection<DeckBuilderCard, string | number>;
 
 export function allCards(collection: DeckCollection): DeckBuilderCard[] {
   return [...collection.values()];
-}
-
-function runeTotalOf(cards: DeckBuilderCard[]): number {
-  let total = 0;
-  for (const card of cards) {
-    if (card.zone === WellKnown.deckZone.RUNES) {
-      total += card.quantity;
-    }
-  }
-  return total;
 }
 
 /**
@@ -144,30 +136,6 @@ function crossZoneTotal(cards: DeckBuilderCard[], cardId: string): number {
     }
   }
   return total;
-}
-
-/**
- * At the RUNE_TARGET cap, an add is only valid when rebalanceRunes can
- * decrement an already-present opposite-domain rune of a dual-domain legend.
- */
-export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]): boolean {
-  const runeTotal = runeTotalOf(deckCards);
-  if (runeTotal < RUNE_TARGET) {
-    return true;
-  }
-  const legend = deckCards.find((entry) => entry.zone === WellKnown.deckZone.LEGEND);
-  if (!legend || legend.domains.length < 2) {
-    return false;
-  }
-  const otherDomain = legend.domains.find((domain) => !card.domains.includes(domain));
-  if (!otherDomain) {
-    return false;
-  }
-  return deckCards.some(
-    (entry) =>
-      entry.zone === WellKnown.deckZone.RUNES &&
-      entry.domains.some((domain) => domain === otherDomain),
-  );
 }
 
 function incrementOrInsert(

@@ -2,22 +2,22 @@ import type { Printing } from "@openrift/shared";
 import type { ComponentType, ReactNode, Ref } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";

@@ -8,8 +8,19 @@ import {
   WellKnown,
 } from "@openrift/shared";
 
-import type { DeckListDrafts, DeckListValidity } from "@/hooks/use-deck-list-filters";
-import type { DeckListGroupBy, DeckListSortField, SortDir } from "@/stores/deck-list-prefs-store";
+export type DeckListValidity = "all" | "valid" | "invalid";
+
+export type DeckListDrafts = "all" | "hide" | "only";
+
+export type DeckListSortField = "updated" | "created" | "name" | "value";
+
+export type SortDir = "asc" | "desc";
+
+/**
+ * `folder` is many-to-one: a deck in several folders renders under each one,
+ * so section counts sum past the deck total.
+ */
+export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validity" | "folder";
 
 interface DeckListFilters {
   search: string;

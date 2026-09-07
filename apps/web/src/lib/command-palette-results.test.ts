@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { HelpArticle } from "@/components/help/articles";
-import type { NavItemConfig } from "@/components/layout/nav-items";
-import type { QuickAddCardResult } from "@/hooks/use-quick-add-search";
 import { buildPaletteGroups } from "@/lib/command-palette-results";
+import type { HelpArticle } from "@/lib/help-article";
+import type { NavItemConfig } from "@/lib/nav-items";
+import type { QuickAddCardResult } from "@/lib/quick-add-result";
 import { stubPrinting } from "@/test/factories";
 
 function navItem(label: string, to: string, description?: string): NavItemConfig {

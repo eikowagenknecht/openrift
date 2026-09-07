@@ -4,13 +4,10 @@ import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId } from "@/lib/auth-session";
+import type { DeckPlanSaveInput } from "@/lib/deck-plan";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
-import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
-
-/** Matchups carry no id; the server assigns them. */
-export type DeckPlanSaveInput = Omit<ContractInput<typeof decksContract, "replacePlan">, "id">;
 
 const fetchDeckPlanFn = createServerFn({ method: "GET" })
   .validator((input: string) => input)

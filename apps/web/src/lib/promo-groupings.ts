@@ -1,6 +1,6 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 
-import type { CardGroup } from "@/components/cards/card-grid-types";
+import type { CardGroup } from "@/lib/card-group-types";
 
 /**
  * Excludes the shared "none" and "collection" axes: /promos always renders

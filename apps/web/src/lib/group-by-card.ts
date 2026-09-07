@@ -1,7 +1,7 @@
 import { legendDisplayName } from "@openrift/shared";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { CardGroup } from "@/components/cards/card-grid-types";
+import type { CardGroup } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 /** Only meaningful in printings view; in cards view every section holds exactly one tile. */
 export function groupItemsByCard(items: CardViewerItem[], dir: "asc" | "desc"): CardGroup[] {

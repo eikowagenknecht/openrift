@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 
 import { AcceptedCardsTable } from "@/components/admin/accepted-cards-table";
@@ -20,7 +20,8 @@ import { useSets } from "@/hooks/use-sets";
 import { useUnifiedMappingsWhen } from "@/hooks/use-unified-mappings";
 import { filterCardsBySet } from "@/lib/admin-cards-search";
 import { buildCoverageMapBySlug, buildPriceAssignBucketsBySlug } from "@/lib/marketplace-coverage";
-import { Route } from "@/routes/_app/_authenticated/admin/cards";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/cards");
 
 const ALL_SETS = "__all__";
 
@@ -32,11 +33,11 @@ export function AdminCardListPage() {
   const isAdmin = access?.isAdmin === true;
   const { data: unified } = useUnifiedMappingsWhen(isAdmin);
   const { data: setsData } = useSets();
-  const { tab: rawTab, setSlug } = Route.useSearch({
+  const { tab: rawTab, setSlug } = routeApi.useSearch({
     select: (s) => ({ tab: s.tab ?? "cards", setSlug: s.set }),
   });
   const tab = !isAdmin && rawTab === "unmatched" ? "cards" : rawTab;
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = routeApi.useNavigate();
 
   const setOptions = [
     { value: ALL_SETS, label: "All sets" },

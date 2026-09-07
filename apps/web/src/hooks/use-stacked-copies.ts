@@ -3,12 +3,7 @@ import { sortCards } from "@openrift/shared";
 
 import { useCards } from "@/hooks/use-cards";
 import { useCopies } from "@/hooks/use-copies";
-
-export interface StackedEntry {
-  printingId: string;
-  printing: Printing;
-  copyIds: string[];
-}
+import type { StackedEntry } from "@/lib/stacked-entry";
 
 interface UseStackedCopiesResult {
   stacks: StackedEntry[];

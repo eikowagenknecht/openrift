@@ -38,8 +38,12 @@ import {
   useUnifiedIgnoreVariants,
   useUnifiedMappings,
 } from "@/hooks/use-unified-mappings";
+import type {
+  AssignableCard,
+  SourceMappingConfig,
+  StagedProduct,
+} from "@/lib/price-mappings-types";
 
-import type { AssignableCard, SourceMappingConfig, StagedProduct } from "./price-mappings-types";
 import { ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 

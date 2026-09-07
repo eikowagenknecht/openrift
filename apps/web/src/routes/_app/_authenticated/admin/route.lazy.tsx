@@ -8,10 +8,9 @@ import {
   PageTopBarHeightContext,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-
-import { TopBarSlotContext } from "./route";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/admin")({
   component: AdminLayout,

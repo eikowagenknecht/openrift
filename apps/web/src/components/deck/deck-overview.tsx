@@ -50,7 +50,6 @@ import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useChampionIdentifierTags, useEnumOrders } from "@/hooks/use-enums";
 import { useHomeCollection } from "@/hooks/use-home-collection";
@@ -76,6 +75,7 @@ import type { DeckListSortContext } from "@/lib/deck-overview-list-sort";
 import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
 import type { OwnershipBandSources } from "@/lib/deck-ownership-band";
 import { buildOwnershipBands } from "@/lib/deck-ownership-band";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import { statsFocusCount, statsFocusLabel, statsFocusOpeningChance } from "@/lib/deck-stats-focus";
 import {

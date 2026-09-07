@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
+import type { GroupInfo } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 import { groupItemsByCollection, isCopiesOnlyGrouping } from "./group-by-collection";

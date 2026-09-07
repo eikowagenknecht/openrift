@@ -3,7 +3,7 @@ import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GroupInfo } from "@/components/cards/card-grid-types";
+import type { GroupInfo } from "@/lib/card-group-types";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 const TEST_ORDERS = {

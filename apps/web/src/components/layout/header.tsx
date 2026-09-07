@@ -21,12 +21,7 @@ import { Fragment, useState } from "react";
 import { siDiscord, siGithub } from "simple-icons";
 import { toast } from "sonner";
 
-import type {
-  LockedFeatureKey,
-  NavBadgeCounts,
-  NavFlags,
-  NavItemConfig,
-} from "@/components/layout/nav-items";
+import type { NavFlags } from "@/components/layout/nav-items";
 import {
   badgeAriaLabel,
   navItemVisible,
@@ -71,6 +66,7 @@ import { useLoanActionCounts } from "@/hooks/use-loans";
 import { signOut } from "@/lib/auth-client";
 import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarHash } from "@/lib/gravatar";
+import type { LockedFeatureKey, NavBadgeCounts, NavItemConfig } from "@/lib/nav-items";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";

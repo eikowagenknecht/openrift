@@ -2,7 +2,6 @@ import type { Printing } from "@openrift/shared";
 import { Suspense, lazy } from "react";
 import type { ReactNode } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import {
   Drawer,
   DrawerContent,
@@ -18,6 +17,7 @@ import {
   useOverlayHistoryEntry,
 } from "@/hooks/use-overlay-history-entry";
 import { useSelectionDetail } from "@/hooks/use-selection-detail";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { getDomainTintStyle } from "@/lib/domain";
 import { useSelectionStore } from "@/stores/selection-store";
 

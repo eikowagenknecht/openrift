@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { useEffect } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { parseDigitKey } from "@/lib/parse-digit-key";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";

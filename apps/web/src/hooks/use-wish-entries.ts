@@ -3,17 +3,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { listDetailQueryOptions, listsQueryOptions } from "@/hooks/use-lists";
 import { useUserId } from "@/lib/auth-session";
-
-/** A single wish-list entry, flattened with its owning list's name for display. */
-export interface WishEntryFlat {
-  entryId: string;
-  listId: string;
-  listName: string;
-  kind: "card" | "printing";
-  cardId?: string;
-  printingId?: string;
-  quantity: number;
-}
+import type { WishEntryFlat } from "@/lib/wish-entry";
 
 /** The viewer's wish-list membership, queried for highlighting + post-take cleanup. */
 export interface WishMembership {

@@ -1,7 +1,7 @@
 import type { CopyResponse, Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import { stubCopy } from "@/test/factories";
 
 import type { CsvExportLabels } from "./csv-export";

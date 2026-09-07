@@ -1,7 +1,7 @@
 import type { DeckZone, Printing } from "@openrift/shared";
 import { create } from "zustand";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 /**
  * Where a click landed, when the caller knows more than which printing it was.

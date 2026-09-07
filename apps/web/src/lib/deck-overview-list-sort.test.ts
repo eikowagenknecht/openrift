@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { CardOwnership } from "@/lib/deck-ownership-types";
 import { stubDeckBuilderCard } from "@/test/factories";
 
 import type { DeckListSortContext } from "./deck-overview-list-sort";

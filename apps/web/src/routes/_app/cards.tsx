@@ -3,6 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { CardBrowserLayout } from "@/components/card-browser-layout";
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import { catalogQueryOptions } from "@/hooks/catalog-query";
 import { initQueryOptions } from "@/hooks/use-init";
 import { pricesQueryOptions } from "@/hooks/use-prices";
 import type { AvailableFiltersWire, CardCounts, FilterCountsWire } from "@/lib/cards-facets";
@@ -12,7 +13,6 @@ import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { cardsSearchSchema } from "@/lib/cards-search-schema";
 import {
   catalogFetchUrl,
-  catalogQueryOptions,
   normalizeCatalogLangs,
   readCatalogVersionFromServerCache,
 } from "@/lib/catalog-query";

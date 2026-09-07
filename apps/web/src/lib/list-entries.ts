@@ -1,6 +1,6 @@
 import type { ListEntryDetailResponse, ListKind, Printing } from "@openrift/shared";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 export function emptyStateCopy(kind: ListKind): { title: string; description: string } {
   if (kind === "copy") {

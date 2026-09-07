@@ -8,17 +8,15 @@ import type {
 import { joinCatalogPrintings } from "@openrift/shared";
 import { context, propagation } from "@opentelemetry/api";
 import type { QueryClient, UseSuspenseQueryOptions } from "@tanstack/react-query";
-import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import type { GroupInfo } from "@/components/cards/card-grid-types";
+import type { GroupInfo } from "@/lib/card-group-types";
 import { consumeSeededCatalogVersion, versionFromEtag } from "@/lib/catalog-version";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiErrorFromResponse } from "@/lib/server-fns/api-error";
 import { getApiUrl } from "@/lib/server-fns/api-url";
 import { activeClientIp } from "@/lib/server-fns/client-ip-context";
-import { useDisplayStore } from "@/stores/display-store";
 
 // Fetched with a plain `fetch`, not the oRPC client, so the ETag can be read
 // off the same Response as the body.
@@ -86,8 +84,8 @@ export async function readCatalogVersionFromServerCache(): Promise<string | null
   return version;
 }
 
-const fetchCatalog = createServerFn({ method: "GET" }).handler((): Promise<CatalogResponse> =>
-  readCatalogFromServerCache(),
+export const fetchCatalog = createServerFn({ method: "GET" }).handler(
+  (): Promise<CatalogResponse> => readCatalogFromServerCache(),
 );
 
 // Goes through the Start server, not the edge, on purpose: the token must be
@@ -131,33 +129,6 @@ export function catalogFetchUrl(
   return search === "" ? base : `${base}?${search}`;
 }
 
-// Exported for tests; not part of the module's real surface.
-export function primaryCatalogLanguages(): string[] | null {
-  let urlLanguages: string[] = [];
-  try {
-    const raw = new URLSearchParams(globalThis.location.search).get("languages");
-    if (raw !== null) {
-      const parsed: unknown = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        urlLanguages = parsed.filter((entry): entry is string => typeof entry === "string");
-      }
-    }
-  } catch {
-    // Malformed param: contributes nothing, the router's search validation owns erroring.
-  }
-  // /promos/<language> may render a language outside the user's preferences.
-  const promosLanguage = /^\/promos\/(?<lang>[A-Za-z]{2})(?:\/|$)/u.exec(
-    globalThis.location.pathname,
-  )?.groups?.lang;
-  if (promosLanguage !== undefined) {
-    urlLanguages.push(promosLanguage);
-  }
-  const base =
-    urlLanguages.length > 0 ? urlLanguages : (useDisplayStore.getState().languages ?? []);
-  const merged = normalizeCatalogLangs(base);
-  return merged.length > 0 ? merged : null;
-}
-
 // Detects a full response served for a variant request (deploy skew: an
 // older API ignores `langs`). Exported for tests, not real module surface.
 export function hasPrintingsOutside(catalog: CatalogResponse, langs: readonly string[]): boolean {
@@ -172,13 +143,12 @@ export function hasPrintingsOutside(catalog: CatalogResponse, langs: readonly st
 
 // Fetches /api/v1/catalog directly (bypasses the Start server) so Cloudflare edge-caches it.
 // `?v=<ETag>` must change with the catalog or max-age + stale-while-revalidate serves a stale body.
-async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
+export async function fetchCatalogFromEdge(langs: string[] | null): Promise<CatalogResponse> {
   const version = consumeSeededCatalogVersion() ?? (await fetchCatalogVersion().catch(() => null));
   // Returns the identical object on an unchanged version: the enrich memo depends on reference identity.
   if (version !== null && lastCompleteCatalog?.version === version) {
     return lastCompleteCatalog.data;
   }
-  const langs = primaryCatalogLanguages();
   const url = catalogFetchUrl(
     globalThis.location.origin,
     version,
@@ -305,13 +275,3 @@ export const noCatalogQueryOptions: UseSuspenseQueryOptions<
   staleTime: Infinity,
   select: enrichCatalog,
 };
-
-export const catalogQueryOptions = queryOptions({
-  queryKey: queryKeys.catalog.all,
-  queryFn: () => (globalThis.window === undefined ? fetchCatalog() : fetchCatalogFromEdge()),
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  refetchOnWindowFocus: false,
-  select: enrichCatalog,
-  retry: 1,
-  retryDelay: 500,
-});

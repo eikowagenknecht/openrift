@@ -10,17 +10,9 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
+import type { CardSearchResult } from "@/lib/card-search-result";
 
 const SEARCH_DEBOUNCE_MS = 150;
-
-export interface CardSearchResult {
-  id: string;
-  label: string;
-  sublabel?: ReactNode;
-  detail?: ReactNode;
-  adornment?: ReactNode;
-  leading?: ReactNode;
-}
 
 interface CatalogSearchComboboxProps<T> {
   results: T[];

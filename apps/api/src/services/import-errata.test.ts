@@ -1,10 +1,10 @@
 /* oxlint-disable
    no-restricted-imports
    -- test file: api has no @/ alias */
+import type { UploadErrataEntry } from "@openrift/shared/contracts/admin/card-mutations";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
-import type { UploadErrataEntry } from "../routes/admin/cards/schemas.js";
 import { importErrata } from "./import-errata.js";
 
 function mockTransact(trxRepos: Repos): Transact {

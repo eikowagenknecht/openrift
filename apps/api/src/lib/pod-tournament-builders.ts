@@ -1,8 +1,8 @@
 import type { PodTournamentDetailResponse } from "@openrift/shared";
 
 import type { Repos } from "../deps.js";
-import { scoringOf } from "../repositories/pod-tournaments.js";
 import type { Tournament } from "../repositories/tournaments.js";
+import { scoringOf } from "./pod-scoring.js";
 import { toRoundResponse } from "./pod-tournament-presenters.js";
 import { loadTournament } from "./tournament-access.js";
 import { toPodPlayer, toPodTournament } from "./tournament-presenters.js";

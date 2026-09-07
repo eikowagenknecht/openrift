@@ -1,10 +1,6 @@
 import type { MarketplaceGroupKind, StagedProductResponse } from "@openrift/shared";
 
-import type {
-  MarketplaceConfig,
-  ProductInfo,
-  StagingRow,
-} from "../routes/admin/marketplace-configs.js";
+import type { MarketplaceConfig, ProductInfo, StagingRow } from "../lib/marketplace-configs.js";
 
 export async function buildStagedRowMapping(
   config: MarketplaceConfig,

@@ -23,10 +23,12 @@ import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePrices } from "@/hooks/use-prices";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
 import { formatterForMarketplace } from "@/lib/format";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import type {
+  CompletionCountMode,
+  CompletionGroupBy,
   DomainCombo,
   DomainCount,
   EnergyCostCount,
@@ -36,9 +38,6 @@ import type {
 } from "@/lib/stat-types";
 import { comboKey, sortCombos } from "@/lib/stat-types";
 import { useDisplayStore } from "@/stores/display-store";
-
-export type CompletionGroupBy = "set" | "domain" | "rarity" | "type";
-export type CompletionCountMode = "cards" | "printings" | "copies";
 
 export interface CompletionEntry {
   key: string;

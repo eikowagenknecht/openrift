@@ -7,7 +7,7 @@ import {
 } from "@openrift/shared";
 import { useMemo } from "react";
 
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
+import type { CardSearchResult } from "@/lib/card-search-result";
 
 const NO_PRINTING_CODES: ReadonlyMap<string, readonly SearchablePrintingCodes[]> = new Map();
 

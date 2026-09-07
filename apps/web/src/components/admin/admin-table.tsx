@@ -59,6 +59,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { ReorderMoves } from "@/lib/admin-reorder";
+import type { ServerSort } from "@/lib/admin-table-types";
 import { errorText } from "@/lib/error-text";
 import { downloadJSON } from "@/lib/json-export";
 import { cn } from "@/lib/utils";
@@ -71,12 +72,6 @@ const features = tableFeatures({
 });
 
 type AdminTableFeatures = typeof features;
-
-export interface ServerSort {
-  key: string;
-  direction: "asc" | "desc";
-  onChange: (sort: { key: string | null; direction: "asc" | "desc" }) => void;
-}
 
 /** Per-row data injected into `cell` elements via cloneElement. */
 export interface AdminCellSlotProps<TData> {

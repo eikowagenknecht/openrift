@@ -3,9 +3,9 @@ import { imageUrl } from "@openrift/shared";
 import { ImageOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";

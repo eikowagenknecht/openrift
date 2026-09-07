@@ -12,10 +12,6 @@ vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({ cardsById, printingsByCardId }),
 }));
 
-vi.mock("@/components/cards/printing-option-content", () => ({
-  CardThumbnail: () => null,
-}));
-
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { useCatalogCardSearch } from "./use-catalog-card-search";
 

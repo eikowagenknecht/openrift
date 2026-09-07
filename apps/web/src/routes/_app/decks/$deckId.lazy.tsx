@@ -4,8 +4,9 @@ import { DeckEditorPage } from "@/components/deck/deck-editor-page";
 import { NotFoundFallback } from "@/components/error-message";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 export const Route = createLazyFileRoute("/_app/decks/$deckId")({
   component: DeckEditor,

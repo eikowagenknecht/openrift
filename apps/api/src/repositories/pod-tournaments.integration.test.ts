@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos } from "../deps.js";
+import type { PodScoring } from "../lib/pod-scoring.js";
+import { scoringOf } from "../lib/pod-scoring.js";
 import { toRoundResponse } from "../lib/pod-tournament-presenters.js";
-import type { PodScoring } from "../repositories/pod-tournaments.js";
-import { scoringOf } from "../repositories/pod-tournaments.js";
 import {
   finalizeRound,
   pairNextRound,

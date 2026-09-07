@@ -2,12 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminPending } from "@/components/admin/admin-route-components";
 import { RouteErrorFallback } from "@/components/error-message";
+import { catalogQueryOptions } from "@/hooks/catalog-query";
 import {
   adminMetaEventPlayersQueryOptions,
   adminMetaEventQueryOptions,
 } from "@/hooks/use-admin-meta";
 import { initQueryOptions } from "@/hooks/use-init";
-import { catalogQueryOptions } from "@/lib/catalog-query";
 import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/meta_/$eventId")({

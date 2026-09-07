@@ -1,6 +1,6 @@
 import type { AdminMetaEvent } from "@openrift/shared";
 import { formatDay, META_EVENT_SORTS } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { LayersIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -24,7 +24,8 @@ import {
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { urlTableSort, useUrlTableFilters } from "@/hooks/use-url-table-filters";
 import { sourceProviderDisplay } from "@/lib/meta-source-review";
-import { Route } from "@/routes/_app/_authenticated/admin/meta";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/meta");
 
 function NameCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
   if (!row) {
@@ -167,7 +168,7 @@ type DialogState = { mode: "create" } | { mode: "edit"; event: AdminMetaEvent } 
 
 /** Events are edited in a dialog because notes is a 4 000-character markdown field. */
 export function MetaEventsPage() {
-  const filters = Route.useSearch();
+  const filters = routeApi.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);
   const { formats, labels: formatLabels } = useDeckFormatList();
   const deleteEvent = useDeleteMetaEvent();

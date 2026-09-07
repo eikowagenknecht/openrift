@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { BUTTON_PAD } from "./card-grid-constants";
+import { BUTTON_PAD } from "@/lib/card-grid-constants";
 import {
   computeGridMetrics,
   GRID_GAP_MAX,
@@ -9,7 +9,7 @@ import {
   GUTTER_MAX,
   GUTTER_MIN,
   GUTTER_RATIO,
-} from "./card-grid-metrics";
+} from "@/lib/card-grid-metrics";
 
 describe("computeGridMetrics", () => {
   it("fills the container exactly", () => {

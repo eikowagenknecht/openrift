@@ -1,4 +1,4 @@
-import type { DeckZone, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
+import type { DeckZone, Marketplace, PriceLookup, Printing } from "@openrift/shared";
 import {
   WellKnown,
   getOrientation,
@@ -8,41 +8,15 @@ import {
 } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type {
+  CardOwnership,
+  DeckOwnershipData,
+  OwnershipPrinting,
+} from "@/lib/deck-ownership-types";
 import { REQUIRED_ZONES } from "@/lib/deck-zone-labels";
 
 import { useEffectiveLanguageOrder } from "./use-effective-language-order";
 import { usePrices } from "./use-prices";
-
-export interface CardOwnership {
-  cardId: string;
-  cardName: string;
-  cardSlug: string | undefined;
-  displayName: string;
-  zone: string;
-  needed: number;
-  owned: number;
-  shortfall: number;
-  locked: number;
-  lockedLoaned: number;
-  lockedReserved: number;
-  lockedExcluded: number;
-  borrowed: number;
-  incoming: number;
-  displayPrice: number | undefined;
-  displayPrinting: OwnershipPrinting | undefined;
-  cheapestPrice: number | undefined;
-  cheapestPrinting: OwnershipPrinting | undefined;
-}
-
-interface OwnershipPrinting {
-  id: string;
-  language: string;
-  shortCode: string;
-  setId: string;
-  rarity: Rarity;
-  imageId: string | undefined;
-  landscape: boolean;
-}
 
 function toOwnershipPrinting(printing: Printing): OwnershipPrinting {
   return {
@@ -75,30 +49,6 @@ export function lockedReasonText(entry: CardOwnership): string {
 }
 
 const REQUIRED_ZONE_SET: ReadonlySet<DeckZone> = new Set(REQUIRED_ZONES);
-
-export interface DeckOwnershipData {
-  byCardZone: Map<string, CardOwnership>;
-  totalNeeded: number;
-  totalOwned: number;
-  requiredZoneNeeded: number;
-  requiredZoneOwned: number;
-  ownedPrintingByCardId: ReadonlyMap<string, OwnershipPrinting>;
-  totalLocked: number;
-  totalBorrowed: number;
-  totalIncoming: number;
-  missingCount: number;
-  requiredZoneMissing: number;
-  sideboardMissing: number;
-  deckValueCents: number | undefined;
-  mainValueCents: number | undefined;
-  sideboardValueCents: number | undefined;
-  asDisplayedValueCents: number | undefined;
-  missingValueCents: number | undefined;
-  missingMainValueCents: number | undefined;
-  missingSideboardValueCents: number | undefined;
-  missingAsDisplayedValueCents: number | undefined;
-  missingCards: CardOwnership[];
-}
 
 export function computeDeckOwnership(
   deckCards: DeckBuilderCard[],

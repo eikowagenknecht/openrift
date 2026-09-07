@@ -17,12 +17,13 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { Pressable } from "@/components/ui/pressable";
 import { useCards } from "@/hooks/use-cards";
-import { canAddRune, useDeckBuilderActions } from "@/hooks/use-deck-builder";
+import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
+  canAddRune,
   catalogCardToDeckBuilderCard,
   isCardAllowedInZone,
   isDeckZoneFullForDrag,

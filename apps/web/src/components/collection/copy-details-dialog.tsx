@@ -41,17 +41,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLiveTradesByPrinting } from "@/hooks/use-card-trades";
 import { useCopies, useUpdateCopies } from "@/hooks/use-copies";
-import type { EnumLabels } from "@/hooks/use-enums";
 import { useConditionList, useEnumOrders, useGraderList } from "@/hooks/use-enums";
+import type { CopyDetailsTarget } from "@/lib/copy-details-target";
+import type { EnumLabels } from "@/lib/enum-labels";
 import { formatCardId } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { liveTradeStatus, tradeStatusTitle } from "@/lib/trade-status-labels";
-
-export interface CopyDetailsTarget {
-  copyIds: string[];
-  cardName: string;
-  printingByCopyId: Map<string, Printing>;
-}
 
 // Select sentinels for the two non-slug condition states. Real condition
 // slugs are kebab-case words from the reference table, so these can't collide.

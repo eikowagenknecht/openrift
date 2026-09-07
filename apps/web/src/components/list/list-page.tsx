@@ -19,10 +19,10 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageTopBarButton, PageTopBarIconButton } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
 import { DeleteListDialog } from "@/components/list/delete-list-dialog";
 import { ListEditDialog } from "@/components/list/list-edit-dialog";
-import { emptyStateCopy, listCopyIds } from "@/components/list/list-entries";
 import { ListEntryBrowser } from "@/components/list/list-entry-browser";
 import { ListExportDialog } from "@/components/list/list-export-dialog";
 import { ListGroupVisibilityDialog } from "@/components/list/list-group-visibility-dialog";
@@ -48,8 +48,8 @@ import {
   useUpdateList,
   useUpdateListEntry,
 } from "@/hooks/use-lists";
+import { emptyStateCopy, listCopyIds } from "@/lib/list-entries";
 import { getSiteUrl } from "@/lib/site-config";
-import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useLibraryToggle } from "@/stores/library-toggle-store";
 
 interface ListPageProps {

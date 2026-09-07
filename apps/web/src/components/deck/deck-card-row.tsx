@@ -10,7 +10,6 @@ import {
   XIcon,
 } from "lucide-react";
 
-import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -19,6 +18,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { HoverHandler } from "@/lib/card-row-interactions";
 import { cardHoverProps, rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckCardDragData } from "@/lib/deck-dnd-data";
 import { getDomainColor, getDomainGradientStyle } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";

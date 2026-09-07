@@ -3,10 +3,8 @@ import type { DeckZone } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
-import { DRAG_SOURCE_ZONES } from "@/components/deck/deck-dnd-context";
 import type { StackStripVariant } from "@/components/deck/deck-overview-geometry";
 import {
   isLandscapeCard,
@@ -16,10 +14,12 @@ import {
 import { ZoneThumb } from "@/components/deck/deck-zone-thumbs";
 import { useCoarsePointer } from "@/hooks/use-coarse-pointer";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { cardInteractiveProps, deckCardDragData } from "@/lib/deck-card-interaction";
+import { DRAG_SOURCE_ZONES } from "@/lib/deck-dnd-data";
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";

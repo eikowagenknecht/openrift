@@ -7,7 +7,7 @@ import {
 } from "@openrift/shared";
 
 import { toDeckBuilderCard, toRuleEngineCard } from "@/lib/deck-builder-card";
-import type { LocalDeck } from "@/stores/local-decks-store";
+import type { LocalDeck } from "@/lib/local-deck";
 
 export interface LocalDeckListItemContext {
   cardsById: Record<string, Card>;

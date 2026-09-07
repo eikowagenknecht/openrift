@@ -4,9 +4,9 @@ import { priceRefreshResponseSchema } from "@openrift/shared/contracts/admin/job
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
 import { AdminPageTopBar } from "@/components/admin/admin-page-top-bar";
-import { refreshActions } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { refreshActions } from "@/hooks/refresh-actions";
 import { useClearPrices, useLatestJobRun, useRefreshPrices } from "@/hooks/use-admin-prices";
 import { useJobSchedules } from "@/hooks/use-job-schedules";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";

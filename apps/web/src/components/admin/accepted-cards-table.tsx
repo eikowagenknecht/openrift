@@ -2,7 +2,7 @@ import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { matchesCardQuery } from "@openrift/shared";
 import { formatShortCodesArray } from "@openrift/shared/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
 import { LoaderIcon, StarIcon } from "lucide-react";
@@ -47,7 +47,8 @@ import type {
 } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
+
+const cardsRouteApi = getRouteApi("/_app/_authenticated/admin/cards");
 
 type Row = CandidateCardSummaryResponse;
 
@@ -363,8 +364,8 @@ export function AcceptedCardsTable({
     total: number;
   } | null>(null);
 
-  const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter, setSlug, activeStatus, priceScope } = CardsRoute.useSearch({
+  const navigate = cardsRouteApi.useNavigate();
+  const { sorting, globalFilter, setSlug, activeStatus, priceScope } = cardsRouteApi.useSearch({
     select: (s) => ({
       sorting: parseSortParam(s.tableSort),
       globalFilter: s.q ?? "",

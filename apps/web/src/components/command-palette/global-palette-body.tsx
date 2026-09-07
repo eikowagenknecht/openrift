@@ -14,7 +14,7 @@ import {
 
 import { PrintingRowContent } from "@/components/cards/printing-row";
 import { visibleHelpArticles } from "@/components/help/articles";
-import type { LockedFeatureKey, NavFlags } from "@/components/layout/nav-items";
+import type { NavFlags } from "@/components/layout/nav-items";
 import { MORE_NAV_SECTIONS, PRIMARY_NAV_ITEMS } from "@/components/layout/nav-items";
 import {
   Command,
@@ -33,6 +33,7 @@ import type { PaletteRow } from "@/lib/command-palette-results";
 import { buildPaletteGroups } from "@/lib/command-palette-results";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import type { LockedFeatureKey } from "@/lib/nav-items";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 

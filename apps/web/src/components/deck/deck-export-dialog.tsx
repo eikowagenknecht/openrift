@@ -17,8 +17,8 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEncodeDeckCards, useExportDeck } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
+import { isLocalDeckId } from "@/lib/local-deck";
 import type { PublicDeckSource } from "@/lib/public-deck-source";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
 

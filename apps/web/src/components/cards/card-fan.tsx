@@ -1,8 +1,8 @@
 import { imageUrl } from "@openrift/shared";
 import type { CSSProperties, ComponentType, SVGProps } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { cn } from "@/lib/utils";
 
 /** One fan slot: x/y offset (px), rotation (deg), and an optional paint-order z. */

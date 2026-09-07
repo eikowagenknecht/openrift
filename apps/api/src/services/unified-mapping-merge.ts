@@ -13,7 +13,7 @@ import type {
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
-import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
+import type { MarketplaceConfig, StagingRow } from "../lib/marketplace-configs.js";
 import { buildStagedRowMapping } from "./marketplace-mapping-shared.js";
 import { buildCardIndex, buildResponseGroups } from "./marketplace-mapping.js";
 

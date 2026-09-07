@@ -3,7 +3,6 @@ import { XIcon } from "lucide-react";
 import { Suspense, lazy, useRef } from "react";
 import type { ReactNode } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +21,7 @@ import {
   useOverlayHistoryEntry,
 } from "@/hooks/use-overlay-history-entry";
 import { useSelectionDetail } from "@/hooks/use-selection-detail";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { getDomainTintStyle } from "@/lib/domain";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";

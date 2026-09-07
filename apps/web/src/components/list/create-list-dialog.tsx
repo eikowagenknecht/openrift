@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Pressable } from "@/components/ui/pressable";
 import { useFriendGroupsList, useShareListWithFriendGroup } from "@/hooks/use-friend-groups";
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
+import type { InitialEntry } from "@/lib/list-initial-entry";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -89,13 +90,6 @@ const INTENT_TITLE: Record<ListIntent, string> = {
   trade: "New tradelist",
   organize: "New organize list",
 };
-
-export interface InitialEntry {
-  cardId?: string;
-  printingId?: string;
-  copyId?: string;
-  quantity?: number;
-}
 
 interface CreateListDialogProps {
   intent: ListIntent;

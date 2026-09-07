@@ -1,4 +1,4 @@
-import type { ActionsColumn } from "@/components/cards/card-table-row";
+export type ActionsColumn = "none" | "narrow" | "stepper" | "wide";
 
 /** Mirrors how copies-view grid tiles drop the count strip for unstacked rows. */
 export function collectionTableActionsColumn({

@@ -10,7 +10,6 @@ import { ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import { Fragment } from "react";
 
 import { ArtBandBackdrop } from "@/components/art-band-backdrop";
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { MetaContributors } from "@/components/meta/meta-contributors";
 import { MetaIdentity } from "@/components/meta/meta-identity";
 import { MetaPlayerName } from "@/components/meta/meta-player-name";
@@ -20,6 +19,7 @@ import { CountryFlag } from "@/components/ui/country-flag";
 import { DateLeaf } from "@/components/ui/date-leaf";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { describeEventStructure } from "@/lib/meta-event-structure";
 import { formatRecord } from "@/lib/meta-format";
 import { metaEventWinners } from "@/lib/meta-front-page";

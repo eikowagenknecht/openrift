@@ -4,10 +4,8 @@ import { legendDisplayName } from "@openrift/shared";
 import { ImageOffIcon, MinusIcon, PinIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
-import { DRAG_SOURCE_ZONES } from "@/components/deck/deck-dnd-context";
 import {
   LANDSCAPE_THUMB_CLASS,
   LANDSCAPE_THUMB_STYLE,
@@ -18,9 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { cardInteractiveProps, deckCardDragData } from "@/lib/deck-card-interaction";
+import { DRAG_SOURCE_ZONES } from "@/lib/deck-dnd-data";
 import { STEPPER_ZONES } from "@/lib/deck-overview-derive";
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
 import { ownershipBandTitle } from "@/lib/deck-ownership-band";

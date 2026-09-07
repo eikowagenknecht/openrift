@@ -13,9 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pressable } from "@/components/ui/pressable";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { TrackedLegend } from "@/lib/match-legends";
 import { TEAM_LABELS } from "@/lib/match-teams";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-import type { TeamId, TrackedLegend } from "@/stores/match-tracker-store";
+import type { TeamId } from "@/stores/match-tracker-store";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,

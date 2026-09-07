@@ -1,5 +1,4 @@
 import type {
-  CardType,
   DeckCardResponse,
   DeckCloneResponse,
   DeckDetailResponse,
@@ -12,9 +11,7 @@ import type {
   DeckResponse,
   DeckShareResponse,
   DeckZone,
-  Domain,
   PublicDeckDetailResponse,
-  SuperType,
 } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { decksContract } from "@openrift/shared/contracts/decks";
@@ -24,12 +21,14 @@ import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
+import type { EncodeDeckCardInput } from "@/lib/deck-encode-input";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { reportMutationError } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 const fetchDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -577,18 +576,6 @@ export function useExportDeck() {
       invalidates: [],
     },
   );
-}
-
-/** A single card sent to the public, stateless deck-code encoder (local decks). */
-export interface EncodeDeckCardInput {
-  cardId: string;
-  zone: DeckZone;
-  quantity: number;
-  preferredPrintingId: string | null;
-  cardName: string;
-  cardType: CardType;
-  superTypes: SuperType[];
-  domains: Domain[];
 }
 
 // Public (no-cookie) encoder for browser-local decks, which have no server row to `export` by id.

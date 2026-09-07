@@ -5,7 +5,8 @@ import type {
   StagedProduct,
   UnifiedMappingGroup,
   UnifiedMappingPrinting,
-} from "./price-mappings-types";
+} from "@/lib/price-mappings-types";
+
 import { computeProductSuggestions, productSuggestionKey } from "./suggest-mapping";
 
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {

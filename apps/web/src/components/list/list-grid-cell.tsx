@@ -10,11 +10,9 @@ import { ListIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";
 
-import type { CardRenderContext } from "@/components/card-viewer-types";
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { CardStrip, StripIconButton } from "@/components/cards/card-strip";
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import type { ListEntryDragData } from "@/components/collection/dnd-types";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { DraggableListEntry } from "@/components/list/draggable-list-entry";
@@ -25,6 +23,8 @@ import { isRuleSourced, RuleSourceBadge } from "@/components/list/rule-source-ba
 import { TradePreferenceGridPill } from "@/components/trade-preferences/trade-preference-grid-pill";
 import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Badge } from "@/components/ui/badge";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
+import type { CardRenderContext } from "@/lib/card-viewer-types";
 import { entryToExcludeTarget } from "@/lib/rule-exclude";
 import {
   dispatchEntryQuantityChange,

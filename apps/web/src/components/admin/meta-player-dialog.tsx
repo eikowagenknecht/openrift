@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
+import { cardSearchLeading } from "@/components/cards/printing-option-content";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -101,7 +102,7 @@ function PlayerCardPicker({
 }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
-  const results = useCatalogCardSearch(debouncedSearch, filter);
+  const results = useCatalogCardSearch(debouncedSearch, filter, cardSearchLeading);
 
   const picked = cardId === null ? undefined : cardsById[cardId];
 

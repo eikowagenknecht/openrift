@@ -14,9 +14,9 @@ import type {
 } from "@openrift/shared";
 import { makeCard, makePrinting } from "@openrift/shared/test-factories";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { CardOwnership } from "@/hooks/use-deck-ownership";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { CardOwnership } from "@/lib/deck-ownership-types";
 
 export const EMPTY_TRADE_PREFERENCE: TradePreference = {
   pricePref: null,

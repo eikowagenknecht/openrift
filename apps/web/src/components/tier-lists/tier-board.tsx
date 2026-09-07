@@ -1,47 +1,15 @@
-import type { Card, Printing, TierRow } from "@openrift/shared";
 import { TIER_LABEL_INK, tierRowColor } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 
-import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import {
   TierCardTile,
   tierRowMinHeight,
   useTierTileWidth,
 } from "@/components/tier-lists/tier-card-tile";
 import { Pressable } from "@/components/ui/pressable";
-import type { ResolvedTierRow } from "@/lib/tier-list-presentation";
+import type { ResolvedTierRow, TierCardView } from "@/lib/tier-list-presentation";
 import { cn } from "@/lib/utils";
-
-/** Cards whose id no longer resolves against the catalogue are dropped, not rendered blank. */
-export function resolveTierRows(
-  rows: readonly TierRow[],
-  cardsById: Record<string, Card>,
-  printingsByCardId: Map<string, Printing[]>,
-): ResolvedTierRow[] {
-  return rows.map((row) => ({
-    label: row.label,
-    unranked: row.unranked === true,
-    cards: row.cards.flatMap((entry) => {
-      const card = cardsById[entry.cardId];
-      if (!card) {
-        return [];
-      }
-      const printings = printingsByCardId.get(entry.cardId);
-      const pinned = entry.printingId
-        ? printings?.find((printing) => printing.id === entry.printingId)
-        : undefined;
-      return [
-        {
-          cardId: entry.cardId,
-          card,
-          printing: pinned ?? printings?.[0],
-          pinnedPrintingId: entry.printingId,
-        },
-      ];
-    }),
-  }));
-}
 
 interface TierRowFrameProps {
   rowIndex: number;

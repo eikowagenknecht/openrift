@@ -3,7 +3,6 @@ import { WellKnown } from "@openrift/shared";
 import { HandIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { PowerDomainIcon } from "@/components/deck/deck-card-row";
 import { SwapColumns } from "@/components/deck/swap-column-editor";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import { cardHoverProps, rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

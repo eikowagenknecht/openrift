@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import type { TrackedLegend } from "@/lib/match-legends";
 import { randomUuid } from "@/lib/random-uuid";
 
 type GameStatus = "setup" | "playing" | "finished";
@@ -25,15 +26,6 @@ export const SCORE_REASON_LABELS: Record<ScoreReason, string> = {
   ability: "Ability",
   manual: "Manual",
 };
-
-// The tracker works offline; the catalog is only read while the legend
-// picker is open, so nothing here may be a live catalog reference.
-export interface TrackedLegend {
-  cardId: string;
-  name: string;
-  domains: string[];
-  thumbnail: string | null;
-}
 
 export interface TrackedPlayer {
   id: string;

@@ -2,18 +2,19 @@ import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
 import { OrnamentRule } from "@/components/ui/ornament";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
+import type { GroupInfo } from "@/lib/card-group-types";
 import { buildGroups } from "@/lib/card-groups";
 import type { CardGroup } from "@/lib/card-groups";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import type { ActionsColumn } from "@/lib/collection-table";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 
-import type { GroupInfo, VRow } from "./card-grid-types";
-import type { ActionsColumn } from "./card-table-row";
+import type { VRow } from "./card-grid-types";
 import {
   CARD_TABLE_HEADER_HEIGHT,
   CARD_TABLE_ROW_HEIGHT,

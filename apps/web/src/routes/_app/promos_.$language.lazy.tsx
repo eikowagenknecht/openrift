@@ -6,23 +6,20 @@ import { LinkIcon, PackageIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
-import { computeGridMetrics } from "@/components/cards/card-grid-metrics";
-import type { ActionsColumn, CardTableColumnOptions } from "@/components/cards/card-table-row";
+import type { CardTableColumnOptions } from "@/components/cards/card-table-row";
 import {
   CardTableGroupHeader,
   CardTableRow,
   getCardTableColumns,
   getCardTableMinWidth,
 } from "@/components/cards/card-table-row";
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { FinishIcon } from "@/components/cards/finish-icon";
 import { PrintingChannelCell } from "@/components/cards/printing-channel-cell";
 import { PrintingNotesCell } from "@/components/cards/printing-notes-cell";
@@ -52,6 +49,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -65,7 +64,10 @@ import {
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { ViewSurfaceProvider } from "@/hooks/use-view-prefs";
 import { useSession } from "@/lib/auth-session";
+import { computeGridMetrics } from "@/lib/card-grid-metrics";
 import { buildGroups } from "@/lib/card-groups";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import type { ActionsColumn } from "@/lib/collection-table";
 import { groupByOptionsFor } from "@/lib/group-by-field";
 import { applyOwnedBucketFilter } from "@/lib/owned-bucket";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";

@@ -1,7 +1,7 @@
 import { CheckIcon, LoaderIcon } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
-import type { ResourceProgress } from "@/hooks/use-scan-engine";
+import type { ResourceProgress } from "@/lib/scan-load-progress";
 
 function formatMb(bytes: number): string {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;

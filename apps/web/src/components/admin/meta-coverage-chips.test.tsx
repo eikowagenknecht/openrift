@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { MetaCoverageRow } from "./meta-coverage-chips";
+import type { MetaCoverageRow } from "@/lib/meta-catalog-display";
+
 import { MetaCoverageChips } from "./meta-coverage-chips";
 
 const NOW = new Date("2026-08-29T12:00:00.000Z");

@@ -1,4 +1,4 @@
-import type { SourceMappingConfig } from "./price-mappings-types";
+import type { SourceMappingConfig } from "@/lib/price-mappings-types";
 
 export function ProductLink({
   config,

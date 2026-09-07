@@ -1,3 +1,4 @@
+import type { IngestCard } from "@openrift/shared/contracts/admin/card-mutations";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Repos } from "../deps.js";
@@ -5,7 +6,6 @@ import type { createEmailSender } from "../email.js";
 import { buildCardSubmissionAlertEmail } from "../emails/card-submission-emails.js";
 import type { CardSubmissionPrintingLine } from "../emails/card-submission-emails.js";
 import { buildUnsubscribeUrls } from "../emails/unsubscribe-token.js";
-import type { IngestCard } from "../routes/admin/cards/schemas.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
 

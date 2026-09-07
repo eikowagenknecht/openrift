@@ -14,7 +14,7 @@ import {
   WellKnown,
 } from "@openrift/shared";
 
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import type { StackedEntry } from "@/lib/stacked-entry";
 
 import { formatPrice, formatPriceEur } from "./format";
 

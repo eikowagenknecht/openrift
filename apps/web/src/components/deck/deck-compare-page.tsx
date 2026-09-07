@@ -45,9 +45,10 @@ import { collectCompareDeckOptions, ownDeckDiffCards } from "@/lib/deck-compare-
 import type { DeckDiffCard } from "@/lib/deck-diff";
 import type { SideBySideRow } from "@/lib/deck-side-by-side";
 import { alignDeckLists } from "@/lib/deck-side-by-side";
+import type { LocalDeck } from "@/lib/local-deck";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
-import type { LocalDeck } from "@/stores/local-decks-store";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 /** Which column a picker fills. Doubles as the search-param name. */
 type SideKey = "from" | "to";

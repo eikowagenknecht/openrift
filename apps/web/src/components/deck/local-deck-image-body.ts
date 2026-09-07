@@ -1,11 +1,12 @@
 import type { DeckFormat } from "@openrift/shared";
 
 import { useDeckCards } from "@/hooks/use-deck-builder";
-import type { EncodeDeckCardInput } from "@/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { EncodeDeckCardInput } from "@/lib/deck-encode-input";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { isLocalDeckId } from "@/lib/local-deck";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 /**
  * Payload the from-cards deck-image renderer takes for a browser-local deck,

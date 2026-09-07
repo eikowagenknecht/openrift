@@ -6,9 +6,9 @@ import {
   GlobalPaletteFallback,
 } from "@/components/command-palette/global-palette-fallback";
 import { PaletteFrame } from "@/components/command-palette/palette-frame";
-import type { LockedFeatureKey } from "@/components/layout/nav-items";
 import { SignInRequiredDialog } from "@/components/layout/nav-items";
 import { useCommandPaletteShortcuts } from "@/hooks/use-command-palette";
+import type { LockedFeatureKey } from "@/lib/nav-items";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 

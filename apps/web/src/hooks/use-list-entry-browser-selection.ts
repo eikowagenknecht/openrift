@@ -9,8 +9,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import { resolveCopyMoveTarget, selectableEntryIds } from "@/components/list/list-entries";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCopyListMemberships, useDisposeCopies } from "@/hooks/use-copies";
 import {
@@ -24,6 +22,8 @@ import {
 import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useUserId } from "@/lib/auth-session";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import { resolveCopyMoveTarget, selectableEntryIds } from "@/lib/list-entries";
 import { queryKeys } from "@/lib/query-keys";
 import type { RuleExcludeTarget } from "@/lib/rule-exclude";
 import { excludeEntryFromRules } from "@/lib/rule-exclude";

@@ -3,13 +3,13 @@ import { publicCollectionsContract } from "@openrift/shared/contracts/public-col
 import { implement } from "@orpc/server";
 
 import { toPublicCollection } from "../../lib/collection-presenters.js";
+import { clampCopiesLimit } from "../../lib/copies-page-limit.js";
 import { toPublicCopy } from "../../lib/copy-presenters.js";
 import { gravatarHashForEmail } from "../../lib/gravatar.js";
+import { keysetPage } from "../../lib/keyset-cursor.js";
 import { getFavoriteMarketplace } from "../../lib/preferences.js";
 import { requireUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { clampCopiesLimit } from "../../repositories/copies.js";
-import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(publicCollectionsContract).$context<ApiContext>().use(requireUser);
 

@@ -7,6 +7,18 @@
 - **React Compiler** — auto-memoizes everything. Do not add `useMemo`, `useCallback`, or `React.memo`.
 - **Page chrome and card browsers** — page widths, top bars, sticky stacking, and the shared card-browser pieces are documented in [ui-composition.md](./ui-composition.md).
 
+## Web module layout
+
+`apps/web/src` is layered, and imports only point down: `lib` < `stores` < `hooks` < `components` < `routes`. Type imports count. oxlint enforces the order per directory through the `no-restricted-imports` overrides in `.oxlintrc.json`, so a `lib/` module cannot import a type from a hook and a component cannot import a route's `Route` object.
+
+- **`lib/`**: pure logic and the types it needs. Nothing from React, nothing from a store, no server functions.
+- **`stores/`**: Zustand stores. A pure predicate or constant a store exports for others (`isLocalDeckId`) lives in `lib/` and the store imports it.
+- **`hooks/`**: React hooks, server functions and query options. A React context a hook consumes lives here; the provider component stays in `components/`.
+- **`components/`**: UI. The route object comes from `getRouteApi("/path")`, search-param types from `lib/`.
+- **`routes/`**: route definitions only.
+
+When the rule fires, move the definition down to the layer that needs it and update every importer. Never leave a re-export behind as a shim, and never move a module up just to silence the rule unless it belongs there (a `lib/` module that writes to a store is a store action, not lib).
+
 ## React Compiler
 
 The compiler is enabled in `infer` mode. `use`-prefixed functions that don't call hooks are silently skipped; add a `"use memo"` directive to force compilation.
@@ -50,6 +62,8 @@ PostgreSQL stores timestamps with microsecond precision, JavaScript `Date` with 
 - **`services/`** — orchestration that has side effects or owns a workflow: sending mail, writing images to disk, running a job, ingesting a provider feed.
 - **`lib/`** — everything shared that isn't a repository or a service. A `lib/` module may take `Repos` and await reads (`loadGroupForMember`, `expandRuleListCounts`, `loadMarkerAndChannelMaps`); the line is side effects and workflow ownership, not whether it touches the database.
 - **`routes/`** — the HTTP surface. Logic worth testing on its own moves down into `lib/`.
+
+Imports point down: `db` < `repositories` < `lib` < `services` < `routes`. The one two-way edge is `lib` and `repositories`: `lib/` may take `Repos`, and a repository may import a pure `lib/` helper. oxlint enforces the rest through the overrides in `apps/api/.oxlintrc.json`: routes import repository types but never repository values, services and `lib/` never import from `routes/`, `lib/` never imports a service, and only `repositories/` imports `db`. A request schema both a route and a service need lives in the shared contract. A helper both need lives in `lib/`. Test files are exempt so integration tests can seed through repository modules.
 
 Row-to-response mapping is called a **presenter**, and it lives in `lib/<domain>-presenters.ts` — one module per domain (`collection`, `copy`, `deck`, `list`, `printing`, `product`, `deck-check`, `tournament`). Do not name these `mappers` or `*-response`, and do not park one in a service because that's where its first caller happened to be. Presenters are pure and get a sibling `*-presenters.test.ts`; the one exception is a presenter that needs a repo read to compose a detail response (`buildEntryDetail`), which stays in the domain's presenter module rather than moving to `services/`.
 

@@ -2,17 +2,9 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import type { DeckOverviewGroup } from "@/lib/deck-card-group";
+import type { DeckOverviewSort } from "@/lib/deck-overview-list-sort";
 
 export type DeckOverviewDisplayMode = "grid" | "list" | "stacks";
-
-export type DeckOverviewSort =
-  | "default"
-  | "id"
-  | "name"
-  | "energy"
-  | "price"
-  | "rarity"
-  | "ownership";
 
 const MAX_PERSISTED_COLUMNS = 24;
 

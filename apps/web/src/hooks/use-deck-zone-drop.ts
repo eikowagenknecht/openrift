@@ -1,10 +1,10 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import type { DeckFormat, DeckZone } from "@openrift/shared";
 
-import type { AnyDragData, DeckDropData } from "@/components/deck/deck-dnd-context";
-import { DECK_DRAG_TYPES, resolveDraggedCard } from "@/components/deck/deck-dnd-context";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { isCardAllowedInZone, isDeckZoneFullForDrag } from "@/lib/deck-builder-card";
+import type { AnyDragData, DeckDropData } from "@/lib/deck-dnd-data";
+import { DECK_DRAG_TYPES, resolveDraggedCard } from "@/lib/deck-dnd-data";
 import { asDragData } from "@/lib/dnd-data";
 
 export function isZoneDropRejected(args: {

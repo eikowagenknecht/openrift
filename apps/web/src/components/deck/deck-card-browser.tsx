@@ -3,14 +3,11 @@ import { copyLimitFor, imageUrl, WellKnown } from "@openrift/shared";
 import { Suspense, useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
@@ -22,11 +19,11 @@ import { SelectionDetailOverlays } from "@/components/selection-detail-overlays"
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
-import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckItems } from "@/hooks/use-deck-items";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useUpdateDeck } from "@/hooks/use-decks";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -36,21 +33,25 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
 import type { CardOpenTarget, HoverHandler } from "@/lib/card-row-interactions";
 import { splitsCardIntoTiles } from "@/lib/card-tiles";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   buildDeckQuantityByCell,
+  canAddRune,
   catalogCardToDeckBuilderCard,
   cellPreferredPrintingId,
   RUNE_TARGET,
 } from "@/lib/deck-builder-card";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import { buildRunesByDomain } from "@/lib/deck-runes-by-domain";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 function copyRemainderFor(

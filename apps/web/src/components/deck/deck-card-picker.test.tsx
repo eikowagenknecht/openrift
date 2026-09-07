@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
+import type { CardSearchResult } from "@/lib/card-search-result";
 
 vi.mock("@/components/cards/card-search-dropdown", () => ({
   CardSearchDropdown: ({

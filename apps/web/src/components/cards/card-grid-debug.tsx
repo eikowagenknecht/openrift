@@ -8,8 +8,8 @@ import {
   META_LABEL_PY,
   META_LINE_GAP,
   META_LINE_HEIGHT,
-} from "./card-grid-constants";
-import { computeGridMetrics } from "./card-grid-metrics";
+} from "@/lib/card-grid-constants";
+import { computeGridMetrics } from "@/lib/card-grid-metrics";
 
 type VRow = { kind: "header" } | { kind: "cards" };
 

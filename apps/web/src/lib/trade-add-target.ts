@@ -1,6 +1,9 @@
 import type { CollectionResponse } from "@openrift/shared";
 
-import type { TradeAddTarget } from "@/stores/trade-add-target-store";
+export interface TradeAddTarget {
+  id: string;
+  name: string;
+}
 
 export interface ResolvedTradeAddTarget {
   collectionId?: string;

@@ -1,8 +1,8 @@
 import { RotateCcwIcon } from "lucide-react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { buttonVariants } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { cn } from "@/lib/utils";
 
 import { ClipFrame } from "./clip-frame";

@@ -1,5 +1,9 @@
 import type { Domain } from "@openrift/shared";
 
+export type CompletionGroupBy = "set" | "domain" | "rarity" | "type";
+
+export type CompletionCountMode = "cards" | "printings" | "copies";
+
 export interface DomainCount {
   domain: Domain;
   count: number;

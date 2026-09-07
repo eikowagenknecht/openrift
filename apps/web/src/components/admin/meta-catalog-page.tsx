@@ -1,6 +1,6 @@
 import { formatDay, formatDayTime, META_CATALOG_SORTS } from "@openrift/shared";
 import type { MetaCatalogRow } from "@openrift/shared/contracts/admin/meta-catalog";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import {
   ArchiveXIcon,
   CheckIcon,
@@ -48,7 +48,8 @@ import {
   catalogTriageDisplay,
   catalogVenueText,
 } from "@/lib/meta-catalog-display";
-import { Route } from "@/routes/_app/_authenticated/admin/meta";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/meta");
 
 function DateCell({ row }: AdminCellSlotProps<MetaCatalogRow>) {
   if (!row) {
@@ -337,7 +338,7 @@ function CatalogRowActions({
 }
 
 export function MetaCatalogPage() {
-  const filters = Route.useSearch();
+  const filters = routeApi.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);
   const [formatTarget, setFormatTarget] = useState<MetaCatalogRow | null>(null);
   const [rulesOpen, setRulesOpen] = useState(false);

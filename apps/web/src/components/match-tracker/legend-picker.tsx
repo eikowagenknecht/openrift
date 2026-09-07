@@ -14,8 +14,8 @@ import { Pressable } from "@/components/ui/pressable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import { collectLegendOptions, filterLegendOptions, toTrackedLegend } from "@/lib/match-legends";
+import type { TrackedLegend } from "@/lib/match-legends";
 import { cn } from "@/lib/utils";
-import type { TrackedLegend } from "@/stores/match-tracker-store";
 
 // The catalog only loads while this dialog is open; the board itself renders from
 // the denormalized snapshot on the seat, so the tracker stays usable offline.

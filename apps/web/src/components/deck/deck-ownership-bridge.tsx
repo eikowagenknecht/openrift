@@ -3,7 +3,6 @@ import { useEffect } from "react";
 
 import { useIncomingTradeCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useBorrowedCounts } from "@/hooks/use-loans";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
@@ -11,6 +10,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { OwnershipBandSources } from "@/lib/deck-ownership-band";
 import { collectOwnershipBandSources, sameOwnershipBandSources } from "@/lib/deck-ownership-band";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 
 interface DeckOwnershipBridgeProps {
   builderCards: DeckBuilderCard[];

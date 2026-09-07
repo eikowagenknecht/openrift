@@ -1,8 +1,8 @@
+import type { IngestCard } from "@openrift/shared/contracts/admin/card-mutations";
 import type { Logger } from "@openrift/shared/logger";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Repos } from "../deps.js";
-import type { IngestCard } from "../routes/admin/cards/schemas.js";
 import type {
   CardSubmissionAlert,
   CardSubmissionEmailDeps,

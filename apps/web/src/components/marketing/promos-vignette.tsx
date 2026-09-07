@@ -2,8 +2,8 @@ import type { LandingSummaryResponse } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { LinkIcon } from "lucide-react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { Badge } from "@/components/ui/badge";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { getFilterIconPath } from "@/lib/icons";
 
 import { ClipFrame } from "./clip-frame";

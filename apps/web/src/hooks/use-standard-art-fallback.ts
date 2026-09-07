@@ -2,7 +2,7 @@ import type { Printing, StandardArtFallback } from "@openrift/shared";
 import { findStandardArtFallback } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 
-import { catalogQueryOptions } from "@/lib/catalog-query";
+import { catalogQueryOptions } from "@/hooks/catalog-query";
 
 export type GetStandardArtFallback = (printing: Printing) => StandardArtFallback | null;
 

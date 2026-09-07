@@ -37,6 +37,7 @@ import { initQueryOptions } from "@/hooks/use-init";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
+import { isLocalDeckId } from "@/lib/local-deck";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import type { PublicDeckSource } from "@/lib/public-deck-source";
 import { queryKeys } from "@/lib/query-keys";
@@ -51,7 +52,6 @@ import {
 } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 import { useDisplayStore } from "@/stores/display-store";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 type PrintTab = "proxies" | "registration" | "sheet";
 

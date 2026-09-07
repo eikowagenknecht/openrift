@@ -1,4 +1,4 @@
-import { isLocalDeckId } from "@/stores/local-decks-store";
+import { isLocalDeckId } from "@/lib/local-deck";
 
 export type ReplaceTarget =
   | { mode: "none" }

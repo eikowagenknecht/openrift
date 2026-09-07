@@ -4,9 +4,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 interface DeckImportSearch {
   replaceDeckId?: string;

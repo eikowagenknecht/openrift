@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
+import type { MetaSearch } from "@/lib/admin-meta-search";
 
 const captured = vi.hoisted(() => ({
   search: null as Record<string, unknown> | null,
@@ -9,19 +9,17 @@ const captured = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  useNavigate:
-    () =>
-    (options: {
-      search?: (prev: Record<string, unknown>) => Record<string, unknown>;
-      replace?: boolean;
-    }) => {
-      captured.search = options.search ? options.search({ page: 4, q: "skirmish" }) : null;
-      captured.replace = options.replace;
-    },
-}));
-
-vi.mock("@/routes/_app/_authenticated/admin/meta", () => ({
-  Route: { fullPath: "/admin/meta" },
+  getRouteApi: () => ({
+    useNavigate:
+      () =>
+      (options: {
+        search?: (prev: Record<string, unknown>) => Record<string, unknown>;
+        replace?: boolean;
+      }) => {
+        captured.search = options.search ? options.search({ page: 4, q: "skirmish" }) : null;
+        captured.replace = options.replace;
+      },
+  }),
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock

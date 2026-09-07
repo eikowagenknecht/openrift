@@ -3,7 +3,7 @@ import { getOrientation, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";
-import { CARD_BORDER_RADIUS, LABEL_HEIGHT } from "@/components/cards/card-grid-constants";
+import { CARD_BORDER_RADIUS, LABEL_HEIGHT } from "@/lib/card-grid-constants";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 

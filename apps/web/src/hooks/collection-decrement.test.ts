@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { describe, expect, it, vi } from "vitest";
 
-import { buildOnDecrement } from "./route-decrement";
+import { buildOnDecrement } from "./collection-decrement";
 
 const printing = { id: "p1", cardId: "c1", setId: "set-ogn" } as Printing;
 

@@ -3,6 +3,7 @@ import { Suspense, useState } from "react";
 
 import { CardPickerButton } from "@/components/cards/card-picker-button";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
+import { cardSearchLeading } from "@/components/cards/printing-option-content";
 import { Input } from "@/components/ui/input";
 import { useCards } from "@/hooks/use-cards";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
@@ -40,7 +41,7 @@ export function ExistingCardPicker({
 // Split out so useCards suspends inside the boundary above, not on the form's first render.
 function CatalogSearch({ onPick }: { onPick: (prefilled: ContributeFormState) => void }) {
   const [search, setSearch] = useState("");
-  const results = useCatalogCardSearch(search);
+  const results = useCatalogCardSearch(search, undefined, cardSearchLeading);
   const { cardsById, printingsByCardId, sets } = useCards();
 
   const handleSelect = (cardId: string) => {

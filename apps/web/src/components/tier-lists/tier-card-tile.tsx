@@ -1,8 +1,8 @@
 import { getOrientation, legendDisplayName } from "@openrift/shared";
-import type { Card, Printing } from "@openrift/shared";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { frontImageId } from "@/lib/card-meta";
+import type { TierCardView } from "@/lib/tier-list-presentation";
 import { cn } from "@/lib/utils";
 import { TIER_TILE_WIDTHS, useDisplayStore } from "@/stores/display-store";
 
@@ -21,13 +21,6 @@ export function useTierTileWidth(): number {
  */
 export function tierRowMinHeight(tileWidth: number): number {
   return tileWidth * TILE_ASPECT + ROW_PADDING;
-}
-
-export interface TierCardView {
-  cardId: string;
-  card: Card;
-  printing: Printing | undefined;
-  pinnedPrintingId: string | null;
 }
 
 interface TierCardTileProps {

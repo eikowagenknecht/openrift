@@ -85,8 +85,7 @@ vi.mock("@/hooks/use-wish-entries", () => ({
   useWishEntries: () => ({ entriesForPrinting: () => [] }),
 }));
 
-vi.mock("@/components/cards/card-thumbnail", async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock("@/hooks/use-card-thumbnail-display", () => ({
   useCardThumbnailDisplay: () => ({ favoriteMarketplace: null, prices: undefined }),
 }));
 

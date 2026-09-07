@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { EnumLabels } from "@/hooks/use-enums";
+import type { EnumLabels } from "@/lib/enum-labels";
 import { countTradeSuggestions } from "@/lib/trade-derivation";
 
 vi.mock("@tanstack/react-router", () => ({

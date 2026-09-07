@@ -1,7 +1,7 @@
 import { useDndContext } from "@dnd-kit/core";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { CARD_ASPECT_INVERSE, CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
+import { CARD_ASPECT_INVERSE, CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { cn } from "@/lib/utils";
 
 /**

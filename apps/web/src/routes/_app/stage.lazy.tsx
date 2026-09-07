@@ -26,8 +26,8 @@ import { useStagePresets } from "@/hooks/use-stage-presets";
 import { MAX_QUEUE_LENGTH } from "@/lib/presentation-queue";
 import { queueDraftSearch, startPresentingSearch } from "@/lib/presentation-queue-search";
 import { FilterSearchProvider } from "@/lib/search-schemas";
-import { applyStagePresetConfig } from "@/lib/stage-preset-apply";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
+import { applyStagePresetConfig } from "@/stores/stage-preset-actions";
 
 export const Route = createLazyFileRoute("/_app/stage")({
   component: StagePage,

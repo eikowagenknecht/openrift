@@ -1,7 +1,14 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown, imageUrl, legendDisplayName } from "@openrift/shared";
 
-import type { TrackedLegend } from "@/stores/match-tracker-store";
+// The tracker works offline; the catalog is only read while the legend
+// picker is open, so nothing here may be a live catalog reference.
+export interface TrackedLegend {
+  cardId: string;
+  name: string;
+  domains: string[];
+  thumbnail: string | null;
+}
 
 export interface LegendOption extends TrackedLegend {
   search: string;

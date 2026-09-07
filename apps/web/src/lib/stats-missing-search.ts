@@ -1,7 +1,7 @@
 import type { CompletionScopePreference } from "@openrift/shared";
 
-import type { CompletionCountMode, CompletionGroupBy } from "@/hooks/use-collection-stats";
 import type { FilterSearch } from "@/lib/search-schemas";
+import type { CompletionCountMode, CompletionGroupBy } from "@/lib/stat-types";
 
 /**
  * Builds the typed /cards search payload for a "View missing" link. Returns

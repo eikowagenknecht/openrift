@@ -4,12 +4,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { Heading } from "@/components/heading";
 import { CardLink } from "@/components/ui/card-link";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/sets")({

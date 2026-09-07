@@ -1,11 +1,11 @@
 import type {
   ErrataEntryRef,
+  UploadErrataEntry,
   UploadErrataResponse,
 } from "@openrift/shared/contracts/admin/card-mutations";
 
 import type { Transact } from "../deps.js";
 import { deriveKeywords } from "../repositories/keywords.js";
-import type { UploadErrataEntry } from "../routes/admin/cards/schemas.js";
 
 interface ErrataFields {
   correctedRulesText: string | null;

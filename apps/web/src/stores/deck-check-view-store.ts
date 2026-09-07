@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type DeckCheckSort = "deck" | "id" | "name" | "domain" | "energy";
+import type { DeckCheckSort } from "@/lib/deck-check-sort";
 
 export type DeckCheckDisplayMode = "grid" | "list";
 

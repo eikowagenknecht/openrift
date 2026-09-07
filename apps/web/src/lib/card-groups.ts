@@ -1,9 +1,9 @@
 import type { EnumOrders, GroupByField } from "@openrift/shared";
 import { orderSetsMainFirst } from "@openrift/shared";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { CardGroup, GroupInfo } from "@/components/cards/card-grid-types";
-import type { EnumLabels } from "@/hooks/use-enums";
+import type { CardGroup, GroupInfo } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import type { EnumLabels } from "@/lib/enum-labels";
 import { groupItemsByCard } from "@/lib/group-by-card";
 import { groupItemsByChannel } from "@/lib/group-by-channel";
 import { groupItemsByCollection } from "@/lib/group-by-collection";
@@ -13,7 +13,7 @@ import { groupItemsByYear } from "@/lib/group-by-year";
 
 // Re-exported from its home next to GroupInfo, where the group-by-* modules can
 // import it without cycling back through this dispatcher.
-export type { CardGroup } from "@/components/cards/card-grid-types";
+export type { CardGroup } from "@/lib/card-group-types";
 
 // Main sets first, then supplemental ones (matching the filter sidebar
 // order); sets with no items are dropped.

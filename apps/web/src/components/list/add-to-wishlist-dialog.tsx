@@ -3,11 +3,11 @@ import { HeartIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import type { InitialEntry } from "@/components/list/create-list-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
+import type { InitialEntry } from "@/lib/list-initial-entry";
 import { cn } from "@/lib/utils";
 
 const KIND_LABEL: Record<ListKind, string> = {

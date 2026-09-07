@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { MonitorPlayIcon } from "lucide-react";
 import { Suspense } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import {
   PageDescription,
   PageTopBar,
@@ -13,12 +12,13 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
-import { resolveTierRows, TierBoard } from "@/components/tier-lists/tier-board";
-import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
+import { TierBoard } from "@/components/tier-lists/tier-board";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { tierRowsToQueue } from "@/lib/tier-list-presentation";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import type { TierCardView } from "@/lib/tier-list-presentation";
+import { resolveTierRows, tierRowsToQueue } from "@/lib/tier-list-presentation";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";

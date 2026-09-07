@@ -40,15 +40,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAssignableCardSearch } from "@/hooks/use-card-search";
-import { cn } from "@/lib/utils";
-
 import type {
   AssignableCard,
   SourceMappingConfig,
   StagedProduct,
   UnifiedMappingGroup,
   UnifiedMappingPrinting,
-} from "./price-mappings-types";
+} from "@/lib/price-mappings-types";
+import { cn } from "@/lib/utils";
+
 import { ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 import type { ProductSuggestion } from "./suggest-mapping";

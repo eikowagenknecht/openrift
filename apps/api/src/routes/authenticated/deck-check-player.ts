@@ -11,6 +11,7 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
+import { buildEntryAdvisories } from "../../lib/deck-check-advisories.js";
 import { isoDate, toDeckCheckEntryCardResponse } from "../../lib/deck-check-presenters.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -20,7 +21,6 @@ import type {
   NewDeckCheckEntryCard,
   PlayerDeckCheckEntryRow,
 } from "../../repositories/deck-check.js";
-import { buildEntryAdvisories } from "../../services/deck-check-advisories.js";
 import type { PlayerSharingConsent } from "../../services/deck-check-player.js";
 import {
   applyPlayerList,

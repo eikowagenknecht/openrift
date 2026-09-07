@@ -2,7 +2,6 @@ import { legendDisplayName } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { CardThumbnail } from "@/components/cards/printing-option-content";
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
@@ -12,6 +11,7 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { HoverHandler } from "@/lib/card-row-interactions";
+import type { CardSearchResult } from "@/lib/card-search-result";
 import { cn } from "@/lib/utils";
 
 interface CardCandidate {

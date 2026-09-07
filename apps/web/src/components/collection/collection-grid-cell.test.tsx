@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useGridSelectionStore } from "@/stores/grid-selection-store";
 import { stubCopy, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";

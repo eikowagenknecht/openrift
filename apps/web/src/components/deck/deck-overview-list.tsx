@@ -14,23 +14,12 @@ import { AlertTriangleIcon, HandHeartIcon, LockIcon, PlusIcon } from "lucide-rea
 import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { DeckCardGroupHeader } from "@/components/deck/deck-card-group-header";
 import { EnergyGlyph, PowerPips } from "@/components/deck/deck-card-row";
-import type {
-  AnyDragData,
-  DeckCardDragData,
-  DeckDropData,
-} from "@/components/deck/deck-dnd-context";
-import {
-  DECK_DRAG_TYPES,
-  DRAG_SOURCE_ZONES,
-  resolveDraggedCard,
-} from "@/components/deck/deck-dnd-context";
 import { DeckZoneHeader } from "@/components/deck/deck-zone-header";
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCards } from "@/hooks/use-cards";
-import type { CardOwnership, DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { lockedReasonText } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -48,8 +37,11 @@ import {
 import type { DeckCardGroup, DeckOverviewGroup } from "@/lib/deck-card-group";
 import { groupDeckCards } from "@/lib/deck-card-group";
 import { GROUPED_ZONES } from "@/lib/deck-card-sort";
-import type { DeckListSortContext } from "@/lib/deck-overview-list-sort";
+import type { AnyDragData, DeckCardDragData, DeckDropData } from "@/lib/deck-dnd-data";
+import { DECK_DRAG_TYPES, DRAG_SOURCE_ZONES, resolveDraggedCard } from "@/lib/deck-dnd-data";
+import type { DeckListSortContext, DeckOverviewSort } from "@/lib/deck-overview-list-sort";
 import { sortDeckOverviewList } from "@/lib/deck-overview-list-sort";
+import type { CardOwnership, DeckOwnershipData } from "@/lib/deck-ownership-types";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";
 import { ZONE_LABELS, zoneEmptyHint, zoneExpected } from "@/lib/deck-zone-labels";
@@ -57,7 +49,6 @@ import { asDragData } from "@/lib/dnd-data";
 import { formatterForMarketplace } from "@/lib/format";
 import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
-import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
 
 type OwnershipPrinting = NonNullable<CardOwnership["displayPrinting"]>;
 

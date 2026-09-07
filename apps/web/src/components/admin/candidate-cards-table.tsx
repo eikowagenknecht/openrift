@@ -1,7 +1,7 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { matchesCardQuery } from "@openrift/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTable } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon } from "lucide-react";
@@ -30,7 +30,8 @@ import {
 import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { parseSortParam } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
-import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
+
+const cardsRouteApi = getRouteApi("/_app/_authenticated/admin/cards");
 
 type StatusFilter = "unchecked";
 
@@ -117,8 +118,8 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
     },
   });
 
-  const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter, activeStatus, activeSource } = CardsRoute.useSearch({
+  const navigate = cardsRouteApi.useNavigate();
+  const { sorting, globalFilter, activeStatus, activeSource } = cardsRouteApi.useSearch({
     select: (s) => ({
       sorting: parseSortParam(s.tableSort),
       globalFilter: s.q ?? "",

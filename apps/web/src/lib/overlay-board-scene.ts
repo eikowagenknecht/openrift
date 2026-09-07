@@ -1,8 +1,7 @@
 import type { Card, OverlayBoard, Printing } from "@openrift/shared";
 
-import { resolveTierRows } from "@/components/tier-lists/tier-board";
 import type { ResolvedTierRow } from "@/lib/tier-list-presentation";
-import { revealedRows, tierRowsToQueue } from "@/lib/tier-list-presentation";
+import { resolveTierRows, revealedRows, tierRowsToQueue } from "@/lib/tier-list-presentation";
 
 export interface OverlayBoardScene {
   rows: ResolvedTierRow[];

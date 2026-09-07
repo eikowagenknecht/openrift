@@ -3,11 +3,7 @@ import { adminOperationsContract } from "@openrift/shared/contracts/admin/operat
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import {
-  clearActions,
-  getLatestJobRunFn,
-  refreshActions,
-} from "@/components/admin/refresh-actions";
+import { clearActions, getLatestJobRunFn, refreshActions } from "@/hooks/refresh-actions";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";

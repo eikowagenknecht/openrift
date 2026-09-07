@@ -4,7 +4,7 @@ import { legendDisplayName } from "@openrift/shared";
 import type { DeckDiffCard } from "@/lib/deck-diff";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportEntry } from "@/lib/deck-import-parsers";
-import type { LocalDeck } from "@/stores/local-decks-store";
+import type { LocalDeck } from "@/lib/local-deck";
 
 /** A deck of the user's own, offered as a source in the compare picker. */
 export interface CompareDeckOption {

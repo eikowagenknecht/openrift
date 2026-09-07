@@ -6,6 +6,7 @@ import "./tracing.server";
 import type { FeatureFlagsResponse, SetListResponse, SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
+import { helpArticleList } from "./components/help/articles";
 import { deriveSetEras } from "./lib/meta-scope";
 import { applyPageCacheControl } from "./lib/page-cache";
 import { fetchApiJson } from "./lib/server-fns/fetch-api";
@@ -89,6 +90,7 @@ async function sitemapInput(): Promise<SitemapInput> {
     data,
     flags,
     eras: deriveSetEras(sets.sets),
+    helpArticles: helpArticleList,
   };
 }
 

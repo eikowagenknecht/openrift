@@ -10,8 +10,8 @@ import { PageDescription } from "@/components/layout/page-top-bar";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
+import type { MetaSearch } from "@/lib/admin-meta-search";
 import { PLAYLOLTCG_STATUS_CHOICES } from "@/lib/meta-catalog-display";
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 const STATUS_OPTIONS = [{ value: ANY, label: "Any status" }, ...PLAYLOLTCG_STATUS_CHOICES];
 

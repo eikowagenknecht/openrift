@@ -1,20 +1,8 @@
 import { formatRelativeTime } from "@openrift/shared";
-import type { MetaCatalogRow } from "@openrift/shared/contracts/admin/meta-catalog";
 import { CheckIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-
-export interface MetaCoverageRow {
-  triage: MetaCatalogRow["triage"];
-  displayStatus: string;
-  decklistStatus: string | null;
-  fetchedAt: string | null;
-  stagedPlayerCount: number;
-  stagedLegendCount: number;
-  stagedDeckCount: number;
-  nextCheckAt: string | null;
-  startAt: string | null;
-}
+import type { MetaCoverageRow } from "@/lib/meta-catalog-display";
 
 function coverageRecheckHint(row: MetaCoverageRow, now: Date): string {
   if (row.triage !== "accepted") {

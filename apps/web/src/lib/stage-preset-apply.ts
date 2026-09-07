@@ -6,8 +6,7 @@ import type {
   StagePresetConfig,
 } from "@openrift/shared";
 
-import { useDisplayStore } from "@/stores/display-store";
-import { clampCardScale, usePresentationStore } from "@/stores/presentation-store";
+import { clampCardScale } from "@/lib/card-scale";
 
 /**
  * `stage` lands in the presentation store, `tierTileStep` in the display
@@ -54,18 +53,6 @@ export function presetToStagePatch(
     patch.tierTileStep = config.tierTileStep;
   }
   return patch;
-}
-
-/**
- * The single place both callers (the settings popover's picker and
- * `/stage?preset=`) apply a preset, so recall behaves the same either way.
- */
-export function applyStagePresetConfig(config: StagePresetConfig): void {
-  const patch = presetToStagePatch(config, usePresentationStore.getState().plateFields);
-  usePresentationStore.setState(patch.stage);
-  if (patch.tierTileStep !== undefined) {
-    useDisplayStore.getState().setTierTileStep(patch.tierTileStep);
-  }
 }
 
 /**

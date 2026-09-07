@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import type {
   RowData,
   Row as TanStackRow,
@@ -32,7 +32,8 @@ import {
 import { useScopeLayoutEffect } from "@/hooks/use-scope-effect";
 import { stringifySort } from "@/lib/admin-cards-search";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
-import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
+
+const cardsRouteApi = getRouteApi("/_app/_authenticated/admin/cards");
 
 // Shared between accepted-cards-table.tsx and candidate-cards-table.tsx: both
 // tables live on the admin Cards page, sync their sort/filter state to the
@@ -55,7 +56,7 @@ export type AdminCardTableFeatures = typeof adminCardTableFeatures;
 
 /** Wires a table's `sorting`/`globalFilter` state to the admin Cards route's search params. */
 export function useAdminCardsTableUrlSync(sorting: SortingState, globalFilter: string) {
-  const navigate = useNavigate({ from: CardsRoute.fullPath });
+  const navigate = cardsRouteApi.useNavigate();
 
   function handleSortingChange(updater: Updater<SortingState>) {
     const next = typeof updater === "function" ? updater(sorting) : updater;

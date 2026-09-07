@@ -1,7 +1,7 @@
 import type { GroupByField } from "@openrift/shared";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { CardGroup, GroupInfo } from "@/components/cards/card-grid-types";
+import type { CardGroup, GroupInfo } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 const UNKNOWN_COLLECTION_KEY = "(Unknown collection)";
 

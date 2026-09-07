@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
+import type { ReactNode } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -33,4 +34,8 @@ export function CardThumbnail({ cardId, className }: { cardId: string; className
     return <CardArtThumb shape="strip" className={className ?? "h-10"} />;
   }
   return <PrintingThumbnail printing={printing} className={className} />;
+}
+
+export function cardSearchLeading(cardId: string): ReactNode {
+  return <CardThumbnail cardId={cardId} className="h-8" />;
 }

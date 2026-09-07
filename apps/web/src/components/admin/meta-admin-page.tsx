@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 
 import { MetaAdminOverviewPage } from "@/components/admin/meta-admin-overview-page";
 import { MetaCatalogPage } from "@/components/admin/meta-catalog-page";
@@ -9,7 +9,8 @@ import { TopdeckCatalogPage } from "@/components/admin/topdeck-catalog-page";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminMetaOverlays } from "@/hooks/use-admin-meta-overlays";
-import { Route } from "@/routes/_app/_authenticated/admin/meta";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/meta");
 
 const OPT_IN_TABS = ["catalogue", "review", "public"] as const;
 
@@ -45,9 +46,9 @@ function tabParam(value: string): (typeof OPT_IN_TABS)[number] | undefined {
 // only the active tab's bar is ever portalled into the layout slot.
 export function MetaAdminPage() {
   const { data } = useAdminMetaOverlays();
-  const tab = Route.useSearch({ select: (search) => search.tab ?? "sync" });
-  const source = Route.useSearch({ select: (search) => search.source ?? "uvsgames" });
-  const navigate = useNavigate({ from: Route.fullPath });
+  const tab = routeApi.useSearch({ select: (search) => search.tab ?? "sync" });
+  const source = routeApi.useSearch({ select: (search) => search.source ?? "uvsgames" });
+  const navigate = routeApi.useNavigate();
 
   const pendingCount = data.overlays.length;
 

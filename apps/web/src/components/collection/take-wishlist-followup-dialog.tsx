@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { useRemoveListEntry, useUpdateListEntry } from "@/hooks/use-lists";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import type { WishEntryFlat } from "@/lib/wish-entry";
 
 interface TakeWishlistFollowUpDialogProps {
   printing: Printing | null;

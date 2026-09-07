@@ -9,7 +9,6 @@ import { HandshakeIcon, HeartIcon, ListIcon, XIcon } from "lucide-react";
 import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
@@ -17,9 +16,7 @@ import {
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardStrip } from "@/components/cards/card-strip";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { OfferToWishlistDialog } from "@/components/friend-groups/offer-to-wishlist-dialog";
@@ -35,7 +32,6 @@ import {
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { LIST_KIND_ICON } from "@/components/list/create-list-dialog";
-import { collectListPrintings, kindToView } from "@/components/list/list-entries";
 import { ListHeader } from "@/components/list/list-header";
 import { SelectionDetailOverlays } from "@/components/selection-detail-overlays";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
@@ -51,6 +47,7 @@ import {
 } from "@/components/ui/empty";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCancelTrade, useSetTradeQuantity, useUserTrades } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
 import { useCopies } from "@/hooks/use-copies";
@@ -60,7 +57,10 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { useWishEntries } from "@/hooks/use-wish-entries";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
+import { collectListPrintings, kindToView } from "@/lib/list-entries";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import {
   offerablePrintings,

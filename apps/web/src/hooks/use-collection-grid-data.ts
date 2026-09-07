@@ -8,7 +8,6 @@ import type {
 } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
-import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { useCardData } from "@/hooks/use-card-data";
 import type { useFilterValues } from "@/hooks/use-card-filters";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
@@ -19,6 +18,7 @@ import { useFriendGroupsList, useGroupBoxWants } from "@/hooks/use-friend-groups
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
+import type { GroupInfo } from "@/lib/card-group-types";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 

@@ -176,8 +176,8 @@ export async function buildEntryAdvisories(
           customTagSlugs: [],
           keywords: detail.keywords,
           maxCopiesOverride: detail.maxCopiesOverride,
-          // Always false: this service already emits its own banned-card
-          // violation above; CARD_BANNED from the rule engine would double it.
+          // Always false: the banned-card violation is emitted above already,
+          // and CARD_BANNED from the rule engine would double it.
           banned: false,
         },
       ];

@@ -12,9 +12,8 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 
-import { resolveTierRows, TierRowFrame } from "@/components/tier-lists/tier-board";
+import { TierRowFrame } from "@/components/tier-lists/tier-board";
 import { TierCardPrintingMenu } from "@/components/tier-lists/tier-card-printing-menu";
-import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { TierCardTile, useTierTileWidth } from "@/components/tier-lists/tier-card-tile";
 import type {
   BoardCardDragData,
@@ -34,6 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Pressable } from "@/components/ui/pressable";
 import { Textarea } from "@/components/ui/textarea";
+import { resolveTierRows } from "@/lib/tier-list-presentation";
+import type { TierCardView } from "@/lib/tier-list-presentation";
 import { cn } from "@/lib/utils";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 

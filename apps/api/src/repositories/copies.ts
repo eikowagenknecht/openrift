@@ -64,13 +64,6 @@ const COPY_METADATA_COLUMNS = [
   "cp.links",
 ] as const;
 
-const COPIES_PAGE_DEFAULT = 5000;
-const COPIES_PAGE_MAX = 5000;
-
-export function clampCopiesLimit(limit?: number): number {
-  return Math.min(limit ?? COPIES_PAGE_DEFAULT, COPIES_PAGE_MAX);
-}
-
 /**
  * Deck-building availability of a joined `collections as col` (with the
  * viewer's `collection_deckbuilding_prefs as pref` left-joined): personal

@@ -21,7 +21,6 @@ import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import type { FieldDef, NewCardFieldKey } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPreseededActiveCard,
-  buildPrintingGroups,
   buildSourceLabels,
   useCardDetailData,
 } from "@/components/admin/card-detail-shared";
@@ -63,6 +62,7 @@ import {
   describeAcceptCardFieldIssues,
   hasRequiredActiveFields,
 } from "@/lib/accept-card-validation";
+import { buildPrintingGroups } from "@/lib/candidate-printing-groups";
 import { queryKeys } from "@/lib/query-keys";
 import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 

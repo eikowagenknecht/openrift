@@ -2,9 +2,9 @@ import type { Printing } from "@openrift/shared";
 import type { MouseEvent as ReactMouseEvent, ReactElement, ReactNode } from "react";
 import { cloneElement } from "react";
 
-import type { CardRenderContext } from "@/components/card-viewer-types";
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
+import type { CardRenderContext } from "@/lib/card-viewer-types";
 
 export interface CardCellProps {
   printing: Printing;

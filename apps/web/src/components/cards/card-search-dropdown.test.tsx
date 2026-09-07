@@ -2,7 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CardSearchResult } from "./card-search-dropdown";
+import type { CardSearchResult } from "@/lib/card-search-result";
+
 import { CardSearchDropdown } from "./card-search-dropdown";
 
 const RESULTS: CardSearchResult[] = [

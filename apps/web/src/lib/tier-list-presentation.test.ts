@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
 import { stubCard, stubPrinting } from "@/test/factories";
 
-import type { ResolvedTierRow } from "./tier-list-presentation";
+import type { ResolvedTierRow, TierCardView } from "./tier-list-presentation";
 import { boardRevealCount, revealedRows, tierRowsToQueue } from "./tier-list-presentation";
 
 function view(cardId: string, withPrinting = true): TierCardView {

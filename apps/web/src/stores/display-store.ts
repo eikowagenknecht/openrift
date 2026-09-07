@@ -1,13 +1,11 @@
-import type {
-  DisplayPreferenceKey,
-  DisplayPreferenceOverrides,
-  DisplayPreferences,
-} from "@openrift/shared";
+import type { DisplayPreferenceKey, DisplayPreferences } from "@openrift/shared";
 import { DISPLAY_PREFERENCE_KEYS, PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import type { DisplayMode, DisplayOverrides, MetaDeckView } from "@/lib/sanitize-preferences";
 import {
+  NULL_OVERRIDES,
   sanitizeCardsShowCounts,
   sanitizeDisplayMode,
   sanitizeFiltersExpanded,
@@ -18,20 +16,10 @@ import {
   sanitizeTierTileStep,
 } from "@/lib/sanitize-preferences";
 
-export type DisplayMode = "grid" | "table";
-
-export type MetaDeckView = "list" | "grid";
-
 /** Tile widths the tier board steps through. The board's rows size off the tile, so a free width could land on a mistaken row height. */
 export const TIER_TILE_WIDTHS = [40, 48, 56, 72, 88, 112] as const;
 
 const DEFAULT_TIER_TILE_STEP = 2;
-
-export type DisplayOverrides = DisplayPreferenceOverrides;
-
-export const NULL_OVERRIDES: DisplayOverrides = Object.fromEntries(
-  DISPLAY_PREFERENCE_KEYS.map((key) => [key, null]),
-) as DisplayOverrides;
 
 function resolveAll(overrides: DisplayOverrides): DisplayPreferences {
   const resolved: Record<string, unknown> = {};

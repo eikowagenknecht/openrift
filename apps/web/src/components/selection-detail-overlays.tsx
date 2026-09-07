@@ -1,10 +1,10 @@
 import type { Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { SelectionDetailModal } from "@/components/selection-detail-modal";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 interface SelectionDetailOverlaysProps {
   items: CardViewerItem[];

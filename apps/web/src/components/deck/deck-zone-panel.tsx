@@ -3,21 +3,21 @@ import { formatHasSideboard, imageUrl, WellKnown, legendDisplayName } from "@ope
 import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DeckStatsPanel, DomainBar } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
 import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import type { HoverHandler } from "@/lib/card-row-interactions";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import { requiredZoneProgress } from "@/lib/deck-zone-labels";
 import { deckGlowStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";

@@ -2,9 +2,9 @@ import type { Printing } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import type { QuickAddCardResult } from "@/lib/quick-add-result";
 import { stubPrinting } from "@/test/factories";
 
-import type { QuickAddCardResult } from "./use-quick-add-search";
 import { useQuickAddSearch } from "./use-quick-add-search";
 
 function groupByCardId(printings: Printing[]): Map<string, Printing[]> {

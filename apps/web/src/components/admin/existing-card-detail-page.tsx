@@ -9,11 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AdminCardMarketplaceSection } from "@/components/admin/admin-card-marketplace-section";
 import { CardDetailHeader } from "@/components/admin/card-detail-header";
-import {
-  buildPrintingGroups,
-  buildSourceLabels,
-  useCardDetailData,
-} from "@/components/admin/card-detail-shared";
+import { buildSourceLabels, useCardDetailData } from "@/components/admin/card-detail-shared";
 import { CardFieldsSection } from "@/components/admin/card-fields-section";
 import { NewPrintingGroupCard } from "@/components/admin/new-printing-group-card";
 import { PrintingFilterBar, usePrintingFilters } from "@/components/admin/printing-filter-bar";
@@ -35,6 +31,7 @@ import { useCardReviewNavigation } from "@/hooks/use-card-review-navigation";
 import type { AdminCardListStatus } from "@/hooks/use-card-review-navigation";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { useSets } from "@/hooks/use-sets";
+import { buildPrintingGroups } from "@/lib/candidate-printing-groups";
 import { queryKeys } from "@/lib/query-keys";
 import {
   getCollapsedSections,

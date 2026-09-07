@@ -1,9 +1,9 @@
 import { WellKnown } from "@openrift/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import { isZoneDropRejected } from "@/hooks/use-deck-zone-drop";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckCardDragData } from "@/lib/deck-dnd-data";
 import { resetIdCounter, stubDeckBuilderCard } from "@/test/factories";
 
 beforeEach(() => {

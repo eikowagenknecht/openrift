@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildKeysetCursor } from "../../repositories/query-helpers.js";
+import { buildKeysetCursor } from "../../lib/keyset-cursor.js";
 import { registerRouterForTest } from "../../test/mount-router.js";
 import { readJson } from "../../test/read-json.js";
 import type { Variables } from "../../types.js";

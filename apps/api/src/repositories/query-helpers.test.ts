@@ -11,8 +11,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Database } from "../db/index.js";
 import { AppError } from "../errors.js";
+import { buildKeysetCursor } from "../lib/keyset-cursor.js";
 import {
-  buildKeysetCursor,
   imageId,
   imageUrlWithOriginal,
   joinFrontImage,
@@ -122,14 +122,6 @@ describe("selectCopyWithCard", () => {
     expect(sql).toContain('inner join "cards" as "c" on "c"."id" = "p"."card_id"');
     expect(sql).toContain('left join "printing_images" as "pi"');
     expect(sql).toContain('left join "image_files" as "imgf"');
-  });
-});
-
-describe("buildKeysetCursor", () => {
-  it("encodes createdAt and id into a single string", () => {
-    expect(buildKeysetCursor(new Date("2026-01-15T12:30:00.000Z"), "abc-123")).toBe(
-      "2026-01-15T12:30:00.000Z_abc-123",
-    );
   });
 });
 

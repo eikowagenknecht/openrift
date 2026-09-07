@@ -4,8 +4,8 @@ import { useEffect } from "react";
 
 import type { CardTableProps } from "@/components/card-viewer";
 import { CardViewer } from "@/components/card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
+import type { GroupInfo } from "@/lib/card-group-types";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { useSelectionStore } from "@/stores/selection-store";
 

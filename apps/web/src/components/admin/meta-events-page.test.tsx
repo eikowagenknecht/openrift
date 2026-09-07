@@ -36,29 +36,27 @@ const searchStore = vi.hoisted(() => {
   };
 });
 
-vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, params }: { children?: ReactNode; params?: Record<string, string> }) => (
-    <a href="/admin/meta/candidates" data-params={JSON.stringify(params)}>
-      {children}
-    </a>
-  ),
-  useNavigate:
+vi.mock("@tanstack/react-router", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const navigate =
     () => (options: { search?: (prev: Record<string, unknown>) => Record<string, unknown> }) => {
       if (options.search) {
         searchStore.set(options.search(searchStore.get()));
       }
-    },
-  createLink: (component: unknown) => component,
-}));
-
-vi.mock("@/routes/_app/_authenticated/admin/meta", async () => {
-  const { useSyncExternalStore } = await import("react");
+    };
   return {
-    Route: {
-      fullPath: "/admin/meta",
+    Link: ({ children, params }: { children?: ReactNode; params?: Record<string, string> }) => (
+      <a href="/admin/meta/candidates" data-params={JSON.stringify(params)}>
+        {children}
+      </a>
+    ),
+    useNavigate: navigate,
+    getRouteApi: () => ({
+      useNavigate: navigate,
       useSearch: () =>
         useSyncExternalStore(searchStore.subscribe, searchStore.get, searchStore.get),
-    },
+    }),
+    createLink: (component: unknown) => component,
   };
 });
 

@@ -2,7 +2,7 @@ import type { Card, DeckImportEntry, DeckListItemResponse } from "@openrift/shar
 import { WellKnown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import type { LocalDeck } from "@/stores/local-decks-store";
+import type { LocalDeck } from "@/lib/local-deck";
 import { stubCard, stubPrinting } from "@/test/factories";
 
 import {

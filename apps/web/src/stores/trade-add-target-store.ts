@@ -1,11 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-/** A collection the viewer picked as the landing place for incoming trade copies. */
-export interface TradeAddTarget {
-  id: string;
-  name: string;
-}
+import type { TradeAddTarget } from "@/lib/trade-add-target";
 
 function parseTarget(value: unknown): TradeAddTarget | null {
   if (typeof value !== "object" || value === null) {

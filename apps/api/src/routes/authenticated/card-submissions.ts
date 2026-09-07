@@ -5,10 +5,10 @@ import type { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
 import { toCardSubmissionStatus } from "../../lib/card-submission-presenters.js";
+import { keysetPage } from "../../lib/keyset-cursor.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import { orpcErrorResponse } from "../../orpc/error-body.js";
-import { keysetPage } from "../../repositories/query-helpers.js";
 import { buildUserSubmissionCard } from "../../services/ingest-user-submission.js";
 import type { Variables } from "../../types.js";
 

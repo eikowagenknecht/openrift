@@ -1,7 +1,7 @@
 import type { Marketplace, Printing } from "@openrift/shared";
 import { EUR_MARKETPLACES, formatPrintingVariantLabelParts, WellKnown } from "@openrift/shared";
 
-import type { EnumLabels } from "@/hooks/use-enums";
+import type { EnumLabels } from "@/lib/enum-labels";
 
 export function formatCardId(printing: Printing): string {
   return printing.shortCode;

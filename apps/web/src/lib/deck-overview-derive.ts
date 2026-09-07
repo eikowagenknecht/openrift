@@ -1,12 +1,11 @@
 import type { DeckFormat, DeckZone, Marketplace, PriceLookup } from "@openrift/shared";
 import { WellKnown, copyLimitFor } from "@openrift/shared";
 
-import { canAddRune } from "@/hooks/use-deck-builder";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { COPY_LIMIT_ZONES, getDeckCardKey, RUNE_TARGET } from "@/lib/deck-builder-card";
+import { canAddRune, COPY_LIMIT_ZONES, getDeckCardKey, RUNE_TARGET } from "@/lib/deck-builder-card";
 import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import { formatterForMarketplace } from "@/lib/format";
 
 export const STEPPER_ZONES: ReadonlySet<DeckZone> = new Set([

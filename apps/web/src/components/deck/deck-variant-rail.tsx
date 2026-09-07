@@ -16,8 +16,8 @@ import type { DeckDiff, DeckDiffEntry } from "@/lib/deck-diff";
 import { deckDiffCardsFrom, diffDecks } from "@/lib/deck-diff";
 import type { RailEdge, RailLayout, RailNode } from "@/lib/deck-variant-rail";
 import { buildRailLayout } from "@/lib/deck-variant-rail";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { cn } from "@/lib/utils";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
 import { DeckVariantsDialog } from "./deck-variants-dialog";

@@ -4,7 +4,7 @@
    -- test file: mocks require empty fns and explicit undefined */
 import { describe, expect, it, vi } from "vitest";
 
-import type { Repos } from "../../deps.js";
+import type { Repos } from "../deps.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
 
 function createMockTransferRepo() {

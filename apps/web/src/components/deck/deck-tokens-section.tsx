@@ -2,7 +2,6 @@ import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
 import { ImageOffIcon, InfoIcon } from "lucide-react";
 import { useState } from "react";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { CardMiniRow } from "@/components/cards/card-mini-row";
 import { AFTER_BORDER } from "@/components/cards/card-thumbnail";
 import { DECK_LIST_SECTION_CLASS } from "@/components/deck/deck-overview-list";
@@ -20,6 +19,7 @@ import type { DeckTokenEntry } from "@/hooks/use-deck-tokens";
 import { useDeckTokens } from "@/hooks/use-deck-tokens";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import type { HoverHandler } from "@/lib/card-row-interactions";
 import { rowActivateProps } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";

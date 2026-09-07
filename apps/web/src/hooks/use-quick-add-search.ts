@@ -7,13 +7,7 @@ import {
 } from "@openrift/shared";
 import { useMemo } from "react";
 
-export interface QuickAddCardResult {
-  cardId: string;
-  cardName: string;
-  defaultPrinting: Printing;
-  printings: Printing[];
-  ownedCount: number;
-}
+import type { QuickAddCardResult } from "@/lib/quick-add-result";
 
 interface QuickAddSearchOptions {
   ownedCountByPrinting?: Record<string, number>;

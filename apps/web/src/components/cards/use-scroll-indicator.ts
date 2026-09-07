@@ -1,7 +1,7 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 
 import type { IndicatorState, VRow } from "./card-grid-types";

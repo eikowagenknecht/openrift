@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 
-import { GRID_GAP_MAX, GRID_GAP_MIN } from "@/components/cards/card-grid-metrics";
+import { GRID_GAP_MAX, GRID_GAP_MIN } from "@/lib/card-grid-metrics";
 
 /**
  * Drives the measured grid below and the `SSR_RESPONSIVE_GRID_COLS` /

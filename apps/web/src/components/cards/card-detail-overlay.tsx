@@ -2,7 +2,6 @@ import type { Printing } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 import { Suspense, lazy, useState } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,6 +28,7 @@ import {
   useOverlayHistoryEntry,
 } from "@/hooks/use-overlay-history-entry";
 import { useCardDetailNavigation } from "@/hooks/use-selection-detail";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { getDomainTintStyle } from "@/lib/domain";
 
 const cardDetailImport = import("@/components/cards/card-detail");

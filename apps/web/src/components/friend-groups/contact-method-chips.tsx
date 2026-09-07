@@ -11,12 +11,12 @@ import {
 } from "lucide-react";
 import { siDiscord, siSignal, siTelegram, siWhatsapp } from "simple-icons";
 
-import type { BrandIconData } from "@/components/ui/brand-glyph";
 import { BrandGlyph } from "@/components/ui/brand-glyph";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import type { BrandIconData } from "@/lib/source-brand";
 import { cn } from "@/lib/utils";
 
 const BRAND_ICONS: Partial<Record<ContactMethodType, BrandIconData>> = {

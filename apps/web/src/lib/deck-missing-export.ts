@@ -1,8 +1,8 @@
 import type { ListKind } from "@openrift/shared";
 
-import type { InitialEntry } from "@/components/list/create-list-dialog";
-import type { CardOwnership } from "@/hooks/use-deck-ownership";
+import type { CardOwnership } from "@/lib/deck-ownership-types";
 import type { CardmarketWant } from "@/lib/list-export";
+import type { InitialEntry } from "@/lib/list-initial-entry";
 
 export function missingCardsToWants(cards: readonly CardOwnership[]): CardmarketWant[] {
   return cards

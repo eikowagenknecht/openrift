@@ -6,6 +6,7 @@
  * Payload mapping and link resolution are shared with candidate-fields.ts / candidate-links.ts.
  */
 import { WellKnown } from "@openrift/shared";
+import type { IngestCard, IngestPrinting } from "@openrift/shared/contracts/admin/card-mutations";
 import { USER_SUBMISSION_PROVIDER } from "@openrift/shared/contracts/card-submissions";
 import type {
   CardSubmissionInput,
@@ -16,7 +17,6 @@ import type { Insertable } from "kysely";
 import type { CandidateCardsTable } from "../db/index.js";
 import type { Transact } from "../deps.js";
 import { computeProposedDiff } from "../lib/card-submission-diff.js";
-import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
 import {
   buildCandidateCardFields,
   buildCandidatePrintingFields,

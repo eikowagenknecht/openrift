@@ -1,22 +1,22 @@
 import type { ListEntryDetailResponse, ListKind } from "@openrift/shared";
 import { useEffect } from "react";
 
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import {
-  buildEntryByKey,
-  buildItems,
-  buildItemsFromCatalog,
-  collectListPrintings,
-  kindToView,
-} from "@/components/list/list-entries";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterValues } from "@/hooks/use-card-filters";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
+import {
+  buildEntryByKey,
+  buildItems,
+  buildItemsFromCatalog,
+  collectListPrintings,
+  kindToView,
+} from "@/lib/list-entries";
 import { useDisplayStore } from "@/stores/display-store";
 import { useListEntriesStore } from "@/stores/list-entries-store";
 

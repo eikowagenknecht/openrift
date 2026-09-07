@@ -2,7 +2,6 @@ import type { GroupByField } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { OrnamentRule } from "@/components/ui/ornament";
 import { Pressable } from "@/components/ui/pressable";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
@@ -10,15 +9,6 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { useHeaderHeight } from "@/hooks/use-header-height";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { useScopeEffect, useScopeLayoutEffect } from "@/hooks/use-scope-effect";
-import { buildGroups } from "@/lib/card-groups";
-import type { CardGroup } from "@/lib/card-groups";
-import { STICKY_SURFACE } from "@/lib/sticky-surface";
-import { cn } from "@/lib/utils";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
-import { useDisplayStore } from "@/stores/display-store";
-import { useGridFocusStore } from "@/stores/grid-focus-store";
-import { useGridViewportStore } from "@/stores/grid-viewport-store";
-
 import {
   BUTTON_PAD,
   CARD_ASPECT_INVERSE,
@@ -27,10 +17,21 @@ import {
   HEADER_PB,
   HEADER_PT,
   LABEL_HEIGHT,
-} from "./card-grid-constants";
+} from "@/lib/card-grid-constants";
+import { computeGridMetrics } from "@/lib/card-grid-metrics";
+import type { GroupInfo } from "@/lib/card-group-types";
+import { buildGroups } from "@/lib/card-groups";
+import type { CardGroup } from "@/lib/card-groups";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
+import { STICKY_SURFACE } from "@/lib/sticky-surface";
+import { cn } from "@/lib/utils";
+import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
+import { useDisplayStore } from "@/stores/display-store";
+import { useGridFocusStore } from "@/stores/grid-focus-store";
+import { useGridViewportStore } from "@/stores/grid-viewport-store";
+
 import { CardGridDebug } from "./card-grid-debug";
-import { computeGridMetrics } from "./card-grid-metrics";
-import type { GroupInfo, VRow } from "./card-grid-types";
+import type { VRow } from "./card-grid-types";
 import { CardViewerEmptyState } from "./card-viewer-empty-state";
 import { computeRowStarts } from "./compute-row-starts";
 import { ScrollIndicator } from "./scroll-indicator";

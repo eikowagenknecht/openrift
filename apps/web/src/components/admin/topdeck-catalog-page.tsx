@@ -1,6 +1,6 @@
 import { formatDay, META_CATALOG_SORTS } from "@openrift/shared";
 import type { TopdeckCatalogRow } from "@openrift/shared/contracts/admin/meta-catalog";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { ArchiveXIcon, CheckIcon, LayersIcon, SlidersHorizontalIcon, UndoIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -30,7 +30,8 @@ import {
   META_SOURCE_LABELS,
   topdeckCoverageRow,
 } from "@/lib/meta-catalog-display";
-import { Route } from "@/routes/_app/_authenticated/admin/meta";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/meta");
 
 function DateCell({ row }: AdminCellSlotProps<TopdeckCatalogRow>) {
   if (!row) {
@@ -191,7 +192,7 @@ function TopdeckRowActions({
 
 /** The topdeck catalogue triage list, on the same chrome as the other two so all three read identically. */
 export function TopdeckCatalogPage() {
-  const filters = Route.useSearch();
+  const filters = routeApi.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);
   const [rulesOpen, setRulesOpen] = useState(false);
   const accept = useAcceptTopdeckEvent();

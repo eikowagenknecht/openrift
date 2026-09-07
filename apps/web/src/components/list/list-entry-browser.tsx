@@ -11,12 +11,10 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { SelectModeActions } from "@/components/cards/select-mode-actions";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { ListActionsCell } from "@/components/list/list-actions-cell";
@@ -36,6 +34,8 @@ import { useCards } from "@/hooks/use-cards";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useListEntryBrowserData } from "@/hooks/use-list-entry-browser-data";
 import { useListEntryBrowserSelection } from "@/hooks/use-list-entry-browser-selection";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { FilterSearchProvider, useFilterSearch } from "@/lib/search-schemas";
 import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 

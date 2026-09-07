@@ -1,6 +1,6 @@
 import type { ListEntryDetailResponse, ListKind, Printing } from "@openrift/shared";
 
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { formatterForMarketplace } from "@/lib/format";
 import { computeListValue } from "@/lib/list-value";

@@ -3,8 +3,8 @@ import { EMPTY_CARD_FILTERS, EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GroupInfo } from "@/components/cards/card-grid-types";
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import type { GroupInfo } from "@/lib/card-group-types";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 const TEST_ORDERS = {

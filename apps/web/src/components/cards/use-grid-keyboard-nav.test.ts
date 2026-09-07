@@ -2,7 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { useSelectionStore } from "@/stores/selection-store";

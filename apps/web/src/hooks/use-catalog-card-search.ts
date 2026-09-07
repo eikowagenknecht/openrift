@@ -1,21 +1,20 @@
 import type { Card } from "@openrift/shared";
 import { cardSearchAltNames, legendDisplayName } from "@openrift/shared";
+import type { ReactNode } from "react";
 import { useMemo } from "react";
 
-import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
-import { CardThumbnail } from "@/components/cards/printing-option-content";
 import { useCardSearch } from "@/hooks/use-card-search";
 import { useCards } from "@/hooks/use-cards";
+import type { CardSearchResult } from "@/lib/card-search-result";
 
 /**
- * Free-text catalog lookup for card pickers, adding thumbnails and
- * printing-code lookups on top of {@link useCardSearch}. `filter` must be
- * identity-stable (a module-level predicate) or the search index rebuilds
- * every render.
+ * `filter` must be identity-stable (a module-level predicate) or the search
+ * index rebuilds every render.
  */
 export function useCatalogCardSearch(
   query: string,
   filter?: (card: Card) => boolean,
+  renderLeading?: (cardId: string) => ReactNode,
 ): CardSearchResult[] {
   const { cardsById, printingsByCardId } = useCards();
 
@@ -41,6 +40,6 @@ export function useCatalogCardSearch(
     id: card.id,
     label: card.displayName,
     sublabel: card.slug,
-    leading: <CardThumbnail cardId={card.id} className="h-8" />,
+    leading: renderLeading?.(card.id),
   }));
 }

@@ -4,11 +4,9 @@ import { ArrowDownToLineIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo } from "react";
 
-import type { CardRenderContext } from "@/components/card-viewer-types";
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { WishlistHeart } from "@/components/cards/wishlist-heart";
 import { CollectionCardContextMenu } from "@/components/collection/collection-card-context-menu";
 import { CopyMetadataStrip, StackMetadataChip } from "@/components/collection/copy-metadata-badges";
@@ -18,10 +16,12 @@ import { tileTradeStatus } from "@/components/collection/tile-trade-status";
 import { OnLoanChip } from "@/components/loans/on-loan-chip";
 import { TradeStatusChip } from "@/components/trades/trade-status-chip";
 import { Button } from "@/components/ui/button";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useLiveTradesByPrinting } from "@/hooks/use-card-trades";
 import { useCopyRowsForPrintings, useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import type { CardRenderContext } from "@/lib/card-viewer-types";
 import { isStackSelected } from "@/lib/stack-selection";
+import type { WishEntryFlat } from "@/lib/wish-entry";
 import {
   dispatchDecrement,
   dispatchIncrement,

@@ -2,9 +2,9 @@ import { adminAuditEventsContract } from "@openrift/shared/contracts/admin/audit
 import { implement } from "@orpc/server";
 
 import { toAuditEvent } from "../../lib/audit-event-presenters.js";
+import { keysetPage } from "../../lib/keyset-cursor.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
-import { keysetPage } from "../../repositories/query-helpers.js";
 
 const os = implement(adminAuditEventsContract).$context<ApiContext>().use(requireAuthedUser);
 

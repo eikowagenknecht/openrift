@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { catalogQueryOptions } from "@/hooks/catalog-query";
 import { useCards } from "@/hooks/use-cards";
 import { useCustomTagAssignments } from "@/hooks/use-custom-tag-assignments";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -57,14 +58,15 @@ import { useUpdateList } from "@/hooks/use-lists";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { pricesQueryOptions, usePrices } from "@/hooks/use-prices";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { catalogQueryOptions, loadCatalogTail } from "@/lib/catalog-query";
+import { loadCatalogTail } from "@/lib/catalog-query";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { copiesQueryOptions } from "@/lib/copies-query";
+import { serializeRules } from "@/lib/rule-draft";
 import { rulePresetsFor } from "@/lib/rule-presets";
 import type { RuleWording } from "@/lib/rule-wording";
 import { matchLabel, netOwnedHint, ruleCountLabel, ruleWording } from "@/lib/rule-wording";
 import { useDisplayStore } from "@/stores/display-store";
-import { serializeRules, useRuleEditorStore } from "@/stores/rule-editor-store";
+import { useRuleEditorStore } from "@/stores/rule-editor-store";
 
 interface RuleEditorDialogProps {
   listId: string;

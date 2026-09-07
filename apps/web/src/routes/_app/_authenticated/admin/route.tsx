@@ -1,13 +1,10 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { createContext } from "react";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { adminAccessQueryOptions } from "@/hooks/use-admin";
 import { ADMIN_SECTION_ROUTES, adminSectionForPathname } from "@/lib/admin-sections";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-
-export const TopBarSlotContext = createContext<HTMLDivElement | null>(null);
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Admin", noIndex: true }),

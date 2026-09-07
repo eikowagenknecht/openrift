@@ -1,7 +1,18 @@
+import type { CardType, DeckZone, Domain, SuperType } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 
-import type { EncodeDeckCardInput } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+
+export interface EncodeDeckCardInput {
+  cardId: string;
+  zone: DeckZone;
+  quantity: number;
+  preferredPrintingId: string | null;
+  cardName: string;
+  cardType: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+}
 
 export function toEncodeDeckCards(cards: DeckBuilderCard[]): EncodeDeckCardInput[] {
   return cards.map((card) => ({

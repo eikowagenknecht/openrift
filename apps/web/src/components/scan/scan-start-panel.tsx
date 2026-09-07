@@ -3,7 +3,7 @@ import { CameraIcon, LayersIcon, ScanSquareIcon, SunIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { QrCode } from "@/components/ui/qr-code";
-import type { EngineProgress } from "@/hooks/use-scan-engine";
+import type { EngineProgress } from "@/lib/scan-load-progress";
 import { scanLoadProgress } from "@/lib/scan-load-progress";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";

@@ -3,9 +3,9 @@ import { ShareDialog } from "@/components/share/share-dialog";
 import type { ShareImageRenderChoice } from "@/components/share/share-image-panel";
 import { useShareDeck, useUnshareDeck } from "@/hooks/use-decks";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { deckImageFromCardsUrl, deckOwnerImageUrl, downloadImageFromPost } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 interface DeckShareDialogProps {
   deckId: string;

@@ -2,7 +2,6 @@ import type {
   ArtVariant,
   CardSize,
   CardType,
-  DefaultCardView,
   Domain,
   Finish,
   GroupByField,
@@ -20,6 +19,7 @@ import { useEffect, useRef } from "react";
 import { useSurfaceViewDefaults, useViewPrefsWriter } from "@/hooks/use-view-prefs";
 import { trackEvent } from "@/lib/analytics";
 import { cycleIncludeExclude } from "@/lib/filter-cycle";
+import { toFilterState } from "@/lib/filter-dimensions";
 import { isPrintingsOnlyGrouping } from "@/lib/group-by-field";
 import type { FilterSearch, OwnedBucket } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
@@ -94,81 +94,6 @@ const ARRAY_KEY_PRESENCE_PARAM: Partial<Record<ArrayKey, PresenceParam>> = {
   keywords: "keywordsPresence",
   tags: "tagsPresence",
 };
-
-/**
- * Build a `filterState` object from raw search params that matches the shape
- * consumers expect (defaults applied, `undefined` mapped to `null` for
- * nullable fields).
- */
-// Sort/group defaults are passed as primitives, not one object: a derived
-// object makes React Compiler treat this call as maybe-mutated and stops it
-// memoizing `toFilterState`, causing a render loop.
-function toFilterState(
-  raw: FilterSearch,
-  defaultView: DefaultCardView,
-  defaultSort: string,
-  defaultSortDir: SortDirection,
-  defaultGroupBy: string,
-  defaultGroupDir: SortDirection,
-) {
-  return {
-    search: raw.search ?? "",
-    sets: raw.sets ?? [],
-    languages: raw.languages ?? [],
-    rarities: raw.rarities ?? [],
-    types: raw.types ?? [],
-    superTypes: raw.superTypes ?? [],
-    domains: raw.domains ?? [],
-    artVariants: raw.artVariants ?? [],
-    finishes: raw.finishes ?? [],
-    cardSizes: raw.cardSizes ?? [],
-    markers: raw.markers ?? [],
-    channels: raw.channels ?? [],
-    customTags: raw.customTags ?? [],
-    keywords: raw.keywords ?? [],
-    tags: raw.tags ?? [],
-    setsEx: raw.setsEx ?? [],
-    languagesEx: raw.languagesEx ?? [],
-    raritiesEx: raw.raritiesEx ?? [],
-    typesEx: raw.typesEx ?? [],
-    superTypesEx: raw.superTypesEx ?? [],
-    domainsEx: raw.domainsEx ?? [],
-    artVariantsEx: raw.artVariantsEx ?? [],
-    finishesEx: raw.finishesEx ?? [],
-    markersEx: raw.markersEx ?? [],
-    channelsEx: raw.channelsEx ?? [],
-    customTagsEx: raw.customTagsEx ?? [],
-    keywordsEx: raw.keywordsEx ?? [],
-    tagsEx: raw.tagsEx ?? [],
-    standard: raw.standard ?? null,
-    energyMin: raw.energyMin ?? null,
-    energyMax: raw.energyMax ?? null,
-    mightMin: raw.mightMin ?? null,
-    mightMax: raw.mightMax ?? null,
-    powerMin: raw.powerMin ?? null,
-    powerMax: raw.powerMax ?? null,
-    priceMin: raw.priceMin ?? null,
-    priceMax: raw.priceMax ?? null,
-    ownedCountMin: raw.ownedCountMin ?? null,
-    ownedCountMax: raw.ownedCountMax ?? null,
-    owned: raw.owned ?? [],
-    signed: raw.signed ?? null,
-    overnumbered: raw.overnumbered ?? null,
-    markersPresence: raw.markersPresence ?? null,
-    superTypesPresence: raw.superTypesPresence ?? null,
-    customTagsPresence: raw.customTagsPresence ?? null,
-    channelsPresence: raw.channelsPresence ?? null,
-    keywordsPresence: raw.keywordsPresence ?? null,
-    tagsPresence: raw.tagsPresence ?? null,
-    banned: raw.banned ?? null,
-    errata: raw.errata ?? null,
-    sort: raw.sort ?? defaultSort,
-    sortDir: raw.sortDir ?? defaultSortDir,
-    view: raw.view ?? defaultView,
-    groupBy: raw.groupBy ?? defaultGroupBy,
-    groupDir: raw.groupDir ?? defaultGroupDir,
-  };
-}
 
 /**
  * Read-only filter/sort/view state from URL params. Prefer this over

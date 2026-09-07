@@ -1,14 +1,28 @@
 import type {
   CompletionScopePreference,
   Currency,
+  DisplayPreferenceOverrides,
   Marketplace,
   Palette,
   Theme,
 } from "@openrift/shared";
-import { ALL_MARKETPLACES, CURRENCIES, PALETTES, RENAMED_LANGUAGES } from "@openrift/shared";
+import {
+  ALL_MARKETPLACES,
+  CURRENCIES,
+  DISPLAY_PREFERENCE_KEYS,
+  PALETTES,
+  RENAMED_LANGUAGES,
+} from "@openrift/shared";
 
-import type { DisplayMode, DisplayOverrides, MetaDeckView } from "@/stores/display-store";
-import { NULL_OVERRIDES } from "@/stores/display-store";
+export type DisplayMode = "grid" | "table";
+
+export type MetaDeckView = "list" | "grid";
+
+export type DisplayOverrides = DisplayPreferenceOverrides;
+
+export const NULL_OVERRIDES: DisplayOverrides = Object.fromEntries(
+  DISPLAY_PREFERENCE_KEYS.map((key) => [key, null]),
+) as DisplayOverrides;
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);

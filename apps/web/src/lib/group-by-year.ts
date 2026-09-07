@@ -1,5 +1,5 @@
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { CardGroup } from "@/components/cards/card-grid-types";
+import type { CardGroup } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 
 export const UNKNOWN_YEAR_ID = "_unknown-year";
 export const UNKNOWN_YEAR_LABEL = "Unknown year";

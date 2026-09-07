@@ -3,12 +3,11 @@ import { createCollection, localOnlyCollectionOptions } from "@tanstack/react-db
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getDeckCardKey } from "@/lib/deck-builder-card";
+import { canAddRune, getDeckCardKey } from "@/lib/deck-builder-card";
 import { resetIdCounter, stubDeckBuilderCard } from "@/test/factories";
 
 import {
   addCardAction,
-  canAddRune,
   changePreferredPrintingAction,
   moveCardAction,
   moveOneCardAction,

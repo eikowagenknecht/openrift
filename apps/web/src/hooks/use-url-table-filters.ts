@@ -1,8 +1,9 @@
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 
-import type { ServerSort } from "@/components/admin/admin-table";
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
-import { Route } from "@/routes/_app/_authenticated/admin/meta";
+import type { MetaSearch } from "@/lib/admin-meta-search";
+import type { ServerSort } from "@/lib/admin-table-types";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/meta");
 
 export type SortDirection = "asc" | "desc";
 
@@ -14,7 +15,7 @@ export interface UrlTableFilters {
 }
 
 export function useUrlTableFilters(filters: MetaSearch): UrlTableFilters {
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = routeApi.useNavigate();
 
   function applyFilter(next: Partial<MetaSearch>) {
     void navigate({

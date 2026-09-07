@@ -22,7 +22,7 @@ import type { Repos } from "../deps.js";
 import { AppError } from "../errors.js";
 import { assertFound } from "../lib/assertions.js";
 import { isUniqueViolationOn } from "../lib/pg-errors.js";
-import { scoringOf } from "../repositories/pod-tournaments.js";
+import { scoringOf } from "../lib/pod-scoring.js";
 import type { PodRound } from "../repositories/pod-tournaments.js";
 import type { Tournament } from "../repositories/tournaments.js";
 

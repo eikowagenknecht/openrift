@@ -2,17 +2,14 @@ import type { GroupByField, Printing } from "@openrift/shared";
 import { legendDisplayName } from "@openrift/shared";
 import { useEffect } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import {
-  computeDragSelectionSummary,
-  dragSelectionNoun,
-} from "@/components/collection/collection-drag";
-import { buildOnDecrement } from "@/components/collection/route-decrement";
+import { buildOnDecrement } from "@/hooks/collection-decrement";
 import type { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { cardsViewTileKey, splitsCardIntoTiles } from "@/lib/card-tiles";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import { computeDragSelectionSummary, dragSelectionNoun } from "@/lib/collection-drag";
 import { computeShiftRange, resolveContextActionTarget } from "@/lib/stack-selection";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 import type { CollectionContextAction } from "@/stores/card-row-actions-store";

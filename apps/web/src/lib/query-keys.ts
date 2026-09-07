@@ -1,7 +1,7 @@
 import type { MetaCountsQuery, MetaScopeQuery, TimeRange } from "@openrift/shared";
 
-import type { SourceMappingConfig } from "@/components/admin/price-mappings-types";
 import type { MetaDateRange, MetaDeckQuery } from "@/lib/meta-scope";
+import type { SourceMappingConfig } from "@/lib/price-mappings-types";
 
 // An absent filter and one that narrows nothing share the unscoped key, so
 // they don't cache the same fetch twice.

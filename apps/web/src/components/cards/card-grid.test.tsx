@@ -1,13 +1,12 @@
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { GroupInfo } from "@/lib/card-group-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { useDisplayStore } from "@/stores/display-store";
 import { useGridFocusStore } from "@/stores/grid-focus-store";
 import { stubCardViewerItem } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
-
-import type { GroupInfo } from "./card-grid-types";
 
 const COLUMNS = 3;
 const CONTAINER_WIDTH = 400;
@@ -35,8 +34,6 @@ vi.mock("@/hooks/use-responsive-columns", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { CardGrid } from "./card-grid";
-// oxlint-disable-next-line import/first -- must import after vi.mock
 import {
   BUTTON_PAD,
   CARD_ASPECT_INVERSE,
@@ -44,9 +41,12 @@ import {
   HEADER_PB,
   HEADER_PT,
   LABEL_HEIGHT,
-} from "./card-grid-constants";
+} from "@/lib/card-grid-constants";
 // oxlint-disable-next-line import/first -- must import after vi.mock
-import { computeGridMetrics } from "./card-grid-metrics";
+import { computeGridMetrics } from "@/lib/card-grid-metrics";
+
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { CardGrid } from "./card-grid";
 
 // Mirrors CardGrid's estimateRowHeight for the mocked layout above.
 const { gap: GAP, cardWidth: THUMB_WIDTH } = computeGridMetrics(CONTAINER_WIDTH, COLUMNS);

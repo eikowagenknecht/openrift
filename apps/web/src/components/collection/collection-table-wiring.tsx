@@ -1,9 +1,9 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 
 import { CollectionTableActions } from "@/components/cards/collection-table-actions";
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { cardsViewTileKey, tileSiblings } from "@/lib/card-tiles";
 import { isStackSelected } from "@/lib/stack-selection";
+import type { StackedEntry } from "@/lib/stacked-entry";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 
 import { DraggableCard } from "./draggable-card";

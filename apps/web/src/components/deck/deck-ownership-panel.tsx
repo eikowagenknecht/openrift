@@ -3,7 +3,7 @@ import { PackageSearchIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import { formatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import { cn } from "@/lib/utils";

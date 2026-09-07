@@ -1,11 +1,19 @@
 import { legendDisplayName, UNKNOWN_SET_INDEX } from "@openrift/shared";
 
-import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import type { CatalogPosition } from "@/lib/catalog-position";
 import { compareCatalogPosition } from "@/lib/catalog-position";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { compareDeckCardsByCurve } from "@/lib/deck-card-sort";
-import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
+import type { CardOwnership } from "@/lib/deck-ownership-types";
+
+export type DeckOverviewSort =
+  | "default"
+  | "id"
+  | "name"
+  | "energy"
+  | "price"
+  | "rarity"
+  | "ownership";
 
 export interface DeckListSortContext {
   getEntry: (card: DeckBuilderCard) => CardOwnership | undefined;

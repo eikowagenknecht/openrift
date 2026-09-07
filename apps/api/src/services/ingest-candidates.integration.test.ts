@@ -1,7 +1,7 @@
+import type { IngestCard, IngestPrinting } from "@openrift/shared/contracts/admin/card-mutations";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTransact } from "../deps.js";
-import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
 import { createTestContext, syncCardCardTypes } from "../test/integration-context.js";
 import { ingestCandidates } from "./ingest-candidates.js";
 

@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { gridGapCss } from "@/components/cards/card-grid-metrics";
+import { gridGapCss } from "@/lib/card-grid-metrics";
 
 import {
   COLUMN_BANDS,

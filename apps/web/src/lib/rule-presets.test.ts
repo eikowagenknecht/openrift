@@ -1,7 +1,7 @@
 import { EMPTY_CARD_FILTERS, listRulesSchema } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { serializeRules } from "@/stores/rule-editor-store";
+import { serializeRules } from "@/lib/rule-draft";
 
 import {
   ORGANIZE_CARD_RULE_PRESETS,

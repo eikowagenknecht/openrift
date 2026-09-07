@@ -1,5 +1,13 @@
-import type { TierCardView } from "@/components/tier-lists/tier-card-tile";
+import type { Card, Printing, TierRow } from "@openrift/shared";
+
 import type { PresentationItem } from "@/lib/presentation-queue";
+
+export interface TierCardView {
+  cardId: string;
+  card: Card;
+  printing: Printing | undefined;
+  pinnedPrintingId: string | null;
+}
 
 export interface ResolvedTierRow {
   label: string;
@@ -79,5 +87,35 @@ export function revealedRows(
     cards: row.cards.filter((view, position) =>
       view.printing ? placed.has(stopId(rowIndex, position, view.printing.id)) : false,
     ),
+  }));
+}
+
+/** Cards whose id no longer resolves against the catalogue are dropped, not rendered blank. */
+export function resolveTierRows(
+  rows: readonly TierRow[],
+  cardsById: Record<string, Card>,
+  printingsByCardId: Map<string, Printing[]>,
+): ResolvedTierRow[] {
+  return rows.map((row) => ({
+    label: row.label,
+    unranked: row.unranked === true,
+    cards: row.cards.flatMap((entry) => {
+      const card = cardsById[entry.cardId];
+      if (!card) {
+        return [];
+      }
+      const printings = printingsByCardId.get(entry.cardId);
+      const pinned = entry.printingId
+        ? printings?.find((printing) => printing.id === entry.printingId)
+        : undefined;
+      return [
+        {
+          cardId: entry.cardId,
+          card,
+          printing: pinned ?? printings?.[0],
+          pinnedPrintingId: entry.printingId,
+        },
+      ];
+    }),
   }));
 }

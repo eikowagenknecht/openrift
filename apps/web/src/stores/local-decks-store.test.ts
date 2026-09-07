@@ -2,16 +2,11 @@ import { WellKnown } from "@openrift/shared";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { LocalDeck, LocalDeckCard } from "@/lib/local-deck";
+import { isLocalDeckId, LOCAL_DECK_PREFIX } from "@/lib/local-deck";
 import { createStoreResetter } from "@/test/store-helpers";
 
-import type { LocalDeck, LocalDeckCard } from "./local-decks-store";
-import {
-  isLocalDeckId,
-  LOCAL_DECK_PREFIX,
-  sanitizeDecks,
-  useLocalDecksStore,
-  writeLocalDecksItem,
-} from "./local-decks-store";
+import { sanitizeDecks, useLocalDecksStore, writeLocalDecksItem } from "./local-decks-store";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 

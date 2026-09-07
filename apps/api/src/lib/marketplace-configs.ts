@@ -1,7 +1,7 @@
 import type { Marketplace } from "@openrift/shared";
 
-import type { Repos } from "../../deps.js";
-import type { marketplaceMappingRepo } from "../../repositories/marketplace-mapping.js";
+import type { Repos } from "../deps.js";
+import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
 
 export interface ProductInfo {
   productName: string | null;

@@ -1,4 +1,4 @@
-import { BUTTON_PAD } from "./card-grid-constants";
+import { BUTTON_PAD } from "@/lib/card-grid-constants";
 
 // Single source of truth for the grid gutter of the card-browser grids
 // (/cards, /collections, /decks/$deckId, /promos). Use computeGridMetrics

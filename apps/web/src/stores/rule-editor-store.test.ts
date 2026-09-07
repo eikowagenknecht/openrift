@@ -2,10 +2,11 @@ import { EMPTY_CARD_FILTERS } from "@openrift/shared";
 import type { ListRule } from "@openrift/shared";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import type { DraftRule } from "@/lib/rule-draft";
+import { serializeRules } from "@/lib/rule-draft";
 import { createStoreResetter } from "@/test/store-helpers";
 
-import type { DraftRule } from "./rule-editor-store";
-import { serializeRules, useRuleEditorStore } from "./rule-editor-store";
+import { useRuleEditorStore } from "./rule-editor-store";
 
 function draft(overrides: Partial<DraftRule> = {}): DraftRule {
   return {

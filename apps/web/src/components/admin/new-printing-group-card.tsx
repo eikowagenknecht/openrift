@@ -14,11 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type {
-  CandidatePrintingFieldKey,
-  FieldDef,
-  PrintingGroup,
-} from "@/components/admin/candidate-spreadsheet";
+import type { CandidatePrintingFieldKey, FieldDef } from "@/components/admin/candidate-spreadsheet";
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPreseededActivePrinting,
@@ -32,6 +28,7 @@ import { PrintingIdLabel } from "@/components/admin/printing-id-label";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { PrintingGroup } from "@/lib/candidate-printing-groups";
 import type { SourceSubmitter } from "@/lib/candidate-submitter";
 
 const REQUIRED_PRINTING_KEYS = [

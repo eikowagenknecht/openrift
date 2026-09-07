@@ -1,7 +1,8 @@
 import type { PodPenaltyBreakdown } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import type { Pod, PodRound, PodScoring } from "../repositories/pod-tournaments.js";
+import type { Pod, PodRound } from "../repositories/pod-tournaments.js";
+import type { PodScoring } from "./pod-scoring.js";
 import type { PodMemberRow } from "./pod-tournament-presenters.js";
 import {
   podSizeOf,

@@ -29,6 +29,7 @@ import {
   PageTopBarHeightContext,
   useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import type { SidebarListDropData } from "@/components/list/droppable-sidebar-list";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
@@ -42,8 +43,6 @@ import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn } from "@/lib/utils";
 import { useDragPreviewStore } from "@/stores/drag-preview-store";
 import { useGridSelectionStore } from "@/stores/grid-selection-store";
-
-import { TopBarSlotContext } from "./route";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections")({
   component: CollectionLayout,

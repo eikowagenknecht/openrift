@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import type { EnumLabels } from "@/hooks/use-enums";
+import type { EnumLabels } from "@/lib/enum-labels";
 
 import {
   describePriceChange,

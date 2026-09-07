@@ -1,6 +1,10 @@
 import type { DeckPlanResponse } from "@openrift/shared";
+import type { decksContract } from "@openrift/shared/contracts/decks";
 
-import type { DeckPlanSaveInput } from "@/hooks/use-deck-plan";
+import type { ContractInput } from "@/lib/server-fns/orpc-client";
+
+/** Matchups carry no id; the server assigns them. */
+export type DeckPlanSaveInput = Omit<ContractInput<typeof decksContract, "replacePlan">, "id">;
 
 export type SwapDirection = "in" | "out";
 

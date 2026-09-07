@@ -2,10 +2,10 @@ import type { Printing } from "@openrift/shared";
 import { Suspense, lazy } from "react";
 import type { ReactNode } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
 import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSelectionDetail } from "@/hooks/use-selection-detail";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 

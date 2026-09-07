@@ -30,6 +30,7 @@ import { useOverlayChannel, usePushOverlayCard, useSetOverlayHidden } from "@/ho
 import { useOverlayBoardSync } from "@/hooks/use-overlay-board-sync";
 import { useCreateStagePreset, useStagePresets } from "@/hooks/use-stage-presets";
 import { useUserId } from "@/lib/auth-session";
+import { MAX_CARD_SCALE, MIN_CARD_SCALE } from "@/lib/card-scale";
 import { isTypingTarget } from "@/lib/keyboard-target";
 import {
   BOARD_ACTIONS,
@@ -39,9 +40,10 @@ import {
 } from "@/lib/presentation-keys";
 import type { PresentationItem } from "@/lib/presentation-queue";
 import { stepIndex } from "@/lib/presentation-queue";
-import { applyStagePresetConfig, captureStagePreset } from "@/lib/stage-preset-apply";
+import { captureStagePreset } from "@/lib/stage-preset-apply";
 import { useDisplayStore } from "@/stores/display-store";
-import { MAX_CARD_SCALE, MIN_CARD_SCALE, usePresentationStore } from "@/stores/presentation-store";
+import { usePresentationStore } from "@/stores/presentation-store";
+import { applyStagePresetConfig } from "@/stores/stage-preset-actions";
 
 interface KeyHelpRow {
   keys: string[];

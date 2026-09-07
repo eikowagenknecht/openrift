@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { errorText } from "@/lib/error-text";
 import { loadScanEmbedder, measuredEmbedMsPerImage } from "@/lib/scan-embedder";
+import type { EngineProgress } from "@/lib/scan-load-progress";
 import { loadOpenCv } from "@/lib/scan-opencv";
 import { ORT_WASM_PATHS } from "@/lib/scan-ort-assets";
 import type { ScanWorkerClient } from "@/lib/scan-worker-client";
@@ -16,17 +17,6 @@ function workerRequested(): boolean {
   }
   const params = new URLSearchParams(globalThis.location?.search ?? "");
   return params.get(WORKER_PARAM) === "1";
-}
-
-export interface ResourceProgress {
-  loaded: number;
-  total: number;
-  ready: boolean;
-}
-
-export interface EngineProgress {
-  opencv: ResourceProgress;
-  encoder: ResourceProgress;
 }
 
 const INITIAL_ENGINE_PROGRESS: EngineProgress = {

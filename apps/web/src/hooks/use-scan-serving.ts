@@ -5,7 +5,7 @@ import { scanContract } from "@openrift/shared/contracts/scan";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { getLatestJobRunFn } from "@/components/admin/refresh-actions";
+import { getLatestJobRunFn } from "@/hooks/refresh-actions";
 import type { JobRunView } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";

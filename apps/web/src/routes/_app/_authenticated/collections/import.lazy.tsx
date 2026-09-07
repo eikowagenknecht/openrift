@@ -18,6 +18,7 @@ import {
   ImportTroubleNote,
 } from "@/components/import/import-preview-chrome";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import {
   SectionHeader,
   SectionHeaderActions,
@@ -64,7 +65,6 @@ import type { MatchedEntry } from "@/lib/import-matcher";
 import { isReplaceableTarget, LIST_TARGET_PREFIX } from "@/lib/import-replace";
 import { partitionMatchedEntries } from "@/lib/import-summary";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/import")({
   component: ImportExportPage,

@@ -3,13 +3,13 @@
  * rows. Both ingest entry points map the same payload to the same columns, so
  * the mapping lives here once.
  */
+import type { IngestCard, IngestPrinting } from "@openrift/shared/contracts/admin/card-mutations";
 import { emptyToNull } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 import { z } from "zod";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../db/schemas.js";
-import type { IngestCard, IngestPrinting } from "../routes/admin/cards/schemas.js";
 
 export const candidateCardValidator = z.object({
   name: candidateCardFieldRules.name,

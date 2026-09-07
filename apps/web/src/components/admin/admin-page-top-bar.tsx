@@ -3,8 +3,8 @@ import { use } from "react";
 import { createPortal } from "react-dom";
 
 import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { useSidebar } from "@/components/ui/sidebar";
-import { TopBarSlotContext } from "@/routes/_app/_authenticated/admin/route";
 
 interface AdminPageTopBarProps {
   title: ReactNode;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { buildKeysetCursor } from "../lib/keyset-cursor.js";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { adminEventsRepo } from "./admin-events.js";
-import { buildKeysetCursor } from "./query-helpers.js";
 
 // Seeds its own users (per-file random IDs) and prefixes entity labels with
 // AEV- so filters can target only this file's rows.

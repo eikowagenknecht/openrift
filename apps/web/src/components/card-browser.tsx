@@ -6,14 +6,11 @@ import { PackageIcon } from "lucide-react";
 import { useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { BrowserCardCell } from "@/components/cards/browser-card-cell";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CatalogTableActions } from "@/components/cards/catalog-table-actions";
 import { PrintingCountActions } from "@/components/cards/printing-count-actions";
 import { WishlistButton } from "@/components/cards/wishlist-heart";
@@ -27,6 +24,7 @@ import { Toggle } from "@/components/ui/toggle";
 import { useCardData, useCatalogFilterMeta } from "@/hooks/use-card-data";
 import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { useRegisterQuickAdd } from "@/hooks/use-command-palette";
@@ -40,7 +38,9 @@ import { useRowActionHandlers } from "@/hooks/use-row-action-handlers";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useWishEntries } from "@/hooks/use-wish-entries";
 import { useSession, useUserId } from "@/lib/auth-session";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
 import { splitsCardIntoTiles, tileSiblings } from "@/lib/card-tiles";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { maxOwnedCount } from "@/lib/owned-bucket";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";

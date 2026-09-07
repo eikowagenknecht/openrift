@@ -2,14 +2,14 @@ import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactElement, ReactNode } from "react";
 
 import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
-import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { CardTable } from "@/components/cards/card-table";
 import type { TableRowSlotProps } from "@/components/cards/card-table";
-import type { ActionsColumn } from "@/components/cards/card-table-row";
 import { useGridKeyboardNav } from "@/components/cards/use-grid-keyboard-nav";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { GroupInfo } from "@/lib/card-group-types";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
+import type { ActionsColumn } from "@/lib/collection-table";
 import { useDisplayStore } from "@/stores/display-store";
 
 export interface CardTableProps {

@@ -94,6 +94,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  hydrateDeckDraft,
+  useDeckDraftHydrated,
+  useDeckSaveStatus,
+} from "@/hooks/deck-builder-collection";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useIncomingTradeCounts } from "@/hooks/use-card-trades";
 import { useCards } from "@/hooks/use-cards";
@@ -119,19 +124,15 @@ import { useSession, useUserId } from "@/lib/auth-session";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
-import {
-  hydrateDeckDraft,
-  useDeckDraftHydrated,
-  useDeckSaveStatus,
-} from "@/lib/deck-builder-collection";
 import { toEncodeDeckCards } from "@/lib/deck-encode-input";
 import { buildRunesByDomain } from "@/lib/deck-runes-by-domain";
 import { requiredZoneProgress, ZONE_LABELS } from "@/lib/deck-zone-labels";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface DeckEditorPageProps {

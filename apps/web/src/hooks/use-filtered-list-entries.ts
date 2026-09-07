@@ -1,11 +1,11 @@
 import type { ListEntryDetailResponse } from "@openrift/shared";
 import { filterCards } from "@openrift/shared";
 
-import { collectListPrintings } from "@/components/list/list-entries";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { usePrices } from "@/hooks/use-prices";
+import { collectListPrintings } from "@/lib/list-entries";
 import { useDisplayStore } from "@/stores/display-store";
 
 export interface FilteredListEntries {

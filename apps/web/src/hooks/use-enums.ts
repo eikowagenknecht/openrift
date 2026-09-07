@@ -1,23 +1,16 @@
 import type {
-  CardStatLabels,
   ColoredEnumRow,
   CustomTag,
   DeckZone,
   DistributionChannel,
   EnumOrders,
   EnumRow,
-  VariantLabelEnumLabels,
 } from "@openrift/shared";
 import { labelMap } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
-
-export interface EnumLabels extends VariantLabelEnumLabels, CardStatLabels {
-  rarities: Record<string, string>;
-  conditions: Record<string, string>;
-  graders: Record<string, string>;
-}
+import type { EnumLabels } from "@/lib/enum-labels";
 
 // Generic over T: a colored/described row keeps its extra fields through the sort.
 function sorted<T extends EnumRow>(rows: readonly T[]): T[] {

@@ -1,6 +1,6 @@
 import { formatDay, META_CATALOG_SORTS } from "@openrift/shared";
 import type { PlayloltcgCatalogRow } from "@openrift/shared/contracts/admin/meta-catalog";
-import { Link } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import {
   ArchiveXIcon,
   CheckIcon,
@@ -39,7 +39,8 @@ import {
   playloltcgCoverageRow,
   playloltcgStatusDisplay,
 } from "@/lib/meta-catalog-display";
-import { Route } from "@/routes/_app/_authenticated/admin/meta";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/meta");
 
 function DateCell({ row }: AdminCellSlotProps<PlayloltcgCatalogRow>) {
   if (!row || row.startAt === null) {
@@ -214,7 +215,7 @@ function PlayloltcgRowActions({
 }
 
 export function PlayloltcgCatalogPage() {
-  const filters = Route.useSearch();
+  const filters = routeApi.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);
   const [rulesOpen, setRulesOpen] = useState(false);
   const accept = useAcceptPlayloltcgEvent();

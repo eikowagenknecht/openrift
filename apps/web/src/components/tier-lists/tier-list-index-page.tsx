@@ -14,7 +14,7 @@ import {
   PageTopBarTitle,
 } from "@/components/layout/page-top-bar";
 import { CreateTierListDialog } from "@/components/tier-lists/create-tier-list-dialog";
-import { TierRowFrame, resolveTierRows } from "@/components/tier-lists/tier-board";
+import { TierRowFrame } from "@/components/tier-lists/tier-board";
 import { TierCardTile } from "@/components/tier-lists/tier-card-tile";
 import { TierListShareDialog } from "@/components/tier-lists/tier-list-share-dialog";
 import {
@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useCards } from "@/hooks/use-cards";
 import { useDeleteTierList, useTierLists } from "@/hooks/use-tier-lists";
+import { resolveTierRows } from "@/lib/tier-list-presentation";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
 const PREVIEW_TILE_WIDTH = 40;

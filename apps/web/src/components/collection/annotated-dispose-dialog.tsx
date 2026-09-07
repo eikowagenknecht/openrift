@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DialogForm } from "@/components/ui/dialog-form";
-import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { PendingAnnotatedDispose } from "@/hooks/use-quick-add-actions";
+import type { EnumLabels } from "@/lib/enum-labels";
 
 /** Lists what the copy has recorded, for the confirmation body (e.g. "graded PSA 9.5, notes"). */
 function recordedDetails(copy: CopyResponse, labels: EnumLabels): string[] {

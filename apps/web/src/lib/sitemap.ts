@@ -1,6 +1,6 @@
 import type { SitemapDataResponse } from "@openrift/shared";
 
-import { helpArticleList } from "@/components/help/articles";
+import type { HelpArticle } from "@/lib/help-article";
 import type { MetaEra } from "@/lib/meta-scope";
 import { VALID_RULE_KINDS } from "@/lib/rules-kinds";
 
@@ -49,6 +49,7 @@ export interface SitemapInput {
   data: SitemapDataResponse;
   flags: Record<string, boolean>;
   eras: readonly MetaEra[];
+  helpArticles: readonly HelpArticle[];
 }
 
 const SECTIONS = ["site", "meta-events", "meta-decks", "meta-legends", "meta-players"] as const;
@@ -59,7 +60,7 @@ function isSection(value: string): value is SitemapSection {
   return (SECTIONS as readonly string[]).includes(value);
 }
 
-function siteUrls({ deployDate, data, flags }: SitemapInput): SitemapUrl[] {
+function siteUrls({ deployDate, data, flags, helpArticles }: SitemapInput): SitemapUrl[] {
   const urls: SitemapUrl[] = [];
   for (const page of STATIC_PAGES) {
     if (page.featureFlag !== undefined && flags[page.featureFlag] !== true) {
@@ -67,7 +68,7 @@ function siteUrls({ deployDate, data, flags }: SitemapInput): SitemapUrl[] {
     }
     urls.push({ ...page, lastmod: deployDate });
   }
-  for (const article of helpArticleList) {
+  for (const article of helpArticles) {
     if (article.featureFlag) {
       continue;
     }

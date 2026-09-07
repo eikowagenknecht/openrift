@@ -4,9 +4,9 @@ import type { ComponentType } from "react";
 import { Suspense, lazy } from "react";
 
 import { Heading } from "@/components/heading";
+import type { HelpArticle } from "@/lib/help-article";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
-import type { HelpArticle } from "./articles";
 import { helpArticles } from "./articles";
 
 // lazy() must be called at module scope, not during render: calling it per

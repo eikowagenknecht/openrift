@@ -1,8 +1,9 @@
 import type { StagedProductResponse, UnifiedMappingsCardResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import type { UnifiedMappingGroup, UnifiedMappingPrinting } from "@/lib/price-mappings-types";
+
 import { applyOptimisticAssignmentForCard } from "./admin-card-marketplace-section";
-import type { UnifiedMappingGroup, UnifiedMappingPrinting } from "./price-mappings-types";
 
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {
   return {

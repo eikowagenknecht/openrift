@@ -27,8 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDeckFormatList } from "@/hooks/use-enums";
+import type { MetaSearch } from "@/lib/admin-meta-search";
 import { META_SOURCE_LABELS, syncTriggerAnnouncement } from "@/lib/meta-catalog-display";
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 export function announceSyncTrigger(label: string, result: MetaSyncTriggerResult): void {
   const announcement = syncTriggerAnnouncement(label, result);

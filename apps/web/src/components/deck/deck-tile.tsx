@@ -11,8 +11,8 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckFamilyEntry } from "@/lib/deck-family";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { cn } from "@/lib/utils";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckDomainBar } from "./deck-domain-bar";

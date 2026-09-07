@@ -11,7 +11,14 @@ import {
   siYoutube,
 } from "simple-icons";
 
-import type { BrandIconData } from "@/components/ui/brand-glyph";
+/**
+ * Declared structurally rather than imported as `SimpleIcon`, so a caller can
+ * hand over a hand-rolled glyph without the package's whole type coming along.
+ */
+export interface BrandIconData {
+  /** A single path, drawn against simple-icons' 24x24 viewBox. */
+  path: string;
+}
 
 const BRANDS_BY_HOST: Record<string, BrandIconData> = {
   "youtube.com": siYoutube,

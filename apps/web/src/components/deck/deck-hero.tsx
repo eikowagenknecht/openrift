@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 
 import { ArtBandBackdrop } from "@/components/art-band-backdrop";
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { DeckFormatBadge } from "@/components/deck/deck-format-badge";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { DomainIcon } from "@/components/deck/domain-icon";
@@ -18,10 +17,11 @@ import { Card } from "@/components/ui/card";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
-import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import type { CardOpenTarget } from "@/lib/card-row-interactions";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckOwnershipData } from "@/lib/deck-ownership-types";
 import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

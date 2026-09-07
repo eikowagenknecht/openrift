@@ -18,8 +18,8 @@ import {
 } from "@openrift/shared";
 import { useDeferredValue } from "react";
 
-import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { useEnumOrders } from "@/hooks/use-enums";
+import type { GroupInfo } from "@/lib/card-group-types";
 import { buildSortCardsOptions, computePriceRanges } from "@/lib/card-price-sort";
 import { cardsViewTileKey, dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { applyOwnedBucketFilter, applyOwnedCountFilter } from "@/lib/owned-bucket";

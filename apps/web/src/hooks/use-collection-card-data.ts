@@ -18,11 +18,11 @@ import {
 } from "@openrift/shared";
 import { useDeferredValue } from "react";
 
-import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { EMPTY_FILTER_COUNTS } from "@/hooks/use-card-data";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
+import type { GroupInfo } from "@/lib/card-group-types";
 import { buildSortCardsOptions, computePriceRanges } from "@/lib/card-price-sort";
 import { dedupeToCardsViewTiles } from "@/lib/card-tiles";
 import { applyOwnedBucketFilter, applyOwnedCountFilter, maxOwnedCount } from "@/lib/owned-bucket";

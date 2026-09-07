@@ -1,16 +1,8 @@
 import type { SitemapDataResponse } from "@openrift/shared";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("@/components/help/articles", () => ({
-  helpArticleList: [
-    { slug: "getting-started" },
-    { slug: "flagged-article", featureFlag: "someFlag" },
-  ],
-}));
-
-// oxlint-disable-next-line import/first -- must import after vi.mock
+import type { HelpArticle } from "./help-article";
 import type { SitemapInput } from "./sitemap";
-// oxlint-disable-next-line import/first -- must import after vi.mock
 import {
   parseSitemapPath,
   renderSitemapFile,
@@ -32,6 +24,10 @@ function input(overrides: Partial<SitemapInput> = {}): SitemapInput {
     siteUrl: "https://example.test",
     deployDate: "2026-09-04",
     flags: { meta: true },
+    helpArticles: [
+      { slug: "getting-started" },
+      { slug: "flagged-article", featureFlag: "someFlag" },
+    ] as unknown as HelpArticle[],
     eras: [
       { id: "vendetta", label: "Vendetta", from: "2026-08-01", to: null },
       { id: "origins", label: "Origins", from: "2026-01-01", to: "2026-07-31" },

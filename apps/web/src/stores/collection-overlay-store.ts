@@ -2,8 +2,8 @@ import type { Printing } from "@openrift/shared";
 import { useEffect } from "react";
 import { create } from "zustand";
 
-import type { CopyDetailsTarget } from "@/components/collection/copy-details-dialog";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import type { CopyDetailsTarget } from "@/lib/copy-details-target";
+import type { WishEntryFlat } from "@/lib/wish-entry";
 
 interface TakeConfirmTarget {
   printing: Printing;

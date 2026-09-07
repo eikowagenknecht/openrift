@@ -1,7 +1,8 @@
-import type { HelpArticle } from "@/components/help/articles";
-import type { NavItemConfig } from "@/components/layout/nav-items";
-import type { QuickAddCardResult } from "@/hooks/use-quick-add-search";
-import type { QuickAddVerb } from "@/stores/command-palette-store";
+import type { HelpArticle } from "@/lib/help-article";
+import type { NavItemConfig } from "@/lib/nav-items";
+import type { QuickAddCardResult } from "@/lib/quick-add-result";
+
+export type QuickAddVerb = "add" | "move";
 
 const PALETTE_MIN_QUERY_LENGTH = 2;
 

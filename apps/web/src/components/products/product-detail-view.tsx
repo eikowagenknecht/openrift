@@ -3,15 +3,12 @@ import type { ProductDetailResponse } from "@openrift/shared/contracts/products"
 import { Suspense, useState } from "react";
 
 import { CardViewer } from "@/components/card-viewer";
-import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import {
   BrowserToolbar,
   CardBrowserFilterProvider,
 } from "@/components/cards/card-browser-filter-scaffold";
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
-import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { StaticCountTableActions } from "@/components/cards/static-count-table-actions";
 import {
   PAGE_TOP_BAR_STICKY,
@@ -30,6 +27,7 @@ import { SelectionDetailOverlays } from "@/components/selection-detail-overlays"
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { useChannelRegistry } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -39,6 +37,8 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import type { EnrichedProductDetail } from "@/hooks/use-products";
 import { useSession } from "@/lib/auth-session";
+import { ADD_STRIP_HEIGHT } from "@/lib/card-grid-constants";
+import type { CardRenderContext, CardViewerItem } from "@/lib/card-viewer-types";
 import { filterPrintingsByLanguages } from "@/lib/filter-printings-by-languages";
 import { formatterForMarketplace } from "@/lib/format";
 import { maxOwnedCount } from "@/lib/owned-bucket";

@@ -3,7 +3,7 @@ import { adminPrintingEventsContract } from "@openrift/shared/contracts/admin/pr
 import { useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { getLatestJobRunFn } from "@/components/admin/refresh-actions";
+import { getLatestJobRunFn } from "@/hooks/refresh-actions";
 import type { JobRunView, PrintingEventsListResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";

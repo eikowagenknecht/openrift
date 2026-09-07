@@ -2,7 +2,6 @@ import { imageUrl } from "@openrift/shared";
 import { getRouteApi } from "@tanstack/react-router";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";
-import { LABEL_HEIGHT } from "@/components/cards/card-grid-constants";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import {
@@ -15,6 +14,7 @@ import { SearchBar } from "@/components/filters/search-bar";
 import { OrnamentRule } from "@/components/ui/ornament";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP } from "@/hooks/use-responsive-columns";
+import { LABEL_HEIGHT } from "@/lib/card-grid-constants";
 import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
 import { DEFAULT_TOP_LEVEL_UNITS } from "@/lib/filter-sections";
 import { LANDSCAPE_ROTATION_STYLE } from "@/lib/images";

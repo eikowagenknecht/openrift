@@ -1,5 +1,6 @@
 import { compareCatalogPosition } from "@/lib/catalog-position";
-import type { DeckCheckSort } from "@/stores/deck-check-view-store";
+
+export type DeckCheckSort = "deck" | "id" | "name" | "domain" | "energy";
 
 export interface DeckCheckSortableCard {
   sortOrder: number;

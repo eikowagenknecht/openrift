@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type QuickAddVerb = "add" | "move";
+import type { QuickAddVerb } from "@/lib/command-palette-results";
 
 /**
  * Only labels and the open flag live here; the body stays mounted at the

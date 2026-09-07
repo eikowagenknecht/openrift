@@ -1,8 +1,4 @@
-import type {
-  CandidatePrintingResponse,
-  EnumOrders,
-  ProviderSettingResponse,
-} from "@openrift/shared";
+import type { EnumOrders, ProviderSettingResponse } from "@openrift/shared";
 import { fixTypography, stringifyUnknown } from "@openrift/shared";
 import type {
   AcceptCardField,
@@ -56,9 +52,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { EnumLabels } from "@/hooks/use-enums";
 import type { SourceSubmitter } from "@/lib/candidate-submitter";
 import { submitterLabel } from "@/lib/candidate-submitter";
+import type { EnumLabels } from "@/lib/enum-labels";
 import { getFilterIconPath } from "@/lib/icons";
 import type { FilterCategory } from "@/lib/icons";
 import type { DiffSegment } from "@/lib/text-diff";
@@ -228,12 +224,6 @@ export function buildCandidatePrintingFields(
     { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
     { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
   ];
-}
-
-export interface PrintingGroup {
-  candidates: CandidatePrintingResponse[];
-  expectedPrintingId: string;
-  suggestedPrintingId: string | null;
 }
 
 /** A candidate row read generically by field key; provider/candidateCardId are optional and fall back to a label derived from the row id. */

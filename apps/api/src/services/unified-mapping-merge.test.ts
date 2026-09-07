@@ -5,7 +5,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Repos } from "../deps.js";
-import type { MarketplaceConfig } from "../routes/admin/marketplace-configs.js";
+import type { MarketplaceConfig } from "../lib/marketplace-configs.js";
 import type { GetMappingOverview } from "./unified-mapping-merge.js";
 import {
   buildUnifiedMappingsCardResponse,

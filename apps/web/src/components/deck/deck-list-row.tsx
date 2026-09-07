@@ -11,8 +11,8 @@ import type { DeckFamilyEntry } from "@/lib/deck-family";
 import { deckBoxPart } from "@/lib/deck-meta";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { resolveFormatTagSummary } from "@/lib/format-tag-config";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { cn } from "@/lib/utils";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 import { DeckActionsMenu } from "./deck-actions-menu";
 import { DeckFolderChips } from "./deck-folder-chips";

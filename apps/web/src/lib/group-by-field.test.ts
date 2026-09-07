@@ -1,8 +1,8 @@
 import type { EnumOrders } from "@openrift/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { EnumLabels } from "@/hooks/use-enums";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
+import type { EnumLabels } from "@/lib/enum-labels";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 import { groupItemsByField, isPrintingsOnlyGrouping } from "./group-by-field";

@@ -5,7 +5,7 @@ import {
   JOB_STATUSES,
   JOB_TRIGGERS,
 } from "@openrift/shared/contracts/admin/job-runs";
-import { useNavigate } from "@tanstack/react-router";
+import { getRouteApi } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LoaderIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -30,11 +30,12 @@ import {
   useAdminJobRuns,
 } from "@/hooks/use-job-runs";
 import { useCancelRegenerateImages } from "@/hooks/use-rehost";
+import type { JobRunsSearch } from "@/lib/admin-job-runs-search";
 import { formatDuration } from "@/lib/format-duration";
 import { summarizeRunResult } from "@/lib/job-run-display";
 import type { JobRunView } from "@/lib/server-fns/api-types";
-import type { JobRunsSearch } from "@/routes/_app/_authenticated/admin/job-runs";
-import { Route } from "@/routes/_app/_authenticated/admin/job-runs";
+
+const routeApi = getRouteApi("/_app/_authenticated/admin/job-runs");
 
 /** Only resumable jobs that re-read `result` between batches can be cancelled mid-run. */
 const CANCELLABLE_KINDS = new Set<string>(["images.regenerate"]);
@@ -109,8 +110,8 @@ function kindOptions(kinds: string[], prefix: string | undefined) {
 }
 
 export function JobRunsPage() {
-  const search = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const search = routeApi.useSearch();
+  const navigate = routeApi.useNavigate();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const page = search.page ?? 1;

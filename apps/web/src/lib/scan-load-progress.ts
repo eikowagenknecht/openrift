@@ -1,4 +1,13 @@
-import type { EngineProgress, ResourceProgress } from "@/hooks/use-scan-engine";
+export interface ResourceProgress {
+  loaded: number;
+  total: number;
+  ready: boolean;
+}
+
+export interface EngineProgress {
+  opencv: ResourceProgress;
+  encoder: ResourceProgress;
+}
 
 type ScanLoadPhase = "downloading" | "starting";
 

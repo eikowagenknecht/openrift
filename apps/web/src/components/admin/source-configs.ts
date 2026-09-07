@@ -1,6 +1,6 @@
 import { MARKETPLACE_LINKS } from "@openrift/shared";
 
-import type { SourceMappingConfig } from "./price-mappings-types";
+import type { SourceMappingConfig } from "@/lib/price-mappings-types";
 
 export const CM_CONFIG: SourceMappingConfig = {
   source: "cardmarket",

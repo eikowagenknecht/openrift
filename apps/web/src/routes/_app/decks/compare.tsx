@@ -5,9 +5,9 @@ import { NotFoundFallback, RouteErrorFallback } from "@/components/error-message
 import { deckDetailQueryOptions, decksQueryOptions } from "@/hooks/use-decks";
 import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { isLocalDeckId } from "@/stores/local-decks-store";
 
 // Not a uuid check: either side may be a `local:` id, and either may be missing
 // (a comparison opened from the deck menu starts with only one deck).

@@ -35,11 +35,11 @@ import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useQuickAddMoveMode } from "@/hooks/use-quick-add-move-mode";
 import { useQuickAddSearch } from "@/hooks/use-quick-add-search";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
+import type { QuickAddVerb } from "@/lib/command-palette-results";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { MOVE_FROM_ANYWHERE } from "@/lib/move-sources";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
-import type { QuickAddVerb } from "@/stores/command-palette-store";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 

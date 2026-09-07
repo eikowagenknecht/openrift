@@ -5,7 +5,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { EnumLabels } from "@/hooks/use-enums";
+import type { EnumLabels } from "@/lib/enum-labels";
 
 import type { FieldDef } from "./candidate-spreadsheet";
 import {

@@ -2,7 +2,6 @@ import type {
   AdminPrintingImageResponse,
   AdminPrintingResponse,
   CandidateCardResponse,
-  CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
@@ -14,7 +13,6 @@ import type {
   CandidatePrintingFieldKey,
   FieldDef,
   NewCardFieldKey,
-  PrintingGroup,
 } from "@/components/admin/candidate-spreadsheet";
 import {
   buildCandidateCardFields,
@@ -131,24 +129,6 @@ export function buildSourceLabels(
   );
 
   return { labels, names, submitters: buildSourceSubmitters(sources) };
-}
-
-export function buildPrintingGroups(
-  apiGroups: CandidatePrintingGroupResponse[],
-  candidatePrintings: CandidatePrintingResponse[],
-): (PrintingGroup & { groupKey: string })[] {
-  const byId = new Map(candidatePrintings.map((ps) => [ps.id, ps]));
-  return apiGroups.map((g, index) => {
-    const candidates = g.shortCodes
-      .map((id: string) => byId.get(id))
-      .filter(Boolean) as CandidatePrintingResponse[];
-    return {
-      candidates,
-      expectedPrintingId: g.expectedPrintingId,
-      suggestedPrintingId: g.suggestedPrintingId,
-      groupKey: candidates[0]?.id ?? `${g.expectedPrintingId}-${index}`,
-    };
-  });
 }
 
 export interface DeduplicatedSourceImage {

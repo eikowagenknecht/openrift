@@ -1,8 +1,8 @@
 import type { ListIntent, ListKind } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 
-import type { DraftRule } from "@/stores/rule-editor-store";
-import { emptyDraft } from "@/stores/rule-editor-store";
+import type { DraftRule } from "@/lib/rule-draft";
+import { emptyDraft } from "@/lib/rule-draft";
 
 /**
  * Presets are static definitions; DB-driven data like set slugs arrives here at apply time.

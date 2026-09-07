@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { EngineProgress, ResourceProgress } from "@/hooks/use-scan-engine";
-
+import type { EngineProgress, ResourceProgress } from "./scan-load-progress";
 import { scanLoadProgress } from "./scan-load-progress";
 
 function resource(overrides: Partial<ResourceProgress> = {}): ResourceProgress {

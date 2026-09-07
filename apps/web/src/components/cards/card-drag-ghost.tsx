@@ -3,7 +3,7 @@ import type { Card, ImageVariant, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
-import { CARD_ASPECT_INVERSE } from "@/components/cards/card-grid-constants";
+import { CARD_ASPECT_INVERSE } from "@/lib/card-grid-constants";
 import { frontImageId } from "@/lib/card-meta";
 import { cn } from "@/lib/utils";
 

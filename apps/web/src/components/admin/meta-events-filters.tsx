@@ -5,8 +5,8 @@ import { AdminFilterSelect, AdminFilterSwitch } from "@/components/admin/admin-f
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
 import { PageDescription } from "@/components/layout/page-top-bar";
 import { DatePicker } from "@/components/ui/date-picker";
+import type { MetaSearch } from "@/lib/admin-meta-search";
 import { META_SOURCE_LABELS } from "@/lib/meta-catalog-display";
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 const ANY = "any";
 

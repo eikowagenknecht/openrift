@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  MarketplaceAssignment,
+  StagedProduct,
+  UnifiedMappingGroup,
+  UnifiedMappingPrinting,
+} from "@/lib/price-mappings-types";
+
 import {
   collectEntries,
   collectStrongMappings,
@@ -7,12 +14,6 @@ import {
   displayedProductLanguage,
   isCardNameMismatch,
 } from "./marketplace-products-table";
-import type {
-  MarketplaceAssignment,
-  StagedProduct,
-  UnifiedMappingGroup,
-  UnifiedMappingPrinting,
-} from "./price-mappings-types";
 import type { ProductSuggestion } from "./suggest-mapping";
 import { productSuggestionKey } from "./suggest-mapping";
 

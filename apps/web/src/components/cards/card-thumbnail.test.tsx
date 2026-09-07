@@ -5,8 +5,8 @@ import { fireEvent, render } from "@testing-library/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { stubPrinting } from "@/test/factories";
 
 // No router in these tests, so swap the "Suggest image" Link for a plain span.

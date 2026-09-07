@@ -7,9 +7,9 @@ import {
   WellKnown,
 } from "@openrift/shared";
 
-import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { conditionShortCode } from "@/lib/condition-codes";
 import { languageNameForCode } from "@/lib/language-names";
+import type { StackedEntry } from "@/lib/stacked-entry";
 
 export interface CsvExportLabels {
   sets: Record<string, string>;

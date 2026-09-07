@@ -21,8 +21,9 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckOverviewGroup } from "@/lib/deck-card-group";
+import type { DeckOverviewSort } from "@/lib/deck-overview-list-sort";
 import { cn } from "@/lib/utils";
-import type { DeckOverviewDisplayMode, DeckOverviewSort } from "@/stores/deck-overview-view-store";
+import type { DeckOverviewDisplayMode } from "@/stores/deck-overview-view-store";
 import { useDeckOverviewViewStore } from "@/stores/deck-overview-view-store";
 
 // Built once by the overview and handed to both control clusters: the Box tab

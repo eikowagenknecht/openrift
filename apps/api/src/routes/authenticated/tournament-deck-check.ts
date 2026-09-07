@@ -5,6 +5,7 @@ import { implement } from "@orpc/server";
 
 import type { Repos } from "../../deps.js";
 import { AppError } from "../../errors.js";
+import { computeZoneSuggestions } from "../../lib/deck-check-advisories.js";
 import {
   buildEntryDetail,
   toEntrySummary,
@@ -13,7 +14,6 @@ import {
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
 import type { DeckCheckEntry, DeckCheckEvent } from "../../repositories/deck-check.js";
-import { computeZoneSuggestions } from "../../services/deck-check-advisories.js";
 import {
   cardResolutionKey,
   resolveDeckCheckCards,

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { COUNT_PILL_INTERACTIVE, countPillVariants } from "@/components/ui/count-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SectionHeading } from "@/components/ui/section-heading";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 import { cn } from "@/lib/utils";
+import type { WishEntryFlat } from "@/lib/wish-entry";
 
 /**
  * Read-only unless `onAdd`/`onRemove` are passed; returns null when `entries` is empty.

@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { seoHead } from "@/lib/seo";
-import { getSiteUrl } from "@/lib/site-config";
 import {
   loadTournamentDetail,
   loadTournamentRunState,
   redirectToTournamentOverview,
-} from "@/lib/tournament-route-guards";
+} from "@/hooks/tournament-route-guards";
+import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/tournaments_/$id_/standings")({
   ssr: "data-only",

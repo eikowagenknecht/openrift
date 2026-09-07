@@ -8,10 +8,8 @@ import type {
   PairingPlayer,
   PairingResult,
   PodPlayerStatus,
-  PodScoringScheme,
   PodSnapshotPlayer,
   PodStandingRow,
-  TournamentPlayMode,
 } from "@openrift/shared";
 import type { Kysely, Selectable } from "kysely";
 
@@ -21,6 +19,7 @@ import type {
   PodsTable,
   TournamentParticipantsTable,
 } from "../db/index.js";
+import type { PodScoring } from "../lib/pod-scoring.js";
 import type { PodRoundRows } from "../lib/pod-tournament-presenters.js";
 import {
   podSizeOf,
@@ -54,29 +53,6 @@ export interface PodForResult {
 }
 
 export type PairingSnapshotPlayer = PairingPlayer & { teamId: string | null };
-
-/**
- * The per-tournament scoring knobs the derive-on-read model needs: the FFA
- * placement scheme for 3/4-pods, win/draw points for Swiss matches (2-pods),
- * and the bye points shared by both.
- */
-export interface PodScoring {
-  scheme: PodScoringScheme;
-  byePoints: number;
-  winPoints: number;
-  drawPoints: number;
-  playMode: TournamentPlayMode;
-}
-
-export function scoringOf(tournament: Tournament): PodScoring {
-  return {
-    scheme: tournament.scoringScheme,
-    byePoints: tournament.byePoints,
-    winPoints: tournament.winPoints,
-    drawPoints: tournament.drawPoints,
-    playMode: tournament.playMode,
-  };
-}
 
 /** Per-player aggregate, derived from the finalized rounds (the lean model's source of truth). */
 interface PlayerAggregate {

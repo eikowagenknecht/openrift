@@ -1,8 +1,8 @@
+import type { IngestCard } from "@openrift/shared/contracts/admin/card-mutations";
 import { createLogger } from "@openrift/shared/logger";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createRepos } from "../deps.js";
-import type { IngestCard } from "../routes/admin/cards/schemas.js";
 import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import type { CardSubmissionEmailDeps } from "./card-submission-notifications.js";
 import { notifyAdminsOfCardSubmission } from "./card-submission-notifications.js";

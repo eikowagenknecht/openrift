@@ -5,7 +5,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
-import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
+import type { MarketplaceConfig, StagingRow } from "../lib/marketplace-configs.js";
 import { getMappingOverview, saveMappings, unmapPrinting } from "./marketplace-mapping.js";
 
 function mockTransact(trxRepos: Repos): Transact {

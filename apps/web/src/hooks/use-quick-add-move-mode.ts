@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { useCopies, useMoveCopies } from "@/hooks/use-copies";
+import type { QuickAddVerb } from "@/lib/command-palette-results";
 import type { MoveSource } from "@/lib/move-sources";
 import {
   buildMoveSources,
@@ -11,7 +12,6 @@ import {
   MOVE_FROM_ANYWHERE,
   movableCountsByPrinting,
 } from "@/lib/move-sources";
-import type { QuickAddVerb } from "@/stores/command-palette-store";
 
 /** Kept so Shift+Enter / the minus button can send the copy back where it came from. */
 interface MoveRecord {

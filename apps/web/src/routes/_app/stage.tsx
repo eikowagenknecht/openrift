@@ -4,9 +4,9 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { catalogQueryOptions } from "@/hooks/catalog-query";
 import { initQueryOptions } from "@/hooks/use-init";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { catalogQueryOptions } from "@/lib/catalog-query";
 import { queueCardsSearchSchema } from "@/lib/presentation-queue-search";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";

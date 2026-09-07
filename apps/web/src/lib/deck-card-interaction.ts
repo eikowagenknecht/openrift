@@ -1,7 +1,7 @@
 import type { DeckZone } from "@openrift/shared";
 
-import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import type { DeckCardDragData } from "@/lib/deck-dnd-data";
 
 /**
  * `role`, `tabIndex` and the handlers must be spread together as one object

@@ -45,8 +45,8 @@ import {
 import type { MetaDeckSort, MetaDeckSortDirection } from "@/lib/meta-deck-search";
 import { metaEventFieldSize, metaShownLabel } from "@/lib/meta-format";
 import { resolveScopeRange, scopeKey } from "@/lib/meta-scope";
+import type { MetaDeckView } from "@/lib/sanitize-preferences";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-import type { MetaDeckView } from "@/stores/display-store";
 import { useDisplayStore } from "@/stores/display-store";
 
 /** How many lists the page opens with, and how many each "more" adds. */

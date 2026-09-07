@@ -10,10 +10,11 @@ import { useUserId } from "@/lib/auth-session";
 import { cleanupWhenIdle, markOrphaned } from "@/lib/collection-cleanup";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
+import { isLocalDeckId } from "@/lib/local-deck";
 import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
 import { useDeckUndoStore } from "@/stores/deck-undo-store";
-import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
+import { useLocalDecksStore } from "@/stores/local-decks-store";
 
 const LOCAL_SCOPE = "local";
 

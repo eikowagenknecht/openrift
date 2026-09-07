@@ -2,8 +2,8 @@ import { META_CATALOG_TRIAGE } from "@openrift/shared";
 import type { MetaCatalogTriage } from "@openrift/shared/contracts/admin/meta-catalog";
 
 import { AdminFilterSelect } from "@/components/admin/admin-filters";
+import type { MetaSearch } from "@/lib/admin-meta-search";
 import { catalogTriageDisplay } from "@/lib/meta-catalog-display";
-import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 export const ANY = "any";
 

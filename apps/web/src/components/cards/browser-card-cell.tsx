@@ -3,15 +3,15 @@ import { legendDisplayName } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { memo } from "react";
 
-import type { CardRenderContext } from "@/components/card-viewer-types";
 import { CardCell } from "@/components/cards/card-cell";
 import { CardCountStrip } from "@/components/cards/card-count-strip";
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CatalogCardContextMenu } from "@/components/cards/catalog-card-context-menu";
 import { WishlistButton } from "@/components/cards/wishlist-heart";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import type { CardRenderContext } from "@/lib/card-viewer-types";
+import type { WishEntryFlat } from "@/lib/wish-entry";
 import {
   dispatchAddToWishlist,
   dispatchDecrement,

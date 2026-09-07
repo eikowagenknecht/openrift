@@ -9,7 +9,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { CardCell } from "@/components/cards/card-cell";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DeckCheckCardZonesSkeleton } from "@/components/deck-check/deck-check-skeletons";
 import { PlayerDeckSourceForm } from "@/components/deck-check/player-deck-source-form";
 import type { DeckSourceInput } from "@/components/deck-check/player-deck-source-form";
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import {
   useCancelUnlockRequest,

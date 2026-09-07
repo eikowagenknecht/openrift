@@ -25,6 +25,7 @@ import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { EmptyState } from "@/components/empty-state";
 import { CompactFilterBar } from "@/components/filters/compact-filter-bar";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { TopBarSlotContext } from "@/components/layout/top-bar-slot";
 import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,9 +51,7 @@ import { useFilterValues } from "@/hooks/use-card-filters";
 import type {
   CollectionStats,
   CollectionStatsResult,
-  CompletionCountMode,
   CompletionEntry,
-  CompletionGroupBy,
   PricedCard,
 } from "@/hooks/use-collection-stats";
 import { computeCompletion, filterByScope, useCollectionStats } from "@/hooks/use-collection-stats";
@@ -66,10 +65,14 @@ import { resolveTopLevelUnits } from "@/lib/filter-sections";
 import { getFilterIconPath } from "@/lib/icons";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { FilterSearch } from "@/lib/search-schemas";
-import type { DomainCount, RarityCount } from "@/lib/stat-types";
+import type {
+  CompletionCountMode,
+  CompletionGroupBy,
+  DomainCount,
+  RarityCount,
+} from "@/lib/stat-types";
 import { buildMissingSearch } from "@/lib/stats-missing-search";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
-import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 
 function StatsHeroStats({ stats }: { stats: CollectionStats }) {

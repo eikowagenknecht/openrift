@@ -226,8 +226,7 @@ vi.mock("@/hooks/use-owned-count", () => ({
   useOwnedCount: () => ({ data: undefined }),
 }));
 
-vi.mock("@/components/cards/card-thumbnail", async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock("@/hooks/use-card-thumbnail-display", () => ({
   useCardThumbnailDisplay: () => ({ favoriteMarketplace: null, prices: undefined }),
 }));
 
@@ -278,13 +277,8 @@ vi.mock("@/components/list/list-import-dialog", () => ({ ListImportDialog: () =>
 vi.mock("@/components/list/rule-editor-dialog", () => ({ RuleEditorDialog: () => null }));
 vi.mock("@/components/share/binder-sheet-dialog", () => ({ BinderSheetDialog: () => null }));
 
-vi.mock("@/routes/_app/_authenticated/collections/route", async () => {
-  const { createContext } = await import("react");
-  return { TopBarSlotContext: createContext<HTMLElement | null>(null) };
-});
-
 const { ListPage } = await import("./list-page");
-const { TopBarSlotContext } = await import("@/routes/_app/_authenticated/collections/route");
+const { TopBarSlotContext } = await import("@/components/layout/top-bar-slot");
 const { FilterSearchProvider } = await import("@/lib/search-schemas");
 const { useCardRowActionsStore } = await import("@/stores/card-row-actions-store");
 const { useGridFocusStore } = await import("@/stores/grid-focus-store");

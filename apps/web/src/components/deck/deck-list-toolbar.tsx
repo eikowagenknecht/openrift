@@ -10,8 +10,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckListFilters } from "@/hooks/use-deck-list-filters";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
-import type { DeckListFilterAvailability, DeckListFilterCounts } from "@/lib/deck-list-utils";
-import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
+import type {
+  DeckListFilterAvailability,
+  DeckListFilterCounts,
+  DeckListGroupBy,
+  DeckListSortField,
+} from "@/lib/deck-list-utils";
 import { useDeckListPrefsStore, useDeckListViewPrefs } from "@/stores/deck-list-prefs-store";
 
 import { DeckActiveFilters } from "./deck-active-filters";

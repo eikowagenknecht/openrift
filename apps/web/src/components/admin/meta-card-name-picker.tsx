@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { CardPickerButton } from "@/components/cards/card-picker-button";
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
+import { cardSearchLeading } from "@/components/cards/printing-option-content";
 import { useResolveMetaOverlayName } from "@/hooks/use-admin-meta-overlays";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 
@@ -12,7 +13,7 @@ import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 export function MetaCardNamePicker({ name }: { name: string }) {
   const resolveName = useResolveMetaOverlayName();
   const [search, setSearch] = useState("");
-  const results = useCatalogCardSearch(search);
+  const results = useCatalogCardSearch(search, undefined, cardSearchLeading);
 
   async function handlePick(cardId: string) {
     const cardName = results.find((result) => result.id === cardId)?.label ?? "that card";

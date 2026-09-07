@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { buildKeysetCursor } from "../lib/keyset-cursor.js";
 import {
   OGS_SET,
   PRINTING_1,
@@ -11,7 +12,6 @@ import { createDbContext, seedTestUser } from "../test/integration-context.js";
 import { collectionDeckbuildingPrefsRepo } from "./collection-deckbuilding-prefs.js";
 import { collectionsRepo } from "./collections.js";
 import { copiesRepo } from "./copies.js";
-import { buildKeysetCursor } from "./query-helpers.js";
 
 const ctx = createDbContext("a0000000-0027-4000-a000-000000000001");
 

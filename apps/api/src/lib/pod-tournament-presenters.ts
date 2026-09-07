@@ -1,7 +1,8 @@
 import { pointsForPlacements, swissPointsForPlacements } from "@openrift/shared";
 import type { PodResponse, PodRoundResponse } from "@openrift/shared";
 
-import type { Pod, PodRound, PodScoring } from "../repositories/pod-tournaments.js";
+import type { Pod, PodRound } from "../repositories/pod-tournaments.js";
+import type { PodScoring } from "./pod-scoring.js";
 
 /**
  * Points are never stored: both the round responses here and `foldFinalized`

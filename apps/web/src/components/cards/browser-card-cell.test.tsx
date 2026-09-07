@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
-import type { WishEntryFlat } from "@/hooks/use-wish-entries";
+import type { CardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
+import type { WishEntryFlat } from "@/lib/wish-entry";
 import { useCardRowActionsStore } from "@/stores/card-row-actions-store";
 import { stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";

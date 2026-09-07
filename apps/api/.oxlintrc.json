@@ -3,5 +3,96 @@
   "rules": {
     "no-restricted-imports": "off"
   },
-  "ignorePatterns": ["node_modules/", "dist/"]
+  "ignorePatterns": ["node_modules/", "dist/"],
+  "overrides": [
+    {
+      // Imports point down the layer order db < repositories < lib < services < routes
+      // (docs/contributing.md, API module layout). Type imports may point anywhere.
+      "files": ["src/routes/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/repositories/**"],
+                "allowTypeImports": true,
+                "message": "Routes reach repositories through c.get(\"repos\"). A helper a route needs belongs in lib/."
+              },
+              {
+                "group": ["**/db/index.js", "kysely"],
+                "allowTypeImports": true,
+                "message": "Routes never touch db / Kysely. Add a repository method."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/services/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/routes/**"],
+                "message": "services/ sits below routes/. Move the schema or type down into lib/ or the shared contract."
+              },
+              {
+                "group": ["**/db/index.js", "kysely"],
+                "allowTypeImports": true,
+                "message": "Services never touch db / Kysely. Add a repository method."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/lib/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/routes/**", "**/services/**"],
+                "message": "lib/ sits below services/ and routes/. A read-only or pure helper a service exports belongs in lib/."
+              },
+              {
+                "group": ["**/db/index.js", "kysely"],
+                "allowTypeImports": true,
+                "message": "lib/ takes Repos, never db / Kysely. Add a repository method."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/repositories/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/routes/**", "**/services/**"],
+                "message": "repositories/ sits below services/ and routes/. Move what you need down into lib/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Integration tests seed through repository modules directly.
+      "files": ["src/**/*.test.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
 }

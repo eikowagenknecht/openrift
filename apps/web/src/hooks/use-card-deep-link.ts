@@ -2,7 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
-import type { CardViewerItem } from "@/components/card-viewer-types";
+import type { CardViewerItem } from "@/lib/card-viewer-types";
 import { useSelectionStore } from "@/stores/selection-store";
 
 interface Options {

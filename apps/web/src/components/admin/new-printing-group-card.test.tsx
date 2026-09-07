@@ -1,8 +1,8 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { PrintingGroup } from "@/components/admin/candidate-spreadsheet";
 import type * as CardDetailShared from "@/components/admin/card-detail-shared";
+import type { PrintingGroup } from "@/lib/candidate-printing-groups";
 
 const spreadsheetProps: { costKeywords?: readonly string[] } = {};
 vi.mock("@/components/admin/candidate-spreadsheet", () => ({

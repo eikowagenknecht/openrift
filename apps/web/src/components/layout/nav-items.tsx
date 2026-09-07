@@ -29,15 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-export type LockedFeatureKey =
-  | "collections"
-  | "scan"
-  | "groups"
-  | "loans"
-  | "tournaments"
-  | "tierLists"
-  | "contribute";
+import type { LockedFeatureKey, NavBadgeCounts, NavItemConfig } from "@/lib/nav-items";
 
 const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -91,31 +83,14 @@ const LOCKED_FEATURES: Record<
   },
 };
 
-export interface NavBadgeCounts {
-  groups: number;
-  loans: number;
-}
-
-// PRIMARY_NAV_ITEMS renders as the desktop top-level links and the first block
-// of the mobile sheet; MORE_NAV_SECTIONS renders in the desktop "More" panel
-// and as titled groups in the mobile sheet.
-export interface NavItemConfig {
-  label: string;
-  to: string;
-  icon: typeof LayersIcon;
-  description?: string;
-  keepSearch?: boolean;
-  lockedKey?: LockedFeatureKey;
-  badge?: keyof NavBadgeCounts;
-  flag?: "glossary" | "meta";
-  platform?: "mobile" | "desktop";
-}
-
 export interface NavSectionConfig {
   label: string;
   items: NavItemConfig[];
 }
 
+// Renders as the desktop top-level links and the mobile sheet's first block.
+// MORE_NAV_SECTIONS below renders in the desktop "More" panel and as titled
+// groups in the mobile sheet.
 export const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { label: "Cards", to: "/cards", icon: LayersIcon, keepSearch: true },
   { label: "Collection", to: "/collections", icon: LibraryIcon, lockedKey: "collections" },

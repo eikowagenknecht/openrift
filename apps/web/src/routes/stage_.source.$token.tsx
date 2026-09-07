@@ -3,8 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { catalogQueryOptions } from "@/hooks/catalog-query";
 import { initQueryOptions } from "@/hooks/use-init";
-import { catalogQueryOptions } from "@/lib/catalog-query";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 

@@ -13,7 +13,6 @@ import { toast } from "sonner";
 
 import { CardCell } from "@/components/cards/card-cell";
 import { CardStrip, StripIconButton } from "@/components/cards/card-strip";
-import { useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { FixCardDialog } from "@/components/deck-check/deck-check-entry-dialogs";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
@@ -21,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Pressable } from "@/components/ui/pressable";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useCardThumbnailDisplay } from "@/hooks/use-card-thumbnail-display";
 import { useCards } from "@/hooks/use-cards";
 import { useEnumOrders, useZoneOrder } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -28,9 +28,10 @@ import {
   useRemoveTournamentDeckCheckCard,
   useTickTournamentDeckCheckCard,
 } from "@/hooks/use-tournament-deck-check";
+import type { DeckCheckSort } from "@/lib/deck-check-sort";
 import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { cn } from "@/lib/utils";
-import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
+import type { DeckCheckDisplayMode } from "@/stores/deck-check-view-store";
 
 interface HoveredPreview {
   thumbnailUrl: string;

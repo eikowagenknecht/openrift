@@ -18,7 +18,7 @@ import type {
   DeckCheckEvent,
   DeckCheckEventWithCounts,
 } from "../repositories/deck-check.js";
-import { buildEntryAdvisories } from "../services/deck-check-advisories.js";
+import { buildEntryAdvisories } from "./deck-check-advisories.js";
 
 /** Exported because the player router presents the same `eventDate` field. */
 export function isoDate(value: Date | string | null): string | null {

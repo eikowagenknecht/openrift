@@ -6,13 +6,13 @@ import { useEffect } from "react";
 
 import { PageTopBarIconButton } from "@/components/layout/page-top-bar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { allCards } from "@/hooks/use-deck-builder";
-import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
   applyDeckSnapshot,
   useDeckDraftCollection,
   useDeckDraftScope,
-} from "@/lib/deck-builder-collection";
+} from "@/hooks/deck-builder-collection";
+import { allCards } from "@/hooks/use-deck-builder";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { useDeckUndoStore } from "@/stores/deck-undo-store";
 
 type DeckCollection = Collection<DeckBuilderCard, string | number>;

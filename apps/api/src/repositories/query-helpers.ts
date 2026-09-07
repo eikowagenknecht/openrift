@@ -1,4 +1,4 @@
-import { ERROR_CODES, legendDisplayName } from "@openrift/shared";
+import { legendDisplayName } from "@openrift/shared";
 import type { CardType, Finish, Rarity } from "@openrift/shared/types";
 import type {
   Expression,
@@ -19,7 +19,7 @@ import type {
   PrintingImagesTable,
   PrintingsTable,
 } from "../db/tables.js";
-import { AppError } from "../errors.js";
+import { parseKeysetCursor } from "../lib/keyset-cursor.js";
 
 /**
  * Resolves the image_files.id for a self-hosted image. NULL when the row
@@ -49,40 +49,6 @@ export function imageUrlWithOriginal(alias: string): RawBuilder<string | null> {
   return sql<
     string | null
   >`COALESCE(${sql.ref(`${alias}.rehostedUrl`)}, ${sql.ref(`${alias}.originalUrl`)})`;
-}
-
-const CURSOR_SEPARATOR = "_";
-
-/**
- * The matching reader is {@link keysetCursorPredicate}; `keysetCursorSchema`
- * in `@openrift/shared` validates the same grammar at the contract boundary.
- */
-export function buildKeysetCursor(createdAt: Date, id: string): string {
-  return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
-}
-
-export interface KeysetPage<TItem> {
-  items: TItem[];
-  nextCursor: string | null;
-}
-
-/**
- * Turns an over-fetched row set into a response page. The repositories fetch
- * `limit + 1` rows so the extra row proves another page exists; this drops it,
- * maps what remains, and builds the next cursor from the last kept row.
- */
-export function keysetPage<TRow extends { createdAt: Date; id: string }, TItem>(
-  rows: TRow[],
-  limit: number,
-  toItem: (row: TRow) => TItem,
-): KeysetPage<TItem> {
-  const hasMore = rows.length > limit;
-  const page = rows.slice(0, limit);
-  const last = page.at(-1);
-  return {
-    items: page.map((row) => toItem(row)),
-    nextCursor: hasMore && last ? buildKeysetCursor(last.createdAt, last.id) : null,
-  };
 }
 
 interface OwnedKeysetRow {
@@ -135,25 +101,6 @@ export async function listOwnedByUser<TRow>(
   }
   const rows = await query.execute();
   return rows as TRow[];
-}
-
-function parseKeysetCursor(cursor: string): { time: Date; id: string | null } {
-  const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
-  // Legacy timestamp-only cursor (backward compat during deploys) has no
-  // separator; either way, the part before it (or the whole string) must be
-  // a parseable timestamp.
-  const rawTime = separatorIndex === -1 ? cursor : cursor.slice(0, separatorIndex);
-  const time = new Date(rawTime);
-  if (Number.isNaN(time.getTime())) {
-    // The query schemas (keysetCursorSchema) already reject syntactically
-    // invalid cursors before this runs; this is a defensive backstop against
-    // any other caller passing an unvalidated cursor straight through.
-    throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid cursor");
-  }
-  return {
-    time,
-    id: separatorIndex === -1 ? null : cursor.slice(separatorIndex + 1),
-  };
 }
 
 /**

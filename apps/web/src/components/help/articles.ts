@@ -1,4 +1,3 @@
-import type { LucideIcon } from "lucide-react";
 import {
   ArrowRightLeftIcon,
   BookOpenIcon,
@@ -16,19 +15,10 @@ import {
   UsersIcon,
   WebhookIcon,
 } from "lucide-react";
-import type { ComponentType } from "react";
 
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled } from "@/lib/feature-flags";
-
-export interface HelpArticle {
-  slug: string;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  component: () => Promise<{ default: ComponentType }>;
-  featureFlag?: string;
-}
+import type { HelpArticle } from "@/lib/help-article";
 
 export const helpArticles = new Map<string, HelpArticle>([
   [

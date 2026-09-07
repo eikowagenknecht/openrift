@@ -11,7 +11,7 @@ import type {
   MappingPrinting,
   StagedProduct,
   UnifiedMappingGroup,
-} from "./price-mappings-types";
+} from "@/lib/price-mappings-types";
 
 const SUGGESTION_THRESHOLD = 100;
 

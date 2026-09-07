@@ -1,7 +1,7 @@
 import { formatDay, imageUrl, legendDisplayName } from "@openrift/shared";
 
-import { CARD_BORDER_RADIUS } from "@/components/cards/card-grid-constants";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import { CARD_BORDER_RADIUS } from "@/lib/card-grid-constants";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
