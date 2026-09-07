@@ -30,20 +30,20 @@ describe("buildVariantGroups", () => {
     );
 
     expect(groups).toHaveLength(1);
-    expect(groups[0].total).toBe(3);
-    expect(groups[0].locations.map((location) => location.collectionId)).toEqual([
+    expect(groups[0]!.total).toBe(3);
+    expect(groups[0]!.locations.map((location) => location.collectionId)).toEqual([
       "inbox",
       "binder-a",
     ]);
-    expect(groups[0].addCandidates.map((collection) => collection.id)).toEqual(["binder-b"]);
+    expect(groups[0]!.addCandidates.map((collection) => collection.id)).toEqual(["binder-b"]);
   });
 
   it("gives an unowned variant a zero total, no locations, and every collection as a candidate", () => {
     const groups = buildVariantGroups([printing("p1")], [], personalCollections);
 
-    expect(groups[0].total).toBe(0);
-    expect(groups[0].locations).toEqual([]);
-    expect(groups[0].addCandidates.map((collection) => collection.id)).toEqual([
+    expect(groups[0]!.total).toBe(0);
+    expect(groups[0]!.locations).toEqual([]);
+    expect(groups[0]!.addCandidates.map((collection) => collection.id)).toEqual([
       "inbox",
       "binder-a",
       "binder-b",
@@ -65,7 +65,7 @@ describe("buildVariantGroups", () => {
       personalCollections,
     );
 
-    expect(groups[0].locations.map((location) => location.collectionId)).toEqual([
+    expect(groups[0]!.locations.map((location) => location.collectionId)).toEqual([
       "inbox",
       "binder-b",
     ]);
@@ -84,8 +84,8 @@ describe("buildVariantGroups", () => {
     );
 
     expect(groups.map((group) => group.printing.id)).toEqual(["p1", "p2"]);
-    expect(groups[0].total).toBe(0);
-    expect(groups[1].total).toBe(1);
+    expect(groups[0]!.total).toBe(0);
+    expect(groups[1]!.total).toBe(1);
   });
 
   it("sorts the viewed collection first so `remove` highlights the row the user opened", () => {
@@ -104,7 +104,7 @@ describe("buildVariantGroups", () => {
       "binder-a",
     );
 
-    expect(groups[0].locations.map((location) => location.collectionId)).toEqual([
+    expect(groups[0]!.locations.map((location) => location.collectionId)).toEqual([
       "binder-a",
       "inbox",
     ]);
@@ -123,9 +123,9 @@ describe("buildVariantGroups", () => {
       "bulk-box",
     );
 
-    expect(groups[0].total).toBe(4);
-    expect(groups[0].locations.map((location) => location.collectionId)).toEqual(["bulk-box"]);
-    expect(groups[0].addCandidates.map((collection) => collection.id)).toEqual([
+    expect(groups[0]!.total).toBe(4);
+    expect(groups[0]!.locations.map((location) => location.collectionId)).toEqual(["bulk-box"]);
+    expect(groups[0]!.addCandidates.map((collection) => collection.id)).toEqual([
       "inbox",
       "binder-a",
       "binder-b",
@@ -141,7 +141,7 @@ describe("ownedCountInCollection", () => {
       [printing("p1")],
       [{ printingId: "p1", collections }],
       personalCollections,
-    )[0];
+    )[0]!;
 
   it("returns the copy count held in the given collection", () => {
     const group = groupWith([
@@ -160,7 +160,7 @@ describe("ownedCountInCollection", () => {
   });
 
   it("returns 0 for an unowned variant with no locations", () => {
-    const group = buildVariantGroups([printing("p1")], [], personalCollections)[0];
+    const group = buildVariantGroups([printing("p1")], [], personalCollections)[0]!;
 
     expect(ownedCountInCollection(group, "inbox")).toBe(0);
   });
@@ -176,7 +176,7 @@ describe("ownedCountInCollection", () => {
       ],
       personalCollections,
       "bulk-box",
-    )[0];
+    )[0]!;
 
     expect(ownedCountInCollection(group, "bulk-box")).toBe(4);
   });

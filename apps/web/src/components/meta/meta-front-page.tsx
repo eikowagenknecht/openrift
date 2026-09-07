@@ -213,6 +213,7 @@ export function MetaFrontPage() {
   const deckResults = events.reduce((total, event) => total + event.deckCount, 0);
   const showActivity = !isScopeCustomized(search) && (search.q ?? "").trim() === "";
   const hasRail = sections.upcoming.length > 0 || (showActivity && activityData.items.length > 0);
+  const nextUpcoming = sections.upcoming.at(0);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -259,8 +260,8 @@ export function MetaFrontPage() {
               </>
             ) : (
               <>
-                {sections.upcoming.length > 0 && (
-                  <UpcomingTeaser next={sections.upcoming[0]} count={sections.upcoming.length} />
+                {nextUpcoming && (
+                  <UpcomingTeaser next={nextUpcoming} count={sections.upcoming.length} />
                 )}
 
                 <div

@@ -14,20 +14,20 @@ describe("OrnamentRule", () => {
     expect(el.getAttribute("aria-hidden")).toBe("true");
     expect(el.className).toContain("w-40");
     const [left, right] = el.querySelectorAll("span");
-    expect(left.className).toContain("text-border-accent");
-    expect(left.className).toContain("bg-linear-to-l");
-    expect(left.className).not.toContain("from-75%");
-    expect(right.className).toContain("bg-linear-to-r");
+    expect(left!.className).toContain("text-border-accent");
+    expect(left!.className).toContain("bg-linear-to-l");
+    expect(left!.className).not.toContain("from-75%");
+    expect(right!.className).toContain("bg-linear-to-r");
     expect(el.querySelectorAll("svg")).toHaveLength(1);
   });
 
   it("fades only the tips of a long divider", () => {
     render(<OrnamentRule fade="tips" />);
     const [left, right] = slot("ornament-rule").querySelectorAll("span");
-    expect(left.className).toContain("from-75%");
-    expect(left.className).toContain("bg-linear-to-l");
-    expect(right.className).toContain("from-75%");
-    expect(right.className).toContain("bg-linear-to-r");
+    expect(left!.className).toContain("from-75%");
+    expect(left!.className).toContain("bg-linear-to-l");
+    expect(right!.className).toContain("from-75%");
+    expect(right!.className).toContain("bg-linear-to-r");
   });
 
   it("frames a label between two gems and stays readable", () => {

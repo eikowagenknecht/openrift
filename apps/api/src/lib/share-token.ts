@@ -12,7 +12,7 @@ export function generateShareToken(): string {
     crypto.getRandomValues(buf);
     for (const byte of buf) {
       if (byte < threshold) {
-        out.push(SHARE_TOKEN_ALPHABET[byte % SHARE_TOKEN_ALPHABET.length]);
+        out.push(SHARE_TOKEN_ALPHABET.charAt(byte % SHARE_TOKEN_ALPHABET.length));
         if (out.length === SHARE_TOKEN_LENGTH) {
           break;
         }

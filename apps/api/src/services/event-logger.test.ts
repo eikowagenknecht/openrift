@@ -45,7 +45,7 @@ describe("logEvents", () => {
 
     await logEvents(repos, [{ userId: "user-1", action: "added", printingId: "p-1" }]);
 
-    const inserted = insertSpy.mock.calls[0][0][0];
+    const inserted = insertSpy.mock.calls[0]![0][0]!;
     expect(inserted.copyId).toBeNull();
     expect(inserted.fromCollectionId).toBeNull();
     expect(inserted.fromCollectionName).toBeNull();
@@ -69,6 +69,6 @@ describe("logEvents", () => {
       { userId: "user-1", action: "removed", printingId: "p-2" },
     ]);
 
-    expect(insertSpy.mock.calls[0][0]).toHaveLength(2);
+    expect(insertSpy.mock.calls[0]![0]).toHaveLength(2);
   });
 });

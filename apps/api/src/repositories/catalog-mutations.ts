@@ -409,7 +409,8 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
       },
       normalizedName: string,
     ): Promise<void> {
-      if (cardFields.types.length === 0) {
+      const [primaryType] = cardFields.types;
+      if (primaryType === undefined) {
         throw new Error("A card must have at least one type");
       }
       const { id: cardUuid } = await db
@@ -417,7 +418,7 @@ export function catalogMutationsRepo(db: Kysely<Database>) {
         .values({
           slug: cardFields.id,
           name: cardFields.name,
-          type: cardFields.types[0],
+          type: primaryType,
           might: cardFields.might ?? null,
           energy: cardFields.energy ?? null,
           power: cardFields.power ?? null,

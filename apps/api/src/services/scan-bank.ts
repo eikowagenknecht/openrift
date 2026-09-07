@@ -124,11 +124,19 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
         [batch.length, 3, imageSize, imageSize],
       ),
     });
+    const imageEmbeds = output.image_embeds;
+    if (imageEmbeds === undefined) {
+      throw new Error("Scan embedding session returned no image_embeds output");
+    }
     const embedded = normalizeEmbeddings(
-      Float32Array.from(output.image_embeds.data as Float32Array),
+      Float32Array.from(imageEmbeds.data as Float32Array),
       batch.length,
     );
     for (const [i, row] of batch.entries()) {
+      const vector = embedded[i];
+      if (vector === undefined) {
+        continue;
+      }
       keys.push(row.imageId);
       labels[row.imageId] = {
         name: row.name,
@@ -140,7 +148,7 @@ export async function rebuildScanBank(deps: ScanBankDeps): Promise<ScanBankBuild
         markers: row.markersMin === row.markersMax ? row.markersMin : null,
       };
       artKeys.set(row.imageId, scanArtKey(row));
-      vectors.push(embedded[i]);
+      vectors.push(vector);
       if (watermark === null || row.createdAt > watermark) {
         watermark = row.createdAt;
       }

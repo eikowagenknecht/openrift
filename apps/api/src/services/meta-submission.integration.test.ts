@@ -39,7 +39,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  createdCardIds.push(spell.id);
+  createdCardIds.push(spell!.id);
   await syncCardCardTypes(db);
 
   const event = await metaRepo(db).createEvent({

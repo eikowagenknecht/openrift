@@ -43,7 +43,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       })
       .returning("id")
       .execute();
-    imagePrintingId = imagePrinting.id;
+    imagePrintingId = imagePrinting!.id;
 
     // The public catalog only surfaces images with a non-null rehosted_url.
     const [imageFile] = await db
@@ -54,7 +54,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       })
       .returning("id")
       .execute();
-    imageFileId = imageFile.id;
+    imageFileId = imageFile!.id;
 
     await db
       .insertInto("printingImages")
@@ -103,7 +103,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         })
         .returning("id")
         .execute();
-      productId = product.id;
+      productId = product!.id;
 
       await db
         .insertInto("marketplaceProductVariants")

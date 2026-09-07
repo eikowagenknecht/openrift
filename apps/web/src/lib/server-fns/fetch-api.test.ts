@@ -47,7 +47,7 @@ describe("fetchApi", () => {
 
     await fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x", cookie: "session=abc" });
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.headers).toMatchObject({ cookie: "session=abc" });
   });
 
@@ -62,7 +62,7 @@ describe("fetchApi", () => {
       body: { name: "A" },
     });
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.headers).toMatchObject({ "content-type": "application/json" });
     expect(init.body).toBe(JSON.stringify({ name: "A" }));
   });
@@ -244,7 +244,7 @@ describe("fetchApi traceparent injection", () => {
       }
     });
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.headers.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-/u);
   });
 
@@ -260,7 +260,7 @@ describe("fetchApi traceparent injection", () => {
 
     await fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" });
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init.headers.traceparent).toBeUndefined();
   });
 });

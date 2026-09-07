@@ -49,8 +49,7 @@ export function encodeTTS(cards: DeckCodecCard[]): EncodeResult {
 
 /** TTS exports codes like "OGN-269-1" but the catalog uses "OGN-269". */
 function stripTTSVariant(token: string): string {
-  const match = /^(?<base>[A-Z]+-\d+)-\d+$/u.exec(token);
-  return match ? match[1] : token;
+  return /^(?<base>[A-Z]+-\d+)-\d+$/u.exec(token)?.[1] ?? token;
 }
 
 /** Formats whose complete-deck layout the decoder recognizes. Freeform has no fixed counts. */

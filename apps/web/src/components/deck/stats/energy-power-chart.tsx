@@ -89,10 +89,14 @@ function buildChartConfig(
 ): ChartConfig {
   const config: ChartConfig = {};
   for (const stack of stacks) {
-    const isMulti = stack.domains.length > 1;
+    const [first, ...others] = stack.domains;
+    if (first === undefined) {
+      continue;
+    }
+    const isMulti = others.length > 0;
     config[`${prefix}_${stack.key}`] = {
       label: stack.domains.map((domain) => domainLabels[domain]).join(" + "),
-      color: isMulti ? "#737373" : getDomainColor(stack.domains[0], colors),
+      color: isMulti ? "#737373" : getDomainColor(first, colors),
       ...(isMulti && {
         gradient: stack.domains.map((domain) => getDomainColor(domain, colors)),
       }),
@@ -107,8 +111,9 @@ function bucketLabel(value: unknown, axis: string): string {
 }
 
 function comboFill(stack: DomainCombo, colors: Record<string, string>): string {
-  if (stack.domains.length === 1) {
-    return getDomainColor(stack.domains[0], colors);
+  const [first, ...others] = stack.domains;
+  if (first !== undefined && others.length === 0) {
+    return getDomainColor(first, colors);
   }
   return `url(#gradient-${stack.key})`;
 }

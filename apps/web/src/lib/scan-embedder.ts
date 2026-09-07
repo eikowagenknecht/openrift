@@ -129,7 +129,11 @@ export async function loadScanEmbedder(
       const output = await session.run({
         pixel_values: new ort.Tensor("float32", slice, [count, 3, size, size]),
       });
-      return output.image_embeds.data as Float32Array;
+      const embeds = output.image_embeds;
+      if (embeds === undefined) {
+        throw new Error("scan-embedder: session returned no image_embeds output");
+      }
+      return embeds.data as Float32Array;
     };
   })();
   try {

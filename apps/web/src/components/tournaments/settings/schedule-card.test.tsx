@@ -78,7 +78,7 @@ describe("ScheduleCard validation", () => {
     const user = userEvent.setup();
     render(<ScheduleCard detail={makeDetail()} locked={false} canEndEarly={false} />);
 
-    await user.type(dateInputs()[1], START_DATE);
+    await user.type(dateInputs()[1]!, START_DATE);
     await user.type(screen.getByLabelText("End time (24h)"), "09:00");
 
     expect(screen.getByText(/end must be at or after the start/u)).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("ScheduleCard validation", () => {
     const user = userEvent.setup();
     render(<ScheduleCard detail={makeDetail()} locked={false} canEndEarly={false} />);
 
-    await user.type(dateInputs()[1], "2026-06-11");
+    await user.type(dateInputs()[1]!, "2026-06-11");
 
     expect(screen.getByText(/or leave both blank/u)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save schedule" })).toBeDisabled();
@@ -110,7 +110,7 @@ describe("ScheduleCard validation", () => {
     const user = userEvent.setup();
     render(<ScheduleCard detail={makeDetail()} locked={false} canEndEarly={false} />);
 
-    await user.type(dateInputs()[1], START_DATE);
+    await user.type(dateInputs()[1]!, START_DATE);
     await user.type(screen.getByLabelText("End time (24h)"), START_TIME);
 
     expect(screen.queryByText(/end must be at or after the start/u)).not.toBeInTheDocument();
@@ -144,7 +144,7 @@ describe("ScheduleCard saving", () => {
       />,
     );
 
-    await user.clear(dateInputs()[1]);
+    await user.clear(dateInputs()[1]!);
     await user.clear(screen.getByLabelText("End time (24h)"));
     await user.click(screen.getByRole("button", { name: "Save schedule" }));
 

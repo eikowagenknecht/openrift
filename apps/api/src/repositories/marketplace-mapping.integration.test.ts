@@ -62,7 +62,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       },
     ]);
     expect(first).toHaveLength(1);
-    expect(first[0].printingId).toBe(enPrintingId);
+    expect(first[0]!.printingId).toBe(enPrintingId);
 
     const second = await repo.upsertProductVariants([
       {
@@ -76,7 +76,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       },
     ]);
     expect(second).toHaveLength(1);
-    expect(second[0].printingId).toBe(scPrintingId);
+    expect(second[0]!.printingId).toBe(scPrintingId);
 
     const rows = await db
       .selectFrom("marketplaceProductVariants as mpv")
@@ -139,7 +139,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       },
     ]);
     expect(again).toHaveLength(1);
-    expect(again[0].printingId).toBe(enPrintingId);
+    expect(again[0]!.printingId).toBe(enPrintingId);
 
     const enRows = await db
       .selectFrom("marketplaceProductVariants as mpv")
@@ -206,8 +206,8 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       const mine = rows.filter((r) => r.externalId === historyExternalId);
 
       expect(mine).toHaveLength(1);
-      expect(mine[0].marketCents).toBe(300);
-      expect(mine[0].recordedAt).toEqual(new Date("2026-01-03T00:00:00Z"));
+      expect(mine[0]!.marketCents).toBe(300);
+      expect(mine[0]!.recordedAt).toEqual(new Date("2026-01-03T00:00:00Z"));
     });
 
     it("keeps each finish's own price when two SKUs share an externalId on one printing", async () => {
@@ -293,9 +293,9 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       const mine = rows.filter((r) => r.externalId === unboundExternalId);
 
       expect(mine).toHaveLength(1);
-      expect(mine[0].language).toBeNull();
-      expect(mine[0].marketCents).toBe(250);
-      expect(mine[0].recordedAt).toEqual(new Date("2026-03-02T00:00:00Z"));
+      expect(mine[0]!.language).toBeNull();
+      expect(mine[0]!.marketCents).toBe(250);
+      expect(mine[0]!.recordedAt).toEqual(new Date("2026-03-02T00:00:00Z"));
     });
 
     it("excludes SKUs that already have a variant binding", async () => {
@@ -351,7 +351,7 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
       }
       const own = mine.filter((r) => r.targetPrintingId === enPrintingId);
       expect(own.length).toBeGreaterThanOrEqual(1);
-      expect(own[0].ownerLanguage).toBe(printing.language);
+      expect(own[0]!.ownerLanguage).toBe(printing.language);
     });
   });
 });

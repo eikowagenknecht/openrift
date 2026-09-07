@@ -41,8 +41,8 @@ describe("buildRarityByCardKey", () => {
   it("maps entries via the resolver and skips unresolved ones", () => {
     const cards = [card({ cardId: "a" }), card({ cardId: "b" })];
     const map = buildRarityByCardKey(cards, (entry) => (entry.cardId === "a" ? "rare" : undefined));
-    expect(map.get(getDeckCardKey(cards[0]))).toBe("rare");
-    expect(map.has(getDeckCardKey(cards[1]))).toBe(false);
+    expect(map.get(getDeckCardKey(cards[0]!))).toBe("rare");
+    expect(map.has(getDeckCardKey(cards[1]!))).toBe(false);
   });
 });
 
@@ -54,19 +54,19 @@ describe("buildRarityRows", () => {
     card({ cardId: "d", quantity: 4, zone: "sideboard" }),
   ];
   const rarities = new Map([
-    [getDeckCardKey(cards[0]), "common"],
-    [getDeckCardKey(cards[1]), "rare"],
-    [getDeckCardKey(cards[2]), "rare"],
-    [getDeckCardKey(cards[3]), "epic"],
+    [getDeckCardKey(cards[0]!), "common"],
+    [getDeckCardKey(cards[1]!), "rare"],
+    [getDeckCardKey(cards[2]!), "rare"],
+    [getDeckCardKey(cards[3]!), "epic"],
   ]);
 
   it("counts main and champion cards into enum-ordered single-segment rows", () => {
     const rows = buildRarityRows(cards, rarities, RARITY_ORDER, RARITY_LABELS);
     expect(rows.map((row) => row.key)).toEqual(["common", "rare"]);
-    expect(rows[0].total).toBe(3);
-    expect(rows[1].total).toBe(3);
-    expect(rows[1].label).toBe("3 Rare");
-    expect(rows[1].segments).toEqual({ rare: 3 });
+    expect(rows[0]!.total).toBe(3);
+    expect(rows[1]!.total).toBe(3);
+    expect(rows[1]!.label).toBe("3 Rare");
+    expect(rows[1]!.segments).toEqual({ rare: 3 });
   });
 
   it("skips entries with no resolved rarity", () => {
@@ -93,7 +93,7 @@ describe("rarityLensSeries", () => {
       [{ key: "mythic", label: "1 Mythic", total: 1, segments: { mythic: 1 } }],
       { mythic: "Mythic" },
     );
-    expect(series[0].color).toBe("var(--color-muted-foreground)");
+    expect(series[0]!.color).toBe("var(--color-muted-foreground)");
   });
 });
 
@@ -104,9 +104,9 @@ describe("buildOwnershipRows", () => {
     card({ cardId: "c", quantity: 4, zone: "sideboard" }),
   ];
   const segments = new Map<string, OwnershipBandSegments>([
-    [getDeckCardKey(cards[0]), { exact: 2, other: 0, borrowed: 0, locked: 0, missing: 1 }],
-    [getDeckCardKey(cards[1]), { exact: 0, other: 2, borrowed: 0, locked: 0, missing: 0 }],
-    [getDeckCardKey(cards[2]), { exact: 4, other: 0, borrowed: 0, locked: 0, missing: 0 }],
+    [getDeckCardKey(cards[0]!), { exact: 2, other: 0, borrowed: 0, locked: 0, missing: 1 }],
+    [getDeckCardKey(cards[1]!), { exact: 0, other: 2, borrowed: 0, locked: 0, missing: 0 }],
+    [getDeckCardKey(cards[2]!), { exact: 4, other: 0, borrowed: 0, locked: 0, missing: 0 }],
   ]);
 
   it("sums copies per class over the main deck and champion only", () => {
@@ -120,7 +120,7 @@ describe("buildOwnershipRows", () => {
   });
 
   it("keeps zero-count classes as zero rows", () => {
-    const rows = buildOwnershipRows([cards[0]], segments);
+    const rows = buildOwnershipRows([cards[0]!], segments);
     expect(rows.find((row) => row.key === "other")?.total).toBe(0);
   });
 
@@ -132,7 +132,7 @@ describe("buildOwnershipRows", () => {
   it("counts locked copies as missing", () => {
     const lockedCards = [card({ cardId: "a", quantity: 3 })];
     const lockedSegments = new Map<string, OwnershipBandSegments>([
-      [getDeckCardKey(lockedCards[0]), { exact: 1, other: 0, borrowed: 0, locked: 1, missing: 1 }],
+      [getDeckCardKey(lockedCards[0]!), { exact: 1, other: 0, borrowed: 0, locked: 1, missing: 1 }],
     ]);
     const rows = buildOwnershipRows(lockedCards, lockedSegments);
     expect(rows.find((row) => row.key === "missing")?.total).toBe(2);
@@ -142,7 +142,7 @@ describe("buildOwnershipRows", () => {
     const borrowedCards = [card({ cardId: "a", quantity: 3 })];
     const borrowedSegments = new Map<string, OwnershipBandSegments>([
       [
-        getDeckCardKey(borrowedCards[0]),
+        getDeckCardKey(borrowedCards[0]!),
         { exact: 1, other: 0, borrowed: 2, locked: 0, missing: 0 },
       ],
     ]);
@@ -161,32 +161,32 @@ describe("focus key sets", () => {
 
   it("rarityFocusKeys collects matching main-deck entries only", () => {
     const rarities = new Map([
-      [getDeckCardKey(cards[0]), "rare"],
-      [getDeckCardKey(cards[1]), "common"],
-      [getDeckCardKey(cards[2]), "rare"],
+      [getDeckCardKey(cards[0]!), "rare"],
+      [getDeckCardKey(cards[1]!), "common"],
+      [getDeckCardKey(cards[2]!), "rare"],
     ]);
-    expect(rarityFocusKeys(cards, rarities, "rare")).toEqual(new Set([getDeckCardKey(cards[0])]));
+    expect(rarityFocusKeys(cards, rarities, "rare")).toEqual(new Set([getDeckCardKey(cards[0]!)]));
   });
 
   it("ownershipFocusKeys matches entries with at least one copy in the class", () => {
     const segments = new Map<string, OwnershipBandSegments>([
-      [getDeckCardKey(cards[0]), { exact: 2, other: 0, borrowed: 0, locked: 0, missing: 1 }],
-      [getDeckCardKey(cards[1]), { exact: 1, other: 0, borrowed: 0, locked: 0, missing: 0 }],
+      [getDeckCardKey(cards[0]!), { exact: 2, other: 0, borrowed: 0, locked: 0, missing: 1 }],
+      [getDeckCardKey(cards[1]!), { exact: 1, other: 0, borrowed: 0, locked: 0, missing: 0 }],
     ]);
     expect(ownershipFocusKeys(cards, segments, "missing")).toEqual(
-      new Set([getDeckCardKey(cards[0])]),
+      new Set([getDeckCardKey(cards[0]!)]),
     );
     expect(ownershipFocusKeys(cards, segments, "exact")).toEqual(
-      new Set([getDeckCardKey(cards[0]), getDeckCardKey(cards[1])]),
+      new Set([getDeckCardKey(cards[0]!), getDeckCardKey(cards[1]!)]),
     );
   });
 
   it("ownershipFocusKeys counts a locked-only shortfall as missing", () => {
     const segments = new Map<string, OwnershipBandSegments>([
-      [getDeckCardKey(cards[0]), { exact: 2, other: 0, borrowed: 0, locked: 1, missing: 0 }],
+      [getDeckCardKey(cards[0]!), { exact: 2, other: 0, borrowed: 0, locked: 1, missing: 0 }],
     ]);
     expect(ownershipFocusKeys(cards, segments, "missing")).toEqual(
-      new Set([getDeckCardKey(cards[0])]),
+      new Set([getDeckCardKey(cards[0]!)]),
     );
   });
 });

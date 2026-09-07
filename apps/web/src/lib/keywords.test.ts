@@ -13,8 +13,8 @@ const MOCK_STYLES: KeywordsResponse["items"] = {
 };
 
 const TRANSLATED_STYLES: KeywordsResponse["items"] = {
-  Accelerate: { ...MOCK_STYLES.Accelerate, translations: { fr: "Coup d’éclat" } },
-  Shield: { ...MOCK_STYLES.Shield, translations: { sc: "护盾" } },
+  Accelerate: { ...MOCK_STYLES.Accelerate!, translations: { fr: "Coup d’éclat" } },
+  Shield: { ...MOCK_STYLES.Shield!, translations: { sc: "护盾" } },
 };
 
 describe("getKeywordStyle", () => {

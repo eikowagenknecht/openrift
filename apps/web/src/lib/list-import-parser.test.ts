@@ -39,7 +39,7 @@ describe("parseCardListText", () => {
       sourceCode: "",
       setPrefix: "",
     });
-    expect(result.entries[1].cardName).toBe("Jinx, Rebel");
+    expect(result.entries[1]!.cardName).toBe("Jinx, Rebel");
   });
 
   it("skips blank lines without raising errors", () => {
@@ -53,8 +53,8 @@ describe("parseCardListText", () => {
     const result = parseCardListText("1 Kai'Sa, Survivor\n2 KaiSa Survivor\n1 Kai’Sa, Survivor");
     expect(result.errors).toEqual([]);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].quantity).toBe(4);
-    expect(result.entries[0].cardName).toBe("Kai'Sa, Survivor");
+    expect(result.entries[0]!.quantity).toBe(4);
+    expect(result.entries[0]!.cardName).toBe("Kai'Sa, Survivor");
   });
 
   it("reports malformed lines as errors and keeps parsing the rest", () => {
@@ -63,7 +63,7 @@ describe("parseCardListText", () => {
     expect(result.errors[0]).toContain("Line 1");
     expect(result.errors[1]).toContain("Line 3");
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].cardName).toBe("Jinx, Rebel");
+    expect(result.entries[0]!.cardName).toBe("Jinx, Rebel");
   });
 
   it("rejects non-positive quantities", () => {
@@ -71,7 +71,7 @@ describe("parseCardListText", () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain("greater than zero");
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].cardName).toBe("Jinx, Rebel");
+    expect(result.entries[0]!.cardName).toBe("Jinx, Rebel");
   });
 
   it("tolerates CRLF line endings (iOS clipboard round-trip)", () => {

@@ -83,7 +83,7 @@ describe("marketplaceAdminRepo", () => {
     ]);
     const result = await marketplaceAdminRepo(db).listIgnoredProducts();
     expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0].marketplace).toBe("tcgplayer");
+    expect(result[0]!.marketplace).toBe("tcgplayer");
   });
 
   it("getStagingProductNames returns names", async () => {

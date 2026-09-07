@@ -268,9 +268,9 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .deleteFrom("marketplaceIgnoredProducts")
         .where("marketplace", "=", marketplace)
         .where("externalId", "in", externalIds)
-        .execute();
+        .executeTakeFirstOrThrow();
 
-      return Number(result[0].numDeletedRows);
+      return Number(result.numDeletedRows);
     },
 
     async deleteIgnoredVariants(

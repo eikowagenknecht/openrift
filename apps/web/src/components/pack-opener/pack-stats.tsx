@@ -1,5 +1,5 @@
 import type { Marketplace, PackPull, PackResult, PriceLookup } from "@openrift/shared";
-import { WellKnown, legendDisplayName } from "@openrift/shared";
+import { WellKnown, enumLabel, legendDisplayName } from "@openrift/shared";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
       ? "Rune"
       : slug === WellKnown.artVariant.ULTIMATE
         ? "Ultimate"
-        : labels.rarities[slug];
+        : enumLabel(labels.rarities, slug);
   const [unpricedVisible, setUnpricedVisible] = useState(false);
 
   const rarityCounts: Record<string, number> = {};

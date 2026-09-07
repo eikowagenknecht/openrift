@@ -73,13 +73,12 @@ export function useStickyHeader({
       // the overlay never doubles up a header still sliding under the toolbar.
       let active: (VRow & { kind: "header" }) | null = null;
       let activeStart = 0;
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      for (const [i, row] of rows.entries()) {
         if (row.kind !== "header") {
           continue;
         }
         const start = measuredStarts.get(i) ?? starts[i];
-        if (start <= threshold + 1) {
+        if (start !== undefined && start <= threshold + 1) {
           active = row;
           activeStart = start;
         }

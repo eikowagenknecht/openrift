@@ -298,8 +298,8 @@ function PaletteInner({
       }
       if (expandedCardId) {
         const card = results.find((r) => r.cardId === expandedCardId);
-        if (card) {
-          const printing = card.printings[expandedIndex];
+        const printing = card?.printings[expandedIndex];
+        if (printing) {
           if (event.shiftKey) {
             void (inMoveMode ? move.undoMove(printing) : handleUndo(printing));
           } else {

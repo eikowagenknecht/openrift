@@ -3,7 +3,7 @@ import type {
   DeckCheckEntryDetailResponse,
   Printing,
 } from "@openrift/shared";
-import { WellKnown, cardSearchAltNames, legendDisplayName } from "@openrift/shared";
+import { WellKnown, cardSearchAltNames, enumLabel, legendDisplayName } from "@openrift/shared";
 import { useMemo, useState } from "react";
 
 import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
@@ -191,7 +191,7 @@ function CardNameSearchField({
   const results = useMatchingPrintings(printingsByCardId, query).map((printing) => ({
     id: printing.cardId,
     label: legendDisplayName(printing.card),
-    sublabel: printing.card.types.map((slug) => labels.cardTypes[slug]).join(" "),
+    sublabel: printing.card.types.map((slug) => enumLabel(labels.cardTypes, slug)).join(" "),
     leading: <PrintingThumbnail printing={printing} className="h-8" />,
   }));
 

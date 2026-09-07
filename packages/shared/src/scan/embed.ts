@@ -81,7 +81,8 @@ function triangleTaps(srcSize: number, dstSize: number): FilterTaps {
     }
     if (sum > 0) {
       for (let t = 0; t < taps; t++) {
-        weights[i * taps + t] /= sum;
+        const index = i * taps + t;
+        weights[index] = (weights[index] ?? 0) / sum;
       }
     }
   }
@@ -127,20 +128,20 @@ export function preprocessCardInto(
     const source = ((y + row) * image.width + x) * 4;
     const target = row * imageSize * 3;
     for (let column = 0; column < imageSize; column++) {
-      const start = horizontal.starts[column];
+      const start = horizontal.starts[column] ?? 0;
       const base = column * horizontal.taps;
       let r = 0;
       let g = 0;
       let b = 0;
       for (let tap = 0; tap < horizontal.taps; tap++) {
-        const weight = horizontal.weights[base + tap];
+        const weight = horizontal.weights[base + tap] ?? 0;
         if (weight === 0) {
           continue;
         }
         const pixel = source + (start + tap) * 4;
-        r += weight * image.data[pixel];
-        g += weight * image.data[pixel + 1];
-        b += weight * image.data[pixel + 2];
+        r += weight * (image.data[pixel] ?? 0);
+        g += weight * (image.data[pixel + 1] ?? 0);
+        b += weight * (image.data[pixel + 2] ?? 0);
       }
       rows[target + column * 3] = r * RESCALE;
       rows[target + column * 3 + 1] = g * RESCALE;
@@ -152,20 +153,23 @@ export function preprocessCardInto(
   const slotBase = slot * 3 * plane;
   out.fill(0, slotBase, slotBase + 3 * plane);
   for (let row = 0; row < imageSize; row++) {
-    const start = vertical.starts[row];
+    const start = vertical.starts[row] ?? 0;
     const base = row * vertical.taps;
     const target = slotBase + row * imageSize;
     for (let tap = 0; tap < vertical.taps; tap++) {
-      const weight = vertical.weights[base + tap];
+      const weight = vertical.weights[base + tap] ?? 0;
       if (weight === 0) {
         continue;
       }
       const source = (start + tap) * imageSize * 3;
       for (let column = 0; column < imageSize; column++) {
         const pixel = source + column * 3;
-        out[target + column] += weight * rows[pixel];
-        out[target + plane + column] += weight * rows[pixel + 1];
-        out[target + 2 * plane + column] += weight * rows[pixel + 2];
+        const red = target + column;
+        const green = target + plane + column;
+        const blue = target + 2 * plane + column;
+        out[red] = (out[red] ?? 0) + weight * (rows[pixel] ?? 0);
+        out[green] = (out[green] ?? 0) + weight * (rows[pixel + 1] ?? 0);
+        out[blue] = (out[blue] ?? 0) + weight * (rows[pixel + 2] ?? 0);
       }
     }
   }
@@ -182,7 +186,7 @@ export function normalizeEmbeddings(raw: Float32Array, count: number): Float32Ar
     }
     norm = Math.sqrt(norm) || 1;
     for (let i = 0; i < dim; i++) {
-      vector[i] /= norm;
+      vector[i] = (vector[i] ?? 0) / norm;
     }
     out.push(vector);
   }
@@ -249,18 +253,19 @@ export async function rankCardEmbedding(
     while (rotationCache.length <= rotation) {
       rotationCache.push(rotateRgbaCw(rotationCache.at(-1) ?? card));
     }
-    return rotationCache[rotation];
+    return rotationCache[rotation] ?? card;
   };
   preprocessCardInto(rotationAt(preferredRotation), kind, input, 0, imageSize);
   const first = normalizeEmbeddings(await embedder(input, 1), 1);
   const ranked = rankEmbedBank(bank, first, topK, [preferredRotation]);
-  if (ranked.length > 0 && ranked[0].distance <= confidentDistance) {
+  const closest = ranked[0];
+  if (closest && closest.distance <= confidentDistance) {
     return ranked;
   }
   if (!allowRotationFallback) {
     return ranked;
   }
-  if (ranked.length > 0 && ranked[0].distance <= rotationFallbackDistance) {
+  if (closest && closest.distance <= rotationFallbackDistance) {
     return ranked;
   }
   const others = pairOnly
@@ -270,7 +275,11 @@ export async function rankCardEmbedding(
     preprocessCardInto(rotationAt(rotation), kind, input, slot, imageSize);
   }
   const rest = normalizeEmbeddings(await embedder(input, others.length), others.length);
-  return rankEmbedBank(bank, [first[0], ...rest], topK, [preferredRotation, ...others]);
+  const query = first[0];
+  if (!query) {
+    return ranked;
+  }
+  return rankEmbedBank(bank, [query, ...rest], topK, [preferredRotation, ...others]);
 }
 
 export function rankEmbedBank(
@@ -281,21 +290,21 @@ export function rankEmbedBank(
 ): RankedEmbed[] {
   const ranked: RankedEmbed[] = [];
   const dim = bank.keys.length > 0 ? bank.vectors.length / bank.keys.length : 0;
-  for (let entry = 0; entry < bank.keys.length; entry++) {
+  for (const [entry, key] of bank.keys.entries()) {
     const base = entry * dim;
     let best = -2;
     let bestRotation = 0;
     for (const [slot, query] of queryEmbeddings.entries()) {
       let cosine = 0;
       for (let i = 0; i < dim; i++) {
-        cosine += bank.vectors[base + i] * query[i];
+        cosine += (bank.vectors[base + i] ?? 0) * (query[i] ?? 0);
       }
       if (cosine > best) {
         best = cosine;
-        bestRotation = rotations ? rotations[slot] : slot;
+        bestRotation = rotations ? (rotations[slot] ?? slot) : slot;
       }
     }
-    ranked.push({ key: bank.keys[entry], distance: 1 - best, rotation: bestRotation });
+    ranked.push({ key, distance: 1 - best, rotation: bestRotation });
   }
   return ranked.toSorted((a, b) => a.distance - b.distance).slice(0, topK);
 }

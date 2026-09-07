@@ -62,7 +62,10 @@ export function unwarpCard(
 
       for (let c = 0; c < 3; c++) {
         out[di + c] =
-          data[i00 + c] * w00 + data[i10 + c] * w10 + data[i01 + c] * w01 + data[i11 + c] * w11;
+          (data[i00 + c] ?? 0) * w00 +
+          (data[i10 + c] ?? 0) * w10 +
+          (data[i01 + c] ?? 0) * w01 +
+          (data[i11 + c] ?? 0) * w11;
       }
       out[di + 3] = 255;
     }

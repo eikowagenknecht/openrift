@@ -66,7 +66,7 @@ describe("metaEventBracket with the source's phase list", () => {
 
   it("names a cut deeper than a quarterfinal by its size", () => {
     const deep = [...round(1, 8), ...round(2, 4), ...round(3, 2), ...round(4, 1)];
-    expect(metaEventBracket(deep, [phase({ rankRequired: 16 })])?.rounds[0].label).toBe("Top 16");
+    expect(metaEventBracket(deep, [phase({ rankRequired: 16 })])?.rounds[0]!.label).toBe("Top 16");
   });
 
   it("ignores the swiss phase, however its rounds happen to thin out", () => {
@@ -77,7 +77,7 @@ describe("metaEventBracket with the source's phase list", () => {
     );
 
     expect(bracket?.rounds).toHaveLength(2);
-    expect(bracket?.rounds[0].matches).toHaveLength(2);
+    expect(bracket?.rounds[0]!.matches).toHaveLength(2);
   });
 
   it("renders no bracket for an event that only ever played swiss", () => {
@@ -94,8 +94,8 @@ describe("metaEventBracket with the source's phase list", () => {
 
     expect(bracket?.title).toBe("Top 4");
     expect(bracket?.rounds.map((entry) => entry.label)).toEqual(["Semifinals", "Final"]);
-    expect(bracket?.rounds[1].matches).toHaveLength(2);
-    expect(bracket?.rounds[1].isFinal).toBe(false);
+    expect(bracket?.rounds[1]!.matches).toHaveLength(2);
+    expect(bracket?.rounds[1]!.isFinal).toBe(false);
   });
 
   it("picks the main cut over a third-place playoff filed as its own phase", () => {
@@ -200,7 +200,7 @@ describe("metaEventBracket seats", () => {
     );
 
     expect(bracket?.rounds.map((entry) => entry.label)).toEqual(["Semifinals", "Final"]);
-    expect(bracket?.rounds[0].matches[1].seats[1]).toEqual({
+    expect(bracket?.rounds[0]!.matches[1]!.seats[1]).toEqual({
       playerId: null,
       isWinner: false,
       gamesWon: null,
@@ -223,7 +223,7 @@ describe("metaEventBracket seats", () => {
       [],
     );
 
-    expect(bracket?.rounds[1].matches[0].seats).toEqual([
+    expect(bracket?.rounds[1]!.matches[0]!.seats).toEqual([
       { playerId: "a", isWinner: false, gamesWon: 1 },
       { playerId: "b", isWinner: true, gamesWon: 2 },
     ]);
@@ -237,7 +237,7 @@ describe("metaEventBracket seats", () => {
       ],
       [],
     );
-    expect(bracket?.rounds[1].matches[0].seats.every((seat) => !seat.isWinner)).toBe(true);
+    expect(bracket?.rounds[1]!.matches[0]!.seats.every((seat) => !seat.isWinner)).toBe(true);
   });
 
   it("gives every match a key of its own", () => {

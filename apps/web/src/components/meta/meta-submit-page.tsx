@@ -1,5 +1,5 @@
 import type { MetaEventSummary, MetaSubmissionResult, Printing } from "@openrift/shared";
-import { formatDay } from "@openrift/shared";
+import { enumLabel, formatDay } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle2Icon, TriangleAlertIcon } from "lucide-react";
 import { useDeferredValue, useState } from "react";
@@ -414,7 +414,7 @@ export function MetaSubmitPage({
                 <CardHeader>
                   <CardTitle>{eventFromSlug.name}</CardTitle>
                   <CardDescription>
-                    {eventFacts(eventFromSlug, formatLabels[eventFromSlug.format])}
+                    {eventFacts(eventFromSlug, enumLabel(formatLabels, eventFromSlug.format))}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -449,7 +449,10 @@ export function MetaSubmitPage({
                         <Field>
                           <p className="font-medium">{eventFromSlug.name}</p>
                           <FieldDescription>
-                            {eventFacts(eventFromSlug, formatLabels[eventFromSlug.format])}
+                            {eventFacts(
+                              eventFromSlug,
+                              enumLabel(formatLabels, eventFromSlug.format),
+                            )}
                           </FieldDescription>
                         </Field>
                       ) : null}

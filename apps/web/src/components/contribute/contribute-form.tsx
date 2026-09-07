@@ -1,5 +1,5 @@
 import type { SetListResponse, VariantLabelPrinting } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, enumLabel } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   CheckCircle2Icon,
@@ -265,7 +265,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                             )}
                           />
                         )}
-                        {labels.domains[slug]}
+                        {enumLabel(labels.domains, slug)}
                       </ToggleGroupItem>
                     );
                   })}
@@ -281,7 +281,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                 >
                   {orders.cardTypes.map((slug) => (
                     <ToggleGroupItem key={slug} value={slug}>
-                      {labels.cardTypes[slug]}
+                      {enumLabel(labels.cardTypes, slug)}
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
@@ -297,7 +297,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
                   >
                     {orders.superTypes.map((slug) => (
                       <ToggleGroupItem key={slug} value={slug}>
-                        {labels.superTypes[slug]}
+                        {enumLabel(labels.superTypes, slug)}
                       </ToggleGroupItem>
                     ))}
                   </ToggleGroup>

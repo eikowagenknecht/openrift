@@ -120,19 +120,19 @@ describe("legendExactlyOne", () => {
   it("fails when no legend", () => {
     const violations = legendExactlyOne(makeState([]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("LEGEND_REQUIRED");
+    expect(violations[0]!.code).toBe("LEGEND_REQUIRED");
   });
 
   it("fails when more than 1 legend", () => {
     const violations = legendExactlyOne(makeState([makeLegend({ quantity: 2 })]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("LEGEND_TOO_MANY");
+    expect(violations[0]!.code).toBe("LEGEND_TOO_MANY");
   });
 
   it("fails when legend zone has non-Legend type", () => {
     const violations = legendExactlyOne(makeState([makeLegend({ cardType: "unit" })]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("LEGEND_WRONG_TYPE");
+    expect(violations[0]!.code).toBe("LEGEND_WRONG_TYPE");
   });
 });
 
@@ -144,19 +144,19 @@ describe("championExactlyOne", () => {
   it("fails when no champion", () => {
     const violations = championExactlyOne(makeState([]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("CHAMPION_REQUIRED");
+    expect(violations[0]!.code).toBe("CHAMPION_REQUIRED");
   });
 
   it("fails when more than 1 champion", () => {
     const violations = championExactlyOne(makeState([makeChampion({ quantity: 2 })]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("CHAMPION_TOO_MANY");
+    expect(violations[0]!.code).toBe("CHAMPION_TOO_MANY");
   });
 
   it("fails when champion zone has non-Champion supertype", () => {
     const violations = championExactlyOne(makeState([makeChampion({ superTypes: [] })]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("CHAMPION_WRONG_TYPE");
+    expect(violations[0]!.code).toBe("CHAMPION_WRONG_TYPE");
   });
 });
 
@@ -171,7 +171,7 @@ describe("championSharesTagWithLegend", () => {
       makeState([makeLegend({ tags: ["Alpha"] }), makeChampion({ tags: ["Beta"] })]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("CHAMPION_LEGEND_MISMATCH");
+    expect(violations[0]!.code).toBe("CHAMPION_LEGEND_MISMATCH");
   });
 
   it("skips when legend or champion is missing", () => {
@@ -197,21 +197,21 @@ describe("runesExactlyTwelve", () => {
   it("fails with 0 runes", () => {
     const violations = runesExactlyTwelve(makeState([]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("RUNES_REQUIRED");
+    expect(violations[0]!.code).toBe("RUNES_REQUIRED");
   });
 
   it("fails with too few runes", () => {
     const runes = Array.from({ length: 8 }, (_, index) => makeRune("fury", `rune-${index}`));
     const violations = runesExactlyTwelve(makeState(runes));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("RUNES_TOO_FEW");
+    expect(violations[0]!.code).toBe("RUNES_TOO_FEW");
   });
 
   it("fails with too many runes", () => {
     const runes = Array.from({ length: 14 }, (_, index) => makeRune("fury", `rune-${index}`));
     const violations = runesExactlyTwelve(makeState(runes));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("RUNES_TOO_MANY");
+    expect(violations[0]!.code).toBe("RUNES_TOO_MANY");
   });
 });
 
@@ -225,8 +225,8 @@ describe("runesAllTypeRune", () => {
       makeState([makeCard({ zone: "runes", cardType: "spell", cardId: "bad" })]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("RUNE_WRONG_TYPE");
-    expect(violations[0].cardId).toBe("bad");
+    expect(violations[0]!.code).toBe("RUNE_WRONG_TYPE");
+    expect(violations[0]!.cardId).toBe("bad");
   });
 
   it("passes when a multi-type card carries Rune among its types (ADR-037)", () => {
@@ -263,8 +263,8 @@ describe("runesMatchLegendDomains", () => {
       ]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("RUNE_DOMAIN_MISMATCH");
-    expect(violations[0].cardId).toBe("bad-rune");
+    expect(violations[0]!.code).toBe("RUNE_DOMAIN_MISMATCH");
+    expect(violations[0]!.cardId).toBe("bad-rune");
   });
 
   it("skips when no legend is present", () => {
@@ -338,8 +338,8 @@ describe("mainDeckCopyLimit", () => {
   it("fails with 4 copies", () => {
     const violations = mainDeckCopyLimit(makeState([makeCard({ quantity: 4, cardId: "over" })]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("MAIN_COPY_LIMIT");
-    expect(violations[0].cardId).toBe("over");
+    expect(violations[0]!.code).toBe("MAIN_COPY_LIMIT");
+    expect(violations[0]!.cardId).toBe("over");
   });
 
   it("allows any quantity with the unlimited override", () => {
@@ -356,8 +356,8 @@ describe("mainDeckCopyLimit", () => {
       makeState([makeCard({ quantity: 8, maxCopiesOverride: 7, cardId: "over" })]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("MAIN_COPY_LIMIT");
-    expect(violations[0].message).toContain("7-copy limit");
+    expect(violations[0]!.code).toBe("MAIN_COPY_LIMIT");
+    expect(violations[0]!.message).toContain("7-copy limit");
   });
 });
 
@@ -374,7 +374,7 @@ describe("championCopyLimitAcrossZones", () => {
       makeState([makeChampion(), makeCard({ cardId: "champion-1", zone: "main", quantity: 3 })]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("CHAMPION_COPY_LIMIT");
+    expect(violations[0]!.code).toBe("CHAMPION_COPY_LIMIT");
   });
 
   it("allows 3 copies in main when card is not the champion", () => {
@@ -404,13 +404,13 @@ describe("battlefieldExactlyThree", () => {
   it("fails with 0 battlefields", () => {
     const violations = battlefieldExactlyThree(makeState([]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("BATTLEFIELD_REQUIRED");
+    expect(violations[0]!.code).toBe("BATTLEFIELD_REQUIRED");
   });
 
   it("fails with too few", () => {
     const violations = battlefieldExactlyThree(makeState([makeBattlefield("bf-1")]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("BATTLEFIELD_TOO_FEW");
+    expect(violations[0]!.code).toBe("BATTLEFIELD_TOO_FEW");
   });
 
   it("fails with too many", () => {
@@ -422,7 +422,7 @@ describe("battlefieldExactlyThree", () => {
     ];
     const violations = battlefieldExactlyThree(makeState(cards));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("BATTLEFIELD_TOO_MANY");
+    expect(violations[0]!.code).toBe("BATTLEFIELD_TOO_MANY");
   });
 });
 
@@ -436,7 +436,7 @@ describe("battlefieldAllTypeBattlefield", () => {
       makeState([makeCard({ zone: "battlefield", cardType: "spell", cardId: "bad" })]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("BATTLEFIELD_WRONG_TYPE");
+    expect(violations[0]!.code).toBe("BATTLEFIELD_WRONG_TYPE");
   });
 });
 
@@ -453,7 +453,7 @@ describe("battlefieldNoDuplicates", () => {
       ]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("BATTLEFIELD_DUPLICATE");
+    expect(violations[0]!.code).toBe("BATTLEFIELD_DUPLICATE");
   });
 });
 
@@ -467,7 +467,7 @@ describe("sideboardMaximum", () => {
   it("fails with more than 10", () => {
     const violations = sideboardMaximum(makeState([makeCard({ zone: "sideboard", quantity: 11 })]));
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("SIDEBOARD_TOO_MANY");
+    expect(violations[0]!.code).toBe("SIDEBOARD_TOO_MANY");
   });
 });
 
@@ -483,7 +483,7 @@ describe("sideboardCopyLimit", () => {
       makeState([makeCard({ zone: "sideboard", quantity: 4, cardId: "over" })]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("SIDEBOARD_COPY_LIMIT");
+    expect(violations[0]!.code).toBe("SIDEBOARD_COPY_LIMIT");
   });
 
   it("allows any quantity with the unlimited override", () => {
@@ -508,9 +508,9 @@ describe("sideboardNotAllowed", () => {
       ]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("SIDEBOARD_NOT_ALLOWED");
-    expect(violations[0].zone).toBe("sideboard");
-    expect(violations[0].cardId).toBeUndefined();
+    expect(violations[0]!.code).toBe("SIDEBOARD_NOT_ALLOWED");
+    expect(violations[0]!.zone).toBe("sideboard");
+    expect(violations[0]!.cardId).toBeUndefined();
   });
 });
 
@@ -540,9 +540,9 @@ describe("uniqueCopyLimit", () => {
       ]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("UNIQUE_COPY_LIMIT");
-    expect(violations[0].zone).toBe("main");
-    expect(violations[0].cardId).toBe("uniq-1");
+    expect(violations[0]!.code).toBe("UNIQUE_COPY_LIMIT");
+    expect(violations[0]!.zone).toBe("main");
+    expect(violations[0]!.cardId).toBe("uniq-1");
   });
 
   it("fails for a Unique card with 2 copies in sideboard", () => {
@@ -557,8 +557,8 @@ describe("uniqueCopyLimit", () => {
       ]),
     );
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("UNIQUE_COPY_LIMIT");
-    expect(violations[0].zone).toBe("sideboard");
+    expect(violations[0]!.code).toBe("UNIQUE_COPY_LIMIT");
+    expect(violations[0]!.zone).toBe("sideboard");
   });
 
   it("ignores Unique cards in non-main/sideboard zones", () => {
@@ -629,8 +629,8 @@ describe("signatureTotalLimit (via validateDeck)", () => {
     ];
     const violations = sigViolations(cards);
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("SIGNATURE_TOTAL_LIMIT");
-    expect(violations[0].zone).toBe("deck");
+    expect(violations[0]!.code).toBe("SIGNATURE_TOTAL_LIMIT");
+    expect(violations[0]!.zone).toBe("deck");
   });
 
   it("ignores non-Signature cards when counting", () => {
@@ -680,8 +680,8 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
     ];
     const violations = tagViolations(cards);
     expect(violations).toHaveLength(1);
-    expect(violations[0].code).toBe("SIGNATURE_TAG_MISMATCH");
-    expect(violations[0].cardId).toBe("sig-1");
+    expect(violations[0]!.code).toBe("SIGNATURE_TAG_MISMATCH");
+    expect(violations[0]!.cardId).toBe("sig-1");
   });
 
   it("checks Signature cards in both main and sideboard", () => {
@@ -707,8 +707,8 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
     ];
     const violations = tagViolations(cards);
     expect(violations).toHaveLength(2);
-    expect(violations[0].zone).toBe("main");
-    expect(violations[1].zone).toBe("sideboard");
+    expect(violations[0]!.zone).toBe("main");
+    expect(violations[1]!.zone).toBe("sideboard");
   });
 
   it("ignores non-Signature cards", () => {
@@ -776,7 +776,7 @@ describe("noBannedCards", () => {
 
     expect(violations).toHaveLength(2);
     expect(violations.map((violation) => violation.cardId)).toEqual(["bad-1", "bad-2"]);
-    expect(violations[1].zone).toBe("sideboard");
+    expect(violations[1]!.zone).toBe("sideboard");
   });
 
   it("ignores a banned card parked in overflow", () => {
@@ -822,7 +822,7 @@ describe("noTokenCards", () => {
 
     expect(violations).toHaveLength(2);
     expect(violations.map((violation) => violation.cardId)).toEqual(["tok-1", "tok-2"]);
-    expect(violations[1].zone).toBe("sideboard");
+    expect(violations[1]!.zone).toBe("sideboard");
   });
 
   it("ignores a token parked in overflow", () => {
@@ -971,7 +971,7 @@ describe("validateDeck", () => {
     const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
     const domainMismatches = violations.filter((violation) => violation.code === "DOMAIN_MISMATCH");
     expect(domainMismatches).toHaveLength(1);
-    expect(domainMismatches[0].cardId).toBe("off-domain-1");
+    expect(domainMismatches[0]!.cardId).toBe("off-domain-1");
   });
 
   it("applies the main-deck copy limit to copies split across printing rows", () => {
@@ -985,7 +985,7 @@ describe("validateDeck", () => {
     const violations = validateDeck(makeState([...makeConstructedShell(), ...mainCards]));
     const copyLimit = violations.filter((violation) => violation.code === "MAIN_COPY_LIMIT");
     expect(copyLimit).toHaveLength(1);
-    expect(copyLimit[0].cardId).toBe("split-1");
+    expect(copyLimit[0]!.cardId).toBe("split-1");
   });
 
   it("applies the unique copy limit to copies split across printing rows", () => {
@@ -1003,7 +1003,7 @@ describe("validateDeck", () => {
       (violation) => violation.code === "UNIQUE_COPY_LIMIT",
     );
     expect(uniqueViolations).toHaveLength(1);
-    expect(uniqueViolations[0].cardId).toBe("unique-1");
+    expect(uniqueViolations[0]!.cardId).toBe("unique-1");
   });
 
   it("overflow zone cards are ignored by all rules", () => {
@@ -1078,7 +1078,7 @@ describe("validateDeck for custom-region", () => {
     const violations = validateDeck(makeState(cards, "custom-region", { tagSlugs }));
     const offending = violations.filter((v) => v.code === "CARD_NOT_IN_FORMAT_TAG");
     expect(offending).toHaveLength(1);
-    expect(offending[0].cardId).toBe("wandering-card");
+    expect(offending[0]!.cardId).toBe("wandering-card");
   });
 
   it("does not run the dropped domain rules", () => {
@@ -1313,7 +1313,7 @@ describe("validateDeck for custom-region", () => {
     );
     const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
     expect(offending).toHaveLength(1);
-    expect(offending[0].cardId).toBe("sig-daisy");
+    expect(offending[0]!.cardId).toBe("sig-daisy");
   });
 
   it("accepts a Signature when its champion is in the main deck (not Chosen)", () => {
@@ -1343,8 +1343,8 @@ describe("validateDeck for custom-region", () => {
     );
     const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
     expect(offending).toHaveLength(1);
-    expect(offending[0].message).toContain("3 copies of Ivern");
-    expect(offending[0].message).toContain("found 1");
+    expect(offending[0]!.message).toContain("3 copies of Ivern");
+    expect(offending[0]!.message).toContain("found 1");
   });
 
   it("counts champion copies across different cards of the same champion", () => {
@@ -1382,7 +1382,7 @@ describe("validateDeck for custom-region", () => {
     );
     const offending = violations.filter((v) => v.code === "SIGNATURE_CHAMPION_COPIES");
     expect(offending).toHaveLength(1);
-    expect(offending[0].cardId).toBe("sig-daisy");
+    expect(offending[0]!.cardId).toBe("sig-daisy");
   });
 
   it("sums demand per champion — two Signatures can't share the same copies", () => {

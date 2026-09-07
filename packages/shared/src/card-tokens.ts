@@ -50,7 +50,11 @@ export function findTokenReferences(
 
   for (const text of flattened) {
     for (const match of text.matchAll(pattern)) {
-      const cardId = cardIdByName.get(match[1].toLowerCase());
+      const name = match[1];
+      if (name === undefined) {
+        continue;
+      }
+      const cardId = cardIdByName.get(name.toLowerCase());
       if (cardId) {
         matched.add(cardId);
       }

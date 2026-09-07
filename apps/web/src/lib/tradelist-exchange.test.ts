@@ -63,7 +63,7 @@ describe("listTargetOptions", () => {
       [stubShareable({ listIntent: "trade", listKind: "copy" })],
       "trade",
     );
-    expect(trade.listKind).toBe("copy");
+    expect(trade!.listKind).toBe("copy");
   });
 
   it("flags shared lists from sharedAt", () => {
@@ -74,8 +74,8 @@ describe("listTargetOptions", () => {
       ],
       "wish",
     );
-    expect(unshared.isShared).toBe(false);
-    expect(shared.isShared).toBe(true);
+    expect(unshared!.isShared).toBe(false);
+    expect(shared!.isShared).toBe(true);
   });
 
   it("returns an empty array when nothing matches the intent", () => {
@@ -206,7 +206,7 @@ describe("offerablePrintings", () => {
     ]);
     const result = offerablePrintings(["p1", "p2", "p3", "p4"], owned);
     expect(result.map((entry) => entry.printingId)).toEqual(["p2", "p3", "p1"]);
-    expect(result[0].copyIds).toEqual(["c2", "c3", "c4"]);
+    expect(result[0]!.copyIds).toEqual(["c2", "c3", "c4"]);
   });
 
   it("breaks ties on equal counts by printing id", () => {

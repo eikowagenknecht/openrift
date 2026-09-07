@@ -214,7 +214,7 @@ describe("sanitizeDecks", () => {
     const decks = sanitizeDecks({
       "local:abc": { ...validDeck, name: 42, description: null, format: undefined },
     });
-    const deck = decks["local:abc"];
+    const deck = decks["local:abc"]!;
     expect(deck.name).toBe("Recovered deck");
     expect(deck.description).toBe("");
     expect(deck.format).toBe(WellKnown.deckFormat.CONSTRUCTED);
@@ -234,7 +234,7 @@ describe("sanitizeDecks", () => {
         ],
       },
     });
-    expect(decks["local:abc"].cards).toEqual([
+    expect(decks["local:abc"]!.cards).toEqual([
       sampleCards[0],
       { zone: "main", cardId: "card-c", quantity: 2, preferredPrintingId: null },
     ]);
@@ -248,13 +248,13 @@ describe("sanitizeDecks", () => {
         cards: [{ zone: "future-zone", cardId: "card-x", quantity: 1, preferredPrintingId: null }],
       },
     });
-    expect(decks["local:abc"].format).toBe("future-format");
-    expect(decks["local:abc"].cards[0].zone).toBe("future-zone");
+    expect(decks["local:abc"]!.format).toBe("future-format");
+    expect(decks["local:abc"]!.cards[0]!.zone).toBe("future-zone");
   });
 
   it("replaces a non-array cards value with an empty list", () => {
     const decks = sanitizeDecks({ "local:abc": { ...validDeck, cards: "corrupt" } });
-    expect(decks["local:abc"].cards).toEqual([]);
+    expect(decks["local:abc"]!.cards).toEqual([]);
   });
 
   it("keeps well-formed links and their titles", () => {
@@ -267,7 +267,7 @@ describe("sanitizeDecks", () => {
         ],
       },
     });
-    expect(decks["local:abc"].links).toEqual([
+    expect(decks["local:abc"]!.links).toEqual([
       { url: "https://youtu.be/abc123", title: "Guide" },
       { url: "https://riftmana.com/deck/1" },
     ]);
@@ -285,7 +285,7 @@ describe("sanitizeDecks", () => {
         ],
       },
     });
-    expect(decks["local:abc"].links).toEqual([{ url: "https://youtu.be/keep" }]);
+    expect(decks["local:abc"]!.links).toEqual([{ url: "https://youtu.be/keep" }]);
   });
 
   it("lifts a pre-links videoUrl into the first link", () => {
@@ -293,13 +293,13 @@ describe("sanitizeDecks", () => {
     const decks = sanitizeDecks({
       "local:abc": { ...beforeLinks, videoUrl: "https://youtu.be/abc123" },
     });
-    expect(decks["local:abc"].links).toEqual([
+    expect(decks["local:abc"]!.links).toEqual([
       { url: "https://youtu.be/abc123", title: "Video guide" },
     ]);
   });
 
   it("yields no links when a blob has neither shape", () => {
     const { links: _links, ...beforeLinks } = validDeck;
-    expect(sanitizeDecks({ "local:abc": beforeLinks })["local:abc"].links).toEqual([]);
+    expect(sanitizeDecks({ "local:abc": beforeLinks })["local:abc"]!.links).toEqual([]);
   });
 });

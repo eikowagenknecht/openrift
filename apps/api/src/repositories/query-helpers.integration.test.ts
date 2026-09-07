@@ -76,9 +76,9 @@ describe.skipIf(!ctx)("keysetCursorPredicate (integration)", () => {
     const first = await repo.list({ actorUserId: ACTOR }, 1);
     // limit + 1 probe row
     expect(first.length).toBe(2);
-    expect(first[0].id).toBe(ID_MICRO_HIGH);
+    expect(first[0]!.id).toBe(ID_MICRO_HIGH);
 
-    const cursor = buildKeysetCursor(first[0].createdAt, first[0].id);
+    const cursor = buildKeysetCursor(first[0]!.createdAt, first[0]!.id);
     const second = await repo.list({ actorUserId: ACTOR }, 50, cursor);
 
     expect(second.map((row) => row.id)).toEqual([ID_MICRO_MID, ID_MICRO_LOW, ID_EARLIER]);

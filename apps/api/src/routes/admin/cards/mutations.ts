@@ -504,7 +504,7 @@ export const adminCardMutationsRouter = {
         throw new AppError(
           400,
           ERROR_CODES.VALIDATION_ERROR,
-          `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
+          `Invalid value for ${field}: ${parsed.error.issues[0]?.message ?? "invalid value"}`,
         );
       }
     }
@@ -619,7 +619,7 @@ export const adminCardMutationsRouter = {
         throw new AppError(
           400,
           ERROR_CODES.VALIDATION_ERROR,
-          `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
+          `Invalid value for ${field}: ${parsed.error.issues[0]?.message ?? "invalid value"}`,
         );
       }
       normalizedValue = parsed.data;

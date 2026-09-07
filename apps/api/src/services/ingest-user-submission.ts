@@ -214,8 +214,11 @@ export function ingestUserSubmission(
     };
     const candidateCardId = await repo.insertCandidateCard(cardInsert);
 
-    const printingFields = card.printings.map((printing) => buildCandidatePrintingFields(printing));
-    for (const [index, printing] of card.printings.entries()) {
+    const printingEntries = card.printings.map((printing) => ({
+      printing,
+      fields: buildCandidatePrintingFields(printing),
+    }));
+    for (const { printing, fields } of printingEntries) {
       const resolvedPrintingId = resolvePrintingLink(linkIndex, {
         provider: USER_SUBMISSION_PROVIDER,
         externalId: printing.external_id,
@@ -229,7 +232,7 @@ export function ingestUserSubmission(
       await repo.insertCandidatePrinting({
         candidateCardId,
         printingId: resolvedPrintingId,
-        ...printingFields[index],
+        ...fields,
       });
     }
 
@@ -239,7 +242,7 @@ export function ingestUserSubmission(
       card.printings.map((printing) => printing.short_code),
     );
     const proposedDiff = computeProposedDiff(
-      { card: candidateCardFields, printings: printingFields },
+      { card: candidateCardFields, printings: printingEntries.map((entry) => entry.fields) },
       snapshot,
     );
     await submissions.insert({

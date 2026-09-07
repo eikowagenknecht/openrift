@@ -268,15 +268,11 @@ export async function createTrade(
           viewerUserId: callerUserId,
           counterpartyUserId,
         });
-  const printingMatches = matchRows.filter((row) => row.printingId === printingId);
-  if (printingMatches.length === 0) {
+  const [primaryMatch] = matchRows.filter((row) => row.printingId === printingId);
+  if (!primaryMatch) {
     throw new AppError(409, ERROR_CODES.CONFLICT, "That card is no longer available to trade");
   }
-  const {
-    buyEntryId: receiverWishEntryId,
-    cardId,
-    buyQuantity: demandQuantity,
-  } = printingMatches[0];
+  const { buyEntryId: receiverWishEntryId, cardId, buyQuantity: demandQuantity } = primaryMatch;
 
   // Must run before the supply check: its own pending offer holds the copy,
   // which would pass the supply check and mask this one.

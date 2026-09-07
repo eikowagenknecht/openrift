@@ -81,7 +81,8 @@ export function buildRuneOddsRows(
     const top = Math.min(MAX_THRESHOLD, copies);
     for (let threshold = 1; threshold <= top; threshold++) {
       const byTurn = drawsByTurn.map((draws) => chanceAtLeast(threshold, copies, deckSize, draws));
-      const alwaysThere = byTurn[0] >= CERTAIN;
+      const [firstTurn] = byTurn;
+      const alwaysThere = firstTurn !== undefined && firstTurn >= CERTAIN;
       const neverHappens = byTurn.every((chance) => chance === 0);
       if (alwaysThere || neverHappens) {
         continue;

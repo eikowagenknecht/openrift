@@ -61,7 +61,7 @@ describe("parseRulesText", () => {
     const rules = parseRulesText(input);
 
     expect(rules).toHaveLength(1);
-    expect(rules[0].content).toBe(
+    expect(rules[0]!.content).toBe(
       "*A Main Deck of at least 40 cards*\n  1 Chosen Champion Unit\n  Units",
     );
   });
@@ -86,7 +86,7 @@ describe("parseRulesText", () => {
 
     const rules = parseRulesText(input);
 
-    expect(rules[0].content).toBe(
+    expect(rules[0]!.content).toBe(
       '*Card*, when written in card effects, is shorthand for "Main Deck card."',
     );
   });

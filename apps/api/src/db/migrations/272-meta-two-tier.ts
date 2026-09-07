@@ -16,8 +16,10 @@ import { sql } from "kysely";
  * goes is the staging copy, which the next recheck pass refills from the source.
  */
 
+type OverlayTable = "meta_event_overlays" | "meta_event_player_overlays";
+
 /** Overlay payload columns, by table, paired with the field name that claims them. */
-const OVERLAY_FIELDS: Record<string, readonly (readonly [string, string])[]> = {
+const OVERLAY_FIELDS: Record<OverlayTable, readonly (readonly [string, string])[]> = {
   meta_event_overlays: [
     ["name", "name"],
     ["event_date", "eventDate"],
@@ -51,7 +53,7 @@ const OVERLAY_FIELDS: Record<string, readonly (readonly [string, string])[]> = {
  * `cards` claims the child line table rather than a column, so it takes part in
  * the vocabulary but has no consistency CHECK to generate.
  */
-const CLAIMABLE: Record<string, readonly string[]> = {
+const CLAIMABLE: Record<OverlayTable, readonly string[]> = {
   meta_event_overlays: OVERLAY_FIELDS.meta_event_overlays.map(([, field]) => field),
   meta_event_player_overlays: [
     ...OVERLAY_FIELDS.meta_event_player_overlays.map(([, field]) => field),
@@ -59,7 +61,7 @@ const CLAIMABLE: Record<string, readonly string[]> = {
   ],
 };
 
-async function addMaskConstraints(db: Kysely<unknown>, table: string): Promise<void> {
+async function addMaskConstraints(db: Kysely<unknown>, table: OverlayTable): Promise<void> {
   const vocabulary = CLAIMABLE[table].map((field) => `'${field}'`).join(", ");
   await sql`
     ALTER TABLE ${sql.raw(table)}

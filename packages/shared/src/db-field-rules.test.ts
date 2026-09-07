@@ -12,7 +12,7 @@ describe("printingFieldRules.language", () => {
   it("rejects lowercase, which would reach the FK un-normalized", () => {
     const result = printingFieldRules.language.safeParse("en");
     expect(result.success).toBe(false);
-    expect(result.error?.issues[0].message).toContain("2-letter uppercase");
+    expect(result.error?.issues[0]!.message).toContain("2-letter uppercase");
   });
 
   it("rejects codes that are too long or too short", () => {

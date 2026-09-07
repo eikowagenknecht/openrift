@@ -74,7 +74,7 @@ describe("AddToListDialog quantity stepper", () => {
     clickFirstList();
 
     expect(bulkAddMutate).toHaveBeenCalledTimes(1);
-    expect(bulkAddMutate.mock.calls[0][0].entries).toEqual([
+    expect(bulkAddMutate.mock.calls[0]![0].entries).toEqual([
       { copyId: "c1" },
       { copyId: "c2" },
       { copyId: "c3" },
@@ -95,7 +95,7 @@ describe("AddToListDialog quantity stepper", () => {
 
     clickFirstList();
 
-    expect(bulkAddMutate.mock.calls[0][0].entries).toEqual([{ copyId: "c1" }, { copyId: "c2" }]);
+    expect(bulkAddMutate.mock.calls[0]![0].entries).toEqual([{ copyId: "c1" }, { copyId: "c2" }]);
   });
 
   it("does not step below one copy", () => {
@@ -131,7 +131,7 @@ describe("AddToListDialog quantity stepper", () => {
 
     clickFirstList();
 
-    expect(bulkAddMutate.mock.calls[0][0].entries).toEqual([
+    expect(bulkAddMutate.mock.calls[0]![0].entries).toEqual([
       { copyId: "c1" },
       { copyId: "c2" },
       { copyId: "c3" },
@@ -145,6 +145,6 @@ describe("AddToListDialog quantity stepper", () => {
 
     clickFirstList();
 
-    expect(bulkAddMutate.mock.calls[0][0].entries).toEqual([{ copyId: "c1" }]);
+    expect(bulkAddMutate.mock.calls[0]![0].entries).toEqual([{ copyId: "c1" }]);
   });
 });

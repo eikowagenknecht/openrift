@@ -35,9 +35,9 @@ describe.skipIf(!ctx)("collectionEventsRepo via API (integration)", () => {
       items: { action: string; cardName: string; shortCode: string; rarity: string }[];
     };
     expect(json.items.length).toBeGreaterThanOrEqual(2);
-    expect(json.items[0].cardName).toBeTypeOf("string");
-    expect(json.items[0].shortCode).toBeTypeOf("string");
-    expect(json.items[0].rarity).toBeTypeOf("string");
+    expect(json.items[0]!.cardName).toBeTypeOf("string");
+    expect(json.items[0]!.shortCode).toBeTypeOf("string");
+    expect(json.items[0]!.rarity).toBeTypeOf("string");
   });
 
   it("supports cursor-based pagination", async () => {

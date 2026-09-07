@@ -176,11 +176,11 @@ export function ingestRepo(db: Db) {
     },
 
     async insertCandidateCard(values: Insertable<CandidateCardsTable>): Promise<string> {
-      const [inserted] = await db
+      const inserted = await db
         .insertInto("candidateCards")
         .values(values)
         .returning("id")
-        .execute();
+        .executeTakeFirstOrThrow();
       return inserted.id;
     },
 

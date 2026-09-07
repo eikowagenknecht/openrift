@@ -90,7 +90,7 @@ describe("parsePiltoverDeckCode", () => {
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
     );
     expect(mainEntries).toHaveLength(1);
-    expect(mainEntries[0].quantity).toBe(2);
+    expect(mainEntries[0]!.quantity).toBe(2);
 
     const championEntry = entries.find(
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",
@@ -121,7 +121,7 @@ describe("parsePiltoverDeckCode", () => {
 
     expect(warnings).toHaveLength(0);
     expect(entries).toHaveLength(1);
-    expect(entries[0].shortCode).toBe("OGN-001");
+    expect(entries[0]!.shortCode).toBe("OGN-001");
   });
 
   it("still reports an invalid code after both attempts fail", () => {

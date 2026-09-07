@@ -96,49 +96,49 @@ describe("validateContribution", () => {
 
   it("rejects a non-https image URL", () => {
     const state = fullState();
-    state.printings[0].imageUrl = "http://example.com/img.png";
+    state.printings[0]!.imageUrl = "http://example.com/img.png";
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].imageUrl")).toBeDefined();
   });
 
   it("rejects a lowercase language code", () => {
     const state = fullState();
-    state.printings[0].language = "en";
+    state.printings[0]!.language = "en";
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].language")).toBeDefined();
   });
 
   it("rejects a 3-letter language code", () => {
     const state = fullState();
-    state.printings[0].language = "ENG";
+    state.printings[0]!.language = "ENG";
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].language")).toBeDefined();
   });
 
   it("accepts a null printed year", () => {
     const state = fullState();
-    state.printings[0].printedYear = null;
+    state.printings[0]!.printedYear = null;
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeUndefined();
   });
 
   it("rejects a printed year below 1900", () => {
     const state = fullState();
-    state.printings[0].printedYear = 1899;
+    state.printings[0]!.printedYear = 1899;
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeDefined();
   });
 
   it("rejects a printed year above 2999", () => {
     const state = fullState();
-    state.printings[0].printedYear = 3000;
+    state.printings[0]!.printedYear = 3000;
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeDefined();
   });
 
   it("rejects a printing without a public_code", () => {
     const state = fullState();
-    state.printings[0].publicCode = null;
+    state.printings[0]!.publicCode = null;
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].publicCode")).toBeDefined();
   });
@@ -181,22 +181,24 @@ describe("buildContributionJson", () => {
   it("appends the date stamp to external IDs so check-uniqueness.mjs accepts the PR", () => {
     const json = buildContributionJson(fullState(), STAMP);
     expect(json.card.external_id).toBe(`community:ahri-alluring--${STAMP}`);
-    expect(json.printings[0].external_id).toBe(`community:ahri-alluring:OGN-066--${STAMP}:foil:en`);
+    expect(json.printings[0]!.external_id).toBe(
+      `community:ahri-alluring:OGN-066--${STAMP}:foil:en`,
+    );
   });
 
   it("falls back to the printing index when publicCode is missing", () => {
     const state = fullState();
-    state.printings[0].publicCode = null;
+    state.printings[0]!.publicCode = null;
     const json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].external_id).toBe(`community:ahri-alluring:0--${STAMP}:foil:en`);
+    expect(json.printings[0]!.external_id).toBe(`community:ahri-alluring:0--${STAMP}:foil:en`);
   });
 
   it("omits empty strings, nulls, and empty arrays", () => {
     const state = fullState();
     state.card.tags = [];
-    state.printings[0].markerSlugs = [];
-    state.printings[0].printedEffectText = null;
-    state.printings[0].printedYear = null;
+    state.printings[0]!.markerSlugs = [];
+    state.printings[0]!.printedEffectText = null;
+    state.printings[0]!.printedYear = null;
     const json = buildContributionJson(state, STAMP);
     expect(json.card).not.toHaveProperty("tags");
     expect(json.printings[0]).not.toHaveProperty("marker_slugs");
@@ -206,49 +208,49 @@ describe("buildContributionJson", () => {
 
   it("emits printed_year as an integer when set", () => {
     const state = fullState();
-    state.printings[0].printedYear = 2025;
+    state.printings[0]!.printedYear = 2025;
     const json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].printed_year).toBe(2025);
+    expect(json.printings[0]!.printed_year).toBe(2025);
   });
 
   it("falls back to the card name when printedName is blank", () => {
     const state = fullState();
-    state.printings[0].printedName = "";
+    state.printings[0]!.printedName = "";
     const json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
+    expect(json.printings[0]!.printed_name).toBe("Ahri, Alluring");
   });
 
   it("uses the printing's own printed name when set, even if equal to the card name", () => {
     const state = fullState();
-    state.printings[0].printedName = "Ahri, Alluring";
+    state.printings[0]!.printedName = "Ahri, Alluring";
     const json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
+    expect(json.printings[0]!.printed_name).toBe("Ahri, Alluring");
   });
 
   it("preserves a printing-specific printed name distinct from the card name", () => {
     const state = fullState();
-    state.printings[0].printedName = "Ahri, séduisante";
+    state.printings[0]!.printedName = "Ahri, séduisante";
     const json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].printed_name).toBe("Ahri, séduisante");
+    expect(json.printings[0]!.printed_name).toBe("Ahri, séduisante");
   });
 
   it("only emits is_signed when true", () => {
     const state = fullState();
-    state.printings[0].isSigned = false;
+    state.printings[0]!.isSigned = false;
     let json = buildContributionJson(state, STAMP);
     expect(json.printings[0]).not.toHaveProperty("is_signed");
-    state.printings[0].isSigned = true;
+    state.printings[0]!.isSigned = true;
     json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].is_signed).toBe(true);
+    expect(json.printings[0]!.is_signed).toBe(true);
   });
 
   it("trims whitespace from string fields", () => {
     const state = fullState();
     state.card.name = "  Ahri  ";
-    state.printings[0].printedRulesText = "  text  ";
+    state.printings[0]!.printedRulesText = "  text  ";
     const json = buildContributionJson(state, STAMP);
     expect(json.card.name).toBe("Ahri");
-    expect(json.printings[0].printed_rules_text).toBe("text");
+    expect(json.printings[0]!.printed_rules_text).toBe("text");
   });
 });
 
@@ -287,11 +289,11 @@ describe("buildSubmissionPayload", () => {
     it("sends only the printing the contributor edited", () => {
       const baseline = fullState();
       const edited = fullState();
-      edited.printings[0] = { ...edited.printings[0], artist: "Someone New" };
+      edited.printings[0] = { ...edited.printings[0]!, artist: "Someone New" };
 
       const payload = buildSubmissionPayload(edited, null, baseline);
       expect(payload.printings).toHaveLength(1);
-      expect(payload.printings[0].artist).toBe("Someone New");
+      expect(payload.printings[0]!.artist).toBe("Someone New");
     });
 
     it("sends nothing when only card fields changed", () => {
@@ -309,29 +311,29 @@ describe("buildSubmissionPayload", () => {
       const edited = fullState();
       edited.printings = [
         ...edited.printings,
-        { ...edited.printings[0], publicCode: "OGN-067/298" },
+        { ...edited.printings[0]!, publicCode: "OGN-067/298" },
       ];
 
       const payload = buildSubmissionPayload(edited, null, baseline);
       expect(payload.printings).toHaveLength(1);
-      expect(payload.printings[0].public_code).toBe("OGN-067/298");
+      expect(payload.printings[0]!.public_code).toBe("OGN-067/298");
     });
 
     it("sends a printing whose identity was corrected", () => {
       const baseline = fullState();
       const edited = fullState();
-      edited.printings[0] = { ...edited.printings[0], finish: "normal" };
+      edited.printings[0] = { ...edited.printings[0]!, finish: "normal" };
 
       const payload = buildSubmissionPayload(edited, null, baseline);
       expect(payload.printings).toHaveLength(1);
-      expect(payload.printings[0].finish).toBe("normal");
+      expect(payload.printings[0]!.finish).toBe("normal");
     });
 
     it("does not treat a reordered slug list as an edit", () => {
       const baseline = fullState();
-      baseline.printings[0] = { ...baseline.printings[0], markerSlugs: ["promo", "prerelease"] };
+      baseline.printings[0] = { ...baseline.printings[0]!, markerSlugs: ["promo", "prerelease"] };
       const edited = fullState();
-      edited.printings[0] = { ...edited.printings[0], markerSlugs: ["prerelease", "promo"] };
+      edited.printings[0] = { ...edited.printings[0]!, markerSlugs: ["prerelease", "promo"] };
 
       expect(buildSubmissionPayload(edited, null, baseline).printings).toEqual([]);
     });
@@ -465,6 +467,6 @@ describe("buildImagePatchState", () => {
       imageUrl: "https://example.com/ogn-066.png",
     });
     const json = buildContributionJson(state, STAMP);
-    expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
+    expect(json.printings[0]!.printed_name).toBe("Ahri, Alluring");
   });
 });

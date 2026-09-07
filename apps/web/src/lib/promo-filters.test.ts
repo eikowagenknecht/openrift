@@ -50,15 +50,15 @@ describe("buildPromoTreeFromMatches", () => {
     ];
     const tree = buildPromoTreeFromMatches(printings, channels);
     expect(tree).toHaveLength(1);
-    expect(tree[0].channel.id).toBe("root");
-    expect(tree[0].subtreePrintingIds.size).toBe(2);
-    expect(tree[0].children[0].printings.map((p) => p.id)).toEqual(["p1", "p2"]);
+    expect(tree[0]!.channel.id).toBe("root");
+    expect(tree[0]!.subtreePrintingIds.size).toBe(2);
+    expect(tree[0]!.children[0]!.printings.map((p) => p.id)).toEqual(["p1", "p2"]);
   });
 
   it("returns empty leaves when no printings match", () => {
     const channels = [makeChannel({ id: "root", slug: "root", label: "Root" })];
     const tree = buildPromoTreeFromMatches([], channels);
     expect(tree).toHaveLength(1);
-    expect(tree[0].subtreePrintingIds.size).toBe(0);
+    expect(tree[0]!.subtreePrintingIds.size).toBe(0);
   });
 });

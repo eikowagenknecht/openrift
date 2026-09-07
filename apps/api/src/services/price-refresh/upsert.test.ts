@@ -170,7 +170,7 @@ describe("upsertPriceData", () => {
 
     expect(counts.prices.total).toBe(1);
     expect(upsertedPrices).toHaveLength(1);
-    expect(upsertedPrices[0].marketplaceProductId).toBe("mp-1001-normal-EN");
+    expect(upsertedPrices[0]!.marketplaceProductId).toBe("mp-1001-normal-EN");
     expect(messages.some((m) => m.includes("1 price rows"))).toBe(true);
   });
 
@@ -197,7 +197,7 @@ describe("upsertPriceData", () => {
 
     expect(counts.prices.total).toBe(2);
     expect(upsertedPrices).toHaveLength(2);
-    expect(upsertedPrices[0].marketplaceProductId).toBe(upsertedPrices[1].marketplaceProductId);
+    expect(upsertedPrices[0]!.marketplaceProductId).toBe(upsertedPrices[1]!.marketplaceProductId);
   });
 
   it("keeps separate price rows for different finishes on the same external_id", async () => {

@@ -402,8 +402,13 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
         },
         {
           onSuccess: (data) => {
-            for (let i = 0; i < pending.length; i++) {
-              pending[i].resolve(data[i]);
+            for (const [i, entry] of pending.entries()) {
+              const result = data[i];
+              if (result) {
+                entry.resolve(result);
+              } else {
+                entry.reject(new Error("Add copies returned fewer results than requested"));
+              }
             }
             callbacksRef.current?.onBatchSuccess?.(printingIds);
           },

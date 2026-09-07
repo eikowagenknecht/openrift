@@ -399,8 +399,8 @@ export function MarketplaceProductsTable({
                 const printing = printingById.get(s.printingId);
                 return printing ? [{ ...s, printing }] : [];
               });
-          const isFirstOfMarketplace =
-            index === 0 || entries[index - 1].marketplace !== entry.marketplace;
+          const prevEntry = entries[index - 1];
+          const isFirstOfMarketplace = !prevEntry || prevEntry.marketplace !== entry.marketplace;
           const strongMappings = strongMappingsByMarketplace[entry.marketplace];
           const weakMappings = weakMappingsByMarketplace[entry.marketplace];
           const marketplaceHandlers = handlers[entry.marketplace];
@@ -853,7 +853,7 @@ function AssignToPrintingButton({
           const assignedElsewhere =
             !currentlyAssigned && otherAssignedPrintingIds.has(printing.printingId);
           // Sorted by (language, shortCode); either changing marks a group boundary.
-          const prev = index > 0 ? sorted[index - 1] : null;
+          const prev = sorted[index - 1] ?? null;
           const needsSeparator =
             prev !== null &&
             (prev.language !== printing.language ||

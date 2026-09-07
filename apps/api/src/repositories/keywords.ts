@@ -144,7 +144,8 @@ export function keywordsRepo(db: Kysely<Database>) {
         .values(rows)
         .onConflict((oc) => oc.columns(["keywordName", "language"]).doNothing())
         .execute();
-      return result.length > 0 ? Number(result[0].numInsertedOrUpdatedRows ?? 0) : 0;
+      const [first] = result;
+      return first ? Number(first.numInsertedOrUpdatedRows ?? 0) : 0;
     },
 
     getTranslationCandidates(): Promise<

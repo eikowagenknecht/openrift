@@ -228,11 +228,11 @@ describe("list", () => {
 
     const views = await scheduler.list();
     expect(views.map((view) => view.kind)).toEqual(["tcgplayer.refresh", "cardmarket.refresh"]);
-    expect(views[0].schedule).toBeNull();
-    expect(views[0].lastRun).toBeNull();
-    expect(views[1].schedule).toBe(NEVER);
-    expect(views[1].updatedAt).toBe("2026-08-01T00:00:00.000Z");
-    expect(views[1].nextRun).not.toBeNull();
-    expect(views[1].lastRun?.status).toBe("succeeded");
+    expect(views[0]!.schedule).toBeNull();
+    expect(views[0]!.lastRun).toBeNull();
+    expect(views[1]!.schedule).toBe(NEVER);
+    expect(views[1]!.updatedAt).toBe("2026-08-01T00:00:00.000Z");
+    expect(views[1]!.nextRun).not.toBeNull();
+    expect(views[1]!.lastRun?.status).toBe("succeeded");
   });
 });

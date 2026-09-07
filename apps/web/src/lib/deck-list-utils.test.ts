@@ -414,8 +414,8 @@ describe("groupDecks", () => {
     const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
     const groups = groupDecks(items, "none");
     expect(groups).toHaveLength(1);
-    expect(groups[0].label).toBe("");
-    expect(groups[0].items).toHaveLength(2);
+    expect(groups[0]!.label).toBe("");
+    expect(groups[0]!.items).toHaveLength(2);
   });
 
   it("groups by format with stable labels", () => {
@@ -426,8 +426,8 @@ describe("groupDecks", () => {
     ];
     const groups = groupDecks(items, "format");
     const byKey = Object.fromEntries(groups.map((group) => [group.key, group]));
-    expect(byKey.constructed.items.map((item) => item.deck.id)).toEqual(["a", "c"]);
-    expect(byKey.freeform.items.map((item) => item.deck.id)).toEqual(["b"]);
+    expect(byKey.constructed!.items.map((item) => item.deck.id)).toEqual(["a", "c"]);
+    expect(byKey.freeform!.items.map((item) => item.deck.id)).toEqual(["b"]);
   });
 
   it("groups by domain combination using legend domains, sorted alphabetically", () => {
@@ -440,8 +440,8 @@ describe("groupDecks", () => {
       domains: { fury: "Fury", body: "Body", calm: "Calm", mind: "Mind" },
     });
     const byLabel = Object.fromEntries(groups.map((group) => [group.label, group]));
-    expect(byLabel["Body / Fury"].items.map((item) => item.deck.id)).toEqual(["a", "b"]);
-    expect(byLabel["Calm / Mind"].items.map((item) => item.deck.id)).toEqual(["c"]);
+    expect(byLabel["Body / Fury"]!.items.map((item) => item.deck.id)).toEqual(["a", "b"]);
+    expect(byLabel["Calm / Mind"]!.items.map((item) => item.deck.id)).toEqual(["c"]);
   });
 
   it("falls back to deck distribution when no legend domains are known, excluding Colorless", () => {
@@ -474,9 +474,9 @@ describe("groupDecks", () => {
     ];
     const groups = groupDecks(items, "validity");
     const byKey = Object.fromEntries(groups.map((group) => [group.key, group]));
-    expect(byKey["valid:constructed"].items.map((item) => item.deck.id)).toEqual(["a"]);
-    expect(byKey["invalid:constructed"].items.map((item) => item.deck.id)).toEqual(["b"]);
-    expect(byKey.freeform.items.map((item) => item.deck.id)).toEqual(["c"]);
+    expect(byKey["valid:constructed"]!.items.map((item) => item.deck.id)).toEqual(["a"]);
+    expect(byKey["invalid:constructed"]!.items.map((item) => item.deck.id)).toEqual(["b"]);
+    expect(byKey.freeform!.items.map((item) => item.deck.id)).toEqual(["c"]);
   });
 
   describe("by folder", () => {
@@ -489,8 +489,8 @@ describe("groupDecks", () => {
       ];
       const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
       const byKey = Object.fromEntries(groups.map((group) => [group.key, group]));
-      expect(byKey["folder:f1"].items.map((item) => item.deck.id)).toEqual(["a", "b"]);
-      expect(byKey["folder:f2"].items.map((item) => item.deck.id)).toEqual(["a"]);
+      expect(byKey["folder:f1"]!.items.map((item) => item.deck.id)).toEqual(["a", "b"]);
+      expect(byKey["folder:f2"]!.items.map((item) => item.deck.id)).toEqual(["a"]);
     });
 
     it("counts a multi-folder deck once per folder, so sections outnumber decks", () => {
@@ -523,14 +523,14 @@ describe("groupDecks", () => {
     it("falls back to the folder id when no label is known", () => {
       const items = [makeItem({ id: "a", folderIds: ["f9"] })];
       const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
-      expect(groups[0].label).toBe("f9");
+      expect(groups[0]!.label).toBe("f9");
     });
 
     it("produces a single bucket when nothing is filed", () => {
       const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
       const groups = groupDecks(items, "folder", "asc", { folders: FOLDER_LABELS });
       expect(groups).toHaveLength(1);
-      expect(groups[0].label).toBe("No folder");
+      expect(groups[0]!.label).toBe("No folder");
     });
   });
 
@@ -559,7 +559,7 @@ describe("deckListEnrichment", () => {
 
   it("groups and searches decks under the champion name", () => {
     const item = enrichItem(makeItem(), deckListEnrichment(azir, undefined));
-    expect(groupDecks([item], "legend")[0].label).toBe("Azir, Emperor of the Sands");
+    expect(groupDecks([item], "legend")[0]!.label).toBe("Azir, Emperor of the Sands");
     expect(filterDecks([item], { ...NO_FILTERS, search: "azir" })).toHaveLength(1);
   });
 

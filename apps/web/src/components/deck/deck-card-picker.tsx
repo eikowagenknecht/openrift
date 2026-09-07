@@ -1,4 +1,4 @@
-import { legendDisplayName } from "@openrift/shared";
+import { enumLabel, legendDisplayName } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -85,7 +85,7 @@ function usePickerResults(
 
   return shown.map((card) => {
     const printing = getPreferredPrinting(card.id);
-    const detail = printing?.card.types.map((slug) => labels.cardTypes[slug]).join(" ");
+    const detail = printing?.card.types.map((slug) => enumLabel(labels.cardTypes, slug)).join(" ");
     return {
       id: card.id,
       label: card.name,

@@ -117,14 +117,14 @@ function signedGradients(image: GrayImage): { gx: Float32Array; gy: Float32Array
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
-      const tl = data[i - w - 1];
-      const tc = data[i - w];
-      const tr = data[i - w + 1];
-      const ml = data[i - 1];
-      const mr = data[i + 1];
-      const bl = data[i + w - 1];
-      const bc = data[i + w];
-      const br = data[i + w + 1];
+      const tl = data[i - w - 1] ?? 0;
+      const tc = data[i - w] ?? 0;
+      const tr = data[i - w + 1] ?? 0;
+      const ml = data[i - 1] ?? 0;
+      const mr = data[i + 1] ?? 0;
+      const bl = data[i + w - 1] ?? 0;
+      const bc = data[i + w] ?? 0;
+      const br = data[i + w + 1] ?? 0;
       gx[i] = tr + 2 * mr + br - (tl + 2 * ml + bl);
       gy[i] = bl + 2 * bc + br - (tl + 2 * tc + tr);
     }
@@ -135,7 +135,7 @@ function signedGradients(image: GrayImage): { gx: Float32Array; gy: Float32Array
 function averageMagnitude(gx: Float32Array, gy: Float32Array): number {
   let total = 0;
   for (let i = 0; i < gx.length; i++) {
-    total += Math.abs(gx[i]) + Math.abs(gy[i]);
+    total += Math.abs(gx[i] ?? 0) + Math.abs(gy[i] ?? 0);
   }
   return total / gx.length;
 }
@@ -156,9 +156,13 @@ function perimeterSupport(
   let total = 0;
   let count = 0;
 
-  for (let edge = 0; edge < 4; edge++) {
-    const a = quad[edge];
-    const b = quad[(edge + 1) % 4];
+  const edges: readonly (readonly [Point, Point])[] = [
+    [quad[0], quad[1]],
+    [quad[1], quad[2]],
+    [quad[2], quad[3]],
+    [quad[3], quad[0]],
+  ];
+  for (const [a, b] of edges) {
     const ex = b.x - a.x;
     const ey = b.y - a.y;
     const length = Math.hypot(ex, ey);
@@ -185,7 +189,7 @@ function perimeterSupport(
           continue;
         }
         const i = sy * width + sx;
-        const projected = Math.abs(gx[i] * nx + gy[i] * ny);
+        const projected = Math.abs((gx[i] ?? 0) * nx + (gy[i] ?? 0) * ny);
         if (projected > best) {
           best = projected;
         }

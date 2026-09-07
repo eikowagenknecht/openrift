@@ -65,9 +65,12 @@ export interface AimHintInput {
 
 export function quadArea(quad: readonly AimPoint[]): number {
   let sum = 0;
-  for (const [index, point] of quad.entries()) {
-    const next = quad[(index + 1) % quad.length];
-    sum += point.x * next.y - next.x * point.y;
+  let previous = quad.at(-1);
+  for (const point of quad) {
+    if (previous !== undefined) {
+      sum += previous.x * point.y - point.x * previous.y;
+    }
+    previous = point;
   }
   return Math.abs(sum) / 2;
 }

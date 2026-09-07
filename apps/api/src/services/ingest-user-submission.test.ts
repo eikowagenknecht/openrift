@@ -58,13 +58,13 @@ describe("buildUserSubmissionCard", () => {
 
   it("derives printing short_code from the prefix of public_code", () => {
     const card = buildUserSubmissionCard(submission(), USER_ID, STAMP);
-    expect(card.printings[0].short_code).toBe("OGN-066");
-    expect(card.printings[0].public_code).toBe("OGN-066/298");
+    expect(card.printings[0]!.short_code).toBe("OGN-066");
+    expect(card.printings[0]!.public_code).toBe("OGN-066/298");
   });
 
   it("namespaces each printing external_id by slug, stamp, user, finish and language", () => {
     const card = buildUserSubmissionCard(submission(), USER_ID, STAMP);
-    expect(card.printings[0].external_id).toBe(
+    expect(card.printings[0]!.external_id).toBe(
       `ahri-alluring:OGN-066--${STAMP}--${USER_ID}:foil:en`,
     );
   });
@@ -77,9 +77,9 @@ describe("buildUserSubmissionCard", () => {
       USER_ID,
       STAMP,
     );
-    expect(card.printings[0].external_id).toContain(":normal:en");
-    expect(card.printings[0].finish).toBeNull();
-    expect(card.printings[0].language).toBeNull();
+    expect(card.printings[0]!.external_id).toContain(":normal:en");
+    expect(card.printings[0]!.finish).toBeNull();
+    expect(card.printings[0]!.language).toBeNull();
   });
 
   it("keeps multiple printings distinct", () => {
@@ -94,7 +94,7 @@ describe("buildUserSubmissionCard", () => {
       STAMP,
     );
     expect(card.printings).toHaveLength(2);
-    expect(card.printings[0].external_id).not.toBe(card.printings[1].external_id);
+    expect(card.printings[0]!.external_id).not.toBe(card.printings[1]!.external_id);
   });
 });
 

@@ -62,6 +62,9 @@ export function CardBrowserLayout({
       return;
     }
     const observer = new ResizeObserver(([entry]) => {
+      if (!entry) {
+        return;
+      }
       const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
       setToolbarHeight(Math.round(height));
     });
@@ -76,6 +79,9 @@ export function CardBrowserLayout({
       return;
     }
     const observer = new ResizeObserver(([entry]) => {
+      if (!entry) {
+        return;
+      }
       const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
       setAboveGridHeight(Math.round(height));
     });

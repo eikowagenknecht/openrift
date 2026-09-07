@@ -54,23 +54,23 @@ export function computePairingWarnings(
       .map((id) => playersById.get(id))
       .filter((member): member is PairingPlayer => member !== undefined);
 
-    for (let i = 0; i < members.length; i++) {
-      for (let j = i + 1; j < members.length; j++) {
-        const meetings = members[i].opponents.get(members[j].id) ?? 0;
+    for (const [i, memberA] of members.entries()) {
+      for (const memberB of members.slice(i + 1)) {
+        const meetings = memberA.opponents.get(memberB.id) ?? 0;
         if (meetings > 0) {
           warnings.push({
             kind: "rematch",
             podIndex,
-            playerIds: [members[i].id, members[j].id],
+            playerIds: [memberA.id, memberB.id],
             meetings,
           });
         }
-        const region = members[i].region ?? null;
-        if (region !== null && region === members[j].region) {
+        const region = memberA.region ?? null;
+        if (region !== null && region === memberB.region) {
           warnings.push({
             kind: "sameRegion",
             podIndex,
-            playerIds: [members[i].id, members[j].id],
+            playerIds: [memberA.id, memberB.id],
             region,
           });
         }

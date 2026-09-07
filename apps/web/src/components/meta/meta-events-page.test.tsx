@@ -161,7 +161,7 @@ describe("MetaEventsPage", () => {
   it("announces the date once, with the tile itself hidden from assistive tech", () => {
     renderPage([event({ eventDate: "2026-08-29" })]);
     expect(screen.getAllByText("2026-08-29")).toHaveLength(1);
-    expect(screen.getAllByText("2026")[0].closest("[aria-hidden]")).not.toBeNull();
+    expect(screen.getAllByText("2026")[0]!.closest("[aria-hidden]")).not.toBeNull();
   });
 
   it("names the winner of each event inline", () => {

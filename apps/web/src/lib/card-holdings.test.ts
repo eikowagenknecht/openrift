@@ -202,6 +202,6 @@ describe("cardHoldingLines", () => {
       annotations: [],
       printingIds: ["p1"],
     });
-    expect(lines[0].icon).not.toBe(lines[1].icon);
+    expect(lines[0]!.icon).not.toBe(lines[1]!.icon);
   });
 });

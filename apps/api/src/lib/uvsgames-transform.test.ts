@@ -283,7 +283,7 @@ describe("projectPhases", () => {
       ],
     });
 
-    expect(phases[0].maxGameWins).toBe(1);
+    expect(phases[0]!.maxGameWins).toBe(1);
   });
 
   it("has nothing to project from a detail with no phases", () => {

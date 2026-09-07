@@ -319,9 +319,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .where("candidateCardId", "=", cs.id)
       .execute();
     expect(ps).toHaveLength(1);
-    expect(ps[0].shortCode).toBe("CWP-001-P1");
-    expect(ps[0].artist).toBe("Bob Ross");
-    expect(ps[0].imageUrl).toBe("https://example.com/img.png");
+    expect(ps[0]!.shortCode).toBe("CWP-001-P1");
+    expect(ps[0]!.artist).toBe("Bob Ross");
+    expect(ps[0]!.imageUrl).toBe("https://example.com/img.png");
   });
 
   it("updates an existing candidate_card when fields change", async () => {
@@ -365,20 +365,20 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(result.newCards).toBe(0);
     expect(result.unchanged).toBe(0);
     expect(result.updatedCards).toHaveLength(1);
-    expect(result.updatedCards[0].name).toBe("Evolving Card");
-    expect(result.updatedCards[0].shortCode).toBe("EVO-001");
+    expect(result.updatedCards[0]!.name).toBe("Evolving Card");
+    expect(result.updatedCards[0]!.shortCode).toBe("EVO-001");
 
     // getChangedFields compares using CARD_FIELDS (camelCase) against the incoming
     // IngestCard object (snake_case). Only fields with matching keys are compared:
     // name, type, domains, might, energy, power, tags.
     // CamelCase-only fields (rulesText, superTypes, etc.) are skipped because they
     // don't exist as keys on the incoming object.
-    const changedFieldNames = result.updatedCards[0].fields.map((f) => f.field);
+    const changedFieldNames = result.updatedCards[0]!.fields.map((f) => f.field);
     expect(changedFieldNames).toContain("might");
     expect(changedFieldNames).toContain("power");
     expect(changedFieldNames).toContain("tags");
 
-    const mightDiff = result.updatedCards[0].fields.find((f) => f.field === "might");
+    const mightDiff = result.updatedCards[0]!.fields.find((f) => f.field === "might");
     expect(mightDiff?.from).toBe(2);
     expect(mightDiff?.to).toBe(5);
   });
@@ -409,7 +409,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     ]);
 
     expect(result.updates).toBe(1);
-    const extraDiff = result.updatedCards[0].fields.find((f) => f.field === "extraData");
+    const extraDiff = result.updatedCards[0]!.fields.find((f) => f.field === "extraData");
     expect(extraDiff).toBeDefined();
     // Coerced to a scalar string, not the raw object.
     expect(typeof extraDiff?.from).toBe("string");
@@ -832,7 +832,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
     expect(result.newCards).toBe(0);
     expect(result.updates).toBe(1);
-    expect(result.updatedCards[0].fields.some((f) => f.field === "name")).toBe(true);
+    expect(result.updatedCards[0]!.fields.some((f) => f.field === "name")).toBe(true);
 
     const rows = await db
       .selectFrom("candidateCards")
@@ -841,7 +841,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .where("shortCode", "=", "SID-LOOKUP")
       .execute();
     expect(rows).toHaveLength(1);
-    expect(rows[0].name).toBe("Name Two");
+    expect(rows[0]!.name).toBe("Name Two");
   });
 
   it("finds existing candidate_card by name when short_code is absent", async () => {
@@ -1300,7 +1300,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     // (it goes through the same per-field diff as every other printing column).
     const result = await upload(2025);
     expect(result.printingUpdates).toBe(1);
-    expect(result.updatedPrintings[0].fields).toEqual([
+    expect(result.updatedPrintings[0]!.fields).toEqual([
       { field: "printedYear", from: 2024, to: 2025 },
     ]);
 

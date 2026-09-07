@@ -80,7 +80,11 @@ function defaultOfFinishGroup(group: readonly Printing[]): Printing {
   if (normal) {
     return normal;
   }
-  return group.toSorted((a, b) => a.canonicalRank - b.canonicalRank)[0];
+  const [canonical] = group.toSorted((a, b) => a.canonicalRank - b.canonicalRank);
+  if (canonical === undefined) {
+    throw new Error("scan-resolve: finish group is empty");
+  }
+  return canonical;
 }
 
 /**
@@ -171,10 +175,10 @@ export function resolveLock(
     }
   }
   const groups = Map.groupBy(narrowed, variantKeyOf);
-  if (groups.size > 1) {
+  const [group] = [...groups.values()];
+  if (groups.size > 1 || group === undefined) {
     return { kind: "picker", candidates: sortForPicker(candidates) };
   }
-  const group = [...groups.values()][0];
   const printing = defaultOfFinishGroup(group);
   return {
     kind: "auto",

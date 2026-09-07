@@ -73,7 +73,7 @@ describe("candidate export ↔ upload round-trip", () => {
     card.type = "Unit";
     const result = uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: legacy });
     expect(result.success).toBe(true);
-    expect(result.data?.candidates[0].types).toEqual(["Unit"]);
+    expect(result.data?.candidates[0]!.types).toEqual(["Unit"]);
   });
 
   it("language and printed_name are part of the exported document (not droppable)", () => {
@@ -95,7 +95,7 @@ describe("candidate export ↔ upload round-trip", () => {
       provider: "roundtrip",
       candidates: sampleExport,
     });
-    expect(result.data?.candidates[0].printings[0].printed_year).toBe(2025);
+    expect(result.data?.candidates[0]!.printings[0]!.printed_year).toBe(2025);
   });
 
   it("an upload that omits printed_year defaults it to null", () => {
@@ -104,7 +104,7 @@ describe("candidate export ↔ upload round-trip", () => {
     delete noYear[0].printings[0].printed_year;
     const result = uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: noYear });
     expect(result.success).toBe(true);
-    expect(result.data?.candidates[0].printings[0].printed_year).toBeNull();
+    expect(result.data?.candidates[0]!.printings[0]!.printed_year).toBeNull();
   });
 
   it("comment is part of the exported document (not droppable)", () => {
@@ -126,12 +126,12 @@ describe("candidate export ↔ upload round-trip", () => {
     });
     expect(result.success).toBe(true);
     expect(result.data?.candidates[0]).not.toHaveProperty("comment");
-    expect(result.data?.candidates[0].printings[0]).not.toHaveProperty("comment");
+    expect(result.data?.candidates[0]!.printings[0]).not.toHaveProperty("comment");
   });
 
   it("an out-of-range printed_year is rejected on upload", () => {
     const badYear = structuredClone(sampleExport);
-    badYear[0].printings[0].printed_year = 1500;
+    badYear[0]!.printings[0]!.printed_year = 1500;
     expect(
       uploadCandidatesSchema.safeParse({ provider: "roundtrip", candidates: badYear }).success,
     ).toBe(false);

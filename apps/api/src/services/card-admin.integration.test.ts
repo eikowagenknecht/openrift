@@ -36,7 +36,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
       .values({ slug: SET_SLUG, name: "Card Admin Test Set", printedTotal: 1, sortOrder: 952 })
       .returning("id")
       .execute();
-    setId = setRow.id;
+    setId = setRow!.id;
 
     const [cardRow] = await db
       .insertInto("cards")
@@ -53,7 +53,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
       })
       .returning("id")
       .execute();
-    cardId = cardRow.id;
+    cardId = cardRow!.id;
     await syncCardCardTypes(db);
     await db.insertInto("cardDomains").values({ cardId, domainSlug: "fury", ordinal: 0 }).execute();
     await db
@@ -78,7 +78,7 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
       })
       .returning("id")
       .execute();
-    printingId = printingRow.id;
+    printingId = printingRow!.id;
 
     const [collectionRow] = await db
       .insertInto("collections")
@@ -92,14 +92,14 @@ describe.skipIf(!ctx)("deleteCard (integration)", () => {
       })
       .returning("id")
       .execute();
-    collectionId = collectionRow.id;
+    collectionId = collectionRow!.id;
 
     const [copyRow] = await db
       .insertInto("copies")
       .values({ collectionId, printingId })
       .returning("id")
       .execute();
-    copyId = copyRow.id;
+    copyId = copyRow!.id;
   });
 
   afterAll(async () => {

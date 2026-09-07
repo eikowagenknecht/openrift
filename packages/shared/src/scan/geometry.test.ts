@@ -56,9 +56,9 @@ describe("computeHomography", () => {
     const h = computeHomography(UNIT_SQUARE, target);
     expect(h).not.toBeNull();
     for (let i = 0; i < 4; i++) {
-      const mapped = applyHomography(h as never, UNIT_SQUARE[i]);
-      expect(mapped.x).toBeCloseTo(target[i].x, 5);
-      expect(mapped.y).toBeCloseTo(target[i].y, 5);
+      const mapped = applyHomography(h as never, UNIT_SQUARE[i]!);
+      expect(mapped.x).toBeCloseTo(target[i]!.x, 5);
+      expect(mapped.y).toBeCloseTo(target[i]!.y, 5);
     }
   });
 

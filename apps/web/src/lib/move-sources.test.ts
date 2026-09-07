@@ -80,7 +80,7 @@ describe("buildMoveSources", () => {
       stubCopy({ id: "conditioned", collectionId: INBOX, condition: "near-mint" }),
     ];
     const sources = buildMoveSources(copies, INBOX);
-    expect(sources[0].copyIds).toEqual(["plain", "conditioned", "graded", "noted"]);
+    expect(sources[0]!.copyIds).toEqual(["plain", "conditioned", "graded", "noted"]);
   });
 
   it("moves on-loan copies only as a last resort", () => {
@@ -89,7 +89,7 @@ describe("buildMoveSources", () => {
       stubCopy({ id: "graded", collectionId: INBOX, grader: "psa", grade: 10 }),
     ];
     const sources = buildMoveSources(copies, INBOX);
-    expect(sources[0].copyIds).toEqual(["graded", "lent"]);
+    expect(sources[0]!.copyIds).toEqual(["graded", "lent"]);
   });
 
   it("returns an empty list for no copies", () => {

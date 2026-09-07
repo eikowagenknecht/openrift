@@ -68,7 +68,8 @@ describe("parseTextFormat", () => {
   });
 
   it("accepts the alternate header spellings other tools write", () => {
-    const zoneOf = (header: string) => parseTextFormat(`${header}\n1 Card`).entries[0].explicitZone;
+    const zoneOf = (header: string) =>
+      parseTextFormat(`${header}\n1 Card`).entries[0]!.explicitZone;
 
     expect(zoneOf("Main Deck:")).toBe("main");
     expect(zoneOf("Main:")).toBe("main");
@@ -80,7 +81,8 @@ describe("parseTextFormat", () => {
   });
 
   it("accepts the markdown strikethrough headers topdeck.gg writes", () => {
-    const zoneOf = (header: string) => parseTextFormat(`${header}\n1 Card`).entries[0].explicitZone;
+    const zoneOf = (header: string) =>
+      parseTextFormat(`${header}\n1 Card`).entries[0]!.explicitZone;
 
     expect(zoneOf("~~Legend~~")).toBe("legend");
     expect(zoneOf("~~Champion~~")).toBe("champion");
@@ -126,7 +128,7 @@ describe("parseTextFormat", () => {
       ["Invert Timelines", 1, "main"],
       ["Abandon", 2, "sideboard"],
     ]);
-    expect(entries[1].sourceSlot).toBe("chosenChampion");
+    expect(entries[1]!.sourceSlot).toBe("chosenChampion");
     expect(entries.at(-1)?.sourceSlot).toBe("sideboard");
   });
 
@@ -136,7 +138,7 @@ describe("parseTextFormat", () => {
     );
 
     expect(warnings).toEqual(["Unknown zone header: ~~Maybeboard~~"]);
-    expect(entries[1].explicitZone).toBeUndefined();
+    expect(entries[1]!.explicitZone).toBeUndefined();
   });
 
   it("treats a lone tilde pair as a card line, not a header", () => {
@@ -149,9 +151,9 @@ describe("parseTextFormat", () => {
   it("leaves the zone unset with no header so type inference decides", () => {
     const { entries } = parseTextFormat("3 Fireball");
 
-    expect(entries[0].explicitZone).toBeUndefined();
-    expect(entries[0].sourceSlot).toBe("mainDeck");
-    expect(entries[0].quantity).toBe(3);
+    expect(entries[0]!.explicitZone).toBeUndefined();
+    expect(entries[0]!.sourceSlot).toBe("mainDeck");
+    expect(entries[0]!.quantity).toBe(3);
   });
 
   it("treats a bare name line as a single copy", () => {
@@ -163,8 +165,8 @@ describe("parseTextFormat", () => {
   it("routes an explicit champion header to the chosenChampion slot", () => {
     const { entries } = parseTextFormat("Champion:\n1 Ekko");
 
-    expect(entries[0].sourceSlot).toBe("chosenChampion");
-    expect(entries[0].explicitZone).toBe("champion");
+    expect(entries[0]!.sourceSlot).toBe("chosenChampion");
+    expect(entries[0]!.explicitZone).toBe("champion");
   });
 
   it("clears the zone on an unknown header instead of inheriting the prior zone", () => {
@@ -173,9 +175,9 @@ describe("parseTextFormat", () => {
     );
 
     expect(warnings).toEqual(["Unknown zone header: Mystery Zone:"]);
-    expect(entries[0].explicitZone).toBe("battlefield");
-    expect(entries[1].explicitZone).toBeUndefined();
-    expect(entries[1].sourceSlot).toBe("mainDeck");
+    expect(entries[0]!.explicitZone).toBe("battlefield");
+    expect(entries[1]!.explicitZone).toBeUndefined();
+    expect(entries[1]!.sourceSlot).toBe("mainDeck");
   });
 
   it("ignores blank lines", () => {

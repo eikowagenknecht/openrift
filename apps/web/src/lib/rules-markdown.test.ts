@@ -146,7 +146,7 @@ describe("diffRuleMarkdown", () => {
 
   it("nests diff marks inside shared emphasis", () => {
     const nodes = diffRuleMarkdown("stays *the same* here", "stays *the sameish* here");
-    const em = findElements(nodes, "em")[0];
+    const em = findElements(nodes, "em")[0]!;
     expect(em).toBeDefined();
     expect(diffSpans([em])).toEqual([
       ["removed", "same"],

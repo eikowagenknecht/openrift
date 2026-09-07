@@ -78,39 +78,39 @@ describe("participantIds", () => {
 describe("movePlayer", () => {
   it("moves a player between pods, removing them from the source", () => {
     const next = movePlayer(seedFromRound(round()), "a", { kind: "pod", index: 1 });
-    expect(next.pods[0].playerIds).toEqual(["b", "c", "d"]);
-    expect(next.pods[1].playerIds).toEqual(["e", "f", "g", "a"]);
+    expect(next.pods[0]!.playerIds).toEqual(["b", "c", "d"]);
+    expect(next.pods[1]!.playerIds).toEqual(["e", "f", "g", "a"]);
   });
 
   it("moves a player into the bye zone", () => {
     const next = movePlayer(seedFromRound(round()), "e", { kind: "bye" });
-    expect(next.pods[1].playerIds).toEqual(["f", "g"]);
+    expect(next.pods[1]!.playerIds).toEqual(["f", "g"]);
     expect(next.byes).toEqual(["h", "e"]);
   });
 
   it("moves a byed player back into a pod", () => {
     const next = movePlayer(seedFromRound(round()), "h", { kind: "pod", index: 1 });
     expect(next.byes).toEqual([]);
-    expect(next.pods[1].playerIds).toEqual(["e", "f", "g", "h"]);
+    expect(next.pods[1]!.playerIds).toEqual(["e", "f", "g", "h"]);
   });
 
   it("moves a player into a brand-new pod", () => {
     const next = movePlayer(seedFromRound(round()), "a", { kind: "newPod" });
-    expect(next.pods[0].playerIds).toEqual(["b", "c", "d"]);
-    expect(next.pods[2].playerIds).toEqual(["a"]);
+    expect(next.pods[0]!.playerIds).toEqual(["b", "c", "d"]);
+    expect(next.pods[2]!.playerIds).toEqual(["a"]);
   });
 
   it("pairs two byed players into a new pod neither existing pod could take", () => {
     let state = movePlayer(seedFromRound(round()), "h", { kind: "newPod" });
     state = movePlayer(state, "e", { kind: "pod", index: 2 });
-    expect(state.pods[2].playerIds).toEqual(["h", "e"]);
+    expect(state.pods[2]!.playerIds).toEqual(["h", "e"]);
     expect(state.byes).toEqual([]);
   });
 
   it("does not mutate the input state", () => {
     const state = seedFromRound(round());
     movePlayer(state, "a", { kind: "bye" });
-    expect(state.pods[0].playerIds).toEqual(["a", "b", "c", "d"]);
+    expect(state.pods[0]!.playerIds).toEqual(["a", "b", "c", "d"]);
     expect(state.byes).toEqual(["h"]);
   });
 });

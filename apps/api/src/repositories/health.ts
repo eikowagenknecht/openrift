@@ -32,6 +32,9 @@ export function healthRepo(db: Kysely<Database>) {
             .execute(db)
             .then((r) => r.rows);
 
+          if (!table) {
+            throw new Error("schema-probe query returned no rows");
+          }
           if (!table.exists) {
             return "db_not_migrated";
           }

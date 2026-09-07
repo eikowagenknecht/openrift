@@ -1,5 +1,5 @@
 import type { VariantLabelPrinting } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { enumLabel, WellKnown } from "@openrift/shared";
 
 import type { ContributeFormPrinting } from "@/lib/contribute-json";
 
@@ -14,7 +14,10 @@ export function toVariantLabelPrinting(
     size: printing.size ?? WellKnown.cardSize.STANDARD,
     isSigned: printing.isSigned,
     isOvernumbered: printing.isOvernumbered,
-    markers: printing.markerSlugs.map((slug) => ({ slug, label: markerLabels[slug] })),
+    markers: printing.markerSlugs.map((slug) => ({
+      slug,
+      label: enumLabel(markerLabels, slug),
+    })),
   };
 }
 

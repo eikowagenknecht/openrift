@@ -63,7 +63,11 @@ function hashString(input: string): number {
 }
 
 export function pick<T>(arr: T[], seed: string): T {
-  return arr[Math.abs(hashString(seed)) % arr.length];
+  const value = arr[Math.abs(hashString(seed)) % arr.length];
+  if (value === undefined) {
+    throw new Error("pick() from empty array");
+  }
+  return value;
 }
 
 function DevErrorDetails({ error }: { error: string }) {

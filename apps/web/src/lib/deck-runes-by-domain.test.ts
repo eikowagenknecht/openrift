@@ -15,7 +15,7 @@ describe("buildRunesByDomain", () => {
 
     expect(byDomain.get("fury")).toHaveLength(1);
     expect(byDomain.get("calm")).toHaveLength(1);
-    expect(byDomain.get("fury")?.[0].cardId).toBe(rune.cardId);
+    expect(byDomain.get("fury")?.[0]!.cardId).toBe(rune.cardId);
   });
 
   it("includes a multi-type card that has Rune as a secondary type", () => {
@@ -23,7 +23,7 @@ describe("buildRunesByDomain", () => {
     const byDomain = buildRunesByDomain([multi]);
 
     expect(byDomain.get("order")).toHaveLength(1);
-    expect(byDomain.get("order")?.[0].cardId).toBe(multi.cardId);
+    expect(byDomain.get("order")?.[0]!.cardId).toBe(multi.cardId);
   });
 
   it("returns an empty map when there are no runes", () => {

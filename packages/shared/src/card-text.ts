@@ -55,14 +55,16 @@ export function tokenizeCardText(text: string): CardTextToken[] {
 
   for (let i = tokens.length - 1; i >= 0; i--) {
     const tok = tokens[i];
-    if (tok.type !== "keyword") {
+    if (tok?.type !== "keyword") {
       continue;
     }
-    if (tok.name === ">" && i > 0 && tokens[i - 1].type === "keyword") {
-      (tokens[i - 1] as Extract<CardTextToken, { type: "keyword" }>).pointedRight = true;
+    const previous = tokens[i - 1];
+    const next = tokens[i + 1];
+    if (tok.name === ">" && previous?.type === "keyword") {
+      previous.pointedRight = true;
       tokens.splice(i, 1);
-    } else if (tok.name === ">>" && i < tokens.length - 1 && tokens[i + 1].type === "keyword") {
-      (tokens[i + 1] as Extract<CardTextToken, { type: "keyword" }>).pointedLeft = true;
+    } else if (tok.name === ">>" && next?.type === "keyword") {
+      next.pointedLeft = true;
       tokens.splice(i, 1);
     }
   }

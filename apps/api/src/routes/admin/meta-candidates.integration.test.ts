@@ -30,8 +30,8 @@ async function seedCard(name: string, normName: string, type: string): Promise<s
     .values({ name, slug: normName, type, normName, keywords: [], tags: [] })
     .returning("id")
     .execute();
-  createdCardIds.push(card.id);
-  return card.id;
+  createdCardIds.push(card!.id);
+  return card!.id;
 }
 
 function fullList() {

@@ -5,6 +5,7 @@ import type {
   CopyResponse,
   Printing,
 } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import type { LucideIcon } from "lucide-react";
 import { ArrowLeftIcon, HandHeartIcon } from "lucide-react";
 import { useState } from "react";
@@ -61,6 +62,11 @@ const URL_PATTERN = /^https?:\/\//u;
 const GRADE_OPTIONS = Array.from({ length: 19 }, (_, index) => String(10 - index * 0.5));
 const GRADE_ITEMS = Object.fromEntries(GRADE_OPTIONS.map((grade) => [grade, grade]));
 
+function soleCopyId(target: CopyDetailsTarget | null): string | null {
+  const [first, ...rest] = target?.copyIds ?? [];
+  return first !== undefined && rest.length === 0 ? first : null;
+}
+
 // With one target copy it opens straight in the editor; with a stack it first
 // lists the copies and edits the one picked.
 export function CopyDetailsDialog({
@@ -72,16 +78,14 @@ export function CopyDetailsDialog({
 }) {
   const { data: allCopies } = useCopies();
   const { data: liveTrades } = useLiveTradesByPrinting();
-  const [editingCopyId, setEditingCopyId] = useState<string | null>(
-    target && target.copyIds.length === 1 ? target.copyIds[0] : null,
-  );
+  const [editingCopyId, setEditingCopyId] = useState<string | null>(soleCopyId(target));
 
   // Keyed off the target, not a useState seed: BaseUI only fires onOpenChange
   // for user-initiated closes, so the dialog stays mounted across targets.
   const [seededTarget, setSeededTarget] = useState(target);
   if (seededTarget !== target) {
     setSeededTarget(target);
-    setEditingCopyId(target && target.copyIds.length === 1 ? target.copyIds[0] : null);
+    setEditingCopyId(soleCopyId(target));
   }
 
   if (!target) {
@@ -196,12 +200,12 @@ function ConditionBadge({ copy, labels }: { copy: CopyResponse; labels: EnumLabe
   if (copy.grader !== null && copy.grade !== null) {
     return (
       <Badge variant="subtle">
-        {labels.graders[copy.grader]} {copy.grade}
+        {enumLabel(labels.graders, copy.grader)} {copy.grade}
       </Badge>
     );
   }
   if (copy.condition !== null) {
-    return <Badge variant="secondary">{labels.conditions[copy.condition]}</Badge>;
+    return <Badge variant="secondary">{enumLabel(labels.conditions, copy.condition)}</Badge>;
   }
   return null;
 }

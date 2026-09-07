@@ -86,13 +86,17 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if (e.key === "ArrowLeft" && selectedIndex > 0) {
         e.preventDefault();
         const target = items[selectedIndex - 1];
-        navigateToIndex(selectedIndex - 1, target.printing, target.zone);
+        if (target) {
+          navigateToIndex(selectedIndex - 1, target.printing, target.zone);
+        }
         return;
       }
       if (e.key === "ArrowRight" && selectedIndex >= 0 && selectedIndex < items.length - 1) {
         e.preventDefault();
         const target = items[selectedIndex + 1];
-        navigateToIndex(selectedIndex + 1, target.printing, target.zone);
+        if (target) {
+          navigateToIndex(selectedIndex + 1, target.printing, target.zone);
+        }
         return;
       }
 
@@ -111,11 +115,15 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
               ? idx + 1
               : 0;
         const sibling = siblingPrintings[next];
+        if (!sibling) {
+          return;
+        }
         const siblingIdx = items.findIndex((i) => i.printing.id === sibling.id);
-        if (siblingIdx === -1) {
-          setSelectedCard(sibling);
+        const siblingItem = items[siblingIdx];
+        if (siblingItem) {
+          navigateToIndex(siblingIdx, sibling, siblingItem.zone);
         } else {
-          navigateToIndex(siblingIdx, sibling, items[siblingIdx].zone);
+          setSelectedCard(sibling);
         }
       }
     };

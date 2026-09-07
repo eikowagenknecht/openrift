@@ -194,8 +194,9 @@ function foldFinalized(
           }
         }
       } else {
-        if (leaders.length === 1) {
-          ensure(leaders[0].playerId).podWins += 1;
+        const soleLeader = leaders.length === 1 ? leaders[0] : undefined;
+        if (soleLeader) {
+          ensure(soleLeader.playerId).podWins += 1;
         }
         if (size === 2) {
           for (const member of members) {
@@ -213,15 +214,15 @@ function foldFinalized(
         }
       }
     }
-    for (let i = 0; i < members.length; i++) {
-      for (let j = i + 1; j < members.length; j++) {
+    for (const [index, firstMember] of members.entries()) {
+      for (const secondMember of members.slice(index + 1)) {
         // Teammates are not opponents: their meeting count would poison the
         // rematch penalty and the opponent-strength tie-breakers.
-        if (teams !== null && members[i].teamId === members[j].teamId) {
+        if (teams !== null && firstMember.teamId === secondMember.teamId) {
           continue;
         }
-        const firstId = members[i].playerId;
-        const secondId = members[j].playerId;
+        const firstId = firstMember.playerId;
+        const secondId = secondMember.playerId;
         const first = ensure(firstId);
         const second = ensure(secondId);
         first.opponents.set(secondId, (first.opponents.get(secondId) ?? 0) + 1);
@@ -379,14 +380,19 @@ export function podTournamentsRepo(db: Kysely<Database>) {
     );
     const tableNumbers = assignTableNumbers(pairing.pods, fixedTables);
     const seatingHistory = foldSeatingHistory(seatRows);
-    for (let index = 0; index < pairing.pods.length; index++) {
-      const pod = pairing.pods[index];
+    for (const [index, pod] of pairing.pods.entries()) {
       const breakdown = pairing.perPod[index];
+      const podNumber = tableNumbers[index];
+      if (breakdown === undefined || podNumber === undefined) {
+        throw new Error(
+          `pairing result is missing a penalty breakdown or table number for pod ${index}`,
+        );
+      }
       const podRow = await trx
         .insertInto("pods")
         .values({
           roundId,
-          podNumber: tableNumbers[index],
+          podNumber,
           size: pod.size,
           penaltyBreakdown: breakdown,
         })

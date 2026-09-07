@@ -31,11 +31,11 @@ export function buildTeamUnits(players: TeamSnapshotPlayer[]): TeamUnitsResult {
       teamId,
       members.map((member) => member.id),
     );
-    if (members.length !== 2) {
+    const [representative] = members;
+    if (members.length !== 2 || representative === undefined) {
       incompleteTeamIds.push(teamId);
       continue;
     }
-    const representative = members[0];
     const opponents = new Map<string, number>();
     for (const [opponentId, meetings] of representative.opponents) {
       const opponentTeam = teamByPlayer.get(opponentId);

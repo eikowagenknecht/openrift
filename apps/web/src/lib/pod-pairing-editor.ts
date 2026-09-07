@@ -46,8 +46,8 @@ export function movePlayer(state: EditorState, playerId: string, target: MoveTar
     byes.push(playerId);
   } else if (target.kind === "newPod") {
     pods.push({ playerIds: [playerId] });
-  } else if (pods[target.index]) {
-    pods[target.index].playerIds.push(playerId);
+  } else {
+    pods[target.index]?.playerIds.push(playerId);
   }
   return { pods, byes };
 }

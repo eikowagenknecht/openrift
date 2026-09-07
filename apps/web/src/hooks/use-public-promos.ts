@@ -28,12 +28,10 @@ interface EnrichedPromoList {
 
 function enrichPromoList(response: PromosListResponse): EnrichedPromoList {
   const setSlugById = new Map(response.sets.map((set) => [set.id, set.slug]));
-  const printings: Printing[] = response.printings.map((p) => ({
-    ...p,
-    setSlug: setSlugById.get(p.setId) ?? "",
-    setReleased: true,
-    card: response.cards[p.cardId],
-  }));
+  const printings: Printing[] = response.printings.flatMap((p) => {
+    const card = response.cards[p.cardId];
+    return card ? [{ ...p, setSlug: setSlugById.get(p.setId) ?? "", setReleased: true, card }] : [];
+  });
   return {
     channels: response.channels,
     printings,

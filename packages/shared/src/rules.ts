@@ -52,9 +52,9 @@ export function buildTermAnchors(
     if (rule.ruleType !== "text") {
       continue;
     }
-    const match = rule.content.match(TERM_DEFINITION_REGEX);
-    if (match) {
-      addTermAnchor(map, match[1], rule.ruleNumber);
+    const term = rule.content.match(TERM_DEFINITION_REGEX)?.[1];
+    if (term !== undefined) {
+      addTermAnchor(map, term, rule.ruleNumber);
     }
   }
   for (const rule of rules) {
@@ -75,10 +75,11 @@ export function buildTermAnchors(
 export function compareRuleNumbers(a: string, b: string): number {
   const partsA = a.split(".");
   const partsB = b.split(".");
-  const len = Math.min(partsA.length, partsB.length);
-  for (let i = 0; i < len; i++) {
-    const partA = partsA[i];
+  for (const [i, partA] of partsA.entries()) {
     const partB = partsB[i];
+    if (partB === undefined) {
+      break;
+    }
     const numA = Number(partA);
     const numB = Number(partB);
     const aIsNum = !Number.isNaN(numA) && partA !== "";

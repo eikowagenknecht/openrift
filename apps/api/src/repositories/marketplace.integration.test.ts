@@ -76,18 +76,18 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       })
       .returning("id")
       .execute();
-    tcgProductId = tcgProduct.id;
-    createdProductIds.push(tcgProduct.id);
+    tcgProductId = tcgProduct!.id;
+    createdProductIds.push(tcgProduct!.id);
 
     const [tcgVariant] = await db
       .insertInto("marketplaceProductVariants")
       .values({
-        marketplaceProductId: tcgProduct.id,
+        marketplaceProductId: tcgProduct!.id,
         printingId: anniePrintingId,
       })
       .returning("id")
       .execute();
-    tcgVariantId = tcgVariant.id;
+    tcgVariantId = tcgVariant!.id;
 
     const [cmProduct] = await db
       .insertInto("marketplaceProducts")
@@ -101,12 +101,12 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       })
       .returning("id")
       .execute();
-    createdProductIds.push(cmProduct.id);
+    createdProductIds.push(cmProduct!.id);
 
     await db
       .insertInto("marketplaceProductVariants")
       .values({
-        marketplaceProductId: cmProduct.id,
+        marketplaceProductId: cmProduct!.id,
         printingId: anniePrintingId,
       })
       .execute();
@@ -178,7 +178,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .insertInto("marketplaceProductVariants")
       .values(
         otherPrintings.map((row, index) => ({
-          marketplaceProductId: overrideProducts[index].id,
+          marketplaceProductId: overrideProducts[index]!.id,
           printingId: row.id,
         })),
       )
@@ -226,13 +226,13 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       })
       .returning("id")
       .execute();
-    langDeckId = deck.id;
-    createdDeckIds.push(deck.id);
+    langDeckId = deck!.id;
+    createdDeckIds.push(deck!.id);
 
     await db
       .insertInto("deckCards")
       .values({
-        deckId: deck.id,
+        deckId: deck!.id,
         cardId: CARD_FURY_RUNE.id,
         zone: "main",
         quantity: 1,
@@ -317,8 +317,8 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
     expect(snaps.length).toBeGreaterThanOrEqual(2);
     for (let i = 1; i < snaps.length; i++) {
-      expect(new Date(snaps[i].recordedAt).getTime()).toBeGreaterThanOrEqual(
-        new Date(snaps[i - 1].recordedAt).getTime(),
+      expect(new Date(snaps[i]!.recordedAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(snaps[i - 1]!.recordedAt).getTime(),
       );
     }
   });

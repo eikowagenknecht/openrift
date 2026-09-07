@@ -69,9 +69,9 @@ describe("GET /api/admin/v1/marketplace-mappings", () => {
     await app.request("/api/admin/v1/marketplace-mappings");
 
     const lastCallArgs = mockBuildUnifiedMappings.mock.calls[0];
-    expect(lastCallArgs[1]).toHaveProperty("marketplace", "tcgplayer");
-    expect(lastCallArgs[2]).toHaveProperty("marketplace", "cardmarket");
-    expect(lastCallArgs[3]).toHaveProperty("marketplace", "cardtrader");
+    expect(lastCallArgs![1]).toHaveProperty("marketplace", "tcgplayer");
+    expect(lastCallArgs![2]).toHaveProperty("marketplace", "cardmarket");
+    expect(lastCallArgs![3]).toHaveProperty("marketplace", "cardtrader");
   });
 });
 

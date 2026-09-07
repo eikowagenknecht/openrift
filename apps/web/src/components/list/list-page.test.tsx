@@ -432,15 +432,15 @@ describe("ListPage", () => {
     expect(screen.getAllByRole("button", { name: "Manage cards" })[0]).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Select all" })).not.toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Manage cards" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Manage cards" })[0]!);
 
     expect(screen.getAllByRole("button", { name: "Done" })[0]).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage cards" })).not.toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Select all" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Select all" })[0]!);
     expect(toggleSelectAll).toHaveBeenCalledWith(["entry-1"]);
 
-    await user.click(screen.getAllByRole("button", { name: "Done" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Done" })[0]!);
     expect(screen.getAllByRole("button", { name: "Manage cards" })[0]).toBeInTheDocument();
   });
 

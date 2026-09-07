@@ -414,6 +414,9 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                               disabled={reassignPrinting.isPending}
                               onClick={() => {
                                 const t = target.candidates[0];
+                                if (!t) {
+                                  return;
+                                }
                                 group.candidates.forEach((s) =>
                                   // The cast is safe: the route's patch schema doesn't
                                   // declare these fields but strips/validates them server-side.

@@ -77,18 +77,18 @@ function catalog(overrides: Partial<CatalogResponse> = {}): CatalogResponse {
 describe("joinCatalogPrintings", () => {
   it("restores the map key as the printing id", () => {
     const [printing] = joinCatalogPrintings(catalog());
-    expect(printing.id).toBe("printing-1");
+    expect(printing!.id).toBe("printing-1");
   });
 
   it("attaches the parent set's slug and the printing's card", () => {
     const [printing] = joinCatalogPrintings(catalog());
-    expect(printing.setSlug).toBe("OGN");
-    expect(printing.card.name).toBe("Test Card");
+    expect(printing!.setSlug).toBe("OGN");
+    expect(printing!.card.name).toBe("Test Card");
   });
 
   it("marks a printing released when its language has a past release date", () => {
     const [printing] = joinCatalogPrintings(catalog());
-    expect(printing.setReleased).toBe(true);
+    expect(printing!.setReleased).toBe(true);
   });
 
   it("resolves release per printing language, not per set", () => {
@@ -120,7 +120,7 @@ describe("joinCatalogPrintings", () => {
     const joined = joinCatalogPrintings(
       catalog({ printings: { de: printingValue({ language: "DE" }) } } as Partial<CatalogResponse>),
     );
-    expect(joined[0].setReleased).toBe(false);
+    expect(joined[0]!.setReleased).toBe(false);
   });
 
   it("drops a printing whose set is absent from the payload", () => {
@@ -151,7 +151,7 @@ describe("joinCatalogPrintings", () => {
         printings: { p: printingValue({ canonicalRank: 42, artist: "Someone Else" }) },
       } as Partial<CatalogResponse>),
     );
-    expect(printing.canonicalRank).toBe(42);
-    expect(printing.artist).toBe("Someone Else");
+    expect(printing!.canonicalRank).toBe(42);
+    expect(printing!.artist).toBe("Someone Else");
   });
 });

@@ -377,7 +377,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
   it("auto-cancels a pending request whose underlying copies vanished before acceptance", async () => {
     const { group, copyIds } = await setupMatch(1);
     const trade = await request(group, 1);
-    await db.deleteFrom("copies").where("id", "=", copyIds[0]).execute();
+    await db.deleteFrom("copies").where("id", "=", copyIds[0]!).execute();
     const result = await acceptTrade(transact, trade.id, GIVER_ID);
     expect(result.status).toBe("cancelled");
     const row = await repos.cardTrades.getById(trade.id);
@@ -700,7 +700,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const survivingCopy = await db
       .selectFrom("copies")
       .select("id")
-      .where("id", "=", copyIds[0])
+      .where("id", "=", copyIds[0]!)
       .executeTakeFirst();
     expect(survivingCopy).toBeUndefined();
 
@@ -717,7 +717,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .selectFrom("listEntries")
       .select("id")
       .where("listId", "=", tradeListId)
-      .where("copyId", "=", copyIds[0])
+      .where("copyId", "=", copyIds[0]!)
       .executeTakeFirst();
     expect(orphanEntry).toBeUndefined();
 
@@ -759,7 +759,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const stillThere = await db
       .selectFrom("copies")
       .select("id")
-      .where("id", "=", copyIds[0])
+      .where("id", "=", copyIds[0]!)
       .executeTakeFirst();
     expect(stillThere).toBeDefined();
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(0);
@@ -770,7 +770,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const trade = await request(group, 1);
     await acceptTrade(transact, trade.id, GIVER_ID);
 
-    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).rejects.toMatchObject({
+    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]!])).rejects.toMatchObject({
       status: 409,
     });
 
@@ -786,7 +786,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .returning("id")
       .executeTakeFirstOrThrow();
     await expect(
-      moveCopies(repos, transact, GIVER_ID, [copyIds[0]], otherCollection.id),
+      moveCopies(repos, transact, GIVER_ID, [copyIds[0]!], otherCollection.id),
     ).resolves.toBeUndefined();
 
     // Settling (which releases the pin first) disposes successfully. The trade
@@ -815,24 +815,24 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .executeTakeFirstOrThrow();
 
     await expect(
-      moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id),
+      moveCopies(repos, transact, GIVER_ID, [copyIds[0]!], pooled.id),
     ).rejects.toMatchObject({ status: 409 });
 
     const stayed = await db
       .selectFrom("copies")
       .select("collectionId")
-      .where("id", "=", copyIds[0])
+      .where("id", "=", copyIds[0]!)
       .executeTakeFirstOrThrow();
     expect(stayed.collectionId).not.toBe(pooled.id);
 
     await cancelTrade(transact, trade.id, GIVER_ID);
     await expect(
-      moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id),
+      moveCopies(repos, transact, GIVER_ID, [copyIds[0]!], pooled.id),
     ).resolves.toBeUndefined();
 
     // Move it back so the group collection is empty when the group cascades.
     const home = await collectionFor(GIVER_ID);
-    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], home);
+    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]!], home);
   });
 
   it("disposeCopies points a live pin at cancelling the trade", async () => {
@@ -841,14 +841,14 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await acceptTrade(transact, trade.id, GIVER_ID);
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toHaveLength(1);
 
-    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).rejects.toMatchObject({
+    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]!])).rejects.toMatchObject({
       status: 409,
       message: "This card is reserved in an active trade — cancel the trade to free it.",
     });
 
     // Settling the giver's side releases the pin, and the copy is disposable.
     await skipTradeSync(transact, trade.id, GIVER_ID);
-    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]])).resolves.toBeUndefined();
+    await expect(disposeCopies(transact, GIVER_ID, [copyIds[0]!])).resolves.toBeUndefined();
   });
 
   it("expirePending moves only pending rows past 24h to expired", async () => {
@@ -1078,7 +1078,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const trade = await request(group, 1);
     expect(trade.status).toBe("pending");
 
-    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]!]);
 
     const row = await repos.cardTrades.getById(trade.id);
     expect(row?.status).toBe("cancelled");
@@ -1090,10 +1090,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group, copyIds } = await setupMatch(2);
     const trade = await request(group, 1);
 
-    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]!]);
     expect(await statusOf(trade.id)).toBe("pending");
 
-    await disposeCopies(transact, GIVER_ID, [copyIds[1]]);
+    await disposeCopies(transact, GIVER_ID, [copyIds[1]!]);
     expect(await statusOf(trade.id)).toBe("cancelled");
   });
 
@@ -1102,7 +1102,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group, copyIds } = await setupMatch(2);
     const trade = await request(group, 2);
 
-    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]!]);
 
     expect(await statusOf(trade.id)).toBe("cancelled");
   });
@@ -1118,7 +1118,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
     // Destroying one copy leaves a single one, already committed by the offer.
     // Offers are settled before requests are judged, so only the request dies.
-    await disposeCopies(transact, GIVER_ID, [copyIds[0]]);
+    await disposeCopies(transact, GIVER_ID, [copyIds[0]!]);
 
     expect(await statusOf(offered.id)).toBe("pending");
     expect(await statusOf(requested.id)).toBe("cancelled");
@@ -1137,13 +1137,13 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       .values({ groupId: group.id, name: "Pooled Binder", isInbox: false, sortOrder: 4 })
       .returning("id")
       .executeTakeFirstOrThrow();
-    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], pooled.id);
+    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]!], pooled.id);
 
     expect(await statusOf(trade.id)).toBe("cancelled");
 
     // Move it back so the group collection is empty when the group cascades.
     const home = await collectionFor(GIVER_ID);
-    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]], home);
+    await moveCopies(repos, transact, GIVER_ID, [copyIds[0]!], home);
   });
 
   it("unsharing the trade list closes the requests it was backing", async () => {
@@ -1168,7 +1168,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   it("promises the plainest copy when the giver makes no choice", async () => {
     const { group, copyIds } = await setupMatch(2);
-    await gradeCopy(copyIds[0]);
+    await gradeCopy(copyIds[0]!);
     const trade = await request(group, 1);
 
     await acceptTrade(transact, trade.id, GIVER_ID);
@@ -1179,10 +1179,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   it("promises exactly the copy the giver picked, graded or not", async () => {
     const { group, copyIds } = await setupMatch(2);
-    await gradeCopy(copyIds[0]);
+    await gradeCopy(copyIds[0]!);
     const trade = await request(group, 1);
 
-    await acceptTrade(transact, trade.id, GIVER_ID, [copyIds[0]]);
+    await acceptTrade(transact, trade.id, GIVER_ID, [copyIds[0]!]);
 
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([copyIds[0]]);
   });
@@ -1191,7 +1191,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     const { group, copyIds } = await setupMatch(3);
     const trade = await request(group, 2);
 
-    await expect(acceptTrade(transact, trade.id, GIVER_ID, [copyIds[0]])).rejects.toMatchObject({
+    await expect(acceptTrade(transact, trade.id, GIVER_ID, [copyIds[0]!])).rejects.toMatchObject({
       status: 409,
     });
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
@@ -1232,7 +1232,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
     // The receiver is the recipient here, but the copies are not theirs to pick.
     await expect(
-      acceptTrade(transact, offered.id, RECEIVER_ID, [copyIds[0]]),
+      acceptTrade(transact, offered.id, RECEIVER_ID, [copyIds[0]!]),
     ).rejects.toMatchObject({ status: 403 });
 
     // A pending offer commits supply globally, so release it before moving on.
@@ -1241,7 +1241,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
   it("lists the giver's candidate copies plainest-first and flags a real choice", async () => {
     const { group, copyIds } = await setupMatch(2);
-    await gradeCopy(copyIds[0]);
+    await gradeCopy(copyIds[0]!);
     const trade = await request(group, 1);
 
     const options = await listTradeCopyOptions(repos, trade.id, GIVER_ID);
@@ -1250,7 +1250,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     expect(options.quantity).toBe(1);
     expect(options.choiceMatters).toBe(true);
     expect(options.copies.map((row) => row.id)).toEqual([copyIds[1], copyIds[0]]);
-    expect(options.copies[0].hasRecordedDetails).toBe(false);
+    expect(options.copies[0]!.hasRecordedDetails).toBe(false);
     expect(options.copies[1]).toMatchObject({
       grader: "psa",
       grade: 10,
@@ -1309,7 +1309,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [unlisted] });
 
     expect(await copyExists(unlisted)).toBe(false);
-    expect(await copyExists(copyIds[0])).toBe(true);
+    expect(await copyExists(copyIds[0]!)).toBe(true);
     expect(await repos.cardTrades.listReservedCopyIds(trade.id)).toEqual([]);
     const row = await repos.cardTrades.getById(trade.id);
     expect(row?.giverSyncAppliedAt).not.toBeNull();
@@ -1322,10 +1322,10 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
     await acceptTrade(transact, trade.id, GIVER_ID);
 
     await expect(
-      applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [copyIds[0]] }),
+      applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [copyIds[0]!] }),
     ).rejects.toMatchObject({ status: 409 });
-    expect(await copyExists(copyIds[0])).toBe(true);
-    expect(await copyExists(copyIds[1])).toBe(true);
+    expect(await copyExists(copyIds[0]!)).toBe(true);
+    expect(await copyExists(copyIds[1]!)).toBe(true);
   });
 
   it("refuses a settle choice naming someone else's copy", async () => {
@@ -1343,7 +1343,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
       applyTradeSync(transact, trade.id, GIVER_ID, { copyIds: [theirs.id] }),
     ).rejects.toMatchObject({ status: 409 });
     expect(await copyExists(theirs.id)).toBe(true);
-    expect(await copyExists(copyIds[0])).toBe(true);
+    expect(await copyExists(copyIds[0]!)).toBe(true);
   });
 
   it("refuses a settle choice from the receiver, whose side owns no copies", async () => {
@@ -1581,7 +1581,7 @@ describe.skipIf(!ctx)("cardTradesRepo (integration)", () => {
 
       await applyTradeSync(transact, trade.id, GIVER_ID, {
         quantity: 1,
-        copyIds: [copyIds[2]],
+        copyIds: [copyIds[2]!],
       });
 
       const remainderPins = await repos.cardTrades.listReservedCopyIds(trade.id);

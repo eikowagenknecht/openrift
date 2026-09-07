@@ -45,12 +45,19 @@ interface EnrichedSetDetail {
 
 function enrichSetDetail(response: SetDetailResponse): EnrichedSetDetail {
   const today = todayUtc();
-  const printings: Printing[] = response.printings.map((p) => ({
-    ...p,
-    setSlug: response.set.slug,
-    setReleased: isReleasedIn(response.set.releases, p.language, today),
-    card: response.cards[p.cardId],
-  }));
+  const printings: Printing[] = response.printings.flatMap((p) => {
+    const card = response.cards[p.cardId];
+    return card
+      ? [
+          {
+            ...p,
+            setSlug: response.set.slug,
+            setReleased: isReleasedIn(response.set.releases, p.language, today),
+            card,
+          },
+        ]
+      : [];
+  });
   return { set: response.set, printings, cards: response.cards };
 }
 

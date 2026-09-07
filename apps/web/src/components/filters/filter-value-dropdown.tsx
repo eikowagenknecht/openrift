@@ -1,4 +1,5 @@
 import type { AvailableFilters, FilterCounts, PresenceDimension } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 
 import type { MultiSelectComboboxProps } from "@/components/filters/multi-select-combobox";
 import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
@@ -86,7 +87,7 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     emptyText: "No rarities match.",
     options: ctx.availableFilters.rarities.map((value) => ({
       value,
-      label: ctx.labels.rarities[value],
+      label: enumLabel(ctx.labels.rarities, value),
     })),
     selected: ctx.filterState.rarities,
     excluded: ctx.filterState.raritiesEx,
@@ -100,7 +101,7 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     emptyText: "No types match.",
     options: ctx.availableFilters.types.map((value) => ({
       value,
-      label: ctx.labels.cardTypes[value],
+      label: enumLabel(ctx.labels.cardTypes, value),
     })),
     selected: ctx.filterState.types,
     excluded: ctx.filterState.typesEx,
@@ -115,7 +116,7 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     emptyText: "No supertypes match.",
     options: ctx.availableFilters.superTypes.map((value) => ({
       value,
-      label: ctx.labels.superTypes[value],
+      label: enumLabel(ctx.labels.superTypes, value),
     })),
     selected: ctx.filterState.superTypes,
     excluded: ctx.filterState.superTypesEx,
@@ -197,11 +198,11 @@ export function FilterVariantDropdown({
   const { cycleArrayFilter, toggleSigned, toggleOvernumbered } = useFilterActions();
   const artVariantOptions = availableFilters.artVariants.map((value) => ({
     value,
-    label: labels.artVariants[value],
+    label: enumLabel(labels.artVariants, value),
   }));
   const finishOptions = availableFilters.finishes.map((value) => ({
     value,
-    label: labels.finishes[value],
+    label: enumLabel(labels.finishes, value),
   }));
   const both = showArtVariant && showFinish;
   const primaryIsArt = showArtVariant;

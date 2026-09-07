@@ -73,7 +73,7 @@ describe("OpenRoundBand", () => {
 
   it("calls a round of 1v1 pods matches", () => {
     const round = makeRound([makePod("pod-1", "reported")]);
-    round.pods[0].size = 2;
+    round.pods[0]!.size = 2;
     render(<OpenRoundBand round={round} suggested={0} finalizing={false} onFinalize={vi.fn()} />);
 
     expect(screen.getByText("matches reported")).toBeInTheDocument();

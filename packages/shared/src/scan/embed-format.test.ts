@@ -11,11 +11,11 @@ function unitVector(seed: number): Float32Array {
   for (let i = 0; i < EMBED_DIM; i++) {
     value = (value * 1_103_515_245 + 12_345) % 2_147_483_648;
     vector[i] = value / 2_147_483_648 - 0.5;
-    norm += vector[i] * vector[i];
+    norm += vector[i]! * vector[i]!;
   }
   norm = Math.sqrt(norm);
   for (let i = 0; i < EMBED_DIM; i++) {
-    vector[i] /= norm;
+    vector[i]! /= norm;
   }
   return vector;
 }
@@ -44,7 +44,7 @@ describe("embed bank round trip", () => {
     for (let entry = 0; entry < bank.keys.length; entry++) {
       let cosine = 0;
       for (let i = 0; i < EMBED_DIM; i++) {
-        cosine += bank.vectors[entry * EMBED_DIM + i] * decoded.vectors[entry * EMBED_DIM + i];
+        cosine += bank.vectors[entry * EMBED_DIM + i]! * decoded.vectors[entry * EMBED_DIM + i]!;
       }
       // fp16 costs a few 1e-5 of cosine; pipeline margins live at 5e-2 and up.
       expect(cosine).toBeGreaterThan(0.9999);

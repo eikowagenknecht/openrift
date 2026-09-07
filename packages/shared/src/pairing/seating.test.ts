@@ -13,7 +13,7 @@ function podRows(
 
 function neighborPairs(seated: string[]): string[] {
   return seated.map((playerId, index) =>
-    adjacentKey(playerId, seated[(index + 1) % seated.length]),
+    adjacentKey(playerId, seated[(index + 1) % seated.length]!),
   );
 }
 

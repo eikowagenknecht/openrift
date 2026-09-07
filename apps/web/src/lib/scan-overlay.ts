@@ -50,24 +50,63 @@ export function stepQuadToward(
   return settled;
 }
 
+type Quad = readonly [Point, Point, Point, Point];
+
+function asQuad(points: readonly Point[]): Quad | null {
+  const [a, b, c, d] = points;
+  if (!a || !b || !c || !d) {
+    return null;
+  }
+  return [a, b, c, d];
+}
+
+function rotateQuad([a, b, c, d]: Quad, offset: number): Quad {
+  switch (offset % 4) {
+    case 1: {
+      return [b, c, d, a];
+    }
+    case 2: {
+      return [c, d, a, b];
+    }
+    case 3: {
+      return [d, a, b, c];
+    }
+    default: {
+      return [a, b, c, d];
+    }
+  }
+}
+
+function cornerDistances(
+  [a0, a1, a2, a3]: Quad,
+  [b0, b1, b2, b3]: Quad,
+): [number, number, number, number] {
+  return [
+    Math.hypot(a0.x - b0.x, a0.y - b0.y),
+    Math.hypot(a1.x - b1.x, a1.y - b1.y),
+    Math.hypot(a2.x - b2.x, a2.y - b2.y),
+    Math.hypot(a3.x - b3.x, a3.y - b3.y),
+  ];
+}
+
 /**
  * The pipeline can renumber a quad's four corners between frames (angular
  * sort wraps at half a turn, short-side tie flips). Finds the cyclic offset
  * that best lines `quad` up with `reference` so easing tracks the same corner.
  */
 export function quadOffsetTo(quad: readonly Point[], reference: readonly Point[]): number {
-  if (quad.length < 4 || reference.length < 4) {
+  const corners = asQuad(quad);
+  const anchors = asQuad(reference);
+  if (!corners || !anchors) {
     return 0;
   }
   let bestOffset = 0;
   let bestCost = Number.POSITIVE_INFINITY;
   for (let offset = 0; offset < 4; offset++) {
-    let cost = 0;
-    for (let index = 0; index < 4; index++) {
-      const from = quad[(index + offset) % 4];
-      const to = reference[index];
-      cost += Math.hypot(from.x - to.x, from.y - to.y);
-    }
+    const cost = cornerDistances(rotateQuad(corners, offset), anchors).reduce(
+      (total, distance) => total + distance,
+      0,
+    );
     if (cost < bestCost) {
       bestCost = cost;
       bestOffset = offset;
@@ -103,13 +142,12 @@ export function copyQuad(quad: readonly Point[], out: Point[]): void {
 }
 
 export function quadDiagonal(quad: readonly Point[]): number {
-  if (quad.length < 4) {
+  const corners = asQuad(quad);
+  if (!corners) {
     return 0;
   }
-  return Math.max(
-    Math.hypot(quad[2].x - quad[0].x, quad[2].y - quad[0].y),
-    Math.hypot(quad[3].x - quad[1].x, quad[3].y - quad[1].y),
-  );
+  const [a, b, c, d] = corners;
+  return Math.max(Math.hypot(c.x - a.x, c.y - a.y), Math.hypot(d.x - b.x, d.y - b.y));
 }
 
 export function quadMatches(
@@ -117,15 +155,14 @@ export function quadMatches(
   reference: readonly Point[],
   fraction: number,
 ): boolean {
-  if (quad.length < 4 || reference.length < 4) {
+  const corners = asQuad(quad);
+  const anchors = asQuad(reference);
+  if (!corners || !anchors) {
     return false;
   }
   const limit = fraction * quadDiagonal(reference);
-  const offset = quadOffsetTo(quad, reference);
-  return reference.every((point, index) => {
-    const from = quad[(index + offset) % 4];
-    return Math.hypot(from.x - point.x, from.y - point.y) <= limit;
-  });
+  const rotated = rotateQuad(corners, quadOffsetTo(quad, reference));
+  return Math.max(...cornerDistances(rotated, anchors)) <= limit;
 }
 
 export interface Segment {
@@ -137,14 +174,15 @@ export interface Segment {
 
 export function bracketSegments(quad: readonly Point[], fraction: number): Segment[] {
   const legs: Segment[] = [];
-  if (quad.length < 4 || fraction <= 0) {
+  const corners = asQuad(quad);
+  if (!corners || fraction <= 0) {
     return legs;
   }
   const reach = Math.min(fraction, 0.5);
-  for (let index = 0; index < 4; index++) {
-    const corner = quad[index];
-    pushLeg(legs, corner, quad[(index + 1) % 4], reach);
-    pushLeg(legs, corner, quad[(index + 3) % 4], reach);
+  for (let offset = 0; offset < 4; offset++) {
+    const [corner, next, , previous] = rotateQuad(corners, offset);
+    pushLeg(legs, corner, next, reach);
+    pushLeg(legs, corner, previous, reach);
   }
   return legs;
 }

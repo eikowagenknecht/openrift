@@ -82,7 +82,7 @@ describe("landingSummaryQueryOptions browser fetch", () => {
     const result = await landingSummaryQueryOptions.queryFn?.({} as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const url = fetchedUrl(fetchMock.mock.calls[0]);
+    const url = fetchedUrl(fetchMock.mock.calls[0]!);
     expect(url).toBe("https://preview.openrift.app/api/v1/landing-summary");
     expect(url).not.toContain("localhost:3000");
     expect(result).toEqual(SUMMARY);

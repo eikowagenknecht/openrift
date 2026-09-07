@@ -355,11 +355,12 @@ function CostToCompleteTooltipContent({
   payload?: { payload: CurvePoint }[];
   formatPrice: (value: number) => string;
 }) {
-  if (!active || !payload?.length) {
+  const [firstEntry] = payload ?? [];
+  if (!active || firstEntry === undefined) {
     return null;
   }
 
-  const point = payload[0].payload;
+  const point = firstEntry.payload;
 
   return (
     <div className="border-border/50 bg-background flex min-w-36 gap-2.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-md">

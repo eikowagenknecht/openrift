@@ -17,12 +17,16 @@ export interface MetaDeckCost {
 // A pair naming a card outside the pool is dropped, as is a trailing index without a quantity.
 function decodePairs(pairs: readonly number[], cards: readonly string[]): Map<string, number> {
   const requirements = new Map<string, number>();
-  for (let at = 0; at + 1 < pairs.length; at += 2) {
-    const cardId = cards[pairs[at]];
-    if (cardId === undefined) {
+  for (const [at, cardIndex] of pairs.entries()) {
+    if (at % 2 !== 0) {
       continue;
     }
-    requirements.set(cardId, (requirements.get(cardId) ?? 0) + pairs[at + 1]);
+    const quantity = pairs[at + 1];
+    const cardId = cards[cardIndex];
+    if (quantity === undefined || cardId === undefined) {
+      continue;
+    }
+    requirements.set(cardId, (requirements.get(cardId) ?? 0) + quantity);
   }
   return requirements;
 }

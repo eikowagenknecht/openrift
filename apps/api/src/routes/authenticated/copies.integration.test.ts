@@ -46,9 +46,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
         }[];
       };
       expect(json.items).toHaveLength(3);
-      expect(json.items[0].id).toBeTypeOf("string");
-      expect(json.items[0].printingId).toBe(PRINTING_1.id);
-      expect(json.items[0].collectionId).toBe(collectionId);
+      expect(json.items[0]!.id).toBeTypeOf("string");
+      expect(json.items[0]!.printingId).toBe(PRINTING_1.id);
+      expect(json.items[0]!.collectionId).toBe(collectionId);
       expect(json.items[0]).toHaveProperty("groupId");
       expect(json.items.every((copy) => copy.groupId === null)).toBe(true);
       copyIds = json.items.map((c) => c.id);
@@ -61,7 +61,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(201);
 
       const json = (await readJson(res)) as { items: { collectionId: string }[] };
-      expect(json.items[0].collectionId).not.toBe(collectionId);
+      expect(json.items[0]!.collectionId).not.toBe(collectionId);
     });
 
     describe("groupId for a group-owned collection", () => {
@@ -119,9 +119,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
           }[];
         };
         expect(json.items).toHaveLength(1);
-        expect(json.items[0].collectionId).toBe(pooled.id);
-        expect(json.items[0].groupId).toBe(groupId);
-        groupCopyIds.push(json.items[0].id);
+        expect(json.items[0]!.collectionId).toBe(pooled.id);
+        expect(json.items[0]!.groupId).toBe(groupId);
+        groupCopyIds.push(json.items[0]!.id);
       });
     });
 
@@ -162,9 +162,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(json.items.length).toBe(4);
 
       const copy = json.items[0];
-      expect(copy.id).toBeTypeOf("string");
-      expect(copy.printingId).toBeTypeOf("string");
-      expect(copy.collectionId).toBeTypeOf("string");
+      expect(copy!.id).toBeTypeOf("string");
+      expect(copy!.printingId).toBeTypeOf("string");
+      expect(copy!.collectionId).toBeTypeOf("string");
     });
   });
 
@@ -222,11 +222,11 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       const json = (await readJson(res)) as {
         items: { id: string; condition: string | null; links: { url: string }[] }[];
       };
-      expect(json.items[0].condition).toBe("near-mint");
-      expect(json.items[0].links).toEqual([
+      expect(json.items[0]!.condition).toBe("near-mint");
+      expect(json.items[0]!.links).toEqual([
         { url: "https://example.com/front.jpg", label: "Front" },
       ]);
-      annotatedId = json.items[0].id;
+      annotatedId = json.items[0]!.id;
     });
 
     it("applies a metadata patch and round-trips it through GET /copies", async () => {

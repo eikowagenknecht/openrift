@@ -41,11 +41,11 @@ export async function acceptFavoriteNewCard(
   const allCandidates = await repos.candidateCards.candidateCardsByNormName(normalizedName);
   const favoriteCandidates = allCandidates.filter((cc) => favoriteProviders.has(cc.provider));
 
-  if (favoriteCandidates.length === 0) {
+  const [primaryCandidate] = favoriteCandidates;
+
+  if (!primaryCandidate) {
     throw new Error("No favorite-provider source found for this card");
   }
-
-  const primaryCandidate = favoriteCandidates[0];
 
   const cardSlug = slugifyName(primaryCandidate.name);
 
@@ -95,7 +95,11 @@ export async function acceptFavoriteNewCard(
   const skipped: { shortCode: string; reason: string }[] = [];
 
   for (const [, group] of groupMap) {
-    const first = group[0];
+    const [first] = group;
+
+    if (!first) {
+      continue;
+    }
 
     if (!first.setId) {
       skipped.push({ shortCode: first.shortCode, reason: "missing setId" });

@@ -423,7 +423,7 @@ describe("PairingsView", () => {
     const onSubmitPlayerResult = vi.fn().mockResolvedValue(undefined);
     renderView({ onSubmitPlayerResult });
 
-    await user.click(screen.getAllByRole("button", { name: "Add score" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Add score" })[0]!);
     await user.type(screen.getByLabelText("Game points for Ashe"), "7");
     await user.click(screen.getByRole("button", { name: "Save score for Ashe" }));
 

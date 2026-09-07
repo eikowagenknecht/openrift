@@ -61,11 +61,15 @@ export function verifyUnsubscribeToken(
   secret: string,
   token: string,
 ): { userId: string; channel: EmailNotificationChannel } | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) {
+  const [encodedUserId, channel, signature, ...rest] = token.split(".");
+  if (
+    encodedUserId === undefined ||
+    channel === undefined ||
+    signature === undefined ||
+    rest.length > 0
+  ) {
     return null;
   }
-  const [encodedUserId, channel, signature] = parts;
   if (!VALID_CHANNELS.includes(channel as EmailNotificationChannel)) {
     return null;
   }

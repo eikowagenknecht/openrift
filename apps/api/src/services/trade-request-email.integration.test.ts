@@ -204,8 +204,8 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     const trade = await requestAsReceiver(group, deps);
     expect(trade.status).toBe("pending");
     expect(sent).toHaveLength(1);
-    expect(sent[0].to).toBe(GIVER_EMAIL);
-    expect(sent[0].subject).toContain("wants to trade for");
+    expect(sent[0]!.to).toBe(GIVER_EMAIL);
+    expect(sent[0]!.subject).toContain("wants to trade for");
   });
 
   it("emails the receiver (non-initiator) instantly on a giver-initiated offer", async () => {
@@ -216,8 +216,8 @@ describe.skipIf(!ctx)("trade-request email (integration)", () => {
     const { deps, sent } = makeEmailDeps();
     await offerAsGiver(group, deps);
     expect(sent).toHaveLength(1);
-    expect(sent[0].to).toBe(RECEIVER_EMAIL);
-    expect(sent[0].subject).toContain("offers you");
+    expect(sent[0]!.to).toBe(RECEIVER_EMAIL);
+    expect(sent[0]!.subject).toContain("offers you");
   });
 
   it("does not email when the recipient turned trade-request emails off", async () => {

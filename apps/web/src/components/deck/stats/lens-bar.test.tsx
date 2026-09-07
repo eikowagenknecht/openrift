@@ -42,7 +42,7 @@ describe("LensBar", () => {
     );
     const buttons = getAllByRole("button");
     expect(buttons).toHaveLength(4);
-    fireEvent.click(buttons[1]);
+    fireEvent.click(buttons[1]!);
     expect(onSegmentClick).toHaveBeenCalledWith("rare");
   });
 
@@ -58,7 +58,7 @@ describe("LensBar", () => {
   it("splits segments into a lit hit portion and a faded remainder", () => {
     const { container } = render(
       <LensBar
-        rows={[ROWS[0]]}
+        rows={[ROWS[0]!]}
         series={SERIES}
         hitRows={[{ key: "common", label: "", total: 4, segments: { common: 4 } }]}
       />,
@@ -67,8 +67,8 @@ describe("LensBar", () => {
       (el) => el.style.flexGrow !== "" && el.style.backgroundColor !== "",
     );
     expect(parts).toHaveLength(2);
-    expect(Number(parts[0].style.flexGrow)).toBeCloseTo(4 / 12, 5);
-    expect(parts[1].style.opacity).toBe("0.3");
+    expect(Number(parts[0]!.style.flexGrow)).toBeCloseTo(4 / 12, 5);
+    expect(parts[1]!.style.opacity).toBe("0.3");
   });
 
   it("keeps zero rows in the legend but out of the bar", () => {

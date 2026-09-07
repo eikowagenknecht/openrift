@@ -107,7 +107,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
     it("returns inbox first, then remaining collections sorted", async () => {
       const res = await app.fetch(req("GET", "/collections"));
       const json = (await readJson(res)) as { items: CollectionResponse[] };
-      expect(json.items[0].isInbox).toBe(true);
+      expect(json.items[0]!.isInbox).toBe(true);
       // Personal collections are ordered by sortOrder (then name as a tiebreak),
       // not by name alone — verify the rest are in ascending sortOrder.
       const rest = json.items.slice(1);
@@ -312,7 +312,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(addRes.status).toBe(201);
       const [copy] = ((await readJson(addRes)) as { items: { id: string }[] }).items;
 
-      const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy.id] }));
+      const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy!.id] }));
       expect(disposeRes.status).toBe(204);
 
       const res = await app.fetch(req("DELETE", `/collections/${historyCollectionId}`));
@@ -337,7 +337,7 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       const [copy] = ((await readJson(addRes)) as { items: { id: string }[] }).items;
 
       const moveRes = await app.fetch(
-        req("POST", "/copies/move", { copyIds: [copy.id], toCollectionId: dstId }),
+        req("POST", "/copies/move", { copyIds: [copy!.id], toCollectionId: dstId }),
       );
       expect(moveRes.status).toBe(204);
 

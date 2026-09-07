@@ -178,7 +178,7 @@ describe("moveListEntries", () => {
 
     expect(result).toEqual({ moved: 2, merged: 1 });
     expect(bulkCreateEntries).toHaveBeenCalledTimes(1);
-    const [kindArg, valuesArg] = bulkCreateEntries.mock.calls[0];
+    const [kindArg, valuesArg] = bulkCreateEntries.mock.calls[0]!;
     expect(kindArg).toBe("card");
     expect(valuesArg).toEqual([
       expect.objectContaining({
@@ -223,7 +223,7 @@ describe("moveListEntries", () => {
 
     await moveListEntries(repos, mockTransact(repos), "user-1", "list-a", "list-b", ["entry-1"]);
 
-    const [, valuesArg] = bulkCreateEntries.mock.calls[0];
+    const [, valuesArg] = bulkCreateEntries.mock.calls[0]!;
     expect(valuesArg[0]).toEqual(
       expect.objectContaining({
         pricePref: "absolute",

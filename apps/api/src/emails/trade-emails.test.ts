@@ -92,7 +92,7 @@ describe("buildCoalescedTradeRequestsEmail", () => {
     expect(html).toContain("<strong>Azir</strong>");
     expect(html).toContain("<strong>2× Lux</strong>");
     expect(html).not.toContain("Garen wants your");
-    expect(html).toContain(BASE.groups[0].tradesUrl);
+    expect(html).toContain(BASE.groups[0]!.tradesUrl);
     expect(html).toContain(BASE.unsubscribeUrl);
   });
 
@@ -208,7 +208,7 @@ describe("buildTradeStatusUpdateEmail", () => {
     expect(html).toContain("<strong>Lux</strong>");
     expect(html).toContain("<strong>Jinx</strong>");
     expect(html).not.toContain("Garen accepted your request");
-    expect(html).toContain(BASE.groups[0].tradesUrl);
+    expect(html).toContain(BASE.groups[0]!.tradesUrl);
     expect(html).toContain(BASE.unsubscribeUrl);
   });
 

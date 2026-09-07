@@ -203,8 +203,8 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const getJson = await readJson(getRes);
       const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
 
-      const coreId = setIds["CAT-core-set"];
-      const expId = setIds["CAT-expansion-one"];
+      const coreId = setIds["CAT-core-set"]!;
+      const expId = setIds["CAT-expansion-one"]!;
       const reordered = allIds.filter((id) => id !== coreId && id !== expId);
       reordered.push(expId, coreId);
 
@@ -239,7 +239,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       const getJson = await readJson(getRes);
       const allIds: string[] = getJson.sets.map((s: { id: string }) => s.id);
       const duped = [...allIds];
-      duped[duped.length - 1] = duped[0];
+      duped[duped.length - 1] = duped[0]!;
 
       const res = await app.fetch(adminReq("PUT", "/sets/reorder", { ids: duped }));
       expect(res.status).toBe(400);
@@ -302,13 +302,13 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
       await testDb
         .insertInto("cardDomains")
-        .values({ cardId: tempCard.id, domainSlug: "mind", ordinal: 0 })
+        .values({ cardId: tempCard!.id, domainSlug: "mind", ordinal: 0 })
         .execute();
 
       await testDb
         .insertInto("printings")
         .values({
-          cardId: tempCard.id,
+          cardId: tempCard!.id,
           setId: tempSetId,
           shortCode: "CAT-PRINT-001",
           rarity: "common",
@@ -333,7 +333,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
       expect(delJson.message).toContain("printing");
 
       await testDb.deleteFrom("printings").where("shortCode", "=", "CAT-PRINT-001").execute();
-      await testDb.deleteFrom("cardDomains").where("cardId", "=", tempCard.id).execute();
+      await testDb.deleteFrom("cardDomains").where("cardId", "=", tempCard!.id).execute();
       await testDb.deleteFrom("cards").where("slug", "=", "CAT-PRINT-001").execute();
       await app.fetch(adminReq("DELETE", `/sets/${tempSetId}`));
     });

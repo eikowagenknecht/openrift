@@ -31,15 +31,17 @@ export function parseCardListText(text: string): ListImportParseResult {
     rowCount++;
 
     const match = /^(?<quantity>\d+)\s+(?<name>.+)$/u.exec(line);
-    if (!match) {
+    const rawQuantity = match?.[1];
+    const rawName = match?.[2];
+    if (rawQuantity === undefined || rawName === undefined) {
       errors.push(
         `Line ${index + 1}: couldn't read "${line}" — expected "<quantity> <card name>".`,
       );
       continue;
     }
 
-    const quantity = Number(match[1]);
-    const cardName = match[2].trim();
+    const quantity = Number(rawQuantity);
+    const cardName = rawName.trim();
     if (quantity <= 0) {
       errors.push(`Line ${index + 1}: quantity must be greater than zero.`);
       continue;

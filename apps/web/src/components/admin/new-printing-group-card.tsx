@@ -49,7 +49,7 @@ interface NewPrintingColumnActionsProps {
   onLink: (printingId: string, candidatePrintingIds: string[]) => void;
   onCopy: (id: string, printingId: string) => void;
   onAcceptAllForRow: (rowId: string, values: Record<string, unknown>) => void;
-  onIgnore: (externalId: string, finish: string) => void;
+  onIgnore: (externalId: string, finish: string | null) => void;
   onDelete: (id: string) => void;
   isAdmin: boolean;
 }
@@ -95,9 +95,7 @@ function NewPrintingColumnActions({
         onAcceptAllForRow(row.id, values);
       }}
       onIgnore={
-        isAdmin
-          ? () => onIgnore(row.externalId, (row as unknown as Record<string, string>).finish)
-          : undefined
+        isAdmin ? () => onIgnore(row.externalId, "finish" in row ? row.finish : null) : undefined
       }
       onDelete={isAdmin ? () => onDelete(row.id) : undefined}
     />
@@ -141,7 +139,7 @@ export function NewPrintingGroupCard({
   onLink: (printingId: string, candidatePrintingIds: string[]) => void;
   onCopy: (id: string, printingId: string) => void;
   onDelete: (id: string) => void;
-  onIgnore: (externalId: string, finish: string) => void;
+  onIgnore: (externalId: string, finish: string | null) => void;
   isAccepting: boolean;
   isLinking?: boolean;
   printingFields: FieldDef<CandidatePrintingFieldKey>[];

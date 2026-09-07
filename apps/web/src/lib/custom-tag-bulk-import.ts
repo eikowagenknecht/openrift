@@ -43,19 +43,19 @@ export function planCustomTagBulkImport(text: string, allCards: MinimalCard[]): 
     if (!name) {
       continue;
     }
-    const hits = byNormalizedName.get(normalizeNameForIdentity(name));
-    if (!hits || hits.length === 0) {
+    const hits = byNormalizedName.get(normalizeNameForIdentity(name)) ?? [];
+    const [card] = hits;
+    if (card === undefined) {
       unmatched.push(name);
       continue;
     }
     if (hits.length > 1) {
       ambiguous.push({
         name,
-        matches: hits.map((card) => ({ cardId: card.id, name: card.name })),
+        matches: hits.map((hit) => ({ cardId: hit.id, name: hit.name })),
       });
       continue;
     }
-    const card = hits[0];
     if (!seenIds.has(card.id)) {
       seenIds.add(card.id);
       matched.push({ cardId: card.id, name: card.name });

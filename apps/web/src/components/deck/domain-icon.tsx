@@ -1,3 +1,5 @@
+import { enumLabel } from "@openrift/shared";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
@@ -9,7 +11,7 @@ export function DomainIcon({ domain, className }: { domain: string; className?: 
   if (!domainIcon) {
     return null;
   }
-  const label = labels.domains[domain];
+  const label = enumLabel(labels.domains, domain);
   return (
     <Tooltip>
       {/* Base UI's default trigger element renders as a button, which would

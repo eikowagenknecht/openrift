@@ -17,13 +17,13 @@ function capitalize(word: string): string {
 }
 
 export function glyphFallback(name: string): string {
-  const energy = ENERGY_PATTERN.exec(name);
-  if (energy) {
-    return `${energy[1]} energy`;
+  const energy = ENERGY_PATTERN.exec(name)?.[1];
+  if (energy !== undefined) {
+    return `${energy} energy`;
   }
-  const rune = RUNE_PATTERN.exec(name);
-  if (rune) {
-    return `${capitalize(rune[1])} rune`;
+  const rune = RUNE_PATTERN.exec(name)?.[1];
+  if (rune !== undefined) {
+    return `${capitalize(rune)} rune`;
   }
   return capitalize(name);
 }

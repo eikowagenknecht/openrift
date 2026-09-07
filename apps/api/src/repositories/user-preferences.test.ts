@@ -46,7 +46,7 @@ describe("userPreferencesRepo", () => {
 
     await userPreferencesRepo(db).upsert("u1", { theme: "dark", showImages: false });
 
-    expect(parameters[0][1]).toEqual({ theme: "dark", showImages: false });
+    expect(parameters[0]![1]).toEqual({ theme: "dark", showImages: false });
   });
 
   it("upsert sends null keys as jsonb key removals", async () => {

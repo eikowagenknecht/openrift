@@ -270,7 +270,7 @@ describe("acceptFavoriteNewCard", () => {
 
     await acceptFavoriteNewCard(transact, io, repos, "flame-striker", FAVORITE_PROVIDERS);
 
-    expect(vi.mocked(acceptPrinting).mock.calls[0][5]).toBe(io);
+    expect(vi.mocked(acceptPrinting).mock.calls[0]![5]).toBe(io);
   });
 
   it("groups candidate printings by shortCode + finish + markerSlugs", async () => {
@@ -295,7 +295,7 @@ describe("acceptFavoriteNewCard", () => {
     await acceptFavoriteNewCard(transact, {} as Io, repos, "flame-striker", FAVORITE_PROVIDERS);
 
     expect(acceptPrinting).toHaveBeenCalledTimes(1);
-    const cpIds = vi.mocked(acceptPrinting).mock.calls[0][4];
+    const cpIds = vi.mocked(acceptPrinting).mock.calls[0]![4];
     expect(cpIds).toEqual(["cp-1", "cp-2"]);
   });
 });

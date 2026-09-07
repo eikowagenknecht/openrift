@@ -310,12 +310,12 @@ describe("curateMetaDecks", () => {
 
 describe("sortMetaDecks", () => {
   it("orders by event date desc, then finish, then player", () => {
-    const shuffled = [decks[2], decks[1], decks[0]];
+    const shuffled = [decks[2]!, decks[1]!, decks[0]!];
     expect(ids(sortMetaDecks(shuffled))).toEqual(["a", "b", "c"]);
   });
 
   it("keeps same-day events together", () => {
-    const sameDay = { ...decks[0].event, slug: "rift-open", name: "Rift Open" };
+    const sameDay = { ...decks[0]!.event, slug: "rift-open", name: "Rift Open" };
     const interleaved = [
       makeDeck({ deckId: "s1", rank: 1 }),
       makeDeck({ deckId: "r1", rank: 1, event: sameDay }),
@@ -339,7 +339,7 @@ describe("sortMetaDecks", () => {
 
   it("orders by finish across events, newest first on a tie", () => {
     const rows = [
-      makeDeck({ deckId: "old-1", rank: 1, event: decks[2].event }),
+      makeDeck({ deckId: "old-1", rank: 1, event: decks[2]!.event }),
       makeDeck({ deckId: "new-4", rank: 4 }),
       makeDeck({ deckId: "new-1", rank: 1 }),
     ];

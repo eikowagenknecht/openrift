@@ -44,14 +44,13 @@ function visitEmphasisForTerms(node: MdNode, context: TermLinkContext): void {
   if (!node.children) {
     return;
   }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
+  for (const [index, child] of node.children.entries()) {
     if (child.type === "link") {
       continue;
     }
     if (child.type === "emphasis" && child.children?.length === 1) {
       const inner = child.children[0];
-      if (inner.type === "text" && typeof inner.value === "string") {
+      if (inner?.type === "text" && typeof inner.value === "string") {
         const stripped = inner.value
           .trim()
           .replace(TERM_TRAILING_PUNCT_REGEX, "")

@@ -133,7 +133,10 @@ export function DeckDetailsDialog({
       setSuggestionIndex((clampedSuggestion - 1 + suggestions.length) % suggestions.length);
     } else if (event.key === "Enter" || event.key === "Tab") {
       event.preventDefault();
-      insertSuggestion(suggestions[clampedSuggestion].cardName);
+      const suggestion = suggestions[clampedSuggestion];
+      if (suggestion) {
+        insertSuggestion(suggestion.cardName);
+      }
     } else if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();

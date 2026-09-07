@@ -59,8 +59,8 @@ if (ctx) {
       .values({ name, slug: normName, type: "spell", normName, keywords: [], tags: [] })
       .returning("id")
       .execute();
-    createdCardIds.push(card.id);
-    return card.id;
+    createdCardIds.push(card!.id);
+    return card!.id;
   };
 
   sourceCardId = await seedCard("MOR Source Spell", "morsourcespell");
@@ -72,7 +72,7 @@ if (ctx) {
     .values({ slug: "MOR-TEST", name: "MOR Test Set", printedTotal: 2, sortOrder: 941 })
     .returning("id")
     .execute();
-  setId = set.id;
+  setId = set!.id;
   const [printing] = await db
     .insertInto("printings")
     .values({
@@ -90,7 +90,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  addedPrintingId = printing.id;
+  addedPrintingId = printing!.id;
 
   afterAll(async () => {
     // Events first: meta_event_players.deck_id is ON DELETE RESTRICT, so the
@@ -221,9 +221,9 @@ describe.skipIf(!ctx)("overlay review", () => {
     await promoteMetaEvent(repos, metaEventId);
 
     const [player] = await repo.rawStandingsForEvent(metaEventId);
-    const deckId = player.deckId as string;
+    const deckId = player!.deckId as string;
     createdDeckIds.push(deckId);
-    return { metaEventId, metaEventPlayerId: player.id, deckId };
+    return { metaEventId, metaEventPlayerId: player!.id, deckId };
   }
 
   function deckCards(deckId: string) {
@@ -256,7 +256,7 @@ describe.skipIf(!ctx)("overlay review", () => {
 
       const overlays = await repos.metaOverlays.acceptedEventOverlays(metaEventId);
       expect(overlays).toHaveLength(1);
-      expect(overlays[0].claimedFields.toSorted()).toEqual([
+      expect(overlays[0]!.claimedFields.toSorted()).toEqual([
         "location",
         "organizer",
         "playerCount",
@@ -361,7 +361,7 @@ describe.skipIf(!ctx)("overlay review", () => {
 
       const overlays = await repos.metaOverlays.acceptedPlayerOverlays(metaEventId);
       expect(overlays).toHaveLength(1);
-      expect(overlays[0].claimedFields.toSorted()).toEqual(["losses", "wins"]);
+      expect(overlays[0]!.claimedFields.toSorted()).toEqual(["losses", "wins"]);
       const [player] = await repo.rawStandingsForEvent(metaEventId);
       expect(player).toMatchObject({ wins: 9, losses: 2 });
     });
@@ -394,7 +394,7 @@ describe.skipIf(!ctx)("overlay review", () => {
         { cardId: addedCardId, quantity: 2, preferredPrintingId: addedPrintingId },
       ]);
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      expect(player.listStatus).toBe("partial");
+      expect(player!.listStatus).toBe("partial");
     });
 
     it("detaches the deck for a claimed-empty list, and keeps it detached", async () => {
@@ -523,7 +523,7 @@ describe.skipIf(!ctx)("overlay review", () => {
 
       expect(await repos.metaOverlays.acceptedPlayerOverlays(metaEventId)).toEqual([]);
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      expect(player.wins).toBe(4);
+      expect(player!.wins).toBe(4);
     });
 
     it("re-attaches the source's deck when the list claim is handed back", async () => {
@@ -538,9 +538,9 @@ describe.skipIf(!ctx)("overlay review", () => {
       await releaseMetaPlayerOverlayField(repos, metaEventPlayerId, "cards");
 
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      expect(player.deckId).not.toBeNull();
-      createdDeckIds.push(player.deckId as string);
-      expect(await deckCards(player.deckId as string)).toMatchObject([{ cardId: sourceCardId }]);
+      expect(player!.deckId).not.toBeNull();
+      createdDeckIds.push(player!.deckId as string);
+      expect(await deckCards(player!.deckId as string)).toMatchObject([{ cardId: sourceCardId }]);
     });
 
     it("releases listStatus and cards together, since neither stands alone", async () => {
@@ -562,7 +562,7 @@ describe.skipIf(!ctx)("overlay review", () => {
       expect(overlays).toHaveLength(1);
       expect(overlays[0]).toMatchObject({ claimedFields: ["wins"], listStatus: null });
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      expect(player.wins).toBe(9);
+      expect(player!.wins).toBe(9);
     });
 
     it("rejects an emptied submission rather than deleting somebody's contribution", async () => {
@@ -587,7 +587,7 @@ describe.skipIf(!ctx)("overlay review", () => {
         claimedFields: ["wins"],
       });
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      expect(player.wins).toBe(4);
+      expect(player!.wins).toBe(4);
     });
 
     it("404s a standings row that no longer exists", async () => {

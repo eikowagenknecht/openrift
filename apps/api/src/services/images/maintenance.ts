@@ -134,9 +134,9 @@ export async function getRehostStatus(
     }
     const origCountByBase = new Map<string, number>();
     for (const file of files) {
-      const match = ORIG_FILE_RE.exec(file);
-      if (match) {
-        origCountByBase.set(match[1], (origCountByBase.get(match[1]) ?? 0) + 1);
+      const base = ORIG_FILE_RE.exec(file)?.[1];
+      if (base !== undefined) {
+        origCountByBase.set(base, (origCountByBase.get(base) ?? 0) + 1);
       }
     }
     for (const count of origCountByBase.values()) {
@@ -157,11 +157,10 @@ async function findDuplicateOrigs(
 ): Promise<Set<string>> {
   const byBase = new Map<string, { file: string; mtime: number }[]>();
   for (const file of files) {
-    const match = ORIG_FILE_RE.exec(file);
-    if (!match) {
+    const base = ORIG_FILE_RE.exec(file)?.[1];
+    if (base === undefined) {
       continue;
     }
-    const base = match[1];
     const info = await io.fs.stat(join(prefixDir, file));
     const mtime = info.mtime instanceof Date ? info.mtime.getTime() : 0;
     const list = byBase.get(base) ?? [];
@@ -175,8 +174,8 @@ async function findDuplicateOrigs(
       continue;
     }
     origs.sort((a, b) => b.mtime - a.mtime);
-    for (let i = 1; i < origs.length; i++) {
-      stale.add(origs[i].file);
+    for (const orig of origs.slice(1)) {
+      stale.add(orig.file);
     }
   }
   return stale;
@@ -316,14 +315,15 @@ export async function migrateImageDirectories(io: Io): Promise<{
 
     for (const file of files) {
       progress.scanned++;
-      const uuidMatch =
-        /^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu.exec(file);
-      if (!uuidMatch) {
+      const uuid = /^(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu.exec(
+        file,
+      )?.groups?.uuid;
+      if (uuid === undefined) {
         progress.skipped++;
         continue;
       }
 
-      const newPrefix = uuidMatch[1].slice(-2);
+      const newPrefix = uuid.slice(-2);
       const newDir = join(CARD_MEDIA_DIR, newPrefix);
 
       try {

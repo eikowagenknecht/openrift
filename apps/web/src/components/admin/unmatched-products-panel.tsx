@@ -235,8 +235,8 @@ export function UnmatchedProductsPanel() {
             {sortedRows.map((row, index) => {
               const { marketplace, product } = row;
               const key = `${marketplace}::${product.externalId}::${product.finish}::${product.language}`;
-              const isFirstOfMarketplace =
-                index === 0 || sortedRows[index - 1].marketplace !== marketplace;
+              const prevRow = sortedRows[index - 1];
+              const isFirstOfMarketplace = !prevRow || prevRow.marketplace !== marketplace;
               const mutations = mutationsFor(marketplace);
               return (
                 <React.Fragment key={key}>

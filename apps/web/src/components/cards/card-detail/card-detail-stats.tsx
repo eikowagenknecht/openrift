@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, enumLabel } from "@openrift/shared";
 
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -43,8 +43,8 @@ export function CardDetailStats({
             <img
               key={d}
               src={domainIcon}
-              alt={labels.domains[d]}
-              title={labels.domains[d]}
+              alt={enumLabel(labels.domains, d)}
+              title={enumLabel(labels.domains, d)}
               width={64}
               height={64}
               className="size-5"
@@ -54,12 +54,12 @@ export function CardDetailStats({
       {hasFinishIcon(printing.finish) && (
         <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
           <FinishIcon finish={printing.finish} />
-          {labels.finishes[printing.finish]}
+          {enumLabel(labels.finishes, printing.finish)}
         </span>
       )}
       {printing.size !== WellKnown.cardSize.STANDARD && (
         <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
-          {labels.cardSizes[printing.size]}
+          {enumLabel(labels.cardSizes, printing.size)}
         </span>
       )}
     </div>

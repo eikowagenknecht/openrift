@@ -23,7 +23,7 @@ function DottedLabel({ pieces, className }: { pieces: LabelPiece[]; className?: 
     <span className={cn("inline-flex flex-wrap items-center gap-1 align-middle", className)}>
       {pieces.map((piece, index) => (
         <span key={piece.key} className="inline-flex items-center gap-1">
-          {index > 0 && !pieces[index - 1].chip && (
+          {index > 0 && !pieces[index - 1]?.chip && (
             <span aria-hidden className="text-muted-foreground">
               ·
             </span>

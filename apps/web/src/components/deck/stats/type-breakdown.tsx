@@ -1,4 +1,5 @@
 import type { Domain } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import { useState } from "react";
 import { Bar, BarChart, Cell, LabelList, XAxis } from "recharts";
 
@@ -68,7 +69,7 @@ export function TypeBreakdown({
   const hitKeyFor = (domain: string) => `${domain}__hit`;
 
   const labeledData = data.map((entry) => {
-    const typeLabel = labels.cardTypes[entry.type];
+    const typeLabel = enumLabel(labels.cardTypes, entry.type);
     const hitEntry = hitByType.get(entry.type);
     const hits: Record<string, number> = {};
     let hitTotal = 0;

@@ -169,7 +169,7 @@ describe("processRechecks", () => {
     const result = await processRechecks(deps);
 
     expect(result.fetched).toBe(0);
-    expect(writes[0].nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
+    expect(writes[0]!.nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
   });
 
   it("polls a watched template every quarter hour while its event runs", async () => {
@@ -186,7 +186,7 @@ describe("processRechecks", () => {
 
     await processRechecks(deps);
 
-    expect(writes[0].nextCheckAt?.getTime()).toBe(NOW.getTime() + 15 * 60 * 1000);
+    expect(writes[0]!.nextCheckAt?.getTime()).toBe(NOW.getTime() + 15 * 60 * 1000);
   });
 
   it("gives a failing source an hour's grace without advancing the ladder", async () => {
@@ -211,7 +211,7 @@ describe("processRechecks", () => {
 
     expect(result.processed).toBe(0);
     expect(result.errors[0]).toContain("no readable projection");
-    expect(writes[0].nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
+    expect(writes[0]!.nextCheckAt?.getTime()).toBe(NOW.getTime() + HOUR_MS);
   });
 
   it("pulls results again while the live rows lag the mirror", async () => {

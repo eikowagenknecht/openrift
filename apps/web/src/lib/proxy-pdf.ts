@@ -294,14 +294,12 @@ export async function assembleProxyPdf(
     const pageStart = pageIdx * CARDS_PER_PAGE;
     const pageEnd = Math.min(pageStart + CARDS_PER_PAGE, proxyCards.length);
 
-    for (let cardIdx = pageStart; cardIdx < pageEnd; cardIdx++) {
-      const slotIdx = cardIdx - pageStart;
+    for (const [slotIdx, proxyCard] of proxyCards.slice(pageStart, pageEnd).entries()) {
       const col = slotIdx % COLS;
       const row = Math.floor(slotIdx / COLS);
       const slotX = marginX + col * CARD_WIDTH_MM;
       const slotY = marginY + row * CARD_HEIGHT_MM;
 
-      const proxyCard = proxyCards[cardIdx];
       const rendered = renderedCards.get(proxyRenderKey(proxyCard));
 
       if (rendered) {

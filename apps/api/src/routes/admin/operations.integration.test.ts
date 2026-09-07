@@ -100,14 +100,14 @@ async function seedMarketplaceData(marketplace: Marketplace) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
+    .values({ cardId: card!.id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
   const [printing] = await db
     .insertInto("printings")
     .values({
-      cardId: card.id,
-      setId: set.id,
+      cardId: card!.id,
+      setId: set!.id,
       shortCode: `OPS-${marketplace}-${suffix}`,
       rarity: "common",
       artVariant: "normal",
@@ -160,8 +160,8 @@ async function seedMarketplaceData(marketplace: Marketplace) {
   await db
     .insertInto("marketplaceProductVariants")
     .values({
-      marketplaceProductId: product.id,
-      printingId: printing.id,
+      marketplaceProductId: product!.id,
+      printingId: printing!.id,
     })
     .execute();
 
@@ -169,7 +169,7 @@ async function seedMarketplaceData(marketplace: Marketplace) {
   await db
     .insertInto("marketplaceProductPrices")
     .values({
-      marketplaceProductId: product.id,
+      marketplaceProductId: product!.id,
       recordedAt: new Date(),
       marketCents: 100,
       lowCents: 50,
@@ -194,7 +194,7 @@ async function seedMarketplaceData(marketplace: Marketplace) {
   await db
     .insertInto("marketplaceProductPrices")
     .values({
-      marketplaceProductId: stagingProduct.id,
+      marketplaceProductId: stagingProduct!.id,
       recordedAt: new Date(),
       marketCents: 200,
       lowCents: 100,
@@ -202,8 +202,8 @@ async function seedMarketplaceData(marketplace: Marketplace) {
     .execute();
 
   return {
-    productId: product.id,
-    stagingProductId: stagingProduct.id,
+    productId: product!.id,
+    stagingProductId: stagingProduct!.id,
     externalIds: [baseExtId, stagingExtId],
   };
 }

@@ -702,7 +702,7 @@ describe("createScanSession — printing disambiguation", () => {
     aimedAt?: string,
   ) {
     const keys = Object.keys(renders);
-    const images = new Map(keys.map((key) => [key, printingCard(key, renders[key])]));
+    const images = new Map(keys.map((key) => [key, printingCard(key, renders[key]!)]));
     const bank = createBank(
       Object.fromEntries(keys.map((key, index) => [key, 0.05 + index / 100])),
     );
@@ -717,7 +717,7 @@ describe("createScanSession — printing disambiguation", () => {
       }),
       testOptions({ topK: keys.length }),
     );
-    return { session, frame: printingCard("query", renders[aimedAt ?? keys[0]]) };
+    return { session, frame: printingCard("query", renders[aimedAt ?? keys[0]!]!) };
   }
 
   it("abstains for an artwork with a single printing", async () => {

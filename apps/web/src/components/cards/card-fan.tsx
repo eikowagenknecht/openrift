@@ -133,23 +133,32 @@ export function CardFan({ covers, size = "sm", anchor = "bottom", priority }: Ca
   const spec = FAN_SPECS[size];
   const layout = spec.layouts[Math.min(covers.length, spec.layouts.length - 1)];
   const variant = size === "lg" ? "400w" : "240w";
+  if (!layout) {
+    return null;
+  }
   return (
     <>
-      {covers.slice(0, layout.length).map((cover, index) => (
-        <ImgWithFallback
-          key={cover.key}
-          {...coverSources(cover, spec.cardWidth, variant)}
-          alt=""
-          loading={priority ? "eager" : "lazy"}
-          fetchPriority={priority ? "high" : undefined}
-          className={cn("ring-foreground/20 object-cover shadow-md ring-1", fanCardClass(anchor))}
-          style={{
-            ...fanCardStyle(layout[index], spec.cardWidth, anchor),
-            borderRadius: CARD_BORDER_RADIUS,
-          }}
-          fallback={null}
-        />
-      ))}
+      {layout.map((slot, index) => {
+        const cover = covers[index];
+        if (!cover) {
+          return null;
+        }
+        return (
+          <ImgWithFallback
+            key={cover.key}
+            {...coverSources(cover, spec.cardWidth, variant)}
+            alt=""
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
+            className={cn("ring-foreground/20 object-cover shadow-md ring-1", fanCardClass(anchor))}
+            style={{
+              ...fanCardStyle(slot, spec.cardWidth, anchor),
+              borderRadius: CARD_BORDER_RADIUS,
+            }}
+            fallback={null}
+          />
+        );
+      })}
     </>
   );
 }

@@ -4,6 +4,7 @@ import type {
   CardTradeRole,
   CopyResponse,
 } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -130,12 +131,12 @@ function CopyQualityBadge({ copy }: { copy: CardTradeCopyOption }) {
   if (copy.grader !== null && copy.grade !== null) {
     return (
       <Badge variant="secondary">
-        {labels.graders[copy.grader]} {copy.grade}
+        {enumLabel(labels.graders, copy.grader)} {copy.grade}
       </Badge>
     );
   }
   if (copy.condition !== null) {
-    return <Badge variant="secondary">{labels.conditions[copy.condition]}</Badge>;
+    return <Badge variant="secondary">{enumLabel(labels.conditions, copy.condition)}</Badge>;
   }
   return null;
 }

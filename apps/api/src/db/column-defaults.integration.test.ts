@@ -112,7 +112,7 @@ function parseTableMembers(): Map<string, Map<string, string>> {
 
   const registry = /export interface Database \{\n(?<body>[\s\S]*?)\n\}/u.exec(TABLES_SRC);
   const byTable = new Map<string, Map<string, string>>();
-  for (const entry of registry!.groups!.body.matchAll(/^ {2}(?<key>\w+): (?<iface>\w+);$/gmu)) {
+  for (const entry of registry!.groups!.body!.matchAll(/^ {2}(?<key>\w+): (?<iface>\w+);$/gmu)) {
     const resolved = interfaces.get(entry.groups!.iface!);
     if (resolved) {
       byTable.set(toSnakeCase(entry.groups!.key!), resolved);

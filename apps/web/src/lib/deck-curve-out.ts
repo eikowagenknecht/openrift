@@ -85,15 +85,22 @@ export function curveOutRate(
     for (let index = indices.length - 1; index > 0; index--) {
       const swap = Math.floor(random() * (index + 1));
       const held = indices[index];
-      indices[index] = indices[swap];
-      indices[swap] = held;
+      const other = indices[swap];
+      if (held !== undefined && other !== undefined) {
+        indices[index] = other;
+        indices[swap] = held;
+      }
     }
 
     const hand: number[] = [];
     let next = 0;
     const draw = (count: number) => {
-      for (let i = 0; i < count && next < indices.length; i++) {
-        hand.push(indices[next]);
+      for (let i = 0; i < count; i++) {
+        const drawn = indices[next];
+        if (drawn === undefined) {
+          return;
+        }
+        hand.push(drawn);
         next++;
       }
     };
@@ -107,9 +114,9 @@ export function curveOutRate(
       const budget = turn * 2 + (goingSecond ? 1 : 0);
       let bestIndex = -1;
       let bestCost = Number.POSITIVE_INFINITY;
-      for (let handIndex = 0; handIndex < hand.length; handIndex++) {
-        const card = library[hand[handIndex]];
-        if (card.cost > budget || (turn === 1 && card.isSpell)) {
+      for (const [handIndex, libraryIndex] of hand.entries()) {
+        const card = library[libraryIndex];
+        if (card === undefined || card.cost > budget || (turn === 1 && card.isSpell)) {
           continue;
         }
         if (card.cost < bestCost) {

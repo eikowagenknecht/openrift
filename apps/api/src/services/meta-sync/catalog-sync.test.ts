@@ -180,10 +180,10 @@ describe("sliceRange", () => {
   it("covers the range exactly once, with no gap and no overlap", () => {
     const slices = sliceRange(new Date(0), new Date(99), 7);
 
-    expect(slices[0].from.getTime()).toBe(0);
+    expect(slices[0]!.from.getTime()).toBe(0);
     expect(slices.at(-1)?.to.getTime()).toBe(99);
     for (let i = 1; i < slices.length; i++) {
-      expect(slices[i].from.getTime()).toBe(slices[i - 1].to.getTime() + 1);
+      expect(slices[i]!.from.getTime()).toBe(slices[i - 1]!.to.getTime() + 1);
     }
   });
 
@@ -225,11 +225,11 @@ describe("syncCatalog", () => {
     await syncCatalog(deps);
 
     expect(requests).toHaveLength(1);
-    expect(requests[0].query).toMatchObject({
+    expect(requests[0]!.query).toMatchObject({
       game_slug: "riftbound",
       start_date_after: "2026-08-13T12:00:00.000Z",
     });
-    expect(spans(requests[0]).to).toBeGreaterThan(NOW.getTime());
+    expect(spans(requests[0]!).to).toBeGreaterThan(NOW.getTime());
   });
 
   it("splits by date rather than paging, so an unstable sort cannot drop a row", async () => {
@@ -269,8 +269,8 @@ describe("syncCatalog", () => {
     const result = await syncCatalog(deps);
 
     expect(markMissingCalls).toHaveLength(1);
-    expect(markMissingCalls[0].from.toISOString()).toBe("2026-08-13T12:00:00.000Z");
-    expect(markMissingCalls[0].to.toISOString()).toBe(NOW.toISOString());
+    expect(markMissingCalls[0]!.from.toISOString()).toBe("2026-08-13T12:00:00.000Z");
+    expect(markMissingCalls[0]!.to.toISOString()).toBe(NOW.toISOString());
     expect(result.missing).toBe(2);
   });
 
@@ -403,8 +403,8 @@ describe("backfillCatalog", () => {
 
     await backfillCatalog(deps);
 
-    expect(requests[0].query.start_date_after).toBe(ARCHIVE_START.toISOString());
-    expect(spans(requests[0]).to).toBeGreaterThan(NOW.getTime());
+    expect(requests[0]!.query.start_date_after).toBe(ARCHIVE_START.toISOString());
+    expect(spans(requests[0]!).to).toBeGreaterThan(NOW.getTime());
   });
 
   it("resumes one millisecond past where the last run got to", async () => {
@@ -414,7 +414,7 @@ describe("backfillCatalog", () => {
 
     const result = await backfillCatalog(deps, undefined, { resumeFrom });
 
-    expect(requests[0].query.start_date_after).toBe("2026-03-01T00:00:00.001Z");
+    expect(requests[0]!.query.start_date_after).toBe("2026-03-01T00:00:00.001Z");
     expect(result.resumedFrom).toBe(resumeFrom.toISOString());
   });
 
@@ -463,8 +463,8 @@ describe("crawl heartbeats", () => {
 
     expect(heartbeats.length).toBeGreaterThan(0);
     expect(heartbeats.every((beat) => beat.runId === "run-1")).toBe(true);
-    expect(heartbeats[0].result.heartbeatAt).toBe(NOW.toISOString());
-    expect(typeof heartbeats[0].result.coveredThrough).toBe("string");
+    expect(heartbeats[0]!.result.heartbeatAt).toBe(NOW.toISOString());
+    expect(typeof heartbeats[0]!.result.coveredThrough).toBe("string");
   });
 
   it("writes nothing without a run id", async () => {

@@ -120,7 +120,7 @@ describe("getRehostStatus", () => {
 
     const result = await getRehostStatus(mockIo, repo);
     expect(result.disk.sets).toHaveLength(1);
-    expect(result.disk.sets[0].setId).toBe("set1");
+    expect(result.disk.sets[0]!.setId).toBe("set1");
   });
 
   it("computes disk stats across multiple set directories", async () => {
@@ -373,7 +373,7 @@ describe("findBrokenImages", () => {
 
     expect(result.total).toBe(1);
     expect(result.broken).toHaveLength(1);
-    expect(result.broken[0].imageId).toBe("img-1");
+    expect(result.broken[0]!.imageId).toBe("img-1");
   });
 
   it("flags images missing the -orig archive (variants alone don't count)", async () => {
@@ -383,7 +383,7 @@ describe("findBrokenImages", () => {
     const result = await findBrokenImages(mockIo, repo);
 
     expect(result.broken).toHaveLength(1);
-    expect(result.broken[0].imageId).toBe("img-1");
+    expect(result.broken[0]!.imageId).toBe("img-1");
   });
 
   it("flags images missing any current SIZES variant", async () => {
@@ -453,8 +453,8 @@ describe("findLowResImages", () => {
 
     expect(result.total).toBe(1);
     expect(result.lowRes).toHaveLength(1);
-    expect(result.lowRes[0].width).toBe(300);
-    expect(result.lowRes[0].height).toBe(500);
+    expect(result.lowRes[0]!.width).toBe(300);
+    expect(result.lowRes[0]!.height).toBe(500);
   });
 
   it("identifies landscape images with short edge (height) below the threshold", async () => {
@@ -484,8 +484,8 @@ describe("findLowResImages", () => {
 
     expect(result.total).toBe(1);
     expect(result.lowRes).toHaveLength(1);
-    expect(result.lowRes[0].width).toBe(700);
-    expect(result.lowRes[0].height).toBe(350);
+    expect(result.lowRes[0]!.width).toBe(700);
+    expect(result.lowRes[0]!.height).toBe(350);
   });
 
   it("skips images where file read fails", async () => {

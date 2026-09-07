@@ -75,8 +75,8 @@ describe("resolveProxyCards", () => {
     const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
     expect(proxies).toHaveLength(1);
-    expect(proxies[0].printingId).toBe(scPrinting.id);
-    expect(proxies[0].imageFullUrl).toBe("/media/cards/bb/sc-image-id-bb-full.webp");
+    expect(proxies[0]!.printingId).toBe(scPrinting.id);
+    expect(proxies[0]!.imageFullUrl).toBe("/media/cards/bb/sc-image-id-bb-full.webp");
   });
 
   it("respects the user language preference when no printing is pinned", () => {
@@ -110,8 +110,8 @@ describe("resolveProxyCards", () => {
 
     const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
-    expect(proxies[0].printingId).toBe(enPrinting.id);
-    expect(proxies[0].imageFullUrl).toBe("/media/cards/aa/en-image-id-aa-full.webp");
+    expect(proxies[0]!.printingId).toBe(enPrinting.id);
+    expect(proxies[0]!.imageFullUrl).toBe("/media/cards/aa/en-image-id-aa-full.webp");
   });
 
   it("emits distinct printingIds for two deck rows pinned to different printings of the same card", () => {
@@ -156,8 +156,8 @@ describe("resolveProxyCards", () => {
       "/media/cards/aa/en-image-id-aa-full.webp",
       "/media/cards/aa/en-image-id-aa-full.webp",
     ]);
-    expect(proxies[2].printingId).toBe(scPrinting.id);
-    expect(proxies[2].imageFullUrl).toBe("/media/cards/bb/sc-image-id-bb-full.webp");
+    expect(proxies[2]!.printingId).toBe(scPrinting.id);
+    expect(proxies[2]!.imageFullUrl).toBe("/media/cards/bb/sc-image-id-bb-full.webp");
   });
 
   it("composes with sortCardsLikeSidebar to print cards in sidebar order", () => {

@@ -8,7 +8,7 @@ import {
   decidingTieBreak,
   formatPlayerRecord,
   formatScore,
-  standingRanks,
+  rankedStandings,
 } from "./standings-display";
 
 function seatHint(row: PodStandingRow, rival: PodStandingRow | undefined, swiss: boolean): string {
@@ -22,14 +22,15 @@ function podiumSeats(standings: readonly PodStandingRow[], swiss: boolean): Podi
   if (leader === undefined || leader.roundsPlayed === 0) {
     return [];
   }
-  const ranks = standingRanks(standings);
-  return standings.slice(0, 3).map((row, index) => ({
-    key: row.playerId,
-    rank: ranks[index],
-    name: row.displayName,
-    score: formatScore(row.score),
-    hint: seatHint(row, index === 0 ? standings[1] : standings[0], swiss),
-  }));
+  return rankedStandings(standings)
+    .slice(0, 3)
+    .map(({ row, rank }, index) => ({
+      key: row.playerId,
+      rank,
+      name: row.displayName,
+      score: formatScore(row.score),
+      hint: seatHint(row, index === 0 ? standings[1] : standings[0], swiss),
+    }));
 }
 
 export function StandingsPodium({

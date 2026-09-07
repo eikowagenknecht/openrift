@@ -85,8 +85,9 @@ function useActiveTocItem(items: PageTocItem[]) {
         const visible = entries
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length > 0) {
-          setActiveId(visible[0].target.id);
+        const first = visible.at(0);
+        if (first) {
+          setActiveId(first.target.id);
         }
       },
       { rootMargin: "-80px 0px -60% 0px", threshold: 0 },

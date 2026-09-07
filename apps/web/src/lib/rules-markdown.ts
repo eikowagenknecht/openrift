@@ -46,26 +46,25 @@ function visitMdastTextNodes(node: MdNode): void {
   if (!node.children) {
     return;
   }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
+  const rebuilt: MdNode[] = [];
+  for (const child of node.children) {
     if (child.type === "link") {
       // Don't relink text inside an existing link.
+      rebuilt.push(child);
       continue;
     }
     if (child.type === "text" && typeof child.value === "string") {
       const replacements = splitTextOnRuleReferences(child.value);
+      const [only] = replacements;
       const isUnchanged =
-        replacements.length === 1 &&
-        replacements[0].type === "text" &&
-        replacements[0].value === child.value;
-      if (!isUnchanged) {
-        node.children.splice(index, 1, ...replacements);
-        index += replacements.length - 1;
-      }
+        replacements.length === 1 && only?.type === "text" && only.value === child.value;
+      rebuilt.push(...(isUnchanged ? [child] : replacements));
       continue;
     }
     visitMdastTextNodes(child);
+    rebuilt.push(child);
   }
+  node.children = rebuilt;
 }
 
 /** Wraps rule references (`rule 540`, `603.7`, `CR 116`) in links to their anchors. */
@@ -113,21 +112,22 @@ function visitHastTextNodes(node: HastNode): void {
   if (!node.children) {
     return;
   }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
+  const rebuilt: HastNode[] = [];
+  for (const child of node.children) {
     if (child.type === "text" && typeof child.value === "string") {
       if (!PENALTY_REGEX.test(child.value)) {
         PENALTY_REGEX.lastIndex = 0;
+        rebuilt.push(child);
         continue;
       }
       PENALTY_REGEX.lastIndex = 0;
-      const replacements = splitTextOnPenalties(child.value);
-      node.children.splice(index, 1, ...replacements);
-      index += replacements.length - 1;
+      rebuilt.push(...splitTextOnPenalties(child.value));
       continue;
     }
     visitHastTextNodes(child);
+    rebuilt.push(child);
   }
+  node.children = rebuilt;
 }
 
 /** Wraps `[Warning]`-style penalty labels in `<span data-penalty>` elements. */
@@ -277,34 +277,52 @@ interface DiffEntry {
  * LCS over the token texts only; formatting is ignored, so a word whose
  * emphasis, link, or badge changed but whose text didn't compares equal.
  */
+function lcsCell(dp: number[][], row: number, column: number): number {
+  const value = dp[row]?.[column];
+  if (value === undefined) {
+    throw new Error(`rules-markdown: no LCS cell at ${row},${column}`);
+  }
+  return value;
+}
+
 function diffTokens(oldTokens: InlineToken[], newTokens: InlineToken[]): DiffEntry[] {
   const n = oldTokens.length;
   const m = newTokens.length;
-  const dp: number[][] = Array.from({ length: n + 1 }, () =>
-    Array.from({ length: m + 1 }, () => 0),
-  );
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      dp[i][j] =
-        oldTokens[i - 1].text === newTokens[j - 1].text
-          ? dp[i - 1][j - 1] + 1
-          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+  const dp: number[][] = [Array.from({ length: m + 1 }, () => 0)];
+  for (const [oldIndex, oldToken] of oldTokens.entries()) {
+    const row: number[] = [0];
+    let left = 0;
+    for (const [newIndex, newToken] of newTokens.entries()) {
+      const value =
+        oldToken.text === newToken.text
+          ? lcsCell(dp, oldIndex, newIndex) + 1
+          : Math.max(lcsCell(dp, oldIndex, newIndex + 1), left);
+      row.push(value);
+      left = value;
     }
+    dp.push(row);
   }
 
   const reversed: DiffEntry[] = [];
   let i = n;
   let j = m;
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && oldTokens[i - 1].text === newTokens[j - 1].text) {
-      reversed.push({ type: "equal", token: newTokens[j - 1] });
+    const oldToken = oldTokens[i - 1];
+    const newToken = newTokens[j - 1];
+    if (oldToken !== undefined && newToken !== undefined && oldToken.text === newToken.text) {
+      reversed.push({ type: "equal", token: newToken });
       i--;
       j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      reversed.push({ type: "added", token: newTokens[j - 1] });
+    } else if (
+      newToken !== undefined &&
+      (oldToken === undefined || lcsCell(dp, i, j - 1) >= lcsCell(dp, i - 1, j))
+    ) {
+      reversed.push({ type: "added", token: newToken });
       j--;
+    } else if (oldToken === undefined) {
+      throw new Error("rules-markdown: LCS backtrack ran past both token lists");
     } else {
-      reversed.push({ type: "removed", token: oldTokens[i - 1] });
+      reversed.push({ type: "removed", token: oldToken });
       i--;
     }
   }
@@ -367,12 +385,12 @@ function buildMergedTree(entries: DiffEntry[]): HastNode[] {
         : [...entry.token.frames, { tag: "diff", diff: entry.type } satisfies InlineFrame];
 
     let common = 0;
-    while (
-      common < stack.length &&
-      common < frames.length &&
-      frameEquals(stack[common].frame, frames[common])
-    ) {
-      common++;
+    for (const [depth, frame] of frames.entries()) {
+      const open = stack[depth];
+      if (open === undefined || !frameEquals(open.frame, frame)) {
+        break;
+      }
+      common = depth + 1;
     }
     stack.length = common;
 
@@ -392,10 +410,10 @@ function buildMergedTree(entries: DiffEntry[]): HastNode[] {
       }
     }
 
-    for (let depth = common; depth < frames.length; depth++) {
-      const node = frameToElement(frames[depth]);
+    for (const frame of frames.slice(common)) {
+      const node = frameToElement(frame);
       container().children?.push(node);
-      stack.push({ frame: frames[depth], node });
+      stack.push({ frame, node });
     }
 
     appendText(container(), entry.token.text);
@@ -439,5 +457,5 @@ export function hasVisibleRuleChanges(oldSource: string, newSource: string): boo
   }
   // Equal-length token sequences with pairwise-equal text are exactly the
   // pairs whose LCS covers everything, i.e. an all-`equal` diff.
-  return oldTokens.some((token, index) => token.text !== newTokens[index].text);
+  return oldTokens.some((token, index) => token.text !== newTokens[index]?.text);
 }

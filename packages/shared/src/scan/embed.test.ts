@@ -31,15 +31,15 @@ describe("rankEmbedBank", () => {
 
   it("ranks by best cosine over the query rotations", () => {
     const ranked = rankEmbedBank(bank, [axis(1), axis(2)], 2);
-    expect(ranked[0].key).toBe("b");
-    expect(ranked[0].distance).toBeCloseTo(0);
-    expect(ranked[1].key).toBe("a");
+    expect(ranked[0]!.key).toBe("b");
+    expect(ranked[0]!.distance).toBeCloseTo(0);
+    expect(ranked[1]!.key).toBe("a");
   });
 
   it("reports which rotation matched", () => {
     const ranked = rankEmbedBank(bank, [axis(2), axis(0)], 1);
-    expect(ranked[0].key).toBe("a");
-    expect(ranked[0].rotation).toBe(1);
+    expect(ranked[0]!.key).toBe("a");
+    expect(ranked[0]!.rotation).toBe(1);
   });
 });
 
@@ -80,9 +80,9 @@ describe("rankCardEmbedding", () => {
       confidentDistance: 0.3,
     });
     expect(calls).toEqual([1]);
-    expect(ranked[0].key).toBe("a");
-    expect(ranked[0].distance).toBeCloseTo(0);
-    expect(ranked[0].rotation).toBe(0);
+    expect(ranked[0]!.key).toBe("a");
+    expect(ranked[0]!.distance).toBeCloseTo(0);
+    expect(ranked[0]!.rotation).toBe(0);
   });
 
   it("runs the remaining rotations when upright is not confident", async () => {
@@ -92,9 +92,9 @@ describe("rankCardEmbedding", () => {
       confidentDistance: 0.3,
     });
     expect(calls).toEqual([1, 3]);
-    expect(ranked[0].key).toBe("b");
-    expect(ranked[0].distance).toBeCloseTo(0);
-    expect(ranked[0].rotation).toBe(2);
+    expect(ranked[0]!.key).toBe("b");
+    expect(ranked[0]!.distance).toBeCloseTo(0);
+    expect(ranked[0]!.rotation).toBe(2);
   });
 
   it("skips the rotation fallback for a marginal but upright match", async () => {
@@ -108,8 +108,8 @@ describe("rankCardEmbedding", () => {
       rotationFallbackDistance: 0.35,
     });
     expect(calls).toEqual([1]);
-    expect(ranked[0].key).toBe("a");
-    expect(ranked[0].distance).toBeCloseTo(0.28);
+    expect(ranked[0]!.key).toBe("a");
+    expect(ranked[0]!.distance).toBeCloseTo(0.28);
   });
 
   it("stops after the unconfident upright pass when the rotation fallback is disallowed", async () => {
@@ -120,7 +120,7 @@ describe("rankCardEmbedding", () => {
       allowRotationFallback: false,
     });
     expect(calls).toEqual([1]);
-    expect(ranked[0].distance).toBeCloseTo(1);
+    expect(ranked[0]!.distance).toBeCloseTo(1);
   });
 
   it("labels a confident preferred-rotation match with that rotation", async () => {
@@ -131,8 +131,8 @@ describe("rankCardEmbedding", () => {
       preferredRotation: 2,
     });
     expect(calls).toEqual([1]);
-    expect(ranked[0].key).toBe("a");
-    expect(ranked[0].rotation).toBe(2);
+    expect(ranked[0]!.key).toBe("a");
+    expect(ranked[0]!.rotation).toBe(2);
   });
 
   it("keeps rotation labels straight when falling back from a preferred rotation", async () => {
@@ -143,8 +143,8 @@ describe("rankCardEmbedding", () => {
       preferredRotation: 1,
     });
     expect(calls).toEqual([1, 3]);
-    expect(ranked[0].key).toBe("b");
-    expect(ranked[0].rotation).toBe(0);
+    expect(ranked[0]!.key).toBe("b");
+    expect(ranked[0]!.rotation).toBe(0);
   });
 
   it("falls back to only the 180-degree partner in pair-only mode", async () => {
@@ -156,8 +156,8 @@ describe("rankCardEmbedding", () => {
       pairOnly: true,
     });
     expect(calls).toEqual([1, 1]);
-    expect(ranked[0].key).toBe("b");
-    expect(ranked[0].rotation).toBe(3);
+    expect(ranked[0]!.key).toBe("b");
+    expect(ranked[0]!.rotation).toBe(3);
   });
 
   it("embeds all four rotations in one batch when the gate is disabled", async () => {
@@ -167,8 +167,8 @@ describe("rankCardEmbedding", () => {
       confidentDistance: -1,
     });
     expect(calls).toEqual([4]);
-    expect(ranked[0].key).toBe("a");
-    expect(ranked[0].rotation).toBe(0);
+    expect(ranked[0]!.key).toBe("a");
+    expect(ranked[0]!.rotation).toBe(0);
   });
 });
 
@@ -192,8 +192,8 @@ describe("normalizeEmbeddings", () => {
     raw[0] = 3;
     raw[EMBED_DIM] = 0.2;
     const rows = normalizeEmbeddings(raw, 2);
-    expect(rows[0][0]).toBeCloseTo(1);
-    expect(rows[1][0]).toBeCloseTo(1);
+    expect(rows[0]![0]!).toBeCloseTo(1);
+    expect(rows[1]![0]!).toBeCloseTo(1);
   });
 });
 

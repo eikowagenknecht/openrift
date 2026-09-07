@@ -92,7 +92,7 @@ describe("quadOffsetTo", () => {
 
   it("finds the rotation that undoes a renumbered quad", () => {
     const reference = rect(0, 0, 100, 200);
-    const renumbered = [reference[1], reference[2], reference[3], reference[0]];
+    const renumbered = [reference[1]!, reference[2]!, reference[3]!, reference[0]!];
 
     expect(quadOffsetTo(renumbered, reference)).toBe(3);
   });
@@ -116,7 +116,7 @@ describe("smoothQuadToward", () => {
     const current = rect(0, 0, 100, 200);
     const detection = rect(0, 0, 100, 200);
 
-    smoothQuadToward(current, [detection[1], detection[2], detection[3], detection[0]], 0.5);
+    smoothQuadToward(current, [detection[1]!, detection[2]!, detection[3]!, detection[0]!], 0.5);
 
     expect(current).toEqual(rect(0, 0, 100, 200));
   });
@@ -154,7 +154,7 @@ describe("quadMatches", () => {
     const reference = rect(0, 0, 300, 400);
 
     expect(
-      quadMatches([reference[2], reference[3], reference[0], reference[1]], reference, 0.05),
+      quadMatches([reference[2]!, reference[3]!, reference[0]!, reference[1]!], reference, 0.05),
     ).toBe(true);
   });
 

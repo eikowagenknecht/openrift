@@ -1,3 +1,4 @@
+import { enumLabel } from "@openrift/shared";
 import { CopyIcon, HeartIcon } from "lucide-react";
 import { Suspense } from "react";
 import { siDiscord, siGithub, siGithubsponsors, siKofi, siX } from "simple-icons";
@@ -166,7 +167,11 @@ export function SupportPage() {
         </p>
         <div className="space-y-3">
           {tiers.map((tier) => (
-            <TierCard key={tier.rarity} tier={tier} label={labels.rarities[tier.rarity]} />
+            <TierCard
+              key={tier.rarity}
+              tier={tier}
+              label={enumLabel(labels.rarities, tier.rarity)}
+            />
           ))}
         </div>
         <div className="mt-4 flex justify-center gap-3">

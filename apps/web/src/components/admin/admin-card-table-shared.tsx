@@ -122,6 +122,7 @@ export function VirtualizedAdminCardTable<TData extends RowData>({
   tableAnchorRef: RefObject<HTMLTableSectionElement | null>;
   columnWidths: Record<string, string>;
 }) {
+  const firstVirtualItem = virtualItems.at(0);
   return (
     <Table className="min-w-[720px] table-fixed">
       <TableHeader>
@@ -144,12 +145,15 @@ export function VirtualizedAdminCardTable<TData extends RowData>({
       <TableBody ref={tableAnchorRef}>
         {/* Spacer offsets are tbody-relative; virtual items are reported in
             document space, so scrollMargin is subtracted here and added back below. */}
-        {virtualItems.length > 0 && (
+        {firstVirtualItem && (
           // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
-          <tr style={{ height: virtualItems[0].start - scrollMargin }} />
+          <tr style={{ height: firstVirtualItem.start - scrollMargin }} />
         )}
         {virtualItems.map((virtualRow) => {
           const row = rows[virtualRow.index];
+          if (!row) {
+            return null;
+          }
           return (
             <TableRow key={row.id} data-index={virtualRow.index}>
               {/* getAllCells, not getVisibleCells: the latter needs

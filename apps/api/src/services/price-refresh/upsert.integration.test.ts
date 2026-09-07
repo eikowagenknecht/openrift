@@ -102,8 +102,8 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       ])
       .returning("id")
       .execute();
-    printingId = insertedPrintings[0].id;
-    printingId2 = insertedPrintings[1].id;
+    printingId = insertedPrintings[0]!.id;
+    printingId2 = insertedPrintings[1]!.id;
 
     const insertedProducts = await db
       .insertInto("marketplaceProducts")

@@ -64,7 +64,7 @@ describe("aggregateActivityEvents", () => {
     const third = trade({ at: "2026-07-15T11:58:00.000Z", quantity: 3 });
     const rows = aggregateActivityEvents([first, second, third]);
     expect(rows).toHaveLength(1);
-    const batch = rows[0];
+    const batch = rows[0]!;
     expect(batch.kind).toBe("trade-batch");
     if (batch.kind !== "trade-batch") {
       return;
@@ -112,8 +112,8 @@ describe("aggregateActivityEvents", () => {
     const second = trade({ quantity: 2 });
     const rows = aggregateActivityEvents([joined, first, second]);
     expect(rows).toHaveLength(2);
-    expect(rows[0].kind).toBe("event");
-    expect(rows[1].kind).toBe("trade-batch");
+    expect(rows[0]!.kind).toBe("event");
+    expect(rows[1]!.kind).toBe("trade-batch");
   });
 });
 
@@ -136,8 +136,8 @@ describe("groupActivityRowsByDay", () => {
     const older = eventRow(atLocal(15, 9));
     const groups = groupActivityRowsByDay([newer, older]);
     expect(groups).toHaveLength(1);
-    expect(groups[0].at).toBe(newer.at);
-    expect(groups[0].rows).toEqual([newer, older]);
+    expect(groups[0]!.at).toBe(newer.at);
+    expect(groups[0]!.rows).toEqual([newer, older]);
   });
 
   it("splits rows on different local days into separate groups, newest-first", () => {
@@ -159,7 +159,7 @@ describe("groupActivityRowsByDay", () => {
     const june = eventRow(new Date(2026, 5, 1, 12).toISOString());
     const groups = groupActivityRowsByDay([july, june]);
     expect(groups).toHaveLength(2);
-    expect(groups[0].key).not.toBe(groups[1].key);
+    expect(groups[0]!.key).not.toBe(groups[1]!.key);
   });
 
   it("carries trade-batch rows like plain event rows", () => {
@@ -169,10 +169,10 @@ describe("groupActivityRowsByDay", () => {
       trade({ at: atLocal(15, 11) }),
     ]);
     const joined = eventRow(atLocal(14, 12));
-    const groups = groupActivityRowsByDay([batch, joined]);
+    const groups = groupActivityRowsByDay([batch!, joined]);
     expect(groups).toHaveLength(2);
-    expect(groups[0].rows).toEqual([batch]);
-    expect(groups[0].at).toBe(batchAt);
+    expect(groups[0]!.rows).toEqual([batch]);
+    expect(groups[0]!.at).toBe(batchAt);
   });
 });
 

@@ -51,14 +51,14 @@ describe("addCardAction", () => {
     addCardAction(collection, card, "main", undefined, EMPTY_RUNES, "constructed");
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
-    expect(cards[0].zone).toBe("main");
-    expect(cards[0].quantity).toBe(1);
+    expect(cards[0]!.zone).toBe("main");
+    expect(cards[0]!.quantity).toBe(1);
   });
 
   it("adds to an explicit zone override", () => {
     const card = stubDeckBuilderCard({ cardType: "unit" });
     addCardAction(collection, card, "sideboard", undefined, EMPTY_RUNES, "constructed");
-    expect(cardsOf(collection)[0].zone).toBe("sideboard");
+    expect(cardsOf(collection)[0]!.zone).toBe("sideboard");
   });
 
   it("rejects cards that don't belong in the target zone", () => {
@@ -71,7 +71,7 @@ describe("addCardAction", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "unit", zone: "main" });
     collection = createDraftCollection([{ ...card, quantity: 1 }]);
     addCardAction(collection, card, "main", undefined, EMPTY_RUNES, "constructed");
-    expect(cardsOf(collection)[0].quantity).toBe(2);
+    expect(cardsOf(collection)[0]!.quantity).toBe(2);
   });
 
   it("enforces max 3 copies across main/sideboard/champion", () => {
@@ -183,7 +183,7 @@ describe("addCardAction", () => {
     addCardAction(collection, newLegend, "legend", undefined, EMPTY_RUNES, "constructed");
     const legends = cardsOf(collection).filter((c) => c.zone === "legend");
     expect(legends).toHaveLength(1);
-    expect(legends[0].cardId).toBe("new");
+    expect(legends[0]!.cardId).toBe("new");
   });
 
   it("replaces the champion zone when adding a champion", () => {
@@ -202,7 +202,7 @@ describe("addCardAction", () => {
     addCardAction(collection, newChamp, "champion", undefined, EMPTY_RUNES, "constructed");
     const champs = cardsOf(collection).filter((c) => c.zone === "champion");
     expect(champs).toHaveLength(1);
-    expect(champs[0].cardId).toBe("new-champ");
+    expect(champs[0]!.cardId).toBe("new-champ");
   });
 
   it("limits battlefield zone to 3 unique cards", () => {
@@ -232,7 +232,7 @@ describe("addCardAction", () => {
     addCardAction(collection, newBf, "battlefield", undefined, EMPTY_RUNES, "custom-region");
     const zoneCards = cardsOf(collection).filter((c) => c.zone === "battlefield");
     expect(zoneCards).toHaveLength(1);
-    expect(zoneCards[0].cardId).toBe("bf-1");
+    expect(zoneCards[0]!.cardId).toBe("bf-1");
   });
 
   it("prevents duplicate battlefields in the same zone", () => {
@@ -246,7 +246,7 @@ describe("addCardAction", () => {
     addCardAction(collection, { ...bf }, "battlefield", undefined, EMPTY_RUNES, "constructed");
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
-    expect(cards[0].quantity).toBe(1);
+    expect(cards[0]!.quantity).toBe(1);
   });
 
   it("does not exceed 12 runes when no opposite-domain rune exists to swap", () => {
@@ -426,7 +426,7 @@ describe("removeCardAction", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 3 });
     collection = createDraftCollection([card]);
     removeCardAction(collection, "card-1", "main", EMPTY_RUNES, "constructed");
-    expect(cardsOf(collection)[0].quantity).toBe(2);
+    expect(cardsOf(collection)[0]!.quantity).toBe(2);
   });
 
   it("removes the entry entirely when quantity is 1", () => {
@@ -527,8 +527,8 @@ describe("moveCardAction", () => {
     moveCardAction(collection, "card-1", "main", "sideboard", null, "constructed");
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
-    expect(cards[0].zone).toBe("sideboard");
-    expect(cards[0].quantity).toBe(2);
+    expect(cards[0]!.zone).toBe("sideboard");
+    expect(cards[0]!.quantity).toBe(2);
   });
 
   it("rejects moves to zones where the card type isn't allowed", () => {
@@ -540,7 +540,7 @@ describe("moveCardAction", () => {
     });
     collection = createDraftCollection([unit]);
     moveCardAction(collection, "card-1", "main", "legend", null, "constructed");
-    expect(cardsOf(collection)[0].zone).toBe("main");
+    expect(cardsOf(collection)[0]!.zone).toBe("main");
   });
 
   it("moves a champion from main into an empty champion slot, leaving extra copies behind", () => {
@@ -665,7 +665,7 @@ describe("setQuantityAction", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 1 });
     collection = createDraftCollection([card]);
     setQuantityAction(collection, "card-1", "main", 3);
-    expect(cardsOf(collection)[0].quantity).toBe(3);
+    expect(cardsOf(collection)[0]!.quantity).toBe(3);
   });
 
   it("removes the card when quantity is set to 0", () => {
@@ -700,7 +700,7 @@ describe("setLegendAction", () => {
     setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
     const legends = cardsOf(collection).filter((c) => c.zone === "legend");
     expect(legends).toHaveLength(1);
-    expect(legends[0].cardId).toBe("new");
+    expect(legends[0]!.cardId).toBe("new");
   });
 
   it("clears incompatible runes when legend domains change", () => {
@@ -759,7 +759,7 @@ describe("setLegendAction", () => {
     setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
     expect(runes.map((r) => r.cardId)).toEqual(["rune-compatible"]);
-    expect(runes[0].preferredPrintingId).toBe("printing-compatible");
+    expect(runes[0]!.preferredPrintingId).toBe("printing-compatible");
   });
 
   it("deletes no runes when the new legend's domains cover every existing rune", () => {
@@ -786,7 +786,7 @@ describe("setLegendAction", () => {
     setLegendAction(collection, newLegend, EMPTY_RUNES, "constructed");
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
     expect(runes.map((r) => r.cardId)).toEqual(["rune-1"]);
-    expect(runes[0].preferredPrintingId).toBe("printing-1");
+    expect(runes[0]!.preferredPrintingId).toBe("printing-1");
   });
 
   it("auto-populates runes when runesByDomain is provided", () => {
@@ -855,7 +855,7 @@ describe("freeform format", () => {
   it("allows 4+ copies of the same card in main", () => {
     const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "unit" });
     addCardAction(collection, card, "main", 5, EMPTY_RUNES, "freeform");
-    expect(cardsOf(collection)[0].quantity).toBe(5);
+    expect(cardsOf(collection)[0]!.quantity).toBe(5);
   });
 
   it("ignores the 12-rune cap and does not rebalance", () => {
@@ -907,8 +907,8 @@ describe("freeform format", () => {
     removeCardAction(collection, "fury-rune", "runes", runesByDomain, "freeform");
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     expect(runes).toHaveLength(1);
-    expect(runes[0].cardId).toBe("fury-rune");
-    expect(runes[0].quantity).toBe(4);
+    expect(runes[0]!.cardId).toBe("fury-rune");
+    expect(runes[0]!.quantity).toBe(4);
   });
 
   it("setLegendAction adds a legend without dropping runes or autofilling", () => {
@@ -942,8 +942,8 @@ describe("freeform format", () => {
     setLegendAction(collection, legend, runesByDomain, "freeform");
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
     expect(runes).toHaveLength(1);
-    expect(runes[0].cardId).toBe("fury-rune");
-    expect(runes[0].quantity).toBe(3);
+    expect(runes[0]!.cardId).toBe("fury-rune");
+    expect(runes[0]!.quantity).toBe(3);
     expect(cardsOf(collection).filter((card) => card.zone === "legend")).toHaveLength(1);
   });
 
@@ -1043,7 +1043,7 @@ describe("preferred printings", () => {
     });
     collection = createDraftCollection([alt]);
     removeCardAction(collection, "c1", "main", EMPTY_RUNES, "constructed", "printing-alt");
-    expect(cardsOf(collection)[0].quantity).toBe(1);
+    expect(cardsOf(collection)[0]!.quantity).toBe(1);
   });
 
   describe("changePreferredPrintingAction", () => {
@@ -1059,8 +1059,8 @@ describe("preferred printings", () => {
       changePreferredPrintingAction(collection, "c1", "main", null, "printing-alt", 3);
       const cards = cardsOf(collection);
       expect(cards).toHaveLength(1);
-      expect(cards[0].preferredPrintingId).toBe("printing-alt");
-      expect(cards[0].quantity).toBe(3);
+      expect(cards[0]!.preferredPrintingId).toBe("printing-alt");
+      expect(cards[0]!.quantity).toBe(3);
     });
 
     it("splits into two rows when count is less than the source quantity", () => {
@@ -1100,8 +1100,8 @@ describe("preferred printings", () => {
       changePreferredPrintingAction(collection, "c1", "main", null, "printing-alt", 2);
       const cards = cardsOf(collection);
       expect(cards).toHaveLength(1);
-      expect(cards[0].preferredPrintingId).toBe("printing-alt");
-      expect(cards[0].quantity).toBe(3);
+      expect(cards[0]!.preferredPrintingId).toBe("printing-alt");
+      expect(cards[0]!.quantity).toBe(3);
     });
 
     it("no-ops when from and to printings match", () => {
@@ -1114,7 +1114,7 @@ describe("preferred printings", () => {
       });
       collection = createDraftCollection([row]);
       changePreferredPrintingAction(collection, "c1", "main", "printing-alt", "printing-alt", 2);
-      expect(cardsOf(collection)[0].quantity).toBe(2);
+      expect(cardsOf(collection)[0]!.quantity).toBe(2);
     });
   });
 });

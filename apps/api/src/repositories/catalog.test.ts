@@ -35,7 +35,7 @@ describe("catalogRepo", () => {
     ]);
     const result = await catalogRepo(db).printings();
     expect(result).toHaveLength(1);
-    expect(result[0].markerSlugs).toEqual(["promo"]);
+    expect(result[0]!.markerSlugs).toEqual(["promo"]);
   });
 
   it("printings returns empty markerSlugs for unmarked printings", async () => {
@@ -58,7 +58,7 @@ describe("catalogRepo", () => {
       },
     ]);
     const result = await catalogRepo(db).printings();
-    expect(result[0].markerSlugs).toEqual([]);
+    expect(result[0]!.markerSlugs).toEqual([]);
   });
 
   it("printingImages returns active images", async () => {
@@ -117,9 +117,9 @@ describe("catalogRepo", () => {
     const db = createMockDb([row("a", "SFD-037"), row("a", "SFD-095"), row("b", "OGN-078")]);
     const sections = await catalogRepo(db).landingPromoSections(2, 2);
     expect(sections).toHaveLength(2);
-    expect(sections[0].printingCount).toBe(40);
-    expect(sections[0].path).toEqual(["Nexus Night", "Spiritforged"]);
-    expect(sections[0].printings.map((p) => p.shortCode)).toEqual(["SFD-037", "SFD-095"]);
-    expect(sections[1].printings.map((p) => p.shortCode)).toEqual(["OGN-078"]);
+    expect(sections[0]!.printingCount).toBe(40);
+    expect(sections[0]!.path).toEqual(["Nexus Night", "Spiritforged"]);
+    expect(sections[0]!.printings.map((p) => p.shortCode)).toEqual(["SFD-037", "SFD-095"]);
+    expect(sections[1]!.printings.map((p) => p.shortCode)).toEqual(["OGN-078"]);
   });
 });

@@ -77,15 +77,15 @@ describe("parseTTSFormat", () => {
 
   it("leaves a code without a variant suffix alone", () => {
     const { entries } = parseTTSFormat("OGN-269");
-    expect(entries[0].shortCode).toBe("OGN-269");
+    expect(entries[0]!.shortCode).toBe("OGN-269");
   });
 
   it("reads the champion and sideboard positions of a complete constructed deck", () => {
     const { entries, warnings } = parseTTSFormat(tokens(60));
 
     expect(warnings).toEqual([]);
-    expect(entries[1].sourceSlot).toBe("chosenChampion");
-    expect(entries[1].explicitZone).toBe("champion");
+    expect(entries[1]!.sourceSlot).toBe("chosenChampion");
+    expect(entries[1]!.explicitZone).toBe("champion");
     expect(entries.filter((entry) => entry.sourceSlot === "sideboard")).toHaveLength(4);
   });
 
@@ -93,7 +93,7 @@ describe("parseTTSFormat", () => {
     const { entries, warnings } = parseTTSFormat(tokens(56));
 
     expect(warnings).toEqual([]);
-    expect(entries[1].sourceSlot).toBe("chosenChampion");
+    expect(entries[1]!.sourceSlot).toBe("chosenChampion");
     expect(entries.some((entry) => entry.sourceSlot === "sideboard")).toBe(false);
   });
 
@@ -101,7 +101,7 @@ describe("parseTTSFormat", () => {
     const { entries, warnings } = parseTTSFormat(tokens(54));
 
     expect(warnings).toEqual([]);
-    expect(entries[1].sourceSlot).toBe("chosenChampion");
+    expect(entries[1]!.sourceSlot).toBe("chosenChampion");
     expect(entries.some((entry) => entry.sourceSlot === "sideboard")).toBe(false);
   });
 

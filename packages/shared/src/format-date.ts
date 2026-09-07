@@ -23,6 +23,14 @@ const MONTH_ABBREVIATIONS = [
   "DEC",
 ] as const;
 
+function monthAbbreviation(monthIndex: number): string {
+  const abbreviation = MONTH_ABBREVIATIONS[monthIndex];
+  if (abbreviation === undefined) {
+    throw new Error(`monthAbbreviation: month index out of range: ${monthIndex}`);
+  }
+  return abbreviation;
+}
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
@@ -108,7 +116,7 @@ export function dateLeafParts(input: Date | string): DateLeafParts {
     return { month: "", day: "", year: "" };
   }
   return {
-    month: MONTH_ABBREVIATIONS[date.getMonth()],
+    month: monthAbbreviation(date.getMonth()),
     day: String(date.getDate()),
     year: String(date.getFullYear()),
   };
@@ -124,7 +132,7 @@ export function dateLeafPartsUtc(input: Date | string): DateLeafParts {
     return { month: "", day: "", year: "" };
   }
   return {
-    month: MONTH_ABBREVIATIONS[date.getUTCMonth()],
+    month: monthAbbreviation(date.getUTCMonth()),
     day: String(date.getUTCDate()),
     year: String(date.getUTCFullYear()),
   };

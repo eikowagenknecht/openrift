@@ -41,6 +41,9 @@ function shuffle<T>(items: readonly T[], rng: Random): T[] {
     const j = Math.floor(rng.next() * (i + 1));
     const atI = result[i];
     const atJ = result[j];
+    if (atI === undefined || atJ === undefined) {
+      throw new Error(`shuffle: index out of range (${i}, ${j})`);
+    }
     result[i] = atJ;
     result[j] = atI;
   }
@@ -105,11 +108,21 @@ function findBestMove(
     for (let b = a + 1; b < pods.length; b++) {
       const podA = pods[a];
       const podB = pods[b];
-      const baseline = totals[a] + totals[b];
-      for (let posA = 0; posA < podA.playerIds.length; posA++) {
-        for (let posB = 0; posB < podB.playerIds.length; posB++) {
-          const newA = podA.playerIds.with(posA, podB.playerIds[posB]);
-          const newB = podB.playerIds.with(posB, podA.playerIds[posA]);
+      const totalA = totals[a];
+      const totalB = totals[b];
+      if (
+        podA === undefined ||
+        podB === undefined ||
+        totalA === undefined ||
+        totalB === undefined
+      ) {
+        continue;
+      }
+      const baseline = totalA + totalB;
+      for (const [posA, idA] of podA.playerIds.entries()) {
+        for (const [posB, idB] of podB.playerIds.entries()) {
+          const newA = podA.playerIds.with(posA, idB);
+          const newB = podB.playerIds.with(posB, idA);
           const delta =
             podTotal(newA, podA.size, playersById, config) +
             podTotal(newB, podB.size, playersById, config) -
@@ -137,13 +150,23 @@ function findBestMove(
         const podA = pods[a];
         const podB = pods[b];
         const podC = pods[c];
-        const baseline = totals[a] + totals[b] + totals[c];
-        for (let posA = 0; posA < podA.playerIds.length; posA++) {
-          for (let posB = 0; posB < podB.playerIds.length; posB++) {
-            for (let posC = 0; posC < podC.playerIds.length; posC++) {
-              const x = podA.playerIds[posA];
-              const y = podB.playerIds[posB];
-              const z = podC.playerIds[posC];
+        const totalA = totals[a];
+        const totalB = totals[b];
+        const totalC = totals[c];
+        if (
+          podA === undefined ||
+          podB === undefined ||
+          podC === undefined ||
+          totalA === undefined ||
+          totalB === undefined ||
+          totalC === undefined
+        ) {
+          continue;
+        }
+        const baseline = totalA + totalB + totalC;
+        for (const [posA, x] of podA.playerIds.entries()) {
+          for (const [posB, y] of podB.playerIds.entries()) {
+            for (const [posC, z] of podC.playerIds.entries()) {
               for (const [intoA, intoB, intoC] of [
                 [z, x, y],
                 [y, z, x],
@@ -194,8 +217,8 @@ function searchOnce(
       break;
     }
     move.apply(pods);
-    for (let index = 0; index < pods.length; index++) {
-      totals[index] = evaluatePod(pods[index], playersById, config).total;
+    for (const [index, pod] of pods.entries()) {
+      totals[index] = evaluatePod(pod, playersById, config).total;
     }
     total += move.delta;
   }
@@ -223,6 +246,9 @@ export function makeLocalSearchStrategy(
       const minTotal = Math.min(...results.map((result) => result.total));
       const best = results.filter((result) => result.total <= minTotal + EPSILON);
       const chosen = best[Math.floor(rng.next() * best.length)] ?? results[0];
+      if (chosen === undefined) {
+        throw new Error("makeLocalSearchStrategy: no pairing produced");
+      }
       const perPod = chosen.pods.map((pod) => evaluatePod(pod, playersById, config));
       return {
         pods: chosen.pods,

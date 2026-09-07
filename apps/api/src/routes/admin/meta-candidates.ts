@@ -278,12 +278,12 @@ async function queueRows(
     ),
   );
 
-  const playerRows = players.map((overlay, index): MetaOverlayQueueRow => {
+  const playerRows = players.map((overlay): MetaOverlayQueueRow => {
     const live =
       overlay.metaEventPlayerId === null
         ? null
         : (livePlayersById.get(overlay.metaEventPlayerId) ?? null);
-    const metaEventId = playerEventIds[index];
+    const metaEventId = eventIdFor(overlay);
     const liveEvent = metaEventId === null ? null : (liveEventsById.get(metaEventId) ?? null);
     const cards = cardsByOverlay.get(overlay.id) ?? [];
     return {
@@ -372,6 +372,9 @@ export const adminMetaCandidatesRouter = os.router({
     const eventOverlay = await metaOverlays.eventOverlayById(input.id);
     if (eventOverlay !== undefined) {
       const [row] = await queueRows(context.repos, [eventOverlay], [], new Map());
+      if (row === undefined) {
+        throw errors.NOT_FOUND();
+      }
       return row;
     }
 
@@ -385,6 +388,9 @@ export const adminMetaCandidatesRouter = os.router({
       [playerOverlay],
       new Map([[playerOverlay.id, playerOverlay.cards]]),
     );
+    if (row === undefined) {
+      throw errors.NOT_FOUND();
+    }
     return row;
   }),
 

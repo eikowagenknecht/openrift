@@ -131,8 +131,9 @@ export function fallbackArtDifferences(
     tags.push(marker.label);
   }
   const artVariant = printing.artVariant || WellKnown.artVariant.NORMAL;
-  if (artVariant !== WellKnown.artVariant.NORMAL) {
-    tags.push(labels.artVariants[artVariant]);
+  const artVariantLabel = labels.artVariants[artVariant];
+  if (artVariant !== WellKnown.artVariant.NORMAL && artVariantLabel !== undefined) {
+    tags.push(artVariantLabel);
   }
   if (printing.isOvernumbered) {
     tags.push("Overnumbered");
@@ -140,11 +141,13 @@ export function fallbackArtDifferences(
   if (printing.isSigned) {
     tags.push("Signed");
   }
+  const finishLabel = labels.finishes[printing.finish];
   if (
-    printing.finish === WellKnown.finish.METAL ||
-    printing.finish === WellKnown.finish.METAL_DELUXE
+    (printing.finish === WellKnown.finish.METAL ||
+      printing.finish === WellKnown.finish.METAL_DELUXE) &&
+    finishLabel !== undefined
   ) {
-    tags.push(labels.finishes[printing.finish]);
+    tags.push(finishLabel);
   }
   return tags;
 }

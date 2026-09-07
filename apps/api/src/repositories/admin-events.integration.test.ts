@@ -61,8 +61,8 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
     const rows = await repo.list({ search: "AEV" }, 50);
     expect(rows.length).toBe(3);
 
-    expect(rows[0].action).toBe("printing.delete");
-    expect(rows[2].action).toBe("card.accept-new");
+    expect(rows[0]!.action).toBe("printing.delete");
+    expect(rows[2]!.action).toBe("card.accept-new");
 
     const fieldEdit = rows.find((r) => r.action === "card.accept-field");
     expect(fieldEdit?.actorUserId).toBe(ACTOR_B);
@@ -80,25 +80,25 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
   it("keeps rows for actors without a users row (no FK)", async () => {
     const rows = await repo.list({ actorUserId: ACTOR_DELETED }, 50);
     expect(rows).toHaveLength(1);
-    expect(rows[0].actorName).toBeNull();
-    expect(rows[0].actorEmail).toBeNull();
-    expect(rows[0].actorUserId).toBe(ACTOR_DELETED);
+    expect(rows[0]!.actorName).toBeNull();
+    expect(rows[0]!.actorEmail).toBeNull();
+    expect(rows[0]!.actorUserId).toBe(ACTOR_DELETED);
   });
 
   it("filters by actor and by action", async () => {
     const byActor = await repo.list({ actorUserId: ACTOR_B, search: "AEV" }, 50);
     expect(byActor).toHaveLength(1);
-    expect(byActor[0].action).toBe("card.accept-field");
+    expect(byActor[0]!.action).toBe("card.accept-field");
 
     const byAction = await repo.list({ action: "card.accept-new", search: "AEV" }, 50);
     expect(byAction).toHaveLength(1);
-    expect(byAction[0].entityId).toBe("AEV-001");
+    expect(byAction[0]!.entityId).toBe("AEV-001");
   });
 
   it("searches entity label, id, and card slug case-insensitively", async () => {
     const byLabel = await repo.list({ search: "aev beta" }, 50);
     expect(byLabel).toHaveLength(1);
-    expect(byLabel[0].entityLabel).toBe("AEV Beta Card");
+    expect(byLabel[0]!.entityLabel).toBe("AEV Beta Card");
 
     const bySlugFragment = await repo.list({ search: "aev-00" }, 50);
     expect(bySlugFragment.length).toBe(3);
@@ -116,8 +116,8 @@ describe.skipIf(!ctx)("adminEventsRepo (integration)", () => {
 
     const secondPage = await repo.list({ search: "AEV" }, 2, cursor);
     expect(secondPage).toHaveLength(1);
-    expect(secondPage[0].action).toBe("card.accept-new");
-    expect(pageRows.map((r) => r.id)).not.toContain(secondPage[0].id);
+    expect(secondPage[0]!.action).toBe("card.accept-new");
+    expect(pageRows.map((r) => r.id)).not.toContain(secondPage[0]!.id);
   });
 
   it("lists distinct actors with user details where available", async () => {

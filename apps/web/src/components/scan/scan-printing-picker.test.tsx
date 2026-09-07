@@ -61,8 +61,8 @@ describe("ScanPrintingPicker", () => {
 
     const marked = document.querySelectorAll("[aria-current]");
     expect(marked).toHaveLength(1);
-    expect(marked[0].textContent).toContain("Current");
-    expect(marked[0].textContent).toContain(normal.shortCode);
+    expect(marked[0]!.textContent).toContain("Current");
+    expect(marked[0]!.textContent).toContain(normal.shortCode);
   });
 
   it("marks nothing when the picker is resolving a fresh scan", () => {

@@ -70,9 +70,9 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(first).toHaveProperty("rarity");
     expect(first).toHaveProperty("finish");
     expect(first).toHaveProperty("markerSlugs");
-    expect(Array.isArray(first.markerSlugs)).toBe(true);
+    expect(Array.isArray(first!.markerSlugs)).toBe(true);
     expect(first).toHaveProperty("canonicalRank");
-    expect(typeof first.canonicalRank).toBe("number");
+    expect(typeof first!.canonicalRank).toBe("number");
     expect(first).not.toHaveProperty("createdAt");
     expect(first).not.toHaveProperty("promoType");
     expect(first).not.toHaveProperty("promoTypeId");
@@ -81,7 +81,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
   it("printings are returned in canonical rank order", async () => {
     const printings = await repo.printings();
     for (let i = 1; i < printings.length; i++) {
-      expect(printings[i].canonicalRank).toBeGreaterThan(printings[i - 1].canonicalRank);
+      expect(printings[i]!.canonicalRank).toBeGreaterThan(printings[i - 1]!.canonicalRank);
     }
   });
 
@@ -98,9 +98,9 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
   it("printingById returns the printing id for existing printing", async () => {
     const printings = await repo.printings();
     const first = printings[0];
-    const result = await repo.printingById(first.id);
+    const result = await repo.printingById(first!.id);
     expect(result).toBeDefined();
-    expect(result!.id).toBe(first.id);
+    expect(result!.id).toBe(first!.id);
   });
 
   it("printingById returns undefined for nonexistent id", async () => {
@@ -313,7 +313,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     }
     const printings = await repo.printingsByCardId(multiLangCardId);
     expect(printings.length).toBeGreaterThan(1);
-    expect(printings[0].language).toBe("EN");
+    expect(printings[0]!.language).toBe("EN");
   });
 
   describe("relatedCards", () => {

@@ -1,5 +1,5 @@
 import type { CardTradeResponse } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
+import { enumLabel, getOrientation } from "@openrift/shared";
 
 import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CardDetailNameButton } from "@/components/cards/card-detail-opener";
@@ -93,9 +93,9 @@ export function TradeRow({
             <CardMetaLine
               shortCode={printing.shortCode}
               rarity={printing.rarity}
-              rarityLabel={labels.rarities[printing.rarity]}
+              rarityLabel={enumLabel(labels.rarities, printing.rarity)}
               finish={printing.finish}
-              finishLabel={labels.finishes[printing.finish]}
+              finishLabel={enumLabel(labels.finishes, printing.finish)}
             />
           ) : null}
 

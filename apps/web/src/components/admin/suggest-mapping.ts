@@ -207,7 +207,7 @@ function computeSuggestions(
   const topProductByPrinting = new Map<string, Pair>();
   const printingPairs = Map.groupBy(pairs, (p) => p.printing.printingId);
   for (const [printingId, list] of printingPairs) {
-    const top = list.reduce((best, p) => (p.score > best.score ? p : best), list[0]);
+    const top = list.reduce((best, p) => (p.score > best.score ? p : best));
     const tied = list.filter((p) => p.score === top.score);
     if (tied.length === 1) {
       topProductByPrinting.set(printingId, top);
@@ -220,7 +220,7 @@ function computeSuggestions(
   const topPrintingsByProduct = new Map<string, Pair[]>();
   const productPairs = Map.groupBy(pairs, (p) => productKey(p.product));
   for (const [key, list] of productPairs) {
-    const top = list.reduce((best, p) => (p.score > best.score ? p : best), list[0]);
+    const top = list.reduce((best, p) => (p.score > best.score ? p : best));
     const tied = list.filter((p) => p.score === top.score);
     if (tied.length === 1) {
       topPrintingsByProduct.set(key, [top]);
@@ -252,16 +252,16 @@ function buildPriceRankEvidence(
   const byBucket = Map.groupBy(products, bucketKey);
   const out = new Map<string, PriceRank>();
   for (const list of byBucket.values()) {
-    if (list.length !== 2) {
+    const [a, b, third] = list;
+    if (a === undefined || b === undefined || third !== undefined) {
       continue;
     }
-    const [a, b] = list;
     const priceA = priceOf(a);
     const priceB = priceOf(b);
     if (priceA === null || priceB === null || priceA === priceB) {
       continue;
     }
-    const [cheap, pricey] = priceA < priceB ? [a, b] : [b, a];
+    const [cheap, pricey]: [StagedProduct, StagedProduct] = priceA < priceB ? [a, b] : [b, a];
     out.set(productKey(cheap), "cheapest");
     out.set(productKey(pricey), "priciest");
   }
@@ -273,10 +273,10 @@ function buildPriceRankEvidence(
  * language; language-aggregate marketplaces sell one SKU covering all of them.
  */
 function allSiblings(printings: MappingPrinting[]): boolean {
-  if (printings.length < 2) {
+  const [first, ...rest] = printings;
+  if (!first) {
     return true;
   }
-  const [first, ...rest] = printings;
   return rest.every(
     (p) =>
       p.shortCode === first.shortCode &&

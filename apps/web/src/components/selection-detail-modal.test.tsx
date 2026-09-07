@@ -115,7 +115,7 @@ function renderModal(
 
 function selectFirst(items: ReturnType<typeof stubCardViewerItem>[]) {
   useSelectionStore.setState({
-    selectedCard: items[0].printing,
+    selectedCard: items[0]!.printing,
     selectedIndex: 0,
     detailOpen: true,
   });
@@ -148,7 +148,7 @@ describe("SelectionDetailModal", () => {
   it("shows the position within the current list", async () => {
     const items = [stubCardViewerItem(), stubCardViewerItem(), stubCardViewerItem()];
     useSelectionStore.setState({
-      selectedCard: items[1].printing,
+      selectedCard: items[1]!.printing,
       selectedIndex: 1,
       detailOpen: true,
     });
@@ -166,7 +166,7 @@ describe("SelectionDetailModal", () => {
     await user.click(await screen.findByRole("button", { name: "Dock it beside the grid" }));
 
     expect(useDisplayStore.getState().paneDocked).toBe(true);
-    expect(useSelectionStore.getState().selectedCard).toBe(items[0].printing);
+    expect(useSelectionStore.getState().selectedCard).toBe(items[0]!.printing);
     expect(useSelectionStore.getState().detailOpen).toBe(true);
   });
 
@@ -175,14 +175,14 @@ describe("SelectionDetailModal", () => {
     selectFirst(items);
     renderModal(items, (printing) => <div>actions for {printing.id}</div>);
 
-    expect(await screen.findByText(`actions for ${items[0].printing.id}`)).toBeInTheDocument();
+    expect(await screen.findByText(`actions for ${items[0]!.printing.id}`)).toBeInTheDocument();
   });
 
   describe("keyboard navigation", () => {
     it("steps to the next and previous card with the arrow keys", async () => {
       const items = [stubCardViewerItem(), stubCardViewerItem(), stubCardViewerItem()];
       useSelectionStore.setState({
-        selectedCard: items[1].printing,
+        selectedCard: items[1]!.printing,
         selectedIndex: 1,
         detailOpen: true,
       });
@@ -193,12 +193,12 @@ describe("SelectionDetailModal", () => {
 
       fireEvent.keyDown(inside, { key: "ArrowRight" });
       expect(useSelectionStore.getState().selectedIndex).toBe(2);
-      expect(useSelectionStore.getState().selectedCard).toBe(items[2].printing);
+      expect(useSelectionStore.getState().selectedCard).toBe(items[2]!.printing);
 
       fireEvent.keyDown(inside, { key: "ArrowLeft" });
       fireEvent.keyDown(inside, { key: "ArrowLeft" });
       expect(useSelectionStore.getState().selectedIndex).toBe(0);
-      expect(useSelectionStore.getState().selectedCard).toBe(items[0].printing);
+      expect(useSelectionStore.getState().selectedCard).toBe(items[0]!.printing);
     });
 
     it("stays put at the ends of the list", async () => {

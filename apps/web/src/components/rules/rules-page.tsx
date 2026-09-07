@@ -82,7 +82,7 @@ function getPreviousVersion(
   if (index <= 0) {
     return null;
   }
-  return versions[index - 1].version;
+  return versions[index - 1]?.version ?? null;
 }
 
 export function RulesPage({ kind, version }: { kind: RuleKind; version: string | null }) {
@@ -297,6 +297,9 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
               ) : (
                 searchResult.visibleIndices.map((index) => {
                   const rule = rules[index];
+                  if (!rule) {
+                    return null;
+                  }
                   const isContext =
                     searchResult.ancestorSet.has(index) && !searchResult.matchSet.has(index);
                   return (

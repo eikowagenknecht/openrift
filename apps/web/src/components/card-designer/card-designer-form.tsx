@@ -1,5 +1,5 @@
 import type { Domain, Rarity } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, enumLabel } from "@openrift/shared";
 import { EraserIcon } from "lucide-react";
 
 import { CardTextInput } from "@/components/contribute/card-text-input";
@@ -94,7 +94,7 @@ export function CardDesignerForm() {
                       className={cn("size-4 shrink-0", isColorless && "brightness-0 dark:invert")}
                     />
                   )}
-                  {labels.domains[slug]}
+                  {enumLabel(labels.domains, slug)}
                 </ToggleGroupItem>
               );
             })}
@@ -112,7 +112,7 @@ export function CardDesignerForm() {
           >
             {orders.superTypes.map((slug) => (
               <ToggleGroupItem key={slug} value={slug}>
-                {labels.superTypes[slug]}
+                {enumLabel(labels.superTypes, slug)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>

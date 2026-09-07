@@ -23,7 +23,10 @@ export async function discoverKeywordTranslations(repos: {
 
   const knownKeywords = new Set(existingKeywords.map((k) => k.name));
 
-  const pairCounts = new Map<string, Map<string, number>>();
+  const pairCounts = new Map<
+    string,
+    { keyword: string; language: string; labelCounts: Map<string, number> }
+  >();
 
   for (const candidate of candidates) {
     const enTerms = [
@@ -39,11 +42,10 @@ export async function discoverKeywordTranslations(repos: {
       continue;
     }
 
-    for (let i = 0; i < enTerms.length; i++) {
-      const enKeyword = enTerms[i];
+    for (const [i, enKeyword] of enTerms.entries()) {
       const otherLabel = otherTerms[i];
 
-      if (!knownKeywords.has(enKeyword)) {
+      if (otherLabel === undefined || !knownKeywords.has(enKeyword)) {
         continue;
       }
 
@@ -52,26 +54,29 @@ export async function discoverKeywordTranslations(repos: {
       }
 
       const key = `${enKeyword}\0${candidate.otherLanguage}`;
-      let labelCounts = pairCounts.get(key);
-      if (!labelCounts) {
-        labelCounts = new Map();
-        pairCounts.set(key, labelCounts);
+      let pair = pairCounts.get(key);
+      if (!pair) {
+        pair = {
+          keyword: enKeyword,
+          language: candidate.otherLanguage,
+          labelCounts: new Map(),
+        };
+        pairCounts.set(key, pair);
       }
-      labelCounts.set(otherLabel, (labelCounts.get(otherLabel) ?? 0) + 1);
+      pair.labelCounts.set(otherLabel, (pair.labelCounts.get(otherLabel) ?? 0) + 1);
     }
   }
 
   const discovered: DiscoveryResult["discovered"] = [];
   const conflicts: DiscoveryResult["conflicts"] = [];
 
-  for (const [key, labelCounts] of pairCounts) {
-    const [keyword, language] = key.split("\0");
-
+  for (const { keyword, language, labelCounts } of pairCounts.values()) {
     const confidentLabels = [...labelCounts.entries()]
       .filter(([, count]) => count >= 2)
       .sort((a, b) => b[1] - a[1]);
 
-    if (confidentLabels.length === 0) {
+    const [topLabel] = confidentLabels;
+    if (!topLabel) {
       continue;
     }
 
@@ -84,7 +89,7 @@ export async function discoverKeywordTranslations(repos: {
       continue;
     }
 
-    discovered.push({ keyword, language, label: confidentLabels[0][0] });
+    discovered.push({ keyword, language, label: topLabel[0] });
   }
 
   const inserted = await repos.keywords.bulkInsertTranslations(

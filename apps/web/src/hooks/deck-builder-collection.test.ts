@@ -92,7 +92,7 @@ describe("hydrateDeckDraft", () => {
     ]);
     const stored = [...getDeckDraftCollection(queryClient, userA, "deck-hydrate-replace").values()];
     expect(stored).toHaveLength(1);
-    expect(stored[0].cardId).toBe("new");
+    expect(stored[0]!.cardId).toBe("new");
   });
 
   it("updates the quantity of matching entries in place", () => {
@@ -103,7 +103,7 @@ describe("hydrateDeckDraft", () => {
       stubDeckBuilderCard({ cardId: "c1", zone: "main", quantity: 3 }),
     ]);
     const stored = [...getDeckDraftCollection(queryClient, userA, "deck-hydrate-update").values()];
-    expect(stored[0].quantity).toBe(3);
+    expect(stored[0]!.quantity).toBe(3);
   });
 
   it("keeps the same collection instance when re-hydrated", () => {

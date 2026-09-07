@@ -161,12 +161,12 @@ describe("rankEventMatches", () => {
       event({ id: "weak", slug: "other", name: "Summoner Skirmish Berlin", format: "freeform" }),
       event({ id: "strong" }),
     ]);
-    expect(ranked[0].metaEventId).toBe("strong");
+    expect(ranked[0]!.metaEventId).toBe("strong");
   });
 
   it("carries the size of the standings the admin would be linking into", () => {
     const ranked = rankEventMatches(CANDIDATE, [event({ playerRowCount: 64, deckCount: 8 })]);
-    expect(ranked[0].playerRowCount).toBe(64);
+    expect(ranked[0]!.playerRowCount).toBe(64);
   });
 
   it("offers nothing for a name that only coincides with a different season", () => {
@@ -182,7 +182,7 @@ describe("rankEventMatches", () => {
       [event({ eventDate: "2026-08-09" })],
     );
     expect(ranked).toHaveLength(1);
-    expect(ranked[0].reasons).toContain("2 days apart");
+    expect(ranked[0]!.reasons).toContain("2 days apart");
   });
 
   it("still refuses the next weekend's event", () => {
@@ -297,7 +297,7 @@ describe("rankPlayerMatches", () => {
       player({ deckId: null, deckName: null, shareToken: null, listStatus: "none" }),
     ]);
     expect(ranked).toHaveLength(1);
-    expect(ranked[0].deckId).toBeNull();
+    expect(ranked[0]!.deckId).toBeNull();
   });
 
   it("carries the rank and its tier flag, so the admin sees what they link into", () => {
@@ -514,7 +514,7 @@ describe("suggestMetaPlayerMatches", () => {
     const suggestions = await suggestMetaPlayerMatches(repos, OVERLAY_ID);
 
     expect(suggestions.map((row) => row.metaEventPlayerId)).toEqual([LINKED_ID]);
-    expect(suggestions[0].isCurrent).toBe(true);
+    expect(suggestions[0]!.isCurrent).toBe(true);
   });
 
   it("suggests nothing for an unlinked overlay that names no player of its own", async () => {

@@ -24,6 +24,9 @@ export function HeroAvatarCluster({
     <>
       {shown.map((participant, index) => {
         const spot = CLUSTER_SPOTS[index];
+        if (spot === undefined) {
+          return null;
+        }
         return (
           <span
             key={`${participant.name}-${index}`}

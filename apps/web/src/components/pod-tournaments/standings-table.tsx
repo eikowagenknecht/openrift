@@ -14,7 +14,12 @@ import { UserAvatar } from "@/components/user-avatar";
 import { collapseTeamStandings } from "@/lib/team-display";
 import { cn } from "@/lib/utils";
 
-import { formatPlayerRecord, formatScore, POD_WINS_HINT, standingRanks } from "./standings-display";
+import {
+  formatPlayerRecord,
+  formatScore,
+  POD_WINS_HINT,
+  rankedStandings,
+} from "./standings-display";
 
 // Named module-level default: an inline arrow default is not reorderable and
 // makes the React Compiler bail out.
@@ -78,21 +83,21 @@ export function StandingsTable({
     return <p className="text-muted-foreground">No players yet.</p>;
   }
   const swiss = variant === "swiss";
-  const ranks = standingRanks(standings);
+  const ranked = rankedStandings(standings);
   return (
     <>
       <ul className="divide-y sm:hidden">
-        {standings.map((row, index) => (
+        {ranked.map(({ row, rank }) => (
           <li
             key={row.playerId}
             className={cn(
               "flex items-center gap-3 py-2",
               row.status === "dropped" && "opacity-50",
-              ranks[index] === 1 && "bg-border-accent/5",
+              rank === 1 && "bg-border-accent/5",
             )}
           >
             <div className="flex w-6 shrink-0 justify-end">
-              <RankMark rank={ranks[index]} />
+              <RankMark rank={rank} />
             </div>
             <div className="min-w-0 flex-1">
               <PlayerIdentity row={row} regionsEnabled={regionsEnabled} regionLabel={regionLabel} />
@@ -143,16 +148,16 @@ export function StandingsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {standings.map((row, index) => (
+            {ranked.map(({ row, rank }) => (
               <TableRow
                 key={row.playerId}
                 className={cn(
                   row.status === "dropped" && "opacity-50",
-                  ranks[index] === 1 && "bg-border-accent/5",
+                  rank === 1 && "bg-border-accent/5",
                 )}
               >
                 <TableCell>
-                  <RankMark rank={ranks[index]} />
+                  <RankMark rank={rank} />
                 </TableCell>
                 <TableCell>
                   <PlayerIdentity

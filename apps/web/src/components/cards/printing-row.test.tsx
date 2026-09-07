@@ -36,7 +36,7 @@ describe("PrintingVariantLine", () => {
   it("omits the rarity icon when every sibling shares a rarity", () => {
     const printings = [stubPrinting({ rarity: "common" }), stubPrinting({ rarity: "common" })];
 
-    render(<PrintingVariantLine printing={printings[0]} siblings={printings} />);
+    render(<PrintingVariantLine printing={printings[0]!} siblings={printings} />);
 
     expect(screen.queryByAltText("common")).not.toBeInTheDocument();
   });
@@ -44,7 +44,7 @@ describe("PrintingVariantLine", () => {
   it("shows each row's rarity icon when the siblings mix rarities", () => {
     const printings = [stubPrinting({ rarity: "common" }), stubPrinting({ rarity: "rare" })];
 
-    render(<PrintingVariantLine printing={printings[1]} siblings={printings} />);
+    render(<PrintingVariantLine printing={printings[1]!} siblings={printings} />);
 
     expect(screen.getByAltText("rare")).toBeInTheDocument();
   });

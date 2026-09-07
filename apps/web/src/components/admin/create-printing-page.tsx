@@ -1,5 +1,5 @@
 import type { AdminCardDetailResponse } from "@openrift/shared";
-import { WellKnown, fixTypography } from "@openrift/shared";
+import { WellKnown, enumLabel, fixTypography } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -237,12 +237,14 @@ export function CreatePrintingPage({
                 <FieldLabel>Rarity</FieldLabel>
                 <Select value={rarity} onValueChange={(value) => value && setRarity(value)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(value: string) => labels.rarities[value]}</SelectValue>
+                    <SelectValue>
+                      {(value: string) => enumLabel(labels.rarities, value)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {orders.rarities.map((slug) => (
                       <SelectItem key={slug} value={slug}>
-                        {labels.rarities[slug]}
+                        {enumLabel(labels.rarities, slug)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -252,12 +254,14 @@ export function CreatePrintingPage({
                 <FieldLabel>Art variant</FieldLabel>
                 <Select value={artVariant} onValueChange={(value) => value && setArtVariant(value)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(value: string) => labels.artVariants[value]}</SelectValue>
+                    <SelectValue>
+                      {(value: string) => enumLabel(labels.artVariants, value)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {orders.artVariants.map((slug) => (
                       <SelectItem key={slug} value={slug}>
-                        {labels.artVariants[slug]}
+                        {enumLabel(labels.artVariants, slug)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -267,12 +271,14 @@ export function CreatePrintingPage({
                 <FieldLabel>Finish</FieldLabel>
                 <Select value={finish} onValueChange={(value) => value && setFinish(value)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(value: string) => labels.finishes[value]}</SelectValue>
+                    <SelectValue>
+                      {(value: string) => enumLabel(labels.finishes, value)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {orders.finishes.map((slug) => (
                       <SelectItem key={slug} value={slug}>
-                        {labels.finishes[slug]}
+                        {enumLabel(labels.finishes, slug)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -282,12 +288,14 @@ export function CreatePrintingPage({
                 <FieldLabel>Size</FieldLabel>
                 <Select value={size} onValueChange={(value) => value && setSize(value)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue>{(value: string) => labels.cardSizes[value]}</SelectValue>
+                    <SelectValue>
+                      {(value: string) => enumLabel(labels.cardSizes, value)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {orders.cardSizes.map((slug) => (
                       <SelectItem key={slug} value={slug}>
-                        {labels.cardSizes[slug]}
+                        {enumLabel(labels.cardSizes, slug)}
                       </SelectItem>
                     ))}
                   </SelectContent>

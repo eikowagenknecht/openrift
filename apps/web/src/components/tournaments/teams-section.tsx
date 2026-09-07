@@ -57,6 +57,7 @@ export function TeamsSection({
   const unteamed = participants.filter(
     (participant) => participant.status === "active" && participant.teamId === null,
   );
+  const [soleUnteamed, ...otherUnteamed] = unteamed;
   const pickable = (excludeId: string) => unteamed.filter((player) => player.id !== excludeId);
 
   async function handleCreate() {
@@ -119,8 +120,8 @@ export function TeamsSection({
         <Alert variant="warning">
           <TriangleAlertIcon />
           <AlertTitle>
-            {unteamed.length === 1
-              ? `${unteamed[0].displayName} has no team yet.`
+            {soleUnteamed !== undefined && otherUnteamed.length === 0
+              ? `${soleUnteamed.displayName} has no team yet.`
               : `${unteamed.length} players have no team yet: ${unteamed
                   .map((player) => player.displayName)
                   .join(", ")}.`}{" "}

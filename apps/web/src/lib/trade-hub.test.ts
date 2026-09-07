@@ -206,14 +206,14 @@ describe("buildTradeHubCards", () => {
   });
 
   it("splits a member's trades into what waits on the viewer and what doesn't", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       groupTrades: [
         stubTrade({ id: "mine", actionNeeded: "accept-or-decline" }),
         stubTrade({ id: "theirs", actionNeeded: "cancel" }),
         stubTrade({ id: "reserved", status: "reserved", actionNeeded: null }),
         stubTrade({ id: "done", status: "completed" }),
       ],
-    });
+    })[0]!;
 
     expect(ids(card.needsYou)).toEqual(["mine"]);
     expect(ids(card.open)).toEqual(["theirs", "reserved"]);
@@ -222,7 +222,7 @@ describe("buildTradeHubCards", () => {
   });
 
   it("does not count a reservation the viewer already settled as waiting on them", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       groupTrades: [
         stubTrade({
           id: "settled-by-me",
@@ -232,13 +232,13 @@ describe("buildTradeHubCards", () => {
         }),
         stubTrade({ id: "still-theirs", status: "reserved", actionNeeded: null }),
       ],
-    });
+    })[0]!;
 
     expect(ids(card.open)).toEqual(["still-theirs"]);
   });
 
   it("counts a viewer-settled reservation as traded", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       groupTrades: [
         stubTrade({
           id: "settled-by-me",
@@ -249,13 +249,13 @@ describe("buildTradeHubCards", () => {
         stubTrade({ id: "done", status: "completed" }),
         stubTrade({ id: "cancelled", status: "cancelled" }),
       ],
-    });
+    })[0]!;
 
     expect(card.tradedCount).toBe(2);
   });
 
   it("counts live trades in the viewer's other groups separately", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       groupTrades: [stubTrade({ id: "here", actionNeeded: "cancel" })],
       allTrades: [
         stubTrade({ id: "here", actionNeeded: "cancel" }),
@@ -269,14 +269,14 @@ describe("buildTradeHubCards", () => {
           viewerSyncAppliedAt: "2026-08-08T10:00:00.000Z",
         }),
       ],
-    });
+    })[0]!;
 
     expect(card.elsewhereCount).toBe(1);
     expect(ids(card.open)).toEqual(["here"]);
   });
 
   it("counts distinct suggestions and drops the ones a live trade already covers", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       incoming: [
         stubMatch({ printingId: "printing-1" }),
         stubMatch({ printingId: "printing-1" }),
@@ -284,50 +284,50 @@ describe("buildTradeHubCards", () => {
       ],
       outgoing: [stubMatch({ printingId: "printing-3", buyEntryId: "entry-3" })],
       allTrades: [stubTrade({ printingId: "printing-2", status: "pending" })],
-    });
+    })[0]!;
 
     expect(card.suggestions).toBe(2);
   });
 
   it("counts only what the viewer's other groups add on top of this one", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       incoming: [stubMatch({ printingId: "printing-1" })],
       elsewhereIncoming: [
         stubMatch({ printingId: "printing-1" }),
         stubMatch({ printingId: "printing-9", buyEntryId: "entry-9" }),
       ],
-    });
+    })[0]!;
 
     expect(card.suggestions).toBe(1);
     expect(card.suggestionsElsewhere).toBe(1);
   });
 
   it("drops an elsewhere suggestion a live trade already covers", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       elsewhereIncoming: [stubMatch({ printingId: "printing-2", buyEntryId: "entry-2" })],
       allTrades: [stubTrade({ printingId: "printing-2", status: "pending" })],
-    });
+    })[0]!;
 
     expect(card.suggestionsElsewhere).toBe(0);
   });
 
   it("keeps a member with suggestions only in another group off the quiet pile", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       elsewhereIncoming: [stubMatch({ printingId: "printing-1" })],
-    });
+    })[0]!;
 
     expect(isQuietTradeHubCard(card)).toBe(false);
   });
 
   it("counts only the wishlists and tradelists a member shares", () => {
-    const [card] = buildCards({
+    const card = buildCards({
       shares: [
         { userId: "user-2", listIntent: "wish" },
         { userId: "user-2", listIntent: "trade" },
         { userId: "user-2", listIntent: "organize" },
         { userId: VIEWER, listIntent: "trade" },
       ],
-    });
+    })[0]!;
 
     expect(card.listCount).toBe(2);
   });
@@ -372,22 +372,22 @@ describe("buildTradeHubCards", () => {
   });
 
   it("calls a card quiet only when nothing at all has happened with that member", () => {
-    const [quiet] = buildCards();
+    const quiet = buildCards()[0]!;
     expect(isQuietTradeHubCard(quiet)).toBe(true);
 
-    const [withHistory] = buildCards({ groupTrades: [stubTrade({ status: "completed" })] });
+    const withHistory = buildCards({ groupTrades: [stubTrade({ status: "completed" })] })[0]!;
     expect(isQuietTradeHubCard(withHistory)).toBe(false);
 
-    const [elsewhere] = buildCards({
+    const elsewhere = buildCards({
       allTrades: [stubTrade({ groupId: "group-2", status: "pending" })],
-    });
+    })[0]!;
     expect(isQuietTradeHubCard(elsewhere)).toBe(false);
   });
 });
 
 describe("suggestionsLine", () => {
   function withCounts(suggestions: number, suggestionsElsewhere: number) {
-    return { ...buildCards()[0], suggestions, suggestionsElsewhere };
+    return { ...buildCards()[0]!, suggestions, suggestionsElsewhere };
   }
 
   it("says nothing when the matcher found nothing anywhere", () => {

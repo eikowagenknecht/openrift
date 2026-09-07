@@ -715,7 +715,7 @@ describe("deduplicateByCard", () => {
     const scPrinting = makePrinting({ id: "sc", language: "SC" });
     const result = deduplicateByCard([scPrinting, enPrinting], ["EN"]);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("en");
+    expect(result[0]!.id).toBe("en");
   });
 
   it("picks SC printing when language preference is ['SC']", () => {
@@ -723,7 +723,7 @@ describe("deduplicateByCard", () => {
     const scPrinting = makePrinting({ id: "sc", language: "SC" });
     const result = deduplicateByCard([enPrinting, scPrinting], ["SC"]);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("sc");
+    expect(result[0]!.id).toBe("sc");
   });
 });
 

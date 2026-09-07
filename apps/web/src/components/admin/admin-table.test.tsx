@@ -147,7 +147,7 @@ describe("AdminTable sorting", () => {
     return screen
       .getAllByRole("row")
       .slice(1)
-      .map((tr) => within(tr).getAllByRole("cell")[0].textContent ?? "");
+      .map((tr) => within(tr).getAllByRole("cell")[0]!.textContent ?? "");
   }
 
   it("applies defaultSort on first render", () => {
@@ -200,7 +200,7 @@ describe("AdminTable sorting", () => {
 
     expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
 
-    await user.click(screen.getAllByText("Name")[0]);
+    await user.click(screen.getAllByText("Name")[0]!);
 
     expect(renderedLabels()).toEqual(["Alpha", "Beta", "Gamma"]);
   });
@@ -272,7 +272,7 @@ describe("AdminTable server sorting", () => {
       screen
         .getAllByRole("row")
         .slice(1)
-        .map((tr) => within(tr).getAllByRole("cell")[0].textContent),
+        .map((tr) => within(tr).getAllByRole("cell")[0]!.textContent),
     ).toEqual(["Beta", "Alpha"]);
   });
 
@@ -417,7 +417,7 @@ describe("AdminTable reorder", () => {
     const onReorder = vi.fn().mockResolvedValue(undefined);
     renderReorder(onReorder);
 
-    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]!);
 
     expect(onReorder).toHaveBeenCalledWith(["b", "a", "c"]);
   });
@@ -431,10 +431,10 @@ describe("AdminTable reorder", () => {
     });
     renderReorder(() => pending);
 
-    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]!);
 
     expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
-    expect(screen.getAllByRole("button", { name: "Move down" })[0]).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: "Move down" })[0]!).toBeDisabled();
     settle();
   });
 
@@ -442,7 +442,7 @@ describe("AdminTable reorder", () => {
     const user = userEvent.setup();
     renderReorder(vi.fn().mockRejectedValue(new Error("nope")));
 
-    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Move down" })[0]!);
 
     await vi.waitFor(() => {
       expect(renderedLabels()).toEqual(["Alpha", "Beta", "Gamma"]);

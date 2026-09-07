@@ -228,7 +228,7 @@ function textsOf(doc: FakeDoc, value: string): TextCall[] {
 function onlyText(doc: FakeDoc, value: string): TextCall {
   const found = textsOf(doc, value);
   expect(found).toHaveLength(1);
-  return found[0];
+  return found[0]!;
 }
 
 const BELOW_EVERYTHING = Number.POSITIVE_INFINITY;
@@ -319,8 +319,8 @@ describe("generateRegistrationPdf", () => {
       const doc = await render({ siteUrl: "https://preview.openrift.app" });
       const brand = onlyText(doc, "Generated with preview.openrift.app");
       expect(doc.links).toHaveLength(1);
-      expect(doc.links[0].url).toBe("https://preview.openrift.app");
-      expect(doc.links[0].y).toBeCloseTo(brand.y - 2);
+      expect(doc.links[0]!.url).toBe("https://preview.openrift.app");
+      expect(doc.links[0]!.y).toBeCloseTo(brand.y - 2);
     });
 
     it("embeds the logo returned by the loader", async () => {
@@ -408,10 +408,10 @@ describe("generateRegistrationPdf", () => {
     it("offsets each value past its own label, and stacks the zones downward", async () => {
       const doc = await render();
       const rotated = doc.texts.filter((call) => call.angle === 90);
-      const riotLabel = rotated[0];
-      const riotValue = rotated[1];
-      const firstLabel = rotated[2];
-      const lastLabel = rotated[4];
+      const riotLabel = rotated[0]!;
+      const riotValue = rotated[1]!;
+      const firstLabel = rotated[2]!;
+      const lastLabel = rotated[4]!;
       // Rotated text reads bottom-to-top, so "past the label" is a smaller y.
       expect(riotValue.y).toBeLessThan(riotLabel.y);
       expect(riotValue.style).toBe("bold");

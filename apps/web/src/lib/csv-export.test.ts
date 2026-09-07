@@ -203,11 +203,11 @@ describe("generateExportCSV", () => {
     const result = parseImportData(csv);
     expect(result.errors).toHaveLength(0);
     expect(result.entries).toHaveLength(2);
-    expect(result.entries[0].metadata).toEqual({
+    expect(result.entries[0]!.metadata).toEqual({
       condition: "light-played",
       notesPublic: "worn edge",
     });
-    expect(result.entries[1].metadata).toEqual({
+    expect(result.entries[1]!.metadata).toEqual({
       grader: "bgs",
       grade: 8.5,
       links: [{ url: "https://example.com/slab.jpg" }],
@@ -245,15 +245,15 @@ describe("generatePiltoverArchiveCSV", () => {
     const alwaysFoil = makeStack({ shortCode: "OGN-025", finish: "foil", rarity: "rare" });
     const [, commonRow] = generatePiltoverArchiveCSV([common], LABELS).split("\n");
     const [, alwaysFoilRow] = generatePiltoverArchiveCSV([alwaysFoil], LABELS).split("\n");
-    expect(commonRow.split(",")[0]).toBe("OGN-004");
-    expect(commonRow.split(",")[7]).toBe("true");
-    expect(alwaysFoilRow.split(",")[7]).toBe("true");
+    expect(commonRow!.split(",")[0]).toBe("OGN-004");
+    expect(commonRow!.split(",")[7]).toBe("true");
+    expect(alwaysFoilRow!.split(",")[7]).toBe("true");
   });
 
   it("counts metal and metal-deluxe as foil, which is all their format has", () => {
     const stack = makeStack({ shortCode: "OGN-309", finish: "metal-deluxe", rarity: "showcase" });
     const lines = generatePiltoverArchiveCSV([stack], LABELS).split("\n");
-    expect(lines[1].split(",")[7]).toBe("true");
+    expect(lines[1]!.split(",")[7]).toBe("true");
   });
 
   it("types overnumbered ahead of a promo marker, and a promo marker ahead of alt art", () => {
@@ -270,7 +270,7 @@ describe("generatePiltoverArchiveCSV", () => {
     });
     const altArt = makeStack({ shortCode: "OGN-089a", artVariant: "altart" });
     const typeOf = (stack: StackedEntry) =>
-      generatePiltoverArchiveCSV([stack], LABELS).split("\n")[1].split(",")[5];
+      generatePiltoverArchiveCSV([stack], LABELS).split("\n")[1]!.split(",")[5];
     expect(typeOf(overnumbered)).toBe("Overnumbered");
     expect(typeOf(promoAltArt)).toBe("Promo");
     expect(typeOf(altArt)).toBe("Alt Art");
@@ -282,7 +282,7 @@ describe("generatePiltoverArchiveCSV", () => {
       isOvernumbered: true,
       isSigned: true,
     });
-    const cells = generatePiltoverArchiveCSV([stack], LABELS).split("\n")[1].split(",");
+    const cells = generatePiltoverArchiveCSV([stack], LABELS).split("\n")[1]!.split(",");
     expect(cells[0]).toBe("OGN-309*");
     expect(cells[6]).toBe("Overnumbered Signed");
   });
@@ -295,8 +295,8 @@ describe("generatePiltoverArchiveCSV", () => {
       ["c2", stubCopy({ id: "c2" })],
     ]);
     const lines = generatePiltoverArchiveCSV([stack], LABELS, copiesById).split("\n");
-    expect(lines[1].split(",")[10]).toBe("Light Played");
-    expect(lines[2].split(",")[10]).toBe("");
+    expect(lines[1]!.split(",")[10]).toBe("Light Played");
+    expect(lines[2]!.split(",")[10]).toBe("");
   });
 
   it("gives a graded copy its own row with the grading columns filled", () => {
@@ -309,14 +309,14 @@ describe("generatePiltoverArchiveCSV", () => {
     ]);
     const lines = generatePiltoverArchiveCSV([stack], LABELS, copiesById).split("\n");
     expect(lines).toHaveLength(3);
-    const graded = lines[1].split(",");
+    const graded = lines[1]!.split(",");
     expect(graded[8]).toBe("1");
     expect(graded[10]).toBe("");
     expect(graded[11]).toBe("PSA");
     expect(graded[12]).toBe("9");
     expect(graded[13]).toBe("");
     expect(graded[14]).toBe("lolli");
-    expect(lines[2].split(",")[8]).toBe("2");
+    expect(lines[2]!.split(",")[8]).toBe("2");
   });
 
   it("round-trips through the Piltover Archive import parser", () => {
@@ -365,7 +365,7 @@ describe("generatePiltoverArchiveCSV", () => {
       ["c1", stubCopy({ id: "c1", grader: "psa", grade: 9, notesPublic: "lolli" })],
     ]);
     const result = parseImportData(generatePiltoverArchiveCSV([stack], LABELS, copiesById));
-    expect(result.entries[0].metadata).toEqual({
+    expect(result.entries[0]!.metadata).toEqual({
       grader: "psa",
       grade: 9,
       notesPublic: "lolli",
@@ -398,7 +398,7 @@ describe("generateRiftManaCSV", () => {
       [makeStack({ shortCode: "OGN-025", finish: "foil", rarity: "rare" })],
       LABELS,
     ).split("\n");
-    expect(lines[1].split(",").slice(0, 2)).toEqual(["1", "0"]);
+    expect(lines[1]!.split(",").slice(0, 2)).toEqual(["1", "0"]);
   });
 
   it("appends the -p suffix for promo printings", () => {
@@ -411,7 +411,7 @@ describe("generateRiftManaCSV", () => {
       ],
       LABELS,
     ).split("\n");
-    expect(lines[1].split(",")[3]).toBe("OGN-010-p");
+    expect(lines[1]!.split(",")[3]).toBe("OGN-010-p");
   });
 
   it("keeps languages as separate rows and writes their full names", () => {
@@ -436,7 +436,7 @@ describe("generateRiftManaCSV", () => {
       ["c3", stubCopy({ id: "c3" })],
     ]);
     const lines = generateRiftManaCSV([stack], LABELS, copiesById).split("\n");
-    expect(lines[1].split(",")[9]).toBe("NM:1;LP:1");
+    expect(lines[1]!.split(",")[9]).toBe("NM:1;LP:1");
   });
 
   it("round-trips through the RiftMana import parser, which has no overnumbered column", () => {
@@ -518,8 +518,8 @@ describe("generateRiftCoreCSV", () => {
       ],
       LABELS,
     ).split("\n");
-    expect(lines[2].split(",")[0]).toBe("OGN-030A");
-    expect(lines[3].split(",")[0]).toBe("OGN-123S");
+    expect(lines[2]!.split(",")[0]).toBe("OGN-030A");
+    expect(lines[3]!.split(",")[0]).toBe("OGN-123S");
   });
 
   it("counts always-foil rarities in the Standard Qty column", () => {
@@ -527,7 +527,7 @@ describe("generateRiftCoreCSV", () => {
       [makeStack({ shortCode: "OGN-025", finish: "foil", rarity: "rare" })],
       LABELS,
     ).split("\n");
-    expect(lines[2].split(",").slice(7, 11)).toEqual(["1", "0", "0", "1"]);
+    expect(lines[2]!.split(",").slice(7, 11)).toEqual(["1", "0", "0", "1"]);
   });
 
   it("round-trips through the RiftCore import parser, which has no overnumbered column", () => {

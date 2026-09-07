@@ -90,7 +90,7 @@ describe("SelectionMobileOverlay neighbor navigation", () => {
     const user = userEvent.setup();
     const items = [stubCardViewerItem(), stubCardViewerItem(), stubCardViewerItem()];
     useSelectionStore.setState({
-      selectedCard: items[1].printing,
+      selectedCard: items[1]!.printing,
       selectedIndex: 1,
       detailOpen: true,
     });
@@ -98,7 +98,7 @@ describe("SelectionMobileOverlay neighbor navigation", () => {
 
     await user.click(await screen.findByRole("button", { name: "Previous card" }));
     expect(useSelectionStore.getState().selectedIndex).toBe(0);
-    expect(useSelectionStore.getState().selectedCard).toBe(items[0].printing);
+    expect(useSelectionStore.getState().selectedCard).toBe(items[0]!.printing);
   });
 
   it("offers no neighbor navigation when the stored index is stale", async () => {
@@ -118,7 +118,7 @@ describe("SelectionMobileOverlay neighbor navigation", () => {
   it("hides the previous control on the first card and the next on the last", async () => {
     const items = [stubCardViewerItem(), stubCardViewerItem()];
     useSelectionStore.setState({
-      selectedCard: items[0].printing,
+      selectedCard: items[0]!.printing,
       selectedIndex: 0,
       detailOpen: true,
     });

@@ -44,7 +44,7 @@ describe("record", () => {
 
     expect(store().deckId).toBe("deck-2");
     expect(store().past).toHaveLength(1);
-    expect(store().past[0][0].cardId).toBe("z");
+    expect(store().past[0]![0]!.cardId).toBe("z");
   });
 
   it("coalesces a burst of edits into one step", () => {
@@ -57,7 +57,7 @@ describe("record", () => {
     store().record("deck-1", [card("a", 4)]);
 
     expect(store().past).toHaveLength(1);
-    expect(store().past[0][0].quantity).toBe(1);
+    expect(store().past[0]![0]!.quantity).toBe(1);
   });
 
   it("starts a new step once the burst window has passed", () => {
@@ -85,8 +85,8 @@ describe("record", () => {
     }
 
     expect(store().past).toHaveLength(100);
-    expect(store().past[0][0].quantity).toBe(5);
-    expect(store().past.at(-1)?.[0].quantity).toBe(104);
+    expect(store().past[0]![0]!.quantity).toBe(5);
+    expect(store().past.at(-1)?.[0]!.quantity).toBe(104);
   });
 });
 
@@ -97,11 +97,11 @@ describe("undo and redo", () => {
     store().record("deck-1", before);
 
     const undone = store().undo("deck-1", after);
-    expect(undone?.[0].quantity).toBe(1);
+    expect(undone?.[0]!.quantity).toBe(1);
     expect(store().past).toEqual([]);
 
     const redone = store().redo("deck-1", undone ?? []);
-    expect(redone?.[0].quantity).toBe(2);
+    expect(redone?.[0]!.quantity).toBe(2);
     expect(store().past).toHaveLength(1);
     expect(store().future).toEqual([]);
   });
@@ -112,8 +112,8 @@ describe("undo and redo", () => {
     store().record("deck-1", [card("a", 2)]);
     settle();
 
-    expect(store().undo("deck-1", [card("a", 3)])?.[0].quantity).toBe(2);
-    expect(store().undo("deck-1", [card("a", 2)])?.[0].quantity).toBe(1);
+    expect(store().undo("deck-1", [card("a", 3)])?.[0]!.quantity).toBe(2);
+    expect(store().undo("deck-1", [card("a", 2)])?.[0]!.quantity).toBe(1);
     expect(store().undo("deck-1", [card("a", 1)])).toBeNull();
   });
 
@@ -141,9 +141,9 @@ describe("snapshot isolation", () => {
     const live = [card("a", 1)];
     store().record("deck-1", live);
 
-    live[0].quantity = 99;
+    live[0]!.quantity = 99;
 
-    expect(store().past[0][0].quantity).toBe(1);
+    expect(store().past[0]![0]!.quantity).toBe(1);
   });
 
   it("hands out copies, so mutating a result cannot corrupt the stack", () => {
@@ -153,11 +153,11 @@ describe("snapshot isolation", () => {
 
     const undone = store().undo("deck-1", [card("a", 3)]);
     if (undone) {
-      undone[0].quantity = 42;
+      undone[0]!.quantity = 42;
     }
 
-    expect(store().past[0][0].quantity).toBe(1);
-    expect(store().future[0][0].quantity).toBe(3);
+    expect(store().past[0]![0]!.quantity).toBe(1);
+    expect(store().future[0]![0]!.quantity).toBe(3);
   });
 
   it("copies the current cards pushed onto the redo stack", () => {
@@ -165,9 +165,9 @@ describe("snapshot isolation", () => {
     const current = [card("a", 2)];
     store().undo("deck-1", current);
 
-    current[0].quantity = 99;
+    current[0]!.quantity = 99;
 
-    expect(store().future[0][0].quantity).toBe(2);
+    expect(store().future[0]![0]!.quantity).toBe(2);
   });
 });
 
@@ -198,6 +198,6 @@ describe("reset", () => {
     store().record("deck-1", [card("a", 7)]);
 
     expect(store().past).toHaveLength(1);
-    expect(store().past[0][0].quantity).toBe(7);
+    expect(store().past[0]![0]!.quantity).toBe(7);
   });
 });

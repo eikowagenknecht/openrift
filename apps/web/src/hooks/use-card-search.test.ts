@@ -124,7 +124,7 @@ describe("useAssignableCardSearch", () => {
 
   it("returns nothing when the card has no codes and the query is one", () => {
     const { result } = renderHook(() =>
-      useAssignableCardSearch([{ ...assignable[0], shortCodes: [] }], "ogn202"),
+      useAssignableCardSearch([{ ...assignable[0]!, shortCodes: [] }], "ogn202"),
     );
 
     expect(result.current).toEqual([]);

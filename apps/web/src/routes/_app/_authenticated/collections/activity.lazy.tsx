@@ -1,5 +1,5 @@
 import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
-import { formatDayLocal, formatTimeLocal, legendDisplayName } from "@openrift/shared";
+import { enumLabel, formatDayLocal, formatTimeLocal, legendDisplayName } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -212,9 +212,9 @@ function EventCard({
   });
   const totalPrice = price === undefined ? undefined : price * count;
   const { labels } = useEnumOrders();
-  const cardTypeLabel = event.cardTypes.map((slug) => labels.cardTypes[slug]).join(" ");
-  const superTypeLabels = event.cardSuperTypes.map((slug) => labels.superTypes[slug]);
-  const rarityLabel = labels.rarities[event.rarity];
+  const cardTypeLabel = event.cardTypes.map((slug) => enumLabel(labels.cardTypes, slug)).join(" ");
+  const superTypeLabels = event.cardSuperTypes.map((slug) => enumLabel(labels.superTypes, slug));
+  const rarityLabel = enumLabel(labels.rarities, event.rarity);
 
   const isMove = event.action === "moved" && event.fromCollectionName && event.toCollectionName;
   const isUnfilteredAddRemove =
@@ -383,7 +383,7 @@ function LoadMoreSentinel({
     }
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry?.isIntersecting) {
           onIntersect();
         }
       },
@@ -500,11 +500,15 @@ function ActivityPage() {
       ) : (
         <>
           {[...byDate.entries()].map(([date, events]) => {
+            const [firstEvent] = events;
+            if (!firstEvent) {
+              return null;
+            }
             const grouped = groupEvents(events);
             return (
               <div key={date} className="mb-6">
                 <div className="mb-2 flex items-baseline justify-between gap-2">
-                  <SectionHeading>{formatDayLocal(events[0].createdAt)}</SectionHeading>
+                  <SectionHeading>{formatDayLocal(firstEvent.createdAt)}</SectionHeading>
                   <DaySummary events={events} marketplace={marketplace} formatPrice={formatPrice} />
                 </div>
                 <div className="divide-y">

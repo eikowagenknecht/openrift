@@ -69,7 +69,7 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
       code: null,
       codeExpiresAt: null,
     });
-    expect(links[0].linkedAt).not.toBeNull();
+    expect(links[0]!.linkedAt).not.toBeNull();
 
     const found = await repo.findByGuildId(`guild-${group.id}`);
     expect(found).toMatchObject({ groupId: group.id, groupName: "Test Group" });
@@ -161,7 +161,7 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
     expect(relink.status).toBe("linked");
     const links = await repo.listLinks(groupA.id);
     expect(links).toHaveLength(1);
-    expect(links[0].guildName).toBe("New name");
+    expect(links[0]!.guildName).toBe("New name");
   });
 
   it("deletes a link only within its own group", async () => {
@@ -216,7 +216,7 @@ describe.skipIf(!ctx)("friendGroupDiscordLinksRepo (integration)", () => {
 
     const links = await repo.listLinks(group.id);
     expect(links).toHaveLength(1);
-    expect(links[0].code).toBeNull();
+    expect(links[0]!.code).toBeNull();
   });
 
   async function linkedGuild(prefix: string): Promise<string> {

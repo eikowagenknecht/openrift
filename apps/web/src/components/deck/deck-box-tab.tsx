@@ -1,5 +1,6 @@
 import type { DeckZone, VariantLabelEnumLabels, VariantLabelPrinting } from "@openrift/shared";
 import {
+  enumLabel,
   formatPrintingVariantLabelParts,
   getOrientation,
   legendDisplayName,
@@ -673,7 +674,7 @@ function CopyDetails({
   if (copy.grade !== null) {
     parts.push(`graded ${copy.grade}`);
   } else if (copy.condition !== null) {
-    parts.push(labels.conditions[copy.condition]);
+    parts.push(enumLabel(labels.conditions, copy.condition));
   }
   if (parts.length === 0) {
     return null;

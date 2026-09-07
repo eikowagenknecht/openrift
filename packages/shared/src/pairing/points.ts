@@ -42,13 +42,14 @@ export function swissPointsForPlacements(
   winPoints: number,
   drawPoints: number,
 ): number[] {
-  if (placements.length !== 2) {
+  const [first, second] = placements;
+  if (placements.length !== 2 || first === undefined || second === undefined) {
     throw new Error(`swissPointsForPlacements: expected 2 placements, got ${placements.length}`);
   }
-  if (placements[0] === placements[1]) {
+  if (first === second) {
     return [drawPoints, drawPoints];
   }
-  return placements[0] < placements[1] ? [winPoints, 0] : [0, winPoints];
+  return first < second ? [winPoints, 0] : [0, winPoints];
 }
 
 /** Standard competition ranking: equal points share a place and the next group skips the tied slots. */

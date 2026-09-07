@@ -1,5 +1,5 @@
 import type { CopyResponse } from "@openrift/shared";
-import { legendDisplayName } from "@openrift/shared";
+import { enumLabel, legendDisplayName } from "@openrift/shared";
 
 import {
   AlertDialog,
@@ -17,10 +17,10 @@ import type { EnumLabels } from "@/lib/enum-labels";
 function recordedDetails(copy: CopyResponse, labels: EnumLabels): string[] {
   const parts: string[] = [];
   if (copy.grader !== null && copy.grade !== null) {
-    parts.push(`graded ${labels.graders[copy.grader]} ${copy.grade}`);
+    parts.push(`graded ${enumLabel(labels.graders, copy.grader)} ${copy.grade}`);
   }
   if (copy.condition !== null) {
-    parts.push(`condition ${labels.conditions[copy.condition]}`);
+    parts.push(`condition ${enumLabel(labels.conditions, copy.condition)}`);
   }
   if (copy.isAltered) {
     parts.push("marked as altered");

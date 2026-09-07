@@ -147,9 +147,9 @@ describe("stacksFromListEntries", () => {
       SETS,
     );
     expect(stacks).toHaveLength(1);
-    expect(stacks[0].printingId).toBe("p1");
-    expect(stacks[0].printing).toBe(printing);
-    expect(stacks[0].copyIds).toHaveLength(3);
+    expect(stacks[0]!.printingId).toBe("p1");
+    expect(stacks[0]!.printing).toBe(printing);
+    expect(stacks[0]!.copyIds).toHaveLength(3);
   });
 
   it("sorts stacks by card ID like a collection export", () => {
@@ -179,7 +179,7 @@ describe("stacksFromListEntries", () => {
       SETS,
     );
     expect(stacks).toHaveLength(1);
-    expect(stacks[0].printingId).toBe("p1");
+    expect(stacks[0]!.printingId).toBe("p1");
   });
 
   it("returns an empty array for an empty list", () => {
@@ -279,12 +279,12 @@ describe("withoutReservedCopies", () => {
   it("drops the reserved copy from the CSV stacks", () => {
     const stacks = stacksFromListEntries(withoutReservedCopies(binder), printingsById, SETS);
     expect(stacks).toHaveLength(1);
-    expect(stacks[0].copyIds).toHaveLength(2);
+    expect(stacks[0]!.copyIds).toHaveLength(2);
   });
 
   it("keeps the reserved copy when the exclusion is off", () => {
     const stacks = stacksFromListEntries(binder, printingsById, SETS);
-    expect(stacks[0].copyIds).toHaveLength(3);
+    expect(stacks[0]!.copyIds).toHaveLength(3);
   });
 
   it("drops the reserved copy from the share text and the Cardmarket block", () => {

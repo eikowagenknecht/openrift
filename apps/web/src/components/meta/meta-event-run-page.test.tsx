@@ -159,7 +159,7 @@ function rowTexts(): string[] {
 }
 
 function hrefOf(label: string): string | null {
-  return screen.getAllByText(label)[0].closest("a")?.getAttribute("href") ?? null;
+  return screen.getAllByText(label)[0]!.closest("a")?.getAttribute("href") ?? null;
 }
 
 describe("MetaEventRunPage", () => {

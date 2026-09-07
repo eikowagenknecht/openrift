@@ -89,7 +89,7 @@ describe.skipIf(!ctx)("norm_name TS/SQL parity (integration, migration 214)", ()
         await db
           .insertInto("cards")
           .values({
-            slug: slugs[i],
+            slug: slugs[i]!,
             name,
             type: "unit",
             might: null,

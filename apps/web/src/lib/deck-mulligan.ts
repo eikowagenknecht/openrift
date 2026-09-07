@@ -7,7 +7,12 @@ export function shuffle<Value>(items: readonly Value[]): Value[] {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index--) {
     const swap = Math.floor(Math.random() * (index + 1));
-    [result[index], result[swap]] = [result[swap], result[index]];
+    const held = result[index];
+    const other = result[swap];
+    if (held !== undefined && other !== undefined) {
+      result[index] = other;
+      result[swap] = held;
+    }
   }
   return result;
 }

@@ -180,7 +180,7 @@ describe("computeDeckOwnership", () => {
     expect(result.totalOwned).toBe(1);
     expect(result.missingCount).toBe(2);
     expect(result.missingCards).toHaveLength(1);
-    expect(result.missingCards[0].shortfall).toBe(2);
+    expect(result.missingCards[0]!.shortfall).toBe(2);
   });
 
   it("exposes the Legend's colloquial display name while keeping the bare catalog name", () => {
@@ -205,8 +205,8 @@ describe("computeDeckOwnership", () => {
       EN_FIRST,
     );
 
-    expect(result.missingCards[0].cardName).toBe("Emperor of the Sands");
-    expect(result.missingCards[0].displayName).toBe("Azir, Emperor of the Sands");
+    expect(result.missingCards[0]!.cardName).toBe("Emperor of the Sands");
+    expect(result.missingCards[0]!.displayName).toBe("Azir, Emperor of the Sands");
   });
 
   it("exposes the resolved printing's card slug and front image for in-app linking", () => {
@@ -230,9 +230,9 @@ describe("computeDeckOwnership", () => {
       EN_FIRST,
     );
 
-    expect(result.missingCards[0].cardSlug).toBe("azir-emperor");
-    expect(result.missingCards[0].displayPrinting?.imageId).toBe("img-1");
-    expect(result.missingCards[0].displayPrinting?.landscape).toBe(false);
+    expect(result.missingCards[0]!.cardSlug).toBe("azir-emperor");
+    expect(result.missingCards[0]!.displayPrinting?.imageId).toBe("img-1");
+    expect(result.missingCards[0]!.displayPrinting?.landscape).toBe(false);
   });
 
   it("flags Battlefields as landscape so their art is rotated for display", () => {
@@ -249,7 +249,7 @@ describe("computeDeckOwnership", () => {
       EN_FIRST,
     );
 
-    expect(result.missingCards[0].displayPrinting?.landscape).toBe(true);
+    expect(result.missingCards[0]!.displayPrinting?.landscape).toBe(true);
   });
 
   it("leaves cardSlug undefined when the card has no printings", () => {
@@ -265,7 +265,7 @@ describe("computeDeckOwnership", () => {
       EN_FIRST,
     );
 
-    expect(result.missingCards[0].cardSlug).toBeUndefined();
+    expect(result.missingCards[0]!.cardSlug).toBeUndefined();
   });
 
   it("marks an unowned card as fully missing", () => {

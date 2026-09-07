@@ -46,8 +46,7 @@ function fmtNode(n: Node, prefix: string, connector: string): string {
 
 function renderChildren(children: Node[], indent: string): string[] {
   const out: string[] = [];
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i];
+  for (const [i, child] of children.entries()) {
     const last = i === children.length - 1;
     const connector = last ? "└ " : "├ ";
     const nextIndent = indent + (last ? "  " : "│ ");

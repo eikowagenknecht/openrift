@@ -12,7 +12,6 @@ export function moveToIndex<T>(items: readonly T[], from: number, to: number): T
     return null;
   }
   const next = [...items];
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved);
+  next.splice(to, 0, ...next.splice(from, 1));
   return next;
 }

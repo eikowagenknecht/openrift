@@ -42,11 +42,12 @@ interface CardArtThumbProps {
 }
 
 function domainFillStyle(domains?: string[]): React.CSSProperties | undefined {
-  if (!domains || domains.length === 0) {
+  const [firstDomain, secondDomain] = domains ?? [];
+  if (firstDomain === undefined) {
     return undefined;
   }
-  const from = getDomainColor(domains[0]);
-  const to = domains.length > 1 ? getDomainColor(domains[1]) : from;
+  const from = getDomainColor(firstDomain);
+  const to = secondDomain === undefined ? from : getDomainColor(secondDomain);
   // Alpha suffixes: `cc` ≈ 80%, `80` ≈ 50%. Strong enough to read as the domain
   // color at 40px, with a diagonal falloff so it looks designed, not flat.
   return { backgroundImage: `linear-gradient(135deg, ${from}cc, ${to}80)` };

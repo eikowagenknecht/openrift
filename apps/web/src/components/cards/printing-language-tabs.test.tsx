@@ -79,7 +79,7 @@ describe("PrintingLanguageTabs", () => {
     );
 
     expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("EN");
-    expect(within(screen.getByRole("tabpanel")).getByText(printings[0].shortCode)).toBeVisible();
+    expect(within(screen.getByRole("tabpanel")).getByText(printings[0]!.shortCode)).toBeVisible();
   });
 
   it("opens the controlled language", () => {

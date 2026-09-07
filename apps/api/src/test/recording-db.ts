@@ -116,9 +116,9 @@ export function createRecordingDb(results: StubResult[] = []): RecordingDb {
 
 /** The single statement recorded so far, with runs of whitespace collapsed. */
 export function onlyStatement(recorded: RecordingDb): CompiledQuery {
-  if (recorded.statements.length !== 1) {
+  const [query] = recorded.statements;
+  if (recorded.statements.length !== 1 || !query) {
     throw new Error(`Expected exactly 1 statement, captured ${recorded.statements.length}`);
   }
-  const query = recorded.statements[0];
   return { ...query, sql: query.sql.replaceAll(/\s+/gu, " ").trim() };
 }

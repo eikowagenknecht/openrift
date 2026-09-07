@@ -1,3 +1,4 @@
+import { enumLabel } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createLazyFileRoute,
@@ -58,7 +59,7 @@ function ImageSuggestPage() {
           <span className="text-foreground font-medium">
             {printing.printedName ?? data.card.name}
           </span>{" "}
-          · {setName} · {labels.finishes[printing.finish]} · {printing.language || "EN"}
+          · {setName} · {enumLabel(labels.finishes, printing.finish)} · {printing.language || "EN"}
         </p>
       </header>
       <ImageSuggestForm card={data.card} printing={printing} setSlug={setSlug} setName={setName} />

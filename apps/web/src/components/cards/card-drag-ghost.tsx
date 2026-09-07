@@ -13,7 +13,7 @@ const FAN_OFFSETS = [
   { x: 0, y: 0, rotate: 0 },
   { x: 0.107, y: -0.036, rotate: 6 },
   { x: 0.214, y: -0.018, rotate: 12 },
-];
+] as const;
 
 const SINGLE_CARD_TILT = "rotate-3";
 

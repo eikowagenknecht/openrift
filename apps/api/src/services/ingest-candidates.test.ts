@@ -204,7 +204,7 @@ describe("ingestCandidates", () => {
 
     expect(result.updates).toBe(1);
     expect(result.updatedCards).toHaveLength(1);
-    expect(result.updatedCards[0].name).toBe("Fireball Updated");
+    expect(result.updatedCards[0]!.name).toBe("Fireball Updated");
     expect((repos.ingest as any).updateCandidateCard).toHaveBeenCalledTimes(1);
   });
 
@@ -299,7 +299,7 @@ describe("ingestCandidates", () => {
 
     expect(result.newPrintings).toBe(1);
     expect(result.newPrintingDetails).toHaveLength(1);
-    expect(result.newPrintingDetails[0].shortCode).toBe("OGN-001");
+    expect(result.newPrintingDetails[0]!.shortCode).toBe("OGN-001");
     expect((repos.ingest as any).insertCandidatePrinting).toHaveBeenCalledTimes(1);
   });
 
@@ -597,7 +597,7 @@ describe("ingestCandidates", () => {
 
     expect(result.printingUpdates).toBe(1);
     expect(result.updatedPrintings).toHaveLength(1);
-    expect(result.updatedPrintings[0].shortCode).toBe("OGN-001");
+    expect(result.updatedPrintings[0]!.shortCode).toBe("OGN-001");
     expect((repos.ingest as any).updateCandidatePrinting).toHaveBeenCalledTimes(1);
   });
 
@@ -905,7 +905,7 @@ describe("ingestCandidates", () => {
 
     expect(result.removedCards).toBe(1);
     expect(result.removedCardDetails).toHaveLength(1);
-    expect(result.removedCardDetails[0].name).toBe("Old Card");
+    expect(result.removedCardDetails[0]!.name).toBe("Old Card");
     expect((repos.ingest as any).deleteCandidateCards).toHaveBeenCalledWith(["cc-old"]);
   });
 
@@ -962,8 +962,8 @@ describe("ingestCandidates", () => {
 
     expect(result.removedPrintings).toBe(1);
     expect(result.removedPrintingDetails).toHaveLength(1);
-    expect(result.removedPrintingDetails[0].name).toBe("Fireball");
-    expect(result.removedPrintingDetails[0].shortCode).toBe("OLD-P001");
+    expect(result.removedPrintingDetails[0]!.name).toBe("Fireball");
+    expect(result.removedPrintingDetails[0]!.shortCode).toBe("OLD-P001");
     expect((repos.ingest as any).deleteCandidatePrintings).toHaveBeenCalledWith(["cp-old"]);
   });
 
@@ -1018,7 +1018,7 @@ describe("ingestCandidates", () => {
     const card = makeCard();
     const result = await ingestCandidates(transact, "gallery", [card]);
 
-    expect(result.removedPrintingDetails[0].name).toBe("unknown");
+    expect(result.removedPrintingDetails[0]!.name).toBe("unknown");
   });
 
   it("normalizes empty rules_text to null", async () => {

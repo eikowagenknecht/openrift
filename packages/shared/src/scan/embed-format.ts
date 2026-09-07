@@ -15,7 +15,7 @@ const U32_SCRATCH = new Uint32Array(F32_SCRATCH.buffer);
 
 function toHalf(value: number): number {
   F32_SCRATCH[0] = value;
-  const bits = U32_SCRATCH[0];
+  const bits = U32_SCRATCH[0] ?? 0;
   const sign = (bits >>> 16) & 0x80_00;
   let exponent = ((bits >>> 23) & 0xff) - 112;
   let mantissa = bits & 0x7f_ff_ff;
@@ -46,7 +46,7 @@ function fromHalf(half: number): number {
     return sign ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
   }
   U32_SCRATCH[0] = sign | ((exponent + 112) << 23) | ((half & 0x3_ff) << 13);
-  return F32_SCRATCH[0];
+  return F32_SCRATCH[0] ?? 0;
 }
 
 export function encodeEmbedBank(
@@ -55,17 +55,20 @@ export function encodeEmbedBank(
   canonical = false,
 ): ArrayBuffer {
   const encoder = new TextEncoder();
-  const keyBytes = bank.keys.map((key) => encoder.encode(key));
-  const artBytes = bank.keys.map((key) => encoder.encode(artKeyOf(key)));
+  const entries = bank.keys.map((key) => ({
+    key: encoder.encode(key),
+    art: encoder.encode(artKeyOf(key)),
+    label: key,
+  }));
 
   let size = 4 + 2 + 2 + 4 + 2;
-  for (const [i] of bank.keys.entries()) {
+  for (const entry of entries) {
     // Lengths are stored as one byte each; a longer key would silently corrupt
     // the container.
-    if (keyBytes[i].length > 255 || artBytes[i].length > 255) {
-      throw new Error(`embed bank key over 255 bytes: ${bank.keys[i]}`);
+    if (entry.key.length > 255 || entry.art.length > 255) {
+      throw new Error(`embed bank key over 255 bytes: ${entry.label}`);
     }
-    size += 1 + keyBytes[i].length + 1 + artBytes[i].length;
+    size += 1 + entry.key.length + 1 + entry.art.length;
   }
   const dim = bank.keys.length > 0 ? bank.vectors.length / bank.keys.length : 0;
   if (!Number.isInteger(dim)) {
@@ -89,19 +92,19 @@ export function encodeEmbedBank(
   view.setUint16(offset, canonical ? FLAG_CANONICAL : 0, true);
   offset += 2;
 
-  for (const [i] of bank.keys.entries()) {
-    view.setUint8(offset, keyBytes[i].length);
+  for (const entry of entries) {
+    view.setUint8(offset, entry.key.length);
     offset += 1;
-    bytes.set(keyBytes[i], offset);
-    offset += keyBytes[i].length;
-    view.setUint8(offset, artBytes[i].length);
+    bytes.set(entry.key, offset);
+    offset += entry.key.length;
+    view.setUint8(offset, entry.art.length);
     offset += 1;
-    bytes.set(artBytes[i], offset);
-    offset += artBytes[i].length;
+    bytes.set(entry.art, offset);
+    offset += entry.art.length;
   }
 
   for (let i = 0; i < bank.keys.length * dim; i++) {
-    view.setUint16(offset, toHalf(bank.vectors[i]), true);
+    view.setUint16(offset, toHalf(bank.vectors[i] ?? 0), true);
     offset += 2;
   }
 

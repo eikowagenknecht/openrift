@@ -106,12 +106,12 @@ export function extractSectionedListDecklist(doc: Document): string | null {
       inSideboard = normalizeGroupLabel(element.textContent ?? "") === "sideboard";
       continue;
     }
-    const spans = element.querySelectorAll("span");
-    if (spans.length < 2) {
+    const [quantitySpan, nameSpan] = element.querySelectorAll("span");
+    if (quantitySpan === undefined || nameSpan === undefined) {
       continue;
     }
-    const quantityText = cleanText(spans[0].textContent);
-    const cardName = cleanText(spans[1].textContent);
+    const quantityText = cleanText(quantitySpan.textContent);
+    const cardName = cleanText(nameSpan.textContent);
     if (!/^\d+$/u.test(quantityText) || cardName === "") {
       continue;
     }

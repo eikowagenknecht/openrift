@@ -1,4 +1,4 @@
-import type { CardTradeResponse } from "@openrift/shared";
+import type { CardTradeResponse, CardTradeSheetResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   BellIcon,
@@ -134,6 +134,22 @@ export function TradeSheetPage({
   fromGroupSlug?: string;
 }) {
   const { data: sheet } = useTradeSheet(userId);
+  const anchorGroup = sheet.groups.find((group) => group.slug === fromGroupSlug) ?? sheet.groups[0];
+  if (anchorGroup === undefined) {
+    return null;
+  }
+  return <TradeSheetBody userId={userId} sheet={sheet} anchorGroup={anchorGroup} />;
+}
+
+function TradeSheetBody({
+  userId,
+  sheet,
+  anchorGroup,
+}: {
+  userId: string;
+  sheet: CardTradeSheetResponse;
+  anchorGroup: CardTradeSheetResponse["groups"][number];
+}) {
   const { data: allTrades } = useUserTrades();
   const { printingsById } = useCards();
   const [exportOpen, setExportOpen] = useState(false);
@@ -149,9 +165,6 @@ export function TradeSheetPage({
   const incoming = withoutLiveTradeMatches(sheet.othersHaveYourWants, trades);
   const outgoing = withoutLiveTradeMatches(sheet.othersWantYourHaves, trades);
 
-  // An unknown or absent `from` falls back to the first shared group; the API
-  // guarantees at least one exists.
-  const anchorGroup = sheet.groups.find((group) => group.slug === fromGroupSlug) ?? sheet.groups[0];
   const { data: anchorGroupDetail } = useFriendGroupDetail(anchorGroup.slug);
   // Organize-list shares don't render on the member page, so they don't count.
   const hasListsToSee =

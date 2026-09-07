@@ -455,7 +455,7 @@ describe.skipIf(!ctx)("uvsgamesEventsRepo", () => {
       })
       .returning("id")
       .execute();
-    createdCardIds.push(legend.id);
+    createdCardIds.push(legend!.id);
 
     const fetchedAt = new Date("2026-08-21T06:00:00Z");
     await seedAcceptedEvent("mtc-cover", { fetchedAt });

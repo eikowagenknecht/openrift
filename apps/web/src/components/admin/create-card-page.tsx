@@ -1,4 +1,4 @@
-import { slugifyName } from "@openrift/shared";
+import { enumLabel, slugifyName } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -157,7 +157,7 @@ export function CreateCardPage() {
               >
                 {orders.cardTypes.map((typeSlug) => (
                   <ToggleGroupItem key={typeSlug} value={typeSlug}>
-                    {labels.cardTypes[typeSlug]}
+                    {enumLabel(labels.cardTypes, typeSlug)}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -175,7 +175,7 @@ export function CreateCardPage() {
               >
                 {orders.domains.map((domainSlug) => (
                   <ToggleGroupItem key={domainSlug} value={domainSlug}>
-                    {labels.domains[domainSlug]}
+                    {enumLabel(labels.domains, domainSlug)}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
@@ -193,7 +193,7 @@ export function CreateCardPage() {
               >
                 {orders.superTypes.map((superTypeSlug) => (
                   <ToggleGroupItem key={superTypeSlug} value={superTypeSlug}>
-                    {labels.superTypes[superTypeSlug]}
+                    {enumLabel(labels.superTypes, superTypeSlug)}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>

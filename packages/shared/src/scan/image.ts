@@ -5,7 +5,10 @@ export function toGray(src: RgbaImage): GrayImage {
   const { data, width, height } = src;
   const out = new Uint8Array(width * height);
   for (let i = 0, p = 0; i < out.length; i++, p += 4) {
-    out[i] = (data[p] * 77 + data[p + 1] * 150 + data[p + 2] * 29) >> 8;
+    const r = data[p] ?? 0;
+    const g = data[p + 1] ?? 0;
+    const b = data[p + 2] ?? 0;
+    out[i] = (r * 77 + g * 150 + b * 29) >> 8;
   }
   return { data: out, width, height };
 }
@@ -29,14 +32,15 @@ export function downscaleGray(src: GrayImage, dstW: number, dstH: number): GrayI
     const srcRow = y * src.width;
     const dstRow = dy * dstW;
     for (let x = 0; x < src.width; x++) {
-      const idx = dstRow + xMap[x];
-      sums[idx] += src.data[srcRow + x];
-      counts[idx]++;
+      const idx = dstRow + (xMap[x] ?? 0);
+      sums[idx] = (sums[idx] ?? 0) + (src.data[srcRow + x] ?? 0);
+      counts[idx] = (counts[idx] ?? 0) + 1;
     }
   }
   const out = new Uint8Array(dstW * dstH);
   for (let i = 0; i < out.length; i++) {
-    out[i] = counts[i] === 0 ? 0 : Math.round(sums[i] / counts[i]);
+    const count = counts[i] ?? 0;
+    out[i] = count === 0 ? 0 : Math.round((sums[i] ?? 0) / count);
   }
   return { data: out, width: dstW, height: dstH };
 }
@@ -53,26 +57,26 @@ export function boxBlurGray(src: GrayImage, radius: number): GrayImage {
 
   for (let y = 0; y < h; y++) {
     const row = y * w;
-    let sum = src.data[row] * (radius + 1);
+    let sum = (src.data[row] ?? 0) * (radius + 1);
     for (let x = 1; x <= radius; x++) {
-      sum += src.data[row + Math.min(x, w - 1)];
+      sum += src.data[row + Math.min(x, w - 1)] ?? 0;
     }
     for (let x = 0; x < w; x++) {
       tmp[row + x] = Math.round(sum / window);
-      sum += src.data[row + Math.min(x + radius + 1, w - 1)];
-      sum -= src.data[row + Math.max(x - radius, 0)];
+      sum += src.data[row + Math.min(x + radius + 1, w - 1)] ?? 0;
+      sum -= src.data[row + Math.max(x - radius, 0)] ?? 0;
     }
   }
 
   for (let x = 0; x < w; x++) {
-    let sum = tmp[x] * (radius + 1);
+    let sum = (tmp[x] ?? 0) * (radius + 1);
     for (let y = 1; y <= radius; y++) {
-      sum += tmp[Math.min(y, h - 1) * w + x];
+      sum += tmp[Math.min(y, h - 1) * w + x] ?? 0;
     }
     for (let y = 0; y < h; y++) {
       out[y * w + x] = Math.round(sum / window);
-      sum += tmp[Math.min(y + radius + 1, h - 1) * w + x];
-      sum -= tmp[Math.max(y - radius, 0) * w + x];
+      sum += tmp[Math.min(y + radius + 1, h - 1) * w + x] ?? 0;
+      sum -= tmp[Math.max(y - radius, 0) * w + x] ?? 0;
     }
   }
 
@@ -91,7 +95,12 @@ export function focusScore(src: GrayImage): number {
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x;
-      const lap = 4 * data[i] - data[i - 1] - data[i + 1] - data[i - w] - data[i + w];
+      const lap =
+        4 * (data[i] ?? 0) -
+        (data[i - 1] ?? 0) -
+        (data[i + 1] ?? 0) -
+        (data[i - w] ?? 0) -
+        (data[i + w] ?? 0);
       sum += lap;
       sumSq += lap * lap;
       n++;
@@ -109,10 +118,10 @@ export function rotateRgbaCw(src: RgbaImage): RgbaImage {
     for (let x = 0; x < width; x++) {
       const from = (y * width + x) * 4;
       const to = (x * height + target) * 4;
-      out[to] = data[from];
-      out[to + 1] = data[from + 1];
-      out[to + 2] = data[from + 2];
-      out[to + 3] = data[from + 3];
+      out[to] = data[from] ?? 0;
+      out[to + 1] = data[from + 1] ?? 0;
+      out[to + 2] = data[from + 2] ?? 0;
+      out[to + 3] = data[from + 3] ?? 0;
     }
   }
   return { data: out, width: height, height: width };

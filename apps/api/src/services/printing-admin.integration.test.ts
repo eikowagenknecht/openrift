@@ -48,7 +48,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       })
       .returning("id")
       .execute();
-    setId = setRow.id;
+    setId = setRow!.id;
 
     const [cardRow] = await db
       .insertInto("cards")
@@ -65,7 +65,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       })
       .returning("id")
       .execute();
-    cardId = cardRow.id;
+    cardId = cardRow!.id;
     await syncCardCardTypes(db);
 
     await db.insertInto("cardDomains").values({ cardId, domainSlug: "fury", ordinal: 0 }).execute();
@@ -88,7 +88,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       })
       .returning("id")
       .execute();
-    printingEmptyId = emptyRow.id;
+    printingEmptyId = emptyRow!.id;
 
     // Printing B: same identity columns as A but distinguished by a marker.
     // Insert with default empty markers first, then attach a marker row —
@@ -113,7 +113,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       })
       .returning("id")
       .execute();
-    printingWithMarkerId = markerRow.id;
+    printingWithMarkerId = markerRow!.id;
 
     const promoMarker = await db
       .selectFrom("markers")
@@ -209,7 +209,7 @@ describe.skipIf(!ctx)("acceptPrinting requireNew (integration)", () => {
       })
       .returning("id")
       .execute();
-    setId = setRow.id;
+    setId = setRow!.id;
 
     const [cardRow] = await db
       .insertInto("cards")
@@ -226,7 +226,7 @@ describe.skipIf(!ctx)("acceptPrinting requireNew (integration)", () => {
       })
       .returning("id")
       .execute();
-    cardId = cardRow.id;
+    cardId = cardRow!.id;
     await syncCardCardTypes(db);
 
     await db.insertInto("cardDomains").values({ cardId, domainSlug: "fury", ordinal: 0 }).execute();
@@ -248,7 +248,7 @@ describe.skipIf(!ctx)("acceptPrinting requireNew (integration)", () => {
       })
       .returning("id")
       .execute();
-    printingId = printingRow.id;
+    printingId = printingRow!.id;
   });
 
   afterAll(async () => {

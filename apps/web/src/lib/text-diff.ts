@@ -27,6 +27,14 @@ function merge(segments: DiffSegment[]): DiffSegment[] {
   return out;
 }
 
+function lcsCell(dp: number[][], row: number, column: number): number {
+  const value = dp[row]?.[column];
+  if (value === undefined) {
+    throw new Error(`textDiff: no LCS cell at ${row},${column}`);
+  }
+  return value;
+}
+
 export function textDiff(
   oldText: string,
   newText: string,
@@ -48,17 +56,19 @@ export function textDiff(
   const n = oldTokens.length;
   const m = newTokens.length;
 
-  const dp: number[][] = Array.from({ length: n + 1 }, () =>
-    Array.from({ length: m + 1 }, () => 0),
-  );
-
-  for (let i = 1; i <= n; i++) {
-    for (let j = 1; j <= m; j++) {
-      dp[i][j] =
-        oldTokens[i - 1] === newTokens[j - 1]
-          ? dp[i - 1][j - 1] + 1
-          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+  const dp: number[][] = [Array.from({ length: m + 1 }, () => 0)];
+  for (const [oldIndex, oldToken] of oldTokens.entries()) {
+    const row: number[] = [0];
+    let left = 0;
+    for (const [newIndex, newToken] of newTokens.entries()) {
+      const value =
+        oldToken === newToken
+          ? lcsCell(dp, oldIndex, newIndex) + 1
+          : Math.max(lcsCell(dp, oldIndex, newIndex + 1), left);
+      row.push(value);
+      left = value;
     }
+    dp.push(row);
   }
 
   const reversed: DiffSegment[] = [];
@@ -66,15 +76,22 @@ export function textDiff(
   let j = m;
 
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && oldTokens[i - 1] === newTokens[j - 1]) {
-      reversed.push({ text: oldTokens[i - 1], type: "equal" });
+    const oldToken = oldTokens[i - 1];
+    const newToken = newTokens[j - 1];
+    if (oldToken !== undefined && oldToken === newToken) {
+      reversed.push({ text: oldToken, type: "equal" });
       i--;
       j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      reversed.push({ text: newTokens[j - 1], type: "added" });
+    } else if (
+      newToken !== undefined &&
+      (oldToken === undefined || lcsCell(dp, i, j - 1) >= lcsCell(dp, i - 1, j))
+    ) {
+      reversed.push({ text: newToken, type: "added" });
       j--;
+    } else if (oldToken === undefined) {
+      throw new Error("textDiff: LCS backtrack ran past both token lists");
     } else {
-      reversed.push({ text: oldTokens[i - 1], type: "removed" });
+      reversed.push({ text: oldToken, type: "removed" });
       i--;
     }
   }

@@ -147,7 +147,7 @@ describe("importErrata", () => {
     expect(result.updatedCount).toBe(1);
     expect(result.newCount).toBe(0);
     expect(result.updatedEntries).toHaveLength(1);
-    const fields = result.updatedEntries[0].fields.map((f) => f.field).sort();
+    const fields = result.updatedEntries[0]!.fields.map((f) => f.field).sort();
     expect(fields).toEqual(["correctedRulesText", "effectiveDate", "source", "sourceUrl"]);
     expect(mut.upsert).toHaveBeenCalledTimes(1);
   });

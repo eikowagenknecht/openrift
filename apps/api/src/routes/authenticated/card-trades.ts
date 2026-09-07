@@ -79,14 +79,15 @@ export const cardTradesRouter = {
     // nothing of either, and two different answers would turn the route into an
     // account-existence probe.
     const groups = await friendGroups.sharedGroups(viewerId, counterpartyUserId);
-    if (groups.length === 0) {
+    const [primaryGroup] = groups;
+    if (!primaryGroup) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, "Member not found");
     }
 
     // The profile is the same in every shared group, so one roster answers it;
     // revealed contacts are per group, so those are read from all of them.
     const [members, contactsByGroup] = await Promise.all([
-      friendGroups.listMembers(groups[0].id),
+      friendGroups.listMembers(primaryGroup.id),
       Promise.all(groups.map((group) => friendGroups.getRevealedContactsForMembers(group.id))),
     ]);
     const member = members.find((row) => row.userId === counterpartyUserId);

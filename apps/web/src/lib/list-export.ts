@@ -7,6 +7,7 @@ import type {
   TradePreference,
 } from "@openrift/shared";
 import {
+  enumLabel,
   mergeListEntriesByTarget,
   resolveEffectiveTradePreference,
   sortCards,
@@ -38,7 +39,7 @@ function variantSuffix(
     (other) => other.kind !== "card" && other.finish !== entry.finish,
   );
   if (entry.finish !== WellKnown.finish.NORMAL && finishVaries) {
-    parts.push(finishLabels[entry.finish]);
+    parts.push(enumLabel(finishLabels, entry.finish));
   }
   if (entry.language !== WellKnown.language.EN) {
     parts.push(entry.language);
@@ -76,6 +77,7 @@ export function stacksFromListEntries(
   sets: readonly SetOrderInfo[],
 ): StackedEntry[] {
   const quantities = new Map<string, number>();
+  const printings = new Map<string, Printing>();
   for (const entry of entries) {
     if (entry.kind === "card") {
       continue;
@@ -84,14 +86,11 @@ export function stacksFromListEntries(
     if (!printing) {
       continue;
     }
+    printings.set(entry.printingId, printing);
     quantities.set(entry.printingId, (quantities.get(entry.printingId) ?? 0) + entry.quantity);
   }
 
-  const sorted = sortCards(
-    [...quantities.keys()].map((printingId) => printingsById[printingId]),
-    "id",
-    { sets },
-  );
+  const sorted = sortCards([...printings.values()], "id", { sets });
   return sorted.map((printing) => ({
     printingId: printing.id,
     printing,

@@ -131,6 +131,9 @@ export function createJobScheduler(deps: JobSchedulerDeps): JobScheduler {
 
   async function viewFor(definition: AnyJobDefinition): Promise<JobScheduleView> {
     const [view] = await viewsFor([definition]);
+    if (!view) {
+      throw new Error(`No schedule view built for job ${definition.kind}`);
+    }
     return view;
   }
 

@@ -1,5 +1,5 @@
 import type { DeckOddsConfig, DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, enumLabel } from "@openrift/shared";
 import { HandIcon, RotateCcwIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -202,7 +202,7 @@ function RuneOddsPanel({ cards }: { cards: DeckBuilderCard[] }) {
                   <span className="flex items-center gap-1.5">
                     <PowerDomainIcon domains={[row.domain]} colors={domainColors} />
                     <span className="truncate">
-                      {row.threshold}+ {labels.domains[row.domain]}
+                      {row.threshold}+ {enumLabel(labels.domains, row.domain)}
                     </span>
                   </span>
                 </td>
@@ -356,10 +356,13 @@ export function DeckTestBench({
         cards.filter((card) => card.zone === zone),
         (card) => card.cardId,
       ),
-    ].map(([, group]) => ({
-      ...group[0],
-      quantity: group.reduce((sum, card) => sum + card.quantity, 0),
-    }));
+    ].flatMap(([, group]) => {
+      const [first] = group;
+      if (!first) {
+        return [];
+      }
+      return [{ ...first, quantity: group.reduce((sum, card) => sum + card.quantity, 0) }];
+    });
     return sortOverviewCards(aggregated, zone).map((card) => ({
       cardId: card.cardId,
       cardName: card.cardName,
@@ -567,13 +570,17 @@ export function DeckTestBench({
   };
 
   const drawNext = () => {
-    if (!bench || bench.library.length === 0) {
+    if (!bench) {
+      return;
+    }
+    const [next, ...rest] = bench.library;
+    if (!next) {
       return;
     }
     setBench({
       ...bench,
-      hand: [...bench.hand, bench.library[0]],
-      library: bench.library.slice(1),
+      hand: [...bench.hand, next],
+      library: rest,
       hasDrawn: true,
     });
     setSelected(new Set());

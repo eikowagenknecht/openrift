@@ -41,7 +41,7 @@ describe("deriveSetEras", () => {
 
   it("leaves the current era open-ended", () => {
     const eras = deriveSetEras([set("origins", "Origins", "2025-10-31")], TODAY);
-    expect(eras[0].to).toBeNull();
+    expect(eras[0]!.to).toBeNull();
   });
 
   it("orders newest first regardless of input order", () => {
@@ -54,7 +54,7 @@ describe("deriveSetEras", () => {
 
   it("crosses a month boundary without landing on day zero", () => {
     const eras = deriveSetEras([set("a", "A", "2025-10-31"), set("b", "B", "2026-03-01")], TODAY);
-    expect(eras[1].to).toBe("2026-02-28");
+    expect(eras[1]!.to).toBe("2026-02-28");
   });
 
   it("ignores supplemental products, which do not start a season", () => {
@@ -63,7 +63,7 @@ describe("deriveSetEras", () => {
       TODAY,
     );
     expect(eras.map((era) => era.id)).toEqual(["origins"]);
-    expect(eras[0].to).toBeNull();
+    expect(eras[0]!.to).toBeNull();
   });
 
   it("ignores sets that are not out yet", () => {

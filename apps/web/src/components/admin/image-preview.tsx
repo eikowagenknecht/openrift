@@ -78,12 +78,13 @@ export function GroupImagePreview({
   const [resolution, setResolution] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
 
-  if (sourceImages.length === 0) {
+  const firstSourceImage = sourceImages.at(0);
+  if (!firstSourceImage) {
     return null;
   }
 
   const selected =
-    sourceImages.find((si) => si.candidatePrintingId === selectedId) ?? sourceImages[0];
+    sourceImages.find((si) => si.candidatePrintingId === selectedId) ?? firstSourceImage;
 
   return (
     <div className="w-full max-w-96 shrink-0 space-y-2">

@@ -33,10 +33,10 @@ function PriceHistoryTooltipContent({
   source,
   currencyFormatter,
 }: PriceHistoryTooltipContentProps) {
-  if (!active || !payload?.length) {
+  const snap = payload?.[0]?.payload;
+  if (!active || !snap) {
     return null;
   }
-  const snap = payload[0].payload;
   const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
   return (
     <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-md">
@@ -102,12 +102,13 @@ export function PriceHistoryChart({
   const { data: allData } = usePriceHistory(printingId, "all");
 
   const allSnapshots = allData?.[source]?.snapshots;
+  const spanSnapshots = allSnapshots && allSnapshots.length >= 2 ? allSnapshots : undefined;
+  const firstSnapshot = spanSnapshots?.[0];
+  const lastSnapshot = spanSnapshots?.at(-1);
   const dataSpanDays =
-    allSnapshots && allSnapshots.length >= 2
+    firstSnapshot && lastSnapshot
       ? Math.round(
-          // oxlint-disable-next-line no-non-null-assertion -- length >= 2 is checked above
-          (new Date(allSnapshots.at(-1)!.date).getTime() -
-            new Date(allSnapshots[0].date).getTime()) /
+          (new Date(lastSnapshot.date).getTime() - new Date(firstSnapshot.date).getTime()) /
             86_400_000,
         )
       : null;
@@ -234,11 +235,9 @@ export function PriceHistoryChart({
               const activePayload = state?.activePayload as
                 | { payload?: Record<string, unknown> }[]
                 | undefined;
-              if (onDateHover && activePayload?.length) {
-                const date = activePayload[0].payload?.date as string | undefined;
-                if (date) {
-                  onDateHover(date);
-                }
+              const date = activePayload?.[0]?.payload?.date as string | undefined;
+              if (onDateHover && date) {
+                onDateHover(date);
               }
             }}
             onMouseLeave={() => onDateHover?.(null)}

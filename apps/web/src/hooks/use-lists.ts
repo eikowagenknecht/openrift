@@ -282,8 +282,8 @@ export function useBulkAddListEntries() {
             }
             return false;
           });
-          if (idx !== -1) {
-            const existing = entries[idx];
+          const existing = entries[idx];
+          if (existing !== undefined) {
             entries = [
               ...entries.slice(0, idx),
               { ...existing, quantity: existing.quantity + delta },

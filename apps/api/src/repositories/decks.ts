@@ -230,19 +230,20 @@ export function decksRepo(db: Kysely<Database>) {
 
         await trx.deleteFrom("decks").where("id", "=", id).where("userId", "=", userId).execute();
 
-        if (target.familyId) {
+        const [firstSurvivor] = survivors;
+        if (target.familyId && firstSurvivor) {
           if (survivors.length === 1) {
             // A family of one is no family.
             await trx
               .updateTable("decks")
               .set({ familyId: null, isPrimary: false, predecessorDeckId: null })
-              .where("id", "=", survivors[0].id)
+              .where("id", "=", firstSurvivor.id)
               .execute();
           } else if (target.isPrimary && survivors.length > 1) {
             await trx
               .updateTable("decks")
               .set({ isPrimary: true })
-              .where("id", "=", survivors[0].id)
+              .where("id", "=", firstSurvivor.id)
               .execute();
           }
         }

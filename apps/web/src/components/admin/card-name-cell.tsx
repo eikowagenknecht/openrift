@@ -24,9 +24,10 @@ export function CardNameCell({
   meta: CardNameCellMeta;
 }) {
   const { linkCard, acceptFavorite, allCards, isAdmin } = meta;
+  const firstShortCode = row.stagingShortCodes.at(0);
   const suggestedCardId =
-    !row.cardSlug && row.stagingShortCodes.length > 0
-      ? extractCardIdFromShortCode(row.stagingShortCodes[0])
+    !row.cardSlug && firstShortCode !== undefined
+      ? extractCardIdFromShortCode(firstShortCode)
       : null;
 
   // A name with no letters or digits at all normalizes to "", the lookup key

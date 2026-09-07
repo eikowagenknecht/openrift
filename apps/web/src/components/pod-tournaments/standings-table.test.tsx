@@ -33,7 +33,7 @@ function tableRows(): HTMLElement[] {
 }
 
 function tableRanks(): (string | undefined)[] {
-  return tableRows().map((row) => within(row).getAllByRole("cell")[0].textContent?.trim());
+  return tableRows().map((row) => within(row).getAllByRole("cell")[0]!.textContent?.trim());
 }
 
 describe("StandingsTable", () => {
@@ -55,7 +55,7 @@ describe("StandingsTable", () => {
     );
     expect(tableRanks()).toEqual(["1", "2", "3", "4"]);
     const medalled = tableRows().map(
-      (row) => within(row).getAllByRole("cell")[0].querySelector("[data-slot=medal]") !== null,
+      (row) => within(row).getAllByRole("cell")[0]!.querySelector("[data-slot=medal]") !== null,
     );
     expect(medalled).toEqual([true, true, true, false]);
   });
@@ -82,8 +82,8 @@ describe("StandingsTable", () => {
       />,
     );
     const [row] = tableRows();
-    expect(within(row).getByText("Ezreal")).toBeInTheDocument();
-    expect(within(row).getByText("EMEA")).toBeInTheDocument();
+    expect(within(row!).getByText("Ezreal")).toBeInTheDocument();
+    expect(within(row!).getByText("EMEA")).toBeInTheDocument();
   });
 
   it("leaves the region off when the tournament doesn't use regions", () => {
@@ -93,7 +93,7 @@ describe("StandingsTable", () => {
 
   it("marks dropped players", () => {
     render(<StandingsTable standings={[makeRow("a", { status: "dropped" })]} />);
-    expect(within(tableRows()[0]).getByText("(dropped)")).toBeInTheDocument();
+    expect(within(tableRows()[0]!).getByText("(dropped)")).toBeInTheDocument();
   });
 
   it("carries the pod-only columns in the pod variant", () => {

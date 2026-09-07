@@ -215,7 +215,11 @@ export async function flushCoalescedTradeRequests(
   let requestsDropped = 0;
 
   for (const rows of byPair.values()) {
-    const { recipientUserId, senderUserId } = rows[0];
+    const [firstRow] = rows;
+    if (!firstRow) {
+      continue;
+    }
+    const { recipientUserId, senderUserId } = firstRow;
 
     if (!contextByUser.has(recipientUserId)) {
       contextByUser.set(

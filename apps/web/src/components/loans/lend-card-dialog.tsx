@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -90,9 +91,9 @@ export function LendCardDialog({
             <CardMetaLine
               shortCode={printing.shortCode}
               rarity={printing.rarity}
-              rarityLabel={labels.rarities[printing.rarity]}
+              rarityLabel={enumLabel(labels.rarities, printing.rarity)}
               finish={printing.finish}
-              finishLabel={labels.finishes[printing.finish]}
+              finishLabel={enumLabel(labels.finishes, printing.finish)}
             />
           </div>
 

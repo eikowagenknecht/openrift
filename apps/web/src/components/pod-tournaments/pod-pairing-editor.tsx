@@ -300,8 +300,8 @@ function seedUnitsFromRound(
 // The editor index of the n-th non-empty pod (enginePods drops empties).
 function nthNonEmptyPodIndex(state: EditorState, nonEmptyIndex: number): number {
   let seen = -1;
-  for (let index = 0; index < state.pods.length; index++) {
-    if (state.pods[index].playerIds.length > 0) {
+  for (const [index, pod] of state.pods.entries()) {
+    if (pod.playerIds.length > 0) {
       seen++;
       if (seen === nonEmptyIndex) {
         return index;

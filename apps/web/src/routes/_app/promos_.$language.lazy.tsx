@@ -1117,9 +1117,11 @@ function CompactBranchTable({
   const actionsColumn: ActionsColumn = ownedCounts === undefined ? "none" : "narrow";
   const columns = getCardTableColumns(actionsColumn, undefined, PROMO_TABLE_OPTIONS);
   const minWidth = getCardTableMinWidth(actionsColumn, undefined, PROMO_TABLE_OPTIONS);
-  const branches = node.children
-    .map((child) => ({ child, printings: sortPrintings(child.printings) }))
-    .filter(({ printings }) => printings.length > 0);
+  const branches = node.children.flatMap((child) => {
+    const printings = sortPrintings(child.printings);
+    const [firstPrinting] = printings;
+    return firstPrinting ? [{ child, printings, firstPrinting }] : [];
+  });
   if (branches.length === 0) {
     return null;
   }
@@ -1130,8 +1132,8 @@ function CompactBranchTable({
           rather than letting rows spill past the content column. */}
       <div className="hidden overflow-x-auto overflow-y-clip md:block">
         <div style={{ minWidth }}>
-          {branches.map(({ child, printings }) => {
-            const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
+          {branches.map(({ child, printings, firstPrinting }) => {
+            const anchorId = `lang-${firstPrinting.language}-ch-${child.channel.id}`;
             return (
               <div
                 key={child.channel.id}
@@ -1172,8 +1174,8 @@ function CompactBranchTable({
       </div>
 
       <div className="flex flex-col gap-4 md:hidden">
-        {branches.map(({ child, printings }) => {
-          const anchorId = `lang-${printings[0].language}-ch-${child.channel.id}`;
+        {branches.map(({ child, printings, firstPrinting }) => {
+          const anchorId = `lang-${firstPrinting.language}-ch-${child.channel.id}`;
           return (
             <div
               key={child.channel.id}

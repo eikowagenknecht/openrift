@@ -36,46 +36,46 @@ describe("matchDeckEntries", () => {
       const entries = [textEntry("Sett, The Boss", "legend")];
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
-      expect(results[0].status).toBe("exact");
-      expect(results[0].resolvedCard?.cardName).toBe("Sett, The Boss");
+      expect(results[0]!.status).toBe("exact");
+      expect(results[0]!.resolvedCard?.cardName).toBe("Sett, The Boss");
     });
 
     it("prefers exact name match over tag+name", () => {
       const entries = [textEntry("Sett, Kingpin", "legend")];
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
-      expect(results[0].status).toBe("exact");
-      expect(results[0].resolvedCard?.cardName).toBe("Sett, Kingpin");
+      expect(results[0]!.status).toBe("exact");
+      expect(results[0]!.resolvedCard?.cardName).toBe("Sett, Kingpin");
     });
 
     it("returns unresolved when tag does not match", () => {
       const entries = [textEntry("Draven, The Boss")];
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
-      expect(results[0].status).toBe("unresolved");
+      expect(results[0]!.status).toBe("unresolved");
     });
 
     it("returns unresolved when name after comma does not match", () => {
       const entries = [textEntry("Sett, Nonexistent")];
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
-      expect(results[0].status).toBe("unresolved");
+      expect(results[0]!.status).toBe("unresolved");
     });
 
     it("handles case-insensitive tag matching via normalization", () => {
       const entries = [textEntry("sett, the boss", "legend")];
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
-      expect(results[0].status).toBe("exact");
-      expect(results[0].resolvedCard?.cardName).toBe("Sett, The Boss");
+      expect(results[0]!.status).toBe("exact");
+      expect(results[0]!.resolvedCard?.cardName).toBe("Sett, The Boss");
     });
 
     it("does not attempt tag+name split for names without commas", () => {
       const entries = [textEntry("Pit Rookie")];
       const results = matchDeckEntries(entries, printings);
       expect(results).toHaveLength(1);
-      expect(results[0].status).toBe("exact");
-      expect(results[0].resolvedCard?.cardName).toBe("Pit Rookie");
+      expect(results[0]!.status).toBe("exact");
+      expect(results[0]!.resolvedCard?.cardName).toBe("Pit Rookie");
     });
   });
 
@@ -99,8 +99,8 @@ describe("matchDeckEntries", () => {
         { shortCode: "OGN-001", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, [enPrinting, scPrinting]);
-      expect(result[0].status).toBe("exact");
-      expect(result[0].resolvedCard?.preferredPrintingId).toBeNull();
+      expect(result[0]!.status).toBe("exact");
+      expect(result[0]!.resolvedCard?.preferredPrintingId).toBeNull();
     });
 
     it("does not pin a printingId for shortCode lookups (SC-first ordering)", () => {
@@ -108,8 +108,8 @@ describe("matchDeckEntries", () => {
         { shortCode: "OGN-001", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, [scPrinting, enPrinting]);
-      expect(result[0].status).toBe("exact");
-      expect(result[0].resolvedCard?.preferredPrintingId).toBeNull();
+      expect(result[0]!.status).toBe("exact");
+      expect(result[0]!.resolvedCard?.preferredPrintingId).toBeNull();
     });
   });
 
@@ -147,7 +147,7 @@ describe("matchDeckEntries", () => {
         },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("legend");
+      expect(result[0]!.zone).toBe("legend");
     });
 
     it("assigns Rune cards to runes zone", () => {
@@ -155,7 +155,7 @@ describe("matchDeckEntries", () => {
         { cardName: "Fury Rune", quantity: 5, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("runes");
+      expect(result[0]!.zone).toBe("runes");
     });
 
     it("assigns Battlefield cards to battlefield zone", () => {
@@ -163,7 +163,7 @@ describe("matchDeckEntries", () => {
         { cardName: "Altar to Unity", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("battlefield");
+      expect(result[0]!.zone).toBe("battlefield");
     });
 
     it("assigns regular Unit cards to main zone", () => {
@@ -171,7 +171,7 @@ describe("matchDeckEntries", () => {
         { cardName: "Iron Ballista", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("main");
+      expect(result[0]!.zone).toBe("main");
     });
   });
 
@@ -199,8 +199,8 @@ describe("matchDeckEntries", () => {
         { cardName: "Iron Ballista", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("champion");
-      expect(result[1].zone).toBe("main");
+      expect(result[0]!.zone).toBe("champion");
+      expect(result[1]!.zone).toBe("main");
     });
 
     it("only assigns the first Champion — others go to main", () => {
@@ -209,8 +209,8 @@ describe("matchDeckEntries", () => {
         { cardName: "Ekko, Recurrent", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("champion");
-      expect(result[1].zone).toBe("main");
+      expect(result[0]!.zone).toBe("champion");
+      expect(result[1]!.zone).toBe("main");
     });
 
     it("splits multi-copy Champion: 1 to champion, rest to main", () => {
@@ -219,10 +219,10 @@ describe("matchDeckEntries", () => {
       ];
       const result = matchDeckEntries(entries, catalog);
       expect(result).toHaveLength(2);
-      expect(result[0].zone).toBe("champion");
-      expect(result[0].entry.quantity).toBe(1);
-      expect(result[1].zone).toBe("main");
-      expect(result[1].entry.quantity).toBe(2);
+      expect(result[0]!.zone).toBe("champion");
+      expect(result[0]!.entry.quantity).toBe(1);
+      expect(result[1]!.zone).toBe("main");
+      expect(result[1]!.entry.quantity).toBe(2);
     });
 
     it("does not auto-assign champion when an explicit champion zone exists", () => {
@@ -237,8 +237,8 @@ describe("matchDeckEntries", () => {
         { cardName: "Kai'Sa, Survivor", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("champion");
-      expect(result[1].zone).toBe("main");
+      expect(result[0]!.zone).toBe("champion");
+      expect(result[1]!.zone).toBe("main");
     });
 
     it("does not promote sideboard Champions to champion zone", () => {
@@ -247,8 +247,8 @@ describe("matchDeckEntries", () => {
         { cardName: "Iron Ballista", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("sideboard");
-      expect(result[1].zone).toBe("main");
+      expect(result[0]!.zone).toBe("sideboard");
+      expect(result[1]!.zone).toBe("main");
     });
 
     it("does not promote a Champion card whose zone was set explicitly (e.g. Legend:)", () => {
@@ -263,8 +263,8 @@ describe("matchDeckEntries", () => {
         { cardName: "Iron Ballista", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
       ];
       const result = matchDeckEntries(entries, catalog);
-      expect(result[0].zone).toBe("legend");
-      expect(result[1].zone).toBe("main");
+      expect(result[0]!.zone).toBe("legend");
+      expect(result[1]!.zone).toBe("main");
     });
   });
 });

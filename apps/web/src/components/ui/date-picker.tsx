@@ -20,7 +20,7 @@ function formatIso(date: Date): string {
 }
 
 function parseIso(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
+  const [y = NaN, m = NaN, d = NaN] = value.split("-").map(Number);
   return new Date(y, m - 1, d, 12);
 }
 

@@ -94,7 +94,7 @@ describe("buildPrintingsResponse", () => {
       citationsByPrinting: citations,
     });
 
-    expect(printing.citations).toHaveLength(2);
+    expect(printing!.citations).toHaveLength(2);
   });
 
   it("omits the key entirely for an uncited printing", () => {
@@ -104,8 +104,8 @@ describe("buildPrintingsResponse", () => {
       citationsByPrinting: new Map(),
     });
 
-    expect(printing.citations).toBeUndefined();
-    expect(Object.hasOwn(printing, "citations")).toBe(false);
+    expect(printing!.citations).toBeUndefined();
+    expect(Object.hasOwn(printing!, "citations")).toBe(false);
   });
 
   it("keeps each printing's citations to itself", () => {
@@ -117,8 +117,8 @@ describe("buildPrintingsResponse", () => {
       citationsByPrinting: citations,
     });
 
-    expect(first.citations).toBeUndefined();
-    expect(second.citations).toEqual([citation("c-1")]);
+    expect(first!.citations).toBeUndefined();
+    expect(second!.citations).toEqual([citation("c-1")]);
   });
 
   it("still resolves markers, channels, and images alongside citations", () => {
@@ -146,9 +146,9 @@ describe("buildPrintingsResponse", () => {
       },
     );
 
-    expect(printing.markers).toEqual([MARKER]);
-    expect(printing.distributionChannels).toEqual([link]);
-    expect(printing.images).toEqual([{ face: "front", imageId: "img-1" }]);
-    expect(printing.citations).toEqual([citation("c-1")]);
+    expect(printing!.markers).toEqual([MARKER]);
+    expect(printing!.distributionChannels).toEqual([link]);
+    expect(printing!.images).toEqual([{ face: "front", imageId: "img-1" }]);
+    expect(printing!.citations).toEqual([citation("c-1")]);
   });
 });

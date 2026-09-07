@@ -111,7 +111,10 @@ export function useCardDetailNavigation({
           : idx < siblingPrintings.length - 1
             ? idx + 1
             : 0;
-      handleSelectPrinting(siblingPrintings[next]);
+      const sibling = siblingPrintings[next];
+      if (sibling) {
+        handleSelectPrinting(sibling);
+      }
     }
   };
 

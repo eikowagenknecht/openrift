@@ -157,7 +157,7 @@ describe("candidate ingest link parity", () => {
       // '' provider means a pre-scoping legacy row (wildcard, matches any provider).
       linkOverrides: [
         {
-          externalId: built.printings[0].external_id,
+          externalId: built.printings[0]!.external_id,
           finish: "foil",
           provider: "",
           printingId: "override-uuid",

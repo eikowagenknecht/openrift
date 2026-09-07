@@ -1,4 +1,5 @@
 import type { AvailableFilters, FilterCounts } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -356,7 +357,7 @@ export function OwnedFilterChip({
   const showCopiesSlider = ownedCountMax !== undefined && ownedCountMax > 0;
   const copiesActive = filterState.ownedCountMin !== null || filterState.ownedCountMax !== null;
   const activeCount = filterState.owned.length + Number(copiesActive);
-  const bucketLabel = (value: string) =>
+  const bucketLabel = (value: string | undefined) =>
     OWNED_BUCKETS.find((bucket) => bucket.value === value)?.label ?? value;
   const summary =
     activeCount === 1
@@ -463,7 +464,7 @@ export function CompactFilterBar({
         excluded={filterState.raritiesEx}
         onCycle={(value) => cycleArrayFilter("rarities", "raritiesEx", value)}
         iconPath={(value) => getFilterIconPath("rarities", value)}
-        displayLabel={(value) => labels.rarities[value]}
+        displayLabel={(value) => enumLabel(labels.rarities, value)}
         counts={filterCounts?.rarities}
         showLabels={showLabels}
       />
@@ -501,13 +502,14 @@ export function CompactFilterBar({
   const activeStatRanges = statRanges.filter((stat) => stat.min !== null || stat.max !== null);
   const statsActiveCount = activeStatRanges.length;
 
+  const [firstStatRange, secondStatRange] = activeStatRanges;
   const singleStatSummary =
-    activeStatRanges.length === 1
-      ? `${activeStatRanges[0].label} ${rangeBadgeLabel(
-          activeStatRanges[0].min,
-          activeStatRanges[0].max,
-          activeStatRanges[0].bounds.min,
-          activeStatRanges[0].bounds.max,
+    firstStatRange && !secondStatRange
+      ? `${firstStatRange.label} ${rangeBadgeLabel(
+          firstStatRange.min,
+          firstStatRange.max,
+          firstStatRange.bounds.min,
+          firstStatRange.bounds.max,
         )}`
       : undefined;
 

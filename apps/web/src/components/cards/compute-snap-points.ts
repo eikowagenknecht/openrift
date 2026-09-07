@@ -46,23 +46,25 @@ export function computeSnapPoints({
 
   const points: SnapPoint[] = [];
 
-  for (let i = 0; i < virtualRows.length; i++) {
-    const row = virtualRows[i];
+  for (const [i, row] of virtualRows.entries()) {
     if (row.kind !== "header") {
       continue;
     }
     const rowStart = measuredStarts.get(i) ?? rowStarts[i];
+    if (rowStart === undefined) {
+      continue;
+    }
     const headerScrollY = rowStart + scrollMargin - stickyOffset;
     const contentPct = Math.max(0, Math.min(1, (headerScrollY - contentStart) / contentRange));
     const screenY = Math.round(trackTop + contentPct * (trackBottom - trackTop));
     let firstCardId = "";
-    for (let j = i + 1; j < virtualRows.length; j++) {
-      const next = virtualRows[j];
-      if (next.kind === "cards" && next.items.length > 0) {
-        firstCardId = next.items[0].printing.shortCode;
+    for (const next of virtualRows.slice(i + 1)) {
+      if (next.kind === "header") {
         break;
       }
-      if (next.kind === "header") {
+      const first = next.items[0];
+      if (first) {
+        firstCardId = first.printing.shortCode;
         break;
       }
     }
@@ -76,11 +78,12 @@ export function computeSnapPoints({
   }
 
   const MIN_GAP = IS_COARSE_POINTER ? 32 : 26;
-  for (let p = 1; p < points.length; p++) {
-    const gap = points[p].screenY - points[p - 1].screenY;
-    if (gap < MIN_GAP) {
-      points[p].screenY = points[p - 1].screenY + MIN_GAP;
+  let previousY: number | undefined;
+  for (const point of points) {
+    if (previousY !== undefined && point.screenY - previousY < MIN_GAP) {
+      point.screenY = previousY + MIN_GAP;
     }
+    previousY = point.screenY;
   }
 
   return points;

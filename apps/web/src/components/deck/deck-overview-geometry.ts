@@ -40,8 +40,10 @@ const STACK_STRIP_RADIUS_FRACTION = 0.05;
 
 // Tighter than NAME_BANDS in packages/shared/src/scan/disambiguate.ts: that
 // scanner data carries deliberate slack for its shift search.
+const DEFAULT_NAME_STRIP_BAND = { y0: 0.56, y1: 0.63 };
+
 const NAME_STRIP_BANDS: Record<string, { y0: number; y1: number }> = {
-  unit: { y0: 0.56, y1: 0.63 },
+  unit: DEFAULT_NAME_STRIP_BAND,
   spell: { y0: 0.56, y1: 0.63 },
   gear: { y0: 0.56, y1: 0.63 },
   legend: { y0: 0.67, y1: 0.74 },
@@ -51,7 +53,7 @@ const NAME_STRIP_BANDS: Record<string, { y0: number; y1: number }> = {
 };
 
 export function nameStripBand(cardType: string): { y0: number; y1: number } {
-  return NAME_STRIP_BANDS[cardType] ?? NAME_STRIP_BANDS.unit;
+  return NAME_STRIP_BANDS[cardType] ?? DEFAULT_NAME_STRIP_BAND;
 }
 
 // Reads the full type set, not the primary type, so a dual-typed battlefield still counts.

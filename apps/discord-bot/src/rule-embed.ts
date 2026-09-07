@@ -66,7 +66,11 @@ function sectionRules(index: RuleIndex, entry: IndexedRule): IndexedRule[] {
   const section: IndexedRule[] = [];
   for (let i = position + 1; i < index.entries.length; i++) {
     const candidate = index.entries[i];
-    if (candidate.kind !== entry.kind || candidate.rule.ruleType === "subtitle") {
+    if (
+      candidate === undefined ||
+      candidate.kind !== entry.kind ||
+      candidate.rule.ruleType === "subtitle"
+    ) {
       break;
     }
     section.push(candidate);

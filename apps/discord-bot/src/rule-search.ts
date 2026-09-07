@@ -81,10 +81,11 @@ const KIND_PREFIX_QUERY_REGEX = /^(?<prefix>cr|tr)(?![a-z])[\s.:-]*/iu;
 export function parseRuleQuery(query: string): { kind?: RuleKind; rest: string } {
   const trimmed = query.trim();
   const match = KIND_PREFIX_QUERY_REGEX.exec(trimmed);
-  if (!match?.groups) {
+  const prefix = match?.groups?.prefix;
+  if (match === null || prefix === undefined) {
     return { rest: trimmed };
   }
-  const kind: RuleKind = match.groups.prefix.toLowerCase() === "cr" ? "core" : "tournament";
+  const kind: RuleKind = prefix.toLowerCase() === "cr" ? "core" : "tournament";
   return { kind, rest: trimmed.slice(match[0].length).trim() };
 }
 

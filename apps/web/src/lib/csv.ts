@@ -20,7 +20,7 @@ export function parseCSV(text: string): string[][] {
               break;
             }
           } else {
-            field += text[position];
+            field += text.charAt(position);
             position++;
           }
         }
@@ -62,18 +62,18 @@ export function parseCSV(text: string): string[][] {
 
 export function parseCSVWithHeaders(text: string): Record<string, string>[] {
   const rows = parseCSV(text);
-  if (rows.length === 0) {
+  const [headerRow] = rows;
+  if (headerRow === undefined) {
     return [];
   }
 
-  const headers = rows[0].map((header) => header.trim());
+  const headers = headerRow.map((header) => header.trim());
   const records: Record<string, string>[] = [];
 
-  for (let index = 1; index < rows.length; index++) {
-    const row = rows[index];
+  for (const row of rows.slice(1)) {
     const record: Record<string, string> = {};
-    for (let column = 0; column < headers.length; column++) {
-      record[headers[column]] = row[column]?.trim() ?? "";
+    for (const [column, header] of headers.entries()) {
+      record[header] = row[column]?.trim() ?? "";
     }
     records.push(record);
   }

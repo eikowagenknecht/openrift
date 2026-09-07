@@ -253,18 +253,16 @@ export function projectRoundMatches(
       });
     }
 
+    seats.sort((a, b) => a.userId - b.userId);
+    const [first, second = null] = seats;
+
     const isBye = row.match_is_bye === true;
     const representable =
-      seats.length > 0 &&
-      seats.length <= 2 &&
-      (isBye || (seats.length === 2 && unreadableSeats === 0));
-    if (!representable) {
+      seats.length <= 2 && (isBye || (seats.length === 2 && unreadableSeats === 0));
+    if (first === undefined || !representable) {
       dropped++;
       continue;
     }
-
-    seats.sort((a, b) => a.userId - b.userId);
-    const [first, second = null] = seats;
 
     const winner = seats.find((seat) => seat.won) ?? null;
     // v2 carries no per-seat games_won; derive it from the match-level

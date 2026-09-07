@@ -117,10 +117,10 @@ function rebalanceRunes(
     );
     return;
   }
-  const catalogRunes = runesByDomain.get(otherDomain) ?? [];
-  if (catalogRunes.length > 0) {
+  const [catalogRune] = runesByDomain.get(otherDomain) ?? [];
+  if (catalogRune) {
     collection.insert({
-      ...catalogRunes[0],
+      ...catalogRune,
       zone: WellKnown.deckZone.RUNES,
       quantity: 1,
       preferredPrintingId: null,
@@ -294,10 +294,12 @@ function moveIntoSingleSlot(
   toZone: DeckZone,
 ): void {
   const existingInZone = allCards(collection).filter((card) => card.zone === toZone);
+  const [onlyExisting] = existingInZone;
   if (
     existingInZone.length === 1 &&
-    existingInZone[0].cardId === source.cardId &&
-    existingInZone[0].preferredPrintingId === source.preferredPrintingId
+    onlyExisting !== undefined &&
+    onlyExisting.cardId === source.cardId &&
+    onlyExisting.preferredPrintingId === source.preferredPrintingId
   ) {
     return;
   }
@@ -510,6 +512,9 @@ export function setLegendAction(
     let index = 0;
     while (remaining > 0) {
       const rune = runes[index % runes.length];
+      if (!rune) {
+        break;
+      }
       const already = runeEntries.get(rune.cardId);
       if (already) {
         already.quantity += 1;
@@ -525,8 +530,13 @@ export function setLegendAction(
       index += 1;
     }
   };
-  fillDomain(card.domains[0], 6);
-  fillDomain(card.domains[1], 6);
+  const [firstDomain, secondDomain] = card.domains;
+  if (firstDomain !== undefined) {
+    fillDomain(firstDomain, 6);
+  }
+  if (secondDomain !== undefined) {
+    fillDomain(secondDomain, 6);
+  }
   for (const rune of runeEntries.values()) {
     collection.insert(rune);
   }

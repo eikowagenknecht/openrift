@@ -385,10 +385,10 @@ describe("TournamentOverviewTab", () => {
 
   it("names 1v1 pairings matches rather than pods", () => {
     const base = makeRunState();
-    const round = base.rounds[1];
+    const round = base.rounds[1]!;
     runState = makeRunState({
       rounds: [
-        base.rounds[0],
+        base.rounds[0]!,
         {
           ...round,
           pods: round.pods.map((pod) => ({

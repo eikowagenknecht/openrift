@@ -2,7 +2,10 @@ import { DEFAULT_DOMAIN_COLORS, DOMAIN_COLOR_FALLBACK, WellKnown } from "@openri
 
 import { contrastGlyphTint } from "./color";
 
-function resolve(colors: Record<string, string>, domain: string): string {
+function resolve(colors: Record<string, string>, domain: string | undefined): string {
+  if (domain === undefined) {
+    return DOMAIN_COLOR_FALLBACK;
+  }
   return colors[domain] ?? DEFAULT_DOMAIN_COLORS[domain] ?? DOMAIN_COLOR_FALLBACK;
 }
 
@@ -32,7 +35,7 @@ export function getDomainTintStyle(
 }
 
 export function getDomainColor(
-  domain: string,
+  domain: string | undefined,
   colors: Record<string, string> = DEFAULT_DOMAIN_COLORS,
 ): string {
   return resolve(colors, domain);
@@ -104,8 +107,9 @@ export function deckGlowStyle(
         "radial-gradient(80% 140% at 20% 0%, oklch(0.6 0.02 260 / 0.14) 0%, transparent 60%)",
     };
   }
-  const first = getDomainColor(domains[0], colors);
-  const second = domains.length > 1 ? getDomainColor(domains[1], colors) : first;
+  const [firstDomain, secondDomain] = domains;
+  const first = getDomainColor(firstDomain, colors);
+  const second = secondDomain === undefined ? first : getDomainColor(secondDomain, colors);
   return {
     backgroundImage: `radial-gradient(70% 150% at 12% 0%, ${first}3d 0%, transparent 62%), radial-gradient(60% 130% at 88% 0%, ${second}33 0%, transparent 58%)`,
   };

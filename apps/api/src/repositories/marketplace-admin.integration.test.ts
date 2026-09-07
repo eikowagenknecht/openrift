@@ -87,7 +87,7 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
       (p) => p.marketplace === marketplace && [88_001, 88_002].includes(p.externalId),
     );
     expect(remaining.length).toBe(1);
-    expect(remaining[0].externalId).toBe(88_002);
+    expect(remaining[0]!.externalId).toBe(88_002);
   });
 
   it("deleteIgnoredProducts bulk deletes", async () => {

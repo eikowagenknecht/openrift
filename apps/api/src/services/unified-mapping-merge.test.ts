@@ -103,10 +103,10 @@ describe("buildUnifiedMappingsResponse", () => {
     );
 
     expect(result.groups).toHaveLength(1);
-    expect(result.groups[0].cardId).toBe("card-1");
-    expect(result.groups[0].printings[0].tcgExternalId).toBe(100);
-    expect(result.groups[0].printings[0].cmExternalId).toBeNull();
-    expect(result.groups[0].printings[0].ctExternalId).toBeNull();
+    expect(result.groups[0]!.cardId).toBe("card-1");
+    expect(result.groups[0]!.printings[0]!.tcgExternalId).toBe(100);
+    expect(result.groups[0]!.printings[0]!.cmExternalId).toBeNull();
+    expect(result.groups[0]!.printings[0]!.ctExternalId).toBeNull();
   });
 
   it("merges external IDs from all three marketplaces into the same card", async () => {
@@ -139,7 +139,7 @@ describe("buildUnifiedMappingsResponse", () => {
     );
 
     expect(result.groups).toHaveLength(1);
-    const printing = result.groups[0].printings[0];
+    const printing = result.groups[0]!.printings[0]!;
     expect(printing.tcgExternalId).toBe(100);
     expect(printing.cmExternalId).toBe(200);
     expect(printing.ctExternalId).toBe(300);
@@ -207,8 +207,8 @@ describe("buildUnifiedMappingsResponse", () => {
       getMappingOverview,
     );
 
-    expect(result.groups[0].primaryShortCode).toBe("OGN-001");
-    expect(result.groups[1].primaryShortCode).toBe("OGN-002");
+    expect(result.groups[0]!.primaryShortCode).toBe("OGN-001");
+    expect(result.groups[1]!.primaryShortCode).toBe("OGN-002");
   });
 
   it("passes allCardsForMatching so each marketplace sees every card's name for longest-match tiebreak", async () => {
@@ -347,10 +347,10 @@ describe("buildUnifiedMappingsResponse", () => {
     );
 
     expect(result.groups).toHaveLength(1);
-    const printingIds = result.groups[0].printings.map((p) => p.printingId);
+    const printingIds = result.groups[0]!.printings.map((p) => p.printingId);
     expect(printingIds).toContain("p-shared");
     expect(printingIds).toContain("p-ct-only");
-    const ctOnly = result.groups[0].printings.find((p) => p.printingId === "p-ct-only");
+    const ctOnly = result.groups[0]!.printings.find((p) => p.printingId === "p-ct-only");
     expect(ctOnly?.tcgExternalId).toBeNull();
     expect(ctOnly?.cmExternalId).toBeNull();
     expect(ctOnly?.ctExternalId).toBe(346_739);
@@ -425,10 +425,10 @@ describe("buildUnifiedMappingsResponse", () => {
       getMappingOverview,
     );
 
-    const printingIds = result.groups[0].printings.map((p) => p.printingId);
+    const printingIds = result.groups[0]!.printings.map((p) => p.printingId);
     expect(printingIds).toContain("p-shared");
     expect(printingIds).toContain("p-cm-only");
-    const cmOnly = result.groups[0].printings.find((p) => p.printingId === "p-cm-only");
+    const cmOnly = result.groups[0]!.printings.find((p) => p.printingId === "p-cm-only");
     expect(cmOnly?.tcgExternalId).toBeNull();
     expect(cmOnly?.cmExternalId).toBe(250);
     expect(cmOnly?.ctExternalId).toBeNull();
@@ -484,7 +484,7 @@ describe("buildUnifiedMappingsResponse", () => {
       getMappingOverview,
     );
 
-    const group = result.groups[0];
+    const group = result.groups[0]!;
     expect(group.tcgplayer.assignments).toEqual([
       { externalId: 100, printingId: "p-1", finish: "normal", language: "EN" },
     ]);
@@ -516,8 +516,8 @@ describe("buildUnifiedMappingsResponse", () => {
       getMappingOverview,
     );
 
-    expect(result.groups[0].cardmarket.assignments).toEqual([]);
-    expect(result.groups[0].cardtrader.assignments).toEqual([]);
+    expect(result.groups[0]!.cardmarket.assignments).toEqual([]);
+    expect(result.groups[0]!.cardtrader.assignments).toEqual([]);
   });
 
   it("collects unmatched products from all marketplaces", async () => {
@@ -588,9 +588,9 @@ describe("buildUnifiedMappingsResponse", () => {
       getMappingOverview,
     );
 
-    expect(result.groups[0].printings).toHaveLength(1);
-    expect(result.groups[0].printings[0].printingId).toBe("p-1");
-    expect(result.groups[0].printings[0].tcgExternalId).toBe(653_007);
+    expect(result.groups[0]!.printings).toHaveLength(1);
+    expect(result.groups[0]!.printings[0]!.printingId).toBe("p-1");
+    expect(result.groups[0]!.printings[0]!.tcgExternalId).toBe(653_007);
   });
 });
 
@@ -1022,8 +1022,8 @@ describe("buildUnifiedMappingsCardResponse", () => {
 
     const assigned = result.group?.cardtrader.assignedProducts ?? [];
     expect(assigned).toHaveLength(1);
-    expect(assigned[0].groupId).toBe(4425);
-    expect(assigned[0].groupName).toBe("Unleashed");
+    expect(assigned[0]!.groupId).toBe(4425);
+    expect(assigned[0]!.groupName).toBe("Unleashed");
   });
 
   it("surfaces staged products for marketplaces where the card has no variants but other marketplaces do", async () => {

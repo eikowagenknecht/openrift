@@ -191,6 +191,6 @@ export function promoteToExact(matched: MatchedEntry): MatchedEntry {
   return {
     ...matched,
     status: "exact",
-    resolvedPrinting: matched.resolvedPrinting ?? matched.candidates[0],
+    resolvedPrinting: matched.resolvedPrinting ?? matched.candidates[0] ?? null,
   };
 }

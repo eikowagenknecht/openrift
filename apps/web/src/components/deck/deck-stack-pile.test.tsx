@@ -63,7 +63,7 @@ describe("StackPile on touch", () => {
     fireEvent.click(strip("Braum"));
 
     expect(onCardClick).toHaveBeenCalledTimes(1);
-    expect(onCardClick.mock.calls[0][0]).toMatchObject({ cardId: "card-b" });
+    expect(onCardClick.mock.calls[0]![0]).toMatchObject({ cardId: "card-b" });
   });
 
   it("moves the unfolded strip to the card tapped next", () => {
@@ -106,6 +106,6 @@ describe("StackPile with a mouse", () => {
     fireEvent.click(strip("Braum"));
 
     expect(onCardClick).toHaveBeenCalledTimes(1);
-    expect(onCardClick.mock.calls[0][0]).toMatchObject({ cardId: "card-b" });
+    expect(onCardClick.mock.calls[0]![0]).toMatchObject({ cardId: "card-b" });
   });
 });

@@ -55,7 +55,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("updateRehostedUrl sets the rehosted URL", async () => {
-    const imageId = createdImageIds[0];
+    const imageId = createdImageIds[0]!;
     const imageFileId = await repo.getImageFileId(imageId);
     expect(imageFileId).toBeDefined();
     await repo.updateRehostedUrl(imageFileId!, "https://cdn.example.com/rehosted.jpg");
@@ -67,7 +67,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("listAllRehosted returns images with rehosted URLs", async () => {
-    const imageFileId = await repo.getImageFileId(createdImageIds[0]);
+    const imageFileId = await repo.getImageFileId(createdImageIds[0]!);
     const result = await repo.listAllRehosted();
     expect(Array.isArray(result)).toBe(true);
     const found = result.find((r) => r.imageId === imageFileId);
@@ -75,7 +75,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("getImageFileById returns the image_file's urls", async () => {
-    const imageFileId = await repo.getImageFileId(createdImageIds[0]);
+    const imageFileId = await repo.getImageFileId(createdImageIds[0]!);
     expect(imageFileId).toBeDefined();
     const row = await repo.getImageFileById(imageFileId!);
     expect(row).toEqual({
@@ -93,16 +93,16 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   });
 
   it("countOthersByImageFileId returns 0 when no other printing image shares the image file", async () => {
-    const imageFileId = await repo.getImageFileId(createdImageIds[0]);
+    const imageFileId = await repo.getImageFileId(createdImageIds[0]!);
     expect(imageFileId).toBeDefined();
-    const count = await repo.countOthersByImageFileId(imageFileId!, createdImageIds[0]);
+    const count = await repo.countOthersByImageFileId(imageFileId!, createdImageIds[0]!);
     expect(count).toBe(0);
   });
 
   it("listAllRehostedWithContext returns images with card context", async () => {
     const result = await repo.listAllRehostedWithContext();
     expect(Array.isArray(result)).toBe(true);
-    const imageFileId = await repo.getImageFileId(createdImageIds[0]);
+    const imageFileId = await repo.getImageFileId(createdImageIds[0]!);
     const found = result.find((r) => r.imageId === imageFileId);
     if (found) {
       expect(found).toHaveProperty("cardSlug");

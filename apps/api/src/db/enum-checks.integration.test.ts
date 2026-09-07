@@ -174,7 +174,7 @@ const SQL_STRING_LITERAL = /'(?<value>(?:[^']|'')*)'/gu;
 function parseArrayLiterals(body: string): string[] {
   return [...body.matchAll(SQL_STRING_LITERAL)].map((match) =>
     // oxlint-disable-next-line typescript/no-non-null-assertion -- the group is in the pattern
-    match.groups!.value.replaceAll("''", "'"),
+    match.groups!.value!.replaceAll("''", "'"),
   );
 }
 
@@ -270,7 +270,7 @@ describe.skipIf(!DATABASE_URL)("DB enum CHECKs match their TypeScript unions", (
         continue;
       }
       const match = SIMPLE_ENUM_CHECK.exec(row.definition);
-      const actual = match?.groups ? parseArrayLiterals(match.groups.values).toSorted() : [];
+      const actual = match?.groups ? parseArrayLiterals(match.groups.values!).toSorted() : [];
       const wanted = [...expected].toSorted();
       if (actual.join("\0") !== wanted.join("\0")) {
         mismatches.push({ constraint: row.conname, db: actual, ts: wanted });

@@ -34,8 +34,8 @@ export function computeShiftRange<T extends { id: string }>(params: {
   const lo = Math.min(startIdx, endIdx);
   const hi = Math.max(startIdx, endIdx);
   const rangeIds: string[] = [];
-  for (let idx = lo; idx <= hi; idx++) {
-    rangeIds.push(...idsForItem(items[idx]));
+  for (const item of items.slice(lo, hi + 1)) {
+    rangeIds.push(...idsForItem(item));
   }
   return rangeIds;
 }

@@ -967,7 +967,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .set({ checkedAt: now })
         .where("provider", "=", provider)
         .where("checkedAt", "is", null)
-        .execute();
+        .executeTakeFirstOrThrow();
 
       const printingResult = await db
         .updateTable("candidatePrintings")
@@ -978,11 +978,11 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "in",
           db.selectFrom("candidateCards").select("id").where("provider", "=", provider),
         )
-        .execute();
+        .executeTakeFirstOrThrow();
 
       return {
-        cardsChecked: Number(cardResult[0].numUpdatedRows),
-        printingsChecked: Number(printingResult[0].numUpdatedRows),
+        cardsChecked: Number(cardResult.numUpdatedRows),
+        printingsChecked: Number(printingResult.numUpdatedRows),
       };
     },
 
@@ -1051,8 +1051,8 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       const result = await db
         .deleteFrom("candidateCards")
         .where("provider", "=", provider)
-        .execute();
-      return Number(result[0].numDeletedRows);
+        .executeTakeFirstOrThrow();
+      return Number(result.numDeletedRows);
     },
 
     async linkCandidatePrintings(

@@ -78,7 +78,7 @@ if (adminCtx && grantCtx) {
     })
     .returning("id")
     .execute();
-  card1Id = card1.id;
+  card1Id = card1!.id;
 
   // Matched card whose only candidate is from the denied provider.
   const [card2] = await db
@@ -96,7 +96,7 @@ if (adminCtx && grantCtx) {
     })
     .returning("id")
     .execute();
-  card2Id = card2.id;
+  card2Id = card2!.id;
   await syncCardCardTypes(db);
 
   await db
@@ -119,7 +119,7 @@ if (adminCtx && grantCtx) {
     .insertInto("printings")
     .values({
       cardId: card1Id,
-      setId: set.id,
+      setId: set!.id,
       shortCode: "CRG-001",
       rarity: "common",
       artVariant: "normal",
@@ -136,7 +136,7 @@ if (adminCtx && grantCtx) {
     })
     .returning("id")
     .execute();
-  printing1Id = printing1.id;
+  printing1Id = printing1!.id;
 
   const candidateCard = (provider: string, name: string, externalId: string) => ({
     provider,
@@ -209,38 +209,38 @@ if (adminCtx && grantCtx) {
 
   const [cpA1] = await db
     .insertInto("candidatePrintings")
-    .values(candidatePrinting(ccAllowedMatched.id, "CRG-001b", "crg-cp-allowed-1"))
+    .values(candidatePrinting(ccAllowedMatched!.id, "CRG-001b", "crg-cp-allowed-1"))
     .returning("id")
     .execute();
-  cpAllowedUnlinked1Id = cpA1.id;
+  cpAllowedUnlinked1Id = cpA1!.id;
 
   const [cpA2] = await db
     .insertInto("candidatePrintings")
     .values(
-      candidatePrinting(ccAllowedMatched.id, "CRG-001c", "crg-cp-allowed-2", { finish: "foil" }),
+      candidatePrinting(ccAllowedMatched!.id, "CRG-001c", "crg-cp-allowed-2", { finish: "foil" }),
     )
     .returning("id")
     .execute();
-  cpAllowedUnlinked2Id = cpA2.id;
+  cpAllowedUnlinked2Id = cpA2!.id;
 
   const [cpA3] = await db
     .insertInto("candidatePrintings")
     .values(
-      candidatePrinting(ccAllowedMatched.id, "CRG-001", "crg-cp-allowed-linked", {
+      candidatePrinting(ccAllowedMatched!.id, "CRG-001", "crg-cp-allowed-linked", {
         printingId: printing1Id,
         imageUrl: "https://example.com/crg-001.png",
       }),
     )
     .returning("id")
     .execute();
-  cpAllowedLinkedId = cpA3.id;
+  cpAllowedLinkedId = cpA3!.id;
 
   const [cpD1] = await db
     .insertInto("candidatePrintings")
-    .values(candidatePrinting(ccDeniedMatched.id, "CRG-001d", "crg-cp-denied-1"))
+    .values(candidatePrinting(ccDeniedMatched!.id, "CRG-001d", "crg-cp-denied-1"))
     .returning("id")
     .execute();
-  cpDeniedId = cpD1.id;
+  cpDeniedId = cpD1!.id;
 
   await refreshCardAggregates(db);
 }

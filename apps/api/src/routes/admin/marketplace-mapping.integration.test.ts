@@ -27,7 +27,7 @@ if (ctx) {
     .values({ slug: "MKM-TEST", name: "MKM Test Set", printedTotal: 2, sortOrder: 100 })
     .returning("id")
     .execute();
-  setId = setRow.id;
+  setId = setRow!.id;
 
   const [cardRow] = await db
     .insertInto("cards")
@@ -44,7 +44,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cardId = cardRow.id;
+  cardId = cardRow!.id;
   await syncCardCardTypes(db);
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
@@ -70,7 +70,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printingId = printingRow.id;
+  printingId = printingRow!.id;
 
   await db
     .insertInto("printings")

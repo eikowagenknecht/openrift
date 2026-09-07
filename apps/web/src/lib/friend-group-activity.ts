@@ -69,13 +69,13 @@ export function aggregateActivityEvents(
   let run: TradeCompletedEvent[] = [];
 
   const flush = () => {
-    if (run.length === 0) {
+    const first = run[0];
+    if (first === undefined) {
       return;
     }
     if (run.length === 1) {
-      rows.push({ kind: "event", at: run[0].at, event: run[0] });
+      rows.push({ kind: "event", at: first.at, event: first });
     } else {
-      const first = run[0];
       rows.push({
         kind: "trade-batch",
         at: first.at,
@@ -96,7 +96,8 @@ export function aggregateActivityEvents(
       rows.push({ kind: "event", at: event.at, event });
       continue;
     }
-    if (run.length > 0 && !sameParties(run[0], event)) {
+    const head = run[0];
+    if (head !== undefined && !sameParties(head, event)) {
       flush();
     }
     run.push(event);

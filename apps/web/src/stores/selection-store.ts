@@ -102,6 +102,9 @@ export const useSelectionStore = create<SelectionState>()((set, get) => ({
     }
     const index = Math.min(selectedIndex, items.length - 1);
     const item = items[index];
+    if (!item) {
+      return;
+    }
     set({ selectedCard: item.printing, selectedIndex: index, selectedZone: item.zone ?? null });
   },
 

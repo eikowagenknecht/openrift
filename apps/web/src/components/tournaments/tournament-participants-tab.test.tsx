@@ -114,7 +114,7 @@ describe("TournamentParticipantsTab missing-regions band", () => {
     expect(within(band).getByText("Braum")).toBeInTheDocument();
     expect(within(band).queryByText("Caitlyn")).not.toBeInTheDocument();
 
-    await user.click(within(band).getAllByRole("button", { name: "Set region" })[0]);
+    await user.click(within(band).getAllByRole("button", { name: "Set region" })[0]!);
     expect(await screen.findByText("Set region for Ashe")).toBeInTheDocument();
   });
 

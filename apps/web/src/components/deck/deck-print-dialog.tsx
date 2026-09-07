@@ -211,8 +211,7 @@ async function generateProxyPdf({
       }
     }
 
-    for (let cardIdx = 0; cardIdx < uniqueCards.length; cardIdx++) {
-      const proxyCard = uniqueCards[cardIdx];
+    for (const [cardIdx, proxyCard] of uniqueCards.entries()) {
       setProgress({ current: cardIdx + 1, total: uniqueCards.length });
 
       setRenderingCard(proxyCard);

@@ -1,4 +1,5 @@
 import type { CardTradeLiveAnnotation, CopyResponse } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import { FileTextIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -79,13 +80,13 @@ function CopyMetadataPills({
         <MetadataPillButton
           itemId={copy.id}
           variant="primary"
-          title={`Graded ${labels.graders[copy.grader]} ${copy.grade}`}
+          title={`Graded ${enumLabel(labels.graders, copy.grader)} ${copy.grade}`}
         >
-          {labels.graders[copy.grader]} {copy.grade}
+          {enumLabel(labels.graders, copy.grader)} {copy.grade}
         </MetadataPillButton>
       )}
       {copy.condition !== null && (
-        <MetadataPillButton itemId={copy.id} title={labels.conditions[copy.condition]}>
+        <MetadataPillButton itemId={copy.id} title={enumLabel(labels.conditions, copy.condition)}>
           {conditionShortCode(copy.condition)}
         </MetadataPillButton>
       )}

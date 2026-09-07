@@ -18,8 +18,8 @@ describe("ghostAppearance", () => {
   it("rises monotonically in opacity and falls monotonically in blur", () => {
     const steps = [0, 0.2, 0.4, 0.6, 0.8, 1].map((value) => ghostAppearance(value));
     for (let i = 1; i < steps.length; i++) {
-      expect(steps[i].opacity).toBeGreaterThan(steps[i - 1].opacity);
-      expect(steps[i].blurPx).toBeLessThan(steps[i - 1].blurPx);
+      expect(steps[i]!.opacity).toBeGreaterThan(steps[i - 1]!.opacity);
+      expect(steps[i]!.blurPx).toBeLessThan(steps[i - 1]!.blurPx);
     }
   });
 

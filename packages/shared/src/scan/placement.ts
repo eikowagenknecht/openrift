@@ -83,7 +83,7 @@ export function placementSignature(gray: GrayImage, guide: Quad | null): Float32
   const mean = sum / small.data.length;
   const out = new Float32Array(small.data.length);
   for (let i = 0; i < out.length; i++) {
-    out[i] = small.data[i] - mean;
+    out[i] = (small.data[i] ?? 0) - mean;
   }
   return out;
 }
@@ -94,7 +94,7 @@ export function signatureDelta(a: Float32Array, b: Float32Array): number {
   }
   let sum = 0;
   for (let i = 0; i < a.length; i++) {
-    sum += Math.abs(a[i] - b[i]);
+    sum += Math.abs((a[i] ?? 0) - (b[i] ?? 0));
   }
   return sum / a.length;
 }

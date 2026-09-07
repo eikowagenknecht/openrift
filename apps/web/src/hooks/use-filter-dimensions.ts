@@ -1,4 +1,5 @@
 import type { AvailableFilters } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useCustomTagList, useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
@@ -85,11 +86,11 @@ export function useSingleActiveFilterLabel({
     language: (code) => languageLabels[code] ?? code,
     set: (code) => setDisplayLabel?.(code) ?? code,
     domain: (slug) => formatDomainFilterLabel(slug, labels.domains),
-    rarity: (slug) => labels.rarities[slug] ?? slug,
-    type: (slug) => labels.cardTypes[slug] ?? slug,
-    superType: (slug) => labels.superTypes[slug] ?? slug,
-    artVariant: (slug) => labels.artVariants[slug] ?? slug,
-    finish: (slug) => labels.finishes[slug] ?? slug,
+    rarity: (slug) => enumLabel(labels.rarities, slug),
+    type: (slug) => enumLabel(labels.cardTypes, slug),
+    superType: (slug) => enumLabel(labels.superTypes, slug),
+    artVariant: (slug) => enumLabel(labels.artVariants, slug),
+    finish: (slug) => enumLabel(labels.finishes, slug),
     marker: (slug) => markerLabels.get(slug) ?? slug,
     channel: (slug) => channelLabels.get(slug) ?? slug,
     customTag: (slug) => customTagLabels.get(slug) ?? slug,

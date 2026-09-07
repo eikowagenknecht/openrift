@@ -3,7 +3,12 @@ import type {
   CardTradeResponse,
   FriendGroupMatchRow,
 } from "@openrift/shared";
-import { cardTradeLivePhaseRank, cardTradeState, isLiveCardTradeStatus } from "@openrift/shared";
+import {
+  cardTradeLivePhaseRank,
+  cardTradeState,
+  enumLabel,
+  isLiveCardTradeStatus,
+} from "@openrift/shared";
 
 export type TradeSection = "action-needed" | "active" | "history";
 
@@ -203,7 +208,7 @@ export function matchCopyConditionLabel(
     return `${labels.graders[copy.grader]} ${copy.grade}`;
   }
   if (copy.condition !== null) {
-    return labels.conditions[copy.condition];
+    return enumLabel(labels.conditions, copy.condition);
   }
   return null;
 }

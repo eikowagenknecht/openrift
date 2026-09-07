@@ -1,3 +1,5 @@
+import { enumLabel } from "@openrift/shared";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -37,7 +39,7 @@ export function DeckDomainBar({
               }}
             />
             <TooltipContent side="bottom">
-              {labels.domains[segment.domain]}: {segment.count}
+              {enumLabel(labels.domains, segment.domain)}: {segment.count}
             </TooltipContent>
           </Tooltip>
         );

@@ -189,7 +189,7 @@ export function detectCardsWithCv(
 
       const contourPoints: Point[] = [];
       for (let p = 0; p + 1 < contour.data32S.length; p += 2) {
-        contourPoints.push({ x: contour.data32S[p], y: contour.data32S[p + 1] });
+        contourPoints.push({ x: contour.data32S[p] ?? 0, y: contour.data32S[p + 1] ?? 0 });
       }
       const box = cv.RotatedRect.points(rect).map((p) => ({ x: p.x, y: p.y }));
       const rough = canonicalizeQuad(box as unknown as Quad);

@@ -186,7 +186,7 @@ describe("metaLegendIndexEntries", () => {
       record("regional-lyon", { bestRank: 2 }),
     ]);
     const entries = metaLegendIndexEntries([twice], events, ALL_TIME);
-    expect(entries[0].bestFinish.event.slug).toBe("skirmish");
+    expect(entries[0]!.bestFinish.event.slug).toBe("skirmish");
   });
 
   it("recomputes the facts inside the scope", () => {
@@ -195,7 +195,7 @@ describe("metaLegendIndexEntries", () => {
       eras: ERAS,
     });
     expect(entries[0]).toMatchObject({ finishes: 3, decklists: 2 });
-    expect(entries[0].bestFinish.event.slug).toBe("regional-lyon");
+    expect(entries[0]!.bestFinish.event.slug).toBe("regional-lyon");
   });
 
   it("drops a legend with no finish in scope", () => {
@@ -259,8 +259,8 @@ describe("sortMetaLegendEntries", () => {
 
   it("orders the count columns with a name tiebreak", () => {
     const entries = entriesFor(kennen, azir);
-    expect(sortMetaLegendEntries(entries, "decklists", "desc")[0].slug).toBe("azir");
-    expect(sortMetaLegendEntries(entries, "finishes", "desc")[0].slug).toBe("kennen");
+    expect(sortMetaLegendEntries(entries, "decklists", "desc")[0]!.slug).toBe("azir");
+    expect(sortMetaLegendEntries(entries, "finishes", "desc")[0]!.slug).toBe("kennen");
     const tied = entriesFor(
       legendSummary("Kennen, Heart of the Tempest", "kennen", [record("newer", { finishes: 3 })]),
       legendSummary("Azir, Emperor of the Sands", "azir", [record("older", { finishes: 3 })]),

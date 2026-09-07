@@ -85,7 +85,7 @@ describe("paintOverlay", () => {
 
     paintOverlay(fakeCanvas(), context, target(), createDrawState());
 
-    expect(strokes[0].style).toBe(GUIDE_COLOR);
+    expect(strokes[0]!.style).toBe(GUIDE_COLOR);
     expect(strokes.at(-1)?.style).toBe(RETICLE_COLOR);
     expect(strokes.at(-1)?.dash).toEqual([]);
     // A sharp frame draws the widest brackets.
@@ -98,7 +98,7 @@ describe("paintOverlay", () => {
     paintOverlay(fakeCanvas(), context, target({ quad: null }), createDrawState());
 
     expect(strokes).toHaveLength(1);
-    expect(strokes[0].style).toBe(GUIDE_COLOR);
+    expect(strokes[0]!.style).toBe(GUIDE_COLOR);
   });
 
   it("skips the whole repaint once the scene has settled", () => {
@@ -176,7 +176,7 @@ describe("paintOverlay", () => {
 
     paintOverlay(fakeCanvas(), context, target({ quad: rect(20, 90, 100, 200) }), state);
 
-    expect(state.smoothed[0].y).toBeGreaterThan(40);
+    expect(state.smoothed[0]!.y).toBeGreaterThan(40);
   });
 
   it("holds the last detection through a short dropout", () => {

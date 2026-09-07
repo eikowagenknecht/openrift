@@ -524,8 +524,10 @@ export function useCardScanner(
   ) {
     const now = performance.now();
     frameTimesRef.current.push(now);
-    while (frameTimesRef.current.length > 0 && now - frameTimesRef.current[0] > 1000) {
+    let oldestFrame = frameTimesRef.current[0];
+    while (oldestFrame !== undefined && now - oldestFrame > 1000) {
       frameTimesRef.current.shift();
+      oldestFrame = frameTimesRef.current[0];
     }
 
     // Throttled: the numbers are unreadable faster than this anyway. A lock
@@ -643,12 +645,13 @@ export function useCardScanner(
     // A follow-up frame resolved the printing after the lock was already
     // listed; refresh the newest entry for that artwork in place.
     const index = locksRef.current.findIndex((lock) => lock.artKey === update.artKey);
-    if (index === -1 || locksRef.current[index].key === update.key) {
+    const existing = locksRef.current[index];
+    if (!existing || existing.key === update.key) {
       return;
     }
     const refreshed = [...locksRef.current];
     refreshed[index] = {
-      ...refreshed[index],
+      ...existing,
       key: update.key,
       label: update.label,
       resolved: true,

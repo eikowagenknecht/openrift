@@ -267,8 +267,8 @@ function DeckImportPage() {
     setSkippedIndices(new Set());
 
     const nonExact: string[] = [];
-    for (let index = 0; index < sorted.length; index++) {
-      if (sorted[index].status !== "exact") {
+    for (const [index, entry] of sorted.entries()) {
+      if (entry.status !== "exact") {
         nonExact.push(String(index));
       }
     }

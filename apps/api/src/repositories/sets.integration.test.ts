@@ -33,9 +33,9 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   it("getBySlug returns a set id by slug", async () => {
     const sets = await repo.listAll();
     const first = sets[0];
-    const result = await repo.getBySlug(first.slug);
+    const result = await repo.getBySlug(first!.slug);
     expect(result).toBeDefined();
-    expect(result!.id).toBe(first.id);
+    expect(result!.id).toBe(first!.id);
   });
 
   it("getBySlug returns undefined for nonexistent slug", async () => {
@@ -45,7 +45,7 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
 
   it("getPrintedTotal returns printed total by id", async () => {
     const sets = await repo.listAll();
-    const result = await repo.getPrintedTotal(sets[0].id);
+    const result = await repo.getPrintedTotal(sets[0]!.id);
     expect(result).toBeDefined();
     expect(typeof result!.printedTotal === "number" || result!.printedTotal === null).toBe(true);
   });
@@ -89,7 +89,7 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   });
 
   it("update modifies a set and returns true", async () => {
-    const id = createdSetIds[0];
+    const id = createdSetIds[0]!;
     const updated = await repo.update(id, {
       name: "Updated Test Set",
       printedTotal: 200,
@@ -112,7 +112,7 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   });
 
   it("replaceReleases writes, updates and deletes language rows", async () => {
-    const id = createdSetIds[0];
+    const id = createdSetIds[0]!;
 
     await repo.replaceReleases(id, {
       EN: { releasedAt: "2026-01-15", precision: "day" },
@@ -144,27 +144,27 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   });
 
   it("replaceReleases rejects a coarse period that is not its first day", async () => {
-    const id = createdSetIds[0];
+    const id = createdSetIds[0]!;
     await expect(
       repo.replaceReleases(id, { EN: { releasedAt: "2026-05-17", precision: "quarter" } }),
     ).rejects.toThrow(/chk_set_releases_period_start/u);
   });
 
   it("replaceReleases rejects a date without a precision", async () => {
-    const id = createdSetIds[0];
+    const id = createdSetIds[0]!;
     await expect(
       repo.replaceReleases(id, { EN: { releasedAt: "2026-05-17", precision: null } }),
     ).rejects.toThrow(/chk_set_releases_precision/u);
   });
 
   it("cardCount returns 0 for a set with no printings", async () => {
-    const id = createdSetIds[0];
+    const id = createdSetIds[0]!;
     const count = await repo.cardCount(id);
     expect(count).toBe(0);
   });
 
   it("printingCount returns 0 for a set with no printings", async () => {
-    const id = createdSetIds[0];
+    const id = createdSetIds[0]!;
     const count = await repo.printingCount(id);
     expect(count).toBe(0);
   });
@@ -188,8 +188,8 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   });
 
   it("reorder updates sort orders for given set ids", async () => {
-    const idA = createdSetIds[0];
-    const idB = createdSetIds[1];
+    const idA = createdSetIds[0]!;
+    const idB = createdSetIds[1]!;
     await repo.reorder([idB, idA]);
 
     const sets = await repo.listAll();

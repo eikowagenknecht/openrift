@@ -25,7 +25,7 @@ describe("fitCardRects", () => {
 
     const candidates = fitCardRects(image);
     expect(candidates.length).toBeGreaterThan(0);
-    const box = boundingBox(candidates[0].quad);
+    const box = boundingBox(candidates[0]!.quad);
     expect(Math.abs(box.minX - left)).toBeLessThanOrEqual(10);
     expect(Math.abs(box.maxX - (left + 103))).toBeLessThanOrEqual(10);
     expect(Math.abs(box.minY - top)).toBeLessThanOrEqual(10);

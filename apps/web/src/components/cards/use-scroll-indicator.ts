@@ -261,12 +261,15 @@ export function useScrollIndicator({
           const starts = rowStartsRef.current;
           let cardId = "";
           let matchedRow = -1;
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
+          for (const [i, row] of rows.entries()) {
             if (row.kind !== "cards") {
               continue;
             }
-            const rowEnd = i + 1 < starts.length ? starts[i + 1] : starts[i] + 200;
+            const start = starts[i];
+            if (start === undefined) {
+              continue;
+            }
+            const rowEnd = starts[i + 1] ?? start + 200;
             if (rowEnd > threshold) {
               cardId = row.items[0]?.printing.shortCode ?? "";
               matchedRow = i;

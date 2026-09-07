@@ -33,8 +33,8 @@ describe("buildStacks", () => {
     ];
     const stacks = buildStacks(copies, printingById, SETS, undefined);
     expect(stacks).toHaveLength(1);
-    expect(stacks[0].printingId).toBe(standard.id);
-    expect(stacks[0].copyIds).toHaveLength(9);
+    expect(stacks[0]!.printingId).toBe(standard.id);
+    expect(stacks[0]!.copyIds).toHaveLength(9);
   });
 
   it("drops a card owned only in a group collection from the personal aggregate", () => {
@@ -50,7 +50,7 @@ describe("buildStacks", () => {
     ];
     const stacks = buildStacks(copies, printingById, SETS, "col-group");
     expect(stacks).toHaveLength(1);
-    expect(stacks[0].copyIds).toHaveLength(3);
+    expect(stacks[0]!.copyIds).toHaveLength(3);
   });
 
   it("skips copies whose printing is unknown", () => {

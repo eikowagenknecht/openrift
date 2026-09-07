@@ -30,7 +30,7 @@ if (ctx) {
     .values({ slug: "CSQ-TEST", name: "CSQ Test Set", printedTotal: 2, sortOrder: 102 })
     .returning("id")
     .execute();
-  setId = set.id;
+  setId = set!.id;
 
   const [card1] = await db
     .insertInto("cards")
@@ -48,7 +48,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  card1Id = card1.id;
+  card1Id = card1!.id;
   await syncCardCardTypes(db);
 
   await db
@@ -75,7 +75,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card2.id, domainSlug: "calm", ordinal: 0 })
+    .values({ cardId: card2!.id, domainSlug: "calm", ordinal: 0 })
     .execute();
 
   const [card3] = await db
@@ -93,7 +93,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  card3Id = card3.id;
+  card3Id = card3!.id;
   await syncCardCardTypes(db);
 
   await db
@@ -106,7 +106,7 @@ if (ctx) {
     .insertInto("cardNameAliases")
     .values([
       { cardId: card1Id, normName: "csqtestcard" },
-      { cardId: card2.id, normName: "csqanothercard" },
+      { cardId: card2!.id, normName: "csqanothercard" },
       { cardId: card3Id, normName: "csqnoimagecard" },
     ])
     .execute();
@@ -132,7 +132,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printing1Id = printing1.id;
+  printing1Id = printing1!.id;
 
   const [printing2] = await db
     .insertInto("printings")
@@ -155,7 +155,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printing2Id = printing2.id;
+  printing2Id = printing2!.id;
 
   const [csqImageFile] = await db
     .insertInto("imageFiles")
@@ -167,7 +167,7 @@ if (ctx) {
     .values({
       printingId: printing1Id,
       face: "front",
-      imageFileId: csqImageFile.id,
+      imageFileId: csqImageFile!.id,
       isActive: true,
     })
     .execute();
@@ -193,7 +193,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cs1Id = cs1.id;
+  cs1Id = cs1!.id;
 
   const [cs2] = await db
     .insertInto("candidateCards")
@@ -216,7 +216,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cs2Id = cs2.id;
+  cs2Id = cs2!.id;
 
   const [cs3] = await db
     .insertInto("candidateCards")
@@ -239,7 +239,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cs3Id = cs3.id;
+  cs3Id = cs3!.id;
 
   await db
     .insertInto("candidatePrintings")

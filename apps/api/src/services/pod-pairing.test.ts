@@ -227,8 +227,8 @@ describe("pairNextRound 2v2 team pairing", () => {
     const [pairing, byes] = [call[2], call[3]];
     expect(byes).toEqual([]);
     expect(pairing.pods).toHaveLength(1);
-    expect(pairing.pods[0].size).toBe(4);
-    const seated = pairing.pods[0].playerIds as string[];
+    expect(pairing.pods[0]!.size).toBe(4);
+    const seated = pairing.pods[0]!.playerIds as string[];
     expect(seated.toSorted()).toEqual(["a1", "a2", "b1", "b2"]);
     const firstSide = new Set(seated.slice(0, 2));
     expect(firstSide.has("a1") === firstSide.has("a2")).toBe(true);

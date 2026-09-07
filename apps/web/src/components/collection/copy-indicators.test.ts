@@ -58,8 +58,8 @@ describe("copyMarkers", () => {
       stubCopy({ notesPublic: "front scratch", notesPrivate: "paid $5" }),
     );
     expect(markers.map((m) => m.key)).toEqual(["note", "private-note"]);
-    expect(markers[0].content).toBe("front scratch");
-    expect(markers[1].content).toBe("paid $5");
+    expect(markers[0]!.content).toBe("front scratch");
+    expect(markers[1]!.content).toBe("paid $5");
   });
 
   it("orders markers altered, public note, private note, links", () => {
@@ -82,13 +82,13 @@ describe("copyMarkers", () => {
       links: [{ url: "https://a.example", label: "Front" }, { url: "https://b.example" }],
     });
     const [links] = copyMarkers(copy);
-    expect(links.count).toBe(2);
-    expect(links.label).toBe("2 links");
-    expect(links.content).toBe("Front\nhttps://b.example");
+    expect(links!.count).toBe(2);
+    expect(links!.label).toBe("2 links");
+    expect(links!.content).toBe("Front\nhttps://b.example");
   });
 
   it("labels a single link in the singular", () => {
     const [links] = copyMarkers(stubCopy({ links: [{ url: "https://a.example" }] }));
-    expect(links.label).toBe("1 link");
+    expect(links!.label).toBe("1 link");
   });
 });

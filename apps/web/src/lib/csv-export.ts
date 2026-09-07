@@ -1,5 +1,6 @@
 import type { CopyResponse, Printing } from "@openrift/shared";
 import {
+  enumLabel,
   formatDay,
   isAlwaysFoilRarity,
   legendDisplayName,
@@ -215,9 +216,9 @@ export function generatePiltoverArchiveCSV(
     const identity = [
       printing.shortCode,
       straightenApostrophes(legendDisplayName(printing.card)),
-      labels.sets[printing.setSlug],
+      enumLabel(labels.sets, printing.setSlug),
       printing.shortCode.split("-")[0] ?? "",
-      labels.rarities[printing.rarity],
+      enumLabel(labels.rarities, printing.rarity),
       variantType,
       piltoverVariantLabel(printing, variantType),
       // Their format knows only foil or not; metal and metal-deluxe are foil to them.
@@ -234,8 +235,8 @@ export function generatePiltoverArchiveCSV(
         ...identity,
         String(group.quantity),
         languageNameForCode(printing.language),
-        condition === null ? "" : labels.conditions[condition],
-        graded ? labels.graders[grader] : "",
+        condition === null ? "" : enumLabel(labels.conditions, condition),
+        graded ? enumLabel(labels.graders, grader) : "",
         graded ? String(grade) : "",
         "",
         copy?.notesPublic ?? "",
@@ -322,9 +323,9 @@ export function generateRiftManaCSV(
       row = {
         cardName: straightenApostrophes(legendDisplayName(printing.card)),
         cardId,
-        set: labels.sets[printing.setSlug],
+        set: enumLabel(labels.sets, printing.setSlug),
         color: printing.card.domains.join(" / "),
-        rarity: labels.rarities[printing.rarity],
+        rarity: enumLabel(labels.rarities, printing.rarity),
         language: languageNameForCode(printing.language),
         normalQty: 0,
         foilQty: 0,
@@ -392,8 +393,12 @@ function riftCoreCardId(shortCode: string): string {
   if (!match) {
     return shortCode;
   }
-  const modifier = match[3] === "*" ? "S" : match[3].toUpperCase();
-  return `${match[1]}-${match[2]}${modifier}`;
+  const [, setPrefix, cardNumber, rawModifier] = match;
+  if (setPrefix === undefined || cardNumber === undefined || rawModifier === undefined) {
+    return shortCode;
+  }
+  const modifier = rawModifier === "*" ? "S" : rawModifier.toUpperCase();
+  return `${setPrefix}-${cardNumber}${modifier}`;
 }
 
 interface RiftCoreRow {
@@ -423,10 +428,10 @@ export function generateRiftCoreCSV(stacks: StackedEntry[], labels: CsvExportLab
       row = {
         cardId,
         cardName: straightenApostrophes(legendDisplayName(printing.card)),
-        set: labels.sets[printing.setSlug],
+        set: enumLabel(labels.sets, printing.setSlug),
         cardNumber: printing.shortCode.split("-")[1] ?? "",
         type: printing.card.types.join(" / "),
-        rarity: labels.rarities[printing.rarity],
+        rarity: enumLabel(labels.rarities, printing.rarity),
         domain: printing.card.domains.join(" / "),
         standardQty: 0,
         foilQty: 0,

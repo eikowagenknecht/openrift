@@ -184,7 +184,7 @@ describe("GenerateRoundControls", () => {
   it("lists dropped players so a mis-tap is undone in place", async () => {
     const user = userEvent.setup();
     renderControls({
-      players: [players[0], players[1], { ...players[2], status: "dropped" }],
+      players: [players[0]!, players[1]!, { ...players[2]!, status: "dropped" }],
     });
 
     await user.click(screen.getByRole("button", { name: "Drop players" }));

@@ -166,9 +166,9 @@ describe("toListDetail", () => {
       ruleCombine: null,
     });
 
-    expect(detail.rules[0].filter.presence).toEqual({});
-    expect(detail.rules[0].filter.keywords).toEqual([]);
-    expect(detail.rules[0].filter.keywordsExclude).toEqual([]);
+    expect(detail.rules[0]!.filter.presence).toEqual({});
+    expect(detail.rules[0]!.filter.keywords).toEqual([]);
+    expect(detail.rules[0]!.filter.keywordsExclude).toEqual([]);
     expect(detail.hasRule).toBe(true);
 
     const result = listDetailResponseSchema.safeParse({ list: detail, entries: [] });

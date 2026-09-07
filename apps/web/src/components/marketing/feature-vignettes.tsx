@@ -709,16 +709,21 @@ export function ImportVignette() {
 }
 
 const PRICE_SOURCES = [
-  { marketplace: "cardtrader" as const, price: 3.65, phase: 0.6, swing: 0.9, rate: 0.02 },
-  { marketplace: "tcgplayer" as const, price: 4.52, phase: 2.2, swing: 1.4, rate: -0.014 },
-  { marketplace: "cardmarket" as const, price: 3.8, phase: 4.1, swing: 1.1, rate: 0.011 },
-];
+  { marketplace: "cardtrader", price: 3.65, phase: 0.6, swing: 0.9, rate: 0.02 },
+  { marketplace: "tcgplayer", price: 4.52, phase: 2.2, swing: 1.4, rate: -0.014 },
+  { marketplace: "cardmarket", price: 3.8, phase: 4.1, swing: 1.1, rate: 0.011 },
+] as const;
+
+type PriceSource = (typeof PRICE_SOURCES)[number];
 
 // The real chart resolves `all`'s days:0 sentinel against the printing's span.
-const PRICE_RANGES = TIME_RANGES.map((range) => ({
-  ...range,
-  days: range.days === 0 ? 210 : range.days,
-}));
+function priceRange(range: (typeof TIME_RANGES)[number]) {
+  return { ...range, days: range.days === 0 ? 210 : range.days };
+}
+
+const PRICE_RANGES = TIME_RANGES.map((range) => priceRange(range));
+
+type PriceRange = (typeof PRICE_RANGES)[number];
 
 const PLOT = { left: 44, right: 296, top: 20, bottom: 92, step: 26 };
 const SAMPLE_COUNT = 12;
@@ -728,7 +733,7 @@ const PRICE_END_DAY = Date.parse("2026-08-24T00:00:00Z");
 const TICK_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 25];
 
 // No randomness: output must match between server and client renders.
-function priceSeries(source: (typeof PRICE_SOURCES)[number], days: number): number[] {
+function priceSeries(source: PriceSource, days: number): number[] {
   const drift = source.price * source.rate * Math.sqrt(days);
   const raw = Array.from({ length: SAMPLE_COUNT }, (_, index) => {
     const t = index / (SAMPLE_COUNT - 1);
@@ -749,25 +754,28 @@ function chartDay(daysAgo: number): string {
 }
 
 export function PricesVignette() {
-  const [source, setSource] = useState(PRICE_SOURCES[2]);
-  const [range, setRange] = useState(PRICE_RANGES[1]);
+  const [source, setSource] = useState<PriceSource>(PRICE_SOURCES[2]);
+  const [range, setRange] = useState<PriceRange>(priceRange(TIME_RANGES[1]));
 
   const format = formatterForMarketplace(source.marketplace);
   const values = priceSeries(source, range.days);
   const step = tickStep(Math.min(...values), Math.max(...values));
   const topTick = Math.ceil(Math.max(...values) / step) * step;
 
-  const points = values.map((value, index) => [
+  const points: [number, number][] = values.map((value, index) => [
     PLOT.left + (index / (SAMPLE_COUNT - 1)) * (PLOT.right - PLOT.left),
     PLOT.top + ((topTick - value) / step) * PLOT.step,
   ]);
   const line = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x},${y}`).join(" ");
   const area = `${line} L${PLOT.right},${PLOT.bottom} L${PLOT.left},${PLOT.bottom} Z`;
-  const length = points.reduce(
-    (total, [x, y], index) =>
-      index === 0 ? total : total + Math.hypot(x - points[index - 1][0], y - points[index - 1][1]),
-    0,
-  );
+  let length = 0;
+  let previous: [number, number] | undefined;
+  for (const [x, y] of points) {
+    if (previous) {
+      length += Math.hypot(x - previous[0], y - previous[1]);
+    }
+    previous = [x, y];
+  }
 
   const pctChange = percentChange(values);
   const isUp = pctChange > 0;

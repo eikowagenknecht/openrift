@@ -6,6 +6,7 @@
 - **Styling** — Tailwind utility classes with `cn()` from `@/lib/utils` for conditional class merging.
 - **React Compiler** — auto-memoizes everything. Do not add `useMemo`, `useCallback`, or `React.memo`.
 - **Page chrome and card browsers** — page widths, top bars, sticky stacking, and the shared card-browser pieces are documented in [ui-composition.md](./ui-composition.md).
+- **Index access** — `noUncheckedIndexedAccess` is on in every package, so `arr[i]` and `record[key]` are `T | undefined`. In source, resolve it honestly: iterate with `for...of` or `.map()` instead of indexing, guard and throw or return early where the value must exist, or give the record a key union so the lookup is total. A `??` default is right only when a default is the actual behaviour. Never `!` in source (lint bans it); test files may use it. Enum label maps are data-driven and stay string-keyed: read them through `enumLabel(labels.<group>, slug)` from `@openrift/shared`, which is the one place a missing label falls back to the slug. Never index a label map directly and never add a second fallback.
 
 ## Web module layout
 

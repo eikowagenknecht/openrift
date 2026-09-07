@@ -195,7 +195,7 @@ export function StackPile({
   const singleCardPile = items.length === 1;
   const variantFor = (index: number): StackStripVariant => (index === 0 ? "top" : "middle");
   const isExpanded = (index: number) =>
-    !singleCardPile && (hoverIndex === index || items[index].card.cardId === selectedCardId);
+    !singleCardPile && (hoverIndex === index || items[index]?.card.cardId === selectedCardId);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     // A tap synthesizes a mousemove before the click, which would unfold the
@@ -208,8 +208,8 @@ export function StackPile({
     const pointerY = event.clientY - rect.top;
     let top = 0;
     let found: number | null = null;
-    for (let index = 0; index < items.length; index++) {
-      const geometry = stackStripGeometry(items[index].card, variantFor(index));
+    for (const [index, item] of items.entries()) {
+      const geometry = stackStripGeometry(item.card, variantFor(index));
       const cardHeightPx = width * geometry.heightPerWidth;
       const height =
         singleCardPile || isExpanded(index) ? cardHeightPx : cardHeightPx * geometry.restFraction;

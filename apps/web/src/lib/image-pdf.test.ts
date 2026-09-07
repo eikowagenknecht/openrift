@@ -34,7 +34,7 @@ describe("fitImageOnPage", () => {
       [1000, 1000],
       [600, 2000],
     ]) {
-      const placement = fitImageOnPage(width, height, 8);
+      const placement = fitImageOnPage(width!, height!, 8);
       expect(placement.width).toBeLessThanOrEqual(placement.pageWidth - 16 + 0.001);
       expect(placement.height).toBeLessThanOrEqual(placement.pageHeight - 16 + 0.001);
     }

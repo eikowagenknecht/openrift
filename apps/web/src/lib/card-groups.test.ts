@@ -77,8 +77,8 @@ describe("buildGroups", () => {
   it("returns a single _all group when ungrouped", () => {
     const groups = buildGroups(items, "none", setOrder, "asc", ORDERS, LABELS);
     expect(groups).toHaveLength(1);
-    expect(groups[0].group.id).toBe("_all");
-    expect(groups[0].items).toHaveLength(2);
+    expect(groups[0]!.group.id).toBe("_all");
+    expect(groups[0]!.items).toHaveLength(2);
   });
 
   it("groups by set in the configured order", () => {
@@ -94,7 +94,7 @@ describe("buildGroups", () => {
   it("falls back to a single _all group when set grouping has no setOrder", () => {
     const groups = buildGroups(items, "set", undefined, "asc", ORDERS, LABELS);
     expect(groups).toHaveLength(1);
-    expect(groups[0].group.id).toBe("_all");
+    expect(groups[0]!.group.id).toBe("_all");
   });
 
   it("groups by collection in the given collection order", () => {
@@ -132,8 +132,8 @@ describe("buildGroups", () => {
   it("falls back to a single _all group when collection grouping has no collection order", () => {
     const groups = buildGroups(items, "collection", setOrder, "asc", ORDERS, LABELS);
     expect(groups).toHaveLength(1);
-    expect(groups[0].group.id).toBe("_all");
-    expect(groups[0].items).toHaveLength(2);
+    expect(groups[0]!.group.id).toBe("_all");
+    expect(groups[0]!.items).toHaveLength(2);
   });
 
   it("falls back to set grouping for an axis this surface doesn't know", () => {

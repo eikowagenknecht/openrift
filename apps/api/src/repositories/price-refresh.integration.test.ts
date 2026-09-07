@@ -98,9 +98,9 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
       .where("externalId", "=", firstExternalId)
       .execute();
     expect(products.length).toBe(1);
-    expect(products[0].productName).toBe("Test Product");
-    expect(products[0].finish).toBe("normal");
-    expect(products[0].language).toBe("EN");
+    expect(products[0]!.productName).toBe("Test Product");
+    expect(products[0]!.finish).toBe("normal");
+    expect(products[0]!.language).toBe("EN");
 
     const variants = await db
       .selectFrom("marketplaceProductVariants as mpv")
@@ -151,7 +151,7 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
       .execute();
 
     expect(
-      rows.map((r) => [r.marketplace, r.printingId]).toSorted((a, b) => a[0].localeCompare(b[0])),
+      rows.map((r) => [r.marketplace, r.printingId]).toSorted((a, b) => a[0]!.localeCompare(b[0]!)),
     ).toEqual([
       [secondMarketplace, secondPrintingId],
       [firstMarketplace, seedPrintingId],

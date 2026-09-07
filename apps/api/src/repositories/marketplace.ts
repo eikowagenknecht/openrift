@@ -560,9 +560,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // Without a cutoff the series starts at the first event, or today if none exist.
       // The baseline basis floors at this day: a copy bought earlier enters
       // the baseline at the window's opening price.
-      const startDay =
-        windowStartDay ??
-        (events.rows.length > 0 ? toDateString(events.rows[0].createdAt) : endDay);
+      const [firstEvent] = events.rows;
+      const startDay = windowStartDay ?? (firstEvent ? toDateString(firstEvent.createdAt) : endDay);
 
       // Prices are needed for anything held today and anything touched inside
       // the window — a printing sold off mid-window is absent from the anchor
@@ -624,14 +623,19 @@ export function marketplaceRepo(db: Kysely<Database>) {
           return undefined;
         }
         let idx = priceCursor.get(printingId) ?? days.length - 1;
-        while (idx >= 0 && days[idx] > dayStr) {
+        while (idx >= 0) {
+          const day = days[idx];
+          if (day === undefined || day <= dayStr) {
+            break;
+          }
           idx--;
         }
         priceCursor.set(printingId, idx);
-        if (idx < 0) {
+        const day = idx < 0 ? undefined : days[idx];
+        if (day === undefined) {
           return undefined;
         }
-        return priceMap.get(printingId)?.get(days[idx]);
+        return priceMap.get(printingId)?.get(day);
       }
 
       /**
@@ -649,7 +653,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
         }
         const basisDay = acquiredOn && acquiredOn > startDay ? acquiredOn : startDay;
         const idx = days.findLastIndex((day) => day <= basisDay);
-        return priceMap.get(printingId)?.get(idx === -1 ? days[0] : days[idx]) ?? 0;
+        const basisPriceDay = idx === -1 ? days[0] : days[idx];
+        if (basisPriceDay === undefined) {
+          return 0;
+        }
+        return priceMap.get(printingId)?.get(basisPriceDay) ?? 0;
       }
 
       const targetCollectionSet = collectionIds ? new Set(collectionIds) : null;
@@ -735,8 +743,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // Events dated after today (clock skew, or a same-day event recorded in
       // a later timezone) belong to no emitted point — undo them up front so
       // they don't leak into today's figure.
-      while (eventIndex >= 0 && toDateString(events.rows[eventIndex].createdAt) > endDay) {
-        undo(events.rows[eventIndex]);
+      while (eventIndex >= 0) {
+        const event = events.rows[eventIndex];
+        if (!event || toDateString(event.createdAt) <= endDay) {
+          break;
+        }
+        undo(event);
         eventIndex--;
       }
 
@@ -760,8 +772,12 @@ export function marketplaceRepo(db: Kysely<Database>) {
         }
         reversed.push({ date: dayStr, valueCents, baselineValueCents, copyCount });
 
-        while (eventIndex >= 0 && toDateString(events.rows[eventIndex].createdAt) === dayStr) {
-          undo(events.rows[eventIndex]);
+        while (eventIndex >= 0) {
+          const event = events.rows[eventIndex];
+          if (!event || toDateString(event.createdAt) !== dayStr) {
+            break;
+          }
+          undo(event);
           eventIndex--;
         }
 
@@ -773,11 +789,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // Drop leading empty days: an account whose earliest activity cancelled
       // out (adds undone by removes the same week) shouldn't open on a flat
       // zero run.
-      let firstHeld = 0;
-      while (firstHeld < series.length && series[firstHeld].copyCount === 0) {
-        firstHeld++;
-      }
-      return series.slice(firstHeld);
+      const firstHeld = series.findIndex((point) => point.copyCount > 0);
+      return firstHeld === -1 ? [] : series.slice(firstHeld);
     },
 
     /**

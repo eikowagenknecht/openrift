@@ -139,7 +139,7 @@ describe.skipIf(!ready)("Tournament running surface (integration)", () => {
     const body = (await readJson(run)) as {
       rounds: { pods: { podNumber: number; members: { displayName: string }[] }[] }[];
     };
-    const pods = body.rounds[0].pods;
+    const pods = body.rounds[0]!.pods;
     const podOfA = pods.find((pod) => pod.members.some((member) => member.displayName === "A"));
     expect(podOfA?.podNumber).toBe(5);
     const otherNumbers = pods

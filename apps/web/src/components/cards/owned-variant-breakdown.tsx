@@ -1,3 +1,4 @@
+import { enumLabel } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { FinishIcon } from "@/components/cards/finish-icon";
@@ -20,7 +21,7 @@ export function OwnedVariantBreakdown({
             <span>{variant.shortCode}</span>
             <FinishIcon
               finish={variant.finish}
-              title={labels.finishes[variant.finish]}
+              title={enumLabel(labels.finishes, variant.finish)}
               iconClassName="size-3"
             />
           </SectionHeading>

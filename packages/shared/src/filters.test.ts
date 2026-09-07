@@ -319,7 +319,7 @@ describe("filterCards", () => {
   it("filters by bare search term using default scope (name)", () => {
     const result = filterCards(printings, emptyFilters({ search: "dragon" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("bare search is case-insensitive", () => {
@@ -333,19 +333,19 @@ describe("filterCards", () => {
       emptyFilters({ search: "warrior", searchScope: ["name", "tags"] }),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("prefixed search targets specific field", () => {
     const result = filterCards(printings, emptyFilters({ search: "k:shield" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("un-prefixed terms search all fields when mixed with prefixed terms", () => {
     const result = filterCards(printings, emptyFilters({ search: "k:freeze golem" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Ice Golem");
+    expect(result[0]!.card.name).toBe("Ice Golem");
   });
 
   it("all search terms must match (AND semantics)", () => {
@@ -356,37 +356,37 @@ describe("filterCards", () => {
   it("search by artist prefix", () => {
     const result = filterCards(printings, emptyFilters({ search: "a:alice" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("search by id prefix matches shortCode", () => {
     const result = filterCards(printings, emptyFilters({ search: "id:SET2" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("search by card text prefix matches description", () => {
     const result = filterCards(printings, emptyFilters({ search: "d:fiery" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("search by card text prefix matches effect", () => {
     const result = filterCards(printings, emptyFilters({ search: "d:draw" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("search by tags prefix", () => {
     const result = filterCards(printings, emptyFilters({ search: "t:psychic" }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("filters by set", () => {
     const result = filterCards(printings, emptyFilters({ sets: ["Set Beta"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("filters by multiple sets (OR)", () => {
@@ -402,7 +402,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(catalog, emptyFilters({ languages: ["EN"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("en-printing");
+    expect(result[0]!.id).toBe("en-printing");
   });
 
   it("filters by multiple languages (OR)", () => {
@@ -427,7 +427,7 @@ describe("filterCards", () => {
   it("filters by rarity", () => {
     const result = filterCards(printings, emptyFilters({ rarities: ["common"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Ice Golem");
+    expect(result[0]!.card.name).toBe("Ice Golem");
   });
 
   it("filters by multiple rarities (OR)", () => {
@@ -438,7 +438,7 @@ describe("filterCards", () => {
   it("filters by card type", () => {
     const result = filterCards(printings, emptyFilters({ types: ["spell"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("matches multi-type cards under every type they carry", () => {
@@ -459,7 +459,7 @@ describe("filterCards", () => {
   it("filters by superType", () => {
     const result = filterCards(printings, emptyFilters({ superTypes: ["champion"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("printings with no matching superType are excluded", () => {
@@ -470,31 +470,31 @@ describe("filterCards", () => {
   it("filters by domain", () => {
     const result = filterCards(printings, emptyFilters({ domains: ["fury"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("matches multi-domain printings", () => {
     const result = filterCards(printings, emptyFilters({ domains: ["chaos"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("matches either domain of a multi-domain card", () => {
     const result = filterCards(printings, emptyFilters({ domains: ["mind"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("filters by energy min", () => {
     const result = filterCards(printings, emptyFilters({ energy: { min: 4, max: null } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("filters by energy max", () => {
     const result = filterCards(printings, emptyFilters({ energy: { min: null, max: 2 } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("filters by energy range", () => {
@@ -505,13 +505,13 @@ describe("filterCards", () => {
   it("filters by might min", () => {
     const result = filterCards(printings, emptyFilters({ might: { min: 5, max: null } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Ice Golem");
+    expect(result[0]!.card.name).toBe("Ice Golem");
   });
 
   it("filters by power min", () => {
     const result = filterCards(printings, emptyFilters({ power: { min: 3, max: null } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("filters by power max", () => {
@@ -522,13 +522,13 @@ describe("filterCards", () => {
   it("filters by might max", () => {
     const result = filterCards(printings, emptyFilters({ might: { min: null, max: 3 } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("filters by artVariant", () => {
     const result = filterCards(printings, emptyFilters({ artVariants: ["altart"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Mind Weaver");
+    expect(result[0]!.card.name).toBe("Mind Weaver");
   });
 
   it("filters by multiple artVariants (OR)", () => {
@@ -539,7 +539,7 @@ describe("filterCards", () => {
   it("filters by finish", () => {
     const result = filterCards(printings, emptyFilters({ finishes: ["foil"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Ice Golem");
+    expect(result[0]!.card.name).toBe("Ice Golem");
   });
 
   it("filters by card size", () => {
@@ -588,7 +588,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(withSigned, emptyFilters({ isSigned: true }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Signed Card");
+    expect(result[0]!.card.name).toBe("Signed Card");
   });
 
   it("filters by isOvernumbered independently of art variant", () => {
@@ -648,7 +648,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(withPromo, emptyFilters({ presence: { markers: "any" } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Promo Card");
+    expect(result[0]!.card.name).toBe("Promo Card");
   });
 
   it("excludes printings with null price when price filter is active", () => {
@@ -718,7 +718,7 @@ describe("filterCards", () => {
       getPrice: getTestPrice,
     });
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Expensive Card");
+    expect(result[0]!.card.name).toBe("Expensive Card");
   });
 
   it("combines multiple filters (AND across dimensions)", () => {
@@ -731,7 +731,7 @@ describe("filterCards", () => {
       }),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Ice Golem");
+    expect(result[0]!.card.name).toBe("Ice Golem");
   });
 
   it("returns empty array when no printing matches all filters", () => {
@@ -755,7 +755,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(nullArtVariant, emptyFilters({ artVariants: ["normal"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Null Art Card");
+    expect(result[0]!.card.name).toBe("Null Art Card");
   });
 
   it("card text search handles null errata", () => {
@@ -796,7 +796,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ isSigned: false }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Unsigned Card");
+    expect(result[0]!.card.name).toBe("Unsigned Card");
   });
 
   it("filters by presence.markers=none excludes marked cards", () => {
@@ -814,13 +814,13 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ presence: { markers: "none" } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Regular Card");
+    expect(result[0]!.card.name).toBe("Regular Card");
   });
 
   it("includes values exactly at range boundaries", () => {
     const result = filterCards(printings, emptyFilters({ energy: { min: 5, max: 5 } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("excludes cards with null energy when energy filter is active", () => {
@@ -914,7 +914,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: NONE } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("spell");
+    expect(result[0]!.card.name).toBe("spell");
   });
 
   it("excludes null-energy cards when min is a real number", () => {
@@ -927,7 +927,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: 0, max: 10 } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("unit");
+    expect(result[0]!.card.name).toBe("unit");
   });
 
   it("includes null-might cards when min is NONE", () => {
@@ -946,7 +946,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ power: { min: NONE, max: NONE } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("spell");
+    expect(result[0]!.card.name).toBe("spell");
   });
 
   it("returns all printings when search is empty string", () => {
@@ -1010,7 +1010,7 @@ describe("filterCards", () => {
       emptyFilters({ search: "alice", searchScope: ["artist"] }),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Fire Dragon");
+    expect(result[0]!.card.name).toBe("Fire Dragon");
   });
 
   it("filters by distributionChannelSlugs (channel-only filter)", () => {
@@ -1058,7 +1058,7 @@ describe("filterCards", () => {
     ];
     const result = filterCards(cards, emptyFilters({ distributionChannelSlugs: ["nexus-night"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Nexus Card");
+    expect(result[0]!.card.name).toBe("Nexus Card");
   });
 
   it("filters by presence.markers=any with specific markerSlugs", () => {
@@ -1079,7 +1079,7 @@ describe("filterCards", () => {
       emptyFilters({ presence: { markers: "any" }, markerSlugs: ["top-8"] }),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Top 8 Card");
+    expect(result[0]!.card.name).toBe("Top 8 Card");
   });
 
   it("filters by presence.markers=any with empty markerSlugs returns all marked", () => {
@@ -1100,7 +1100,7 @@ describe("filterCards", () => {
       emptyFilters({ presence: { markers: "any" }, markerSlugs: [] }),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Promo Card");
+    expect(result[0]!.card.name).toBe("Promo Card");
   });
 
   describe("presence predicate", () => {
@@ -1379,7 +1379,7 @@ describe("filterCards", () => {
       customTagAssignments: { a: ["bandle-city"] },
     });
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("A");
+    expect(result[0]!.card.name).toBe("A");
   });
 
   it("customTagSlugs filter with missing assignment map excludes everything", () => {
@@ -1880,7 +1880,7 @@ describe("getAvailableFilters", () => {
       makePrinting({ markers: [] }),
     ]);
     expect(result.markers).toHaveLength(1);
-    expect(result.markers[0].slug).toBe("promo");
+    expect(result.markers[0]!.slug).toBe("promo");
   });
 
   it("lists no markers when no marked printings", () => {

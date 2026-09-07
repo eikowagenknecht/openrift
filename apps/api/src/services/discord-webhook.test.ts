@@ -33,9 +33,9 @@ describe("buildNewPrintingPayloads", () => {
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
     expect(payloads).toHaveLength(1);
-    expect(payloads[0].embeds).toHaveLength(2);
-    expect(payloads[0].embeds[0].title).toBe("New: Test Card");
-    expect(payloads[0].embeds[1].title).toBe("New: Card B");
+    expect(payloads[0]!.embeds).toHaveLength(2);
+    expect(payloads[0]!.embeds[0]!.title).toBe("New: Test Card");
+    expect(payloads[0]!.embeds[1]!.title).toBe("New: Card B");
   });
 
   it("includes card page link as embed URL", () => {
@@ -43,7 +43,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
+    expect(payloads[0]!.embeds[0]!.url).toBe("https://openrift.app/cards/OGN-001");
   });
 
   it("uses the site host as the embed author block", () => {
@@ -51,8 +51,8 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].author?.name).toBe("openrift.app");
-    expect(payloads[0].embeds[0].author?.url).toBe(APP_BASE_URL);
+    expect(payloads[0]!.embeds[0]!.author?.name).toBe("openrift.app");
+    expect(payloads[0]!.embeds[0]!.author?.url).toBe(APP_BASE_URL);
   });
 
   it("derives the author host from the app base URL", () => {
@@ -60,7 +60,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, "https://preview.openrift.app");
 
-    expect(payloads[0].embeds[0].author?.name).toBe("preview.openrift.app");
+    expect(payloads[0]!.embeds[0]!.author?.name).toBe("preview.openrift.app");
   });
 
   it("keeps the author even when set name is missing", () => {
@@ -68,7 +68,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].author?.name).toBe("openrift.app");
+    expect(payloads[0]!.embeds[0]!.author?.name).toBe("openrift.app");
   });
 
   it("includes the set name in the info footer", () => {
@@ -76,7 +76,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).toContain("Origins");
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("Origins");
   });
 
   it("builds the absolute 400w image URL from the image id", () => {
@@ -84,7 +84,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].image?.url).toBe(
+    expect(payloads[0]!.embeds[0]!.image?.url).toBe(
       "https://openrift.app/media/cards/cd/019d6c25-b081-74b3-a901-64da4ae0abcd-400w.webp",
     );
   });
@@ -94,8 +94,8 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].image).toBeUndefined();
-    expect(payloads[0].embeds[0].thumbnail).toBeUndefined();
+    expect(payloads[0]!.embeds[0]!.image).toBeUndefined();
+    expect(payloads[0]!.embeds[0]!.thumbnail).toBeUndefined();
   });
 
   it("builds the info footer with code, rarity label, and finish", () => {
@@ -111,10 +111,10 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).toContain("OGN-001");
-    expect(payloads[0].embeds[0].footer?.text).toContain("Rare");
-    expect(payloads[0].embeds[0].footer?.text).not.toMatch(/\brare\b/u);
-    expect(payloads[0].embeds[0].footer?.text).toContain("Metal");
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("OGN-001");
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("Rare");
+    expect(payloads[0]!.embeds[0]!.footer?.text).not.toMatch(/\brare\b/u);
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("Metal");
   });
 
   it("falls back to rarity slug when label is missing", () => {
@@ -122,7 +122,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).toContain("uncommon");
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("uncommon");
   });
 
   it("omits finish from the footer when it is 'normal'", () => {
@@ -130,7 +130,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).not.toContain("Normal");
+    expect(payloads[0]!.embeds[0]!.footer?.text).not.toContain("Normal");
   });
 
   it("falls back to finish slug when label is missing", () => {
@@ -138,7 +138,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).toContain("foil");
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("foil");
   });
 
   it("includes language name in the footer when not English", () => {
@@ -146,7 +146,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).toContain("French");
+    expect(payloads[0]!.embeds[0]!.footer?.text).toContain("French");
   });
 
   it("omits language from the footer when English", () => {
@@ -154,7 +154,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).not.toContain("English");
+    expect(payloads[0]!.embeds[0]!.footer?.text).not.toContain("English");
   });
 
   it("never includes the artist in the embed", () => {
@@ -162,8 +162,8 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer?.text).not.toContain("Jane Doe");
-    expect(payloads[0].embeds[0].description).toBeUndefined();
+    expect(payloads[0]!.embeds[0]!.footer?.text).not.toContain("Jane Doe");
+    expect(payloads[0]!.embeds[0]!.description).toBeUndefined();
   });
 
   it("renders the image above the info footer", () => {
@@ -171,7 +171,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    const embed = payloads[0].embeds[0];
+    const embed = payloads[0]!.embeds[0]!;
     expect(embed.image?.url).toBeDefined();
     expect(embed.footer?.text).toBeDefined();
     expect(embed.description).toBeUndefined();
@@ -191,7 +191,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].footer).toBeUndefined();
+    expect(payloads[0]!.embeds[0]!.footer).toBeUndefined();
   });
 
   it("chunks into multiple payloads when more than 10 embeds", () => {
@@ -202,8 +202,8 @@ describe("buildNewPrintingPayloads", () => {
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
     expect(payloads).toHaveLength(2);
-    expect(payloads[0].embeds).toHaveLength(10);
-    expect(payloads[1].embeds).toHaveLength(5);
+    expect(payloads[0]!.embeds).toHaveLength(10);
+    expect(payloads[1]!.embeds).toHaveLength(5);
   });
 
   it("uses summary mode for large batches (>20)", () => {
@@ -213,7 +213,7 @@ describe("buildNewPrintingPayloads", () => {
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].title).toContain("25 new printings added");
-    expect(payloads[0].embeds[0].description).toContain("Origins");
+    expect(payloads[0]!.embeds[0]!.title).toContain("25 new printings added");
+    expect(payloads[0]!.embeds[0]!.description).toContain("Origins");
   });
 });

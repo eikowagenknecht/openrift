@@ -42,7 +42,7 @@ if (adminCtx && grantCtx) {
     })
     .returning("id")
     .execute();
-  cardId = card.id;
+  cardId = card!.id;
   await syncCardCardTypes(db);
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
   await db.insertInto("cardNameAliases").values({ cardId, normName: "aerauditcard" }).execute();

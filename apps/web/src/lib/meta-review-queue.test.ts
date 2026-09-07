@@ -164,7 +164,7 @@ describe("groupReviewQueue", () => {
     );
 
     expect(groups).toHaveLength(1);
-    const [group] = groups;
+    const group = groups[0]!;
     expect(group.name).toBe("Summoner Skirmish");
     expect(group.slug).toBe("summoner-skirmish");
     expect(group.eventDate).toBe("2026-08-01");
@@ -214,9 +214,9 @@ describe("groupReviewQueue", () => {
       "Summoner Skirmish Berlin",
       "Summoner Skirmish",
     ]);
-    expect(groups[0].proposal?.id).toBe("prop-1");
-    expect(groups[0].players.map((row) => row.id)).toEqual(["rider"]);
-    expect(groups[0].eventDate).toBe("2026-08-25");
+    expect(groups[0]!.proposal?.id).toBe("prop-1");
+    expect(groups[0]!.players.map((row) => row.id)).toEqual(["rider"]);
+    expect(groups[0]!.eventDate).toBe("2026-08-25");
   });
 
   it("orders live events oldest pending first", () => {
@@ -245,15 +245,15 @@ describe("groupReviewQueue", () => {
       ],
       [],
     );
-    expect(groups[0].players.map((row) => row.id)).toEqual(["four-a", "four-b", "eight", "none"]);
+    expect(groups[0]!.players.map((row) => row.id)).toEqual(["four-a", "four-b", "eight", "none"]);
   });
 
   it("files a correction whose event is gone under its own name", () => {
     const groups = groupReviewQueue([], [correction({ event: null })]);
     expect(groups).toHaveLength(1);
-    expect(groups[0].name).toBe("Summoner Skirmish");
-    expect(groups[0].metaEventId).toBeNull();
-    expect(groups[0].counts.correction).toBe(1);
+    expect(groups[0]!.name).toBe("Summoner Skirmish");
+    expect(groups[0]!.metaEventId).toBeNull();
+    expect(groups[0]!.counts.correction).toBe(1);
   });
 });
 
@@ -268,19 +268,19 @@ describe("filterGroup", () => {
   );
 
   it("keeps only the rows of the picked triage", () => {
-    const narrowed = filterGroup(groups[0], "needsRow");
+    const narrowed = filterGroup(groups[0]!, "needsRow");
     expect(narrowed?.players.map((row) => row.id)).toEqual(["loose"]);
     expect(narrowed?.eventPatches).toEqual([]);
     expect(narrowed?.corrections).toEqual([]);
   });
 
   it("shows corrections only under their own chip", () => {
-    expect(filterGroup(groups[0], "correction")?.corrections).toHaveLength(1);
-    expect(filterGroup(groups[0], "ready")?.corrections).toEqual([]);
+    expect(filterGroup(groups[0]!, "correction")?.corrections).toHaveLength(1);
+    expect(filterGroup(groups[0]!, "ready")?.corrections).toEqual([]);
   });
 
   it("drops a group with nothing in the picked triage", () => {
-    expect(filterGroup(groups[0], "unmatched")).toBeNull();
+    expect(filterGroup(groups[0]!, "unmatched")).toBeNull();
   });
 });
 

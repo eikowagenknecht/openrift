@@ -93,14 +93,14 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
+    .values({ cardId: card!.id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
   const [printing] = await db
     .insertInto("printings")
     .values({
-      cardId: card.id,
-      setId: set.id,
+      cardId: card!.id,
+      setId: set!.id,
       shortCode: "CSI-001",
       rarity: "common",
       artVariant: "normal",
@@ -117,7 +117,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printingId = printing.id;
+  printingId = printing!.id;
 
   const [cs] = await db
     .insertInto("candidateCards")
@@ -145,7 +145,7 @@ if (ctx) {
   const [ps] = await db
     .insertInto("candidatePrintings")
     .values({
-      candidateCardId: cs.id,
+      candidateCardId: cs!.id,
       printingId,
       shortCode: "CSI-001",
       setId: "CSI",
@@ -165,7 +165,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  psId = ps.id;
+  psId = ps!.id;
 
   // Second card source (needed for unique constraint on card_source_id + printing_id)
   const [cs2] = await db
@@ -194,7 +194,7 @@ if (ctx) {
   const [psNoImage] = await db
     .insertInto("candidatePrintings")
     .values({
-      candidateCardId: cs2.id,
+      candidateCardId: cs2!.id,
       printingId,
       shortCode: "CSI-001b",
       setId: "CSI",
@@ -214,13 +214,13 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  psNoImageId = psNoImage.id;
+  psNoImageId = psNoImage!.id;
 
   // Printing source NOT linked to a printing (for 400 test)
   const [psUnlinked] = await db
     .insertInto("candidatePrintings")
     .values({
-      candidateCardId: cs.id,
+      candidateCardId: cs!.id,
       printingId: null,
       shortCode: "CSI-002",
       setId: "CSI",
@@ -240,7 +240,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  psUnlinkedId = psUnlinked.id;
+  psUnlinkedId = psUnlinked!.id;
 
   await refreshCardAggregates(db);
 }
@@ -303,7 +303,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const [psAlt] = await db
         .insertInto("candidatePrintings")
         .values({
-          candidateCardId: cs2.id,
+          candidateCardId: cs2!.id,
           printingId,
           shortCode: "CSI-001-ALT",
           setId: "CSI",
@@ -325,7 +325,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        adminReq("POST", `/cards/candidate-printings/${psAlt.id}/set-image`, {
+        adminReq("POST", `/cards/candidate-printings/${psAlt!.id}/set-image`, {
           mode: "additional",
         }),
       );
@@ -339,8 +339,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.originalUrl", "=", "https://example.com/csi-test-alt.png")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].isActive).toBe(false);
-      additionalImageId = images[0].id;
+      expect(images[0]!.isActive).toBe(false);
+      additionalImageId = images[0]!.id;
     });
 
     it("returns 404 for non-existent printing source", async () => {
@@ -585,21 +585,21 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .values({
           printingId,
           face: "front",
-          imageFileId: noUrlCardImage.id,
+          imageFileId: noUrlCardImage!.id,
           isActive: false,
         })
         .returning("id")
         .execute();
 
       const res = await app.fetch(
-        adminReq("POST", `/cards/printing-images/${noUrlImage.id}/rehost`),
+        adminReq("POST", `/cards/printing-images/${noUrlImage!.id}/rehost`),
       );
       expect(res.status).toBe(400);
 
       const json = await readJson(res);
       expect(json.message).toBe("Image has no original URL to rehost");
 
-      await db.deleteFrom("printingImages").where("id", "=", noUrlImage.id).execute();
+      await db.deleteFrom("printingImages").where("id", "=", noUrlImage!.id).execute();
     });
 
     it("returns 404 for non-existent image", async () => {
@@ -719,8 +719,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.originalUrl", "=", "https://i.imgur.com/csi-new-image.png")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].originalUrl).toBe("https://i.imgur.com/csi-new-image.png");
-      expect(images[0].isActive).toBe(true);
+      expect(images[0]!.originalUrl).toBe("https://i.imgur.com/csi-new-image.png");
+      expect(images[0]!.isActive).toBe(true);
     });
 
     it("uses default mode when not provided", async () => {
@@ -739,7 +739,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.originalUrl", "=", "https://images.tcgplayer.com/csi-another-image.png")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].isActive).toBe(true);
+      expect(images[0]!.isActive).toBe(true);
     });
 
     it("returns 400 when url is empty", async () => {
@@ -778,8 +778,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.originalUrl", "=", "https://www.reddit.com/csi-additional-image.png")
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].originalUrl).toBe("https://www.reddit.com/csi-additional-image.png");
-      expect(images[0].isActive).toBe(false);
+      expect(images[0]!.originalUrl).toBe("https://www.reddit.com/csi-additional-image.png");
+      expect(images[0]!.isActive).toBe(false);
     });
 
     it("returns 404 for non-existent printing", async () => {
@@ -818,8 +818,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.rehostedUrl", "=", json.rehostedUrl)
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].isActive).toBe(true);
-      expect(images[0].rehostedUrl).toBe(json.rehostedUrl);
+      expect(images[0]!.isActive).toBe(true);
+      expect(images[0]!.rehostedUrl).toBe(json.rehostedUrl);
     });
 
     it("uploads an image as additional", async () => {
@@ -846,8 +846,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.rehostedUrl", "=", json.rehostedUrl)
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].isActive).toBe(false);
-      expect(images[0].rehostedUrl).toBe(json.rehostedUrl);
+      expect(images[0]!.isActive).toBe(false);
+      expect(images[0]!.rehostedUrl).toBe(json.rehostedUrl);
     });
 
     it("uploads with default mode (main)", async () => {
@@ -872,7 +872,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("ci.rehostedUrl", "=", json.rehostedUrl)
         .execute();
       expect(images.length).toBe(1);
-      expect(images[0].isActive).toBe(true);
+      expect(images[0]!.isActive).toBe(true);
     });
 
     it("returns 404 for non-existent printing", async () => {

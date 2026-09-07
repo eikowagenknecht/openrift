@@ -43,23 +43,23 @@ describe("downloadJSONText", () => {
     downloadJSONText('{"a":1}', "cards-export-2026-08-15.json");
 
     expect(anchors).toHaveLength(1);
-    expect(anchors[0].download).toBe("cards-export-2026-08-15.json");
-    expect(anchors[0].click).toHaveBeenCalledOnce();
-    expect(blobs[0].type).toBe("application/json");
-    await expect(blobs[0].text()).resolves.toBe('{"a":1}');
+    expect(anchors[0]!.download).toBe("cards-export-2026-08-15.json");
+    expect(anchors[0]!.click).toHaveBeenCalledOnce();
+    expect(blobs[0]!.type).toBe("application/json");
+    await expect(blobs[0]!.text()).resolves.toBe('{"a":1}');
   });
 
   it("releases the object URL it created", () => {
     downloadJSONText("{}", "empty.json");
 
-    expect(revokeObjectURL).toHaveBeenCalledWith(createObjectURL.mock.results[0].value);
+    expect(revokeObjectURL).toHaveBeenCalledWith(createObjectURL.mock.results[0]!.value);
   });
 
   it("downloads empty text rather than skipping the download", async () => {
     downloadJSONText("", "empty.json");
 
-    expect(anchors[0].click).toHaveBeenCalledOnce();
-    await expect(blobs[0].text()).resolves.toBe("");
+    expect(anchors[0]!.click).toHaveBeenCalledOnce();
+    await expect(blobs[0]!.text()).resolves.toBe("");
   });
 });
 
@@ -67,15 +67,15 @@ describe("downloadJSON", () => {
   it("serializes the value pretty-printed", async () => {
     downloadJSON({ name: "Summoner Skirmish", rounds: [1, 2] }, "event.json");
 
-    await expect(blobs[0].text()).resolves.toBe(
+    await expect(blobs[0]!.text()).resolves.toBe(
       '{\n  "name": "Summoner Skirmish",\n  "rounds": [\n    1,\n    2\n  ]\n}',
     );
-    expect(anchors[0].download).toBe("event.json");
+    expect(anchors[0]!.download).toBe("event.json");
   });
 
   it("handles an empty array", async () => {
     downloadJSON([], "none.json");
 
-    await expect(blobs[0].text()).resolves.toBe("[]");
+    await expect(blobs[0]!.text()).resolves.toBe("[]");
   });
 });

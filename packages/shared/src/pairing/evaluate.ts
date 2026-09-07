@@ -19,28 +19,28 @@ export function evaluatePod(
   let sameRegion = 0;
   let repeatedRegion = 0;
   let pairwise = 0;
-  for (let i = 0; i < members.length; i++) {
-    for (let j = i + 1; j < members.length; j++) {
-      const meetings = members[i].opponents.get(members[j].id) ?? 0;
+  for (const [i, memberA] of members.entries()) {
+    for (const memberB of members.slice(i + 1)) {
+      const meetings = memberA.opponents.get(memberB.id) ?? 0;
       rematch += config.rematchPenalties[Math.min(meetings, 3)] ?? 0;
       if (meetings > 0) {
         rematchPairs++;
       }
-      const regionA = members[i].region ?? null;
-      const regionB = members[j].region ?? null;
+      const regionA = memberA.region ?? null;
+      const regionB = memberB.region ?? null;
       if (regionA !== null && regionA === regionB) {
         sameRegion += config.sameRegionWeight;
       }
       let repeats = 0;
       if (regionB !== null) {
-        repeats += members[i].regionHistory?.get(regionB) ?? 0;
+        repeats += memberA.regionHistory?.get(regionB) ?? 0;
       }
       if (regionA !== null) {
-        repeats += members[j].regionHistory?.get(regionA) ?? 0;
+        repeats += memberB.regionHistory?.get(regionA) ?? 0;
       }
       repeatedRegion += repeats * config.repeatedRegionWeight;
       if (config.pairwiseScoreWeight > 0) {
-        pairwise += Math.abs(members[i].score - members[j].score) * config.pairwiseScoreWeight;
+        pairwise += Math.abs(memberA.score - memberB.score) * config.pairwiseScoreWeight;
       }
     }
   }

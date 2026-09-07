@@ -67,10 +67,11 @@ function escapeValue(v: unknown): string {
 }
 
 function toInsert(table: string, rows: Record<string, unknown>[]): string {
-  if (rows.length === 0) {
+  const [firstRow] = rows;
+  if (!firstRow) {
     return "";
   }
-  const cols = Object.keys(rows[0]);
+  const cols = Object.keys(firstRow);
   const header = `INSERT INTO ${table} (${cols.join(", ")}) VALUES`;
   const values = rows.map((r) => `  (${cols.map((c) => escapeValue(r[c])).join(", ")})`);
   return `${header}\n${values.join(",\n")};\n`;
@@ -78,10 +79,11 @@ function toInsert(table: string, rows: Record<string, unknown>[]): string {
 
 /** Upsert, for reference tables that are partially seeded by migrations. */
 function toUpsert(table: string, rows: Record<string, unknown>[], pkCols: string[]): string {
-  if (rows.length === 0) {
+  const [firstRow] = rows;
+  if (!firstRow) {
     return "";
   }
-  const cols = Object.keys(rows[0]);
+  const cols = Object.keys(firstRow);
   const header = `INSERT INTO ${table} (${cols.join(", ")}) VALUES`;
   const values = rows.map((r) => `  (${cols.map((c) => escapeValue(r[c])).join(", ")})`);
   const updateCols = cols.filter((c) => !pkCols.includes(c));

@@ -68,7 +68,9 @@ export function FriendGroupActivityFeed({ slug }: { slug: string }) {
 }
 
 function rowKey(row: AggregatedActivityRow): string {
-  return row.kind === "trade-batch" ? `batch:${row.events[0].tradeId}` : activityKey(row.event);
+  return row.kind === "trade-batch"
+    ? `batch:${row.events.map((event) => event.tradeId).join(",")}`
+    : activityKey(row.event);
 }
 
 function activityKey(event: FriendGroupActivityEvent): string {

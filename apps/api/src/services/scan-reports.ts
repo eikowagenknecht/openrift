@@ -23,7 +23,7 @@ function mintReference(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(REFERENCE_LENGTH));
   let out = "SC-";
   for (const byte of bytes) {
-    out += REFERENCE_ALPHABET[byte % REFERENCE_ALPHABET.length];
+    out += REFERENCE_ALPHABET.charAt(byte % REFERENCE_ALPHABET.length);
   }
   return out;
 }

@@ -55,8 +55,8 @@ describe("diffDecks", () => {
     const diff = diffDecks(ours, theirs);
 
     expect(diff.zones).toHaveLength(1);
-    expect(diff.zones[0].zone).toBe("main");
-    expect(diff.zones[0].entries).toEqual([
+    expect(diff.zones[0]!.zone).toBe("main");
+    expect(diff.zones[0]!.entries).toEqual([
       { cardId: "only-theirs", cardName: "only-theirs", kind: "add", ours: 0, theirs: 1 },
       { cardId: "both", cardName: "both", kind: "change", ours: 3, theirs: 1 },
       { cardId: "only-ours", cardName: "only-ours", kind: "cut", ours: 2, theirs: 0 },
@@ -70,8 +70,8 @@ describe("diffDecks", () => {
     const diff = diffDecks(ours, theirs);
 
     expect(diff.zones.map((zone) => zone.zone)).toEqual(["main", "sideboard"]);
-    expect(diff.zones[0].entries[0].kind).toBe("cut");
-    expect(diff.zones[1].entries[0].kind).toBe("add");
+    expect(diff.zones[0]!.entries[0]!.kind).toBe("cut");
+    expect(diff.zones[1]!.entries[0]!.kind).toBe("add");
     expect(diff.sharedCount).toBe(0);
     expect(diff.addCount).toBe(2);
     expect(diff.cutCount).toBe(2);
@@ -103,7 +103,7 @@ describe("diffDecks", () => {
 
     const diff = diffDecks(ours, theirs);
 
-    expect(diff.zones[0].entries.map((entry) => [entry.cardName, entry.kind])).toEqual([
+    expect(diff.zones[0]!.entries.map((entry) => [entry.cardName, entry.kind])).toEqual([
       ["annie", "add"],
       ["braum", "add"],
       ["jinx", "change"],
@@ -128,7 +128,7 @@ describe("diffDecks", () => {
     expect(diff.addCount).toBe(0);
     expect(diff.cutCount).toBe(4);
     expect(diff.sharedCount).toBe(0);
-    expect(diff.zones[0].entries[0].kind).toBe("cut");
+    expect(diff.zones[0]!.entries[0]!.kind).toBe("cut");
   });
 
   it("splits a partial overlap into shared, add, and cut copies", () => {
@@ -154,7 +154,7 @@ describe("diffDecks", () => {
 
     const diff = diffDecks(ours, theirs);
 
-    expect(diff.zones[0].entries[0].cardName).toBe("Our Name");
+    expect(diff.zones[0]!.entries[0]!.cardName).toBe("Our Name");
   });
 });
 
@@ -178,7 +178,7 @@ describe("deckDiffCardsFrom", () => {
     );
 
     expect(result).toHaveLength(1);
-    expect(result[0].cardId).toBe("a");
+    expect(result[0]!.cardId).toBe("a");
   });
 
   it("keeps one row per printing so split quantities survive", () => {

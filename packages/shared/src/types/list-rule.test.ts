@@ -32,7 +32,7 @@ describe("listRulesSchema output validation", () => {
     const result = listRulesSchema.safeParse([staleTradeRule()]);
     expect(result.success).toBe(true);
     if (result.success) {
-      const filter = result.data[0].filter;
+      const filter = result.data[0]!.filter;
       expect(filter.presence).toEqual({});
       expect(filter.keywords).toEqual([]);
       expect(filter.keywordsExclude).toEqual([]);
@@ -46,9 +46,9 @@ describe("normalizeListRules", () => {
     const normalized = normalizeListRules([
       { ...staleTradeRule(), filter: stale } as unknown as ListRules[number],
     ]);
-    expect(normalized[0].filter.presence).toEqual({});
-    expect(normalized[0].filter.keywords).toEqual([]);
-    expect(normalized[0].filter.keywordsExclude).toEqual([]);
+    expect(normalized[0]!.filter.presence).toEqual({});
+    expect(normalized[0]!.filter.keywords).toEqual([]);
+    expect(normalized[0]!.filter.keywordsExclude).toEqual([]);
   });
 });
 
@@ -61,15 +61,15 @@ describe("hydrateListRules", () => {
   it("backfills missing filter dimensions on a stale rule", () => {
     const hydrated = hydrateListRules([staleTradeRule()] as unknown as ListRules);
     expect(hydrated).toHaveLength(1);
-    expect(hydrated[0].filter.presence).toEqual({});
-    expect(hydrated[0].filter.keywords).toEqual([]);
-    expect(hydrated[0].filter.keywordsExclude).toEqual([]);
+    expect(hydrated[0]!.filter.presence).toEqual({});
+    expect(hydrated[0]!.filter.keywords).toEqual([]);
+    expect(hydrated[0]!.filter.keywordsExclude).toEqual([]);
   });
 
   it("carries priceMarketplace through the round trip", () => {
     const rule = { ...staleTradeRule(), priceMarketplace: "cardmarket" };
     const hydrated = hydrateListRules([rule] as unknown as ListRules);
-    expect(hydrated[0].priceMarketplace).toBe("cardmarket");
+    expect(hydrated[0]!.priceMarketplace).toBe("cardmarket");
   });
 });
 

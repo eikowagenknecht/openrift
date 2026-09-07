@@ -56,9 +56,9 @@ describe("RegionOverview", () => {
       />,
     );
     const [top] = screen.getAllByRole("listitem");
-    expect(within(top).getByText("EMEA")).toBeInTheDocument();
-    expect(within(top).getByText("7.5")).toBeInTheDocument();
-    expect(within(top).getByText(/2 players/u)).toBeInTheDocument();
+    expect(within(top!).getByText("EMEA")).toBeInTheDocument();
+    expect(within(top!).getByText("7.5")).toBeInTheDocument();
+    expect(within(top!).getByText(/2 players/u)).toBeInTheDocument();
   });
 
   it("leaves the tracks empty before anyone has scored", () => {

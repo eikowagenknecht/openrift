@@ -146,12 +146,13 @@ export function VariantLocationsPopover({
   const preferredPrinting =
     groups.find((group) => group.printing.id === initialHighlightId)?.printing ?? printings[0];
   const preferredGroup = groups.find((group) => group.printing.id === preferredPrinting?.id);
+  const preferredLocation = preferredGroup?.locations[0];
   const initialId =
-    intent === "remove" && preferredGroup?.locations[0]
-      ? locationRowValue(preferredPrinting, preferredGroup.locations[0].collectionId)
-      : preferredPrinting
-        ? variantRowValue(preferredPrinting)
-        : "";
+    preferredPrinting === undefined
+      ? ""
+      : intent === "remove" && preferredLocation
+        ? locationRowValue(preferredPrinting, preferredLocation.collectionId)
+        : variantRowValue(preferredPrinting);
 
   // cmdk auto-selects the first row only when its value is falsy at
   // registration time, so each page needs its own highlight state ready in advance.

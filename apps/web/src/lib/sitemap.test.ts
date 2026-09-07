@@ -92,7 +92,7 @@ describe("sitemapSectionFiles", () => {
 
   it("holds the static pages, help, rules, cards, sets and products in the site file", () => {
     const [file] = sitemapSectionFiles("site", input());
-    const paths = file.map((url) => url.path);
+    const paths = file!.map((url) => url.path);
     expect(paths).toContain("/");
     expect(paths).toContain("/meta/decks");
     expect(paths).toContain("/help/getting-started");
@@ -104,7 +104,7 @@ describe("sitemapSectionFiles", () => {
 
   it("drops flag-gated static pages while their flag is off", () => {
     const [file] = sitemapSectionFiles("site", input({ flags: {} }));
-    const paths = file.map((url) => url.path);
+    const paths = file!.map((url) => url.path);
     expect(paths).not.toContain("/meta");
     expect(paths).not.toContain("/developers");
   });

@@ -1,5 +1,5 @@
 import type { CardTradeCopyOptionsResponse, CardTradeResponse } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
+import { enumLabel, getOrientation } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon, HandshakeIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
@@ -98,9 +98,9 @@ function TallyRow({
           <CardMetaLine
             shortCode={printing.shortCode}
             rarity={printing.rarity}
-            rarityLabel={labels.rarities[printing.rarity]}
+            rarityLabel={enumLabel(labels.rarities, printing.rarity)}
             finish={printing.finish}
-            finishLabel={labels.finishes[printing.finish]}
+            finishLabel={enumLabel(labels.finishes, printing.finish)}
             trailing={
               <span className="text-muted-foreground">
                 · {languageNameForCode(printing.language)}

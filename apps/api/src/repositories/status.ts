@@ -53,6 +53,10 @@ export function statusRepo(db: Kysely<Database>) {
           .execute(db)
           .then((r) => r.rows);
 
+        if (!sizeRow || !connRow) {
+          throw new Error("database status query returned no rows");
+        }
+
         const migrationRows = await sql<{ name: string }>`
           SELECT name FROM kysely_migration ORDER BY name DESC
         `
@@ -90,12 +94,19 @@ export function statusRepo(db: Kysely<Database>) {
         .execute(db)
         .then((r) => r.rows);
 
+      if (!users) {
+        throw new Error("app stats user query returned no rows");
+      }
+
       const countFrom = async (table: string): Promise<number> => {
         const [row] = await sql<{ count: number }>`
           SELECT count(*)::int AS count FROM ${sql.ref(table)}
         `
           .execute(db)
           .then((r) => r.rows);
+        if (!row) {
+          throw new Error(`count query returned no rows for ${table}`);
+        }
         return row.count;
       };
 

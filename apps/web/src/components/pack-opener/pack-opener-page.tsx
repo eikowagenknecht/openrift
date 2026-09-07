@@ -430,8 +430,10 @@ function ValueStats({ packs }: { packs: PackResult[] }) {
   const { data: session } = useSession();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const isLoggedIn = Boolean(session?.user);
+  const [preferredMarketplace] = marketplaceOrder;
+  const [defaultMarketplace] = ALL_MARKETPLACES;
   const marketplace: Marketplace | null = isLoggedIn
-    ? (marketplaceOrder[0] ?? ALL_MARKETPLACES[0])
+    ? (preferredMarketplace ?? defaultMarketplace ?? null)
     : null;
   return <PackStats packs={packs} prices={prices} marketplace={marketplace} />;
 }

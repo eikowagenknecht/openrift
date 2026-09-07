@@ -33,7 +33,7 @@ describe("computeRowStarts", () => {
 
   it("uses the per-index estimator so header and card rows can differ", () => {
     const rows = [headerRow(), cardsRow(), headerRow(), cardsRow()];
-    const estimate = (index: number) => (rows[index].kind === "header" ? 48 : 56);
+    const estimate = (index: number) => (rows[index]!.kind === "header" ? 48 : 56);
     expect(computeRowStarts(rows, estimate, 0)).toEqual([0, 48, 104, 152]);
   });
 });

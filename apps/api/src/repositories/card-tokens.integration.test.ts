@@ -25,7 +25,7 @@ async function seedCard(name: string, type: string, normName: string): Promise<s
     .values({ name, slug: normName, type, normName, keywords: [], tags: [] })
     .returning("id")
     .execute();
-  return card.id;
+  return card!.id;
 }
 
 async function seedPrinting(
@@ -54,7 +54,7 @@ async function seedPrinting(
     })
     .returning("id")
     .execute();
-  return printing.id;
+  return printing!.id;
 }
 
 if (ctx) {
@@ -65,7 +65,7 @@ if (ctx) {
     .values({ slug: "CTK-TEST", name: "CTK Test Set", printedTotal: 4, sortOrder: 940 })
     .returning("id")
     .execute();
-  setId = set.id;
+  setId = set!.id;
 
   spriteId = await seedCard("Sprite", "unit", "ctk-sprite");
   buffId = await seedCard("Buff", "other", "ctk-buff");

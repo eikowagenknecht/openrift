@@ -121,7 +121,7 @@ describe("TournamentStaffTab remove action", () => {
     const menus = screen.getAllByRole("button", { name: "Staff actions" });
     expect(menus).toHaveLength(1);
 
-    await user.click(menus[0]);
+    await user.click(menus[0]!);
     await user.click(await screen.findByRole("menuitem", { name: /Remove/u }));
     expect(removeStaffMutateAsync).toHaveBeenCalledWith({
       id: "tournament-1",

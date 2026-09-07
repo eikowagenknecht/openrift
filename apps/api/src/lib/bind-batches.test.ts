@@ -30,8 +30,8 @@ describe("rowBatches", () => {
       ),
     );
 
-    expect(narrow[0].length).toBeGreaterThan(wide[0].length);
-    expect(wide[0].length * 20).toBeLessThan(MAX_BIND_PARAMETERS);
+    expect(narrow[0]!.length).toBeGreaterThan(wide[0]!.length);
+    expect(wide[0]!.length * 20).toBeLessThan(MAX_BIND_PARAMETERS);
   });
 
   it("counts a column the rows only sometimes carry", () => {
@@ -41,7 +41,7 @@ describe("rowBatches", () => {
 
     const batches = rowBatches(rows);
 
-    expect(batches[0].length * 2).toBeLessThan(MAX_BIND_PARAMETERS);
+    expect(batches[0]!.length * 2).toBeLessThan(MAX_BIND_PARAMETERS);
   });
 
   it("ignores a key that is undefined in every row, which kysely never names", () => {
@@ -50,7 +50,7 @@ describe("rowBatches", () => {
       Array.from({ length: 10 }, () => ({ a: 1, b: 2, c: undefined })),
     );
 
-    expect(withUndefined[0].length).toBe(bound[0].length);
+    expect(withUndefined[0]!.length).toBe(bound[0]!.length);
   });
 
   it("yields no batches for an empty list", () => {

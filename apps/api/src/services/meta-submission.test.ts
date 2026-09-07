@@ -257,7 +257,7 @@ describe("submitMetaDeck", () => {
     const h = harness({ eventName: "Summoner Skirmish Berlin" });
     await submitMetaDeck(h.transact, args());
 
-    expect(h.insertPlayer.mock.calls[0][1]).toEqual([
+    expect(h.insertPlayer.mock.calls[0]![1]).toEqual([
       { lineNumber: 0, cardName: "Azir", zone: "legend", quantity: 1, cardId: "card-azir" },
       { lineNumber: 1, cardName: "Shock", zone: "main", quantity: 3, cardId: "card-shock" },
     ]);

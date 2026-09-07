@@ -80,7 +80,7 @@ describe("resolveDeckEntries", () => {
       ["Fury Rune", "runes"],
       ["Sunken Temple", "battlefield"],
     ]);
-    expect(deck.rows[1].printing.id).toBe("p-unit");
+    expect(deck.rows[1]!.printing.id).toBe("p-unit");
   });
 
   it("prefers the entry's explicit zone over inference", () => {
@@ -94,7 +94,7 @@ describe("resolveDeckEntries", () => {
       }),
     ]);
 
-    expect(deck.rows[0].zone).toBe("champion");
+    expect(deck.rows[0]!.zone).toBe("champion");
   });
 
   it("matches short codes case-insensitively", () => {
@@ -102,7 +102,7 @@ describe("resolveDeckEntries", () => {
     const deck = resolveDeckEntries(snapshot, [makeEntry({ shortCode: "ogn-100", quantity: 2 })]);
 
     expect(deck.rows).toHaveLength(1);
-    expect(deck.rows[0].card.name).toBe("Iron Ballista");
+    expect(deck.rows[0]!.card.name).toBe("Iron Ballista");
   });
 
   it("collects unknown short codes without dropping the rest", () => {
@@ -243,7 +243,7 @@ describe("fetchDeckImage", () => {
     );
 
     expect(image).toEqual(new Uint8Array([1, 2, 3]));
-    const [url, init] = fetchImpl.mock.calls[0];
+    const [url, init] = fetchImpl.mock.calls[0]!;
     expect(url).toBe("http://api:3000/api/v1/decks/image");
     expect(JSON.parse(init.body)).toEqual({
       deckName: "Azir, Emperor of the Sands",

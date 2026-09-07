@@ -102,28 +102,28 @@ describe("contributionFileSchema", () => {
 
   it("rejects an http (non-https) image URL", () => {
     const file = validFile();
-    file.printings[0].image_url = "http://example.com/img.png";
+    file.printings[0]!.image_url = "http://example.com/img.png";
     const result = contributionFileSchema.safeParse(file);
     expect(result.success).toBe(false);
   });
 
   it("rejects a 3-letter language code", () => {
     const file = validFile();
-    file.printings[0].language = "ENG";
+    file.printings[0]!.language = "ENG";
     const result = contributionFileSchema.safeParse(file);
     expect(result.success).toBe(false);
   });
 
   it("rejects a lowercase language code", () => {
     const file = validFile();
-    file.printings[0].language = "en";
+    file.printings[0]!.language = "en";
     const result = contributionFileSchema.safeParse(file);
     expect(result.success).toBe(false);
   });
 
   it("accepts a null language", () => {
     const file = validFile();
-    file.printings[0].language = null as unknown as string;
+    file.printings[0]!.language = null as unknown as string;
     const result = contributionFileSchema.safeParse(file);
     expect(result.success).toBe(true);
   });

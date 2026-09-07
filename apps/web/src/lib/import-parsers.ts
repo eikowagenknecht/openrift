@@ -63,7 +63,7 @@ export function detectImportFormat(text: string): ImportFormat | null {
   if (trimmed.startsWith("RIFTCORE COLLECTION EXPORT")) {
     return "riftcore";
   }
-  const firstLine = trimmed.split("\n")[0];
+  const [firstLine = ""] = trimmed.split("\n");
   if (firstLine.includes("Variant Number")) {
     return "piltover-archive";
   }
@@ -141,7 +141,8 @@ function parsePiltoverArchive(text: string): ParseResult {
   const records = parseCSVWithHeaders(text);
   const errors: string[] = [];
 
-  if (records.length === 0) {
+  const [firstRecord] = records;
+  if (firstRecord === undefined) {
     return {
       entries: [],
       errors: ["No data rows found."],
@@ -151,7 +152,6 @@ function parsePiltoverArchive(text: string): ParseResult {
   }
 
   const required = ["Variant Number", "Card Name", "Quantity", "Foil"];
-  const firstRecord = records[0];
   for (const col of required) {
     if (!(col in firstRecord)) {
       errors.push(`Missing required column: "${col}".`);
@@ -249,13 +249,13 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   // e.g. "OGN-001", "SFD-T01", "SFD-R04a", "OGN-123*"
   const standardMatch = /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)$/u.exec(code);
   if (standardMatch) {
-    const { artVariant, shortCode } = resolveCardModifier(
-      standardMatch[1],
-      standardMatch[2],
-      standardMatch[3],
-    );
+    const [, setPrefix, cardNumber, modifier] = standardMatch;
+    if (setPrefix === undefined || cardNumber === undefined || modifier === undefined) {
+      return null;
+    }
+    const { artVariant, shortCode } = resolveCardModifier(setPrefix, cardNumber, modifier);
     return {
-      setPrefix: standardMatch[1],
+      setPrefix,
       artVariant,
       hasFoilSuffix,
       shortCode,
@@ -266,17 +266,17 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   const suffixMatch =
     /^(?<set>[A-Z]{3})-(?<code>[A-Z0-9]{3})(?<modifier>[a-z*]?)-(?<suffix>[A-Za-z]+)$/u.exec(code);
   if (suffixMatch) {
-    const { artVariant, shortCode } = resolveCardModifier(
-      suffixMatch[1],
-      suffixMatch[2],
-      suffixMatch[3],
-    );
+    const [, setPrefix, cardNumber, modifier, promoSuffix] = suffixMatch;
+    if (setPrefix === undefined || cardNumber === undefined || modifier === undefined) {
+      return null;
+    }
+    const { artVariant, shortCode } = resolveCardModifier(setPrefix, cardNumber, modifier);
     return {
-      setPrefix: suffixMatch[1],
+      setPrefix,
       artVariant,
       hasFoilSuffix,
       shortCode,
-      promoSuffix: suffixMatch[4],
+      promoSuffix,
     };
   }
 
@@ -333,12 +333,12 @@ function parseOpenRift(text: string): ParseResult {
   const records = parseCSVWithHeaders(text);
   const errors: string[] = [];
 
-  if (records.length === 0) {
+  const [firstRecord] = records;
+  if (firstRecord === undefined) {
     return { entries: [], errors: ["No data rows found."], source: "openrift", rowCount: 0 };
   }
 
   const required = ["Card ID", "Card Name", "Quantity"];
-  const firstRecord = records[0];
   for (const col of required) {
     if (!(col in firstRecord)) {
       errors.push(`Missing required column: "${col}".`);
@@ -423,10 +423,11 @@ function parseOpenRift(text: string): ParseResult {
 /** Collector part is optional: token printings (the OGN "Buff" tokens) use a bare set code. */
 function parseOpenRiftCardId(cardId: string): { setPrefix: string } | null {
   const match = /^(?<set>[A-Z]{3})(?:-(?<code>[A-Z0-9]{3})[a-z*]?)?$/u.exec(cardId);
-  if (!match) {
+  const setPrefix = match?.[1];
+  if (setPrefix === undefined) {
     return null;
   }
-  return { setPrefix: match[1] };
+  return { setPrefix };
 }
 
 /** Neither modifier says whether the printing is overnumbered; no import format carries that. */
@@ -447,9 +448,11 @@ function parseRiftCore(text: string): ParseResult {
   const allRows = parseCSV(text);
 
   let headerIndex = -1;
-  for (let index = 0; index < Math.min(allRows.length, 10); index++) {
-    if (allRows[index].some((cell) => cell.trim() === "Card ID")) {
+  let headerRow: string[] = [];
+  for (const [index, row] of allRows.slice(0, 10).entries()) {
+    if (row.some((cell) => cell.trim() === "Card ID")) {
       headerIndex = index;
+      headerRow = row;
       break;
     }
   }
@@ -463,7 +466,7 @@ function parseRiftCore(text: string): ParseResult {
     };
   }
 
-  const headers = allRows[headerIndex].map((header) => header.trim());
+  const headers = headerRow.map((header) => header.trim());
   const cardIdCol = headers.indexOf("Card ID");
   const cardNameCol = headers.indexOf("Card Name");
   const standardQtyCol = headers.indexOf("Standard Qty");
@@ -485,8 +488,7 @@ function parseRiftCore(text: string): ParseResult {
 
   const entries: ImportEntry[] = [];
 
-  for (let index = headerIndex + 1; index < allRows.length; index++) {
-    const row = allRows[index];
+  for (const row of allRows.slice(headerIndex + 1)) {
     const cardId = row[cardIdCol]?.trim() ?? "";
     const cardName = row[cardNameCol]?.trim() ?? "";
     const standardQty =
@@ -570,7 +572,12 @@ function parseRiftCoreCardId(cardId: string): RiftCoreCardParts | null {
   const rawModifier = match[3]?.toLowerCase() ?? "";
   const modifier = rawModifier === "s" ? "*" : rawModifier;
 
-  return { setPrefix: match[1], ...resolveCardModifier(match[1], match[2], modifier) };
+  const [, setPrefix, cardNumber] = match;
+  if (setPrefix === undefined || cardNumber === undefined) {
+    return null;
+  }
+
+  return { setPrefix, ...resolveCardModifier(setPrefix, cardNumber, modifier) };
 }
 
 /** Condition tokens we can't map (like "SEAL") import without a recorded condition. */
@@ -578,12 +585,12 @@ function parseRiftMana(text: string): ParseResult {
   const records = parseCSVWithHeaders(text);
   const errors: string[] = [];
 
-  if (records.length === 0) {
+  const [firstRecord] = records;
+  if (firstRecord === undefined) {
     return { entries: [], errors: ["No data rows found."], source: "riftmana", rowCount: 0 };
   }
 
   const required = ["Normal Qty", "Card Name", "Card ID"];
-  const firstRecord = records[0];
   for (const col of required) {
     if (!(col in firstRecord)) {
       errors.push(`Missing required column: "${col}".`);
@@ -693,7 +700,7 @@ function splitQuantityByCondition(
     if (!token || remaining <= 0) {
       continue;
     }
-    const [rawCondition, rawQuantity] = token.split(":");
+    const [rawCondition = "", rawQuantity] = token.split(":");
     // oxlint-disable-next-line unicorn/prefer-number-coercion -- lenient parse of an imported cell; Number() would yield NaN on trailing text
     const parsedQuantity = Number.parseInt(rawQuantity ?? "", 10);
     if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
@@ -740,5 +747,10 @@ function parseRiftManaCardId(cardId: string): RiftManaCardParts | null {
     return null;
   }
 
-  return { setPrefix: match[1], isPromo, ...resolveCardModifier(match[1], match[2], match[3]) };
+  const [, setPrefix, cardNumber, modifier] = match;
+  if (setPrefix === undefined || cardNumber === undefined || modifier === undefined) {
+    return null;
+  }
+
+  return { setPrefix, isPromo, ...resolveCardModifier(setPrefix, cardNumber, modifier) };
 }

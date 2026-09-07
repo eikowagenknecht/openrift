@@ -60,9 +60,9 @@ describe("useDeckTokens", () => {
     );
 
     expect(result.current).toHaveLength(1);
-    expect(result.current[0].card.name).toBe("Sprite");
-    expect(result.current[0].printing.cardId).toBe("sprite");
-    expect(result.current[0].sourceNames).toEqual(["Sprite Mother"]);
+    expect(result.current[0]!.card.name).toBe("Sprite");
+    expect(result.current[0]!.printing.cardId).toBe("sprite");
+    expect(result.current[0]!.sourceNames).toEqual(["Sprite Mother"]);
   });
 
   it("orders tokens by name, not by deck order", () => {
@@ -90,7 +90,7 @@ describe("useDeckTokens", () => {
     );
 
     expect(result.current).toHaveLength(1);
-    expect(result.current[0].sourceNames).toEqual(["Draven", "Chemtech Cask"]);
+    expect(result.current[0]!.sourceNames).toEqual(["Draven", "Chemtech Cask"]);
   });
 
   it("does not list the same source twice when it sits in two zones", () => {
@@ -104,7 +104,7 @@ describe("useDeckTokens", () => {
       ]),
     );
 
-    expect(result.current[0].sourceNames).toEqual(["Draven"]);
+    expect(result.current[0]!.sourceNames).toEqual(["Draven"]);
   });
 
   it("collects tokens from every zone", () => {
@@ -150,7 +150,7 @@ describe("useDeckTokens", () => {
       useDeckTokens([stubDeckBuilderCard({ cardId: "draven", cardName: "Draven" })]),
     );
 
-    expect(result.current[0].printing.language).toBe("EN");
+    expect(result.current[0]!.printing.language).toBe("EN");
   });
 
   it("falls back to the language preference when no printing has art", () => {
@@ -164,6 +164,6 @@ describe("useDeckTokens", () => {
       useDeckTokens([stubDeckBuilderCard({ cardId: "draven", cardName: "Draven" })]),
     );
 
-    expect(result.current[0].printing.language).toBe("FR");
+    expect(result.current[0]!.printing.language).toBe("FR");
   });
 });

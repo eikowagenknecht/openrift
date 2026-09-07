@@ -23,7 +23,7 @@ async function seedDeck(owner: string, name: string): Promise<string> {
     })
     .returning("id")
     .execute();
-  return deck.id;
+  return deck!.id;
 }
 
 if (ctx) {

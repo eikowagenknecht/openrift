@@ -259,8 +259,8 @@ describe("computeCompletion", () => {
     });
 
     expect(cards).toHaveLength(1);
-    expect(cards[0].owned).toBe(2);
-    expect(cards[0].total).toBe(4);
+    expect(cards[0]!.owned).toBe(2);
+    expect(cards[0]!.total).toBe(4);
 
     const printings = computeCompletion({
       stacks: [stack1, stack2, stack3],
@@ -272,8 +272,8 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    expect(printings[0].owned).toBe(3);
-    expect(printings[0].total).toBe(5);
+    expect(printings[0]!.owned).toBe(3);
+    expect(printings[0]!.total).toBe(5);
   });
 
   it("sorts set completion with main sets before supplemental", () => {
@@ -299,8 +299,8 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    expect(entries[0].setType).toBe("main");
-    expect(entries[1].setType).toBe("supplemental");
+    expect(entries[0]!.setType).toBe("main");
+    expect(entries[1]!.setType).toBe("supplemental");
   });
 
   it("computes rarity completion by cards and printings", () => {
@@ -442,8 +442,8 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    expect(entries[0].total).toBe(3);
-    expect(entries[0].owned).toBe(1);
+    expect(entries[0]!.total).toBe(3);
+    expect(entries[0]!.owned).toBe(1);
   });
 
   it("caps owned copies at target in copies mode", () => {
@@ -557,7 +557,7 @@ describe("filterByScope", () => {
     const ja = stubPrinting({ language: "JA" });
     const result = filterByScope([en, ja], { languages: ["EN"] });
     expect(result).toHaveLength(1);
-    expect(result[0].language).toBe("EN");
+    expect(result[0]!.language).toBe("EN");
   });
 
   it("filters by finish", () => {
@@ -565,7 +565,7 @@ describe("filterByScope", () => {
     const foil = stubPrinting({ finish: "foil" });
     const result = filterByScope([normal, foil], { finishes: ["normal"] });
     expect(result).toHaveLength(1);
-    expect(result[0].finish).toBe("normal");
+    expect(result[0]!.finish).toBe("normal");
   });
 
   it("filters by art variant", () => {
@@ -573,7 +573,7 @@ describe("filterByScope", () => {
     const alt = stubPrinting({ artVariant: "altart" });
     const result = filterByScope([normal, alt], { artVariants: ["normal"] });
     expect(result).toHaveLength(1);
-    expect(result[0].artVariant).toBe("normal");
+    expect(result[0]!.artVariant).toBe("normal");
   });
 
   it("applies an exclude-only scope", () => {
@@ -581,7 +581,7 @@ describe("filterByScope", () => {
     const ja = stubPrinting({ language: "JA" });
     const result = filterByScope([en, ja], { languagesExclude: ["JA"] });
     expect(result).toHaveLength(1);
-    expect(result[0].language).toBe("EN");
+    expect(result[0]!.language).toBe("EN");
   });
 
   it("resolves custom tags through the assignment map", () => {

@@ -35,7 +35,7 @@ export function participantDisplayName(name: string | null | undefined, email: s
   if (trimmed) {
     return trimmed;
   }
-  const localPart = email.split("@")[0].trim();
+  const localPart = email.split("@")[0]?.trim();
   return localPart || "Player";
 }
 

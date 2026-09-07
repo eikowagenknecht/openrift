@@ -326,7 +326,7 @@ describe("toCardTradeCopyOptions", () => {
       pinnedCopyIds: ["gone"],
     });
     expect(result.copies.map((row) => row.id)).toEqual(["a"]);
-    expect(result.copies[0].pinned).toBe(false);
+    expect(result.copies[0]!.pinned).toBe(false);
   });
 });
 
@@ -662,7 +662,7 @@ describe("toCardTradeSheetRows", () => {
       { group: GROUP_B, rows: [matchRow()] },
     ]);
     expect(result).toHaveLength(1);
-    expect(result[0].groupId).toBe("group-a");
+    expect(result[0]!.groupId).toBe("group-a");
   });
 
   it("keeps two rows on the same copy when they answer different wants", () => {
@@ -704,7 +704,7 @@ describe("toCardTradeSheetRows", () => {
       { group: GROUP_B, rows: [matchRow({ buyEntryId: null })] },
     ]);
     expect(result).toHaveLength(1);
-    expect(result[0].groupSlug).toBe("arcane-nights");
+    expect(result[0]!.groupSlug).toBe("arcane-nights");
   });
 
   it("returns nothing when no group has rows", () => {

@@ -28,10 +28,11 @@ export function RegionOverview({
   regionLabel?: (slug: string) => string;
 }) {
   const { rows, unassignedCount } = computeRegionOverview(standings);
-  if (rows.length === 0) {
+  const [leadingRow] = rows;
+  if (leadingRow === undefined) {
     return null;
   }
-  const topAvgScore = rows[0].avgScore;
+  const topAvgScore = leadingRow.avgScore;
   return (
     <section className="flex flex-col gap-3">
       <SectionHeading as="h3" count={rows.length}>

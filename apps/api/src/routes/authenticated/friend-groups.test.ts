@@ -206,11 +206,11 @@ describe("friend-groups route", () => {
       outgoingRequests: unknown[];
     };
     expect(body.items).toHaveLength(1);
-    expect(body.items[0].sharedListCount).toBe(3);
-    expect(body.items[0].memberPreviews).toHaveLength(1);
-    expect(body.items[0].memberPreviews[0].userId).toBe(USER_ID);
-    expect(body.items[0].memberPreviews[0].gravatarHash).toBeTruthy();
-    expect(body.items[0].memberPreviews[0].userEmail).toBeUndefined();
+    expect(body.items[0]!.sharedListCount).toBe(3);
+    expect(body.items[0]!.memberPreviews).toHaveLength(1);
+    expect(body.items[0]!.memberPreviews[0]!.userId).toBe(USER_ID);
+    expect(body.items[0]!.memberPreviews[0]!.gravatarHash).toBeTruthy();
+    expect(body.items[0]!.memberPreviews[0]!.userEmail).toBeUndefined();
     expect(body.outgoingRequests).toHaveLength(0);
   });
 
@@ -530,7 +530,7 @@ describe("friend-groups route", () => {
       collectionShares: { collectionId: string; coverPrintings: unknown[] }[];
     };
     expect(coverPrintingsAcross).toHaveBeenCalledWith([COLLECTION_ID], 4);
-    expect(body.collectionShares[0].coverPrintings).toEqual([
+    expect(body.collectionShares[0]!.coverPrintings).toEqual([
       { printingId: PRINTING_ID, imageId: IMAGE_ID },
     ]);
   });
@@ -1017,9 +1017,9 @@ describe("friend-groups route", () => {
           notesPrivate: string | null;
         }[];
       };
-      expect(body.copies[0].condition).toBe("near-mint");
-      expect(body.copies[0].notesPublic).toBe("Pack fresh");
-      expect(body.copies[0].notesPrivate).toBeNull();
+      expect(body.copies[0]!.condition).toBe("near-mint");
+      expect(body.copies[0]!.notesPublic).toBe("Pack fresh");
+      expect(body.copies[0]!.notesPrivate).toBeNull();
     });
 
     it("keeps notesPrivate when the viewer is the collection owner", async () => {
@@ -1030,7 +1030,7 @@ describe("friend-groups route", () => {
       const res = await app.request(`/api/v1/friend-groups/playgroup/collections/${COLLECTION_ID}`);
       expect(res.status).toBe(200);
       const body = (await readJson(res)) as { copies: { notesPrivate: string | null }[] };
-      expect(body.copies[0].notesPrivate).toBe("paid too much");
+      expect(body.copies[0]!.notesPrivate).toBe("paid too much");
     });
   });
 

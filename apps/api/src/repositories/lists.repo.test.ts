@@ -311,7 +311,7 @@ function tableDb(rowsByTable: Record<string, Record<string, unknown>[]>): Kysely
     return new Proxy(() => chain(table), handler);
   }
   return {
-    selectFrom: (arg: string) => chain(arg.split(" ")[0]),
+    selectFrom: (arg: string) => chain(arg.split(" ")[0]!),
   } as unknown as Kysely<Database>;
 }
 

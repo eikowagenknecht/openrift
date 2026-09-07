@@ -1,3 +1,4 @@
+import { enumLabel } from "./enum-label.js";
 import { WellKnown } from "./well-known.js";
 
 /** Structural on purpose: both the web `Printing` and the Discord bot's compact wire shape satisfy it. */
@@ -33,17 +34,17 @@ export function formatPrintingVariantLabelParts(
   const language = siblings && !allSame((c) => c.language) ? printing.language : null;
   const rest: string[] = [];
   if (printing.artVariant !== WellKnown.artVariant.NORMAL) {
-    rest.push(labels.artVariants[printing.artVariant]);
+    rest.push(enumLabel(labels.artVariants, printing.artVariant));
   }
   if (printing.isOvernumbered) {
     rest.push("Overnumbered");
   }
   if (printing.finish !== WellKnown.finish.NORMAL && !allSame((c) => c.finish)) {
-    rest.push(labels.finishes[printing.finish]);
+    rest.push(enumLabel(labels.finishes, printing.finish));
   }
   // Oversized is always labeled, unlike finish/signed/markers: no allSame() check.
   if (printing.size !== WellKnown.cardSize.STANDARD) {
-    rest.push(labels.cardSizes[printing.size]);
+    rest.push(enumLabel(labels.cardSizes, printing.size));
   }
   if (printing.isSigned && !allSame((c) => c.isSigned)) {
     rest.push("Signed");

@@ -124,18 +124,19 @@ export function buildCoalescedTradeRequestsEmail(input: CoalescedTradeRequestsEm
   // direction is good or bad news. The group stays the deep-link location: on
   // the button for a single group, on a muted "In {group}" line when several
   // are involved. A single request keeps the instant email's sentence form.
-  if (total === 1) {
-    const group = input.groups[0];
-    const request = group.requests[0];
-    const card = quantityLabel(request.quantity, request.cardName);
+  const soleGroup = input.groups.find((entry) => entry.requests.length > 0);
+  const soleRequest = soleGroup?.requests[0];
+
+  if (total === 1 && soleGroup && soleRequest) {
+    const card = quantityLabel(soleRequest.quantity, soleRequest.cardName);
     const bodyHtml = `
       <p style="margin:0 0 12px;">${greeting}</p>
-      <p style="margin:0 0 16px;">${requestLead(`<strong>${senderHtml}</strong>`, card, request.kind)}</p>
+      <p style="margin:0 0 16px;">${requestLead(`<strong>${senderHtml}</strong>`, card, soleRequest.kind)}</p>
       <p style="margin:0 0 20px;">Open the trade to accept or decline it. Heads up: trade requests expire 7 days after they're sent.</p>
-      <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
+      <p style="margin:0;">${emailButton(`View the trades in ${soleGroup.groupName}`, soleGroup.tradesUrl)}</p>
     `;
     return {
-      subject: requestSubject(sender, request.cardName, request.kind),
+      subject: requestSubject(sender, soleRequest.cardName, soleRequest.kind),
       html: renderEmailLayout({
         heading: "New trade request",
         bodyHtml,
@@ -296,15 +297,17 @@ export function buildTradeStatusUpdateEmail(input: TradeStatusUpdateEmailInput):
   const allUpdates = input.groups.flatMap((group) => group.updates);
   const total = allUpdates.length;
 
-  if (total === 1) {
-    const group = input.groups[0];
+  const soleGroup = input.groups.find((entry) => entry.updates.length > 0);
+  const soleUpdate = soleGroup?.updates[0];
+
+  if (total === 1 && soleGroup && soleUpdate) {
     const bodyHtml = `
       <p style="margin:0 0 12px;">${greeting}</p>
-      <p style="margin:0 0 20px;">${statusUpdatePhrase(group.updates[0], `<strong>${actorHtml}</strong>`)}.</p>
-      <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
+      <p style="margin:0 0 20px;">${statusUpdatePhrase(soleUpdate, `<strong>${actorHtml}</strong>`)}.</p>
+      <p style="margin:0;">${emailButton(`View the trades in ${soleGroup.groupName}`, soleGroup.tradesUrl)}</p>
     `;
     return {
-      subject: singleUpdateSubject(actor, group.updates[0].event),
+      subject: singleUpdateSubject(actor, soleUpdate.event),
       html: renderEmailLayout({
         heading: "Trade updates",
         bodyHtml,
@@ -410,13 +413,14 @@ export function buildTradeMatchDigestEmail(input: TradeMatchDigestEmailInput): {
   // deep-link location, same as the other trade emails: on the button for a
   // single group, on a muted "In {group}" line when several are involved. A
   // single match keeps the plain-sentence form.
-  if (totalMatches === 1) {
-    const group = input.groups[0];
-    const match = group.matches[0];
+  const soleGroup = input.groups.find((entry) => entry.matches.length > 0);
+  const soleMatch = soleGroup?.matches[0];
+
+  if (totalMatches === 1 && soleGroup && soleMatch) {
     const bodyHtml = `
       <p style="margin:0 0 12px;">${greeting}</p>
-      <p style="margin:0 0 20px;"><strong>${escapeHtml(match.counterpartyLabel)}</strong> now has <strong>${escapeHtml(match.cardName)}</strong> from your wishlist.</p>
-      <p style="margin:0;">${emailButton(`View the trades in ${group.groupName}`, group.tradesUrl)}</p>
+      <p style="margin:0 0 20px;"><strong>${escapeHtml(soleMatch.counterpartyLabel)}</strong> now has <strong>${escapeHtml(soleMatch.cardName)}</strong> from your wishlist.</p>
+      <p style="margin:0;">${emailButton(`View the trades in ${soleGroup.groupName}`, soleGroup.tradesUrl)}</p>
     `;
     return {
       subject,

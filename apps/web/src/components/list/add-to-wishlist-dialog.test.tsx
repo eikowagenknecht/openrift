@@ -91,7 +91,7 @@ describe("AddToWishlistDialog", () => {
 
     expect(entriesFor).toHaveBeenCalledWith("printing");
     expect(bulkAddMutate).toHaveBeenCalledTimes(1);
-    expect(bulkAddMutate.mock.calls[0][0]).toEqual({
+    expect(bulkAddMutate.mock.calls[0]![0]).toEqual({
       listId: "w2",
       entries: [{ printingId: "p1", quantity: 2 }],
     });

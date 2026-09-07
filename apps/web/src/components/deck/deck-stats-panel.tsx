@@ -1,3 +1,4 @@
+import { enumLabel } from "@openrift/shared";
 import { ChevronRightIcon } from "lucide-react";
 
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
@@ -65,7 +66,7 @@ export function DomainBar({
               }}
             />
             <TooltipContent side="bottom">
-              {labels.domains[entry.domain]}: {entry.count}
+              {enumLabel(labels.domains, entry.domain)}: {entry.count}
             </TooltipContent>
           </Tooltip>
         ))}

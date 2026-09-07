@@ -648,7 +648,7 @@ describe("useCardScanner", () => {
 
       expect(getUserMedia).toHaveBeenCalledTimes(1);
       // A fast device gets no frame rate cap.
-      expect(getUserMedia.mock.calls[0][0]).toEqual({
+      expect(getUserMedia.mock.calls[0]![0]).toEqual({
         video: {
           facingMode: { ideal: "environment" },
           width: { ideal: 1920 },
@@ -665,7 +665,7 @@ describe("useCardScanner", () => {
       });
 
       expect(hook.result.current.active).toBe(false);
-      expect(fake.tracks[0].stop).toHaveBeenCalled();
+      expect(fake.tracks[0]!.stop).toHaveBeenCalled();
       expect(video.srcObject).toBeNull();
     });
 
@@ -736,8 +736,8 @@ describe("useCardScanner", () => {
       });
 
       expect(getUserMedia).toHaveBeenCalledTimes(2);
-      const first = getUserMedia.mock.calls[0][0] as { video: MediaTrackConstraints };
-      const second = getUserMedia.mock.calls[1][0] as { video: MediaTrackConstraints };
+      const first = getUserMedia.mock.calls[0]![0] as { video: MediaTrackConstraints };
+      const second = getUserMedia.mock.calls[1]![0] as { video: MediaTrackConstraints };
       expect(first.video.frameRate).toEqual({ max: 30 });
       expect(second.video.frameRate).toBeUndefined();
       expect(hook.result.current.active).toBe(true);
@@ -755,7 +755,7 @@ describe("useCardScanner", () => {
 
       expect(hook.result.current.error).toBe("autoplay blocked");
       expect(hook.result.current.active).toBe(false);
-      expect(fake.tracks[0].stop).toHaveBeenCalled();
+      expect(fake.tracks[0]!.stop).toHaveBeenCalled();
     });
 
     it("opens the camera once for two overlapping start calls", async () => {
@@ -796,7 +796,7 @@ describe("useCardScanner", () => {
         await startPromise;
       });
 
-      expect(fake.tracks[0].stop).toHaveBeenCalled();
+      expect(fake.tracks[0]!.stop).toHaveBeenCalled();
       expect(hook.result.current.active).toBe(false);
       expect(video.srcObject).toBeNull();
       expect(video.play).not.toHaveBeenCalled();
@@ -818,7 +818,7 @@ describe("useCardScanner", () => {
         await startPromise;
       });
 
-      expect(fake.tracks[0].stop).toHaveBeenCalled();
+      expect(fake.tracks[0]!.stop).toHaveBeenCalled();
     });
 
     it("keeps the camera report readable after stop", async () => {
@@ -887,7 +887,7 @@ describe("useCardScanner", () => {
       await runFrames(6);
 
       expect(onLock).toHaveBeenCalledTimes(1);
-      const lock = onLock.mock.calls[0][0];
+      const lock = onLock.mock.calls[0]![0];
       expect(lock.key).toBe("k-a");
       expect(lock.artKey).toBe("art-a");
       expect(lock.label).toBe("Lux (OGN-001 en)");
@@ -896,7 +896,7 @@ describe("useCardScanner", () => {
       expect(lock.resolved).toBe(false);
       const readout = hook.result.current.readout;
       expect(readout.locks).toHaveLength(1);
-      expect(readout.locks[0].key).toBe("k-a");
+      expect(readout.locks[0]!.key).toBe("k-a");
       expect(readout.winnerKey).toBe("k-a");
       expect(readout.aim?.artKey).toBe("art-a");
       expect(readout.candidateAreaFraction).toBeGreaterThan(0.5);
@@ -981,7 +981,7 @@ describe("useCardScanner", () => {
       expect(onLock).toHaveBeenCalledTimes(1);
       expect(hook.result.current.readout.winnerKey).toBe("k-a");
       // A tapped lock times just the single tap's processing.
-      expect(onLock.mock.calls[0][0].framesToLock).toBe(1);
+      expect(onLock.mock.calls[0]![0].framesToLock).toBe(1);
     });
 
     it("ignores a second tap while the first is still processing", async () => {
@@ -1024,7 +1024,7 @@ describe("useCardScanner", () => {
 
       expect(onLock).not.toHaveBeenCalled();
       expect(hook.result.current.unidentified).toHaveLength(1);
-      const card = hook.result.current.unidentified[0];
+      const card = hook.result.current.unidentified[0]!;
       expect(card.candidates).toEqual([{ key: "k-a", artKey: "art-a" }]);
 
       await runFrames(1);
@@ -1049,7 +1049,7 @@ describe("useCardScanner", () => {
       await pumpCameraFrame();
 
       expect(onLock).toHaveBeenCalledTimes(1);
-      const lock = onLock.mock.calls[0][0];
+      const lock = onLock.mock.calls[0]![0];
       expect(lock.key).toBe("k-a");
       expect(lock.framesToLock).toBe(1);
       expect(lock.inliers).toBe(40);
@@ -1137,7 +1137,7 @@ describe("useCardScanner", () => {
 
       expect(attempt.identified).toBe(true);
       expect(onLock).toHaveBeenCalledTimes(1);
-      expect(onLock.mock.calls[0][0].key).toBe("k-a");
+      expect(onLock.mock.calls[0]![0].key).toBe("k-a");
     });
 
     it("offers the shortlist when the frame is not convincing on its own", async () => {

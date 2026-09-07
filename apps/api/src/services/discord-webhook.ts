@@ -127,6 +127,10 @@ function buildNewPrintingSummary(
   events: EnrichedPrintingEvent[],
   appBaseUrl: string,
 ): DiscordWebhookPayload[] {
+  const [firstEvent] = events;
+  if (!firstEvent) {
+    return [];
+  }
   const bySet = Map.groupBy(events, (e) => e.setName ?? "Unknown Set");
   const lines: string[] = [];
 
@@ -159,7 +163,7 @@ function buildNewPrintingSummary(
             title: `${events.length} new printings added`,
             description,
             color: COLOR_NEW,
-            timestamp: events[0].createdAt.toISOString(),
+            timestamp: firstEvent.createdAt.toISOString(),
           },
         ],
       },
@@ -178,7 +182,7 @@ function buildNewPrintingSummary(
             title: `${events.length} new printings added`,
             description: currentLines.join("\n"),
             color: COLOR_NEW,
-            timestamp: events[0].createdAt.toISOString(),
+            timestamp: firstEvent.createdAt.toISOString(),
           },
         ],
       });
@@ -196,7 +200,7 @@ function buildNewPrintingSummary(
           title: `${events.length} new printings added (continued)`,
           description: currentLines.join("\n"),
           color: COLOR_NEW,
-          timestamp: events[0].createdAt.toISOString(),
+          timestamp: firstEvent.createdAt.toISOString(),
         },
       ],
     });

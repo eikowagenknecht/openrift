@@ -116,8 +116,8 @@ function WinnerLine({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 0) {
     return null;
   }
-  const only = winners.length === 1 ? winners[0] : null;
-  const record = only === null ? null : formatRecord(only.wins, only.losses, only.draws);
+  const only = winners.length === 1 ? winners.at(0) : undefined;
+  const record = only === undefined ? null : formatRecord(only.wins, only.losses, only.draws);
   return (
     <span className="flex min-w-0 items-center gap-2 text-sm">
       <LegendThumbs winners={winners} />
@@ -133,8 +133,9 @@ function WinnerLine({ winners }: { winners: readonly MetaEventFinish[] }) {
 }
 
 function LegendThumbs({ winners }: { winners: readonly MetaEventFinish[] }) {
-  if (winners.length === 1) {
-    return <LegendThumb winner={winners[0]} />;
+  const first = winners.at(0);
+  if (winners.length === 1 && first) {
+    return <LegendThumb winner={first} />;
   }
   return (
     <span className="flex shrink-0 items-center -space-x-2">

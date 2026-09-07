@@ -52,7 +52,11 @@ function deriveCardsForMarketplace(
       }
       continue;
     }
-    const { variantMarketplace: _, ...rest } = rows[0];
+    const [firstRow] = rows;
+    if (!firstRow) {
+      continue;
+    }
+    const { variantMarketplace: _, ...rest } = firstRow;
     result.push({
       ...rest,
       externalId: null,
@@ -295,11 +299,12 @@ export async function buildUnifiedMappingsCardResponse(
     repos.marketplaceMapping.stagingForCardAcrossMarketplaces(cardIdentifier, marketplaces),
   ]);
 
-  if (unifiedRows.length === 0) {
+  const [firstUnifiedRow] = unifiedRows;
+  if (!firstUnifiedRow) {
     return { group: null, allCards };
   }
 
-  const thisCardId = unifiedRows[0].cardId;
+  const thisCardId = firstUnifiedRow.cardId;
 
   // Aliases are checked longest-first so a shorter alias can't shadow a longer one belonging to another card.
   const aliasesByLength = allAliases.toSorted((a, b) => b.normName.length - a.normName.length);
@@ -322,97 +327,99 @@ export async function buildUnifiedMappingsCardResponse(
 
   const stagedByMarketplace = Map.groupBy(stagedForThisCard, (row) => row.marketplace);
 
-  const perMarketplaceResults = await Promise.all(
-    configs.map(async (config) => {
-      const matchedCards = deriveCardsForMarketplace(unifiedRows, config.marketplace);
-      const { cardGroups } = buildCardIndex(matchedCards);
-      const rows = stagedByMarketplace.get(config.marketplace) ?? [];
+  const overviewFor = async (config: MarketplaceConfig): Promise<MappingOverviewResult> => {
+    const matchedCards = deriveCardsForMarketplace(unifiedRows, config.marketplace);
+    const { cardGroups } = buildCardIndex(matchedCards);
+    const rows = stagedByMarketplace.get(config.marketplace) ?? [];
 
-      const stagingRows: StagingRow[] = rows.map((r) => ({
-        externalId: r.externalId,
-        groupId: r.groupId,
-        productName: r.productName,
-        finish: r.finish,
-        language: r.language,
-        recordedAt: r.recordedAt,
-        marketCents: r.marketCents,
-        lowCents: r.lowCents,
-        midCents: r.midCents,
-        highCents: r.highCents,
-        trendCents: r.trendCents,
-        avg1Cents: r.avg1Cents,
-        avg7Cents: r.avg7Cents,
-        avg30Cents: r.avg30Cents,
-      }));
+    const stagingRows: StagingRow[] = rows.map((r) => ({
+      externalId: r.externalId,
+      groupId: r.groupId,
+      productName: r.productName,
+      finish: r.finish,
+      language: r.language,
+      recordedAt: r.recordedAt,
+      marketCents: r.marketCents,
+      lowCents: r.lowCents,
+      midCents: r.midCents,
+      highCents: r.highCents,
+      trendCents: r.trendCents,
+      avg1Cents: r.avg1Cents,
+      avg7Cents: r.avg7Cents,
+      avg30Cents: r.avg30Cents,
+    }));
 
-      const stagedByCard = new Map<string, StagingRow[]>();
-      if (cardGroups.has(thisCardId) && stagingRows.length > 0) {
-        stagedByCard.set(thisCardId, stagingRows);
+    const stagedByCard = new Map<string, StagingRow[]>();
+    if (cardGroups.has(thisCardId) && stagingRows.length > 0) {
+      stagedByCard.set(thisCardId, stagingRows);
+    }
+
+    const overrideMap = new Map<string, { cardId: string }>();
+    const groupNameMap = new Map<number, string>();
+    const groupKindMap = new Map<number, MarketplaceGroupKind>();
+    const groupSetSlugMap = new Map<number, string | null>();
+    // Seeds from mapped printings: staging rows are deleted on assignment, so this is
+    // the only place assigned products can still resolve their group name and kind.
+    for (const u of unifiedRows) {
+      if (u.variantMarketplace !== config.marketplace || u.sourceGroupId === null) {
+        continue;
       }
-
-      const overrideMap = new Map<string, { cardId: string }>();
-      const groupNameMap = new Map<number, string>();
-      const groupKindMap = new Map<number, MarketplaceGroupKind>();
-      const groupSetSlugMap = new Map<number, string | null>();
-      // Seeds from mapped printings: staging rows are deleted on assignment, so this is
-      // the only place assigned products can still resolve their group name and kind.
-      for (const u of unifiedRows) {
-        if (u.variantMarketplace !== config.marketplace || u.sourceGroupId === null) {
-          continue;
-        }
-        if (typeof u.sourceGroupName === "string") {
-          groupNameMap.set(u.sourceGroupId, u.sourceGroupName);
-        }
-        if (u.sourceGroupKind !== null && u.sourceGroupKind !== undefined) {
-          groupKindMap.set(u.sourceGroupId, u.sourceGroupKind);
-        }
-        if (!groupSetSlugMap.has(u.sourceGroupId)) {
-          groupSetSlugMap.set(u.sourceGroupId, u.sourceGroupSetSlug);
-        }
+      if (typeof u.sourceGroupName === "string") {
+        groupNameMap.set(u.sourceGroupId, u.sourceGroupName);
       }
-      for (const r of rows) {
-        if (r.isOverride) {
-          overrideMap.set(`${r.externalId}::${r.finish}::${r.language}`, { cardId: thisCardId });
-        }
-        if (r.groupName !== null) {
-          groupNameMap.set(r.groupId, r.groupName);
-        }
-        groupKindMap.set(r.groupId, r.groupKind);
-        groupSetSlugMap.set(r.groupId, r.groupSetSlug);
+      if (u.sourceGroupKind !== null && u.sourceGroupKind !== undefined) {
+        groupKindMap.set(u.sourceGroupId, u.sourceGroupKind);
       }
+      if (!groupSetSlugMap.has(u.sourceGroupId)) {
+        groupSetSlugMap.set(u.sourceGroupId, u.sourceGroupSetSlug);
+      }
+    }
+    for (const r of rows) {
+      if (r.isOverride) {
+        overrideMap.set(`${r.externalId}::${r.finish}::${r.language}`, { cardId: thisCardId });
+      }
+      if (r.groupName !== null) {
+        groupNameMap.set(r.groupId, r.groupName);
+      }
+      groupKindMap.set(r.groupId, r.groupKind);
+      groupSetSlugMap.set(r.groupId, r.groupSetSlug);
+    }
 
-      const mappedPrintingIds = new Set<string>();
-      for (const group of cardGroups.values()) {
-        for (const p of group.printings) {
-          if (p.externalId !== null) {
-            mappedPrintingIds.add(p.printingId);
-          }
+    const mappedPrintingIds = new Set<string>();
+    for (const group of cardGroups.values()) {
+      for (const p of group.printings) {
+        if (p.externalId !== null) {
+          mappedPrintingIds.add(p.printingId);
         }
       }
-      const { mappedProductInfo, mapStagedRow } = await buildStagedRowMapping(
-        config,
-        mappedPrintingIds,
-        groupNameMap,
-        groupKindMap,
-        groupSetSlugMap,
-      );
+    }
+    const { mappedProductInfo, mapStagedRow } = await buildStagedRowMapping(
+      config,
+      mappedPrintingIds,
+      groupNameMap,
+      groupKindMap,
+      groupSetSlugMap,
+    );
 
-      const groups = buildResponseGroups(
-        cardGroups,
-        stagedByCard,
-        overrideMap,
-        mappedProductInfo,
-        groupNameMap,
-        groupKindMap,
-        groupSetSlugMap,
-        mapStagedRow,
-      );
+    const groups = buildResponseGroups(
+      cardGroups,
+      stagedByCard,
+      overrideMap,
+      mappedProductInfo,
+      groupNameMap,
+      groupKindMap,
+      groupSetSlugMap,
+      mapStagedRow,
+    );
 
-      return { groups, unmatchedProducts: [], allCards: [] } satisfies MappingOverviewResult;
-    }),
-  );
+    return { groups, unmatchedProducts: [], allCards: [] } satisfies MappingOverviewResult;
+  };
 
-  const [tcgResult, cmResult, ctResult] = perMarketplaceResults;
+  const [tcgResult, cmResult, ctResult] = await Promise.all([
+    overviewFor(tcgplayerConfig),
+    overviewFor(cardmarketConfig),
+    overviewFor(cardtraderConfig),
+  ]);
   const mergedMap = mergeOverviewsByCard(tcgResult, cmResult, ctResult);
   const withPrimary = withPrimaryShortCode(mergedMap);
   const group = withPrimary[0] ?? null;

@@ -212,16 +212,19 @@ export function paintOverlay(
 
   if (target.guide) {
     mapQuad(target.guide, mapping, state.guide);
-    context.beginPath();
-    context.moveTo(state.guide[0].x, state.guide[0].y);
-    for (let index = 1; index < state.guide.length; index++) {
-      context.lineTo(state.guide[index].x, state.guide[index].y);
+    const [start, ...rest] = state.guide;
+    if (start) {
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      for (const point of rest) {
+        context.lineTo(point.x, point.y);
+      }
+      context.closePath();
+      context.lineWidth = 2;
+      context.lineCap = "butt";
+      context.strokeStyle = GUIDE_COLOR;
+      context.stroke();
     }
-    context.closePath();
-    context.lineWidth = 2;
-    context.lineCap = "butt";
-    context.strokeStyle = GUIDE_COLOR;
-    context.stroke();
   }
 
   if (fresh) {

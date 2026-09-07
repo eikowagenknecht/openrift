@@ -112,9 +112,9 @@ describe("collapseTeamStandings", () => {
       standingRow("b2", "B", { score: 6 }),
     ]);
     expect(rows).toHaveLength(2);
-    expect(rows[0].displayName).toBe("Player a1 & Player a2");
-    expect(rows[0].score).toBe(9);
-    expect(rows[1].displayName).toBe("Player b1 & Player b2");
+    expect(rows[0]!.displayName).toBe("Player a1 & Player a2");
+    expect(rows[0]!.score).toBe(9);
+    expect(rows[1]!.displayName).toBe("Player b1 & Player b2");
   });
 
   it("collapses teammates even when another team's rows sit between them", () => {
@@ -133,7 +133,7 @@ describe("collapseTeamStandings", () => {
   it("passes teamless rows through unchanged", () => {
     const rows = collapseTeamStandings([standingRow("solo", null)]);
     expect(rows).toHaveLength(1);
-    expect(rows[0].displayName).toBe("Player solo");
+    expect(rows[0]!.displayName).toBe("Player solo");
   });
 
   it("returns nothing for empty standings", () => {

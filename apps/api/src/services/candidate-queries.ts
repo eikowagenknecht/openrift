@@ -260,14 +260,18 @@ export async function buildCandidateCardList(
   }
 
   for (const group of ccGroupsByNormName.values()) {
+    const [firstCandidate] = group;
+    if (!firstCandidate) {
+      continue;
+    }
     // Not the map key — punctuation-only names are keyed by raw name so they
     // stay separate rows, but the response still carries their real (empty)
     // normalizedName, which the client uses to suppress the accept/link
     // affordances that need a lookup key.
-    const normName = group[0].normName;
+    const normName = firstCandidate.normName;
     results.push({
       cardSlug: null,
-      name: group[0].name,
+      name: firstCandidate.name,
       normalizedName: normName,
       shortCodes: [],
       stagingShortCodes: stagingIdsForGroup(group),
@@ -523,7 +527,10 @@ async function buildDetailResponse(
 
   const filteredGroups: CandidatePrintingGroupResponse[] = [];
   for (const [, groupCandidates] of cpGroupMap) {
-    const first = groupCandidates[0];
+    const [first] = groupCandidates;
+    if (!first) {
+      continue;
+    }
     const mcShortCode = mostCommonValue(groupCandidates.map((s) => s.shortCode));
     const finish = resolveFinish(first.finish, first.rarity);
     const language = mostCommonValue(groupCandidates.map((s) => s.language ?? "")) || null;
@@ -547,12 +554,13 @@ async function buildDetailResponse(
     });
   }
 
+  const [firstCandidateName] = candidates;
   const displayName = card
     ? card.name
-    : candidates.length > 0
+    : firstCandidateName
       ? candidates.reduce(
           (best, s) => (s.name.length < best.length ? s.name : best),
-          candidates[0].name,
+          firstCandidateName.name,
         )
       : fallbackDisplayName;
 

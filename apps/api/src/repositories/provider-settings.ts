@@ -15,11 +15,11 @@ export function providerSettingsRepo(db: Kysely<Database>) {
 
     async reorder(providers: string[]) {
       await db.transaction().execute(async (tx) => {
-        for (let i = 0; i < providers.length; i++) {
+        for (const [i, provider] of providers.entries()) {
           await tx
             .insertInto("providerSettings")
             .values({
-              provider: providers[i],
+              provider,
               sortOrder: i + 1,
               isHidden: false,
               isFavorite: false,

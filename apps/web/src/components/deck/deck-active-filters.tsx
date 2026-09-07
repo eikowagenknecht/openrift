@@ -1,3 +1,4 @@
+import { enumLabel } from "@openrift/shared";
 import { MinusIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -76,7 +77,7 @@ export function DeckActiveFilters() {
       {domains.map((domain) =>
         chip(
           domain,
-          enumLabels.domains[domain],
+          enumLabel(enumLabels.domains, domain),
           false,
           () => cycleDomain(domain),
           getFilterIconPath("domains", domain),
@@ -85,7 +86,7 @@ export function DeckActiveFilters() {
       {domainsExclude.map((domain) =>
         chip(
           `ex-${domain}`,
-          enumLabels.domains[domain],
+          enumLabel(enumLabels.domains, domain),
           true,
           () => cycleDomain(domain),
           getFilterIconPath("domains", domain),

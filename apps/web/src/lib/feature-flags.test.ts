@@ -47,7 +47,7 @@ describe("loadFeatureFlags", () => {
 
     expect(flags).toEqual({ "beta-flag": true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const { url, headers } = readFetchCall(fetchMock.mock.calls[0]);
+    const { url, headers } = readFetchCall(fetchMock.mock.calls[0]!);
     expect(url).toBe("http://localhost:3000/api/v1/feature-flags");
     expect(headers.get("cookie")).toBe(SESSION_COOKIE);
   });
@@ -74,7 +74,7 @@ describe("loadFeatureFlags", () => {
     await loadFeatureFlags(NO_SESSION_COOKIE);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const { headers } = readFetchCall(fetchMock.mock.calls[0]);
+    const { headers } = readFetchCall(fetchMock.mock.calls[0]!);
     expect(headers.get("cookie")).toBeNull();
   });
 

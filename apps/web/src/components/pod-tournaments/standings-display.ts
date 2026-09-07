@@ -14,14 +14,22 @@ export function formatScore(score: number): string {
  * Deeper tie-breaks order the rows but don't affect the rank.
  */
 export function standingRanks(standings: readonly PodStandingRow[]): number[] {
-  const ranks: number[] = [];
+  return rankedStandings(standings).map((entry) => entry.rank);
+}
+
+export function rankedStandings<T extends PodStandingRow>(
+  standings: readonly T[],
+): { row: T; rank: number }[] {
+  const ranked: { row: T; rank: number }[] = [];
+  let previous: PodStandingRow | undefined;
+  let previousRank = 0;
   for (const [index, row] of standings.entries()) {
-    const previous = standings[index - 1];
-    ranks.push(
-      previous !== undefined && previous.score === row.score ? ranks[index - 1] : index + 1,
-    );
+    const rank = previous !== undefined && previous.score === row.score ? previousRank : index + 1;
+    ranked.push({ row, rank });
+    previous = row;
+    previousRank = rank;
   }
-  return ranks;
+  return ranked;
 }
 
 // Engine's tie-break chain below the score, in order. `podWins` is omitted:

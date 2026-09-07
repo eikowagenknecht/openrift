@@ -54,7 +54,7 @@ describe("SelectionDetailPane", () => {
   it("renders nothing while the pane is undocked", () => {
     const items = [stubCardViewerItem()];
     useSelectionStore.setState({
-      selectedCard: items[0].printing,
+      selectedCard: items[0]!.printing,
       selectedIndex: 0,
       detailOpen: true,
     });
@@ -74,7 +74,7 @@ describe("SelectionDetailPane", () => {
     const items = [stubCardViewerItem()];
     useDisplayStore.setState({ paneDocked: true });
     useSelectionStore.setState({
-      selectedCard: items[0].printing,
+      selectedCard: items[0]!.printing,
       selectedIndex: 0,
       detailOpen: true,
     });
@@ -89,7 +89,7 @@ describe("SelectionDetailPane", () => {
     const items = [stubCardViewerItem()];
     useDisplayStore.setState({ paneDocked: true });
     useSelectionStore.setState({
-      selectedCard: items[0].printing,
+      selectedCard: items[0]!.printing,
       selectedIndex: 0,
       detailOpen: true,
     });

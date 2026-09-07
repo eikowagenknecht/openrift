@@ -20,7 +20,7 @@ function harness(responses: (() => Response)[]) {
   const fetchFn: Fetch = (input, init) => {
     urls.push(requestUrl(input));
     inits.push(init);
-    const next = responses[Math.min(call, responses.length - 1)];
+    const next = responses[Math.min(call, responses.length - 1)]!;
     call++;
     return Promise.resolve(next());
   };

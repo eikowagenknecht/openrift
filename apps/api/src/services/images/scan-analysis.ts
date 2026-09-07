@@ -52,6 +52,42 @@ const SCAN_EDGE_COVERAGE = 0.85;
  * Returns `null` when the scan holds no content or the buffer doesn't match
  * the given dimensions.
  */
+function tightenForward(
+  counts: number[],
+  from: number,
+  limit: number,
+  minFull: number,
+  maxSteps: number,
+): number {
+  let index = from;
+  for (let steps = 0; steps < maxSteps && index < limit; steps++) {
+    const count = counts[index];
+    if (count === undefined || count >= minFull) {
+      break;
+    }
+    index++;
+  }
+  return index;
+}
+
+function tightenBackward(
+  counts: number[],
+  from: number,
+  limit: number,
+  minFull: number,
+  maxSteps: number,
+): number {
+  let index = from;
+  for (let steps = 0; steps < maxSteps && index > limit; steps++) {
+    const count = counts[index];
+    if (count === undefined || count >= minFull) {
+      break;
+    }
+    index--;
+  }
+  return index;
+}
+
 export function computeScanCropBox(
   grey: Uint8Array,
   width: number,
@@ -69,36 +105,26 @@ export function computeScanCropBox(
   const colCounts: number[] = Array.from({ length: width }, () => 0);
   for (let y = 0; y < height; y++) {
     const rowStart = y * width;
-    for (let x = 0; x < width; x++) {
-      if (grey[rowStart + x] < SCAN_CONTENT_LUMINANCE) {
-        rowCounts[y]++;
-        colCounts[x]++;
+    let rowDark = 0;
+    for (const [x, luminance] of grey.subarray(rowStart, rowStart + width).entries()) {
+      if (luminance < SCAN_CONTENT_LUMINANCE) {
+        rowDark++;
+        colCounts[x] = (colCounts[x] ?? 0) + 1;
       }
     }
+    rowCounts[y] = rowDark;
   }
 
-  let top = 0;
-  while (top < height && rowCounts[top] < minRowDark) {
-    top++;
-  }
-  if (top === height) {
+  let top = rowCounts.findIndex((count) => count >= minRowDark);
+  if (top === -1) {
     return null;
   }
-  let bottom = height - 1;
-  while (bottom > top && rowCounts[bottom] < minRowDark) {
-    bottom--;
-  }
-  let left = 0;
-  while (left < width && colCounts[left] < minColDark) {
-    left++;
-  }
-  if (left === width) {
+  let bottom = rowCounts.findLastIndex((count) => count >= minRowDark);
+  let left = colCounts.findIndex((count) => count >= minColDark);
+  if (left === -1) {
     return null;
   }
-  let right = width - 1;
-  while (right > left && colCounts[right] < minColDark) {
-    right--;
-  }
+  let right = colCounts.findLastIndex((count) => count >= minColDark);
 
   const boxWidth = right - left + 1;
   const boxHeight = bottom - top + 1;
@@ -106,26 +132,10 @@ export function computeScanCropBox(
   const minColFull = Math.round(boxHeight * SCAN_EDGE_COVERAGE);
   const maxTightenY = Math.max(4, Math.round(boxHeight * 0.007));
   const maxTightenX = Math.max(4, Math.round(boxWidth * 0.007));
-  let steps = 0;
-  while (steps < maxTightenY && top < bottom && rowCounts[top] < minRowFull) {
-    top++;
-    steps++;
-  }
-  steps = 0;
-  while (steps < maxTightenY && bottom > top && rowCounts[bottom] < minRowFull) {
-    bottom--;
-    steps++;
-  }
-  steps = 0;
-  while (steps < maxTightenX && left < right && colCounts[left] < minColFull) {
-    left++;
-    steps++;
-  }
-  steps = 0;
-  while (steps < maxTightenX && right > left && colCounts[right] < minColFull) {
-    right--;
-    steps++;
-  }
+  top = tightenForward(rowCounts, top, bottom, minRowFull, maxTightenY);
+  bottom = tightenBackward(rowCounts, bottom, top, minRowFull, maxTightenY);
+  left = tightenForward(colCounts, left, right, minColFull, maxTightenX);
+  right = tightenBackward(colCounts, right, left, minColFull, maxTightenX);
   return { left, top, width: right - left + 1, height: bottom - top + 1 };
 }
 
@@ -144,17 +154,17 @@ export function computeScanLevels(
   }
   const hist: number[] = Array.from({ length: 256 }, () => 0);
   for (let y = box.top; y < box.top + box.height; y++) {
-    const rowStart = y * width;
-    for (let x = box.left; x < box.left + box.width; x++) {
-      hist[grey[rowStart + x]]++;
+    const rowStart = y * width + box.left;
+    for (const luminance of grey.subarray(rowStart, rowStart + box.width)) {
+      hist[luminance] = (hist[luminance] ?? 0) + 1;
     }
   }
   const percentile = (p: number): number => {
     let acc = 0;
-    for (let i = 0; i < 256; i++) {
-      acc += hist[i];
+    for (const [luminance, count] of hist.entries()) {
+      acc += count;
       if (acc / total >= p) {
-        return i;
+        return luminance;
       }
     }
     return 255;

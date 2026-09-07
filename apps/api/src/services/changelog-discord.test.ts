@@ -79,7 +79,7 @@ describe("buildDiscordPayloads", () => {
       { date: "2026-06-16", type: "fix", section: "other", title: "A fix", message: "fixed" },
     ]);
 
-    expect(payloads[0].embeds[0].description).toBe(
+    expect(payloads[0]!.embeds[0]!.description).toBe(
       "__Highlights__\n🆕 **Big thing**: matters\n\n__Other__\n🆕 **Small thing**: minor\n🔧 **A fix**: fixed",
     );
   });
@@ -98,10 +98,10 @@ describe("buildDiscordPayloads", () => {
 
     expect(payloads.length).toBeGreaterThan(1);
     for (const payload of payloads) {
-      expect(payload.embeds[0].title).toBe("What's new (2026-04-18)");
-      expect(payload.embeds[0].description.length).toBeLessThanOrEqual(4096);
+      expect(payload.embeds[0]!.title).toBe("What's new (2026-04-18)");
+      expect(payload.embeds[0]!.description.length).toBeLessThanOrEqual(4096);
     }
-    const recombined = payloads.map((p) => p.embeds[0].description).join("\n");
+    const recombined = payloads.map((p) => p.embeds[0]!.description).join("\n");
     expect(recombined.split("\n")).toHaveLength(10);
   });
 });

@@ -1,4 +1,5 @@
 import type { AvailableFilters, PresenceDimension, RangeKey } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 import { MinusIcon, XIcon } from "lucide-react";
 
 import { CardIcon } from "@/components/card-icon";
@@ -155,21 +156,21 @@ export function ActiveFilters({
       section: "rarities",
       label: "Rarity",
       values: filterState.raritiesEx,
-      displayLabel: (v: string) => labels.rarities[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.rarities, v),
     },
     {
       key: "typesEx",
       section: "types",
       label: "Type",
       values: filterState.typesEx,
-      displayLabel: (v: string) => labels.cardTypes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.cardTypes, v),
     },
     {
       key: "superTypesEx",
       section: "superTypes",
       label: "Supertype",
       values: filterState.superTypesEx,
-      displayLabel: (v: string) => labels.superTypes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.superTypes, v),
     },
     {
       key: "domainsEx",
@@ -183,14 +184,14 @@ export function ActiveFilters({
       section: "artVariants",
       label: "Art Variant",
       values: filterState.artVariantsEx,
-      displayLabel: (v: string) => labels.artVariants[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.artVariants, v),
     },
     {
       key: "finishesEx",
       section: "finishes",
       label: "Finish",
       values: filterState.finishesEx,
-      displayLabel: (v: string) => labels.finishes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.finishes, v),
     },
     {
       key: "markersEx",
@@ -252,19 +253,19 @@ export function ActiveFilters({
       key: "rarities",
       label: "Rarity",
       values: filterState.rarities,
-      displayLabel: (v: string) => labels.rarities[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.rarities, v),
     },
     {
       key: "types",
       label: "Type",
       values: filterState.types,
-      displayLabel: (v: string) => labels.cardTypes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.cardTypes, v),
     },
     {
       key: "superTypes",
       label: "Supertype",
       values: filterState.superTypes,
-      displayLabel: (v: string) => labels.superTypes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.superTypes, v),
     },
     {
       key: "domains",
@@ -276,19 +277,19 @@ export function ActiveFilters({
       key: "artVariants",
       label: "Art Variant",
       values: filterState.artVariants,
-      displayLabel: (v: string) => labels.artVariants[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.artVariants, v),
     },
     {
       key: "finishes",
       label: "Finish",
       values: filterState.finishes,
-      displayLabel: (v: string) => labels.finishes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.finishes, v),
     },
     {
       key: "cardSizes",
       label: "Size",
       values: filterState.cardSizes,
-      displayLabel: (v: string) => labels.cardSizes[v] ?? v,
+      displayLabel: (v: string) => enumLabel(labels.cardSizes, v),
     },
     {
       key: "markers",

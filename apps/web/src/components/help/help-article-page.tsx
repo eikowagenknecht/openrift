@@ -43,9 +43,7 @@ export function HelpArticlePage({ article }: { article: HelpArticle }) {
           {article.title}
         </Heading>
 
-        <Suspense>
-          <ArticleContent />
-        </Suspense>
+        <Suspense>{ArticleContent && <ArticleContent />}</Suspense>
       </div>
     </div>
   );

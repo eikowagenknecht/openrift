@@ -79,10 +79,15 @@ export function extractDeckFromUrl(text: string): DeckImportUrlSniff | null {
 
 export function sniffDeckImportFormat(text: string): DeckImportFormat {
   const tokens = text.trim().split(/\s+/u);
-  if (tokens.length > 0 && tokens[0] !== "" && tokens.every((token) => TTS_TOKEN.test(token))) {
+  const [firstToken] = tokens;
+  if (
+    firstToken !== undefined &&
+    firstToken !== "" &&
+    tokens.every((token) => TTS_TOKEN.test(token))
+  ) {
     return "tts";
   }
-  if (tokens.length === 1 && isDeckCode(tokens[0])) {
+  if (tokens.length === 1 && firstToken !== undefined && isDeckCode(firstToken)) {
     return "piltover";
   }
   return "text";

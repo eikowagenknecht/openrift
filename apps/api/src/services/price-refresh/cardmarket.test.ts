@@ -409,7 +409,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(stubFetch, repos, log);
 
       const staging = upsertStaging();
-      expect(staging[0].recordedAt).toEqual(new Date("2026-03-10T02:49:27+0100"));
+      expect(staging[0]!.recordedAt).toEqual(new Date("2026-03-10T02:49:27+0100"));
     });
 
     it("falls back to lastModified when createdAt is absent", async () => {
@@ -424,7 +424,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(stubFetch, repos, log);
 
       const staging = upsertStaging();
-      expect(staging[0].recordedAt).toEqual(lastMod);
+      expect(staging[0]!.recordedAt).toEqual(lastMod);
     });
 
     it("falls back to current time when neither createdAt nor lastModified exist", async () => {
@@ -439,7 +439,7 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(stubFetch, repos, log);
 
       const staging = upsertStaging();
-      const ts = staging[0].recordedAt.getTime();
+      const ts = staging[0]!.recordedAt.getTime();
       expect(ts).toBeGreaterThanOrEqual(before);
       expect(ts).toBeLessThanOrEqual(Date.now());
     });
@@ -571,8 +571,8 @@ describe("refreshCardmarketPrices", () => {
       await refreshCardmarketPrices(stubFetch, repos, log);
 
       const staging = upsertStaging();
-      expect(staging[0].midCents).toBeNull();
-      expect(staging[0].highCents).toBeNull();
+      expect(staging[0]!.midCents).toBeNull();
+      expect(staging[0]!.highCents).toBeNull();
     });
 
     it("upserts cardmarket marketplace config", async () => {

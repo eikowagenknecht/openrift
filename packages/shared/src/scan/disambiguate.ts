@@ -83,7 +83,7 @@ function normalizeSignature(signature: GrayImage): GrayImage {
   }
   const gain = 48 / std;
   for (let i = 0; i < data.length; i++) {
-    data[i] = Math.max(0, Math.min(255, Math.round(128 + (data[i] - mean) * gain)));
+    data[i] = Math.max(0, Math.min(255, Math.round(128 + ((data[i] ?? 0) - mean) * gain)));
   }
   return signature;
 }
@@ -166,8 +166,8 @@ export function correlateSignatures(a: GrayImage, b: GrayImage): number {
   let meanA = 0;
   let meanB = 0;
   for (let i = 0; i < length; i++) {
-    meanA += a.data[i];
-    meanB += b.data[i];
+    meanA += a.data[i] ?? 0;
+    meanB += b.data[i] ?? 0;
   }
   meanA /= length;
   meanB /= length;
@@ -175,8 +175,8 @@ export function correlateSignatures(a: GrayImage, b: GrayImage): number {
   let varA = 0;
   let varB = 0;
   for (let i = 0; i < length; i++) {
-    const da = a.data[i] - meanA;
-    const db = b.data[i] - meanB;
+    const da = (a.data[i] ?? 0) - meanA;
+    const db = (b.data[i] ?? 0) - meanB;
     cross += da * db;
     varA += da * da;
     varB += db * db;
@@ -208,8 +208,8 @@ function correlationAtOffset(
       if (mask && mask[referenceRow + x] === 0) {
         continue;
       }
-      const q = query.data[queryRow + x + dx];
-      const r = reference.data[referenceRow + x];
+      const q = query.data[queryRow + x + dx] ?? 0;
+      const r = reference.data[referenceRow + x] ?? 0;
       count++;
       sumQ += q;
       sumR += r;
@@ -259,7 +259,7 @@ function shiftGray(src: GrayImage, dx: number, dy: number): GrayImage {
     const sy = Math.min(height - 1, Math.max(0, y + dy));
     for (let x = 0; x < width; x++) {
       const sx = Math.min(width - 1, Math.max(0, x + dx));
-      data[y * width + x] = src.data[sy * width + sx];
+      data[y * width + x] = src.data[sy * width + sx] ?? 0;
     }
   }
   return { data, width, height };
@@ -285,7 +285,8 @@ export function discriminativeMargin(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const difference = Math.abs(
-        referenceA.data[y * referenceA.width + x] - alignedB.data[y * alignedB.width + x],
+        (referenceA.data[y * referenceA.width + x] ?? 0) -
+          (alignedB.data[y * alignedB.width + x] ?? 0),
       );
       if (difference >= MASK_THRESHOLD) {
         raw[y * referenceA.width + x] = 1;
@@ -309,7 +310,7 @@ export function discriminativeMargin(
           const ny = y + dy;
           const nx = x + dx;
           if (ny >= 0 && ny < height && nx >= 0 && nx < width) {
-            neighbours += raw[ny * referenceA.width + nx];
+            neighbours += raw[ny * referenceA.width + nx] ?? 0;
           }
         }
       }

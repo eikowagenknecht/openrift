@@ -356,8 +356,8 @@ describe("POST /cards/:cardId/check-all", () => {
 
     await app.request(`/api/admin/v1/cards/${CARD_ID2}/check-all`, { method: "POST" });
     const callArgs = mockCandidateCards.checkAllCandidateCards.mock.calls[0];
-    const uniqueVariants = new Set(callArgs[0]);
-    expect(uniqueVariants.size).toBe(callArgs[0].length);
+    const uniqueVariants = new Set(callArgs![0]);
+    expect(uniqueVariants.size).toBe(callArgs![0].length);
   });
 });
 

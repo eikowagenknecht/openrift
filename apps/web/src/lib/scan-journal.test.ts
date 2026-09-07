@@ -47,7 +47,7 @@ describe("appendScanJournal", () => {
   it("stores nothing beyond the fields it was given", () => {
     appendScanJournal({ type: "add-start", batchId: "b1", collectionId: "col-1", jobs: 4 });
 
-    expect(Object.keys(readScanJournal()[0]).toSorted()).toEqual([
+    expect(Object.keys(readScanJournal()[0]!).toSorted()).toEqual([
       "batchId",
       "collectionId",
       "jobs",

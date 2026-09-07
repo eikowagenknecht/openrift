@@ -486,7 +486,7 @@ describe("useCollectionCardData", () => {
     );
     expect(result.current.filterCounts.rarities.size).toBe(0);
     expect(result.current.sortedCards).toHaveLength(1);
-    expect(result.current.sortedCards[0].rarity).toBe("rare");
+    expect(result.current.sortedCards[0]!.rarity).toBe("rare");
     expect(result.current.availableFilters.rarities.length).toBeGreaterThan(0);
   });
 });

@@ -387,7 +387,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].finish).toBe("foil");
+      expect(staging[0]!.finish).toBe("foil");
     });
 
     it("picks the cheapest listing per blueprint+finish", async () => {
@@ -425,7 +425,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(50);
+      expect(staging[0]!.lowCents).toBe(50);
     });
   });
 
@@ -623,7 +623,7 @@ describe("refreshCardtraderPrices", () => {
 
       const insertCall = (
         repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
-      ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
+      ).mock.calls[0]![0] as { printingId: string; finish: string; language: string }[];
       expect(insertCall).toHaveLength(1);
       expect(insertCall[0]).toMatchObject({
         printingId: "p-sc",
@@ -705,7 +705,7 @@ describe("refreshCardtraderPrices", () => {
       expect(repos.priceRefresh.batchInsertProductVariants).toHaveBeenCalled();
       const insertCall = (
         repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
-      ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
+      ).mock.calls[0]![0] as { printingId: string; finish: string; language: string }[];
       expect(insertCall).toHaveLength(1);
       expect(insertCall[0]).toMatchObject({
         printingId: "p-sc",
@@ -776,7 +776,7 @@ describe("refreshCardtraderPrices", () => {
 
       const insertCall = (
         repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
-      ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
+      ).mock.calls[0]![0] as { printingId: string; finish: string; language: string }[];
       expect(insertCall).toHaveLength(2);
       expect(insertCall).toEqual(
         expect.arrayContaining([
@@ -924,7 +924,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(200);
+      expect(staging[0]!.lowCents).toBe(200);
     });
 
     it("includes listings without a condition field (assumed NM)", async () => {
@@ -955,7 +955,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(100);
+      expect(staging[0]!.lowCents).toBe(100);
     });
 
     it("skips blueprint entirely when all listings are non-NM", async () => {
@@ -1024,7 +1024,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(200);
+      expect(staging[0]!.lowCents).toBe(200);
     });
 
     it("excludes bundle_size > 1 listings from pricing", async () => {
@@ -1066,7 +1066,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(100);
+      expect(staging[0]!.lowCents).toBe(100);
     });
 
     it("populates zeroLowCents with the cheapest Zero-eligible listing", async () => {
@@ -1114,8 +1114,8 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(80);
-      expect(staging[0].zeroLowCents).toBe(150);
+      expect(staging[0]!.lowCents).toBe(80);
+      expect(staging[0]!.zeroLowCents).toBe(150);
     });
 
     it("leaves zeroLowCents null when no listings are Zero-eligible", async () => {
@@ -1147,8 +1147,8 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].lowCents).toBe(100);
-      expect(staging[0].zeroLowCents).toBeNull();
+      expect(staging[0]!.lowCents).toBe(100);
+      expect(staging[0]!.zeroLowCents).toBeNull();
     });
 
     it("picks the cheapest foil listing when multiple exist", async () => {

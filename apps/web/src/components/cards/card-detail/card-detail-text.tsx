@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { enumLabel } from "@openrift/shared";
 
 import { CardText } from "@/components/cards/card-text";
 import { OrnamentBase } from "@/components/ui/ornament";
@@ -118,8 +119,8 @@ export function CardDetailText({
         {rarityIcon && (
           <img
             src={rarityIcon}
-            alt={labels.rarities[printing.rarity]}
-            title={labels.rarities[printing.rarity]}
+            alt={enumLabel(labels.rarities, printing.rarity)}
+            title={enumLabel(labels.rarities, printing.rarity)}
             width={28}
             height={28}
             className="size-4"

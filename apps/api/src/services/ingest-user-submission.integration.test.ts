@@ -88,16 +88,16 @@ describe.skipIf(!ctx)("ingestUserSubmission integration", () => {
       .where("submittedByUserId", "=", USER_ID)
       .execute();
     expect(rows).toHaveLength(1);
-    expect(rows[0].name).toBe("Test alpha");
-    expect(rows[0].submissionNote).toBe("spotted in the OGN set list");
+    expect(rows[0]!.name).toBe("Test alpha");
+    expect(rows[0]!.submissionNote).toBe("spotted in the OGN set list");
 
     const printings = await db
       .selectFrom("candidatePrintings")
       .selectAll()
-      .where("candidateCardId", "=", rows[0].id)
+      .where("candidateCardId", "=", rows[0]!.id)
       .execute();
     expect(printings).toHaveLength(1);
-    expect(printings[0].shortCode).toBe("US-001");
+    expect(printings[0]!.shortCode).toBe("US-001");
   });
 
   it("keeps earlier submissions when a new one arrives (no provider full-replace)", async () => {

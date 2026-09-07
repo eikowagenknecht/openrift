@@ -51,7 +51,11 @@ export function catalogDeleteGuardsRepo(db: Kysely<Database>) {
              JOIN printings p ON p.id = pp.printing_id
             WHERE p.card_id = ${cardId})::int AS "productPrintings"
       `.execute(db);
-      return result.rows[0];
+      const [blockers] = result.rows;
+      if (!blockers) {
+        throw new Error("card delete-blocker query returned no rows");
+      }
+      return blockers;
     },
 
     async countForPrinting(printingId: string): Promise<PrintingDeleteBlockers> {
@@ -72,7 +76,11 @@ export function catalogDeleteGuardsRepo(db: Kysely<Database>) {
           (SELECT count(*) FROM product_printings
             WHERE printing_id = ${printingId})::int AS "productPrintings"
       `.execute(db);
-      return result.rows[0];
+      const [blockers] = result.rows;
+      if (!blockers) {
+        throw new Error("printing delete-blocker query returned no rows");
+      }
+      return blockers;
     },
   };
 }

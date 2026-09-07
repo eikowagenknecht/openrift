@@ -45,7 +45,7 @@ describe("keysetPage", () => {
   it("drops the over-fetched row and builds the cursor from the last kept one", () => {
     expect(keysetPage(rows, 2, (row) => row.id)).toEqual({
       items: ["a", "b"],
-      nextCursor: buildKeysetCursor(rows[1].createdAt, "b"),
+      nextCursor: buildKeysetCursor(rows[1]!.createdAt, "b"),
     });
   });
 

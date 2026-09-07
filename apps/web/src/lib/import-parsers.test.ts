@@ -19,7 +19,7 @@ describe("parseImportData — OpenRift format", () => {
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
 
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.setPrefix).toBe("OGN");
     expect(entry.finish).toBe("foil");
     expect(entry.artVariant).toBe("normal");
@@ -32,13 +32,13 @@ describe("parseImportData — OpenRift format", () => {
   it("parses promo slug", () => {
     const csv = `${header}\nOGN-001,Hero,Common,Unit,Arcane,foil,normal,nexus,1`;
     const result = parseImportData(csv);
-    expect(result.entries[0].promoSlug).toBe("nexus");
+    expect(result.entries[0]!.promoSlug).toBe("nexus");
   });
 
   it("handles alt art variant", () => {
     const csv = `${header}\nOGN-079a,Dragon,Epic,Legend,Arcane,foil,altart,,1`;
     const result = parseImportData(csv);
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.artVariant).toBe("altart");
     expect(entry.sourceCode).toBe("OGN-079a");
   });
@@ -48,7 +48,7 @@ describe("parseImportData — OpenRift format", () => {
       "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Quantity";
     const csv = `${headerWithOver}\nOGN-123*,Rare Beast,Showcase,Unit,Nature,foil,normal,Yes,,2`;
     const result = parseImportData(csv);
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.isOvernumbered).toBe(true);
     expect(entry.artVariant).toBe("normal");
     expect(entry.sourceCode).toBe("OGN-123*");
@@ -58,20 +58,20 @@ describe("parseImportData — OpenRift format", () => {
     const headerWithOver =
       "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Quantity";
     const csv = `${headerWithOver}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,,1`;
-    expect(parseImportData(csv).entries[0].isOvernumbered).toBe(false);
+    expect(parseImportData(csv).entries[0]!.isOvernumbered).toBe(false);
   });
 
   it("reads a pre-column export's `overnumbered` art variant as the flag", () => {
     const csv = `${header}\nOGN-123*,Rare Beast,Showcase,Unit,Nature,foil,overnumbered,,2`;
     const result = parseImportData(csv);
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.isOvernumbered).toBe(true);
     expect(entry.artVariant).toBe("normal");
   });
 
   it("leaves the flag unset for a pre-column export row not typed overnumbered", () => {
     const csv = `${header}\nUNL-238,Baron Nashor,Showcase,Unit,Chaos,foil,ultimate,,1`;
-    const entry = parseImportData(csv).entries[0];
+    const entry = parseImportData(csv).entries[0]!;
     expect(entry.isOvernumbered).toBeUndefined();
     expect(entry.artVariant).toBe("ultimate");
   });
@@ -79,7 +79,7 @@ describe("parseImportData — OpenRift format", () => {
   it("handles token short codes", () => {
     const csv = `${header}\nSFD-T01,Token Creature,Common,Unit,Arcane,normal,normal,,1`;
     const result = parseImportData(csv);
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.setPrefix).toBe("SFD");
   });
 
@@ -87,7 +87,7 @@ describe("parseImportData — OpenRift format", () => {
     const csv = `${header}\nOGN,Buff,Common,Other,,normal,normal,,2`;
     const result = parseImportData(csv);
     expect(result.errors).toHaveLength(0);
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.setPrefix).toBe("OGN");
     expect(entry.sourceCode).toBe("OGN");
     expect(entry.quantity).toBe(2);
@@ -96,14 +96,14 @@ describe("parseImportData — OpenRift format", () => {
   it("parses a multi-marker promo cell joined with +", () => {
     const csv = `${header}\nOGN-001,Hero,Common,Unit,Arcane,foil,normal,release+nexus,1`;
     const result = parseImportData(csv);
-    expect(result.entries[0].promoSlug).toBe("release+nexus");
+    expect(result.entries[0]!.promoSlug).toBe("release+nexus");
   });
 
   it("skips rows with zero quantity", () => {
     const csv = `${header}\nOGN-001,Card A,Common,Unit,Arcane,normal,normal,,0\nOGN-002,Card B,Common,Unit,Arcane,normal,normal,,1`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].cardName).toBe("Card B");
+    expect(result.entries[0]!.cardName).toBe("Card B");
   });
 
   it("reports errors for unparseable card IDs", () => {
@@ -119,8 +119,8 @@ describe("parseImportData — OpenRift format", () => {
     const result = parseImportData(csv);
     expect(result.source).toBe("openrift");
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].promoSlug).toBeUndefined();
-    expect(result.entries[0].quantity).toBe(1);
+    expect(result.entries[0]!.promoSlug).toBeUndefined();
+    expect(result.entries[0]!.quantity).toBe(1);
   });
 
   it("parses multiple rows", () => {
@@ -138,7 +138,7 @@ describe("parseImportData — OpenRift format", () => {
   it("populates rawFields for display", () => {
     const csv = `${header}\nOGN-001,Test,Common,Unit,Arcane,normal,normal,nexus,1`;
     const result = parseImportData(csv);
-    const raw = result.entries[0].rawFields;
+    const raw = result.entries[0]!.rawFields;
     expect(raw["Source Code"]).toBe("OGN-001");
     expect(raw["Rarity"]).toBe("Common");
     expect(raw["Promo"]).toBe("nexus");
@@ -157,13 +157,13 @@ describe("parseImportData — OpenRift format", () => {
       "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity";
     const csv = `${headerWithLang}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,SC,1`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("SC");
+    expect(result.entries[0]!.language).toBe("SC");
   });
 
   it("returns undefined language for older exports without Language column", () => {
     const csv = `${header}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,1`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBeUndefined();
+    expect(result.entries[0]!.language).toBeUndefined();
   });
 });
 
@@ -183,7 +183,7 @@ describe("parseImportData — RiftMana format", () => {
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
 
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.setPrefix).toBe("OGN");
     expect(entry.finish).toBe("normal");
     expect(entry.artVariant).toBe("normal");
@@ -199,11 +199,11 @@ describe("parseImportData — RiftMana format", () => {
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(2);
 
-    const normal = result.entries[0];
+    const normal = result.entries[0]!;
     expect(normal.finish).toBe("normal");
     expect(normal.quantity).toBe(1);
 
-    const foil = result.entries[1];
+    const foil = result.entries[1]!;
     expect(foil.finish).toBe("foil");
     expect(foil.quantity).toBe(2);
   });
@@ -213,7 +213,7 @@ describe("parseImportData — RiftMana format", () => {
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
 
-    const entry = result.entries[0];
+    const entry = result.entries[0]!;
     expect(entry.finish).toBe("foil");
     expect(entry.quantity).toBe(3);
     expect(entry.cardName).toBe("Get Excited!");
@@ -223,16 +223,16 @@ describe("parseImportData — RiftMana format", () => {
     const csv = `${header}\n0,1,Fury Rune,OGN-007a,Origins,Fury,Showcase,0.48,9.41,,NM:1,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].artVariant).toBe("altart");
-    expect(result.entries[0].sourceCode).toBe("OGN-007a");
+    expect(result.entries[0]!.artVariant).toBe("altart");
+    expect(result.entries[0]!.sourceCode).toBe("OGN-007a");
   });
 
   it("keeps the `*` suffix in the short code", () => {
     const csv = `${header}\n0,1,Jinx Loose Cannon,OGN-301*,Origins,Fury Chaos,Showcase,0.00,960.52,,NM:1,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].artVariant).toBe("normal");
-    expect(result.entries[0].sourceCode).toBe("OGN-301*");
+    expect(result.entries[0]!.artVariant).toBe("normal");
+    expect(result.entries[0]!.sourceCode).toBe("OGN-301*");
   });
 
   it("strips lowercase -p promo suffix and sets isPromo", () => {
@@ -254,21 +254,21 @@ describe("parseImportData — RiftMana format", () => {
     const csv = `${header}\n0,2,Buff,OGN-XXX-P,Promotional Cards,,Common,0.00,125.33,,NM:2,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].isPromo).toBe(true);
-    expect(result.entries[0].sourceCode).toBe("OGN-XXX");
+    expect(result.entries[0]!.isPromo).toBe(true);
+    expect(result.entries[0]!.sourceCode).toBe("OGN-XXX");
   });
 
   it("treats rare/epic/showcase normal qty as foil", () => {
     const csv = `${header}\n1,0,Immortal Phoenix,OGN-037,Origins,Fury,Epic,0.00,27.99,NM:1,,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].finish).toBe("foil");
+    expect(result.entries[0]!.finish).toBe("foil");
   });
 
   it("normalizes language from full name", () => {
     const csv = `${header}\n2,0,Buff,OGN-XXX,Origins,,Common,0.00,0.00,NM:2,,,Chinese`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("SC");
+    expect(result.entries[0]!.language).toBe("SC");
   });
 
   it("skips rows with both quantities at zero", () => {
@@ -287,7 +287,7 @@ describe("parseImportData — RiftMana format", () => {
   it("populates rawFields for display", () => {
     const csv = `${header}\n1,0,Buff,OGN-XXX,Origins,,Common,0.21,0.00,NM:1,,,English`;
     const result = parseImportData(csv);
-    const raw = result.entries[0].rawFields;
+    const raw = result.entries[0]!.rawFields;
     expect(raw["Source Code"]).toBe("OGN-XXX");
     expect(raw["Set"]).toBe("Origins");
     expect(raw["Rarity"]).toBe("Common");
@@ -343,31 +343,31 @@ describe("parseImportData — Piltover Archive language", () => {
   it("normalizes English to EN", () => {
     const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,English,Near Mint,,,,`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("EN");
+    expect(result.entries[0]!.language).toBe("EN");
   });
 
   it("normalizes French to FR", () => {
     const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,French,Near Mint,,,,`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("FR");
+    expect(result.entries[0]!.language).toBe("FR");
   });
 
   it("normalizes Chinese to SC", () => {
     const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,Chinese,Near Mint,,,,`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("SC");
+    expect(result.entries[0]!.language).toBe("SC");
   });
 
   it("handles two-letter code directly", () => {
     const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,Standard,false,1,EN,Near Mint,,,,`;
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBe("EN");
+    expect(result.entries[0]!.language).toBe("EN");
   });
 
   it("returns undefined for missing language column", () => {
     const csv = "Variant Number,Card Name,Quantity,Foil\nOGN-001,Test,1,false";
     const result = parseImportData(csv);
-    expect(result.entries[0].language).toBeUndefined();
+    expect(result.entries[0]!.language).toBeUndefined();
   });
 
   it("keeps rows with different languages separate", () => {
@@ -405,8 +405,8 @@ describe("parseImportData — Piltover Archive language", () => {
     ].join("\n");
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
-    expect(result.entries[0].quantity).toBe(3);
-    expect(result.entries[0].metadata?.condition).toBe("near-mint");
+    expect(result.entries[0]!.quantity).toBe(3);
+    expect(result.entries[0]!.metadata?.condition).toBe("near-mint");
   });
 });
 
@@ -430,7 +430,7 @@ describe("parseImportData — Piltover Archive variant columns", () => {
   it("leaves isPromo undefined for a standard row", () => {
     const csv = `${header}\nOGN-090,Orb of Regret,Origins,OGN,Common,Standard,Standard,false,4,English,Near Mint,,,,`;
     const result = parseImportData(csv);
-    expect(result.entries[0].isPromo).toBeUndefined();
+    expect(result.entries[0]!.isPromo).toBeUndefined();
   });
 
   it("takes the finish from the Foil column, not the rarity", () => {
@@ -458,7 +458,7 @@ describe("parseImportData — Piltover Archive variant columns", () => {
   it("reads grading and notes into the copy metadata", () => {
     const csv = `${header}\nOGN-001,Blazing Scorcher,Origins,OGN,Common,Standard,Standard,false,1,English,,PSA,9,PSA 9 MINT,lolli`;
     const result = parseImportData(csv);
-    expect(result.entries[0].metadata).toEqual({
+    expect(result.entries[0]!.metadata).toEqual({
       grader: "psa",
       grade: 9,
       notesPublic: "lolli",

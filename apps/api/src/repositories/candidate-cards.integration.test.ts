@@ -356,7 +356,7 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   it("setPrintedTotalBySlugs returns totals for known slugs", async () => {
     const result = await repo.setPrintedTotalBySlugs(["OGS"]);
     expect(result.length).toBe(1);
-    expect(result[0].slug).toBe("OGS");
+    expect(result[0]!.slug).toBe("OGS");
     expect(result[0]).toHaveProperty("printedTotal");
   });
 

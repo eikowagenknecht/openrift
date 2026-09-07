@@ -35,7 +35,7 @@ async function seedCard(name: string, normName: string, type: string): Promise<s
     .values({ name, slug: normName, type, normName, keywords: [], tags: [] })
     .returning("id")
     .execute();
-  return card.id;
+  return card!.id;
 }
 
 function eventBody(slug: string, overrides: Record<string, unknown> = {}) {
@@ -556,18 +556,18 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
           metaEventId: eventId,
           playerName: "MTR Guard",
           rank: 1,
-          deckId: deck.id,
+          deckId: deck!.id,
           listStatus: "full",
         })
         .execute();
 
-      const res = await app.fetch(req("POST", `/decks/${deck.id}/share/rotate`));
+      const res = await app.fetch(req("POST", `/decks/${deck!.id}/share/rotate`));
       expect(res.status).toBe(409);
 
       const after = await db
         .selectFrom("decks")
         .select("shareToken")
-        .where("id", "=", deck.id)
+        .where("id", "=", deck!.id)
         .executeTakeFirstOrThrow();
       expect(after.shareToken).toBe("mtrGuard0001");
     });
@@ -587,7 +587,7 @@ describe.skipIf(!ctx)("Meta archive routes (integration)", () => {
         .returning("id")
         .execute();
 
-      const res = await app.fetch(req("POST", `/decks/${deck.id}/share/rotate`));
+      const res = await app.fetch(req("POST", `/decks/${deck!.id}/share/rotate`));
       expect(res.status).toBe(200);
       const json = await readJson(res);
       expect(json.shareToken).not.toBe("mtrRotate001");

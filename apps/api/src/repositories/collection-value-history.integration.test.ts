@@ -340,9 +340,9 @@ describe.skipIf(!ctx)("collection value history (integration)", () => {
     });
 
     for (let i = 1; i < series.length; i++) {
-      const previous = new Date(`${series[i - 1].date}T00:00:00Z`);
+      const previous = new Date(`${series[i - 1]!.date}T00:00:00Z`);
       previous.setUTCDate(previous.getUTCDate() + 1);
-      expect(series[i].date).toBe(previous.toISOString().slice(0, 10));
+      expect(series[i]!.date).toBe(previous.toISOString().slice(0, 10));
     }
   });
 

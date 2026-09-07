@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { enumLabel, WellKnown } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
@@ -64,7 +64,7 @@ export function rarityLensSeries(
 ): LensSeries[] {
   return rows.map((row) => ({
     key: row.key,
-    label: rarityLabels[row.key],
+    label: enumLabel(rarityLabels, row.key),
     color: RARITY_LENS_COLORS[row.key] ?? RARITY_LENS_FALLBACK_COLOR,
   }));
 }

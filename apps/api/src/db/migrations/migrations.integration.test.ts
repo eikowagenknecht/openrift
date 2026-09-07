@@ -163,7 +163,7 @@ describe.skipIf(!DATABASE_URL)("schema snapshot matches migrations", () => {
 
     // Extract the database name from the connection
     const { rows } = await sql<{ name: string }>`select current_database() as name`.execute(db);
-    dbName = rows[0].name;
+    dbName = rows[0]!.name;
   });
 
   afterAll(async () => {

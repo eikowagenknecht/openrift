@@ -45,10 +45,11 @@ function CollectionValueTooltipContent({
   payload,
   currencyFormatter,
 }: CollectionValueTooltipContentProps) {
-  if (!active || !payload?.length) {
+  const [firstEntry] = payload ?? [];
+  if (!active || firstEntry === undefined) {
     return null;
   }
-  const point = payload[0].payload;
+  const point = firstEntry.payload;
   // Body ink, not red/green: those are the reserved status colors, and the
   // sign already carries the direction.
   const { sign, magnitude, percent } = describePriceChange(point.value, point.baselineValue);

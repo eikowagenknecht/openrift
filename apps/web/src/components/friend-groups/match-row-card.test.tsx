@@ -101,8 +101,8 @@ describe("groupTradeMatches", () => {
       makeDirected({ printingId: "printing-c", availableCount: 17 }),
     ]);
     expect(groups).toHaveLength(1);
-    expect(groups[0].variants).toHaveLength(3);
-    expect(groups[0].totalAvailable).toBe(25);
+    expect(groups[0]!.variants).toHaveLength(3);
+    expect(groups[0]!.totalAvailable).toBe(25);
   });
 
   it("carries the card id its variants share", () => {
@@ -110,7 +110,7 @@ describe("groupTradeMatches", () => {
       makeDirected({ printingId: "printing-a" }),
       makeDirected({ printingId: "printing-b" }),
     ]);
-    expect(groups[0].cardId).toBe("card-1");
+    expect(groups[0]!.cardId).toBe("card-1");
   });
 
   it("keeps printing-level wishes as separate one-variant groups", () => {
@@ -128,7 +128,7 @@ describe("groupTradeMatches", () => {
       makeDirected({ counterpartyUserId: "user-2", printingId: "printing-b" }),
     ]);
     expect(groups).toHaveLength(2);
-    expect(groups[0].foldId).not.toBe(groups[1].foldId);
+    expect(groups[0]!.foldId).not.toBe(groups[1]!.foldId);
   });
 
   it("merges one wish reachable through two friend groups into a single tile", () => {
@@ -137,7 +137,7 @@ describe("groupTradeMatches", () => {
       makeDirected({ groupSlug: "summoner-skirmish", copyId: "copy-2", printingId: "printing-a" }),
     ]);
     expect(groups).toHaveLength(1);
-    expect(groups[0].variants.map((variant) => variant.groupSlug)).toEqual([
+    expect(groups[0]!.variants.map((variant) => variant.groupSlug)).toEqual([
       "rift-crew",
       "summoner-skirmish",
     ]);
@@ -165,7 +165,7 @@ describe("groupTradeMatches", () => {
       makeDirected({ printingId: "printing-b", setIndex: 1, shortCode: "FND-249" }),
       makeDirected({ printingId: "printing-c", setIndex: 3, shortCode: "OGN-002" }),
     ]);
-    expect(groups[0].variants.map((variant) => variant.shortCode)).toEqual([
+    expect(groups[0]!.variants.map((variant) => variant.shortCode)).toEqual([
       "FND-249",
       "OGN-002",
       "OGN-010",
@@ -177,8 +177,8 @@ describe("groupTradeMatches", () => {
       makeDirected({ printingId: "printing-a", setIndex: 3, shortCode: "OGN-010" }),
       makeDirected({ printingId: "printing-b", setIndex: 1, shortCode: "FND-249" }),
     ]);
-    expect(groups[0].setIndex).toBe(1);
-    expect(groups[0].shortCode).toBe("FND-249");
+    expect(groups[0]!.setIndex).toBe(1);
+    expect(groups[0]!.shortCode).toBe("FND-249");
   });
 });
 
@@ -212,25 +212,25 @@ describe("resolveMatchRows", () => {
         ["summoner-skirmish", "Summoner Skirmish"],
       ]),
     );
-    expect(row.groupSlug).toBe("summoner-skirmish");
-    expect(row.groupLabel).toBe("Summoner Skirmish");
+    expect(row!.groupSlug).toBe("summoner-skirmish");
+    expect(row!.groupLabel).toBe("Summoner Skirmish");
   });
 
   it("falls back to the list's group for a row that names none", () => {
     const [row] = resolve([makeListRow()], new Map([["rift-crew", "Rift Crew"]]));
-    expect(row.groupSlug).toBe("rift-crew");
-    expect(row.groupLabel).toBe("Rift Crew");
+    expect(row!.groupSlug).toBe("rift-crew");
+    expect(row!.groupLabel).toBe("Rift Crew");
   });
 
   it("leaves rows unlabelled when the list covers a single group", () => {
     const [row] = resolve([makeListRow({ groupSlug: "summoner-skirmish" })], null);
-    expect(row.groupLabel).toBeUndefined();
+    expect(row!.groupLabel).toBeUndefined();
   });
 });
 
 describe("compareMatchTradeGroups", () => {
   function makeGroup(overrides: Partial<MatchTradeGroup> = {}): MatchTradeGroup {
-    return { ...groupTradeMatches([makeDirected()])[0], ...overrides };
+    return { ...groupTradeMatches([makeDirected()])[0]!, ...overrides };
   }
 
   it("sorts incoming before outgoing regardless of catalog position", () => {

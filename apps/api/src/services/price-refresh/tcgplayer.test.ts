@@ -480,7 +480,7 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
-      expect(staging[0].recordedAt).toEqual(LAST_MODIFIED);
+      expect(staging[0]!.recordedAt).toEqual(LAST_MODIFIED);
     });
 
     it("uses per-group Last-Modified timestamps", async () => {
@@ -527,7 +527,7 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
-      const ts = staging[0].recordedAt.getTime();
+      const ts = staging[0]!.recordedAt.getTime();
       expect(ts).toBeGreaterThanOrEqual(before);
       expect(ts).toBeLessThanOrEqual(Date.now());
     });
@@ -682,7 +682,7 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
-      expect(staging[0].productName).toBe("Flame Striker");
+      expect(staging[0]!.productName).toBe("Flame Striker");
     });
 
     it("sets trendCents, avg1Cents, avg7Cents, avg30Cents to null for TCGplayer", async () => {
@@ -698,10 +698,10 @@ describe("refreshTcgplayerPrices", () => {
       await refreshTcgplayerPrices(stubFetch, repos, log);
 
       const staging = upsertStaging(upsertSpy);
-      expect(staging[0].trendCents).toBeNull();
-      expect(staging[0].avg1Cents).toBeNull();
-      expect(staging[0].avg7Cents).toBeNull();
-      expect(staging[0].avg30Cents).toBeNull();
+      expect(staging[0]!.trendCents).toBeNull();
+      expect(staging[0]!.avg1Cents).toBeNull();
+      expect(staging[0]!.avg7Cents).toBeNull();
+      expect(staging[0]!.avg30Cents).toBeNull();
     });
   });
 });

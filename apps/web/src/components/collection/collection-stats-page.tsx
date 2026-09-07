@@ -1,6 +1,6 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import type { CompletionScopePreference, Domain } from "@openrift/shared";
-import { WellKnown, getAvailableFilters } from "@openrift/shared";
+import { WellKnown, enumLabel, getAvailableFilters } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpIcon,
@@ -562,7 +562,7 @@ function DomainDistributionChart({ data }: { data: DomainCount[] }) {
 
   const config: ChartConfig = {};
   const chartData: DonutEntry[] = data.map((entry) => {
-    const label = labels.domains[entry.domain];
+    const label = enumLabel(labels.domains, entry.domain);
     const color = getDomainColor(entry.domain, domainColors);
     config[entry.domain] = { label, color };
     return { name: label, value: entry.count, fill: color };
@@ -580,7 +580,7 @@ function RarityDistributionChart({ data }: { data: RarityCount[] }) {
 
   const config: ChartConfig = {};
   const chartData: DonutEntry[] = data.map((entry) => {
-    const label = labels.rarities[entry.rarity];
+    const label = enumLabel(labels.rarities, entry.rarity);
     const color = rarityColors[entry.rarity] ?? "var(--color-muted-foreground)";
     config[entry.rarity] = { label, color };
     return { name: label, value: entry.count, fill: color };
@@ -589,7 +589,7 @@ function RarityDistributionChart({ data }: { data: RarityCount[] }) {
   return <DistributionDonut data={chartData} config={config} />;
 }
 
-const TYPE_CHART_COLORS = [
+const TYPE_CHART_COLORS: [string, ...string[]] = [
   "var(--color-chart-1)",
   "var(--color-chart-2)",
   "var(--color-chart-3)",
@@ -606,8 +606,8 @@ function TypeDistributionChart({ data }: { data: { type: string; total: number }
 
   const config: ChartConfig = {};
   const chartData: DonutEntry[] = data.map((entry, index) => {
-    const label = labels.cardTypes[entry.type];
-    const color = TYPE_CHART_COLORS[index % TYPE_CHART_COLORS.length];
+    const label = enumLabel(labels.cardTypes, entry.type);
+    const color = TYPE_CHART_COLORS[index % TYPE_CHART_COLORS.length] ?? TYPE_CHART_COLORS[0];
     config[entry.type] = { label, color };
     return { name: label, value: entry.total, fill: color };
   });

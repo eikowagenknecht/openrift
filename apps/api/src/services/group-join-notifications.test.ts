@@ -70,7 +70,7 @@ describe("notifyAdminsOfGroupJoinRequest", () => {
 
     await notifyAdminsOfGroupJoinRequest(repos, REQUEST, deps);
 
-    expect(sendEmail.mock.calls[0][0].html).toContain(
+    expect(sendEmail.mock.calls[0]![0].html).toContain(
       "https://openrift.app/groups/summoner-skirmish/members",
     );
   });
@@ -81,7 +81,7 @@ describe("notifyAdminsOfGroupJoinRequest", () => {
 
     await notifyAdminsOfGroupJoinRequest(repos, REQUEST, deps);
 
-    expect(sendEmail.mock.calls[0][0].html).not.toContain("joiner@example.com");
+    expect(sendEmail.mock.calls[0]![0].html).not.toContain("joiner@example.com");
   });
 
   it("sends nothing when every admin has opted out", async () => {
@@ -167,7 +167,7 @@ describe("notifyMemberOfGroupApproval", () => {
     await notifyMemberOfGroupApproval(repos, APPROVAL, deps);
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    const [args] = sendEmail.mock.calls[0];
+    const [args] = sendEmail.mock.calls[0]!;
     expect(args.to).toBe("joiner@example.com");
     expect(args.subject).toContain("Summoner Skirmish");
     expect(args.html).toContain("Hi Garen,");

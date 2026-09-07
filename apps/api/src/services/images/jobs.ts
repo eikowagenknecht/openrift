@@ -112,8 +112,11 @@ export async function rehostImages(
     }),
   );
 
-  for (let idx = 0; idx < results.length; idx++) {
+  for (const [idx, img] of images.entries()) {
     const result = results[idx];
+    if (!result) {
+      continue;
+    }
     if (result.status === "fulfilled") {
       if (result.value === "skipped") {
         progress.skipped++;
@@ -124,8 +127,8 @@ export async function rehostImages(
       progress.failed++;
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
-      progress.errors.push(`${images[idx].imageId}: ${message}`);
-      console.error(`[rehost] Failed for ${images[idx].imageId}:`, message);
+      progress.errors.push(`${img.imageId}: ${message}`);
+      console.error(`[rehost] Failed for ${img.imageId}:`, message);
     }
   }
 
@@ -208,13 +211,15 @@ export async function regenerateImagesBatch(
     }),
   );
 
-  for (let idx = 0; idx < results.length; idx++) {
+  for (const [idx, { imageId }] of batch.entries()) {
     const result = results[idx];
+    if (!result) {
+      continue;
+    }
     if (result.status === "fulfilled") {
       out.regenerated++;
     } else {
       out.failed++;
-      const { imageId } = batch[idx];
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
       out.errors.push(`${imageId}: ${message}`);
@@ -376,15 +381,18 @@ export async function unrehostImages(
     }),
   );
 
-  for (let idx = 0; idx < results.length; idx++) {
+  for (const [idx, imageFileId] of imageFileIds.entries()) {
     const result = results[idx];
+    if (!result) {
+      continue;
+    }
     if (result.status === "fulfilled") {
       progress.unrehosted++;
     } else {
       progress.failed++;
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
-      progress.errors.push(`${imageFileIds[idx]}: ${message}`);
+      progress.errors.push(`${imageFileId}: ${message}`);
     }
   }
 

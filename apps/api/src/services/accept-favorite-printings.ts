@@ -82,7 +82,12 @@ export async function acceptFavoritePrintingsForCard(
   const skipped: SkippedGroup[] = [];
 
   for (const [, group] of groupMap) {
-    const first = group[0];
+    const [first] = group;
+
+    if (!first) {
+      continue;
+    }
+
     const label = first.shortCode || "(unknown)";
 
     const { shortCode, setId, rarity, finish } = first;

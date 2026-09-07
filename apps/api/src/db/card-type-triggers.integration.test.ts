@@ -40,7 +40,7 @@ describe.skipIf(!ctx)("card type junction triggers (integration, migration 193)"
     const junction = await db
       .selectFrom("cardCardTypes")
       .select(["typeSlug", "position"])
-      .where("cardId", "=", card.id)
+      .where("cardId", "=", card!.id)
       .execute();
     expect(junction).toEqual([{ typeSlug: "unit", position: 0 }]);
   });
@@ -65,11 +65,11 @@ describe.skipIf(!ctx)("card type junction triggers (integration, migration 193)"
       await trx
         .insertInto("cardCardTypes")
         .values([
-          { cardId: card.id, typeSlug: "unit", position: 0 },
-          { cardId: card.id, typeSlug: "gear", position: 1 },
+          { cardId: card!.id, typeSlug: "unit", position: 0 },
+          { cardId: card!.id, typeSlug: "gear", position: 1 },
         ])
         .execute();
-      return card.id;
+      return card!.id;
     });
 
     const junction = await db
@@ -143,11 +143,11 @@ describe.skipIf(!ctx)("card type junction triggers (integration, migration 193)"
       .returning("id")
       .execute();
 
-    await db.deleteFrom("cards").where("id", "=", card.id).execute();
+    await db.deleteFrom("cards").where("id", "=", card!.id).execute();
 
     const orphaned = await sql<{ count: number }>`
-      SELECT count(*)::int AS count FROM card_card_types WHERE card_id = ${card.id}
+      SELECT count(*)::int AS count FROM card_card_types WHERE card_id = ${card!.id}
     `.execute(db);
-    expect(orphaned.rows[0].count).toBe(0);
+    expect(orphaned.rows[0]!.count).toBe(0);
   });
 });

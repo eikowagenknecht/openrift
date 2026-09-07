@@ -53,11 +53,12 @@ export function nextRecheck(state: MetaRecheckState): MetaRecheckDecision {
       state.playersPending);
 
   const step = Math.max(state.checkStage, 0);
-  if (step >= RECHECK_LADDER_DAYS.length) {
+  const ladderDays = RECHECK_LADDER_DAYS[step];
+  if (ladderDays === undefined) {
     return { nextCheckAt: null, checkStage: step, deepFetch };
   }
   return {
-    nextCheckAt: new Date(nowMs + RECHECK_LADDER_DAYS[step] * DAY_MS),
+    nextCheckAt: new Date(nowMs + ladderDays * DAY_MS),
     checkStage: step + 1,
     deepFetch,
   };

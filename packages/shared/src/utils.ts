@@ -184,13 +184,10 @@ export function preferredPrinting(
   printings: Printing[],
   languageOrder: readonly string[],
 ): Printing | undefined {
-  if (printings.length === 0) {
-    return undefined;
-  }
-  let best = printings[0];
-  for (let i = 1; i < printings.length; i++) {
-    if (compareWithLanguagePreference(printings[i], best, languageOrder) < 0) {
-      best = printings[i];
+  let best: Printing | undefined;
+  for (const printing of printings) {
+    if (best === undefined || compareWithLanguagePreference(printing, best, languageOrder) < 0) {
+      best = printing;
     }
   }
   return best;
@@ -239,14 +236,11 @@ export function extractCardIdFromShortCode(shortCode: string): string {
 }
 
 export function mostCommonValue(items: string[]): string {
-  if (items.length === 0) {
-    return "";
-  }
   const counts = new Map<string, number>();
   for (const item of items) {
     counts.set(item, (counts.get(item) ?? 0) + 1);
   }
-  let best = items[0];
+  let best = "";
   let bestCount = 0;
   for (const [val, count] of counts) {
     if (count > bestCount) {
@@ -269,7 +263,7 @@ export function formatShortCodesArray(ids: string[]): string[] {
 }
 
 export function capitalize(word: string): string {
-  return word.length === 0 ? word : word[0].toUpperCase() + word.slice(1);
+  return word.slice(0, 1).toUpperCase() + word.slice(1);
 }
 
 // Reference-table slugs use `-`; a few legacy ones use `_`.

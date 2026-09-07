@@ -21,25 +21,11 @@ export function selectPrevNextSlug(
     return { prev: null, next: null };
   }
 
-  let prev: string | null = null;
-  for (let i = index - 1; i >= 0; i--) {
-    const slug = orderedSlugs[i];
-    if (!matches || matches(slug)) {
-      prev = slug;
-      break;
-    }
-  }
-
-  let next: string | null = null;
-  for (let i = index + 1; i < orderedSlugs.length; i++) {
-    const slug = orderedSlugs[i];
-    if (!matches || matches(slug)) {
-      next = slug;
-      break;
-    }
-  }
-
-  return { prev, next };
+  const accepts = (slug: string) => !matches || matches(slug);
+  return {
+    prev: orderedSlugs.slice(0, index).findLast((slug) => accepts(slug)) ?? null,
+    next: orderedSlugs.slice(index + 1).find((slug) => accepts(slug)) ?? null,
+  };
 }
 
 /**

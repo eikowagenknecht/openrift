@@ -177,7 +177,7 @@ describe("TTS format round trip", () => {
 
   it("does not slot by position when a dropped card leaves the stream short", () => {
     const cards = completeDeck();
-    cards[10].shortCode = "";
+    cards[10]!.shortCode = "";
     const { code, warnings } = encodeTTS(cards);
 
     expect(warnings).toHaveLength(1);
@@ -190,7 +190,7 @@ describe("TTS format round trip", () => {
     // 56 + sideboard - 1 is still a legal length, so length alone can't
     // detect the gap here; the encoder's per-card warning surfaces it instead.
     const cards = completeDeck({ sideboard: 4 });
-    cards[10].shortCode = "";
+    cards[10]!.shortCode = "";
     const { code, warnings } = encodeTTS(cards);
 
     expect(warnings).toHaveLength(1);

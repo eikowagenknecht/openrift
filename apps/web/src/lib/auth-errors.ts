@@ -43,8 +43,8 @@ export function setServerError(
   form: { setError: UseFormSetError<any> },
   error: { code?: string; message?: string },
 ) {
-  if (error.code && CODE_TO_FIELD[error.code]) {
-    const mapped = CODE_TO_FIELD[error.code];
+  const mapped = error.code === undefined ? undefined : CODE_TO_FIELD[error.code];
+  if (mapped) {
     form.setError(mapped.field ?? "root", { message: mapped.message });
     return;
   }
@@ -85,8 +85,12 @@ export function requestOtpErrorMessage(error: { code?: string; status?: number }
 const OTP_ERROR_CODES = new Set(["OTP_EXPIRED", "INVALID_OTP", "TOO_MANY_ATTEMPTS"]);
 
 export function otpErrorMessage(error: { code?: string; message?: string }): string {
-  if (error.code && OTP_ERROR_CODES.has(error.code)) {
-    return CODE_TO_FIELD[error.code].message;
+  const mapped =
+    error.code !== undefined && OTP_ERROR_CODES.has(error.code)
+      ? CODE_TO_FIELD[error.code]
+      : undefined;
+  if (mapped) {
+    return mapped.message;
   }
   return error.message ?? "Something went wrong. Please try again.";
 }

@@ -16,16 +16,16 @@ describe("parseChangelog", () => {
 
     const result = parseChangelog(md);
     expect(result).toHaveLength(1);
-    expect(result[0].date).toBe("2026-06-17");
-    expect(result[0].highlights).toHaveLength(1);
-    expect(result[0].other).toHaveLength(1);
-    expect(result[0].highlights[0]).toMatchObject({
+    expect(result[0]!.date).toBe("2026-06-17");
+    expect(result[0]!.highlights).toHaveLength(1);
+    expect(result[0]!.other).toHaveLength(1);
+    expect(result[0]!.highlights[0]).toMatchObject({
       type: "feat",
       section: "highlight",
       title: "Inline removal",
       message: "each card has a remove button",
     });
-    expect(result[0].other[0]).toMatchObject({
+    expect(result[0]!.other[0]).toMatchObject({
       type: "fix",
       section: "other",
       title: "Breadcrumb separator",
@@ -42,17 +42,17 @@ describe("parseChangelog", () => {
     ].join("\n");
 
     const result = parseChangelog(md);
-    expect(result[0].highlights[0]).toMatchObject({
+    expect(result[0]!.highlights[0]).toMatchObject({
       area: "Collection",
       title: "Owned-count popover",
       message: "opens a popover listing each variant",
     });
-    expect(result[0].highlights[1]).toMatchObject({ area: "Decks", title: "Deck rename" });
+    expect(result[0]!.highlights[1]).toMatchObject({ area: "Decks", title: "Deck rename" });
   });
 
   it("leaves area undefined when no tag is present", () => {
     const md = ["## 2026-06-17", "- feat: **No area** — body"].join("\n");
-    expect(parseChangelog(md)[0].other[0].area).toBeUndefined();
+    expect(parseChangelog(md)[0]!.other[0]!.area).toBeUndefined();
   });
 
   it("treats legacy un-sectioned entries as 'other' with no title", () => {
@@ -62,8 +62,8 @@ describe("parseChangelog", () => {
 - fix: App updates now show up faster on iOS`;
 
     const result = parseChangelog(md);
-    expect(result[0].highlights).toHaveLength(0);
-    expect(result[0].other).toEqual([
+    expect(result[0]!.highlights).toHaveLength(0);
+    expect(result[0]!.other).toEqual([
       {
         date: "2025-06-01",
         type: "feat",
@@ -89,7 +89,7 @@ describe("parseChangelog", () => {
     ].join("\n");
 
     const result = parseChangelog(md);
-    expect(result[0].highlights[0]).toMatchObject({
+    expect(result[0]!.highlights[0]).toMatchObject({
       title: undefined,
       message: "A plain sentence with no bold title",
     });
@@ -103,7 +103,7 @@ describe("parseChangelog", () => {
     ].join("\n");
 
     const result = parseChangelog(md);
-    expect(result[0].highlights[0]).toMatchObject({
+    expect(result[0]!.highlights[0]).toMatchObject({
       title: "Trades page",
       message: "active trades on top — completed ones collapse away",
     });
@@ -133,9 +133,9 @@ describe("parseChangelog", () => {
 - fix: Another valid entry`;
 
     const result = parseChangelog(md);
-    expect(result[0].other).toHaveLength(2);
-    expect(result[0].other[0].type).toBe("feat");
-    expect(result[0].other[1].type).toBe("fix");
+    expect(result[0]!.other).toHaveLength(2);
+    expect(result[0]!.other[0]!.type).toBe("feat");
+    expect(result[0]!.other[1]!.type).toBe("fix");
   });
 
   it("returns empty array for empty string", () => {

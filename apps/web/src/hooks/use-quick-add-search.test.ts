@@ -65,7 +65,7 @@ describe("useQuickAddSearch", () => {
     const results = search("a", map, { preferredLanguages: ["EN"] });
 
     expect(results.map((r) => r.cardId)).toEqual(["card-ahri"]);
-    expect(results[0].printings).toEqual([ahriEn]);
+    expect(results[0]!.printings).toEqual([ahriEn]);
   });
 
   it("treats an empty preferredLanguages list as 'show all'", () => {
@@ -102,7 +102,7 @@ describe("useQuickAddSearch", () => {
     });
 
     expect(results).toHaveLength(1);
-    expect(results[0].ownedCount).toBe(2);
+    expect(results[0]!.ownedCount).toBe(2);
   });
 
   it("respects the limit", () => {

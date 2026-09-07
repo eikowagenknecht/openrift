@@ -7,6 +7,7 @@ import type {
 } from "@openrift/shared";
 import {
   ALL_MARKETPLACES,
+  enumLabel,
   formatMonth,
   findStandardArtFallback,
   getOrientation,
@@ -214,14 +215,14 @@ function CardDetailPage() {
         <span className="inline-flex w-4 shrink-0 justify-center">
           {rarityIcon && <img src={rarityIcon} alt="" width={28} height={28} className="size-4" />}
         </span>
-        {labels.rarities[selectedPrinting.rarity]}
+        {enumLabel(labels.rarities, selectedPrinting.rarity)}
       </span>,
     ],
     [
       "Finish",
       <span key="finish" className="inline-flex items-center gap-1.5">
         <FinishIcon finish={selectedPrinting.finish} className="w-4 shrink-0 justify-center" />
-        {labels.finishes[selectedPrinting.finish]}
+        {enumLabel(labels.finishes, selectedPrinting.finish)}
       </span>,
     ],
   );
@@ -230,7 +231,7 @@ function CardDetailPage() {
       "Art variant",
       <span key="art" className="inline-flex items-center gap-1">
         <PaletteIcon className="size-3.5" />
-        {labels.artVariants[selectedPrinting.artVariant]}
+        {enumLabel(labels.artVariants, selectedPrinting.artVariant)}
       </span>,
     ]);
   }
@@ -258,7 +259,7 @@ function CardDetailPage() {
       <TypeValue
         key="type"
         types={card.types}
-        typeLabel={card.types.map((slug) => labels.cardTypes[slug]).join(" ")}
+        typeLabel={card.types.map((slug) => enumLabel(labels.cardTypes, slug)).join(" ")}
         superTypes={card.superTypes}
       />,
     ],
@@ -266,7 +267,7 @@ function CardDetailPage() {
   if (card.superTypes.length > 0) {
     rightRows.push([
       "Supertypes",
-      card.superTypes.map((slug) => labels.superTypes[slug]).join(", "),
+      card.superTypes.map((slug) => enumLabel(labels.superTypes, slug)).join(", "),
     ]);
   }
   if (card.domains.length > 0 && !card.domains.includes(WellKnown.domain.COLORLESS)) {
@@ -639,14 +640,15 @@ function FoundInRow({
       node: <ChannelLink link={link} language={printing.language} />,
     })),
   ];
-  if (entries.length === 0) {
+  const [firstEntry, ...otherEntries] = entries;
+  if (!firstEntry) {
     return null;
   }
   return (
     <InfoRow label="Found in">
       <div className="border-border/50 bg-muted/30 rounded-md border px-2.5 py-1.5">
-        {entries.length === 1 ? (
-          entries[0].node
+        {otherEntries.length === 0 ? (
+          firstEntry.node
         ) : (
           <ul className="space-y-1">
             {entries.map((entry) => (
@@ -744,7 +746,7 @@ function PrintingCard({
     badges.push(
       <span key="finish" className="inline-flex items-center gap-0.5 text-xs">
         <FinishIcon finish={printing.finish} iconClassName="size-3" />
-        {labels.finishes[printing.finish]}
+        {enumLabel(labels.finishes, printing.finish)}
       </span>,
     );
   }
@@ -752,7 +754,7 @@ function PrintingCard({
     badges.push(
       <span key="art" className="text-muted-foreground inline-flex items-center gap-0.5 text-xs">
         <PaletteIcon className="size-3" />
-        {labels.artVariants[printing.artVariant]}
+        {enumLabel(labels.artVariants, printing.artVariant)}
       </span>,
     );
   }
@@ -859,12 +861,13 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
   }
 
   const allSnapshots = data?.[source]?.snapshots;
+  const spanSnapshots = allSnapshots && allSnapshots.length >= 2 ? allSnapshots : undefined;
+  const firstSnapshot = spanSnapshots?.[0];
+  const lastSnapshot = spanSnapshots?.at(-1);
   const dataSpanDays =
-    allSnapshots && allSnapshots.length >= 2
+    firstSnapshot && lastSnapshot
       ? Math.round(
-          // oxlint-disable-next-line no-non-null-assertion -- length >= 2 is checked above
-          (new Date(allSnapshots.at(-1)!.date).getTime() -
-            new Date(allSnapshots[0].date).getTime()) /
+          (new Date(lastSnapshot.date).getTime() - new Date(firstSnapshot.date).getTime()) /
             86_400_000,
         )
       : null;
@@ -916,7 +919,8 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Heading level={2}>
           Price History — {formatPublicCode(printing)}
-          {printing.finish !== WellKnown.finish.NORMAL && ` ${labels.finishes[printing.finish]}`}
+          {printing.finish !== WellKnown.finish.NORMAL &&
+            ` ${enumLabel(labels.finishes, printing.finish)}`}
           {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
           {printing.language !== WellKnown.language.EN && (
             <>

@@ -134,9 +134,9 @@ describe("addCopies", () => {
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
 
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("copy-1");
-    expect(result[0].collectionId).toBe("inbox-id");
-    expect(result[0].groupId).toBeNull();
+    expect(result[0]!.id).toBe("copy-1");
+    expect(result[0]!.collectionId).toBe("inbox-id");
+    expect(result[0]!.groupId).toBeNull();
   });
 
   it("populates groupId from a group-owned collection", async () => {
@@ -151,7 +151,7 @@ describe("addCopies", () => {
       { printingId: "p-1", collectionId: "group-col" },
     ]);
 
-    expect(result[0].groupId).toBe("grp-9");
+    expect(result[0]!.groupId).toBe("grp-9");
   });
 
   it("validates that explicit collections belong to the user", async () => {
@@ -181,7 +181,7 @@ describe("addCopies", () => {
       { printingId: "p-1", collectionId: "col-1" },
     ]);
 
-    expect(result[0].collectionId).toBe("col-1");
+    expect(result[0]!.collectionId).toBe("col-1");
   });
 
   it("completes the full flow including event logging", async () => {
@@ -209,8 +209,8 @@ describe("addCopies", () => {
       { id: "given-1", printingId: "p-1", collectionId: "col-1" },
     ]);
 
-    expect(insertedValues[0][0].id).toBe("given-1");
-    expect(result[0].id).toBe("given-1");
+    expect(insertedValues[0]![0]!.id).toBe("given-1");
+    expect(result[0]!.id).toBe("given-1");
   });
 
   it("returns the same rows and logs nothing again when every id is replayed", async () => {
@@ -625,7 +625,7 @@ describe("addCopies — additional branches", () => {
 
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
 
-    expect(result[0].collectionId).toBe("inbox-id");
+    expect(result[0]!.collectionId).toBe("inbox-id");
   });
 });
 

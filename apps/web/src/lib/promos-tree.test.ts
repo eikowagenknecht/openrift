@@ -71,11 +71,11 @@ describe("buildPromoTree", () => {
     const tree = buildPromoTree([parent, houston, dallas], indexByChannel([shared, houstonOnly]));
 
     expect(tree).toHaveLength(1);
-    const parentNode = tree[0];
+    const parentNode = tree[0]!;
     expect(parentNode.localPrintingCount).toBe(2);
     const [houstonNode, dallasNode] = parentNode.children;
-    expect(houstonNode.localPrintingCount).toBe(2);
-    expect(dallasNode.localPrintingCount).toBe(1);
+    expect(houstonNode!.localPrintingCount).toBe(2);
+    expect(dallasNode!.localPrintingCount).toBe(1);
   });
 
   it("counts distinct printings across deeper descendants", () => {
@@ -89,14 +89,14 @@ describe("buildPromoTree", () => {
 
     const tree = buildPromoTree([root, wave1, wave2], indexByChannel([both, wave1Only, wave2Only]));
 
-    expect(tree[0].localPrintingCount).toBe(3);
+    expect(tree[0]!.localPrintingCount).toBe(3);
   });
 
   it("returns zero count for channels with no printings in their subtree", () => {
     const channel = stubChannel({ id: "empty", label: "Empty" });
     const tree = buildPromoTree([channel], new Map());
-    expect(tree[0].localPrintingCount).toBe(0);
-    expect(tree[0].subtreePrintingIds.size).toBe(0);
+    expect(tree[0]!.localPrintingCount).toBe(0);
+    expect(tree[0]!.subtreePrintingIds.size).toBe(0);
   });
 });
 

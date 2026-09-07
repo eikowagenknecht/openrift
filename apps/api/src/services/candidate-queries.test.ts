@@ -84,12 +84,12 @@ describe("buildCandidateCardList", () => {
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
-    expect(result[0].cardSlug).toBe("fireball");
-    expect(result[0].name).toBe("Fireball");
-    expect(result[0].shortCodes).toEqual(["OGN-001"]);
-    expect(result[0].candidateCount).toBe(1);
-    expect(result[0].hasFavorite).toBe(true);
-    expect(result[0].uncheckedCardCount).toBe(1);
+    expect(result[0]!.cardSlug).toBe("fireball");
+    expect(result[0]!.name).toBe("Fireball");
+    expect(result[0]!.shortCodes).toEqual(["OGN-001"]);
+    expect(result[0]!.candidateCount).toBe(1);
+    expect(result[0]!.hasFavorite).toBe(true);
+    expect(result[0]!.uncheckedCardCount).toBe(1);
   });
 
   it("matches candidate cards via aliases", async () => {
@@ -114,8 +114,8 @@ describe("buildCandidateCardList", () => {
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
-    expect(result[0].cardSlug).toBe("fireball");
-    expect(result[0].candidateCount).toBe(1);
+    expect(result[0]!.cardSlug).toBe("fireball");
+    expect(result[0]!.candidateCount).toBe(1);
   });
 
   it("reports unmatched candidate groups with null cardSlug", async () => {
@@ -138,9 +138,9 @@ describe("buildCandidateCardList", () => {
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
-    expect(result[0].cardSlug).toBeNull();
-    expect(result[0].name).toBe("New Card");
-    expect(result[0].normalizedName).toBe("newcard");
+    expect(result[0]!.cardSlug).toBeNull();
+    expect(result[0]!.name).toBe("New Card");
+    expect(result[0]!.normalizedName).toBe("newcard");
   });
 
   it("keeps non-Latin candidate names in separate rows", async () => {
@@ -219,7 +219,7 @@ describe("buildCandidateCardList", () => {
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
-    expect(result[0].candidateCount).toBe(2);
+    expect(result[0]!.candidateCount).toBe(2);
   });
 
   it("counts unchecked printings across a candidate group", async () => {
@@ -259,8 +259,8 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].uncheckedPrintingCount).toBe(2);
-    expect(result[0].stagingShortCodes).toEqual(["OGN-001"]);
+    expect(result[0]!.uncheckedPrintingCount).toBe(2);
+    expect(result[0]!.stagingShortCodes).toEqual(["OGN-001"]);
   });
 
   it("collects staging short codes only for unchecked unlinked candidate printings", async () => {
@@ -289,7 +289,7 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
+    expect(result[0]!.stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
   });
 
   it("keeps staging short codes in repo order when merged across providers", async () => {
@@ -319,7 +319,7 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].stagingShortCodes).toEqual(["OGN-001", "OGN-002", "SFD-100", "OGN-001 [SC]"]);
+    expect(result[0]!.stagingShortCodes).toEqual(["OGN-001", "OGN-002", "SFD-100", "OGN-001 [SC]"]);
   });
 
   it("merges multiple candidate groups from aliases and direct match", async () => {
@@ -349,7 +349,7 @@ describe("buildCandidateCardList", () => {
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
-    expect(result[0].candidateCount).toBe(2);
+    expect(result[0]!.candidateCount).toBe(2);
   });
 
   it("returns suggestedCardSlug for unmatched entries matching card prefix", async () => {
@@ -447,9 +447,9 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].shortCodes).toEqual(["OGN-001", "OGN-002"]);
-    expect(result[0].candidateCount).toBe(0);
-    expect(result[0].hasFavorite).toBe(false);
+    expect(result[0]!.shortCodes).toEqual(["OGN-001", "OGN-002"]);
+    expect(result[0]!.candidateCount).toBe(0);
+    expect(result[0]!.hasFavorite).toBe(false);
   });
 
   it("reports hasFavorite false when no favorite provider", async () => {
@@ -468,7 +468,7 @@ describe("buildCandidateCardList", () => {
     });
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
-    expect(result[0].hasFavorite).toBe(false);
+    expect(result[0]!.hasFavorite).toBe(false);
   });
 
   it("counts unchecked candidate cards only from favorite providers", async () => {
@@ -486,10 +486,10 @@ describe("buildCandidateCardList", () => {
     });
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
-    expect(result[0].uncheckedCardCount).toBe(0);
+    expect(result[0]!.uncheckedCardCount).toBe(0);
 
     const result2 = await buildCandidateCardList(repo, new Set(["gallery", "ocr"]));
-    expect(result2[0].uncheckedCardCount).toBe(1);
+    expect(result2[0]!.uncheckedCardCount).toBe(1);
   });
 
   it("handles card with no candidate group (null group)", async () => {
@@ -505,14 +505,14 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].candidateCount).toBe(0);
-    expect(result[0].stagingShortCodes).toEqual([]);
-    expect(result[0].favoriteStagingShortCodes).toEqual([]);
-    expect(result[0].uncheckedCardCount).toBe(0);
-    expect(result[0].uncheckedPrintingCount).toBe(0);
-    expect(result[0].unlinkedPrintingCount).toBe(0);
-    expect(result[0].hasFavorite).toBe(false);
-    expect(result[0].suggestedCardSlug).toBeNull();
+    expect(result[0]!.candidateCount).toBe(0);
+    expect(result[0]!.stagingShortCodes).toEqual([]);
+    expect(result[0]!.favoriteStagingShortCodes).toEqual([]);
+    expect(result[0]!.uncheckedCardCount).toBe(0);
+    expect(result[0]!.uncheckedPrintingCount).toBe(0);
+    expect(result[0]!.unlinkedPrintingCount).toBe(0);
+    expect(result[0]!.hasFavorite).toBe(false);
+    expect(result[0]!.suggestedCardSlug).toBeNull();
   });
 
   it("counts every unlinked candidate printing, checked or not, from any provider", async () => {
@@ -541,8 +541,8 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].favoriteStagingShortCodes).toEqual(["OGN-001"]);
-    expect(result[0].unlinkedPrintingCount).toBe(3);
+    expect(result[0]!.favoriteStagingShortCodes).toEqual(["OGN-001"]);
+    expect(result[0]!.unlinkedPrintingCount).toBe(3);
   });
 
   it("reports no unlinked printings when every candidate printing is accepted", async () => {
@@ -566,7 +566,7 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].unlinkedPrintingCount).toBe(0);
+    expect(result[0]!.unlinkedPrintingCount).toBe(0);
   });
 
   it("counts unlinked candidate printings on unmatched rows too", async () => {
@@ -591,8 +591,8 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].cardSlug).toBeNull();
-    expect(result[0].unlinkedPrintingCount).toBe(2);
+    expect(result[0]!.cardSlug).toBeNull();
+    expect(result[0]!.unlinkedPrintingCount).toBe(2);
   });
 
   it("favoriteStagingShortCodes includes only codes from favorite providers", async () => {
@@ -614,8 +614,8 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].stagingShortCodes).toEqual(["OGN-001", "OGN-002"]);
-    expect(result[0].favoriteStagingShortCodes).toEqual(["OGN-001"]);
+    expect(result[0]!.stagingShortCodes).toEqual(["OGN-001", "OGN-002"]);
+    expect(result[0]!.favoriteStagingShortCodes).toEqual(["OGN-001"]);
   });
 
   it("derives setSlugs from a matched card's accepted printings", async () => {
@@ -631,7 +631,7 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].setSlugs).toEqual(["ogn", "ven"]);
+    expect(result[0]!.setSlugs).toEqual(["ogn", "ven"]);
   });
 
   it("includes pending candidate-printing sets in an unmatched row's setSlugs", async () => {
@@ -696,7 +696,7 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].setSlugs).toEqual(["ogn", "ven"]);
+    expect(result[0]!.setSlugs).toEqual(["ogn", "ven"]);
   });
 
   it("leaves setSlugs empty when no printing carries a set", async () => {
@@ -712,7 +712,7 @@ describe("buildCandidateCardList", () => {
     });
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
-    expect(result[0].setSlugs).toEqual([]);
+    expect(result[0]!.setSlugs).toEqual([]);
   });
 });
 
@@ -758,7 +758,7 @@ describe("buildExport", () => {
     const result = await buildExport(repo);
 
     expect(result).toHaveLength(1);
-    expect(result[0].card).toEqual({
+    expect(result[0]!.card).toEqual({
       name: "Fireball",
       types: ["spell"],
       super_types: [],
@@ -819,9 +819,9 @@ describe("buildExport", () => {
 
     const result = await buildExport(repo);
 
-    expect(result[0].printings).toHaveLength(1);
-    expect(result[0].printings[0].image_url).toBe("http://orig.com/img.jpg");
-    expect(result[0].printings[0].extra_data).toBeNull();
+    expect(result[0]!.printings).toHaveLength(1);
+    expect(result[0]!.printings[0]!.image_url).toBe("http://orig.com/img.jpg");
+    expect(result[0]!.printings[0]!.extra_data).toBeNull();
   });
 
   it("exports marker_slugs and size for the canonical reference", async () => {
@@ -869,8 +869,8 @@ describe("buildExport", () => {
 
     const result = await buildExport(repo);
 
-    expect(result[0].printings[0].marker_slugs).toEqual(["launch-exclusive"]);
-    expect(result[0].printings[0].size).toBe("standard");
+    expect(result[0]!.printings[0]!.marker_slugs).toEqual(["launch-exclusive"]);
+    expect(result[0]!.printings[0]!.size).toBe("standard");
   });
 
   it("exports printed_year so it round-trips back through the upload", async () => {
@@ -917,7 +917,7 @@ describe("buildExport", () => {
 
     const result = await buildExport(repo);
 
-    expect(result[0].printings[0].printed_year).toBe(2025);
+    expect(result[0]!.printings[0]!.printed_year).toBe(2025);
   });
 
   it("prefers originalUrl over rehostedUrl for image_url", async () => {
@@ -962,7 +962,7 @@ describe("buildExport", () => {
     });
 
     const result = await buildExport(repo);
-    expect(result[0].printings[0].image_url).toBe("http://orig.com");
+    expect(result[0]!.printings[0]!.image_url).toBe("http://orig.com");
   });
 
   it("falls back to rehostedUrl when originalUrl is null", async () => {
@@ -1007,7 +1007,7 @@ describe("buildExport", () => {
     });
 
     const result = await buildExport(repo);
-    expect(result[0].printings[0].image_url).toBe("http://rehost.com");
+    expect(result[0]!.printings[0]!.image_url).toBe("http://rehost.com");
   });
 
   it("returns null image_url when both originalUrl and rehostedUrl are null", async () => {
@@ -1052,7 +1052,7 @@ describe("buildExport", () => {
     });
 
     const result = await buildExport(repo);
-    expect(result[0].printings[0].image_url).toBeNull();
+    expect(result[0]!.printings[0]!.image_url).toBeNull();
   });
 
   it("includes imageId in extra_data when present", async () => {
@@ -1097,7 +1097,7 @@ describe("buildExport", () => {
     });
 
     const result = await buildExport(repo);
-    expect(result[0].printings[0].extra_data).toEqual({ image_id: "img-123" });
+    expect(result[0]!.printings[0]!.extra_data).toEqual({ image_id: "img-123" });
   });
 
   it("groups printings by card id", async () => {
@@ -1176,8 +1176,8 @@ describe("buildExport", () => {
 
     const result = await buildExport(repo);
 
-    expect(result[0].printings).toHaveLength(2);
-    expect(result[1].printings).toHaveLength(0);
+    expect(result[0]!.printings).toHaveLength(2);
+    expect(result[1]!.printings).toHaveLength(0);
   });
 });
 
@@ -1289,7 +1289,7 @@ describe("buildCardDetail", () => {
 
     await buildCardDetail(repo, mpRepo(), "rogue-assassin");
 
-    const normNames = candidateCardsForDetail.mock.calls[0][0] as string[];
+    const normNames = candidateCardsForDetail.mock.calls[0]![0] as string[];
     expect(normNames).toContain("rogueassassin");
     expect(normNames).toContain("akalirogueassassin");
   });
@@ -1438,9 +1438,9 @@ describe("buildCardDetail", () => {
     const result = await buildCardDetail(repo, mpRepo(), "fireball");
 
     expect(result.printings).toHaveLength(1);
-    expect(result.printings[0].setId).toBe("origin");
-    expect(result.printings[0].setName).toBe("Origin Set");
-    expect(result.printings[0].expectedPrintingId).toBe("OGN-001::normal");
+    expect(result.printings[0]!.setId).toBe("origin");
+    expect(result.printings[0]!.setName).toBe("Origin Set");
+    expect(result.printings[0]!.expectedPrintingId).toBe("OGN-001::normal");
   });
 
   it("resolves promo type slugs for expectedPrintingId", async () => {
@@ -1495,7 +1495,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "fireball");
-    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:promo:foil");
+    expect(result.printings[0]!.expectedPrintingId).toBe("OGN-001:promo:foil");
   });
 
   it("groups unlinked candidate printings into candidatePrintingGroups", async () => {
@@ -1574,9 +1574,9 @@ describe("buildCardDetail", () => {
     const result = await buildCardDetail(repo, mpRepo(), "x");
 
     expect(result.candidatePrintingGroups).toHaveLength(1);
-    expect(result.candidatePrintingGroups[0].shortCodes).toEqual(["cp-1", "cp-2"]);
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::normal");
-    expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBeNull();
+    expect(result.candidatePrintingGroups[0]!.shortCodes).toEqual(["cp-1", "cp-2"]);
+    expect(result.candidatePrintingGroups[0]!.expectedPrintingId).toBe("OGN-001::normal");
+    expect(result.candidatePrintingGroups[0]!.suggestedPrintingId).toBeNull();
   });
 
   it("suggests the closest accepted printing for near-miss groups", async () => {
@@ -1777,7 +1777,7 @@ describe("buildCardDetail", () => {
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
 
-    expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBe("p-prerelease-promo");
+    expect(result.candidatePrintingGroups[0]!.suggestedPrintingId).toBe("p-prerelease-promo");
   });
 
   it("prefers a marker match over a finish match for near-miss groups", async () => {
@@ -1877,7 +1877,7 @@ describe("buildCardDetail", () => {
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
 
-    expect(result.candidatePrintingGroups[0].suggestedPrintingId).toBe("p-promo");
+    expect(result.candidatePrintingGroups[0]!.suggestedPrintingId).toBe("p-promo");
   });
 
   it("excludes linked candidate printings from grouping", async () => {
@@ -1987,7 +1987,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::foil");
+    expect(result.candidatePrintingGroups[0]!.expectedPrintingId).toBe("OGN-001::foil");
   });
 
   it("resolves finish to normal for Common/Uncommon rarity", async () => {
@@ -2042,7 +2042,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::normal");
+    expect(result.candidatePrintingGroups[0]!.expectedPrintingId).toBe("OGN-001::normal");
   });
 
   it("resolves finish to empty string when both finish and rarity are null", async () => {
@@ -2097,7 +2097,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::");
+    expect(result.candidatePrintingGroups[0]!.expectedPrintingId).toBe("OGN-001::");
   });
 
   it("formats candidate card checkedAt as ISO string", async () => {
@@ -2129,7 +2129,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.sources[0].checkedAt).toBe(testDate.toISOString());
+    expect(result.sources[0]!.checkedAt).toBe(testDate.toISOString());
   });
 
   it("returns null checkedAt when candidate card checkedAt is null", async () => {
@@ -2160,7 +2160,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.sources[0].checkedAt).toBeNull();
+    expect(result.sources[0]!.checkedAt).toBeNull();
   });
 
   it("fetches set printed totals for unlinked candidate printings", async () => {
@@ -2840,7 +2840,7 @@ describe("provider scoping (allowedProviders)", () => {
     const result = await buildCandidateCardList(repo, new Set(), new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
-    expect(result[0].candidateCount).toBe(1);
+    expect(result[0]!.candidateCount).toBe(1);
   });
 
   it("buildCandidateCardList drops matched cards with no allowed candidates", async () => {
@@ -2883,7 +2883,7 @@ describe("provider scoping (allowedProviders)", () => {
 
     const result = await buildCandidateCardList(repo, new Set(), null);
     expect(result).toHaveLength(1);
-    expect(result[0].candidateCount).toBe(0);
+    expect(result[0]!.candidateCount).toBe(0);
   });
 
   it("buildCardDetail filters sources and their candidate printings", async () => {

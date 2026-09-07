@@ -8,6 +8,10 @@ import {
 
 import type { ImportEntry } from "@/lib/import-parsers";
 
+function onlyOne<Item>(items: readonly Item[]): Item | undefined {
+  return items.length === 1 ? items[0] : undefined;
+}
+
 export type MatchStatus = "exact" | "needs-review" | "unresolved";
 
 export interface MatchedEntry {
@@ -78,8 +82,9 @@ class PrintingIndex {
 
     // e.g. "OGN-001a" → "OGN-001"
     const baseMatch = /^(?<base>[A-Z]{3}-[A-Z0-9]{3})[a-z*]$/iu.exec(sourceCode);
-    if (baseMatch) {
-      const base = this.byShortCode.get(baseMatch[1].toLowerCase());
+    const basePrefix = baseMatch?.[1];
+    if (basePrefix !== undefined) {
+      const base = this.byShortCode.get(basePrefix.toLowerCase());
       if (base && base.length > 0) {
         return base;
       }
@@ -94,9 +99,10 @@ class PrintingIndex {
     for (let length = parts.length - 1; length >= 2; length--) {
       const candidate = parts.slice(0, length).join("-").toLowerCase();
       const found = this.byShortCode.get(candidate);
-      if (found && found.length > 0) {
+      const firstFound = found?.[0];
+      if (found && firstFound) {
         // By card id, not name: two cards can share a name, but the code already picked this one.
-        return this.byCardId.get(found[0].cardId)?.printings ?? found;
+        return this.byCardId.get(firstFound.cardId)?.printings ?? found;
       }
     }
     return [];
@@ -140,11 +146,12 @@ function matchSingleEntry(
       const promoMatches = langMatches.filter((printing) =>
         promoSlugs.every((slug) => printing.markers.some((m) => m.slug === slug)),
       );
-      if (promoMatches.length === 1) {
+      const onlyPromoMatch = onlyOne(promoMatches);
+      if (onlyPromoMatch) {
         return {
           entry,
           status: "exact",
-          resolvedPrinting: promoMatches[0],
+          resolvedPrinting: onlyPromoMatch,
           candidates: langMatches,
         };
       }
@@ -168,11 +175,12 @@ function matchSingleEntry(
     // Known promo without a specific slug (e.g. RiftMana's -p suffix): don't auto-resolve to the base.
     if (entry.isPromo) {
       const promoMatches = langMatches.filter((printing) => printing.markers.length > 0);
-      if (promoMatches.length === 1) {
+      const onlyPromoMatch = onlyOne(promoMatches);
+      if (onlyPromoMatch) {
         return {
           entry,
           status: "exact",
-          resolvedPrinting: promoMatches[0],
+          resolvedPrinting: onlyPromoMatch,
           candidates: langMatches,
         };
       }
@@ -184,11 +192,12 @@ function matchSingleEntry(
       };
     }
 
-    if (finishMatches.length === 1) {
+    const onlyFinishMatch = onlyOne(finishMatches);
+    if (onlyFinishMatch) {
       return {
         entry,
         status: "exact",
-        resolvedPrinting: finishMatches[0],
+        resolvedPrinting: onlyFinishMatch,
         candidates: langMatches,
       };
     }
@@ -198,11 +207,12 @@ function matchSingleEntry(
       const base = finishMatches.filter(
         (printing) => printing.markers.length === 0 && !printing.isSigned,
       );
-      if (base.length === 1) {
+      const onlyBase = onlyOne(base);
+      if (onlyBase) {
         return {
           entry,
           status: "exact",
-          resolvedPrinting: base[0],
+          resolvedPrinting: onlyBase,
           candidates: langMatches,
         };
       }
@@ -238,11 +248,12 @@ function matchSingleEntry(
         (entry.isOvernumbered === undefined || printing.isOvernumbered === entry.isOvernumbered),
     );
 
-    if (finishMatches.length === 1) {
+    const onlyFinishMatch = onlyOne(finishMatches);
+    if (onlyFinishMatch) {
       return {
         entry,
         status: "needs-review",
-        resolvedPrinting: finishMatches[0],
+        resolvedPrinting: onlyFinishMatch,
         candidates: langMatches,
         suggestedName: groups[0]?.cardName,
       };

@@ -37,7 +37,7 @@ if (ctx) {
     .values({ slug: "CSM-TEST", name: "CSM Test Set", printedTotal: 2, sortOrder: 103 })
     .returning("id")
     .execute();
-  setId = setRow.id;
+  setId = setRow!.id;
 
   const [cardRow] = await db
     .insertInto("cards")
@@ -54,7 +54,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cardId = cardRow.id;
+  cardId = cardRow!.id;
   await syncCardCardTypes(db);
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
@@ -80,7 +80,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printingId = printingRow.id;
+  printingId = printingRow!.id;
 
   const [printing2Row] = await db
     .insertInto("printings")
@@ -103,7 +103,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printing2Id = printing2Row.id;
+  printing2Id = printing2Row!.id;
 
   const [csRow] = await db
     .insertInto("candidateCards")
@@ -126,7 +126,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cardShortCode = csRow.id;
+  cardShortCode = csRow!.id;
 
   const [csUnmatchedRow] = await db
     .insertInto("candidateCards")
@@ -149,7 +149,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  csUnmatchedId = csUnmatchedRow.id;
+  csUnmatchedId = csUnmatchedRow!.id;
 
   const [psRow] = await db
     .insertInto("candidatePrintings")
@@ -174,7 +174,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  psId = psRow.id;
+  psId = psRow!.id;
 
   const [psUnlinkedRow] = await db
     .insertInto("candidatePrintings")
@@ -199,7 +199,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  psUnlinkedId = psUnlinkedRow.id;
+  psUnlinkedId = psUnlinkedRow!.id;
 
   const [csForAcceptNew] = await db
     .insertInto("candidateCards")
@@ -222,7 +222,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  csForAcceptNewId = csForAcceptNew.id;
+  csForAcceptNewId = csForAcceptNew!.id;
 
   const [psAcceptNew] = await db
     .insertInto("candidatePrintings")
@@ -247,7 +247,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  psForAcceptNewId = psAcceptNew.id;
+  psForAcceptNewId = psAcceptNew!.id;
 }
 
 const P = "/cards";
@@ -855,7 +855,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       // Stamp the EN row with the promo marker (trigger keeps marker_slugs in sync).
       await db
         .insertInto("printingMarkers")
-        .values({ printingId: enRow.id, markerId: promoMarker.id })
+        .values({ printingId: enRow!.id, markerId: promoMarker.id })
         .execute();
 
       const [scRow] = await db
@@ -877,7 +877,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        adminReq("POST", `${P}/printing/${scRow.id}/accept-field`, {
+        adminReq("POST", `${P}/printing/${scRow!.id}/accept-field`, {
           field: "markerSlugs",
           value: [PROMO_MARKER_SLUG],
         }),
@@ -887,11 +887,11 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const updated = await db
         .selectFrom("printings")
         .select("markerSlugs")
-        .where("id", "=", scRow.id)
+        .where("id", "=", scRow!.id)
         .executeTakeFirstOrThrow();
       expect(updated.markerSlugs).toEqual([PROMO_MARKER_SLUG]);
 
-      await db.deleteFrom("printings").where("id", "in", [enRow.id, scRow.id]).execute();
+      await db.deleteFrom("printings").where("id", "in", [enRow!.id, scRow!.id]).execute();
     });
   });
 
@@ -1023,7 +1023,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             flavorText: "AP Flavor",
             imageUrl: "https://example.com/ap.png",
           },
-          candidatePrintingIds: [apPs.id],
+          candidatePrintingIds: [apPs!.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1043,7 +1043,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const ps = await db
         .selectFrom("candidatePrintings")
         .select(["printingId", "checkedAt"])
-        .where("id", "=", apPs.id)
+        .where("id", "=", apPs!.id)
         .executeTakeFirstOrThrow();
       expect(ps.printingId).toBeTruthy();
       expect(ps.checkedAt).toBeTruthy();
@@ -1084,7 +1084,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "Custom Artist",
             publicCode: "CSM",
           },
-          candidatePrintingIds: [apPs2.id],
+          candidatePrintingIds: [apPs2!.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1131,7 +1131,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "Promo Artist",
             publicCode: "CSM",
           },
-          candidatePrintingIds: [apPs3.id],
+          candidatePrintingIds: [apPs3!.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1213,7 +1213,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             artist: "A",
             publicCode: "X",
           },
-          candidatePrintingIds: [apPs4.id],
+          candidatePrintingIds: [apPs4!.id],
         }),
       );
       expect(res.status).toBe(200);
@@ -1630,9 +1630,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       await db
         .insertInto("printingImages")
         .values({
-          printingId: disposablePrinting.id,
+          printingId: disposablePrinting!.id,
           face: "front",
-          imageFileId: cardImage.id,
+          imageFileId: cardImage!.id,
           isActive: true,
         })
         .execute();
@@ -1641,7 +1641,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .insertInto("candidatePrintings")
         .values({
           candidateCardId: csForAcceptNewId,
-          printingId: disposablePrinting.id,
+          printingId: disposablePrinting!.id,
           shortCode: "CSM-DELETE-TEST",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
@@ -1660,13 +1660,13 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         })
         .execute();
 
-      const res = await app.fetch(adminReq("DELETE", `${P}/printing/${disposablePrinting.id}`));
+      const res = await app.fetch(adminReq("DELETE", `${P}/printing/${disposablePrinting!.id}`));
       expect(res.status).toBe(204);
 
       const row = await db
         .selectFrom("printings")
         .select("id")
-        .where("id", "=", disposablePrinting.id)
+        .where("id", "=", disposablePrinting!.id)
         .executeTakeFirst();
       expect(row).toBeUndefined();
     });

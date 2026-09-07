@@ -53,12 +53,12 @@ describe.skipIf(!ctx)("rulesRepo (integration)", () => {
     const coreLatest = await repo.listLatest("core");
     const coreSubset = coreLatest.filter((r) => r.version === sharedVersion);
     expect(coreSubset).toHaveLength(1);
-    expect(coreSubset[0].content).toBe("Core rule body.");
+    expect(coreSubset[0]!.content).toBe("Core rule body.");
 
     const tournamentLatest = await repo.listLatest("tournament");
     const tournamentSubset = tournamentLatest.filter((r) => r.version === sharedVersion);
     expect(tournamentSubset).toHaveLength(1);
-    expect(tournamentSubset[0].content).toBe("Tournament rule body.");
+    expect(tournamentSubset[0]!.content).toBe("Tournament rule body.");
   });
 
   it("listAtVersion is kind-scoped", async () => {

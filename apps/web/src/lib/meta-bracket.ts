@@ -104,8 +104,9 @@ function derivedRounds(matches: readonly MetaEventMatch[]): MetaEventMatch[][] {
   if (rounds.length < 2 || rounds.at(-1)?.length !== 1) {
     return [];
   }
-  for (let index = 0; index < rounds.length - 1; index++) {
-    if (rounds[index].length !== rounds[index + 1].length * 2) {
+  for (const [index, round] of rounds.entries()) {
+    const nextRound = rounds[index + 1];
+    if (nextRound !== undefined && round.length !== nextRound.length * 2) {
       return [];
     }
   }

@@ -55,10 +55,10 @@ describe("createScanReport", () => {
       now: NOW,
     });
 
-    expect(result).toEqual({ status: "ok", reference: inserted[0].reference });
-    expect(inserted[0].reference).toMatch(/^SC-[A-HJ-NP-Z2-9]{4}$/u);
-    expect(inserted[0].userId).toBe("user-1");
-    expect(inserted[0].note).toBe("the retry double-added");
+    expect(result).toEqual({ status: "ok", reference: inserted[0]!.reference });
+    expect(inserted[0]!.reference).toMatch(/^SC-[A-HJ-NP-Z2-9]{4}$/u);
+    expect(inserted[0]!.userId).toBe("user-1");
+    expect(inserted[0]!.note).toBe("the retry double-added");
   });
 
   it("mints a reference free of the characters that read as each other", async () => {
@@ -102,7 +102,7 @@ describe("createScanReport", () => {
     });
 
     expect(result).toEqual({ status: "ok", reference: "SC-BBBB" });
-    expect(inserted[0].reference).toBe("SC-BBBB");
+    expect(inserted[0]!.reference).toBe("SC-BBBB");
   });
 
   it("refuses once the hourly allowance is spent", async () => {
@@ -133,8 +133,8 @@ describe("createScanReport", () => {
       now: NOW,
     });
 
-    expect(inserted[0].journal).toEqual([]);
-    expect(inserted[0].note).toBeNull();
-    expect(inserted[0].userAgent).toBeNull();
+    expect(inserted[0]!.journal).toEqual([]);
+    expect(inserted[0]!.note).toBeNull();
+    expect(inserted[0]!.userAgent).toBeNull();
   });
 });

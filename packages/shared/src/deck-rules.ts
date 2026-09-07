@@ -72,7 +72,8 @@ export const legendExactlyOne: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   const count = totalQuantity(legends);
 
-  if (count === 0) {
+  const [legend] = legends;
+  if (count === 0 || legend === undefined) {
     return [
       { zone: WellKnown.deckZone.LEGEND, code: "LEGEND_REQUIRED", message: "A Legend is required" },
     ];
@@ -87,7 +88,6 @@ export const legendExactlyOne: DeckRule = (state) => {
     ];
   }
 
-  const legend = legends[0];
   if (!legend.cardTypes.includes(WellKnown.cardType.LEGEND)) {
     return [
       {
@@ -106,7 +106,8 @@ export const championExactlyOne: DeckRule = (state) => {
   const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
   const count = totalQuantity(champions);
 
-  if (count === 0) {
+  const [champion] = champions;
+  if (count === 0 || champion === undefined) {
     return [
       {
         zone: WellKnown.deckZone.CHAMPION,
@@ -125,7 +126,6 @@ export const championExactlyOne: DeckRule = (state) => {
     ];
   }
 
-  const champion = champions[0];
   if (!champion.superTypes.includes(WellKnown.superType.CHAMPION)) {
     return [
       {
@@ -144,12 +144,12 @@ export const championSharesTagWithLegend: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
 
-  if (legends.length !== 1 || champions.length !== 1) {
+  const legend = legends.length === 1 ? legends[0] : undefined;
+  const champion = champions.length === 1 ? champions[0] : undefined;
+  if (legend === undefined || champion === undefined) {
     return [];
   }
 
-  const legend = legends[0];
-  const champion = champions[0];
   const legendTags = new Set(legend.tags);
   const hasOverlap = champion.tags.some((tag) => legendTags.has(tag));
 
@@ -221,11 +221,12 @@ export const runesAllTypeRune: DeckRule = (state) => {
 
 export const runesMatchLegendDomains: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
-  if (legends.length !== 1) {
+  const legend = legends.length === 1 ? legends[0] : undefined;
+  if (legend === undefined) {
     return [];
   }
 
-  const legendDomains = new Set(legends[0].domains);
+  const legendDomains = new Set(legend.domains);
   const violations: DeckViolation[] = [];
 
   for (const card of cardsInZone(state.cards, WellKnown.deckZone.RUNES)) {
@@ -290,11 +291,12 @@ export const mainDeckCopyLimit: DeckRule = (state) => {
 
 const mainDeckDomainMatch: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
-  if (legends.length !== 1) {
+  const legend = legends.length === 1 ? legends[0] : undefined;
+  if (legend === undefined) {
     return [];
   }
 
-  const allowedDomains = new Set([...legends[0].domains, WellKnown.domain.COLORLESS]);
+  const allowedDomains = new Set([...legend.domains, WellKnown.domain.COLORLESS]);
   const violations: DeckViolation[] = [];
 
   for (const card of [
@@ -317,11 +319,12 @@ const mainDeckDomainMatch: DeckRule = (state) => {
 
 export const championCopyLimitAcrossZones: DeckRule = (state) => {
   const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
-  if (champions.length !== 1) {
+  const champion = champions.length === 1 ? champions[0] : undefined;
+  if (champion === undefined) {
     return [];
   }
 
-  const championCardId = champions[0].cardId;
+  const championCardId = champion.cardId;
   const mainCopies = cardsInZone(state.cards, WellKnown.deckZone.MAIN).find(
     (card) => card.cardId === championCardId,
   );
@@ -534,11 +537,12 @@ const signatureTotalLimit: DeckRule = (state) => {
 // Rule 103.2.d.2.
 const signatureMatchesLegendTag: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
-  if (legends.length !== 1) {
+  const legend = legends.length === 1 ? legends[0] : undefined;
+  if (legend === undefined) {
     return [];
   }
 
-  const legendTags = new Set(legends[0].tags);
+  const legendTags = new Set(legend.tags);
   const violations: DeckViolation[] = [];
 
   for (const card of [
@@ -571,10 +575,11 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
   }
 
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
-  if (legends.length !== 1) {
+  const legend = legends.length === 1 ? legends[0] : undefined;
+  if (legend === undefined) {
     return [];
   }
-  const legendTags = new Set(legends[0].tags);
+  const legendTags = new Set(legend.tags);
 
   const championCopiesByTag = new Map<string, number>();
   for (const card of [
@@ -609,9 +614,12 @@ const signatureChampionCopiesInDeck: DeckRule = (state) => {
     if (signatureChampionTags.some((tag) => legendTags.has(tag))) {
       continue;
     }
-    const bestSuppliedTag = signatureChampionTags.toSorted(
+    const [bestSuppliedTag] = signatureChampionTags.toSorted(
       (tagA, tagB) => (championCopiesByTag.get(tagB) ?? 0) - (championCopiesByTag.get(tagA) ?? 0),
-    )[0];
+    );
+    if (bestSuppliedTag === undefined) {
+      continue;
+    }
     const demand = demandByTag.get(bestSuppliedTag) ?? { copies: 0, cards: [] };
     demand.copies += card.quantity;
     demand.cards.push(card);

@@ -127,7 +127,7 @@ describe("JobRunsPage", () => {
     captured.response = response({
       runs: [
         {
-          ...response().runs[0],
+          ...response().runs[0]!,
           status: "failed",
           errorMessage: "server restarted during run",
           result: {},

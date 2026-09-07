@@ -89,9 +89,9 @@ describe("marketplaceMappingRepo", () => {
     ];
     const result = await marketplaceMappingRepo(db).upsertProductVariants(values);
     expect(result).toHaveLength(1);
-    expect(result[0].printingId).toBe("p1");
-    expect(result[0].finish).toBe("normal");
-    expect(result[0].language).toBe("EN");
+    expect(result[0]!.printingId).toBe("p1");
+    expect(result[0]!.finish).toBe("normal");
+    expect(result[0]!.language).toBe("EN");
   });
 
   it("getVariantForPrinting returns the variant for a printing", async () => {
@@ -162,7 +162,7 @@ describe("marketplaceMappingRepo", () => {
     ];
     const db = createMockDb(rows);
     const [row] = await marketplaceMappingRepo(db).allStaging("cardmarket");
-    expect(row.language).toBeNull();
+    expect(row!.language).toBeNull();
   });
 });
 
@@ -179,7 +179,7 @@ describe("marketplaceMappingRepo (generated SQL)", () => {
     // straight off the (marketplace_product_id, recorded_at) primary key.
     await marketplaceMappingRepo(captured.db).allStaging("cardmarket");
 
-    const [{ sql, parameters }] = captured.statements;
+    const { sql, parameters } = captured.statements[0]!;
     const flat = sql.replaceAll(/\s+/gu, " ");
     expect(flat).toContain('inner join lateral (select "p"."recorded_at"');
     expect(flat).toContain('order by "p"."recorded_at" desc limit $1) as "latest" on true');
@@ -218,12 +218,12 @@ describe("marketplaceMappingRepo (generated SQL)", () => {
     ]);
 
     const [products] = captured.statements;
-    expect(products.sql).toContain(
+    expect(products!.sql).toContain(
       'on conflict ("marketplace", "external_id", "finish", "language") do update set',
     );
-    expect(products.sql).toContain(
+    expect(products!.sql).toContain(
       'returning "id", "marketplace", "external_id", "finish", "language"',
     );
-    expect(products.parameters).toEqual(["cardmarket", 42, 7, "Card", "normal", null]);
+    expect(products!.parameters).toEqual(["cardmarket", 42, 7, "Card", "normal", null]);
   });
 });

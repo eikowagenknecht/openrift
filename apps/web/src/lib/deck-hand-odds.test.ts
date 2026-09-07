@@ -67,17 +67,17 @@ describe("buildLibraryHitChances", () => {
       groups,
       draws: 1,
     });
-    expect(rows[0].copies).toBe(2);
-    expect(rows[0].chance).toBeCloseTo(0.5, 12);
-    expect(rows[1].copies).toBe(1);
-    expect(rows[1].chance).toBeCloseTo(0.25, 12);
+    expect(rows[0]!.copies).toBe(2);
+    expect(rows[0]!.chance).toBeCloseTo(0.5, 12);
+    expect(rows[1]!.copies).toBe(1);
+    expect(rows[1]!.chance).toBeCloseTo(0.25, 12);
   });
 
   it("improves with more draws", () => {
     const library = ["u1", "s5", "s5", "s5"];
     const one = buildLibraryHitChances({ library, cards, groups, draws: 1 });
     const two = buildLibraryHitChances({ library, cards, groups, draws: 2 });
-    expect(two[0].chance).toBeGreaterThan(one[0].chance);
+    expect(two[0]!.chance).toBeGreaterThan(one[0]!.chance);
   });
 
   it("is impossible once the library holds no members", () => {
@@ -87,7 +87,7 @@ describe("buildLibraryHitChances", () => {
 
   it("is certain when every library card matches", () => {
     const rows = buildLibraryHitChances({ library: ["u1", "u3"], cards, groups, draws: 1 });
-    expect(rows[0].chance).toBe(1);
+    expect(rows[0]!.chance).toBe(1);
   });
 
   it("handles an empty library", () => {
@@ -110,7 +110,7 @@ describe("buildMulliganPreview", () => {
       draws: 2,
     });
     expect(rows.map((row) => row.key)).toEqual(["cheap"]);
-    expect(rows[0].chance).toBeCloseTo(chanceToDraw(1, 4, 2), 12);
+    expect(rows[0]!.chance).toBeCloseTo(chanceToDraw(1, 4, 2), 12);
   });
 
   it("is empty when the kept cards already cover every group", () => {

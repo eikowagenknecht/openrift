@@ -4,7 +4,7 @@ import type {
   MetaEventPhase,
   MetaEventPlayer,
 } from "@openrift/shared";
-import { dateLeafPartsUtc, imageUrl } from "@openrift/shared";
+import { dateLeafPartsUtc, enumLabel, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import { Fragment } from "react";
@@ -161,7 +161,7 @@ export function MetaEventHeader({
   if (event.organizer !== null) {
     byline.push(`Organized by ${event.organizer}`);
   }
-  byline.push(formatLabels[event.format]);
+  byline.push(enumLabel(formatLabels, event.format));
   if (structure.sentence !== null) {
     byline.push(structure.sentence);
   }

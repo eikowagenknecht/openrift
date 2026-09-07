@@ -27,7 +27,7 @@ import type { ListRuleProviders } from "./lists.js";
 type Rows = Record<string, unknown>[];
 
 function tableOf(arg: string): string {
-  return arg.split(" ")[0];
+  return arg.split(" ")[0]!;
 }
 
 function makeDb(queues: Record<string, Rows[]>): Kysely<Database> {
@@ -290,9 +290,9 @@ describe("friendGroupMatchesRepo (ADR-034 app-level matcher)", () => {
 
   it("excludes altered copies from the mirror direction too", async () => {
     const queues = baselineQueues({ copy: { isAltered: true } });
-    queues.friendGroupListShares[0][0].ownerUserId = "viewer";
-    queues.friendGroupListShares[1][0].ownerUserId = "buyer";
-    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    queues.friendGroupListShares[0]![0]!.ownerUserId = "viewer";
+    queues.friendGroupListShares[1]![0]!.ownerUserId = "buyer";
+    queues.users[0]![0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toEqual([]);
@@ -320,7 +320,7 @@ describe("friendGroupMatchesRepo (ADR-034 app-level matcher)", () => {
 
   it("never matches the viewer with themselves", async () => {
     const queues = baselineQueues();
-    queues.friendGroupListShares[0][0].ownerUserId = "viewer";
+    queues.friendGroupListShares[0]![0]!.ownerUserId = "viewer";
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toEqual([]);
@@ -328,9 +328,9 @@ describe("friendGroupMatchesRepo (ADR-034 app-level matcher)", () => {
 
   it("returns the same shape for othersWantYourHaves (mirror direction)", async () => {
     const queues = baselineQueues();
-    queues.friendGroupListShares[0][0].ownerUserId = "viewer"; // viewer's trade list
-    queues.friendGroupListShares[1][0].ownerUserId = "buyer"; // other's wish list
-    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    queues.friendGroupListShares[0]![0]!.ownerUserId = "viewer"; // viewer's trade list
+    queues.friendGroupListShares[1]![0]!.ownerUserId = "buyer"; // other's wish list
+    queues.users[0]![0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toHaveLength(1);
@@ -431,9 +431,9 @@ describe("friendGroupMatchesRepo — promised-incoming netting", () => {
       ...baselineQueues(),
       cardTrades: [[promisedRow({ receiverUserId: "buyer" })]],
     };
-    queues.friendGroupListShares[0][0].ownerUserId = "viewer"; // viewer's trade list
-    queues.friendGroupListShares[1][0].ownerUserId = "buyer"; // other's wish list
-    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    queues.friendGroupListShares[0]![0]!.ownerUserId = "viewer"; // viewer's trade list
+    queues.friendGroupListShares[1]![0]!.ownerUserId = "buyer"; // other's wish list
+    queues.users[0]![0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" });
     expect(rows).toEqual([]);
@@ -512,9 +512,9 @@ describe("friendGroupMatchesRepo — pending-offer claims", () => {
       ...twoCopyQueues(),
       cardTrades: [[], [offerRow({ giverUserId: "viewer", quantity: 2 })]],
     };
-    queues.friendGroupListShares[0][0].ownerUserId = "viewer"; // viewer's trade list
-    queues.friendGroupListShares[1][0].ownerUserId = "buyer"; // other's wish list
-    queues.users[0][0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
+    queues.friendGroupListShares[0]![0]!.ownerUserId = "viewer"; // viewer's trade list
+    queues.friendGroupListShares[1]![0]!.ownerUserId = "buyer"; // other's wish list
+    queues.users[0]![0] = { id: "buyer", name: "Bob", image: null, email: "b@x.com" };
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     expect(await repo.othersWantYourHaves({ groupId: "g", viewerUserId: "viewer" })).toEqual([]);
   });
@@ -607,12 +607,12 @@ describe("friendGroupMatchesRepo — sorting and counterparty scoping", () => {
 describe("friendGroupMatchesRepo — trade-preference coalescing", () => {
   it("ships resolved sellPref / buyPref through to the match row", async () => {
     const queues = baselineQueues();
-    queues.friendGroupListShares[0][0] = tradeShare({
+    queues.friendGroupListShares[0]![0] = tradeShare({
       defaultPricePref: "cm_lowest",
       defaultTradeType: "cards",
       currency: "EUR",
     });
-    queues.friendGroupListShares[1][0] = wishShare({
+    queues.friendGroupListShares[1]![0] = wishShare({
       defaultPricePref: "absolute",
       defaultPriceAbsoluteCents: 400,
       defaultTradeType: "money",
@@ -638,12 +638,12 @@ describe("friendGroupMatchesRepo — trade-preference coalescing", () => {
     // The list default carries an absolute amount, but the entry override
     // switches the pref to a marketplace preset; the absolute amount must drop.
     const queues = baselineQueues();
-    queues.friendGroupListShares[0][0] = tradeShare({
+    queues.friendGroupListShares[0]![0] = tradeShare({
       defaultPricePref: "absolute",
       defaultPriceAbsoluteCents: 250,
       currency: "EUR",
     });
-    queues.listEntries[0][0] = supplyEntry({ pricePref: "cm_lowest" });
+    queues.listEntries[0]![0] = supplyEntry({ pricePref: "cm_lowest" });
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.othersHaveYourWants({ groupId: "g", viewerUserId: "viewer" });
     expect(rows[0]?.sellPref).toMatchObject({ pricePref: "cm_lowest", priceAbsoluteCents: null });
@@ -653,7 +653,7 @@ describe("friendGroupMatchesRepo — trade-preference coalescing", () => {
 describe("friendGroupMatchesRepo — recentIncomingMatchesForFeed", () => {
   it("maps a match to the feed shape with a derived gravatar hash", async () => {
     const queues = baselineQueues();
-    queues.listEntries[0][0] = supplyEntry({ createdAt: new Date("2026-06-03T00:00:00Z") });
+    queues.listEntries[0]![0] = supplyEntry({ createdAt: new Date("2026-06-03T00:00:00Z") });
     const repo = friendGroupMatchesRepo(makeDb(queues), PROVIDERS);
     const rows = await repo.recentIncomingMatchesForFeed({
       groupId: "g",

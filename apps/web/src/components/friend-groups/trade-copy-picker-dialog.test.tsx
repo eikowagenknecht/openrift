@@ -151,12 +151,12 @@ describe("TradeCopyPickerDialog", () => {
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
 
-    await user.click(checkboxes[0]);
+    await user.click(checkboxes[0]!);
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(screen.getByText("Pick 1 more copy.")).toBeInTheDocument();
 
-    await user.click(checkboxes[0]);
-    await user.click(checkboxes[2]);
+    await user.click(checkboxes[0]!);
+    await user.click(checkboxes[2]!);
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(screen.getByText("Unpick 1 copy.")).toBeInTheDocument();
     expect(acceptMutate).not.toHaveBeenCalled();
@@ -168,12 +168,12 @@ describe("TradeCopyPickerDialog", () => {
 
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
-    await user.click(checkboxes[1]);
-    await user.click(checkboxes[2]);
+    await user.click(checkboxes[1]!);
+    await user.click(checkboxes[2]!);
     await user.click(screen.getByRole("button", { name: "Accept" }));
 
     expect(acceptMutate).toHaveBeenCalledTimes(1);
-    expect(acceptMutate.mock.calls[0][0]).toEqual({
+    expect(acceptMutate.mock.calls[0]![0]).toEqual({
       tradeId: "trade-1",
       groupSlug: "bothfeld",
       copyIds: ["copy-a", "copy-graded"],
@@ -216,7 +216,7 @@ describe("useTradeAcceptFlow", () => {
     await startAccept();
 
     await waitFor(() => expect(acceptMutate).toHaveBeenCalledTimes(1));
-    expect(acceptMutate.mock.calls[0][0]).toEqual({
+    expect(acceptMutate.mock.calls[0]![0]).toEqual({
       tradeId: "trade-1",
       groupSlug: "bothfeld",
       copyIds: undefined,
@@ -229,7 +229,7 @@ describe("useTradeAcceptFlow", () => {
     await startAccept();
 
     await waitFor(() => expect(acceptMutate).toHaveBeenCalledTimes(1));
-    expect(acceptMutate.mock.calls[0][0]).toEqual({
+    expect(acceptMutate.mock.calls[0]![0]).toEqual({
       tradeId: "trade-1",
       groupSlug: "bothfeld",
       copyIds: undefined,
@@ -243,7 +243,7 @@ describe("useTradeAcceptFlow", () => {
     await startAccept();
 
     await waitFor(() => expect(acceptMutate).toHaveBeenCalledTimes(1));
-    expect(acceptMutate.mock.calls[0][0]).toEqual({
+    expect(acceptMutate.mock.calls[0]![0]).toEqual({
       tradeId: "trade-1",
       groupSlug: "bothfeld",
       copyIds: undefined,
@@ -354,8 +354,8 @@ describe("TradeSettleCopyPickerDialog", () => {
 
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
-    await user.click(checkboxes[0]);
-    await user.click(checkboxes[2]);
+    await user.click(checkboxes[0]!);
+    await user.click(checkboxes[2]!);
     await user.click(screen.getByRole("button", { name: "Remove copy" }));
 
     expect(confirmed).toHaveBeenCalledTimes(1);
@@ -368,7 +368,7 @@ describe("TradeSettleCopyPickerDialog", () => {
     const user = await openSettlePicker();
 
     await screen.findByRole("dialog");
-    await user.click(screen.getAllByRole("checkbox")[0]);
+    await user.click(screen.getAllByRole("checkbox")[0]!);
 
     expect(screen.getByRole("button", { name: "Remove copy" })).toBeDisabled();
     expect(screen.getByText("Pick 1 more copy.")).toBeInTheDocument();

@@ -102,7 +102,11 @@ export async function flushTradeStatusEmails(
   let eventsDropped = 0;
 
   for (const rows of byPair.values()) {
-    const { recipientUserId, actorUserId } = rows[0];
+    const [firstRow] = rows;
+    if (!firstRow) {
+      continue;
+    }
+    const { recipientUserId, actorUserId } = firstRow;
 
     if (!contextByUser.has(recipientUserId)) {
       contextByUser.set(

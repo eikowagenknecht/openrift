@@ -479,8 +479,8 @@ describe("MetaOverlaysPage", () => {
     render(<MetaOverlaysPage />);
 
     const rows = screen.getAllByRole("row").slice(1);
-    expect(within(rows[0]).getByText("First")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("Second")).toBeInTheDocument();
+    expect(within(rows[0]!).getByText("First")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("Second")).toBeInTheDocument();
   });
 
   it("shows each claimed field as a before and after once the row is opened", async () => {

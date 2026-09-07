@@ -14,6 +14,9 @@ export function useMeasuredWidth(el: HTMLElement | null): number {
       return;
     }
     const observer = new ResizeObserver(([entry]) => {
+      if (!entry) {
+        return;
+      }
       const measured = entry.borderBoxSize[0]?.inlineSize ?? entry.contentRect.width;
       setWidth(Math.round(measured));
     });

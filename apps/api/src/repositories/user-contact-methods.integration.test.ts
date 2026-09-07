@@ -30,11 +30,11 @@ describe.skipIf(!ctx)("userContactMethodsRepo (integration)", () => {
 
   it("updates a method in place, scoped to the owner", async () => {
     const [first] = await repo.listForUser(userId);
-    const updated = await repo.update(first.id, userId, "discord", "seb#5678");
+    const updated = await repo.update(first!.id, userId, "discord", "seb#5678");
     expect(updated?.value).toBe("seb#5678");
 
     const foreign = await repo.update(
-      first.id,
+      first!.id,
       "a0000000-0057-4000-a000-000000000001",
       "phone",
       "x",
@@ -58,7 +58,7 @@ describe.skipIf(!ctx)("userContactMethodsRepo (integration)", () => {
     await groups.addMember(GROUP_ID, userId, "owner");
 
     const methods = await repo.listForUser(userId);
-    const revealedId = methods[0].id;
+    const revealedId = methods[0]!.id;
 
     await groups.setRevealedContacts(GROUP_ID, userId, [
       revealedId,
@@ -75,9 +75,9 @@ describe.skipIf(!ctx)("userContactMethodsRepo (integration)", () => {
 
   it("deletes a method, scoped to the owner", async () => {
     const list = await repo.listForUser(userId);
-    expect(await repo.delete(list[0].id, "a0000000-0057-4000-a000-000000000001")).toBe(false);
-    expect(await repo.delete(list[0].id, userId)).toBe(true);
+    expect(await repo.delete(list[0]!.id, "a0000000-0057-4000-a000-000000000001")).toBe(false);
+    expect(await repo.delete(list[0]!.id, userId)).toBe(true);
     const remaining = await repo.listForUser(userId);
-    expect(remaining.some((method) => method.id === list[0].id)).toBe(false);
+    expect(remaining.some((method) => method.id === list[0]!.id)).toBe(false);
   });
 });

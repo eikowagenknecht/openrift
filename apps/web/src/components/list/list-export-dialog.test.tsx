@@ -121,7 +121,7 @@ describe("ListExportDialog", () => {
 
   it("counts the CSV download against the filtered subset", () => {
     const entries = [printingEntry("e-1", viPrinting), printingEntry("e-2", jinxPrinting)];
-    filtered = { hasActiveFilters: true, filteredEntries: [entries[1]] };
+    filtered = { hasActiveFilters: true, filteredEntries: [entries[1]!] };
     setup(entries, "printing");
 
     expect(screen.getByRole("button", { name: "Export 1 card" })).toBeInTheDocument();

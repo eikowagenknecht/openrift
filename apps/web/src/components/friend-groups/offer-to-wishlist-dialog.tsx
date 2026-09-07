@@ -58,15 +58,16 @@ export function OfferToWishlistDialog({
   counterpartyUserId,
   counterpartyName,
 }: OfferToWishlistDialogProps) {
+  const [firstChoice, ...otherChoices] = choices;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        {open && choices.length > 0 ? (
+        {open && firstChoice !== undefined ? (
           <Suspense
             fallback={<div className="text-muted-foreground py-4 text-sm">Loading your lists…</div>}
           >
             <OfferBody
-              choices={choices}
+              choices={[firstChoice, ...otherChoices]}
               wantQuantity={wantQuantity}
               groupSlug={groupSlug}
               groupName={groupName}
@@ -90,7 +91,7 @@ function OfferBody({
   counterpartyName,
   onClose,
 }: OfferToWishlistContext & {
-  choices: OfferablePrintingChoice[];
+  choices: [OfferablePrintingChoice, ...OfferablePrintingChoice[]];
   wantQuantity: number;
   onClose: () => void;
 }) {

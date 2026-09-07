@@ -21,7 +21,7 @@ if (ctx) {
     .values({ slug: "PRC-TEST", name: "PRC Price Test Set", printedTotal: 2, sortOrder: 200 })
     .returning("id")
     .execute();
-  setId = setRow.id;
+  setId = setRow!.id;
 
   const [cardRow] = await db
     .insertInto("cards")
@@ -38,7 +38,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cardId = cardRow.id;
+  cardId = cardRow!.id;
   await syncCardCardTypes(db);
 
   await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
@@ -64,7 +64,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printingId = printingRow.id;
+  printingId = printingRow!.id;
 
   const [printingNoSourceRow] = await db
     .insertInto("printings")
@@ -87,7 +87,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  printingNoSourceId = printingNoSourceRow.id;
+  printingNoSourceId = printingNoSourceRow!.id;
 
   // TCG has no per-language SKU axis, so language=null on the product row.
   const [tcgProduct] = await db
@@ -105,7 +105,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceProductVariants")
     .values({
-      marketplaceProductId: tcgProduct.id,
+      marketplaceProductId: tcgProduct!.id,
       printingId,
     })
     .returning("id")
@@ -127,7 +127,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceProductVariants")
     .values({
-      marketplaceProductId: cmProduct.id,
+      marketplaceProductId: cmProduct!.id,
       printingId,
     })
     .returning("id")
@@ -141,25 +141,25 @@ if (ctx) {
     .insertInto("marketplaceProductPrices")
     .values([
       {
-        marketplaceProductId: tcgProduct.id,
+        marketplaceProductId: tcgProduct!.id,
         recordedAt: daysAgo(2),
         marketCents: 250,
         lowCents: 120,
       },
       {
-        marketplaceProductId: tcgProduct.id,
+        marketplaceProductId: tcgProduct!.id,
         recordedAt: daysAgo(15),
         marketCents: 200,
         lowCents: 100,
       },
       {
-        marketplaceProductId: tcgProduct.id,
+        marketplaceProductId: tcgProduct!.id,
         recordedAt: daysAgo(60),
         marketCents: 150,
         lowCents: 80,
       },
       {
-        marketplaceProductId: tcgProduct.id,
+        marketplaceProductId: tcgProduct!.id,
         recordedAt: daysAgo(120),
         marketCents: 100,
         lowCents: 50,
@@ -170,7 +170,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceProductPrices")
     .values({
-      marketplaceProductId: cmProduct.id,
+      marketplaceProductId: cmProduct!.id,
       recordedAt: daysAgo(2),
       marketCents: 180,
       lowCents: 100,
@@ -195,7 +195,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceProductVariants")
     .values({
-      marketplaceProductId: ctProduct.id,
+      marketplaceProductId: ctProduct!.id,
       printingId,
     })
     .returning("id")
@@ -205,14 +205,14 @@ if (ctx) {
     .insertInto("marketplaceProductPrices")
     .values([
       {
-        marketplaceProductId: ctProduct.id,
+        marketplaceProductId: ctProduct!.id,
         recordedAt: daysAgo(2),
         marketCents: null,
         lowCents: 300,
         zeroLowCents: 420,
       },
       {
-        marketplaceProductId: ctProduct.id,
+        marketplaceProductId: ctProduct!.id,
         recordedAt: daysAgo(5),
         marketCents: null,
         lowCents: 280,

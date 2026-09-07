@@ -44,8 +44,8 @@ export function runImportParse(
   setters.setSkippedIndices(new Set());
 
   const nonExact = new Set<number>();
-  for (let index = 0; index < sorted.length; index++) {
-    if (sorted[index].status !== "exact") {
+  for (const [index, entry] of sorted.entries()) {
+    if (entry.status !== "exact") {
       nonExact.add(index);
     }
   }

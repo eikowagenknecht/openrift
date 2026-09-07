@@ -325,7 +325,7 @@ describe("optimistic rollbacks still report the failure", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(client.getQueryData<ListDetailResponse>(detailKey)?.entries[0].quantity).toBe(1);
+    expect(client.getQueryData<ListDetailResponse>(detailKey)?.entries[0]!.quantity).toBe(1);
     expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
   });
 
@@ -343,7 +343,7 @@ describe("optimistic rollbacks still report the failure", () => {
     });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
-    expect(client.getQueryData<ListDetailResponse>(detailKey)?.entries[0].quantity).toBe(1);
+    expect(client.getQueryData<ListDetailResponse>(detailKey)?.entries[0]!.quantity).toBe(1);
     expect(toast.error).toHaveBeenCalledWith(expect.any(String), PERSISTENT_ERROR_TOAST);
   });
 });

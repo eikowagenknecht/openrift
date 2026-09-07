@@ -144,7 +144,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
       .execute();
 
     const midWindowCopyIds = new Set([
-      copyRows.filter((c) => c.printingId === flatPrintingId)[1].id,
+      copyRows.filter((c) => c.printingId === flatPrintingId)[1]!.id,
       copyRows.find((c) => c.printingId === midPrintingId)!.id,
     ]);
     await db
@@ -212,7 +212,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     const series = await seriesFor(risingCollectionId);
 
     expect(new Set(series.map((p) => p.baselineValueCents))).toEqual(new Set([100]));
-    expect(series[0].valueCents).toBe(100);
+    expect(series[0]!.valueCents).toBe(100);
     expect(series.at(-1)!.valueCents).toBe(300);
   });
 
@@ -222,7 +222,7 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
     for (const point of series) {
       expect(point.valueCents).toBe(point.baselineValueCents);
     }
-    expect(series[0].copyCount).toBe(1);
+    expect(series[0]!.copyCount).toBe(1);
     expect(series.at(-1)!.copyCount).toBe(2);
     expect(series.at(-1)!.valueCents).toBe(400);
   });
@@ -241,16 +241,16 @@ describe.skipIf(!ctx)("collection value baseline (integration)", () => {
 
     expect(series.at(-1)!.valueCents).toBe(500);
     expect(series.at(-1)!.baselineValueCents).toBe(400);
-    expect(series[0].valueCents).toBe(400);
-    expect(series[0].baselineValueCents).toBe(400);
+    expect(series[0]!.valueCents).toBe(400);
+    expect(series[0]!.baselineValueCents).toBe(400);
   });
 
   it("drops a printing from both lines on days it has no price", async () => {
     const series = await seriesFor(lateCollectionId);
 
-    expect(series[0].copyCount).toBe(1);
-    expect(series[0].valueCents).toBe(0);
-    expect(series[0].baselineValueCents).toBe(0);
+    expect(series[0]!.copyCount).toBe(1);
+    expect(series[0]!.valueCents).toBe(0);
+    expect(series[0]!.baselineValueCents).toBe(0);
     expect(series.at(-1)!.valueCents).toBe(900);
     expect(series.at(-1)!.baselineValueCents).toBe(500);
   });

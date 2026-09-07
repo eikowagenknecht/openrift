@@ -170,8 +170,8 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
       .execute();
     const cardId = (slug: string) => named.find((card) => card.slug === slug)?.id;
 
-    expect(row.legendCardId).toBe(cardId("imo-legend"));
-    expect(row.championCardId).toBe(cardId("imo-champion"));
+    expect(row!.legendCardId).toBe(cardId("imo-legend"));
+    expect(row!.championCardId).toBe(cardId("imo-champion"));
   });
 
   it("claims only the event fields the upload carries", async () => {
@@ -184,7 +184,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
       .where("externalId", "=", "imo-evt-sparse")
       .execute();
 
-    expect(row.claimedFields).toEqual(["name", "eventDate", "format", "playerCount", "organizer"]);
+    expect(row!.claimedFields).toEqual(["name", "eventDate", "format", "playerCount", "organizer"]);
   });
 
   it("claims a standings column only where the source published one", async () => {
@@ -226,9 +226,9 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
     await upload(eventBody());
 
     const [, standingsOnly] = await playerOverlays();
-    expect(standingsOnly.listStatus).toBeNull();
-    expect(standingsOnly.claimedFields).not.toContain("listStatus");
-    expect(standingsOnly.claimedFields).not.toContain("cards");
+    expect(standingsOnly!.listStatus).toBeNull();
+    expect(standingsOnly!.claimedFields).not.toContain("listStatus");
+    expect(standingsOnly!.claimedFields).not.toContain("cards");
   });
 
   it("updates a changed event in place and re-opens its review", async () => {
@@ -239,7 +239,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
       .where("provider", "=", PROVIDER)
       .where("externalId", "=", BASE_EVENT)
       .execute();
-    await repos.metaOverlays.setEventOverlayStatus(existing.id, "accepted", new Date());
+    await repos.metaOverlays.setEventOverlayStatus(existing!.id, "accepted", new Date());
 
     const result = await upload(eventBody({ organizer: "IMO Renamed Bazaar" }));
 
@@ -247,7 +247,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
     expect(result.updatedEventDetails).toEqual([
       { externalId: BASE_EVENT, name: "IMO Summoner Skirmish" },
     ]);
-    expect(await repos.metaOverlays.eventOverlayById(existing.id)).toMatchObject({
+    expect(await repos.metaOverlays.eventOverlayById(existing!.id)).toMatchObject({
       organizer: "IMO Renamed Bazaar",
       status: "pending",
       acceptedAt: null,
@@ -257,7 +257,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
   it("updates a changed player in place and re-opens its review", async () => {
     await upload(eventBody());
     const [withList] = await playerOverlays();
-    await repos.metaOverlays.setPlayerOverlayStatus(withList.id, "accepted", new Date());
+    await repos.metaOverlays.setPlayerOverlayStatus(withList!.id, "accepted", new Date());
 
     const result = await upload(
       eventBody({
@@ -276,7 +276,7 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
 
     expect(result).toMatchObject({ newPlayers: 0, updatedPlayers: 1, unchangedPlayers: 1 });
     const [after] = await playerOverlays();
-    expect(after).toMatchObject({ id: withList.id, wins: 5, status: "pending", acceptedAt: null });
+    expect(after).toMatchObject({ id: withList!.id, wins: 5, status: "pending", acceptedAt: null });
   });
 
   it("counts a re-sent list as changed only when its lines move", async () => {
@@ -300,8 +300,8 @@ describe.skipIf(!ctx)("ingestMetaOverlays", () => {
     expect(sameLines.unchangedPlayers).toBe(2);
     expect(movedLines).toMatchObject({ updatedPlayers: 1, unchangedPlayers: 1 });
     const [after] = await playerOverlays();
-    const cards = await repos.metaOverlays.cardsByOverlayIds([after.id]);
-    expect(cards.get(after.id)).toMatchObject([{ cardName: "IMO Spell", quantity: 2 }]);
+    const cards = await repos.metaOverlays.cardsByOverlayIds([after!.id]);
+    expect(cards.get(after!.id)).toMatchObject([{ cardName: "IMO Spell", quantity: 2 }]);
   });
 
   it("skips a whole event the reviewer dismissed, field included", async () => {

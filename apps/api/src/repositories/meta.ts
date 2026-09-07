@@ -1889,7 +1889,11 @@ export function metaRepo(db: Kysely<Database>) {
       );
 
       for (const group of groups.values()) {
-        const columns = PLAYER_PATCH_COLUMNS.filter(({ key }) => group[0][key] !== undefined);
+        const [sample] = group;
+        if (!sample) {
+          continue;
+        }
+        const columns = PLAYER_PATCH_COLUMNS.filter(({ key }) => sample[key] !== undefined);
         if (columns.length === 0) {
           continue;
         }

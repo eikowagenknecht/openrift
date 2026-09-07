@@ -37,7 +37,7 @@ describe.skipIf(!ctx)("Collection events routes (integration)", () => {
         nextCursor: string | null;
       };
       expect(json.items.length).toBeGreaterThanOrEqual(2);
-      expect(json.items[0].action).toBe("added");
+      expect(json.items[0]!.action).toBe("added");
     });
 
     it("supports cursor-based pagination", async () => {
@@ -55,9 +55,9 @@ describe.skipIf(!ctx)("Collection events routes (integration)", () => {
         items: { cardName: string; shortCode: string; rarity: string }[];
       };
       const first = json.items[0];
-      expect(first.cardName).toBeTypeOf("string");
-      expect(first.shortCode).toBeTypeOf("string");
-      expect(first.rarity).toBeTypeOf("string");
+      expect(first!.cardName).toBeTypeOf("string");
+      expect(first!.shortCode).toBeTypeOf("string");
+      expect(first!.rarity).toBeTypeOf("string");
     });
   });
 });

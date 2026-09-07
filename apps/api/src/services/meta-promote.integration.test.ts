@@ -48,8 +48,8 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  spellCardId = spell.id;
-  createdCardIds.push(spell.id);
+  spellCardId = spell!.id;
+  createdCardIds.push(spell!.id);
   await syncCardCardTypes(db);
 
   afterAll(async () => {
@@ -282,7 +282,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
     });
 
     it("adopts a row written before the identity column existed instead of duplicating it", async () => {
-      const { metaEventId } = await seedMirroredEvent("mpi-playloltcg-legacy", [TWO_PLAYERS[0]]);
+      const { metaEventId } = await seedMirroredEvent("mpi-playloltcg-legacy", [TWO_PLAYERS[0]!]);
       const legacyId = await seedStandingsOnlyPlayer(metaEventId, "MPI Ashe", 9);
 
       await promoteMetaEvent(repos, metaEventId);
@@ -347,7 +347,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       await promoteMetaEvent(repos, metaEventId);
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      const deckId = player.deckId as string;
+      const deckId = player!.deckId as string;
       createdDeckIds.push(deckId);
       await db
         .updateTable("decks")
@@ -409,7 +409,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       await promoteMetaEvent(repos, metaEventId);
       const [player] = await repo.rawStandingsForEvent(metaEventId);
-      const deckId = player.deckId as string;
+      const deckId = player!.deckId as string;
       createdDeckIds.push(deckId);
 
       await db
@@ -601,7 +601,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
           metaEventId,
           provider: "topdeck",
           sourceIdentity: "tuacct-1",
-          metaEventPlayerId: live.id,
+          metaEventPlayerId: live!.id,
         },
       ]);
       await readTopdeckMirror(metaEventId, tid);
@@ -610,8 +610,8 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       const rows = await repo.rawStandingsForEvent(metaEventId);
       expect(rows).toHaveLength(1);
-      expect(rows[0].sourceIdentity).toBe("pu5010");
-      expect(rows[0].id).toBe(live.id);
+      expect(rows[0]!.sourceIdentity).toBe("pu5010");
+      expect(rows[0]!.id).toBe(live!.id);
     });
 
     it("takes the linked mirror's legend, which the read mirror never published", async () => {
@@ -631,7 +631,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
           metaEventId,
           provider: "topdeck",
           sourceIdentity: "tuacct-1",
-          metaEventPlayerId: live.id,
+          metaEventPlayerId: live!.id,
         },
       ]);
       await readTopdeckMirror(metaEventId, tid);
@@ -640,8 +640,8 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       const rows = await repo.rawStandingsForEvent(metaEventId);
       expect(rows).toHaveLength(1);
-      expect(rows[0].legendCardId).toBe(spellCardId);
-      expect(rows[0].wins).toBe(5);
+      expect(rows[0]!.legendCardId).toBe(spellCardId);
+      expect(rows[0]!.wins).toBe(5);
     });
 
     it("mints a row for an entry reviewed as nobody the event lists", async () => {
@@ -711,7 +711,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       const [seeded] = await repo.rawStandingsForEvent(metaEventId);
 
       await acceptedPlayerOverlay({
-        metaEventPlayerId: seeded.id,
+        metaEventPlayerId: seeded!.id,
         playerName: "MPI Corrected",
         claimedFields: ["playerName"],
       });
@@ -720,7 +720,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
 
       const after = await repo.rawStandingsForEvent(metaEventId);
       expect(after).toHaveLength(1);
-      expect(after[0]).toMatchObject({ id: seeded.id, playerName: "MPI Corrected" });
+      expect(after[0]).toMatchObject({ id: seeded!.id, playerName: "MPI Corrected" });
     });
 
     it("matches an event-anchored overlay onto the row it names, and writes the link back", async () => {
@@ -779,7 +779,7 @@ describe.skipIf(!ctx)("promoteMetaEvent", () => {
       expect(after[0]).toMatchObject({ playerName: "MPI Newcomer", rank: 7 });
       expect(result.players).toBe(1);
       const overlay = await repos.metaOverlays.playerOverlayById(overlayId);
-      expect(overlay?.metaEventPlayerId).toBe(after[0].id);
+      expect(overlay?.metaEventPlayerId).toBe(after[0]!.id);
     });
 
     it("mints only once, however often the event is promoted again", async () => {

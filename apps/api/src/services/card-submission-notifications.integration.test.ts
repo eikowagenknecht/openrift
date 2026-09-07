@@ -89,7 +89,7 @@ describe.skipIf(!ctx)("card submission admin notifications (integration)", () =>
     );
 
     expect(sent).toHaveLength(1);
-    expect(sent[0].to).toBe(`test-${OPTED_IN_ADMIN_ID}@test.com`);
-    expect(sent[0].subject).toContain("Integration Submission Card");
+    expect(sent[0]!.to).toBe(`test-${OPTED_IN_ADMIN_ID}@test.com`);
+    expect(sent[0]!.subject).toContain("Integration Submission Card");
   });
 });

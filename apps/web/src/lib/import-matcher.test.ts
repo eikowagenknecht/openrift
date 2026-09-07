@@ -72,36 +72,36 @@ describe("matchEntries — language narrowing", () => {
   it("resolves to exact match when entry language matches one printing", () => {
     const entries = [makeEntry({ language: "EN" })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("en-1");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("en-1");
   });
 
   it("resolves to the SC printing when entry language is SC", () => {
     const entries = [makeEntry({ language: "SC" })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("sc-1");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("sc-1");
   });
 
   it("falls back to all candidates when entry has no language", () => {
     const entries = [makeEntry({ language: undefined })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].candidates).toHaveLength(2);
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.candidates).toHaveLength(2);
   });
 
   it("falls back to all candidates when entry language matches no printings", () => {
     const entries = [makeEntry({ language: "FR" })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].candidates).toHaveLength(2);
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.candidates).toHaveLength(2);
   });
 
   it("narrows candidates list to the matched language", () => {
     const entries = [makeEntry({ language: "EN" })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].candidates).toHaveLength(1);
-    expect(results[0].candidates[0].language).toBe("EN");
+    expect(results[0]!.candidates).toHaveLength(1);
+    expect(results[0]!.candidates[0]!.language).toBe("EN");
   });
 });
 
@@ -135,15 +135,15 @@ describe("matchEntries — language + finish combination", () => {
   it("narrows by language then finish for exact match", () => {
     const entries = [makeEntry({ language: "EN", finish: "foil" })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("en-foil");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("en-foil");
   });
 
   it("narrows by language then finish for SC foil", () => {
     const entries = [makeEntry({ language: "SC", finish: "foil" })];
     const results = matchEntries(entries, allPrintings);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("sc-foil");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("sc-foil");
   });
 });
 
@@ -155,22 +155,22 @@ describe("matchEntries — fallbackLanguage", () => {
   it("uses fallbackLanguage when entry has no language", () => {
     const entries = [makeEntry({ language: undefined })];
     const results = matchEntries(entries, allPrintings, "EN");
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("en-1");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("en-1");
   });
 
   it("entry language takes precedence over fallbackLanguage", () => {
     const entries = [makeEntry({ language: "SC" })];
     const results = matchEntries(entries, allPrintings, "EN");
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("sc-1");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("sc-1");
   });
 
   it("falls back to all candidates when fallbackLanguage matches nothing", () => {
     const entries = [makeEntry({ language: undefined })];
     const results = matchEntries(entries, allPrintings, "FR");
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].candidates).toHaveLength(2);
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.candidates).toHaveLength(2);
   });
 });
 
@@ -193,8 +193,8 @@ describe("matchEntries — isPromo flag", () => {
   it("auto-resolves to the single promo printing when isPromo is set", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
     const results = matchEntries(entries, [basePrinting, promoPrinting]);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("promo-nexus");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("promo-nexus");
   });
 
   it("returns needs-review with promo candidates when multiple promos exist", () => {
@@ -207,23 +207,23 @@ describe("matchEntries — isPromo flag", () => {
     });
     const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
     const results = matchEntries(entries, [basePrinting, promoPrinting, promoRelease]);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].candidates).toHaveLength(2);
-    expect(results[0].candidates.every((c) => c.markers.length > 0)).toBe(true);
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.candidates).toHaveLength(2);
+    expect(results[0]!.candidates.every((c) => c.markers.length > 0)).toBe(true);
   });
 
   it("falls back to all candidates when no promo printings exist", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
     const results = matchEntries(entries, [basePrinting]);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].candidates).toHaveLength(1);
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.candidates).toHaveLength(1);
   });
 
   it("without isPromo, prefers non-promo base printing", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN" })];
     const results = matchEntries(entries, [basePrinting, promoPrinting]);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("base");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("base");
   });
 });
 
@@ -248,15 +248,15 @@ describe("matchEntries — multi-marker promo slugs", () => {
   it("resolves a +-joined promo cell (as written by the CSV export) exactly", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN", promoSlug: "release+nexus" })];
     const results = matchEntries(entries, [singleMarkerPromo, multiMarkerPromo]);
-    expect(results[0].status).toBe("exact");
-    expect(results[0].resolvedPrinting?.id).toBe("promo-nexus-release");
+    expect(results[0]!.status).toBe("exact");
+    expect(results[0]!.resolvedPrinting?.id).toBe("promo-nexus-release");
   });
 
   it("needs review when a single-slug promo matches multiple multi-marker printings", () => {
     const entries = [makeEntry({ finish: "foil", language: "EN", promoSlug: "nexus" })];
     const results = matchEntries(entries, [singleMarkerPromo, multiMarkerPromo]);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].candidates).toHaveLength(2);
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.candidates).toHaveLength(2);
   });
 });
 
@@ -272,20 +272,20 @@ describe("matchEntries — overnumbered flag on a name match", () => {
   it("picks the overnumbered printing when the source says so", () => {
     const entries = [makeEntry({ sourceCode: "", isOvernumbered: true })];
     const results = matchEntries(entries, both);
-    expect(results[0].resolvedPrinting?.id).toBe("overnumbered");
+    expect(results[0]!.resolvedPrinting?.id).toBe("overnumbered");
   });
 
   it("picks the in-total printing when the source rules overnumbering out", () => {
     const entries = [makeEntry({ sourceCode: "", isOvernumbered: false })];
     const results = matchEntries(entries, both);
-    expect(results[0].resolvedPrinting?.id).toBe("in-total");
+    expect(results[0]!.resolvedPrinting?.id).toBe("in-total");
   });
 
   it("leaves both as candidates when the source does not say", () => {
     const entries = [makeEntry({ sourceCode: "" })];
     const results = matchEntries(entries, both);
-    expect(results[0].resolvedPrinting).toBeNull();
-    expect(results[0].candidates.map((printing) => printing.id)).toEqual([
+    expect(results[0]!.resolvedPrinting).toBeNull();
+    expect(results[0]!.candidates.map((printing) => printing.id)).toEqual([
       "in-total",
       "overnumbered",
     ]);
@@ -319,21 +319,21 @@ describe("matchEntries — Legend colloquial names", () => {
   it("resolves the 'Azir, Emperor of the Sands' colloquial form", () => {
     const entries = [makeEntry({ cardName: "Azir, Emperor of the Sands", sourceCode: "" })];
     const results = matchEntries(entries, [legend]);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].resolvedPrinting?.id).toBe("ogn-100");
-    expect(results[0].suggestedName).toBe("Azir, Emperor of the Sands");
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.resolvedPrinting?.id).toBe("ogn-100");
+    expect(results[0]!.suggestedName).toBe("Azir, Emperor of the Sands");
   });
 
   it("still resolves the bare name without the 'Azir, ' prefix", () => {
     const entries = [makeEntry({ cardName: "Emperor of the Sands", sourceCode: "" })];
     const results = matchEntries(entries, [legend]);
-    expect(results[0].status).toBe("needs-review");
-    expect(results[0].resolvedPrinting?.id).toBe("ogn-100");
+    expect(results[0]!.status).toBe("needs-review");
+    expect(results[0]!.resolvedPrinting?.id).toBe("ogn-100");
   });
 
   it("does not resolve when the tag prefix names a different champion", () => {
     const entries = [makeEntry({ cardName: "Xerath, Emperor of the Sands", sourceCode: "" })];
     const results = matchEntries(entries, [legend]);
-    expect(results[0].status).toBe("unresolved");
+    expect(results[0]!.status).toBe("unresolved");
   });
 });

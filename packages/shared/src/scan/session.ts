@@ -362,6 +362,7 @@ export function createScanSession(
     let best: {
       candidate: CardCandidate;
       ranked: RankedEmbed[];
+      top: RankedEmbed;
       card: RgbaImage;
       focus: number;
     } | null = null;
@@ -394,13 +395,14 @@ export function createScanSession(
         imageSize: embedImageSize,
         pairOnly: opts.rotationPairOnly,
       });
-      if (ranked.length > 0 && (!best || ranked[0].distance < best.ranked[0].distance)) {
-        best = { candidate, ranked, card, focus };
+      const top = ranked[0];
+      if (top && (!best || top.distance < best.top.distance)) {
+        best = { candidate, ranked, top, card, focus };
       }
       // Guide mode: every candidate is a crop of one card. Pan mode: a frame
       // can hold several, so only a confident match cuts the search short.
       const exitDistance = guide ? opts.rotationFallbackDistance : opts.confidentDistance;
-      if (opts.confidentDistance >= 0 && best !== null && best.ranked[0].distance <= exitDistance) {
+      if (opts.confidentDistance >= 0 && best !== null && best.top.distance <= exitDistance) {
         break;
       }
     }
@@ -408,7 +410,7 @@ export function createScanSession(
 
     // Must run before verification: a card whose first frame needs the
     // rotation search could otherwise never produce the winner that resets it.
-    const plausible = best !== null && best.ranked[0].distance <= opts.rotationFallbackDistance;
+    const plausible = best !== null && best.top.distance <= opts.rotationFallbackDistance;
     if (plausible) {
       noWinnerStreak = 0;
       absentStreak = 0;
@@ -494,7 +496,7 @@ export function createScanSession(
 
     const decision = pickFrameWinner(verdicts, opts.minInliers, opts.margin);
     let locked: ArtTrack | null = null;
-    if (!decision.winner && best.ranked[0].distance > opts.rotationFallbackDistance) {
+    if (!decision.winner && best.top.distance > opts.rotationFallbackDistance) {
       noWinnerStreak++;
     }
     if (decision.winner) {
@@ -503,7 +505,7 @@ export function createScanSession(
       lastWinnerQuad = best.candidate.quad;
       const winnerKey = decision.winner.key;
       lastWinnerRotation =
-        best.ranked.find((entry) => entry.key === winnerKey)?.rotation ?? best.ranked[0].rotation;
+        best.ranked.find((entry) => entry.key === winnerKey)?.rotation ?? best.top.rotation;
       locked = observeWinner(
         state,
         frameIndex,

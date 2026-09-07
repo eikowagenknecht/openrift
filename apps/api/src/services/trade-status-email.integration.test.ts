@@ -203,8 +203,8 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
     expect(result.emailsSent).toBe(1);
     expect(result.events).toBe(2);
     expect(flush.sent).toHaveLength(1);
-    expect(flush.sent[0].to).toBe(RECEIVER_EMAIL);
-    expect(flush.sent[0].subject).toBe("Giver accepted 2 of your trades");
+    expect(flush.sent[0]!.to).toBe(RECEIVER_EMAIL);
+    expect(flush.sent[0]!.subject).toBe("Giver accepted 2 of your trades");
 
     const flush2 = makeSink();
     const result2 = await flushTradeStatusEmails(flushDeps(flush2.sendEmail));
@@ -225,7 +225,7 @@ describe.skipIf(!ctx)("trade-status emails (integration)", () => {
 
     expect(result.emailsSent).toBe(1);
     expect(result.events).toBe(2);
-    expect(flush.sent[0].to).toBe(RECEIVER_EMAIL);
+    expect(flush.sent[0]!.to).toBe(RECEIVER_EMAIL);
   });
 
   it("suppresses the queue without emailing when the recipient opted out", async () => {

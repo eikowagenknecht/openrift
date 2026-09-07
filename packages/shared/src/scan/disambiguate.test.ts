@@ -78,7 +78,7 @@ function shifted(signature: GrayImage, offset: number): GrayImage {
     const sy = Math.min(height - 1, Math.max(0, y + offset));
     for (let x = 0; x < width; x++) {
       const sx = Math.min(width - 1, Math.max(0, x + offset));
-      data[y * width + x] = signature.data[sy * width + sx];
+      data[y * width + x] = signature.data[sy * width + sx]!;
     }
   }
   return { data, width, height };
@@ -498,7 +498,7 @@ describe("resolvePrinting", () => {
   it("does not let the stamp band decide when name evidence exists but is ambiguous", () => {
     const between = bandWithStamp(SIGNATURE_WIDTH, 36, 0);
     for (let i = 0; i < between.data.length; i++) {
-      between.data[i] = Math.round((nameEn.data[i] + nameSc.data[i]) / 2);
+      between.data[i] = Math.round((nameEn.data[i]! + nameSc.data[i]!) / 2);
     }
     const resolution = resolvePrinting(
       bands(between, null, shifted(stampPromo, 1)),
@@ -515,7 +515,7 @@ describe("resolvePrinting", () => {
   it("does not let the code strip decide when name evidence exists but is ambiguous", () => {
     const between = bandWithStamp(SIGNATURE_WIDTH, 36, 0);
     for (let i = 0; i < between.data.length; i++) {
-      between.data[i] = Math.round((nameEn.data[i] + nameSc.data[i]) / 2);
+      between.data[i] = Math.round((nameEn.data[i]! + nameSc.data[i]!) / 2);
     }
     const resolution = resolvePrinting(
       bands(between, shifted(codeOgn, 1)),

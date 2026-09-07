@@ -322,8 +322,8 @@ export function summarizePlayerMatch(
     };
   }
   const exact = suggestions.filter((suggestion) => suggestion.isExact);
-  if (exact.length === 1) {
-    const [only] = exact;
+  const [only] = exact;
+  if (exact.length === 1 && only) {
     return {
       state: "exact",
       metaEventPlayerId: only.metaEventPlayerId,

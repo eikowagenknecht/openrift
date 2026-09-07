@@ -31,7 +31,7 @@ describe("acquireScannerStream", () => {
 
     expect(acquired).toEqual({ stream: FAKE_STREAM, failure: null });
     expect(getUserMedia).toHaveBeenCalledTimes(1);
-    const constraints = getUserMedia.mock.calls[0][0] as { video: MediaTrackConstraints };
+    const constraints = getUserMedia.mock.calls[0]![0] as { video: MediaTrackConstraints };
     expect(constraints.video.frameRate).toEqual({ max: 30 });
   });
 
@@ -40,7 +40,7 @@ describe("acquireScannerStream", () => {
 
     await acquireScannerStream(false);
 
-    const constraints = getUserMedia.mock.calls[0][0] as { video: MediaTrackConstraints };
+    const constraints = getUserMedia.mock.calls[0]![0] as { video: MediaTrackConstraints };
     expect(constraints.video.frameRate).toBeUndefined();
   });
 
@@ -56,7 +56,7 @@ describe("acquireScannerStream", () => {
 
     expect(acquired.stream).toBe(FAKE_STREAM);
     expect(getUserMedia).toHaveBeenCalledTimes(2);
-    const retry = getUserMedia.mock.calls[1][0] as { video: MediaTrackConstraints };
+    const retry = getUserMedia.mock.calls[1]![0] as { video: MediaTrackConstraints };
     expect(retry.video.frameRate).toBeUndefined();
   });
 

@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, enumLabel } from "@openrift/shared";
 import { GlobeIcon, ImagesIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -43,7 +43,7 @@ export function FallbackArtBadges({
   if (artVariant !== WellKnown.artVariant.NORMAL) {
     badges.push(
       <span key="art-variant" className={PILL_CLASS}>
-        {labels.artVariants[artVariant]}
+        {enumLabel(labels.artVariants, artVariant)}
       </span>,
     );
   }
@@ -60,7 +60,7 @@ export function FallbackArtBadges({
   ) {
     badges.push(
       <span key="finish" className={PILL_CLASS}>
-        {labels.finishes[printing.finish]}
+        {enumLabel(labels.finishes, printing.finish)}
       </span>,
     );
   }

@@ -45,7 +45,7 @@ const { apiOrpcClient, browserApiOrpcClient } = await import("./orpc-client");
 const { taggedProcedure } = await import("@/lib/orpc-procedure-tag");
 
 const dummyContract = {} as never;
-const headersOf = (index = 0): Record<string, string> => linkOptions[index].headers?.() ?? {};
+const headersOf = (index = 0): Record<string, string> => linkOptions[index]!.headers?.() ?? {};
 
 beforeEach(() => {
   linkOptions.length = 0;
@@ -61,7 +61,7 @@ describe("apiOrpcClient", () => {
   it("targets getApiUrl() and forwards the SSR cookie", () => {
     apiOrpcClient(dummyContract, "session=abc");
     expect(linkOptions).toHaveLength(1);
-    expect(linkOptions[0].url).toBe("https://api.test");
+    expect(linkOptions[0]!.url).toBe("https://api.test");
     expect(headersOf().cookie).toBe("session=abc");
   });
 
@@ -94,10 +94,10 @@ describe("browserApiOrpcClient", () => {
   it("targets the current origin and forwards no header logic", () => {
     browserApiOrpcClient(dummyContract);
     expect(linkOptions).toHaveLength(1);
-    const { url } = linkOptions[0];
+    const { url } = linkOptions[0]!;
     expect(typeof url).toBe("function");
     expect((url as () => string)()).toBe(globalThis.location.origin);
-    expect(linkOptions[0].headers).toBeUndefined();
+    expect(linkOptions[0]!.headers).toBeUndefined();
   });
 
   it("does not read location while building the link", () => {
@@ -120,7 +120,7 @@ describe("procedure tagging", () => {
     mockLinkCall.mockRejectedValue(new Error("Internal server error"));
     apiOrpcClient(dummyContract);
 
-    await expect(builtLinks[0].call(["meta", "events"], {}, {})).rejects.toSatisfy(
+    await expect(builtLinks[0]!.call(["meta", "events"], {}, {})).rejects.toSatisfy(
       (error: unknown) => taggedProcedure(error) === "meta.events",
     );
   });
@@ -129,7 +129,7 @@ describe("procedure tagging", () => {
     mockLinkCall.mockRejectedValue(new Error("Internal server error"));
     browserApiOrpcClient(dummyContract);
 
-    await expect(builtLinks[0].call(["cards"], {}, {})).rejects.toSatisfy(
+    await expect(builtLinks[0]!.call(["cards"], {}, {})).rejects.toSatisfy(
       (error: unknown) => taggedProcedure(error) === "cards",
     );
   });
@@ -137,7 +137,7 @@ describe("procedure tagging", () => {
   it("passes a resolved call straight through", async () => {
     apiOrpcClient(dummyContract);
 
-    await expect(builtLinks[0].call(["cards"], {}, {})).resolves.toBe("ok");
+    await expect(builtLinks[0]!.call(["cards"], {}, {})).resolves.toBe("ok");
   });
 
   it("leaves a thrown non-object alone", async () => {
@@ -145,6 +145,6 @@ describe("procedure tagging", () => {
     mockLinkCall.mockRejectedValue("boom");
     apiOrpcClient(dummyContract);
 
-    await expect(builtLinks[0].call(["cards"], {}, {})).rejects.toBe("boom");
+    await expect(builtLinks[0]!.call(["cards"], {}, {})).rejects.toBe("boom");
   });
 });

@@ -7,6 +7,7 @@ import type {
   Printing,
 } from "@openrift/shared";
 import {
+  enumLabel,
   getOrientation,
   legendDisplayName,
   setIndexById,
@@ -195,8 +196,8 @@ export function resolveMatchRows(
       shortCode: printing?.shortCode ?? "",
       setIndex: setIndexes.get(row.setId) ?? UNKNOWN_SET_INDEX,
       setName: set?.name ?? row.setId,
-      rarityLabel: labels.rarities[row.rarity],
-      finishLabel: labels.finishes[row.finish],
+      rarityLabel: enumLabel(labels.rarities, row.rarity),
+      finishLabel: enumLabel(labels.finishes, row.finish),
       domains: card?.domains ?? [],
       printing,
     };
@@ -413,7 +414,7 @@ export interface MatchTradeGroup extends CatalogPosition {
   counterpartyImage: string | null;
   counterpartyGravatarHash: string;
   totalAvailable: number;
-  variants: DirectedMatch[];
+  variants: [DirectedMatch, ...DirectedMatch[]];
 }
 
 // groupSlug is deliberately excluded from the key: a card reachable through

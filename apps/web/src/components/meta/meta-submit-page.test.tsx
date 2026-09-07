@@ -246,7 +246,7 @@ describe("MetaSubmitPage from a standings row", () => {
     await send();
 
     expect(mutateAsync).toHaveBeenCalledTimes(1);
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({
+    expect(mutateAsync.mock.calls[0]![0]).toMatchObject({
       metaEventId: "event-1",
       proposedEvent: null,
       playerName: "Kira",
@@ -263,7 +263,7 @@ describe("MetaSubmitPage from a standings row", () => {
     await pasteDeck(MAIN_ONLY);
     await send();
 
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ listStatus: "partial" });
+    expect(mutateAsync.mock.calls[0]![0]).toMatchObject({ listStatus: "partial" });
   });
 
   it("points back at the standings once the list is with us", async () => {
@@ -343,7 +343,7 @@ describe("MetaSubmitPage without a standings row", () => {
     await send();
 
     expect(mutateAsync).toHaveBeenCalledTimes(1);
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({
+    expect(mutateAsync.mock.calls[0]![0]).toMatchObject({
       metaEventId: "event-1",
       proposedEvent: null,
       playerName: "Kira",
@@ -366,7 +366,7 @@ describe("MetaSubmitPage without a standings row", () => {
     await pasteDeck(MAIN_ONLY);
     await send();
 
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({
+    expect(mutateAsync.mock.calls[0]![0]).toMatchObject({
       metaEventId: null,
       proposedEvent: {
         name: "Rift Open Berlin",
@@ -397,7 +397,7 @@ describe("MetaSubmitPage without a standings row", () => {
     await pasteDeck(MAIN_ONLY);
     await send();
 
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ wins: 5, losses: 1, draws: 2 });
+    expect(mutateAsync.mock.calls[0]![0]).toMatchObject({ wins: 5, losses: 1, draws: 2 });
   });
 
   it("sends a bracket-only finish as a tier rather than a placing", async () => {
@@ -410,7 +410,7 @@ describe("MetaSubmitPage without a standings row", () => {
     await pasteDeck(MAIN_ONLY);
     await send();
 
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ rank: 8, rankIsTier: true });
+    expect(mutateAsync.mock.calls[0]![0]).toMatchObject({ rank: 8, rankIsTier: true });
   });
 
   it("refuses half a match record rather than losing what was typed", async () => {

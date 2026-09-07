@@ -43,7 +43,8 @@ export function ScanIdentifySheet({
   const list = (
     <div className="flex flex-col gap-1">
       {candidates.map((candidate) => {
-        const name = candidate.label.split(" (")[0];
+        const detailStart = candidate.label.indexOf(" (");
+        const name = detailStart === -1 ? candidate.label : candidate.label.slice(0, detailStart);
         const detail = candidate.label.slice(name.length).replaceAll(/^\s*\(|\)$/gu, "");
         return (
           <Pressable

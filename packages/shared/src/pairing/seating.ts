@@ -15,6 +15,18 @@ function successionKey(a: string, b: string): string {
   return `${a}>${b}`;
 }
 
+function circularPairs(seated: readonly string[]): [string, string][] {
+  const pairs: [string, string][] = [];
+  let previous = seated.at(-1);
+  for (const current of seated) {
+    if (previous !== undefined) {
+      pairs.push([previous, current]);
+    }
+    previous = current;
+  }
+  return pairs;
+}
+
 /** Rows from pods without seat data (persisted before the seating feature) are skipped. */
 export function foldSeatingHistory(
   rows: readonly { podId: string; playerId: string; seat: number | null }[],
@@ -29,9 +41,7 @@ export function foldSeatingHistory(
     const seated = members
       .toSorted((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
       .map((member) => member.playerId);
-    for (let index = 0; index < seated.length; index++) {
-      const current = seated[index];
-      const next = seated[(index + 1) % seated.length];
+    for (const [current, next] of circularPairs(seated)) {
       adjacent.set(adjacentKey(current, next), (adjacent.get(adjacentKey(current, next)) ?? 0) + 1);
       succession.set(
         successionKey(current, next),
@@ -60,19 +70,17 @@ export function arrangeSeating(
   history: SeatingHistory,
   rng: Random = mathRandom,
 ): string[] {
-  if (playerIds.length < 3) {
+  const [anchor, ...rest] = playerIds;
+  if (playerIds.length < 3 || anchor === undefined) {
     return [...playerIds];
   }
-  const [anchor, ...rest] = playerIds;
   let best: string[][] = [];
   let bestScore = Number.POSITIVE_INFINITY;
   for (const tail of permutations(rest)) {
     const seated = [anchor, ...tail];
     let adjacentRepeats = 0;
     let successionRepeats = 0;
-    for (let index = 0; index < seated.length; index++) {
-      const current = seated[index];
-      const next = seated[(index + 1) % seated.length];
+    for (const [current, next] of circularPairs(seated)) {
       adjacentRepeats += history.adjacent.get(adjacentKey(current, next)) ?? 0;
       successionRepeats += history.succession.get(successionKey(current, next)) ?? 0;
     }

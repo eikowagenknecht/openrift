@@ -55,7 +55,7 @@ export function GenerateRoundControls({
   const byeCountById = new Map(standings.map((row) => [row.playerId, row.byeCount]));
   const nameById = new Map(players.map((player) => [player.id, player.displayName]));
 
-  const byeUnits: { key: string; label: string; memberIds: string[] }[] = [];
+  const byeUnits: { key: string; label: string; memberIds: [string, ...string[]] }[] = [];
   if (teamMode) {
     const byTeam = new Map<string, PodPlayerResponse[]>();
     for (const player of activePlayers) {
@@ -68,20 +68,20 @@ export function GenerateRoundControls({
       byTeam.set(player.teamId, members);
     }
     for (const [teamId, members] of byTeam) {
+      const [lead, ...rest] = members;
+      if (lead === undefined) {
+        continue;
+      }
       byeUnits.push({
         key: teamId,
         label: teamDisplayName(members.map((member) => member.displayName)),
-        memberIds: members.map((member) => member.id),
+        memberIds: [lead.id, ...rest.map((member) => member.id)],
       });
     }
   } else {
-    byeUnits.push(
-      ...activePlayers.map((player) => ({
-        key: player.id,
-        label: player.displayName,
-        memberIds: [player.id],
-      })),
-    );
+    for (const player of activePlayers) {
+      byeUnits.push({ key: player.id, label: player.displayName, memberIds: [player.id] });
+    }
   }
   const unitChecked = (unit: { memberIds: string[] }) =>
     unit.memberIds.every((memberId) => byeIds.includes(memberId));

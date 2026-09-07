@@ -110,7 +110,7 @@ describe("PrintingPicker", () => {
     it("shows no tabs when every printing shares one language", () => {
       const printings = [stubPrinting(), stubPrinting()];
 
-      render(<PrintingPicker current={printings[0]} printings={printings} onSelect={() => {}} />);
+      render(<PrintingPicker current={printings[0]!} printings={printings} onSelect={() => {}} />);
 
       expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     });
@@ -122,7 +122,7 @@ describe("PrintingPicker", () => {
         stubPrinting({ language: "JA" }),
       ];
 
-      render(<PrintingPicker current={printings[1]} printings={printings} onSelect={() => {}} />);
+      render(<PrintingPicker current={printings[1]!} printings={printings} onSelect={() => {}} />);
 
       expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
         "EN1",
@@ -134,7 +134,7 @@ describe("PrintingPicker", () => {
     it("opens on the shown card's language", () => {
       const printings = [stubPrinting({ language: "EN" }), stubPrinting({ language: "DE" })];
 
-      render(<PrintingPicker current={printings[1]} printings={printings} onSelect={() => {}} />);
+      render(<PrintingPicker current={printings[1]!} printings={printings} onSelect={() => {}} />);
 
       expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("DE");
     });
@@ -163,7 +163,7 @@ describe("PrintingPicker", () => {
     it("keeps a language not present in the taxonomy reachable", () => {
       const printings = [stubPrinting({ language: "EN" }), stubPrinting({ language: "XX" })];
 
-      render(<PrintingPicker current={printings[0]} printings={printings} onSelect={() => {}} />);
+      render(<PrintingPicker current={printings[0]!} printings={printings} onSelect={() => {}} />);
 
       expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["EN1", "XX1"]);
     });

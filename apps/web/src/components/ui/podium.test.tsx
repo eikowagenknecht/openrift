@@ -32,7 +32,7 @@ describe("Podium", () => {
     renderPodium([seat(1, "DerVuk", 12), seat(2, "Poppy", 10), seat(3, "Fenix", 9)]);
     const raised = document.querySelectorAll(String.raw`.ring-border-accent\/40`);
     expect(raised).toHaveLength(1);
-    expect(raised[0].textContent).toContain("DerVuk");
+    expect(raised[0]!.textContent).toContain("DerVuk");
   });
 
   it("drops seats past the third", () => {

@@ -56,10 +56,10 @@ describe("reconcileJobs", () => {
     const jobs = reconcileJobs([{ id: "job-1", printingId: "p1" }], [{ printing: p1, count: 3 }]);
 
     expect(jobs.map((job) => job.printingId)).toEqual(["p1", "p1", "p1"]);
-    expect(jobs[0].id).toBe("job-1");
-    expect(jobs[1].id).not.toBe(jobs[2].id);
-    expect(UUID.test(jobs[1].id)).toBe(true);
-    expect(UUID.test(jobs[2].id)).toBe(true);
+    expect(jobs[0]!.id).toBe("job-1");
+    expect(jobs[1]!.id).not.toBe(jobs[2]!.id);
+    expect(UUID.test(jobs[1]!.id)).toBe(true);
+    expect(UUID.test(jobs[2]!.id)).toBe(true);
   });
 
   it("drops the surplus ids when the count fell", () => {
@@ -190,13 +190,13 @@ describe("settleAdd", () => {
 
   it("counts a replayed job whose row already existed as confirmed", () => {
     const jobs = jobsFor(["p1", "p2"]);
-    const result = settleAdd(jobs, [fulfilled(jobs[0].id), fulfilled(jobs[1].id)]);
+    const result = settleAdd(jobs, [fulfilled(jobs[0]!.id), fulfilled(jobs[1]!.id)]);
 
     expect([...result.confirmed]).toEqual([
       ["p1", 1],
       ["p2", 1],
     ]);
-    expect(result.copyIds).toEqual([jobs[0].id, jobs[1].id]);
+    expect(result.copyIds).toEqual([jobs[0]!.id, jobs[1]!.id]);
     expect(result.failed).toBe(0);
   });
 

@@ -210,7 +210,7 @@ export function MultiSelectCombobox({
   const isActive = totalCount > 0;
   const labelFor = (id: string) => {
     if (isFlagId(id)) {
-      return flagList[flagIndex(id)].label;
+      return flagList[flagIndex(id)]?.label ?? "";
     }
     const option = idMeta.get(id)?.option;
     if (!option) {
@@ -310,7 +310,7 @@ export function MultiSelectCombobox({
         let working = next;
         for (const id of working) {
           if (isFlagId(id)) {
-            flagList[flagIndex(id)].onToggle();
+            flagList[flagIndex(id)]?.onToggle();
           }
         }
         working = working.filter((id) => !isFlagId(id));
@@ -409,6 +409,9 @@ export function MultiSelectCombobox({
           {(value: string) => {
             if (isFlagId(value)) {
               const entry = flagList[flagIndex(value)];
+              if (!entry) {
+                return null;
+              }
               const flagItem = (
                 <ComboboxItem key={value} value={value}>
                   <span className="min-w-0 flex-1 break-words whitespace-normal">

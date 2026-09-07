@@ -83,8 +83,8 @@ async function seedCard(
     .values({ name, slug: normName, type, normName, keywords: [], tags })
     .returning("id")
     .execute();
-  createdCardIds.push(card.id);
-  return card.id;
+  createdCardIds.push(card!.id);
+  return card!.id;
 }
 
 async function seedEvent(
@@ -726,10 +726,10 @@ describe.skipIf(!ctx)("metaRepo", () => {
       const events = await repo.allEvents();
       const mine = events.filter((event) => [older, newer].includes(event.id));
       expect(mine.map((event) => event.id)).toEqual([newer, older]);
-      expect(mine[0].playerRowCount).toBe(2);
-      expect(mine[0].deckCount).toBe(1);
-      expect(mine[1].playerRowCount).toBe(0);
-      expect(mine[1].deckCount).toBe(0);
+      expect(mine[0]!.playerRowCount).toBe(2);
+      expect(mine[0]!.deckCount).toBe(1);
+      expect(mine[1]!.playerRowCount).toBe(0);
+      expect(mine[1]!.deckCount).toBe(0);
     });
 
     it("keeps only the events inside an inclusive event-date window", async () => {
@@ -818,11 +818,11 @@ describe.skipIf(!ctx)("metaRepo", () => {
         ["mta-player-newer", 4],
         ["mta-player-older", 8],
       ]);
-      expect(finishes[0].playerName).toBe("MTA Udon Latest");
-      expect(finishes[0].legendName).toBe("MTA Legend");
-      expect(finishes[0].shareToken).not.toBeNull();
-      expect(finishes[0].eventPlayerCount).toBe(64);
-      expect(finishes[1].shareToken).toBeNull();
+      expect(finishes[0]!.playerName).toBe("MTA Udon Latest");
+      expect(finishes[0]!.legendName).toBe("MTA Legend");
+      expect(finishes[0]!.shareToken).not.toBeNull();
+      expect(finishes[0]!.eventPlayerCount).toBe(64);
+      expect(finishes[1]!.shareToken).toBeNull();
     });
 
     it("holds no page for a row the source filed under no identity", async () => {
@@ -856,12 +856,12 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
       const standings = await repo.standingsForEvent(eventId);
       expect(standings.map((row) => row.playerName)).toEqual(["MTA Winner", "MTA Fourth"]);
-      expect(standings[0].legendName).toBe("MTA Legend");
-      expect(standings[0].championName).toBe("MTA Champion");
-      expect(standings[0].shareToken).not.toBeNull();
-      expect([standings[0].wins, standings[0].losses, standings[0].draws]).toEqual([6, 0, 1]);
-      expect(standings[1].deckId).toBeNull();
-      expect(standings[1].listStatus).toBe("none");
+      expect(standings[0]!.legendName).toBe("MTA Legend");
+      expect(standings[0]!.championName).toBe("MTA Champion");
+      expect(standings[0]!.shareToken).not.toBeNull();
+      expect([standings[0]!.wins, standings[0]!.losses, standings[0]!.draws]).toEqual([6, 0, 1]);
+      expect(standings[1]!.deckId).toBeNull();
+      expect(standings[1]!.listStatus).toBe("none");
     });
 
     it("takes the podium and nothing deeper, and nothing from an event with no standings", async () => {
@@ -881,7 +881,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
         "MTA Runner",
         "MTA Third",
       ]);
-      expect(finishes[0].wins).toBe(7);
+      expect(finishes[0]!.wins).toBe(7);
     });
 
     it("keeps both rows when a source published two first places, ordered by rank then name", async () => {
@@ -926,10 +926,10 @@ describe.skipIf(!ctx)("metaRepo", () => {
       const mine = rows.filter((row) => row.eventSlug === "mta-activity-late");
 
       expect(mine.map((row) => row.kind)).toEqual(["decks-added", "results-added", "event-added"]);
-      expect(mine[0].count).toBe(1);
-      expect(mine[1].count).toBe(2);
-      expect(mine[2].count).toBeNull();
-      expect(mine[0].eventName).toBe("MTA mta-activity-late");
+      expect(mine[0]!.count).toBe(1);
+      expect(mine[1]!.count).toBe(2);
+      expect(mine[2]!.count).toBeNull();
+      expect(mine[0]!.eventName).toBe("MTA mta-activity-late");
     });
 
     it("folds rows landing on the event's own creation day into its one row", async () => {
@@ -967,9 +967,9 @@ describe.skipIf(!ctx)("metaRepo", () => {
       });
 
       const [row] = await repo.standingsForEvent(eventId);
-      expect(row.legendCardId).toBe(legendCardId);
-      expect(row.championCardId).toBeNull();
-      expect(row.championName).toBeNull();
+      expect(row!.legendCardId).toBe(legendCardId);
+      expect(row!.championCardId).toBeNull();
+      expect(row!.championName).toBeNull();
     });
 
     it("lists only the entries a list is known for in the deck browser", async () => {
@@ -987,12 +987,12 @@ describe.skipIf(!ctx)("metaRepo", () => {
       const summaries = await repo.allDeckSummaries();
       const decks = summaries.rows.filter((deck) => deck.eventSlug === "mta-summaries");
       expect(decks.map((deck) => deck.playerName)).toEqual(["MTA First", "MTA Second"]);
-      expect(decks[0].legendName).toBe("MTA Legend");
-      expect(decks[0].championName).toBe("MTA Champion");
-      expect(decks[0].eventName).toBe("MTA Summaries");
-      expect(decks[0].eventDate).toBe("2026-08-01");
-      expect(decks[0].deckName).toBe("MTA First Deck");
-      expect(decks[1].wins).toBe(3);
+      expect(decks[0]!.legendName).toBe("MTA Legend");
+      expect(decks[0]!.championName).toBe("MTA Champion");
+      expect(decks[0]!.eventName).toBe("MTA Summaries");
+      expect(decks[0]!.eventDate).toBe("2026-08-01");
+      expect(decks[0]!.deckName).toBe("MTA First Deck");
+      expect(decks[1]!.wins).toBe(3);
     });
 
     it("keeps only the decks inside an inclusive event-date window", async () => {
@@ -1226,12 +1226,12 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
       const [listed, deckless] = await repo.adminPlayersForEvent(eventId);
       // 1 legend + 3 champion + 3 main.
-      expect(listed.cardCount).toBe(7);
-      expect(listed.deckFormat).toBe(FORMAT);
-      expect(listed.shareToken).toMatch(/^mta/u);
-      expect(deckless.cardCount).toBe(0);
-      expect(deckless.deckFormat).toBeNull();
-      expect(deckless.shareToken).toBeNull();
+      expect(listed!.cardCount).toBe(7);
+      expect(listed!.deckFormat).toBe(FORMAT);
+      expect(listed!.shareToken).toMatch(/^mta/u);
+      expect(deckless!.cardCount).toBe(0);
+      expect(deckless!.deckFormat).toBeNull();
+      expect(deckless!.shareToken).toBeNull();
     });
 
     it("returns the live rows a candidate diffs against", async () => {
@@ -1242,10 +1242,10 @@ describe.skipIf(!ctx)("metaRepo", () => {
       });
 
       const [row] = await repo.livePlayersByIds([playerId]);
-      expect(row.metaEventId).toBe(eventId);
-      expect(row.deckId).toBe(deckId);
-      expect(row.deckName).toBe("MTA Live Deck");
-      expect(row.listStatus).toBe("full");
+      expect(row!.metaEventId).toBe(eventId);
+      expect(row!.deckId).toBe(deckId);
+      expect(row!.deckName).toBe("MTA Live Deck");
+      expect(row!.listStatus).toBe("full");
       expect(await repo.livePlayersByIds([])).toEqual([]);
     });
   });
@@ -2000,8 +2000,8 @@ describe.skipIf(!ctx)("metaRepo", () => {
         sourceUrl: "https://example.invalid/vod",
       });
       const [source] = await repo.sourcesForEvent(eventId);
-      expect(source.provider).toBeNull();
-      expect(source.externalId).toBeNull();
+      expect(source!.provider).toBeNull();
+      expect(source!.externalId).toBeNull();
     });
 
     it("removes one provider's citation by key and leaves the other's", async () => {
@@ -2086,7 +2086,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
       await repo.insertCredit({ metaEventId: eventId, metaEventPlayerId: playerId, userId });
       const [contributor] = await repo.contributorsForEvent(eventId);
-      expect(contributor.displayName).toBe("MTA Ekko");
+      expect(contributor!.displayName).toBe("MTA Ekko");
     });
 
     it("prefers the Riot ID when the contributor chose it", async () => {
@@ -2099,7 +2099,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
 
       await repo.insertCredit({ metaEventId: eventId, metaEventPlayerId: playerId, userId });
       const [contributor] = await repo.contributorsForEvent(eventId);
-      expect(contributor.displayName).toBe("MTA Ekko#EUW");
+      expect(contributor!.displayName).toBe("MTA Ekko#EUW");
     });
 
     it("omits a contributor whose chosen field is blank rather than printing an id", async () => {
@@ -2189,7 +2189,7 @@ describe.skipIf(!ctx)("metaRepo", () => {
       expect(created).not.toBeUndefined();
 
       const standings = await repo.standingsForEvent(eventId);
-      expect(standings[0].playerName).toBe("MTA Source Name");
+      expect(standings[0]!.playerName).toBe("MTA Source Name");
     });
 
     it("propagates a rename to the standings without touching the row", async () => {
@@ -2200,22 +2200,22 @@ describe.skipIf(!ctx)("metaRepo", () => {
         .execute();
 
       const standings = await repo.standingsForEvent(eventId);
-      expect(standings[0].playerName).toBe("MTA Renamed");
+      expect(standings[0]!.playerName).toBe("MTA Renamed");
     });
 
     it("lets a locally written name win over the source's", async () => {
       const standings = await repo.standingsForEvent(eventId);
-      expect(await repo.updatePlayer(standings[0].id, { playerName: "MTA Admin Override" })).toBe(
+      expect(await repo.updatePlayer(standings[0]!.id, { playerName: "MTA Admin Override" })).toBe(
         true,
       );
 
       const overridden = await repo.standingsForEvent(eventId);
-      expect(overridden[0].playerName).toBe("MTA Admin Override");
+      expect(overridden[0]!.playerName).toBe("MTA Admin Override");
 
       // Clearing it hands the player back to the source's renames.
-      await repo.updatePlayer(standings[0].id, { playerName: null });
+      await repo.updatePlayer(standings[0]!.id, { playerName: null });
       const restored = await repo.standingsForEvent(eventId);
-      expect(restored[0].playerName).toBe("MTA Renamed");
+      expect(restored[0]!.playerName).toBe("MTA Renamed");
     });
 
     it("refuses a second row for the same player in one event", async () => {
@@ -2510,9 +2510,9 @@ describe.skipIf(!ctx)("promotion", () => {
       tableNumber: index + 1,
       isBye: false,
       isDraw: false,
-      player1Id: first.id,
-      player2Id: second.id,
-      winnerId: first.id,
+      player1Id: first!.id,
+      player2Id: second!.id,
+      winnerId: first!.id,
       gamesWonP1: 2,
       gamesWonP2: 1,
     }));

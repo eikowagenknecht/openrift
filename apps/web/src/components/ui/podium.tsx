@@ -85,11 +85,12 @@ export type MedalVariant = "flat" | "onArt";
  * runners-up flank it, so the row reads 2 · 1 · 3 rather than 1 · 2 · 3.
  */
 function seatOrder<TSeat>(seats: readonly TSeat[]): TSeat[] {
-  if (seats.length >= 3) {
-    return [seats[1], seats[0], seats[2]];
+  const [first, second, third] = seats;
+  if (first !== undefined && second !== undefined && third !== undefined) {
+    return [second, first, third];
   }
-  if (seats.length === 2) {
-    return [seats[1], seats[0]];
+  if (first !== undefined && second !== undefined) {
+    return [second, first];
   }
   return [...seats];
 }
@@ -202,8 +203,9 @@ export function Podium({
   className?: string;
 }) {
   const shown = seats.slice(0, 3);
+  const leader = shown.at(0);
 
-  if (shown.length === 0) {
+  if (leader === undefined) {
     return (
       <div data-slot="podium" className={cn("flex flex-col gap-2", className)}>
         <div className="grid grid-cols-3 items-end gap-2 opacity-75">
@@ -226,7 +228,7 @@ export function Podium({
       )}
     >
       {seatOrder(shown).map((seat) => (
-        <Seat key={seat.key} seat={seat} raised={seat.key === shown[0].key} />
+        <Seat key={seat.key} seat={seat} raised={seat.key === leader.key} />
       ))}
     </div>
   );

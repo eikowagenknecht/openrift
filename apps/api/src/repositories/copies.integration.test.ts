@@ -82,7 +82,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     }
 
     expect(inserted).toHaveLength(3);
-    expect(inserted[0].collectionId).toBe(collectionId);
+    expect(inserted[0]!.collectionId).toBe(collectionId);
 
     const list = await copies.listForCollection(collectionId, 200);
     expect(list.length).toBeGreaterThanOrEqual(3);
@@ -113,13 +113,13 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   it("returns id when the copy is in a collection the viewer can access", async () => {
-    const copyId = insertedCopyIds[0];
+    const copyId = insertedCopyIds[0]!;
     const result = await copies.existsForViewer(copyId, userId);
     expect(result).toEqual({ id: copyId });
   });
 
   it("existsForViewer returns undefined for a user without access", async () => {
-    const copyId = insertedCopyIds[0];
+    const copyId = insertedCopyIds[0]!;
     const result = await copies.existsForViewer(copyId, "a0000000-9999-4000-a000-000000000001");
     expect(result).toBeUndefined();
   });
@@ -135,7 +135,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   it("moves copies to a different collection", async () => {
-    const copyToMove = insertedCopyIds[2];
+    const copyToMove = insertedCopyIds[2]!;
     await copies.moveBatchById([copyToMove], secondCollectionId);
 
     const inSecond = await copies.listForCollection(secondCollectionId, 200);
@@ -163,9 +163,9 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   it("deletes copies by ids", async () => {
     const [toDelete] = await copies.insertBatch([{ printingId: printingId1, collectionId }]);
 
-    await copies.deleteBatchById([toDelete.id]);
+    await copies.deleteBatchById([toDelete!.id]);
 
-    const result = await copies.existsForViewer(toDelete.id, userId);
+    const result = await copies.existsForViewer(toDelete!.id, userId);
     expect(result).toBeUndefined();
   });
 
@@ -178,12 +178,12 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
       insertedCopyIds.push(copy.id);
     }
     const [alive, gone] = inserted;
-    await copies.deleteBatchById([gone.id]);
+    await copies.deleteBatchById([gone!.id]);
 
     // The live copy is locked and returned; the deleted one drops out, which is
     // how the reserve side detects a copy a concurrent dispose removed.
-    const locked = await copies.lockByIds([alive.id, gone.id]);
-    expect(locked).toEqual([alive.id]);
+    const locked = await copies.lockByIds([alive!.id, gone!.id]);
+    expect(locked).toEqual([alive!.id]);
 
     // Empty input never touches the DB.
     expect(await copies.lockByIds([])).toEqual([]);
@@ -270,18 +270,18 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   });
 
   it("returns exactly one item with no extra pages", async () => {
-    const [inserted] = await copies.insertBatch([{ printingId: printingIds[0], collectionId }]);
-    insertedCopyIds.push(inserted.id);
+    const [inserted] = await copies.insertBatch([{ printingId: printingIds[0]!, collectionId }]);
+    insertedCopyIds.push(inserted!.id);
 
     const { items, pageCount } = await paginateAll(
       (limit, cursor) => copies.listForAccessibleCollections(userId, limit, cursor),
       10,
     );
     expect(items).toHaveLength(1);
-    expect(items[0].id).toBe(inserted.id);
+    expect(items[0]!.id).toBe(inserted!.id);
     expect(pageCount).toBe(1);
 
-    await copies.deleteBatchById([inserted.id]);
+    await copies.deleteBatchById([inserted!.id]);
     insertedCopyIds.pop();
   });
 
@@ -350,14 +350,14 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
   it("paginates across different timestamps without gaps or duplicates", async () => {
     // Insert in separate batches to get different createdAt values
     const batch1 = await copies.insertBatch([
-      { printingId: printingIds[0], collectionId },
-      { printingId: printingIds[1], collectionId },
+      { printingId: printingIds[0]!, collectionId },
+      { printingId: printingIds[1]!, collectionId },
     ]);
     // Small delay to ensure different timestamp
     await Bun.sleep(10);
     const batch2 = await copies.insertBatch([
-      { printingId: printingIds[2], collectionId },
-      { printingId: printingIds[3], collectionId },
+      { printingId: printingIds[2]!, collectionId },
+      { printingId: printingIds[3]!, collectionId },
     ]);
 
     const allInserted = [...batch1, ...batch2];
@@ -411,7 +411,7 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
   it("listForCollection paginates correctly with timestamp collisions", async () => {
     // 5 copies in one batch into the same collection — all same createdAt
-    const batchValues = [...printingIds, printingIds[0]].map((printingId) => ({
+    const batchValues = [...printingIds, printingIds[0]!].map((printingId) => ({
       printingId,
       collectionId,
     }));
@@ -441,11 +441,11 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
 
   it("returns items in descending createdAt then ascending id order", async () => {
     const batch1 = await copies.insertBatch([
-      { printingId: printingIds[0], collectionId },
-      { printingId: printingIds[1], collectionId },
+      { printingId: printingIds[0]!, collectionId },
+      { printingId: printingIds[1]!, collectionId },
     ]);
     await Bun.sleep(10);
-    const batch2 = await copies.insertBatch([{ printingId: printingIds[2], collectionId }]);
+    const batch2 = await copies.insertBatch([{ printingId: printingIds[2]!, collectionId }]);
 
     const allInserted = [...batch1, ...batch2];
     for (const row of allInserted) {
@@ -459,19 +459,19 @@ describe.skipIf(!paginationCtx)("copies pagination (integration)", () => {
     );
 
     // batch2 (newer) should come first
-    const batch2Index = items.findIndex((item) => item.id === batch2[0].id);
+    const batch2Index = items.findIndex((item) => item.id === batch2[0]!.id);
     const batch1Indices = batch1.map((row) => items.findIndex((item) => item.id === row.id));
     expect(batch2Index).toBeLessThan(Math.min(...batch1Indices));
 
     // Within the same batch (same createdAt), IDs should be in ascending order
     if (batch1Indices.length === 2) {
       const [idx0, idx1] = batch1Indices;
-      const id0 = items[idx0].id;
-      const id1 = items[idx1].id;
+      const id0 = items[idx0!]!.id;
+      const id1 = items[idx1!]!.id;
       if (id0 < id1) {
-        expect(idx0).toBeLessThan(idx1);
+        expect(idx0).toBeLessThan(idx1!);
       } else {
-        expect(idx1).toBeLessThan(idx0);
+        expect(idx1).toBeLessThan(idx0!);
       }
     }
 
@@ -527,12 +527,12 @@ describe.skipIf(!groupCtx)("copies in group collections (integration)", () => {
     const [copy] = await copies.insertBatch([
       { printingId: PRINTING_1.id, collectionId: pooled.id },
     ]);
-    insertedCopyIds.push(copy.id);
+    insertedCopyIds.push(copy!.id);
 
     // The member sees it through their accessible-collections feed, tagged
     // with the owning group.
     const accessible = await copies.listForAccessibleCollections(userId, 200);
-    const found = accessible.find((row) => row.id === copy.id);
+    const found = accessible.find((row) => row.id === copy!.id);
     expect(found).toBeDefined();
     expect(found!.groupId).toBe(groupId);
   });

@@ -1,5 +1,5 @@
 import type { EnumOrders, GroupByField } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { enumLabel, WellKnown } from "@openrift/shared";
 
 import type { CardGroup, GroupInfo } from "@/lib/card-group-types";
 import type { CardViewerItem } from "@/lib/card-viewer-types";
@@ -61,7 +61,7 @@ export function groupItemsByField(
     type: {
       order: orders.cardTypes,
       getKeysAndItems: (item) => item.printing.card.types.map((key) => ({ key, mapped: item })),
-      label: (key) => labels.cardTypes[key],
+      label: (key) => enumLabel(labels.cardTypes, key),
     },
     superType: {
       order: orders.superTypes,
@@ -70,7 +70,7 @@ export function groupItemsByField(
         const keys = supers.length > 0 ? supers : [NO_SUPER_TYPE_KEY];
         return keys.map((key) => ({ key, mapped: item }));
       },
-      label: (key) => (key === NO_SUPER_TYPE_KEY ? key : labels.superTypes[key]),
+      label: (key) => (key === NO_SUPER_TYPE_KEY ? key : enumLabel(labels.superTypes, key)),
     },
     domain: {
       order: orders.domains,
@@ -79,12 +79,12 @@ export function groupItemsByField(
         const keys = doms.length > 0 ? doms : [WellKnown.domain.COLORLESS];
         return keys.map((key) => ({ key, mapped: item }));
       },
-      label: (key) => labels.domains[key],
+      label: (key) => enumLabel(labels.domains, key),
     },
     rarity: {
       order: orders.rarities,
       getKeysAndItems: (item) => [{ key: item.printing.rarity, mapped: item }],
-      label: (key) => labels.rarities[key],
+      label: (key) => enumLabel(labels.rarities, key),
     },
   };
 

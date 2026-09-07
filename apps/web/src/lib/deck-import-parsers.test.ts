@@ -309,12 +309,12 @@ describe("entriesFromSharedDeck", () => {
       explicitZone: "sideboard",
       sourceSlot: "sideboard",
     });
-    expect(entries[2].shortCode).toBeUndefined();
+    expect(entries[2]!.shortCode).toBeUndefined();
   });
 
   it("carries display raw fields for the preview row", () => {
     const entries = entriesFromSharedDeck([publicDeckCard({ zone: "battlefield" })]);
 
-    expect(entries[0].rawFields).toEqual({ "Parsed Name": "Iron Ballista", Zone: "Battlefields" });
+    expect(entries[0]!.rawFields).toEqual({ "Parsed Name": "Iron Ballista", Zone: "Battlefields" });
   });
 });

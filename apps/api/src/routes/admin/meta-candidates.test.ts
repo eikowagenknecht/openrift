@@ -1048,7 +1048,7 @@ describe("GET /meta/overlays, the facts a grouped queue reads", () => {
 
     const [row] = await queue();
 
-    expect(row.match).toEqual({
+    expect(row!.match).toEqual({
       state: "exact",
       metaEventPlayerId: LIVE_PLAYER_ID,
       playerName: "Renata",
@@ -1064,7 +1064,7 @@ describe("GET /meta/overlays, the facts a grouped queue reads", () => {
 
     const [row] = await queue();
 
-    expect(row.match).toMatchObject({ state: "candidates", candidateCount: 1 });
+    expect(row!.match).toMatchObject({ state: "candidates", candidateCount: 1 });
   });
 
   it("offers the row at the same finish when the source renamed everyone", async () => {
@@ -1075,7 +1075,7 @@ describe("GET /meta/overlays, the facts a grouped queue reads", () => {
 
     const [row] = await queue();
 
-    expect(row.match).toMatchObject({ state: "candidates", candidateCount: 1 });
+    expect(row!.match).toMatchObject({ state: "candidates", candidateCount: 1 });
   });
 
   it("reports none when nothing shares the name or the finish", async () => {
@@ -1086,7 +1086,7 @@ describe("GET /meta/overlays, the facts a grouped queue reads", () => {
 
     const [row] = await queue();
 
-    expect(row.match).toMatchObject({ state: "none", candidateCount: 0 });
+    expect(row!.match).toMatchObject({ state: "none", candidateCount: 0 });
   });
 
   it("reads each event's standings once, however many rows land on it", async () => {

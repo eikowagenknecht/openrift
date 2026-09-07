@@ -3,10 +3,10 @@ export function summarizeBatchAdd(
   printingIds: string[],
   nameById: (printingId: string) => string | undefined,
 ): string | null {
-  if (printingIds.length === 0) {
+  const [first] = printingIds;
+  if (first === undefined) {
     return null;
   }
-  const first = printingIds[0];
   const allSame = printingIds.every((id) => id === first);
   if (allSame) {
     const name = nameById(first) ?? "card";

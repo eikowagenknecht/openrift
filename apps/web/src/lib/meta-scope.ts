@@ -99,12 +99,15 @@ export function deriveSetEras(sets: readonly EraSet[], today = todayUtc()): Meta
     .toSorted((a, b) => a.releasedAt.localeCompare(b.releasedAt));
 
   return dated
-    .map((entry, index) => ({
-      id: entry.set.slug,
-      label: entry.set.name,
-      from: entry.releasedAt,
-      to: index + 1 < dated.length ? dayBefore(dated[index + 1].releasedAt) : null,
-    }))
+    .map((entry, index) => {
+      const nextEntry = dated[index + 1];
+      return {
+        id: entry.set.slug,
+        label: entry.set.name,
+        from: entry.releasedAt,
+        to: nextEntry ? dayBefore(nextEntry.releasedAt) : null,
+      };
+    })
     .toReversed();
 }
 

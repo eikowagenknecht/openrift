@@ -34,5 +34,5 @@ export function inferChosenChampion(
   const candidates = [...copiesInMain]
     .filter(([cardId, copies]) => copies < copyLimitFor(facts.get(cardId) as ChampionFacts))
     .map(([cardId]) => cardId);
-  return candidates.length === 1 ? candidates[0] : null;
+  return candidates.length === 1 ? (candidates[0] ?? null) : null;
 }

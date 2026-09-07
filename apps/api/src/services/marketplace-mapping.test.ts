@@ -131,9 +131,9 @@ describe("getMappingOverview", () => {
     const result = await getMappingOverview(repos, config);
 
     expect(result.groups).toHaveLength(1);
-    expect(result.groups[0].cardId).toBe("card-1");
-    expect(result.groups[0].cardName).toBe("Fireball");
-    expect(result.groups[0].printings).toHaveLength(1);
+    expect(result.groups[0]!.cardId).toBe("card-1");
+    expect(result.groups[0]!.cardName).toBe("Fireball");
+    expect(result.groups[0]!.printings).toHaveLength(1);
   });
 
   it("matches staged products to cards by name prefix", async () => {
@@ -146,7 +146,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
     expect(result.unmatchedProducts).toHaveLength(0);
   });
 
@@ -169,8 +169,8 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
-    expect(result.groups[0].stagedProducts[0].isOverride).toBe(true);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts[0]!.isOverride).toBe(true);
   });
 
   it("matches staged products via containment (second pass)", async () => {
@@ -187,7 +187,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
     expect(result.unmatchedProducts).toHaveLength(0);
   });
 
@@ -205,7 +205,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
   });
 
   it("skips containment match when name is too short (< 5)", async () => {
@@ -218,7 +218,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(0);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(0);
     expect(result.unmatchedProducts).toHaveLength(1);
   });
 
@@ -242,7 +242,7 @@ describe("getMappingOverview", () => {
       ],
     });
 
-    const productIds = result.groups[0].stagedProducts.map((p) => p.externalId);
+    const productIds = result.groups[0]!.stagedProducts.map((p) => p.externalId);
     expect(productIds).toEqual([1]);
     expect(result.unmatchedProducts.map((p) => p.externalId)).not.toContain(2);
   });
@@ -260,7 +260,7 @@ describe("getMappingOverview", () => {
     const result = await getMappingOverview(repos, config);
 
     expect(result.unmatchedProducts).toHaveLength(1);
-    expect(result.unmatchedProducts[0].productName).toBe("Completely Unknown Product");
+    expect(result.unmatchedProducts[0]!.productName).toBe("Completely Unknown Product");
   });
 
   it("excludes ignored staging rows via L3 ignoredVariants", async () => {
@@ -285,7 +285,7 @@ describe("getMappingOverview", () => {
 
     expect(result.unmatchedProducts).toHaveLength(0);
     expect(result.ignoredProducts).toHaveLength(1);
-    expect(result.ignoredProducts[0].level).toBe("variant");
+    expect(result.ignoredProducts[0]!.level).toBe("variant");
   });
 
   it("excludes staging rows via L2 ignoredProducts (whole-product ignore)", async () => {
@@ -311,8 +311,8 @@ describe("getMappingOverview", () => {
 
     expect(result.unmatchedProducts).toHaveLength(0);
     expect(result.ignoredProducts).toHaveLength(1);
-    expect(result.ignoredProducts[0].level).toBe("product");
-    expect(result.ignoredProducts[0].finish).toBeNull();
+    expect(result.ignoredProducts[0]!.level).toBe("product");
+    expect(result.ignoredProducts[0]!.finish).toBeNull();
   });
 
   it("builds group name lookup from groupNames repo", async () => {
@@ -329,7 +329,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.unmatchedProducts[0].groupName).toBe("Group One");
+    expect(result.unmatchedProducts[0]!.groupName).toBe("Group One");
   });
 
   it("uses fallback group name when group is not in map", async () => {
@@ -345,7 +345,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.unmatchedProducts[0].groupName).toBe("Group #42");
+    expect(result.unmatchedProducts[0]!.groupName).toBe("Group #42");
   });
 
   it("includes assigned products from mapped printings", async () => {
@@ -396,9 +396,9 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].assignedProducts).toHaveLength(1);
-    expect(result.groups[0].assignedProducts[0].productName).toBe("Fireball Product");
-    expect(result.groups[0].assignedProducts[0].groupName).toBe("Group One");
+    expect(result.groups[0]!.assignedProducts).toHaveLength(1);
+    expect(result.groups[0]!.assignedProducts[0]!.productName).toBe("Fireball Product");
+    expect(result.groups[0]!.assignedProducts[0]!.groupName).toBe("Group One");
   });
 
   it("uses fallback group name for assigned products with unknown group", async () => {
@@ -448,7 +448,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].assignedProducts[0].groupName).toBe("Group #99");
+    expect(result.groups[0]!.assignedProducts[0]!.groupName).toBe("Group #99");
   });
 
   it("filters staged products that are already assigned by exact key", async () => {
@@ -503,7 +503,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(0);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(0);
   });
 
   it("deduplicates assigned products by externalId+finish key", async () => {
@@ -579,7 +579,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].assignedProducts).toHaveLength(1);
+    expect(result.groups[0]!.assignedProducts).toHaveLength(1);
   });
 
   it("keeps per-finish prices distinct when one externalId has two SKUs bound to the same printing", async () => {
@@ -653,7 +653,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    const assigned = result.groups[0].assignedProducts;
+    const assigned = result.groups[0]!.assignedProducts;
     expect(assigned).toHaveLength(2);
     const byFinish = new Map(assigned.map((p) => [p.finish, p]));
     expect(byFinish.get("normal")?.marketCents).toBe(500);
@@ -670,8 +670,8 @@ describe("getMappingOverview", () => {
     const result = await getMappingOverview(repos, config);
 
     expect(result.allCards).toHaveLength(1);
-    expect(result.allCards[0].cardId).toBe("card-1");
-    expect(result.allCards[0].shortCodes).toHaveLength(1);
+    expect(result.allCards[0]!.cardId).toBe("card-1");
+    expect(result.allCards[0]!.shortCodes).toHaveLength(1);
   });
 
   it("builds ignored variants list with group name lookups", async () => {
@@ -696,9 +696,9 @@ describe("getMappingOverview", () => {
     const result = await getMappingOverview(repos, config);
 
     expect(result.ignoredProducts).toHaveLength(1);
-    expect(result.ignoredProducts[0].productName).toBe("Ignored Product");
-    expect(result.ignoredProducts[0].groupName).toBe("Set Five");
-    expect(result.ignoredProducts[0].currency).toBe("USD");
+    expect(result.ignoredProducts[0]!.productName).toBe("Ignored Product");
+    expect(result.ignoredProducts[0]!.groupName).toBe("Set Five");
+    expect(result.ignoredProducts[0]!.currency).toBe("USD");
   });
 
   it("uses fallback group name for ignored variant without staging data", async () => {
@@ -718,8 +718,8 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.ignoredProducts[0].groupId).toBeUndefined();
-    expect(result.ignoredProducts[0].groupName).toBeUndefined();
+    expect(result.ignoredProducts[0]!.groupId).toBeUndefined();
+    expect(result.ignoredProducts[0]!.groupName).toBeUndefined();
   });
 
   it("keeps staged product when externalId matches assigned but finish has unmapped printing", async () => {
@@ -774,7 +774,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
   });
 
   it("uses null sourceGroupId when sourceGroupId is null on assigned product", async () => {
@@ -824,8 +824,8 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].assignedProducts[0].groupId).toBeUndefined();
-    expect(result.groups[0].assignedProducts[0].groupName).toBeUndefined();
+    expect(result.groups[0]!.assignedProducts[0]!.groupId).toBeUndefined();
+    expect(result.groups[0]!.assignedProducts[0]!.groupName).toBeUndefined();
   });
 
   it("groups multiple printings under the same card", async () => {
@@ -843,7 +843,7 @@ describe("getMappingOverview", () => {
     const result = await getMappingOverview(repos, config);
 
     expect(result.groups).toHaveLength(1);
-    expect(result.groups[0].printings).toHaveLength(2);
+    expect(result.groups[0]!.printings).toHaveLength(2);
   });
 
   it("skips already-matched rows in second-pass containment matching", async () => {
@@ -860,7 +860,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
   });
 
   it("does not skip override that targets a non-existent card group", async () => {
@@ -937,7 +937,7 @@ describe("getMappingOverview", () => {
 
     const result = await getMappingOverview(repos, config);
 
-    expect(result.groups[0].stagedProducts).toHaveLength(1);
+    expect(result.groups[0]!.stagedProducts).toHaveLength(1);
   });
 
   it("does not fetch snapshot prices when no mapped printings", async () => {
@@ -1025,7 +1025,7 @@ describe("saveMappings", () => {
 
     expect(result.saved).toBe(0);
     expect(result.skipped).toHaveLength(1);
-    expect(result.skipped[0].reason).toBe("no marketplace product found");
+    expect(result.skipped[0]!.reason).toBe("no marketplace product found");
   });
 
   it("skips mapping when SKU mismatch", async () => {
@@ -1058,7 +1058,7 @@ describe("saveMappings", () => {
     ]);
 
     expect(result.skipped).toHaveLength(1);
-    expect(result.skipped[0].reason).toContain("SKU mismatch");
+    expect(result.skipped[0]!.reason).toContain("SKU mismatch");
   });
 
   it("skips mapping when no marketplace product is found", async () => {
@@ -1074,7 +1074,7 @@ describe("saveMappings", () => {
     ]);
 
     expect(result.skipped).toHaveLength(1);
-    expect(result.skipped[0].reason).toBe("no marketplace product found");
+    expect(result.skipped[0]!.reason).toBe("no marketplace product found");
   });
 
   it("rebinds a historical product to a new printing using the existing product row", async () => {
@@ -1142,7 +1142,7 @@ describe("saveMappings", () => {
     ]);
 
     expect(result.skipped).toHaveLength(1);
-    expect(result.skipped[0].reason).toContain("SKU mismatch");
+    expect(result.skipped[0]!.reason).toContain("SKU mismatch");
   });
 
   it("accepts cross-language assignments on language-aggregate marketplaces", async () => {
@@ -1245,8 +1245,8 @@ describe("saveMappings", () => {
     ]);
 
     expect(upsertMock).toHaveBeenCalledOnce();
-    const upsertValues = upsertMock.mock.calls[0][0] as { language: string | null }[];
-    expect(upsertValues[0].language).toBeNull();
+    const upsertValues = upsertMock.mock.calls[0]![0] as { language: string | null }[];
+    expect(upsertValues[0]!.language).toBeNull();
   });
 
   it("accepts a metal printing against foil staging and writes finish=foil on the product", async () => {
@@ -1382,8 +1382,8 @@ describe("saveMappings", () => {
       { printingId: "p-1", externalId: 12_345, finish: "normal", language: "SC" },
     ]);
 
-    const upsertValues = upsertMock.mock.calls[0][0] as { language: string | null }[];
-    expect(upsertValues[0].language).toBe("SC");
+    const upsertValues = upsertMock.mock.calls[0]![0] as { language: string | null }[];
+    expect(upsertValues[0]!.language).toBe("SC");
   });
 });
 

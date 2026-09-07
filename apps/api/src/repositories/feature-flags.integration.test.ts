@@ -68,7 +68,7 @@ describe.skipIf(!ctx)("featureFlagsRepo (integration)", () => {
     expect(keys).toContain("test-flag-0031-b");
 
     for (let i = 1; i < flags.length; i++) {
-      expect(flags[i].key >= flags[i - 1].key).toBe(true);
+      expect(flags[i]!.key >= flags[i - 1]!.key).toBe(true);
     }
   });
 

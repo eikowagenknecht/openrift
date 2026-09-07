@@ -31,7 +31,7 @@ describe("copiesQueryOptions", () => {
     const response = await fetchCopies();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchedUrl(fetchMock.mock.calls[0])).toContain("/api/v1/copies");
+    expect(fetchedUrl(fetchMock.mock.calls[0]!)).toContain("/api/v1/copies");
     expect(response.items.map((c) => c.id)).toEqual(["a", "b"]);
     expect(response.nextCursor).toBeNull();
   });
@@ -56,8 +56,8 @@ describe("copiesQueryOptions", () => {
     const response = await fetchCopies();
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchedUrl(fetchMock.mock.calls[1])).toContain("cursor=cur-1");
-    expect(fetchedUrl(fetchMock.mock.calls[2])).toContain("cursor=cur-2");
+    expect(fetchedUrl(fetchMock.mock.calls[1]!)).toContain("cursor=cur-1");
+    expect(fetchedUrl(fetchMock.mock.calls[2]!)).toContain("cursor=cur-2");
     expect(response.items.map((c) => c.id)).toEqual(["a", "b", "c", "d"]);
     expect(response.nextCursor).toBeNull();
   });
@@ -73,7 +73,7 @@ describe("copiesQueryOptions", () => {
     // oRPC percent-encodes path params, so the slash/space survive as %2F/%20.
     await fetchCopies("col/with spaces");
 
-    expect(fetchedUrl(fetchMock.mock.calls[0])).toContain(
+    expect(fetchedUrl(fetchMock.mock.calls[0]!)).toContain(
       "/api/v1/collections/col%2Fwith%20spaces/copies",
     );
   });

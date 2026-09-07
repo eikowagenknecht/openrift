@@ -48,7 +48,7 @@ describe("buildDrawOddsRows", () => {
       card("e", "Rune", 12, "runes"),
     ]);
     expect(rows.map((row) => row.cardName)).toEqual(["Alpha", "Beta", "Solo"]);
-    expect(rows[0].openingChance).toBeCloseTo(chanceToDraw(3, 7, 4), 10);
+    expect(rows[0]!.openingChance).toBeCloseTo(chanceToDraw(3, 7, 4), 10);
   });
 
   it("returns nothing for an empty main deck", () => {
@@ -65,7 +65,7 @@ describe("buildDrawOddsRows", () => {
       ["a", 4],
       ["b", 3],
     ]);
-    expect(rows[0].openingChance).toBeCloseTo(chanceToDraw(4, 7, 4), 10);
+    expect(rows[0]!.openingChance).toBeCloseTo(chanceToDraw(4, 7, 4), 10);
   });
 });
 

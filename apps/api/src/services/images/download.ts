@@ -27,6 +27,9 @@ function guessExtension(contentType: string | null, url: string): string {
 
 function isPrivateIpv4(ip: string): boolean {
   const [a, b] = ip.split(".").map(Number);
+  if (a === undefined || b === undefined) {
+    return false;
+  }
   return (
     a === 0 || // "this network"
     a === 10 || // private
@@ -56,9 +59,11 @@ export function isPrivateIp(ip: string): boolean {
     return isPrivateIpv4(mappedDotted.groups.v4);
   }
   const mappedHex = /^::ffff:(?<hi>[0-9a-f]{1,4}):(?<lo>[0-9a-f]{1,4})$/u.exec(lower);
-  if (mappedHex?.groups) {
-    const hi = Number.parseInt(mappedHex.groups.hi, 16);
-    const lo = Number.parseInt(mappedHex.groups.lo, 16);
+  const hiGroup = mappedHex?.groups?.hi;
+  const loGroup = mappedHex?.groups?.lo;
+  if (hiGroup !== undefined && loGroup !== undefined) {
+    const hi = Number.parseInt(hiGroup, 16);
+    const lo = Number.parseInt(loGroup, 16);
     return isPrivateIpv4(`${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`);
   }
   return (

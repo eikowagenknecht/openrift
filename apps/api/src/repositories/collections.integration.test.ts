@@ -147,13 +147,13 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
   });
 
   it("getIdAndName returns undefined for wrong userId", async () => {
-    const col = createdCollectionIds[0];
+    const col = createdCollectionIds[0]!;
     const result = await repo.getIdAndName(col, "a0000000-9999-4000-a000-000000000001");
     expect(result).toBeUndefined();
   });
 
   it("returns id when collection exists", async () => {
-    const col = createdCollectionIds[0];
+    const col = createdCollectionIds[0]!;
     const result = await repo.exists(col, userId);
     expect(result).toEqual({ id: col });
   });
@@ -239,7 +239,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
 
     const copies = await repo.listCopiesInCollection(colA.id);
     expect(copies.length).toBe(1);
-    expect(copies[0].printingId).toBe(printingId);
+    expect(copies[0]!.printingId).toBe(printingId);
 
     await repo.moveCopiesBetweenCollections(colA.id, colB.id);
 

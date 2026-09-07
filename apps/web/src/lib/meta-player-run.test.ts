@@ -62,7 +62,7 @@ describe("metaPlayerRun", () => {
       opponentId: "p-2",
       isCut: false,
     });
-    expect(run.swiss[0].opponentId).toBeNull();
+    expect(run.swiss[0]!.opponentId).toBeNull();
   });
 
   it("splits the cut off by the phase the source filed it under", () => {
@@ -85,7 +85,7 @@ describe("metaPlayerRun", () => {
       PHASES,
       "p-1",
     );
-    expect(run.swiss[0].outcome).toBe("unknown");
+    expect(run.swiss[0]!.outcome).toBe("unknown");
   });
 });
 

@@ -19,9 +19,10 @@ interface ChangelogGroup {
  */
 function parseEntryBody(raw: string): { title?: string; message: string } {
   const match = /^\*\*(?<title>[^*]+)\*\* — (?<message>.+)$/u.exec(raw);
-  const fields = match?.groups;
-  if (fields) {
-    return { title: fields.title.trim(), message: fields.message.trim() };
+  const title = match?.groups?.title;
+  const message = match?.groups?.message;
+  if (title !== undefined && message !== undefined) {
+    return { title: title.trim(), message: message.trim() };
   }
   return { message: raw.trim() };
 }
@@ -35,15 +36,18 @@ export function parseChangelog(markdown: string): ChangelogGroup[] {
   const sections = markdown.split(/^## /mu).slice(1);
 
   for (const section of sections) {
-    const lines = section.trim().split("\n");
-    const date = lines[0].trim();
+    const [dateLine, ...body] = section.trim().split("\n");
+    if (dateLine === undefined) {
+      continue;
+    }
+    const date = dateLine.trim();
     const highlights: ChangelogEntry[] = [];
     const other: ChangelogEntry[] = [];
 
     let current: "highlight" | "other" = "other";
 
-    for (const line of lines.slice(1)) {
-      const heading = /^### (?<name>.+)$/u.exec(line)?.groups?.name.trim().toLowerCase();
+    for (const line of body) {
+      const heading = /^### (?<name>.+)$/u.exec(line)?.groups?.name?.trim().toLowerCase();
       if (heading) {
         current = heading === "highlights" ? "highlight" : "other";
         continue;
@@ -51,7 +55,7 @@ export function parseChangelog(markdown: string): ChangelogGroup[] {
 
       const match = /^- (?<type>feat|fix)(?:\((?<area>[^)]+)\))?: (?<rest>.+)$/u.exec(line);
       const fields = match?.groups;
-      if (!fields) {
+      if (!fields || fields.rest === undefined) {
         continue;
       }
 

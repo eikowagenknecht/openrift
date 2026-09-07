@@ -38,11 +38,12 @@ function CitationEntry({ citation }: { citation: PrintingCitation }) {
 }
 
 export function PrintingCitationList({ citations }: { citations: readonly PrintingCitation[] }) {
-  if (citations.length === 0) {
+  const [first, ...rest] = citations;
+  if (!first) {
     return null;
   }
-  if (citations.length === 1) {
-    return <CitationEntry citation={citations[0]} />;
+  if (rest.length === 0) {
+    return <CitationEntry citation={first} />;
   }
   return (
     <ul className="space-y-1">

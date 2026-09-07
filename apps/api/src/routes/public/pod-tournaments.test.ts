@@ -308,7 +308,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
   it("submits the player's score and returns the refreshed report", async () => {
     mockTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
 
-    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    const res = await putRequest(TOKEN, playerIds[0]!, { gamePoints: 3 });
     expect(res.status).toBe(200);
     const json = await readJson(res);
     expect(json.tournamentName).toBe("Friday Night Pods");
@@ -326,7 +326,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
       pairingStyle: "swiss",
     });
 
-    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 2 });
+    const res = await putRequest(TOKEN, playerIds[0]!, { gamePoints: 2 });
     expect(res.status).toBe(200);
     expect(mockSubmitPodPlayerResult).toHaveBeenCalledTimes(1);
   });
@@ -334,7 +334,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
   it("returns FORBIDDEN when submitting via the read-only follow token", async () => {
     mockTournamentsRepo.findByShareToken.mockResolvedValue(dbTournament);
 
-    const res = await putRequest(FOLLOW_TOKEN, playerIds[0], { gamePoints: 3 });
+    const res = await putRequest(FOLLOW_TOKEN, playerIds[0]!, { gamePoints: 3 });
     expect(res.status).toBe(403);
     const json = await readJson(res);
     expect(json.message).toBe("This link is follow-only");
@@ -344,7 +344,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
   it("returns NOT_FOUND when the token does not resolve", async () => {
     mockTournamentsRepo.findByShareToken.mockResolvedValue(undefined);
 
-    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    const res = await putRequest(TOKEN, playerIds[0]!, { gamePoints: 3 });
     expect(res.status).toBe(404);
     const json = await readJson(res);
     expect(json.message).toBe("Not found");
@@ -357,7 +357,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
       pairingStyle: "none",
     });
 
-    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    const res = await putRequest(TOKEN, playerIds[0]!, { gamePoints: 3 });
     expect(res.status).toBe(404);
     const json = await readJson(res);
     expect(json.message).toBe("Not found");
@@ -370,7 +370,7 @@ describe("PUT /api/v1/pod-tournaments/report/:token/pods/:podId/players/:playerI
       new AppError(400, "BAD_REQUEST", "This player is not in this pod."),
     );
 
-    const res = await putRequest(TOKEN, playerIds[0], { gamePoints: 3 });
+    const res = await putRequest(TOKEN, playerIds[0]!, { gamePoints: 3 });
     expect(res.status).toBe(400);
     const json = await readJson(res);
     expect(json.message).toBe("This player is not in this pod.");

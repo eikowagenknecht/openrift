@@ -209,31 +209,40 @@ export function mergeTombstones(
   );
 }
 
+function scanWhile(
+  rules: readonly RuleResponse[],
+  start: number,
+  keepGoing: (rule: RuleResponse) => boolean,
+): number {
+  let index = start;
+  for (;;) {
+    const next = rules[index];
+    if (next === undefined || !keepGoing(next)) {
+      return index;
+    }
+    index++;
+  }
+}
+
 export function computeFoldGroups(rules: RuleResponse[]): Map<string, [number, number]> {
   const groups = new Map<string, [number, number]>();
-  for (let index = 0; index < rules.length; index++) {
-    const rule = rules[index];
-    let endExclusive = index + 1;
+  for (const [index, rule] of rules.entries()) {
+    const start = index + 1;
+    let endExclusive: number;
     if (rule.ruleType === "title") {
-      while (endExclusive < rules.length && rules[endExclusive].ruleType !== "title") {
-        endExclusive++;
-      }
+      endExclusive = scanWhile(rules, start, (next) => next.ruleType !== "title");
     } else if (rule.ruleType === "subtitle") {
-      while (
-        endExclusive < rules.length &&
-        rules[endExclusive].ruleType !== "subtitle" &&
-        rules[endExclusive].ruleType !== "title"
-      ) {
-        endExclusive++;
-      }
+      endExclusive = scanWhile(
+        rules,
+        start,
+        (next) => next.ruleType !== "subtitle" && next.ruleType !== "title",
+      );
     } else {
       const prefix = `${rule.ruleNumber}.`;
-      while (endExclusive < rules.length && rules[endExclusive].ruleNumber.startsWith(prefix)) {
-        endExclusive++;
-      }
+      endExclusive = scanWhile(rules, start, (next) => next.ruleNumber.startsWith(prefix));
     }
-    if (endExclusive > index + 1) {
-      groups.set(rule.ruleNumber, [index + 1, endExclusive]);
+    if (endExclusive > start) {
+      groups.set(rule.ruleNumber, [start, endExclusive]);
     }
   }
   return groups;
@@ -245,13 +254,12 @@ export function computeAncestorsByRule(
 ): Map<string, string[]> {
   const ancestorsByRule = new Map<string, string[]>();
   for (const [ancestor, [start, end]] of groups) {
-    for (let index = start; index < end; index++) {
-      const childRuleNumber = rules[index].ruleNumber;
-      const existing = ancestorsByRule.get(childRuleNumber);
+    for (const child of rules.slice(start, end)) {
+      const existing = ancestorsByRule.get(child.ruleNumber);
       if (existing) {
         existing.push(ancestor);
       } else {
-        ancestorsByRule.set(childRuleNumber, [ancestor]);
+        ancestorsByRule.set(child.ruleNumber, [ancestor]);
       }
     }
   }
@@ -279,26 +287,23 @@ function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
 
 function findAncestorIndices(
   rules: RuleResponse[],
+  match: RuleResponse,
   matchIndex: number,
   rulesByNumber: Map<string, number>,
 ): number[] {
   const ancestors = new Set<number>();
-  for (let index = matchIndex - 1; index >= 0; index--) {
-    if (rules[index].ruleType === "title") {
-      ancestors.add(index);
-      break;
-    }
+  const preceding = rules.slice(0, matchIndex);
+  const titleIndex = preceding.findLastIndex((rule) => rule.ruleType === "title");
+  if (titleIndex !== -1) {
+    ancestors.add(titleIndex);
   }
-  for (let index = matchIndex - 1; index >= 0; index--) {
-    if (rules[index].ruleType === "title") {
-      break;
-    }
-    if (rules[index].ruleType === "subtitle") {
-      ancestors.add(index);
-      break;
-    }
+  const headingIndex = preceding.findLastIndex(
+    (rule) => rule.ruleType === "title" || rule.ruleType === "subtitle",
+  );
+  if (preceding[headingIndex]?.ruleType === "subtitle") {
+    ancestors.add(headingIndex);
   }
-  const stripped = rules[matchIndex].ruleNumber.replace(/\.$/u, "");
+  const stripped = match.ruleNumber.replace(/\.$/u, "");
   const parts = stripped.split(".");
   for (let length = parts.length - 1; length >= 1; length--) {
     const prefix = parts.slice(0, length).join(".");
@@ -323,13 +328,13 @@ export function computeSearchResult(rules: RuleResponse[], terms: string[]): Sea
     return { visibleIndices: [], matchSet, ancestorSet };
   }
   const rulesByNumber = new Map<string, number>();
-  for (let index = 0; index < rules.length; index++) {
-    rulesByNumber.set(rules[index].ruleNumber.replace(/\.$/u, ""), index);
+  for (const [index, rule] of rules.entries()) {
+    rulesByNumber.set(rule.ruleNumber.replace(/\.$/u, ""), index);
   }
-  for (let index = 0; index < rules.length; index++) {
-    if (ruleMatches(rules[index], terms)) {
+  for (const [index, rule] of rules.entries()) {
+    if (ruleMatches(rule, terms)) {
       matchSet.add(index);
-      for (const ancestorIndex of findAncestorIndices(rules, index, rulesByNumber)) {
+      for (const ancestorIndex of findAncestorIndices(rules, rule, index, rulesByNumber)) {
         ancestorSet.add(ancestorIndex);
       }
     }

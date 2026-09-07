@@ -130,9 +130,9 @@ describe("collectEntries", () => {
       }),
     );
     expect(entries).toHaveLength(1);
-    expect(entries[0].isAssigned).toBe(true);
-    expect([...entries[0].assignedPrintingIds]).toEqual(["p-1"]);
-    expect(entries[0].assignedPrintings[0]).toMatchObject({
+    expect(entries[0]!.isAssigned).toBe(true);
+    expect([...entries[0]!.assignedPrintingIds]).toEqual(["p-1"]);
+    expect(entries[0]!.assignedPrintings[0]).toMatchObject({
       printingId: "p-1",
       shortCode: "OGN-001",
       finish: "normal",
@@ -301,7 +301,7 @@ describe("collectEntries", () => {
       }),
     );
     expect(entries).toHaveLength(1);
-    expect(entries[0].assignedPrintings).toEqual([]);
+    expect(entries[0]!.assignedPrintings).toEqual([]);
   });
 });
 

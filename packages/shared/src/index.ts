@@ -123,6 +123,8 @@ export {
   searchCards,
 } from "./card-search.js";
 
+export { enumLabel } from "./enum-label.js";
+
 export { formatPrintingVariantLabel, formatPrintingVariantLabelParts } from "./printing-label.js";
 export type {
   PrintingVariantLabelParts,

@@ -30,6 +30,7 @@ import { AppError } from "../../errors.js";
 import { assertDeleted, assertFound } from "../../lib/assertions.js";
 import { assertKnownFormat, validateFormatConfig } from "../../lib/deck-format-validation.js";
 import { toDeck, toDeckCard, toDeckPlan, toDeckSummary } from "../../lib/deck-presenters.js";
+import { resolveFavoriteMarketplace } from "../../lib/preferences.js";
 import { withUniqueShareToken } from "../../lib/share-token.js";
 import { requireAuthedUser } from "../../orpc/base.js";
 import type { ApiContext } from "../../orpc/context.js";
@@ -144,8 +145,7 @@ export const decksRouter = {
         loans.borrowedCountByCard(userId),
       ]);
 
-    const favMarketplace =
-      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
+    const favMarketplace = resolveFavoriteMarketplace(prefs?.data?.marketplaceOrder);
     // The tile's value has to use the same basis as the deck page, which
     // prices each card at the cheapest printing in the viewer's languages
     // (`computeDeckOwnership`). Resolve the stored preference the same way the

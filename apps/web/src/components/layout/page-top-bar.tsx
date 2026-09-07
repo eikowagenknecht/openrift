@@ -37,7 +37,11 @@ export function useMeasuredHeight(el: HTMLElement | null) {
     if (!el) {
       return;
     }
-    const observer = new ResizeObserver(([entry]) => {
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries.at(0);
+      if (!entry) {
+        return;
+      }
       const h = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
       setHeight(Math.round(h));
     });

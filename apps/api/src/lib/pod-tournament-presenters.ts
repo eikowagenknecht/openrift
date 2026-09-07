@@ -25,8 +25,8 @@ export function teamsOf(members: { teamId: string | null }[]): [string, string] 
   if (members.length !== 4 || members.some((member) => member.teamId === null)) {
     return null;
   }
-  const distinct = [...new Set(members.map((member) => member.teamId as string))];
-  return distinct.length === 2 ? [distinct[0], distinct[1]] : null;
+  const [teamA, teamB, ...rest] = [...new Set(members.map((member) => member.teamId as string))];
+  return teamA !== undefined && teamB !== undefined && rest.length === 0 ? [teamA, teamB] : null;
 }
 
 export function pointsForTeamPod(

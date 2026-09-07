@@ -1,3 +1,5 @@
+import { enumLabel } from "@openrift/shared";
+
 import { FilterSection } from "@/components/filters/filter-badge-row";
 import { FlagBadge } from "@/components/filters/filter-flag-badge";
 import type { FilterPanelContentProps } from "@/components/filters/filter-panel-content";
@@ -107,7 +109,7 @@ export function FilterBadgeSections({
           excluded={filterState.raritiesEx}
           onCycle={(v) => cycleArrayFilter("rarities", "raritiesEx", v)}
           iconPath={(v) => getFilterIconPath("rarities", v)}
-          displayLabel={(v) => labels.rarities[v]}
+          displayLabel={(v) => enumLabel(labels.rarities, v)}
           counts={filterCounts?.rarities}
         />
       )}
@@ -119,7 +121,7 @@ export function FilterBadgeSections({
           excluded={filterState.typesEx}
           onCycle={(v) => cycleArrayFilter("types", "typesEx", v)}
           iconPath={(v) => getFilterIconPath("types", v)}
-          displayLabel={(v) => labels.cardTypes[v]}
+          displayLabel={(v) => enumLabel(labels.cardTypes, v)}
           counts={filterCounts?.types}
         />
       )}
@@ -133,7 +135,7 @@ export function FilterBadgeSections({
             excluded={filterState.superTypesEx}
             onCycle={(v) => cycleArrayFilter("superTypes", "superTypesEx", v)}
             iconPath={(v) => getFilterIconPath("superTypes", v)}
-            displayLabel={(v) => labels.superTypes[v]}
+            displayLabel={(v) => enumLabel(labels.superTypes, v)}
             counts={filterCounts?.superTypes}
           />
         )}
@@ -144,7 +146,7 @@ export function FilterBadgeSections({
           selected={filterState.artVariants}
           excluded={filterState.artVariantsEx}
           onCycle={(v) => cycleArrayFilter("artVariants", "artVariantsEx", v)}
-          displayLabel={(v) => labels.artVariants[v]}
+          displayLabel={(v) => enumLabel(labels.artVariants, v)}
           counts={filterCounts?.artVariants}
           trailing={artVariantFlags}
         />
@@ -158,7 +160,7 @@ export function FilterBadgeSections({
             selected={filterState.finishes}
             excluded={filterState.finishesEx}
             onCycle={(v) => cycleArrayFilter("finishes", "finishesEx", v)}
-            displayLabel={(v) => labels.finishes[v]}
+            displayLabel={(v) => enumLabel(labels.finishes, v)}
             counts={filterCounts?.finishes}
           />
         )}
