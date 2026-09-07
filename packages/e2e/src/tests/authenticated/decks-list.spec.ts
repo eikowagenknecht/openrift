@@ -308,16 +308,18 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
 
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await expect(tile).toBeVisible({ timeout: 15_000 });
+      // The tile is not the anchor: the name link stretches over it, so the
+      // heading and the menu are siblings of the link, not its children.
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
 
-      await expect(tile.getByRole("heading", { level: 3, name: deckName })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 3, name: deckName })).toBeVisible();
       // The card count rides on the format badge; an empty deck shows the bare
       // format with no figure, so there is no "0 cards" text.
-      await expect(tile.getByText("Freeform")).toBeVisible();
-      await expect(tile.getByText(/\bcards\b/u)).toHaveCount(0);
+      await expect(page.getByText("Freeform")).toBeVisible();
+      await expect(page.getByText(/\d+ cards/u)).toHaveCount(0);
 
-      await expect(tile.getByRole("button", { name: "Deck actions" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Deck actions" })).toBeVisible();
     });
 
     test("clicking the tile navigates to /decks/<id>", async ({ page }) => {
@@ -326,11 +328,10 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await expect(tile).toBeVisible({ timeout: 15_000 });
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
 
-      // The heading is always present and isn't the menu trigger.
-      await tile.getByRole("heading", { level: 3, name: deckName }).click();
+      await deckLink.click();
       await expect(page).toHaveURL(new RegExp(`/decks/${deckId}$`, "u"), { timeout: 15_000 });
     });
   });
@@ -351,8 +352,9 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button", { name: "Deck actions" }).click();
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
 
       const dialog = page.getByRole("dialog");
@@ -367,8 +369,9 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button", { name: "Deck actions" }).click();
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
 
       const dialog = page.getByRole("dialog");
@@ -389,8 +392,9 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button", { name: "Deck actions" }).click();
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
 
       const dialog = page.getByRole("dialog");
@@ -404,7 +408,7 @@ test.describe("decks list", () => {
       await updateRequest;
 
       await expect(dialog).toBeHidden();
-      await expect(tile.getByRole("heading", { level: 3, name: nextName })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 3, name: nextName })).toBeVisible();
     });
   });
 
@@ -424,8 +428,9 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button", { name: "Deck actions" }).click();
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Delete" }).click();
 
       const alert = page.getByRole("alertdialog");
@@ -440,14 +445,15 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button", { name: "Deck actions" }).click();
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Delete" }).click();
 
       const alert = page.getByRole("alertdialog");
       await alert.getByRole("button", { name: "Cancel" }).click();
       await expect(alert).toBeHidden();
-      await expect(tile).toBeVisible();
+      await expect(deckLink).toBeVisible();
       expect(await deckExists(deckId)).toBe(true);
     });
 
@@ -459,8 +465,9 @@ test.describe("decks list", () => {
       const deckId = await apiCreateDeck(page, deckName);
 
       await page.goto("/decks");
-      const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button", { name: "Deck actions" }).click();
+      const deckLink = page.locator(`a[href="/decks/${deckId}"]`);
+      await expect(deckLink).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Delete" }).click();
 
       const alert = page.getByRole("alertdialog");
@@ -470,7 +477,7 @@ test.describe("decks list", () => {
       await alert.getByRole("button", { name: "Delete" }).click();
       await deleteRequest;
 
-      await expect(tile).toHaveCount(0, { timeout: 15_000 });
+      await expect(deckLink).toHaveCount(0, { timeout: 15_000 });
       expect(await deckExists(deckId)).toBe(false);
 
       await expect(page.getByText("No decks yet")).toBeVisible();

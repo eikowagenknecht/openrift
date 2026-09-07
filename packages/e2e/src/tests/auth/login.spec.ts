@@ -67,7 +67,7 @@ test.describe("login page", () => {
       await expect(page.getByText("Password is required.")).toBeVisible();
     });
 
-    test("shows resend button for unverified email and triggers resend", async ({
+    test("offers a verification code for an unverified email and opens /verify-email", async ({
       page,
       request,
     }) => {
@@ -84,18 +84,16 @@ test.describe("login page", () => {
 
       await expect(page.getByText(/Please verify your email/iu)).toBeVisible({ timeout: 10_000 });
 
-      const resend = page.getByRole("button", { name: "Resend verification email" });
+      const resend = page.getByRole("button", { name: "Send a verification code" });
       await expect(resend).toBeVisible();
 
-      const resendRequest = page.waitForRequest((req) =>
-        req.url().includes("/api/auth/send-verification-email"),
+      const otpRequest = page.waitForRequest((req) =>
+        req.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
       await resend.click();
-      await resendRequest;
+      await otpRequest;
 
-      await expect(page.getByRole("button", { name: "Resend verification email" })).toBeVisible({
-        timeout: 10_000,
-      });
+      await expect(page).toHaveURL(/\/verify-email/u, { timeout: 15_000 });
     });
 
     test("forgot password link includes the typed email", async ({ page }) => {
@@ -145,7 +143,7 @@ test.describe("login page", () => {
       await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
     });
 
-    test("strips an unsafe redirect param and lands on /", async ({ page, request }) => {
+    test("strips an unsafe redirect param and lands on /collections", async ({ page, request }) => {
       const sql = loadDb();
       const email = `redirect-unsafe-${Date.now()}@test.com`;
       const password = "LoginTestPassword1!";
@@ -162,7 +160,7 @@ test.describe("login page", () => {
       await page.locator("#password").fill(password);
       await page.getByRole("button", { name: /login/iu }).click();
 
-      await expect(page).toHaveURL(/\/cards/u, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
     });
 
     test("pre-fills email from ?email= param", async ({ page }) => {

@@ -1,21 +1,32 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { test } from "../../fixtures/test.js";
 import { createVerifiedUser, loadDb, waitForHydration } from "../../helpers/auth-otp.js";
-import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
 import { fetchLatestOtp } from "../../helpers/otp.js";
-
-async function sendResetOtp(request: APIRequestContext, email: string) {
-  const response = await request.post(`${API_BASE_URL}/api/auth/email-otp/send-verification-otp`, {
-    headers: { Origin: WEB_BASE_URL },
-    data: { email, type: "forget-password" },
-  });
-  expect(response.ok()).toBeTruthy();
-}
 
 async function fillOtp(page: Page, value: string) {
   await page.locator('input[autocomplete="one-time-code"]').fill(value);
+}
+
+// ?email= only prefills step 1: the code step claims a code was sent, so only
+// sending one gets there.
+async function gotoStep2(page: Page, email: string, options?: { realSend?: boolean }) {
+  if (!options?.realSend) {
+    await page.route("**/api/auth/email-otp/send-verification-otp", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true }),
+      }),
+    );
+  }
+  await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
+  await waitForHydration(page);
+  await page.getByRole("button", { name: /^send code$/iu }).click();
+  await expect(page.getByRole("button", { name: /reset password/iu })).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 test.describe("reset password", () => {
@@ -97,28 +108,24 @@ test.describe("reset password", () => {
     });
   });
 
-  test.describe("step 2: deep-linked via ?email=", () => {
-    test("renders step 2 directly (no Send code button)", async ({ page }) => {
+  test.describe("step 2: reached from a prefilled ?email=", () => {
+    test("sending the code replaces step 1 with the code step", async ({ page }) => {
       const email = "deeplink@test.com";
-      await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
-      await waitForHydration(page);
+      await gotoStep2(page, email);
 
-      await expect(page.getByRole("button", { name: /reset password/iu })).toBeVisible();
       await expect(page.getByRole("button", { name: /^send code$/iu })).toHaveCount(0);
       await expect(page.getByText(email, { exact: true })).toBeVisible();
     });
 
     test("Reset password is disabled when OTP is empty", async ({ page }) => {
-      await page.goto("/reset-password?email=foo@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "foo@test.com");
 
       await page.locator("#new-password").fill("NewPassword1!");
       await expect(page.getByRole("button", { name: /reset password/iu })).toBeDisabled();
     });
 
     test("Reset password is disabled when OTP has fewer than 6 digits", async ({ page }) => {
-      await page.goto("/reset-password?email=foo@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "foo@test.com");
 
       await fillOtp(page, "12345");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -126,8 +133,7 @@ test.describe("reset password", () => {
     });
 
     test("Reset password is disabled when new password is empty", async ({ page }) => {
-      await page.goto("/reset-password?email=foo@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "foo@test.com");
 
       await fillOtp(page, "123456");
       await expect(page.getByRole("button", { name: /reset password/iu })).toBeDisabled();
@@ -136,8 +142,7 @@ test.describe("reset password", () => {
     test("Reset password is enabled with a 6-digit OTP and a non-empty password", async ({
       page,
     }) => {
-      await page.goto("/reset-password?email=foo@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "foo@test.com");
 
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -147,8 +152,7 @@ test.describe("reset password", () => {
 
   test.describe("step 2: client validation", () => {
     test("password shorter than 8 chars shows 'at least 8 characters'", async ({ page }) => {
-      await page.goto("/reset-password?email=foo@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "foo@test.com");
 
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("Short1!");
@@ -159,8 +163,7 @@ test.describe("reset password", () => {
     });
 
     test("mismatched confirm shows 'Passwords do not match'", async ({ page }) => {
-      await page.goto("/reset-password?email=foo@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "foo@test.com");
 
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -180,10 +183,8 @@ test.describe("reset password", () => {
       } finally {
         await sql.end();
       }
-      await sendResetOtp(request, email);
 
-      await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
-      await waitForHydration(page);
+      await gotoStep2(page, email, { realSend: true });
 
       await fillOtp(page, "000000");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -201,7 +202,9 @@ test.describe("reset password", () => {
       let otp: string;
       try {
         await createVerifiedUser(request, sql, email, "ResetPassword1!");
-        await sendResetOtp(request, email);
+
+        await gotoStep2(page, email, { realSend: true });
+
         otp = await fetchLatestOtp(sql, email);
         await sql`
           UPDATE verifications
@@ -211,9 +214,6 @@ test.describe("reset password", () => {
       } finally {
         await sql.end();
       }
-
-      await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
-      await waitForHydration(page);
 
       await fillOtp(page, otp);
       await page.locator("#new-password").fill("NewPassword1!");
@@ -238,8 +238,7 @@ test.describe("reset password", () => {
         });
       });
 
-      await page.goto("/reset-password?email=too-many@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "too-many@test.com");
 
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -260,8 +259,7 @@ test.describe("reset password", () => {
         });
       });
 
-      await page.goto("/reset-password?email=unknown-error@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "unknown-error@test.com");
 
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -284,14 +282,13 @@ test.describe("reset password", () => {
       let otp: string;
       try {
         await createVerifiedUser(request, sql, email, oldPassword);
-        await sendResetOtp(request, email);
+
+        await gotoStep2(page, email, { realSend: true });
+
         otp = await fetchLatestOtp(sql, email);
       } finally {
         await sql.end();
       }
-
-      await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
-      await waitForHydration(page);
 
       await fillOtp(page, otp);
       await page.locator("#new-password").fill(newPassword);
@@ -318,14 +315,13 @@ test.describe("reset password", () => {
       let otp: string;
       try {
         await createVerifiedUser(request, sql, email, oldPassword);
-        await sendResetOtp(request, email);
+
+        await gotoStep2(page, email, { realSend: true });
+
         otp = await fetchLatestOtp(sql, email);
       } finally {
         await sql.end();
       }
-
-      await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
-      await waitForHydration(page);
 
       await fillOtp(page, otp);
       await page.locator("#new-password").fill(newPassword);
@@ -344,8 +340,7 @@ test.describe("reset password", () => {
 
   test.describe("resend", () => {
     test("clicking Resend code fires a send-OTP request", async ({ page }) => {
-      await page.goto("/reset-password?email=resend@test.com");
-      await waitForHydration(page);
+      await gotoStep2(page, "resend@test.com");
 
       const resendRequest = page.waitForRequest((req) =>
         req.url().includes("/api/auth/email-otp/send-verification-otp"),
@@ -362,13 +357,11 @@ test.describe("reset password", () => {
       const email = `reset-resend-${Date.now()}@test.com`;
       try {
         await createVerifiedUser(request, sql, email, "ResetPassword1!");
-        await sendResetOtp(request, email);
       } finally {
         await sql.end();
       }
 
-      await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
-      await waitForHydration(page);
+      await gotoStep2(page, email, { realSend: true });
 
       await fillOtp(page, "000000");
       await page.locator("#new-password").fill("NewPassword1!");
@@ -409,7 +402,7 @@ test.describe("reset password", () => {
       expect(url.searchParams.get("email")).toBe(typed);
     });
 
-    test("step 2 'Back to login' carries the deep-linked email", async ({ page }) => {
+    test("step 1 'Back to login' carries the prefilled email", async ({ page }) => {
       const email = `deeplink-back-${Date.now()}@test.com`;
       await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
       await waitForHydration(page);

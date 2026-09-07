@@ -553,8 +553,11 @@ test.describe("profile account & security", () => {
         const userId = userRows[0].id;
         const accountId = `e2e-google-${Date.now()}`;
         await sql`
-          INSERT INTO accounts (id, user_id, account_id, provider_id)
-          VALUES (${`acc-${accountId}`}, ${userId}, ${accountId}, 'google')
+          INSERT INTO accounts (id, user_id, account_id, provider_id, issuer)
+          VALUES (
+            ${`acc-${accountId}`}, ${userId}, ${accountId}, 'google',
+            'https://accounts.google.com'
+          )
         `;
       } finally {
         await sql.end();

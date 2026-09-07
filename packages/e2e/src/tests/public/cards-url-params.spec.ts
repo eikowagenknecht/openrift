@@ -92,21 +92,14 @@ test.describe("card browser URL params", () => {
   });
 
   test("?sort=name&sortDir=desc reverses the grid order", async ({ page }) => {
-    // Tall viewport so the window virtualizer keeps both ends mounted.
-    await page.setViewportSize({ width: 1280, height: 4000 });
     await page.goto("/cards?sort=name&sortDir=desc");
 
-    const zephyr = cardImage(page, "Zephyr Sage").first();
-    const annie = cardImage(page, "Annie, Fiery").first();
-    await expect(zephyr).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(annie).toBeVisible();
+    // The grid is window-virtualized and the catalog outgrew one screen: under
+    // desc, Zephyr Sage mounts first and Annie, Fiery only after scrolling.
+    await expect(cardImage(page, "Zephyr Sage").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(cardImage(page, "Annie, Fiery").first()).not.toBeVisible();
 
-    const zephyrBox = await zephyr.boundingBox();
-    const annieBox = await annie.boundingBox();
-    if (!zephyrBox || !annieBox) {
-      throw new Error("Expected both cards to have bounding boxes");
-    }
-    expect(zephyrBox.y).toBeLessThan(annieBox.y);
+    await scrollUntilVisible(page, cardImage(page, "Annie, Fiery"));
   });
 
   test("?groupBy=type shows type group headers", async ({ page }) => {

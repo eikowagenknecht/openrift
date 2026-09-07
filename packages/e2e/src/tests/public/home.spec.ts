@@ -6,13 +6,16 @@ test.describe("landing page", () => {
 
     await expect(page.getByRole("heading", { name: "OpenRift", level: 1 })).toBeVisible();
 
-    await expect(page.getByRole("link", { name: /browse cards/iu })).toBeVisible();
+    await expect(page.getByRole("link", { name: /browse cards/iu }).first()).toBeVisible();
   });
 
   test("navigates to the cards page", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: /browse cards/iu }).click();
+    await page
+      .getByRole("link", { name: /browse cards/iu })
+      .first()
+      .click();
 
     await expect(page).toHaveURL("/cards");
   });
@@ -20,7 +23,10 @@ test.describe("landing page", () => {
   test("navigates to the signup page", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: /sign up/iu }).click();
+    await page
+      .getByRole("link", { name: /sign up/iu })
+      .first()
+      .click();
 
     await expect(page).toHaveURL(/\/signup/u);
   });
@@ -45,11 +51,13 @@ test.describe("landing page", () => {
 
   test("shows the stats line with live card counts", async ({ page }) => {
     await page.goto("/");
-    // Numbers animate from 0 via useCountUp; require a non-zero leading digit
-    // so this doesn't pass on the initial "0 cards" frame.
-    await expect(
-      page.getByText(/[1-9][\d,.]* cards · [1-9][\d,.]* printings · [\d,.]+ copies tracked/u),
-    ).toBeVisible();
+    // Numbers animate up from 0 on the frame clock, which crawls under parallel
+    // load: wait for the line, then for a non-zero count to settle into it.
+    const stats = page.getByText(/[\d,.]+ cards · [\d,.]+ printings · [\d,.]+ copies tracked/u);
+    await expect(stats).toBeVisible({ timeout: 15_000 });
+    await expect(stats).toHaveText(/[1-9][\d,.]* cards · [1-9][\d,.]* printings/u, {
+      timeout: 15_000,
+    });
   });
 
   test("tapping the logo hints at the fan cards", async ({ page }) => {
@@ -65,28 +73,29 @@ test.describe("landing page", () => {
     await hinted;
   });
 
-  test("renders the feature rows and the toolbox", async ({ page }) => {
+  test("renders the feature showcase and the closing sections", async ({ page }) => {
     await page.goto("/");
     const sections = [
-      "Every card, every printing",
-      "Prices, side by side",
-      "Collections, wishlists, tradelists",
-      "Private groups",
-      "Advanced deck building",
-      "And a full toolbox",
+      "Scan cards with your camera",
+      "A collection that keeps itself current",
+      "See who has what you need",
+      "Know what your cards are worth",
+      "Switching? Bring your collection.",
+      "And that's not even half of it",
+      "Ready when you are.",
     ];
     for (const section of sections) {
       await expect(page.getByRole("heading", { name: section, level: 2 })).toBeVisible();
     }
   });
 
-  test("feature rows navigate to their targets", async ({ page }) => {
+  test("showcase rows navigate to their targets", async ({ page }) => {
     // Unauthenticated redirects put the target URL-encoded in the query string.
     const rows: { name: RegExp; url: RegExp }[] = [
-      { name: /every card, every printing/iu, url: /\/cards/u },
-      { name: /collections, wishlists, tradelists/iu, url: /\/collections/u },
-      { name: /private groups/iu, url: /\/groups/u },
-      { name: /advanced deck building/iu, url: /\/decks/u },
+      { name: /scan cards with your camera/iu, url: /\/scan/u },
+      { name: /a collection that keeps itself current/iu, url: /\/collections/u },
+      { name: /see who has what you need/iu, url: /\/groups/u },
+      { name: /know what your cards are worth/iu, url: /\/cards/u },
     ];
     for (const row of rows) {
       await page.goto("/");
@@ -95,10 +104,10 @@ test.describe("landing page", () => {
     }
   });
 
-  test("toolbox tiles navigate to their tools", async ({ page }) => {
-    const tiles: { name: string; url: RegExp }[] = [
-      { name: "Pack opener", url: /\/pack-opener/u },
-      { name: "Rules reference", url: /\/rules/u },
+  test("chapter tiles open the feature tour", async ({ page }) => {
+    const tiles: { name: RegExp; url: RegExp }[] = [
+      { name: /^01 Collect/iu, url: /\/features#chapter-collect$/u },
+      { name: /^05 Create/iu, url: /\/features#chapter-create$/u },
     ];
     for (const tile of tiles) {
       await page.goto("/");
@@ -124,7 +133,7 @@ test.describe("landing page", () => {
   test("footer external links open in a new tab with noreferrer", async ({ page }) => {
     await page.goto("/");
 
-    const discord = page.getByRole("link", { name: /discord/iu });
+    const discord = page.locator("footer").getByRole("link", { name: /discord/iu });
     await expect(discord).toHaveAttribute("target", "_blank");
     await expect(discord).toHaveAttribute("rel", "noreferrer");
     await expect(discord).toHaveAttribute("href", /discord\.gg/u);

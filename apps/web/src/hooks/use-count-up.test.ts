@@ -64,6 +64,22 @@ describe("useCountUp", () => {
     expect(earlyValue).toBeGreaterThan(250);
   });
 
+  it("never returns a negative value when the first frame predates the start", () => {
+    let fired = false;
+    const raf = vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      if (!fired) {
+        fired = true;
+        cb(performance.now() - 50);
+      }
+      return 1;
+    });
+
+    const { result } = renderHook(() => useCountUp(90, 1200));
+    expect(result.current).toBeGreaterThanOrEqual(0);
+
+    raf.mockRestore();
+  });
+
   it("returns integer values only", () => {
     const { result } = renderHook(() => useCountUp(777, 1000));
 

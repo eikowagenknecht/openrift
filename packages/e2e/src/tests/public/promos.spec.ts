@@ -26,11 +26,12 @@ interface PromoFixture {
   channels: PromoFixtureChannel[];
   cards: Record<string, unknown>;
   printings: PromoFixturePrinting[];
-  prices: Record<string, unknown>;
+  sets: { id: string; slug: string }[];
+  languages: string[];
 }
 
-async function fetchPromoList(): Promise<PromoFixture> {
-  const res = await fetch(`${API_BASE_URL}/api/v1/promos`);
+async function fetchPromoList(language = "EN"): Promise<PromoFixture> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/promos?language=${language}`);
   if (!res.ok) {
     throw new Error(`/api/v1/promos fetch failed: ${res.status}`);
   }
@@ -88,7 +89,7 @@ test.describe("promos", () => {
       await expect(page).toHaveURL(/\/promos\/EN$/u, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       await expect(
-        page.getByText(/Promos are all the cards you can.t get by just opening booster packs/u),
+        page.getByText(/All the cards you can.t pull from booster packs\./u),
       ).toBeVisible();
     });
 
@@ -141,7 +142,8 @@ test.describe("promos", () => {
                 channels: [],
                 cards: {},
                 printings: [],
-                prices: {},
+                sets: [],
+                languages: [],
               },
             }),
           });
@@ -169,7 +171,7 @@ test.describe("promos", () => {
 
       await expect(gridButton).toHaveAttribute("aria-pressed", "true");
       await expect(tableButton).toHaveAttribute("aria-pressed", "false");
-      await expect(page.getByRole("table")).toHaveCount(0);
+      await expect(page.getByRole("row")).toHaveCount(0);
       await expect(page.locator(".aspect-card").first()).toBeVisible();
 
       // Retry the click until the pressed state flips (handler wires up after hydration).
@@ -177,13 +179,13 @@ test.describe("promos", () => {
         await tableButton.click();
         await expect(tableButton).toHaveAttribute("aria-pressed", "true", { timeout: 2000 });
       }).toPass({ timeout: 15_000 });
-      await expect(page.getByRole("table").first()).toBeVisible();
+      await expect(page.getByRole("row").first()).toBeVisible();
 
       await expect(async () => {
         await gridButton.click();
         await expect(gridButton).toHaveAttribute("aria-pressed", "true", { timeout: 2000 });
       }).toPass({ timeout: 15_000 });
-      await expect(page.getByRole("table")).toHaveCount(0);
+      await expect(page.getByRole("row")).toHaveCount(0);
     });
   });
 
@@ -194,7 +196,7 @@ test.describe("promos", () => {
 
       // Anchor on a seeded card's art, not "the first tile": filter chips are
       // also <img>-bearing buttons, and imageless cards overlay a "suggest image" link.
-      const firstCard = page.getByRole("img", { name: /Master Yi, Wuju Bladesman/u }).first();
+      const firstCard = page.getByRole("img", { name: /^Wuju Bladesman, Starter$/u }).first();
       await expect(firstCard).toBeVisible();
 
       // Modal or docked pane depending on preference; both close controls share a name.
@@ -214,7 +216,7 @@ test.describe("promos", () => {
       const tableButton = page.getByRole("button", { name: "Table view" });
       await expect(async () => {
         await tableButton.click();
-        await expect(page.getByRole("table").first()).toBeVisible({ timeout: 2000 });
+        await expect(page.getByRole("row").first()).toBeVisible({ timeout: 2000 });
       }).toPass({ timeout: 15_000 });
 
       const firstRow = page.getByRole("row").first();

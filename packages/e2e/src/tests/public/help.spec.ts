@@ -66,6 +66,24 @@ const ARTICLES: { slug: string; title: string; description: string }[] = [
       "Add the OpenRift bot to your Discord server to look up cards, unfurl deck codes, and quote rules right from chat.",
   },
   {
+    slug: "stage",
+    title: "Stage & OBS Overlay",
+    description:
+      "Put cards in front of an audience: a full-screen show for window capture, or a transparent browser source you paste into OBS.",
+  },
+  {
+    slug: "tier-lists",
+    title: "Tier Lists",
+    description:
+      "Rank cards on a drag-and-drop board, then share it as a link, download it as an image, or rank live on stream.",
+  },
+  {
+    slug: "chat-commands",
+    title: "Card Lookups in Chat",
+    description:
+      "Add one command to Nightbot, StreamElements, or Fossabot so viewers can look up any card from your stream chat.",
+  },
+  {
     slug: "tournament-decklist-api",
     title: "Tournament Decklist API",
     description:

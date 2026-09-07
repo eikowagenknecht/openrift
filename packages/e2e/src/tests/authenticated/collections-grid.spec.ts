@@ -369,7 +369,7 @@ test.describe("collections grid", () => {
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
 
         await page.keyboard.press("Control+k");
-        const paletteInput = page.getByPlaceholder(/Add to ".*"\.\.\./u);
+        const paletteInput = page.getByLabel(/^Add card to /u);
         await expect(paletteInput).toBeVisible();
 
         await paletteInput.fill("Annie");
@@ -503,7 +503,7 @@ test.describe("collections grid", () => {
         await expect(quickAdd).toBeVisible({ timeout: 45_000 });
         await quickAdd.click();
 
-        const paletteInput = page.getByPlaceholder(/Add to .*Inbox/u);
+        const paletteInput = page.getByLabel(/^Add card to /u);
         await expect(paletteInput).toBeVisible();
 
         await page.keyboard.press("Escape");

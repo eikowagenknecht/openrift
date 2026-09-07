@@ -23,7 +23,9 @@ export function useCountUp(target: number, durationMs = 1200): number {
 
     function tick(now: number) {
       const elapsed = now - start;
-      const progress = Math.min(elapsed / durationMs, 1);
+      // rAF reports the frame's own start, which can precede the call that
+      // scheduled it; an unclamped negative progress renders negative counts.
+      const progress = Math.min(Math.max(elapsed / durationMs, 0), 1);
       // ease-out cubic: decelerates toward the end
       const eased = 1 - (1 - progress) ** 3;
       setValue(Math.round(eased * target));

@@ -275,7 +275,9 @@ test.describe("collection actions", () => {
 
       const dialog = page.getByRole("alertdialog");
       await expect(dialog.getByText("No other collections available.")).toBeVisible();
-      await expect(dialog.getByRole("button", { name: /^Move$/u })).toBeDisabled();
+      // A single copy needs no quantity step, so the dialog confirms on pick
+      // and renders no Move button at all.
+      await expect(dialog.getByRole("button", { name: /^Move$/u })).toHaveCount(0);
     });
   });
 

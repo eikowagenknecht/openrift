@@ -91,7 +91,10 @@ test.describe("/cards route essentials", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("link", { name: /browse cards/iu }).click();
+    await page
+      .getByRole("link", { name: /browse cards/iu })
+      .first()
+      .click();
 
     // RouteErrorFallback picks a heading at random from error-message.tsx.
     const errorHeadings = [

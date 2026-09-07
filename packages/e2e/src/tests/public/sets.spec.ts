@@ -145,7 +145,8 @@ test.describe("sets", () => {
     test("links into the card browser pre-filtered to this set", async ({ page }) => {
       await page.goto(`/sets/${knownSet.slug}`);
 
-      const cta = page.getByRole("link", { name: /open in card browser/iu });
+      // Base UI's Button keeps role="button" on the <a> it renders.
+      const cta = page.getByRole("button", { name: /open in card browser/iu });
       await expect(cta).toBeVisible();
 
       const href = await cta.getAttribute("href");

@@ -240,7 +240,7 @@ test.describe("collection activity", () => {
         ).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("No activity yet")).toBeVisible();
         await expect(
-          page.getByText(/Activity is recorded when you add, move, or remove cards\./u),
+          page.getByText(/Browse the catalog to start building your collection\./u),
         ).toBeVisible();
 
         // May resolve to role="link" or role="button" depending on how BaseUI

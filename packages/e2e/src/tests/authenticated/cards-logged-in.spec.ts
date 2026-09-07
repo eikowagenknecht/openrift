@@ -91,14 +91,30 @@ async function waitForOwnedCountToggle(page: Page) {
 
 // A single keypress can be dropped while handlers settle under load (Meta+k
 // is especially unreliable on headless Linux), so retry until visible.
-async function openQuickAddPalette(page: Page, shortcut: "Control+k" | "Meta+k"): Promise<Locator> {
-  const paletteInput = page.getByPlaceholder('Add to "Inbox"...');
+async function openGlobalPalette(page: Page, shortcut: "Control+k" | "Meta+k"): Promise<Locator> {
+  // Retry on the frame, not its input: the body is a lazy chunk, and a second
+  // keypress while it compiles would toggle the palette shut again.
+  const frame = page.getByRole("dialog", { name: "Search OpenRift" });
   await expect(async () => {
-    if (!(await paletteInput.isVisible())) {
+    if (!(await frame.isVisible())) {
       await page.keyboard.press(shortcut);
     }
-    await expect(paletteInput).toBeVisible({ timeout: 2000 });
+    await expect(frame).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 15_000 });
+
+  const input = frame.getByRole("combobox", { name: "Search cards, pages and help" });
+  await expect(input).toBeVisible({ timeout: 20_000 });
+  return input;
+}
+
+// /cards leaves the shortcut to the global palette, since the page is already
+// a card search; quick add is that palette's first row instead.
+async function openQuickAddPalette(page: Page, shortcut: "Control+k" | "Meta+k"): Promise<Locator> {
+  await openGlobalPalette(page, shortcut);
+  await page.getByRole("option", { name: "Add to Inbox" }).click();
+
+  const paletteInput = page.getByLabel("Add card to Inbox");
+  await expect(paletteInput).toBeVisible({ timeout: 15_000 });
   return paletteInput;
 }
 
@@ -154,16 +170,23 @@ test.describe("cards /cards (logged in)", () => {
       });
     }).toPass({ timeout: 15_000 });
 
-    // The strip's count pill is a package icon plus the bare count ("×N"
-    // survives only in the table's actions column), so its name is just "1".
-    const ownedPill = page.getByRole("button", { name: "1", exact: true }).first();
+    // With a quick-add target the pill opens the variants popover instead of
+    // the owned-collections one, and takes its aria-label from that.
+    const ownedPill = page.getByRole("button", {
+      name: "Variants and collections for Annie, Fiery",
+    });
     await expect(ownedPill).toBeVisible({ timeout: 10_000 });
+    await expect(ownedPill).toHaveText("1");
 
     await ownedPill.click();
-    await expect(page.getByText("In your collections")).toBeVisible();
+    await expect(page.getByRole("dialog").getByText("Inbox").first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
-  test("Ctrl+K opens the QuickAddPalette and Escape closes it", async ({ page }) => {
+  test("Ctrl+K opens the palette, its first row quick-adds, and Escape closes it", async ({
+    page,
+  }) => {
     userEmail = await createAndLogin(page);
     const collectionsLoaded = waitForCollectionsLoaded(page);
     await page.goto("/cards");
@@ -177,7 +200,7 @@ test.describe("cards /cards (logged in)", () => {
     await expect(paletteInput).not.toBeVisible();
   });
 
-  test("Meta+K also opens the QuickAddPalette", async ({ page }) => {
+  test("Meta+K also opens the palette", async ({ page }) => {
     userEmail = await createAndLogin(page);
     const collectionsLoaded = waitForCollectionsLoaded(page);
     await page.goto("/cards");

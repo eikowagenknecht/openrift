@@ -20,10 +20,12 @@ const FOOTER_BUTTON = /^(?:Done|Show \d+ (?:cards?|printings?))$/u;
 async function openFilterDrawer(page: Page): Promise<Locator> {
   const drawer = page.locator('[data-slot="drawer-content"]');
   const options = page.getByRole("button", { name: "Options" });
+  // A click that lands while the drawer is still opening closes it again, so
+  // give each attempt room to settle before the next one.
   await expect(async () => {
     await options.click();
-    await expect(drawer).toBeVisible({ timeout: 2000 });
-  }).toPass({ timeout: 15_000 });
+    await expect(drawer).toBeVisible({ timeout: 4000 });
+  }).toPass({ timeout: 30_000 });
   return drawer;
 }
 
@@ -198,19 +200,19 @@ test.describe("card filters (mobile drawer)", () => {
     const thumbs = drawer.getByRole("slider", { name: "Energy range" });
     await expect(thumbs).toHaveCount(2);
 
-    await thumbs.first().focus();
-    for (let index = 0; index < 4; index++) {
+    // The route writes ?languages= on its own a beat after hydration, which
+    // can land on top of an early commit; retry until each one sticks.
+    await expect(async () => {
+      await thumbs.first().focus();
       await page.keyboard.press("ArrowRight");
-    }
-    await thumbs.last().focus();
-    for (let index = 0; index < 3; index++) {
-      await page.keyboard.press("ArrowLeft");
-    }
+      await expect(page).toHaveURL(/[?&]energyMin=-?\d+/u, { timeout: 4000 });
+    }).toPass({ timeout: 30_000 });
 
-    // energyMin may be the -1 NONE sentinel when only the max thumb moved off
-    // the edge — either way both params commit to the URL.
-    await expect(page).toHaveURL(/[?&]energyMin=-?\d+/u);
-    await expect(page).toHaveURL(/[?&]energyMax=-?\d+/u);
+    await expect(async () => {
+      await thumbs.last().focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect(page).toHaveURL(/[?&]energyMax=-?\d+/u, { timeout: 4000 });
+    }).toPass({ timeout: 30_000 });
   });
 
   test("the Errata flag badge cycles include, exclude, then off", async ({ page }) => {

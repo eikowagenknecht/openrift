@@ -64,6 +64,18 @@ interface CardFixture {
     effectiveDate: string | null;
   } | null;
   bans: { formatId: string; formatName: string; bannedAt: string; reason: string | null }[];
+  tags: string[];
+}
+
+// Legends head their page as "<tag>, <epithet>" (legendDisplayName in
+// @openrift/shared), not under their raw catalog name.
+function legendHeading(card: CardFixture): string {
+  const tag = card.tags[0];
+  if (!tag || card.name.startsWith(`${tag}, `)) {
+    return card.name;
+  }
+  const comma = card.name.indexOf(", ");
+  return `${tag}, ${comma === -1 ? card.name : card.name.slice(0, comma)}`;
 }
 
 interface CardDetailFixture {
@@ -482,7 +494,9 @@ test.describe("card detail route — info panel", () => {
     }
 
     await page.goto(`/cards/${chosen.card.slug}`);
-    await expect(page.getByRole("heading", { level: 1, name: chosen.card.name })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: legendHeading(chosen.card) }),
+    ).toBeVisible();
 
     await expect(page.getByText("Energy", { exact: true })).toBeHidden();
     await expect(page.getByText("Might", { exact: true })).toBeHidden();

@@ -5,6 +5,7 @@
 ### Other
 
 - fix(Scan): **Clearer foil correction while scanning** — the scan tray no longer shows a normal card's finish button labeled as foil; switch a card's finish through the printing picker, which now marks the printing you're already on.
+- fix(App): **No more flashed negative counts on the landing page** — under a slow first frame, the animated cards/printings/copies line could briefly read "-1 cards" before settling on the real numbers.
 
 ## 2026-09-06
 

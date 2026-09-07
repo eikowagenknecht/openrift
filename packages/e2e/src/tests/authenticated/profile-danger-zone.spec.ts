@@ -92,7 +92,9 @@ test.describe("profile danger zone", () => {
       const section = page.locator('[data-slot="card"]').filter({
         has: page.getByRole("button", { name: "Delete account", exact: true }),
       });
-      await expect(section.getByText(/no way to bring it back/iu)).toBeVisible();
+      await expect(
+        section.getByText(/Permanently deletes your account and everything in it\./u),
+      ).toBeVisible();
       await expect(
         section.getByRole("button", { name: "Delete account", exact: true }),
       ).toBeVisible();

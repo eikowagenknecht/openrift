@@ -108,7 +108,7 @@ test.describe("sign out", () => {
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
 
-    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards(?:\?|$)/u, { timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
 
     await openUserMenu(page);
@@ -138,7 +138,7 @@ test.describe("sign out", () => {
     );
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await signOutResponse;
-    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards(?:\?|$)/u, { timeout: 15_000 });
 
     const sessionResponse = await page.request.get(`${API_BASE_URL}/api/auth/get-session`, {
       headers: { Origin: WEB_BASE_URL },
@@ -165,7 +165,7 @@ test.describe("sign out", () => {
     await loginViaForm(page, email, password);
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards(?:\?|$)/u, { timeout: 15_000 });
     // The redirect can land before the cookie clear propagates; wait for the
     // logged-out header so the /profile visit below sees an anonymous session.
     await expect(page.getByRole("link", { name: /sign in/iu }).first()).toBeVisible({
@@ -189,7 +189,7 @@ test.describe("sign out", () => {
     await loginViaForm(page, email, password);
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards(?:\?|$)/u, { timeout: 15_000 });
 
     await page.goto("/admin");
     await expect(page).not.toHaveURL(/\/admin(?:\/|$)/u, { timeout: 15_000 });
@@ -222,7 +222,7 @@ test.describe("sign out", () => {
     }).toPass({ timeout: 20_000 });
 
     await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards(?:\?|$)/u, { timeout: 15_000 });
 
     await openUserMenu(page);
     await expect(page.locator('a[href="/admin"]')).toHaveCount(0);
@@ -255,7 +255,7 @@ test.describe("sign out", () => {
     }).toPass({ timeout: 10_000 });
     await page.getByRole("menuitem", { name: "Sign out" }).click();
 
-    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards(?:\?|$)/u, { timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
   });
 });

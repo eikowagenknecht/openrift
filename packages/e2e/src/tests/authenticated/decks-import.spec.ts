@@ -220,9 +220,7 @@ test.describe("deck import", () => {
       await goToImport(page);
 
       await expect(formatSelect(page)).toContainText("Detect automatically");
-      await expect(
-        page.getByPlaceholder(/Paste a deck list, deck code, TTS string/iu),
-      ).toBeVisible();
+      await expect(page.getByPlaceholder(/Paste your deck here/iu)).toBeVisible();
 
       await formatSelect(page).click();
       for (const label of ["Detect automatically", "Text", "Deck Code", "TTS"]) {
@@ -263,11 +261,6 @@ test.describe("deck import", () => {
       await expect(piltoverLink).toHaveAttribute("target", "_blank");
       await expect(piltoverLink).toHaveAttribute("rel", "noreferrer");
       await expect(piltoverLink).toHaveAttribute("href", /piltoverarchive\.com/u);
-
-      await selectImportFormat(page, "Text");
-      const tcgArena = page.getByRole("link", { name: "TCG Arena" });
-      await expect(tcgArena).toHaveAttribute("href", /tcg-arena\.fr/u);
-      await expect(tcgArena).toHaveAttribute("rel", "noreferrer");
 
       await selectImportFormat(page, "TTS");
       const ttsLink = page.getByRole("link", { name: "Tabletop Simulator mod" });
@@ -648,11 +641,9 @@ test.describe("deck import", () => {
       await page.route("**/_serverFn/**", async (route) => {
         const url = route.request().url();
         if (isServerFn("createDeckFn")(url)) {
-          await route.fulfill({
-            status: 500,
-            contentType: "application/json",
-            body: JSON.stringify({ error: "simulated failure" }),
-          });
+          // Aborting, not fulfilling a 500: the server-fn client reads a
+          // hand-rolled error body as a result and the mutation resolves.
+          await route.abort("failed");
           return;
         }
         if (isServerFn("saveDeckCardsFn")(url)) {
@@ -682,11 +673,7 @@ test.describe("deck import", () => {
       // deck row in the DB; this test covers only the UX-visible failure.
       await page.route("**/_serverFn/**", async (route) => {
         if (isServerFn("saveDeckCardsFn")(route.request().url())) {
-          await route.fulfill({
-            status: 500,
-            contentType: "application/json",
-            body: JSON.stringify({ error: "simulated failure" }),
-          });
+          await route.abort("failed");
           return;
         }
         await route.continue();

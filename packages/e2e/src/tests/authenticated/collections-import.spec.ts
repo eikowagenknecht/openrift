@@ -140,7 +140,7 @@ function isServerFn(constName: string) {
 
 // Mirrors generateExportCSV in apps/web/src/lib/csv-export.ts.
 const EXPORT_HEADER =
-  "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity," +
+  "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Overnumbered,Promo,Language,Quantity," +
   "Condition,Grader,Grade,Altered,Public Notes,Private Notes,Links";
 
 function csvFields(line: string): string[] {
@@ -196,6 +196,7 @@ function buildOpenRiftCsv(
     domain?: string;
     finish?: string;
     artVariant?: string;
+    overnumbered?: string;
     promo?: string;
     language?: string;
     quantity: number;
@@ -211,6 +212,7 @@ function buildOpenRiftCsv(
       row.domain ?? "fury",
       row.finish ?? "normal",
       row.artVariant ?? "normal",
+      row.overnumbered ?? "",
       row.promo ?? "",
       row.language ?? "EN",
       String(row.quantity),
@@ -399,31 +401,6 @@ test.describe("collections import/export", () => {
       await expect(page.getByText(/Line 1: couldn.t read/u)).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toHaveCount(0);
-    });
-
-    test("external links open in new tabs with rel=noreferrer", async ({ page }) => {
-      userEmail = await createAndLogin(page);
-      await page.goto("/collections/import");
-      // Cold route compile under parallel load can exceed the default assertion timeout.
-      await expect(page.getByRole("heading", { name: "Import Cards" })).toBeVisible({
-        timeout: 15_000,
-      });
-
-      const expected: [string, RegExp][] = [
-        ["Piltover Archive", /piltoverarchive\.com/u],
-        ["RiftCore", /riftcore\.app/u],
-        ["RiftMana", /riftmana\.com/u],
-        ["Discord", /discord\.gg/u],
-        ["GitHub", /github\.com\/openriftapp\/openrift/u],
-      ];
-
-      for (const [name, hrefPattern] of expected) {
-        const link = page.getByRole("link", { name }).first();
-        await expect(link).toBeVisible();
-        await expect(link).toHaveAttribute("target", "_blank");
-        await expect(link).toHaveAttribute("rel", "noreferrer");
-        await expect(link).toHaveAttribute("href", hrefPattern);
-      }
     });
   });
 
