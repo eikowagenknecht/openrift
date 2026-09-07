@@ -10,7 +10,7 @@ import type {
 import type { CardType, Domain, SuperType } from "@openrift/shared/types/enums";
 import type { Selectable } from "kysely";
 
-import type { DecksTable } from "../../../db/index.js";
+import type { DecksTable } from "../../../db/tables/decks.js";
 import type { DeckPlanData } from "../repositories/deck-plans.js";
 
 export function toDeck(row: Selectable<DecksTable>): DeckResponse {

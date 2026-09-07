@@ -1,11 +1,11 @@
 import type { DeleteResult, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/candidates.js";
 
 export function ignoredCandidatesRepo(db: Kysely<Database>) {
   return {

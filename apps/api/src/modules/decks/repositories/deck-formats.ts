@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { slugTaxonomyRepo } from "../../catalog/repositories/slug-taxonomy.js";
 
 export function deckFormatsRepo(db: Kysely<Database>) {

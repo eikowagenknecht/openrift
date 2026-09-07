@@ -1,7 +1,8 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, PlayloltcgEventsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { PlayloltcgEventsTable } from "../../../db/tables/meta-sources.js";
 import { keyBatches, rowBatches } from "../../../lib/bind-batches.js";
 import { PLAYLOLTCG_PROVIDER, PLAYLOLTCG_STATUS_FINISHED } from "../lib/playloltcg-catalog.js";
 

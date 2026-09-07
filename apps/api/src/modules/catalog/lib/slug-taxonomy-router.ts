@@ -1,7 +1,8 @@
 import { ERROR_CODES } from "@openrift/shared/error-codes";
 import type { Selectable } from "kysely";
 
-import type { Database, ReferenceTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { ReferenceTable } from "../../../db/tables/reference.js";
 import { AppError } from "../../../errors.js";
 import { assertSlugAvailable, assertValidReorder } from "../../../lib/assertions.js";
 import type { ApiContext } from "../../../orpc/context.js";

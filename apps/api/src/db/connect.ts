@@ -2,8 +2,8 @@ import { CamelCasePlugin, Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
+import type { Database } from "./tables.js";
 import { TracingDialect } from "./tracing-dialect.js";
-import type { Database } from "./types.js";
 
 export function createDb(connectionString: string) {
   const innerDialect = new PostgresJSDialect({

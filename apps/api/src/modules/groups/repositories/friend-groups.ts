@@ -8,14 +8,14 @@ import type {
 import { sql } from "kysely";
 import type { ExpressionBuilder, Insertable, Kysely, Selectable, Updateable } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   FriendGroupCollectionSharesTable,
   FriendGroupInvitesTable,
   FriendGroupListSharesTable,
   FriendGroupMembersTable,
   FriendGroupsTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/friend-groups.js";
 
 export type Group = Selectable<FriendGroupsTable>;
 export type GroupMember = Selectable<FriendGroupMembersTable>;

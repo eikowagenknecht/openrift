@@ -3,7 +3,8 @@ import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, ProductsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { ProductsTable } from "../../../db/tables/marketplace.js";
 import { imageId, requireFrontImage } from "../../../repositories/query-helpers.js";
 
 export interface ProductWithCounts extends Selectable<ProductsTable> {

@@ -181,7 +181,7 @@
         ],
         "patterns": [
           {
-            "group": ["../*"],
+            "group": ["../**"],
             "message": "Use '@/' imports instead of relative parent imports"
           }
           // {
@@ -235,7 +235,7 @@
             ],
             "patterns": [
               {
-                "group": ["../*"],
+                "group": ["../**"],
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {
@@ -261,7 +261,7 @@
             ],
             "patterns": [
               {
-                "group": ["../*"],
+                "group": ["../**"],
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {
@@ -287,7 +287,7 @@
             ],
             "patterns": [
               {
-                "group": ["../*"],
+                "group": ["../**"],
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {
@@ -313,7 +313,7 @@
             ],
             "patterns": [
               {
-                "group": ["../*"],
+                "group": ["../**"],
                 "message": "Use '@/' imports instead of relative parent imports"
               },
               {

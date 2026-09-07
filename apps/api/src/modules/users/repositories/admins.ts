@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 export function adminsRepo(db: Kysely<Database>) {
   return {

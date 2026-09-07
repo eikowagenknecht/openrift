@@ -19,7 +19,7 @@ import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import type { LiveTradeAnnotationRow } from "../repositories/card-trades.js";
-import type { MatchRow } from "../repositories/friend-group-matches.js";
+import type { MatchRow } from "../repositories/friend-group-matches-view.js";
 
 /**
  * One candidate copy behind a trade, as `copies.listMetadataByIds` reads it.

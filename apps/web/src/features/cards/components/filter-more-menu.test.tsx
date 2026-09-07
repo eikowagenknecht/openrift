@@ -1,4 +1,5 @@
-import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
+import type { FilterCounts } from "@openrift/shared/filters-counts";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

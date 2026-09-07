@@ -1,7 +1,10 @@
 import { initContract } from "@openrift/shared/contracts/init";
 import { pricesContract } from "@openrift/shared/contracts/prices";
-import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
-import { computeFilterCounts, filterCards, getAvailableFilters } from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
+import type { FilterCounts } from "@openrift/shared/filters-counts";
+import { computeFilterCounts } from "@openrift/shared/filters-counts";
 import { priceLookupFromMap } from "@openrift/shared/price-lookup";
 import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import type { InitResponse } from "@openrift/shared/types/api/init";

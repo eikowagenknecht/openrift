@@ -1,6 +1,6 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import { enumLabel } from "@openrift/shared/enum-label";
-import { getAvailableFilters } from "@openrift/shared/filters";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
 import type { CompletionScopePreference } from "@openrift/shared/types/api/preferences";
 import type { Domain } from "@openrift/shared/types/enums";
 import { WellKnown } from "@openrift/shared/well-known";

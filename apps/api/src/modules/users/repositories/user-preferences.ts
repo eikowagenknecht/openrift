@@ -5,7 +5,8 @@ import type {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, UserPreferencesTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { UserPreferencesTable } from "../../../db/tables/settings.js";
 
 /** A verified-email user who has opted into the daily match digest. */
 export interface MatchDigestRecipient {

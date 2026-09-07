@@ -1,5 +1,5 @@
 import { enumLabel } from "@openrift/shared/enum-label";
-import type { AvailableFilters } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
 
 import { useFilterValues } from "@/features/cards/hooks/use-card-filters";
 import { buildChannelBreadcrumbs } from "@/features/cards/lib/channel-breadcrumbs";

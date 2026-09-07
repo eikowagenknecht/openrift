@@ -2,7 +2,8 @@ import { LOW_RARITIES, WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, MarketplaceProductPricesTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { MarketplaceProductPricesTable } from "../../../db/tables/marketplace.js";
 
 interface CollectionValueHistoryPoint {
   date: string;

@@ -14,7 +14,7 @@ import type {
 import { WellKnown } from "@openrift/shared/well-known";
 import type { Insertable } from "kysely";
 
-import type { CandidateCardsTable } from "../../../db/index.js";
+import type { CandidateCardsTable } from "../../../db/tables/candidates.js";
 import type { Transact } from "../../../deps.js";
 import { computeProposedDiff } from "../lib/card-submission-diff.js";
 import {

@@ -1,4 +1,5 @@
-import { filterCards, sortCards } from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import { sortCards } from "@openrift/shared/filters-sort";
 import { setIndexById, UNKNOWN_SET_INDEX } from "@openrift/shared/set-order";
 import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";

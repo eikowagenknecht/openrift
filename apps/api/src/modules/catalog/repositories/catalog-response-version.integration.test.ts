@@ -2,7 +2,7 @@ import type { Transaction } from "kysely";
 import { sql } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import type { Database } from "../../../db/types.js";
+import type { Database } from "../../../db/tables.js";
 import { createDbContext } from "../../../test/integration-context.js";
 import { catalogRepo } from "./catalog.js";
 

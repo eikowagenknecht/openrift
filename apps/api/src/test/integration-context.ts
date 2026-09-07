@@ -8,7 +8,7 @@ import { sql } from "kysely";
 
 import { createApp } from "../app.js";
 import { createDb } from "../db/connect.js";
-import type { Database } from "../db/types.js";
+import type { Database } from "../db/tables.js";
 import type { Services } from "../deps.js";
 import type { Io } from "../io.js";
 

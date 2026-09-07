@@ -11,7 +11,9 @@ import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { CardsTable } from "../../../db/tables/catalog.js";
+import type { DeckCardsTable, DecksTable } from "../../../db/tables/decks.js";
 import {
   findByShareToken,
   selectShareState,

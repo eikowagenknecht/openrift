@@ -1,4 +1,5 @@
-import { filterCards, getAvailableFilters } from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
 import type { Marketplace } from "@openrift/shared/types/pricing";
 import type {
   CardFilters,

@@ -1,7 +1,8 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, DeckFoldersTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { DeckFoldersTable } from "../../../db/tables/decks.js";
 
 export type DeckFolderWithCount = Selectable<DeckFoldersTable> & { deckCount: number };
 

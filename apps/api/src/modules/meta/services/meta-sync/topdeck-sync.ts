@@ -4,7 +4,7 @@ import type { Insertable } from "kysely";
 import type {
   TopdeckDecklistCardsTable,
   TopdeckEventStandingsTable,
-} from "../../../../db/index.js";
+} from "../../../../db/tables/meta-sources.js";
 import {
   legendFromTopdeckLines,
   projectTopdeckDeckLines,

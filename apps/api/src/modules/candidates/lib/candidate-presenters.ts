@@ -4,7 +4,10 @@ import type {
 } from "@openrift/shared/types/api/admin";
 import type { Selectable } from "kysely";
 
-import type { CandidateCardsTable, CandidatePrintingsTable } from "../../../db/index.js";
+import type {
+  CandidateCardsTable,
+  CandidatePrintingsTable,
+} from "../../../db/tables/candidates.js";
 
 /**
  * Pure row → response mappers for the card-submission candidate surface. The

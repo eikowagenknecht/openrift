@@ -2,7 +2,8 @@ import { META_CATALOG_PROVIDERS } from "@openrift/shared/types/enums";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, MetaEventSourcesTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { MetaEventSourcesTable } from "../../../db/tables/meta.js";
 
 /**
  * One citation on an event: where a slice of its data came from. Public, and

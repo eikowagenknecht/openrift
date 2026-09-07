@@ -2,7 +2,7 @@ import { WellKnown } from "@openrift/shared/well-known";
 import { inferZone } from "@openrift/shared/zone-inference";
 import type { Insertable } from "kysely";
 
-import type { PlayloltcgEventStandingsTable } from "../../../../db/index.js";
+import type { PlayloltcgEventStandingsTable } from "../../../../db/tables/meta-sources.js";
 import {
   PLAYLOLTCG_PROVIDER,
   projectDeckCard,

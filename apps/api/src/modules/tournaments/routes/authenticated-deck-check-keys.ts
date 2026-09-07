@@ -16,7 +16,7 @@ import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { toKey } from "../lib/deck-check-presenters.js";
 import { loadOrg, requireOrgRole } from "../lib/org-access.js";
-import type { DeckCheckHost } from "../repositories/deck-check.js";
+import type { DeckCheckHost } from "../repositories/deck-check-shared.js";
 
 function mintToken(): { token: string; tokenHash: string; tokenPrefix: string } {
   const token = `orpk_${randomBytes(24).toString("base64url")}`;

@@ -16,11 +16,9 @@ import { inferZone } from "@openrift/shared/zone-inference";
 
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type {
-  DeckCheckEntry,
-  DeckCheckEvent,
-  NewDeckCheckEntryCard,
-} from "../repositories/deck-check.js";
+import type { DeckCheckEntry } from "../repositories/deck-check-entries.js";
+import type { NewDeckCheckEntryCard } from "../repositories/deck-check-entry-cards.js";
+import type { DeckCheckEvent } from "../repositories/deck-check-events.js";
 import { cardResolutionKey, resolveDeckCheckCards } from "./deck-check-card-resolution.js";
 
 function sha256(input: string): string {

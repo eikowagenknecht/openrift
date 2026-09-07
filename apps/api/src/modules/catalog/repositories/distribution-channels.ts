@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { reorderBySortOrder } from "./sort-order.js";
 
 type DistributionChannelKind = "event" | "product";

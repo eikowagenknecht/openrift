@@ -20,7 +20,8 @@ import { withUniqueShareToken } from "../../../lib/share-token.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { toList, toListDetail, toListEntry, toListEntryDetail } from "../lib/list-presenters.js";
-import type { ListEntryUpdate, ListUpdate, NewEntryValues } from "../repositories/lists.js";
+import type { ListUpdate } from "../repositories/lists-core.js";
+import type { ListEntryUpdate, NewEntryValues } from "../repositories/lists-entries.js";
 
 const os = implement(listsContract).$context<ApiContext>().use(requireAuthedUser);
 

@@ -2,7 +2,7 @@ import type { CardType, MetaEventTier, MetaListStatus } from "@openrift/shared/t
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import type { MetaScopeFilters } from "./meta-shared.js";
 import { foldedPlayerIdentity, resolvedPlayerName, scopeConditions } from "./meta-shared.js";
 

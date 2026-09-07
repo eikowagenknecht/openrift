@@ -18,10 +18,10 @@ import { buildEntryAdvisories } from "../lib/deck-check-advisories.js";
 import { isoDate, toDeckCheckEntryCardResponse } from "../lib/deck-check-presenters.js";
 import type {
   DeckCheckEntry,
-  DeckCheckEvent,
-  NewDeckCheckEntryCard,
   PlayerDeckCheckEntryRow,
-} from "../repositories/deck-check.js";
+} from "../repositories/deck-check-entries.js";
+import type { NewDeckCheckEntryCard } from "../repositories/deck-check-entry-cards.js";
+import type { DeckCheckEvent } from "../repositories/deck-check-events.js";
 import type { PlayerSharingConsent } from "../services/deck-check-player.js";
 import {
   applyPlayerList,

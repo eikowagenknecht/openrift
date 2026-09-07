@@ -3,7 +3,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { buildDistinctWhere } from "../../../db/helpers.js";
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 type Db = Kysely<Database>;
 

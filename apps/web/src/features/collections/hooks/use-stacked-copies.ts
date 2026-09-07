@@ -1,4 +1,4 @@
-import { sortCards } from "@openrift/shared/filters";
+import { sortCards } from "@openrift/shared/filters-sort";
 import type { SetOrderInfo } from "@openrift/shared/set-order";
 import type { CopyResponse } from "@openrift/shared/types/api/collection";
 import type { Printing } from "@openrift/shared/types/catalog";

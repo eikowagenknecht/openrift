@@ -13,12 +13,12 @@ import type {
 } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   MetaEventMatchesTable,
   MetaEventPhasesTable,
   MetaEventsTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/meta.js";
 import { rowBatches } from "../../../lib/bind-batches.js";
 import type { MetaDeckDateRange } from "./meta-shared.js";
 

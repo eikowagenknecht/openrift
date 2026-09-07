@@ -5,10 +5,10 @@ import { EMPTY_CARD_FILTERS } from "@openrift/shared/types/search";
 import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { createMockDb } from "../../../test/mock-db.js";
+import type { ListRuleProviders } from "./lists-rules.js";
 import { listsRepo } from "./lists.js";
-import type { ListRuleProviders } from "./lists.js";
 
 const LIST = {
   id: "lst-1",

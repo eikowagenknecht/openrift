@@ -9,12 +9,12 @@ import type {
 } from "@openrift/shared/types/api/pod-tournament";
 import type { Kysely, Selectable } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   PodRoundsTable,
   PodsTable,
   TournamentParticipantsTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/tournaments.js";
 import type { PodScoring } from "../lib/pod-scoring.js";
 import type { PodRoundRows } from "../lib/pod-tournament-presenters.js";
 import {

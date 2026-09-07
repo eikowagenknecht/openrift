@@ -7,7 +7,7 @@ import type {
 import { trimToNull } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 
-import type { TierListRow } from "../../../db/index.js";
+import type { TierListRow } from "../../../db/tables/stage.js";
 import { assertFound } from "../../../lib/assertions.js";
 import { withUniqueShareToken } from "../../../lib/share-token.js";
 import { requireAuthedUser } from "../../../orpc/base.js";

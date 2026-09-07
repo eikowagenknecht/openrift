@@ -10,14 +10,13 @@ import type {
 import type { DeckZone } from "@openrift/shared/types/enums";
 
 import type { Repos } from "../../../deps.js";
-import type { DeckCheckKey } from "../repositories/deck-check-keys.js";
+import type { DeckCheckEntry, DeckCheckEntrySummary } from "../repositories/deck-check-entries.js";
+import type { DeckCheckEntryCard } from "../repositories/deck-check-entry-cards.js";
 import type {
-  DeckCheckEntry,
-  DeckCheckEntryCard,
-  DeckCheckEntrySummary,
   DeckCheckEvent,
   DeckCheckEventWithCounts,
-} from "../repositories/deck-check.js";
+} from "../repositories/deck-check-events.js";
+import type { DeckCheckKey } from "../repositories/deck-check-keys.js";
 import { buildEntryAdvisories } from "./deck-check-advisories.js";
 
 /** Exported because the player router presents the same `eventDate` field. */

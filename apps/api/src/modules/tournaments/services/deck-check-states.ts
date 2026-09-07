@@ -5,7 +5,8 @@ import type { DeckCheckChangeSummary } from "@openrift/shared/types/api/deck-che
 
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
-import type { DeckCheckEntry, DeckCheckEntryCard } from "../repositories/deck-check.js";
+import type { DeckCheckEntry } from "../repositories/deck-check-entries.js";
+import type { DeckCheckEntryCard } from "../repositories/deck-check-entry-cards.js";
 
 /**
  * Judges are never bound by this; `allow_self_submission` gates only the

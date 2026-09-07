@@ -5,7 +5,7 @@ import { sql } from "kysely";
 import { Migrator } from "kysely/migration";
 
 import { loadMigrations } from "./migration-files.js";
-import type { Database } from "./types.js";
+import type { Database } from "./tables.js";
 
 function createMigrator(db: Kysely<Database>) {
   return new Migrator({

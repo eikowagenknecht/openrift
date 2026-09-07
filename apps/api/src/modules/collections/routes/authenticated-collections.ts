@@ -12,7 +12,7 @@ import type { CollectionGroupSharesResponse } from "@openrift/shared/types/api/f
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
-import type { CollectionsTable } from "../../../db/index.js";
+import type { CollectionsTable } from "../../../db/tables/collections.js";
 import { AppError } from "../../../errors.js";
 import { assertFound } from "../../../lib/assertions.js";
 import { keysetPage } from "../../../lib/keyset-cursor.js";

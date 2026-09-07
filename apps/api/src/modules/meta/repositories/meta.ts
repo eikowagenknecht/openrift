@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { metaArchiveRepo } from "./meta-archive.js";
 import { metaCreditsRepo } from "./meta-credits.js";
 import { metaDecksRepo } from "./meta-decks.js";

@@ -1,6 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, ListsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { ListsTable } from "../../../db/tables/lists.js";
 
 export interface BundleOwner {
   userId: string;

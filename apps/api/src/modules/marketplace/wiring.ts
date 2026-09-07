@@ -3,7 +3,7 @@ import type { PriceLookup, PriceMap } from "@openrift/shared/types/api/pricing";
 import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { createContentAddressedCache } from "../catalog/services/catalog-assembly.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";

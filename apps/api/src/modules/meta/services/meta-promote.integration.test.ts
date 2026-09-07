@@ -1,10 +1,8 @@
 import type { Insertable } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type {
-  MetaEventPlayerOverlaysTable,
-  PlayloltcgEventStandingsTable,
-} from "../../../db/index.js";
+import type { PlayloltcgEventStandingsTable } from "../../../db/tables/meta-sources.js";
+import type { MetaEventPlayerOverlaysTable } from "../../../db/tables/meta.js";
 import type { Repos } from "../../../deps.js";
 import { createRepos } from "../../../deps.js";
 import { createDbContext, syncCardCardTypes } from "../../../test/integration-context.js";

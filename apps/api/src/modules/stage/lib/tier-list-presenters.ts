@@ -4,7 +4,7 @@ import type {
   TierListSummaryResponse,
 } from "@openrift/shared/types/api/tier-list";
 
-import type { TierListCard, TierListRow } from "../../../db/index.js";
+import type { TierListCard, TierListRow } from "../../../db/tables/stage.js";
 import type { TierList } from "../repositories/tier-lists.js";
 
 const PREVIEW_ROW_COUNT = 4;

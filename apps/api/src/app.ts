@@ -14,7 +14,7 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 
 import { matchOrigin } from "./cors.js";
-import type { Database } from "./db/index.js";
+import type { Database } from "./db/tables.js";
 import type { Services } from "./deps.js";
 import { createRepos, createServices, createTransact } from "./deps.js";
 import type { createEmailSender } from "./email.js";

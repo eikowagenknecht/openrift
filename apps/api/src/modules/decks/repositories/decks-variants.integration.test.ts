@@ -1,7 +1,7 @@
 import type { Selectable } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { DecksTable } from "../../../db/index.js";
+import type { DecksTable } from "../../../db/tables/decks.js";
 import {
   CARD_BODY_UNIT,
   CARD_CALM_UNIT,

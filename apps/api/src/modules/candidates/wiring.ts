@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { cardSubmissionsRepo } from "./repositories/card-submissions.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";

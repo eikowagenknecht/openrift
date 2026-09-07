@@ -1,7 +1,9 @@
 import type { ActivityAction, CardType } from "@openrift/shared/types/enums";
 import type { Kysely, Selectable } from "kysely";
 
-import type { CollectionEventsTable, Database, PrintingsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { PrintingsTable } from "../../../db/tables/catalog.js";
+import type { CollectionEventsTable } from "../../../db/tables/collections.js";
 import {
   imageId,
   joinFrontImage,

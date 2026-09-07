@@ -9,7 +9,7 @@ import {
 } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import type { Database } from "../db/index.js";
+import type { Database } from "../db/tables.js";
 import { AppError } from "../errors.js";
 import { buildKeysetCursor } from "../lib/keyset-cursor.js";
 import {

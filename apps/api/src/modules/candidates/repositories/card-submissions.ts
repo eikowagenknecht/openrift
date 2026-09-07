@@ -1,13 +1,13 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
   CardSubmissionKind,
   CardSubmissionReason,
   CardSubmissionStatus,
   CardSubmissionsTable,
-  Database,
-} from "../../../db/index.js";
+} from "../../../db/tables/candidates.js";
 import { joinFrontImage, listOwnedByUser } from "../../../repositories/query-helpers.js";
 import { buildPrintingLinkKey } from "../../catalog/lib/printing-link-key.js";
 import type { LivePrintingSnapshot, LiveSnapshot } from "../lib/card-submission-diff.js";

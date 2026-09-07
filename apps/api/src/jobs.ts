@@ -1,7 +1,7 @@
 import type { Logger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
 
-import type { Database } from "./db/index.js";
+import type { Database } from "./db/tables.js";
 import type { Repos } from "./deps.js";
 import { createTransact } from "./deps.js";
 import type { createEmailSender } from "./email.js";

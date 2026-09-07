@@ -5,7 +5,7 @@ import { fixTypography } from "@openrift/shared/fix-typography";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
-import type { PrintingsTable } from "../../../db/index.js";
+import type { PrintingsTable } from "../../../db/tables/catalog.js";
 import { AppError } from "../../../errors.js";
 import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";

@@ -1,7 +1,7 @@
 import type { OwnedCopyRow } from "@openrift/shared/list-rule-eval";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { collectionDeckbuildingPrefsRepo } from "./repositories/collection-deckbuilding-prefs.js";
 import { collectionEventsRepo } from "./repositories/collection-events.js";
 import { collectionSidebarPrefsRepo } from "./repositories/collection-sidebar-prefs.js";

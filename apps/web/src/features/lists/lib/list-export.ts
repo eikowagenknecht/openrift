@@ -1,5 +1,5 @@
 import { enumLabel } from "@openrift/shared/enum-label";
-import { sortCards } from "@openrift/shared/filters";
+import { sortCards } from "@openrift/shared/filters-sort";
 import { mergeListEntriesByTarget } from "@openrift/shared/list-entries";
 import type { SetOrderInfo } from "@openrift/shared/set-order";
 import type { ListEntryDetailResponse, ListKind } from "@openrift/shared/types/api/list";

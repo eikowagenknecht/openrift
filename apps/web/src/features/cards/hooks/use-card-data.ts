@@ -1,10 +1,8 @@
-import type { FilterCounts } from "@openrift/shared/filters";
-import {
-  computeFilterCounts,
-  filterCards,
-  getAvailableFilters,
-  sortCards,
-} from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
+import type { FilterCounts } from "@openrift/shared/filters-counts";
+import { computeFilterCounts } from "@openrift/shared/filters-counts";
+import { sortCards } from "@openrift/shared/filters-sort";
 import { EMPTY_PRICE_LOOKUP } from "@openrift/shared/price-lookup";
 import type { PriceLookup } from "@openrift/shared/types/api/pricing";
 import type { DistributionChannel, Printing } from "@openrift/shared/types/catalog";

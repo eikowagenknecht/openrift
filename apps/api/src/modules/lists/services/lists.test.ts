@@ -6,7 +6,7 @@ import type { ListIntent, ListKind } from "@openrift/shared/types/api/list";
 import type { DeleteResult, Selectable } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ListEntriesTable, ListsTable } from "../../../db/index.js";
+import type { ListEntriesTable, ListsTable } from "../../../db/tables/lists.js";
 import type { Repos, Transact } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import { moveListEntries } from "./lists.js";

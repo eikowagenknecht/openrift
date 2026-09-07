@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb } from "../../test/integration-setup.js";
 import { migrate, rollback } from "../migrate.js";
 import { loadMigrations } from "../migration-files.js";
-import type { Database } from "../types.js";
+import type { Database } from "../tables.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 

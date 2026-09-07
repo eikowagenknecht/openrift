@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { adminEventsRepo } from "./repositories/admin-events.js";
 import { healthRepo } from "./repositories/health.js";
 import { jobRunsRepo } from "./repositories/job-runs.js";

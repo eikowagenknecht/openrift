@@ -10,7 +10,8 @@ import type { ContactMethod } from "@openrift/shared/types/api/contact-method";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { CardTradesTable, Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { CardTradesTable } from "../../../db/tables/trades.js";
 import type { CardTradeDtoRow } from "../lib/card-trade-presenters.js";
 
 export type CardTrade = Selectable<CardTradesTable>;

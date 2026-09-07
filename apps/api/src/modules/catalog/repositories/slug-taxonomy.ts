@@ -1,6 +1,7 @@
 import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
 
-import type { Database, ReferenceTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { ReferenceTable } from "../../../db/tables/reference.js";
 import { reorderBySortOrder } from "./sort-order.js";
 
 /**

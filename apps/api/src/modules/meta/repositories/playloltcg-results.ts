@@ -1,11 +1,11 @@
 import type { Insertable, Kysely, Selectable } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   PlayloltcgDecklistCardsTable,
   PlayloltcgDecklistsTable,
   PlayloltcgEventStandingsTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/meta-sources.js";
 import { rowBatches } from "../../../lib/bind-batches.js";
 
 // This source publishes standings and decks, but no per-round pairings and no

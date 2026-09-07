@@ -2,13 +2,9 @@ import type { KeepPriorityOrders } from "@openrift/shared/list-rule-eval";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type {
-  Database,
-  DomainsTable,
-  MarkersTable,
-  RaritiesTable,
-  ReferenceTable,
-} from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { MarkersTable } from "../../../db/tables/catalog.js";
+import type { DomainsTable, RaritiesTable, ReferenceTable } from "../../../db/tables/reference.js";
 
 type EnumRow = Selectable<ReferenceTable>;
 type DomainRow = Selectable<DomainsTable>;

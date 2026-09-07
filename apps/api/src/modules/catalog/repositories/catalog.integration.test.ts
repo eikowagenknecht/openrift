@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../../../test/integration-context.js";
-import { catalogRepo, PRICE_BAND_CENTS } from "./catalog.js";
+import { PRICE_BAND_CENTS } from "./catalog-landing.js";
+import { catalogRepo } from "./catalog.js";
 
 const ctx = createDbContext("a0000000-0041-4000-a000-000000000001");
 

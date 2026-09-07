@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
-import type { ListRuleProviders } from "../lists/repositories/lists.js";
+import type { Database } from "../../db/tables.js";
+import type { ListRuleProviders } from "../lists/repositories/lists-rules.js";
 import { cardTradesRepo } from "./repositories/card-trades.js";
 import { friendGroupDiscordLinksRepo } from "./repositories/friend-group-discord-links.js";
 import { friendGroupMatchesRepo } from "./repositories/friend-group-matches.js";

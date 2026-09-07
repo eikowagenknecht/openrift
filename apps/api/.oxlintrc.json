@@ -20,7 +20,7 @@
                 "message": "Routes reach repositories through c.get(\"repos\"). A helper a route needs belongs in lib/."
               },
               {
-                "group": ["**/db/index.js", "kysely"],
+                "group": ["**/db/connect.js", "kysely"],
                 "allowTypeImports": true,
                 "message": "Routes never touch db / Kysely. Add a repository method."
               }
@@ -41,7 +41,7 @@
                 "message": "services/ sits below routes/. Move the schema or type down into lib/ or the shared contract."
               },
               {
-                "group": ["**/db/index.js", "kysely"],
+                "group": ["**/db/connect.js", "kysely"],
                 "allowTypeImports": true,
                 "message": "Services never touch db / Kysely. Add a repository method."
               }
@@ -62,7 +62,7 @@
                 "message": "lib/ sits below services/ and routes/. A read-only or pure helper a service exports belongs in lib/."
               },
               {
-                "group": ["**/db/index.js", "kysely"],
+                "group": ["**/db/connect.js", "kysely"],
                 "allowTypeImports": true,
                 "message": "lib/ takes Repos, never db / Kysely. Add a repository method."
               }

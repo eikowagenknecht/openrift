@@ -13,7 +13,8 @@ import { requireAuthedUser } from "../../../orpc/base.js";
 import type { ApiContext } from "../../../orpc/context.js";
 import { computeZoneSuggestions } from "../lib/deck-check-advisories.js";
 import { buildEntryDetail, toEntrySummary, toEventSummary } from "../lib/deck-check-presenters.js";
-import type { DeckCheckEntry, DeckCheckEvent } from "../repositories/deck-check.js";
+import type { DeckCheckEntry } from "../repositories/deck-check-entries.js";
+import type { DeckCheckEvent } from "../repositories/deck-check-events.js";
 import {
   cardResolutionKey,
   resolveDeckCheckCards,

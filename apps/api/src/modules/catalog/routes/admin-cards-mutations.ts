@@ -9,7 +9,8 @@ import { normalizeNameForIdentity } from "@openrift/shared/utils";
 import { implement } from "@orpc/server";
 import type { Updateable } from "kysely";
 
-import type { CandidatePrintingsTable, CardsTable } from "../../../db/index.js";
+import type { CandidatePrintingsTable } from "../../../db/tables/candidates.js";
+import type { CardsTable } from "../../../db/tables/catalog.js";
 import { AppError } from "../../../errors.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../lib/assertions.js";
 import { requireAuthedUser } from "../../../orpc/base.js";

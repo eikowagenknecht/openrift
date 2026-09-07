@@ -1,4 +1,4 @@
-import type { SortCardsOptions } from "@openrift/shared/filters";
+import type { SortCardsOptions } from "@openrift/shared/filters-sort";
 import type { PriceLookup } from "@openrift/shared/types/api/pricing";
 import type { Printing } from "@openrift/shared/types/catalog";
 import type { Marketplace } from "@openrift/shared/types/pricing";

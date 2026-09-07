@@ -2,12 +2,12 @@ import type { MetaEventOverlayField, MetaOverlayStatus } from "@openrift/shared/
 import type { Insertable, Kysely, Selectable, SqlBool } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   MetaEventOverlaysTable,
   MetaEventPlayerOverlayCardsTable,
   MetaEventPlayerOverlaysTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/meta.js";
 import { keyBatches, rowBatches } from "../../../lib/bind-batches.js";
 
 /**

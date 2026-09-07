@@ -6,7 +6,8 @@ import type {
 } from "@openrift/shared/types/enums";
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, MetaEventsTable, MetaSubmissionsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { MetaEventsTable, MetaSubmissionsTable } from "../../../db/tables/meta.js";
 import { keyBatches } from "../../../lib/bind-batches.js";
 import { listOwnedByUser } from "../../../repositories/query-helpers.js";
 

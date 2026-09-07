@@ -1,4 +1,4 @@
-import { matchesDomains, noneExcluded } from "@openrift/shared/filters";
+import { matchesDomains, noneExcluded } from "@openrift/shared/filters-predicates";
 import { foldForSearch, squashForSearch } from "@openrift/shared/search-fold";
 import type { DeckListItemResponse } from "@openrift/shared/types/api/deck";
 import type { Card } from "@openrift/shared/types/catalog";

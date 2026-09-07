@@ -8,7 +8,7 @@ import postgres from "postgres";
 
 import { createDb } from "../db/connect.js";
 import { migrate } from "../db/migrate.js";
-import type { Database } from "../db/types.js";
+import type { Database } from "../db/tables.js";
 
 // oxlint-disable-next-line no-empty-function -- noop for postgres notice handler and logger
 export const noop = () => {};

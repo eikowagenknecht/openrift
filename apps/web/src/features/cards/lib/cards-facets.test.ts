@@ -1,4 +1,4 @@
-import { getAvailableFilters } from "@openrift/shared/filters";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
 import { priceLookupFromMap } from "@openrift/shared/price-lookup";
 import type {
   CatalogResponse,

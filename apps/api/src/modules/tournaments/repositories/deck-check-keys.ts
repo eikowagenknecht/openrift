@@ -1,7 +1,8 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, DeckCheckKeysTable } from "../../../db/index.js";
-import type { DeckCheckHost } from "./deck-check.js";
+import type { Database } from "../../../db/tables.js";
+import type { DeckCheckKeysTable } from "../../../db/tables/tournaments.js";
+import type { DeckCheckHost } from "./deck-check-shared.js";
 
 export type DeckCheckKey = Selectable<DeckCheckKeysTable>;
 

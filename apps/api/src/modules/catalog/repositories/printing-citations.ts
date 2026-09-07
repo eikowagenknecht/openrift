@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 const CITATION_COLUMNS = ["id", "printingId", "label", "sourceUrl", "sortOrder"] as const;
 

@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { imageId, joinFrontImage } from "../../../repositories/query-helpers.js";
 
 const MAX_RETRIES = 5;

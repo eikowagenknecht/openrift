@@ -8,7 +8,8 @@ import { AppError } from "../../../errors.js";
 import { resolvedStandingName } from "../lib/meta-event-naming.js";
 import type { MetaEventSourceRow } from "../repositories/meta-sources.js";
 import { rankPlayerMatches } from "./meta-match-suggestions.js";
-import { promoteMetaEvent, sourceStandings } from "./meta-promote.js";
+import { sourceStandings } from "./meta-promote-sources.js";
+import { promoteMetaEvent } from "./meta-promote.js";
 
 const MIRROR_PROVIDERS: ReadonlySet<string> = new Set(META_CATALOG_PROVIDERS);
 

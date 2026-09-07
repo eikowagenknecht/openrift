@@ -1,6 +1,6 @@
 import { WellKnown } from "@openrift/shared/well-known";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import type { wellKnownRepo } from "../repositories/well-known.js";
 
 /** `pk` varies per table: most use `slug`, `keywords` uses `name`, `languages` uses `code`. */

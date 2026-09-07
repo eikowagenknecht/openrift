@@ -2,7 +2,7 @@ import type { MetaCreditVisibility } from "@openrift/shared/types/enums";
 import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 /**
  * One contributor as an event page prints them. The name is resolved at read

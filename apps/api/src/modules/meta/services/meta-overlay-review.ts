@@ -14,7 +14,7 @@ import { META_EVENT_TIERS } from "@openrift/shared/types/enums";
 import { stringifyUnknown } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 
-import type { MetaEventPlayerOverlaysTable } from "../../../db/index.js";
+import type { MetaEventPlayerOverlaysTable } from "../../../db/tables/meta.js";
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import type { MetaPlayerOverlayRow } from "../repositories/meta-overlays.js";

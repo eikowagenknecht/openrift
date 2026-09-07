@@ -6,7 +6,8 @@ import {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, OverlayChannelsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { OverlayChannelsTable } from "../../../db/tables/stage.js";
 import { withUniqueShareToken } from "../../../lib/share-token.js";
 
 export interface OverlayChannel extends Omit<Selectable<OverlayChannelsTable>, "payload"> {

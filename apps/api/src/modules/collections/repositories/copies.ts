@@ -4,7 +4,8 @@ import { legendDisplayName } from "@openrift/shared/utils";
 import type { Insertable, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { CopiesTable, Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { CopiesTable } from "../../../db/tables/collections.js";
 import {
   cardTypesColumn,
   keysetCursorPredicate,

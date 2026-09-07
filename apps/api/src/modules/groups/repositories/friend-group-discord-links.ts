@@ -1,7 +1,8 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, FriendGroupDiscordLinksTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { FriendGroupDiscordLinksTable } from "../../../db/tables/friend-groups.js";
 
 export type DiscordLink = Selectable<FriendGroupDiscordLinksTable>;
 

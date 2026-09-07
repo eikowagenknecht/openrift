@@ -3,7 +3,8 @@ import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, KeywordsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { KeywordsTable } from "../../../db/tables/catalog.js";
 
 interface KeywordTranslationRow {
   keywordName: string;

@@ -2,7 +2,7 @@ import { mergeListEntriesByTarget } from "@openrift/shared/list-entries";
 
 import type { Repos } from "../../../deps.js";
 import type { ShareImageCard, ShareImageInput } from "../../system/services/share-image.js";
-import type { ListEntryRow } from "../repositories/lists.js";
+import type { ListEntryRow } from "../repositories/lists-shared.js";
 
 /**
  * Prepares a single list's enriched entries into a share image. Shared by the

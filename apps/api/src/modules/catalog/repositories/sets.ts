@@ -2,7 +2,8 @@ import type { SetReleases } from "@openrift/shared/set-release";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, SetsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { SetsTable } from "../../../db/tables/catalog.js";
 import { reorderBySortOrder } from "./sort-order.js";
 
 export function setsRepo(db: Kysely<Database>) {

@@ -4,7 +4,7 @@ import { Migrator } from "kysely/migration";
 import { describe, expect, it, vi } from "vitest";
 
 import { migrate, rollback } from "./migrate.js";
-import type { Database } from "./types.js";
+import type { Database } from "./tables.js";
 
 // migrate()/rollback() run normalizeMigrationTimestamps against the executor;
 // an executor returning no rows makes it treat the migration table as absent.

@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 
-import type { AdminEventAction, AdminEventEntityType, Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { AdminEventAction, AdminEventEntityType } from "../../../db/tables/admin-events.js";
 import { keysetCursorPredicate } from "../../../repositories/query-helpers.js";
 
 export interface AdminEventInsert {

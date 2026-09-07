@@ -5,7 +5,7 @@ import type { createEmailSender } from "../../../email.js";
 import type { DigestGroupSection } from "../../../emails/trade-emails.js";
 import { buildTradeMatchDigestEmail } from "../../../emails/trade-emails.js";
 import { buildUnsubscribeUrls } from "../../../emails/unsubscribe-token.js";
-import type { IncomingMatchFeedRow } from "../repositories/friend-group-matches.js";
+import type { IncomingMatchFeedRow } from "../repositories/friend-group-matches-view.js";
 
 type SendEmail = ReturnType<typeof createEmailSender>;
 

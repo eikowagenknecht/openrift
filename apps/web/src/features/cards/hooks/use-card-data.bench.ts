@@ -3,7 +3,8 @@
 // introduces a perceptible regression for the filter-toggle workload
 // (query-changing, data-stable — the worst case for live-query dataflow).
 
-import { filterCards, sortCards } from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import { sortCards } from "@openrift/shared/filters-sort";
 import type { CatalogSetResponse } from "@openrift/shared/types/api/catalog";
 import type { Card, Printing } from "@openrift/shared/types/catalog";
 import type { CardFilters } from "@openrift/shared/types/search";

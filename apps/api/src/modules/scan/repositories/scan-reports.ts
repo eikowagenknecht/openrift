@@ -2,7 +2,7 @@ import type { ScanReportJournalEntry } from "@openrift/shared/contracts/scan-rep
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 export function scanReportsRepo(db: Kysely<Database>) {
   return {

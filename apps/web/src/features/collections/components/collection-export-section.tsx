@@ -1,4 +1,4 @@
-import { sortCards } from "@openrift/shared/filters";
+import { sortCards } from "@openrift/shared/filters-sort";
 import type { Printing } from "@openrift/shared/types/catalog";
 import { useQuery } from "@tanstack/react-query";
 import { DownloadIcon, Loader2Icon } from "lucide-react";

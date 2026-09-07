@@ -8,8 +8,11 @@ import { emptyToNull } from "@openrift/shared/utils";
 import type { Insertable } from "kysely";
 import { z } from "zod";
 
-import type { CandidateCardsTable, CandidatePrintingsTable } from "../../../db/index.js";
 import { candidateCardFieldRules, candidatePrintingFieldRules } from "../../../db/schemas.js";
+import type {
+  CandidateCardsTable,
+  CandidatePrintingsTable,
+} from "../../../db/tables/candidates.js";
 
 export const candidateCardValidator = z.object({
   name: candidateCardFieldRules.name,

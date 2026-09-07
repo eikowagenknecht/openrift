@@ -1,7 +1,7 @@
 import type { FallbackArtMode } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 export function printingImagesRepo(db: Kysely<Database>) {
   /** `ON CONFLICT`'s `where` must match `idx_image_files_original_url`'s partial predicate. */

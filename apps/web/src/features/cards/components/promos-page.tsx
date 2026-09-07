@@ -1,4 +1,6 @@
-import { filterCards, getAvailableFilters, sortCards } from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
+import { sortCards } from "@openrift/shared/filters-sort";
 import type { Printing } from "@openrift/shared/types/catalog";
 import type { SortDirection, SortOption } from "@openrift/shared/types/search";
 import { useSuspenseQuery } from "@tanstack/react-query";

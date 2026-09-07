@@ -2,7 +2,7 @@ import type { JobStatus, JobTrigger } from "@openrift/shared/contracts/admin/job
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { isUniqueViolationOn } from "../../../lib/pg-errors.js";
 
 export interface JobRun {

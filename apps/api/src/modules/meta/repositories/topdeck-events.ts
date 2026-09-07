@@ -1,7 +1,8 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, TopdeckEventsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { TopdeckEventsTable } from "../../../db/tables/meta-sources.js";
 import { keyBatches, rowBatches } from "../../../lib/bind-batches.js";
 import { TOPDECK_PROVIDER } from "../lib/topdeck-catalog.js";
 

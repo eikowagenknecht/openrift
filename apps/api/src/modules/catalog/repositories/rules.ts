@@ -2,7 +2,7 @@ import { compareRuleNumbers } from "@openrift/shared/rules";
 import type { RuleChangeType, RuleKind, RuleType } from "@openrift/shared/types/api/rules";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { rowBatches } from "../../../lib/bind-batches.js";
 
 export function rulesRepo(db: Kysely<Database>) {

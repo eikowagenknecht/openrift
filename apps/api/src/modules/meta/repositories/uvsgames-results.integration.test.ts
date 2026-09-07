@@ -1,7 +1,7 @@
 import type { Insertable } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 
-import type { UvsgamesEventStandingsTable } from "../../../db/index.js";
+import type { UvsgamesEventStandingsTable } from "../../../db/tables/meta-sources.js";
 import { createDbContext } from "../../../test/integration-context.js";
 import { uvsgamesResultsRepo } from "./uvsgames-results.js";
 

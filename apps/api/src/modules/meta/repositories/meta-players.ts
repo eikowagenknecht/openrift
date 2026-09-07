@@ -2,7 +2,8 @@ import type { CardType, MetaEntryStatus, MetaListStatus } from "@openrift/shared
 import type { Kysely, Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, MetaEventPlayersTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { MetaEventPlayersTable } from "../../../db/tables/meta.js";
 import type { MetaArchivedDeckInput } from "./meta-decks.js";
 import { insertDeckForPlayer } from "./meta-decks.js";
 import { resolvedPlayerName } from "./meta-shared.js";

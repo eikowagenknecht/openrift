@@ -1,6 +1,7 @@
 import type { DeleteResult, Kysely } from "kysely";
 
-import type { Database, UserFeatureFlagsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { UserFeatureFlagsTable } from "../../../db/tables/settings.js";
 
 interface OverrideWithUser {
   userId: string;

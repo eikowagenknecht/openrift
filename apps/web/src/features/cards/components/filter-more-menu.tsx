@@ -1,4 +1,5 @@
-import type { AvailableFilters, FilterCounts } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
+import type { FilterCounts } from "@openrift/shared/filters-counts";
 import type { PresenceDimension } from "@openrift/shared/types/search";
 import { CheckIcon, ChevronDownIcon, MinusIcon } from "lucide-react";
 import { Fragment } from "react";

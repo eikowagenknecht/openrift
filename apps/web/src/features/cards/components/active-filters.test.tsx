@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
 import type { CustomTag } from "@openrift/shared/types/catalog";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

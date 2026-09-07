@@ -2,7 +2,7 @@ import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { rowBatches } from "../../../lib/bind-batches.js";
 import { imageUrlWithOriginal, joinFrontImage } from "../../../repositories/query-helpers.js";
 

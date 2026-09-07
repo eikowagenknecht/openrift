@@ -1,7 +1,8 @@
 import type { StagePresetConfig } from "@openrift/shared/contracts/stage-presets";
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, StagePresetsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { StagePresetsTable } from "../../../db/tables/stage.js";
 
 /** A preset row with its `config` jsonb parsed. */
 export type StagePresetRow = Selectable<StagePresetsTable>;

@@ -2,7 +2,7 @@ import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { imageId, joinFrontImage } from "../../../repositories/query-helpers.js";
 
 interface DeckRowForShortCode {

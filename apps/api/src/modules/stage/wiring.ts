@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
 import { stagePresetsRepo } from "./repositories/stage-presets.js";
 import { tierListsRepo } from "./repositories/tier-lists.js";

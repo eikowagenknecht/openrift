@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { createRecordingDb } from "../../../test/recording-db.js";
-import { deckCheckRepo, eventStatusForTournamentStatus } from "./deck-check.js";
+import { eventStatusForTournamentStatus } from "./deck-check-shared.js";
+import { deckCheckRepo } from "./deck-check.js";
 
 describe("eventStatusForTournamentStatus", () => {
   it("treats setup and running as active (submissions are handed in before start)", () => {

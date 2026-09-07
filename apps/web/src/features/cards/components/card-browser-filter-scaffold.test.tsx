@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

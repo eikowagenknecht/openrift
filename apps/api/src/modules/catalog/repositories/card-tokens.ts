@@ -3,7 +3,7 @@ import { findTokenReferences } from "@openrift/shared/card-tokens";
 import { WellKnown } from "@openrift/shared/well-known";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { rowBatches } from "../../../lib/bind-batches.js";
 
 interface TokenTextSources {

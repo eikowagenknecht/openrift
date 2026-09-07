@@ -5,7 +5,7 @@ import type {
 import type { CollectionEventResponse } from "@openrift/shared/types/api/collection-event";
 import type { Selectable } from "kysely";
 
-import type { CollectionsTable } from "../../../db/index.js";
+import type { CollectionsTable } from "../../../db/tables/collections.js";
 import type { CollectionValue } from "../../marketplace/repositories/marketplace.js";
 
 /**

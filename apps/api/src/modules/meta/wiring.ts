@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { metaOverlaysRepo } from "./repositories/meta-overlays.js";
 import { metaPlayerLinksRepo } from "./repositories/meta-player-links.js";
 import { metaSubmissionsRepo } from "./repositories/meta-submissions.js";

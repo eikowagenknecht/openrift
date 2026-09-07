@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
 import type { DefaultCardView } from "@openrift/shared/types/api/preferences";
 import type { PresenceDimension, SortDirection } from "@openrift/shared/types/search";
 

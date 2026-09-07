@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "./db/index.js";
 import { instrumentRepo } from "./db/instrumented-repo.js";
+import type { Database } from "./db/tables.js";
 import { createCandidatesRepos, createCandidatesServices } from "./modules/candidates/wiring.js";
 import type { CandidatesRepos, CandidatesServices } from "./modules/candidates/wiring.js";
 import { createCatalogRepos, createCatalogRuleSources } from "./modules/catalog/wiring.js";

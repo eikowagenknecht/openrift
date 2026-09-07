@@ -2,7 +2,10 @@ import type { IngestCard } from "@openrift/shared/contracts/admin/card-mutations
 import type { DiffValue } from "@openrift/shared/response-schemas";
 import type { Insertable, Updateable } from "kysely";
 
-import type { CandidateCardsTable, CandidatePrintingsTable } from "../../../db/index.js";
+import type {
+  CandidateCardsTable,
+  CandidatePrintingsTable,
+} from "../../../db/tables/candidates.js";
 import type { Transact } from "../../../deps.js";
 import {
   buildCandidateCardFields,

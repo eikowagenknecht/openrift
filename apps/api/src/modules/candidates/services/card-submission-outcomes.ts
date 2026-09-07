@@ -4,7 +4,7 @@
  */
 import { normalizeNameForIdentity } from "@openrift/shared/utils";
 
-import type { CardSubmissionStatus } from "../../../db/index.js";
+import type { CardSubmissionStatus } from "../../../db/tables/candidates.js";
 import type { Repos } from "../../../deps.js";
 import { adoptedFields, computeProposedDiff } from "../lib/card-submission-diff.js";
 

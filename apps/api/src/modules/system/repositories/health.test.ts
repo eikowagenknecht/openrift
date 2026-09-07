@@ -5,7 +5,7 @@ import { Kysely } from "kysely";
 import type { Dialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import { healthRepo } from "./health.js";
 
 function createHealthMockDb(results: { rows: unknown[] }[]) {

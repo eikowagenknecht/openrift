@@ -6,7 +6,7 @@ import type {
 import { isBaseBanFormat } from "@openrift/shared/well-known";
 import type { Selectable } from "kysely";
 
-import type { DecksTable } from "../../../db/index.js";
+import type { DecksTable } from "../../../db/tables/decks.js";
 import type { Repos } from "../../../deps.js";
 import {
   buildCardsResponse,

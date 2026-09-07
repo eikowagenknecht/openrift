@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { deckFoldersRepo } from "./repositories/deck-folders.js";
 import { deckFormatsRepo } from "./repositories/deck-formats.js";
 import { deckPlansRepo } from "./repositories/deck-plans.js";

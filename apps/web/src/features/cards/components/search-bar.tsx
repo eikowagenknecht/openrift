@@ -1,4 +1,4 @@
-import { searchPrefixFields } from "@openrift/shared/filters";
+import { searchPrefixFields } from "@openrift/shared/filters-search";
 import { ALL_SEARCH_FIELDS } from "@openrift/shared/types/search";
 import { useEffect, useRef, useState } from "react";
 

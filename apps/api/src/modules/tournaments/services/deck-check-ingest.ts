@@ -19,11 +19,9 @@ import type { z } from "zod";
 import type { Repos } from "../../../deps.js";
 import { AppError } from "../../../errors.js";
 import { generateShareToken } from "../../../lib/share-token.js";
-import type {
-  DeckCheckEntry,
-  DeckCheckHost,
-  NewDeckCheckEntryCard,
-} from "../repositories/deck-check.js";
+import type { DeckCheckEntry } from "../repositories/deck-check-entries.js";
+import type { NewDeckCheckEntryCard } from "../repositories/deck-check-entry-cards.js";
+import type { DeckCheckHost } from "../repositories/deck-check-shared.js";
 import { cardResolutionKey, resolveDeckCheckCards } from "./deck-check-card-resolution.js";
 import { storedCardLines } from "./deck-check-states.js";
 

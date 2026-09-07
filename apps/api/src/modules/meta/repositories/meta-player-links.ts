@@ -1,6 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, MetaPlayerLinksTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { MetaPlayerLinksTable } from "../../../db/tables/meta.js";
 
 /** One decision on a cited-but-unread mirror's standing, confirmed by a human. */
 

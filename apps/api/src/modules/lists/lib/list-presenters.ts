@@ -12,7 +12,7 @@ import type { ListRules } from "@openrift/shared/types/list-rule";
 import { hydrateListRules } from "@openrift/shared/types/list-rule";
 import type { Selectable } from "kysely";
 
-import type { ListEntriesTable, ListsTable } from "../../../db/index.js";
+import type { ListEntriesTable, ListsTable } from "../../../db/tables/lists.js";
 
 const EMPTY_TRADE_PREFERENCE: TradePreference = {
   pricePref: null,

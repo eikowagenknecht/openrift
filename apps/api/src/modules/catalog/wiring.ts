@@ -1,7 +1,7 @@
 import type { KeepPriorityOrders } from "@openrift/shared/list-rule-eval";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import type { Repos } from "../../deps.js";
 import { artVariantsRepo } from "./repositories/art-variants.js";
 import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";

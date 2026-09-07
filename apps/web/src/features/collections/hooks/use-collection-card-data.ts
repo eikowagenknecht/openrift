@@ -1,9 +1,7 @@
-import {
-  computeFilterCounts,
-  filterCards,
-  getAvailableFilters,
-  sortCards,
-} from "@openrift/shared/filters";
+import { filterCards } from "@openrift/shared/filters";
+import { getAvailableFilters } from "@openrift/shared/filters-available";
+import { computeFilterCounts } from "@openrift/shared/filters-counts";
+import { sortCards } from "@openrift/shared/filters-sort";
 import type { PriceLookup } from "@openrift/shared/types/api/pricing";
 import type { DistributionChannel, Printing } from "@openrift/shared/types/catalog";
 import type { Marketplace } from "@openrift/shared/types/pricing";

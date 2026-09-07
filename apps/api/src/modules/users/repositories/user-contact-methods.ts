@@ -1,7 +1,7 @@
 import type { ContactMethod, ContactMethodType } from "@openrift/shared/types/api/contact-method";
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 
 /** All writes are scoped by `userId` so a caller can only touch their own rows. */
 export function userContactMethodsRepo(db: Kysely<Database>) {

@@ -9,8 +9,8 @@ import type { CardFilters } from "@openrift/shared/types/search";
 import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import type { Database } from "../../../db/index.js";
-import type { ListRuleProviders } from "../../lists/repositories/lists.js";
+import type { Database } from "../../../db/tables.js";
+import type { ListRuleProviders } from "../../lists/repositories/lists-rules.js";
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import { friendGroupMatchesRepo } from "./friend-group-matches.js";
 

@@ -50,7 +50,7 @@ import {
   writeEventOverlayFields,
   writeMetaPlayerOverlayFields,
 } from "../services/meta-overlay-review.js";
-import { sourceEventFacts } from "../services/meta-promote.js";
+import { sourceEventFacts } from "../services/meta-promote-sources.js";
 
 /**
  * Queue, drift, and upload endpoints on `/api/admin/v1/meta`, gated by Hono's `requireAdmin` middleware.

@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { scanIndexRepo } from "./repositories/scan-index.js";
 import { scanReportsRepo } from "./repositories/scan-reports.js";
 import { createScanReport } from "./services/scan-reports.js";

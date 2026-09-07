@@ -1,8 +1,8 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
+import type { ListRuleProviders } from "./repositories/lists-rules.js";
 import { listsRepo } from "./repositories/lists.js";
-import type { ListRuleProviders } from "./repositories/lists.js";
 import { moveListEntries } from "./services/lists.js";
 
 export interface ListsRepos {

@@ -7,7 +7,7 @@ import type { Dialect, Kysely } from "kysely";
 
 import type { createConfig } from "./config.js";
 import { isLocalDevOrigin, matchOrigin } from "./cors.js";
-import type { Database } from "./db/index.js";
+import type { Database } from "./db/tables.js";
 import { sanitizeDisplayName, validateDisplayName } from "./display-name.js";
 import type { createEmailSender } from "./email.js";
 import { collectionsRepo } from "./modules/collections/repositories/collections.js";

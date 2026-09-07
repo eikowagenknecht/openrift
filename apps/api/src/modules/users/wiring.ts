@@ -1,6 +1,6 @@
 import type { Kysely } from "kysely";
 
-import type { Database } from "../../db/index.js";
+import type { Database } from "../../db/tables.js";
 import { adminGrantsRepo } from "./repositories/admin-grants.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";

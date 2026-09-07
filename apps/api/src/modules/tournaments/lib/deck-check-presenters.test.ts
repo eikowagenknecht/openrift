@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import type { DeckCheckEntry, DeckCheckEntrySummary } from "../repositories/deck-check-entries.js";
+import type { DeckCheckEvent } from "../repositories/deck-check-events.js";
 import type { DeckCheckKey } from "../repositories/deck-check-keys.js";
-import type {
-  DeckCheckEntry,
-  DeckCheckEntrySummary,
-  DeckCheckEvent,
-} from "../repositories/deck-check.js";
 import { toEntrySummary, toEventSummary, toKey } from "./deck-check-presenters.js";
 
 const createdAt = new Date("2026-06-01T10:00:00.000Z");

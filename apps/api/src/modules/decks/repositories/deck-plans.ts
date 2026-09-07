@@ -1,12 +1,12 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
+import type { Database } from "../../../db/tables.js";
 import type {
-  Database,
   DeckMatchupPlansTable,
   DeckMatchupSwapsTable,
   DeckPlansTable,
-} from "../../../db/index.js";
+} from "../../../db/tables/decks.js";
 
 type MatchupWithSwaps = Selectable<DeckMatchupPlansTable> & {
   swaps: Selectable<DeckMatchupSwapsTable>[];

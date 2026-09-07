@@ -1,6 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, TierListRow, TierListsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { TierListRow, TierListsTable } from "../../../db/tables/stage.js";
 import {
   findByShareToken,
   selectShareState,

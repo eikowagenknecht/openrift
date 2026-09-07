@@ -2,7 +2,8 @@ import type { LoanCounterparty } from "@openrift/shared/types/api/loan";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, LoansTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type { LoansTable } from "../../../db/tables/loans.js";
 import { notPinnedToLoan, notReservedByTrade } from "../../../repositories/query-helpers.js";
 import { gravatarHashForEmail } from "../../users/lib/gravatar.js";
 import type { LoanDtoRow } from "../lib/loan-presenters.js";

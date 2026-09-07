@@ -2,7 +2,7 @@ import type { MetaEventTier } from "@openrift/shared/types/enums";
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { Database } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
 import type { MetaLegendSitemapRow } from "./meta-legends.js";
 import { foldedPlayerIdentity } from "./meta-shared.js";
 

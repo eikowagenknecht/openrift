@@ -1,7 +1,11 @@
 import type { OrganizationRole } from "@openrift/shared/types/api/tournament";
 import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 
-import type { Database, OrganizationMembersTable, OrganizationsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type {
+  OrganizationMembersTable,
+  OrganizationsTable,
+} from "../../../db/tables/organizations.js";
 
 /** The "owner" shown in a listing is the longest-standing `role = 'owner'` member. */
 function ownerNameSubquery(eb: ExpressionBuilder<Database & { o: OrganizationsTable }, "o">) {

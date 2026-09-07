@@ -15,7 +15,11 @@ import type {
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, TournamentParticipantsTable, TournamentsTable } from "../../../db/index.js";
+import type { Database } from "../../../db/tables.js";
+import type {
+  TournamentParticipantsTable,
+  TournamentsTable,
+} from "../../../db/tables/tournaments.js";
 import { generateShareToken } from "../../../lib/share-token.js";
 
 export type Tournament = Selectable<TournamentsTable>;

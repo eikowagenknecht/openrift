@@ -3,7 +3,7 @@ import { buildCardIndex } from "@openrift/shared/card-search";
 import { cardSearchAltNames } from "@openrift/shared/utils";
 
 import type { Repos } from "../../../deps.js";
-import type { CatalogCardRow } from "../repositories/catalog.js";
+import type { CatalogCardRow } from "../repositories/catalog-cards.js";
 import { createContentAddressedCache } from "./catalog-assembly.js";
 
 type LookupCard = CatalogCardRow & { altNames: string[] };

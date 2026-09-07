@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types/api/preferences";
 import { describe, expect, it } from "vitest";
 

@@ -1,5 +1,5 @@
 import { enumLabel } from "@openrift/shared/enum-label";
-import type { AvailableFilters } from "@openrift/shared/filters";
+import type { AvailableFilters } from "@openrift/shared/filters-available";
 import type { PresenceDimension, RangeKey } from "@openrift/shared/types/search";
 import { MinusIcon, XIcon } from "lucide-react";
 
