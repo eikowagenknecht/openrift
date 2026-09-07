@@ -21,33 +21,36 @@ import type { createEmailSender } from "./email.js";
 import { AppError, codeForStatus } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
-import { mapAuthError } from "./lib/better-auth-error.js";
 import { loadSession } from "./middleware/load-session.js";
 import { createMetricsMiddleware } from "./middleware/metrics.js";
 import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { requireAdmin } from "./middleware/require-admin.js";
 import { versionHeadersMiddleware } from "./middleware/version-headers.js";
+import { mountCardSubmissionsMiddleware } from "./modules/candidates/routes/authenticated-card-submissions.js";
+import { createPublicChatRoute } from "./modules/chat/routes/public-chat.js";
+import { collectionImageRoute } from "./modules/collections/routes/authenticated-collection-image.js";
+import { deckImageRoute } from "./modules/decks/routes/authenticated-deck-image.js";
+import { listImageRoute } from "./modules/lists/routes/authenticated-list-image.js";
+import { mountMetaSubmissionsMiddleware } from "./modules/meta/routes/authenticated-meta-submissions.js";
+import { mountScanReportsMiddleware } from "./modules/scan/routes/authenticated-scan-reports.js";
+import { tierListImageRoute } from "./modules/stage/routes/authenticated-tier-list-image.js";
+import { mountAdminSentryTest } from "./modules/system/routes/admin-sentry-test.js";
+import { healthRoute } from "./modules/system/routes/public-health.js";
+import { publicOembedRoute } from "./modules/system/routes/public-oembed.js";
+import { sentryTunnelRoute } from "./modules/system/routes/public-sentry-tunnel.js";
+import { publicShareImagesRoute } from "./modules/system/routes/public-share-images.js";
+import {
+  SWAGGER_ASSETS_BASE_URL,
+  swaggerAssetsRoute,
+} from "./modules/system/routes/public-swagger-assets.js";
+import type { JobScheduler } from "./modules/system/services/job-scheduler.js";
+import { mountDeckCheckIngestMiddleware } from "./modules/tournaments/routes/public-deck-check-ingest.js";
+import { mapAuthError } from "./modules/users/lib/better-auth-error.js";
+import { unsubscribeOneClickRoute } from "./modules/users/routes/public-unsubscribe-one-click.js";
 import { generateContractOpenAPIDocument } from "./openapi-doc.js";
 import { ETAG_PATHS, immutableWhenVersionMatches } from "./orpc/cache-policy.js";
 import { buildApiContext } from "./orpc/context.js";
 import { createApiHandler } from "./orpc/router.js";
-import { mountAdminSentryTest } from "./routes/admin/sentry-test.js";
-import { mountCardSubmissionsMiddleware } from "./routes/authenticated/card-submissions.js";
-import { collectionImageRoute } from "./routes/authenticated/collection-image.js";
-import { deckImageRoute } from "./routes/authenticated/deck-image.js";
-import { listImageRoute } from "./routes/authenticated/list-image.js";
-import { mountMetaSubmissionsMiddleware } from "./routes/authenticated/meta-submissions.js";
-import { mountScanReportsMiddleware } from "./routes/authenticated/scan-reports.js";
-import { tierListImageRoute } from "./routes/authenticated/tier-list-image.js";
-import { createPublicChatRoute } from "./routes/public/chat.js";
-import { mountDeckCheckIngestMiddleware } from "./routes/public/deck-check-ingest.js";
-import { healthRoute } from "./routes/public/health.js";
-import { publicOembedRoute } from "./routes/public/oembed.js";
-import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
-import { publicShareImagesRoute } from "./routes/public/share-images.js";
-import { SWAGGER_ASSETS_BASE_URL, swaggerAssetsRoute } from "./routes/public/swagger-assets.js";
-import { unsubscribeOneClickRoute } from "./routes/public/unsubscribe-one-click.js";
-import type { JobScheduler } from "./services/job-scheduler.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {

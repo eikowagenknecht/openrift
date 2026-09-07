@@ -9,14 +9,14 @@ import path from "node:path";
 
 import * as ort from "onnxruntime-node";
 
-import type { CardEmbedder, EmbedBank, EmbedKind } from "../../packages/shared/src/scan/index.js";
+import type { CardEmbedder, EmbedBank, EmbedKind } from "../../packages/shared/src/scan/embed.js";
 import {
   EMBED_DIM,
   EMBED_IMAGE_SIZE,
   normalizeEmbeddings,
   preprocessCardInto,
-  rotateRgbaCw,
-} from "../../packages/shared/src/scan/index.js";
+} from "../../packages/shared/src/scan/embed.js";
+import { rotateRgbaCw } from "../../packages/shared/src/scan/image.js";
 import { CACHE_DIR, DATA_DIR, listReferenceImages, loadImage, mapConcurrent } from "./lib";
 
 const MODEL_DIR = path.join(DATA_DIR, "models/mobileclip-s0");

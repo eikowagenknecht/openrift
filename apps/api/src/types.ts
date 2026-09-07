@@ -3,7 +3,7 @@ import type { createConfig } from "./config.js";
 import type { Repos, Services, Transact } from "./deps.js";
 import type { Io } from "./io.js";
 import type { AdminAccess } from "./middleware/require-admin.js";
-import type { JobScheduler } from "./services/job-scheduler.js";
+import type { JobScheduler } from "./modules/system/services/job-scheduler.js";
 
 export type Auth = ReturnType<typeof createAuth>;
 export type Config = ReturnType<typeof createConfig>;

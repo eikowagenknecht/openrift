@@ -1,6 +1,6 @@
 import { createDb } from "../apps/api/src/db/connect.js";
 import { createRepos } from "../apps/api/src/deps.js";
-import { createMarketplaceConfigs } from "../apps/api/src/routes/admin/marketplace-configs.js";
+import { createMarketplaceConfigs } from "../apps/api/src/modules/marketplace/lib/marketplace-configs.js";
 import { requireEnv } from "./env.js";
 
 const { db } = createDb(requireEnv("DATABASE_URL"));

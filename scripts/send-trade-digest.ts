@@ -2,7 +2,7 @@ import { createConfig } from "../apps/api/src/config.js";
 import { createDb } from "../apps/api/src/db/connect.js";
 import { createRepos } from "../apps/api/src/deps.js";
 import { createEmailSender } from "../apps/api/src/email.js";
-import { sendTradeMatchDigest } from "../apps/api/src/services/trade-match-digest.js";
+import { sendTradeMatchDigest } from "../apps/api/src/modules/groups/services/trade-match-digest.js";
 
 // Runs the daily match digest immediately, without waiting for the cron.
 //   bun --env-file=.env run scripts/send-trade-digest.ts [ISO timestamp]

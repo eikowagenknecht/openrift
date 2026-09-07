@@ -1,0 +1,152 @@
+import { afterAll, describe, expect, it } from "vitest";
+
+import { adminReq, createTestContext } from "../../../test/integration-context.js";
+import { readJson } from "../../../test/read-json.js";
+
+const ADMIN_ID = "a0000000-0045-4000-a000-000000000001";
+const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
+
+const adminCtx = createTestContext(ADMIN_ID);
+const nonAdminCtx = createTestContext(NON_ADMIN_ID);
+
+// Order matters: CORE_VERSION is imported first, so COLLISION_VERSION must
+// sort lexicographically after it to clear the chronological-version check.
+const CORE_VERSION = "ar-int-core";
+const COLLISION_VERSION = "ar-int-zcollision";
+const TOURNAMENT_VERSION = "ar-int-tournament";
+
+const SAMPLE_CONTENT = ["100. # Setup", "100.1. Players begin with seven cards in hand."].join(
+  "\n",
+);
+
+describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = adminCtx!;
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app: nonAdminApp } = nonAdminCtx!;
+
+  afterAll(async () => {
+    await db
+      .deleteFrom("ruleVersions")
+      .where("version", "in", [COLLISION_VERSION, CORE_VERSION, TOURNAMENT_VERSION])
+      .execute();
+  });
+
+  describe("admin-only access control", () => {
+    it("POST /admin/rules/import returns 403 for non-admin", async () => {
+      const res = await nonAdminApp.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "core",
+          version: "ar-int-forbidden",
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe("POST /admin/rules/import", () => {
+    it("imports a core ruleset", async () => {
+      const res = await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "core",
+          version: CORE_VERSION,
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(res.status).toBe(201);
+      const json = await readJson(res);
+      expect(json.kind).toBe("core");
+      expect(json.version).toBe(CORE_VERSION);
+      expect(json.added).toBe(2);
+    });
+
+    it("imports a tournament ruleset under the same version string without collision", async () => {
+      const res = await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "tournament",
+          version: CORE_VERSION,
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(res.status).toBe(201);
+      const json = await readJson(res);
+      expect(json.kind).toBe("tournament");
+      expect(json.version).toBe(CORE_VERSION);
+    });
+
+    it("rejects duplicate (kind, version)", async () => {
+      const first = await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "core",
+          version: COLLISION_VERSION,
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(first.status).toBe(201);
+
+      const second = await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "core",
+          version: COLLISION_VERSION,
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(second.status).toBe(409);
+    });
+
+    it("rejects an invalid kind", async () => {
+      const res = await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "bogus",
+          version: "ar-int-bogus",
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+
+    it("rejects a version older than the latest existing one for that kind", async () => {
+      const res = await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "core",
+          version: "ar-int-aaa",
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(res.status).toBe(400);
+      const body = await readJson(res);
+      expect(body.message).toMatch(/older|chronological/iu);
+    });
+  });
+
+  describe("DELETE /admin/rules/{kind}/versions/{version}", () => {
+    it("deletes only the specified kind", async () => {
+      await app.fetch(
+        adminReq("POST", "/rules/import", {
+          kind: "tournament",
+          version: TOURNAMENT_VERSION,
+          content: SAMPLE_CONTENT,
+        }),
+      );
+
+      const res = await app.fetch(
+        adminReq("DELETE", `/rules/tournament/versions/${TOURNAMENT_VERSION}`),
+      );
+      expect(res.status).toBe(204);
+
+      const corePresent = await db
+        .selectFrom("ruleVersions")
+        .selectAll()
+        .where("kind", "=", "core")
+        .where("version", "=", CORE_VERSION)
+        .executeTakeFirst();
+      expect(corePresent).toBeDefined();
+    });
+
+    it("returns 404 when (kind, version) doesn't exist", async () => {
+      const res = await app.fetch(adminReq("DELETE", "/rules/core/versions/ar-int-does-not-exist"));
+      expect(res.status).toBe(404);
+    });
+  });
+});

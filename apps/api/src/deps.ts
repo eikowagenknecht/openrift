@@ -1,427 +1,103 @@
-import { priceLookupFromMap } from "@openrift/shared/price-lookup";
-import type { PriceMap } from "@openrift/shared/types/api/pricing";
-import type { Marketplace } from "@openrift/shared/types/pricing";
 import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
 import { instrumentRepo } from "./db/instrumented-repo.js";
-import { adminEventsRepo } from "./repositories/admin-events.js";
-import { adminGrantsRepo } from "./repositories/admin-grants.js";
-import { adminsRepo } from "./repositories/admins.js";
-import { artVariantsRepo } from "./repositories/art-variants.js";
-import { candidateCardsRepo } from "./repositories/candidate-cards.js";
-import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";
-import { cardBansRepo } from "./repositories/card-bans.js";
-import { cardErrataRepo } from "./repositories/card-errata.js";
-import { cardSubmissionsRepo } from "./repositories/card-submissions.js";
-import { cardTokensRepo } from "./repositories/card-tokens.js";
-import { cardTradesRepo } from "./repositories/card-trades.js";
-import { cardTypesRepo } from "./repositories/card-types.js";
-import { catalogDeleteGuardsRepo } from "./repositories/catalog-delete-guards.js";
-import { catalogMutationsRepo } from "./repositories/catalog-mutations.js";
-import { catalogRepo } from "./repositories/catalog.js";
-import { collectionDeckbuildingPrefsRepo } from "./repositories/collection-deckbuilding-prefs.js";
-import { collectionEventsRepo } from "./repositories/collection-events.js";
-import { collectionSidebarPrefsRepo } from "./repositories/collection-sidebar-prefs.js";
-import { collectionsRepo } from "./repositories/collections.js";
-import { copiesRepo } from "./repositories/copies.js";
-import { customTagCategoriesRepo } from "./repositories/custom-tag-categories.js";
-import { customTagsRepo } from "./repositories/custom-tags.js";
-import { deckCheckKeysRepo } from "./repositories/deck-check-keys.js";
-import { deckCheckRepo } from "./repositories/deck-check.js";
-import { deckFoldersRepo } from "./repositories/deck-folders.js";
-import { deckFormatsRepo } from "./repositories/deck-formats.js";
-import { deckPlansRepo } from "./repositories/deck-plans.js";
-import { deckZonesRepo } from "./repositories/deck-zones.js";
-import { decksRepo } from "./repositories/decks.js";
-import { distributionChannelsRepo } from "./repositories/distribution-channels.js";
-import { domainsRepo } from "./repositories/domains.js";
-import { enumsRepo } from "./repositories/enums.js";
-import { featureFlagsRepo } from "./repositories/feature-flags.js";
-import { finishesRepo } from "./repositories/finishes.js";
-import { friendGroupDiscordLinksRepo } from "./repositories/friend-group-discord-links.js";
-import { friendGroupMatchesRepo } from "./repositories/friend-group-matches.js";
-import { friendGroupsRepo } from "./repositories/friend-groups.js";
-import { healthRepo } from "./repositories/health.js";
-import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
-import { ingestRepo } from "./repositories/ingest.js";
-import { jobRunsRepo } from "./repositories/job-runs.js";
-import { jobSchedulesRepo } from "./repositories/job-schedules.js";
-import { keywordsRepo } from "./repositories/keywords.js";
-import { languagesRepo } from "./repositories/languages.js";
-import { listsRepo } from "./repositories/lists.js";
-import { loansRepo } from "./repositories/loans.js";
-import { markersRepo } from "./repositories/markers.js";
-import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
-import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
-import { marketplaceRepo } from "./repositories/marketplace.js";
-import { metaOverlaysRepo } from "./repositories/meta-overlays.js";
-import { metaPlayerLinksRepo } from "./repositories/meta-player-links.js";
-import { metaSubmissionsRepo } from "./repositories/meta-submissions.js";
-import { metaRepo } from "./repositories/meta.js";
-import { organizationsRepo } from "./repositories/organizations.js";
-import { overlayChannelsRepo } from "./repositories/overlay-channels.js";
-import { playloltcgEventsRepo } from "./repositories/playloltcg-events.js";
-import { playloltcgResultsRepo } from "./repositories/playloltcg-results.js";
-import { podTournamentsRepo } from "./repositories/pod-tournaments.js";
-import { priceRefreshRepo } from "./repositories/price-refresh.js";
-import { printingCitationsRepo } from "./repositories/printing-citations.js";
-import { printingEventsRepo } from "./repositories/printing-events.js";
-import { printingImagesRepo } from "./repositories/printing-images.js";
-import { productsRepo } from "./repositories/products.js";
-import { providerSettingsRepo } from "./repositories/provider-settings.js";
-import { raritiesRepo } from "./repositories/rarities.js";
-import { rulesRepo } from "./repositories/rules.js";
-import { scanIndexRepo } from "./repositories/scan-index.js";
-import { scanReportsRepo } from "./repositories/scan-reports.js";
-import { setsRepo } from "./repositories/sets.js";
-import { siteSettingsRepo } from "./repositories/site-settings.js";
-import { stagePresetsRepo } from "./repositories/stage-presets.js";
-import { statusRepo } from "./repositories/status.js";
-import { superTypesRepo } from "./repositories/super-types.js";
-import { tagCategoriesRepo } from "./repositories/tag-categories.js";
-import { tagDefinitionsRepo } from "./repositories/tag-definitions.js";
-import { tierListsRepo } from "./repositories/tier-lists.js";
-import { topdeckEventsRepo } from "./repositories/topdeck-events.js";
-import { topdeckResultsRepo } from "./repositories/topdeck-results.js";
-import { tournamentsRepo } from "./repositories/tournaments.js";
-import { userContactMethodsRepo } from "./repositories/user-contact-methods.js";
-import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
-import { userPreferencesRepo } from "./repositories/user-preferences.js";
-import { userSharesRepo } from "./repositories/user-shares.js";
-import { usersRepo } from "./repositories/users.js";
-import { uvsgamesEventsRepo } from "./repositories/uvsgames-events.js";
-import { uvsgamesResultsRepo } from "./repositories/uvsgames-results.js";
-import { notifyAdminsOfCardSubmission } from "./services/card-submission-notifications.js";
+import { createCandidatesRepos, createCandidatesServices } from "./modules/candidates/wiring.js";
+import type { CandidatesRepos, CandidatesServices } from "./modules/candidates/wiring.js";
+import { createCatalogRepos, createCatalogRuleSources } from "./modules/catalog/wiring.js";
+import type { CatalogRepos } from "./modules/catalog/wiring.js";
 import {
-  acceptTrade,
-  applyTradeSync,
-  cancelTrade,
-  createTrade,
-  declineTrade,
-  listTradeCopyOptions,
-  setTradeQuantity,
-  skipTradeSync,
-} from "./services/card-trades.js";
-import { assembleRuleCatalog, createContentAddressedCache } from "./services/catalog-assembly.js";
-import { clearCollection, deleteCollection, resetCollections } from "./services/collections.js";
-import { addCopies, disposeCopies, moveCopies, updateCopies } from "./services/copies.js";
-import { logEvents } from "./services/event-logger.js";
+  createCollectionsRepos,
+  createCollectionsServices,
+  createOwnedCopiesReader,
+} from "./modules/collections/wiring.js";
+import type { CollectionsRepos, CollectionsServices } from "./modules/collections/wiring.js";
+import { createDecksRepos } from "./modules/decks/wiring.js";
+import type { DecksRepos } from "./modules/decks/wiring.js";
+import type { TradeEmailDeps } from "./modules/groups/services/trade-notifications.js";
+import { createGroupsRepos, createGroupsServices } from "./modules/groups/wiring.js";
+import type { GroupsRepos, GroupsServices } from "./modules/groups/wiring.js";
+import { createListsRepos, createListsServices } from "./modules/lists/wiring.js";
+import type { ListsRepos, ListsServices } from "./modules/lists/wiring.js";
 import {
-  notifyAdminsOfGroupJoinRequest,
-  notifyMemberOfGroupApproval,
-} from "./services/group-join-notifications.js";
-import { importErrata } from "./services/import-errata.js";
-import { ensureInbox } from "./services/inbox.js";
-import { ingestCandidates } from "./services/ingest-candidates.js";
-import { ingestMetaOverlays } from "./services/ingest-meta-overlays.js";
-import { ingestUserSubmission } from "./services/ingest-user-submission.js";
-import { moveListEntries } from "./services/lists.js";
-import {
-  acknowledgeLoan,
-  createLoan,
-  deleteLoan,
-  rejectLoan,
-  returnLoanCopies,
-  writeOffLoan,
-} from "./services/loans.js";
-import { getMappingOverview } from "./services/marketplace-mapping.js";
-import {
-  suggestMetaEventMatches,
-  suggestMetaPlayerMatches,
-} from "./services/meta-match-suggestions.js";
-import {
-  acceptMetaEventOverlay,
-  acceptMetaPlayerOverlay,
-  acceptMetaPlayerOverlays,
-  rejectMetaOverlay,
-} from "./services/meta-overlay-review.js";
-import { promoteMetaEvent, promoteNewEvent } from "./services/meta-promote.js";
-import { repromoteMetaEvents } from "./services/meta-repromote.js";
-import { retierMetaEvents } from "./services/meta-retier.js";
-import { submitMetaDeck, submitMetaEventCorrection } from "./services/meta-submission.js";
-import { createScanReport } from "./services/scan-reports.js";
-import type { TradeEmailDeps } from "./services/trade-notifications.js";
+  createMarketplaceRepos,
+  createMarketplaceServices,
+  createRulePriceLookup,
+} from "./modules/marketplace/wiring.js";
+import type { MarketplaceRepos, MarketplaceServices } from "./modules/marketplace/wiring.js";
+import { createMetaRepos, createMetaServices } from "./modules/meta/wiring.js";
+import type { MetaRepos, MetaServices } from "./modules/meta/wiring.js";
+import { createScanRepos, createScanServices } from "./modules/scan/wiring.js";
+import type { ScanRepos, ScanServices } from "./modules/scan/wiring.js";
+import { createStageRepos } from "./modules/stage/wiring.js";
+import type { StageRepos } from "./modules/stage/wiring.js";
+import { createSystemRepos, createSystemServices } from "./modules/system/wiring.js";
+import type { SystemRepos, SystemServices } from "./modules/system/wiring.js";
+import { createTournamentsRepos } from "./modules/tournaments/wiring.js";
+import type { TournamentsRepos } from "./modules/tournaments/wiring.js";
+import { createUsersRepos } from "./modules/users/wiring.js";
+import type { UsersRepos } from "./modules/users/wiring.js";
 
-export interface Repos {
-  collectionEvents: ReturnType<typeof collectionEventsRepo>;
-  admins: ReturnType<typeof adminsRepo>;
-  adminEvents: ReturnType<typeof adminEventsRepo>;
-  adminGrants: ReturnType<typeof adminGrantsRepo>;
-  artVariants: ReturnType<typeof artVariantsRepo>;
-  cardBans: ReturnType<typeof cardBansRepo>;
-  cardErrata: ReturnType<typeof cardErrataRepo>;
-  cardSubmissions: ReturnType<typeof cardSubmissionsRepo>;
-  cardTokens: ReturnType<typeof cardTokensRepo>;
-  cardTrades: ReturnType<typeof cardTradesRepo>;
-  deckCheck: ReturnType<typeof deckCheckRepo>;
-  deckCheckKeys: ReturnType<typeof deckCheckKeysRepo>;
-  cardTypes: ReturnType<typeof cardTypesRepo>;
-  canonicalPrintings: ReturnType<typeof canonicalPrintingsRepo>;
-  candidateCards: ReturnType<typeof candidateCardsRepo>;
-  catalog: ReturnType<typeof catalogRepo>;
-  catalogDeleteGuards: ReturnType<typeof catalogDeleteGuardsRepo>;
-  catalogMutations: ReturnType<typeof catalogMutationsRepo>;
-  collections: ReturnType<typeof collectionsRepo>;
-  collectionDeckbuildingPrefs: ReturnType<typeof collectionDeckbuildingPrefsRepo>;
-  collectionSidebarPrefs: ReturnType<typeof collectionSidebarPrefsRepo>;
-  copies: ReturnType<typeof copiesRepo>;
-  customTagCategories: ReturnType<typeof customTagCategoriesRepo>;
-  customTags: ReturnType<typeof customTagsRepo>;
-  deckFolders: ReturnType<typeof deckFoldersRepo>;
-  deckFormats: ReturnType<typeof deckFormatsRepo>;
-  deckPlans: ReturnType<typeof deckPlansRepo>;
-  deckZones: ReturnType<typeof deckZonesRepo>;
-  decks: ReturnType<typeof decksRepo>;
-  domains: ReturnType<typeof domainsRepo>;
-  enums: ReturnType<typeof enumsRepo>;
-  featureFlags: ReturnType<typeof featureFlagsRepo>;
-  finishes: ReturnType<typeof finishesRepo>;
-  friendGroups: ReturnType<typeof friendGroupsRepo>;
-  friendGroupDiscordLinks: ReturnType<typeof friendGroupDiscordLinksRepo>;
-  friendGroupMatches: ReturnType<typeof friendGroupMatchesRepo>;
-  userContactMethods: ReturnType<typeof userContactMethodsRepo>;
-  organizations: ReturnType<typeof organizationsRepo>;
-  overlayChannels: ReturnType<typeof overlayChannelsRepo>;
-  podTournaments: ReturnType<typeof podTournamentsRepo>;
-  stagePresets: ReturnType<typeof stagePresetsRepo>;
-  tierLists: ReturnType<typeof tierListsRepo>;
-  tournaments: ReturnType<typeof tournamentsRepo>;
-  userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
-  health: ReturnType<typeof healthRepo>;
-  keywords: ReturnType<typeof keywordsRepo>;
-  languages: ReturnType<typeof languagesRepo>;
-  ignoredCandidates: ReturnType<typeof ignoredCandidatesRepo>;
-  lists: ReturnType<typeof listsRepo>;
-  loans: ReturnType<typeof loansRepo>;
-  marketplace: ReturnType<typeof marketplaceRepo>;
-  marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
-  meta: ReturnType<typeof metaRepo>;
-  metaOverlays: ReturnType<typeof metaOverlaysRepo>;
-  metaPlayerLinks: ReturnType<typeof metaPlayerLinksRepo>;
-  uvsgamesEvents: ReturnType<typeof uvsgamesEventsRepo>;
-  uvsgamesResults: ReturnType<typeof uvsgamesResultsRepo>;
-  playloltcgEvents: ReturnType<typeof playloltcgEventsRepo>;
-  playloltcgResults: ReturnType<typeof playloltcgResultsRepo>;
-  topdeckEvents: ReturnType<typeof topdeckEventsRepo>;
-  topdeckResults: ReturnType<typeof topdeckResultsRepo>;
-  metaSubmissions: ReturnType<typeof metaSubmissionsRepo>;
-  printingImages: ReturnType<typeof printingImagesRepo>;
-  printingCitations: ReturnType<typeof printingCitationsRepo>;
-  products: ReturnType<typeof productsRepo>;
-  markers: ReturnType<typeof markersRepo>;
-  distributionChannels: ReturnType<typeof distributionChannelsRepo>;
-  rarities: ReturnType<typeof raritiesRepo>;
-  rules: ReturnType<typeof rulesRepo>;
-  sets: ReturnType<typeof setsRepo>;
-  status: ReturnType<typeof statusRepo>;
-  superTypes: ReturnType<typeof superTypesRepo>;
-  tagCategories: ReturnType<typeof tagCategoriesRepo>;
-  tagDefinitions: ReturnType<typeof tagDefinitionsRepo>;
-  providerSettings: ReturnType<typeof providerSettingsRepo>;
-  siteSettings: ReturnType<typeof siteSettingsRepo>;
-  userPreferences: ReturnType<typeof userPreferencesRepo>;
-  userShares: ReturnType<typeof userSharesRepo>;
-  users: ReturnType<typeof usersRepo>;
-  ingest: ReturnType<typeof ingestRepo>;
-  marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
-  priceRefresh: ReturnType<typeof priceRefreshRepo>;
-  printingEvents: ReturnType<typeof printingEventsRepo>;
-  jobRuns: ReturnType<typeof jobRunsRepo>;
-  jobSchedules: ReturnType<typeof jobSchedulesRepo>;
-  scanIndex: ReturnType<typeof scanIndexRepo>;
-  scanReports: ReturnType<typeof scanReportsRepo>;
-}
+export type Repos = CandidatesRepos &
+  CatalogRepos &
+  CollectionsRepos &
+  DecksRepos &
+  GroupsRepos &
+  ListsRepos &
+  MarketplaceRepos &
+  MetaRepos &
+  ScanRepos &
+  StageRepos &
+  SystemRepos &
+  TournamentsRepos &
+  UsersRepos;
 
-export interface Services {
-  ensureInbox: typeof ensureInbox;
-  logEvents: typeof logEvents;
-  clearCollection: typeof clearCollection;
-  deleteCollection: typeof deleteCollection;
-  resetCollections: typeof resetCollections;
-  addCopies: typeof addCopies;
-  moveCopies: typeof moveCopies;
-  updateCopies: typeof updateCopies;
-  moveListEntries: typeof moveListEntries;
-  disposeCopies: typeof disposeCopies;
-  getMappingOverview: typeof getMappingOverview;
-  ingestCandidates: typeof ingestCandidates;
-  ingestMetaOverlays: typeof ingestMetaOverlays;
-  ingestUserSubmission: typeof ingestUserSubmission;
-  createScanReport: typeof createScanReport;
-  promoteMetaEvent: typeof promoteMetaEvent;
-  promoteNewEvent: typeof promoteNewEvent;
-  repromoteMetaEvents: typeof repromoteMetaEvents;
-  retierMetaEvents: typeof retierMetaEvents;
-  acceptMetaEventOverlay: typeof acceptMetaEventOverlay;
-  acceptMetaPlayerOverlay: typeof acceptMetaPlayerOverlay;
-  acceptMetaPlayerOverlays: typeof acceptMetaPlayerOverlays;
-  rejectMetaOverlay: typeof rejectMetaOverlay;
-  suggestMetaEventMatches: typeof suggestMetaEventMatches;
-  suggestMetaPlayerMatches: typeof suggestMetaPlayerMatches;
-  submitMetaDeck: typeof submitMetaDeck;
-  submitMetaEventCorrection: typeof submitMetaEventCorrection;
-  notifyAdminsOfCardSubmission: typeof notifyAdminsOfCardSubmission;
-  notifyAdminsOfGroupJoinRequest: typeof notifyAdminsOfGroupJoinRequest;
-  notifyMemberOfGroupApproval: typeof notifyMemberOfGroupApproval;
-  importErrata: typeof importErrata;
-  createTrade: typeof createTrade;
-  listTradeCopyOptions: typeof listTradeCopyOptions;
-  acceptTrade: typeof acceptTrade;
-  declineTrade: typeof declineTrade;
-  cancelTrade: typeof cancelTrade;
-  setTradeQuantity: typeof setTradeQuantity;
-  applyTradeSync: typeof applyTradeSync;
-  skipTradeSync: typeof skipTradeSync;
-  createLoan: typeof createLoan;
-  returnLoanCopies: typeof returnLoanCopies;
-  writeOffLoan: typeof writeOffLoan;
-  acknowledgeLoan: typeof acknowledgeLoan;
-  rejectLoan: typeof rejectLoan;
-  deleteLoan: typeof deleteLoan;
+export type Services = CandidatesServices &
+  CollectionsServices &
+  GroupsServices &
+  ListsServices &
+  MarketplaceServices &
+  MetaServices &
+  ScanServices &
+  SystemServices;
+
+function instrumentModules(modules: readonly object[]): Repos {
+  const slots: Record<string, unknown> = {};
+  for (const module of modules) {
+    for (const [name, repo] of Object.entries(module)) {
+      if (name in slots) {
+        throw new Error(`Two modules declare the repository slot "${name}".`);
+      }
+      slots[name] = instrumentRepo(name, repo as Record<string, unknown>);
+    }
+  }
+  return slots as unknown as Repos;
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
-  const assembleCatalog = createContentAddressedCache(
-    () => assembleRuleCatalog(createRepos(db)),
-    () => catalogRepo(db).catalogContentVersion(),
-  );
-
-  const enums = enumsRepo(db);
-  const loadEnums = createContentAddressedCache(
-    () => enums.all(),
-    () => enums.contentVersion(),
-  );
-  const cachedEnums = {
-    ...enums,
-    all: loadEnums,
-    keepPriorityOrders: async () => {
-      const rows = await loadEnums();
-      return {
-        finishes: rows.finishes.map((row) => row.slug),
-        rarities: rows.rarities.map((row) => row.slug),
-        artVariants: rows.artVariants.map((row) => row.slug),
-      };
-    },
+  const catalogSources = createCatalogRuleSources(db, () => createRepos(db));
+  const ruleProviders = {
+    assembleCatalog: catalogSources.assembleCatalog,
+    ownedCopies: createOwnedCopiesReader(db),
+    enumOrders: catalogSources.enumOrders,
+    priceLookup: createRulePriceLookup(db),
   };
 
-  const rulePriceLookup = createContentAddressedCache(
-    async () => {
-      const rows = await marketplaceRepo(db).latestPrices();
-      const map: PriceMap = {};
-      for (const row of rows) {
-        (map[row.printingId] ??= {})[row.marketplace as Marketplace] = row.marketCents;
-      }
-      return priceLookupFromMap(map);
-    },
-    () => marketplaceRepo(db).latestPricesContentVersion(),
-  );
-
-  const raw = {
-    collectionEvents: collectionEventsRepo(db),
-    admins: adminsRepo(db),
-    adminEvents: adminEventsRepo(db),
-    adminGrants: adminGrantsRepo(db),
-    artVariants: artVariantsRepo(db),
-    cardBans: cardBansRepo(db),
-    cardErrata: cardErrataRepo(db),
-    cardSubmissions: cardSubmissionsRepo(db),
-    cardTokens: cardTokensRepo(db),
-    cardTrades: cardTradesRepo(db),
-    deckCheck: deckCheckRepo(db),
-    deckCheckKeys: deckCheckKeysRepo(db),
-    cardTypes: cardTypesRepo(db),
-    canonicalPrintings: canonicalPrintingsRepo(db),
-    candidateCards: candidateCardsRepo(db),
-    catalog: catalogRepo(db),
-    catalogDeleteGuards: catalogDeleteGuardsRepo(db),
-    catalogMutations: catalogMutationsRepo(db),
-    collections: collectionsRepo(db),
-    collectionDeckbuildingPrefs: collectionDeckbuildingPrefsRepo(db),
-    collectionSidebarPrefs: collectionSidebarPrefsRepo(db),
-    copies: copiesRepo(db),
-    customTagCategories: customTagCategoriesRepo(db),
-    customTags: customTagsRepo(db),
-    deckFolders: deckFoldersRepo(db),
-    deckFormats: deckFormatsRepo(db),
-    deckPlans: deckPlansRepo(db),
-    deckZones: deckZonesRepo(db),
-    decks: decksRepo(db),
-    domains: domainsRepo(db),
-    enums: cachedEnums,
-    featureFlags: featureFlagsRepo(db),
-    finishes: finishesRepo(db),
-    friendGroups: friendGroupsRepo(db),
-    friendGroupDiscordLinks: friendGroupDiscordLinksRepo(db),
-    friendGroupMatches: friendGroupMatchesRepo(db, {
-      assembleCatalog,
-      ownedCopies: (ownerId, printingIds) => copiesRepo(db).ownedRowsForUser(ownerId, printingIds),
-      enumOrders: () => cachedEnums.keepPriorityOrders(),
-      priceLookup: rulePriceLookup,
-    }),
-    userContactMethods: userContactMethodsRepo(db),
-    organizations: organizationsRepo(db),
-    overlayChannels: overlayChannelsRepo(db),
-    podTournaments: podTournamentsRepo(db),
-    stagePresets: stagePresetsRepo(db),
-    tierLists: tierListsRepo(db),
-    tournaments: tournamentsRepo(db),
-    userFeatureFlags: userFeatureFlagsRepo(db),
-    health: healthRepo(db),
-    keywords: keywordsRepo(db),
-    languages: languagesRepo(db),
-    ignoredCandidates: ignoredCandidatesRepo(db),
-    lists: listsRepo(db, {
-      assembleCatalog,
-      ownedCopies: (ownerId, printingIds) => copiesRepo(db).ownedRowsForUser(ownerId, printingIds),
-      enumOrders: () => cachedEnums.keepPriorityOrders(),
-      priceLookup: rulePriceLookup,
-    }),
-    loans: loansRepo(db),
-    marketplace: marketplaceRepo(db),
-    marketplaceAdmin: marketplaceAdminRepo(db),
-    meta: metaRepo(db),
-    metaOverlays: metaOverlaysRepo(db),
-    metaPlayerLinks: metaPlayerLinksRepo(db),
-    uvsgamesEvents: uvsgamesEventsRepo(db),
-    uvsgamesResults: uvsgamesResultsRepo(db),
-    playloltcgEvents: playloltcgEventsRepo(db),
-    playloltcgResults: playloltcgResultsRepo(db),
-    topdeckEvents: topdeckEventsRepo(db),
-    topdeckResults: topdeckResultsRepo(db),
-    metaSubmissions: metaSubmissionsRepo(db),
-    printingImages: printingImagesRepo(db),
-    printingCitations: printingCitationsRepo(db),
-    products: productsRepo(db),
-    markers: markersRepo(db),
-    distributionChannels: distributionChannelsRepo(db),
-    rarities: raritiesRepo(db),
-    rules: rulesRepo(db),
-    sets: setsRepo(db),
-    status: statusRepo(db),
-    superTypes: superTypesRepo(db),
-    tagCategories: tagCategoriesRepo(db),
-    tagDefinitions: tagDefinitionsRepo(db),
-    providerSettings: providerSettingsRepo(db),
-    siteSettings: siteSettingsRepo(db),
-    userPreferences: userPreferencesRepo(db),
-    userShares: userSharesRepo(db),
-    users: usersRepo(db),
-    ingest: ingestRepo(db),
-    marketplaceMapping: marketplaceMappingRepo(db),
-    priceRefresh: priceRefreshRepo(db),
-    printingEvents: printingEventsRepo(db),
-    jobRuns: jobRunsRepo(db),
-    jobSchedules: jobSchedulesRepo(db),
-    scanIndex: scanIndexRepo(db),
-    scanReports: scanReportsRepo(db),
-  };
-  return Object.fromEntries(
-    Object.entries(raw).map(([name, repo]) => [
-      name,
-      instrumentRepo(name, repo as Record<string, unknown>),
-    ]),
-  ) as unknown as Repos;
+  return instrumentModules([
+    createCandidatesRepos(db),
+    createCatalogRepos(db, catalogSources),
+    createCollectionsRepos(db),
+    createDecksRepos(db),
+    createGroupsRepos(db, ruleProviders),
+    createListsRepos(db, ruleProviders),
+    createMarketplaceRepos(db),
+    createMetaRepos(db),
+    createScanRepos(db),
+    createStageRepos(db),
+    createSystemRepos(db),
+    createTournamentsRepos(db),
+    createUsersRepos(db),
+  ]);
 }
 
 export type Transact = <T>(fn: (repos: Repos) => Promise<T>) => Promise<T>;
@@ -431,66 +107,17 @@ export function createTransact(db: Kysely<Database>): Transact {
     db.transaction().execute((trx) => fn(createRepos(trx)));
 }
 
-export const services: Services = {
-  ensureInbox,
-  logEvents,
-  clearCollection,
-  deleteCollection,
-  resetCollections,
-  addCopies,
-  moveCopies,
-  updateCopies,
-  moveListEntries,
-  disposeCopies,
-  getMappingOverview,
-  ingestCandidates,
-  ingestMetaOverlays,
-  ingestUserSubmission,
-  createScanReport,
-  promoteMetaEvent,
-  promoteNewEvent,
-  repromoteMetaEvents,
-  retierMetaEvents,
-  acceptMetaEventOverlay,
-  acceptMetaPlayerOverlay,
-  acceptMetaPlayerOverlays,
-  rejectMetaOverlay,
-  suggestMetaEventMatches,
-  suggestMetaPlayerMatches,
-  submitMetaDeck,
-  submitMetaEventCorrection,
-  notifyAdminsOfCardSubmission,
-  notifyAdminsOfGroupJoinRequest,
-  notifyMemberOfGroupApproval,
-  importErrata,
-  createTrade,
-  listTradeCopyOptions,
-  acceptTrade,
-  declineTrade,
-  cancelTrade,
-  setTradeQuantity,
-  applyTradeSync,
-  skipTradeSync,
-  createLoan,
-  returnLoanCopies,
-  writeOffLoan,
-  acknowledgeLoan,
-  rejectLoan,
-  deleteLoan,
-};
-
 export function createServices(emailDeps?: TradeEmailDeps): Services {
-  if (emailDeps === undefined) {
-    return services;
-  }
   return {
-    ...services,
-    createTrade: (repos, input) => createTrade(repos, input, emailDeps),
-    notifyAdminsOfCardSubmission: (repos, submission) =>
-      notifyAdminsOfCardSubmission(repos, submission, emailDeps),
-    notifyAdminsOfGroupJoinRequest: (repos, request) =>
-      notifyAdminsOfGroupJoinRequest(repos, request, emailDeps),
-    notifyMemberOfGroupApproval: (repos, approval) =>
-      notifyMemberOfGroupApproval(repos, approval, emailDeps),
+    ...createCandidatesServices(emailDeps),
+    ...createCollectionsServices(),
+    ...createGroupsServices(emailDeps),
+    ...createListsServices(),
+    ...createMarketplaceServices(),
+    ...createMetaServices(),
+    ...createScanServices(),
+    ...createSystemServices(),
   };
 }
+
+export const services: Services = createServices();

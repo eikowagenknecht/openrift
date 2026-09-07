@@ -1,0 +1,374 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- server-side hashing, never reaches the browser
+import { createHash } from "node:crypto";
+
+import {
+  buildContentHashInput,
+  mapSectionToZone,
+  SELF_SUBMIT_EXTERNAL_ID_PREFIX,
+} from "@openrift/shared/deck-check";
+import type { DeckCheckCardLine } from "@openrift/shared/deck-check";
+import { parsePiltoverDeckCode } from "@openrift/shared/deck-code";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import type { DeckCheckClaimResultResponse } from "@openrift/shared/types/api/deck-check";
+import type { CardType, SuperType } from "@openrift/shared/types/enums";
+import { WellKnown } from "@openrift/shared/well-known";
+import { inferZone } from "@openrift/shared/zone-inference";
+
+import type { Repos } from "../../../deps.js";
+import { AppError } from "../../../errors.js";
+import type {
+  DeckCheckEntry,
+  DeckCheckEvent,
+  NewDeckCheckEntryCard,
+} from "../repositories/deck-check.js";
+import { cardResolutionKey, resolveDeckCheckCards } from "./deck-check-card-resolution.js";
+
+function sha256(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+/**
+ * Claims a participant (a tournament "spot") via its claim token. Rooted on
+ * the participant, so it works with or without deck check. Resolves against
+ * the participant's current state:
+ *
+ * - unclaimed and not blocked: link it (`claim_link`);
+ * - already the caller's: idempotent no-op, the caller still lands on it
+ *   (a `judge_manual` link before the click stays `judge_manual`);
+ * - linked to a different account: refuse, do not steal;
+ * - `claim_blocked_at` set (a judge detached it): refuse;
+ * - the caller already holds a different spot in this tournament: refuse as
+ *   `duplicate` (one account per tournament), pointing at their existing spot.
+ *
+ * The token is the capability, so claiming never waits on email verification.
+ * `entryId` routes the caller to their deck when the tournament runs deck check,
+ * and is null otherwise. Returns null when the token matches no participant.
+ */
+export async function claimParticipantByToken(
+  repos: Repos,
+  token: string,
+  userId: string,
+): Promise<DeckCheckClaimResultResponse | null> {
+  const participant = await repos.tournaments.findParticipantByClaimToken(token);
+  if (!participant) {
+    return null;
+  }
+  if (participant.userId === userId) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(participant.id);
+    return { status: "already", tournamentId: participant.tournamentId, entryId: entryId ?? null };
+  }
+  if (participant.userId !== null) {
+    return { status: "conflict", tournamentId: null, entryId: null };
+  }
+  if (participant.claimBlockedAt !== null) {
+    return { status: "blocked", tournamentId: null, entryId: null };
+  }
+  // uq_tournament_participants_user: one account per tournament. Pre-check so a
+  // caller who already holds a spot gets a "duplicate" outcome, not a 500.
+  const existing = await repos.tournaments.findParticipantByUser(participant.tournamentId, userId);
+  if (existing) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(existing.id);
+    return {
+      status: "duplicate",
+      tournamentId: participant.tournamentId,
+      entryId: entryId ?? null,
+    };
+  }
+  // The update re-checks unclaimed + unblocked atomically, so a race between the
+  // read above and this write resolves to a refusal, not a steal.
+  let linked: Awaited<ReturnType<typeof repos.tournaments.linkParticipantByClaimTokenIfUnclaimed>>;
+  try {
+    linked = await repos.tournaments.linkParticipantByClaimTokenIfUnclaimed(
+      token,
+      userId,
+      "claim_link",
+    );
+  } catch (error) {
+    // A concurrent claim can trip uq_tournament_participants_user (23505)
+    // between the pre-check above and this write; treat it as "duplicate", not a 500.
+    if (error instanceof Error && "code" in error && error.code === "23505") {
+      const existingSpot = await repos.tournaments.findParticipantByUser(
+        participant.tournamentId,
+        userId,
+      );
+      if (existingSpot) {
+        const entryId = await repos.deckCheck.findEntryIdByParticipant(existingSpot.id);
+        return {
+          status: "duplicate",
+          tournamentId: participant.tournamentId,
+          entryId: entryId ?? null,
+        };
+      }
+    }
+    throw error;
+  }
+  if (linked) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(linked.id);
+    return { status: "claimed", tournamentId: linked.tournamentId, entryId: entryId ?? null };
+  }
+  const fresh = await repos.tournaments.findParticipantByClaimToken(token);
+  if (fresh?.userId === userId) {
+    const entryId = await repos.deckCheck.findEntryIdByParticipant(fresh.id);
+    return { status: "already", tournamentId: fresh.tournamentId, entryId: entryId ?? null };
+  }
+  if (fresh && fresh.userId === null && fresh.claimBlockedAt !== null) {
+    return { status: "blocked", tournamentId: null, entryId: null };
+  }
+  return { status: "conflict", tournamentId: null, entryId: null };
+}
+
+/**
+ * Builds the normalized card lines a player submission resolves to, in the
+ * same shape a provider push produces.
+ */
+export function buildPlayerLines(
+  repos: Repos,
+  userId: string,
+  input: {
+    deckId?: string;
+    deckCode?: string;
+    cards?: { name: string; quantity: number; section: string }[];
+  },
+): Promise<DeckCheckCardLine[]> {
+  if (input.deckId !== undefined) {
+    return linesFromOwnDeck(repos, userId, input.deckId);
+  }
+  if (input.deckCode !== undefined) {
+    return linesFromDeckCode(repos, input.deckCode);
+  }
+  if (input.cards !== undefined) {
+    return linesFromCardList(repos, input.cards);
+  }
+  throw new AppError(422, ERROR_CODES.VALIDATION_ERROR, "Provide a deck, code, or card list");
+}
+
+/**
+ * Maps a pasted text list's lines onto zones. An unknown section rejects the
+ * submission (like the manual judge entry), and main-zone lines whose card
+ * type allows exactly one zone (legend, rune, battlefield) are moved there:
+ * a paste without zone headers lands everything in main, and those types can
+ * never legally live in it. The chosen champion cannot be inferred; it needs
+ * a "Champion:" header, and the legality preview flags it when missing.
+ */
+async function linesFromCardList(
+  repos: Repos,
+  cards: { name: string; quantity: number; section: string }[],
+): Promise<DeckCheckCardLine[]> {
+  const lines = cards.map((card) => {
+    const zone = mapSectionToZone(card.section);
+    if (!zone) {
+      throw new AppError(
+        422,
+        ERROR_CODES.VALIDATION_ERROR,
+        `Unknown deck section: ${card.section}`,
+      );
+    }
+    return { name: card.name, zone, quantity: card.quantity };
+  });
+
+  const mainLines = lines.filter((line) => line.zone === WellKnown.deckZone.MAIN);
+  if (mainLines.length === 0) {
+    return lines;
+  }
+  const resolutions = await resolveDeckCheckCards(
+    repos,
+    mainLines.map((line) => ({ name: line.name })),
+  );
+  const matchedIds = [
+    ...new Set(
+      [...resolutions.values()].flatMap((resolution) =>
+        resolution.resolvedCardId ? [resolution.resolvedCardId] : [],
+      ),
+    ),
+  ];
+  const details = await repos.deckCheck.getCardDetails(matchedIds);
+  for (const line of mainLines) {
+    const resolution = resolutions.get(cardResolutionKey(line.name));
+    const detail = resolution?.resolvedCardId ? details.get(resolution.resolvedCardId) : undefined;
+    if (detail) {
+      line.zone = inferZone(
+        detail.types as CardType[],
+        detail.superTypes as SuperType[],
+        "mainDeck",
+      );
+    }
+  }
+  return lines;
+}
+
+async function linesFromOwnDeck(
+  repos: Repos,
+  userId: string,
+  deckId: string,
+): Promise<DeckCheckCardLine[]> {
+  const deck = await repos.decks.getByIdForUser(deckId, userId);
+  if (!deck) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Deck not found");
+  }
+  const rows = await repos.decks.cardsWithDetails(deckId, userId);
+  return rows
+    .filter((row) => row.zone !== WellKnown.deckZone.OVERFLOW)
+    .map((row) => ({ name: row.cardName, zone: row.zone, quantity: row.quantity }));
+}
+
+/** An unknown short code becomes an unmatched line carrying the code as its raw name, not a silently dropped card. */
+async function linesFromDeckCode(repos: Repos, deckCode: string): Promise<DeckCheckCardLine[]> {
+  // parsePiltoverDeckCode owns the decode and the champion split (the encoder
+  // counts the chosen champion inside mainDeck, since it is a marker rather
+  // than an extra slot), so this only maps its entries onto catalog cards.
+  const { entries, warnings } = parsePiltoverDeckCode(deckCode.trim());
+  if (entries.length === 0) {
+    // The parser warns only when the code itself failed to decode. A code that
+    // decodes cleanly to nothing comes back with no entries and no warnings.
+    throw new AppError(
+      422,
+      ERROR_CODES.VALIDATION_ERROR,
+      warnings.length > 0 ? "The deck code could not be read" : "The deck code contains no cards",
+    );
+  }
+
+  const shortCodes = entries.flatMap((entry) => (entry.shortCode ? [entry.shortCode] : []));
+  const cardsByShortCode = await repos.deckCheck.getCardsByShortCodes(shortCodes);
+
+  return entries.map((entry) => {
+    const shortCode = entry.shortCode ?? "";
+    const card = cardsByShortCode.get(shortCode);
+    if (!card) {
+      return { name: shortCode, zone: WellKnown.deckZone.MAIN, quantity: entry.quantity };
+    }
+    return {
+      name: card.name,
+      zone: inferZone(card.types as CardType[], [], entry.sourceSlot),
+      quantity: entry.quantity,
+    };
+  });
+}
+
+/**
+ * Resolves player lines against the catalog into entry-card rows, the same
+ * way a provider push does. The section stores the zone slug, since a player
+ * submission has no provider vocabulary to preserve.
+ */
+export async function resolvePlayerCardRows(
+  repos: Repos,
+  lines: DeckCheckCardLine[],
+): Promise<NewDeckCheckEntryCard[]> {
+  const resolutions = await resolveDeckCheckCards(
+    repos,
+    lines.map((line) => ({ name: line.name })),
+  );
+  return lines.map((line, sortOrder) => {
+    const resolution = resolutions.get(cardResolutionKey(line.name)) ?? {
+      resolvedCardId: null,
+      resolvedPrintingId: null,
+      matchStatus: "unmatched" as const,
+    };
+    return {
+      sortOrder,
+      rawName: line.name,
+      section: line.zone,
+      zone: line.zone,
+      quantity: line.quantity,
+      ...resolution,
+    };
+  });
+}
+
+/** Sharing consent as submitted by the player; an absent flag is no statement. */
+export interface PlayerSharingConsent {
+  allowDeckPublishing?: boolean;
+  allowNameSharing?: boolean;
+  allowRiotIdSharing?: boolean;
+}
+
+function consentPatch(consent: PlayerSharingConsent): Partial<{
+  allowDeckPublishing: boolean;
+  allowNameSharing: boolean;
+  allowRiotIdSharing: boolean;
+}> {
+  return {
+    ...(consent.allowDeckPublishing === undefined
+      ? {}
+      : { allowDeckPublishing: consent.allowDeckPublishing }),
+    ...(consent.allowNameSharing === undefined
+      ? {}
+      : { allowNameSharing: consent.allowNameSharing }),
+    ...(consent.allowRiotIdSharing === undefined
+      ? {}
+      : { allowRiotIdSharing: consent.allowRiotIdSharing }),
+  };
+}
+
+/**
+ * Replaces an entry's card lines with the player's list and recomputes the
+ * content hash. The caller guards that the entry is `editable` — this never
+ * touches the state; the diff against the judge's baseline is computed when
+ * the player submits. An unchanged list is idempotent (but still records a
+ * changed sharing consent).
+ */
+export async function applyPlayerList(
+  repos: Repos,
+  entry: DeckCheckEntry,
+  lines: DeckCheckCardLine[],
+  cardRows: NewDeckCheckEntryCard[],
+  consent: PlayerSharingConsent = {},
+): Promise<DeckCheckEntry> {
+  const contentHash = sha256(buildContentHashInput(lines));
+  if (entry.contentHash === contentHash) {
+    const patch = consentPatch(consent);
+    if (Object.keys(patch).length > 0) {
+      const updated = await repos.deckCheck.updateEntry(entry.id, patch);
+      return updated ?? entry;
+    }
+    return entry;
+  }
+  const updated = await repos.deckCheck.updateEntry(entry.id, {
+    contentHash,
+    ...consentPatch(consent),
+  });
+  await repos.deckCheck.replaceEntryCards(entry.id, cardRows);
+  return updated ?? entry;
+}
+
+/**
+ * Creates a fresh self-submitted entry: born linked and `submitted` (the token
+ * link is an explicit send-for-review), keyed `openrift:<userId>` so a
+ * re-submission upserts the same entry, with the player fields populated from
+ * the account.
+ */
+export async function createSelfSubmittedEntry(
+  repos: Repos,
+  event: DeckCheckEvent,
+  account: { id: string; name: string | null; email: string; riotId: string | null },
+  lines: DeckCheckCardLine[],
+  cardRows: NewDeckCheckEntryCard[],
+  consent: PlayerSharingConsent = {},
+): Promise<DeckCheckEntry> {
+  // Attach to the account's existing entrant, or create one, born linked to
+  // the account either way.
+  const participant = await repos.tournaments.resolveOrCreateParticipant({
+    tournamentId: event.id,
+    userId: account.id,
+    // The profile's free-text Riot ID, snapshotted at submission.
+    riotId: account.riotId,
+    displayName: account.name?.trim() || account.email,
+    claimSource: "self_submit",
+    claimedAt: new Date(),
+    // A stranger submitting through the open link lands in the approval queue,
+    // not straight on the roster. An already-rostered caller is matched by
+    // account above and keeps their existing status.
+    status: "requested",
+  });
+  const entry = await repos.deckCheck.createEntry({
+    tournamentId: event.id,
+    participantId: participant.id,
+    externalId: `${SELF_SUBMIT_EXTERNAL_ID_PREFIX}${account.id}`,
+    submittedAt: new Date(),
+    ...consentPatch(consent),
+    contentHash: sha256(buildContentHashInput(lines)),
+    withdrawnAt: null,
+    state: "submitted",
+  });
+  await repos.deckCheck.replaceEntryCards(entry.id, cardRows);
+  return entry;
+}

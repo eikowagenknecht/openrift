@@ -8,12 +8,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { toGray } from "../../packages/shared/src/scan/image.js";
 import {
   DEFAULT_PLACEMENT_OPTIONS,
   createPlacementDetector,
-  centeredGuideQuad,
-  toGray,
-} from "../../packages/shared/src/scan/index.js";
+} from "../../packages/shared/src/scan/placement.js";
+import { centeredGuideQuad } from "../../packages/shared/src/scan/session.js";
 import { CLIPS, EXPECTED_PLACEMENTS, loadImage } from "./lib";
 
 function argValue(flag: string): string | undefined {

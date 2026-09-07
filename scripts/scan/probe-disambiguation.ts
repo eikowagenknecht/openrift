@@ -1,12 +1,13 @@
 // Offline calibration probe for printing disambiguation. Temporary analysis
 // tool; run with: bun scripts/scan/probe-disambiguation.ts
-import type { GrayImage, PrintingSignature } from "../../packages/shared/src/scan/index.js";
+import type { PrintingSignature } from "../../packages/shared/src/scan/disambiguate.js";
 import {
   bestShiftCorrelation,
   discriminativeMargin,
   printingSignature,
   textBandForType,
-} from "../../packages/shared/src/scan/index.js";
+} from "../../packages/shared/src/scan/disambiguate.js";
+import type { GrayImage } from "../../packages/shared/src/scan/types.js";
 import { loadCatalog } from "./catalog";
 import { listReferenceImages, loadImage } from "./lib";
 

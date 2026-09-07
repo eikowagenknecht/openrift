@@ -1,5 +1,5 @@
 import { createDb } from "../apps/api/src/db/connect.js";
-import { refreshCardmarketPrices } from "../apps/api/src/services/price-refresh/cardmarket.js";
+import { refreshCardmarketPrices } from "../apps/api/src/modules/marketplace/services/price-refresh/cardmarket.js";
 import { createLogger } from "../packages/shared/src/logger.js";
 import { requireEnv } from "./env.js";
 

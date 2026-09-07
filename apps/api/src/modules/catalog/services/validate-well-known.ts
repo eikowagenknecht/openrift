@@ -1,0 +1,54 @@
+import { WellKnown } from "@openrift/shared/well-known";
+
+import type { Database } from "../../../db/index.js";
+import type { wellKnownRepo } from "../repositories/well-known.js";
+
+/** `pk` varies per table: most use `slug`, `keywords` uses `name`, `languages` uses `code`. */
+const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
+  cardType: { table: "cardTypes", pk: "slug" },
+  domain: { table: "domains", pk: "slug" },
+  superType: { table: "superTypes", pk: "slug" },
+  finish: { table: "finishes", pk: "slug" },
+  artVariant: { table: "artVariants", pk: "slug" },
+  cardSize: { table: "cardSizes", pk: "slug" },
+  rarity: { table: "rarities", pk: "slug" },
+  deckFormat: { table: "deckFormats", pk: "slug" },
+  deckZone: { table: "deckZones", pk: "slug" },
+  keyword: { table: "keywords", pk: "name" },
+  language: { table: "languages", pk: "code" },
+};
+
+/** Call at startup after migrations have run, before accepting traffic. */
+export async function validateWellKnownSlugs(
+  repo: ReturnType<typeof wellKnownRepo>,
+): Promise<void> {
+  const errors: string[] = [];
+
+  for (const [category, slugs] of Object.entries(WellKnown)) {
+    const entry = TABLE_MAP[category];
+    if (!entry) {
+      continue;
+    }
+
+    const { table, pk } = entry;
+    const expectedSlugs = Object.values(slugs) as string[];
+
+    const rows = await repo.wellKnownStatus(table, pk, expectedSlugs);
+
+    const found = new Map(rows.map((row) => [row.slug, row.isWellKnown]));
+
+    for (const [name, slug] of Object.entries(slugs)) {
+      if (!found.has(slug)) {
+        errors.push(`WellKnown.${category}.${name} = "${slug}" not found in ${table}`);
+      } else if (!found.get(slug)) {
+        errors.push(
+          `WellKnown.${category}.${name} = "${slug}" exists in ${table} but is_well_known is false`,
+        );
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Well-known validation failed:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
+  }
+}

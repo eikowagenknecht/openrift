@@ -1,0 +1,461 @@
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { Repos } from "../../../deps.js";
+import { registerRouterForTest } from "../../../test/mount-router.js";
+import { readJson } from "../../../test/read-json.js";
+import type { Variables } from "../../../types.js";
+import { pricesRouter } from "./public-prices";
+
+const mockCatalogRepo = {
+  printingById: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+};
+
+const mockMarketplaceRepo = {
+  latestPrices: vi.fn(() => Promise.resolve([] as object[])),
+  sourcesForPrinting: vi.fn(() => Promise.resolve([] as object[])),
+  sourcesForPrintings: vi.fn((..._args: Parameters<Repos["marketplace"]["sourcesForPrintings"]>) =>
+    Promise.resolve([] as object[]),
+  ),
+  snapshots: vi.fn((..._args: Parameters<Repos["marketplace"]["snapshots"]>) =>
+    Promise.resolve([] as object[]),
+  ),
+};
+
+// Mounted the way production does: one OpenAPIHandler behind a catch-all.
+const app = new Hono<{ Variables: Variables }>();
+app.use("*", async (c, next) => {
+  c.set("repos", {
+    catalog: mockCatalogRepo,
+    marketplace: mockMarketplaceRepo,
+  } as never);
+  await next();
+});
+registerRouterForTest(app, pricesRouter);
+
+const dbPrice = {
+  printingId: "a0000000-0001-4000-a000-000000000001",
+  marketplace: "tcgplayer",
+  marketCents: 275,
+  lastSeen: "2026-03-01",
+  recordedAt: new Date("2026-03-01"),
+};
+
+const dbPriceFoil = {
+  printingId: "a0000000-0001-4000-a000-000000000002",
+  marketplace: "tcgplayer",
+  marketCents: 800,
+  lastSeen: "2026-03-01",
+  recordedAt: new Date("2026-03-01"),
+};
+
+const dbPrinting = {
+  id: "a0000000-0001-4000-a000-000000000001",
+  slug: "a0000000-0001-4000-a000-000000000001",
+};
+
+const dbMarketplaceSource = {
+  variantId: "ms-tcg-1",
+  externalId: 12_345,
+  marketplace: "tcgplayer",
+  printingId: "a0000000-0001-4000-a000-000000000001",
+};
+const dbMarketplaceSourceCM = {
+  variantId: "ms-cm-1",
+  externalId: 67_890,
+  marketplace: "cardmarket",
+  printingId: "a0000000-0001-4000-a000-000000000001",
+};
+
+const dbSnapshot = {
+  id: "snap-1",
+  variantId: "ms-tcg-1",
+  recordedAt: new Date("2026-03-01"),
+  marketCents: 275,
+  lowCents: 200,
+};
+
+// Kept for non-browser consumers.
+describe("GET /api/v1/prices", () => {
+  beforeEach(() => {
+    mockMarketplaceRepo.latestPrices.mockReset().mockResolvedValue([dbPrice, dbPriceFoil]);
+    mockCatalogRepo.printingById.mockReset();
+    mockMarketplaceRepo.sourcesForPrinting.mockReset();
+    mockMarketplaceRepo.snapshots.mockReset();
+  });
+
+  it("returns 200 with PricesResponse structure", async () => {
+    const res = await app.request("/api/v1/prices");
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.prices).toBeDefined();
+  });
+
+  it("emits market_cents as integer cents", async () => {
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 275 });
+  });
+
+  it("returns one entry per printing", async () => {
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 275 });
+    expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toEqual({ tcgplayer: 800 });
+  });
+
+  it("groups multiple marketplaces under the same printing", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "tcgplayer",
+        marketCents: 100,
+      },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "cardmarket",
+        marketCents: 200,
+      },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "cardtrader",
+        marketCents: 300,
+      },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({
+      tcgplayer: 100,
+      cardmarket: 200,
+      cardtrader: 300,
+    });
+  });
+
+  it("returns empty prices when no rows exist", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([]);
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.prices).toEqual({});
+  });
+
+  it("reports nothing as stale when every price shares the newest day", async () => {
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.stale).toEqual({});
+  });
+
+  it("flags a price last seen longer ago than the threshold", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      { ...dbPrice, lastSeen: "2026-03-01" },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000009",
+        marketplace: "cardtrader",
+        marketCents: 3222,
+        lastSeen: "2026-02-01",
+      },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+
+    expect(json.prices["a0000000-0001-4000-a000-000000000009"]).toEqual({ cardtrader: 3222 });
+    expect(json.stale).toEqual({ "a0000000-0001-4000-a000-000000000009": { cardtrader: 28 } });
+  });
+
+  it("leaves a price inside the threshold alone", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      { ...dbPrice, lastSeen: "2026-03-01" },
+      { ...dbPriceFoil, marketplace: "cardmarket", lastSeen: "2026-02-25" },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.stale).toEqual({});
+  });
+
+  it("ages prices against the newest observation, not the wall clock", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      { ...dbPrice, lastSeen: "2020-01-10" },
+      { ...dbPriceFoil, lastSeen: "2020-01-10" },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await readJson(res);
+    expect(json.stale).toEqual({});
+  });
+});
+
+describe("GET /api/v1/prices/:printingId/history", () => {
+  beforeEach(() => {
+    mockMarketplaceRepo.latestPrices.mockReset();
+    mockCatalogRepo.printingById.mockReset().mockResolvedValue(dbPrinting);
+    mockMarketplaceRepo.sourcesForPrinting
+      .mockReset()
+      .mockResolvedValue([dbMarketplaceSource, dbMarketplaceSourceCM]);
+    mockMarketplaceRepo.snapshots.mockReset().mockResolvedValue([dbSnapshot]);
+  });
+
+  it("returns 200 with PriceHistoryResponse structure", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.tcgplayer).toBeDefined();
+    expect(json.cardmarket).toBeDefined();
+    expect(json.cardtrader).toBeDefined();
+  });
+
+  it("returns tcgplayer data with available + productId", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.tcgplayer.available).toBe(true);
+    expect(json.tcgplayer.productId).toBe(12_345);
+  });
+
+  it("returns cardmarket data with available + productId", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.cardmarket.available).toBe(true);
+    expect(json.cardmarket.productId).toBe(67_890);
+  });
+
+  it("emits snapshot prices as integer cents and trims unused fields", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.tcgplayer.snapshots).toHaveLength(1);
+    expect(json.tcgplayer.snapshots[0].market).toBe(275);
+    expect(json.tcgplayer.snapshots[0].low).toBe(200);
+    expect(json.tcgplayer.snapshots[0].mid).toBeUndefined();
+    expect(json.tcgplayer.snapshots[0].high).toBeUndefined();
+  });
+
+  it("formats snapshot date as YYYY-MM-DD", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.tcgplayer.snapshots[0].date).toBe("2026-03-01");
+  });
+
+  it("returns unavailable sources for non-existent printing", async () => {
+    mockCatalogRepo.printingById.mockResolvedValue(undefined);
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-ffffffffffff/history");
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.tcgplayer.available).toBe(false);
+    expect(json.tcgplayer.snapshots).toEqual([]);
+    expect(json.cardmarket.available).toBe(false);
+    expect(json.cardmarket.snapshots).toEqual([]);
+  });
+
+  it("returns unavailable when no marketplace sources exist", async () => {
+    mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([]);
+    mockMarketplaceRepo.snapshots.mockResolvedValue([]);
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.tcgplayer.available).toBe(false);
+    expect(json.tcgplayer.productId).toBeNull();
+    expect(json.cardmarket.available).toBe(false);
+    expect(json.cardmarket.productId).toBeNull();
+  });
+
+  it("accepts range query parameter", async () => {
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=7d",
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects invalid range parameter with 400", async () => {
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=invalid",
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("defaults to 30d range when no range parameter is provided", async () => {
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    expect(res.status).toBe(200);
+    const cutoffArg = mockMarketplaceRepo.snapshots.mock.calls[0]?.[1];
+    expect(cutoffArg).toBeInstanceOf(Date);
+  });
+
+  it("uses null cutoff for 'all' range", async () => {
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=all",
+    );
+    expect(res.status).toBe(200);
+    const cutoffArg = mockMarketplaceRepo.snapshots.mock.calls[0]?.[1];
+    expect(cutoffArg).toBeNull();
+  });
+
+  it("accepts 90d range parameter", async () => {
+    const res = await app.request(
+      "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=90d",
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("returns cardtrader data when cardtrader source exists (low-only snapshot)", async () => {
+    const ctSource = {
+      variantId: "ms-ct-1",
+      externalId: 99_999,
+      marketplace: "cardtrader",
+      printingId: "a0000000-0001-4000-a000-000000000001",
+    };
+    mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([
+      dbMarketplaceSource,
+      dbMarketplaceSourceCM,
+      ctSource,
+    ]);
+    const ctSnapshot = {
+      id: "snap-ct-1",
+      variantId: "ms-ct-1",
+      recordedAt: new Date("2026-03-01"),
+      marketCents: null,
+      zeroLowCents: null,
+      lowCents: 150,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-ct-1") {
+        return [ctSnapshot];
+      }
+      if (variantId === "ms-tcg-1") {
+        return [dbSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.cardtrader.available).toBe(true);
+    expect(json.cardtrader.productId).toBe(99_999);
+    expect(json.cardtrader.snapshots).toHaveLength(1);
+    expect(json.cardtrader.snapshots[0].low).toBe(150);
+    expect(json.cardtrader.snapshots[0].market).toBeUndefined();
+  });
+
+  it("returns unavailable cardtrader when no source exists", async () => {
+    mockMarketplaceRepo.sourcesForPrinting.mockResolvedValue([dbMarketplaceSource]);
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.cardtrader.available).toBe(false);
+    expect(json.cardtrader.productId).toBeNull();
+    expect(json.cardtrader.snapshots).toEqual([]);
+  });
+
+  it("returns Cardmarket's avg as market and its low listing as low", async () => {
+    const cmSnapshot = {
+      id: "snap-cm-1",
+      variantId: "ms-cm-1",
+      recordedAt: new Date("2026-03-02"),
+      marketCents: 300,
+      lowCents: 150,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-cm-1") {
+        return [cmSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.cardmarket.snapshots[0].market).toBe(300);
+    expect(json.cardmarket.snapshots[0].low).toBe(150);
+    expect(json.cardmarket.snapshots[0].trend).toBeUndefined();
+    expect(json.cardmarket.snapshots[0].avg1).toBeUndefined();
+    expect(json.cardmarket.snapshots[0].date).toBe("2026-03-02");
+  });
+
+  it("falls back to marketCents for Cardmarket when lowCents is null", async () => {
+    const cmSnapshot = {
+      id: "snap-cm-2",
+      variantId: "ms-cm-1",
+      recordedAt: new Date("2026-03-03"),
+      marketCents: 300,
+      lowCents: null,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-cm-1") {
+        return [cmSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.cardmarket.snapshots[0].market).toBe(300);
+    expect(json.cardmarket.snapshots[0].low).toBeNull();
+  });
+
+  it("skips Cardmarket snapshots with neither low nor market price", async () => {
+    const cmSnapshot = {
+      id: "snap-cm-3",
+      variantId: "ms-cm-1",
+      recordedAt: new Date("2026-03-04"),
+      marketCents: null,
+      lowCents: null,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-cm-1") {
+        return [cmSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await readJson(res);
+    expect(json.cardmarket.snapshots).toEqual([]);
+  });
+
+  it("rejects non-UUID printingId with 400", async () => {
+    const res = await app.request("/api/v1/prices/not-a-uuid/history");
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("GET /api/v1/prices/marketplace-info", () => {
+  const printingA = "a0000000-0001-4000-a000-000000000001";
+  const printingB = "a0000000-0001-4000-a000-000000000002";
+
+  beforeEach(() => {
+    mockMarketplaceRepo.sourcesForPrintings.mockReset().mockResolvedValue([]);
+  });
+
+  it("rejects missing printings query with 400", async () => {
+    const res = await app.request("/api/v1/prices/marketplace-info");
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects invalid uuid with 400", async () => {
+    const res = await app.request("/api/v1/prices/marketplace-info?printings=not-a-uuid");
+    expect(res.status).toBe(400);
+  });
+
+  it("returns unavailable slots when no sources exist", async () => {
+    const res = await app.request(`/api/v1/prices/marketplace-info?printings=${printingA}`);
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.infos[printingA]).toEqual({
+      tcgplayer: { available: false, productId: null },
+      cardmarket: { available: false, productId: null },
+      cardtrader: { available: false, productId: null },
+    });
+  });
+
+  it("maps sources to per-marketplace productId", async () => {
+    mockMarketplaceRepo.sourcesForPrintings.mockResolvedValue([
+      { printingId: printingA, externalId: 12_345, marketplace: "tcgplayer" },
+      { printingId: printingA, externalId: 67_890, marketplace: "cardmarket" },
+      { printingId: printingB, externalId: 11_111, marketplace: "cardtrader" },
+    ]);
+    const res = await app.request(
+      `/api/v1/prices/marketplace-info?printings=${printingA},${printingB}`,
+    );
+    const json = await readJson(res);
+    expect(json.infos[printingA].tcgplayer).toEqual({ available: true, productId: 12_345 });
+    expect(json.infos[printingA].cardmarket).toEqual({ available: true, productId: 67_890 });
+    expect(json.infos[printingB].cardtrader).toEqual({ available: true, productId: 11_111 });
+    expect(json.infos[printingB].tcgplayer.available).toBe(false);
+  });
+
+  it("dedupes repeated printing ids before querying", async () => {
+    mockMarketplaceRepo.sourcesForPrintings.mockResolvedValue([]);
+    await app.request(
+      `/api/v1/prices/marketplace-info?printings=${printingA},${printingA},${printingB}`,
+    );
+    const ids = mockMarketplaceRepo.sourcesForPrintings.mock.calls[0]?.[0] as string[] | undefined;
+    expect(ids).toEqual([printingA, printingB]);
+  });
+});

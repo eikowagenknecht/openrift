@@ -1,0 +1,927 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  adminReq,
+  createTestContext,
+  refreshCardAggregates,
+  syncCardCardTypes,
+} from "../../../test/integration-context.js";
+import { readJson } from "../../../test/read-json.js";
+
+// Requires INTEGRATION_DB_URL. Entities created here use prefix UNM-.
+
+const USER_ID = "a0000000-0014-4000-a000-000000000001";
+
+const ctx = createTestContext(USER_ID);
+
+let setId: string;
+let cardId: string;
+let printingId: string;
+let secondCardId: string;
+
+if (ctx) {
+  const { db } = ctx;
+
+  const [setRow] = await db
+    .insertInto("sets")
+    .values({ slug: "UNM-TEST", name: "UNM Unified Test Set", printedTotal: 2, sortOrder: 101 })
+    .returning("id")
+    .execute();
+  setId = setRow!.id;
+
+  const [cardRow] = await db
+    .insertInto("cards")
+    .values({
+      slug: "UNM-001",
+      name: "UNM Alpha Card",
+      type: "unit",
+      might: null,
+      energy: 3,
+      power: null,
+      mightBonus: null,
+      keywords: [],
+      tags: [],
+    })
+    .returning("id")
+    .execute();
+  cardId = cardRow!.id;
+  await syncCardCardTypes(db);
+
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
+
+  const [printingRow] = await db
+    .insertInto("printings")
+    .values({
+      cardId,
+      setId,
+      shortCode: "UNM-001",
+      rarity: "common",
+      artVariant: "normal",
+      isSigned: false,
+      finish: "normal",
+      artist: "Test Artist",
+      publicCode: "UNM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
+      comment: null,
+      size: "standard",
+      language: "EN",
+    })
+    .returning("id")
+    .execute();
+  printingId = printingRow!.id;
+
+  const [secondCardRow] = await db
+    .insertInto("cards")
+    .values({
+      slug: "UNM-002",
+      name: "UNM Beta Card",
+      type: "spell",
+      might: null,
+      energy: 1,
+      power: null,
+      mightBonus: null,
+      keywords: [],
+      tags: [],
+    })
+    .returning("id")
+    .execute();
+  secondCardId = secondCardRow!.id;
+  await syncCardCardTypes(db);
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: secondCardId, domainSlug: "chaos", ordinal: 0 })
+    .execute();
+
+  await db
+    .insertInto("printings")
+    .values({
+      cardId: secondCardId,
+      setId,
+      shortCode: "UNM-002",
+      rarity: "rare",
+      artVariant: "normal",
+      isSigned: false,
+      finish: "normal",
+      artist: "Test Artist",
+      publicCode: "UNM",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
+      comment: null,
+      size: "standard",
+      language: "EN",
+    })
+    .returning("id")
+    .execute();
+
+  await db
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "tcgplayer", groupId: 10_300, name: "UNM TCG Group" })
+    .execute();
+  await db
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "cardmarket", groupId: 10_301, name: "UNM CM Group" })
+    .execute();
+  await db
+    .insertInto("marketplaceGroups")
+    .values({ marketplace: "cardtrader", groupId: 10_302, name: "UNM CT Group" })
+    .execute();
+
+  await db
+    .insertInto("marketplaceProducts")
+    .values({
+      marketplace: "tcgplayer",
+      externalId: 11_111,
+      groupId: 10_300,
+      productName: "UNM Alpha Card Normal",
+      finish: "normal",
+      language: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const tcgAlphaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "tcgplayer")
+    .where("externalId", "=", 11_111)
+    .where("finish", "=", "normal")
+    .where("language", "is", null)
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: tcgAlphaProduct.id,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 200,
+      lowCents: 120,
+      midCents: 160,
+      highCents: 300,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+    .execute();
+
+  await db
+    .insertInto("marketplaceProducts")
+    .values({
+      marketplace: "cardmarket",
+      externalId: 22_222,
+      groupId: 10_301,
+      productName: "UNM Alpha Card Normal",
+      finish: "normal",
+      language: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const cmAlphaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "cardmarket")
+    .where("externalId", "=", 22_222)
+    .where("finish", "=", "normal")
+    .where("language", "is", null)
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: cmAlphaProduct.id,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 180,
+      lowCents: 100,
+      midCents: null,
+      highCents: null,
+      trendCents: 150,
+      avg1Cents: 140,
+      avg7Cents: 145,
+      avg30Cents: 160,
+    })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+    .execute();
+
+  await db
+    .insertInto("marketplaceProducts")
+    .values({
+      marketplace: "tcgplayer",
+      externalId: 33_333,
+      groupId: 10_300,
+      productName: "UNM Beta Card Normal",
+      finish: "normal",
+      language: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const tcgBetaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "tcgplayer")
+    .where("externalId", "=", 33_333)
+    .where("finish", "=", "normal")
+    .where("language", "is", null)
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: tcgBetaProduct.id,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 500,
+      lowCents: 400,
+      midCents: 450,
+      highCents: 600,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+    .execute();
+
+  await db
+    .insertInto("marketplaceProducts")
+    .values({
+      marketplace: "cardtrader",
+      externalId: 44_444,
+      groupId: 10_302,
+      productName: "UNM Alpha Card Normal",
+      finish: "normal",
+      language: "EN",
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const ctAlphaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "cardtrader")
+    .where("externalId", "=", 44_444)
+    .where("finish", "=", "normal")
+    .where("language", "=", "EN")
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: ctAlphaProduct.id,
+      recordedAt: new Date("2026-02-01T10:00:00Z"),
+      marketCents: 150,
+      lowCents: 90,
+      midCents: 120,
+      highCents: 200,
+      trendCents: 130,
+      avg1Cents: 110,
+      avg7Cents: 115,
+      avg30Cents: 125,
+    })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+    .execute();
+
+  await refreshCardAggregates(db);
+}
+
+describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
+  const { app, db } = ctx!;
+
+  describe("GET /admin/marketplace-mappings (baseline)", () => {
+    it("returns groups, unmatchedProducts, and allCards", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      expect(res.status).toBe(200);
+
+      const json = await readJson(res);
+      expect(json.groups).toEqual(expect.any(Array));
+      expect(json.unmatchedProducts).toBeDefined();
+      expect(json.unmatchedProducts.tcgplayer).toEqual(expect.any(Array));
+      expect(json.unmatchedProducts.cardmarket).toEqual(expect.any(Array));
+      expect(json.allCards).toEqual(expect.any(Array));
+    });
+  });
+
+  describe("GET /admin/marketplace-mappings (seeded data)", () => {
+    it("returns merged groups with both tcgplayer and cardmarket data per card", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      expect(res.status).toBe(200);
+
+      const json = await readJson(res);
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+
+      expect(alphaGroup.tcgplayer).toBeDefined();
+      expect(alphaGroup.tcgplayer.stagedProducts).toEqual(expect.any(Array));
+      expect(alphaGroup.cardmarket).toBeDefined();
+      expect(alphaGroup.cardmarket.stagedProducts).toEqual(expect.any(Array));
+
+      expect(alphaGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
+      const tcgStaged = alphaGroup.tcgplayer.stagedProducts.find(
+        (p: { externalId: number }) => p.externalId === 11_111,
+      );
+      expect(tcgStaged).toBeDefined();
+
+      expect(alphaGroup.cardmarket.stagedProducts.length).toBeGreaterThanOrEqual(1);
+      const cmStaged = alphaGroup.cardmarket.stagedProducts.find(
+        (p: { externalId: number }) => p.externalId === 22_222,
+      );
+      expect(cmStaged).toBeDefined();
+    });
+
+    it("printings have tcgExternalId and cmExternalId fields", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+
+      for (const printing of alphaGroup.printings) {
+        expect("tcgExternalId" in printing).toBe(true);
+        expect("cmExternalId" in printing).toBe(true);
+      }
+    });
+
+    it("merged groups contain card metadata", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+      expect(alphaGroup.cardId).toBeTypeOf("string");
+      expect(alphaGroup.cardSlug).toBe("UNM-001");
+      expect(alphaGroup.domains).toContain("mind");
+      expect(alphaGroup.energy).toBe(3);
+      expect(alphaGroup.setName).toBe("UNM Unified Test Set");
+    });
+
+    it("groups contain both cards from seed data", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const cardNames = json.groups.map((g: { cardName: string }) => g.cardName);
+      expect(cardNames).toContain("UNM Alpha Card");
+      expect(cardNames).toContain("UNM Beta Card");
+    });
+
+    it("UNM Beta Card group has TCGPlayer data but no Cardmarket staged products", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const betaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Beta Card",
+      );
+      expect(betaGroup).toBeDefined();
+
+      expect(betaGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
+      expect(betaGroup.cardmarket.stagedProducts).toHaveLength(0);
+    });
+  });
+
+  describe("merged external IDs after mapping", () => {
+    it("printings reflect tcgExternalId after TCGPlayer mapping", async () => {
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 11_111,
+          groupId: 10_300,
+          productName: "UNM Alpha Card Normal",
+          finish: "normal",
+          language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const tcgProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "=", 11_111)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: tcgProduct.id,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 200,
+          lowCents: 120,
+          midCents: 160,
+          highCents: 300,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        })
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+        .execute();
+
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
+        }),
+      );
+
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+
+      const mapped = alphaGroup.printings.find(
+        (p: { printingId: string }) => p.printingId === printingId,
+      );
+      expect(mapped).toBeDefined();
+      expect(mapped.tcgExternalId).toBe(11_111);
+      expect(mapped.cmExternalId).toBeNull();
+
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+        ),
+      );
+    });
+
+    it("printings reflect cmExternalId after Cardmarket-only mapping", async () => {
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "cardmarket",
+          externalId: 22_222,
+          groupId: 10_301,
+          productName: "UNM Alpha Card Normal",
+          finish: "normal",
+          language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const cmProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardmarket")
+        .where("externalId", "=", 22_222)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: cmProduct.id,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 180,
+          lowCents: 100,
+          midCents: null,
+          highCents: null,
+          trendCents: 150,
+          avg1Cents: 140,
+          avg7Cents: 145,
+          avg30Cents: 160,
+        })
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+        .execute();
+
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
+        }),
+      );
+
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+
+      const mapped = alphaGroup.printings.find(
+        (p: { printingId: string }) => p.printingId === printingId,
+      );
+      expect(mapped).toBeDefined();
+      expect(mapped.cmExternalId).toBe(22_222);
+      expect(mapped.tcgExternalId).toBeNull();
+
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+        ),
+      );
+    });
+
+    it("printings reflect both tcgExternalId and cmExternalId after dual mapping", async () => {
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 11_111,
+          groupId: 10_300,
+          productName: "UNM Alpha Card Normal",
+          finish: "normal",
+          language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const tcgProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "=", 11_111)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: tcgProduct.id,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 200,
+          lowCents: 120,
+          midCents: 160,
+          highCents: 300,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        })
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+        .execute();
+
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "cardmarket",
+          externalId: 22_222,
+          groupId: 10_301,
+          productName: "UNM Alpha Card Normal",
+          finish: "normal",
+          language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const cmProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardmarket")
+        .where("externalId", "=", 22_222)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: cmProduct.id,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 180,
+          lowCents: 100,
+          midCents: null,
+          highCents: null,
+          trendCents: 150,
+          avg1Cents: 140,
+          avg7Cents: 145,
+          avg30Cents: 160,
+        })
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+        .execute();
+
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
+        }),
+      );
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
+        }),
+      );
+
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+
+      const mapped = alphaGroup.printings.find(
+        (p: { printingId: string }) => p.printingId === printingId,
+      );
+      expect(mapped).toBeDefined();
+      expect(mapped.tcgExternalId).toBe(11_111);
+      expect(mapped.cmExternalId).toBe(22_222);
+
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+        ),
+      );
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+        ),
+      );
+    });
+  });
+
+  describe("printing detail fields in merged groups", () => {
+    it("printings contain all expected metadata fields", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+      expect(alphaGroup.printings.length).toBeGreaterThanOrEqual(1);
+
+      const printing = alphaGroup.printings.find(
+        (p: { printingId: string }) => p.printingId === printingId,
+      );
+      expect(printing).toBeDefined();
+      expect(printing.shortCode).toBe("UNM-001");
+      expect(printing.rarity).toBe("common");
+      expect(printing.artVariant).toBe("normal");
+      expect(printing.isSigned).toBe(false);
+      expect(printing.markerSlugs).toEqual([]);
+      expect(printing.finish).toBe("normal");
+    });
+
+    it("merged group includes superTypes and might fields", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+      expect(alphaGroup.superTypes).toEqual(expect.any(Array));
+      expect(alphaGroup.might).toBeNull();
+      expect(alphaGroup.setId).toBeTypeOf("string");
+    });
+  });
+
+  describe("allCards response field", () => {
+    it("allCards entries have cardId, cardName, setName, and shortCodes", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      expect(json.allCards).toEqual(expect.any(Array));
+      expect(json.allCards.length).toBeGreaterThanOrEqual(2);
+
+      const alphaCard = json.allCards.find(
+        (c: { cardName: string }) => c.cardName === "UNM Alpha Card",
+      );
+      expect(alphaCard).toBeDefined();
+      expect(alphaCard.cardId).toBeTypeOf("string");
+      expect(alphaCard.cardName).toBe("UNM Alpha Card");
+      expect(alphaCard.setName).toBe("UNM Unified Test Set");
+      expect(alphaCard.shortCodes).toEqual(expect.any(Array));
+      expect(alphaCard.shortCodes.length).toBeGreaterThanOrEqual(1);
+      expect(alphaCard.shortCodes[0]).toBeTypeOf("string");
+    });
+  });
+
+  describe("unmatchedProducts response field", () => {
+    it("unmatchedProducts has separate tcgplayer and cardmarket arrays", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      expect(json.unmatchedProducts).toBeDefined();
+      expect(json.unmatchedProducts.tcgplayer).toEqual(expect.any(Array));
+      expect(json.unmatchedProducts.cardmarket).toEqual(expect.any(Array));
+    });
+  });
+
+  describe("Cardmarket data merged into TCGPlayer-initialized group", () => {
+    it("Alpha Card has both marketplace assignedProducts after dual mapping", async () => {
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "tcgplayer",
+          externalId: 11_111,
+          groupId: 10_300,
+          productName: "UNM Alpha Card Normal",
+          finish: "normal",
+          language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const tcgProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "=", 11_111)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: tcgProduct.id,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 200,
+          lowCents: 120,
+          midCents: 160,
+          highCents: 300,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        })
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+        .execute();
+
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "cardmarket",
+          externalId: 22_222,
+          groupId: 10_301,
+          productName: "UNM Alpha Card Normal",
+          finish: "normal",
+          language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const cmProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardmarket")
+        .where("externalId", "=", 22_222)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: cmProduct.id,
+          recordedAt: new Date("2026-02-01T10:00:00Z"),
+          marketCents: 180,
+          lowCents: 100,
+          midCents: null,
+          highCents: null,
+          trendCents: 150,
+          avg1Cents: 140,
+          avg7Cents: 145,
+          avg30Cents: 160,
+        })
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
+        .execute();
+
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=tcgplayer", {
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
+        }),
+      );
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=cardmarket", {
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
+        }),
+      );
+
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const alphaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
+      );
+      expect(alphaGroup).toBeDefined();
+
+      expect(alphaGroup.tcgplayer.assignedProducts).toEqual(expect.any(Array));
+      expect(alphaGroup.tcgplayer.assignedProducts.length).toBeGreaterThanOrEqual(1);
+
+      expect(alphaGroup.cardmarket.assignedProducts).toEqual(expect.any(Array));
+      expect(alphaGroup.cardmarket.assignedProducts.length).toBeGreaterThanOrEqual(1);
+
+      expect(alphaGroup.tcgplayer.stagedProducts).toHaveLength(0);
+      expect(alphaGroup.cardmarket.stagedProducts).toHaveLength(0);
+
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=tcgplayer&printingId=${printingId}&externalId=11111&finish=normal`,
+        ),
+      );
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=cardmarket&printingId=${printingId}&externalId=22222&finish=normal`,
+        ),
+      );
+    });
+
+    it("Beta Card Cardmarket section has empty assignedProducts and stagedProducts", async () => {
+      const res = await app.fetch(adminReq("GET", "/marketplace-mappings"));
+      const json = await readJson(res);
+
+      const betaGroup = json.groups.find(
+        (g: { cardName: string }) => g.cardName === "UNM Beta Card",
+      );
+      expect(betaGroup).toBeDefined();
+
+      expect(betaGroup.cardmarket.stagedProducts).toHaveLength(0);
+      expect(betaGroup.cardmarket.assignedProducts).toHaveLength(0);
+    });
+  });
+
+  // Lookup must key on (finish, language), not just the blueprint id, which
+  // CardTrader fans out across multiple variant rows.
+  describe("DELETE /admin/marketplace-mappings unmaps the exact CT SKU", () => {
+    const ctBlueprintId = 44_445;
+    const ctGroupId = 10_302;
+
+    async function seedCtSibling(language: string): Promise<string> {
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "cardtrader",
+          externalId: ctBlueprintId,
+          groupId: ctGroupId,
+          productName: `UNM CT Sibling ${language}`,
+          finish: "normal",
+          language,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const product = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardtrader")
+        .where("externalId", "=", ctBlueprintId)
+        .where("finish", "=", "normal")
+        .where("language", "=", language)
+        .executeTakeFirstOrThrow();
+      return product.id;
+    }
+
+    it("removes only the (finish, language) variant the admin clicked", async () => {
+      const enProductId = await seedCtSibling("EN");
+      const scProductId = await seedCtSibling("SC");
+
+      await app.fetch(
+        adminReq("POST", "/marketplace-mappings?marketplace=cardtrader", {
+          mappings: [
+            { printingId, externalId: ctBlueprintId, finish: "normal", language: "EN" },
+            { printingId, externalId: ctBlueprintId, finish: "normal", language: "SC" },
+          ],
+        }),
+      );
+
+      const beforeUnmap = await db
+        .selectFrom("marketplaceProductVariants")
+        .select(["marketplaceProductId"])
+        .where("printingId", "=", printingId)
+        .where("marketplaceProductId", "in", [enProductId, scProductId])
+        .execute();
+      expect(beforeUnmap.map((v) => v.marketplaceProductId).sort()).toEqual(
+        [enProductId, scProductId].sort(),
+      );
+
+      const res = await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=SC`,
+        ),
+      );
+      expect(res.status).toBe(204);
+
+      const afterUnmap = await db
+        .selectFrom("marketplaceProductVariants")
+        .select(["marketplaceProductId"])
+        .where("printingId", "=", printingId)
+        .where("marketplaceProductId", "in", [enProductId, scProductId])
+        .execute();
+      expect(afterUnmap.map((v) => v.marketplaceProductId)).toEqual([enProductId]);
+
+      await app.fetch(
+        adminReq(
+          "DELETE",
+          `/marketplace-mappings?marketplace=cardtrader&printingId=${printingId}&externalId=${ctBlueprintId}&finish=normal&language=EN`,
+        ),
+      );
+    });
+  });
+});

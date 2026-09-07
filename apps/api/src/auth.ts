@@ -10,8 +10,8 @@ import { isLocalDevOrigin, matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
 import { sanitizeDisplayName, validateDisplayName } from "./display-name.js";
 import type { createEmailSender } from "./email.js";
-import { adminsRepo } from "./repositories/admins.js";
-import { collectionsRepo } from "./repositories/collections.js";
+import { collectionsRepo } from "./modules/collections/repositories/collections.js";
+import { adminsRepo } from "./modules/users/repositories/admins.js";
 
 export function createAuth(deps: {
   config: ReturnType<typeof createConfig>;

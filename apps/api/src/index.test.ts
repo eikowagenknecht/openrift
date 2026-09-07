@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { HealthStatus } from "./repositories/health.js";
-import { healthRoute } from "./routes/public/health.js";
+import type { HealthStatus } from "./modules/system/repositories/health.js";
+import { healthRoute } from "./modules/system/routes/public-health.js";
 import { readJson } from "./test/read-json.js";
 import type { Variables } from "./types.js";
 

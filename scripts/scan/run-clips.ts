@@ -13,25 +13,21 @@ import path from "node:path";
 
 import type { CatchUpVerdict } from "../../apps/web/src/lib/scan-catchup.js";
 import { catchUpVerdict } from "../../apps/web/src/lib/scan-catchup.js";
-import type {
-  EmbedBank,
-  EmbedKind,
-  OpenCvLike,
-  OrbCvLike,
-  Quad,
-  RgbaImage,
-  ScanSession,
-} from "../../packages/shared/src/scan/index.js";
+import type { OpenCvLike } from "../../packages/shared/src/scan/detect-cv.js";
+import type { EmbedBank, EmbedKind } from "../../packages/shared/src/scan/embed.js";
+import { quadIou } from "../../packages/shared/src/scan/geometry.js";
+import { toGray } from "../../packages/shared/src/scan/image.js";
+import type { OrbCvLike } from "../../packages/shared/src/scan/orb.js";
+import { createPlacementDetector } from "../../packages/shared/src/scan/placement.js";
+import type { ScanSession } from "../../packages/shared/src/scan/session.js";
 import {
   DEFAULT_SESSION_OPTIONS,
   GUIDE_MIN_IOU,
   centeredGuideQuad,
-  createPlacementDetector,
   createScanSession,
   gatesForEmbedDim,
-  quadIou,
-  toGray,
-} from "../../packages/shared/src/scan/index.js";
+} from "../../packages/shared/src/scan/session.js";
+import type { Quad, RgbaImage } from "../../packages/shared/src/scan/types.js";
 import { describe, loadCatalog } from "./catalog";
 import { CANONICAL_BANK, EMBED_SIZE, loadEmbedBank, nodeEmbedder } from "./embed-bank";
 import {

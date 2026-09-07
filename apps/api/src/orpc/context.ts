@@ -4,10 +4,10 @@ import type { Context } from "hono";
 import type { Repos, Services, Transact } from "../deps.js";
 import { AppError } from "../errors.js";
 import type { Io } from "../io.js";
-import { mapAuthError } from "../lib/better-auth-error.js";
 import { resolveSession } from "../middleware/load-session.js";
 import type { AdminAccess } from "../middleware/require-admin.js";
-import type { JobScheduler } from "../services/job-scheduler.js";
+import type { JobScheduler } from "../modules/system/services/job-scheduler.js";
+import { mapAuthError } from "../modules/users/lib/better-auth-error.js";
 import type { Auth, Config, Variables } from "../types.js";
 
 type SessionUser = NonNullable<Variables["user"]>;

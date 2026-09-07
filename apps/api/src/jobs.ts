@@ -5,13 +5,28 @@ import type { Database } from "./db/index.js";
 import type { Repos } from "./deps.js";
 import { createTransact } from "./deps.js";
 import type { createEmailSender } from "./email.js";
-import { extractWatermark, postChangelogToDiscord } from "./services/changelog-discord.js";
 import {
   flushPendingPrintingEvents,
   isPrintingFlushNoop,
-} from "./services/flush-printing-events.js";
-import type { AnyJobDefinition } from "./services/job-scheduler.js";
-import { defineJob } from "./services/job-scheduler.js";
+} from "./modules/catalog/services/flush-printing-events.js";
+import {
+  extractDigestWatermark,
+  isTradeMatchDigestNoop,
+  sendTradeMatchDigest,
+} from "./modules/groups/services/trade-match-digest.js";
+import {
+  flushCoalescedTradeRequests,
+  isTradeRequestFlushNoop,
+} from "./modules/groups/services/trade-notifications.js";
+import {
+  flushTradeStatusEmails,
+  isTradeStatusFlushNoop,
+} from "./modules/groups/services/trade-status-notifications.js";
+import {
+  refreshCardmarketPrices,
+  refreshCardtraderPrices,
+  refreshTcgplayerPrices,
+} from "./modules/marketplace/services/price-refresh/index.js";
 import {
   createMetaSyncDeps,
   createPlayloltcgSyncDeps,
@@ -29,25 +44,13 @@ import {
   syncCatalog,
   syncPlayloltcgCatalog,
   syncTopdeckCatalog,
-} from "./services/meta-sync/index.js";
+} from "./modules/meta/services/meta-sync/index.js";
 import {
-  refreshCardmarketPrices,
-  refreshCardtraderPrices,
-  refreshTcgplayerPrices,
-} from "./services/price-refresh/index.js";
-import {
-  extractDigestWatermark,
-  isTradeMatchDigestNoop,
-  sendTradeMatchDigest,
-} from "./services/trade-match-digest.js";
-import {
-  flushCoalescedTradeRequests,
-  isTradeRequestFlushNoop,
-} from "./services/trade-notifications.js";
-import {
-  flushTradeStatusEmails,
-  isTradeStatusFlushNoop,
-} from "./services/trade-status-notifications.js";
+  extractWatermark,
+  postChangelogToDiscord,
+} from "./modules/system/services/changelog-discord.js";
+import type { AnyJobDefinition } from "./modules/system/services/job-scheduler.js";
+import { defineJob } from "./modules/system/services/job-scheduler.js";
 import type { Config } from "./types.js";
 
 const JOB_RUNS_RETENTION_DAYS = 30;

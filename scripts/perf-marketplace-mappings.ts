@@ -1,8 +1,8 @@
 import { createDb } from "../apps/api/src/db/connect.js";
 import { createRepos } from "../apps/api/src/deps.js";
-import { createMarketplaceConfigs } from "../apps/api/src/routes/admin/marketplace-configs.js";
-import { getMappingOverview } from "../apps/api/src/services/marketplace-mapping.js";
-import { buildUnifiedMappingsResponse } from "../apps/api/src/services/unified-mapping-merge.js";
+import { createMarketplaceConfigs } from "../apps/api/src/modules/marketplace/lib/marketplace-configs.js";
+import { getMappingOverview } from "../apps/api/src/modules/marketplace/services/marketplace-mapping.js";
+import { buildUnifiedMappingsResponse } from "../apps/api/src/modules/marketplace/services/unified-mapping-merge.js";
 import { requireEnv } from "./env.js";
 
 const { db } = createDb(requireEnv("DATABASE_URL"));

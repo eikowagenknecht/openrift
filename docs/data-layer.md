@@ -422,7 +422,7 @@ Price observations at a point in time, one stream per product SKU. All monetary 
 
 Primary key on `(marketplace_product_id, recorded_at)` — one row per SKU per fetch cycle, regardless of how many printings are bound to that SKU. **Anything counting price rows must aggregate them on their own**: joining variants and prices off the same product multiplies each price row by the product's variant count.
 
-Two materialized views sit on top: `mv_daily_printing_prices` (the headline-price rule and the cheapest-bound-SKU aggregation, per printing per day) and `mv_latest_printing_prices` (its latest day). Every surface that prices a printing reads one of those, so they agree by construction — see `marketplaceRepo` in `apps/api/src/repositories/marketplace.ts`.
+Two materialized views sit on top: `mv_daily_printing_prices` (the headline-price rule and the cheapest-bound-SKU aggregation, per printing per day) and `mv_latest_printing_prices` (its latest day). Every surface that prices a printing reads one of those, so they agree by construction — see `marketplaceRepo` in `apps/api/src/modules/marketplace/repositories/marketplace.ts`.
 
 ### `marketplace_product_card_overrides`
 
@@ -664,7 +664,7 @@ Email verification tokens. Rows are deleted by better-auth after use, and expire
 Card data is ingested via JSON upload through the admin API (`POST /api/admin/candidates/upload`). External scripts produce JSON files conforming to `candidateUploadSchema`, which are uploaded through the admin UI or API directly. See `docs/adr/008-supplemental-card-import.md` for design rationale.
 
 - JSON payload contains a `provider` label and an array of `candidates`, each with card metadata and printings
-- Validated against `uploadCandidatesSchema` (defined in `apps/api/src/routes/admin/candidate-cards/schemas.ts`)
+- Validated against `uploadCandidatesSchema` (defined in the shared contract `packages/shared/src/contracts/admin/card-mutations.ts`)
 - Ingested by `ingestCandidates()` which matches by `(provider, short_code)` or `(provider, name)`, inserting new records or updating changed ones
 - New candidate cards are staged with `checked_at = null` until reviewed in the admin UI
 - All operations are transactional per-card

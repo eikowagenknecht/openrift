@@ -4,7 +4,7 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-import type { RgbaImage } from "../../packages/shared/src/scan/index.js";
+import type { RgbaImage } from "../../packages/shared/src/scan/types.js";
 
 export const REPO_ROOT = path.resolve(import.meta.dir, "../..");
 export const MEDIA_CARDS = path.join(REPO_ROOT, "media/cards");

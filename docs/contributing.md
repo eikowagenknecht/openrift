@@ -52,18 +52,20 @@ The QueryClient's default mutation `onError` (`apps/web/src/lib/query-client.ts`
 
 ## Database access
 
-All queries go through repository functions in `apps/api/src/repositories/`. Routes and services never touch `db` / Kysely directly; add a method to the appropriate repository. Route handlers reach repos via `c.get("repos")`.
+All queries go through repository functions in `apps/api/src/modules/<domain>/repositories/`. Routes and services never touch `db` / Kysely directly; add a method to the appropriate repository. Route handlers reach repos via `c.get("repos")`.
 
 PostgreSQL stores timestamps with microsecond precision, JavaScript `Date` with milliseconds. When comparing a `Date` against a `timestamptz` column (cursor pagination, for example), wrap the column in `date_trunc('milliseconds', ...)`. Without this, equality checks silently fail.
 
 ## API module layout
 
-`apps/api/src` has exactly four homes for non-route code, and every file belongs to one of them. There is no `utils/` directory — it existed alongside `lib/` with no rule separating them, the two drifted, and it was folded into `lib/`.
+`apps/api/src/modules/<domain>/` holds one directory per domain (`catalog`, `candidates`, `marketplace`, `collections`, `decks`, `lists`, `groups`, `tournaments`, `meta`, `stage`, `scan`, `chat`, `users`, `system`), and inside a module every file belongs to one of four homes. There is no `utils/` directory — it existed alongside `lib/` with no rule separating them, the two drifted, and it was folded into `lib/`.
 
 - **`repositories/`** — all database access. Routes and services reach it through `c.get("repos")`; nothing else may touch `db` / Kysely.
 - **`services/`** — orchestration that has side effects or owns a workflow: sending mail, writing images to disk, running a job, ingesting a provider feed.
 - **`lib/`** — everything shared that isn't a repository or a service. A `lib/` module may take `Repos` and await reads (`loadGroupForMember`, `expandRuleListCounts`, `loadMarkerAndChannelMaps`); the line is side effects and workflow ownership, not whether it touches the database.
-- **`routes/`** — the HTTP surface. Logic worth testing on its own moves down into `lib/`.
+- **`routes/`** — the HTTP surface, one file per contract module, named `<area>-<name>.ts` for `public`, `authenticated` and `admin`. Logic worth testing on its own moves down into `lib/`.
+
+Each module's `wiring.ts` declares its slice of `Repos` and `Services` and the factory that builds it; `apps/api/src/deps.ts` only composes the modules. Code that no single domain owns stays at the top level: `src/lib/` (cursor codec, error helpers, share tokens) and `src/repositories/query-helpers.ts`. A new file goes into the module that owns the table or contract it serves; a file that serves two modules goes into the one that owns the data, and the other reaches it through `Repos` or an import.
 
 Imports point down: `db` < `repositories` < `lib` < `services` < `routes`. The one two-way edge is `lib` and `repositories`: `lib/` may take `Repos`, and a repository may import a pure `lib/` helper. oxlint enforces the rest through the overrides in `apps/api/.oxlintrc.json`: routes import repository types but never repository values, services and `lib/` never import from `routes/`, `lib/` never imports a service, and only `repositories/` imports `db`. A request schema both a route and a service need lives in the shared contract. A helper both need lives in `lib/`. Test files are exempt so integration tests can seed through repository modules.
 

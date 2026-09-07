@@ -8,7 +8,7 @@
     {
       // Imports point down the layer order db < repositories < lib < services < routes
       // (docs/contributing.md, API module layout). Type imports may point anywhere.
-      "files": ["src/routes/**"],
+      "files": ["src/**/routes/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -30,7 +30,7 @@
       }
     },
     {
-      "files": ["src/services/**"],
+      "files": ["src/**/services/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -51,7 +51,7 @@
       }
     },
     {
-      "files": ["src/lib/**"],
+      "files": ["src/**/lib/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
@@ -72,7 +72,7 @@
       }
     },
     {
-      "files": ["src/repositories/**"],
+      "files": ["src/**/repositories/**"],
       "rules": {
         "no-restricted-imports": [
           "error",

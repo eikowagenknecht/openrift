@@ -2,8 +2,8 @@ import { sql } from "kysely";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { buildKeysetCursor } from "../lib/keyset-cursor.js";
+import { adminEventsRepo } from "../modules/system/repositories/admin-events.js";
 import { createDbContext } from "../test/integration-context.js";
-import { adminEventsRepo } from "./admin-events.js";
 
 // Keyset cursor pagination against real microsecond timestamps. Requires
 // INTEGRATION_DB_URL. Rows seed into admin_events under a random actor id

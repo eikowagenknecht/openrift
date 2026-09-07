@@ -1,5 +1,5 @@
 import { createDb } from "../apps/api/src/db/connect.js";
-import { marketplaceAdminRepo } from "../apps/api/src/repositories/marketplace-admin.js";
+import { marketplaceAdminRepo } from "../apps/api/src/modules/marketplace/repositories/marketplace-admin.js";
 import { requireEnv } from "./env.js";
 
 const { db } = createDb(requireEnv("DATABASE_URL"));

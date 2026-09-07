@@ -10,6 +10,11 @@ describe("createRepos", () => {
     const expectedKeys = [
       "collectionEvents",
       "admins",
+      "cardTrades",
+      "meta",
+      "scanIndex",
+      "stagePresets",
+      "tournaments",
       "candidateCards",
       "cardErrata",
       "catalog",

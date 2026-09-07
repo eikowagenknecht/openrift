@@ -1,0 +1,190 @@
+import type { TypographyTarget } from "@openrift/shared/contracts/admin/typography-review";
+import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/typography-review";
+import { ERROR_CODES } from "@openrift/shared/error-codes";
+import { fixTypography } from "@openrift/shared/fix-typography";
+import { implement } from "@orpc/server";
+import type { Updateable } from "kysely";
+
+import type { PrintingsTable } from "../../../db/index.js";
+import { AppError } from "../../../errors.js";
+import { requireAuthedUser } from "../../../orpc/base.js";
+import type { ApiContext } from "../../../orpc/context.js";
+
+const os = implement(adminTypographyReviewContract).$context<ApiContext>().use(requireAuthedUser);
+
+interface TypographyDiff {
+  target: TypographyTarget;
+  name: string;
+  current: string;
+  proposed: string;
+}
+
+type PrintingTarget = Extract<TypographyTarget, { entity: "printing" }>;
+
+interface TextFieldConfig<TField> {
+  field: TField;
+  options?: { italicParens?: boolean; keywordGlyphs?: boolean };
+}
+
+const errataTextFields: TextFieldConfig<"correctedRulesText" | "correctedEffectText">[] = [
+  { field: "correctedRulesText" },
+  { field: "correctedEffectText" },
+];
+
+const printingTextFields: TextFieldConfig<PrintingTarget["field"]>[] = [
+  { field: "printedRulesText" },
+  { field: "printedEffectText" },
+  { field: "flavorText", options: { italicParens: false, keywordGlyphs: false } },
+  { field: "printedName", options: { italicParens: false, keywordGlyphs: false } },
+];
+
+/** Column list is explicit: the switch's exhaustiveness check depends on it. */
+function printingUpdateFor(
+  field: PrintingTarget["field"],
+  proposed: string,
+): Updateable<PrintingsTable> {
+  switch (field) {
+    case "printedRulesText": {
+      return { printedRulesText: proposed };
+    }
+    case "printedEffectText": {
+      return { printedEffectText: proposed };
+    }
+    case "flavorText": {
+      return { flavorText: proposed };
+    }
+    case "printedName": {
+      return { printedName: proposed };
+    }
+    default: {
+      const unhandled: never = field;
+      throw new AppError(
+        400,
+        ERROR_CODES.VALIDATION_ERROR,
+        `Unsupported printing field: ${String(unhandled)}`,
+      );
+    }
+  }
+}
+
+const labelTypographyOptions = { italicParens: false, keywordGlyphs: false };
+
+function fixTagList(tags: string[]): string[] {
+  return tags.map((tag) => fixTypography(tag, labelTypographyOptions));
+}
+
+export const adminTypographyReviewRouter = {
+  list: os.list.handler(async ({ context }) => {
+    const { catalog, keywords } = context.repos;
+    const costKeywords = await keywords.listCostKeywords();
+    const diffs: TypographyDiff[] = [];
+
+    const cards = await catalog.cards();
+    const cardNameById = new Map(cards.map((card) => [card.id, card.name]));
+
+    for (const card of cards) {
+      const proposedName = fixTypography(card.name, labelTypographyOptions);
+      if (proposedName !== card.name) {
+        diffs.push({
+          target: { entity: "card", id: card.id, field: "name" },
+          name: card.name,
+          current: card.name,
+          proposed: proposedName,
+        });
+      }
+      const proposedTags = fixTagList(card.tags);
+      const tagsChanged = proposedTags.some((tag, idx) => tag !== card.tags[idx]);
+      if (tagsChanged) {
+        diffs.push({
+          target: { entity: "card", id: card.id, field: "tags" },
+          name: card.name,
+          current: card.tags.join(", "),
+          proposed: proposedTags.join(", "),
+        });
+      }
+    }
+
+    const errataRows = await catalog.cardErrata();
+    for (const errata of errataRows) {
+      const cardName = cardNameById.get(errata.cardId) ?? "unknown";
+      for (const { field, options } of errataTextFields) {
+        const current = errata[field];
+        if (current === null) {
+          continue;
+        }
+        const proposed = fixTypography(current, { ...options, costKeywords });
+        if (proposed !== current) {
+          diffs.push({
+            target: { entity: "card", id: errata.cardId, field },
+            name: cardName,
+            current,
+            proposed,
+          });
+        }
+      }
+    }
+
+    const printings = await catalog.printings();
+    for (const printing of printings) {
+      for (const { field, options } of printingTextFields) {
+        const current = printing[field];
+        if (current === null) {
+          continue;
+        }
+        const proposed = fixTypography(current, { ...options, costKeywords });
+        if (proposed !== current) {
+          diffs.push({
+            target: { entity: "printing", id: printing.id, field },
+            name: cardNameById.get(printing.cardId) ?? printing.shortCode,
+            current,
+            proposed,
+          });
+        }
+      }
+    }
+
+    return { diffs };
+  }),
+
+  accept: os.accept.handler(async ({ input, context }): Promise<void> => {
+    const { catalog, catalogMutations: mut, cardErrata } = context.repos;
+    const { target, proposed } = input;
+
+    if (target.entity === "card") {
+      const { id, field } = target;
+      if (field === "name") {
+        await mut.updateCardById(id, { name: proposed });
+        return;
+      }
+      if (field === "tags") {
+        // `proposed` is the client's joined display string, not authoritative tags.
+        const allCards = await catalog.cards();
+        const card = allCards.find((row) => row.id === id);
+        if (!card) {
+          throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
+        }
+        await mut.updateCardById(id, { tags: fixTagList(card.tags) });
+        return;
+      }
+
+      const errata = await cardErrata.getByCardId(id);
+      if (!errata) {
+        throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card errata not found");
+      }
+      await cardErrata.upsert(id, {
+        ...errata,
+        ...(field === "correctedRulesText"
+          ? { correctedRulesText: proposed }
+          : { correctedEffectText: proposed }),
+      });
+      return;
+    }
+
+    const { id, field } = target;
+    const printing = await catalog.printingById(id);
+    if (!printing) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
+    }
+    await mut.updatePrintingById(id, printingUpdateFor(field, proposed));
+  }),
+};

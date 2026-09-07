@@ -15,10 +15,10 @@ import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
 import { createJobDefinitions } from "./jobs.js";
 import { isDroppableTransientRejection } from "./lib/transient-network-error.js";
-import { wellKnownRepo } from "./repositories/well-known.js";
-import { createJobScheduler } from "./services/job-scheduler.js";
-import { configureRenderPool } from "./services/render-pool.js";
-import { validateWellKnownSlugs } from "./services/validate-well-known.js";
+import { wellKnownRepo } from "./modules/catalog/repositories/well-known.js";
+import { validateWellKnownSlugs } from "./modules/catalog/services/validate-well-known.js";
+import { createJobScheduler } from "./modules/system/services/job-scheduler.js";
+import { configureRenderPool } from "./modules/system/services/render-pool.js";
 
 const env = process.env as Record<string, string | undefined>;
 // In containers, the deploy SHA is written to /app/.build-id by the Dockerfile.
