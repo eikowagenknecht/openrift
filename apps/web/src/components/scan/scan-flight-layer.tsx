@@ -6,35 +6,16 @@ import type { FlightRect } from "@/lib/scan-flight";
 
 /** One card in flight from the camera guide to the session tray. */
 export interface ScanFlight {
-  /** Stable for the lifetime of the flight; the key React and callbacks use. */
   id: string;
-  /** A data URL snapshot of the locked card, from `snapshotVideoRect`. */
   image: string;
-  /** Where the card starts, in viewport coordinates. */
   source: FlightRect;
 }
 
-/**
- * How many snapshots may be airborne at once. Each one is a data URL of a video
- * frame, and a fast scanner locks several cards a second, so the oldest are
- * retired early rather than left to pile up.
- */
 const MAX_CONCURRENT_FLIGHTS = 4;
-
-/** Slight overshoot at the arrival end, so the card settles instead of stopping. */
 const FLIGHT_EASING = "cubic-bezier(0.34, 1.24, 0.64, 1)";
-
-/** Fraction of the flight the card stays fully opaque before fading out. */
 const FADE_START = 0.6;
-
-/** Grace period after which a flight is retired even if `finish` never fires. */
 const FINISH_GRACE_MS = 400;
 
-/**
- * Reads the user's motion preference.
- *
- * @returns True when the user asked for reduced motion.
- */
 function prefersReducedMotion(): boolean {
   if (typeof globalThis.matchMedia !== "function") {
     return false;
@@ -42,13 +23,6 @@ function prefersReducedMotion(): boolean {
   return globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/**
- * Where a card flies when there is no target element (an empty session, or a
- * tray that is not mounted yet): the bottom centre of the viewport, shrunk,
- * which is where the tray sits on phones anyway.
- *
- * @returns A target rect in viewport coordinates.
- */
 function fallbackTargetRect(source: FlightRect): FlightRect {
   const width = source.width * 0.35;
   const height = source.height * 0.35;
@@ -62,16 +36,6 @@ function fallbackTargetRect(source: FlightRect): FlightRect {
   };
 }
 
-/**
- * One in-flight snapshot. Mounts at its source rect and drives itself with the
- * Web Animations API, so no React state changes while it travels.
- *
- * The element is placed with `left`/`top` and animated with `transform` only,
- * which keeps the animated value a pure delta from the source rect and keeps
- * the flight off the layout path.
- *
- * @returns The fixed-position image element.
- */
 function FlightCard({
   flight,
   targetRef,
@@ -84,16 +48,11 @@ function FlightCard({
   const nodeRef = useRef<HTMLImageElement>(null);
   const { id, source } = flight;
 
-  // A flight is immutable once started: its snapshot and source rect are a
-  // moment in time, and restarting it mid-air on a parent re-render would make
-  // the card jump. So the effect runs once per id and reads the rest through
-  // refs.
   const targetRefRef = useRef(targetRef);
   const onEndRef = useRef(onEnd);
   const sourceRef = useRef(source);
 
-  // Mirrored in an effect rather than during render: writing a ref while
-  // rendering makes the React Compiler bail out of the component.
+  // Writing a ref during render makes the React Compiler bail out of the component.
   useEffect(() => {
     targetRefRef.current = targetRef;
     onEndRef.current = onEnd;
@@ -111,8 +70,7 @@ function FlightCard({
       onEndRef.current(id);
     };
 
-    // Reduced motion, or a browser without the Web Animations API: never show
-    // the card. It renders transparent, so nothing flashes on the way out.
+    // Reduced motion, or a browser without the Web Animations API: never show the card.
     if (node === null || prefersReducedMotion() || typeof node.animate !== "function") {
       finish();
       return;
@@ -127,8 +85,8 @@ function FlightCard({
     );
     const options: KeyframeAnimationOptions = { duration: plan.durationMs, fill: "forwards" };
 
-    // Transform and opacity run as separate animations so the overshoot easing
-    // applies across the whole path while the fade keeps its own late start.
+    // Keep transform and opacity as separate animations: merging them would
+    // apply the fade's linear easing to the overshoot translate too.
     const move = node.animate(
       [
         {
@@ -150,8 +108,7 @@ function FlightCard({
     );
 
     move.addEventListener("finish", finish);
-    // A backgrounded tab can swallow the finish event; without a backstop the
-    // snapshot's data URL would be held for the rest of the session.
+    // A backgrounded tab can swallow the finish event; this timer is the backstop.
     const timer = globalThis.setTimeout(finish, plan.durationMs + FINISH_GRACE_MS);
 
     return () => {
@@ -180,35 +137,20 @@ function FlightCard({
   );
 }
 
-/**
- * Decoration over the scan page: flies a snapshot of each locked card from the
- * camera guide into the session tray, so the card in the user's hand is tied to
- * the row that appears.
- *
- * The layer takes rects, so it makes no assumption about where the camera or
- * the tray sit. It never intercepts input and is hidden from assistive tech.
- * Under `prefers-reduced-motion` nothing is drawn and each flight ends at once.
- *
- * @returns The fixed overlay, or null when nothing is in flight.
- */
 export function ScanFlightLayer({
   flights,
   targetRef,
   onFlightEnd,
   maxConcurrent = MAX_CONCURRENT_FLIGHTS,
 }: {
-  /** Active flights, oldest first. The caller drops each one on `onFlightEnd`. */
   flights: readonly ScanFlight[];
-  /** The element to fly into — typically the session tray's newest row. */
   targetRef: RefObject<HTMLElement | null>;
-  /** Called once per flight when it lands, so the caller can release the image. */
   onFlightEnd: (id: string) => void;
   maxConcurrent?: number;
 }) {
   const limit = Math.max(1, maxConcurrent);
   const visible = flights.slice(-limit);
-  // Compared by value, not identity: the caller may hand a fresh array on every
-  // render, and re-firing the callback for the same ids would be wasted work.
+  // Compared by value, not identity: the caller may hand a fresh array on every render.
   const droppedKey = flights
     .slice(0, Math.max(0, flights.length - limit))
     .map((flight) => flight.id)

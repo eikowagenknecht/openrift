@@ -7,23 +7,12 @@ import { dispatchDecrement, dispatchIncrement } from "@/stores/card-row-actions-
 interface CountWithAddControlsProps {
   printing: Printing;
   ownedCount: number;
-  /**
-   * Optional aggregate count rendered in parens after `ownedCount` when the
-   * two differ (e.g. `2 (5)` for "2 here, 5 total"). Omit to render only the
-   * primary count.
-   */
   totalOwnedCount?: number;
 }
 
 /**
- * Shared visual for the wide actions cell: primary count, optional `(total)`
- * hint, and the +/- buttons. Both CatalogTableActions and CollectionTableActions
- * use this — they differ only in how they compute the counts.
- *
  * Increments and decrements go through the module-stable trampolines on the
  * card-row-actions store; the active surface registers handlers there.
- *
- * @returns The count + buttons content (no wrapper — CardTableRow renders that).
  */
 export function CountWithAddControls({
   printing,

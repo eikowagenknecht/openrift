@@ -15,14 +15,11 @@ interface FanSlot {
 
 type FanSize = "xs" | "sm" | "lg";
 
-/** Per-size fan geometry: card width (px) and slot layouts indexed by fan size. */
 interface FanSpec {
   cardWidth: number;
   layouts: readonly (readonly FanSlot[])[];
 }
 
-// `xs` is the archive's podium fan (winner centered, in front). `sm` is the
-// products tile; `lg` the event hero, at larger card sizes.
 const FAN_SPECS: Record<FanSize, FanSpec> = {
   xs: {
     cardWidth: 64,
@@ -80,7 +77,6 @@ const FAN_SPECS: Record<FanSize, FanSpec> = {
   },
 };
 
-/** @returns The absolute-positioning classes for one fan card at `width`. */
 function fanCardClass(anchor: "bottom" | "center"): string {
   return cn("aspect-card absolute left-1/2", anchor === "bottom" ? "bottom-[-14px]" : "top-1/2");
 }
@@ -102,10 +98,9 @@ function fanCardStyle(
   };
 }
 
-/** One fan cover: a self-hosted image id, or a direct `src` (demos, externals). */
+/** A self-hosted image id, or a direct `src` for demos and external art. */
 type FanCover = { key: string } & ({ imageId: string } | { src: string });
 
-/** @returns The img source attributes for one cover at the size's variant. */
 function coverSources(
   cover: FanCover,
   cardWidth: number,
@@ -122,25 +117,17 @@ function coverSources(
 }
 
 interface CardFanProps {
-  /** The art to fan, in display order; slots beyond the layout are ignored. */
   covers: readonly FanCover[];
   /** `xs` is the archive's podium fan, `sm` the products tile, `lg` the event hero. */
   size?: FanSize;
-  /** `bottom` bleeds off the band's bottom edge; `center` floats mid-band. */
   anchor?: "bottom" | "center";
-  /**
-   * Loads the fan eagerly at high fetch priority. Set it on the fans that are
-   * above the fold (the first row of tiles) — a lazy fan there is the page's
-   * LCP element and the lazy attribute delays it by a full round trip.
-   */
+  /** Set on above-the-fold fans: this is the page's LCP element, lazy loading it costs a round trip. */
   priority?: boolean;
 }
 
 /**
  * Up to four card images fanned like a physical spread, absolutely positioned
  * inside a `CoverBand` (or any relative host).
- *
- * @returns The fanned card images.
  */
 export function CardFan({ covers, size = "sm", anchor = "bottom", priority }: CardFanProps) {
   const spec = FAN_SPECS[size];
@@ -167,18 +154,12 @@ export function CardFan({ covers, size = "sm", anchor = "bottom", priority }: Ca
   );
 }
 
-/** Rotations for the outline fan: two dashed side cards behind an opaque center. */
 const OUTLINE_ROTATIONS = [-12, 12, 0];
 
 /**
  * The house empty-fan signature (see `EmptyCardFan` in
- * `components/empty-state.tsx`), sized for a `CoverBand`: two dashed side
- * cards splaying from a shared bottom origin behind an opaque center card, so
- * the outlines never overlap each other's dashes. The stand-in when there is
- * no art to show (imageless tiles, decks not yet submitted). An optional icon
- * sits in the center card, where it adds meaning without carrying the visual.
- *
- * @returns The absolutely-positioned outline elements (host must be relative).
+ * `components/empty-state.tsx`), sized for a `CoverBand`. Stand-in for when
+ * there is no art to show (imageless tiles, decks not yet submitted).
  */
 export function CardFanOutline({
   size = "sm",

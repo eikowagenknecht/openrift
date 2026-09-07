@@ -24,28 +24,17 @@ import {
   sniffDeckImportFormat,
 } from "@/lib/deck-import-parsers";
 
-/** A list pasted into the comparison, held for the session rather than saved. */
+/** A list pasted into the comparison, held only for the session; not persisted. */
 export interface PastedCompareSource {
   cards: DeckDiffCard[];
-  /** Lines that matched no catalog card, so the page can own up to them. */
   unmatched: string[];
-  /**
-   * Exactly what was pasted, kept so the page can hand it to /decks/import if
-   * the comparison turns out to be worth keeping. Not re-serialised from
-   * `cards`: the import flow reads every format this dialog does, and the raw
-   * text carries whatever the parse here dropped.
-   */
   text: string;
 }
 
 /** Either the parsed entries, or the message to show instead. */
 type EntriesResult = { entries: DeckImportEntry[] } | { error: string };
 
-/**
- * Loads a shared deck by token, mirroring what /decks/import does with a
- * pasted OpenRift share link.
- * @returns The shared deck's cards as import entries, or the failure message.
- */
+/** Mirrors what /decks/import does with a pasted OpenRift share link. */
 async function entriesFromShareToken(
   queryClient: QueryClient,
   token: string,
@@ -61,12 +50,7 @@ async function entriesFromShareToken(
   }
 }
 
-/**
- * Turns pasted text into import entries. A URL resolves through the share API
- * or yields the deck code embedded in it; anything else is sniffed and parsed
- * by the same codecs the import page uses.
- * @returns The parsed entries, or the message to show instead.
- */
+/** A URL resolves through the share API or yields the deck code embedded in it; anything else is sniffed and parsed by the same codecs the import page uses. */
 async function resolveCompareEntries(
   queryClient: QueryClient,
   text: string,
@@ -87,15 +71,6 @@ async function resolveCompareEntries(
   return { entries };
 }
 
-/**
- * Reads a deck code, share link or card list into one side of the comparison.
- * The result is handed back to the page and kept there for the session, never
- * in the URL or the deck list: a pasted list is something to look at first.
- * Keeping it is the page's Save button, which hands the raw text to
- * /decks/import rather than saving anything from here.
- *
- * @returns The dialog.
- */
 export function DeckComparePasteDialog({
   open,
   onOpenChange,

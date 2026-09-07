@@ -19,8 +19,6 @@ afterEach(() => {
 
 describe("MatchSeamControls", () => {
   it("renders without an update loop while a game is in progress", () => {
-    // Regression: a selector that mapped players to fresh objects defeated
-    // useShallow and looped until React threw "Maximum update depth exceeded".
     useMatchTrackerStore.getState().startGame();
     render(<MatchSeamControls />);
     expect(screen.getByRole("button", { name: /roll for first player/iu })).toBeInTheDocument();

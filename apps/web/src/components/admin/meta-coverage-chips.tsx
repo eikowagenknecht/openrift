@@ -4,17 +4,6 @@ import { CheckIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
-// What an accepted catalogue row has actually pulled back from the source
-// (ADR-014). The counts are staged, not archived: they say what the last deep
-// fetch found, which is the thing the recheck ladder is chasing.
-
-/**
- * The staged coverage fields, so the chips can be rendered from a bare row.
- * Spelled out rather than picked off {@link MetaCatalogRow}: the second source
- * publishes neither a display status nor a decklist status, and its start is a
- * calendar day it may not know, so both tabs meet here rather than each growing
- * its own chips.
- */
 export interface MetaCoverageRow {
   triage: MetaCatalogRow["triage"];
   displayStatus: string;
@@ -27,15 +16,6 @@ export interface MetaCoverageRow {
   startAt: string | null;
 }
 
-/**
- * Where the recheck ladder has this event. An accepted event is visited hourly
- * while it runs and on a slowing schedule afterwards, so "when is the next
- * visit" is a different question from "what did the last one find".
- *
- * @param row - The accepted catalogue row.
- * @param now - The instant the relative times are measured against.
- * @returns The hint, or an empty string when there is nothing to say.
- */
 function coverageRecheckHint(row: MetaCoverageRow, now: Date): string {
   if (row.triage !== "accepted") {
     return "";
@@ -69,18 +49,8 @@ function CoverageChip({
   );
 }
 
-/**
- * The staged coverage of one accepted catalogue row: standings, the legends
- * among them, and the decklists. Nothing is drawn for a row that is not
- * accepted, because nothing has been fetched for it.
- *
- * @param row - The catalogue row.
- * @param now - The instant the recheck hint is measured against; defaults to real time.
- * @returns The coverage chips, or null when the row is not accepted.
- */
 export function MetaCoverageChips({ row, now }: { row: MetaCoverageRow; now?: Date }) {
-  // Resolved in the body, not as a parameter default: the React Compiler cannot
-  // lower a destructuring default whose value is a call.
+  // React Compiler cannot lower a destructuring default whose value is a call.
   const at = now ?? new Date();
 
   if (row.triage !== "accepted") {

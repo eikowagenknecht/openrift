@@ -15,18 +15,8 @@ import type { TradeShelfRow } from "@/lib/trade-hub";
 import { buildTradeShelf } from "@/lib/trade-hub";
 import { cn } from "@/lib/utils";
 
-/** How many thumbs a row shows before the rest collapse into the "+N" pill. */
 const MAX_THUMBS = 5;
 
-/**
- * One shelf row: what the cards are, the cards themselves, and the sentence
- * saying how many of what and with whom.
- *
- * The count lives in the sentence rather than beside the strip, because the
- * strip is deduplicated to distinct printings and the two numbers legitimately
- * differ (several members can offer the same card).
- * @returns The row element.
- */
 function ShelfRow({
   row,
   printingsById,
@@ -56,17 +46,6 @@ function ShelfRow({
   );
 }
 
-/**
- * The overview's trades band: one row per thing actually going on, each showing
- * the cards behind it.
- *
- * Rows are drawn only when they have something in them, so a quiet group is a
- * headline and nothing else rather than a grid of zeros, and every count is
- * spoken with the noun it counts. The whole band is the link to the group's
- * Trades page, where each person's pile is worked through — so nothing inside
- * the band is interactive, and the CTA is decoration on the band's own anchor.
- * @returns The trades band.
- */
 export function TradesHubBand({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: tradesData } = useGroupTrades(data.group.id);
@@ -74,9 +53,7 @@ export function TradesHubBand({ slug, data }: { slug: string; data: FriendGroupD
   const { printingsById } = useCards();
 
   const trades = tradesData?.items ?? [];
-  // Suggestions already covered by a live trade in any group are not
-  // opportunities any more (falling back to this group's own trades until the
-  // all-groups list loads).
+  // Falls back to this group's own trades until the all-groups list loads.
   const liveTrades = allTradesData?.items ?? trades;
   const shelf = buildTradeShelf({
     needsYou: trades.filter((trade) => needsViewerAction(trade)),

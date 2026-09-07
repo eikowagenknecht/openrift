@@ -65,24 +65,16 @@ import { cn } from "@/lib/utils";
 
 interface ContributeFormProps {
   initial: ContributeFormState;
-  /**
-   * When set, the slug input is locked: the form is correcting an existing
-   * card and the slug must round-trip to the same `contributions/<slug>.json`
-   * file after the consolidation Action runs.
-   */
+  /** Locks the slug input: it must round-trip to `contributions/<slug>.json`. */
   lockedSlug?: string;
 }
 
 export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const [state, setState] = useState<ContributeFormState>(initial);
-  // What the form last opened *or was prefilled* with. `handleSubmit` diffs
-  // against it, so picking an existing card makes that card's printings the
-  // baseline and only the ones the contributor then edits reach the queue.
+  // handleSubmit diffs against this to send only edited printings.
   const [baseline, setBaseline] = useState<ContributeFormState>(initial);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [submitted, setSubmitted] = useState(false);
-  // Index of the printing whose fields are expanded; null when all are closed.
-  // The live preview and the layout help follow it, falling back to the first.
   const [activePrinting, setActivePrinting] = useState<number | null>(0);
   const [note, setNote] = useState("");
 
@@ -91,16 +83,12 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const { orders, labels } = useEnumOrders();
   const languages = useLanguageList();
   const markerOptions = useMarkerList();
-  // Leaf channels only (printings link to leaves), each shown with its full
-  // breadcrumb path via the shared channel-tree helper.
   const channelOptions = leafChannels(buildChannelTree(useChannelRegistry())).map((node) => ({
     slug: node.channel.slug,
     label: node.breadcrumb,
   }));
   const { data: setListData } = useSuspenseQuery(publicSetListQueryOptions);
 
-  // Once a submission has succeeded, the next edit means the contributor is
-  // working on a fresh entry — clear the success banner and re-enable submit.
   const clearSuccess = () => {
     if (submit.isSuccess) {
       submit.reset();
@@ -179,8 +167,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     setBaseline(prefilled);
     setErrors([]);
     setSubmitted(false);
-    // Everything closed: the point of prefilling is to show at a glance which
-    // printings the card already has, so the contributor can copy the closest.
     setActivePrinting(null);
   };
 
@@ -201,8 +187,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     const result = validateContribution(state);
     setErrors(result.errors);
     if (!result.ok) {
-      // A closed printing renders none of its field errors, so open the first
-      // one that failed. Without this the form looks like it ignored the click.
+      // Opens the first failed printing: closed ones render none of their field errors.
       const failed = [...printingErrorIndexes(result.errors)].toSorted((a, b) => a - b);
       const first = failed[0];
       if (first !== undefined) {
@@ -210,8 +195,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
       }
       return;
     }
-    // Printings the contributor never touched are left out of the payload so
-    // the admin column shows only real proposals.
     submit.mutate(buildSubmissionPayload(state, note, baseline));
   };
 
@@ -219,8 +202,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     submitted ? errors.find((e) => e.path === path)?.message : undefined;
 
   const sets = setListData.sets;
-  // Each row names itself the way the card detail panel does: against its
-  // siblings, so shared attributes drop out and only the differences show.
   const markerLabels = Object.fromEntries(markerOptions.map((m) => [m.slug, m.label]));
   const printingVariants = state.printings.map((p) => toVariantLabelPrinting(p, markerLabels));
   const printingsWithErrors = submitted ? printingErrorIndexes(errors) : new Set<number>();
@@ -468,13 +449,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   );
 }
 
-/**
- * Extracts a contributor-facing message from a failed submission. The endpoint's
- * daily-cap and validation errors already carry a readable message; anything
- * else falls back to a generic line.
- * @param error The mutation error.
- * @returns A message to show the contributor.
- */
 function submitErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : "";
   return message || "Something went wrong. Please try again in a moment.";
@@ -500,12 +474,6 @@ const LAYOUT_LEGEND: { label: string; region: string }[] = [
 /** Matches the `printings[3].publicCode` form-state paths `validateContribution` returns. */
 const PRINTING_ERROR_PATH = /^printings\[(?<index>\d+)\]\./u;
 
-/**
- * Which printings failed validation, so a closed one can still show that
- * something inside it needs attention.
- * @param errors Validation errors in form-state path form.
- * @returns The set of printing indexes carrying at least one error.
- */
 function printingErrorIndexes(errors: ValidationError[]): Set<number> {
   const indexes = new Set<number>();
   for (const error of errors) {
@@ -655,13 +623,9 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
 interface PrintingCardProps {
   index: number;
   printing: ContributeFormPrinting;
-  /** This printing in the shared labeller's shape; undefined only if the arrays desync. */
   variant?: VariantLabelPrinting;
-  /** Every printing on the form, the set the label disambiguates against. */
   siblings: VariantLabelPrinting[];
-  /** Only the open printing renders its fields; the rest stay one summary row. */
   open: boolean;
-  /** Set once the contributor has submitted and this printing failed validation. */
   hasError: boolean;
   onToggle: () => void;
   errorAt: (path: string) => string | undefined;
@@ -743,10 +707,6 @@ function PrintingCard({
           )}
         </CardAction>
       </CardHeader>
-      {/* A closed printing drops its fields rather than hiding them: prefilling
-          from an existing card can bring in 40, and mounting a dozen selects
-          each is pointless. `hasError` is what keeps a problem in a closed
-          printing visible, since its own field errors render nowhere. */}
       {open && (
         <CardContent className="flex flex-col gap-4">
           <FieldRow

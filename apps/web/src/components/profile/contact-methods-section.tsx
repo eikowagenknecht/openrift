@@ -65,7 +65,6 @@ function TypeSelect({
   );
 }
 
-// One saved method, editable in place; saves on the explicit button when dirty.
 function ContactMethodRow({ method }: { method: ContactMethod }) {
   const [type, setType] = useState<ContactMethodType>(method.type);
   const [value, setValue] = useState(method.value);

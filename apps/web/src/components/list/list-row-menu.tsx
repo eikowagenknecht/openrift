@@ -21,19 +21,10 @@ import { ListEditDialog } from "./list-edit-dialog";
 
 interface ListRowMenuProps {
   list: ListResponse;
-  /** True when this list's page is the one open — a delete has to navigate away. */
   isActive: boolean;
   children: ReactNode;
 }
 
-/**
- * Right-click (long-press on touch) menu for a list row in the collections
- * sidebar. Covers what the list summary already knows — rename and trade
- * defaults, the share link when the list is public, sidebar visibility and
- * delete. Actions that need the list's entries loaded (export, the share
- * dialog itself) stay on the list page.
- * @returns The row wrapped in a context-menu trigger, plus its dialogs.
- */
 export function ListRowMenu({ list, isActive, children }: ListRowMenuProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -46,9 +37,8 @@ export function ListRowMenu({ list, isActive, children }: ListRowMenuProps) {
   const shareUrl =
     list.isPublic && list.shareToken ? `${getSiteUrl()}/lists/share/${list.shareToken}` : null;
 
-  // The menu closes on click, so the hook's inline "Copied" never gets a chance
-  // to show — the toast is the feedback here. Clipboard writes never reach the
-  // global mutation error handler, so the failure path says so itself.
+  // The menu closes on click, so the hook's inline "Copied" state never shows;
+  // the toast is the feedback here instead.
   const handleCopyLink = async () => {
     if (!shareUrl) {
       return;

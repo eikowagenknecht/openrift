@@ -99,9 +99,7 @@ describe("FilterIconCluster", () => {
         ["calm", 0],
       ]),
     });
-    // Count rides the label so it stays available without an inline number.
     expect(screen.getByRole("button", { name: "Fury (7)" })).toBeInTheDocument();
-    // Zero-count, unselected → dimmed.
     expect(screen.getByRole("button", { name: "Calm (0)" }).className).toContain("opacity-40");
   });
 
@@ -120,7 +118,6 @@ describe("FilterIconCluster", () => {
 
   it("stays icon-only without showLabels, keeping the name in the tooltip", () => {
     renderCluster({ iconPath: () => "/icons/domains/fury.svg" });
-    // Accessible name stays, but no visible text label.
     const toggle = screen.getByRole("button", { name: "Fury" });
     expect(toggle.textContent).toBe("");
   });
@@ -131,17 +128,14 @@ describe("FilterIconCluster", () => {
       counts: new Map([["fury", 7]]),
       showLabels: true,
     });
-    // Muted count like the panel badges; icon-only mode keeps it in the tooltip.
     const labelSpan = screen.getByText("Fury");
     // The gap between label and count is margin, so textContent has no space.
     expect(labelSpan).toHaveTextContent("Fury7");
   });
 
   it("slashes the icon of an excluded option", () => {
-    // Regression: domain/rarity icons are webp artwork, so the destructive text
-    // colour can't reach them, and icon-only mode has no text to strike. The
-    // exclusion used to read as nothing but a 10% red wash, which is easy to
-    // mistake for the included state's grey fill.
+    // Domain/rarity icons are webp artwork, so the destructive text colour
+    // can't reach them; the slash icon carries the excluded state instead.
     renderCluster({ iconPath: () => "/images/domains/fury.webp", excluded: ["fury"] });
     const excludedToggle = screen.getByRole("button", { name: "Exclude Fury" });
     expect(excludedToggle.querySelector("[data-slot='exclude-slash']")).toBeInTheDocument();
@@ -216,7 +210,6 @@ describe("FilterDropdownChip", () => {
     );
     const trigger = screen.getByRole("button", { name: "Energy 1–3" });
     expect(trigger).toHaveTextContent("Energy 1–3");
-    // The bare count is suppressed in favour of the readable value.
     expect(trigger.textContent).not.toContain("(1)");
   });
 });
@@ -302,7 +295,6 @@ describe("OwnedFilterChip", () => {
     expect(screen.getByRole("button", { name: "None" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Partial Playset" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "More than Full" })).toBeInTheDocument();
-    // The slider row is labelled by its gutter text.
     expect(screen.getByText("Copies")).toBeInTheDocument();
   });
 
@@ -312,8 +304,7 @@ describe("OwnedFilterChip", () => {
     render(<OwnedFilterChip availableFilters={makeAvailable()} ownedCountMax={4} />);
     await user.click(screen.getByRole("button", { name: "Full Playset" }));
     const row = await screen.findAllByRole("button", { name: "Full Playset" });
-    // The trigger (also named "Full Playset" via the summary) is not pressed;
-    // the popover row is.
+    // Two matches share the name "Full Playset": the trigger and the popover row; only the row is pressed.
     expect(row.some((el) => el.getAttribute("aria-pressed") === "true")).toBe(true);
     expect(
       screen.getByRole("button", { name: "Partial Playset" }).getAttribute("aria-pressed"),

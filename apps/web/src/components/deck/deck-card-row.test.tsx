@@ -21,9 +21,6 @@ describe("PowerDomainIcon", () => {
     expect(pip.getAttribute("src")).toBe("/images/domains/fury.webp");
   });
 
-  // Drift: this drew the colorless *domain* icon, which means "no domain", not
-  // "any domain". The card art, the designer and the glossary all use the
-  // rainbow rune as the wild Power symbol, and the deck rows now agree.
   it("shows the wild rune for a dual-domain card, tinted with both domains", () => {
     const pip = renderPip(["fury", "calm"]);
     const style = pip.getAttribute("style") ?? "";
@@ -33,9 +30,6 @@ describe("PowerDomainIcon", () => {
     expect(style).toContain("rgb(22, 170, 113)");
   });
 
-  // Regression: colorless.svg is a `currentColor` shape, so rendering it in an
-  // <img> painted it black and it vanished in dark mode. It's masked and tinted
-  // with the colorless grey instead, like every other pip paints its own color.
   it("masks the colorless rune instead of rendering it as an image", () => {
     const pip = renderPip(["colorless"]);
     expect(pip.tagName).not.toBe("IMG");
@@ -61,9 +55,6 @@ function renderPips(power: number | null, domains: string[]) {
 }
 
 describe("PowerPips", () => {
-  // Regression: every pip carried the domain as its alt text, so a 4-power card
-  // read its domain out four times over. The pips are decorative now and the
-  // stack around them holds the one name.
   it("names the stack once and leaves the pips decorative", () => {
     const stack = renderPips(3, ["fury"]).querySelector('[role="img"]');
     expect(stack?.getAttribute("aria-label")).toBe("Power 3 (Fury)");
@@ -74,8 +65,6 @@ describe("PowerPips", () => {
     }
   });
 
-  // The other half of the regression: the dual-domain and colorless pips are
-  // masked spans with no alt to give, so they were silent instead of noisy.
   it("names a dual-domain stack the masked pips can't name themselves", () => {
     const stack = renderPips(2, ["fury", "calm"]).querySelector('[role="img"]');
     expect(stack?.getAttribute("aria-label")).toBe("Power 2 (Fury, Calm)");

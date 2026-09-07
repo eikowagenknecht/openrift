@@ -56,8 +56,6 @@ export function AccountInfoSection({
   );
 }
 
-// ── Display Name ────────────────────────────────────────────────────────────
-
 function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId: string }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -66,9 +64,8 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
     resolver: zodResolver(displayNameSchema),
     defaultValues: { name: defaultName },
   });
-  // `useWatch` rather than `form.watch()`: the latter returns a function the
-  // React Compiler flags as un-memoizable (IncompatibleLibrary), bailing on the
-  // whole component. The hook form subscribes the same way without the bailout.
+  // `form.watch()` returns a function React Compiler flags as un-memoizable
+  // (IncompatibleLibrary), bailing on the whole component; useWatch does not.
   const watchedName = useWatch({ control: form.control, name: "name" });
 
   async function onSubmit(values: DisplayNameValues) {
@@ -123,8 +120,6 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
   );
 }
 
-// ── Riot ID ─────────────────────────────────────────────────────────────────
-
 const riotIdSchema = z.object({
   riotId: z.string().superRefine((value, ctx) => {
     const result = validateRiotId(value);
@@ -149,7 +144,7 @@ function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: 
   async function onSubmit(values: RiotIdValues) {
     setLoading(true);
     setSuccess(false);
-    // The server hook normalizes an empty string to null (clears the field).
+    // An empty string normalizes to null server-side (clears the field).
     const result = await authClient.updateUser({ riotId: values.riotId.trim() }).catch(() => null);
     setLoading(false);
     if (!result) {
@@ -199,8 +194,6 @@ function RiotIdForm({ defaultRiotId, userId }: { defaultRiotId: string; userId: 
     </form>
   );
 }
-
-// ── Email ───────────────────────────────────────────────────────────────────
 
 function EmailForm({ currentEmail }: { currentEmail: string }) {
   const [step, setStep] = useState<"input" | "verify-current" | "verify-new">("input");
@@ -290,9 +283,8 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
     setOtp("");
   }
 
-  // Only the current-email step can resend. The new address's code is minted by
-  // `requestEmailChange`, which needs a fresh current-email OTP, and that one
-  // was consumed getting here, so that step offers Cancel instead.
+  // The verify-new step's OTP is minted by requestEmailChange, which consumes
+  // the current-email OTP; only that step can resend.
   async function handleResend() {
     setResending(true);
     setError("");

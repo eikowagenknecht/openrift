@@ -15,42 +15,25 @@ import { frontImageId } from "@/lib/card-meta";
 import { distinctPrintingIds } from "@/lib/friend-group-activity";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/** How many member avatars the hero stack shows before collapsing to "+N". */
 const HERO_AVATARS = 5;
 
-/** One count in the hero's meta line, linking to the page that owns it. */
 interface HeroStat {
   key: string;
   to: "/groups/$slug/members" | "/groups/$slug/shared" | "/groups/$slug/trades";
   label: string;
 }
 
-// The band's backdrop, bottom layer up: a soft surface tint fading into the
-// page background, a faint violet under-tone, and the warm accent glow rising
-// toward the fan corner — so the band reads as the group's display case, not
-// a flat box. Token-based so both themes carry it.
 const HERO_WASH = [
   "radial-gradient(90% 130% at 85% 10%, color-mix(in oklab, var(--border-accent) 26%, transparent), transparent 62%)",
   "radial-gradient(70% 120% at 65% 100%, color-mix(in oklab, oklch(0.5 0.11 300) 14%, transparent), transparent 65%)",
   "linear-gradient(color-mix(in oklab, var(--muted) 50%, var(--background)), var(--background))",
 ].join(", ");
 
-/**
- * The group overview's identity band: a borderless, square-cornered hero
- * bounded to the content column, carrying the page title (there is no page
- * top bar on the overview — this band is the title row), the description, an
- * at-a-glance meta line, the member avatar stack, and the Manage action; on
- * the right, a fan of card art from the group's recent activity (dashed
- * outlines until the group has traded).
- * @returns The hero band element.
- */
 export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: activity } = useFriendGroupActivity(slug);
   const { printingsById } = useCards();
   const { data: collections } = useCollections();
 
-  // The fan shows the group's own cards: art from the most recent card-bearing
-  // activity, one slot per distinct printing.
   const covers = distinctPrintingIds(
     activity.events.filter((event) => event.kind === "trade-completed" || event.kind === "match"),
   )
@@ -63,9 +46,7 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
   const groupCollectionCount = collections.filter(
     (collection) => collection.groupId === data.group.id,
   ).length;
-  // Each count is the shortest route to the page that owns it, so the meta line
-  // doubles as the hero's navigation. All three targets take the same `slug`
-  // param, which is what lets them share one typed `to` union.
+  // All three stat targets take the same `slug` param, so they share one typed `to` union.
   const meta: HeroStat[] = [
     {
       key: "members",
@@ -96,9 +77,6 @@ export function FriendGroupHero({ slug, data }: { slug: string; data: FriendGrou
 
   return (
     <div className="px-safe pt-4">
-      {/* The wash lives on the column-bounded box (square corners, no ring),
-          so it ends where the content ends instead of smearing across ultra-
-          wide viewports. The fan's own glow is off — HERO_WASH is the glow. */}
       <section
         className={cn(PAGE_WIDTH.capped, "relative overflow-hidden")}
         style={{ backgroundImage: HERO_WASH }}

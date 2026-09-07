@@ -2,25 +2,15 @@ import { CardChip, CardPicker } from "@/components/deck/deck-card-picker";
 import type { HoverHandler } from "@/lib/card-row-interactions";
 import type { PlanSwapDraft, SwapDirection } from "@/lib/deck-plan";
 
-/** A card offered by a column's picker. */
 interface SwapCandidate {
   cardId: string;
   cardName: string;
-  /** Copies in the source zone, shown as "of N" beside the quantity box. */
   quantity?: number;
 }
 
-/** The plan editor's ceiling, kept for callers that don't cap per card. */
 const DEFAULT_MAX_QUANTITY = 99;
 
-/**
- * The swapped-copies box, reading "1/3" with the available count in muted
- * grey. An input can't style part of its own value, so the field is composed:
- * a container carrying the `Input` primitive's box and focus ring (via
- * `focus-within`, which a text input triggers on click and on keyboard alike),
- * wrapping a bare input plus the suffix.
- * @returns The quantity field.
- */
+/** An input can't style part of its own value, so the "1/3" field composes a styled container around a bare input plus suffix. */
 function SwapQuantityField({
   value,
   max,
@@ -28,9 +18,7 @@ function SwapQuantityField({
   onChange,
 }: {
   value: number;
-  /** Ceiling for the input's `max` attribute. */
   max: number;
-  /** Copies in the source zone; omitted when the caller can't supply one. */
   available?: number;
   onChange: (raw: string) => void;
 }) {
@@ -54,28 +42,17 @@ function SwapQuantityField({
 
 interface SwapColumnsProps {
   swaps: readonly PlanSwapDraft[];
-  /** Offered by the "out" column. */
   maindeckCandidates: SwapCandidate[];
-  /** Offered by the "in" column. */
   sideboardCandidates: SwapCandidate[];
   onAdd: (direction: SwapDirection, cardId: string) => void;
   /** Both index args are positions in `swaps`, not in a filtered column. */
   onSetQuantity: (swapIndex: number, quantity: number) => void;
   onRemove: (swapIndex: number) => void;
   onHoverCard?: HoverHandler;
-  /**
-   * Caps a card's quantity box. Omit to keep the plan editor's behavior: the
-   * box advertises 99 but a typed value above it is left alone (the plan warns
-   * about impossible counts rather than clamping them).
-   */
+  /** Omit to leave a typed value above the cap uncorrected. */
   maxQuantityFor?: (cardId: string, direction: SwapDirection) => number;
 }
 
-/**
- * One direction's column: header, a quantity box plus card chip per swapped
- * card, and a picker over the rest of that zone.
- * @returns The column.
- */
 function SwapColumn({
   direction,
   swaps,
@@ -92,7 +69,6 @@ function SwapColumn({
   const columnSwaps = swaps
     .map((swap, swapIndex) => ({ swap, swapIndex }))
     .filter((entry) => entry.swap.direction === direction);
-  // Drop cards already in this column — re-adding them is a no-op.
   const used = new Set(columnSwaps.map((entry) => entry.swap.cardId));
   const open = candidates.filter((candidate) => !used.has(candidate.cardId));
   return (
@@ -106,8 +82,7 @@ function SwapColumn({
       </div>
       {columnSwaps.map(({ swap, swapIndex }) => {
         const limit = maxQuantityFor?.(swap.cardId, direction);
-        // The unfiltered prop, not `open` — a swapped card is gone from the
-        // picker list but still needs its copy count here.
+        // Reads the unfiltered `candidates`, not `open` — a swapped card is gone from the picker list but still needs its count here.
         const available = candidates.find(
           (candidate) => candidate.cardId === swap.cardId,
         )?.quantity;
@@ -144,13 +119,7 @@ function SwapColumn({
   );
 }
 
-/**
- * The side-by-side out/in swap columns shared by the deck plan's matchup
- * editor and the Test tab's sideboard experiment. Both drive the same
- * `PlanSwapDraft[]` shape, so a matchup's swaps can be handed straight to the
- * test bench.
- * @returns Both columns, stacked on narrow widths.
- */
+/** Shared by the deck plan's matchup editor and the Test tab's sideboard experiment; both drive the same `PlanSwapDraft[]` shape. */
 export function SwapColumns({
   swaps,
   maindeckCandidates,

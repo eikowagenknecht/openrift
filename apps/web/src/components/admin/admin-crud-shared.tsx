@@ -6,18 +6,10 @@ import { isValidSlug } from "@/lib/admin-slug";
 import { contrastText } from "@/lib/color";
 import { cn } from "@/lib/utils";
 
-// Pieces shared verbatim across the admin CRUD pages (card types, finishes,
-// super types, deck formats, deck zones, art variants, rarities, domains,
-// markers, distribution channels, languages, card tags, custom tags). Kept to
-// exact duplicates found across those pages — not a general-purpose admin-form
-// kit. Each slot is generic over the row/draft shape, so a page passes its own
-// type: <SlugCell<FinishRow> />.
+// Kept to exact duplicates found across the admin CRUD pages, not a
+// general-purpose admin-form kit. Each slot is generic over the row/draft
+// shape, so a page passes its own type: <SlugCell<FinishRow> />.
 
-/**
- * Monospaced slug display cell.
- *
- * @returns The slug, or null while there is no row.
- */
 export function SlugCell<TRow extends { slug: string }>({ row }: AdminCellSlotProps<TRow>) {
   if (!row) {
     return null;
@@ -25,11 +17,6 @@ export function SlugCell<TRow extends { slug: string }>({ row }: AdminCellSlotPr
   return <span className="font-mono text-sm">{row.slug}</span>;
 }
 
-/**
- * Plain label display cell.
- *
- * @returns The label, or null while there is no row.
- */
 export function LabelCell<TRow extends { label: string }>({ row }: AdminCellSlotProps<TRow>) {
   if (!row) {
     return null;
@@ -37,11 +24,6 @@ export function LabelCell<TRow extends { label: string }>({ row }: AdminCellSlot
   return <span className="text-sm">{row.label}</span>;
 }
 
-/**
- * Yes/no cell for the well-known flag on the seeded taxonomy tables.
- *
- * @returns The flag as Yes/No, or null while there is no row.
- */
 export function WellKnownCell<TRow extends { isWellKnown: boolean }>({
   row,
 }: AdminCellSlotProps<TRow>) {
@@ -51,11 +33,6 @@ export function WellKnownCell<TRow extends { isWellKnown: boolean }>({
   return <span className="text-muted-foreground text-sm">{row.isWellKnown ? "Yes" : "No"}</span>;
 }
 
-/**
- * Truncated description cell with the full text as a tooltip.
- *
- * @returns The description, an em dash when empty, or null while there is no row.
- */
 export function DescriptionCell<TRow extends { description: string | null }>({
   row,
 }: AdminCellSlotProps<TRow>) {
@@ -72,11 +49,6 @@ export function DescriptionCell<TRow extends { description: string | null }>({
   );
 }
 
-/**
- * Color swatch plus hex code.
- *
- * @returns The swatch and hex code, a dash when unset, or null while there is no row.
- */
 export function ColorCell<TRow extends { color: string | null }>({
   row,
 }: AdminCellSlotProps<TRow>) {
@@ -97,11 +69,6 @@ export function ColorCell<TRow extends { color: string | null }>({
   );
 }
 
-/**
- * Badge preview of a row rendered in its own color, as it appears elsewhere in the UI.
- *
- * @returns The preview badge, or null while there is no row.
- */
 export function ColorPreviewCell<TRow extends { label: string; color: string | null }>({
   row,
 }: AdminCellSlotProps<TRow>) {
@@ -120,17 +87,10 @@ export function ColorPreviewCell<TRow extends { label: string; color: string | n
 
 interface SlugAddInputProps<TDraft extends { slug: string }> extends AdminDraftSlotProps<TDraft> {
   placeholder: string;
-  /** Tailwind width class for the input. */
   width?: string;
 }
 
-/**
- * Monospaced slug text input for the add row, and for edit on the pages that allow
- * renaming a slug. Every taxonomy slug is kebab-case, so typing is lowercased as
- * it goes in.
- *
- * @returns The slug input, or null while there is no active draft.
- */
+// Every taxonomy slug is kebab-case, so typing is lowercased as it goes in.
 export function SlugAddInput<TDraft extends { slug: string }>({
   draft,
   setDraft,
@@ -152,11 +112,6 @@ export function SlugAddInput<TDraft extends { slug: string }>({
   );
 }
 
-/**
- * Plain label text input, shared by pages with no add-only placeholder for it.
- *
- * @returns The label input, or null while there is no active draft.
- */
 export function LabelInput<TDraft extends { label: string }>({
   draft,
   setDraft,
@@ -177,11 +132,6 @@ interface LabelAddInputProps<TDraft extends { label: string }> extends AdminDraf
   placeholder: string;
 }
 
-/**
- * Label text input for the add row, where an example label is shown as the placeholder.
- *
- * @returns The label input, or null while there is no active draft.
- */
 export function LabelAddInput<TDraft extends { label: string }>({
   draft,
   setDraft,
@@ -206,11 +156,6 @@ interface DescriptionInputProps<
   placeholder?: string;
 }
 
-/**
- * Optional description text input.
- *
- * @returns The description input, or null while there is no active draft.
- */
 export function DescriptionInput<TDraft extends { description: string }>({
   draft,
   setDraft,
@@ -233,11 +178,6 @@ interface ColorInputProps<TDraft extends { color: string }> extends AdminDraftSl
   placeholder: string;
 }
 
-/**
- * Hex color text input.
- *
- * @returns The color input, or null while there is no active draft.
- */
 export function ColorInput<TDraft extends { color: string }>({
   draft,
   setDraft,
@@ -256,11 +196,6 @@ export function ColorInput<TDraft extends { color: string }>({
   );
 }
 
-/**
- * Rendered options for a category-style Select's dropdown content.
- *
- * @returns The select's content (grouped options).
- */
 export function CategorySelectOptions({ items }: { items: { value: string; label: string }[] }) {
   return (
     <SelectContent>
@@ -275,12 +210,6 @@ export function CategorySelectOptions({ items }: { items: { value: string; label
   );
 }
 
-/**
- * Shared "required slug + label, slug must be kebab-case" validation used by
- * every admin CRUD page's add/edit draft.
- *
- * @returns An error string to block save, or null when the draft is valid.
- */
 export function validateSlugAndLabel(slug: string, label: string, example: string): string | null {
   if (!slug.trim() || !label.trim()) {
     return "Slug and label are required";
@@ -291,12 +220,7 @@ export function validateSlugAndLabel(slug: string, label: string, example: strin
   return null;
 }
 
-/**
- * Shared hex-color validation for the admin CRUD pages that store a color.
- * An empty value is valid, since the column is nullable everywhere.
- *
- * @returns An error string to block save, or null when the color is valid or empty.
- */
+// An empty value is valid: the color column is nullable everywhere.
 export function validateHexColor(color: string, example: string): string | null {
   const trimmed = color.trim();
   if (trimmed && !/^#[0-9a-fA-F]{6}$/u.test(trimmed)) {

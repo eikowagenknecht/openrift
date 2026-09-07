@@ -14,20 +14,11 @@ import { useTradeActionStore } from "@/stores/trade-action-store";
 
 import { TradeCopyPickerDialog, useTradeAcceptFlow } from "./trade-copy-picker-dialog";
 
-/**
- * The overflow menu a reserved row carries. One trigger per row: on phones it
- * is pinned to the card's top-right corner, so a second menu would land on top
- * of the first.
- * @returns The menu.
- */
 function SettleOverflowMenu({ disabled, children }: { disabled: boolean; children: ReactNode }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          // The row's own corner rather than the button row: a reserved row has
-          // no buttons left to sit beside, and on phones the corner is where
-          // every other row's menu already is.
           <Button
             size="icon-sm"
             variant="ghost"
@@ -44,20 +35,11 @@ function SettleOverflowMenu({ disabled, children }: { disabled: boolean; childre
   );
 }
 
-/**
- * The contextual action cluster for one trade row: accept/decline while the
- * trade awaits the viewer, cancel while it awaits the other side, and an
- * overflow menu once it is reserved. Owns the mutations, the shared
- * action-store pending state and the accept copy picker, so a row is only
- * responsible for its own identity and status.
- * @returns The button cluster and the accept picker dialog.
- */
 export function TradeRowActions({
   trade,
   cardName,
 }: {
   trade: CardTradeResponse;
-  /** The resolved card name, for the accept picker's heading. */
   cardName: string;
 }) {
   const acting = useTradeActionStore((state) => state.pending.has(trade.id));
@@ -81,9 +63,8 @@ export function TradeRowActions({
     mutation.mutate(variables, { onSettled: () => settle(trade.id) });
   }
 
-  // `groupSlug` only scopes the cache invalidation these mutations trigger. A
-  // trade with no group is finished history and shows no actions at all, so the
-  // undefined branch is unreachable.
+  // groupSlug only scopes cache invalidation; a trade with no group shows no
+  // actions at all, so the undefined branch here is unreachable.
   const actionArgs = { tradeId: trade.id, groupSlug: trade.groupSlug ?? undefined };
 
   return (
@@ -124,20 +105,8 @@ export function TradeRowActions({
         ) : null}
 
         {trade.actionNeeded === "settle" ? (
-          // A reserved row carries no settle button of its own. Settling is a
-          // session on the trade sheet's ready-to-swap section, worked through
-          // with the cards in front of you and committed in one press, so a
-          // per-row button here would be a second way to do the same thing with
-          // none of the counting.
-          //
-          // What is left are the two exits a session cannot offer. Skip settles
-          // the viewer's half without touching the collection, for someone whose
-          // data is already right; the viewer settles their own half and nothing
-          // else, and the second side's settle is what completes the trade
-          // (ADR-019, amendment 2026-08-10). Cancel backs out of the whole
-          // reservation, and disappears once either side has settled: the
-          // giver's settle hard-deletes the copies, so there is nothing to undo
-          // and the server refuses it.
+          // Cancel disappears once either side has settled: the giver's
+          // settle hard-deletes the copies and the server refuses it then.
           <SettleOverflowMenu disabled={acting}>
             <DropdownMenuItem onClick={() => run(skipSync, actionArgs)}>
               <CheckIcon className="size-4" />

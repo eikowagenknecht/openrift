@@ -29,11 +29,8 @@ export function CardNameCell({
       ? extractCardIdFromShortCode(row.stagingShortCodes[0])
       : null;
 
-  // A name with no letters or digits at all normalizes to "". That is the
-  // `$name` path param for the unmatched-card route and the lookup key for
-  // link/accept, so with an empty value every one of those affordances is a
-  // dead end. Render the row as plain text instead — the reviewer can still
-  // see it and fix the name at the source.
+  // A name with no letters or digits at all normalizes to "", the lookup key
+  // for the unmatched-card route and for link/accept: render as plain text.
   const hasLookupKey = row.normalizedName !== "";
   const linkable = Boolean(row.cardSlug) || hasLookupKey;
 

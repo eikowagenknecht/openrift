@@ -32,17 +32,9 @@ import { parseSortParam } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type StatusFilter = "unchecked";
 
 type Row = CandidateCardSummaryResponse;
-
-// ---------------------------------------------------------------------------
-// Column definitions (dependencies passed via closure over meta)
-// ---------------------------------------------------------------------------
 
 function makeColumns(meta: CardNameCellMeta): ColumnDef<AdminCardTableFeatures, Row>[] {
   return [
@@ -81,21 +73,10 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<AdminCardTableFeatures, 
   ];
 }
 
-// ---------------------------------------------------------------------------
-// Column widths (applied with table-layout: fixed so filtering doesn't reflow).
-// The Card cell holds the name plus Accept / Assign buttons and the favorite
-// and Unchecked badges, so give it the bulk of the row; the Printings column
-// only shows comma-separated short codes and can live on the remainder.
-// ---------------------------------------------------------------------------
-
 const COLUMN_WIDTHS: Record<string, string> = {
   name: "60%",
   candidates: "120px",
 };
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: boolean }) {
   const linkCard = useLinkCard();

@@ -11,23 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminMetaOverlays } from "@/hooks/use-admin-meta-overlays";
 import { Route } from "@/routes/_app/_authenticated/admin/meta";
 
-/** The tabs that name themselves in the URL. Sync is the default. */
 const OPT_IN_TABS = ["catalogue", "review", "public"] as const;
 
-/**
- * Both paged tables' filters, cleared. Leaving a tab drops them, so the URL
- * never carries a filter set for a table that is no longer on screen, which is
- * also what lets the two tables share the four unprefixed names below.
- */
 const CLEARED_TABLE_FILTERS = {
-  // The catalogue's own source picker; every other tab covers both sources.
   source: undefined,
-  // Shared by both paged tables.
   page: undefined,
   q: undefined,
   dateFrom: undefined,
   dateTo: undefined,
-  // Catalogue only.
   triage: undefined,
   eventStatus: undefined,
   eventSort: undefined,
@@ -38,7 +29,6 @@ const CLEARED_TABLE_FILTERS = {
   awaitingResults: undefined,
   plStatus: undefined,
   tdFormat: undefined,
-  // Public only.
   liveFormat: undefined,
   liveSource: undefined,
   liveSort: undefined,
@@ -47,27 +37,12 @@ const CLEARED_TABLE_FILTERS = {
   noDecks: undefined,
 } as const;
 
-/**
- * The tab a value selects. Sync is the default, so choosing it clears the
- * search param rather than naming it.
- *
- * @param value - The tab the user picked.
- * @returns The tab to put in the URL, or undefined for the default.
- */
 function tabParam(value: string): (typeof OPT_IN_TABS)[number] | undefined {
   return OPT_IN_TABS.find((tab) => tab === value);
 }
 
-/**
- * The Meta Archive's admin surface (ADR-014), as the four stages an event walks:
- * the pipeline overview and its controls, the catalogue mirror events are picked
- * from, the review queue where staged results wait on a human, and the live
- * archive visitors read. Each tab renders its own page top bar, so the bar's
- * actions always belong to what is on screen — BaseUI unmounts the hidden panel,
- * so only one bar is ever portalled into the layout slot.
- *
- * @returns The tabbed Meta Archive admin page.
- */
+// Each tab renders its own page top bar: BaseUI unmounts the hidden panel, so
+// only the active tab's bar is ever portalled into the layout slot.
 export function MetaAdminPage() {
   const { data } = useAdminMetaOverlays();
   const tab = Route.useSearch({ select: (search) => search.tab ?? "sync" });

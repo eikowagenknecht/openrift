@@ -29,65 +29,29 @@ import { collisionDropData } from "@/lib/dnd-data";
 import { moveToIndex } from "@/lib/move-to-index";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
 
-/**
- * Pointer travel before a press becomes a drag. Enough that a click on a card
- * still reads as a click, and that a click on a stop's grip doesn't register as
- * a zero-length drag and swallow the focus ring.
- */
 const DRAG_ACTIVATION = { distance: 8 };
 
-/**
- * A stop being reordered is held to the list it came from, so it can't be
- * flicked out into the browser beside it. A card arriving from the browser has
- * to cross the page to reach the queue, so it gets no modifiers at all.
- */
 const QUEUE_ROW_MODIFIERS: Modifier[] = [restrictToVerticalAxis, restrictToParentElement];
 
-/** @returns The drop payload behind a collision, when it is one of ours. */
 function dropTypeOf(collision: Collision): string | undefined {
   return asStageDropData(collisionDropData(collision))?.type;
 }
 
 /**
- * Hands each drag the targets that belong to it. The two kinds overlap in
- * space — every stop carries a sortable target for reorders and a slot target
- * for arrivals — so without this the wrong one wins and the drop means
- * something the creator didn't ask for.
- *
- * @returns The collisions the active drag can land on, best first.
+ * Every stop carries both a sortable target (reorders) and a slot target
+ * (arrivals), overlapping in space; this picks the one the active drag means.
  */
 const preferQueueTargets: CollisionDetection = (args) => {
   const collisions = pointerWithin(args);
   if (asStageDragData(args.active.data.current)?.type === "stage-queue-row") {
-    // Only other stops. The queue's own drop zone is a target for arrivals,
-    // and letting a reorder land on it would move the stop nowhere.
     return collisions.filter((collision) => dropTypeOf(collision) === "stage-queue-row");
   }
-  // A card from the browser aims at the slots, never at the sortable rows —
-  // landing on one of those would be a drop the handler has no meaning for.
-  // Slots first, so a release over a stop places the card there rather than on
-  // the end.
   const slots = collisions.filter((collision) => dropTypeOf(collision) !== "stage-queue-row");
   const slot = slots.find((collision) => dropTypeOf(collision) === "stage-queue-slot");
   return slot ? [slot, ...slots.filter((collision) => collision !== slot)] : slots;
 };
 
-/**
- * Wires the stage builder's drag interactions to the queue store. A card
- * dragged out of the catalogue browser has two outcomes, decided by what the
- * pointer is over on release:
- *
- * - a stop in the queue → the card goes in at that position;
- * - anywhere else on the queue → the card goes on the end.
- *
- * A stop dragged by its grip has one: release over another stop moves it there.
- *
- * A release over nothing is a no-op. Dropping a stop outside the queue does not
- * remove it — the row's own remove button is that, and an accidental release
- * should not quietly shorten a queue someone spent a while assembling.
- *
- * @returns The drag context wrapping `children`.
- */
+/** Dropping a stop outside the queue is a no-op, not a removal; the row's own remove button handles that. */
 export function StageDndContext({ children }: { children: ReactNode }) {
   const [dragged, setDragged] = useState<StageDragData | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
@@ -131,16 +95,10 @@ export function StageDndContext({ children }: { children: ReactNode }) {
       onDragEnd={handleDragEnd}
       onDragCancel={() => setDragged(null)}
     >
-      {/* The queue sits in the workbench's sticky aside, whose droppable rects
-          drift as the browser beside it scrolls. */}
       <DndScrollWatcher />
       {children}
-      {/* Only an arriving card rides the cursor; a stop being reordered travels
-          in place, which is what the list's sortable transforms already do.
-          Mounted per drag rather than left up with null children: dnd-kit
-          measures the overlay whenever the element exists, and `useSortable`
-          reads that measurement as "this list uses an overlay" and stops moving
-          the dragged row at all. */}
+      {/* dnd-kit measures the overlay whenever mounted; useSortable then stops moving
+          the dragged row. Keep it unmounted rather than empty when nothing is dragged. */}
       {dragged?.type === "stage-pool-card" && (
         <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null}>
           <CardDragGhost

@@ -8,13 +8,9 @@ import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
-/** Amber emphasis for the ownership gap, shared by both renderings. */
 const WARN_CLASS = "text-warning";
 
-/**
- * Column widths for the `columns` rendering. Fixed so the numbers line up down
- * the whole list instead of shifting whenever a deck has nothing missing.
- */
+/** Fixed so the numbers line up down the whole list. */
 const COLUMN_WIDTH: Partial<Record<DeckMetaPartKey, string>> = {
   missing: "w-20",
   value: "w-16",
@@ -22,14 +18,9 @@ const COLUMN_WIDTH: Partial<Record<DeckMetaPartKey, string>> = {
 };
 
 /**
- * The deck's stat summary: deck box, missing, value, updated date. The card
- * count lives on the format badge, as it does on the deck page.
- *
- * `inline` joins the stats with separators and lets the box and the date wrap
- * onto their own lines, for the grid tile and for list rows on phones.
- * `columns` right-aligns each part in a fixed-width cell, for list rows from
- * `sm` up — minus the box, which the row places next to the deck name.
- * @returns The stat line.
+ * `inline` joins the stats with separators and wraps the box/date onto their
+ * own lines. `columns` right-aligns each part in a fixed-width cell, minus
+ * the box, which the row places next to the deck name.
  */
 export function DeckMetaLine({
   item,
@@ -39,11 +30,6 @@ export function DeckMetaLine({
 }: {
   item: DeckListItemResponse;
   variant?: "inline" | "columns";
-  /**
-   * The deck's format/state, rendered as the first fact. The list rows pass
-   * `DeckFormatText` here rather than a badge, which is what stops the chip
-   * eating the width the deck name needs.
-   */
   leading?: React.ReactNode;
   className?: string;
 }) {
@@ -54,8 +40,7 @@ export function DeckMetaLine({
 
   if (variant === "columns") {
     // The box is free text among fixed-width numbers, so a column of its own
-    // could only truncate. The list row renders it beside the deck name, where
-    // it can take the width it needs.
+    // could only truncate; the list row renders it beside the deck name instead.
     const columnParts = parts.filter((part) => part.key !== "box");
     return (
       <div className={cn("text-muted-foreground flex items-center gap-2 text-xs", className)}>
@@ -78,17 +63,12 @@ export function DeckMetaLine({
   }
 
   const date = parts.find((part) => part.key === "updated");
-  // The box sits outside the stat run so it can wrap onto a line of its own on
-  // a phone, where a name joined into the run would push the row over.
   const boxPart = parts.find((part) => part.key === "box");
   const stats = parts.filter(
     (part) => part.key !== "updated" && part.key !== "box" && part.text !== null,
   );
 
   return (
-    // Wrapping with a wider gap between the two groups: the stats stay on one
-    // line and the date drops below when the tile is too narrow for both, so
-    // nothing is ever clipped by the tile's overflow-hidden.
     <div
       className={cn(
         "text-muted-foreground flex flex-wrap items-baseline gap-x-3 text-xs",

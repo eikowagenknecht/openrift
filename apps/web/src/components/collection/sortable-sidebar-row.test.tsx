@@ -4,12 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SortableSidebarRow } from "./sortable-sidebar-row";
 
-/**
- * Renders one reorderable row with a spy standing in for the context menu that
- * wraps every sidebar row: Base UI's `ContextMenuTrigger` starts its long-press
- * timer from a React `onTouchStart` on an ancestor of the grip.
- * @returns The touch-start spy the fake trigger records calls on.
- */
+// The onTouchStart spy stands in for Base UI's ContextMenuTrigger, which
+// starts its long-press timer from a React onTouchStart on an ancestor of the grip.
 function renderRow() {
   const onTouchStart = vi.fn();
   render(
@@ -37,8 +33,6 @@ describe("SortableSidebarRow", () => {
       touches: [{ clientX: 10, clientY: 10 }],
     });
 
-    // Without this the long-press timer starts and the menu opens mid-drag,
-    // which is what broke sidebar reordering on touch.
     expect(onTouchStart).not.toHaveBeenCalled();
   });
 

@@ -11,17 +11,14 @@ import { CardBrowserLayout } from "./card-browser-layout";
 
 describe("CardBrowserLayout", () => {
   it("tucks the sticky toolbar 1px under the header", () => {
-    // Regression: pinning the toolbar flush at the header height opened a 1px
-    // seam of raw scrolling content at fractional browser zoom, because the
-    // header and the toolbar are separate composited layers that snap to the
-    // device-pixel grid independently. The toolbar must overlap the z-50
-    // header by 1px so rounding can never expose a gap.
+    // The header and toolbar are separate composited layers that snap to the
+    // device-pixel grid independently, so the overlap must be forced.
     const { container } = render(<CardBrowserLayout toolbar={<span>toolbar</span>} />);
     const toolbar = container.querySelector(".z-30") as HTMLElement;
     expect(toolbar).not.toBeNull();
     expect(toolbar.style.top).toBe(`${SSR_HEADER_HEIGHT - 1}px`);
-    // -mt-px keeps the flow position equal to the pin position; without it the
-    // toolbar visibly travels 1px on the first scroll before sticking.
+    // -mt-px keeps the flow position equal to the pin position, else the
+    // toolbar travels 1px on the first scroll before sticking.
     expect(toolbar.className).toContain("-mt-px");
   });
 
@@ -42,14 +39,8 @@ describe("CardBrowserLayout", () => {
   });
 
   it("hydrates without mismatching when the page top bar is already measured", async () => {
-    // Regression: on /stage the card browser sits inside a <Suspense> under
-    // BuilderWorkbench, so it hydrates *after* the workbench has measured its
-    // top bar. Reading that measurement during the boundary's hydration render
-    // made the layout compute header + bar - 1 against server markup written
-    // with header - 1, and React logged "a tree hydrated but some attributes of
-    // the server rendered HTML didn't match the client properties" for every
-    // sticky tier (plus the scroll indicator downstream, whose initial position
-    // is seeded from stickyOffset). The values here are 56 vs 112.
+    // On /stage the card browser hydrates inside a <Suspense> after
+    // BuilderWorkbench has already measured its top bar (56 vs 112 here).
     const layout = (
       <CardBrowserLayout toolbar={<span>toolbar</span>} aboveGrid={<span>above</span>} />
     );

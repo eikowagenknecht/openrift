@@ -29,9 +29,6 @@ describe("toBuilderCards", () => {
     });
   });
 
-  // The preview lets a row be re-pointed at any card in the catalog, so a stale
-  // row is not reachable in practice — but a dropped row must not become an
-  // entry with no energy, which would skew the curve rather than leave it out.
   it("drops rows whose card is not in the catalog", () => {
     expect(
       toBuilderCards(

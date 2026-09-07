@@ -55,8 +55,6 @@ describe("PullCard battlefield rotation", () => {
       <PullCard pull={makePull({ cardTypes: ["unit"] })} image={IMAGE} />,
     );
     const img = container.querySelector("img");
-    // The image is rendered directly (no rotation wrapper) so its parent is the
-    // outer aspect-card box, not a styled rotation wrapper.
     expect(img?.parentElement?.getAttribute("style")).toBeNull();
   });
 });

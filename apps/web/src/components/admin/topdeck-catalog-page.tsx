@@ -127,7 +127,6 @@ const columns: AdminColumnDef<TopdeckCatalogRow>[] = [
 
 const SORT_FALLBACK = { sort: "startAt", direction: "desc" } as const;
 
-/** What a row's buttons do, held once by the page rather than once per row. */
 interface TopdeckRowHandlers {
   busy: boolean;
   onAccept: (tid: string) => void;
@@ -135,7 +134,7 @@ interface TopdeckRowHandlers {
   onUndismiss: (tid: string) => void;
 }
 
-/** No "Fetch now": a catalogued row already has its standings, so an accepted event has nothing outstanding. */
+/** No "Fetch now" button: a catalogued row already has its standings. */
 function TopdeckRowActions({
   row,
   busy,

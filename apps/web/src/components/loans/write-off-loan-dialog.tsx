@@ -17,20 +17,11 @@ interface WriteOffLoanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cardName: string;
-  /** Copies still out that the write-off covers. */
   outstanding: number;
-  /** Whether the write-off mutation is in flight. */
   pending: boolean;
   onConfirm: (removeCopies: boolean) => void;
 }
 
-/**
- * Terminal dialog for a loan whose copies are never coming back (ADR-039):
- * whether they kept it by agreement or simply vanished. The choice is the
- * write-off proposal — remove the copies from the collection now, or keep the
- * data and fix it by hand later.
- * @returns The dialog element.
- */
 export function WriteOffLoanDialog({
   open,
   onOpenChange,

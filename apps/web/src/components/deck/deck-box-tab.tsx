@@ -36,10 +36,7 @@ import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-/**
- * Zone render order, minus Overflow: cards parked there don't travel with the
- * deck, so the box never asks for them.
- */
+// Excludes Overflow: cards parked there don't travel with the deck.
 const BOX_ZONE_ORDER: readonly DeckZone[] = [
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
@@ -49,18 +46,11 @@ const BOX_ZONE_ORDER: readonly DeckZone[] = [
   WellKnown.deckZone.SIDEBOARD,
 ];
 
-/**
- * The tick on a copy the deck doesn't call for. Red rather than the settled
- * rows' primary, so the same gesture reads as "this one shouldn't be here".
- */
 const SURPLUS_TICK_CLASS =
   "data-checked:border-destructive data-checked:bg-destructive data-checked:text-white dark:data-checked:bg-destructive";
 
-/**
- * The lookup tables every box row renders with. Resolved once for the tab and
- * threaded down: both hooks behind them rebuild their maps on every call, so a
- * row reading them itself would hand each row a fresh object.
- */
+// Resolved once for the tab: the hooks behind these rebuild their maps on
+// every call, so a row reading them itself would get a fresh object each time.
 interface BoxRowLabels extends VariantLabelEnumLabels {
   rarities: Record<string, string>;
   conditions: Record<string, string>;
@@ -70,41 +60,17 @@ interface BoxRowLabels extends VariantLabelEnumLabels {
 interface DeckBoxTabProps {
   deckId: string;
   cards: DeckBuilderCard[];
-  /** The collection the deck is stored in. The tab only renders with one set. */
   homeCollectionId: string;
   homeCollectionName: string;
-  /** Opens the missing-cards dialog, which owns buying and wishlists. */
   onViewMissing?: () => void;
-  /**
-   * The overview's own ordering and sub-grouping, passed in rather than read
-   * here so the box lists a zone exactly the way the deck list does — same
-   * sort, same axis, same direction, from the same toolbar.
-   */
   sortCards: (zoneCards: DeckBuilderCard[]) => DeckBuilderCard[];
   groupCards: (zoneCards: DeckBuilderCard[]) => DeckCardGroup[];
-  /** The active grouping axis — type groups keep their icons. */
   groupBy: DeckOverviewGroup;
-  /**
-   * Opens the card's detail, as every other card list on the page does. Both
-   * this and `onHoverCard` are told the row's own copy, so the detail and the
-   * floating preview show the printing about to be pulled rather than the
-   * deck's preferred one.
-   */
   onCardClick?: (card: CardOpenTarget) => void;
   onHoverCard?: HoverHandler;
 }
 
-/**
- * The deck's box, as one list in the deck's own order: every copy the deck
- * calls for is a row you tick off as it goes in, whether it is in the box
- * already, waiting on a shelf, out on loan, or not owned at all. Copies in the
- * box that no deck there calls for trail the list already ticked, in red,
- * because they are in the box but not by anyone's choice.
- *
- * Moving a copy is the only state there is — the plan reads the live copies
- * feed, so the list updates itself.
- * @returns The Box tab.
- */
+// Copies in the box that no deck calls for trail the list, already ticked, in red.
 export function DeckBoxTab({
   deckId,
   cards,
@@ -117,17 +83,13 @@ export function DeckBoxTab({
   onCardClick,
   onHoverCard,
 }: DeckBoxTabProps) {
-  // Copies picked by hand, kept for as long as the tab is open. They are a
-  // preference for this pull run, not something worth persisting.
+  // Preference for this pull run only; not persisted.
   const [pinnedCopyIds, setPinnedCopyIds] = useState<ReadonlySet<string>>(new Set());
-  // Where each copy came from, remembered while the tab stays open so taking a
-  // card back out returns it to its shelf. Once that memory is gone (a reload,
-  // another session) the move dialog asks where it should go instead.
+  // Remembered only for this tab session; lost on reload the move dialog asks instead.
   const [originById, setOriginById] = useState<ReadonlyMap<string, string>>(new Map());
   const plan = useDeckBox(deckId, cards, homeCollectionId, pinnedCopyIds);
   const moveCopies = useMoveCopies();
   const { data: collections } = useCollections();
-  // Every account has one, and it is where a card with nowhere else to be goes.
   const inboxId = collections.find((collection) => collection.isInbox)?.id;
   const { labels: enumLabels } = useEnumOrders();
   const domainColors = useDomainColors();
@@ -146,23 +108,14 @@ export function DeckBoxTab({
 
   const slotsByCardKey = Map.groupBy(plan.slots, (slot) => slot.cardKey);
 
-  /**
-   * Puts one copy in the box, remembering the shelf it left so unticking the
-   * row can put it back. No toast: the tick going green is the feedback, and
-   * unticking it is the undo.
-   */
+  // No toast: the tick going green is the feedback, unticking it is the undo.
   const putIn = (copy: DeckBoxCopy) => {
     setOriginById(new Map([...originById, [copy.copyId, copy.collectionId]]));
     moveCopies.mutate({ copyIds: [copy.copyId], toCollectionId: homeCollectionId });
   };
 
-  /**
-   * Takes copies back out of the box: onto the shelf each came from while the
-   * tab still remembers it, and into the inbox otherwise. Clearing a surplus
-   * row names where the card went and offers an undo, because that row leaves
-   * the list and takes its own tick with it. Unticking a settled row stays
-   * quiet: the tick clearing is the feedback, and ticking it again is the undo.
-   */
+  // Clearing a surplus row announces where the card went, with undo; unticking
+  // a settled row stays quiet since the tick clearing is itself the feedback.
   const takeOut = (copyIds: readonly string[], announce = true) => {
     if (inboxId === undefined) {
       return;
@@ -236,8 +189,6 @@ export function DeckBoxTab({
   })).filter((entry) => entry.cards.length > 0);
 
   return (
-    // The overview column already spaces and pads its children, so this only
-    // sets the rhythm between the box's own sections.
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground max-w-prose">
         Tick cards off as you put them in the box. Each tick moves that copy into this deck&apos;s
@@ -266,8 +217,6 @@ export function DeckBoxTab({
         )}
       </div>
 
-      {/* Same flow as the deck list: zones as unbreakable blocks across as many
-          ~30rem columns as fit, so both views fold the same way. */}
       <div className="w-full columns-[30rem] gap-x-10">
         {zones.map(({ zone, cards: zoneCards }) => (
           <ZoneSection
@@ -302,8 +251,7 @@ export function DeckBoxTab({
                     labels={labels}
                     siblings={plan.siblingPrintingsByCardId.get(entry.card.cardId) ?? []}
                     onHoverCard={onHoverCard}
-                    // No zone: these copies aren't deck entries, so the detail
-                    // opens on the card without anchoring in the deck's list.
+                    // No zone: these copies aren't deck entries.
                     onOpen={
                       onCardClick
                         ? () =>
@@ -347,12 +295,6 @@ export function DeckBoxTab({
   );
 }
 
-/**
- * One zone's block, headed like the deck list's: small-caps label over a
- * hairline rule, with how much of the zone is in the box in place of the
- * list's card count. Grouped zones keep their sub-groups.
- * @returns The zone section.
- */
 function ZoneSection({
   zone,
   cards,
@@ -417,12 +359,6 @@ function ZoneSection({
   );
 }
 
-/**
- * One copy the deck calls for. What the row offers follows where that copy is:
- * a tick to move it in or back out, a source to pick it from, or the reason it
- * can't come at all.
- * @returns The slot row.
- */
 function SlotRow({
   card,
   slot,
@@ -520,8 +456,6 @@ function SlotRow({
         onOpen={onOpen}
         muted
         leading={
-          // Same glyphs the rest of the app uses for these two states: the loan
-          // chip's hand, the outgoing-trade arrow.
           <span className="flex size-4 shrink-0 items-center justify-center">
             {slot.reason === "loan" ? (
               <HandHeartIcon className="text-muted-foreground size-3.5" />
@@ -531,9 +465,6 @@ function SlotRow({
           </span>
         }
         trailing={
-          // A loan has one page to settle it on. A trade reservation belongs to
-          // whichever group's trade pinned it, which the copy doesn't name, so
-          // that one only states the reason.
           slot.reason === "loan" ? (
             <Link
               to="/loans"
@@ -564,12 +495,8 @@ function SlotRow({
   );
 }
 
-/**
- * The art, domain bar and rarity/code column that lead a box row, wired once so
- * the list and the copy picker read alike. The code stays on phones, unlike the
- * deck list's: finding this exact printing in a binder is what a box row is for.
- * @returns The row-lead cluster.
- */
+// Code stays visible on phones (unlike the deck list's): the row's job is
+// finding this exact printing in a binder.
 function BoxCardThumb({
   card,
   copy,
@@ -594,13 +521,8 @@ function BoxCardThumb({
   );
 }
 
-/**
- * Where the copy this row would take comes from, and a way to take a different
- * one. The collection is the label, so a pull run reads as a list of shelves to
- * visit. The count next to it is how many *different* copies are behind it, not
- * how many copies there are: a shelf of forty identical runes is one choice.
- * @returns The source control.
- */
+// The count shown is how many *different* copies are behind the source, not
+// how many copies exist: a shelf of forty identical runes is one choice.
 function SourcePicker({
   card,
   slot,
@@ -613,11 +535,6 @@ function SourcePicker({
   slot: DeckBoxSlot;
   labels: BoxRowLabels;
   siblings: readonly VariantLabelPrinting[];
-  /**
-   * What picking one does. `take` pulls a copy off a shelf, so the trigger
-   * names the shelf to visit. `keep` reshuffles copies the box already holds,
-   * where every shelf name is the box itself and the count is the whole story.
-   */
   mode?: "take" | "keep";
   onSwap: (copyId: string) => void;
 }) {
@@ -636,15 +553,11 @@ function SourcePicker({
           action: `Take a different copy of ${legendDisplayName(card)}`,
           prompt: "Take this copy instead",
         };
-  // Shelves in the order their best copy ranks, so the list still reads as the
-  // order a pull run would visit them in.
   const byCollection = Map.groupBy(
     slot.alternatives,
     (alternative) => alternative.copy.collectionName,
   );
   if (slot.alternatives.length === 0) {
-    // A settled row with nothing to swap to says nothing; a pull row still owes
-    // the shelf it would visit.
     return mode === "keep" ? null : (
       <span className="text-muted-foreground max-w-1/2 min-w-0 shrink truncate text-xs">
         {source}
@@ -673,13 +586,11 @@ function SourcePicker({
           </Button>
         }
       />
-      {/* p-0 because PickerList's own CommandList supplies the list inset. */}
+      {/* p-0: PickerList's own CommandList supplies the list inset. */}
       <PopoverContent align="end" className="w-80 p-0" onClick={rowControlClick()}>
         <PickerList
           highlightedId={highlightedId}
           onHighlightChange={setHighlightedId}
-          // Plain sentence case, not the small-caps the group labels use: two
-          // small-caps lines stacked read as two shelf names, not a title.
           header={<p className="text-muted-foreground px-2.5 pt-2 text-xs">{wording.prompt}</p>}
         >
           {[...byCollection].map(([collectionName, alternatives]) => (
@@ -707,12 +618,6 @@ function SourcePicker({
   );
 }
 
-/**
- * One row of the box: art, domain pip, printing code, name, then the marks that
- * tell two copies of the same card apart. No costs, count or price — a row is
- * one physical copy, and the space goes to naming that copy instead.
- * @returns The row.
- */
 function BoxRow({
   card,
   copy,
@@ -725,18 +630,13 @@ function BoxRow({
   onOpen,
 }: {
   card: DeckBoxCard;
-  /** The copy the row stands for. A slot nobody owns has none. */
   copy?: DeckBoxCopy;
   labels: BoxRowLabels;
   siblings: readonly VariantLabelPrinting[];
-  /** Grey the card out: the row is a gap rather than something to pack. */
   muted?: boolean;
-  /** Control at the row's head — the tick that moves a copy in or out. */
   leading: React.ReactNode;
-  /** Trailing action or note: where to take it from, or why it can't come. */
   trailing?: React.ReactNode;
   onHoverCard?: HoverHandler;
-  /** Opens the card's detail. Controls inside the row guard their own clicks. */
   onOpen?: () => void;
 }) {
   return (
@@ -759,14 +659,6 @@ function BoxRow({
   );
 }
 
-/**
- * The marks that tell two copies of the same card apart: the printing's
- * distinguishing attributes under the app-wide variant-label rule, then whether
- * the copy is graded or in a recorded condition. Rendered as the row's own plain
- * run rather than through `PrintingVariantLabel`, whose language chip and
- * "Standard" fallback both work against a dense list.
- * @returns The detail run, or null when the copy has no mark worth naming.
- */
 function CopyDetails({
   copy,
   labels,
@@ -774,7 +666,6 @@ function CopyDetails({
 }: {
   copy: DeckBoxCopy;
   labels: BoxRowLabels;
-  /** The printings this card's copies span here, for the variant label rule. */
   siblings: readonly VariantLabelPrinting[];
 }) {
   const { language, rest } = formatPrintingVariantLabelParts(copy, siblings, labels);

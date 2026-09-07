@@ -21,11 +21,6 @@ import {
 import type { MetaSubmitSearch } from "@/lib/meta-submit-link";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 
-/**
- * What the page says about the record itself: which parts of the list the
- * archive holds, and the way to fill in the rest.
- * @returns The callout, or null for a list with nothing missing.
- */
 function MetaDeckNotice({
   eventSlug,
   format,
@@ -37,7 +32,6 @@ function MetaDeckNotice({
   format: DeckFormat;
   unknown: ReadonlyMap<DeckZone, number>;
   isLoggedIn: boolean;
-  /** The prefill the Complete button carries, so the form opens on this list. */
   search: MetaSubmitSearch;
 }) {
   const missing = describeIncompleteList(format, unknown);
@@ -51,9 +45,7 @@ function MetaDeckNotice({
       <AlertDescription className="flex flex-col items-start gap-2">
         <span>
           {missing}
-          {/* The hero's chip counts the deck the archive holds, which on a
-              partial list is not the deck that was played. It has no way to
-              say so itself, so the qualification lives here. */}
+          {/* The hero chip counts the deck the archive holds, not the deck as played. */}
           {isLoggedIn && " Your collection is compared against the known cards only."}
         </span>
         <Button
@@ -68,13 +60,6 @@ function MetaDeckNotice({
   );
 }
 
-/**
- * `/meta/decks/$token` — one archived deck, rendered through the same surface
- * the public share page uses, with the archive's own frame around it: a trail
- * back to the event, the result the list scored, and the ways to fork it or
- * correct it.
- * @returns The archived deck page.
- */
 export function MetaDeckPage({ token }: { token: string }) {
   const { data } = useMetaDeck(token);
   const {
@@ -90,15 +75,11 @@ export function MetaDeckPage({ token }: { token: string }) {
   const unknown = unknownZoneCounts(data.cards, data.deck.format, data.meta.listStatus);
 
   const identity = archivedDeckIdentity(data.cards);
-  // `archivedDeckIdentity` falls back to the champion for a list with no legend
-  // card, which is right for the title and wrong for a param the form prints as
-  // "the archive has them on". Only a real legend zone travels, which is also
-  // what a standings row sends.
+  // archivedDeckIdentity falls back to the champion for a list with no legend card;
+  // only a real legend zone should travel into the form param.
   const legend = data.cards.some((card) => card.zone === WellKnown.deckZone.LEGEND)
     ? identity
     : null;
-  // The entry as the standings hold it, so both ways in open the form already
-  // knowing the player, the finish, the record, and the list itself.
   const entry = {
     playerName: data.meta.playerName,
     rank: data.meta.rank,

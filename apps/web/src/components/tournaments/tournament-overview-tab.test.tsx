@@ -245,14 +245,6 @@ function makeRunState(
 
 const HOUR_MS = 60 * 60 * 1000;
 
-/**
- * A tournament that is genuinely live right now. The effective state is derived
- * from the clock (a start with no end auto-completes after a grace period), so
- * the window is anchored to `Date.now()` rather than to a fixed date that would
- * silently age into "completed".
- *
- * @returns The detail fixture.
- */
 function makeDetail(overrides: Partial<TournamentDetailResponse> = {}): TournamentDetailResponse {
   return {
     id: "t-1",
@@ -344,7 +336,6 @@ describe("TournamentOverviewTab", () => {
     const throne = screen.getByRole("link", { name: /Standings/u });
     expect(within(throne).getByText("Player p1")).toBeInTheDocument();
     expect(within(throne).getByText("after round 1")).toBeInTheDocument();
-    // Ranks 4-5 trail the podium as plain rows.
     expect(within(throne).getByText("Player p4")).toBeInTheDocument();
     expect(within(throne).getByText("Player p5")).toBeInTheDocument();
   });
@@ -360,9 +351,6 @@ describe("TournamentOverviewTab", () => {
     render(<TournamentOverviewTab id="t-1" detail={makeDetail()} />);
 
     const throne = screen.getByRole("link", { name: /Standings/u });
-    // Competition ranks: the tie-break orders the seats but doesn't settle the
-    // claim to the place, so both level players wear 1 and the next skips to 3.
-    // Positional ranks here would tell a different story to the Standings page.
     expect(within(throne).getAllByText("1")).toHaveLength(2);
     expect(within(throne).getByText("3")).toBeInTheDocument();
     expect(within(throne).queryByText("2")).not.toBeInTheDocument();
@@ -372,7 +360,6 @@ describe("TournamentOverviewTab", () => {
     render(<TournamentOverviewTab id="t-1" detail={makeDetail()} />);
 
     const throne = screen.getByRole("link", { name: /Standings/u });
-    // Wins/draws/losses stay 0 for pod play, so a W-L-D here would read 0-0-0.
     expect(within(throne).getAllByText("1 pod win").length).toBeGreaterThan(0);
     expect(within(throne).queryByText("0-0-0")).not.toBeInTheDocument();
   });
@@ -489,13 +476,10 @@ describe("TournamentOverviewTab", () => {
   });
 
   it("renders for a plain participant without the staff-only roster query", () => {
-    // Regression: the roster endpoint 403s for
-    // non-staff, so the overview must not subscribe to it for them.
     participantsForbidden = true;
     render(<TournamentOverviewTab id="t-1" detail={makeDetail({ myRoles: ["participant"] })} />);
 
     expect(screen.getByText("Participants")).toBeInTheDocument();
-    // The roster page is staff-only, so the tile is not a link for them.
     expect(screen.queryByRole("link", { name: /participants/iu })).not.toBeInTheDocument();
   });
 
@@ -523,8 +507,6 @@ describe("TournamentOverviewTab", () => {
     const PLAYER: Partial<TournamentDetailResponse> = { myRoles: ["participant"] };
 
     it("gives a plain participant the only route to their own deck", () => {
-      // The Decks tile beside it is the judging queue and stays staff-gated, so
-      // without this tile an entrant cannot reach the list they handed in.
       render(
         <TournamentOverviewTab
           id="t-1"
@@ -563,8 +545,6 @@ describe("TournamentOverviewTab", () => {
     });
 
     it("stops nagging about an unsubmitted deck once the window shuts", () => {
-      // Past the deadline the list was auto-submitted as-is; there is nothing
-      // left for the player to do, so the tile must not read as an open task.
       render(
         <TournamentOverviewTab
           id="t-1"

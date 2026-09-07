@@ -4,11 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 
-/**
- * A numbered step in a walkthrough. Steps are rendered as a vertical stack, one card per step.
- *
- * @returns The step card.
- */
 export function StepRow({
   step,
   title,
@@ -33,12 +28,6 @@ export function StepRow({
   );
 }
 
-/**
- * An icon-led card describing one feature, option, or capability. The `dashed` variant marks
- * something that does not exist yet (a gap), so it reads as an outline rather than a feature.
- *
- * @returns The feature card.
- */
 export function FeatureCard({
   icon,
   title,
@@ -67,11 +56,6 @@ export function FeatureCard({
   );
 }
 
-/**
- * A deck zone with its card count, used by the deck-building and how-to-play articles.
- *
- * @returns The zone card.
- */
 export function ZoneCard({
   name,
   count,

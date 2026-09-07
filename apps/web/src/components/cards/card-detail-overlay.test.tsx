@@ -15,10 +15,7 @@ vi.mock("@/hooks/use-apply-tag-filter", () => ({
   useApplyTagFilter: () => null,
 }));
 
-// The overlay's history entry goes through the router (see
-// use-overlay-history-entry), which has no provider in a bare render. The stub
-// applies the entry to jsdom's history the way the real router would, so the
-// close and back-button assertions below still exercise the real thing.
+// Applies navigate's history entry to jsdom's history the way the real router would.
 const routerStub = {
   navigate: vi.fn(({ state }: { state: (prev: object) => object }) => {
     history.pushState(state(history.state ?? {}), "");
@@ -40,12 +37,8 @@ vi.mock("@/hooks/use-cards", () => ({
   useCards: () => catalog,
 }));
 
-// BaseUI portals and traps focus; pass-through stubs keep the test on the
-// overlay's own wiring (open gating, prev/next range, history entry).
+// BaseUI portals and traps focus; pass-through stubs keep tests on the overlay's own wiring.
 vi.mock("@/components/ui/dialog", () => ({
-  // The real dismiss runs through BaseUI's dialog context, which the stub does
-  // not carry; this button stands in for it so the tests exercise the
-  // overlay's own onOpenChange handler rather than the stub.
   Dialog: ({
     open,
     onOpenChange,
@@ -63,7 +56,6 @@ vi.mock("@/components/ui/dialog", () => ({
         {children}
       </div>
     ),
-  // Spreads the rest so the overlay's onKeyDown reaches the DOM.
   DialogContent: ({
     children,
     ...props
@@ -95,8 +87,7 @@ vi.mock("@/components/ui/drawer", () => ({
   DrawerTitle: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
-// The real CardDetail is lazy-loaded and heavy; the stub surfaces the id of the
-// card it was handed plus the nav label, which is what these tests assert on.
+// CardDetail is lazy-loaded and heavy; the stub surfaces id + navLabel instead.
 vi.mock("@/components/cards/card-detail", () => ({
   CardDetail: ({ printing, navLabel }: { printing: Printing; navLabel?: string }) => (
     <div>
@@ -157,14 +148,11 @@ describe("CardDetailOverlay", () => {
     isMobile.mockReturnValue(true);
     renderOverlay(printings, printings[0].id);
 
-    // The drawer has no nav label (the pane layout has no room for it), which
-    // is how the two arrangements are told apart here.
     expect(await screen.findByText(`showing ${printings[0].id}`)).toBeInTheDocument();
     expect(screen.queryByText("1 / 2")).not.toBeInTheDocument();
   });
 
   it("counts position against the host's rows, not the whole catalog", async () => {
-    // The catalog holds five printings; only three of them are host rows.
     const printings = seedCatalog(5);
     renderOverlay(printings.slice(0, 3), printings[1].id);
 
@@ -205,10 +193,6 @@ describe("CardDetailOverlay", () => {
   it("unwinds its own history entry when closed", async () => {
     const user = userEvent.setup();
     const printings = seedCatalog(2);
-    // Closing unwinds its own history entry rather than calling the host
-    // straight away, so the entry can't outlive the overlay and swallow the
-    // next back press. jsdom does not traverse session history, so the popstate
-    // that carries the close in the browser is asserted separately below.
     const back = vi.spyOn(history, "back");
     renderOverlay(printings, printings[0].id);
 
@@ -234,12 +218,8 @@ describe("CardDetailOverlay", () => {
     const { rerender } = renderOverlay(printings, printings[0].id);
     await screen.findByText(`showing ${printings[0].id}`);
     const afterOpen = pushState.mock.calls.length;
-    // Guards the assertion below from passing on a count that never moved.
     expect(afterOpen).toBeGreaterThan(0);
 
-    // A fresh callback identity each render is the normal case for an inline
-    // arrow at the call site. Pushing an entry per render would leave the back
-    // button needing as many presses as the overlay had rendered.
     for (let i = 0; i < 3; i++) {
       rerender(
         <CardDetailOverlay

@@ -51,8 +51,6 @@ const tag: CustomTagResponse = {
 };
 
 describe("CardTagEditor", () => {
-  // Regression: the Combobox fills the input with the picked card's name on
-  // selection, which fires onSearch — that must not clear the fresh selection.
   it("keeps the picked card selected after choosing it from the dropdown", async () => {
     const user = userEvent.setup();
     render(<CardTagEditor tags={[tag]} />);

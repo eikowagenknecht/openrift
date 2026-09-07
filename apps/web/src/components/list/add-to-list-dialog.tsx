@@ -10,37 +10,18 @@ import { QuantityStepperField } from "@/components/ui/quantity-stepper";
 import { useBulkAddListEntries, useCreateList, useLists } from "@/hooks/use-lists";
 import { cn } from "@/lib/utils";
 
-// Mirrors the API cap in bulkCreateListEntriesSchema. Keep in sync if changed.
 const MAX_BULK_ADD = 500;
 
 interface AddToListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   copyIds: string[];
-  /**
-   * True when every selected copy lives in a shared group collection. Such
-   * copies aren't the user's to trade away, so only organize lists are offered
-   * (mirrors the server's personalOnly rule for trade/wish lists).
-   */
   groupOwnedOnly?: boolean;
-  /**
-   * True when all `copyIds` are copies of the same card (the right-click /
-   * single-card path). Only then is a "how many copies" choice meaningful, so
-   * the dialog shows a 1..count stepper and adds just the chosen number. A
-   * multi-card selection from the float bar keeps the add-all behavior.
-   */
   singleCard?: boolean;
   onAdded?: () => void;
 }
 
-/**
- * Dialog invoked from the collection grid's float-bar with selected copies.
- * Adds them as copy-kind entries — so only copy-kind lists are eligible:
- *   - tradelists (always copy by intent×kind constraint)
- *   - organize×copy lists
- * The user picks which intent the new list belongs to when creating inline.
- * @returns The dialog component.
- */
+/** Adds selected copies as copy-kind entries; the user can create a list inline. */
 export function AddToListDialog({
   open,
   onOpenChange,
@@ -53,9 +34,8 @@ export function AddToListDialog({
   const bulkAdd = useBulkAddListEntries();
   const createList = useCreateList();
 
-  // Owned copies can only land in copy-kind lists. Trade is always copy by
-  // the intent×kind constraint; organize×copy is the other valid target.
-  // Group-owned copies can't go on a tradelist, so drop those targets.
+  // Group-owned copies aren't the user's to trade away, so a tradelist
+  // target is dropped for them (mirrors the server's personalOnly rule).
   const eligibleLists = allLists.filter(
     (list) => list.kind === "copy" && (!groupOwnedOnly || list.intent === "organize"),
   );
@@ -66,9 +46,6 @@ export function AddToListDialog({
 
   const count = copyIds.length;
 
-  // How many of the card's copies to add. Only meaningful for a single-card
-  // target; a multi-card selection always adds every selected copy. Re-arm to
-  // "all" each time the dialog opens for a fresh target.
   const canChooseQuantity = singleCard && count > 1;
   const [quantity, setQuantity] = useState(count);
   const [seed, setSeed] = useState({ open, count });
@@ -87,10 +64,7 @@ export function AddToListDialog({
       {
         onSuccess: (result) => {
           // Copy-kind adds never bump quantity (duplicates DO NOTHING), so a
-          // zero `added` means nothing landed — either every copy was already
-          // there or the server skipped it. Don't assert which: the old
-          // "Already on" message was wrong when copies were skipped for
-          // ownership.
+          // zero `added` doesn't tell apart "already there" from "skipped".
           if (result.added > 0) {
             toast.success(
               result.skipped > 0

@@ -21,8 +21,6 @@ export interface PageTocItem {
   level?: number;
 }
 
-// Per-link store subscription: scroll-driven `activeId` changes only re-render
-// the previously-active and newly-active links instead of the whole TOC.
 function TocLink({
   id,
   label,
@@ -62,9 +60,8 @@ function TocLink({
   );
 }
 
-// Reset to the first item whenever the items list changes (page navigation).
-// The store is global, so without this it would keep a stale id from the
-// previous page until the observer fires.
+// The store is global, so reset activeId on items change or it keeps a stale
+// id from the previous page until the observer fires.
 function useActiveTocItem(items: PageTocItem[]) {
   const setActiveId = usePageTocStore((state) => state.setActiveId);
 
@@ -123,9 +120,8 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
   );
 }
 
-// Mobile counterpart to PageToc. Below the lg breakpoint the sidebar is hidden,
-// so this opens a bottom drawer with the same list. Pair with PageToc on the
-// same page, whose observer keeps activeId in sync.
+// Pair with PageToc on the same page: this drawer shares its list but relies
+// on PageToc's observer to keep activeId in sync.
 export function PageTocMobileTrigger({
   items,
   className,
@@ -159,9 +155,8 @@ export function PageTocMobileTrigger({
           <DrawerTitle>Contents</DrawerTitle>
           <DrawerDescription className="sr-only">Jump to a section on this page</DrawerDescription>
         </DrawerHeader>
-        {/* Native overflow scroll, not ScrollArea: base-ui's ScrollArea does not scroll inside
-            the base-ui Drawer (the drawer's touch handling recognizes native scroll containers
-            but not ScrollArea's custom overflow:scroll viewport). Do not convert this to ScrollArea. */}
+        {/* Native overflow scroll, not ScrollArea: the Drawer's touch handling
+            doesn't recognize ScrollArea's custom overflow:scroll viewport. */}
         <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-4 pb-6">
           {items.map((item) => (
             <TocLink

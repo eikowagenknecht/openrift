@@ -57,8 +57,6 @@ describe("ContactMethodChips", () => {
     expect(getByText("a@b.com")).toBeInTheDocument();
   });
 
-  // Members add their channels in any order, but rows must line up with each
-  // other, so chips follow the canonical channel order regardless of input.
   it("orders chips by the canonical channel order, keeping ties stable", () => {
     const { container } = render(
       <ContactMethodChips
@@ -81,8 +79,6 @@ describe("ContactMethodChips compact", () => {
       <ContactMethodChips methods={[method({ type: "discord", value: "seb#1234" })]} compact />,
     );
     expect(queryByText("seb#1234")).toBeNull();
-    // The icon-only trigger still names the channel and its value for
-    // assistive tech and on hover.
     expect(getByRole("button", { name: "Discord: seb#1234" })).toBeInTheDocument();
   });
 
@@ -101,7 +97,6 @@ describe("ContactMethodChips compact", () => {
     const { getByRole, findByRole } = render(
       <ContactMethodChips methods={[method({ type: "email", value: "a@b.com" })]} compact />,
     );
-    // No link in the row itself — opening is now a deliberate second step.
     expect(document.querySelectorAll("a")).toHaveLength(0);
     await user.click(getByRole("button", { name: "Email: a@b.com" }));
     const open = await findByRole("link", { name: /Open/u });
@@ -121,8 +116,8 @@ describe("ContactMethodChips compact", () => {
   });
 
   it("copies the value and confirms it", async () => {
-    // userEvent.setup() installs its own navigator.clipboard stub, so the copy
-    // is asserted by reading it back rather than by spying on writeText.
+    // userEvent.setup() installs its own navigator.clipboard stub; asserted
+    // by reading the clipboard back, not by spying on writeText.
     const user = userEvent.setup();
     const { getByRole, findByRole } = render(
       <ContactMethodChips methods={[method({ type: "discord", value: "seb#1234" })]} compact />,

@@ -40,7 +40,6 @@ describe("LensBar", () => {
     const { getAllByRole } = render(
       <LensBar rows={ROWS} series={SERIES} onSegmentClick={onSegmentClick} />,
     );
-    // Each nonzero row appears twice: bar segment + legend entry.
     const buttons = getAllByRole("button");
     expect(buttons).toHaveLength(4);
     fireEvent.click(buttons[1]);
@@ -67,7 +66,6 @@ describe("LensBar", () => {
     const parts = [...container.querySelectorAll("span")].filter(
       (el) => el.style.flexGrow !== "" && el.style.backgroundColor !== "",
     );
-    // Lit third (4 of 12) plus the faded remainder.
     expect(parts).toHaveLength(2);
     expect(Number(parts[0].style.flexGrow)).toBeCloseTo(4 / 12, 5);
     expect(parts[1].style.opacity).toBe("0.3");
@@ -82,8 +80,6 @@ describe("LensBar", () => {
       <LensBar rows={rows} series={SERIES} onSegmentClick={() => {}} />,
     );
     expect(container.textContent).toContain("0 Rare");
-    // One clickable segment + one clickable legend entry (the zero row's
-    // legend entry is static text).
     expect(getAllByRole("button")).toHaveLength(2);
   });
 });

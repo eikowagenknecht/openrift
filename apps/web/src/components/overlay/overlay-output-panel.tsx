@@ -23,21 +23,10 @@ import { deriveOverlayWalk } from "@/lib/overlay-walk";
 import { cn } from "@/lib/utils";
 import { usePresentQueueStore } from "@/stores/present-queue-store";
 
-/**
- * The canvas the preview paints at. 1080p is what an OBS browser source is set
- * to in practice, and the number only has to be a plausible stage — everything
- * in the frame is sized relative to it, so a source set to another size scales
- * the same way.
- */
 const OBS_CANVAS = { width: 1920, height: 1080 };
 
-/**
- * What the audience is seeing right now, rendered with the very component the
- * browser source uses — so the check before pushing is the real thing rather
- * than an approximation of it.
- *
- * @returns The live preview panel.
- */
+// Must use the real OverlayFrame component: the preview has to match what
+// the browser source actually renders.
 function LivePreview({
   payload,
   printing,
@@ -46,9 +35,7 @@ function LivePreview({
 }: {
   payload: Parameters<typeof OverlayFrame>[0]["payload"];
   printing: Printing | undefined;
-  /** The live board resolved for the frame, or undefined when none is up. */
   board?: OverlayBoardScene;
-  /** Walk and clear controls, sat under the preview beside the live card's name. */
   controls?: ReactNode;
 }) {
   const [box, setBox] = useState<HTMLDivElement | null>(null);
@@ -56,17 +43,14 @@ function LivePreview({
   const liveCard = payload.printingId !== null && printing !== undefined;
   const holding = liveCard || payload.board !== null;
   const live = holding && !payload.hidden;
-  // Whatever is up, named: the board's own title, or the card's.
   let caption = "Push a card or a tier list to put it on screen.";
   if (payload.board !== null) {
     caption = payload.board.title;
   } else if (liveCard) {
     caption = legendDisplayName(printing.card);
   }
-  // Said twice on purpose. The preview above paints the payload exactly as the
-  // browser source does, so hiding empties it — and an empty preview with a card
-  // still named under it has to explain itself, or it reads as the push having
-  // failed.
+  // Append "(hidden)": without it, a named caption over an empty preview
+  // looks like a failed push.
   if (payload.hidden && holding) {
     caption = `${caption} (hidden)`;
   }
@@ -89,9 +73,8 @@ function LivePreview({
           {status}
         </span>
       </div>
-      {/* The checkerboard stands for the transparency OBS composites through.
-          Literal colors, not theme tokens: it represents "no background at
-          all", so it must read the same in either theme. */}
+      {/* Literal colors, not theme tokens: the checkerboard stands for "no
+          background at all" and must read the same in either theme. */}
       <div
         ref={setBox}
         className="ring-border aspect-video overflow-hidden rounded-lg ring-1"
@@ -99,11 +82,9 @@ function LivePreview({
           background: "repeating-conic-gradient(#20242e 0% 25%, #171a22 0% 50%) 50% / 20px 20px",
         }}
       >
-        {/* Painted at the canvas size a browser source actually runs at, then
-            scaled down to fit. The plate's type is sized in px, so rendering it
-            straight into a 400px-wide box would show a plate several times the
-            size it takes on stream — and the whole point of this panel is that
-            what is checked here is what goes out. */}
+        {/* Painted at the canvas size a browser source runs at, then scaled
+            down to fit: the plate's type is sized in px, so a straight render
+            into this box would show it several times the size it takes on stream. */}
         <div
           className="origin-top-left"
           style={{
@@ -123,15 +104,7 @@ function LivePreview({
   );
 }
 
-/**
- * Prev / next through the queue, so the creator's phone works as a clicker
- * while their hands are on the game rather than on the queue list.
- *
- * Hidden with no queue: the buttons would have nothing to step through, and an
- * empty pair of disabled arrows under the preview reads as something broken.
- *
- * @returns The walk controls, or nothing when the queue is empty.
- */
+// Kept visible but disabled when the queue is empty, not hidden.
 function WalkControls({
   queue,
   livePrintingId,
@@ -189,24 +162,7 @@ function WalkControls({
   );
 }
 
-/**
- * The OBS half of the stage: what the browser source is showing, the clicker
- * that walks the queue through it, and the scene setup with its saved presets.
- *
- * A ranking gets here from the show itself rather than from a control on this
- * panel — the stage draws the board, so that is where a creator can see what
- * they are putting on stream — and arrives as a board on the channel, which the
- * preview and the Clear button treat like any other thing that is up.
- *
- * It steps the very queue the builder beside it is editing, rather than a
- * second list of its own — one queue, two ways of putting it on screen. That
- * queue is the draft in {@link usePresentQueueStore}, which the page seeds from
- * `?cards=` on arrival, so a bookmarked set still opens ready to push.
- *
- * Mounted only while signed in: every channel hook here needs a session.
- *
- * @returns The OBS output panel.
- */
+// Mounted only while signed in: every channel hook here needs a session.
 export function OverlayOutputPanel() {
   const { data: channel } = useOverlayChannel();
   const { cardsById, printingsById, printingsByCardId } = useCards();
@@ -215,10 +171,8 @@ export function OverlayOutputPanel() {
   const setHidden = useSetOverlayHidden();
   const queue = usePresentQueueStore((state) => state.ids);
 
-  // The card size being dragged in the settings panel, or null when the thumb
-  // is at rest. It lives here rather than in the panel so the preview above can
-  // resize along with the drag, while the write to the channel still waits for
-  // the release.
+  // Kept here, not in the settings panel: the preview must resize during the
+  // drag while the channel write waits for release.
   const [draftScale, setDraftScale] = useState<number | null>(null);
 
   if (channel === undefined) {
@@ -228,8 +182,6 @@ export function OverlayOutputPanel() {
   const livePrintingId = channel.payload.printingId;
   const liveBoard = channel.payload.board;
   const hidden = channel.payload.hidden;
-  // A board pushed from the stage previews here like anything else on the
-  // channel, resolved against the catalogue the frame draws from.
   const boardScene =
     liveBoard === null
       ? undefined
@@ -249,9 +201,6 @@ export function OverlayOutputPanel() {
               onPush={(printingId) => pushCard.mutate({ printingId })}
               isPending={pushCard.isPending}
             />
-            {/* Offered even with nothing up, unlike Clear: dropping the curtain
-                before the first push is how a creator sets a scene without the
-                audience watching them do it. */}
             <Button
               variant="outline"
               size="sm"
@@ -273,9 +222,6 @@ export function OverlayOutputPanel() {
           </div>
         }
       />
-      {/* Rankings are run from the stage, where the board is visible, and the
-          preview above shows whatever the stage sent — so this is a pointer
-          rather than a second set of controls. */}
       <p className="text-muted-foreground text-sm">
         Open a{" "}
         <Link to="/tier-lists" className="underline underline-offset-2">

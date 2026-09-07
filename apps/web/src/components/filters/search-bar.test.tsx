@@ -46,7 +46,6 @@ function setup({
   return actions;
 }
 
-/** Opens the scope menu from the in-field chip. @returns Nothing. */
 async function openScopeMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /change search scope/iu }));
 }
@@ -104,17 +103,12 @@ describe("SearchBar scope chip", () => {
   it("mirrors an explicit prefix instead of the picked scope", () => {
     setup({ search: "n:teemo", scope: ["cardText"] });
 
-    // The prefix wins over the scope for that term, so the chip has to report
-    // the prefix — showing "in: card text" would describe a scope this query
-    // is ignoring.
     expect(screen.getByText("in: name")).toBeInTheDocument();
   });
 
   it("mirrors a prefix the moment the colon is typed", () => {
     setup({ search: "n:" });
 
-    // "n:" carries no term yet, so nothing is filtered — the chip is the only
-    // confirmation that the prefix registered.
     expect(screen.getByText("in: name")).toBeInTheDocument();
   });
 
@@ -188,7 +182,6 @@ describe("SearchBar scope chip", () => {
 
     expect(actions.setSearch).toHaveBeenCalledWith("");
     expect(actions.selectAllSearchFields).not.toHaveBeenCalled();
-    // The chip must survive the clear — it reflects the persistent scope.
     expect(screen.getByText("in: card text")).toBeInTheDocument();
   });
 });
@@ -200,8 +193,6 @@ describe("SearchBar scope menu", () => {
 
     await openScopeMenu(user);
 
-    // The menu is the only place the n:/k: syntax is documented, so every
-    // field must carry its prefix.
     for (const label of ["Name", "Card Text", "Keywords", "Tags", "Artist"]) {
       expect(screen.getByRole("checkbox", { name: new RegExp(label, "u") })).toBeInTheDocument();
     }

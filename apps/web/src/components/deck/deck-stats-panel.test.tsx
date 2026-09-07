@@ -17,10 +17,6 @@ const DISTRIBUTION = [
   { domain: "calm", count: 10 },
 ];
 
-/**
- * The colored segments of a rendered bar, in DOM order.
- * @returns The segment elements.
- */
 function segmentsOf(container: HTMLElement) {
   return [...container.querySelectorAll("span")].filter((el) => el.style.backgroundColor !== "");
 }
@@ -48,9 +44,7 @@ describe("DomainBar", () => {
     expect(segmentsOf(container)).toHaveLength(2);
   });
 
-  // The editor sidebar's identity header is itself a button, so its copy of the
-  // bar must not nest interactive tooltip triggers inside it.
-  it("drops the tooltip triggers when not interactive", () => {
+  it("drops tooltip triggers when not interactive, so they don't nest inside the sidebar's own button header", () => {
     const { container, queryAllByRole } = render(
       <DomainBar data={DISTRIBUTION} total={40} colors={COLORS} interactive={false} />,
     );

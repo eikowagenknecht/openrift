@@ -29,11 +29,7 @@ import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/legends_/$slug");
 
-/**
- * The record section, which grows a server page at a time. Each page is its own
- * query under the same scope, so a reader who walks back up the list finds the
- * pages they already opened in the cache.
- */
+/** Each page is its own query under the same scope, so walking back up the list hits cache. */
 function LegendRecord({
   slug,
   query,
@@ -68,11 +64,6 @@ function LegendRecord({
   );
 }
 
-/**
- * The grid of lists filed under this legend. The server renders one grid's
- * worth; "Show all" asks for the same query without the cap, and the rows
- * already on screen stay put while it arrives.
- */
 function LegendDecks({
   legendCardId,
   query,
@@ -102,13 +93,6 @@ function LegendDecks({
   );
 }
 
-/**
- * `/meta/legends/$slug` — one legend's place in the archive: what it has won,
- * every finish on its record, and the lists that were registered with it.
- *
- * Everything on the page is scoped server-side by the same query, so the first
- * paint is the whole page rather than a hero above a loading grid.
- */
 export function MetaLegendPage() {
   const { slug } = routeApi.useParams();
   const search = routeApi.useSearch();
@@ -117,8 +101,6 @@ export function MetaLegendPage() {
   const query = metaScopeQueryFromScope(search, eras);
   const { data } = useMetaLegend(slug, query);
 
-  // Replaced rather than pushed: a scope bar is one control the reader adjusts
-  // several times, and each dropdown would otherwise cost a press of Back.
   const setScope = (patch: Partial<MetaScope>) => {
     void navigate({ search: (prev) => nextScopeSearch(prev, patch), replace: true });
   };
@@ -126,9 +108,7 @@ export function MetaLegendPage() {
 
   const narrowed = isScopeRestricting(search, eras);
   const { champion } = splitLegendName(data.legend.name);
-  // Remounts both sections whenever the scope changes, so a view a reader opened
-  // on the old slice does not carry into the new one. Each section prefixes it:
-  // two siblings sharing one key leave the first one's DOM behind on the swap.
+  // Each section prefixes this: two siblings sharing one key leave the first one's DOM behind.
   const sectionKey = scopeKey(search);
 
   return (

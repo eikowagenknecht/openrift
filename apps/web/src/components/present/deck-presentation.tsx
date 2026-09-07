@@ -11,12 +11,8 @@ import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import type { PresentationItem } from "@/lib/presentation-queue";
 
 /**
- * Presents a deck, walking its zones in the order the overview stacks them.
  * Kept as its own component so the deck queries are never called on the
- * ad-hoc-queue path — the two sources resolve their cards completely
- * differently and would otherwise have to share one conditional hook chain.
- *
- * @returns The stage, driven by the deck's cards.
+ * ad-hoc-queue path, which resolves its cards differently.
  */
 export function DeckPresentation({
   deckId,
@@ -41,9 +37,8 @@ export function DeckPresentation({
     .filter((card): card is DeckBuilderCard => card !== null);
   const { items } = useDeckItems(builderCards);
 
-  // The zone becomes the corner marker's context here rather than on the stage:
-  // a stage that resolved zone labels itself would be a stage that knows what a
-  // deck is, and a tier list has no zones to give it.
+  // Resolved here, not on the stage: a stage that knows zone labels is a
+  // stage that knows what a deck is, and a tier list has no zones.
   const shown: PresentationItem[] = (zone ? items.filter((item) => item.zone === zone) : items).map(
     (item) => ({
       id: item.id,

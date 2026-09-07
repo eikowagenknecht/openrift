@@ -4,13 +4,9 @@ import { cn } from "@/lib/utils";
 
 interface CardBackProps {
   className?: string;
-  /** True when the card is part of a "click to reveal" flow — adds hover affordance. */
   interactive?: boolean;
 }
 
-// Stylized card back used on the pack-opener simulator. Same aspect and corner
-// radius as CardPlaceholderImage, with a centered logo on a noise-textured
-// dark gradient. No card data, it hides what's underneath until flipped.
 export function CardBack({ className, interactive = false }: CardBackProps) {
   const noiseId = useId();
   return (

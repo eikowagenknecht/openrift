@@ -19,39 +19,15 @@ type Outcome = "keep" | "sold";
 interface TakeOffTradelistDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Number of cards being taken off (one tradelist tile = one physical copy). */
   count: number;
-  /** Outcome 1: remove from the tradelist but keep the copies in the collection. */
   onKeep: () => void;
-  /** Outcome 2: dispose the copies — remove them from the collection for good. */
   onSold: () => void;
-  /** True while either the keep (remove) or sold (dispose) mutation is running. */
   isPending: boolean;
-  /** Other lists (this list excluded) the copies also sit on — drives the sold warning. */
   memberships?: CopyListMembershipsResponse;
-  /** True while the list-membership check is still in flight. */
   membershipsLoading?: boolean;
-  /**
-   * How many of the targeted copies are pinned to a live in-app trade. When
-   * any are, the sold (dispose) outcome is blocked — disposing would break the
-   * trade — so only the keep outcome is offered.
-   */
   reservedCount?: number;
 }
 
-/**
- * Single entry point for taking copies off a tradelist. A card leaves a
- * tradelist for one of two reasons, and they differ in what happens to the
- * physical copy — so we ask the outcome here instead of offering two
- * lookalike buttons:
- *   - keep: just unlist it; the copy stays in the collection (non-destructive).
- *   - sold: dispose the copy, removing it from the collection for good. Since
- *     that hard-deletes the copy, it also drops off any *other* lists it's on;
- *     when it does, the same red cross-list warning + type-to-confirm friction
- *     as the collection dispose flow applies (reusing {@link disposeConfirmState}).
- * "keep" is the default so an accidental confirm can't delete a card.
- * @returns The take-off-tradelist confirmation dialog.
- */
 export function TakeOffTradelistDialog({
   open,
   onOpenChange,
@@ -75,7 +51,6 @@ export function TakeOffTradelistDialog({
 
   const [outcome, setOutcome] = useState<Outcome>("keep");
   const [confirmText, setConfirmText] = useState("");
-  // Reset to the safe default and clear any typed value on every reopen.
   const [seededOpen, setSeededOpen] = useState(open);
   if (seededOpen !== open) {
     setSeededOpen(open);
@@ -86,9 +61,6 @@ export function TakeOffTradelistDialog({
   }
 
   const sold = outcome === "sold";
-  // Hold the sold confirm while the membership check resolves: until then we
-  // don't know whether this is a cross-list dispose, so can't show the right
-  // friction. Type-to-confirm only ever gates the destructive (sold) path.
   const typedConfirmSatisfied = !needsTypeConfirm || confirmText.trim() === String(count);
   const confirmDisabled = isPending || (sold && (membershipsLoading || !typedConfirmSatisfied));
 

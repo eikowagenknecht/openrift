@@ -37,22 +37,12 @@ export interface BrowserCardDragData {
 export interface DeckDropData {
   type: "deck-zone";
   zone: DeckZone;
-  /**
-   * True when the dragged card can't land in this zone (wrong type, or the zone
-   * is full). The zone still registers as a droppable so a release over it is a
-   * no-op rather than being treated as "dropped outside a zone" (which removes a
-   * copy) — see handleDragEnd.
-   */
   disabled?: boolean;
 }
 
 export type AnyDragData = DeckCardDragData | BrowserCardDragData;
 
-/**
- * Every drag this context owns, for narrowing a dnd-kit payload with
- * {@link asDragData}. The deck editor hosts the card browser and its own
- * sortables, so its handlers do see payloads that aren't in this list.
- */
+/** For narrowing a dnd-kit payload with {@link asDragData}; the deck editor's own sortables produce payloads outside this list. */
 export const DECK_DRAG_TYPES = [
   "deck-card",
   "browser-card",
@@ -61,36 +51,13 @@ export const DECK_DRAG_TYPES = [
 const DECK_DROP_TYPES = ["deck-zone"] as const satisfies readonly DeckDropData["type"][];
 
 const DRAG_ACTIVATION = { distance: 8 };
-/**
- * Zones whose cards can be picked up and re-homed by dragging. Every deck
- * surface that renders draggable cards (overview grid, overview list, sidebar)
- * uses this set, so they all offer the drag affordance on the same rows.
- */
 export const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
   WellKnown.deckZone.OVERFLOW,
 ]);
 
-/**
- * The deck card a drag is carrying, resolved against the current deck. A
- * browser drag carries its card outright; a deck drag carries ids, so the row
- * it was lifted from is looked up — its quantity and types are what the
- * zone-fullness and type checks read.
- *
- * Identity is the deck row's full key (card, zone, printing), not just card and
- * zone: a deck may hold one card in one zone twice under different printings,
- * and those are separate rows with separate quantities. Every `deck-card`
- * payload is built from a row that has all three, so the lookup finds it.
- *
- * The single answer to "what is in flight" for every deck drop target — the
- * grid zones, the list zones and the sidebar all call this rather than
- * inlining their own lookup, so they can't disagree about what is being
- * dragged.
- *
- * @returns The dragged card, or undefined when nothing is being dragged (or the
- *   dragged row is no longer in the deck).
- */
+/** Looked up by the row's full key (card, zone, printing): a deck can hold one card in one zone twice under different printings, as separate rows. */
 export function resolveDraggedCard(
   dragData: AnyDragData | undefined,
   allCards: readonly DeckBuilderCard[],
@@ -108,9 +75,7 @@ export function resolveDraggedCard(
   }
   return undefined;
 }
-// Zones that accept deck-card drops. Champion is included so a unit can be
-// dragged from main/sideboard/overflow into the chosen-champion slot; the
-// move action handles replacing whatever's currently there.
+// Champion is included so a unit can be dragged into the chosen-champion slot; the move action handles replacing whatever's there.
 const DRAG_ZONES = new Set<DeckZone>([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
@@ -118,16 +83,6 @@ const DRAG_ZONES = new Set<DeckZone>([
   WellKnown.deckZone.CHAMPION,
 ]);
 
-/**
- * Whether a completed drag over `overData` must be a no-op for the dragged
- * `activeData`. A zone that reports itself `disabled` (incompatible card type,
- * full slot, or a zone the format doesn't play — e.g. a sideboard on a Custom
- * Region deck) rejects both browser and deck cards; a deck card is also
- * rejected when dropped back onto its own zone or onto a non-move zone
- * (Legend/Runes/Battlefields). Rejected drops leave the deck untouched: the
- * card stays where it is (deck card) or is not added (browser card).
- * @returns `true` when the drop target rejects the dragged card.
- */
 export function isDropRejected(activeData: AnyDragData, overData: DeckDropData): boolean {
   if (overData.disabled === true) {
     return true;
@@ -145,14 +100,7 @@ const SCROLL_SPEED = 15;
 /** The sidebar's own scroll container (SidebarContent sets this data-slot). */
 const SIDEBAR_VIEWPORT_SELECTOR = '[data-slot="sidebar-content"]';
 
-/**
- * Vertical auto-scroll step for one frame of an edge-scrolling container. The
- * speed ramps from 0 at the inner edge of the band to SCROLL_SPEED at the
- * container's edge, and is clamped there so a pointer past the edge doesn't
- * scroll faster than one sitting on it.
- * @returns Pixels to scroll this frame — negative up, positive down, and 0 when
- *   the pointer is clear of both edges or the container is already at that end.
- */
+/** Speed ramps from 0 at the inner edge of the band to SCROLL_SPEED at the container's edge, clamped there. */
 export function edgeScrollDelta(input: {
   pointerY: number;
   top: number;
@@ -177,10 +125,6 @@ export function edgeScrollDelta(input: {
   return 0;
 }
 
-/**
- * Whether a viewport point falls inside a rect, edges included.
- * @returns `true` when the point is within the rect.
- */
 export function isPointInRect(
   x: number,
   y: number,
@@ -198,13 +142,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     cardName: string;
     quantity: number;
     fromBrowser: boolean;
-    /** Copy-limit override of the dragged card; only read for browser drags. */
     maxCopiesOverride: number | null;
-    /**
-     * Art the dragged copy is pinned to, so the ghost matches the row it was
-     * lifted from. Null follows the language-preferred printing, same as
-     * everywhere else the deck resolves art.
-     */
     preferredPrintingId: string | null;
   } | null>(null);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -212,7 +150,6 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
   const pointerRef = useRef({ x: 0, y: 0 });
   const scrollRafRef = useRef<number>(0);
 
-  // Track Shift key during drag for "move all" modifier
   useEffect(() => {
     if (!dragInfo) {
       return;
@@ -235,8 +172,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     };
   }, [dragInfo]);
 
-  // Force grabbing cursor during drag — the DragOverlay has pointer-events: none
-  // so the cursor would otherwise reflect whatever element is underneath.
+  // DragOverlay has pointer-events: none, so the cursor would otherwise reflect whatever is underneath.
   useEffect(() => {
     if (!dragInfo) {
       return;
@@ -247,10 +183,8 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     };
   }, [dragInfo]);
 
-  // Custom auto-scroll for containers that aren't ancestors of the dragged node.
-  // dnd-kit's built-in auto-scroll only walks the active node's ancestors, so
-  // this covers a card dragged from the browser grid over the sidebar. The page
-  // itself is never scrolled here — that stays dnd-kit's job.
+  // dnd-kit's built-in auto-scroll only walks the active node's ancestors; this
+  // covers a card dragged from the browser grid over the sidebar. Never scrolls the page itself.
   useEffect(() => {
     if (!dragInfo) {
       return;
@@ -272,7 +206,6 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         if (activeNodeRef.current && element.contains(activeNodeRef.current)) {
           continue;
         }
-        // The page is dnd-kit's to scroll, gated by canScroll.
         if (element === document.body || element === document.documentElement) {
           continue;
         }
@@ -351,7 +284,6 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
       return;
     }
 
-    // Dropped outside a valid zone — remove from source zone
     if (overData?.type !== "deck-zone") {
       if (activeData.type === "deck-card") {
         if (moveAll || activeData.quantity === 1) {
@@ -383,9 +315,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
             .reduce((sum, card) => sum + card.quantity, 0);
           actions.addCard(activeData.card, overData.zone, Math.max(0, 12 - runeTotal));
         } else {
-          // "Fill to the copy cap"; unlimited-override cards have no cap, so a
-          // shift-drop adds a chunk of 3 (matching shift-click). addCardAction
-          // clamps to the real remainder for finite limits.
+          // Unlimited-override cards have no cap, so a shift-drop adds a chunk of 3 (matching shift-click).
           const limit = copyLimitFor(activeData.card);
           actions.addCard(activeData.card, overData.zone, Number.isFinite(limit) ? limit : 3);
         }
@@ -417,10 +347,7 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     }
   };
 
-  // Overflow is excluded — it is a free parking zone, so copies parked there
-  // neither count toward the copy cap nor reduce how many a shift-drag adds.
-  // Unlimited-override cards have no finite remainder; shift-drag adds a
-  // chunk of 3 for them (matching shift-click).
+  // Overflow is a free parking zone: copies there don't count toward the copy cap.
   const browserLimit = dragInfo?.fromBrowser ? copyLimitFor(dragInfo) : 3;
   const browserRemaining = dragInfo?.fromBrowser
     ? Number.isFinite(browserLimit)
@@ -457,17 +384,8 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     return rect !== undefined && isPointInRect(x, y, rect);
   };
 
-  // dnd-kit walks the active node's scrollable ancestors outermost-first (its
-  // default TraversalOrder.TreeOrder reverses the innermost-first list) and
-  // scrolls the first one that wants to move. The sidebar is full-height, so
-  // its top and bottom edges sit on the viewport's: dragging between its zone
-  // sections put the pointer in the *page's* edge band first, which scrolled
-  // the main view while the sidebar itself stayed put. Vetoing the page while
-  // the pointer is over the sidebar lets that loop fall through to the
-  // sidebar's own scroll container. Over the main area nothing is vetoed, so
-  // page auto-scroll behaves as before. Measured per call rather than cached:
-  // dnd-kit re-runs this on each pointer move, and a frame-old answer could
-  // leave the page scrolling after the pointer crossed into the sidebar.
+  // dnd-kit scrolls the page before the sidebar since both share the viewport's edges;
+  // veto the page while the pointer is over the sidebar so its own scroll container gets the turn.
   const canScroll = (element: Element) => {
     const isPage =
       element === document.scrollingElement ||

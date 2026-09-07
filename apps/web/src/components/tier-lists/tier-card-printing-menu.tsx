@@ -17,19 +17,13 @@ import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
 interface TierCardPrintingMenuProps {
   cardId: string;
-  /** The entry's stored printing, or null when it follows the default. */
   pinnedPrintingId: string | null;
   children: ReactNode;
 }
 
 /**
- * Right-click / long-press menu for a ranked tile: which printing supplies its
- * art, plus unranking. Ranking stays per card — the same card cannot sit in two
- * tiers however many printings it has — so this pins the art without splitting
- * the entry, which is the difference from the deck builder's version of the
- * menu.
- *
- * @returns The wrapped children with the context menu attached.
+ * A card can only sit in one tier however many printings it has, so this pins
+ * the art without splitting the entry.
  */
 export function TierCardPrintingMenu({
   cardId,

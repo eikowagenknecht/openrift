@@ -36,24 +36,9 @@ interface CardDetailProps {
   onKeywordClick?: (keyword: string) => void;
   printings?: Printing[];
   onSelectPrinting?: (printing: Printing) => void;
-  /** Defaults to the single-column `pane` arrangement. */
   layout?: CardDetailLayout;
-  /**
-   * Surface-specific add controls (deck zone buttons, owned-count stepper, …).
-   * Rendered under the printing picker in both layouts, so an overlay never
-   * hides the controls that were on the card cell it covers.
-   */
   actions?: ReactNode;
-  /**
-   * Position within the current list, e.g. `7 / 238`. Shown beside the modal's
-   * prev/next buttons; the pane has no room for it.
-   */
   navLabel?: string;
-  /**
-   * Modal only: an overlay-owned control (the dock link) placed opposite the
-   * card-page link, so the dialog ends in one footer row rather than a stray
-   * link under the columns and a separate line beneath it.
-   */
   footerSlot?: ReactNode;
 }
 
@@ -75,7 +60,6 @@ function BanAlert({ printing }: { printing: Printing }) {
 /**
  * The full card detail, rendered in one of two arrangements. Both are composed
  * from the same parts so a field added to one is never missing from the other.
- * @returns The card detail.
  */
 export function CardDetail({
   printing,
@@ -110,9 +94,7 @@ export function CardDetail({
 
   if (layout === "modal") {
     return (
-      // No domain tint here: the dialog itself carries it, so the gradient
-      // reaches the popup's rounded edges. Repeating it on this inner box would
-      // paint it inside the dialog's padding, framing it in a hard-edged border.
+      // No domain tint here: the dialog itself carries it, reaching the popup's rounded edges.
       <div className="@container flex flex-col gap-4">
         {/* pr-8 keeps the title clear of the dialog's own close button. */}
         <CardDetailHeading
@@ -164,8 +146,6 @@ export function CardDetail({
           </div>
         </div>
 
-        {/* One footer row: leaving the dialog on the left, changing how it is
-            shown on the right. */}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
           <CardDetailLinks card={card} />
           {footerSlot}
@@ -179,17 +159,12 @@ export function CardDetail({
       className="bg-background overflow-y-auto rounded-lg md:px-3"
       style={getDomainTintStyle(card.domains, domainColors)}
     >
-      {/* Mobile header */}
       {onClose && (
         <div
           className="bg-background/80 sticky top-0 z-10 px-4 pt-3 pb-4 backdrop-blur-lg md:hidden"
-          // The frosted fill lifts the title off the card art below; the domain tint
-          // ties the bar to the card (matching the drawer root). No border here — only
-          // the global header keeps a bottom border; the rest separate by blur + spacing.
           style={getDomainTintStyle(card.domains, domainColors)}
         >
-          {/* Drag pill hosted inside the blurred header so the blur band reaches the
-              drawer's top edge (the drawer's built-in handle stays off — showSwipeHandle defaults to false). */}
+          {/* showSwipeHandle stays false: this replaces the drawer's built-in handle. */}
           <div className="bg-muted mx-auto mb-3 h-1 w-[100px] rounded-full" />
           <div className="relative">
             <Button
@@ -212,7 +187,6 @@ export function CardDetail({
         </div>
       )}
 
-      {/* Desktop header */}
       <div className="relative hidden md:block md:pt-4 md:pb-4">
         {onClose && (
           <Button
@@ -238,7 +212,6 @@ export function CardDetail({
 
         <CardDetailArt printing={printing} showImages={showImages} />
 
-        {/* Stats with mobile prev/next on the sides */}
         <div className="flex items-start gap-2">
           {hasNav && (
             <Button
@@ -269,7 +242,6 @@ export function CardDetail({
 
         {text}
 
-        {/* Distribution & printing notes (markers, channels, per-printing comment) */}
         {notes}
 
         {holdings}
@@ -280,7 +252,6 @@ export function CardDetail({
 
         {actions}
 
-        {/* Card details link (only in an overlay, not on the standalone page) */}
         {onClose && <CardDetailLinks card={card} />}
       </div>
     </div>

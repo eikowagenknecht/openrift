@@ -2,12 +2,7 @@ import { useEffect } from "react";
 
 import { useSiteSettingValue } from "@/hooks/use-site-settings";
 
-/**
- * Injects the Umami analytics script when the `umami-url` and
- * `umami-website-id` site settings are configured.
- *
- * @returns `null` — this component renders nothing.
- */
+/** Injects the Umami analytics script when the `umami-url` and `umami-website-id` site settings are configured. */
 export function Analytics() {
   const umamiUrl = useSiteSettingValue("umami-url");
   const umamiWebsiteId = useSiteSettingValue("umami-website-id");

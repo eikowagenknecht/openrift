@@ -18,7 +18,6 @@ function EventRow({ event }: { event: AdminMetaEvent }) {
   );
 }
 
-/** Free-text search over the whole archive, for the event-match panel's search fallback. */
 export function MetaEventSearchPicker({
   disabled,
   onPick,

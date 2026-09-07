@@ -17,12 +17,9 @@ import {
   useMatchTrackerStore,
 } from "@/stores/match-tracker-store";
 
-/** How long the score-correction steppers stay up after the last interaction. */
 const CORRECT_TIMEOUT_MS = 4000;
-/** Past this target the pip row stops being countable, so it falls back to text. */
 const MAX_PIP_TARGET = 12;
 
-/** Darkens the panel edges so the numeral stays readable over any artwork. */
 const VIGNETTE_STYLE = {
   backgroundImage: "radial-gradient(120% 80% at 50% 50%, transparent 34%, var(--color-card) 100%)",
   opacity: 0.7,
@@ -43,14 +40,12 @@ interface MedStyle {
   label: boolean;
 }
 
-/** How the scoring medallions scale with the card (see medallionSizeTier). */
 const MED_STYLES: Record<MedallionSize, MedStyle> = {
   sm: { ring: "size-8", icon: "size-3.5", gap: "gap-2.5", label: false },
   md: { ring: "size-9", icon: "size-4", gap: "gap-4", label: true },
   lg: { ring: "size-11", icon: "size-5", gap: "gap-5", label: true },
 };
 
-/** How the XP tab and rail scale with the card (see xpSizeTier). */
 const XP_STYLES: Record<XpSize, { tab: string; rail: string; step: string; value: string }> = {
   sm: { tab: "h-7 w-5", rail: "w-6", step: "h-4 text-xs", value: "text-xs" },
   md: { tab: "h-8 w-6", rail: "w-7", step: "h-5 text-sm", value: "text-sm" },
@@ -58,15 +53,7 @@ const XP_STYLES: Record<XpSize, { tab: string; rail: string; step: string; value
   xl: { tab: "h-11 w-8", rail: "w-9", step: "h-7 text-lg", value: "text-lg" },
 };
 
-/**
- * One player's scorepad. Scoring runs through the three medallions at the outer
- * edge, which record why the point was taken; the score itself is tapped to
- * correct a total that drifted. The legend supplies the backdrop art and the
- * domain glow, so two panels never look alike. Subscribes to only its own slice
- * of the store so a tap on one panel never re-renders the others (per the
- * per-row selector convention).
- * @returns The player panel, or null if the id is no longer in the roster.
- */
+// Subscribes to only its own slice of the store, so a tap on one panel never re-renders the others.
 export function PlayerPanel({
   playerId,
   rotated,
@@ -92,7 +79,6 @@ export function PlayerPanel({
     if (state.winnerId === playerId) {
       return true;
     }
-    // In a 2v2 the whole winning team celebrates, not just the player who crossed.
     if (state.mode !== "teams") {
       return false;
     }
@@ -106,9 +92,8 @@ export function PlayerPanel({
   const setScore = useMatchTrackerStore((state) => state.setScore);
   const domainColors = useDomainColors();
 
-  // The correction steppers time out so they never become permanent chrome. One
-  // counter both opens them and dates the current window, so every press lands
-  // a new value and restarts the clock.
+  // One counter both opens the correction steppers and dates the current window,
+  // so every press lands a new value and restarts the auto-hide clock.
   const [correctionTick, setCorrectionTick] = useState(0);
   const correcting = correctionTick > 0;
   useEffect(() => {
@@ -137,8 +122,6 @@ export function PlayerPanel({
     <section
       aria-label={`${player.name} scorepad`}
       className={cn(
-        // min-w-0 lets two panels share a narrow row without forcing overflow;
-        // overflow-hidden keeps the art and the glow inside the rounded corners.
         "bg-card relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-between overflow-hidden rounded-lg border p-2 transition-all duration-150 select-none",
         // Team color stays on the border so the ring can layer winner / spotlight on top.
         teamsActive && cn("border-2", TEAM_PANEL_BORDER[player.team]),
@@ -147,8 +130,6 @@ export function PlayerPanel({
         rotated && "rotate-180",
       )}
     >
-      {/* Identity layer: the legend's art blurred behind its domain glow, with
-          a vignette so the numeral stays readable over any artwork. */}
       {player.legend?.thumbnail && (
         <img
           src={player.legend.thumbnail}
@@ -163,8 +144,6 @@ export function PlayerPanel({
 
       {atMatchPoint && <MatchPointFrame />}
 
-      {/* Name row. The legend's colors arrive through the glow, so nothing
-          restates them here. */}
       <div className="relative flex w-full flex-col items-center gap-0.5">
         {(teamsActive || isFirst) && (
           <div className="flex items-center gap-1">
@@ -177,8 +156,6 @@ export function PlayerPanel({
         </span>
       </div>
 
-      {/* Score. Tapping it brings up the steppers for correcting a total that
-          drifted — scoring itself always goes through the medallions. */}
       <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-1.5">
         {isWinner && <CrownIcon aria-label="Winner" className="text-primary size-6" />}
         <div className="flex items-center gap-2">
@@ -211,7 +188,6 @@ export function PlayerPanel({
         <TargetProgress points={player.points} target={pointsTarget} />
       </div>
 
-      {/* The three ways a point is scored. Labels drop on cramped panels. */}
       <div className={cn("relative flex items-start justify-center", medStyle.gap)}>
         {SCORE_REASONS.map((reason) => (
           <ScoreMedallion
@@ -224,8 +200,7 @@ export function PlayerPanel({
         ))}
       </div>
 
-      {/* XP sits on the player's own left edge. Most decks never touch it, so
-          it stays a tab until someone opens it, and never closes mid-game. */}
+      {/* Stays a tab until someone opens it, and never closes mid-game once opened. */}
       {player.xpOpen ? (
         <div
           className={cn(
@@ -310,12 +285,6 @@ function ScoreMedallion({
   );
 }
 
-/**
- * Progress toward the target. Pips are countable at a glance across a table,
- * which is the whole point, so an unusually high target falls back to text
- * rather than a row nobody could read.
- * @returns The pip row, or a plain "of N" caption.
- */
 function TargetProgress({ points, target }: { points: number; target: number }) {
   if (target > MAX_PIP_TARGET) {
     return <span className="text-muted-foreground text-2xs">of {target}</span>;
@@ -335,12 +304,6 @@ function TargetProgress({ points, target }: { points: number; target: number }) 
   );
 }
 
-/**
- * Corner brackets marking the panel of whoever is one point from the target.
- * They are the only decoration on the board that is not always present, which
- * is what makes them worth looking at.
- * @returns The four bracket corners.
- */
 function MatchPointFrame() {
   return (
     <span aria-hidden="true">

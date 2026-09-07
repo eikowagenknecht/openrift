@@ -20,16 +20,8 @@ import { useCreateTeam, useDissolveTeam } from "@/hooks/use-tournaments";
 import { teamDisplayName } from "@/lib/team-display";
 
 /**
- * The 2v2 team roster: the fixed pairs, a builder that pairs two unteamed
- * active players, and the players still waiting for a partner. Lives on the
- * Participants tab (staff-only); the pairing surface blocks while any active
- * player is unteamed, so this is where an organizer resolves that.
- *
- * New teams stay creatable mid-event (late arrivals join as a fresh team);
- * dissolving is only possible until the team has played a round — the server
- * enforces both, and its errors surface as toasts here.
- *
- * @returns The teams section.
+ * The 2v2 team roster. Dissolving is only possible until the team has played
+ * a round; the server enforces it and its errors surface as toasts here.
  */
 export function TeamsSection({
   id,
@@ -197,11 +189,6 @@ function TeamMemberPicker({
   );
 }
 
-/**
- * Whether the roster still has an active player without a team — the count the
- * participants tab surfaces in its stat strip on a 2v2 event.
- * @returns The unteamed active players.
- */
 export function unteamedActivePlayers(
   participants: readonly TournamentParticipantResponse[],
 ): TournamentParticipantResponse[] {
@@ -210,12 +197,7 @@ export function unteamedActivePlayers(
   );
 }
 
-/**
- * Each participant's teammate name, for the roster rows' team chips on a 2v2
- * event. Participants without a team (or whose partner left the roster) are
- * absent from the map.
- * @returns Participant id -> teammate display name.
- */
+/** Participants without a team, or whose partner left the roster, are absent from the map. */
 export function teammateNamesById(
   participants: readonly TournamentParticipantResponse[],
 ): Map<string, string> {

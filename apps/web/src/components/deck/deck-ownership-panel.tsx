@@ -14,14 +14,6 @@ interface DeckOwnershipPanelProps {
   onViewMissing: () => void;
 }
 
-/**
- * Owned/borrowed/missing/locked counts plus the price block and the missing-
- * cards button. Rendered by the deck import preview's summary panel, where the
- * figures have no other home. The deck editor deliberately does not use it: its
- * hero already carries the owned chip, the value breakdown and the missing-
- * cards entry point.
- * @returns The ownership breakdown.
- */
 export function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
   return (
     <div className="space-y-3">
@@ -83,23 +75,10 @@ function Row({ label, value, indent }: { label: string; value: string; indent?: 
   );
 }
 
-/**
- * What the deck costs, as one scope per line. The cost to complete is a second
- * column rather than a second set of lines: the scopes are the same three, and
- * stacking them twice made the block longer than everything above it. Its
- * heading rides on the marketplace line, which was already half empty, so the
- * column costs no row of its own.
- * @returns The price table.
- */
 function PriceBlock({ data, marketplace }: { data: DeckOwnershipData; marketplace: Marketplace }) {
   const fmt = formatterForMarketplace(marketplace);
-  // Nothing missing (or nothing priced) leaves the column empty, so it folds
-  // away and the block reads as the plain value list it used to be.
   const showMissing = data.missingValueCents !== undefined && data.missingValueCents > 0;
-  // Only worth splitting scopes once the sideboard actually costs something —
-  // otherwise "Main deck" just repeats the total above it.
   const showSplit = data.sideboardValueCents !== undefined && data.sideboardValueCents > 0;
-  // The cheapest-completion figure can undercut the creator's pinned printings.
   const showAsShown =
     showMissing &&
     data.missingAsDisplayedValueCents !== undefined &&
@@ -113,9 +92,6 @@ function PriceBlock({ data, marketplace }: { data: DeckOwnershipData; marketplac
         showMissing ? "grid-cols-[1fr_auto_auto]" : "grid-cols-[1fr_auto]",
       )}
     >
-      {/* Header row, one cell per column so the label sits over its own
-          figures. Only the missing column needs naming — the row labels
-          already say the first column is what the cards are worth. */}
       <div className="text-muted-foreground flex items-center gap-1.5 pb-0.5 text-xs">
         <img src={MARKETPLACE_META[marketplace].icon} alt="" className="h-3 invert dark:invert-0" />
         {MARKETPLACE_META[marketplace].label} prices
@@ -153,11 +129,7 @@ function PriceBlock({ data, marketplace }: { data: DeckOwnershipData; marketplac
   );
 }
 
-/**
- * One scope of the price table. Cells are direct grid children, so every row's
- * figures line up in the same columns whatever the row omits.
- * @returns The row's cells.
- */
+// Cells are direct grid children so every row's figures line up in the same columns.
 function PriceRow({
   label,
   value,
@@ -165,7 +137,6 @@ function PriceRow({
   indent,
 }: {
   label: string;
-  /** Omitted by the "at the printings shown" row, which only qualifies the missing figure. */
   value?: string;
   missing?: string;
   indent?: boolean;

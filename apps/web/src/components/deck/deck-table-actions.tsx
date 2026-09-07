@@ -12,19 +12,11 @@ interface DeckTableActionsProps {
   addLabel?: string;
   removeLabel?: string;
   shiftHeld: boolean;
-  /** Shift+click adds up to this many; undefined means no cap (freeform). */
   remainingCount?: number;
   onQuickAdd: (printing: Printing, event: { shiftKey?: boolean }) => void;
   onRemove: (printing: Printing, event: { shiftKey?: boolean }) => void;
 }
 
-/**
- * Compact deck-builder +/- treatment for the card table's actions cell. Mirrors
- * <DeckAddStrip> visually-tight enough to fit in the 150px column: a "× N"
- * in-deck badge, then -/+ buttons that swap to `-N`/`+N` text when Shift is
- * held so the bulk action is discoverable.
- * @returns The actions cell content.
- */
 export function DeckTableActions({
   printing,
   deckQuantity,
@@ -40,8 +32,6 @@ export function DeckTableActions({
     shiftHeld && !addLabel && remainingCount !== undefined && remainingCount > 1 && !maxReached;
   const showBulkRemove = shiftHeld && deckQuantity > 1;
 
-  // Single-card zone (legend / champion) with a labeled remove: show only the
-  // destructive Remove button — there's nothing to bulk over.
   if (removeLabel && deckQuantity > 0) {
     return (
       <Button

@@ -35,7 +35,6 @@ interface TagCategoryDraft {
   description: string;
 }
 
-/** Select sentinel for "no category" — BaseUI Select values can't be null. */
 const UNCLASSIFIED = "__unclassified";
 
 export function CardTagsPage() {
@@ -51,8 +50,6 @@ export function CardTagsPage() {
     </div>
   );
 }
-
-// ── Categories ────────────────────────────────────────────────────────────
 
 function CategorySlugCell({ row }: AdminCellSlotProps<TagCategoryResponse>) {
   if (!row) {
@@ -196,8 +193,6 @@ function CategoriesSection({ categories }: { categories: TagCategoryResponse[] }
   );
 }
 
-// ── Classification ────────────────────────────────────────────────────────
-
 function TagNameCell({ row }: AdminCellSlotProps<ClassifiedCardTag>) {
   if (!row) {
     return null;
@@ -289,7 +284,7 @@ function ClassificationSection({
   const visible = tags
     .filter((tag) => (query ? tag.tag.toLowerCase().includes(query) : true))
     .filter((tag) => (unclassifiedOnly ? tag.categoryId === null : true))
-    // Unclassified tags first (they're the work queue), then alphabetical.
+    // Unclassified tags first, then alphabetical.
     .toSorted(
       (a, b) =>
         Number(a.categoryId !== null) - Number(b.categoryId !== null) || a.tag.localeCompare(b.tag),

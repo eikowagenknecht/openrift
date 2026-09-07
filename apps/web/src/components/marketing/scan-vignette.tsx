@@ -35,18 +35,11 @@ function Brackets({ className, style }: { className: string; style?: CSSProperti
   );
 }
 
-// How many copies of each row's card the visitor is supposed to already own.
-// The card identities come from the live sample, but a collection to compare
-// them against is the one thing a signed-out visitor has none of.
 const OWNED_BEFORE = [0, 2, 0, 1] as const;
 
-// The tray shows three rows and clips the rest, so the row the scan adds on
-// top pushes the oldest one out of view instead of growing the section under
-// a visitor mid-scroll. 4.5rem a row, matching the scan-tray-row keyframes.
+// 4.5rem a row, matching the scan-tray-row keyframes.
 const VISIBLE_ROWS = "h-54";
 
-// Stands in until the landing summary lands, so the tray shows its rows as
-// empty placeholders rather than an empty box.
 const PENDING_CARDS: LandingThumbnailCard[] = OWNED_BEFORE.map(() => ({
   url: "",
   name: "",
@@ -66,9 +59,8 @@ function TrayRow({
   ownedBefore: number;
   arriving?: boolean;
 }) {
-  // The tray's PrintingVariantLabel falls back to "Standard" rather than
-  // leaving the line blank; the payload's null means the same thing. Pending
-  // rows keep it empty, since they name no card to describe.
+  // PrintingVariantLabel falls back to "Standard" for a null variant; pending
+  // rows keep it empty since they name no card.
   const variant = card.name ? (card.variantLabel ?? "Standard") : "";
   return (
     <li
@@ -77,8 +69,8 @@ function TrayRow({
         arriving && "bg-muted/50 motion-safe:animate-scan-tray-row",
       )}
     >
-      {/* No `domainColors`: the seed colors keep the vignette a pure component,
-          so the landing page never suspends on /init to paint a miniature. */}
+      {/* No `domainColors`: keeps this a pure component so the landing page
+          never suspends on /init to paint a miniature. */}
       <CardMiniRow
         className="self-stretch"
         src={card.url}
@@ -92,8 +84,6 @@ function TrayRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-medium">{card.name}</span>
         <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
-          {/* Below sm the lead's meta column stands down, exactly as in the
-              tray, so the code moves onto the line with room to spare. */}
           <span className="font-mono sm:hidden">{card.shortCode}</span>
           <span className="truncate">{variant}</span>
         </span>
@@ -122,14 +112,12 @@ function TrayRow({
   );
 }
 
-/** The tray's headline: how much of the session is logged so far. */
 function TrayTotals({
   rows,
   from,
   className,
 }: {
   rows: LandingThumbnailCard[];
-  /** First row to count, so the pre-scan state can leave out the arriving one. */
   from: number;
   className?: string;
 }) {
@@ -160,24 +148,12 @@ function TrayTotals({
   );
 }
 
-/**
- * The scanner: a card under the viewfinder, swept, locked, and flown into the
- * session tray as a row. That flight is the app's entire "added" feedback —
- * there is no success toast and no confirmation pill anywhere in the flow.
- *
- * The cards are real printings from the landing sample, so the row the scan
- * produces names the card the viewfinder is holding. Nothing of that card is on
- * screen before it lands: the row opens from nothing and the totals count it
- * only then.
- * @returns The scanner vignette.
- */
 export function ScanVignette({ cards }: { cards: LandingThumbnailCard[] }) {
   const rows = cards.length > 0 ? cards : PENDING_CARDS;
   const scanned = rows[0];
   return (
     <ClipFrame className="flex flex-col p-0">
-      {/* Dark in both themes: the plate stands in for the camera picture,
-          exactly like ScanStartPanel's. */}
+      {/* Matches ScanStartPanel's dark plate in both themes. */}
       <div className="relative grid aspect-[4/3] place-items-center bg-radial from-neutral-800 to-neutral-950">
         <div className="aspect-card relative h-[74%] overflow-hidden border-2 border-white/15">
           {scanned?.url && (
@@ -211,9 +187,8 @@ export function ScanVignette({ cards }: { cards: LandingThumbnailCard[] }) {
         )}
       </div>
       <div className="flex flex-col gap-1 px-4 py-3">
-        {/* Both states share one grid cell, like Swap: the landed one is the
-            base, so reduced motion and the server render show the finished
-            tray. */}
+        {/* The landed state is the DOM base so reduced motion and SSR show
+            the finished tray, not the pre-scan one. */}
         <div className="grid">
           <TrayTotals
             rows={rows}

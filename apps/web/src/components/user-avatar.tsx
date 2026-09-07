@@ -7,21 +7,13 @@ import { getUserInitials } from "@/lib/user-initials";
 interface UserAvatarProps {
   image?: string | null;
   name?: string | null;
-  /** SHA-256 of the user's lowercased email — drives the Gravatar fallback. */
   gravatarHash?: string | null;
-  /** Used for the initials fallback only; never leaked to the network. */
   email?: string | null;
   size?: "default" | "sm" | "lg";
   className?: string;
 }
 
-/**
- * Profile avatar with the chain image → Gravatar (when a hash is provided)
- * → initials. Falls through to Gravatar when an explicit image URL fails
- * to load.
- *
- * @returns A circular avatar.
- */
+/** Falls through image → Gravatar (if a hash is given) → initials. */
 export function UserAvatar({ image, name, gravatarHash, email, size, className }: UserAvatarProps) {
   const [imageBroken, setImageBroken] = useState(false);
   const [lastImage, setLastImage] = useState(image);

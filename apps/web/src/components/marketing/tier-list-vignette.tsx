@@ -5,32 +5,16 @@ import { cn } from "@/lib/utils";
 
 import { MiniCardArt, Swap, Vignette, VignetteHeading } from "./vignette-parts";
 
-/** Tile width, so the rows and the pool below them read as the same board. */
 const TILE = "w-11 shrink-0";
 
-/**
- * Row names are the creator's own. A board opens on S to D and is renamed,
- * reordered and grown from there, so a miniature showing the letters would be
- * advertising the one part of the board that is not fixed.
- */
+// Must never render "S"/"D": row labels are user-renamed from those defaults.
 const TIER_1 = { label: "Tier 1", index: 0 };
 const TIER_2 = { label: "Tier 2", index: 1 };
 const FRINGE = { label: "Fringe", index: 2 };
 
-/**
- * A board row, mirroring TierRowFrame: the ramp-coloured label chip against the
- * card strip. `bg-background/40` rather than the board's own `bg-card/40` — the
- * frame around this miniature is already `bg-card`, so the real value would
- * leave the row invisible.
- *
- * @returns The row node.
- */
 function TierRow({ tier, children }: { tier: typeof TIER_1; children: ReactNode }) {
   return (
-    // No overflow-hidden, unlike the real TierRowFrame: the tile flying in from
-    // the pool passes over the rows below this one, and a clipped row would pop
-    // it into place instead. The label chip rounds its own left corners in its
-    // place.
+    // No overflow-hidden: the tile animating in from the pool must pass over rows below.
     <div className="ring-border bg-background/40 flex items-stretch rounded-md ring-1">
       <div
         className="text-2xs flex w-12 shrink-0 items-center justify-center rounded-s-md px-1 text-center font-bold wrap-anywhere"
@@ -43,7 +27,6 @@ function TierRow({ tier, children }: { tier: typeof TIER_1; children: ReactNode 
   );
 }
 
-/** A board tile, or its placeholder when the day's sample came up short. */
 function Tile({ url, className }: { url?: string; className?: string }) {
   if (!url) {
     return <span className={cn("aspect-card bg-muted rounded-[5%/3.6%]", TILE, className)} />;
@@ -55,7 +38,6 @@ function Tile({ url, className }: { url?: string; className?: string }) {
 // which nothing in a miniature may be.
 const PILL = "text-2xs inline-flex h-5 max-w-11 items-center truncate rounded-md px-1.5 font-bold";
 
-/** The strip control once a card is ranked: the row's own name, in its colour. */
 function TierPill({ tier }: { tier: typeof TIER_1 }) {
   return (
     <span
@@ -67,29 +49,16 @@ function TierPill({ tier }: { tier: typeof TIER_1 }) {
   );
 }
 
-/** The strip control while a card is unranked. This is the tap path on a phone. */
 function RankPill() {
   return <span className={cn(PILL, "bg-muted text-muted-foreground")}>Rank</span>;
 }
 
-/**
- * A pool cell. The pool is a card browser, so a cell is a CardCell with a strip
- * under it, and the strip's control is the tier pill: the row's own name once
- * the card is ranked, "Rank" while it is not. A ranked card is dimmed and stays
- * in the pool rather than leaving it.
- *
- * The cell being ranked this cycle crossfades its pill on the shared `Swap`,
- * whose 9s beat is the one the board's flight is cut against.
- *
- * @returns The pool cell node.
- */
 function PoolCell({
   url,
   tier,
   animate,
 }: {
   url?: string;
-  /** The row this card sits in, or undefined while it is still unranked. */
   tier?: typeof TIER_1;
   animate?: boolean;
 }) {
@@ -110,17 +79,8 @@ function PoolCell({
   );
 }
 
-/**
- * The tier list builder in miniature: a board of Legends mid-ranking, with the
- * card that just landed in the top row flying up out of the pool while its pool
- * copy dims and takes that row's pill.
- *
- * The ramp colours come from the shared `tierColor`, not from a copy — the same
- * function paints the real board and the API's share image, and a third
- * hand-picked set here would be the one that drifts.
- *
- * @returns The tier list vignette.
- */
+// Ramp colours come from the shared `tierColor`, the same function the real
+// board and the API's share image use; a hand-picked copy here would drift.
 export function TierListVignette({ legendUrls = [] }: { legendUrls?: string[] }) {
   const art = (index: number) => legendUrls[index];
   return (

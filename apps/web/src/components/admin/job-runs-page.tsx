@@ -36,9 +36,7 @@ import type { JobRunView } from "@/lib/server-fns/api-types";
 import type { JobRunsSearch } from "@/routes/_app/_authenticated/admin/job-runs";
 import { Route } from "@/routes/_app/_authenticated/admin/job-runs";
 
-/** Job kinds that expose a cancel endpoint. Only resumable jobs that re-read
- *  `result` between batches can be cancelled mid-run; everything else has no
- *  way to honour a cancel request, so we don't show a button for it. */
+/** Only resumable jobs that re-read `result` between batches can be cancelled mid-run. */
 const CANCELLABLE_KINDS = new Set<string>(["images.regenerate"]);
 
 const ANY = "__any";
@@ -68,10 +66,8 @@ const ACTIVITY_OPTIONS = [
 ];
 
 /**
- * Narrows a filter's raw select value to the contract's union. The {@link ANY}
- * sentinel is absent from every value set, so "no filter" and "not a known
- * value" collapse into the same `undefined` with no cast.
- * @returns The matching union member, or undefined when the filter is off.
+ * The {@link ANY} sentinel is absent from every value set, so "no filter" and
+ * "not a known value" collapse into the same `undefined` with no cast.
  */
 function filterValue<T extends string>(values: readonly T[], value: string): T | undefined {
   return values.find((candidate) => candidate === value);
@@ -274,8 +270,7 @@ function JobRunRow({
   const cancelRegen = useCancelRegenerateImages();
   const canCancel = run.status === "running" && CANCELLABLE_KINDS.has(run.kind);
 
-  // A no-op run succeeded but found nothing to do — dim it so the runs that
-  // actually did something stand out at a glance.
+  // A no-op run succeeded but found nothing to do, so it renders dimmed.
   const isNoop = run.noop === true;
 
   return (

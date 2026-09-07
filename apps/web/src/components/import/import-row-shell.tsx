@@ -7,28 +7,10 @@ interface ImportRowShellProps {
   code?: string | null;
   name: ReactNode;
   nameSuffix?: ReactNode;
-  /** Omitted when the caller moves the controls into the row's expanded panel. */
   actions?: ReactNode;
-  /**
-   * Read-only label pinned to the right, before the status mark. For standing in
-   * for a control that has been folded away (e.g. the zone a card lands in).
-   */
   trailing?: ReactNode;
 }
 
-/**
- * Layout shell for an import-preview row. The row leads with what identifies the
- * card — "3× Incinerate" — and pins the status mark and the fold chevron to the
- * right edge, top-aligned so they stay put when the left side grows to two lines.
- * The action cluster sits beside the name from sm: upward and wraps below it on
- * phones, where it keeps the row's left edge (nothing precedes it) rather than
- * hanging off an indent. A caller that moves its controls into the expanded
- * panel instead passes no `actions` at all, so the row leaves no empty slot.
- *
- * The caller owns the outer wrapper element (e.g. `<div>` vs `<AccordionItem>`),
- * the `isSkipped` opacity treatment, and the expanded-content panel below.
- * @returns A single row's flex layout, without the surrounding wrapper.
- */
 export function ImportRowShell({
   chevron,
   statusIcon,
@@ -65,20 +47,9 @@ export function ImportRowShell({
 
 interface ImportRowRawFieldsProps {
   entries: [string, string][];
-  /**
-   * What the row resolved to, when the source values don't already say it. The
-   * row's title shows the matched card, so without this the panel reads as a
-   * contradiction whenever the match corrected what was written.
-   */
   matched?: ReactNode;
 }
 
-/**
- * Renders what the importer read for one entry: the parsed source values, and
- * optionally the card they resolved to. Shown inside whichever expanded panel
- * the consumer provides.
- * @returns The parsed source values, with the match note when given.
- */
 export function ImportRowRawFields({ entries, matched }: ImportRowRawFieldsProps) {
   return (
     <div className="space-y-1 text-xs">

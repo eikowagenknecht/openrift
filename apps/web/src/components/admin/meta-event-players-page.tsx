@@ -63,7 +63,6 @@ function LegendCell({ row }: AdminCellSlotProps<AdminMetaPlayer>) {
   if (!row) {
     return null;
   }
-  // The pair the public archive prints, so both surfaces name a deck alike.
   const pair = [row.legendName, row.championName].filter(Boolean).join(" / ");
   return <span className="text-muted-foreground">{pair === "" ? "—" : pair}</span>;
 }
@@ -84,13 +83,6 @@ function DeckCell({ row }: AdminCellSlotProps<AdminMetaPlayer>) {
   );
 }
 
-/**
- * The fields accepted overlays own for this row, each with the release that
- * hands it back. Mirrors the drift panel's un-claim: no confirmation, because
- * re-editing the row claims it again.
- *
- * @returns The claim chips, or nothing for a row the sources still decide.
- */
 function ClaimedFields({ player }: { player: AdminMetaPlayer }) {
   const release = useReleasePlayerOverlayField();
   const chips = metaPlayerClaimChips(player.claimedFields);
@@ -176,13 +168,6 @@ function PlayerRowActions({
   );
 }
 
-/**
- * How much of the field the archive holds, and which ranks it is missing. A
- * single absent rank is invisible in a hundred-row table, so the holes are
- * named here rather than left to be scrolled for.
- *
- * @returns The coverage line above the standings table.
- */
 function StandingsCoverage({
   players,
   reported,
@@ -201,16 +186,8 @@ function StandingsCoverage({
   );
 }
 
-/** What the dialog is doing: nothing, adding, or editing one standings row. */
 type DialogState = { mode: "create" } | { mode: "edit"; player: AdminMetaPlayer } | null;
 
-/**
- * Standings management for one archived event (ADR-014): every player the archive
- * holds, best finish first, decks and deckless entries alike, plus the form that
- * adds another.
- *
- * @returns The event's standings management page.
- */
 export function MetaEventPlayersPage({ eventId }: { eventId: string }) {
   const { data: event } = useAdminMetaEvent(eventId);
   const { data } = useAdminMetaEventPlayers(eventId);

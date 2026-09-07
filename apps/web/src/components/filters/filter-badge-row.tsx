@@ -63,13 +63,7 @@ export function FilterSection({
   );
 }
 
-/**
- * The wrapping row of toggleable filter badges for one dimension — icon +
- * label + faceted count, with selected/secondary/zero-count styling. Shared by
- * the expanded `FilterSection` and the compact bar's dropdown-chip popovers so
- * both render identical badges.
- * @returns The badge row.
- */
+/** Shared by the expanded `FilterSection` and the compact bar's dropdown-chip popovers so both render identical badges. */
 function FilterBadgeGrid({
   options,
   selected,
@@ -88,11 +82,7 @@ function FilterBadgeGrid({
   /** Values in this dimension's exclude (`*Ex`) array; rendered struck-out. */
   excluded?: string[];
   onToggle?: (value: string) => void;
-  /**
-   * Tri-state click handler (off → include → exclude → off). When provided it
-   * replaces `onToggle`, turning each badge into a cycling include/exclude
-   * control (ADR-034). Pass `excluded` alongside it for the exclude styling.
-   */
+  /** Tri-state click handler (off → include → exclude → off); replaces `onToggle` when provided. */
   onCycle?: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
@@ -102,12 +92,8 @@ function FilterBadgeGrid({
   /** Extra control(s) rendered inline after the badges (e.g. the Signed flag in Art Variant). */
   trailing?: ReactNode;
 }) {
-  // A value can be selected (or excluded) while it was still an available
-  // option, then drop out of `options` when the available set narrows (e.g.
-  // switching to owned-only). It keeps filtering either way, so keep it
-  // visible — appended after the real options — instead of letting it vanish
-  // from the panel with no way to toggle it off. Matches the combobox
-  // sections, which already keep orphaned selections visible.
+  // A selected/excluded value can drop out of `options` when the available set
+  // narrows; append it after the real options so it stays toggleable.
   const orphaned = [...(selected ?? []), ...(excluded ?? [])].filter(
     (value, index, all) => !options.includes(value) && all.indexOf(value) === index,
   );
@@ -129,8 +115,6 @@ function FilterBadgeGrid({
             className={cn(
               "cursor-pointer",
               icon && "pr-0",
-              // Excluded badges read as a struck-out "not this" in destructive
-              // tint, distinct from an included badge's solid fill.
               !icon && isExcluded && "border-destructive/40 text-destructive line-through",
               isSecondary && !isSelected && !isExcluded && "opacity-65",
               isZero && !isSelected && !isExcluded && "opacity-40",

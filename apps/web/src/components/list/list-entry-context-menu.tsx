@@ -8,45 +8,16 @@ import {
 } from "@/components/ui/context-menu";
 
 interface ListEntryContextMenuProps {
-  /**
-   * Card/printing-kind lists: a plain "Remove from list" item. Copy-kind
-   * tradelists pass {@link onTakeOff} instead — exactly one of the two is set.
-   */
   onRemove?: () => void;
-  /**
-   * Copy-kind tradelists: a "Take off list…" item that opens the keep-vs-sold
-   * chooser (each entry maps to a physical copy, so removal has two outcomes).
-   */
   onTakeOff?: () => void;
   onViewDetail?: () => void;
-  /** When set, adds a "Trade preference…" item that opens the editor dialog. */
   onSetPreference?: () => void;
-  /** When set, adds a "Move to list…" item. */
   onMove?: () => void;
-  /**
-   * Copy-kind lists: a "Move to collection…" item that files the physical
-   * copies somewhere else without touching the list. Offered on rule-produced
-   * entries too — they have no row to edit, but they do name a real copy.
-   */
   onMoveToCollection?: () => void;
-  /**
-   * Rule-produced entries (ADR-034): a "Don't include this" item that excludes
-   * the card/printing/copy from the list's dynamic rules. The only action such
-   * entries offer — they have no `list_entries` row to remove.
-   */
   onExclude?: () => void;
   children?: ReactNode;
 }
 
-/**
- * Right-click / long-press menu on a list-entry tile. Mirrors the deck
- * card-detail menu pattern but offers Move / Remove (and an optional View
- * details) since lists don't have zone-aware quantity adjustment. When the
- * entry is part of the current select-mode selection, the two Move items and
- * the destructive action act on the whole selection; otherwise just this entry
- * (resolved by the browser).
- * @returns The wrapped children with a context menu attached.
- */
 export function ListEntryContextMenu({
   onRemove,
   onTakeOff,

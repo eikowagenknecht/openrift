@@ -24,21 +24,13 @@ interface DeckCoverDialogProps {
   deckId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The deck's cards — the cover choices; entries without art are skipped. */
   cards: DeckBuilderCard[];
   coverCardId: string | null;
   coverPrintingId: string | null;
   coverPosition: number | null;
-  /** Resolves a card's art the same way the overview does. */
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
 }
 
-/**
- * Cover-art picker: choose any card of the deck as the hero/tile backdrop and
- * set its vertical crop focus, or reset to the legend-derived default. Saves
- * through the shared metadata patch, so it works for local decks too.
- * @returns The dialog.
- */
 export function DeckCoverDialog({
   deckId,
   open,
@@ -54,8 +46,7 @@ export function DeckCoverDialog({
   const [draftPrintingId, setDraftPrintingId] = useState<string | null>(coverPrintingId);
   const [draftPosition, setDraftPosition] = useState(coverPosition ?? DEFAULT_POSITION);
 
-  // One choice per (card, pinned printing) with art, in deck order. The
-  // legend-derived default is the leading tile.
+  // Legend-derived default is the leading tile: `cards` is passed in that order.
   const seen = new Set<string>();
   const choices: { cardId: string; printingId: string | null; name: string; thumbnail: string }[] =
     [];
@@ -78,8 +69,7 @@ export function DeckCoverDialog({
 
   const draftThumb = draftCardId === null ? undefined : getThumbnail(draftCardId, draftPrintingId);
 
-  // Dragging the preview pans the crop, mirroring the focus slider. The
-  // measurements are frozen at pointer-down so the art tracks the cursor 1:1.
+  // Measurements are frozen at pointer-down so the art tracks the cursor 1:1.
   const previewRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -168,7 +158,6 @@ export function DeckCoverDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          {/* Live banner preview of the crop the hero and tile will show. */}
           {draftThumb && (
             <div
               className="bg-muted h-24 touch-none overflow-hidden rounded-lg border"
@@ -214,8 +203,6 @@ export function DeckCoverDialog({
             </div>
           )}
 
-          {/* Flat wrap of fixed-width tiles; the p-1 keeps the selection ring
-              clear of the scroll container's clipping edge. */}
           <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto p-1">
             <Pressable
               onClick={() => setDraftCardId(null)}

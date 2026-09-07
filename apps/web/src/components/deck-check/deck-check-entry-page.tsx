@@ -37,7 +37,6 @@ import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { useDeckCheckViewStore } from "@/stores/deck-check-view-store";
 import type { DeckCheckSort } from "@/stores/deck-check-view-store";
 
-/** Card-line sort options exposed in the checker toolbar. */
 const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
   { value: "deck", label: "Deck order" },
   { value: "id", label: "ID" },
@@ -46,12 +45,7 @@ const CHECK_SORT_OPTIONS: SortGroupOption<DeckCheckSort>[] = [
   { value: "energy", label: "Energy" },
 ];
 
-/**
- * The checker: lifecycle controls, advisory legality findings, deck stats, and
- * the zone-grouped card list where each card is a tappable verification tick.
- * Polls so concurrent judges reconcile.
- * @returns The checker page content.
- */
+// Polls so concurrent judges reconcile.
 export function TournamentDeckCheckEntry({
   tournamentId,
   entryId,
@@ -94,8 +88,7 @@ export function TournamentDeckCheckEntry({
     }
   }
 
-  // A state transition, folding in any unsaved notes so a judge's notes survive
-  // when they advance the entry from the top bar or the action row.
+  // Folds in any unsaved notes so they survive advancing the entry's state.
   const transition = (
     state: "editable" | "submitted" | "approved" | "checked" | "withdrawn",
     reviewOutcome?: "ok" | "issue",
@@ -135,15 +128,13 @@ export function TournamentDeckCheckEntry({
     );
   }
 
-  // The rendered width of one card, derived from the resolved column count, for
-  // image resolution and for sizing the small content-width flow zones.
   const cellWidth =
     columns > 0 && containerWidth > 0
       ? Math.floor((containerWidth - (columns - 1) * CHECK_GRID_GAP) / columns)
       : CHECK_CELL_WIDTH;
 
-  // An editable list has not been delivered to an official (TR 401.3): the
-  // server sends no cards, and the page shows a notice instead of the deck.
+  // An entry in the editable state gets no cards from the server; the page
+  // shows a notice instead of the deck.
   const listHidden = detail.entry.state === "editable";
 
   return (

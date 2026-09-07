@@ -4,18 +4,7 @@ import { TournamentDeckCheckEntries } from "@/components/deck-check/deck-check-e
 import { DeckCheckIngestGuide } from "@/components/deck-check/deck-check-ingest-guide";
 import { canCheckDecks, canManageTournament } from "@/lib/tournament-display";
 
-/**
- * The judge deck-check surface, hosted in the tournament's Deck check tab
- * (ADR-033). The deck-check "event" is the tournament itself, so the reused
- * judge components key off the tournament id. This is the entrant list; one
- * entry's verification view lives at its own `decks/$entryId` route, with the
- * API ingest guide for organizers above the list.
- *
- * The entrant list comes from a staff-only endpoint (the PII boundary), so it is
- * gated to host/organizer/judge. A participant who reaches this URL directly sees
- * friendly copy instead of a perpetual loading skeleton from the 403.
- * @returns The entrant list, or a not-available notice for non-staff.
- */
+/** The entrant list comes from a staff-only endpoint; gate on host/organizer/judge here. */
 export function TournamentDeckCheckTab({ detail }: { detail: TournamentDetailResponse }) {
   const canManage = canManageTournament(detail.myRoles);
   if (!canCheckDecks(detail.myRoles)) {

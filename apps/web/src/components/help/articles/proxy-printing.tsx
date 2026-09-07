@@ -14,7 +14,6 @@ export default function ProxyPrintingArticle() {
         per page, ready to cut and sleeve.
       </p>
 
-      {/* Page layout diagram */}
       <Callout>
         <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
           PDF page layout
@@ -34,7 +33,6 @@ export default function ProxyPrintingArticle() {
         </p>
       </Callout>
 
-      {/* Getting started */}
       <section>
         <Heading className="mb-2">Getting started</Heading>
         <p className="text-muted-foreground">There are two ways to open the proxy printing:</p>
@@ -52,7 +50,6 @@ export default function ProxyPrintingArticle() {
         </div>
       </section>
 
-      {/* Options */}
       <section>
         <Heading className="mb-2">Export options</Heading>
 
@@ -80,7 +77,6 @@ export default function ProxyPrintingArticle() {
         </div>
       </section>
 
-      {/* Generating */}
       <section>
         <Heading className="mb-2">Generating the PDF</Heading>
         <p className="text-muted-foreground">
@@ -95,7 +91,6 @@ export default function ProxyPrintingArticle() {
         </p>
       </section>
 
-      {/* Limitations */}
       <section>
         <Heading className="mb-2">Current limitations</Heading>
         <Alert>
@@ -110,7 +105,6 @@ export default function ProxyPrintingArticle() {
         </Alert>
       </section>
 
-      {/* Printing tip */}
       <section>
         <Heading className="mb-2">Printing</Heading>
         <p className="text-muted-foreground">

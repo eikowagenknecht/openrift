@@ -42,27 +42,14 @@ import {
 import { errorText } from "@/lib/error-text";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 
-/** Ties the footer's submit to the form it no longer sits inside. */
 const FORM_ID = "meta-event-form";
 
 interface MetaEventDialogProps {
-  /** The event being edited. Omitted when the dialog creates a new one. */
   event?: AdminMetaEvent;
   onClose: () => void;
 }
 
-/**
- * The create / edit form for an archived event. The event list mounts it only
- * while it is open, so the draft starts fresh on every open.
- *
- * Editing splits in two, because the archive's own facts are no longer a PATCH:
- * the slug is identity and goes through `updateEvent`, and every data field is
- * claimed as an overlay so a re-promote cannot silently revert it. Changing
- * both in one save is two calls, the slug first — a failed rename should not
- * leave a claim behind.
- *
- * @returns The event dialog.
- */
+// Editing writes the slug first: a failed rename should not leave an overlay claim behind.
 export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
   const { formats, labels: formatLabels } = useDeckFormatList();
   const createEvent = useCreateMetaEvent();
@@ -109,8 +96,6 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
       toast.success(successMessage);
       onClose();
     } catch (error) {
-      // The global mutation error toast reports it too; this line keeps the
-      // reason in front of the form so the field can be fixed in place.
       setFormError(errorText(error, "Save failed"));
     }
   }
@@ -263,12 +248,7 @@ export function MetaEventDialog({ event, onClose }: MetaEventDialogProps) {
           {formError && <p className="text-destructive text-sm">{formError}</p>}
         </DialogForm>
 
-        {/* Citations replaced the old single source link (ADR-014). They are
-            their own rows, written and deleted on their own, so they live
-            beside the form rather than inside its save. Both they and the
-            drift panel below carry their own inputs and their own submits, so
-            they stay outside the form element: nested there, Enter in one of
-            their fields would save the event instead. */}
+        {/* Kept outside the form element: nested there, Enter in a source/drift field would submit the event. */}
         {event && <MetaEventSourcesEditor eventId={event.id} />}
 
         {event && (

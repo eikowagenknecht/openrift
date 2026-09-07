@@ -26,11 +26,8 @@ vi.mock("sonner", () => ({
   toast: { success: captured.toastSuccess, error: captured.toastError },
 }));
 
-/**
- * The route's search params, which the page now reads its whole filter set
- * from. Interactions go out through `navigate` and only reach the page when
- * they come back around through here, which is the loop the real router closes.
- */
+// The page reads its whole filter set from here; interactions go out through
+// `navigate` and only reach it once they come back around through this store.
 const searchStore = vi.hoisted(() => {
   let value: Record<string, unknown> = {};
   const listeners = new Set<() => void>();
@@ -299,8 +296,6 @@ describe("MetaCatalogPage", () => {
 
     await user.click(screen.getByRole("button", { name: /Accept/u }));
 
-    // Accepting queued the event for the recheck ladder, so nothing was lost
-    // and the accept toast is the only thing worth saying.
     expect(captured.toastSuccess).not.toHaveBeenCalledWith(
       "Fetch is already running",
       expect.anything(),

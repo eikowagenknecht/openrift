@@ -64,8 +64,7 @@ function renderDialog({
 }
 
 function clickListRow(name: string) {
-  // The dialog renders into a portal on document.body, so query the document
-  // rather than the render container.
+  // Dialog portals onto document.body, outside the render container.
   const rows = [...document.querySelectorAll<HTMLElement>('[data-slot="picker-row"]')];
   const row = rows.find((candidate) => candidate.textContent?.includes(name));
   if (!row) {

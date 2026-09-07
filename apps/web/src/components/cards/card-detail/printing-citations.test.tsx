@@ -30,8 +30,6 @@ describe("PrintingCitationList", () => {
     expect(link).toHaveAttribute("rel", "noreferrer");
   });
 
-  // A citation nobody can follow is still attribution, and hiding it would make
-  // the claim it backs look unsourced.
   it("renders a citation with no URL as plain text", () => {
     render(
       <PrintingCitationList
@@ -49,8 +47,6 @@ describe("PrintingCitationList", () => {
     expect(container.querySelector("path")).toHaveAttribute("d", siYoutube.path);
   });
 
-  // The mark is resolved from the host, so a misleading label cannot make a
-  // Twitch VOD wear the YouTube logo.
   it("ignores the label when picking the mark", () => {
     const { container } = render(
       <PrintingCitationList

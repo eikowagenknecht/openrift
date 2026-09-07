@@ -37,12 +37,6 @@ import { cn } from "@/lib/utils";
 
 import { snapshotToPlayers, WarningList } from "./pairing-warnings";
 
-/**
- * This editor's drag vocabulary: a player chip is dragged onto a seat — a pod,
- * the new-pod zone, or the byes. Both payloads carry a `type` so they narrow
- * through {@link asDragData} like every other surface's, rather than being read
- * off `data.current` by field name and cast.
- */
 interface PodPlayerDragData {
   type: "pod-player";
   playerId: string;
@@ -56,9 +50,8 @@ interface PodSeatDropData {
 const POD_DRAG_TYPES = ["pod-player"] as const satisfies readonly PodPlayerDragData["type"][];
 const POD_DROP_TYPES = ["pod-seat"] as const satisfies readonly PodSeatDropData["type"][];
 
-// Build the non-empty pods as engine pods. Size is the live member count; the
-// engine reads it only for the `=== 3` checks, so a transient 5 is runtime-safe
-// even though the type is narrowed to 2 | 3 | 4.
+// The engine reads size only for the `=== 3` checks, so a transient 5-player
+// pod stays runtime-safe even though the type is narrowed to 2 | 3 | 4.
 function toEnginePods(state: EditorState): Pod[] {
   return state.pods
     .filter((pod) => pod.playerIds.length > 0)
@@ -66,18 +59,8 @@ function toEnginePods(state: EditorState): Pod[] {
 }
 
 /**
- * Drag-and-drop editor for the open round's pairing. The organizer rearranges
- * players between pods, a new-pod zone (spawns a table the round doesn't have),
- * and a bye zone; pods flex in size (a save is blocked until every pod is 3 or 4
- * and everyone is seated). Penalty and warnings update live.
- *
- * @param id The tournament id.
- * @param round The open (reporting) round being edited.
- * @param snapshot Per-player pre-round aggregates (for penalty + warnings).
- * @param mode Which sizes are valid: FFA pods (3/4) or Swiss matches (2).
- * @param regionLabel Region slug -> display label for the region warnings.
- * @param onClose Called after a successful save or a cancel.
- * @returns The editor.
+ * Drag-and-drop editor for the open round's pairing. Pods flex in size; a save
+ * is blocked until every pod is 3 or 4 and everyone is seated.
  */
 export function PodPairingEditor({
   id,
@@ -96,9 +79,8 @@ export function PodPairingEditor({
 }) {
   const teamMode = mode === "team";
   const players = snapshotToPlayers(snapshot);
-  // In team mode the editor's draggable unit is the TEAM: the state holds team
-  // ids (plus the ids of unteamed byed players), and only the save expands
-  // them back to the four seated players per match.
+  // In team mode the editor's draggable unit is the TEAM; the save expands
+  // team ids back to their seated players.
   const teams = buildTeamUnits(players);
   const seedState = teamMode ? seedUnitsFromRound(round, teams.teamByPlayer) : seedFromRound(round);
   const [state, setState] = useState<EditorState>(() => seedState);
@@ -130,9 +112,8 @@ export function PodPairingEditor({
   const expected = participantIds(seedState);
   const validation = validatePartition(state, expected, mode);
   const enginePods = toEnginePods(state);
-  // Preview the table assignment the save will produce, so a seat displacement
-  // shows up while the organizer is still editing. (Fixed tables are per player
-  // and don't steer team units.)
+  // Previews the table assignment the save will produce. Fixed tables are per
+  // player and don't steer team units.
   const fixedTables = new Map(
     engineUnits.flatMap((unit) => {
       const fixedTable = unit.fixedTable ?? null;
@@ -304,12 +285,6 @@ export function PodPairingEditor({
   );
 }
 
-/**
- * Seed the team-mode editor from the open round: each pod's members collapse
- * to their team ids (first appearance order), and byes collapse to team ids
- * where a whole team sits out, or stay player ids for unteamed byed players.
- * @returns The initial unit-level partition.
- */
 function seedUnitsFromRound(
   round: PodRoundResponse,
   teamByPlayer: ReadonlyMap<string, string>,
@@ -398,9 +373,8 @@ function PodDropZone({
     >
       <CardHeader className="gap-1">
         <CardTitle className="flex items-center justify-between gap-2">
-          {/* Named by the event's style, not by seat count like pairingLabel():
-              a Swiss match being dragged through 1 or 3 players is still a
-              match, and renaming it mid-drag would be nonsense. */}
+          {/* Named by the event's style, not seat count like pairingLabel():
+              a match dragged through 1 or 3 players is still a match. */}
           <span>{mode === "pod" ? `Pod ${index + 1}` : `Match ${index + 1}`}</span>
           <span className={cn("font-normal", valid ? "text-muted-foreground" : "text-destructive")}>
             {mode === "team"
@@ -415,9 +389,8 @@ function PodDropZone({
   );
 }
 
-// A drop target that spawns a fresh pod seated with the dropped player. Always
-// visible: without it, players parked in Byes could never form a table the
-// round no longer has (e.g. after a mid-round drop emptied one).
+// Stays visible even with no empty pod: a bye may need to form a table the
+// round currently lacks, e.g. after a mid-round drop emptied one.
 function NewPodDropZone({ mode }: { mode: EditorMode }) {
   const { setNodeRef, isOver } = useDroppable({
     id: "new-pod",

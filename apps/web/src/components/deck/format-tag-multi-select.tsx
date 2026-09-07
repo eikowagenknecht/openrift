@@ -11,32 +11,15 @@ import { useCustomTagList } from "@/hooks/use-enums";
 import { cn } from "@/lib/utils";
 
 interface TagMultiSelectProps {
-  /** `custom_tags.category` whose slugs are offered (e.g. "region"). */
   category: string;
-  /** Plural display noun, e.g. "regions". Drives placeholder/empty copy. */
   nounPlural: string;
-  /** Currently selected slugs. Controlled by the parent. */
   selected: string[];
   onChange: (next: string[]) => void;
-  /** DOM id for the trigger (pair with an external `<Label htmlFor>`). */
   triggerId: string;
-  /** Optional override for the trigger's width/style — defaults to a 18rem fixed width. */
   triggerClassName?: string;
 }
 
-/**
- * Multi-select dropdown over a single custom-tag category. Used by the
- * format-tag picker banner and the change-tags dialog — both pick zero or
- * more slugs from the same category. The list of tags comes from
- * `useCustomTagList`, so the picker stays in sync with the admin vocabulary.
- *
- * The component is purely controlled: callers own `selected` and react to
- * `onChange`. State for "empty category" (admin hasn't created any tags
- * yet) is left to the caller — render a fallback above this component
- * before mounting it.
- *
- * @returns The combobox. Render-only; no side effects.
- */
+/** State for "empty category" is left to the caller — render a fallback above this before mounting it. */
 export function TagMultiSelect({
   category,
   nounPlural,
@@ -87,10 +70,6 @@ export function TagMultiSelect({
   );
 }
 
-/**
- * @returns The slugs in a category. Convenience for callers that need to
- *   know whether any tags exist before mounting {@link TagMultiSelect}.
- */
 export function useCategoryTagSlugs(category: string): string[] {
   const { byCategory } = useCustomTagList();
   return (byCategory.get(category) ?? []).map((tag) => tag.slug);

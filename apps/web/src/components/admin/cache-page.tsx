@@ -31,7 +31,6 @@ import { useClearSsrCache } from "@/hooks/use-status";
  * Latest-run status line for the fire-and-forget jobs on this page: spinner
  * while the background run is going, the error on failure, `succeededText`
  * once it completes.
- * @returns The status line for the run.
  */
 function JobRunStatusLine({ run, succeededText }: { run: JobRunView; succeededText: string }) {
   if (run.status === "running") {
@@ -61,7 +60,6 @@ function JobRunStatusLine({ run, succeededText }: { run: JobRunView; succeededTe
 /**
  * Succeeded-line text for the card-token job: the counts its run summary
  * recorded, or a plain "Completed" for runs without one.
- * @returns The text for the succeeded status line.
  */
 function cardTokensSucceededText(result: JobRunView["result"]): string {
   const totalCards = result?.totalCards;

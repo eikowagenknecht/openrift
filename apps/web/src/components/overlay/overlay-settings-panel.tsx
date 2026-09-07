@@ -48,18 +48,6 @@ const PLATE_FIELDS: { key: keyof OverlayPlateFields; label: string }[] = [
   { key: "flavorText", label: "Flavor text" },
 ];
 
-/**
- * Scene setup: where the card sits, how big it is, what rides along with it,
- * and the browser-source URL to paste into OBS.
- *
- * These get set once against a layout and then left alone, which is why they
- * sit at the bottom of the OBS output, below the controls a creator reaches for
- * mid-stream.
- *
- * @param props.draftScale The size being dragged, or null when the thumb is at rest.
- * @param props.onDraftScaleChange Reports the dragged size so the preview can follow it.
- * @returns The settings panel.
- */
 export function OverlaySettingsPanel({
   channel,
   draftScale,
@@ -73,10 +61,7 @@ export function OverlaySettingsPanel({
   const rotateToken = useRotateOverlayToken();
   const { payload } = channel;
 
-  // The draft lives in the output panel rather than here so the live preview
-  // resizes with the thumb; the write still happens on release, because each
-  // one bumps the version and a dragged slider would push twenty of them
-  // straight at the poll.
+  // Written only on release, not on drag: each write bumps the version the browser source polls for.
   const shownScale = draftScale ?? payload.scale;
 
   const sourceUrl = `${getSiteUrl()}/stage/source/${channel.token}`;
@@ -221,7 +206,6 @@ export function OverlaySettingsPanel({
           type="url"
           defaultValue={payload.qrUrl ?? ""}
           placeholder="https://openrift.app/decks/share/…"
-          // Committed on blur, so a half-typed URL never reaches the stream.
           onBlur={(event) => {
             const next = event.target.value.trim();
             const current = payload.qrUrl ?? "";

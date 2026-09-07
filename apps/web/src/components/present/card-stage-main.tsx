@@ -10,22 +10,8 @@ import { cn } from "@/lib/utils";
 import { usePresentationStore } from "@/stores/presentation-store";
 
 /**
- * The rules-text side panel, toggled with `T`.
- *
- * A fixed width, and everything in it left-aligned. Both matter on a stage the
- * viewer is watching: a panel sized to its contents would resize between a wordy
- * card and a vanilla one, shifting the artwork sideways on every step. The
- * default is the width the card layout is framed around; the board layout stacks
- * this under a narrower hero and passes its own.
- *
- * The lines inside are the same {@link CardPlateContent} the stream overlay
- * paints, on the same per-field switches — set here from the stage's settings
- * popover rather than a pushed payload.
- *
- * On a chroma ground it gets an opaque plate under it, because text sitting
- * straight on the key is antialiased against it and comes out fringed.
- *
- * @returns The name, code, stats and text beside the card.
+ * Fixed width: sizing to content would shift the artwork sideways between
+ * cards. On a chroma ground it gets an opaque plate, or the text fringes.
  */
 export function PresentationTextPanel({
   printing,
@@ -50,13 +36,6 @@ export function PresentationTextPanel({
   );
 }
 
-/**
- * The stage's card layout: one card filling the frame, with the rules panel
- * beside it when `T` is on. This is what a deck walk and an ad-hoc queue show,
- * and what a tier list falls back to when the board layout is turned off.
- *
- * @returns The card layout, or null when the queue has nothing at this index.
- */
 export function CardStageMain({
   items,
   index,
@@ -64,21 +43,15 @@ export function CardStageMain({
 }: {
   items: PresentationItem[];
   index: number;
-  /**
-   * Something to call the card out with, shown beside it. A tier run puts its
-   * rank here, which is the only thing on stage that says where the card landed
-   * once the board itself is switched off.
-   */
+  /** A tier run puts its rank here; the only thing on stage saying where a card landed once the board is off. */
   badge?: ReactNode;
 }) {
   const showText = usePresentationStore((state) => state.showText);
   const cardScale = usePresentationStore((state) => state.cardScale);
   const chroma = isChromaGround(usePresentationStore((state) => state.ground));
 
-  // Which way the queue last moved, so the incoming card flies in from the side
-  // it came from. Adjusted during render (React's documented pattern for state
-  // derived from a changed prop) rather than in an effect, so the animation
-  // class is right on the first paint of the new card.
+  // Adjusted during render (state derived from a changed prop), not in an
+  // effect, so the direction class is right on the first paint.
   const [seenIndex, setSeenIndex] = useState(index);
   const [forwards, setForwards] = useState(true);
   if (seenIndex !== index) {
@@ -98,12 +71,8 @@ export function CardStageMain({
         className="aspect-card relative max-w-full shrink"
         style={{ height: `${cardScale * 100}%` }}
       >
-        {/* Keyed on the queue position so every step remounts the layer and
-            replays the entry animation, sliding in from the side the queue
-            moved towards. The fade is dropped on a chroma ground: every frame
-            of it is a part-opaque card over the key, which the chroma filter
-            eats into rather than blends. The slide survives, being opaque
-            throughout. */}
+        {/* The fade is dropped on a chroma ground: a part-opaque frame over
+            the key gets eaten by the chroma filter instead of blending. */}
         <div
           key={current.id}
           className={cn(

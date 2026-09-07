@@ -12,10 +12,6 @@ interface DroppableSidebarListProps {
   listName: string;
   listKind: ListKind;
   listIntent: ListIntent;
-  /**
-   * Suppress card-drop highlighting and accept. Used while a sidebar-reorder
-   * drag is in flight so its visuals don't compete with the sortable row.
-   */
   disabled?: boolean;
   children: ReactNode;
 }
@@ -28,18 +24,7 @@ export interface SidebarListDropData {
   listIntent: ListIntent;
 }
 
-/**
- * Sidebar list row that accepts two drag types:
- *   - `collection-card` drops add copies to the list (the server's
- *     /entries/from-copies endpoint derives card/printing/copy entries from
- *     the list's kind), always non-destructive.
- *   - `list-entry` drops move entries between lists, but only when the
- *     destination matches the source on `kind` + `intent` (and isn't the
- *     same list). Mismatched targets don't highlight, so the user gets the
- *     standard "no drop" cursor.
- *
- * @returns The wrapper with drop highlighting when a compatible drag hovers.
- */
+/** Sidebar list row that accepts `collection-card` and `list-entry` drops. */
 export function DroppableSidebarList({
   listId,
   listName,
@@ -74,12 +59,7 @@ export function DroppableSidebarList({
   );
 }
 
-/**
- * Whether the given drag is allowed to land on the given sidebar list target.
- * Mirrored on the server in `moveListEntries`; the client predicate exists so
- * the highlight matches the server's accept/reject without an extra round-trip.
- * @returns `true` if the drop should highlight and the route handler should fire.
- */
+/** Mirrors the server's `moveListEntries` check so the highlight matches its accept/reject. */
 export function isCompatibleDrop(
   drag: AnyDragData | undefined,
   target: { listId: string; listKind: ListKind; listIntent: ListIntent },
@@ -88,10 +68,7 @@ export function isCompatibleDrop(
     return false;
   }
   if (drag.type === "collection-card") {
-    // Copies you only have group access to aren't yours to trade away or wish
-    // for, so trade/wish lists refuse a drag made up entirely of them (mirrors
-    // the server's personalOnly rule). Organize lists, and any drag that
-    // includes personal copies, still land.
+    // Mirrors the server's personalOnly rule: group-only copies can't go on a trade/wish list.
     if (drag.sourceAllGroupCopies && target.listIntent !== "organize") {
       return false;
     }
@@ -100,10 +77,6 @@ export function isCompatibleDrop(
   if (drag.type !== "list-entry") {
     return false;
   }
-  // list-entry: same kind + intent + different list. The destination intent /
-  // kind constraints mirror the server-side check in moveListEntries — keeping
-  // the same rule in the highlight so the user can't drag onto a target the
-  // server will then reject.
   return (
     drag.sourceKind === target.listKind &&
     drag.sourceIntent === target.listIntent &&

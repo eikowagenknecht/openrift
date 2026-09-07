@@ -62,17 +62,13 @@ export function wrapAtCaret(
   const selected = value.slice(start, end);
   const after = value.slice(end);
   const wrapped = prefix + selected + suffix;
-  // No selection: drop the caret between the markers so the user can type inside.
-  // Selection: place the caret after the wrapped text.
   const caret = selected.length === 0 ? start + prefix.length : start + wrapped.length;
   return { value: before + wrapped + after, caret };
 }
 
 /**
- * "rules" — full card-syntax toolbar (glyphs, runes, keywords, italic) and a
- * CardText-rendered preview. For printed rules / effect text.
- * "flavor" — punctuation only (curly quotes, apostrophe, em dash) and a plain
- * italic preview, since flavor text renders as prose, not card syntax.
+ * "rules": full card-syntax toolbar and a CardText-rendered preview.
+ * "flavor": punctuation-only toolbar and a plain italic preview.
  */
 export type CardTextVariant = "rules" | "flavor";
 
@@ -83,11 +79,7 @@ interface CardTextInputProps {
   rows?: number;
   placeholder?: string;
   variant?: CardTextVariant;
-  /**
-   * When provided, shows a "Fix" button that reformats the current value
-   * through this transform (typically `fixTypography`). The caller owns the
-   * options (cost keywords, flavor vs rules) so the transform stays correct.
-   */
+  /** When provided, shows a "Fix" button that reformats the value through this transform. */
   reformat?: (value: string) => string;
 }
 
@@ -451,7 +443,6 @@ function CardTextPreview({ text, variant }: { text: string; variant: CardTextVar
   return (
     <div className="border-input bg-muted/30 text-foreground rounded-md border px-2.5 py-1.5 text-sm">
       {variant === "flavor" ? (
-        // Flavor text renders as plain italic prose, not card syntax.
         <p className="text-muted-foreground/80 whitespace-pre-wrap italic">{text}</p>
       ) : (
         <CardText text={text} interactive={false} />

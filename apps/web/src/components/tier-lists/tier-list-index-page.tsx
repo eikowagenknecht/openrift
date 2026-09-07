@@ -41,18 +41,8 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeleteTierList, useTierLists } from "@/hooks/use-tier-lists";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * Tile width for the index's preview board. Fixed rather than following the
- * board's size preference: this is a thumbnail of a list, not the board itself.
- */
 const PREVIEW_TILE_WIDTH = 40;
 
-/**
- * "My tier lists": everything the signed-in creator has built, newest edit
- * first, with a preview strip of the top-ranked cards.
- *
- * @returns The index page node.
- */
 export function TierListIndexPage() {
   const { data: tierLists } = useTierLists();
   const [createOpen, setCreateOpen] = useState(false);
@@ -88,8 +78,6 @@ export function TierListIndexPage() {
             </Button>
           </EmptyState>
         ) : (
-          // One per row rather than a two-column grid: the preview is a board
-          // now, and a board reads across the page rather than in a column.
           <div className="flex flex-col gap-3">
             {tierLists.map((tierList) => (
               <TierListRow key={tierList.id} tierList={tierList} />
@@ -109,9 +97,6 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // The preview rows come back as ids, so they resolve against the catalogue
-  // exactly as the board's own do — including the pinned-printing fallback, so
-  // a list built out of alt arts previews with the arts the creator chose.
   const resolved = resolveTierRows(tierList.previewRows, cardsById, printingsByCardId);
   const preview = tierList.previewRows.map((row, index) => ({
     ...row,
@@ -197,8 +182,6 @@ function TierListRow({ tierList }: { tierList: TierListSummaryResponse }) {
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                // No navigation on success: this page *is* /tier-lists, and the
-                // mutation's invalidation refreshes the listing.
                 deleteTierList.mutate(tierList.id);
               }}
               disabled={deleteTierList.isPending}

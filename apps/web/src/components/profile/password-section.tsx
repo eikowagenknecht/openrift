@@ -25,10 +25,6 @@ const passwordSchema = z
 
 type PasswordValues = z.infer<typeof passwordSchema>;
 
-/**
- * @returns The change-password card, or the set-a-password card for an account
- * that only signs in through a social provider.
- */
 export function PasswordSection({ currentEmail }: { currentEmail: string }) {
   const { data: accounts, isPending } = useQuery({
     queryKey: ["auth", "accounts"],
@@ -55,9 +51,6 @@ export function PasswordSection({ currentEmail }: { currentEmail: string }) {
     );
   }
 
-  // A social-only account has no credential row, so `changePassword` can only
-  // ever fail on it. A failed query is not evidence either way, so that falls
-  // through to the change form rather than claiming there is no password.
   if (accounts && !accounts.some((account) => account.providerId === "credential")) {
     return <SetPasswordCard currentEmail={currentEmail} />;
   }
@@ -65,9 +58,6 @@ export function PasswordSection({ currentEmail }: { currentEmail: string }) {
   return <ChangePasswordCard />;
 }
 
-/**
- * @returns The card offered to an account with no credential provider linked.
- */
 function SetPasswordCard({ currentEmail }: { currentEmail: string }) {
   return (
     <Card>
@@ -94,9 +84,6 @@ function SetPasswordCard({ currentEmail }: { currentEmail: string }) {
   );
 }
 
-/**
- * @returns The card for an account that already has a password.
- */
 function ChangePasswordCard() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);

@@ -54,13 +54,6 @@ import { canRequestChanges, primaryActionFor } from "@/lib/deck-check-actions";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
-/**
- * The entry page's sticky top bar: the `Tournaments / {name} / Decks` trail
- * (collapsing to a back arrow on phones), the entrant's name as the title with
- * the state badge beside it, and the entry's actions. The trail's `Decks` crumb
- * is the way back to the entrant list.
- * @returns The breadcrumb top bar.
- */
 export function DeckEntryTopBar({
   tournamentId,
   entry,
@@ -100,12 +93,6 @@ export function DeckEntryTopBar({
   );
 }
 
-/**
- * The top-bar actions for an entry: the single contextual primary action for
- * the current state (the filled CTA) plus an overflow menu with edit and, for
- * hosts / organizers, delete. Secondary state actions stay in the body.
- * @returns The entry's top-bar action cluster.
- */
 export function EntryTopBarActions({
   entry,
   transition,
@@ -163,11 +150,6 @@ export function EntryTopBarActions({
   );
 }
 
-/**
- * The /decks-style fanned legend + champion art for this entry, over the
- * legend's domain gradient.
- * @returns The preview block, sized for the hero row.
- */
 export function EntryPreview({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
   const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
   const domainColors = useDomainColors();
@@ -209,7 +191,6 @@ export function EntryHeader({
     state: "editable" | "submitted" | "approved" | "checked" | "withdrawn",
     reviewOutcome?: "ok" | "issue",
   ) => void;
-  /** Whether a state transition is in flight (disables the action buttons). */
   pending: boolean;
 }) {
   const { entry } = detail;
@@ -293,14 +274,8 @@ export function EntryHeader({
   );
 }
 
-/**
- * The entry's secondary details as a compact label / value grid: contact,
- * reviewer (only in the approved / checked states), the public-sharing flags,
- * and the linked account. Rows whose fact is absent are omitted — an unlinked
- * entry shows no Account row at all, since "not linked" is the default and
- * needs no callout (the claim action lives in the header's button row).
- * @returns The metadata grid.
- */
+// An unlinked entry shows no Account row: "not linked" is the default, so
+// omitting the row isn't a bug.
 function EntryMetaGrid({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
   const contact = [entry.riotId].filter(Boolean).join(" · ");
   const reviewer =
@@ -331,11 +306,6 @@ function EntryMetaGrid({ entry }: { entry: DeckCheckEntryDetailResponse["entry"]
   );
 }
 
-/**
- * One label / value pair in {@link EntryMetaGrid}: a muted label in the fixed
- * first column, the value in the normal text color in the second.
- * @returns The grid row.
- */
 function MetaRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
@@ -345,12 +315,8 @@ function MetaRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/**
- * The public-sharing flags as check / cross items. Withholding the deck list
- * keeps everything private, so the name and Riot ID read as withheld too
- * regardless of their own flags.
- * @returns The sharing value cell.
- */
+// Withholding the deck list keeps everything private, so name/Riot ID read as
+// withheld too regardless of their own flags.
 function SharingValue({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] }) {
   const published = entry.allowDeckPublishing;
   const items = [
@@ -377,13 +343,8 @@ function SharingValue({ entry }: { entry: DeckCheckEntryDetailResponse["entry"] 
   );
 }
 
-/**
- * The unlink remedy for a bad auto-match, which also blocks re-matching. There
- * is no manual link: an entry only attaches to an account when the player claims
- * it themselves (auto email match or the claim link), so when an entry is not
- * linked this action shows nothing.
- * @returns The unlink button, or null when the entry is not linked.
- */
+// There is no manual link: an entry only attaches to an account via auto email
+// match or the player's own claim, so this renders nothing when unlinked.
 function AccountLinkAction({
   tournamentId,
   entryId,
@@ -412,11 +373,6 @@ function AccountLinkAction({
   );
 }
 
-/**
- * The judge's message to the player, kept separate from the judge-private
- * notes; the linked player sees it on their entry page.
- * @returns The message field with its save affordance.
- */
 export function PlayerMessageField({
   tournamentId,
   entryId,

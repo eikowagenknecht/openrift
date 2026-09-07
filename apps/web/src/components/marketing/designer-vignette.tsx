@@ -14,11 +14,9 @@ const CARD_EPITHET = "Lord of Naps";
 const CARD_ENERGY = "4";
 const CARD_MIGHT = "3";
 
-// The strong-alpha diagonal CardArtThumb paints for an art-less card, on the
-// domain the swatch row has picked.
 const ART_FILL = `linear-gradient(135deg, ${DEFAULT_DOMAIN_COLORS[PICKED_DOMAIN]}cc, ${DEFAULT_DOMAIN_COLORS[PICKED_DOMAIN]}80)`;
 
-// Input's frame, on a span: nothing in a miniature may be focusable.
+// A span, not an input: nothing in a miniature may be focusable.
 const FAKE_INPUT =
   "border-input dark:bg-input/30 flex h-8 w-full items-center rounded-lg border bg-transparent px-2.5 text-sm";
 
@@ -48,15 +46,6 @@ function DomainSwatches() {
   );
 }
 
-/**
- * The live preview at miniature scale: the placeholder card's own layering
- * (domain fill, a bottom scrim, the energy circle top left, the might tag top
- * right, the title band at 55%), reproduced rather than imported because the
- * real preview drags in the designer store and the full card renderer.
- *
- * Type is enlarged relative to the real card, which sizes everything in `cqw`
- * against the card's own width; at 96px that ramp is illegible.
- */
 function MiniCardPreview() {
   return (
     <span className="aspect-card relative block w-24 shrink-0 overflow-hidden rounded-lg bg-neutral-800 sm:w-28">
@@ -72,10 +61,6 @@ function MiniCardPreview() {
       >
         {CARD_ENERGY}
       </span>
-      {/* CardPlaceholderImage's might badge: top right, the bottom-left corner
-          clipped off, the shield on a white half and the number on a black one.
-          The rotated square this used to draw is the energy glyph a *gear*
-          card gets in place of the circle, not a might glyph at all. */}
       <span
         role="img"
         aria-label={`Might ${CARD_MIGHT}`}
@@ -103,10 +88,6 @@ function MiniCardPreview() {
   );
 }
 
-/**
- * The card designer: the form on the left, the card it renders on the right,
- * the way the page lays them out from `lg` up.
- */
 export function DesignerVignette() {
   return (
     <Vignette>

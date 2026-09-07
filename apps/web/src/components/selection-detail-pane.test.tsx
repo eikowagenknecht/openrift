@@ -64,8 +64,6 @@ describe("SelectionDetailPane", () => {
   });
 
   it("holds its place with an empty state when docked with nothing selected", () => {
-    // The docked pane is a layout choice, so the column must not appear and
-    // vanish as cards are clicked and closed.
     useDisplayStore.setState({ paneDocked: true });
     renderPane([stubCardViewerItem()]);
 
@@ -86,9 +84,6 @@ describe("SelectionDetailPane", () => {
     expect(screen.queryByText("Select a card to see its details")).not.toBeInTheDocument();
   });
 
-  // The X reads as "close this panel". Clearing the card alone left the empty
-  // pane sitting there; undocking alone would have handed the still-selected
-  // card straight to the modal.
   it("closes the whole dock when the card's close button is used", async () => {
     const user = userEvent.setup();
     const items = [stubCardViewerItem()];

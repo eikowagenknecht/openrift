@@ -55,8 +55,6 @@ vi.mock("@/hooks/use-meta", () => ({
   },
 }));
 vi.mock("@/hooks/use-meta-eras", () => ({ useMetaEras: () => [] }));
-// Stubbed away: the bar's own controls have their own tests, and this page adds
-// nothing inside it.
 vi.mock("@/components/meta/meta-scope-bar", () => ({
   MetaScopeBar: () => <div />,
 }));
@@ -130,7 +128,6 @@ function renderPage(
   render(<MetaLegendsPage />);
 }
 
-/** @returns One legend-page href per row, in the order the list renders them. */
 function rowLinks(): (string | null)[] {
   return screen
     .getAllByRole("link")

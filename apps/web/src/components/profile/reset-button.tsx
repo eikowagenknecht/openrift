@@ -8,11 +8,6 @@ interface ResetButtonProps {
   label: string;
 }
 
-/**
- * Small "reset to default" icon button used across the profile preference
- * rows. Wraps a ghost icon button in a tooltip.
- * @returns The tooltip-wrapped reset button.
- */
 export function ResetButton({ onClick, label }: ResetButtonProps) {
   return (
     <Tooltip>

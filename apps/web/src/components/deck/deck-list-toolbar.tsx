@@ -33,17 +33,11 @@ const GROUP_OPTIONS: SortGroupOption<DeckListGroupBy>[] = [
   { value: "folder", label: "Folder" },
 ];
 
-/**
- * Grid / list switch, shared by the bar and the mobile drawer.
- * @returns The density toggle group.
- */
 function DensityToggle({ className }: { className?: string }) {
   const density = useDeckListPrefsStore((state) => state.density);
   const setDensity = useDeckListPrefsStore((state) => state.setDensity);
   return (
-    // Default size, not sm: everything else in this row (search box, sort
-    // trigger, mobile options button) is h-8, and a 28px toggle beside them
-    // reads as an afterthought.
+    // Default size, not sm: everything else in this row is h-8.
     <ToggleGroup
       className={className}
       variant="outline"
@@ -72,11 +66,6 @@ function DensityToggle({ className }: { className?: string }) {
   );
 }
 
-/**
- * A labelled block inside the mobile drawer, matching the card browser's own
- * drawer sections.
- * @returns The labelled section.
- */
 function DrawerSection({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
@@ -97,7 +86,6 @@ export function DeckListToolbar({
   availableDomains: Domain[];
   availability: DeckListFilterAvailability;
   counts: DeckListFilterCounts;
-  /** The user's folders. Empty while signed out, which hides every folder control. */
   folders: DeckFolderResponse[];
   totalCount: number;
   filteredCount: number;
@@ -114,18 +102,11 @@ export function DeckListToolbar({
     setGroupDir,
   } = useDeckListViewPrefs();
 
-  // The search box owns a local value and commits to the URL on a debounce, so
-  // typing leaves one history entry per pause rather than per keystroke. Same
-  // hook the card browser's search bar uses.
   const [localSearch, setLocalSearch] = useSearchUrlSync({
     urlValue: search,
     onCommit: setSearch,
   });
 
-  // Hide group options that would yield a single bucket; keep "none" and the current selection
-  // so the trigger always reflects state even if that grouping is no longer useful.
-  // Folder is additionally gated on having any folder at all, so a signed-out
-  // list (which can have none) never offers it.
   const visibleGroupOptions = GROUP_OPTIONS.filter((option) => {
     if (option.value === "folder" && folders.length === 0) {
       return false;
@@ -159,8 +140,8 @@ export function DeckListToolbar({
       ? `${filteredCount} / ${totalCount}`
       : String(totalCount);
   const unitLabel = totalCount === 1 ? "deck" : "decks";
-  // An active filter keeps the row alive even when the deck set has made every
-  // control pointless, so there is always a way back to the full list.
+  // Keeps the row alive even when the deck set has made every control
+  // pointless, so there is always a way back to the full list.
   const showFilters =
     hasUsableDeckFilters(availability, availableDomains, folders) || hasActiveFilters;
 
@@ -176,9 +157,7 @@ export function DeckListToolbar({
           className="min-w-[200px] flex-1"
         />
 
-        {/* Below md the controls live in the drawer, so the bar keeps only the
-            search box and the two triggers — the same split the card browser
-            makes at its own breakpoint. */}
+        {/* Below md the controls live in the drawer; the bar keeps only the search box and triggers. */}
         <div className="hidden items-center gap-3 md:flex">
           {sortGroupControls}
           <DensityToggle className="ml-auto" />
@@ -204,9 +183,7 @@ export function DeckListToolbar({
         </div>
       </div>
 
-      {/* The controls show their own selections, so the chips would duplicate
-          them wherever the controls are visible. Below md they're the only
-          readout there is. */}
+      {/* Below md the chips are the only readout; elsewhere the controls show their own selections. */}
       {hasActiveFilters && (
         <div className="md:hidden">
           <DeckActiveFilters />

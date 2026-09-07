@@ -13,8 +13,6 @@ const PriceHistoryChart = lazy(async () => {
 });
 
 function ChartSkeleton() {
-  // Shaped like the chart it stands in for (toolbar row + plot), so resolving
-  // the lazy chunk doesn't resize the detail panel under the cursor.
   return (
     <div data-testid="price-chart-skeleton" className="space-y-3">
       <Skeleton className="h-8 w-full rounded-lg" />
@@ -35,8 +33,6 @@ export function CardFooter({ printing }: { printing: Printing }) {
         <img src="/images/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
         {printing.artist}
       </p>
-      {/* Chart above the buy row: the chart is what the price means, the chips
-          are where to act on it. */}
       {hasPrice && (
         <Suspense fallback={<ChartSkeleton />}>
           <PriceHistoryChart printingId={printing.id} />

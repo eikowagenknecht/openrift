@@ -134,7 +134,7 @@ export function ImportEntryRow({
   );
 }
 
-/** @returns A "Foil · Alt Art" style suffix, or null when there's nothing notable. */
+/** Formats a "Foil · Alt Art" style suffix, or null when there's nothing notable. */
 function formatEntrySpecialties(
   entry: MatchedEntry,
   finishLabels: Record<string, string>,

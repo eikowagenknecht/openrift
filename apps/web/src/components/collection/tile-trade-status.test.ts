@@ -41,8 +41,6 @@ describe("tradeChipTitle", () => {
     ).toBe("Reserved (outgoing) · 1 of this printing (3 across all printings)");
   });
 
-  // The product rule: an "asked" number counts other people's bids, so it must
-  // never read as copies already committed. Naming the free copies settles it.
   it("names the free copies alongside a giver-side asked count", () => {
     expect(
       tradeChipTitle({
@@ -52,8 +50,6 @@ describe("tradeChipTitle", () => {
     ).toBe("Requested (outgoing) · 3 copies wanted, 1 available");
   });
 
-  // The bare number would read just as easily as a headcount of the people
-  // asking, which is a different figure.
   it("spells out that the asked number counts copies, not people", () => {
     const title = tradeChipTitle({
       annotation: annotation({ phase: "asked", quantity: 3, tradeCount: 2 }),
@@ -81,8 +77,6 @@ describe("tradeChipTitle", () => {
     ).toBe("Requested (outgoing) · 2 copies wanted, 0 available");
   });
 
-  // "Requested" is the receiver's word for a card coming to them: nothing of
-  // theirs is at stake, so there is no availability to qualify.
   it("leaves a receiver-side asked annotation on the shared summary", () => {
     expect(
       tradeChipTitle({
@@ -99,15 +93,11 @@ describe("availableCopyCount", () => {
       stubCopy({ printingId: "p-1", reserved: true }),
       stubCopy({ printingId: "p-1", reserved: false }),
       stubCopy({ printingId: "p-1", reserved: false }),
-      // A sibling printing's free copy is not this printing's supply.
       stubCopy({ printingId: "p-2", reserved: false }),
     ];
     expect(availableCopyCount(copies, "p-1")).toBe(2);
   });
 
-  // buildSupply on the server drops loaned copies alongside reserved ones: the
-  // card is physically absent, so it cannot be handed over. Counting it here
-  // would promise a copy an accept would then refuse.
   it("leaves out copies that are out on a loan", () => {
     const copies = [
       stubCopy({ printingId: "p-1", onLoan: true }),
@@ -154,7 +144,6 @@ describe("tileTradeStatus", () => {
       ],
     });
     expect(status?.annotation.phase).toBe("reserved");
-    // The count stays the winning bucket's own. "Reserved 5" would be a lie.
     expect(status?.annotation.quantity).toBe(1);
   });
 
@@ -170,8 +159,6 @@ describe("tileTradeStatus", () => {
     expect(status?.title).toBe("Requested (outgoing) · 3 copies wanted, 1 available");
   });
 
-  // The case the server would refuse: the one unpinned copy is out on a loan,
-  // so there is nothing to hand over despite the stack looking non-empty.
   it("reports nothing available when the only free copy is out on a loan", () => {
     const status = tileTradeStatus({
       ...base,
@@ -184,9 +171,6 @@ describe("tileTradeStatus", () => {
     expect(status?.title).toBe("Requested (outgoing) · 2 copies wanted, 0 available");
   });
 
-  // A group "bulk box" holds the group's copies. An annotation names a printing
-  // and no collection, so any trade on it is about copies the viewer holds
-  // personally, somewhere else entirely.
   it("shows nothing on a group-collection tile, whichever side the trade is", () => {
     for (const role of ["giver", "receiver"] as const) {
       expect(
@@ -225,8 +209,6 @@ describe("tileTradeStatus", () => {
     expect(status?.title).toBe("Reserved (outgoing) · 1 of this printing (3 across all printings)");
   });
 
-  // Summing across phases would put copies merely asked for behind the
-  // "Reserved" word the chip shows.
   it("keeps a sibling's weaker phase out of the card-wide figure", () => {
     const status = tileTradeStatus({
       ...base,
@@ -240,8 +222,6 @@ describe("tileTradeStatus", () => {
     expect(status?.totalCount).toBe(1);
   });
 
-  // groupTradeAnnotationsByPrinting drops the receiver side when both exist:
-  // the copy the viewer is giving away is the one they care about.
   it("prefers the viewer's own copies when both sides are live on the printing", () => {
     const status = tileTradeStatus({
       ...base,
@@ -267,7 +247,6 @@ describe("tradeAnnotationByCopyId", () => {
       ]),
     );
 
-    // Both, pinned or not: the caller decides which copies to draw it against.
     expect(byCopy.get("copy-a")?.phase).toBe("reserved");
     expect(byCopy.get("copy-b")?.phase).toBe("reserved");
   });

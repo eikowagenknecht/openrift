@@ -20,7 +20,6 @@ describe("computeGridMetrics", () => {
   });
 
   it("keeps the historical spacing wherever cards are comfortably large", () => {
-    // The pre-ratio layout was a flat 16px gap; GUTTER_MAX preserves it.
     const { gap, gutter } = computeGridMetrics(1400, 5);
     expect(gap).toBe(GRID_GAP_MAX);
     expect(gutter).toBe(GUTTER_MAX);
@@ -30,7 +29,6 @@ describe("computeGridMetrics", () => {
     const wide = computeGridMetrics(1400, 8);
     const dense = computeGridMetrics(1400, 12);
     expect(dense.gap).toBeLessThan(wide.gap);
-    // The whole point: denser layouts must gain card width, not lose it to gaps.
     expect(dense.cardWidth).toBeGreaterThan((1400 - GRID_GAP_MAX * 11) / 12);
   });
 
@@ -42,7 +40,6 @@ describe("computeGridMetrics", () => {
   });
 
   it("clamps at both ends", () => {
-    // 40 columns in 1400px is far past any real layout — the floor still holds.
     expect(computeGridMetrics(1400, 40).gutter).toBe(GUTTER_MIN);
     expect(computeGridMetrics(4000, 2).gutter).toBe(GUTTER_MAX);
   });
@@ -80,8 +77,7 @@ describe("gridGapCss", () => {
     ];
     for (const { columns, widths } of cases) {
       for (const width of widths) {
-        // The JS path rounds the gutter to whole pixels and the CSS one
-        // doesn't, so half a pixel is the most they can legitimately differ.
+        // The JS path rounds the gutter to whole pixels, the CSS one doesn't.
         const drift = Math.abs(
           evaluateGapCss(gridGapCss(columns), width) - computeGridMetrics(width, columns).gap,
         );
@@ -97,19 +93,13 @@ describe("gridGapCss", () => {
   });
 
   it("emits no spaces outside the calc operator, so it survives as a Tailwind class", () => {
-    // Tailwind arbitrary values turn every space into an underscore; the two
-    // CSS requires inside calc() are the only ones that should need it.
     expect(gridGapCss(4).split(" ")).toHaveLength(3);
   });
 });
 
 /**
  * Evaluate a `clamp(Apx, calc(B cqw ± Cpx), Dpx)` string the way a browser
- * would, with `containerWidth` standing in for the container `cqw` resolves
- * against.
- * @param css Expression produced by {@link gridGapCss}.
- * @param containerWidth Container width in px.
- * @returns The resolved gap in px.
+ * would, with `containerWidth` standing in for the container `cqw` resolves against.
  */
 function evaluateGapCss(css: string, containerWidth: number): number {
   const parsed =

@@ -30,16 +30,11 @@ interface BrowserCardViewerProps {
   rightPane?: ReactNode;
   addStripHeight?: number;
   table?: CardTableProps;
-  /** Surface-specific no-results copy; forwarded to {@link CardViewer}. */
   noResultsDescription?: ReactNode;
   children?: ReactNode;
 }
 
-/**
- * Thin wrapper around CardViewer that bridges the selection store to grid props.
- * Resolves the highlight target and the sibling-printing list from the store.
- * @returns The card viewer with selection-aware props.
- */
+/** Thin wrapper around CardViewer that bridges the selection store to grid props. */
 export function BrowserCardViewer({
   items,
   renderedCards,
@@ -50,23 +45,17 @@ export function BrowserCardViewer({
   const selectedCard = useSelectionStore((s) => s.selectedCard);
   const selectedIndex = useSelectionStore((s) => s.selectedIndex);
 
-  // Keep the selection in step with a list that reshapes under it (a moved copy
-  // leaves the collection, a filter drops rows). Without this the highlight
-  // follows the index onto the next card while the detail pane keeps rendering
-  // the one that left.
+  // Without this, the highlight follows the index onto the next card after a
+  // reshape (a moved copy, a filter) while the detail pane still shows the one that left.
   useEffect(() => {
     useSelectionStore.getState().reconcileSelection(items);
   }, [items]);
 
-  // The grid cell the user is anchored at — the one they originally clicked.
-  // Stays stable when the detail panel swaps to a sibling printing via
-  // setSelectedCard, so the highlight keeps tracking that cell.
+  // Stays stable when the detail panel swaps to a sibling printing via setSelectedCard.
   const indexAnchor =
     selectedIndex >= 0 && selectedIndex < items.length ? items[selectedIndex] : undefined;
 
-  // Prefer the index anchor, then exact printing.id match, then a cardId
-  // fallback for cards-only view where chevron-picked variants aren't in the
-  // grid items — light up the representative tile for that card instead.
+  // Falls back to cardId in cards-only view, where chevron-picked variants aren't in the grid items.
   const gridSelectedId =
     indexAnchor?.id ??
     (selectedCard
@@ -76,10 +65,6 @@ export function BrowserCardViewer({
           : selectedCard.id))
       : undefined);
 
-  // Push the resolved id into useGridFocusStore so per-cell components can
-  // subscribe to "am I selected?" via a granular selector instead of taking
-  // the value as a prop (which would cascade through every row + cell on a
-  // selection change).
   useEffect(() => {
     useGridFocusStore.getState().setSelectedItemId(gridSelectedId ?? null);
   }, [gridSelectedId]);

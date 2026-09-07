@@ -27,7 +27,6 @@ function makeRow(playerId: string, region: string | null, score: number): PodSta
   };
 }
 
-/** @returns The bar fill widths, in rendered order. */
 function barWidths(): (string | undefined)[] {
   return screen
     .getAllByRole("listitem")

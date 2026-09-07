@@ -7,8 +7,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
-// ── Server functions for refresh actions ───────────────────────────────────
-
 const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }): Promise<JobRunStartedResponse> =>
@@ -27,16 +25,12 @@ const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
     apiOrpcClient(adminOperationsContract, context.cookie).refreshCardtrader(),
   );
 
-// ── Server function for polling latest job run for a kind ─────────────────
-
 export const getLatestJobRunFn = createServerFn({ method: "GET" })
   .validator((input: { kind: string }) => input)
   .middleware([withCookies])
   .handler(({ context, data }): Promise<JobRunsListResponse> =>
     apiOrpcClient(adminJobRunsContract, context.cookie).list({ kind: data.kind, limit: 1 }),
   );
-
-// ── Action configs ──────────────────────────────────────────────────────────
 
 export const refreshActions = {
   tcgplayer: {

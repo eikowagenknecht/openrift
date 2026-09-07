@@ -5,23 +5,11 @@ import { useOwnedCountFor, useOwnedCountsForPrintings } from "@/hooks/use-owned-
 
 interface CatalogTableActionsProps {
   printing: Printing;
-  /**
-   * Sibling printing IDs of the same card (cards view) for the variant-aggregate
-   * `(M)` hint. Omit for printings view (no aggregate).
-   */
   siblingIds?: readonly string[];
 }
 
 const EMPTY_SIBLING_IDS: readonly string[] = [];
 
-/**
- * Actions cell for the /cards catalog table: the owned count plus +/-. The
- * primary count is the row's own printing; the `(M)` hint is the per-card sum
- * in cards view, shown only when more than one variant has copies (owning a
- * single variant would otherwise render `2 (2)`).
- *
- * @returns The catalog actions content (no wrapper — CardTableRow renders that).
- */
 export function CatalogTableActions({ printing, siblingIds }: CatalogTableActionsProps) {
   const hasSiblings = siblingIds !== undefined && siblingIds.length > 0;
   // Two hooks, one enabled at a time — calling rules require unconditional hook order.

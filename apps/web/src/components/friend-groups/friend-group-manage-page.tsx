@@ -128,11 +128,6 @@ export function FriendGroupManagePage({ slug }: FriendGroupManagePageProps) {
   );
 }
 
-/**
- * Lets the viewer choose which of their account-level contact methods are
- * revealed to this group. Visible to every member, not just admins.
- * @returns The contact-sharing card.
- */
 function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; slug: string }) {
   const viewerId = useRequiredUserId();
   const { contactMethods } = useContactMethods();
@@ -152,8 +147,6 @@ function ContactSharingPanel({ data, slug }: { data: FriendGroupDetailResponse; 
   }
 
   return (
-    // The id is the target of the overview's contacts nudge; the clearance
-    // keeps the card below the header and the breadcrumb bar when it lands.
     <Card id="contacts" className="scroll-mt-28">
       <CardHeader>
         <CardTitle>Your contacts in this group</CardTitle>
@@ -318,12 +311,7 @@ export function AdminSettings({ data, slug }: { data: FriendGroupDetailResponse;
   );
 }
 
-/**
- * The invite link for a group that still accepts new members. The bare code is
- * deliberately not shown: nothing anywhere accepts a typed one, so displaying
- * it only invites someone to read out twelve case-sensitive characters.
- * @returns The invite-link panel.
- */
+// The bare code is deliberately not shown: nothing accepts a typed one, only a link.
 function InviteLinkPanel({ slug, code }: { slug: string; code: string }) {
   const rotateCode = useRotateFriendGroupCode();
   const disableCode = useDisableFriendGroupCode();
@@ -407,14 +395,7 @@ function InviteLinkPanel({ slug, code }: { slug: string; code: string }) {
   );
 }
 
-/**
- * Admin-only Discord linking: generate a one-time code, redeem it with the
- * bot's /link command in the server, and the bot may answer card mentions
- * there with who has the card on a tradelist shared with this group. While a
- * code is outstanding the links list polls, so the redeem shows up without a
- * reload.
- * @returns The Discord bot card.
- */
+// While a code is outstanding the links list polls, so the redeem shows up without a reload.
 function DiscordPanel({ slug }: { slug: string }) {
   const createCode = useCreateFriendGroupDiscordLinkCode();
   const removeLink = useDeleteFriendGroupDiscordLink();
@@ -535,7 +516,6 @@ function ShareableListsPanel({ slug }: { slug: string }) {
     );
   }
   return (
-    // The id is the target of the overview's shared-lists nudge.
     <Card id="lists" className="scroll-mt-28">
       <CardHeader>
         <CardTitle>Share your lists</CardTitle>
@@ -663,12 +643,6 @@ function ShareableCollectionsPanel({ slug }: { slug: string }) {
   );
 }
 
-/**
- * Owner-only ownership hand-off: pick another member, confirm, and the group
- * is theirs — the outgoing owner stays on as an admin. Hidden while the owner
- * is the only member (there is no one to hand the group to).
- * @returns The transfer control, or null.
- */
 function TransferOwnershipControl({
   data,
   slug,

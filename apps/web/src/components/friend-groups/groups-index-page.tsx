@@ -50,20 +50,8 @@ import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 
-/** How many thumbs a strip shows before the rest collapse into the "+N" pill. */
 const MAX_THUMBS = 5;
 
-/**
- * One direction's possible trades on a group card: the cards themselves, then
- * how many there are. Renders nothing until that group's matcher has answered,
- * and nothing when the direction is empty, so a card only carries the strips it
- * has something to say about.
- *
- * The count is the distinct-suggestion count the group's own Trades band leads
- * with; the strip's "+N" is its art overflow, which differs whenever several
- * members offer the same printing.
- * @returns The strip, or null.
- */
 function SuggestionStrip({
   strip,
   label,
@@ -105,8 +93,8 @@ function CreateGroupDialog({
   const [slugEdited, setSlugEdited] = useState(false);
   const [description, setDescription] = useState("");
   const [generateCode, setGenerateCode] = useState(true);
-  // The address follows the name until someone types their own; clearing the
-  // field hands it back to the name.
+  // Follows the name until someone edits the slug directly; clearing it
+  // hands control back to the name.
   const effectiveSlug = slugEdited ? slug : deriveGroupSlug(name);
   const slugError = groupSlugError(effectiveSlug);
 
@@ -124,8 +112,6 @@ function CreateGroupDialog({
     try {
       const group = await createGroup.mutateAsync(payload);
       onOpenChange(false);
-      // Hand off to the parent, which prompts the creator to share lists with
-      // their new group and then navigates into it.
       onCreated({ slug: group.slug, name: trimmedName });
     } catch {
       /* Reported by the global mutation error toast. */
@@ -219,19 +205,16 @@ export function GroupsIndexPage() {
   const actionCountByGroup = new Map(
     (actionCounts?.byGroup ?? []).map((entry) => [entry.groupId, entry]),
   );
-  // The matcher's suggestions per group, split the same way each group's own
-  // Trades band splits them. Read here rather than served with the group list
-  // because matching is the app's most expensive read: the cards paint from the
-  // list and each strip arrives when its group answers.
+  // Matching is expensive; it's queried per group here, so cards paint first
+  // and each strip arrives when its group answers.
   const { data: allTradesData } = useUserTrades();
   const matchPanels = useFriendGroupMatchPanels(data.items.map((row) => row.slug));
   const stripsBySlug = groupSuggestionStripsBySlug(matchPanels, allTradesData?.items ?? []);
   const { printingsById } = useCards();
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
-  // Set right after a member joins a group (accepts an invite) or creates one,
-  // so we can prompt them to share their lists with it. `navigateOnClose` lands
-  // the creator inside their new group once the prompt is dismissed.
+  // navigateOnClose lands the creator inside their new group once the
+  // share-lists prompt is dismissed.
   const [shareWithGroup, setShareWithGroup] = useState<{
     slug: string;
     name: string;
@@ -318,19 +301,9 @@ export function GroupsIndexPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             {data.items.map((row) => {
               const actions = actionCountByGroup.get(row.id);
-              // The two kinds of trade action are what the viewer does next, not
-              // one undifferentiated pile: answering a request is a decision
-              // someone else is blocked on, confirming your own half of a swap
-              // is yours to do whenever it happens. Each gets its own badge so a
-              // group with 40 unconfirmed swaps doesn't read as 40 decisions.
               const respondCount = actions?.respondCount ?? 0;
               const settleCount = actions?.settleCount ?? 0;
-              // Anything that asks the viewer to act (trade actions, join
-              // requests to review) gets the StatTile accent ring so the
-              // group that needs you stands out from across the grid.
               const needsViewer = (actions?.count ?? 0) > 0 || row.pendingRequestCount > 0;
-              // Absent until this group's matcher answers, which is why a strip
-              // is dropped rather than shown as zero.
               const strips = stripsBySlug.get(row.slug);
               const teaser = markdownTeaser(row.description);
               return (
@@ -342,9 +315,6 @@ export function GroupsIndexPage() {
                     needsViewer && "ring-primary/40 hover:ring-primary/50",
                   )}
                 >
-                  {/* The roster sits beside the name rather than in a cover band:
-                      every card wore the same wash, so it never told a busy group
-                      from a dormant one. The card art below does that job. */}
                   <div className="flex min-w-0 items-center gap-2">
                     <Heading className="min-w-0 flex-1 truncate">{row.name}</Heading>
                     <UserAvatarStack
@@ -354,11 +324,6 @@ export function GroupsIndexPage() {
                       className="shrink-0"
                     />
                   </div>
-                  {/* Their own row, so a long group name never squeezes them and
-                      they never wrap into the middle of the title line. A
-                      decision the viewer owes someone else outranks their own
-                      housekeeping, so the request badge keeps the filled primary
-                      and the swap one steps down to the tint. */}
                   {respondCount > 0 || settleCount > 0 ? (
                     <div className="flex flex-wrap items-center gap-1.5">
                       {respondCount > 0 ? (

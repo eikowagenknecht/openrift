@@ -46,15 +46,8 @@ interface ListHeaderProps {
   actions?: ReactNode;
 }
 
-/**
- * Unified header for the three list surfaces (owner edit, public share,
- * friend-group view). Renders inside a {@link PageTopBar}; the caller is
- * responsible for the sticky wrapper or portal slot.
- *
- * Slot order, left → right:
- *   backLink → (☰) title → intent badge → "N Kind" badge → value · attribution → actions
- * @returns The list header row.
- */
+// Slot order, left to right:
+// backLink -> (menu) title -> intent badge -> "N Kind" badge -> value/attribution -> actions
 export function ListHeader({
   list,
   entries,

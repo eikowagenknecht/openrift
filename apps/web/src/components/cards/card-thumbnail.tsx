@@ -42,15 +42,8 @@ import { useDisplayStore } from "@/stores/display-store";
 
 export interface CardThumbnailDisplay {
   fancyFan: boolean;
-  /** Pre-derived `foilEffect && hydrated` — foil is preference-driven so SSR can't know. */
   gridFoil: boolean;
   cardTilt: boolean;
-  /**
-   * Lifted result of {@link useCoarsePointer} so per-card render doesn't pay
-   * an extra subscription each. The hook is SSR-safe; the value is `false`
-   * during the initial client render to match SSR, then settles to the real
-   * `(pointer: coarse)` state one paint later.
-   */
   coarsePointer: boolean;
   domainColors: Record<string, string>;
   finishLabels: Record<string, string>;
@@ -59,31 +52,9 @@ export interface CardThumbnailDisplay {
   prices: PriceLookup;
   favoriteMarketplace: Marketplace;
   compactFmt: (n: number) => string;
-  /**
-   * Resolves substitute artwork (the standard printing's image, same language
-   * else EN) for printings without a loadable image of their own. See
-   * {@link useStandardArtFallback}.
-   */
   getFallbackArt: GetStandardArtFallback;
 }
 
-/**
- * Bundles every grid-invariant display read into one object. Each card grid
- * subscribes once at the parent and threads the result through its
- * `renderCard`, so the lifted reads do NOT run per card.
- *
- * Why this exists: <CardThumbnail> remounts continuously as the virtualizer
- * mounts/unmounts rows during scroll, on top of one row's worth of mounts
- * at hydration. Reading these inside the card meant ~8 store/hook
- * subscriptions per card — each with its own useSyncExternalStore effect
- * setup/teardown. Lifting them to one parent call cuts that to N
- * subscriptions for the whole grid instead of N × cards. Steady-state
- * re-render cost is unchanged (Zustand's strict-equality selectors already
- * skip re-renders when slices don't change); the win is mount-time effect
- * wiring during hydration and scroll.
- *
- * @returns The display context bundle a `CardThumbnail` consumer must pass.
- */
 export function useCardThumbnailDisplay(): CardThumbnailDisplay {
   "use memo";
   const fancyFan = useDisplayStore((s) => s.fancyFan);
@@ -113,30 +84,15 @@ export function useCardThumbnailDisplay(): CardThumbnailDisplay {
   };
 }
 
-/** Intrinsic dimensions matching the standard card aspect ratio (63×88mm). */
 const CARD_WIDTH = 630;
 const CARD_HEIGHT = 880;
 
-/**
- * DB slug of the "Promo" marker (`markers.slug`). Placeholder art surfaces
- * only this marker's label — stamps like judge or prerelease stay off it.
- */
 const PROMO_MARKER_SLUG = "promo";
 
-/**
- * Picks the marker label placeholder art may show for a printing.
- * @returns The promo marker's label, or undefined when the printing isn't a promo.
- */
 function promoMarkerLabel(printing: Printing): string | undefined {
   return printing.markers.find((m) => m.slug === PROMO_MARKER_SLUG)?.label;
 }
 
-/**
- * Full responsive ladder for a card image, so the browser can pick a smaller
- * variant for tight cells (DPR-1 phones, dense desktop grids) without
- * sacrificing sharpness on larger ones.
- * @returns The srcSet string covering every generated size.
- */
 function cardSrcSet(imageId: string): string {
   return `${imageUrl(imageId, "120w")} 120w, ${imageUrl(imageId, "240w")} 240w, ${imageUrl(imageId, "400w")} 400w, ${imageUrl(imageId, "full")} 800w`;
 }
@@ -147,28 +103,13 @@ const TILT_STYLE = {
   transformStyle: "preserve-3d",
 } as const;
 
-/**
- * The canonical card-edge treatment: a 1px inset border overlay drawn as an
- * ::after so it hugs the host's border radius. Shared with the deck page's
- * thumbs so every card surface carries the same edge.
- */
 export const AFTER_BORDER =
   "after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]";
 
 const SHELL_INNER_CLASS = cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2");
 
-/**
- * How many stacked sibling edges peek out behind the front card while the fan
- * is closed. A card with a dozen printings otherwise draws a dozen offset
- * silhouettes, which reads as clutter rather than depth. Deeper layers still
- * render — they sit hidden under the last visible edge and fade in as the fan
- * opens, so the fanned-out spread shows every printing.
- */
 const MAX_CLOSED_STACK_EDGES = 5;
 
-// Tilt shell: wraps card image content with refs wired to useCardTilt and
-// applies TILT_STYLE (perspective + preserve-3d), promoting the card to its
-// own compositing layer for the tilt animation.
 function TiltImageShell({ children }: { children: ReactNode }) {
   const { containerRef, innerRef } = useCardTilt({ mode: "pointer", enabled: true });
   return (
@@ -184,9 +125,6 @@ function TiltImageShell({ children }: { children: ReactNode }) {
   );
 }
 
-// Plain shell: same DOM structure but no useCardTilt call and no TILT_STYLE.
-// Skipping the hook removes per-card useEffect bookkeeping; skipping the
-// transform keeps cards on the default 2D paint path during scroll.
 function PlainImageShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative">
@@ -197,29 +135,10 @@ function PlainImageShell({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * The spacer plus the (optionally landscape-rotated) card art image. Every
- * place a card image is painted renders this — the front of a stack and each
- * fanned sibling behind it — so the landscape-rotation geometry never drifts
- * between them. That drift is what made battlefields clip in Firefox on the
- * stacked layers. The caller still owns the `relative overflow-hidden` clip box
- * and the transformed `preserve-3d` shell around it; keep overflow-hidden and
- * the transform on separate elements, or Firefox mis-sizes this overlay.
- *
- * @returns The aspect-card spacer and the rotation-aware <img>.
- */
-/**
- * Fade-in driven by a `data-loaded` attribute the load handler writes directly,
- * rather than by React state.
- *
- * The state version re-rendered its cell every time an image finished decoding.
- * A filter change swaps ~25 images at once, so that was ~25 extra renders per
- * toggle on top of the one the new cards actually need — with cached images the
- * setState even landed inside the same commit, via the ref callback below. React
- * never manages this attribute (it isn't a prop), so writing it imperatively is
- * safe; `key={thumbnailUrl}` on the <img> is what resets it, since a changed URL
- * mounts a fresh element with the attribute absent and the fade starts over.
- */
+// Caller keeps overflow-hidden and the preserve-3d transform on separate elements
+// around this, or Firefox mis-sizes the rotated-image overlay on stacked layers.
+// data-loaded is written directly by the load handler, not React state, so a
+// filter swap of ~25 images doesn't re-render each cell; key={thumbnailUrl} resets it.
 const FADE_IN_CLASS = "opacity-0 transition-opacity duration-300 data-[loaded]:opacity-100";
 
 function markLoaded(node: HTMLImageElement): void {
@@ -245,20 +164,13 @@ function CardArtImage({
   rotated: boolean;
   loading: "eager" | "lazy";
   fetchPriority?: "high";
-  /**
-   * Fade the art in once it decodes. Off for priority images: those are LCP
-   * candidates the SSR shell already painted, so starting them transparent
-   * shows a flash-and-fade on hydration.
-   */
+  /** Off for priority images: they're already SSR-painted, so a transparent start flashes on hydration. */
   fade?: boolean;
-  /** Invoked when the image fails to load (missing on the server, network error). */
   onError?: () => void;
-  /** Tint for the spacer behind the art (e.g. `bg-muted`, `bg-black`). */
   spacerClassName?: string;
 }) {
-  // Cover cached/instant results where the browser fires load or error before
-  // React attaches the listeners. A broken image has `complete` set with
-  // naturalWidth 0.
+  // Covers cached/instant results: the browser can fire load/error before React
+  // attaches listeners. A broken image has `complete` set with naturalWidth 0.
   const coverCachedResult = (node: HTMLImageElement | null) => {
     if (node?.complete) {
       if (node.naturalWidth > 0) {
@@ -352,17 +264,10 @@ function CardImageContent({
     flavorText?: string | null;
   };
   showFoil: boolean;
-  /**
-   * Substitute artwork tried before the drawn placeholder. `overlay` is the
-   * pre-composed {@link FallbackArtBadges} row marking what the borrowed art
-   * doesn't depict.
-   */
+  /** Substitute artwork tried before the drawn placeholder; overlay marks what the borrowed art doesn't depict. */
   fallbackArt: { imageId: string; overlay: ReactNode } | null;
   spacerClassName: string;
 }) {
-  // Failed loads (missing on the server, network error) accumulate here so the
-  // chain can advance: printing image → standard-art fallback → placeholder.
-  // Keyed by URL so a changed image on a reused instance gets a fresh attempt.
   const [failedUrls, setFailedUrls] = useState<readonly string[]>([]);
   const markFailed = (url: string) =>
     setFailedUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
@@ -393,9 +298,8 @@ function CardImageContent({
       promoLabel={promoLabel}
     />
   );
-  // An empty alt marks decorative art — the fanned sibling faces, which sit
-  // inside the front card's button, where the placeholder's role="img" label
-  // would pollute the button's accessible name.
+  // Empty alt marks decorative sibling faces, so the placeholder's role="img" label
+  // doesn't pollute the accessible name of the parent button they sit inside.
   const placeholder =
     alt === "" ? <div aria-hidden="true">{drawnPlaceholder}</div> : drawnPlaceholder;
   return (
@@ -437,12 +341,9 @@ function CardImageContent({
   );
 }
 
-/** @returns The card as this printing prints it (its own name and texts). */
 function displayCard(printing: Printing) {
   return {
     ...printing.card,
-    // The thumbnail's one label: a printing's localized name when it has one,
-    // otherwise the Legend form ("Azir, Emperor of the Sands").
     name: printing.printedName ?? legendDisplayName(printing.card),
     rulesText: printing.printedRulesText,
     effectText: printing.printedEffectText,
@@ -450,7 +351,6 @@ function displayCard(printing: Printing) {
   };
 }
 
-/** @returns The substitute art step of {@link CardImageContent}'s chain. */
 function fallbackArtStep(printing: Printing, fallback: StandardArtFallback | null) {
   if (fallback === null) {
     return null;
@@ -472,47 +372,23 @@ interface CardThumbnailProps {
   priceRange?: { min: number; max: number };
   view?: "cards" | "printings";
   cardWidth?: number;
-  /**
-   * Static `sizes` attribute for non-virtualized callers (e.g. /sets/[slug],
-   * /promos) that don't have a measured per-cell pixel width. Ignored when
-   * `cardWidth` is provided — the pixel-precise value wins.
-   */
+  /** Ignored when `cardWidth` is provided; the pixel-precise value wins. */
   sizes?: string;
   priority?: boolean;
-  /**
-   * Grid-invariant display reads (preferences, prices, enum labels). Each
-   * caller obtains this once per render via {@link useCardThumbnailDisplay}
-   * and passes the same reference to every card in the grid. See that hook
-   * for the rationale.
-   */
   display: CardThumbnailDisplay;
-  /** Content rendered above the card image (count strip, add strip, …). */
   aboveCard?: ReactNode;
-  /** Dims the card image (used in add mode for unowned cards). */
   dimmed?: boolean;
-  /** Applies domain gradient background (used for "in deck" highlight). */
-  highlighted?: boolean; // custom: deckbuilder highlights cards already in the deck
-  /** When provided, makes the card draggable with this data (used by deckbuilder). */
-  dragData?: Record<string, unknown>; // custom: passed to @dnd-kit useDraggable
-  /** Unique drag ID (required when dragData is set). */
-  dragId?: string; // custom: @dnd-kit draggable ID
-  /** Shows a large diagonal "BANNED" overlay on the card image. */
-  showBanOverlay?: boolean; // custom: deckbuilder banned card overlay
-  /** Hides every ban indicator (ribbon, dim, meta chip) — for formats without a ban list. */
-  hideBanIndicators?: boolean; // custom: custom-region deckbuilder ignores bans
-  /** Content rendered below the meta-label row (e.g. marker chips on /promos). */
+  highlighted?: boolean;
+  dragData?: Record<string, unknown>;
+  /** Required when dragData is set. */
+  dragId?: string;
+  showBanOverlay?: boolean;
+  hideBanIndicators?: boolean;
   belowLabel?: ReactNode;
-  /**
-   * Content overlaid on the card image area. Positioned as a sibling of the
-   * image button so it aligns with the placeholder/image rectangle even when
-   * `aboveCard` is present.
-   */
   imageOverlay?: ReactNode;
 }
 
-// Wrapper that owns the dnd-kit useDraggable subscription. Only mounted when a
-// caller passes dragData (deckbuilder), so the cards browser and collection grid
-// pay zero @dnd-kit cost on mount.
+// Only mounted when dragData is passed, so callers without drag pay zero @dnd-kit cost.
 function DraggableTileWrapper({
   dragId,
   dragData,
@@ -551,8 +427,7 @@ function DraggableTileWrapper({
   );
 }
 
-// Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
-// scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
+// React Compiler cannot memoize JSX created inside the virtualizer's items.map() callback.
 // oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 export const CardThumbnail = memo(function CardThumbnail({
   printing,
@@ -580,15 +455,11 @@ export const CardThumbnail = memo(function CardThumbnail({
 }: CardThumbnailProps) {
   const card = displayCard(printing);
   const frontImage = printing.images[0] ?? null;
-  // Read `printing.card.type` directly (not `card.type`): reading the derived
-  // `card` object here would couple its construction to this call and prevent
-  // React Compiler from memoizing `card`. That unmemoized `card` would then
-  // cascade into re-creating the `<CardImageContent>` JSX on every render.
+  // Reads printing.card.type directly, not card.type: coupling this to the derived
+  // `card` object would block React Compiler from memoizing it and its JSX.
   const orientation = getOrientation(printing.card.types);
   const thumbnailUrl = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
   const srcSet = showImages && frontImage ? cardSrcSet(frontImage.imageId) : undefined;
-  // Resolved for every cell (cheap map lookup + small scan) because the image
-  // chain also falls back on runtime load errors, not just missing images.
   const fallbackArt = fallbackArtStep(
     printing,
     showImages ? display.getFallbackArt(printing) : null,
@@ -614,23 +485,15 @@ export const CardThumbnail = memo(function CardThumbnail({
   const isOversized = printing.size !== WellKnown.cardSize.STANDARD;
   const sizeLabel = sizeLabels[printing.size] ?? printing.size;
   const tiltEnabled = cardTilt && !coarsePointer;
-  // Pick a shell: TiltImageShell calls useCardTilt internally, PlainImageShell
-  // skips the hook entirely. Toggling cardTilt remounts the shell (and all
-  // visible cards) once — cheap relative to paying for unused hook bookkeeping
-  // on every disabled-state render. The plain path also drops TILT_STYLE so
-  // cards stay on the 2D paint path during scroll.
   const ImageShell = tiltEnabled ? TiltImageShell : PlainImageShell;
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = fancyFan ? 8 : 1.5;
   const [fanReady, setFanReady] = useState(false);
-  // Latches on first hover and never resets: sibling faces (image downloads
-  // and placeholder DOM) mount lazily on hover and stay mounted, so leaving
-  // and re-entering doesn't re-fetch or rebuild them.
+  // Latches true on first hover and never resets, so re-entering doesn't remount sibling faces.
   const [fanHovered, setFanHovered] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
-  // Only mouse-leave clears the timer, so unmounting mid-hover (before the
-  // 200ms elapses) would leave it to fire and setState on a gone component.
+  // Unmounting mid-hover (before the 200ms fan timer fires) would setState on a gone component.
   useEffect(
     () => () => {
       if (fanTimer.current) {
@@ -640,25 +503,18 @@ export const CardThumbnail = memo(function CardThumbnail({
     [],
   );
 
-  // Banlists are additive per play mode: base-list bans apply to all
-  // constructed play, mode-scoped bans (e.g. 2v2-only) leave the card legal
-  // elsewhere, so only base bans get the full "unusable" treatment.
+  // Base-list bans apply to all constructed play; mode-scoped bans (e.g. 2v2-only)
+  // leave the card legal elsewhere, so only base bans get the full "unusable" treatment.
   const activeBans = hideBanIndicators ? [] : printing.card.bans;
   const baseBans = activeBans.filter((ban) => isBaseBanFormat(ban.formatId));
   const modeBans = activeBans.filter((ban) => !isBaseBanFormat(ban.formatId));
 
-  // custom: dim the whole card in the deckbuilder so banned cards read as unavailable.
-  // A deck has no play-mode identity, so mode-scoped bans don't dim.
   const banDim = showBanOverlay && baseBans.length > 0 && (
     <div className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] bg-black/70" />
   );
 
-  // Riot TCG community license requires previewed/unreleased cards to be
-  // clearly labeled. `setReleased` is resolved per printing language, so this
-  // also covers a printing whose set is out elsewhere but not yet in this
-  // language. The ribbon is anchored to the image rectangle so it stays
-  // visible in every context a printing is rendered. Anchored top-right so it
-  // doesn't cover the power pips in the top-left of the card art.
+  // Riot TCG community license requires previewed/unreleased cards to be labeled;
+  // `setReleased` is per printing language, covering a set out elsewhere but not here.
   const previewOverlay = !printing.setReleased && (
     <div
       className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
@@ -670,9 +526,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     </div>
   );
 
-  // Banned ribbon mirrors the Preview ribbon (top-right) and sits above it at z-40
-  // so the rare previewed-and-banned card still reads as banned. A base-list ban
-  // reads "Banned"; a single mode-scoped ban is labeled with its mode ("2v2 Ban").
+  // z-40, above the z-30 Preview ribbon: a previewed-and-banned card stays visibly banned.
   const soleModeBan = baseBans.length === 0 && modeBans.length === 1 ? modeBans[0] : undefined;
   const banLines = activeBans.map((ban) => `Banned in ${ban.formatName} since ${ban.bannedAt}`);
   const banRibbon = activeBans.length > 0 && (
@@ -700,17 +554,10 @@ export const CardThumbnail = memo(function CardThumbnail({
     >
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
-        // Only the shallowest MAX_CLOSED_STACK_EDGES layers are offset and
-        // visible while closed. The rest sit exactly under the last visible
-        // edge at zero opacity, then fade in as `--fan` rises, so opening the
-        // fan still spreads every printing.
         const hiddenWhenClosed = depth > MAX_CLOSED_STACK_EDGES;
         const closedDepth = Math.min(depth, MAX_CLOSED_STACK_EDGES);
-        // Sibling faces are invisible until the hover fan-out — closed, only
-        // the stacked edges peek out behind the front card. Defer the image
-        // download and the placeholder DOM until the first hover, and skip
-        // them entirely on coarse-pointer devices, where the fan never opens.
-        // Until then a black stand-in card renders the edges.
+        // Defers the image download and placeholder DOM until first hover, and skips
+        // them on coarse-pointer devices, where the fan never opens.
         const showSiblingFaces = fancyFan && !coarsePointer && fanHovered;
         const siblingImageId = showImages ? (sibling.images[0]?.imageId ?? null) : null;
         const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride;
@@ -727,12 +574,8 @@ export const CardThumbnail = memo(function CardThumbnail({
               (onSiblingClick ?? onClick)(sibling);
             }}
           >
-            {/* Mirror the front card's Firefox-safe shell exactly: the fan
-                transform + preserve-3d sit on this element (its own 3D layer),
-                and overflow-hidden lives on a separate child below. Under a flat
-                2D transform Firefox mis-sized the rotated battlefield overlay and
-                clipped it with grey below; the front card avoided that only
-                because cardTilt's preserve-3d shell gave it a real layer. */}
+            {/* preserve-3d must sit on this element and overflow-hidden on a separate
+                child below, or Firefox mis-sizes and clips the rotated overlay. */}
             <div
               className={cn(SHELL_INNER_CLASS, "origin-bottom")}
               style={{
@@ -770,11 +613,7 @@ export const CardThumbnail = memo(function CardThumbnail({
                   <div className="aspect-card bg-black" />
                 )}
                 {showSiblingFaces && (
-                  // With the fan closed, re-cover the mounted face in black so
-                  // a once-hovered stack looks identical to a never-hovered
-                  // one. z-[1] keeps it above the face but below the ::after
-                  // border (z-10) and the finish icon (z-20), which show on
-                  // the closed stack either way.
+                  // z-[1]: above the face, below the ::after border (z-10) and finish icon (z-20).
                   <div
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-0 z-[1] bg-black"
@@ -826,9 +665,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       priceRange &&
       priceRange.min !== priceRange.max ? (
       <>
-        {/* On cells narrower than 12rem (phone 2-column grid) the full range
-            leaves the name ~10 characters, so show just the "from" price. The
-            container is the CardMetaLabel root. */}
+        {/* Below 12rem (phone 2-column grid) the full range leaves the name ~10 characters. */}
         <span className={cn("shrink-0 @[12rem]:hidden", priceColorClass(priceRange.min))}>
           {display.compactFmt(priceRange.min)}+
         </span>
@@ -881,9 +718,8 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fanMouseEnter =
     otherPrintings.length > 0
       ? () => {
-          // Mount the sibling faces immediately — the fan-open transition runs
-          // 200ms, so placeholders are painted (and images requested) before
-          // anything behind the front card becomes visible.
+          // Mounted immediately so images are requested before the 200ms fan-open
+          // transition reveals anything behind the front card.
           setFanHovered(true);
           fanTimer.current = setTimeout(() => setFanReady(true), 200);
         }
@@ -899,15 +735,10 @@ export const CardThumbnail = memo(function CardThumbnail({
         }
       : undefined;
 
-  // The outer wrapper is inert — only the image area is clickable, so
-  // interactive `aboveCard` strips never nest inside a button.
+  // Only the image area is Pressable, so interactive `aboveCard` strips don't nest in a button.
   const selected = isSelected === true || highlighted === true;
-  // The selection tint is its own blurred layer rather than the wrapper's
-  // background, so it isn't bounded by the cell box: it bleeds past the gap and
-  // reads as a glow around the card. As a background it was confined to the
-  // 3px padding rim and the strip above the label (CardMetaLabel paints its own
-  // bg-background over the rest), which is nearly invisible. Negative inset +
-  // blur, so cell padding is free to be a pure spacing number.
+  // Must be a separate layer with negative inset: the wrapper's background
+  // would confine the glow to the cell padding instead.
   const selectionGlow = selected && (
     <div
       className="pointer-events-none absolute -inset-2 -z-10 rounded-2xl blur-sm"
@@ -918,9 +749,8 @@ export const CardThumbnail = memo(function CardThumbnail({
     // ⚠ p-0.75 is mirrored as BUTTON_PAD in card-grid-constants.ts — update both together
     "group relative z-0 w-full rounded-lg p-0.75 text-left transition-all hover:z-10",
     otherPrintings.length > 0 && "hover:[--fan:1]",
-    // Lifts the whole cell (glow included) above both neighbours. Without it the
-    // glow paints over the left neighbour's art but under the right one's, since
-    // equal-z siblings paint in DOM order.
+    // Without this, equal-z siblings paint in DOM order: the glow shows over the
+    // left neighbour but under the right one.
     selected && "z-10",
   );
   const wrapperContent = (

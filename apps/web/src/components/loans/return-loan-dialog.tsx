@@ -16,18 +16,11 @@ import { QuantityStepper } from "@/components/ui/quantity-stepper";
 interface ReturnLoanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Copies still out on this loan; the stepper is bounded to `1..outstanding`. */
   outstanding: number;
-  /** Whether the return mutation is in flight. */
   pending: boolean;
   onConfirm: (quantity: number) => void;
 }
 
-/**
- * Quantity dialog for marking copies of a loan returned (partial returns
- * allowed, ADR-039). Defaults to everything still out.
- * @returns The dialog element.
- */
 export function ReturnLoanDialog({
   open,
   onOpenChange,

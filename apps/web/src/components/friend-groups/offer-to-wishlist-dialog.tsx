@@ -27,19 +27,15 @@ import {
 import { useBulkAddListEntries, useCreateList } from "@/hooks/use-lists";
 import { listTargetOptions, preferredListId } from "@/lib/tradelist-exchange";
 
-/** Sentinel for the "create a new tradelist" radio option. */
 const NEW_LIST = "__new__";
 
 export interface OfferToWishlistContext {
-  /** The group slug, used as the trade + share scope. */
   groupSlug: string;
   groupName: string;
-  /** The wishlist owner — the receiver of the offered copies. */
   counterpartyUserId: string;
   counterpartyName: string;
 }
 
-/** A printing the viewer can offer, paired with the personal copies backing it. */
 export interface OfferablePrintingChoice {
   printing: Printing;
   copyIds: string[];
@@ -48,23 +44,10 @@ export interface OfferablePrintingChoice {
 interface OfferToWishlistDialogProps extends OfferToWishlistContext {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Printings of the wanted card the viewer owns; empty while the dialog is closed. */
   choices: OfferablePrintingChoice[];
-  /** How many the member wants — a soft cap for the stepper. */
   wantQuantity: number;
 }
 
-/**
- * "Offer" flow launched from a member's shared wishlist. The mirror of the
- * tradelist "I want this" request: the viewer offers copies they own of a card
- * the member wants. It adds those copies to one of the viewer's tradelists
- * (creating one if needed), shares that tradelist with the group after an
- * explicit confirmation so a match exists, then sends the trade as giver. When
- * the card already matches a shared tradelist the picker is skipped and it goes
- * straight to a one-tap confirm.
- *
- * @returns The dialog element.
- */
 export function OfferToWishlistDialog({
   open,
   onOpenChange,
@@ -122,14 +105,12 @@ function OfferBody({
   const pending =
     createList.isPending || bulkAdd.isPending || shareWithGroup.isPending || createTrade.isPending;
 
-  // `choices` arrives most-owned first, so the first is the natural default.
+  // `choices` arrives most-owned first.
   const [choiceIndex, setChoiceIndex] = useState(0);
   const chosenPrinting = choices[choiceIndex] ?? choices[0];
   const ownedCount = chosenPrinting.copyIds.length;
   const cardName = chosenPrinting.printing.card.name;
 
-  // Already a shared match → the copies are on a shared tradelist and the
-  // member wants them, so skip list-picking and go straight to confirm.
   const existingMatch = matches.othersWantYourHaves.find(
     (row) =>
       row.printingId === chosenPrinting.printing.id &&
@@ -147,9 +128,8 @@ function OfferBody({
   const [newName, setNewName] = useState("Tradelist");
 
   const chosenList = options.find((option) => option.listId === selectedId);
-  // New lists are always private at first, and an existing list the viewer
-  // picked might not be shared with this group yet — both need the explicit
-  // share confirmation before the offer can match.
+  // New lists are always private; an unshared existing list needs the same
+  // confirmation. Either way the offer can't match until it's shared.
   const needsShare = selectedId === NEW_LIST ? true : chosenList ? !chosenList.isShared : false;
   const chosenListName =
     selectedId === NEW_LIST ? newName.trim() || "Tradelist" : (chosenList?.listName ?? "");
@@ -190,7 +170,7 @@ function OfferBody({
       toast.success(`Offered ${cardName} to ${counterpartyName}`);
       onClose();
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   };
 
@@ -239,7 +219,6 @@ function OfferBody({
     </div>
   );
 
-  // Already a shared match → one-tap confirm, no list picking or sharing.
   if (existingMatch) {
     return (
       <DialogForm onSubmit={() => void sendOffer()}>
@@ -262,7 +241,6 @@ function OfferBody({
     );
   }
 
-  // Share confirmation step (only reached when the chosen list isn't shared yet).
   if (phase === "confirm-share") {
     return (
       <DialogForm onSubmit={() => void sendOffer()}>

@@ -11,7 +11,7 @@ describe("UserAvatar", () => {
 
   it("renders without crashing for the common prop shapes", () => {
     // BaseUI's AvatarImage only injects an <img> once the image loads, and
-    // jsdom never loads images. We can only assert the fallback shell renders.
+    // jsdom never loads images: only the fallback shell renders.
     const { container: hashOnly } = render(
       <UserAvatar name="Ada Lovelace" gravatarHash="abc123" />,
     );

@@ -75,7 +75,6 @@ function Detail({ children, className }: { children: ReactNode; className?: stri
   );
 }
 
-/** One stacked pair: the state before the tick, and the one after it. */
 function Swap({ before, after }: { before: ReactNode; after: ReactNode }) {
   return (
     <span className="inline-grid shrink-0 items-center justify-items-start align-middle">
@@ -88,10 +87,8 @@ function Swap({ before, after }: { before: ReactNode; after: ReactNode }) {
 }
 
 /**
- * The same pair for a run of text sitting inline with more text. An inline-grid
- * takes its baseline from the grid box rather than from the digits, which sets
- * the counter a few pixels off the words beside it; keeping the "before" layer
- * in normal flow and floating the "after" one over it keeps one baseline.
+ * An inline-grid pair sets its baseline off the digits by a few pixels; keeping
+ * "before" in normal flow and floating "after" over it keeps one baseline.
  */
 function TextSwap({ before, after }: { before: ReactNode; after: ReactNode }) {
   return (
@@ -139,11 +136,6 @@ function PickerGroupLabel({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * The deck's Box tab: one row per physical copy, ticked off as it goes in, with
- * the popover that swaps a row for a different copy of the same card. The
- * animation runs the real order — pick the copy first, then tick it in.
- */
 export function BoxVignette() {
   return (
     <ClipFrame className="flex flex-col gap-4 p-5">
@@ -188,9 +180,6 @@ export function BoxVignette() {
             muted
             trailing={<Detail>not owned</Detail>}
           />
-          {/* The picker hangs off the last row, so it opens upward over the
-              list the way a real popover flips when the row is near the bottom.
-              Downward it would run past the frame's clipped edge. */}
           <div className="relative">
             <Row
               leading={<Swap before={<Tick checked={false} />} after={<Tick checked />} />}
@@ -204,8 +193,6 @@ export function BoxVignette() {
               details={<Detail className="motion-safe:animate-box-before">Showcase</Detail>}
               trailing={
                 <span className="text-muted-foreground flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-xs">
-                  {/* The shelf the row's own copy sits on, so a pull run reads
-                      as a list of places to visit. */}
                   <Swap before={<span>Bulk box</span>} after={<span>Binder</span>} />
                   <span>+2</span>
                 </span>

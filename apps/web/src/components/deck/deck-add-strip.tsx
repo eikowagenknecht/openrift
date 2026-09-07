@@ -19,16 +19,6 @@ interface DeckAddStripProps {
   onRemove?: (printing: Printing, event: React.MouseEvent) => void;
 }
 
-/**
- * Strip for cards in the deck editor grid, on the CardStrip shell:
- * remove on the left, owned / in-deck pills in the center, add on the right.
- * The owned pill uses the package icon (same symbol as the catalog and
- * collection strips); the in-deck pill is primary-tinted with a layers icon.
- * Shift-click swaps the ± icons for labeled bulk ±N buttons in place, and a
- * single-card zone with a labeled remove shows only that destructive button.
- *
- * @returns The deck add strip.
- */
 export function DeckAddStrip({
   printing,
   ownedCount,
@@ -41,7 +31,6 @@ export function DeckAddStrip({
   onQuickAdd,
   onRemove,
 }: DeckAddStripProps) {
-  // Single-card zone with a labeled remove: show only a destructive button
   if (removeLabel && deckQuantity > 0 && onRemove) {
     return (
       <CardStrip

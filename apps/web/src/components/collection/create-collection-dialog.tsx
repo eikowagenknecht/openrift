@@ -16,29 +16,13 @@ interface CreateCollectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (collectionId: string) => void;
-  /**
-   * Friend group slug to create the collection inside. When set, the collection
-   * is shared with that group instead of being personal.
-   */
   groupSlug?: string;
-  /** Display name for the group, used in the dialog title/description. */
   groupName?: string;
-  /** Overrides the heading, for callers creating a collection for one purpose (a deck box). */
   title?: string;
-  /** Overrides the explanatory line under the heading. */
   description?: string;
-  /**
-   * Creates the collection excluded from deck building. A deck box wants this:
-   * its cards should only count for the deck stored in it.
-   */
   availableForDeckbuilding?: boolean;
 }
 
-/**
- * Name a new collection. Mirrors the CreateListDialog shape so the sidebar's
- * "+ New …" affordances feel consistent across collections and lists.
- * @returns The dialog component.
- */
 export function CreateCollectionDialog({
   open,
   onOpenChange,

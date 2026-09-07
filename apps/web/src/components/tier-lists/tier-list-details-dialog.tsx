@@ -21,12 +21,6 @@ interface TierListDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Renames a tier list and edits its blurb. Separate from the board itself so a
- * save here never touches the ranking, and vice versa.
- *
- * @returns The details dialog node.
- */
 export function TierListDetailsDialog({
   tierList,
   open,

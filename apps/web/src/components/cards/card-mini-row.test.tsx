@@ -44,7 +44,6 @@ describe("CardMiniRow", () => {
   });
 
   it("omits the domain bar for an empty domains array", () => {
-    // A colorless-but-unresolved card must not render a grey sliver of nothing.
     const { container } = render(<CardMiniRow src="/x.webp" domains={[]} />);
 
     expect(container.querySelector('span[aria-hidden="true"]')).toBeNull();
@@ -72,8 +71,6 @@ describe("CardMiniRow", () => {
   it("drops the meta column entirely when there is no rarity or short code", () => {
     const { container } = render(<CardMiniRow src="/x.webp" domains={["fury"]} />);
 
-    // Art frame plus bar, and nothing else — the column must not reserve its
-    // w-20 when there is nothing to put in it.
     expect(container.textContent).toBe("");
     expect(container.querySelectorAll("span.w-20")).toHaveLength(0);
   });
@@ -101,8 +98,6 @@ describe("CardMiniRow", () => {
       <CardMiniRow imageId={null} rarity="showcase" domains={["chaos"]} />,
     );
 
-    // No card art, so the strip carries the domain-tinted rarity watermark
-    // rather than an empty box.
     const placeholder = container.querySelector<HTMLElement>("span.absolute");
     expect(placeholder?.style.backgroundImage).toContain("linear-gradient");
     expect(placeholder?.querySelector("img")?.className).toContain("opacity-25");

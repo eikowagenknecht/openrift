@@ -22,12 +22,7 @@ import { requiredZoneProgress } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
 
-/**
- * Resolves the import's deck-card rows against the catalog. Rows whose card is
- * missing from the catalog are dropped — the import matcher only ever resolves
- * to catalog cards, so this is the type narrowing rather than a real case.
- * @returns The builder cards backing the summary's stats.
- */
+/** Drops rows whose card is missing from the catalog: type narrowing, not a real case. */
 export function toBuilderCards(
   cards: ImportedDeckCard[],
   cardsById: ReturnType<typeof useCards>["cardsById"],
@@ -43,17 +38,8 @@ export function toBuilderCards(
 }
 
 /**
- * What the deck being imported adds up to, shown above the entry list: its
- * domain split, its size, whether it is legal in the chosen format, and — for
- * a signed-in importer — how much of it their collection already covers and
- * what the rest costs. Everything is derived from the entries that would
- * actually be imported, so skipping or resolving a row moves these figures.
- *
- * The numbers come from the same hooks the deck page uses (`useDeckStats`,
- * `useDeckOwnership`, `validateDeck`), so the preview and the deck it creates
- * can never disagree.
- *
- * @returns The summary panel, or null when nothing is importable yet.
+ * Uses the same hooks the deck page uses (useDeckStats, useDeckOwnership,
+ * validateDeck), so the preview and the deck it creates can never disagree.
  */
 export function DeckImportSummary({
   cards,
@@ -62,14 +48,11 @@ export function DeckImportSummary({
   deckName,
   isLoggedIn,
 }: {
-  /** The deduped rows that would be imported — skipped and unresolved entries already removed. */
   cards: ImportedDeckCard[];
   format: DeckFormat;
-  /** The target deck's format config in replace mode; null for a new deck. */
+  /** null for a new deck. */
   formatConfig: DeckFormatConfig | null;
-  /** Names the deck in the missing-cards dialog's buy list. */
   deckName: string;
-  /** Logged out there is no collection to measure against, so only prices are shown. */
   isLoggedIn: boolean;
 }) {
   const { cardsById } = useCards();
@@ -119,11 +102,8 @@ export function DeckImportSummary({
           />
         </div>
 
-        {/* Logged out there is no collection to compare against, so every
-            owned/missing figure would read zero. What the deck costs still
-            says something. The note deliberately isn't a sign-in link:
-            leaving now would drop the parsed list, and an import finished
-            here is claimed on the next sign-in anyway (ADR-035). */}
+        {/* Not a sign-in link: leaving now would drop the parsed list. An
+            import finished here is claimed on the next sign-in anyway. */}
         {isLoggedIn ? (
           ownershipData && (
             <DeckOwnershipBody
@@ -153,8 +133,7 @@ export function DeckImportSummary({
         )}
       </div>
 
-      {/* Ownership and prices need the viewer's copies plus the price table,
-          both client-only. Gate behind hydration and suspend for the fetches. */}
+      {/* Client-only: gate behind hydration and suspend for the fetches. */}
       {hydrated && (
         <Suspense fallback={null}>
           <DeckOwnershipBridge

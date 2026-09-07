@@ -17,11 +17,6 @@ import { ScheduleCard } from "@/components/tournaments/settings/schedule-card";
 import { SignupLinksCard } from "@/components/tournaments/settings/signup-links-card";
 import { effectiveTournamentState, hasPairing } from "@/lib/tournament-display";
 
-/**
- * Build the TOC for the settings page, hiding the host and follow-along
- * entries when those cards aren't rendered for this tournament/role.
- * @returns The ordered list of TOC items.
- */
 function buildTocItems({
   isHost,
   runsRounds,
@@ -55,12 +50,6 @@ function buildTocItems({
   ];
 }
 
-/**
- * The tournament settings tab. Each card under `settings/` owns its own draft
- * state, mutation hook and confirm dialog; this component only decides which
- * cards a given tournament and viewer role gets, and builds the matching TOC.
- * @returns The settings tab.
- */
 export function TournamentSettingsTab({ detail }: { detail: TournamentDetailResponse }) {
   const runsRounds = hasPairing(detail.pairingStyle);
   const isHost = detail.myRoles.includes("host");

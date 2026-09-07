@@ -8,10 +8,6 @@ import { getOrientation, imageUrl } from "@openrift/shared";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { cn } from "@/lib/utils";
 
-// Read-only render of a deck's plan (ADR-029) for the public share page. Purely
-// presentational: it takes the plan plus a denormalized card-meta lookup so it
-// works for anonymous viewers without catalog access.
-
 type CardMetaLookup = (cardId: string) => DeckPlanCardMetaResponse | undefined;
 
 function CardLine({
@@ -85,7 +81,6 @@ export function DeckPlanView({
 }: {
   plan: DeckPlanResponse;
   planCardMeta: DeckPlanCardMetaResponse[];
-  /** Suppress the built-in "Deck plan" heading when the host supplies its own (e.g. a collapsible trigger). */
   hideHeading?: boolean;
 }) {
   const metaById = new Map(planCardMeta.map((meta) => [meta.cardId, meta]));

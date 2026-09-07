@@ -8,11 +8,6 @@ import { Label } from "@/components/ui/label";
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
-/**
- * Win/draw/bye point configuration. Points are derived on read, so edits
- * recalculate the standings of already-finalized rounds too.
- * @returns The points card.
- */
 export function PointsCard({
   detail,
   locked,

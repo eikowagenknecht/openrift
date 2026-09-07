@@ -63,8 +63,6 @@ describe("AvailableCopiesPopover", () => {
     expect(getByRole("button", { name: "2 available" })).toBeTruthy();
   });
 
-  // The whole point of the popover: the row says 2 available, the viewer owns 5
-  // across two variants, so handing one over is safe.
   it("breaks the viewer's copies down by variant and collection once opened", async () => {
     const { getByRole, findAllByText, getByText } = render(
       <AvailableCopiesPopover cardId="card-1" availableCount={2} />,
@@ -72,7 +70,6 @@ describe("AvailableCopiesPopover", () => {
 
     await userEvent.click(getByRole("button", { name: "2 available" }));
 
-    // Both variants sit in Main Binder, so it heads a row under each.
     expect(await findAllByText("Main Binder")).toHaveLength(2);
     expect(getByText("OGN-042")).toBeTruthy();
     expect(getByText("OGN-042f")).toBeTruthy();
@@ -80,8 +77,6 @@ describe("AvailableCopiesPopover", () => {
     expect(getByText("5 total")).toBeTruthy();
   });
 
-  // The breakdown reads the entire copies collection, so it must not run for
-  // every suggestion row on the page — only for the one that is open.
   it("does not query the breakdown while closed", () => {
     render(<AvailableCopiesPopover cardId="card-1" availableCount={2} />);
     expect(breakdownMock).not.toHaveBeenCalled();
@@ -110,8 +105,6 @@ describe("AvailableCopiesPopover", () => {
     expect(await findByText("Counting your copies…")).toBeTruthy();
   });
 
-  // A card the catalog hasn't caught up with has no siblings to break down;
-  // the popover must still open rather than throwing on a missing entry.
   it("survives a card with no catalog printings", async () => {
     siblingsMock.mockReturnValue(undefined);
     breakdownMock.mockReturnValue({ data: [] });

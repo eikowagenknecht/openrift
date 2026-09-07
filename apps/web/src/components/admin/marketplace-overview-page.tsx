@@ -14,13 +14,7 @@ import type { JobRunView } from "@/lib/server-fns/api-types";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
 
-// ── Sub-components ───────────────────────────────────────────────────────────
-
-// `upserted` was reshaped from `{ snapshots, staging }` to `{ prices }` in the
-// per-SKU prices refactor, so old `job_runs.result` rows lack `upserted.prices`;
-// the schema requires it, so historical rows fail the guard and are skipped
-// (they were unrenderable anyway). Backed by the shared schema so the guard and
-// the type can't drift.
+// Old `job_runs.result` rows predate the per-SKU prices reshape and lack `upserted.prices`.
 export function isPriceRefreshResult(value: unknown): value is PriceRefreshResponse {
   return priceRefreshResponseSchema.safeParse(value).success;
 }
@@ -153,8 +147,6 @@ function PriceSection({
     </Card>
   );
 }
-
-// ── Main page ────────────────────────────────────────────────────────────────
 
 export function MarketplaceOverviewPage() {
   const { data: schedules } = useJobSchedules();

@@ -6,8 +6,6 @@ export type HeadingLevel = 1 | 2 | 3;
 type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
 const HEADING_STYLES: Record<HeadingLevel, string> = {
-  // Levels 1-2 carry the app-chrome display face; level 3 sits too close to
-  // body size, where the display face reads as noise instead of identity.
   1: "font-heading text-2xl font-bold",
   2: "font-heading text-lg font-semibold",
   3: "text-base font-medium",

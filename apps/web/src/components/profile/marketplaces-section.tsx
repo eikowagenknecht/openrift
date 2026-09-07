@@ -63,7 +63,6 @@ export function MarketplacesSection() {
       </CardHeader>
       <CardContent>
         <div className="space-y-1">
-          {/* Show enabled marketplaces first (in order), then disabled ones */}
           {[...marketplaceOrder, ...ALL_MARKETPLACES.filter((m) => !enabledSet.has(m))].map(
             (marketplace) => {
               const enabled = enabledSet.has(marketplace);

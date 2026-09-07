@@ -103,12 +103,7 @@ function SourcesCell({ row }: AdminCellSlotProps<AdminMetaEvent>) {
   );
 }
 
-/**
- * Built per render for the reason `catalogColumns` states.
- *
- * @param formatLabels - Deck-format slug to display label.
- * @returns The live archive's columns.
- */
+/** Built per render for the reason `catalogColumns` states. */
 function eventColumns(formatLabels: Record<string, string>): AdminColumnDef<AdminMetaEvent>[] {
   return [
     {
@@ -120,9 +115,6 @@ function eventColumns(formatLabels: Record<string, string>): AdminColumnDef<Admi
     },
     { header: "Name", sortKey: "name", cell: <NameCell /> },
     { header: "Format", sortKey: "format", cell: <FormatCell labels={formatLabels} /> },
-    // What the archive holds over the field size the source reported, then the
-    // lists among those rows: most events have far more standings than published
-    // decks, and both gaps are what the maintainer works down.
     {
       header: "Standings",
       align: "right",
@@ -138,9 +130,7 @@ function eventColumns(formatLabels: Record<string, string>): AdminColumnDef<Admi
       cell: <DeckCountCell />,
     },
     { header: "Organizer", sortKey: "organizer", cell: <OrganizerCell /> },
-    // The way back from a live row to where its numbers came from. Not sortable:
-    // the count lives in the candidate table, not on the event row the endpoint
-    // orders.
+    // Not sortable: the count lives in the candidate table, not this endpoint's row.
     { header: "Sources", cell: <SourcesCell /> },
   ];
 }
@@ -173,16 +163,9 @@ function EventRowActions({
   );
 }
 
-/** What the dialog is doing: nothing, creating, or editing one event. */
 type DialogState = { mode: "create" } | { mode: "edit"; event: AdminMetaEvent } | null;
 
-/**
- * The Meta Archive's event list (ADR-014). Events are created and edited in a
- * dialog rather than inline, because notes alone is a 4 000-character markdown
- * field; the row's Standings action leads to that event's player management.
- *
- * @returns The admin event list page.
- */
+/** Events are edited in a dialog because notes is a 4 000-character markdown field. */
 export function MetaEventsPage() {
   const filters = Route.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);

@@ -3,10 +3,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 interface SixDigitOtpInputProps {
   value: string;
   onChange: (value: string) => void;
-  /** Fired when all six digits are entered. */
   onComplete?: (value: string) => void;
-  /** Focus the first slot on mount. The OTP input is the primary action on the
-   * steps that opt in (login 2FA, password reset, email verification). */
   autoFocusOnMount?: boolean;
 }
 
@@ -14,7 +11,6 @@ interface SixDigitOtpInputProps {
  * Six-slot one-time-code input shared by the login (2FA), password-reset,
  * email-verification, and change-email flows. The caller owns the surrounding
  * layout and the error text.
- * @returns The OTP input.
  */
 export function SixDigitOtpInput({
   value,

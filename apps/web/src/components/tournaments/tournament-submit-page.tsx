@@ -78,17 +78,13 @@ export function TournamentSubmitPage({ token }: { token: string }) {
     try {
       result = await requestJoin.mutateAsync({ token });
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
       return;
     }
     setJoined(true);
     toast.success(result.alreadyJoined ? "You are already registered" : "Request sent");
   }
 
-  // When self-registration is closed, the link only takes a deck from someone
-  // who already holds a spot (claimed via the personal link). A stranger is
-  // pointed at their claim link instead of a dead "not open" message. Handing
-  // in a deck is account-scoped, so it never shows to a signed-out visitor.
   const canSubmitDeck =
     Boolean(userId) && data.deckExpected && (data.selfRegistrationOpen || data.viewerIsParticipant);
 

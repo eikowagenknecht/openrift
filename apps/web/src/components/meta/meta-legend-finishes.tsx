@@ -17,7 +17,6 @@ import type { MetaFinishesView } from "@/lib/meta-legend-page";
 import { metaSubmitSearchForPlayer } from "@/lib/meta-submit-link";
 import { cn } from "@/lib/utils";
 
-/** The desktop column track, shared by the rows so they cannot drift apart. */
 const FINISH_GRID =
   "grid grid-cols-[1.75rem_minmax(0,1fr)_6rem_9rem_4.5rem_5rem] items-center gap-x-3.5";
 
@@ -32,11 +31,7 @@ function Rank({ finish }: { finish: MetaLegendFinish }) {
   );
 }
 
-/**
- * What a finish offers about its list: the archived page when one is on file, and
- * otherwise the way to send it. A signed-out reader gets neither — the form is
- * behind a login, and an "+ Add" on every row of a long record leads nowhere.
- */
+/** A signed-out reader gets no submit link: the form is behind a login. */
 function ListLink({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit: boolean }) {
   if (finish.shareToken !== null) {
     return (
@@ -64,7 +59,6 @@ function ListLink({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit: 
   );
 }
 
-/** The event's date and, where the source published one, its field size. */
 function eventFacts(finish: MetaLegendFinish): string {
   const size = finish.event.playerCount;
   const parts = [formatDay(finish.event.eventDate)];
@@ -140,18 +134,7 @@ function FinishRow({ finish, canSubmit }: { finish: MetaLegendFinish; canSubmit:
   );
 }
 
-/**
- * One legend's tournament record: every archived standings row filed under it,
- * as published.
- *
- * "Best" leads with the placings; "All" is the record in the order it happened
- * and grows a page at a time, each page fetched under the page's scope. Both
- * views are slices of the same `total`, so the count beside the toggle is always
- * the number the list can reach.
- *
- * `narrowed` only decides which empty state to write, since "nothing on record"
- * and "nothing in this scope" are different facts about the archive.
- */
+/** `narrowed` only picks the empty-state message: "nothing on record" vs "nothing in this scope". */
 export function MetaLegendFinishes({
   best,
   finishes,

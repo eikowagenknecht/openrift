@@ -9,9 +9,8 @@ import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 import type { HelpArticle } from "./articles";
 import { helpArticles } from "./articles";
 
-// One lazy component per article for the app's lifetime. Calling lazy() during
-// render would hand Suspense a new component on every pass, re-mounting the
-// article and re-running its import.
+// lazy() must be called at module scope, not during render: calling it per
+// render hands Suspense a new component each time and remounts the article.
 const ARTICLE_CONTENT: Record<string, ComponentType> = Object.fromEntries(
   [...helpArticles].map(([slug, entry]) => [slug, lazy(entry.component)]),
 );
@@ -21,8 +20,6 @@ export function HelpArticlePage({ article }: { article: HelpArticle }) {
 
   return (
     <div className={cn(PAGE_WIDTH.capped, "flex-1", PAGE_PADDING)}>
-      {/* The page is a capped column like every other non-grid page; the
-          article stops at `max-w-prose` so the line length stays readable. */}
       <div className="mx-auto max-w-prose">
         <nav aria-label="Breadcrumb" className="mb-4">
           <ol className="text-muted-foreground flex items-center gap-1 text-sm">

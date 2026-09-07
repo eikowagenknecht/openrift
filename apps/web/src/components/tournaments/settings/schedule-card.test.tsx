@@ -16,10 +16,8 @@ vi.mock("sonner", () => ({ toast: { error: toastError, success: vi.fn() } }));
 
 const { ScheduleCard } = await import("./schedule-card");
 
-// Local wall-clock times, converted through the same helper the card uses, so
-// the expectations hold in whatever timezone the suite runs in. Mid-June avoids
-// every DST transition in both hemispheres, where a local time can be skipped
-// and the round trip would not be exact.
+// Mid-June avoids every DST transition in both hemispheres, so the local-time
+// round trip through combineLocalDateTimeToUtc is exact regardless of the suite's timezone.
 const START_DATE = "2026-06-10";
 const START_TIME = "10:00";
 const startsAtUtc = combineLocalDateTimeToUtc(START_DATE, START_TIME) ?? "";
@@ -87,7 +85,6 @@ describe("ScheduleCard validation", () => {
     expect(screen.getByRole("button", { name: "Save schedule" })).toBeDisabled();
   });
 
-  // Half an end is an error, but no end at all is a legitimate single-day event.
   it("rejects an end with only one part filled", async () => {
     const user = userEvent.setup();
     render(<ScheduleCard detail={makeDetail()} locked={false} canEndEarly={false} />);
@@ -168,10 +165,6 @@ describe("ScheduleCard saving", () => {
     await user.click(screen.getByRole("button", { name: "Save schedule" }));
 
     await waitFor(() => expect(updateMutateAsync).toHaveBeenCalled());
-    // The card catches only to keep the rejection off the console — the toast
-    // belongs to the QueryClient's default onError (reportMutationError), which
-    // this test's mutation stub bypasses. A toast here would be the second one
-    // the user sees, and the vaguer of the two.
     expect(toastError).not.toHaveBeenCalled();
   });
 });

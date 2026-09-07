@@ -15,8 +15,6 @@ vi.mock("@/hooks/use-tournaments", () => ({
   useUpdateParticipant: () => ({ mutateAsync: updateParticipantMutateAsync, isPending: false }),
 }));
 
-// Staff-only deck-check fetch; no submitted decks in these cases. A spy so the
-// enabled flag can be asserted (the endpoint 404s when deck submission is off).
 const useTournamentDeckCheckEntries = vi.fn((_id: string, _enabled?: boolean) => ({
   data: undefined,
 }));
@@ -24,8 +22,6 @@ vi.mock("@/hooks/use-tournament-deck-check", () => ({
   useTournamentDeckCheckEntries,
 }));
 
-// The region vocabulary is admin-curated custom tags; pin it so the region
-// labels and the set-region select are deterministic.
 vi.mock("@/hooks/use-enums", () => ({
   useCustomTagList: () => ({
     byCategory: new Map([
@@ -89,11 +85,6 @@ function renderTab(detail: TournamentDetailResponse = makeDetail()) {
   return render(<TournamentParticipantsTab id="tournament-1" detail={detail} />);
 }
 
-/**
- * The missing-regions ActionBand, scoped so its rows can be asserted apart from
- * the roster.
- * @returns The band element.
- */
 function missingRegionsBand(): HTMLElement {
   const band = screen.getByText("Missing regions").closest("[data-slot='action-band']");
   if (!(band instanceof HTMLElement)) {
@@ -121,7 +112,6 @@ describe("TournamentParticipantsTab missing-regions band", () => {
     expect(within(band).getByText("2")).toBeInTheDocument();
     expect(within(band).getByText("Ashe")).toBeInTheDocument();
     expect(within(band).getByText("Braum")).toBeInTheDocument();
-    // Caitlyn has a region, so she is not a blocker.
     expect(within(band).queryByText("Caitlyn")).not.toBeInTheDocument();
 
     await user.click(within(band).getAllByRole("button", { name: "Set region" })[0]);
@@ -164,12 +154,10 @@ describe("TournamentParticipantsTab stat strip", () => {
       .getByText("active")
       .closest("div");
     expect(within(active as HTMLElement).getByText("2")).toBeInTheDocument();
-    // no_show counts as out of the field alongside dropped.
     const dropped = within(strip as HTMLElement)
       .getByText("dropped")
       .closest("div");
     expect(within(dropped as HTMLElement).getByText("2")).toBeInTheDocument();
-    // Regions are per active player, so the requested/dropped rows are excluded.
     expect(within(strip as HTMLElement).getByText("2/2")).toBeInTheDocument();
   });
 
@@ -195,7 +183,6 @@ describe("TournamentParticipantsTab roster groups", () => {
     const group = heading.parentElement as HTMLElement;
     expect(within(group).getByText("1")).toBeInTheDocument();
     expect(within(group).getByText("Braum")).toBeInTheDocument();
-    // The active player belongs to the Active group, not the queue.
     expect(within(group).queryByText("Ashe")).not.toBeInTheDocument();
 
     await user.click(within(group).getByRole("button", { name: "Approve" }));
@@ -244,7 +231,6 @@ describe("TournamentParticipantsTab roster groups", () => {
     await user.type(screen.getByRole("textbox", { name: "Search players" }), "ash");
     expect(screen.getByText("Ashe")).toBeInTheDocument();
     expect(screen.queryByText("Braum")).not.toBeInTheDocument();
-    // The emptied group takes its heading with it.
     expect(screen.queryByRole("heading", { name: /Dropped/u })).not.toBeInTheDocument();
   });
 });
@@ -305,8 +291,6 @@ describe("TournamentParticipantsTab fixed tables", () => {
 
 describe("TournamentParticipantsTab deck-check query gating", () => {
   it("disables the entries query when deck submission is off", () => {
-    // The deck-check endpoint 404s for tournaments without deck submission, so
-    // an enabled query would poll a raw error every 5s.
     renderTab(makeDetail({ deckSubmission: "none" }));
     expect(useTournamentDeckCheckEntries).toHaveBeenCalledWith("tournament-1", false);
   });

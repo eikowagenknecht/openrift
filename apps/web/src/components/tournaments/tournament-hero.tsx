@@ -14,23 +14,13 @@ import {
 } from "@/lib/tournament-display";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-// The band's backdrop, bottom layer up: a soft surface tint fading into the
-// page background, a faint violet under-tone, and the warm accent glow rising
-// toward the avatar cluster — the same wash the group hero carries, so the two
-// overview surfaces read as siblings. Token-based so both themes keep it.
 const HERO_WASH = [
   "radial-gradient(90% 130% at 85% 10%, color-mix(in oklab, var(--border-accent) 26%, transparent), transparent 62%)",
   "radial-gradient(70% 120% at 65% 100%, color-mix(in oklab, oklch(0.5 0.11 300) 14%, transparent), transparent 65%)",
   "linear-gradient(color-mix(in oklab, var(--muted) 50%, var(--background)), var(--background))",
 ].join(", ");
 
-/**
- * The kicker over the tournament name: what kind of event this is, then where
- * it stands. A live event reads "Live" rather than the lifecycle's own "In
- * progress", which is the label a list needs, not a page the viewer is on.
- *
- * @returns The kicker text, e.g. `Pod tournament · Live`.
- */
+/** in_progress renders as "Live", overriding EFFECTIVE_STATE_LABEL. */
 function heroKicker(detail: TournamentDetailResponse): string {
   const kind =
     detail.playMode === "2v2"
@@ -44,12 +34,6 @@ function heroKicker(detail: TournamentDetailResponse): string {
   return `${kind} · ${state === "in_progress" ? "Live" : EFFECTIVE_STATE_LABEL[state]}`;
 }
 
-/**
- * One fact in the hero's meta-line: an icon and its value, rendered inline and
- * muted so the row reads as event context rather than primary content.
- *
- * @returns The meta item.
- */
 function MetaItem({
   icon: Icon,
   children,
@@ -65,24 +49,11 @@ function MetaItem({
   );
 }
 
-/**
- * The tournament overview's identity band: a borderless, square-cornered hero
- * bounded to the content column, carrying the page title (the top bar above it
- * keeps only the breadcrumb — this band is the title row), the event's meta
- * line, and the setup facts as chips. Deliberately compact: no facepile, since
- * the Participants tile below shows the field. On `sm`+, the participant avatar
- * cluster sits decoratively on the glow.
- *
- * @returns The hero band element.
- */
 export function TournamentHero({ detail }: { detail: TournamentDetailResponse }) {
   const state = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
 
   return (
     <div className="px-safe pt-4">
-      {/* The wash lives on the column-bounded box (square corners, no ring), so
-          it ends where the content ends instead of smearing across ultra-wide
-          viewports. */}
       <section
         className={cn(PAGE_WIDTH.capped, "relative overflow-hidden")}
         style={{ backgroundImage: HERO_WASH }}
@@ -121,8 +92,6 @@ export function TournamentHero({ detail }: { detail: TournamentDetailResponse })
               ) : null}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              {/* The round badge is the live fact; the state badge (moved here
-                  from the top bar) is where the event stands overall. */}
               {detail.currentRound > 0 ? (
                 <Badge variant="subtle">Round {detail.currentRound}</Badge>
               ) : null}

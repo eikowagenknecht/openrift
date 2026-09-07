@@ -11,56 +11,26 @@ import {
   ComboboxList,
 } from "@/components/ui/combobox";
 
-/** How long typing settles before the surface is asked to re-query. */
 const SEARCH_DEBOUNCE_MS = 150;
 
 export interface CardSearchResult {
   id: string;
   label: string;
-  /** Secondary text after the label (slug, short code, printing variant…). */
   sublabel?: ReactNode;
-  /** Trailing text, pushed to the row's right edge. */
   detail?: ReactNode;
-  /** Opt-in extra rendered right after the label (e.g. energy/power stats). */
   adornment?: ReactNode;
-  /**
-   * Opt-in thumbnail rendered before the label. Card-scoped pickers pass
-   * `CardThumbnail`, printing-scoped ones `PrintingThumbnail`; surfaces backed
-   * by a list with no images (the admin endpoints) pass nothing and get the
-   * same row without the picture.
-   */
   leading?: ReactNode;
 }
 
 interface CatalogSearchComboboxProps<T> {
-  /**
-   * The rows to show. The surface re-queries whenever `onQueryChange` fires and
-   * hands back a fresh list, so the combobox never filters on its own.
-   */
   results: T[];
   getKey: (item: T) => string;
   renderItem: (item: T) => ReactNode;
   onSelect: (item: T) => void;
-  /**
-   * The debounced query. Fires after typing settles, so surfaces no longer
-   * each wire up their own debounce.
-   */
   onQueryChange: (query: string) => void;
-  /** Fills the input with this string when an item is picked. */
   itemToInputValue?: (item: T) => string;
-  /**
-   * Renders a floating preview for the highlighted item (hover or keyboard).
-   * `anchorRef` points at the dropdown so the preview can sit beside it. Omit
-   * when a surface has no preview.
-   */
   renderActivePreview?: (item: T, anchorRef: RefObject<HTMLElement | null>) => ReactNode;
-  /**
-   * Reports every keystroke undebounced. Only for fields where the raw text is
-   * itself valid input (an unknown card name that becomes a placeholder), not
-   * for driving the result query.
-   */
   onRawInputChange?: (value: string) => void;
-  /** Pre-fills the input, e.g. with the text being corrected. */
   initialQuery?: string;
   ariaLabel?: string;
   placeholder?: string;
@@ -71,21 +41,8 @@ interface CatalogSearchComboboxProps<T> {
 }
 
 /**
- * The app's one card/printing autocomplete. Every picker that searches the
- * catalog, a deck zone, or an admin card list renders this: the collection and
- * deck import correction flows, deck check, the deck plan editor, the contribute
- * form, and the admin assign/link/tag/mapping pickers.
- *
- * Items are filtered externally — the surface re-queries on `onQueryChange` and
- * passes `results` back. `filter={null}` is what turns BaseUI's own label
- * filter off (`autoComplete="none"` does not, despite its docs); without it a
- * row matched through an alt name or a printing code is hidden again because
- * the query is not a substring of the visible label. Open/close, keyboard
- * navigation, highlight tracking, and the ARIA combobox/listbox semantics all
- * come from the BaseUI primitive. This replaced a hand-rolled listbox that
- * reimplemented all of that (and needed three lint suppressions to do it).
- *
- * @returns A BaseUI Combobox wired for external filtering.
+ * `filter={null}` disables BaseUI's own label filter (`autoComplete="none"`
+ * does not, despite its docs); items are already filtered externally.
  */
 export function CatalogSearchCombobox<T>({
   results,
@@ -105,10 +62,8 @@ export function CatalogSearchCombobox<T>({
   autoFocus,
 }: CatalogSearchComboboxProps<T>) {
   const [highlighted, setHighlighted] = useState<T | null>(null);
-  // The popup is tracked in state rather than a ref so the anchor handed to
-  // `renderActivePreview` is a plain object. React Compiler flags refs passed
-  // to functions during render; the preview only reads `.current` inside its
-  // own positioning effect, so a state-derived object is equivalent.
+  // State, not a ref: React Compiler flags refs passed to functions during
+  // render, and the preview only reads `.current` in its own effect.
   const [popupEl, setPopupEl] = useState<HTMLDivElement | null>(null);
   const notifyQueryChange = useDebouncedCallback(onQueryChange, { wait: SEARCH_DEBOUNCE_MS });
 
@@ -142,8 +97,6 @@ export function CatalogSearchCombobox<T>({
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- opt-in via the autoFocus prop; callers pass it intentionally
         autoFocus={autoFocus}
       />
-      {/* Grow to fit the rows instead of the narrow input width; the base
-          max-w-(--available-width) still caps it. */}
       <ComboboxContent ref={setPopupEl} className="w-max">
         <ComboboxEmpty>{emptyMessage}</ComboboxEmpty>
         <ComboboxList>
@@ -159,12 +112,6 @@ export function CatalogSearchCombobox<T>({
   );
 }
 
-/**
- * One row of the standard card layout: thumbnail, name, then the secondary and
- * trailing text. Shared so a picker backed by an image-less list renders an
- * identical row minus the picture.
- * @returns The row's contents.
- */
 function CardSearchRow({ result }: { result: CardSearchResult }) {
   return (
     <>
@@ -181,20 +128,6 @@ function CardSearchRow({ result }: { result: CardSearchResult }) {
   );
 }
 
-/**
- * {@link CatalogSearchCombobox} specialized to the standard card row, which is
- * what most pickers want. Reach for the generic version only when a surface
- * needs a row shape this one can't express — the printing-scoped catalog search
- * with its two-line row and hover preview is the one that genuinely does.
- *
- * Results may carry surface-specific fields alongside the row contract, and the
- * picked row comes back as the second `onSelect` argument. That is how a
- * surface that needs more than the id (the deck import's `ResolvedCard`) avoids
- * both a hand-rolled `renderItem` and a lookup map at the call site. Most
- * pickers only want the id, so it stays the first argument.
- *
- * @returns The card autocomplete.
- */
 export function CardSearchDropdown<T extends CardSearchResult = CardSearchResult>({
   results,
   onSearch,
@@ -204,7 +137,6 @@ export function CardSearchDropdown<T extends CardSearchResult = CardSearchResult
   CatalogSearchComboboxProps<T>,
   "getKey" | "renderItem" | "onSelect" | "onQueryChange" | "itemToInputValue"
 > & {
-  /** The debounced query; the combobox owns the debounce. */
   onSearch: (query: string) => void;
   onSelect: (id: string, result: T) => void;
 }) {

@@ -4,9 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CardSearchResult } from "@/components/cards/card-search-dropdown";
 
-// The real dropdown is a combobox with a portalled popup; what this file is
-// about is the rows the picker hands it, so it stands in as a plain list plus
-// the search box that drives the query.
 vi.mock("@/components/cards/card-search-dropdown", () => ({
   CardSearchDropdown: ({
     results,
@@ -129,7 +126,6 @@ describe("CardPicker rows", () => {
   it("lists nothing before typing when listAllWhenEmpty is off", async () => {
     renderPicker(CANDIDATES, false);
     expect(screen.queryAllByTestId("row")).toHaveLength(0);
-    // Typing still searches the full candidate set.
     await userEvent.type(screen.getByLabelText("Search"), "vi");
     expect(rowTexts("label")).toEqual(["Vi"]);
   });
@@ -146,8 +142,6 @@ describe("CardPicker rows", () => {
     expect(screen.queryAllByTestId("row")).toHaveLength(0);
   });
 
-  // The one row shape the pickers share, resolved from the catalog rather than
-  // handed in per call site: thumbnail, name, stats, card type.
   it("gives every row a thumbnail, a name, stats and the card type", () => {
     renderPicker();
     expect(screen.getAllByTestId("thumb")).toHaveLength(3);

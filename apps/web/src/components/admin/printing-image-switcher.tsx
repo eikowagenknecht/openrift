@@ -42,7 +42,6 @@ import { cn } from "@/lib/utils";
 
 type Rotation = 0 | 90 | 180 | 270;
 
-/** Shared look for the substitute-art mode toggles (same metrics as the image tabs). */
 const FALLBACK_TOGGLE_CLASS =
   "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground bg-muted/50 text-muted-foreground h-6 min-w-0 rounded-md px-1.5 font-normal";
 
@@ -50,9 +49,7 @@ function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   if (!img.rehostedUrl) {
     return img.originalUrl;
   }
-  // Cache-bust on rotation + needsTrim so admins see the regenerated result
-  // immediately — the rehosted URL is stable but the file behind it is
-  // rewritten in place when either changes.
+  // Cache-bust: the rehosted URL is stable, but the file is rewritten in place on rotation/trim.
   return `${img.rehostedUrl}-full.webp?r=${img.rotation}&t=${img.needsTrim ? 1 : 0}`;
 }
 
@@ -60,10 +57,8 @@ function imageLabel(img: AdminPrintingImageResponse): string {
   return (img.originalUrl && hostSlugFromUrl(img.originalUrl)) ?? "upload";
 }
 
-/** One of the card's other printings' images, offered as substitute art. */
 export interface SiblingImage {
   imageFileId: string;
-  /** The owning printing's label, e.g. `OGN-202 · foil · EN`. */
   printingLabel: string;
 }
 
@@ -84,18 +79,14 @@ export function PrintingImageSwitcher({
   printingLabel: string;
   images: AdminPrintingImageResponse[];
   sourceImages: DeduplicatedSourceImage[];
-  /** Images on the card's *other* printings, offered as substitute art to pin. */
   siblingImages: SiblingImage[];
-  /**
-   * Label of the printing the derived mode borrows art from, or null when the
-   * card has no standard printing with art to derive from.
-   */
+  /** Null when the card has no standard printing with art to derive from. */
   derivedArtLabel: string | null;
   fallbackArtMode: "auto" | "pinned" | "none";
   fallbackImageFileId: string | null;
   providerSettings: ProviderSettingResponse[];
   invalidates?: readonly (readonly unknown[])[];
-  /** Card-review grant holders keep image finishing (activate/rehost/rotate/trim, set from candidate); un-rehost, delete, URL/file add stay full-admin. */
+  /** Card-review grant holders keep image finishing; un-rehost, delete, and URL/file add stay full-admin. */
   isAdmin: boolean;
 }) {
   const deletePrintingImage = useDeletePrintingImage(invalidates);
@@ -112,9 +103,7 @@ export function PrintingImageSwitcher({
   const uploadFallbackArt = useUploadFallbackArt(invalidates);
 
   const orderSort = sortByProviderOrder(providerSettings);
-  // The active image leads the strip and so is what the preview opens on —
-  // provider order would otherwise front a rehosted-but-inactive image and
-  // show something the site doesn't serve.
+  // The active image leads the strip: provider order alone could front a rehosted-but-inactive image.
   const sortedImages = images.toSorted((a, b) => {
     if (a.isActive !== b.isActive) {
       return a.isActive ? -1 : 1;
@@ -139,8 +128,7 @@ export function PrintingImageSwitcher({
   const selectedSource = sourceImages.find((si) => si.candidatePrintingId === selectedId);
 
   const activeImage = images.find((img) => img.isActive);
-  // Front specifically: substitute art fills the front slot, so a printing with
-  // only an active back scan still needs one.
+  // Substitute art fills the front slot only, so an active back-only scan still needs it.
   const activeFrontImage = images.find((img) => img.isActive && img.face === "front");
   const pinnedSibling = siblingImages.find((s) => s.imageFileId === fallbackImageFileId);
   const effectiveImage = selectedImage ?? (selectedId ? null : activeImage);
@@ -151,7 +139,6 @@ export function PrintingImageSwitcher({
 
   return (
     <div className="w-full max-w-96 shrink-0 space-y-2">
-      {/* Preview */}
       <ImagePreview
         url={effectiveUrl}
         alt={printingLabel}
@@ -198,7 +185,6 @@ export function PrintingImageSwitcher({
         </div>
       )}
 
-      {/* Status + actions bar */}
       {effectiveImage && (
         <div className="flex min-h-6 items-center gap-1">
           {effectiveImage.isActive ? (
@@ -377,7 +363,6 @@ export function PrintingImageSwitcher({
         </div>
       )}
 
-      {/* Image source tabs */}
       <div className="flex flex-wrap items-center gap-1">
         {sortedImages.map((img) => {
           const isSelected = effectiveImage?.id === img.id;
@@ -420,7 +405,6 @@ export function PrintingImageSwitcher({
         ))}
       </div>
 
-      {/* Add from URL / Upload */}
       {isAdmin && (
         <div className="flex gap-1">
           <Button variant="outline" onClick={() => setShowUrlInput((v) => !v)}>
@@ -494,13 +478,7 @@ export function PrintingImageSwitcher({
         </div>
       )}
 
-      {/*
-        Substitute art. Only shown while the printing has no active front image,
-        which is the only time it has any effect — an override on a scanned
-        printing changes nothing on screen and reads as a setting that does
-        nothing. It stays stored either way, so a pin made before a scan arrives
-        comes back into play if that scan is ever removed.
-      */}
+      {/* Shown only while the printing has no active front image; a pin persists and reactivates if that image is later removed. */}
       {!activeFrontImage && (
         <div className="space-y-1 border-t pt-2">
           <div className="flex min-h-6 items-center gap-1">

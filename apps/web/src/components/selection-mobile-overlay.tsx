@@ -32,17 +32,9 @@ interface SelectionMobileOverlayProps {
   printingsByCardId: Map<string, Printing[]>;
   showImages: boolean;
   onSearchAndClose: (query: string) => void;
-  /** Surface-specific add controls for the shown card. See SelectionDetailPane. */
   actions?: (printing: Printing) => ReactNode;
 }
 
-/**
- * Fullscreen mobile card-detail drawer driven by the selection store.
- * BaseUI Drawer provides the backdrop, scroll-lock, and swipe-to-close;
- * a pushed history entry keeps the Android back-button closing the drawer.
- * Renders nothing on desktop or when no card is selected.
- * @returns The mobile detail drawer or null.
- */
 export function SelectionMobileOverlay({
   items,
   printingsByCardId,
@@ -92,8 +84,8 @@ export function SelectionMobileOverlay({
       }}
     >
       <DrawerContent
-        // Full-screen minus the iOS safe area: fixed height overrides the popup's
-        // auto sizing; bottom-0 anchoring puts the top edge exactly at the inset.
+        // Fixed height overrides the popup's auto sizing to fill the screen
+        // minus the iOS safe area.
         className="data-[swipe-direction=down]:h-[calc(100dvh-env(safe-area-inset-top,0px))] data-[swipe-direction=down]:max-h-none"
         style={getDomainTintStyle(selectedCard.card.domains, domainColors)}
       >

@@ -32,22 +32,15 @@ interface PullCardProps {
   pull: PackPull;
   image: CatalogPrintingResponse["images"][number] | undefined;
   className?: string;
-  /** When true, the foil overlay animates; otherwise it's static rainbow. */
   shimmer?: boolean;
 }
 
-// Face-up card in the reveal / bulk grid. Shows the printing image (or a
-// named placeholder when the image isn't available) and links to the card
-// detail page. Shine ring indicates a special-slot pull.
 export function PullCard({ pull, image, className, shimmer = true }: PullCardProps) {
   const { printing } = pull;
   const { labels } = useEnumOrders();
   const highlight = SLOT_BORDER[pull.slot];
   const glow = SLOT_GLOW[pull.slot];
-  // Pack opener always shows the holo effect on foil-finish pulls, regardless
-  // of the user's global foil preference — the whole point of the simulator is
-  // to make pulls feel exciting. Whether the overlay animates (shimmer) is a
-  // per-page toggle.
+  // Always shows the holo effect on foil-finish pulls, ignoring the user's global foil preference.
   const showFoil = printing.finish === WellKnown.finish.FOIL;
   const rotated = needsCssRotation(getOrientation(printing.cardTypes));
   const displayName = legendDisplayName({
@@ -55,9 +48,7 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
     types: printing.cardTypes,
     tags: printing.tags,
   });
-  // A failed image gets the same named placeholder as a missing one. Lifted
-  // above the rotation wrapper so the fallback never renders rotated. Keyed
-  // by id so a changed image on a reused instance retries fresh.
+  // Keyed by image id so a changed image on a reused instance retries fresh.
   const [failedImageId, setFailedImageId] = useState<string | null>(null);
   const shownImage = image && image.imageId !== failedImageId ? image : undefined;
 

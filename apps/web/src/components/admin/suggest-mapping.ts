@@ -13,22 +13,12 @@ import type {
   UnifiedMappingGroup,
 } from "./price-mappings-types";
 
-/** Minimum score for a product to be suggested as a mapping candidate. */
 const SUGGESTION_THRESHOLD = 100;
 
-/** Score at or above which a suggestion is considered a strong (high-confidence) match. */
 export const STRONG_MATCH_THRESHOLD = 150;
 
-/** Fixed score assigned to weak (amber) sibling-derived suggestions. Below the
- *  scorer's emit floor so it never collides with strong-path scores. */
 const WEAK_MATCH_SCORE = 50;
 
-/**
- * Products priced at or above this threshold are overwhelmingly signed or
- * metal/metal-deluxe printings (normal-foil listings rarely clear this bar).
- * Used as a soft disambiguator — not conclusive, so the bonus/penalty is
- * smaller than art-variant and finish signals.
- */
 const PRICE_PREMIUM_THRESHOLD_CENTS = 10_000;
 
 interface Suggestion {
@@ -36,30 +26,19 @@ interface Suggestion {
   score: number;
 }
 
-/**
- * Extract the suffix of the product name after the card name.
- * Both names are reduced to spaceless slugs, so e.g.
- * product "Ahri Alluring Alternate Art", card "Ahri, Alluring" → "alternateart"
- * product "Jinx Loose Cannon Signature", card "Loose Cannon" → "signature"
- * product "Master Yi Wuju Bladesman", card "Wuju Bladesman - Starter" → ""
- * @returns The slug suffix, or null if the card name can't be found.
- */
 function extractSuffix(productName: string, cardName: string): string | null {
   const normProduct = normalizeNameForIdentity(productName);
   const normCard = normalizeNameForIdentity(cardName);
 
-  // Prefix match (strongest)
   if (normProduct.startsWith(normCard)) {
     return normProduct.slice(normCard.length);
   }
 
-  // Containment match: card name appears inside product (champion prefix)
   const idx = normProduct.indexOf(normCard);
   if (idx !== -1) {
     return normProduct.slice(idx + normCard.length);
   }
 
-  // For cards with " - " suffix, try the base name before the dash
   const dashIdx = cardName.indexOf(" - ");
   if (dashIdx !== -1) {
     const normBase = normalizeNameForIdentity(cardName.slice(0, dashIdx));
@@ -73,18 +52,11 @@ function extractSuffix(productName: string, cardName: string): string | null {
 }
 
 /**
- * Price-rank hint for a product relative to its siblings in the same (finish,
- * language, groupKind) bucket. Only populated when the bucket has exactly two
- * products with distinct prices — that's the case where "the expensive one is
- * the altart" reliably holds. For three or more products the variant order is
- * ambiguous and the hint stays `null`.
+ * Populated only when a (finish, language, groupKind) bucket has exactly two
+ * products with distinct prices; three or more is left `null` as ambiguous.
  */
 type PriceRank = "cheapest" | "priciest";
 
-/**
- * Score how well a staged product matches a printing.
- * @returns A numeric score, or -1 if disqualified.
- */
 function scorePrintingProduct(
   printing: MappingPrinting,
   product: StagedProduct,
@@ -93,18 +65,14 @@ function scorePrintingProduct(
   crossLanguageShortCodes: ReadonlySet<string>,
   priceRank: PriceRank | null,
 ): number {
-  // Finish must match — compared at the marketplace's granularity (metal and
-  // metal-deluxe printings collapse to foil, since no marketplace surfaces
-  // them as distinct staging rows).
+  // Finish is compared at marketplace granularity: metal and metal-deluxe
+  // both collapse to foil, since no marketplace stages them separately.
   const printingMarketplaceFinish = marketplaceFinish(printing.finish.toLowerCase());
   if (printingMarketplaceFinish !== product.finish.toLowerCase()) {
     return -1;
   }
 
-  // Set scoping: when the marketplace group is pinned to a specific OpenRift
-  // set, only printings of that set are valid candidates. Hard filter — a
-  // mismatch is disqualifying, so e.g. an "Origins Promos" group never
-  // suggests an Origins-set printing.
+  // Hard filter: a group pinned to an OpenRift set only matches printings of that set.
   if (
     product.groupSetSlug !== null &&
     product.groupSetSlug !== undefined &&
@@ -113,33 +81,22 @@ function scorePrintingProduct(
     return -1;
   }
 
-  // Language must match for per-language marketplaces (CardTrader). The server
-  // rejects CT assignments whose printing language doesn't match a staging row,
-  // so we must not suggest them. TCG/CM skip this check because their staging
-  // is stored as placeholder "EN" regardless of the physical printing language.
+  // CardTrader stages per-language SKUs, so language must match there. TCG/CM
+  // stage everything as placeholder "EN" regardless of physical language.
   if (enforceLanguage && printing.language !== product.language) {
     return -1;
   }
 
   let score = 100;
 
-  // Cross-language sibling evidence: on CardTrader, a single external_id maps
-  // to one physical card with a per-language SKU, so an EN assignment to
-  // `OGN-302*` is strong evidence that the SC SKU should also resolve to
-  // `OGN-302*`. Big boost, since this is a much more reliable signal than the
-  // name-suffix inference — the product name alone often can't distinguish
-  // signed/non-signed or overnumbered/normal variants of the same card.
+  // On CardTrader one external_id covers one physical card with per-language
+  // SKUs, so an EN assignment to a shortCode is strong evidence the SC SKU matches it too.
   if (crossLanguageShortCodes.has(printing.shortCode)) {
     score += 100;
   }
 
-  // Price-based premium hint: foil products over ~€100/$100 are almost always
-  // signed or metal/metal-deluxe printings; normal foils rarely clear that bar.
-  // Not conclusive (reprints, regional pricing, outliers), so the swing is
-  // smaller than the suffix-derived signals. Asymmetric — the penalty for a
-  // non-premium printing on a premium-priced product is softer than the
-  // reward for a match, since the correlation cuts more strongly in one
-  // direction.
+  // Foil products over the threshold are almost always signed/metal
+  // printings, but the correlation isn't strong enough to be conclusive.
   const price = product.lowCents ?? product.marketCents ?? product.midCents ?? null;
   if (price !== null && price >= PRICE_PREMIUM_THRESHOLD_CENTS) {
     const isPremiumPrinting =
@@ -153,11 +110,8 @@ function scorePrintingProduct(
     }
   }
 
-  // Group-kind signal: the admin-tagged marketplace group is an authoritative
-  // hint for whether the product belongs to a basic set or a promo/special
-  // release. A match puts the total at the strong-match threshold (150), the
-  // mismatch penalty is heavier so it's hard to overcome without explicit
-  // counter-evidence in the name.
+  // The admin-tagged group kind (basic vs. promo/special) is authoritative
+  // for marker presence, so the mismatch penalty outweighs the match bonus.
   const hasMarkers = printing.markerSlugs.length > 0;
   if (product.groupKind === "basic") {
     score += hasMarkers ? -80 : 50;
@@ -165,21 +119,15 @@ function scorePrintingProduct(
     score += hasMarkers ? 50 : -80;
   }
 
-  // Price-rank signal: when two products in the same (finish, language,
-  // groupKind) bucket differ only in price, the expensive one is almost always
-  // the altart and the cheap one the normal. Empirically true for basic-set
-  // printings where marketplace product names don't disclose the variant.
+  // In a two-product (finish, language, groupKind) bucket the pricier one is usually the altart.
   if (priceRank === "priciest" && printing.artVariant === WellKnown.artVariant.ALTART) {
     score += 50;
   } else if (priceRank === "cheapest" && printing.artVariant === WellKnown.artVariant.NORMAL) {
     score += 50;
   }
 
-  // Suffix-based keyword boosts. Positive-only — an absent keyword never
-  // penalises a printing, because marketplaces are inconsistent about naming
-  // variants (CardTrader especially uses terse names for promos that ship as
-  // altart/signed/metal). Only these three keywords are trusted, because they
-  // map to a specific printing shape rather than a vague release qualifier.
+  // Only these three keywords are trusted; an absent one never penalizes,
+  // since marketplace naming of variants is inconsistent.
   const suffix = extractSuffix(product.productName, cardName);
   if (suffix !== null) {
     if (
@@ -201,26 +149,16 @@ function scorePrintingProduct(
 }
 
 /**
- * Compute suggested product assignments for unmapped printings using
- * mutual-best-match: a (printing, product) pair is suggested only when each
- * is uniquely the other's top-scoring partner. Skips cases where multiple
- * printings tie for the same product (e.g. EN/SC printings of the same card
- * both scoring 100 against a single Cardmarket product) — surfacing nothing
- * is more honest than picking arbitrarily by iteration order.
- * @returns A map from printingId to the suggested product and score.
+ * Mutual-best-match: a (printing, product) pair is suggested only when each
+ * is uniquely the other's top-scoring partner; ties surface nothing.
  */
 function computeSuggestions(
   group: MappingGroup,
   marketplace: AdminMarketplaceName,
 ): Map<string, Suggestion> {
-  // Only CardTrader puts the language in the SKU, so only there does a staged
-  // product's language have to equal the printing's.
+  // Only CardTrader puts language in the SKU, so only there must it match the printing's.
   const enforceLanguage = marketplace === "cardtrader";
   const crossLanguageEvidence = group.crossLanguageEvidence ?? new Map();
-  // Printings in a language the marketplace doesn't stock are dropped before
-  // scoring, so they can't be suggested directly and can't join the
-  // sibling-tie expansion below either — that expansion is what used to hand
-  // TCGplayer's English-only SKUs to SC printings.
   const unmapped = group.printings.filter(
     (p) => p.externalId === null && marketplaceCarriesLanguage(marketplace, p.language),
   );
@@ -235,21 +173,16 @@ function computeSuggestions(
     product: StagedProduct;
     score: number;
   }
-  // Key must include language — on CardTrader, two products can share an
-  // `(externalId, finish)` pair but differ in language (EN vs SC SKUs). A
-  // 2-tuple key collapses them and the mutual-best gate spuriously treats
-  // cross-language candidates as a within-product tie.
+  // Language is part of the key: on CardTrader two products can share an
+  // (externalId, finish) pair but differ in language (EN vs SC SKUs).
   const productKey = (product: StagedProduct): string =>
     `${product.externalId}|${product.finish}|${product.language ?? ""}`;
-  // Cross-language evidence and price-rank use a 2-tuple (externalId, finish)
-  // because they're meant to carry across languages — a CM/TCG aggregate SKU
-  // or a CT sibling-language pair should share the hint.
+  // This 2-tuple key is used where evidence is meant to carry across
+  // languages (cross-language and price-rank hints).
   const productKey2 = (product: StagedProduct): string => `${product.externalId}|${product.finish}`;
   const emptyShortCodes: ReadonlySet<string> = new Set();
-  // Price-rank must see the full bucket — staged + already-assigned — because
-  // accepting one suggestion moves its product from staged to assigned, and a
-  // 2-product bucket would otherwise collapse to 1 and lose the signal for
-  // the remaining sibling product.
+  // Must see the full bucket (staged + assigned): accepting one suggestion
+  // moves a product to assigned, which would otherwise erase a 2-product bucket's signal.
   const priceRankByProduct = buildPriceRankEvidence([...available, ...group.assignedProducts]);
 
   const pairs: Pair[] = [];
@@ -271,7 +204,6 @@ function computeSuggestions(
     }
   }
 
-  // Per-printing top product (skipped if tied within the printing).
   const topProductByPrinting = new Map<string, Pair>();
   const printingPairs = Map.groupBy(pairs, (p) => p.printing.printingId);
   for (const [printingId, list] of printingPairs) {
@@ -282,13 +214,9 @@ function computeSuggestions(
     }
   }
 
-  // Per-product top printing(s). For non-aggregate products (CardTrader, where
-  // language is part of the SKU) only a single unique top is accepted —
-  // anything else means ambiguity. For language-aggregate products
-  // (`product.language === null`: Cardmarket, TCGPlayer), ties among sibling
-  // printings (same short_code/finish/art/is_signed/markers, differing only in
-  // language) are legitimate — the same aggregate price covers all of them,
-  // so every sibling gets its own suggestion chip.
+  // For language-aggregate products (language === null: Cardmarket,
+  // TCGPlayer) a tie among sibling printings is legitimate, since one
+  // aggregate price covers all of them.
   const topPrintingsByProduct = new Map<string, Pair[]>();
   const productPairs = Map.groupBy(pairs, (p) => productKey(p.product));
   for (const [key, list] of productPairs) {
@@ -301,8 +229,6 @@ function computeSuggestions(
     }
   }
 
-  // Emit mutual-best matches: the printing's top product points back to a
-  // set of top printings that includes this one.
   const suggestions = new Map<string, Suggestion>();
   for (const [printingId, pair] of topProductByPrinting) {
     const reverseList = topPrintingsByProduct.get(productKey(pair.product)) ?? [];
@@ -314,14 +240,6 @@ function computeSuggestions(
   return suggestions;
 }
 
-/**
- * Within a card's pool of staged products, bucket by (finish, language,
- * groupKind) and rank prices. Only buckets with exactly two products and
- * distinct prices yield a `cheapest` / `priciest` label — we don't try to
- * resolve 3-way variant orderings here, since the only reliable signal is
- * the binary normal-vs-altart split.
- * @returns Map keyed by `productKey(product)` → `"cheapest" | "priciest"`.
- */
 function buildPriceRankEvidence(
   products: readonly StagedProduct[],
 ): ReadonlyMap<string, PriceRank> {
@@ -351,11 +269,8 @@ function buildPriceRankEvidence(
 }
 
 /**
- * Two printings are "siblings" when they share every printing-identity axis
- * except language — same short_code, finish, art variant, signed state, and
- * marker set. Language-aggregate marketplaces (CM, TCG) sell one SKU covering
- * every sibling, so the suggester treats them as interchangeable targets.
- * @returns true iff every printing in the list matches the first on those axes.
+ * Two printings are siblings when they share every identity axis except
+ * language; language-aggregate marketplaces sell one SKU covering all of them.
  */
 function allSiblings(printings: MappingPrinting[]): boolean {
   if (printings.length < 2) {
@@ -384,25 +299,12 @@ function arraysEqual(a: readonly string[], b: readonly string[]): boolean {
   return true;
 }
 
-/** Product-centric suggestion: for a given marketplace product, the printing it likely belongs to. */
 export interface ProductSuggestion {
   printingId: string;
   score: number;
-  /**
-   * When true, this is a weak (amber) suggestion derived from sibling
-   * assignments on the same externalId rather than the direct name/finish
-   * scorer. Used to handle bogus marketplace listings — e.g. a CM "normal"
-   * SKU on a foil-only card — by mirroring a sibling SKU's existing mapping.
-   * Weak suggestions are never auto-accepted by the strong-match bulk action.
-   */
   isWeak?: boolean;
 }
 
-/**
- * Stable key for a product row across a unified group (same shape the
- * marketplace-products-table uses to dedupe and render rows).
- * @returns `${marketplace}::${externalId}::${finish}::${language}`
- */
 export function productSuggestionKey(
   marketplace: AdminMarketplaceName,
   externalId: number,
@@ -413,13 +315,8 @@ export function productSuggestionKey(
 }
 
 /**
- * Invert `computeSuggestions` into a per-product map for the card-detail
- * marketplace view, which is product-centric (each row is a product, the user
- * picks the printing). The algorithm runs once per marketplace. A product can
- * appear with multiple suggested printings when it's language-aggregate and
- * those printings are siblings — the admin clicks through each chip to
- * materialise the mapping explicitly.
- * @returns Map keyed by `productSuggestionKey(...)` → one or more suggested printings.
+ * Inverts `computeSuggestions` into a per-product map for the card-detail
+ * marketplace view, run once per marketplace.
  */
 export function computeProductSuggestions(
   group: UnifiedMappingGroup,
@@ -439,9 +336,7 @@ export function computeProductSuggestions(
       out.set(key, list);
     }
   }
-  // Layer weak (amber) suggestions on top — only for product keys that the
-  // strong path didn't already cover, so the green/dashed chip wins whenever
-  // a real match exists.
+  // Weak suggestions only fill product keys the strong path didn't cover.
   for (const [key, weakList] of computeWeakProductSuggestions(group)) {
     if (!out.has(key)) {
       out.set(key, weakList);
@@ -451,17 +346,9 @@ export function computeProductSuggestions(
 }
 
 /**
- * Weak (amber) suggestions for unassigned marketplace SKUs whose finish doesn't
- * match any printing on this card — typically bogus Cardmarket "normal"
- * listings on foil-only cards. The rule: if another SKU sharing the same
- * (marketplace, externalId) is already mapped to one or more printings on this
- * card, mirror those printings. The hint is the user's own prior mapping
- * decision on the legitimate sibling SKU, not a heuristic, which is why it's
- * safe to surface despite the finish mismatch.
- *
- * Restricted to language-aggregate marketplaces (CM, TCG): on CardTrader the
- * finish/language tuple is the SKU and bogus listings present differently.
- * @returns Map keyed by `productSuggestionKey(...)` → one or more weak suggestions.
+ * Weak suggestions for SKUs whose finish matches no printing on the card
+ * (e.g. a bogus Cardmarket "normal" listing on a foil-only card): mirror
+ * whatever printings a sibling SKU on the same externalId is already mapped to.
  */
 function computeWeakProductSuggestions(
   group: UnifiedMappingGroup,
@@ -473,9 +360,6 @@ function computeWeakProductSuggestions(
   for (const marketplace of ["tcgplayer", "cardmarket"] as const) {
     const { stagedProducts, assignedProducts, assignments } = group[marketplace];
 
-    // Sibling mirroring copies an existing mapping, so it has to respect the
-    // same language restriction the scorer does — otherwise a legacy SC
-    // binding on TCGplayer would keep seeding fresh SC suggestions.
     const cardPrintingIds = new Set(
       group.printings
         .filter((p) => marketplaceCarriesLanguage(marketplace, p.language))
@@ -527,12 +411,8 @@ function computeWeakProductSuggestions(
 }
 
 /**
- * Collect per-marketplace assignments into `(externalId, finish) → short_codes`.
- * On CardTrader this powers cross-language transfer: if the EN SKU of product
- * 345503 is bound to `OGN-302*`, scoring its SC SKU gets evidence that the
- * same short_code is the right target. Keys match the scorer's internal
- * product key so lookups don't need to reconstruct the string.
- * @returns Map keyed by `${externalId}|${finish}`, or empty if no assignments.
+ * On CardTrader, an EN SKU's assignment to a short_code is evidence its SC
+ * sibling SKU should resolve to the same short_code.
  */
 function buildCrossLanguageEvidence(
   group: UnifiedMappingGroup,
@@ -565,8 +445,6 @@ function toMarketplaceGroup(
   marketplace: AdminMarketplaceName,
 ): MappingGroup {
   const mkData = group[marketplace];
-  // Collapse multi-assignment printings to their first externalId — the
-  // algorithm only needs "is this printing mapped at all?" semantics.
   const assignmentByPrinting = new Map<string, number>();
   for (const a of mkData.assignments) {
     if (!assignmentByPrinting.has(a.printingId)) {
@@ -583,7 +461,6 @@ function toMarketplaceGroup(
     might: group.might,
     setId: group.setId,
     setName: group.setName,
-    // The merged per-marketplace ids give way to this marketplace's own.
     printings: group.printings.map(
       ({ tcgExternalId: _tcg, cmExternalId: _cm, ctExternalId: _ct, ...printing }) => ({
         ...printing,
@@ -592,8 +469,7 @@ function toMarketplaceGroup(
     ),
     stagedProducts: mkData.stagedProducts,
     assignedProducts: mkData.assignedProducts,
-    // Only CardTrader has per-language SKUs; on TCG/CM every language shares
-    // one product, so there's no other-language sibling to inherit from.
+    // Only CardTrader has per-language SKUs to inherit cross-language evidence from.
     crossLanguageEvidence:
       marketplace === "cardtrader" ? buildCrossLanguageEvidence(group, marketplace) : undefined,
   };

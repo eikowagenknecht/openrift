@@ -22,18 +22,11 @@ import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 interface CurvePoint {
-  /** Cumulative cost to reach this point. */
   cost: number;
-  /** Completion percentage at this point. */
   percent: number;
-  /** Card/printing name at this step (undefined for the starting "you are here" point). */
   label?: string;
-  /** Price of this individual item. */
   itemPrice?: number;
-  /** Thumbnail URL of the cheapest printing for this item. */
   thumbnail?: string;
 }
 
@@ -47,17 +40,13 @@ interface CostToCompleteData {
   curve: CurvePoint[];
   milestones: MilestonePoint[];
   startPercent: number;
-  /** The highest completion % reachable by buying all priced missing items. */
   maxPricedPercent: number;
   totalCost: number;
   unpricedMissing: number;
 }
 
-// ── Target copies per card (for "copies" mode) ──────────────────────────────
-// The playset rule (Legend/Battlefield = 1, [Unique] = 1, everything else = 3)
-// lives in @openrift/shared/getPlaysetSize. Do not re-derive it here.
-
-// ── Data computation ───────────────────────────────────────────────────────
+// Playset size (Legend/Battlefield = 1, [Unique] = 1, everything else = 3) lives
+// in @openrift/shared/getPlaysetSize. Do not re-derive it here.
 
 interface ComputeInput {
   allPrintings: Printing[];
@@ -69,10 +58,6 @@ interface ComputeInput {
   marketplace: Marketplace;
 }
 
-/**
- * Builds the cumulative cost-to-complete curve data.
- * @returns Curve points, milestone markers, and summary stats.
- */
 function computeCostToComplete(input: ComputeInput): CostToCompleteData {
   "use memo";
   const { allPrintings, stacks, scope, countMode, prices, marketplace } = input;
@@ -95,19 +80,16 @@ function computeForCards(
   prices: PriceLookup,
   marketplace: Marketplace,
 ): CostToCompleteData {
-  // All unique card slugs in scope
   const allCardSlugs = new Set<string>();
   for (const printing of scopedPrintings) {
     allCardSlugs.add(printing.card.slug);
   }
 
-  // Owned card slugs
   const ownedSlugs = new Set<string>();
   for (const stack of stacks) {
     ownedSlugs.add(stack.printing.card.slug);
   }
 
-  // For each missing card, find the cheapest printing in scope
   const printingsByCard = Map.groupBy(scopedPrintings, (printing) => printing.card.slug);
 
   const missingItems: MissingItem[] = [];
@@ -188,7 +170,6 @@ function computeForCopies(
   prices: PriceLookup,
   marketplace: Marketplace,
 ): CostToCompleteData {
-  // Total target copies per card
   const allCardSlugs = new Map<string, { name: string; types: CardType[]; keywords: string[] }>();
   for (const printing of scopedPrintings) {
     if (!allCardSlugs.has(printing.card.slug)) {
@@ -200,14 +181,12 @@ function computeForCopies(
     }
   }
 
-  // Owned copies per card slug
   const ownedCopiesBySlug = new Map<string, number>();
   for (const stack of stacks) {
     const slug = stack.printing.card.slug;
     ownedCopiesBySlug.set(slug, (ownedCopiesBySlug.get(slug) ?? 0) + stack.copyIds.length);
   }
 
-  // Cheapest printing per card for pricing missing copies
   const printingsByCard = Map.groupBy(scopedPrintings, (printing) => printing.card.slug);
 
   const missingItems: MissingItem[] = [];
@@ -229,7 +208,6 @@ function computeForCopies(
       continue;
     }
 
-    // Find cheapest printing for this card
     const cardPrintings = printingsByCard.get(slug) ?? [];
     let cheapest: number | undefined;
     let cheapestPrinting: Printing | undefined;
@@ -267,12 +245,10 @@ function buildCurve(
   ownedItems: number,
   unpricedMissing: number,
 ): CostToCompleteData {
-  // Sort by price ascending
   missingItems.sort((a, b) => a.price - b.price);
 
   const startPercent = totalItems > 0 ? (ownedItems / totalItems) * 100 : 0;
 
-  // Build cumulative curve, starting with the "you are here" point
   const curve: CurvePoint[] = [{ cost: 0, percent: startPercent }];
 
   let cumulativeCost = 0;
@@ -291,11 +267,9 @@ function buildCurve(
     });
   }
 
-  // The highest % reachable by buying all priced items
   const maxPricedPercent =
     totalItems > 0 ? ((ownedItems + missingItems.length) / totalItems) * 100 : 0;
 
-  // Compute milestones (only those ahead of startPercent and reachable)
   const milestoneThresholds = [25, 50, 75, 90, 95, 100];
   const milestones: MilestonePoint[] = [];
 
@@ -303,7 +277,6 @@ function buildCurve(
     if (threshold <= startPercent) {
       continue;
     }
-    // Find the first curve point that reaches this threshold
     const point = curve.find((curvePoint) => curvePoint.percent >= threshold);
     if (point) {
       milestones.push({
@@ -323,10 +296,6 @@ function buildCurve(
     unpricedMissing,
   };
 }
-
-// ── Scope filtering (duplicated from use-collection-stats to avoid circular) ─
-
-// ── Custom tooltip ─────────────────────────────────────────────────────────
 
 interface CostToCompleteActiveDotProps {
   cx?: number;
@@ -358,7 +327,6 @@ function CostToCompleteActiveDot({
       }}
     >
       <circle cx={cx} cy={cy} r={size / 2 + 1} fill="var(--color-background)" opacity={0.9} />
-      {/* Lucide ExternalLink icon scaled into a 20x20 area */}
       <svg
         x={cx - size / 2}
         y={cy - size / 2}
@@ -421,8 +389,6 @@ function CostToCompleteTooltipContent({
     </div>
   );
 }
-
-// ── Chart component ────────────────────────────────────────────────────────
 
 const chartConfig = {
   percent: {
@@ -534,7 +500,6 @@ export function CostToCompleteChart({
             dot={false}
             activeDot={<CostToCompleteActiveDot marketplace={marketplace} searchUrl={searchUrl} />}
           />
-          {/* "You are here" marker */}
           <ReferenceDot
             x={0}
             y={data.startPercent}
@@ -543,7 +508,6 @@ export function CostToCompleteChart({
             stroke="var(--color-background)"
             strokeWidth={2}
           />
-          {/* Unpriced gap: hatched band from priced ceiling to 100% */}
           {data.unpricedMissing > 0 && data.maxPricedPercent < 100 && (
             <ReferenceArea
               y1={data.maxPricedPercent}
@@ -560,7 +524,6 @@ export function CostToCompleteChart({
           )}
         </AreaChart>
       </ChartContainer>
-      {/* Legend below chart */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
         <span className="text-muted-foreground flex items-center gap-1.5">
           <span className="bg-primary inline-block size-2.5 rounded-full" />

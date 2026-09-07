@@ -18,13 +18,6 @@ const LIST_INTENT_LABEL: Record<ListIntent, string> = {
   organize: "Organize",
 };
 
-/**
- * One wide row for a shared wishlist/tradelist: intent icon, list name (links to
- * the shared list view), kind/count meta, and an optional owner chip. Reused on
- * the group Trading tab (with the owner inlined) and the member-detail page
- * (without, since the page is already scoped to one member).
- * @returns The shared-list row element.
- */
 export function SharedListRow({
   slug,
   member,

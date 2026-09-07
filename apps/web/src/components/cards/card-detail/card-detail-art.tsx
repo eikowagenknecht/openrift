@@ -10,7 +10,6 @@ import { CardImage } from "./card-image";
 /**
  * The card artwork with its tilt container and foil treatment. Owns the tilt
  * and foil preferences so both detail layouts render the art identically.
- * @returns The tilt-wrapped card image.
  */
 export function CardDetailArt({
   printing,
@@ -19,11 +18,6 @@ export function CardDetailArt({
 }: {
   printing: Printing;
   showImages?: boolean;
-  /**
-   * Ignores the viewer's tilt preference and holds the card flat. Presentation
-   * mode sets this: a card that leans away whenever the creator's pointer
-   * crosses the stage is a wobble in the recording, not an effect.
-   */
   disableTilt?: boolean;
 }) {
   const { card } = printing;
@@ -33,9 +27,8 @@ export function CardDetailArt({
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
 
-  // Hook over the IS_COARSE_POINTER module constant so SSR and the first
-  // client render agree — `showShimmer` flips the foil overlay's animation
-  // class on coarse-pointer devices and would otherwise abort hydration.
+  // Must agree with SSR: showShimmer flips a class on coarse-pointer devices
+  // and a mismatch would abort hydration.
   const coarsePointer = useCoarsePointer();
   const tiltMode = coarsePointer ? ("none" as const) : ("pointer" as const);
 
@@ -47,8 +40,6 @@ export function CardDetailArt({
   });
 
   const showFoil = isFoil && foilEffect;
-  // The detail view always uses animated foil — shimmers when tilt unavailable,
-  // which now includes a caller that has switched tilt off outright.
   const showShimmer = showFoil && (disableTilt === true || !cardTilt || coarsePointer);
 
   return (

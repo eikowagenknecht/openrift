@@ -3,9 +3,7 @@ import { cn } from "@/lib/utils";
 interface FoilOverlayProps {
   active: boolean;
   shimmer?: boolean;
-  /** Reduce intensity for background/stacked cards */
   dim?: boolean;
-  /** Start animation paused; unpause on group hover (e.g. fan siblings) */
   paused?: boolean;
 }
 
@@ -16,7 +14,6 @@ export function FoilOverlay({ active, shimmer, dim, paused }: FoilOverlayProps) 
         "pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]",
         "mix-blend-color-dodge",
         "transition-opacity duration-300",
-        // 50% balances rainbow visibility without washing out card art; 25% for background cards
         active ? (dim ? "opacity-25" : "opacity-50") : "opacity-0",
       )}
     >

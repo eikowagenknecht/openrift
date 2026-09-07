@@ -45,8 +45,6 @@ vi.mock("@/components/admin/printing-marketplace-cells", () => ({
   PrintingMarketplaceBadges: () => null,
 }));
 
-// Owns its own query; stubbed to a marker so this file can still assert that
-// only a full admin gets the citation editor.
 vi.mock("@/components/admin/printing-citations-editor", () => ({
   PrintingCitationsEditor: () => <div data-testid="citations-editor" />,
 }));
@@ -58,7 +56,6 @@ vi.mock("@/components/language-chip", () => ({
 
 vi.mock("@tanstack/react-router", () => ({ Link: () => null }));
 
-// The row pulls nine mutations; stub them all so it renders without a QueryClient.
 const stubMutation = { mutate: vi.fn(), isPending: false };
 vi.mock("@/hooks/use-admin-card-mutations", () => ({
   useAcceptPrintingField: () => stubMutation,
@@ -175,7 +172,6 @@ describe("PrintingReviewCard", () => {
       candidatePrintings: [
         stubSource({ id: "cp1" }),
         stubSource({ id: "cp2" }),
-        // Belongs to a sibling printing and must not be counted here.
         stubSource({ id: "cp3", printingId: "p2" }),
       ],
     });
@@ -212,7 +208,6 @@ describe("PrintingReviewCard", () => {
     expect(queryByText("no image")).toBeNull();
   });
 
-  // A pinned substitute is a decision, not a gap, so it reads as one.
   it("marks a pinned substitute instead of warning", () => {
     const printing = stubPrinting({ fallbackArtMode: "pinned", fallbackImageFileId: "file-2" });
     const { getByText, queryByText } = renderCard({
@@ -225,8 +220,6 @@ describe("PrintingReviewCard", () => {
     expect(queryByText("no image")).toBeNull();
   });
 
-  // The Derived toggle names its source, so the row resolves it the same way
-  // the catalog does: the standard printing of the card, art and all.
   it("passes down the printing the derived substitute comes from", () => {
     const own = stubPrinting({ id: "p1", finish: "metal", canonicalRank: 5 });
     const standard = stubPrinting({
@@ -251,8 +244,6 @@ describe("PrintingReviewCard", () => {
     expect(captured.switcher?.derivedArtLabel).toBeNull();
   });
 
-  // Offering an image the printing already accepted would let an admin re-add
-  // the same file, so accepted URLs drop out of the switcher's source list.
   it("offers source images that are not already accepted", () => {
     renderCard({
       candidatePrintings: [
@@ -265,10 +256,7 @@ describe("PrintingReviewCard", () => {
     expect(captured.switcher?.sourceImages?.map((i) => i.url)).toEqual(["https://cdn.test/b.png"]);
   });
 
-  // Substitute art is pinned by image file, so the picker offers the card's
-  // other printings' images — never this printing's own, which would pin a
-  // printing to itself.
-  it("offers the other printings' images as substitute art", () => {
+  it("offers other printings' images as substitute art, never this printing's own", () => {
     const own = stubPrinting({ id: "p1" });
     const sibling = stubPrinting({ id: "p2", expectedPrintingId: "OGN-001 · foil · EN" });
     renderCard({
@@ -285,8 +273,6 @@ describe("PrintingReviewCard", () => {
     ]);
   });
 
-  // Two printings often list the same scan. Offering it twice would suggest a
-  // choice that isn't one, since the pin stores the file either way.
   it("offers a shared image file once", () => {
     const own = stubPrinting({ id: "p1" });
     renderCard({
@@ -338,8 +324,6 @@ describe("PrintingReviewCard", () => {
     expect(queryByText(/unchecked/u)).toBeNull();
   });
 
-  // Triage and delete stay full-admin; a card-review grant holder only accepts
-  // fields, so neither the check-all button nor the overflow menu renders.
   it("hides the triage actions from non-admins", () => {
     const { queryByText } = renderCard({
       isAdmin: false,
@@ -350,8 +334,6 @@ describe("PrintingReviewCard", () => {
     expect(captured.spreadsheet).not.toBeNull();
   });
 
-  // Citing a printing is curation, not the accept-only work a card-review grant
-  // covers, so the editor stays behind full admin like triage and delete.
   it("shows the citation editor to admins", () => {
     expect(renderCard().queryByTestId("citations-editor")).not.toBeNull();
   });

@@ -48,28 +48,14 @@ import {
 } from "@/lib/tournament-display";
 import { cn } from "@/lib/utils";
 
-/** The rail's row shape, shared with the group overview's rail. */
 const RAIL_ROW_CLASS = "flex items-center gap-2.5 rounded-md px-2 py-2";
 
-/**
- * Whether the event is over, so a module reads as finished rather than as an
- * open action waiting on the viewer.
- *
- * @returns True once the tournament is completed or cancelled.
- */
 function isFinished(detail: TournamentDetailResponse): boolean {
   const state = effectiveTournamentState(detail.startsAt, detail.endsAt, detail.status);
   return state === "completed" || state === "cancelled";
 }
 
-/**
- * The Decks tile, split out so the deck-check entries query only runs for
- * viewers who can see the deck-check section. Counts come from the server-side
- * `event` summary so they match the Deck check tab exactly (ADR-033): `approved`
- * is the legality-review stage, `checked` the physical deck check.
- *
- * @returns The Decks tile with the deck total and an approved/checked breakdown.
- */
+/** Counts come from the server-side `event` summary so they match the Deck check tab exactly. */
 function DecksTile({ id }: { id: string }) {
   const { data } = useTournamentDeckCheckEntries(id);
   return (
@@ -84,12 +70,7 @@ function DecksTile({ id }: { id: string }) {
   );
 }
 
-/**
- * What the viewer's own deck is waiting on, as the tile's hint. Only the first
- * two states are the player's move, so only those accent the tile.
- *
- * @returns The hint line, and whether the deck needs the viewer.
- */
+/** Only the first two states are the player's move, so only those accent the tile. */
 function myDeckStatus(
   entry: NonNullable<TournamentDetailResponse["myDeckEntry"]>,
   deckPhase: TournamentDetailResponse["deckPhase"],
@@ -113,13 +94,7 @@ function myDeckStatus(
   return { hint: "View your list.", needsViewer: false };
 }
 
-/**
- * The viewer's own deck. The one deck-check surface a plain entrant sees: the
- * Decks tile beside it is the judging queue and stays staff-gated, so without
- * this tile a player has no route to the list they handed in (ADR-033).
- *
- * @returns The My deck tile.
- */
+/** The one deck-check surface a plain entrant sees; the Decks tile beside it stays staff-gated. */
 function MyDeckTile({
   id,
   entry,
@@ -144,7 +119,6 @@ function MyDeckTile({
   );
 }
 
-/** The entry lifecycle as the tile's headline value (ADR-027). */
 const MY_DECK_STATE_LABEL: Record<
   NonNullable<TournamentDetailResponse["myDeckEntry"]>["state"],
   string
@@ -156,14 +130,6 @@ const MY_DECK_STATE_LABEL: Record<
   withdrawn: "Withdrawn",
 };
 
-/**
- * The field, as the main column's wide tile: the headline count with the
- * facepile, and the two facts an organizer chases — who dropped, and who still
- * has no region (region assignment is manager-only, so the second half only
- * shows for viewers who can act on it).
- *
- * @returns The Participants tile.
- */
 function ParticipantsTile({
   id,
   detail,
@@ -200,13 +166,7 @@ function ParticipantsTile({
   );
 }
 
-/**
- * The pending join requests, as the band that most needs the viewer. Static
- * (no `render`): the approve/deny rows are real buttons, and a band-wide link
- * around them would nest interactive elements.
- *
- * @returns The join-requests band, or null when nothing is pending.
- */
+/** No `render`: the approve/deny rows are real buttons, and a band-wide link would nest interactive elements. */
 function JoinRequestsBand({
   id,
   pending,
@@ -220,9 +180,8 @@ function JoinRequestsBand({
     try {
       await action();
     } catch {
-      // The failure is reported by the global mutation onError toast; swallow
-      // the rejection here so the `void run(...)` call sites don't surface it
-      // as an uncaught promise.
+      // Reported by the global mutation onError toast; swallowed so the
+      // `void run(...)` call sites don't surface it as an uncaught promise.
     }
   }
 
@@ -285,13 +244,7 @@ function JoinRequestsBand({
   );
 }
 
-/**
- * The round band's trailing CTA. A span with Button's classes, not a Button:
- * the whole band is the anchor, and a nested interactive element would be
- * invalid HTML. The group-hover overrides re-key the hover styles to the band.
- *
- * @returns The CTA span.
- */
+/** A span with Button's classes, not a Button: the whole band is the anchor, and a nested interactive element would be invalid HTML. */
 function BandCta({ children, accent }: { children: ReactNode; accent: boolean }) {
   return (
     <span
@@ -306,14 +259,6 @@ function BandCta({ children, accent }: { children: ReactNode; accent: boolean })
   );
 }
 
-/**
- * The running round, as the main column's lead band: how much of the round is
- * in, and which pods are still holding it up. Before round 1 exists it becomes
- * the "generate the first round" nudge, and once the event is over it reads as
- * a finished record rather than an open action.
- *
- * @returns The round band.
- */
 function RoundBand({
   id,
   detail,
@@ -326,8 +271,6 @@ function RoundBand({
   const manage = canManageTournament(detail.myRoles);
   const finished = isFinished(detail);
   const round = run.rounds.at(-1);
-  // Named per pairing, by seat count — the rule the pairings view already uses,
-  // so a 1v1 reads as a match on both surfaces.
   const noun = pairingPluralNoun(round?.pods.map((pod) => pod.size) ?? []);
 
   if (!round) {
@@ -388,13 +331,6 @@ function RoundBand({
   );
 }
 
-/**
- * The standings throne: the podium under a header that links through to the
- * full table, with ranks 4-5 as trailing rows so the module stays a standings
- * surface rather than a trophy cabinet.
- *
- * @returns The throne module.
- */
 function ThroneModule({
   id,
   run,
@@ -406,11 +342,8 @@ function ThroneModule({
   pairingStyle: TournamentDetailResponse["pairingStyle"];
   playMode: TournamentDetailResponse["playMode"];
 }) {
-  // Standings arrive sorted and tie-broken by the engine. The rank is NOT the
-  // row's position: players level on points share one (1, 1, 3), and the rule
-  // lives in standingRanks so this throne and the Standings page can never
-  // disagree about who is second.
-  // 2v2 collapses teammate rows into one seat per team, like the full table.
+  // Rank is not row position: players level on points share one (1, 1, 3);
+  // the rule lives in standingRanks so this throne and the Standings page agree.
   const rows = playMode === "2v2" ? collapseTeamStandings(run.standings) : run.standings;
   const played = rows.filter((row) => row.roundsPlayed > 0);
   const ranks = standingRanks(played);
@@ -482,13 +415,6 @@ const ROUND_DOT_CLASS = {
   next: "bg-muted-foreground/30",
 } as const;
 
-/**
- * The rail's rounds list: every round with its status, plus the next round as a
- * dimmed row while one can still be generated — so the rail shows the shape of
- * the whole event, not only what has happened.
- *
- * @returns The rounds section.
- */
 function RoundsRail({
   id,
   detail,
@@ -548,12 +474,7 @@ function RoundsRail({
   );
 }
 
-/**
- * The rail's staff list. Manager-only: `detail.staff` is populated for every
- * viewer, but who judges an event is organizer context, not public billing.
- *
- * @returns The staff section.
- */
+/** `detail.staff` is populated for every viewer; who judges an event is organizer context, not public. */
 function StaffRail({ id, detail }: { id: string; detail: TournamentDetailResponse }) {
   const hasJudges = detail.staff.some((member) => member.role === "judge");
   return (
@@ -588,12 +509,7 @@ function StaffRail({ id, detail }: { id: string; detail: TournamentDetailRespons
   );
 }
 
-/**
- * The round band, throne, and rounds rail, split out so the pod-engine
- * run-state query only runs for tournaments that actually pair rounds.
- *
- * @returns The round-driven modules for the given slot.
- */
+/** Split out so the pod-engine run-state query only runs for tournaments that actually pair rounds. */
 function RunStateModules({
   id,
   detail,
@@ -626,15 +542,8 @@ function RunStateModules({
 }
 
 /**
- * The tournament overview / dashboard: the join requests and the running round
- * lead the main column, the standings throne sits under them, and the field and
- * decks close it out, with the rounds and staff as the rail's context.
- *
- * The participant roster is staff-gated on the API (it carries the claim
- * links), so only the staff variant subscribes to it; a plain participant gets
- * the same dashboard without the roster-derived hints.
- *
- * @returns The overview-page content.
+ * The participant roster is staff-gated on the API, so only the staff variant
+ * subscribes to it; a plain participant gets the dashboard without the roster-derived hints.
  */
 export function TournamentOverviewTab({
   id,
@@ -651,15 +560,12 @@ export function TournamentOverviewTab({
   );
 }
 
-/** @returns The overview with the staff-only roster hints resolved. */
 function StaffOverviewTab({ id, detail }: { id: string; detail: TournamentDetailResponse }) {
   const manage = canManageTournament(detail.myRoles);
   const { data: participants } = useTournamentParticipants(id);
 
   const pending = participants.items.filter((p) => p.status === "requested");
   const droppedCount = participants.items.filter((p) => p.status === "dropped").length;
-  // Region assignment is a manager action, so the gap is only worth naming to
-  // someone who can close it.
   const missingRegionCount =
     manage && detail.regionsEnabled
       ? participants.items.filter((p) => p.status === "active" && p.region === null).length
@@ -676,7 +582,6 @@ function StaffOverviewTab({ id, detail }: { id: string; detail: TournamentDetail
   );
 }
 
-/** @returns The overview layout, shared by the staff and participant variants. */
 function OverviewTabBody({
   id,
   detail,

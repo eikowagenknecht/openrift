@@ -23,7 +23,6 @@ export function PricingSection({
   const { data: history } = usePriceHistory(printing.id, range);
   const prices = usePrices();
 
-  /** @returns The latest headline price for a marketplace (from price history snapshots). */
   function latestPrice(marketplace: Marketplace): number | null {
     const snapshots = history?.[marketplace]?.snapshots;
     if (!snapshots?.length) {
@@ -33,9 +32,7 @@ export function PricingSection({
     return snapshotHeadline(snapshots.at(-1)!);
   }
 
-  // Resolve which marketplaces have data to show. We prefer the latest catalog
-  // price (available without waiting for history to load) and fall back to the
-  // last history snapshot if the catalog has no entry yet.
+  // Catalog price is preferred over history since it doesn't wait on history to load.
   const chips: {
     marketplace: Marketplace;
     value: number;
@@ -101,11 +98,6 @@ function PriceChip({
     </>
   );
 
-  // Every chip gets the same variant on purpose. Highlighting the favorite as
-  // outline against ghost siblings is the visual grammar of a segmented control
-  // with one item active, which had users clicking these to switch the price
-  // chart's source and landing on the marketplace instead. The favorite is
-  // still signalled by coming first.
   const variant = "outline" as const;
   const chipClassName = cn("font-semibold", priceColorClass(value));
 

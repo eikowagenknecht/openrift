@@ -18,13 +18,6 @@ import {
   useShareListWithFriendGroup,
 } from "@/hooks/use-friend-groups";
 
-/**
- * One-time prompt shown right after a member joins a group (accepts an invite),
- * the deliberate point of consent that replaces the old share-by-default. Lists
- * the member's wish/trade lists pre-selected so a single click shares them, but
- * sharing only happens when they confirm — skipping shares nothing.
- * @returns The dialog node.
- */
 export function ShareListsWithGroupDialog({
   slug,
   groupName,
@@ -37,13 +30,7 @@ export function ShareListsWithGroupDialog({
   groupName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Footer dismiss label. Defaults to the join-flow "Skip for now". */
   cancelLabel?: string;
-  /**
-   * Whether to start with every candidate checked. True for the join flow's
-   * one-click "share them all"; false for a deliberate "Share more", where the
-   * member wants to pick what to add.
-   */
   preselectAll?: boolean;
 }) {
   return (
@@ -89,8 +76,6 @@ function ShareListsBody({
   );
   const candidates = tradableLists.filter((item) => item.sharedAt === null);
 
-  // The join flow pre-checks everything for a one-click "share them all"; a
-  // deliberate "Share more" starts empty so the member picks what to add.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(preselectAll ? candidates.map((item) => item.listId) : []),
   );

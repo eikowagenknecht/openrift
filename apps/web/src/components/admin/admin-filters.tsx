@@ -8,21 +8,14 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
-/** One choice in an {@link AdminFilterSelect}. */
 export interface AdminFilterOption {
   value: string;
   label: string;
 }
 
 /**
- * A dropdown filter in an admin toolbar's filter row. The off state is one of
- * the options, which each page names for itself.
- *
- * `label` is required rather than optional: `SelectValue` renders the selection
- * alone, so without it the trigger reaches a screen reader as an unnamed
- * combobox.
- *
- * @returns The filter dropdown.
+ * `label` is required: `SelectValue` renders the selection alone, so without
+ * it the trigger reaches a screen reader as an unnamed combobox.
  */
 export function AdminFilterSelect({
   value,
@@ -34,9 +27,7 @@ export function AdminFilterSelect({
   value: string;
   onChange: (value: string) => void;
   options: AdminFilterOption[];
-  /** Accessible name for the trigger, e.g. "Triage state". */
   label: string;
-  /** Width class for the trigger, e.g. "w-44". */
   className?: string;
 }) {
   // BaseUI types a single select's value as nullable for the case where an item
@@ -66,8 +57,6 @@ export function AdminFilterSelect({
 /**
  * A boolean filter in an admin toolbar's filter row. The label is clickable, so
  * `id` has to be unique on the page.
- *
- * @returns The filter switch and its label.
  */
 export function AdminFilterSwitch({
   id,

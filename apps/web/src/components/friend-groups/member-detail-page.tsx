@@ -37,25 +37,8 @@ const LIST_SECTIONS: { intent: Extract<ListIntent, "wish" | "trade">; heading: s
   { intent: "trade", heading: "Tradelists" },
 ];
 
-/**
- * The one-line state of play with this member, for the summary card that stands
- * in for the trade rows and suggestions the trade sheet now owns. Parts that
- * are zero are left out rather than printed as "0", so the line only ever says
- * something is there.
- * @param openCount Live trades with the member (in progress plus awaiting them).
- * @param needsYouCount How many of those are waiting on the viewer.
- * @param matchCount Distinct suggestions the matcher found with them.
- * @param tradedCount Trades with them whose cards changed hands.
- * @returns The summary sentence.
- */
-// Every count it takes is person-level (pooled across shared groups), which is
-// what makes the "nothing" case safe to say on a page that lives inside one
-// group.
-//
-// The finished trades are in here because the fallback claims a fact it was not
-// measuring: with nothing open and nothing suggested, the line read "Nothing
-// traded yet" at someone the viewer had swapped 58 cards with. It now only says
-// that when there is genuinely no history either.
+// tradedCount keeps the fallback honest: without it, a member you'd traded 58
+// cards with could still read "Nothing traded yet".
 function tradeSummaryLine(
   openCount: number,
   needsYouCount: number,
@@ -78,13 +61,8 @@ function tradeSummaryLine(
   return parts.length > 0 ? parts.join(" · ") : "Nothing traded yet";
 }
 
-/**
- * The Trades section: the one-line state of play and the hand-off button to
- * the person-level trade sheet. Its own component because it fetches that
- * sheet, which the API (rightly) refuses to open for the viewer themself —
- * the page mounts this only for other members.
- * @returns The trades section.
- */
+// Own component: the API refuses to open a trade sheet for the viewer's own
+// page, so this is mounted only for other members.
 function MemberTradeSection({
   slug,
   userId,
@@ -96,22 +74,14 @@ function MemberTradeSection({
   userId: string;
   groupId: string;
   memberName: string;
-  /** Whether the member shares any list or collection with this group. */
   hasSharedAnything: boolean;
 }) {
   const { data: tradesData } = useGroupTrades(groupId);
   const { data: allTradesData } = useUserTrades();
-  // The same pooled matches the trade sheet renders, rather than this group's
-  // own: the summary below stands in for that page, and a group-scoped count
-  // under person-scoped trade counts said "nothing" about a member the sheet
-  // then showed suggestions for.
   const { data: sheet } = useTradeSheet(userId);
 
-  // Drop match suggestions that already have a live trade with this member for
-  // the same card — here or in another shared group — so a suggestion and the
-  // trade it became aren't counted twice. Mirrors the Trades page's
-  // SuggestedSection, with the same fallback to the group's own trades until
-  // the all-groups list loads.
+  // Drops suggestions that already have a live trade with this member, so a
+  // suggestion and the trade it became aren't counted twice.
   const liveTrades = allTradesData?.items ?? tradesData?.items ?? [];
   const incomingMatches = withoutLiveTradeMatches(sheet.othersHaveYourWants, liveTrades);
   const outgoingMatches = withoutLiveTradeMatches(sheet.othersWantYourHaves, liveTrades);
@@ -123,10 +93,8 @@ function MemberTradeSection({
   const matchCount = countTradeSuggestions(incomingMatches, outgoingMatches);
   const tradeSummary = tradeSummaryLine(openCount, actionNeeded.length, matchCount, tradedCount);
 
-  // A member with no shares AND nothing between the two of you would show a
-  // "Nothing traded yet" card pointing at an empty trade sheet, right above a
-  // "hasn't shared anything" line: two empties stacked. Fold both facts into
-  // one honest empty state instead.
+  // Otherwise a member with no shares and no trades would show a "Nothing
+  // traded yet" card stacked on a "hasn't shared anything" line.
   if (!hasSharedAnything && openCount === 0 && matchCount === 0 && tradedCount === 0) {
     return (
       <EmptyState
@@ -147,8 +115,6 @@ function MemberTradeSection({
         </Button>
       </Card>
       {hasSharedAnything ? null : (
-        // The shares sections below render nothing for this member, so the
-        // sharing gap is said here, under the (non-empty) trade summary.
         <p className="text-muted-foreground">
           {memberName} hasn&apos;t shared any collections or lists with this group yet.
         </p>
@@ -180,8 +146,6 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
           { label: member.userName ?? "Member" },
         ]}
       />
-      {/* Card names in the trade and match rows below open the detail overlay
-          the provider mounts — the same as on the group's Trades page. */}
       <CardDetailOverlayProvider>
         <div className={cn(PAGE_WIDTH.capped, "flex flex-col gap-6", PAGE_PADDING)}>
           <header>
@@ -195,11 +159,6 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
             </PersonPageHeader>
           </header>
 
-          {/* Everything about trading with this member — the live rows, the
-              suggestions and the history — lives on the person-level trade
-              sheet, which pools every group the two share. This page keeps the
-              headline and hands off. On the viewer's own page there is no
-              counterparty, so the section stands down. */}
           {isSelf ? null : (
             <MemberTradeSection
               slug={slug}
@@ -248,9 +207,6 @@ export function MemberDetailPage({ slug, userId }: MemberDetailPageProps) {
               })
             : null}
 
-          {/* Non-self pages say the sharing gap inside the trade section (or
-              its combined empty state); only the viewer's own page needs it
-              here, phrased at them. */}
           {isSelf && !hasShares && !hasCollections ? (
             <p className="text-muted-foreground">
               You haven&apos;t shared any collections or lists with this group yet.

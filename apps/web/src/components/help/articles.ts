@@ -27,7 +27,6 @@ export interface HelpArticle {
   description: string;
   icon: LucideIcon;
   component: () => Promise<{ default: ComponentType }>;
-  /** When set, the article is only visible if this feature flag is enabled. */
   featureFlag?: string;
 }
 
@@ -202,12 +201,8 @@ export const helpArticles = new Map<string, HelpArticle>([
 export const helpArticleList = [...helpArticles.values()];
 
 /**
- * The articles a visitor may see: unflagged ones always, flagged ones only
- * once their flag is on. Every surface that lists articles (the index, the FAQ
- * structured data) must go through this — filtering on the presence of
- * `featureFlag` alone hides an article even after its flag ships.
- *
- * @returns The visible articles, in declaration order.
+ * Every article-listing surface must filter through this, not on the raw
+ * presence of `featureFlag`, or an article stays hidden after its flag ships.
  */
 export function visibleHelpArticles(flags: FeatureFlags): HelpArticle[] {
   return helpArticleList.filter(

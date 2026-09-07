@@ -16,13 +16,6 @@ import {
 import { crossSourceAutoLinks, crossSourceProgress } from "@/lib/meta-cross-source";
 import { sourceProviderDisplay } from "@/lib/meta-source-review";
 
-/**
- * The cross-mirror review for one event (ADR-014, "Two mirrors on one event"):
- * one decision per entry a cited-but-unread mirror publishes. "Link every
- * exact match" writes only the entries whose name and finish both match one
- * live row and only one; everything else waits for a person.
- */
-
 function StateBadge({ row }: { row: MetaCrossSourceRow }) {
   if (row.state === "linked") {
     return <Badge>linked</Badge>;
@@ -197,7 +190,6 @@ export function MetaCrossSourcePanel({
   enabled,
 }: {
   metaEventId: string;
-  /** False while the panel's disclosure is closed, so a mirror's standings are not ranked for nothing. */
   enabled: boolean;
 }) {
   const { data, isPending, isError } = useMetaCrossSourceReview(metaEventId, enabled);

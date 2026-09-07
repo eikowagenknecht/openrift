@@ -3,17 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useEmailNotifications } from "@/hooks/use-email-notifications";
 
-/**
- * Admin-only notification settings (ADR-036). Rendered by the profile page only
- * for full admins; the toggle is off by default, so a newly promoted admin never
- * starts receiving another admin's review mail.
- * @returns The admin notifications card.
- */
 export function AdminNotificationsSection() {
   const { gates, isLoading, isSaving, setChannel } = useEmailNotifications();
-  // Same rule as the trading email controls: disabled while the saved values
-  // load (so the switch never shows an interactive but wrong position) and
-  // during a save.
   const disabled = isLoading || isSaving;
 
   return (

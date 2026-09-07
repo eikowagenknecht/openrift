@@ -38,24 +38,9 @@ import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 // tables live on the admin Cards page, sync their sort/filter state to the
 // same route's search params, and virtualize their rows the same way.
 
-// ---------------------------------------------------------------------------
-// Feature set
-// ---------------------------------------------------------------------------
-
 /**
- * Both admin card tables sort and global-filter, and nothing else. No
- * pagination, no selection, no pinning. v9 only ships the features registered
- * here, so the rest never reaches the bundle.
- *
- * `globalFilteringFeature` and the filtered row model both build on
- * `columnFilteringFeature`, hence its presence even though no column carries
- * its own filter. The registry keys are the only strings the `sortFn` column
- * and table options accept.
- *
- * No `filterFns` registry: both tables pass a `globalFilterFn` function that
- * calls `matchesCardQuery`, so a typed apostrophe still finds the catalogue's
- * typographic one. The built-in `includesString` compares raw lowercased text
- * and misses those, which is why nothing here registers it.
+ * v9 only ships the features registered here. No `filterFns`: the built-in
+ * `includesString` misses the catalogue's typographic apostrophes.
  */
 export const adminCardTableFeatures = tableFeatures({
   columnFilteringFeature,
@@ -68,18 +53,7 @@ export const adminCardTableFeatures = tableFeatures({
 
 export type AdminCardTableFeatures = typeof adminCardTableFeatures;
 
-// ---------------------------------------------------------------------------
-// Sort / global filter URL sync
-// ---------------------------------------------------------------------------
-
-/**
- * Wires a table's `sorting`/`globalFilter` state to the admin Cards route's
- * search params, so react-table state changes push a URL update instead of
- * local state.
- * @param sorting Current sorting state, as read from `CardsRoute.useSearch`.
- * @param globalFilter Current global filter string, as read from `CardsRoute.useSearch`.
- * @returns `onSortingChange` / `onGlobalFilterChange` handlers for `useTable`.
- */
+/** Wires a table's `sorting`/`globalFilter` state to the admin Cards route's search params. */
 export function useAdminCardsTableUrlSync(sorting: SortingState, globalFilter: string) {
   const navigate = useNavigate({ from: CardsRoute.fullPath });
 
@@ -102,21 +76,12 @@ export function useAdminCardsTableUrlSync(sorting: SortingState, globalFilter: s
   return { handleSortingChange, handleGlobalFilterChange };
 }
 
-// ---------------------------------------------------------------------------
-// Row virtualization
-// ---------------------------------------------------------------------------
-
 const ROW_HEIGHT = 41;
 const OVERSCAN = 20;
 
 /**
- * Window-virtualizes a table's rows and tracks the tbody's document offset.
- * Without virtualization, clearing the search filter renders 2000+ rows from
- * scratch and freezes the browser for seconds. `scrollMargin` is the tbody's
- * document offset — `useWindowVirtualizer` reports item start/end in document
- * space (offset by scrollMargin), which callers correct for in spacer rows.
- * @param rowCount Number of rows currently in the table's row model.
- * @returns The tbody ref to attach, plus the virtualizer's items/total size/scroll margin.
+ * `scrollMargin` is the tbody's document offset: `useWindowVirtualizer`
+ * reports item start/end in document space, which callers correct for in spacer rows.
  */
 export function useVirtualizedTableRows(rowCount: number) {
   const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
@@ -139,17 +104,6 @@ export function useVirtualizedTableRows(rowCount: number) {
   return { tableAnchorRef, virtualItems, totalSize, scrollMargin };
 }
 
-// ---------------------------------------------------------------------------
-// Virtualized table rendering
-// ---------------------------------------------------------------------------
-
-/**
- * Renders a react-table instance's header and virtualized rows inside a
- * `table-fixed` layout, using the leading/trailing spacer rows that
- * `useVirtualizedTableRows` requires.
- * @param props Table instance, its row model, virtualizer output, and per-column widths.
- * @returns The `<Table>` element.
- */
 export function VirtualizedAdminCardTable<TData extends RowData>({
   table,
   rows,
@@ -187,13 +141,8 @@ export function VirtualizedAdminCardTable<TData extends RowData>({
         ))}
       </TableHeader>
       <TableBody ref={tableAnchorRef}>
-        {/*
-          Spacer offsets are tbody-relative. useWindowVirtualizer reports
-          virtualItem.start/.end in document space (offset by scrollMargin),
-          so subtract scrollMargin from the leading spacer and add it back
-          into the trailing spacer so together they reserve exactly
-          `totalSize` (the virtualized region's own height).
-        */}
+        {/* Spacer offsets are tbody-relative; virtual items are reported in
+            document space, so scrollMargin is subtracted here and added back below. */}
         {virtualItems.length > 0 && (
           // oxlint-disable-next-line jsx-a11y/control-has-associated-label -- TanStack Virtual spacer row, no semantic content
           <tr style={{ height: virtualItems[0].start - scrollMargin }} />
@@ -202,12 +151,8 @@ export function VirtualizedAdminCardTable<TData extends RowData>({
           const row = rows[virtualRow.index];
           return (
             <TableRow key={row.id} data-index={virtualRow.index}>
-              {/* getAllCells, not getVisibleCells: the latter belongs to
-                  columnVisibilityFeature, which these tables don't register.
-                  Both yield the same cells while no column can hide, but
-                  adding columnVisibilityFeature means switching back in the
-                  same change — getHeaderGroups() filters by visibility on its
-                  own, so the headers would shrink while the cells wouldn't. */}
+              {/* getAllCells, not getVisibleCells: the latter needs
+                  columnVisibilityFeature, which these tables don't register. */}
               {row.getAllCells().map((cell) => (
                 <TableCell key={cell.id} className="whitespace-normal">
                   <FlexRender cell={cell} />

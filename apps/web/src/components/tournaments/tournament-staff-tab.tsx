@@ -68,8 +68,6 @@ const ORG_ROLE_LABEL: Record<"owner" | "manager" | "judge", string> = {
   judge: "Judge",
 };
 
-/** Per-role section chrome: plural heading, empty-state icon, and the noun the
- * empty copy and the invite dialog both read. */
 const ROLE_SECTION: Record<
   TournamentStaffRole,
   { heading: string; icon: ComponentType<SVGProps<SVGSVGElement>>; empty: string }
@@ -83,9 +81,6 @@ export function TournamentStaffTab({ detail }: { detail: TournamentDetailRespons
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Grouped by role rather than in API order: the question this page
-          answers first is "does the event have a judge?", which an interleaved
-          flat list can't answer at a glance. */}
       <StaffRoleSection detail={detail} staffRole="organizer" host={host} />
       <StaffRoleSection detail={detail} staffRole="judge" host={host} />
 
@@ -109,11 +104,6 @@ export function TournamentStaffTab({ detail }: { detail: TournamentDetailRespons
   );
 }
 
-/**
- * One role's staff, under a counted heading. An empty group says so rather
- * than vanishing — a tournament with no judge is a fact the host needs to see.
- * @returns The role section.
- */
 function StaffRoleSection({
   detail,
   staffRole,
@@ -183,9 +173,6 @@ function StaffRow({
       <UserAvatar name={member.name} className="size-9 shrink-0" />
       <span className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate font-medium">{member.name ?? member.userId}</span>
-        {/* The role is the section heading now, so the only chip left is the
-            one that changes what you can do: org-derived staff can't be
-            removed here. Full provenance rides along as the title. */}
         {member.source === "organization" && member.orgRole ? (
           <Badge
             variant="subtle"
@@ -215,25 +202,13 @@ function StaffRow({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : host ? (
-        // Org-derived rows have no menu; the spacer keeps their name column
-        // ending where the removable rows' does. Non-hosts see no menu on any
-        // row, so the column doesn't exist and needs no spacer.
+        // Keeps the name column aligned with rows that do have a menu.
         <span aria-hidden="true" className="size-7 shrink-0" />
       ) : null}
     </Card>
   );
 }
 
-/**
- * The host's reusable staff-invite links as the page's action band. One row per
- * role, always the same shape: anyone the host shares a link with confirms
- * while logged in to take the role, so no email or user search is needed.
- * Disabling retires the link (confirmed, since it breaks any link already
- * shared); creating again mints a fresh one.
- *
- * Static band — its rows hold real buttons, so it takes no `render`.
- * @returns The invite-link band for organizer and judge.
- */
 function StaffInviteBand({ detail }: { detail: TournamentDetailResponse }) {
   const activeCount = [detail.organizerInviteToken, detail.judgeInviteToken].filter(
     (token) => token !== null,
@@ -267,14 +242,13 @@ function StaffInviteRow({
   const [disableOpen, setDisableOpen] = useState(false);
   const roleLabel = STAFF_ROLE_LABEL[staffRole];
   const roleNoun = staffRole === "judge" ? "a judge" : "an organizer";
-  // Built from the env-backed origin, never a hardcoded site URL.
   const url = token ? `${getSiteUrl()}/tournaments/staff-invite/${token}` : null;
 
   async function run(enabled: boolean) {
     try {
       await setInvite.mutateAsync({ id, role: staffRole, enabled });
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   }
 
@@ -284,9 +258,6 @@ function StaffInviteRow({
   }
 
   return (
-    // The role chip sits on its own line above the link rather than inside it:
-    // ShareLinkRow already wraps its field and buttons, and squeezing a badge
-    // into that row is what crushed the URL to a few pixels on a phone before.
     <div className="bg-muted flex flex-col gap-2 rounded-lg px-2.5 py-2">
       <div className="flex items-center gap-2">
         <Badge variant="outline" className="shrink-0">
@@ -340,12 +311,6 @@ function StaffInviteRow({
   );
 }
 
-/**
- * The "Add staff" top-bar action for the tournament Staff section: opens the
- * candidate-picker dialog. Lifted out of the staff list so it lives in the
- * page's top bar. Render only for the tournament host.
- * @returns The top-bar button and its dialog.
- */
 export function TournamentStaffAddButton({ tournamentId }: { tournamentId: string }) {
   const [addOpen, setAddOpen] = useState(false);
 

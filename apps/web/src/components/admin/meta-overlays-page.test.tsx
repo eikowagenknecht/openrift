@@ -196,7 +196,6 @@ function overlay(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueue
   };
 }
 
-/** An unanchored standings overlay whose match is what the test says. */
 function loose(overrides: Partial<MetaOverlayQueueRow> = {}): MetaOverlayQueueRow {
   return overlay({
     metaEventPlayerId: null,

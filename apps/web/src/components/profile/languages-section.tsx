@@ -48,7 +48,6 @@ export function LanguagesSection({
     setLanguages(next);
   }
 
-  // Show enabled languages first (in user order), then disabled ones
   const orderedCodes = [
     ...languages,
     ...availableLanguages.filter((lang) => !enabledSet.has(lang.code)).map((lang) => lang.code),

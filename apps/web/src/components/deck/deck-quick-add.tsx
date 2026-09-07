@@ -31,28 +31,17 @@ import { ZONE_LABELS, zoneExpected } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 
-/** One place a result card can go, with the state the row needs to render. */
 interface AddTarget {
   zone: DeckZone;
-  /** Row label — "Main deck", "Set as Legend", … */
   label: string;
-  /** Legend picks in constructed replace rather than add. */
   kind: "add" | "legend";
-  /** The zone can't take the card right now (cap reached, wrong domain). */
   disabled: boolean;
-  /** Copies of this card already in the zone. */
   count: number;
-  /** The zone's format target, when it has one. */
   expected?: number;
 }
 
-/**
- * The zones a card can be quick-added to, natural home first. Legend cards in
- * constructed get the single replace action; everything else lists its real
- * zone options with live fullness checks, so Enter is always safe.
- * Exported for tests.
- * @returns The target rows for one search result.
- */
+// Legend cards in constructed get the single replace action; everything else lists
+// its real zone options with live fullness checks, so Enter is always safe.
 export function buildTargets(
   builderCard: DeckBuilderCard,
   deckCards: DeckBuilderCard[],
@@ -114,18 +103,9 @@ interface DeckQuickAddProps {
   onOpenChange: (open: boolean) => void;
   deckId: string;
   format: DeckFormat;
-  /** The live deck contents, for in-deck counts and fullness checks. */
   cards: DeckBuilderCard[];
 }
 
-/**
- * The deck editor's quick-add omnibar (Ctrl+K): type a card name, Enter adds
- * it to its natural zone without leaving the overview; ArrowRight picks
- * another target zone (sideboard, champion). Search and shell mirror the
- * collection quick-add palette; the add path is the deck builder's own, so
- * caps, rune rebalancing, and undo all behave exactly like the zone browser.
- * @returns The dialog (desktop) or drawer (mobile) host.
- */
 export function DeckQuickAdd({ open, onOpenChange, deckId, format, cards }: DeckQuickAddProps) {
   const isMobile = useIsMobile();
 
@@ -136,22 +116,12 @@ export function DeckQuickAdd({ open, onOpenChange, deckId, format, cards }: Deck
   );
 }
 
-/** Keeps mouse interaction from stealing focus off the search input. */
 function keepInputFocus(event: React.MouseEvent) {
   event.preventDefault();
 }
 
-/**
- * A result row, as a button when the whole row is the action and as a plain
- * container when it holds a stepper.
- *
- * The split is a markup constraint, not a style choice: {@link Pressable} is a
- * native `<button>`, so a row that contains the stepper's own buttons cannot be
- * one. Keyboard users are unaffected either way, since both palettes are driven
- * from the search input rather than by tabbing through rows.
- *
- * @returns The row element.
- */
+// Pressable renders a native <button>, so a row containing the stepper's own
+// buttons cannot be one: it renders as a plain container instead.
 function CardRowShell({
   selected,
   pressable,
@@ -209,8 +179,7 @@ function QuickAddInner({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [targetIndex, setTargetIndex] = useState(0);
-  // Session-scoped undo depth: Shift+Enter only rolls back adds made from
-  // this palette, never edits that predate opening it.
+  // Shift+Enter only rolls back adds made from this palette, never edits predating it.
   const [addsSinceOpen, setAddsSinceOpen] = useState(0);
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -223,7 +192,6 @@ function QuickAddInner({
       ? undefined
       : results.find((result) => result.cardId === expandedCardId);
 
-  // Card totals across every zone, for the ×N in-deck badges.
   const inDeckByCardId = new Map<string, number>();
   for (const card of cards) {
     inDeckByCardId.set(card.cardId, (inDeckByCardId.get(card.cardId) ?? 0) + card.quantity);
@@ -242,11 +210,7 @@ function QuickAddInner({
     return builderCard ? buildTargets(builderCard, cards, format) : [];
   };
 
-  /**
-   * The Enter-key target: the first zone that can take the card, falling back
-   * to the first row so a fully-capped card still reports something.
-   * @returns The default target, or undefined without printings.
-   */
+  // Falls back to the first row so a fully-capped card still reports something.
   const defaultTarget = (targets: AddTarget[]): AddTarget | undefined =>
     targets.find((target) => !target.disabled) ?? targets[0];
 
@@ -256,8 +220,7 @@ function QuickAddInner({
       return;
     }
     if (target.kind === "legend") {
-      // Constructed legends replace: prunes off-domain runes and auto-fills
-      // the rune deck, exactly like the zone browser's Choose button.
+      // Prunes off-domain runes and auto-fills the rune deck, like the zone browser's Choose button.
       setLegend(builderCard);
     } else {
       addCard(builderCard, target.zone, 1);
@@ -265,9 +228,7 @@ function QuickAddInner({
     setAddsSinceOpen((count) => count + 1);
   };
 
-  // The stepper's minus. Takes one copy out of the zone the stepper sits on,
-  // which is not what Shift+Enter does: that pops the deck's undo stack, so it
-  // reverses the last edit rather than the row you are looking at.
+  // Unlike Shift+Enter (which pops the undo stack), this removes from the zone directly.
   const performRemove = (cardId: string, target: AddTarget) => {
     if (target.kind === "legend" || target.count === 0) {
       return;
@@ -365,7 +326,6 @@ function QuickAddInner({
     }
   };
 
-  // Keep the highlighted row in view as the keyboard moves it.
   useScopeEffect(`${clampedIndex} ${targetIndex} ${expandedCardId ?? ""}`, () => {
     const nodes = listRef.current?.querySelectorAll('[data-selected="true"]');
     const node = nodes ? [...nodes].at(-1) : undefined;
@@ -374,7 +334,6 @@ function QuickAddInner({
     }
   });
 
-  // Preview the card the keyboard is on.
   const previewPrinting = (expanded ?? selected)?.defaultPrinting;
   const [failedImageId, setFailedImageId] = useState<string | null>(null);
   const rawPreviewImageId = previewPrinting?.images[0]?.imageId ?? null;
@@ -383,7 +342,6 @@ function QuickAddInner({
 
   return (
     <div className="relative flex min-h-0 flex-col">
-      {/* Card image preview — above the input on mobile */}
       {previewPrinting && previewImageId && isMobile && (
         <div className="mb-3 flex justify-center">
           <QuickAddPreview
@@ -395,7 +353,6 @@ function QuickAddInner({
         </div>
       )}
 
-      {/* Card image preview — floats left of the dialog on desktop */}
       {previewPrinting && previewImageId && (
         <div className="absolute top-0 right-full mr-3 hidden w-96 lg:block">
           <QuickAddPreview
@@ -421,8 +378,6 @@ function QuickAddInner({
             collapse();
           }}
           onKeyDown={handleKeyDown}
-          // The destination rides on the token, which survives typing; a
-          // placeholder repeating it would vanish at the first keystroke.
           placeholder="Search cards..."
           className="text-base sm:text-sm"
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open
@@ -467,10 +422,6 @@ function QuickAddInner({
           const rowDefault = defaultTarget(targets);
           return (
             <div key={card.cardId}>
-              {/* A row carrying a stepper is a container, not a Pressable:
-                  Pressable is a native button, and the stepper's own buttons
-                  cannot nest inside one. Rows without a stepper stay pressable,
-                  since clicking them is the only way to open their zones. */}
               <CardRowShell
                 selected={isSelected || isExpanded}
                 pressable={targets.length > 1}
@@ -510,9 +461,6 @@ function QuickAddInner({
                     )}
                   />
                 ) : rowDefault && rowDefault.kind === "add" ? (
-                  // One zone to choose from, so the row carries the stepper
-                  // itself. With several, the counts live on the zone rows in
-                  // the expansion, where taking a copy out names its zone.
                   <QuickAddStepper
                     count={rowDefault.count}
                     changed={rowDefault.count > 0}
@@ -541,8 +489,6 @@ function QuickAddInner({
                         : "hover:bg-muted",
                       target.disabled && "text-muted-foreground opacity-60",
                     );
-                    // A Legend replaces rather than accumulates, so it has no
-                    // count to step and the whole row stays the action.
                     if (target.kind === "legend") {
                       return (
                         <Pressable
@@ -567,9 +513,6 @@ function QuickAddInner({
                         onMouseEnter={() => setTargetIndex(index2)}
                       >
                         <span className="min-w-0 flex-1 truncate text-left">{target.label}</span>
-                        {/* Only the fact the stepper cannot carry. How many
-                            copies sit in this zone is the number between its
-                            buttons. */}
                         {target.disabled && <span className="shrink-0 text-xs">Full</span>}
                         <QuickAddStepper
                           count={target.count}

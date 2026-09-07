@@ -54,7 +54,6 @@ export default function WhyOpenRiftArticle() {
         </div>
       </section>
 
-      {/* What this site is (and isn't) */}
       <section>
         <Heading className="mb-3">What this site is (and isn&apos;t)</Heading>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -94,7 +93,6 @@ export default function WhyOpenRiftArticle() {
         </div>
       </section>
 
-      {/* Where OpenRift is catching up */}
       <section>
         <Heading className="mb-3">Where OpenRift is catching up</Heading>
         <p className="text-muted-foreground mb-3">
@@ -222,7 +220,6 @@ export default function WhyOpenRiftArticle() {
         </ul>
       </section>
 
-      {/* Tech stack */}
       <section>
         <Heading className="mb-3">Tech stack</Heading>
         <p className="text-muted-foreground mb-3">

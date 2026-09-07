@@ -155,15 +155,7 @@ function CameraInfoRows({ entries }: { entries: CameraInfoEntry[] }) {
 }
 
 /**
- * What the browser reported about the camera track the scanner opened.
- *
- * The scanner asks for `facingMode: environment` and accepts whatever comes
- * back, which on a multi-camera phone may be the ultra-wide rather than the
- * main lens. This is the panel that says which one it was, and whether the
- * device exposes a zoom knob at all, so lens choice can be measured before
- * anything automates it.
- *
- * @returns The diagnostics card.
+ * Requests `facingMode: environment`; on a multi-camera phone this can be the ultra-wide lens, not the main one.
  */
 function CameraCard({ info, active }: { info: CameraInfo | null; active: boolean }) {
   return (
@@ -323,7 +315,7 @@ function ServingCard({ serving }: { serving: ScanServing }) {
     try {
       started = await rebuild.mutateAsync();
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
       return;
     }
     if (started.status === "already_running") {
@@ -375,11 +367,8 @@ export function ScanTestPage() {
   // True once the user has picked a mode themselves; the slow-device
   // auto-switch below must never fight an explicit choice.
   const [modeChosen, setModeChosen] = useState(false);
-  // A live feed needs a secure context. Over a plain LAN dev server there is no
-  // camera API at all, and saying so beats an unexplained failure. Held back
-  // until hydration because the route is server-rendered: reading navigator
-  // during the SSR pass would make the server and an https client render
-  // different markup. Null means "not known yet".
+  // Held back until hydration: the route is server-rendered, and reading
+  // navigator during SSR would mismatch an https client. Null means "not known yet".
   const hydrated = useHydrated();
   const cameraAvailable = hydrated ? navigator.mediaDevices?.getUserMedia !== undefined : null;
 
@@ -413,8 +402,7 @@ export function ScanTestPage() {
   }, [bankUrl, labelsUrl]);
 
   // Destructured before any JSX: member access on the hook's return object
-  // during render makes the React Compiler bail with a refs-during-render
-  // error. Same rule as the dnd-kit hooks.
+  // during render makes the React Compiler bail with a refs-during-render error.
   const {
     videoRef,
     overlayRef,
@@ -438,10 +426,8 @@ export function ScanTestPage() {
   // SLOW_DEVICE_EMBED_MS for the measurements behind the factor.
   const predictedLockSeconds = Math.ceil((embedMsPerImage * 7.5) / 1000);
 
-  // Tap-to-scan IS the slow-device path: once the encoder self-bench says
-  // live scanning would crawl, flip the default mode over instead of only
-  // asking the user to. The measurement lands during engine init, before the
-  // camera can start, and an explicit mode choice is never overridden.
+  // Flips the default mode when the encoder self-bench says live scanning
+  // would crawl; an explicit mode choice is never overridden.
   if (deviceTooSlow && !modeChosen && settings.mode === "single") {
     setSettings((previous) => ({ ...previous, mode: "capture" }));
   }
@@ -565,9 +551,6 @@ export function ScanTestPage() {
                   {readout.fps} fps · {readout.totalMs.toFixed(0)}ms (detect{" "}
                   {readout.detectMs.toFixed(0)}, embed {readout.embedMs.toFixed(0)}, verify{" "}
                   {readout.verifyMs.toFixed(0)}) · focus {readout.focus.toFixed(0)} ·{" "}
-                  {/* Placements against locks: the throughput number for a
-                      stack session, where the failure mode is a card counted
-                      once too few rather than a wrong card. */}
                   {readout.placements} placed
                   {readout.missedPlacements > 0 && ` (${readout.missedPlacements} uncounted)`}
                   {readout.settling && " · settling"}

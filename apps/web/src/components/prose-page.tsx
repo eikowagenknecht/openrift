@@ -2,14 +2,8 @@ import type { ReactNode } from "react";
 
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * Article wrapper for long-form prose pages (legal notice, privacy policy).
- * Owns the shared `prose` typography styling so the legal pages don't each
- * repeat the class string. The page is a `capped` column like every other
- * non-grid page; the text inside stops at `max-w-prose` because line length,
- * not page width, is what makes a paragraph readable.
- * @returns The styled article element wrapping `children`.
- */
+// Nested inside the `capped` page width: `max-w-prose` here caps the line
+// length inside it, which is narrower than the page column.
 export function ProsePage({ children }: { children: ReactNode }) {
   return (
     <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING)}>

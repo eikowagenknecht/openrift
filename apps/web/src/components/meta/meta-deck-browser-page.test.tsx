@@ -89,8 +89,6 @@ vi.mock("@/components/layout/page-top-bar", () => ({
   PageTopBarTitle: ({ children }: { children?: React.ReactNode }) => <h1>{children}</h1>,
 }));
 
-// The scope bar and the fanned deck art pull chrome these tests do not exercise;
-// what matters here is which lists the page puts on the screen.
 vi.mock("@/components/meta/meta-scope-bar", () => ({ MetaScopeBar: () => null }));
 vi.mock("@/components/deck/deck-tile", () => ({ FannedPreview: () => null }));
 
@@ -149,7 +147,6 @@ describe("MetaDeckBrowserPage", () => {
     useDisplayStore.setState({ metaDeckView: "list" });
   });
 
-  // Rows render a column and a card arrangement, so a text can appear twice.
   const seen = (text: string) => screen.queryAllByText(text).length > 0;
 
   const lastSearch = () =>

@@ -49,7 +49,6 @@ const LEGEND_INDEX_GRID =
 
 const SortButton = IndexSortButton<MetaLegendIndexSort>;
 
-/** The best placing's chip: a medal for the podium, the ordinal for the rest. */
 function Rank({ rank, rankIsTier }: { rank: number; rankIsTier: boolean }) {
   return (
     <span className="flex w-10 shrink-0 justify-center">
@@ -64,7 +63,6 @@ function Rank({ rank, rankIsTier }: { rank: number; rankIsTier: boolean }) {
   );
 }
 
-/** The best finish's second line: the event's date and, where published, its field size. */
 function bestFinishFacts(entry: MetaLegendIndexEntry): string {
   const { event } = entry.bestFinish;
   const parts = [formatDay(event.eventDate)];
@@ -99,11 +97,7 @@ function LegendArt({ entry, className }: { entry: MetaLegendIndexEntry; classNam
   );
 }
 
-/**
- * One legend's record, in the two arrangements the index needs: a column row
- * from `sm` up, and a card row on phones. Both live in the same link, so a
- * legend is one click target and one entry in the tab order at every width.
- */
+/** Both size variants share one Link so a legend is one click target and one tab stop. */
 function LegendRow({ entry }: { entry: MetaLegendIndexEntry }) {
   const { champion, title } = splitLegendName(entry.legend.name);
   const best = entry.bestFinish;
@@ -190,10 +184,6 @@ function LegendSearchBox({
   );
 }
 
-/**
- * The column labels, each a sort control. Hidden on phones, where the rows are
- * cards rather than columns and there is nothing for a header to label.
- */
 function SortHeader({
   sort,
   direction,
@@ -227,17 +217,7 @@ function SortHeader({
   );
 }
 
-/**
- * `/meta/legends` — every legend the archive holds a result for, with its
- * record inside the scope bar's selection: best finish, event wins, and how
- * much is on file.
- *
- * The era the scope names ships as one payload (ADR-014), so the search box, the
- * remaining facets and the column sort all run client-side, joining each
- * legend's per-event records against it. A record whose event fell outside the
- * era drops out, which is what the scope did to it anyway. Every number is a
- * fact about one legend's own record, never a rate or a share.
- */
+/** The scoped era ships as one payload, so search, facets, and sort all run client-side against it. */
 export function MetaLegendsPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();

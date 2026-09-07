@@ -9,17 +9,8 @@ import { metaEventWinners } from "@/lib/meta-front-page";
 import { cn } from "@/lib/utils";
 
 /**
- * One archived event with its podium as indented rows, for the front page's
- * premier and competitive sections: the local row's anatomy plus the
- * deck hero's band, with the winner's legend art blurred behind it, the domain
- * glow, and the podium's legends as a `CardFan` beside the standings.
- *
- * The fan sits over the podium rows only, so the heading stays full width and
- * an event with no legend art closes up its reservation entirely.
- *
- * The whole block is one link, so the legend names inside stay unlinked
- * (an anchor inside an anchor is invalid); the legend pages remain one step
- * away on the event page.
+ * The whole block is one link, so legend names inside stay unlinked
+ * (an anchor inside an anchor is invalid).
  */
 export function MetaFrontEventBlock({ event }: { event: MetaEventSummary }) {
   const bandLegend =
@@ -50,7 +41,6 @@ export function MetaFrontEventBlock({ event }: { event: MetaEventSummary }) {
           <span
             className={cn(
               "relative flex flex-col gap-0.5",
-              // The reservation is the fan's alone; without one the rows close up.
               fanCovers.length > 0 && "sm:min-h-26 sm:pr-40",
               "sm:pl-12",
             )}

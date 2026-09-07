@@ -10,10 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { cn } from "@/lib/utils";
 
-/** Short codes used in the diagram, in display order. */
 const DIAGRAM_SHORT_CODES = ["OGN-007", "OGN-007a", "SFD-R01b"];
 
-/** Copy counts shown in the copies section of the diagram. */
 const COPY_COUNTS: Record<string, number> = {
   "OGN-007": 3,
   "OGN-007a": 1,
@@ -49,7 +47,6 @@ export default function CardsPrintingsCopiesArticle() {
         <strong className="text-foreground">copies</strong>.
       </p>
 
-      {/* Diagram */}
       <Callout>
         <div className="flex flex-col items-center gap-3 text-sm">
           <div className="bg-primary/10 text-primary w-full rounded-md px-4 py-2.5 text-center font-semibold">
@@ -121,7 +118,6 @@ export default function CardsPrintingsCopiesArticle() {
         </div>
       </Callout>
 
-      {/* Cards */}
       <section>
         <Heading className="mb-2">Cards</Heading>
         <p className="text-muted-foreground">
@@ -184,7 +180,6 @@ export default function CardsPrintingsCopiesArticle() {
         />
       </section>
 
-      {/* Printings */}
       <section>
         <Heading className="mb-2">Printings</Heading>
         <p className="text-muted-foreground">
@@ -228,7 +223,6 @@ export default function CardsPrintingsCopiesArticle() {
         />
       </section>
 
-      {/* Copies */}
       <section>
         <Heading className="mb-2">Copies</Heading>
         <p className="text-muted-foreground">
@@ -284,12 +278,6 @@ function PrintingCard({ image, code, label }: { image?: string; code: string; la
   );
 }
 
-/**
- * Renders a card image with a skeleton placeholder while loading, or if the
- * image source is missing or fails to load.
- *
- * @returns An img with skeleton fallback.
- */
 function CardImage({ src, alt, className }: { src?: string; alt: string; className: string }) {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);

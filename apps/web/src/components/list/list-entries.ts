@@ -2,14 +2,6 @@ import type { ListEntryDetailResponse, ListKind, Printing } from "@openrift/shar
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 
-/**
- * Empty-state copy by kind. The "how to add" guidance is kind-specific —
- * copy-kind lists are filled from the collection grid's float-bar or by
- * dragging copies onto the list in the sidebar. Card and printing kinds can
- * also be filled by browsing the full catalog directly from this page (the
- * "Browse catalog" CTA), which flips the grid into add mode.
- * @returns The title/description for the empty state.
- */
 export function emptyStateCopy(kind: ListKind): { title: string; description: string } {
   if (kind === "copy") {
     return {
@@ -30,7 +22,6 @@ export function emptyStateCopy(kind: ListKind): { title: string; description: st
   };
 }
 
-/** @returns The view mode that matches a list's kind. */
 export function kindToView(kind: ListKind): "cards" | "printings" | "copies" {
   if (kind === "card") {
     return "cards";
@@ -41,13 +32,6 @@ export function kindToView(kind: ListKind): "cards" | "printings" | "copies" {
   return "copies";
 }
 
-/**
- * Resolves list entries to a deduped array of Printings (so useCardData can
- * filter/sort them like any catalog) plus a per-printing entries map. The
- * entries-per-printing list is used in copies view to expand one tile per
- * entry, and in non-copies view to find the first entry for Remove actions.
- * @returns The deduped Printing[] and an entries-by-printing map.
- */
 export function collectListPrintings(
   entries: readonly ListEntryDetailResponse[],
   printingsById: Record<string, Printing>,
@@ -74,13 +58,6 @@ export function collectListPrintings(
   return { listPrintings, entriesByPrintingId };
 }
 
-/**
- * Picks the printing to render / drive the catalog pipeline for an entry.
- * Printing and copy variants carry their own `printingId` (for copy it's the
- * underlying printing of the physical copy). Card variants fall back to the
- * card's first known printing — "any printing acceptable".
- * @returns The Printing or undefined when nothing resolves.
- */
 export function resolveEntryPrinting(
   entry: ListEntryDetailResponse,
   printingsById: Record<string, Printing>,
@@ -97,12 +74,6 @@ export function resolveEntryPrinting(
   }
 }
 
-/**
- * Builds the items array fed into the CardViewer plus a per-item entry
- * lookup. In copies view each entry gets its own tile (item.id = entry.id);
- * in cards/printings view entries collapse to one tile per printing.
- * @returns items + a map from item.id → entry.
- */
 export function buildItems(
   view: "cards" | "printings" | "copies",
   sortedCards: Printing[],
@@ -117,8 +88,7 @@ export function buildItems(
     for (const printing of sortedCards) {
       const entriesForPrinting = entriesByPrintingId.get(printing.id) ?? [];
       for (const entry of entriesForPrinting) {
-        // One tile = one copy. Use the entry id when present, else the copyId
-        // (rule-derived copy entries have no entry id; ADR-034).
+        // Rule-derived copy entries have no entry id, so fall back to the copyId.
         const itemId = entry.id ?? (entry.kind === "copy" ? entry.copyId : printing.id);
         items.push({ id: itemId, printing });
         entryByItemId.set(itemId, entry);
@@ -136,13 +106,6 @@ export function buildItems(
   return { items, entryByItemId };
 }
 
-/**
- * Items for add mode — one tile per printing in the (filtered) catalog,
- * with an empty entry-lookup map since most catalog tiles have no entry on
- * the list. The renderer reads quantities via the kind-keyed `entryByKey`
- * map instead.
- * @returns items + an empty entry-by-item-id map.
- */
 export function buildItemsFromCatalog(sortedCards: Printing[]): {
   items: CardViewerItem[];
   entryByItemId: Map<string, ListEntryDetailResponse>;
@@ -151,18 +114,10 @@ export function buildItemsFromCatalog(sortedCards: Printing[]): {
     id: printing.id,
     printing,
   }));
+  // Empty on purpose: add mode reads quantities via the kind-keyed entryByKey map instead.
   return { items, entryByItemId: new Map() };
 }
 
-/**
- * The entry ids select mode can act on: one per visible tile, skipping
- * rule-produced entries (null id, ADR-034) since they have no `list_entries`
- * row to move or remove. Built from the grid's `items`, so "Select all" covers
- * exactly the tiles the active filters left on screen — never a hidden entry.
- * @param items - The grid items in display order.
- * @param entryByItemId - The per-tile entry lookup that backs those items.
- * @returns The selectable entry ids, in display order.
- */
 export function selectableEntryIds(
   items: readonly CardViewerItem[],
   entryByItemId: ReadonlyMap<string, ListEntryDetailResponse>,
@@ -173,27 +128,10 @@ export function selectableEntryIds(
   });
 }
 
-/**
- * Every physical copy a copy-kind list points at, in list order. Card- and
- * printing-kind entries have no copy behind them and drop out, so this is empty
- * for those lists.
- * @returns The copy ids of all copy-kind entries.
- */
 export function listCopyIds(entries: readonly ListEntryDetailResponse[]): string[] {
   return entries.flatMap((entry) => (entry.kind === "copy" ? [entry.copyId] : []));
 }
 
-/**
- * What a "Move to collection" action on one entry should act on: the whole
- * select-mode selection when that entry is part of it, otherwise just the entry
- * itself. Mirrors the collection grid's right-click resolution, but keyed by
- * copy id — a rule-produced entry (ADR-034) has no `list_entries` row and so
- * can never be in the selection, yet it still names a real copy to move.
- * @param entries - The list's entries, used to map the copy back to its entry id.
- * @param selected - The select-mode selection, keyed by entry id.
- * @param copyId - The copy whose entry was right-clicked.
- * @returns The copy ids to move.
- */
 export function resolveCopyMoveTarget(
   entries: readonly ListEntryDetailResponse[],
   selected: ReadonlySet<string>,
@@ -219,13 +157,6 @@ export function resolveCopyMoveTarget(
   });
 }
 
-/**
- * Keyed entry lookup for the add-mode strip's quantity display and `[-]`
- * action. Cards-kind lists key by `cardId` (one entry per card with quantity);
- * printing-kind lists key by `printingId`. Copy-kind lists have no add mode,
- * so the function returns an empty map there.
- * @returns Map keyed by cardId or printingId → entry.
- */
 export function buildEntryByKey(
   kind: ListKind,
   entries: readonly ListEntryDetailResponse[],

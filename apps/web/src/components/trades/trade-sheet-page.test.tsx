@@ -5,8 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sheet = vi.hoisted(() => ({ current: null as CardTradeSheetResponse | null }));
 
-// What the counterparty shares in the anchor group; gates "View their lists".
-// Defaults to one tradelist so the link-focused tests below see the link.
 const groupDetail = vi.hoisted(() => ({
   shares: [{ userId: "member-1", listIntent: "trade" }] as {
     userId: string;
@@ -28,9 +26,6 @@ vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({ printingsById: {} }),
 }));
 
-// The sheet's children each carry their own queries and mutations, and none of
-// them is what this file is about — the header's way out to the counterparty's
-// shared lists is.
 vi.mock("@/components/cards/card-detail-opener", () => ({
   CardDetailOverlayProvider: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
@@ -140,8 +135,6 @@ describe("TradeSheetPage", () => {
     sheet.current = makeSheet({ othersHaveYourWants: [makeMatch()] });
     render(<TradeSheetPage userId="member-1" fromGroupSlug="allerlei-spielerei" />);
 
-    // The regression: this link used to live only in the empty state, so one
-    // suggestion was enough to take away the only route to their lists.
     expect(screen.queryByText("Nothing traded yet")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View their lists" })).toHaveAttribute(
       "href",
@@ -187,9 +180,6 @@ describe("TradeSheetPage", () => {
     );
   });
 
-  // The link's promise is their lists; when they share nothing in the anchor
-  // group it led straight to an empty member page, so it stands down. An
-  // organize list alone doesn't count — the member page never renders those.
   it("hides the lists link when they share nothing viewable in the anchor group", () => {
     sheet.current = makeSheet();
     groupDetail.shares = [{ userId: "member-1", listIntent: "organize" }];

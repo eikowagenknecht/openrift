@@ -7,23 +7,8 @@ import { useOwnedCountsForPrintings } from "@/hooks/use-owned-count";
 import { dispatchDecrement, dispatchIncrement } from "@/stores/card-row-actions-store";
 
 /**
- * Add/remove controls for the card shown in a detail overlay, so opening a card
- * mid-sort doesn't take away the +/- that were on its tile. Shared by
- * /collections (primary count scoped to the open collection) and /cards
- * (primary count global, total widened across the card's variants).
- *
- * Deliberately narrower than the grid tile's strip: this is a printing, not one
- * specific copy, so the copy-level chips (condition, notes, links) have no
- * anchor here. Loans and live trades are printing-wide and live in
- * `CardHoldingsSection` instead.
- *
- * The parenthesised total is the count widened along whichever axis the caller
- * opened up: every collection when `collectionId` narrows the primary count,
- * every variant when `siblingIds` names them.
- *
  * `useOwnedCountsForPrintings` is a live query, so the count is gated behind
  * hydration like every other consumer.
- * @returns The add/remove strip.
  */
 export function PrintingCountActions({
   printing,

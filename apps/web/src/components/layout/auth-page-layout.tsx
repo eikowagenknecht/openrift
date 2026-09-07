@@ -2,11 +2,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * Centered layout wrapper for auth pages (login, signup, verify-email, reset-password).
- *
- * @returns The centered layout with children.
- */
+/** Centered layout wrapper for auth pages (login, signup, verify-email, reset-password). */
 export function AuthPageLayout({
   children,
   size = "md",

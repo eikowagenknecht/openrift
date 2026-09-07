@@ -24,43 +24,15 @@ import { cn } from "@/lib/utils";
 import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 interface VariantLocationsPopoverProps {
-  /** All variants (sibling printings) of the card, in display order. */
   printings: Printing[];
-  /** Initial keyboard highlight target (e.g. the printing selected on the grid). */
   initialHighlightId?: string;
-  /**
-   * How the popover was opened. `remove` lands the highlight on a collection
-   * row so `-` / Enter removes; `add` lands on the variant header so `+` / Enter
-   * quick-adds. `+` / `=` / `-` are always literal regardless of intent.
-   */
   intent: VariantPopoverIntent;
-  /** Quick-add a variant to the default target (current collection, or inbox on All Cards). */
   onQuickAdd: (printing: Printing) => void;
-  /**
-   * The default target's collection id (current collection, or inbox on All
-   * Cards) — the same target `onQuickAdd` writes to. Present it and the variant
-   * header gains a quick-remove `-` that mirrors its `+`, disabled when the
-   * target holds no copies of that variant. Undefined suppresses the header `-`.
-   */
   defaultTargetCollectionId?: string;
-  /** Add a copy of a variant to a specific collection. */
   onAddToCollection: (printing: Printing, collectionId: string) => void;
-  /** Remove the newest copy of a variant from a specific collection. */
   onRemoveFromCollection: (printing: Printing, collectionId: string) => void;
-  /**
-   * The variant whose "add to another collection" sub-page is open, or null for
-   * the main page. Lifted to the host so its ESC handler can step back to the
-   * main page instead of closing the popover. Implemented as a children/header
-   * swap inside the same PickerList so cmdk's Command stays mounted (re-mounting
-   * it would lose keyboard focus to BaseUI's FloatingFocusManager).
-   */
   addCollectionTarget: Printing | null;
   setAddCollectionTarget: (printing: Printing | null) => void;
-  /**
-   * The collection whose grid opened the popover. Its copies count towards the
-   * breakdown even when it is a group collection, and its row sorts first.
-   * Undefined on the catalog browser, which is scoped to no collection.
-   */
   viewCollectionId?: string;
 }
 
@@ -69,36 +41,20 @@ type RowAction =
   | { kind: "location"; printing: Printing; collectionId: string }
   | { kind: "add"; printing: Printing };
 
-/** Per-collection owned counts for one variant, as returned by useOwnedCollectionsByVariants. */
 interface VariantBreakdownEntry {
   printingId: string;
   collections: { collectionId: string; collectionName: string; count: number }[];
 }
 
-/**
- * One variant×collection breakdown row group, used to render the main page and
- * to resolve a highlighted row id back to its action.
- */
 export interface VariantGroup {
   printing: Printing;
   total: number;
   locations: { collectionId: string; collectionName: string; count: number }[];
-  /** Personal collections the variant is not yet in, offered on the add sub-page. */
   addCandidates: CollectionResponse[];
 }
 
-/**
- * Builds one row group per variant: its owned total, the collections it lives in
- * (ordered by the canonical personal-collection order so rows don't jitter as
- * copies change), and the personal collections it is not yet in (the add-page
- * candidates). Variants with no owned copies still get a group (total 0, no
- * locations) so the unowned/add path renders.
- *
- * `viewCollectionId` sorts first so `remove` intent highlights the row the user
- * opened the popover from. It also covers a group collection, which is never in
- * `personalCollections`.
- * @returns One {@link VariantGroup} per printing, in input order.
- */
+// viewCollectionId sorts first, even though it may be a group collection never
+// present in personalCollections, so `remove` intent highlights the opened row.
 export function buildVariantGroups(
   printings: readonly Printing[],
   breakdown: readonly VariantBreakdownEntry[] | undefined,
@@ -132,25 +88,10 @@ export function buildVariantGroups(
   });
 }
 
-/**
- * Owned copies of a variant in one specific collection, or 0 when it holds
- * none. Drives the header quick-remove's disabled state: the `-` is dead when
- * the default target has nothing of this variant to remove.
- * @returns The count in `collectionId`, or 0 if the variant isn't held there.
- */
 export function ownedCountInCollection(group: VariantGroup, collectionId: string): number {
   return group.locations.find((location) => location.collectionId === collectionId)?.count ?? 0;
 }
 
-/**
- * Unified variant×collection popover for collection browse mode. Each variant
- * is a section: a header with its owned total, a quick-remove `-` and quick-add
- * `+` (both on the default target), per-collection rows with `-`/`+`, and an
- * "add to another collection" row that swaps to a collection picker sub-page.
- * Replaces the former separate variant-add, owned-locations, and dispose
- * pickers.
- * @returns A keyboard-navigable PickerList for the popover body.
- */
 export function VariantLocationsPopover({
   printings,
   initialHighlightId,
@@ -176,18 +117,11 @@ export function VariantLocationsPopover({
   );
   const groups = buildVariantGroups(printings, breakdown, personalCollections, viewCollectionId);
 
-  // Opened via `-`: the user is here to remove, so hide every add affordance and
-  // skip variants with nothing to remove (zero owned copies).
   const isRemoveIntent = intent === "remove";
   const visibleGroups = isRemoveIntent ? groups.filter((group) => group.total > 0) : groups;
 
-  // Add mode with several variants collapses each variant's collections behind an
-  // accordion so the resting menu is just the variant rows. A single variant (or
-  // the remove menu) stays fully expanded — collapsing one row would only add a click.
   const collapsible = !isRemoveIntent && groups.length > 1;
 
-  // Resolve a highlighted row id back to the action it performs. Built from the
-  // same row values rendered below so we never parse composite ids by hand.
   const actionByValue = new Map<string, RowAction>();
   for (const group of groups) {
     actionByValue.set(variantRowValue(group.printing), {
@@ -209,8 +143,6 @@ export function VariantLocationsPopover({
     ? groups.find((group) => group.printing.id === addCollectionTarget.id)
     : undefined;
 
-  // Initial highlight: a collection row for `remove` (so `-` acts immediately),
-  // the variant header for `add`. Falls back to the first available row.
   const preferredPrinting =
     groups.find((group) => group.printing.id === initialHighlightId)?.printing ?? printings[0];
   const preferredGroup = groups.find((group) => group.printing.id === preferredPrinting?.id);
@@ -221,15 +153,13 @@ export function VariantLocationsPopover({
         ? variantRowValue(preferredPrinting)
         : "";
 
-  // Two highlight states (main vs. add sub-page) so the value passed to cmdk is
-  // already correct at the moment each set of rows registers — cmdk only
-  // auto-selects the first row when its value is falsy AT REGISTRATION TIME.
+  // cmdk auto-selects the first row only when its value is falsy at
+  // registration time, so each page needs its own highlight state ready in advance.
   const [mainHighlightedId, setMainHighlightedId] = useState(initialId);
   const [addHighlightedId, setAddHighlightedId] = useState("");
   const highlightedId = isAddPage ? addHighlightedId : mainHighlightedId;
   const setHighlightedId = isAddPage ? setAddHighlightedId : setMainHighlightedId;
 
-  // Start with the variant the user opened the menu on expanded, the rest collapsed.
   const [expandedVariants, setExpandedVariants] = useState<Set<string>>(
     () => new Set(preferredPrinting ? [preferredPrinting.id] : []),
   );
@@ -245,8 +175,6 @@ export function VariantLocationsPopover({
     });
   };
 
-  // Reset the sub-page highlight after leaving it so the next visit lands on the
-  // first candidate rather than the previously-picked collection.
   const [wasAddPage, setWasAddPage] = useState(isAddPage);
   if (wasAddPage !== isAddPage) {
     setWasAddPage(isAddPage);
@@ -312,16 +240,11 @@ export function VariantLocationsPopover({
         }
         // `=` is a no-shift alias for `+` (US layouts need Shift+=).
         if (action.kind === "variant") {
-          // `-` on a header quick-removes from the default target, mirroring the
-          // header `+`/`=`. Wired only when a default target exists (i.e. the
-          // header shows the `-` button).
           if (!isRemoveIntent && defaultTargetCollectionId !== undefined && event.key === "-") {
             event.preventDefault();
             onRemoveFromCollection(action.printing, defaultTargetCollectionId);
             return;
           }
-          // +/= always quick-adds. Enter quick-adds too, except in a collapsible
-          // menu where Enter toggles the section via the row's onSelect.
           const enterQuickAdds = !collapsible && !isRemoveIntent && event.key === "Enter";
           if (event.key === "+" || event.key === "=" || enterQuickAdds) {
             event.preventDefault();
@@ -329,7 +252,6 @@ export function VariantLocationsPopover({
           }
           return;
         }
-        // Enter on a collection row follows the entry intent; Shift+Enter is the inverse.
         const enterAdds =
           event.key === "Enter" && (intent === "add" ? !event.shiftKey : event.shiftKey);
         const enterRemoves =
@@ -348,13 +270,9 @@ export function VariantLocationsPopover({
       {visibleGroups.map((group, groupIndex) => {
         const rarityIcon = getFilterIconPath("rarities", group.printing.rarity);
         const expanded = !collapsible || expandedVariants.has(group.printing.id);
-        // Collapsible headers toggle their section on click/Enter; non-collapsible
-        // headers have no click action (quick-add stays on the + button and +/Enter keys).
         const onVariantSelect = collapsible ? () => toggleVariant(group.printing.id) : undefined;
         return (
           <Fragment key={group.printing.id}>
-            {/* Each variant heads its own section: a subtle filled band at rest sets it apart
-                from its child rows; the gold data-selected highlight still overrides it on focus. */}
             <PickerRow
               value={variantRowValue(group.printing)}
               onSelect={onVariantSelect}
@@ -394,11 +312,6 @@ export function VariantLocationsPopover({
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-0.5">
-                {/* Header quick-remove: mirrors the header `+`, but removes from the default
-                    target (current collection, or inbox on All Cards) so the resting row is
-                    symmetric (no need to expand a variant just to drop a copy). Disabled when
-                    the default target holds none of this variant (removal is per-collection, so
-                    copies living only in another collection are removed by expanding the row). */}
                 {!isRemoveIntent && defaultTargetCollectionId !== undefined ? (
                   <Button
                     type="button"
@@ -499,8 +412,7 @@ export function VariantLocationsPopover({
   );
 }
 
-// Row id helpers — opaque values cmdk round-trips back through onKeyDown; we
-// resolve them via actionByValue rather than parsing.
+// cmdk round-trips these values back through onKeyDown as opaque strings; resolve via actionByValue, don't parse them.
 function variantRowValue(printing: Printing): string {
   return `variant::${printing.id}`;
 }

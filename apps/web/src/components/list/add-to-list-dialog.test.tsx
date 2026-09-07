@@ -47,8 +47,7 @@ function renderDialog(props: { copyIds: string[]; singleCard?: boolean }) {
 }
 
 function clickFirstList() {
-  // The dialog renders into a portal on document.body, so query the document
-  // rather than the render container.
+  // Dialog portals onto document.body, outside the render container.
   const row = document.querySelector<HTMLElement>('[data-slot="picker-row"]');
   if (!row) {
     throw new Error("No list row rendered");

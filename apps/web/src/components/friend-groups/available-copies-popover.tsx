@@ -4,10 +4,6 @@ import { useCards } from "@/hooks/use-cards";
 import type { VariantCollectionBreakdownEntry } from "@/hooks/use-owned-count";
 import { useOwnedCollectionsByVariants } from "@/hooks/use-owned-count";
 
-/**
- * Total copies a breakdown accounts for, across every variant and collection.
- * @returns The summed copy count.
- */
 function countCopies(variants: readonly VariantCollectionBreakdownEntry[]): number {
   let total = 0;
   for (const variant of variants) {
@@ -19,17 +15,14 @@ function countCopies(variants: readonly VariantCollectionBreakdownEntry[]): numb
 }
 
 /**
- * The popover body, split from the trigger on purpose: the breakdown's live
- * query reads the *whole* copies collection, and a suggestions list mounts one
- * of these per row. Keeping it in the popup means the query only exists while
- * the popover is open, so a long list costs nothing at rest.
- * @returns The breakdown, a loading line, or the nothing-owned note.
+ * Split from the trigger on purpose: the breakdown's live query reads the
+ * *whole* copies collection, so keeping it here means it only runs while the
+ * popover is open, not once per row in a suggestions list.
  */
 function AvailableCopiesBreakdown({ cardId }: { cardId: string }) {
   const { printingsByCardId } = useCards();
-  // Every sibling printing, not just the matched one: the question the popover
-  // answers is "do I still have this card if I hand this copy over", and a
-  // spare in another variant is the usual reason the answer is yes.
+  // Every sibling printing, not just the matched one: a spare in another
+  // variant also answers "do I still have this card if I hand this one over".
   const siblings = printingsByCardId.get(cardId) ?? [];
   const { data: breakdown } = useOwnedCollectionsByVariants(siblings, true);
 
@@ -62,15 +55,10 @@ function AvailableCopiesBreakdown({ cardId }: { cardId: string }) {
 
 /**
  * The "N available" count on an outgoing suggestion, opened up into what the
- * viewer actually owns of that card: every variant, every collection, and the
- * grand total. Offering a card says nothing about how many are left afterwards
- * — the count on the row is only what sits in the shared list — so this is the
- * sanity check before giving one away.
+ * viewer actually owns of that card.
  *
  * Outgoing rows only. On an incoming row the same number counts the *other*
- * side's copies, and hanging the viewer's collections off it would say one
- * thing and mean another.
- * @returns The count as a popover trigger.
+ * side's copies.
  */
 export function AvailableCopiesPopover({
   cardId,

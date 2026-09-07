@@ -7,10 +7,6 @@ export const PRICE_PREF_LABEL: Record<TradePricePref, string> = {
   absolute: "Fixed",
 };
 
-/** Compact label used in tight contexts (inline pill, inherit hints). Drops
- * the "Marketplace (...)" wrapping since the surrounding context already
- * makes it clear we're pointing at a marketplace.
- */
 export const PRICE_PREF_SHORT_LABEL: Record<TradePricePref, string> = {
   cm_lowest: "Cardmarket",
   tcg_lowest: "TCGplayer",
@@ -18,10 +14,7 @@ export const PRICE_PREF_SHORT_LABEL: Record<TradePricePref, string> = {
   absolute: "Fixed",
 };
 
-/** Ultra-compact abbreviation used in the per-row pill, where the actions
- * column only has a couple of characters to spare. The `absolute` entry is
- * deliberately empty — that branch renders the formatted price instead.
- */
+// `absolute` is deliberately empty: that branch renders the formatted price instead.
 export const PRICE_PREF_ABBR: Record<TradePricePref, string> = {
   cm_lowest: "CM",
   tcg_lowest: "TCG",
@@ -46,11 +39,6 @@ export const CURRENCY_SYMBOL: Record<Currency, string> = {
   USD: "$",
 };
 
-/**
- * Formats a cents amount + currency as a human-readable string. Always
- * renders two decimals so prices read consistently across the app.
- * @returns "4.00 EUR", "4.50 EUR", or `null` when the currency or amount is missing.
- */
 export function formatAbsolutePrice(
   cents: number | null,
   currency: Currency | null,

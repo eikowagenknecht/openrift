@@ -3,35 +3,17 @@ import type { LensRow, LensSeries } from "@/lib/deck-stat-lenses";
 import { cn } from "@/lib/utils";
 
 interface LensBarProps {
-  /** Small heading above the bar; omit when the host renders its own header. */
   title?: string;
-  /** One entry per category, single-segment (`segments[row.key] === total`). */
   rows: readonly LensRow[];
-  /** Colors per category key; rows without a series entry render muted. */
   series: readonly LensSeries[];
-  /** Makes segments and legend entries clickable — called with the row key. */
   onSegmentClick?: (key: string) => void;
-  /** Muted note rendered under the legend. */
   footnote?: string;
-  /** Row key of the focused segment: it stays lit, the rest dim. */
   focusValue?: string | null;
-  /**
-   * Counts matching another chart's focus, same row shape as `rows`. Each
-   * segment keeps a lit portion sized hit/total and fades the remainder —
-   * the horizontal cousin of the column charts' SplitCrispBar.
-   */
   hitRows?: readonly LensRow[];
 }
 
 const MISS_OPACITY = 0.3;
 
-/**
- * A lens rendered as one thin horizontal stacked bar with a count legend —
- * the same visual language as the hero's domain strip and the thumbnails'
- * ownership bands, for lenses whose category count is small. Interchangeable
- * with CategoryBreakdown: same row/series shapes, same focus behavior.
- * @returns The bar block, or null without any counted copies.
- */
 export function LensBar({
   title,
   rows,
@@ -51,7 +33,6 @@ export function LensBar({
   const hitByKey = new Map((hitRows ?? []).map((row) => [row.key, row]));
   const segmentOpacity = (key: string) =>
     focusValue === null || focusValue === undefined || key === focusValue ? 1 : MISS_OPACITY;
-  // Lit fraction of a segment under another chart's focus; 1 with no hit data.
   const hitFraction = (row: LensRow) => {
     if (!hitRows) {
       return 1;

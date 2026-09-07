@@ -17,9 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
 
-// Term-anchor building and rule-number formatting live in @openrift/shared
-// (the Discord bot's /rule command uses them too); re-exported here for the
-// rules components that consume them alongside the render pieces.
+// Re-exported from @openrift/shared: the Discord bot's /rule command uses these too.
 export { buildTermAnchors, formatRuleNumber } from "@openrift/shared";
 
 export async function copyRuleLink(ruleNumber: string): Promise<void> {
@@ -97,8 +95,6 @@ const PENALTY_STYLES: Record<string, string> = {
 };
 
 function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: string): void {
-  // Modifier-clicks and non-primary buttons should keep their default behavior
-  // (open in new tab, etc.) — don't intercept those.
   if (event.defaultPrevented || event.button !== 0) {
     return;
   }
@@ -112,14 +108,11 @@ function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: s
   // Rule IDs contain dots (e.g. `rule-540.4.b`); escape so CSS doesn't read
   // them as class separators.
   const targetSelector = `#${CSS.escape(targetId)}`;
-  // If the target is currently rendered, let the browser handle the scroll.
   if (document.querySelector(targetSelector)) {
     return;
   }
-  // Otherwise the rule is filtered out by an active search. Reset the search
-  // synchronously so React commits the unfiltered list, then scroll into view
-  // and reflect the hash in the URL. Use pushState (not replaceState) so the
-  // browser back button returns the user to where they were reading.
+  // The rule is filtered out by an active search: reset it, then scroll and
+  // pushState (not replaceState) so browser back returns to where we were.
   event.preventDefault();
   flushSync(() => {
     useRulesSearchStore.getState().reset();
@@ -144,8 +137,6 @@ function RuleMarkdownAnchor({ href, children }: { href?: string; children?: Reac
     );
   }
   if (typeof href === "string" && href.startsWith("/rules/core#")) {
-    // Cross-link from the tournament page (or anywhere) into the latest core
-    // rules version, with the matching anchor preserved through the redirect.
     const hash = href.slice("/rules/core#".length);
     return (
       <Link
@@ -215,14 +206,8 @@ const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
 const REMARK_PLUGINS = [remarkLinkifyRuleReferences];
 const REHYPE_PLUGINS = [rehypeHighlightPenalties];
 
-/**
- * Renders a rule's body as a constrained markdown subset, with rule-number
- * references (e.g. `rule 540`, `603.7`, `CR 116`) auto-linked to their anchor.
- * When `termAnchors` is supplied, italicized game terms (e.g. `*Combat*`,
- * `*Accelerate*`) also link to their defining rule.
- *
- * @returns The rendered rule body.
- */
+// Renders a rule's body as a constrained markdown subset, with rule-number
+// references and (given `termAnchors`) italicized game terms auto-linked.
 export function RuleContent({
   content,
   termAnchors,
@@ -233,10 +218,8 @@ export function RuleContent({
   ruleNumber?: string;
 }) {
   const processed = preprocessRuleMarkdown(content);
-  // Per-rule plugin set: when termAnchors is non-empty, append the term
-  // linkifier with this rule's number so it can skip self-links. The compiler
-  // memoizes both the array and the closure across re-renders of the same
-  // rule, so ReactMarkdown's parse cache stays warm during search keystrokes.
+  // termAnchors non-empty: append the term linkifier so it can skip self-links.
+  // The compiler memoizes this array, keeping ReactMarkdown's parse cache warm.
   const remarkPlugins =
     termAnchors && termAnchors.size > 0
       ? [
@@ -307,12 +290,7 @@ export function VersionComments({ markdown }: { markdown: string }) {
   );
 }
 
-/**
- * Renders one node of the merged diff tree produced by `diffRuleMarkdown`,
- * reusing the same anchor and badge components as the markdown pipeline.
- *
- * @returns The rendered node.
- */
+// Renders one node of the merged diff tree produced by `diffRuleMarkdown`.
 function renderDiffNode(node: HastNode, key: number): ReactNode {
   if (node.type === "text") {
     return node.value ?? "";
@@ -355,14 +333,8 @@ function renderDiffNode(node: HastNode, key: number): ReactNode {
   }
 }
 
-/**
- * Renders an inline word-level diff between two rule contents. Both versions
- * are parsed through the full markdown pipeline first and diffed structurally
- * (see `diffRuleMarkdown`), so `*emphasis*`, links, and penalty badges are
- * preserved alongside the diff highlights and can't be mangled by the diff.
- *
- * @returns The diffed rule body with markdown rendering intact.
- */
+// Both texts are parsed through the full markdown pipeline and diffed
+// structurally, so emphasis, links and penalty badges survive the diff.
 export function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
   const nodes = diffRuleMarkdown(oldText, newText);
   return <>{nodes.map((node, index) => renderDiffNode(node, index))}</>;

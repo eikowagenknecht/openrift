@@ -76,11 +76,7 @@ const FOLDER_LABELS = { f1: "Brews", f2: "Retired", f3: "Testing" };
 
 const FAMILY = { id: "fam-1", role: "front", memberCount: 3, expanded: false } as const;
 
-/**
- * Every element the HTML content model forbids inside an `<a>`: it may hold no
- * interactive descendant at all.
- * @returns The offending nodes, as `a > … > tag` paths.
- */
+// The HTML content model forbids any interactive descendant inside an `<a>`.
 function interactiveInsideAnchor(container: HTMLElement): string[] {
   return [...container.querySelectorAll("a")].flatMap((anchor) =>
     [...anchor.querySelectorAll("a, button, input, select, textarea, [tabindex]")].map(
@@ -93,20 +89,12 @@ describe.each([
   ["DeckListRow", DeckListRow],
   ["DeckTile", DeckTile],
 ])("%s", (_name, Row) => {
-  /**
-   * Renders the row with everything that puts a control in it turned on:
-   * pinned, draft, a menu, a variant toggle, and overflowing folder chips.
-   * @returns The render result.
-   */
   function renderRow() {
     return render(
       <Row item={ITEM} folderLabels={FOLDER_LABELS} family={FAMILY} onToggleFamily={vi.fn()} />,
     );
   }
 
-  // The whole point of the stretched-link rewrite. An anchor around the row
-  // put the menu button (and every tooltip trigger) inside it, which is invalid
-  // markup and is what made a submenu click navigate to the deck.
   it("puts no interactive element inside an anchor", () => {
     const { container } = renderRow();
 
@@ -128,8 +116,6 @@ describe.each([
     );
   });
 
-  // The row is still clickable end to end: that link stretches over the whole
-  // row through its ::after, which is the only thing replacing the old anchor.
   it("stretches that link across the row", () => {
     renderRow();
 

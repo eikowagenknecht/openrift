@@ -29,10 +29,6 @@ import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-// The card detail pane (OwnedCollectionsPopover via PrintingPicker) reads the
-// filter context to build collection links. These pages have no filter UI, so an
-// empty value is the whole contract — every FilterSearch field is optional and
-// `view` falls back to the display-store default.
 const EMPTY_FILTER_SEARCH: FilterSearch = {};
 
 function thumbKey(cardId: string, preferredPrintingId: string | null): string {
@@ -40,62 +36,24 @@ function thumbKey(cardId: string, preferredPrintingId: string | null): string {
 }
 
 interface PublicDeckSurfaceProps {
-  /**
-   * The enriched share payload. The meta archive's response is this shape plus
-   * its own `meta` block, which the caller reads for the byline rather than
-   * passing down.
-   */
   data: PublicDeckDetailResponse;
-  /**
-   * Whether a user is signed in. Passed rather than derived: the share page
-   * reads the session, the archive follows the deck importer and reads the
-   * presence of a user id, not a session load state.
-   */
   isLoggedIn: boolean;
-  /** Where a signed-out viewer comes back to after logging in. */
   returnPath: string;
-  /** Rendered next to the deck name: the owner, or the archive's event facts. */
   heroByline?: React.ReactNode;
-  /** Replaces the hero's name-and-subtitle block. */
   heroHeading?: React.ReactNode;
-  /** Rendered left of the hero's text column. */
   heroLead?: React.ReactNode;
-  /** The copy CTA under the status chips, for a page with no top bar. */
   heroActions?: React.ReactNode;
-  /**
-   * A sticky bar above the page, for a caller whose page needs a breadcrumb and
-   * a title row (the archive). The share page has neither and passes nothing.
-   */
   topBar?: React.ReactNode;
-  /** Optional callout between the hero and the tab strip. */
   notice?: React.ReactNode;
-  /** Credits and correction links, rendered below the deck. */
   footer?: React.ReactNode;
-  /** Forwarded to the overview: per zone, cards this list's source never published. */
   unknownZoneCounts?: ReadonlyMap<DeckZone, number>;
 }
 
 /**
  * The read-only deck page shared by `/decks/share/$token` and the meta
- * archive's `/meta/decks/$token`. Both render the same deck overview with the
- * same hover preview, detail pane, ownership overlay, and missing-cards dialog;
- * they differ only in where the payload came from and what the hero says, so
- * those are props and everything else lives here.
- *
- * The payload carries the catalogue rows the deck needs, and they are provided
- * here rather than fetched: `useCards` under this tree reads the subset, so
- * neither page pulls the whole catalogue into its SSR payload.
- *
- * No page top bar of its own: the hero already carries the deck's name and
- * status, so the share page opens straight with it. A caller that needs one
- * anyway — the archive, whose breadcrumb walks back to the event — hands it in
- * as `topBar`.
- *
- * @returns The public deck surface.
+ * archive's `/meta/decks/$token`, which differ only in the props passed here.
  */
 export function PublicDeckSurface({ topBar, ...props }: PublicDeckSurfaceProps) {
-  // Everything sticky below the bar offsets past it, so the bar is measured
-  // rather than assumed. Zero without one, which is the share page.
   const [barEl, setBarEl] = useState<HTMLDivElement | null>(null);
   const barHeight = useMeasuredHeight(barEl);
   return (
@@ -131,9 +89,7 @@ function PublicDeckContent({
   const showImages = useDisplayStore((state) => state.showImages);
   const detailOpen = useSelectionStore((state) => state.detailOpen);
 
-  // Everything the shell needs — builder cards, thumbnails, hover full-image
-  // URLs — comes straight from the enriched payload. No catalog lookup, so
-  // this branch is SSR-safe.
+  // Comes straight from the enriched payload, no catalog lookup, so this is SSR-safe.
   const builderCards = data.cards.map(toBuilderCardFromPublic);
   const thumbByKey = (() => {
     const map = new Map<string, string>();
@@ -159,10 +115,8 @@ function PublicDeckContent({
 
   const [ownershipData, setOwnershipData] = useState<DeckOwnershipData>();
 
-  // These pages use the same tab strip as the editor. Old links deep-link with
-  // #deck-test / #deck-plan (the retired section nav's anchors), so map the
-  // hash to a tab once on mount; anything else starts on the Deck tab rather
-  // than inheriting a tab left over from another surface.
+  // Old links deep-link with #deck-test / #deck-plan (retired section-nav
+  // anchors); map the hash to a tab once on mount.
   const setOverviewTab = useDeckBuilderUiStore((state) => state.setOverviewTab);
   useEffect(() => {
     const hash = globalThis.location?.hash;
@@ -176,19 +130,13 @@ function PublicDeckContent({
   } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [missingOpen, setMissingOpen] = useState(false);
-  // When the catalog hasn't hydrated yet, capture the click so the bridge can
-  // resolve it once printings are available.
   const [pendingClick, setPendingClick] = useState<CardOpenTarget | null>(null);
 
-  // The whole page is the deck overview, so every hover docks the preview at
-  // the right edge ("main-right") instead of chasing the cursor.
   const onHoverCard = (id: string | null, preferredPrintingId?: string | null) =>
     setHovered(
       id ? { id, preferredPrintingId: preferredPrintingId ?? null, origin: "main-right" } : null,
     );
 
-  // Suppress the floating hover preview while the detail pane is open — the
-  // pane already shows the card, having both up at once is noisy.
   const hoveredCard = (() => {
     if (!hovered || isMobile || detailOpen) {
       return null;
@@ -276,9 +224,7 @@ function PublicDeckContent({
 
       {footer}
 
-      {/* Every viewport: the overlay component picks the drawer or the dialog.
-          Gating this on isMobile left desktop clicks selecting a card with
-          nothing to show whenever the pane was undocked. */}
+      {/* Not gated on isMobile: the overlay itself picks the drawer or the dialog. */}
       {hydrated && (
         <Suspense fallback={null}>
           <PublicDeckOverlayBridge
@@ -302,11 +248,7 @@ function PublicDeckContent({
         />
       )}
 
-      {/*
-        Ownership + price data still needs the global catalog (printings +
-        prices) and the user's copies, both of which require client-only
-        hooks. Gate behind hydration so SSR never tries to evaluate them.
-      */}
+      {/* Gated behind hydration: ownership + price data needs client-only hooks. */}
       {hydrated && (
         <Suspense fallback={null}>
           <DeckOwnershipBridge
@@ -321,16 +263,8 @@ function PublicDeckContent({
   );
 }
 
-/**
- * Catalog-gated bridge that renders the desktop detail pane. Suspends on first
- * call until the catalog query resolves — the parent supplies a fallback that
- * shows a skeleton when a click is pending, so the user sees instant feedback.
- *
- * Resolving the pending click is {@link PublicDeckOverlayBridge}'s job, not
- * this one's: both bridges are mounted together on desktop, and two copies of
- * that effect would select the card twice.
- * @returns The desktop detail pane (returns its own null when undocked or nothing is selected).
- */
+// Resolving the pending click is PublicDeckOverlayBridge's job, not this
+// one's: both are mounted together, and two effects would select it twice.
 function PublicDeckDetailPaneBridge({
   cards,
   showImages,
@@ -346,20 +280,13 @@ function PublicDeckDetailPaneBridge({
       printingsByCardId={printingsByCardId}
       showImages={showImages}
       onSearchAndClose={() => {
-        // Anonymous viewers have no filter context here — there is no card
-        // browser to drive. Swallow the click.
+        // No filter context for anonymous viewers; swallow the click.
       }}
     />
   );
 }
 
-/**
- * Resolves a pending click into a Printing and renders the detail overlay for
- * the viewport. Mounted on every viewport: the overlay component picks the
- * drawer or the dialog itself, and this is the single owner of the
- * pending-click effect.
- * @returns The detail overlay (returns its own null when nothing is selected).
- */
+// The single owner of the pending-click effect; the paired bridge above only renders.
 function PublicDeckOverlayBridge({
   cards,
   pendingClick,
@@ -391,18 +318,12 @@ function PublicDeckOverlayBridge({
       printingsByCardId={printingsByCardId}
       showImages={showImages}
       onSearchAndClose={() => {
-        // See PublicDeckDetailPaneBridge.
+        // No filter context for anonymous viewers; swallow the click.
       }}
     />
   );
 }
 
-/**
- * Skeleton placeholder shown in the right rail while the catalog suspends and
- * the user already clicked a card. Wraps the shared CardDetailSkeleton in a
- * Pane so the layout matches the real detail pane that will replace it.
- * @returns A sticky right-side pane filled with skeletons.
- */
 function PublicDeckSkeletonPane() {
   return (
     <Pane className="@md:block">

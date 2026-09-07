@@ -28,7 +28,6 @@ export default function ImportExportArticle() {
         sidebar.
       </p>
 
-      {/* ── Import ─────────────────────────── */}
       <section>
         <Heading className="mb-2">Importing cards</Heading>
         <p className="text-muted-foreground">
@@ -38,7 +37,6 @@ export default function ImportExportArticle() {
         </p>
       </section>
 
-      {/* Step 1 */}
       <section>
         <h3 className="mb-2 font-semibold">Step 1: Provide your data</h3>
         <p className="text-muted-foreground">
@@ -136,7 +134,6 @@ export default function ImportExportArticle() {
         </p>
       </section>
 
-      {/* Step 2 */}
       <section>
         <h3 className="mb-2 font-semibold">Step 2: Review matches</h3>
         <p className="text-muted-foreground">
@@ -144,7 +141,6 @@ export default function ImportExportArticle() {
           status so you can see what needs attention before importing.
         </p>
 
-        {/* Status table */}
         <DefinitionList className="mt-3">
           <DefinitionRow icon={<CheckCircle2Icon className="text-success size-4" />} label="Exact">
             Perfect match: code, finish, and art variant all resolved. Ready to import.
@@ -164,7 +160,6 @@ export default function ImportExportArticle() {
           </DefinitionRow>
         </DefinitionList>
 
-        {/* Visual mock of a match row */}
         <Callout className="mt-4 p-3">
           <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
             Example preview
@@ -208,7 +203,6 @@ export default function ImportExportArticle() {
         </p>
       </section>
 
-      {/* ── Export ─────────────────────────── */}
       <section>
         <Heading className="mb-2">Exporting cards</Heading>
         <p className="text-muted-foreground">
@@ -303,7 +297,6 @@ export default function ImportExportArticle() {
         </p>
       </section>
 
-      {/* How matching works */}
       <section>
         <Heading className="mb-2">How matching works</Heading>
         <p className="text-muted-foreground">

@@ -33,7 +33,6 @@ interface ActiveFiltersProps {
   availableFilters: AvailableFilters;
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
-  /** Upper bound for the Copies chip — see CardBrowserFilterMeta.ownedCountMax. */
   ownedCountMax?: number;
 }
 
@@ -59,8 +58,6 @@ export function ActiveFilters({
     clearAllFilters,
     setSearch,
   } = useFilterActions();
-  // Presence chips, one per dimension, each cleared independently. Coalesce to
-  // null so an unset param (undefined) never reads as an active constraint.
   const presenceChips: [PresenceDimension, "any" | "none" | null][] = [
     ["markers", filterState.markersPresence ?? null],
     ["superTypes", filterState.superTypesPresence ?? null],
@@ -104,10 +101,8 @@ export function ActiveFilters({
   const channelBreadcrumbs = buildChannelBreadcrumbsBySlug(availableFilters.distributionChannels);
   const channelLabel = (slug: string) => channelBreadcrumbs.get(slug) ?? slug;
 
-  // Group selected custom tags by their category so each renders with the
-  // category label (matching the per-category dropdowns in the filter panel).
-  // Unknown slugs (e.g. a tag deleted after being saved into a deck URL)
-  // fall into an "Other" bucket so the user can still remove them.
+  // Unknown slugs (e.g. a tag deleted after being saved into a deck URL) fall
+  // into an "Other" bucket so the user can still remove them.
   const customTagBySlug = new Map(allCustomTags.map((tag) => [tag.slug, tag]));
   const customTagGroups: { categorySlug: string; categoryLabel: string; values: string[] }[] = [];
   for (const slug of filterState.customTags) {
@@ -121,10 +116,8 @@ export function ActiveFilters({
       customTagGroups.push({ categorySlug, categoryLabel, values: [slug] });
     }
   }
-  // Exclude (`*Ex`) chips, mirroring the include `filterGroups` but reading the
-  // negation arrays and removing via the exclude key (ADR-034). The `section`
-  // drives both the hidden-section guard and the icon lookup (icons key off the
-  // base dimension, not the `*Ex` slug).
+  // `section` drives both the hidden-section guard and the icon lookup (icons
+  // key off the base dimension, not the `*Ex` slug).
   type ExcludeKey =
     | "setsEx"
     | "raritiesEx"
@@ -136,9 +129,8 @@ export function ActiveFilters({
     | "markersEx"
     | "channelsEx"
     | "keywordsEx";
-  // Section keys an exclude chip can carry. Excludes the icon-less "owned" /
-  // "cardSizes" so the value passes straight to `getFilterIconPath` once the
-  // markers/channels rows (which also lack icons) are guarded out.
+  // Excludes the icon-less "owned"/"cardSizes" sections; markers/channels are
+  // guarded out separately before reaching `getFilterIconPath`.
   type ExcludeSection =
     | "sets"
     | "rarities"
@@ -225,7 +217,6 @@ export function ActiveFilters({
     (group) => group.values.length > 0 && !hiddenSections?.has(group.section),
   );
 
-  // Excluded custom tags, grouped by category exactly like the include side.
   const customTagExcludeGroups: { categoryLabel: string; values: string[] }[] = [];
   for (const slug of filterState.customTagsEx) {
     const tag = customTagBySlug.get(slug);
@@ -240,8 +231,7 @@ export function ActiveFilters({
 
   const customTagsHidden = hiddenSections?.has("customTags") ?? false;
 
-  // Printed tags, grouped by their admin-managed category (matching the
-  // per-category dropdowns in the filter panel). The values ARE the labels.
+  // The values ARE the labels; there is no separate label lookup.
   const { categories: tagCategories, categoryByTag } = useTagCategories();
   const tagsHidden = hiddenSections?.has("tags") ?? false;
   const tagGroups = groupTagsByCategory(filterState.tags, tagCategories, categoryByTag);
@@ -371,8 +361,6 @@ export function ActiveFilters({
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
             {values.map((value) => {
-              // Markers, channels, and owned buckets don't have icon assets —
-              // skip the lookup so we can pass `key` straight through.
               const icon =
                 key === "markers" || key === "channels" || key === "owned" || key === "keywords"
                   ? undefined
@@ -579,14 +567,7 @@ export function ActiveFilters({
   );
 }
 
-/**
- * A tri-state boolean filter chip (Signed, Promo, Banned, Errata, Standard) in
- * the same include/exclude language as the multi-select chips (ADR-034): the
- * trait name with a secondary fill when required (`true`), or a struck-out
- * destructive "−Promo" when forbidden (`false`). The caller only renders it when
- * the flag is set, so `state` is never null here.
- * @returns The flag chip.
- */
+/** Caller only renders this when the flag is set, so `state` is never null here. */
 function FlagChip({
   label,
   state,
@@ -635,8 +616,7 @@ function RangeBadge({
     <div className="flex items-center gap-1">
       <span className="text-muted-foreground hidden text-xs sm:inline">{label}:</span>
       <Badge variant="secondary" className="gap-1">
-        {/* On mobile the external prefix is hidden, so carry the label inside
-            the chip ("Energy 1-3") — a bare range value alone is ambiguous. */}
+        {/* On mobile the external prefix is hidden, so carry the label inside the chip. */}
         <span className="sm:hidden">{label}</span>
         {valueLabel}
         <ChipRemoveButton aria-label={`Clear ${label} filter`} onClick={onClear} />

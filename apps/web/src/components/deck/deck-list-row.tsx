@@ -24,10 +24,6 @@ import { DomainIcon } from "./domain-icon";
 import { LocalDeckActionsMenu } from "./local-deck-actions-menu";
 import { LocalDeckBadge } from "./local-save-hint";
 
-/**
- * Compact one-row deck list entry — denser alternative to the tile grid.
- * @returns A deck list row.
- */
 export function DeckListRow({
   item,
   folderLabels = {},
@@ -35,9 +31,8 @@ export function DeckListRow({
   onToggleFamily,
 }: {
   item: DeckListItemResponse;
-  /** Folder id → name, for the deck's folder chips. Empty while signed out. */
   folderLabels?: Record<string, string>;
-  /** The deck's place in its variant family (ADR-042). Absent for a standalone deck. */
+  /** Absent for a standalone deck. */
   family?: DeckFamilyEntry;
   onToggleFamily?: (familyId: string) => void;
 }) {
@@ -91,21 +86,17 @@ export function DeckListRow({
     <div
       className={cn(
         cardLinkVariants(),
-        // No hover wash here: the domain gradient is an inline style that overrides
-        // the wash on legend decks, so drop it everywhere to keep rows consistent.
+        // Domain gradient is an inline style that overrides the hover wash on
+        // legend decks, so drop the wash everywhere to keep rows consistent.
         "ring-border group relative flex items-center gap-3 rounded-lg px-3 py-2 ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
-        // The deck name's link stretches over the whole row through its ::after
-        // instead of the row being one big anchor, because an anchor may not
-        // contain the menu and the badges that live in here. It is the only
-        // anchor in the row, so the ring the root used to wear follows it.
+        // Stretched-link: the deck name is the row's only anchor (an anchor
+        // can't contain the menu and badges), so the focus ring follows it.
         "has-[a:focus-visible]:ring-ring/50 has-[a:focus-visible]:ring-2",
-        // Anything that reacts to a hover has to sit above that overlay or it
-        // never sees one: every tooltip trigger, and every native title. The
-        // menu and the variant toggle carry their own z-10.
+        // Anything reacting to hover must sit above the stretched-link overlay
+        // (tooltip triggers, native titles) or it never sees the hover.
         "**:data-[slot=tooltip-trigger]:relative **:data-[slot=tooltip-trigger]:z-10",
         "[&_[title]]:relative [&_[title]]:z-10",
-        // A revealed sibling is indented under its family's front row, which is
-        // the only thing marking it as one — the rows are otherwise identical.
+        // Indent is the only thing marking a revealed sibling as one.
         family?.role === "member" && "ml-4 sm:ml-8",
       )}
       data-archived={deck.archivedAt !== null}
@@ -145,9 +136,7 @@ export function DeckListRow({
             championCard={championCard}
             tagSummary={tagSummary}
           />
-          {/* Below md there isn't width for both the columns and a readable
-              name, so the same facts wrap under the name instead — which is
-              also what stops phones losing them entirely, as they used to. */}
+          {/* Below md there's no width for both columns and a readable name. */}
           <DeckMetaLine item={item} leading={formatText} className="mt-0.5 md:hidden" />
         </div>
       </div>

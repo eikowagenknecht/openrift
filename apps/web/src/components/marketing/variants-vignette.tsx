@@ -5,11 +5,8 @@ import { cn } from "@/lib/utils";
 
 import { ClipFrame } from "./clip-frame";
 
-// Rail geometry from deck-variant-rail.tsx. The vertical rhythm is verbatim —
-// it is what makes the graph read as one. Only the slot narrows (168 → 132), so
-// three generations fit a marketing column without the rail's own scroller.
-// SLOT_WIDTH and LANE_GAP are also the marker's travel, so `variant-slide` in
-// index.css carries them as literals.
+// SLOT_WIDTH and LANE_GAP are the marker's travel distance too; `variant-slide`
+// in index.css carries them as literals and must be updated if these change.
 const SLOT_WIDTH = 132;
 const DOT_SIZE = 8;
 const LABEL_WIDTH = SLOT_WIDTH - 12;
@@ -42,24 +39,9 @@ const CHIP_STYLES: Record<DiffKind, string> = {
 interface DiffEntry {
   name: string;
   kind: DiffKind;
-  /** The chip text the real diff renders: "+1", "−2", or "3→1". */
   chip: string;
 }
 
-/**
- * One step of the Azir family the deck vignette builds, card for card. The chip
- * totals on the rail are these entries summed, and both count copies rather
- * than rows, so a `2→3` change is worth one add.
- *
- * Every card is real and legal in the list: an Emperor of the Sands legend puts
- * the deck in calm and order, so nothing from the other four domains can appear
- * here. Rebuilding for Unleashed pulls in that set's cards; the budget branch
- * off it fills the holes with commons and drops the two carrying the price.
- *
- * The counts also have to fit the deck vignette's energy curve, since both
- * describe the same 39-card list. Nothing here claims three copies at an energy
- * whose column is already spoken for.
- */
 const UNLEASHED_DIFF: DiffEntry[] = [
   { name: "Vi, Peacekeeper", kind: "add", chip: "+1" },
   { name: "Soul Sword", kind: "change", chip: "2→3" },
@@ -80,7 +62,6 @@ function NodeLabel({
 }: {
   label: string;
   draft?: boolean;
-  /** Which half of the switch this label is bold for. */
   emphasis?: "a" | "b";
 }) {
   const name = <span className="truncate">{label}</span>;
@@ -159,12 +140,6 @@ function EdgeCounts({
   );
 }
 
-/**
- * The card-by-card body the numbers on a connector open, for one step. Both
- * panels share a grid cell so the frame measures the taller of the two and the
- * switch never reflows the column. Panel "a" is the one showing at rest, which
- * is what reduced motion and the server render get.
- */
 function StepDiff({
   from,
   to,
@@ -205,13 +180,6 @@ function StepDiff({
   );
 }
 
-/**
- * The deck-variant rail: a branch of the same deck drawn as a commit graph,
- * with each hop's added and cut copies floating over its connector. The
- * animation opens the fork and hands it the current marker, the way switching
- * variants moves it on the real page, and the panel below follows to the step
- * the marker lands on.
- */
 export function VariantsVignette() {
   return (
     <ClipFrame className="flex flex-col gap-4 p-5">

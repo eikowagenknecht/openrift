@@ -16,7 +16,6 @@ export default function HowToPlayArticle() {
         the full rulebook. For the official rules, see the links at the bottom.
       </p>
 
-      {/* The goal */}
       <Alert>
         <TrophyIcon className="text-warning" />
         <AlertTitle>The goal</AlertTitle>
@@ -27,7 +26,6 @@ export default function HowToPlayArticle() {
         </AlertDescription>
       </Alert>
 
-      {/* The kit */}
       <section>
         <Heading className="mb-2">What you bring to the table</Heading>
         <p className="text-muted-foreground">
@@ -77,7 +75,6 @@ export default function HowToPlayArticle() {
         </p>
       </section>
 
-      {/* The board */}
       <section>
         <Heading className="mb-2">The board</Heading>
         <p className="text-muted-foreground">
@@ -99,7 +96,6 @@ export default function HowToPlayArticle() {
         </Callout>
       </section>
 
-      {/* A turn */}
       <section>
         <Heading className="mb-2">A turn at a glance</Heading>
         <p className="text-muted-foreground">
@@ -125,7 +121,6 @@ export default function HowToPlayArticle() {
         </div>
       </section>
 
-      {/* Runes and power */}
       <section>
         <Heading className="mb-2">Runes and power</Heading>
         <p className="text-muted-foreground">
@@ -147,7 +142,6 @@ export default function HowToPlayArticle() {
         </div>
       </section>
 
-      {/* Battlefields */}
       <section>
         <Heading className="mb-2">Battlefields and Showdowns</Heading>
         <p className="text-muted-foreground">
@@ -173,7 +167,6 @@ export default function HowToPlayArticle() {
         </DefinitionList>
       </section>
 
-      {/* Domains */}
       <section>
         <Heading className="mb-2">The six domains</Heading>
         <p className="text-muted-foreground">
@@ -199,7 +192,6 @@ export default function HowToPlayArticle() {
         </div>
       </section>
 
-      {/* Keywords */}
       <section>
         <Heading className="mb-2">Keywords</Heading>
         <p className="text-muted-foreground">
@@ -209,7 +201,6 @@ export default function HowToPlayArticle() {
         </p>
       </section>
 
-      {/* Card costs explainer */}
       <section>
         <Heading className="mb-2">Reading a card</Heading>
         <p className="text-muted-foreground">
@@ -225,7 +216,6 @@ export default function HowToPlayArticle() {
         </div>
       </section>
 
-      {/* Next steps */}
       <section>
         <Heading className="mb-2">Where to go next</Heading>
         <p className="text-muted-foreground">

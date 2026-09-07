@@ -9,16 +9,13 @@ import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { stubPrinting } from "@/test/factories";
 
-// The fallback-art overlay renders the "Suggest image" Link; there is no
-// router in these tests, so swap it for a plain styled span.
+// No router in these tests, so swap the "Suggest image" Link for a plain span.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children, className }: { children: ReactNode; className?: string }) => (
     <span className={className}>{children}</span>
   ),
 }));
 
-// CardPlaceholderImage reads domain colors through a suspense query, so tests
-// that render placeholder art need a QueryClient with the init data seeded.
 function makeWrapper() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(["init"], {
@@ -63,8 +60,7 @@ function makePrintingWithImage(slug: string): Printing {
   });
 }
 
-// React synthesizes onMouseEnter from mouseover, so this triggers the tile's
-// fanMouseEnter handler (which mounts the deferred sibling faces).
+// React synthesizes onMouseEnter from mouseover.
 function hoverTile(container: HTMLElement) {
   const tile = container.querySelector("[data-printing-id]");
   if (!tile) {
@@ -73,19 +69,15 @@ function hoverTile(container: HTMLElement) {
   fireEvent.mouseOver(tile);
 }
 
-// The black stand-in card that renders sibling edges before the faces mount.
 function queryStandin(container: HTMLElement) {
   return container.querySelector(".aspect-card.bg-black");
 }
 
-// The black overlay that re-covers mounted faces while the fan is closed.
 function queryFanCover(container: HTMLElement) {
   return container.querySelector(".pointer-events-none.absolute.inset-0.bg-black");
 }
 
 describe("CardThumbnail siblings", () => {
-  // Sibling faces are invisible until the hover fan-out, so they mount on
-  // first hover: no image download and no placeholder DOM on page load.
   it("mounts sibling thumbnails on first hover, not on mount", () => {
     const front = makePrintingWithImage("RB1-001");
     const sibling = makePrintingWithImage("RB1-001-foil");
@@ -108,9 +100,6 @@ describe("CardThumbnail siblings", () => {
     expect(srcs).toContain("/media/cards/aa/RB1-001-foil-image-id-aa-400w.webp");
   });
 
-  // Hovering arms a 200ms fan-ready timer that only mouse-leave used to clear.
-  // Unmounting mid-hover left it pending, and firing after teardown blew up
-  // the whole suite with "window is not defined".
   it("clears the pending fan timer when unmounted mid-hover", () => {
     vi.useFakeTimers();
     try {
@@ -148,21 +137,14 @@ describe("CardThumbnail siblings", () => {
         display={{ ...baseDisplay, coarsePointer: false }}
       />,
     );
-    // No cover while the stand-in card is showing — it would be redundant.
     expect(queryFanCover(container)).toBeNull();
 
     hoverTile(container);
-    // Once the face is mounted it stays mounted, so the closed look is
-    // restored by the cover (opacity driven by the fan's --fan variable).
     const cover = queryFanCover(container);
     expect(cover).not.toBeNull();
     expect(cover?.getAttribute("style")).toContain("--fan");
   });
 
-  // A card with many printings drew one offset silhouette per printing, which
-  // read as clutter. The closed stack is capped at five visible edges; the
-  // deeper layers still render (so the fan spreads all of them) but sit at
-  // zero opacity under the last visible edge until `--fan` rises.
   it("shows at most five stacked edges while the fan is closed", () => {
     const front = makePrintingWithImage("RB1-001");
     const siblings = [
@@ -179,21 +161,15 @@ describe("CardThumbnail siblings", () => {
       />,
     );
     const layers = [...container.querySelectorAll(".origin-bottom")];
-    // Every sibling still gets a layer, so the fanned-out spread is complete.
     expect(layers).toHaveLength(8);
 
     const styles = layers.map((layer) => layer.getAttribute("style") ?? "");
     const visibleWhenClosed = styles.filter((style) => !style.includes("opacity: var(--fan"));
     expect(visibleWhenClosed).toHaveLength(5);
 
-    // The capped layers are the deepest ones, so the five that stay visible
-    // are the ones nearest the front card (last in render order).
     expect(styles.slice(-5).every((style) => !style.includes("opacity: var(--fan"))).toBe(true);
   });
 
-  // The fan-out is hover-driven (`hover:[--fan:1]`), so on coarse-pointer
-  // devices the sibling images sit hidden behind the front card and only
-  // their borders are ever visible. Loading the <img> is pure waste.
   it("does not load sibling thumbnails on coarse-pointer devices", () => {
     const front = makePrintingWithImage("RB1-001");
     const sibling = makePrintingWithImage("RB1-001-foil");
@@ -231,7 +207,6 @@ describe("CardThumbnail siblings", () => {
     hoverTile(container);
     const placeholder = container.querySelector('[role="img"]');
     expect(placeholder).not.toBeNull();
-    // Hidden from the a11y tree so it doesn't pollute the front card's button name.
     expect(placeholder?.closest('[aria-hidden="true"]')).not.toBeNull();
     expect(queryStandin(container)).toBeNull();
   });
@@ -295,7 +270,6 @@ describe("CardThumbnail image error fallback", () => {
     const placeholder = container.querySelector('[role="img"]');
     expect(placeholder).not.toBeNull();
     expect(placeholder?.closest('[aria-hidden="true"]')).not.toBeNull();
-    // The front card's image is untouched by the sibling's failure.
     expect(container.querySelector('img[src*="RB1-001-image"]')).not.toBeNull();
   });
 });
@@ -306,7 +280,7 @@ describe("CardThumbnail standard-art fallback", () => {
     const printing = stubPrinting({ language, images: [image] });
     return { printing, image };
   }
-  it("shows the fallback art with the centered notice instead of placeholder art", () => {
+  it("shows the fallback art with the centered notice and no language badge for a same-language borrow", () => {
     const printing = stubPrinting({ card: { slug: "RB1-040" }, images: [] });
     const { container } = render(
       <CardThumbnail
@@ -321,7 +295,6 @@ describe("CardThumbnail standard-art fallback", () => {
     expect(container.querySelector('[role="img"]')).toBeNull();
     expect(container.textContent).toContain("Placeholder");
     expect(container.textContent).toContain("(suggest image)");
-    // Same-language borrow: no language badge.
     expect(container.textContent).not.toContain("EN");
   });
 
@@ -415,7 +388,6 @@ describe("CardThumbnail standard-art fallback", () => {
       { wrapper: makeWrapper() },
     );
     expect(container.querySelector('[role="img"]')).not.toBeNull();
-    // The wording holds for the drawn placeholder too, so the notice stays.
     expect(container.textContent).toContain("(suggest image)");
   });
 
@@ -433,8 +405,6 @@ describe("CardThumbnail standard-art fallback", () => {
     );
     const notice = container.querySelector('a, [class*="pointer-events-auto"]');
     expect(notice).not.toBeNull();
-    // The unowned dim lives on the image section; the notice must not sit
-    // inside that opacity-50 subtree.
     expect(notice?.closest(".opacity-50")).toBeNull();
   });
 
@@ -527,12 +497,6 @@ describe("CardThumbnail placeholder promo label", () => {
 });
 
 describe("CardThumbnail tilt shell", () => {
-  // Regression: with cardTilt=true on a coarse-pointer device, SSR rendered
-  // the tilt shell (matchMedia is undefined on the server) but the client
-  // rendered the plain shell, producing a hydration mismatch on the inline
-  // `style` attribute. The bundle now reads through useCoarsePointer (server
-  // snapshot `false`), so the first client render matches SSR and the tilt
-  // drops away one paint later.
   it("renders without the 3D tilt transform when coarsePointer is true", () => {
     const printing = makePrintingWithImage("RB1-002");
     const { container } = render(

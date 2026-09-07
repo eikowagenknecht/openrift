@@ -3,10 +3,6 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainColor } from "@/lib/domain";
 
-/**
- * Thin stacked bar showing domain color distribution for a deck.
- * @returns The domain bar, or null if no countable cards.
- */
 export function DeckDomainBar({
   distribution,
 }: {
@@ -20,7 +16,6 @@ export function DeckDomainBar({
     return null;
   }
 
-  // Re-sort by canonical domain order from the database
   const orderIndex = new Map(orders.domains.map((domain, index) => [domain, index]));
   const segments = distribution.toSorted(
     (first, second) => (orderIndex.get(first.domain) ?? 99) - (orderIndex.get(second.domain) ?? 99),
@@ -32,10 +27,7 @@ export function DeckDomainBar({
         const percent = ((segment.count / total) * 100).toFixed(1);
         return (
           <Tooltip key={segment.domain}>
-            {/* A span, not the default trigger element: Base UI renders that
-                as a button, and these segments are a visual summary with no
-                action behind them. As buttons they were unlabelled tab stops,
-                several per deck. */}
+            {/* Base UI's default trigger is a button; these were unlabelled tab stops, several per deck. */}
             <TooltipTrigger
               render={<span />}
               className="h-full"

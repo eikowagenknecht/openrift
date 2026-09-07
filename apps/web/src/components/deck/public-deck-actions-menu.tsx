@@ -52,21 +52,15 @@ function sizeFor(choice: ShareImageRenderChoice): "hq" | undefined {
 interface PublicDeckActionsMenuProps {
   deckId: string;
   deckName: string;
-  /** The share token both public deck pages are reached through. */
   shareToken: string;
-  /** The deck's `updatedAt`, which cache-busts the rendered image. */
   updatedAt: string;
   cards: PublicDeckCardResponse[];
-  /** Renders the trigger as a top-bar icon button, for a page that has a bar. */
   inTopBar?: boolean;
 }
 
 /**
- * The overflow menu on the two read-only deck pages, `/decks/share/$token` and
- * the archive's `/meta/decks/$token`. Carries only the actions that need
- * neither an account nor a session.
- *
- * @returns The public deck actions menu.
+ * Overflow menu on the two read-only deck pages, carrying only the actions
+ * that need neither an account nor a session.
  */
 export function PublicDeckActionsMenu({
   deckId,
@@ -88,11 +82,9 @@ export function PublicDeckActionsMenu({
     imageVersion: shareImageVersion(updatedAt),
   };
 
-  // The viewer has no server row to export, so the code comes from the public
-  // stateless encoder — the same codecs the owner's export runs.
   const encodeCards = toEncodeDeckCards(builderCards);
-  // The menu closes on click, so the hook's inline "Copied" never shows;
-  // the toast here is the only feedback the click gets.
+  // The menu closes on click, so the hook's inline "Copied" state never
+  // shows; this toast is the only feedback the click gets.
   const handleCopyCode = async () => {
     try {
       const encoded = await encodeMutation.mutateAsync({ cards: encodeCards });

@@ -18,13 +18,6 @@ import {
   useShareCollectionWithFriendGroup,
 } from "@/hooks/use-friend-groups";
 
-/**
- * Picks which of the viewer's personal collections a group can see, the
- * collection counterpart to {@link import("./share-lists-with-group-dialog").ShareListsWithGroupDialog}.
- * Lists every collection the viewer hasn't shared yet, pre-selected so the
- * common "share them all" case is one confirm.
- * @returns The dialog node.
- */
 export function ShareCollectionsWithGroupDialog({
   slug,
   groupName,
@@ -37,9 +30,7 @@ export function ShareCollectionsWithGroupDialog({
   groupName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Footer dismiss label. */
   cancelLabel?: string;
-  /** Whether to start with every candidate checked. Off for "Share more". */
   preselectAll?: boolean;
 }) {
   return (
@@ -85,8 +76,6 @@ function ShareCollectionsBody({
 
   const candidates = data.items.filter((item) => item.sharedAt === null);
 
-  // "Share more" starts empty so the member picks what to add; callers that want
-  // a one-click "share them all" can opt in with preselectAll.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(preselectAll ? candidates.map((item) => item.collectionId) : []),
   );

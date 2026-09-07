@@ -43,14 +43,6 @@ function buildCellState(
   return initial;
 }
 
-/**
- * Compact three-marketplace status badges shown in the printing header. Each
- * badge reports whether the printing has its own mapping (owner — shows the
- * external id), an inherited sibling mapping (link icon + inherited id), or
- * nothing yet.
- *
- * @returns A row of three small badges, one per marketplace.
- */
 export function PrintingMarketplaceBadges({
   printingId,
   mappings,

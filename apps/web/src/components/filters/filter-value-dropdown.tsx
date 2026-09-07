@@ -9,10 +9,6 @@ import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { PRESENCE_LABELS, presenceFlagCount, presenceToFlagState } from "@/lib/presence-filter";
 
-/**
- * Everything a dimension's dropdown definition reads. Assembled once inside
- * {@link FilterValueDropdown} so the definitions below stay plain data.
- */
 interface DropdownContext {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
@@ -25,14 +21,9 @@ interface DropdownContext {
   channelBreadcrumbs: ReadonlyMap<string, string>;
 }
 
-/** A dimension's dropdown, minus the per-surface trigger presentation. */
 type DropdownSpec = Omit<MultiSelectComboboxProps, "triggerStyle" | "placeholder" | "fitContent">;
 
-/**
- * The any/none presence toggle folded into the top of a dimension's picker
- * (Markers, Distribution Channels, Keywords), matching the expanded panel.
- * @returns The flag row descriptor.
- */
+// Presence toggle folded into the top of a dimension's picker, matching the expanded panel.
 function presenceFlag(
   dimension: PresenceDimension,
   value: "any" | "none" | null,
@@ -47,18 +38,6 @@ function presenceFlag(
   };
 }
 
-/**
- * Every value dimension that renders as one searchable dropdown, spelled once
- * for all three filter surfaces. The compact bar, the More menu and the chip
- * sections differ only in the trigger they wrap this in, so a new axis is one
- * entry here rather than three near-identical JSX blocks.
- *
- * Dimensions that genuinely render differently per surface stay at their call
- * sites: the Variant dropdown (its own component, several axes in one picker),
- * the per-category custom-tag and printed-tag pickers (one dropdown each,
- * sharing one URL key), Owned (a checkbox submenu inside the More menu, a
- * plain multi-select elsewhere), and the flag and range rows.
- */
 const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
   languages: (ctx) => ({
     label: "Language",
@@ -77,9 +56,6 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     label: "Sets",
     searchPlaceholder: "Search sets…",
     emptyText: "No sets match.",
-    // `value` is the set code (e.g. "OGN"). Show it in a fixed-width gutter (via
-    // `prefix`) ahead of the name so codes/names line up down the list; the
-    // combobox folds it back into the trigger and search text as "OGN — Origins".
     options: ctx.availableFilters.sets.map((value) => {
       const name = ctx.setDisplayLabel?.(value) ?? value;
       return name === value ? { value, label: value } : { value, label: name, prefix: value };
@@ -167,8 +143,6 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
     label: "Distribution Channels",
     searchPlaceholder: "Search distribution channels…",
     emptyText: "No distribution channels match.",
-    // Full breadcrumb paths (e.g. "Tournament › Regionals › Top 8") so the
-    // search field matches on any level of the tree.
     options: ctx.availableFilters.distributionChannels.map((channel) => ({
       value: channel.slug,
       label: ctx.channelBreadcrumbs.get(channel.id) ?? channel.label,
@@ -197,11 +171,8 @@ const DROPDOWNS: Record<string, (ctx: DropdownContext) => DropdownSpec> = {
   }),
 };
 
-/**
- * The Variant unit's dropdown, kept outside {@link DROPDOWNS} because which
- * axis is primary is decided by the host, which passes the placement and
- * `hiddenSections` verdicts in.
- */
+// Kept outside DROPDOWNS: which axis is primary is decided by the host, which
+// passes the placement and hiddenSections verdicts in.
 export function FilterVariantDropdown({
   triggerStyle,
   availableFilters,
@@ -218,7 +189,6 @@ export function FilterVariantDropdown({
   showArtVariant: boolean;
   showFinish: boolean;
   showOvernumberedFlag: boolean;
-  /** Whether the Signed flag rides this dropdown rather than its own row. */
   showSignedFlag: boolean;
   fitContent?: boolean;
 }) {
@@ -286,19 +256,8 @@ export function FilterVariantDropdown({
   );
 }
 
-/**
- * One value dimension's dropdown, wherever the filter chrome needs it — an
- * inline chip in the compact bar (`triggerStyle="button"`), a row in the More
- * menu (`"menu"`), or a panel chip (`"chip"`). The dimension's options, state,
- * counts and folded presence toggle come from {@link DROPDOWNS}, so all three
- * surfaces render the same control from one definition.
- *
- * It is a component rather than a props builder on purpose: a spread props
- * object would be a fresh value every render and React Compiler could never
- * cache the element, re-rendering the whole combobox on every faceted-count
- * pass. As a component the host caches the element and the work is skipped.
- * @returns The dimension's dropdown.
- */
+// A component, not a props builder: a spread props object is a fresh value every
+// render, so React Compiler could never cache the element.
 export function FilterValueDropdown({
   dimension,
   triggerStyle,
@@ -311,11 +270,7 @@ export function FilterValueDropdown({
   /** A key of {@link DROPDOWNS} (also a `FILTER_DIMENSIONS` key). */
   dimension: string;
   triggerStyle: "chip" | "button" | "menu";
-  /**
-   * Turns the trigger into a value control showing this text when empty. The
-   * panel's labelled rows pass "Any" (the gutter already names the dimension);
-   * self-labelling chips and menu rows pass nothing.
-   */
+  /** Text shown in the trigger when empty; omitted for self-labelling chips/menu rows. */
   placeholder?: string;
   availableFilters: AvailableFilters;
   availableLanguages?: string[];

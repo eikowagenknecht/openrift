@@ -25,13 +25,6 @@ import {
   splitUtcToLocalDateTime,
 } from "@/lib/tournament-display";
 
-/**
- * Decklist collection: whether lists are expected at all, when submission
- * closes, and whether players may keep editing after submitting. The deadline
- * lives here rather than on the Schedule card because it only means anything
- * while lists are being collected.
- * @returns The decks card.
- */
 export function DecksCard({
   detail,
   locked,
@@ -49,9 +42,6 @@ export function DecksCard({
   const tzLabel = localTimeZoneLabel();
   const deckExpected = detail.deckSubmission !== "none";
 
-  // Deck submission deadline editing (in the host's local timezone). Both parts
-  // empty means "no deadline" (lists stay open until the host closes the
-  // phase). An at-deadline lock with no deadline never auto-locks.
   const closeTouched = closeDate !== "" || closeTime !== "";
   const nextCloseAt = closeTouched ? combineLocalDateTimeToUtc(closeDate, closeTime) : null;
   const closeIncomplete = closeTouched && nextCloseAt === null;

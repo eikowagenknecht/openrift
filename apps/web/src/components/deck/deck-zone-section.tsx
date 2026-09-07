@@ -27,14 +27,11 @@ import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
 
-// Zones that only allow a single card — show remove button instead of +/-
 const SINGLE_CARD_ZONES = new Set<DeckZone>([
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
 ]);
 const UNIQUE_ONLY_ZONES = new Set<DeckZone>([WellKnown.deckZone.BATTLEFIELD]);
-// Zones whose rows can be picked up and dragged out. Drop-target validity is
-// gated separately (see deck-dnd-context.tsx + isCardAllowedInZone).
 const DRAG_ZONES = new Set<DeckZone>([
   WellKnown.deckZone.MAIN,
   WellKnown.deckZone.SIDEBOARD,
@@ -46,15 +43,12 @@ interface DeckZoneSectionProps {
   deckId: string;
   zone: DeckZone;
   cards: DeckBuilderCard[];
-  /** Per-card ownership — rows show an amber owned/needed fraction when short. */
   ownership?: DeckOwnershipData;
   violations: DeckViolation[];
   isActive: boolean;
   shiftHeld?: boolean;
   onActivate: () => void;
   onHoverCard?: HoverHandler;
-  /** Full deck-items list (across all zones), used to seed the detail pane's
-   * prev/next navigation when a row is clicked. */
   deckItems: CardViewerItem[];
 }
 
@@ -79,12 +73,10 @@ export function DeckZoneSection({
   const format = deckDetail.deck.format;
   const isFreeform = format === WellKnown.deckFormat.FREEFORM;
   const { getPreferredPrinting } = usePreferredPrinting();
-  // Names only — the counts come from the ownership entry, which has already
-  // allocated each borrowed copy to the zone that needs it.
   const { data: borrowedLenders } = useBorrowedLenders();
 
-  // Cross-zone copy totals — champion counts toward the 3-copy limit too;
-  // overflow is excluded since it is a free parking zone with no copy cap.
+  // Champion counts toward the 3-copy limit too; overflow is excluded since
+  // it is a free parking zone with no copy cap.
   const copyLimitZones = new Set<DeckZone>([
     WellKnown.deckZone.MAIN,
     WellKnown.deckZone.SIDEBOARD,
@@ -95,9 +87,7 @@ export function DeckZoneSection({
       .filter((entry) => entry.cardId === cardId && copyLimitZones.has(entry.zone))
       .reduce((sum, entry) => sum + entry.quantity, 0);
 
-  // Drop-target wiring — the same hook the overview's zone tiles use, so the
-  // two reject the same drags. The visual state below is gated on
-  // `dropDisabled`, so an invalid zone shows no drop highlight.
+  // The same hook the overview's zone tiles use, so the two reject the same drags.
   const { dropRef, isOver, dropDisabled } = useDeckZoneDrop({
     id: `deck-zone-${zone}`,
     zone,
@@ -112,8 +102,6 @@ export function DeckZoneSection({
     }
   };
 
-  // Expand (if collapsed) and make this the active zone. Shared by the zone
-  // header and the empty-state hint so both behave identically.
   const activateZone = () => {
     if (!open) {
       setOpen(true);
@@ -124,8 +112,6 @@ export function DeckZoneSection({
   const totalQuantity = cards.reduce((sum, card) => sum + card.quantity, 0);
   const maxCardQuantity = cards.reduce((max, card) => Math.max(max, card.quantity), 0);
   // Freeform has no per-zone target — hide the "x/N" denominator entirely.
-  // zoneExpected applies the format overrides (Custom-Region's single
-  // battlefield, no /8 target on sideboard-less formats).
   const expected = isFreeform ? undefined : zoneExpected(zone, format);
   const zoneViolations = violations.filter(
     (violation) => violation.zone === zone && !violation.cardId,
@@ -136,8 +122,6 @@ export function DeckZoneSection({
       cardViolations.set(violation.cardId, violation.message);
     }
   }
-  // Only show zone-level violations when the zone has content — empty zones
-  // use the hint text instead of screaming errors at an empty deck.
   const isEmpty = cards.length === 0;
   const hasZoneViolations = !isEmpty && zoneViolations.length > 0;
   // In freeform, legend/champion are multi-card and battlefields aren't unique.
@@ -145,8 +129,6 @@ export function DeckZoneSection({
   const isUniqueOnly = UNIQUE_ONLY_ZONES.has(zone) && !isFreeform;
   const isGrouped = GROUPED_ZONES.has(zone);
 
-  // Get legend domains for active zone tint — return the stable array from the card
-  // or undefined (not a new []) to avoid infinite re-renders from Zustand
   const renderCardRow = (card: DeckBuilderCard) => {
     const entry = ownership?.byCardZone.get(`${card.cardId}:${zone}`);
     return (
@@ -226,17 +208,13 @@ export function DeckZoneSection({
     <div
       ref={dropRef}
       className={cn(
-        // Frameless: no box. The drop highlight is a ring around the whole
-        // block, since there's no border left to recolor.
         "flex flex-col gap-1.5 rounded-md transition-all select-none",
         isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-2",
         dropDisabled && "opacity-40",
       )}
     >
-      {/* Same header grammar as the deck overview's zones: a small-caps label
-          over a hairline rule. The active zone recolors that rule instead of
-          tinting a box. Two separate controls, never nested: the chevron
-          collapses the section, the label opens the zone in the main area. */}
+      {/* Two separate controls, never nested: the chevron collapses the
+          section, the label opens the zone in the main area. */}
       <div className={cn("flex h-6 items-center gap-1.5 border-b", isActive && "border-primary")}>
         <ExpandToggle
           expanded={open}

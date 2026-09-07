@@ -54,19 +54,9 @@ interface QuickAddPaletteProps {
   collectionName: string;
   printingsByCardId: Map<string, Printing[]>;
   ownedCountByPrinting?: Record<string, number>;
-  /**
-   * Allowlist of language codes the user wants to see in the palette. When
-   * provided, printings outside this list are filtered out. Routes that
-   * already seed `filters.languages` from the user pref (e.g. /cards) leave
-   * this undefined; routes that don't (e.g. /collections) pass the user pref
-   * so disabled languages don't surface here.
-   */
+  /** Allowlist of language codes to show; when provided, other printings are filtered out. */
   preferredLanguages?: readonly string[];
-  /**
-   * The viewer's collections — enables the Move mode (pull existing copies
-   * into the target instead of adding new ones). Omit to keep the palette
-   * add-only. Needs at least two collections to be useful.
-   */
+  /** Enables Move mode (pull existing copies into the target). Omit to keep the palette add-only. */
   collections?: CollectionResponse[];
 }
 
@@ -82,9 +72,6 @@ export function QuickAddPalette({
 }: QuickAddPaletteProps) {
   const isMobile = useIsMobile();
   const verb = useCommandPaletteStore((state) => state.quickAddVerb);
-  // Move states both endpoints in its direction row, so its token only has to
-  // name the mode. Add has no such row, which makes the token the one place its
-  // destination can be written down.
   const scopeLabel = verb === "move" ? "Move" : `Add to ${collectionName}`;
 
   return (
@@ -110,7 +97,6 @@ export function QuickAddPalette({
 
 interface PaletteInnerProps {
   verb: QuickAddVerb;
-  /** The search box's leading token, e.g. "Add to My Binder". */
   scopeLabel: string;
   collectionId: string;
   collectionName: string;
@@ -145,12 +131,7 @@ function PaletteInner({
   const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
 
-  // Add and undo run through the shared quick-add hook, so the palette gets the
-  // same ADR-038 handling the collection grid has: undoing an add whose copy has
-  // since been annotated parks for confirmation instead of destroying the
-  // details. The removal toast and the refocus fire from onDisposed, which runs
-  // only once a removal actually lands — a parked one announces nothing and
-  // leaves focus to the confirmation dialog.
+  // Toast/refocus fire from onDisposed, which only runs once a removal lands.
   const {
     handleQuickAdd,
     tryUndoAdd,
@@ -179,19 +160,15 @@ function PaletteInner({
     preferredLanguages,
   });
 
-  // Derive the printing to preview (only when a printing list is expanded)
   const previewPrinting = expandedCardId
     ? (results.find((r) => r.cardId === expandedCardId)?.printings[expandedIndex] ?? null)
     : null;
-  // A failed preview image hides the preview panel entirely — the same
-  // behavior as a printing with no image. Keyed by image id so expanding
-  // another printing retries fresh.
+  // Keyed by image id, not a boolean, so expanding another printing retries fresh.
   const [failedImageId, setFailedImageId] = useState<string | null>(null);
   const rawPreviewImageId = previewPrinting?.images[0]?.imageId ?? null;
   const previewImageId = rawPreviewImageId === failedImageId ? null : rawPreviewImageId;
   const markPreviewFailed = () => setFailedImageId(rawPreviewImageId);
 
-  // Clamp selection when results change
   const [clampedFor, setClampedFor] = useState(results.length);
   if (clampedFor !== results.length) {
     setClampedFor(results.length);
@@ -199,7 +176,6 @@ function PaletteInner({
     setExpandedCardId(null);
   }
 
-  // Scroll selected item into view (keyboard navigation only)
   useScopeEffect(`${selectedIndex} ${expandedCardId ?? ""} ${expandedIndex}`, () => {
     if (!scrollOnChange.current) {
       return;
@@ -209,9 +185,8 @@ function PaletteInner({
     if (!list) {
       return;
     }
-    // When a card is expanded, both the card row and the active printing row
-    // carry data-selected=true. Pick the last match so we scroll to the
-    // printing (deeper in the DOM) rather than the already-visible card row.
+    // Both the card row and the active printing row carry data-selected=true
+    // when expanded; the last match is the printing, deeper in the DOM.
     const candidates = list.querySelectorAll("[data-selected=true]");
     const target = candidates.item(candidates.length - 1);
     if (target) {
@@ -220,18 +195,12 @@ function PaletteInner({
   });
 
   const handleAdd = async (printing: Printing) => {
-    // The success toast is fired once per API batch by the shared hook, so a
-    // held-Enter burst produces one aggregated line rather than N. Error toasts
-    // come from the global mutation handler in query-client.ts.
     await handleQuickAdd?.(printing);
     inputRef.current?.focus();
   };
 
   const handleUndo = async (printing: Printing) => {
-    // Session-only: the palette's minus takes back what this session added and
-    // never touches a copy the user already owned. tryUndoAdd's owned-copy
-    // fallback is for the collection grid's tile minus, where that count is the
-    // thing being edited; here it is context for what you are adding to.
+    // Session-only: takes back what this session added, never a copy the user already owned.
     const entry = useAddModeStore.getState().addedItems.get(printing.id);
     if (!entry || entry.copyIds.length === 0) {
       return;
@@ -246,14 +215,12 @@ function PaletteInner({
     inputRef.current?.focus();
   };
 
-  // Applied as onMouseDown to every clickable element in the result list.
-  // Preventing mousedown's default keeps focus in the search input, so
-  // keyboard navigation survives any mouse click (clicks still fire).
+  // Preventing mousedown's default keeps focus in the search input so
+  // keyboard navigation survives a mouse click on the result list.
   const keepInputFocus = (event: React.MouseEvent) => {
     event.preventDefault();
   };
 
-  // Determine if the currently selected printing (when expanded) has session adds, for footer hint
   const expandedCard = expandedCardId
     ? results.find((r) => r.cardId === expandedCardId)
     : undefined;
@@ -292,8 +259,8 @@ function PaletteInner({
     } else if (event.key === "ArrowLeft" || (event.key === "Tab" && event.shiftKey)) {
       if (expandedCardId) {
         event.preventDefault();
-        // Step back through the source chips first; only from the leftmost
-        // chip does Left collapse the card (go back one level).
+        // Step back through source chips first; Left only collapses the card
+        // once at the leftmost chip.
         if (inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting) {
           const sources = move.sourcesFor(selectedPrinting.id);
           const activeSource = Math.min(move.sourceIndex, sources.length - 1);
@@ -306,9 +273,7 @@ function PaletteInner({
       }
     } else if (event.key === "ArrowRight" || (event.key === "Tab" && !event.shiftKey)) {
       if (expandedCardId) {
-        // Inside an expanded card, walk rightward through the source chips
-        // (move mode with an open source scope only). Clamps at the last
-        // chip — Left walks back and exits at the leftmost, so no wrap.
+        // Clamps at the last source chip; no wrap.
         if (inMoveMode && moveFrom === MOVE_FROM_ANYWHERE && selectedPrinting) {
           const sources = move.sourcesFor(selectedPrinting.id);
           if (sources.length > 1) {
@@ -358,10 +323,7 @@ function PaletteInner({
         event.stopPropagation();
         clearSearch();
       }
-      // When nothing to clear, let the dialog/drawer handle Escape
     } else if (event.key === "Backspace" && query.length === 0 && !expandedCardId) {
-      // Nothing left to delete, so Backspace steps out of the collection scope
-      // and into the global palette — the scope chip's × by another route.
       event.preventDefault();
       useCommandPaletteStore.getState().exitQuickAddScope();
     }
@@ -369,9 +331,7 @@ function PaletteInner({
 
   return (
     <div className="relative">
-      {/* Card image preview — at the top of the drawer on mobile, where there's
-          no off-canvas space for the desktop side pane. It renders at a fixed
-          160px, so a lighter variant is plenty (400w covers it at DPR 2). */}
+      {/* Renders at a fixed 160px; 400w covers it at DPR 2. */}
       {previewPrinting && previewImageId && isMobile && (
         <div className="mb-3 flex justify-center">
           <QuickAddPreview
@@ -383,7 +343,6 @@ function PaletteInner({
         </div>
       )}
 
-      {/* Card image preview — floats left of the dialog on desktop */}
       {previewPrinting && previewImageId && (
         <div className="absolute top-0 right-full mr-3 hidden w-96 lg:block">
           <QuickAddPreview
@@ -394,7 +353,6 @@ function PaletteInner({
         </div>
       )}
 
-      {/* SearchIcon input */}
       <InputGroup className="h-11 border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent">
         <InputGroupAddon align="inline-start">
           <PaletteScopeToken label={scopeLabel} />
@@ -410,8 +368,6 @@ function PaletteInner({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}
-          // The destination rides on the token, which survives typing; a
-          // placeholder repeating it would vanish at the first keystroke.
           placeholder="Search cards..."
           className="text-base sm:text-sm"
           autoFocus // oxlint-disable-line jsx-a11y/no-autofocus -- command palette, always focused on open
@@ -425,10 +381,7 @@ function PaletteInner({
         )}
       </InputGroup>
 
-      {/* Move direction, under the search box so the bands read as one
-          sentence: Move <card>, from <here> to <there>. Above it, the token
-          naming the mode landed after the endpoints that mode governs. The
-          drawer already pads its content (p-4), so the inset is desktop-only. */}
+      {/* px-3 is desktop-only; the drawer already pads its content (p-4). */}
       {inMoveMode && (
         <div className={cn("flex items-center gap-1.5 pt-1 pb-2", !isMobile && "px-3")}>
           <span className="text-muted-foreground text-xs">from</span>
@@ -487,36 +440,28 @@ function PaletteInner({
 
       <div className="border-border border-t" />
 
-      {/* Results — taller while a card is expanded on desktop, so the
-          printing rows (plus source chips in move mode) fit without
-          scrolling. The drawer keeps one height; vertical space there is
-          the screen itself. */}
       <div
         ref={listRef}
         className={cn("overflow-y-auto", !isMobile && expandedCardId ? "max-h-112" : "max-h-72")}
       >
-        {/* Empty state */}
         {query.length === 0 && (
           <div className="text-muted-foreground px-3 py-8 text-center text-sm">
             {inMoveMode ? "Type a card name to move" : "Type a card name to add"}
           </div>
         )}
 
-        {/* No results */}
         {query.length > 0 && results.length === 0 && (
           <div className="text-muted-foreground px-3 py-8 text-center text-sm">
             No cards matching &ldquo;{query}&rdquo;
           </div>
         )}
 
-        {/* Result list */}
         {results.map((card, index) => {
           const isSelected = index === selectedIndex && !expandedCardId;
           const isExpanded = expandedCardId === card.cardId;
           const shortCodes = [...new Set(card.printings.map((p) => p.shortCode))];
           return (
             <div key={card.cardId}>
-              {/* Card row — always expands to show printings */}
               <Pressable
                 data-selected={isSelected || isExpanded}
                 className={cn(
@@ -554,24 +499,17 @@ function PaletteInner({
                 />
               </Pressable>
 
-              {/* Expanded printing list */}
               {isExpanded && (
                 <div className="bg-muted/50 px-1 py-1">
                   {card.printings.map((printing, printingIndex) => {
                     const isPrintingSelected = printingIndex === expandedIndex;
-                    // ownedForPrinting comes from useOwnedCount → useLiveQuery
-                    // on copiesCollection. useBatchedAddCopies optimistically
-                    // inserts a temp row at click time, so this count already
-                    // includes pending adds. Don't add sessionAdded on top.
+                    // Optimistic adds are already reflected here (temp copy row); don't add sessionAdded on top.
                     const ownedForPrinting = ownedCountByPrinting?.[printing.id] ?? 0;
                     const addedEntry = addedItems.get(printing.id);
                     const sessionAdded =
                       (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
                     const movableForPrinting = move.movableCounts?.[printing.id] ?? 0;
                     const movedThisSession = move.movedCount(printing.id);
-                    // Source breakdown only for the selected row — it drives
-                    // both the per-source chips (From = anywhere) and the
-                    // "nothing to move" note.
                     const sources =
                       inMoveMode && isPrintingSelected ? move.sourcesFor(printing.id) : null;
                     const price = prices.get(printing.id, favoriteMarketplace);
@@ -627,7 +565,6 @@ function PaletteInner({
                             />
                           )}
                         </div>
-                        {/* Per-source breakdown for the selected row in move mode */}
                         {sources !== null &&
                           (sources.length === 0 ? (
                             <div className="text-2xs text-foreground/80 px-2 pb-1.5">
@@ -676,9 +613,7 @@ function PaletteInner({
         })}
       </div>
 
-      {/* Footer hints — keyboard only, hidden on mobile. Shown with an empty
-          result list too, because that is exactly when the Backspace hint is
-          the one worth reading. */}
+      {/* Shown with an empty result list too: that's when the Backspace hint matters most. */}
       {!isMobile && (
         <>
           <div className="border-border border-t" />
@@ -720,9 +655,6 @@ function PaletteInner({
         </>
       )}
 
-      {/* Mounted inside the palette so both call sites get it — /cards has no
-          other AnnotatedDisposeDialog, and on /collections the grid's copy is
-          driven by its own separate quick-add state. */}
       <AnnotatedDisposeDialog
         pending={pendingAnnotatedDispose}
         onConfirm={() => void confirmAnnotatedDispose()}

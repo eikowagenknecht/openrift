@@ -23,17 +23,9 @@ interface Props {
   intent: ListIntent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Switches to the public-link dialog so the two surfaces cross-reference. */
   onManagePublicLink: () => void;
 }
 
-/**
- * Group-visibility dialog: the counterpart to {@link ListShareDialog}. This one
- * governs which of the owner's friend groups can see the list (signed-in
- * members only); the share dialog governs the public link. Each dialog links to
- * the other so the split doesn't strand people.
- * @returns The dialog node.
- */
 export function ListGroupVisibilityDialog({
   listId,
   intent,
@@ -76,12 +68,6 @@ const VISIBILITY_OPTIONS: { value: GroupVisibilityMode; label: string }[] = [
   { value: "none", label: "Only me" },
 ];
 
-/**
- * The interactive control: derives the current mode from the share rows and lets
- * the owner switch to "all", a per-group selection, or fully private. Sharing is
- * opt-in (ADR-013): a list is private until the owner shares it.
- * @returns The control, or an empty-state hint when the user has no groups.
- */
 function GroupVisibilityControl({ listId }: { listId: string }) {
   const { data: groups } = useFriendGroups();
   const { data: sharedWith } = useListGroupShares(listId);

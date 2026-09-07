@@ -20,14 +20,6 @@ import {
   TradeStatusBadge,
 } from "./trade-row-parts";
 
-/**
- * One trade as a compact two-line row with a contextual action set: the
- * direction arrow, then the card and its value on top, everything qualifying it
- * (status, print, deadline, group) below, and the buttons for whatever it is
- * waiting on beside them. The arrow is unconditional — a flat list of rows says
- * which way each card moves (the same rule the suggestion rows follow).
- * @returns The trade row element.
- */
 export function TradeRow({
   trade,
   sequence,
@@ -37,18 +29,9 @@ export function TradeRow({
   trade: CardTradeResponse;
   /** The printing ids of the block this row sits in, for the detail's prev/next. */
   sequence?: string[];
-  /**
-   * The group this trade lives in, when naming it tells the viewer something.
-   * Hosts pass it only where the two people share more than one group.
-   */
+  /** Pass only when the two people share more than one group. */
   groupLabel?: string;
-  /**
-   * The one state a host's own heading already says, whose badge the row then
-   * drops. A section that is a status filter would otherwise repeat its heading
-   * on every row it holds. Only that state is dropped, so a row that landed in
-   * the section by another route (a legacy `completed` awaiting a settle, say)
-   * keeps the badge that says so.
-   */
+  /** Suppresses the badge for this one status, since the host's heading already says it. */
   redundantStatus?: TradeBadgeState;
 }) {
   const { cardsById, printingsById } = useCards();
@@ -60,20 +43,14 @@ export function TradeRow({
   const imageId = frontImageId(printing);
 
   const incoming = trade.role === "receiver";
-  // A pending trade awaiting the viewer's accept/decline is "Your decision", not
-  // "Waiting for them".
   const awaitingViewer = trade.actionNeeded === "accept-or-decline";
   const viewerSettled = trade.viewerSyncAppliedAt !== null;
   const badgeState = tradeBadgeState({ status: trade.status, awaitingViewer, viewerSettled });
 
   return (
-    // Thumb, two-line text block, actions. The actions keep their own line when
-    // the row runs out of width, which on a phone they always do; from sm up
-    // they sit centered beside the text block.
     <Card className="relative flex-row flex-wrap items-center gap-x-3 gap-y-2 p-2">
       <TradeDirectionIcon incoming={incoming} />
 
-      {/* Art only — the meta line below the name already carries code and rarity. */}
       <CardArtThumb
         shape="strip"
         imageId={imageId}
@@ -85,16 +62,11 @@ export function TradeRow({
         loading="lazy"
       />
 
-      {/* pr-8 keeps the first line clear of the overflow menu, which the settle
-          actions pin to the card's top-right corner on phones; from sm up that
-          menu rejoins the button row and the padding is dead weight. */}
+      {/* pr-8 clears the settle actions' menu, which pins to the card's top-right on phones. */}
       <div className="flex min-w-0 flex-1 basis-48 flex-col gap-0.5 pr-8 sm:pr-0">
         <div className="flex min-w-0 items-baseline gap-1.5">
-          {/* The quantity rides along inside the control: an inline-block button
-              nested in a truncating span gets clipped without an ellipsis, so
-              the truncation has to live on the button itself. Only the resolved
-              catalog printing can be shown, so an unknown one keeps the line as
-              plain text rather than a dead control. */}
+          {/* Truncation lives on the button, not a wrapping span: a nested button
+              inside a truncating span clips without an ellipsis. */}
           <CardDetailNameButton
             printingId={printing?.id}
             sequence={sequence}
@@ -102,17 +74,12 @@ export function TradeRow({
           >
             {trade.quantity}× {cardName}
           </CardDetailNameButton>
-          {/* The value belongs to the card, so it rides the name line and the
-              line below is left to the qualifiers. */}
           <span className="text-muted-foreground flex shrink-0 items-center gap-1.5 text-xs">
             <TradeEstimatedPrice printingId={trade.printingId} quantity={trade.quantity} />
           </span>
         </div>
 
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {/* Every surface that renders these rows is already about one member,
-              so the row itself never names them: no member chip, and the pending
-              badge reads "Waiting for them". */}
           {badgeState === redundantStatus ? null : (
             <TradeStatusBadge
               status={trade.status}
@@ -135,8 +102,7 @@ export function TradeRow({
           <TradeExpiry status={trade.status} expiresAt={trade.expiresAt} />
 
           {groupLabel === undefined ? null : (
-            // A badge clips rather than ellipsises on its own, so the label
-            // carries the truncation.
+            // Badge clips without an ellipsis, so the label handles its own truncation.
             <Badge variant="outline" className="min-w-0">
               <span className="truncate">{groupLabel}</span>
             </Badge>

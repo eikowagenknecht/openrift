@@ -10,25 +10,12 @@ import { useRemoveListEntry, useUpdateListEntry } from "@/hooks/use-lists";
 import type { WishEntryFlat } from "@/hooks/use-wish-entries";
 
 interface TakeWishlistFollowUpDialogProps {
-  /** The card just taken from the box, or null when the dialog is closed. */
   printing: Printing | null;
-  /** Wish entries that match the taken card. */
   entries: WishEntryFlat[];
-  /** How many copies were just taken — the amount to subtract from the wish. */
   takenQuantity: number;
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Offered right after a card is taken from a group "bulk box" when it matched
- * the viewer's wishlist. One match → a single "Remove from {list}" action;
- * several → a checklist so the viewer chooses which lists to prune. Never
- * removes anything silently — taking the card leaves wishlists untouched until
- * the viewer confirms here. Taking one copy decrements the wish by one,
- * removing the entry only when it drops to zero.
- *
- * @returns The follow-up confirmation dialog.
- */
 export function TakeWishlistFollowUpDialog({
   printing,
   entries,
@@ -42,8 +29,6 @@ export function TakeWishlistFollowUpDialog({
     () => new Set(entries.map((entry) => entry.entryId)),
   );
 
-  // Re-arm the selection (everything checked) whenever the dialog opens for a
-  // freshly-taken card.
   const [armedFor, setArmedFor] = useState(entries);
   if (armedFor !== entries) {
     setArmedFor(entries);
@@ -55,9 +40,6 @@ export function TakeWishlistFollowUpDialog({
 
   const applyRemoval = async () => {
     const chosen = entries.filter((entry) => selectedIds.has(entry.entryId));
-    // Reduce each chosen entry by the copies taken (capped at its own quantity),
-    // removing it outright when that reaches zero. The common case is one list
-    // at quantity 1, which is a plain removal.
     const updates = chosen.map((entry) => {
       const decrement = Math.min(entry.quantity, takenQuantity);
       return entry.quantity - decrement <= 0

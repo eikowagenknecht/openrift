@@ -25,17 +25,14 @@ import { cn } from "@/lib/utils";
 import type { DeckOverviewDisplayMode, DeckOverviewSort } from "@/stores/deck-overview-view-store";
 import { useDeckOverviewViewStore } from "@/stores/deck-overview-view-store";
 
-/**
- * How the deck's cards are ordered and split. Built once by the overview and
- * handed to both control clusters, because the Box tab carries the same
- * ordering control as the Deck tab — the box lists the deck in that order.
- */
+// Built once by the overview and handed to both control clusters: the Box tab
+// carries the same ordering control as the Deck tab, since the box lists the
+// deck in that order.
 export interface DeckOrderingControls {
   sortBy: DeckOverviewSort;
   sortDir: "asc" | "desc";
   onSortByChange: (value: DeckOverviewSort) => void;
   onSortDirChange: (value: "asc" | "desc") => void;
-  /** The axes on offer — ownership only where the viewer's collection is loaded. */
   groupOptions: SortGroupOption<DeckOverviewGroup>[];
   groupBy: DeckOverviewGroup;
   groupDir: "asc" | "desc";
@@ -43,26 +40,16 @@ export interface DeckOrderingControls {
   onGroupDirChange: (value: "asc" | "desc") => void;
 }
 
-/**
- * One boolean display option, rendered as a labelled switch in both the
- * desktop options popover and the phone options drawer.
- */
 interface DeckOptionSwitch {
   key: string;
   label: string;
-  /** Optional second line, for options whose label doesn't carry the meaning. */
   description?: string;
   checked: boolean;
-  /** Whether the option currently sits away from its default. */
   modified: boolean;
   nested?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }
 
-/**
- * One labelled switch in the options popover / drawer.
- * @returns The switch row.
- */
 function OptionSwitchRow({
   label,
   description,
@@ -71,7 +58,6 @@ function OptionSwitchRow({
   onCheckedChange,
 }: {
   label: string;
-  /** Optional second line, for options whose label doesn't carry the meaning. */
   description?: string;
   checked: boolean;
   nested?: boolean;
@@ -93,16 +79,11 @@ function OptionSwitchRow({
   );
 }
 
-/**
- * The deck's ordering control, in the tab strip's trailing slot.
- * @returns The sort / group control.
- */
 export function DeckOrderingControl({
   ordering,
   compact,
 }: {
   ordering: DeckOrderingControls;
-  /** The phone drawer's inline layout, with no popover of its own. */
   compact?: boolean;
 }) {
   const handleSortByChange = ordering.onSortByChange;
@@ -127,41 +108,22 @@ export function DeckOrderingControl({
 }
 
 interface DeckOverviewViewControlsProps {
-  /** The phone cluster: everything but the display switch moves into a drawer. */
   compact?: boolean;
   displayMode: DeckOverviewDisplayMode;
   ordering: DeckOrderingControls;
-  /** The user's column override, or null while the measured Auto is in force. */
   columnOverride: number | null;
   autoColumns: number;
   minColumns: number;
   maxColumnsLimit: number;
-  /**
-   * The display switches' current values. All of them are hydration-gated by
-   * the host, so SSR renders the defaults — keep the gates there, not here.
-   */
   showAllCopies: boolean;
   showAllRuneCopies: boolean;
   showBands: boolean;
   showPrices: boolean;
   preferOwned: boolean;
-  /** The viewer's collection is loaded, so the printing-swap options apply. */
   canPreferOwned: boolean;
-  /** Ownership data is present at all, so prices can be shown. */
   hasOwnershipData: boolean;
 }
 
-/**
- * The Deck tab's view controls, in the trailing end of the tab strip: card
- * size, ordering, the grid / stacks / list switch, the display options, and the
- * detail-pane dock toggle.
- *
- * `compact` renders the phone cluster instead — the same controls, with
- * everything but the display switch moved into the options drawer so the tab
- * strip keeps one row.
- *
- * @returns The control cluster.
- */
 export function DeckOverviewViewControls({
   compact,
   displayMode,
@@ -188,12 +150,10 @@ export function DeckOverviewViewControls({
     (state) => state.setPreferOwnedPrintings,
   );
 
-  // List mode has no thumbnails, so every option that dresses one drops out.
   const hasThumbnails = displayMode !== "list";
 
-  // The grid / stacks / list switch. Shared by both clusters: it is the one
-  // view control that stays on the row on phones, since it changes what the
-  // cards look like rather than how they are ordered.
+  // Shared by both clusters: it's the one view control that stays on the row
+  // on phones, since it changes what the cards look like, not how they sort.
   const displayModeToggle = (
     <ToggleGroup
       variant="outline"
@@ -243,9 +203,8 @@ export function DeckOverviewViewControls({
     </ToggleGroup>
   );
 
-  // Every labelled display switch, in one list so the desktop popover and the
-  // phone drawer offer the same options in the same order. `modified` drives
-  // the dot on the popover trigger: bands default to on, the rest to off.
+  // `modified` drives the dot on the popover trigger: bands default to on,
+  // the rest to off.
   const optionSwitches: DeckOptionSwitch[] = [
     ...(hasThumbnails
       ? [
@@ -350,10 +309,6 @@ export function DeckOverviewViewControls({
 
   const optionsModified = optionSwitches.some((option) => option.modified);
 
-  // The switches sit behind one trigger rather than a run of tooltip-only
-  // icon buttons: the row then speaks a single visual language (every control
-  // outlined and h-8), keeps its width when a display mode hides a switch,
-  // and shows the same labelled list the phone drawer does.
   const optionsPopover = optionSwitches.length > 0 && (
     <Popover>
       <PopoverTrigger
@@ -363,8 +318,6 @@ export function DeckOverviewViewControls({
       >
         <SlidersHorizontalIcon className="size-4" />
         {optionsModified && (
-          // Same changed-state dot the filter customize control uses, kept
-          // inside the button bounds so nothing clips it.
           <span className="bg-primary ring-background absolute top-0.5 right-0.5 size-2 rounded-full ring-2" />
         )}
       </PopoverTrigger>
@@ -377,10 +330,6 @@ export function DeckOverviewViewControls({
   return (
     <div className="flex items-center gap-2">
       {hasThumbnails && (
-        // Same control the card browser and deck check use: fewer columns means
-        // bigger cards, and the middle label resets to the measured Auto. Full
-        // size (not compact) so it shares the h-8 line of the sort control and
-        // the view toggle beside it.
         <ColumnControls
           maxColumns={columnOverride}
           autoColumns={autoColumns}
@@ -391,13 +340,7 @@ export function DeckOverviewViewControls({
       )}
       <DeckOrderingControl ordering={ordering} />
       {displayModeToggle}
-      {/* After the view toggle, matching the phone row where the options
-          drawer follows the same switch. */}
       {optionsPopover}
-      {/* This surface has a detail pane but no card-browser toolbar, so the
-          dock toggle lives here — otherwise the pane would only be reachable
-          from the detail modal's footer link. Kept last so it sits at the far
-          right, the same end of the row it occupies on the browser toolbar. */}
       <DetailPaneToggle />
     </div>
   );

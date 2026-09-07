@@ -289,7 +289,6 @@ const columns: AdminColumnDef<AdminSetResponse, SetDraft>[] = [
   },
 ];
 
-/** One editable release row, flattened out of every set's release map. */
 interface ReleaseRow {
   setId: string;
   setSlug: string;
@@ -297,11 +296,7 @@ interface ReleaseRow {
   release: SetRelease;
 }
 
-/**
- * Flattens the sets into one row per (set, language), the shape the release
- * table edits.
- * @returns Release rows in set order, languages alphabetical within a set.
- */
+/** Rows are in set order, languages alphabetical within a set. */
 function toReleaseRows(sets: AdminSetResponse[]): ReleaseRow[] {
   return sets.flatMap((set) =>
     Object.keys(set.releases)
@@ -350,14 +345,8 @@ function ReleasePrecisionSelect({
 }
 
 /**
- * Per-language release dates, one row per (set, language). Kept out of the sets
- * table because a set has as many dates as it has languages.
- *
- * There is no released toggle anywhere: a set counts as out once its period has
- * finished, so the only editable facts are the date and how precisely it is
- * known. Clearing the date leaves the language announced but undated (TBA),
- * removing the row means not announced there at all.
- * @returns The release editor card.
+ * No released toggle: a set counts as released once its period passes. Clearing
+ * the date leaves the language announced-undated; removing the row means not announced.
  */
 function SetReleasesTable({ sets }: { sets: AdminSetResponse[] }) {
   const updateMutation = useUpdateSet();
@@ -395,8 +384,7 @@ function SetReleasesTable({ sets }: { sets: AdminSetResponse[] }) {
     if (!set) {
       return;
     }
-    // Filtered rather than destructured: a computed key in an object pattern
-    // bails the React Compiler out of the whole file.
+    // A computed key in an object destructure bails the React Compiler out of the whole file.
     saveReleases(
       setId,
       Object.fromEntries(Object.entries(set.releases).filter(([code]) => code !== language)),
@@ -545,8 +533,8 @@ export function SetsPage() {
   const deleteMutation = useDeleteSet();
   const { sets } = data;
 
-  // Release rows are edited in their own table below, so a set edit re-sends
-  // the map it already had rather than dropping every language.
+  // Release rows are edited in their own table below; a set edit re-sends
+  // the map it already had.
   const releasesById = new Map(sets.map((set) => [set.id, set.releases]));
 
   return (

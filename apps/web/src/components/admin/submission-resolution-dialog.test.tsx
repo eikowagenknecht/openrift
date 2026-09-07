@@ -16,11 +16,6 @@ vi.mock("@/hooks/use-admin-card-submissions", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { SubmissionResolutionDialog } from "./submission-resolution-dialog";
 
-// Characterisation tests for the card pipeline's resolution dialog (ADR-036).
-// It had none of its own, and the meta archive's resolve control now shares its
-// reason-and-note fields, so these pin the behaviour that must not drift when
-// the shared half changes.
-
 describe("SubmissionResolutionDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -110,7 +105,7 @@ describe("SubmissionResolutionDialog", () => {
     expect(screen.getByLabelText("Your own words (optional)")).toHaveValue("Too small to read.");
   });
 
-  it("blocks a rejection that would say nothing", async () => {
+  it("blocks reject after typing a note clears the preselected reason", async () => {
     const user = userEvent.setup();
     render(
       <SubmissionResolutionDialog candidateCardId="cand-1" mode="reject" onOpenChange={vi.fn()} />,
@@ -118,11 +113,6 @@ describe("SubmissionResolutionDialog", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Reject" })).toBeEnabled();
 
-    // PRE-EXISTING QUIRK, pinned rather than endorsed: `touched` is one flag for
-    // both fields, so typing a note switches the reason from its preselected
-    // default to the (still empty) reason state, and the reject is blocked until
-    // one is picked by hand. Unchanged by the shared-fields extraction — see the
-    // note in the report.
     await user.type(screen.getByLabelText("Your own words (optional)"), "Blurry photo.");
     expect(within(dialog).getByRole("button", { name: "Reject" })).toBeDisabled();
     expect(captured.setResolution).not.toHaveBeenCalled();

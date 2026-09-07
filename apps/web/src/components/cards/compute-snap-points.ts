@@ -75,7 +75,6 @@ export function computeSnapPoints({
     });
   }
 
-  // Collision avoidance: push badges apart when they overlap vertically.
   const MIN_GAP = IS_COARSE_POINTER ? 32 : 26;
   for (let p = 1; p < points.length; p++) {
     const gap = points[p].screenY - points[p - 1].screenY;

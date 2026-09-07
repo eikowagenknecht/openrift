@@ -5,16 +5,8 @@ import { cn } from "@/lib/utils";
 const BREADCRUMB_SEP = " › ";
 
 /**
- * Where a printing was handed out: the channel's own label, under the
- * breadcrumb of everything it hangs beneath. Shared by the card table's channel
- * column and the promo list's phone card, so the two never drift on how deep a
- * channel reads.
- *
- * A printing can hang off several channels. Only the first is named, with the
- * rest counted — neither surface has room for two breadcrumbs — and the title
- * carries every one in full.
- *
- * @returns The channel lines, or null when the printing has no channel.
+ * Shared by the card table's channel column and the promo list's phone card
+ * so the two never drift on how deep a channel reads.
  */
 export function PrintingChannelCell({
   channels,
@@ -33,9 +25,8 @@ export function PrintingChannelCell({
     .join("\n");
   return (
     <div className={cn("text-muted-foreground min-w-0", className)} title={title}>
-      {/* Dimmer, not smaller: this renders at the table's text-sm and again at
-          the phone card's own size, and a hardcoded step would be a third text
-          size in whichever of the two it did not suit. */}
+      {/* Dim, don't shrink: this renders at two different text sizes across
+          the two callers, and a fixed size here would clash with one. */}
       {first.ancestorLabels.length > 0 && (
         <div className="text-muted-foreground/70 truncate">
           {first.ancestorLabels.join(BREADCRUMB_SEP)}

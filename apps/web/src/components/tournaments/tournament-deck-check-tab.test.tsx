@@ -25,9 +25,6 @@ function detailWith(myRoles: TournamentViewerRole[]): TournamentDetailResponse {
 }
 
 describe("TournamentDeckCheckTab", () => {
-  // Regression: the entries endpoint is staff-only, so a participant who opens
-  // the URL used to get a perpetual loading skeleton from the 403. Non-staff
-  // must see the notice and never mount the staff-only list.
   it("shows a notice and no entries list for a non-judge", () => {
     render(<TournamentDeckCheckTab detail={detailWith([])} />);
 

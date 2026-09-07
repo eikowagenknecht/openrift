@@ -36,29 +36,13 @@ import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useDisplayStore } from "@/stores/display-store";
 
-/** How many cards the search ranks before the group cap trims the list. */
 const SEARCH_DEPTH = 12;
 
 interface GlobalPaletteBodyProps {
-  /** Opens the card detail the shell owns, so it outlives the palette closing. */
   onOpenCard: (printingId: string, sequence: string[]) => void;
   onLockedFeature: (key: LockedFeatureKey) => void;
 }
 
-/**
- * The global palette's contents: card lookup, the whole navigation, the help
- * articles, and the two rows that hand the query to a full search surface.
- *
- * Ranking is the app-wide card matcher rather than cmdk's own filter, so a
- * query orders cards here exactly as it does in every picker. cmdk is left with
- * what it is good at: roving selection, the accessibility tree, and scrolling
- * the active row into view.
- *
- * Mounted only while the palette is open. The catalog read suspends, which is
- * what makes the palette free on the routes that never load it.
- *
- * @returns The command list.
- */
 export function GlobalPaletteBody({ onOpenCard, onLockedFeature }: GlobalPaletteBodyProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -82,9 +66,6 @@ export function GlobalPaletteBody({ onOpenCard, onLockedFeature }: GlobalPalette
     limit: SEARCH_DEPTH,
   });
 
-  // The palette has no platform: an entry the desktop nav hides (Stage, tier
-  // lists) is still a page a phone can open, which is E5's complaint about the
-  // mobile sheet. Only the feature flags gate here.
   const navFlags: NavFlags = {
     glossary: featureEnabled(flags, "glossary"),
     meta: featureEnabled(flags, "meta"),
@@ -102,9 +83,8 @@ export function GlobalPaletteBody({ onOpenCard, onLockedFeature }: GlobalPalette
   });
 
   const rowIds = groups.flatMap((group) => group.rows).map((row) => row.id);
-  // cmdk's own value tracking would keep pointing at a row the next keystroke
-  // deleted. Falling back to the first row whenever the highlighted one is gone
-  // is what makes Enter always take the top hit.
+  // cmdk's own value tracking keeps pointing at a deleted row; fall back to
+  // the first row when the highlighted one no longer exists.
   const activeValue = rowIds.includes(highlighted) ? highlighted : (rowIds[0] ?? "");
 
   const cardSequence = groups
@@ -114,8 +94,7 @@ export function GlobalPaletteBody({ onOpenCard, onLockedFeature }: GlobalPalette
 
   const handleSelect = (row: PaletteRow) => {
     if (row.kind === "card") {
-      // Hidden, not closed: the detail stands in front of the palette, and
-      // dismissing it comes back to this list with the query still typed.
+      // Hidden, not closed, so dismissing the detail restores this list and query.
       hidePalette();
       onOpenCard(row.card.defaultPrinting.id, cardSequence);
       return;
@@ -153,9 +132,7 @@ export function GlobalPaletteBody({ onOpenCard, onLockedFeature }: GlobalPalette
       onValueChange={setHighlighted}
       className="bg-transparent p-0"
     >
-      {/* Not ui/command's CommandInput: that one is styled for the inline
-          pickers it already serves. This is the two quick-adds' search row, so
-          the three palettes read as one surface. */}
+      {/* Not ui/command's CommandInput, which is styled for the inline pickers. */}
       <InputGroup className="h-11 border-0 has-[[data-slot=input-group-control]:focus-visible]:ring-0 dark:bg-transparent">
         <InputGroupAddon align="inline-start">
           <SearchIcon className="text-muted-foreground size-4" />
@@ -248,7 +225,6 @@ function PaletteRowContent({ row }: { row: PaletteRow }) {
   );
 }
 
-/** The hint strip under the list, teaching the keys that drive it. */
 function PaletteFooterHint() {
   return (
     <div className="text-muted-foreground border-border flex items-center gap-3 border-t px-3 py-2 text-xs">

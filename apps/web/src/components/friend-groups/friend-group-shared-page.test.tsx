@@ -8,7 +8,6 @@ import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-// Mutated per test before rendering; read lazily inside the mock factories.
 let currentCollections: CollectionResponse[] = [];
 
 vi.mock("@/hooks/use-cards", () => ({

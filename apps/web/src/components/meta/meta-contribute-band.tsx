@@ -3,15 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-/** The same accent wash the podium's winner seat carries, turned into a frame. */
 export const BAND_GLOW =
   "radial-gradient(120% 90% at 50% 115%, color-mix(in oklab, var(--border-accent) 16%, transparent), transparent 70%)";
 
-/**
- * The archive's standing ask. Gold-framed because contributing is what the
- * archive rewards, and worded for anyone who was in the room rather than only
- * for the players.
- */
 export function MetaContributeBand() {
   return (
     <Card className="ring-border-accent" style={{ backgroundImage: BAND_GLOW }}>

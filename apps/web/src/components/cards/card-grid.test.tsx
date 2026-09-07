@@ -111,19 +111,14 @@ describe("CardGrid virtual row positioning", () => {
   });
 
   it("re-measures rows when new items change row kinds at the same row count", () => {
-    // Regression test: switching between two lists that flatten to the same
-    // virtual row COUNT but different row KINDS. react-virtual's measurements
-    // memo doesn't track estimateSize, so without an explicit measure() the
-    // new all-cards rows keep the old header-sized slots and stack into each
-    // other until a resize forces a re-measure.
+    // react-virtual's measurements memo doesn't track estimateSize, so without an
+    // explicit measure() new all-cards rows keep the old header-sized slots.
     const groupedSets = [makeSet(1), makeSet(2), makeSet(3)];
     const groupedItems = groupedSets.flatMap((set) => makeItems(set.id, 2));
 
     const { container, rerender } = render(gridElement(groupedItems, groupedSets));
-    // Sanity: grouped layout alternates header/cards rows.
     expect(rowTop(container, 1)).toBe(HEADER_ROW_HEIGHT + GAP);
 
-    // Same row count (6), but single-group: all rows are cards rows.
     const flatSet = makeSet(9);
     const flatItems = makeItems(flatSet.id, 16);
     rerender(gridElement(flatItems, [flatSet]));

@@ -78,7 +78,6 @@ export function StatusPage() {
       {topBar}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {/* Server */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -93,7 +92,6 @@ export function StatusPage() {
           </CardContent>
         </Card>
 
-        {/* Memory */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -108,7 +106,6 @@ export function StatusPage() {
           </CardContent>
         </Card>
 
-        {/* Database */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -141,7 +138,6 @@ export function StatusPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {/* App Stats */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -161,7 +157,6 @@ export function StatusPage() {
           </CardContent>
         </Card>
 
-        {/* Pricing */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -207,19 +202,13 @@ export function StatusPage() {
   );
 }
 
-// ── Sentry smoke test ──────────────────────────────────────────────────────
-// Lets an admin fire a distinct test error on each surface so they can verify
-// the event lands in the right Sentry project with the right tag. The errors
-// are no-ops when Sentry is disabled (DSN unset); nothing else is side-affected.
-
 function SentrySmokeTestCard() {
   const throwSsr = useThrowInSsr();
   const throwApi = useThrowInApi();
 
   function handleBrowser() {
-    // setTimeout so React's error boundary doesn't intercept — the Sentry
-    // browser integration hooks window.onerror, which catches uncaught
-    // async errors and reports them with a full stack.
+    // setTimeout so React's error boundary doesn't intercept: the Sentry
+    // browser integration hooks window.onerror instead.
     setTimeout(() => {
       throw new Error(`Sentry smoke test (web-client) @ ${new Date().toISOString()}`);
     }, 0);

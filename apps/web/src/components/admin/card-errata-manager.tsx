@@ -18,11 +18,6 @@ interface CardErrataManagerProps {
   onShowFormChange?: (show: boolean) => void;
 }
 
-/**
- * Inline admin panel for managing card errata (add/edit/remove).
- * Hidden when there is no errata and the form is closed.
- * @returns The errata management section, or null if nothing to show.
- */
 export function CardErrataManager({
   cardId,
   errata,
@@ -92,7 +87,6 @@ export function CardErrataManager({
     resetForm();
   }
 
-  // Hide entirely when there is no errata and the form is closed
   if (!errata && !showForm && !isEditing) {
     return null;
   }
@@ -106,7 +100,6 @@ export function CardErrataManager({
         <Heading level={3}>Errata</Heading>
       </div>
 
-      {/* Display existing errata */}
       {errata && !isEditing && (
         <Alert variant="warning" className="space-y-1.5">
           <AlertAction className="flex gap-1">
@@ -160,7 +153,6 @@ export function CardErrataManager({
         </Alert>
       )}
 
-      {/* Add / Edit form */}
       {showFormArea ? (
         <div className="space-y-2 rounded-md border p-3">
           <div className="grid gap-2 sm:grid-cols-2">

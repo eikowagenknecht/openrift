@@ -71,9 +71,7 @@ describe("PrintingCitationsEditor", () => {
     });
   });
 
-  // An empty link field means "no permalink", not an empty string, which the
-  // column's CHECK would reject.
-  it("sends a null link when the field is left blank", async () => {
+  it("sends a null link, not an empty string, when the field is left blank", async () => {
     const user = userEvent.setup();
     render(<PrintingCitationsEditor printingId={PRINTING_ID} />);
 
@@ -97,8 +95,6 @@ describe("PrintingCitationsEditor", () => {
     expect(screen.getByLabelText("Label")).toHaveValue("");
   });
 
-  // The global mutation error toast reports the failure; losing what was typed
-  // on top of that would make the retry a retype.
   it("keeps the form filled when the add fails", async () => {
     captured.create.mockRejectedValue(new Error("conflict"));
     const user = userEvent.setup();
@@ -116,8 +112,6 @@ describe("PrintingCitationsEditor", () => {
     expect(screen.getByRole("button", { name: /add citation/iu })).toBeDisabled();
   });
 
-  // Nothing ingests a printing citation, so unlike the meta archive's list
-  // every row here is the admin's to delete.
   it("deletes a citation", async () => {
     captured.citations = [citation];
     const user = userEvent.setup();

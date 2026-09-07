@@ -29,8 +29,6 @@ vi.mock("@/lib/auth-client", () => ({
   signUp: { email: vi.fn() },
 }));
 
-// Stand-ins for the parts of the card that have nothing to do with the email
-// field. Counting their renders is how we detect the whole tree rebuilding.
 vi.mock("@/components/auth-form-shell", () => ({
   AuthFormCard: ({ children }: { children: ReactNode }) => {
     shellRenders.card += 1;
@@ -60,8 +58,6 @@ describe("SignupForm", () => {
     const email = screen.getByLabelText("Email");
     await user.type(email, "jinx@example.com");
 
-    // Regression: the email watch used to live in SignupForm, so every
-    // character re-rendered the card, all three fields, and the social buttons.
     expect(shellRenders.card).toBe(rendersAfterMount.card);
     expect(shellRenders.social).toBe(rendersAfterMount.social);
     expect(email).toHaveValue("jinx@example.com");

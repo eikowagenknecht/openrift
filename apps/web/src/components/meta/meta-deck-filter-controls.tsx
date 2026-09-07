@@ -18,15 +18,8 @@ import {
 } from "@/lib/meta-deck-filters";
 import type { MetaEra } from "@/lib/meta-scope";
 
-/** The finish select's "no bound" value — an empty string clears the param. */
 const ANY_FINISH = "";
 
-/**
- * The deck browser's controls: the archive-wide scope bar with the axes only a
- * deck list has appended in the same control language. Every option is derived
- * from the archive itself, so a control never offers a value nothing was played
- * in.
- */
 export function MetaDeckFilterControls({
   options,
   counts,

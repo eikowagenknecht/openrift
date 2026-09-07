@@ -21,7 +21,6 @@ describe("PrintingNotesCell", () => {
       />,
     );
     expect(getByText("Top 8")).not.toBeNull();
-    // Nearly every promo printing carries it, so here it would say nothing.
     expect(queryByText("Promo")).toBeNull();
   });
 
@@ -37,9 +36,7 @@ describe("PrintingNotesCell", () => {
   });
 
   it("spells the note out in the cell, behind a container query", () => {
-    // The text is always in the DOM — a wide enough column reveals it, and the
-    // tooltip carries it either way. jsdom resolves no container query, so the
-    // class is the assertable part of "wide columns only".
+    // jsdom resolves no container query, so the class is the assertable part.
     const { getByText } = render(
       <PrintingNotesCell comment="Handed out at the launch event" markers={[]} citations={[]} />,
     );
@@ -65,8 +62,6 @@ describe("PrintingNotesCell", () => {
   });
 
   it("still shows a citation with no permalink, unlinked", () => {
-    // An admin transcribing from a stream nobody archived is owed the same
-    // credit as a linkable source, so the glyph renders either way.
     const { getByLabelText } = render(
       <PrintingNotesCell
         comment={null}

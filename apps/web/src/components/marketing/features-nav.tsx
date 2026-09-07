@@ -9,7 +9,6 @@ import { cornerClip } from "./clip-frame";
 import type { FeatureChapter } from "./features-chapters";
 import { chapterAnchor } from "./features-chapters";
 
-/** Fraction of the viewport height at which a divider counts as reached. */
 const READING_LINE = 1 / 3;
 
 const SCROLL_DURATION_MS = 450;
@@ -26,9 +25,8 @@ function scrollDestination(target: HTMLElement): number {
   return target.getBoundingClientRect().top + window.scrollY - offset;
 }
 
-// Re-reads the destination every frame: content-visibility sections between
-// here and the target render in during the scroll and shift its position, so
-// a fixed destination would land short.
+// Re-reads the destination every frame: content-visibility sections render in
+// during the scroll and shift it, so a fixed destination would land short.
 function animateScrollTo(target: HTMLElement) {
   cancelAnimationFrame(scrollFrame);
   const from = window.scrollY;
@@ -45,14 +43,9 @@ function animateScrollTo(target: HTMLElement) {
   scrollFrame = requestAnimationFrame(step);
 }
 
-/**
- * Smooth-scrolls to an in-page anchor instead of jumping. Hand-animated
- * rather than native smooth scrolling, which browsers silently disable with
- * OS animation settings, and deliberately not `scroll-behavior: smooth` on
- * the root, which would also smooth the router's scroll restoration.
- * Modified clicks keep the browser default, and reduced motion keeps the
- * instant jump.
- */
+// Hand-animated: browsers silently disable native smooth scroll under OS
+// animation settings, and `scroll-behavior: smooth` on the root would also
+// smooth the router's scroll restoration.
 export function smoothAnchorClick(event: MouseEvent<HTMLAnchorElement>) {
   if (event.defaultPrevented || event.button !== 0) {
     return;
@@ -76,18 +69,8 @@ export function smoothAnchorClick(event: MouseEvent<HTMLAnchorElement>) {
 
 const CHIP_CUT = 8;
 
-/**
- * Id of the chapter the viewer is reading, or null above the first divider.
- *
- * Chapters are regions, not elements: a divider stays the active one until the
- * next divider passes the reading line, long after it has left the viewport.
- * The observer is therefore only a change trigger, watching a band (the top
- * third of the viewport) that every divider must cross. Each callback then
- * recomputes the last divider above the line from live rects, which also makes
- * scrolling back up work without extra state.
- *
- * @returns The active chapter id, or null.
- */
+// Recomputes the last-passed divider from live rects on every call; must not
+// cache which divider triggered it.
 export function useActiveChapter(chapterIds: string[]): string | null {
   const [activeId, setActiveId] = useState<string | null>(null);
   const chapterKey = chapterIds.join(" ");
@@ -115,8 +98,8 @@ export function useActiveChapter(chapterIds: string[]): string | null {
       setActiveId(reached);
     }
 
-    // Measure first: with no dividers on the page nothing is reached, which
-    // clears the rail, and there is then nothing to observe.
+    // Measure first: with no dividers, nothing is reached and there is
+    // nothing to observe.
     update();
     if (dividers.length === 0) {
       return;
@@ -134,11 +117,6 @@ export function useActiveChapter(chapterIds: string[]): string | null {
   return activeId;
 }
 
-/**
- * Desktop scroll-spy rail pinned to the right gutter. The gutter is 128px at
- * `xl`, so the rail stays narrow enough to clear the `max-w-5xl` column.
- * @returns The rail navigation.
- */
 export function FeaturesRail({ chapters }: { chapters: FeatureChapter[] }) {
   const activeId = useActiveChapter(chapters.map((chapter) => chapter.id));
 
@@ -172,14 +150,8 @@ export function FeaturesRail({ chapters }: { chapters: FeatureChapter[] }) {
   );
 }
 
-/**
- * Phone and tablet chapter chips, stuck below the page top bar. Sits at `z-20`,
- * so the bar above keeps painting over it, which also hides the 1px the chips
- * tuck up under it. The bar pins at `--header-height - 1px`. Without the same
- * -1px here the two layers pin a pixel apart and scrolling content shows
- * through the seam.
- * @returns The chip navigation.
- */
+// The top bar pins at `--header-height - 1px`; without the same -1px here the
+// two layers pin a pixel apart and scrolling content shows through the seam.
 export function FeaturesChipNav({ chapters }: { chapters: FeatureChapter[] }) {
   const activeId = useActiveChapter(chapters.map((chapter) => chapter.id));
   const topBarHeight = usePageTopBarHeight();

@@ -28,12 +28,10 @@ function makeRow(playerId: string, overrides: Partial<PodStandingRow> = {}): Pod
   };
 }
 
-/** @returns The desktop table's body rows. */
 function tableRows(): HTMLElement[] {
   return within(screen.getByRole("table")).getAllByRole("row").slice(1);
 }
 
-/** @returns The rank shown at the head of each body row, in rendered order. */
 function tableRanks(): (string | undefined)[] {
   return tableRows().map((row) => within(row).getAllByRole("cell")[0].textContent?.trim());
 }
@@ -56,7 +54,6 @@ describe("StandingsTable", () => {
       />,
     );
     expect(tableRanks()).toEqual(["1", "2", "3", "4"]);
-    // The top three carry a medal; fourth place is a bare number.
     const medalled = tableRows().map(
       (row) => within(row).getAllByRole("cell")[0].querySelector("[data-slot=medal]") !== null,
     );

@@ -8,28 +8,17 @@ import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 
 interface MoveCopiesToCollectionDialogProps {
-  /** The list the copies were picked from — its detail query is refreshed after the move. */
   listId: string;
-  /** The physical copies to move. Empty while the dialog is closed. */
   copyIds: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after a successful move, so a caller in select mode can clear its selection. */
   onMoved?: () => void;
 }
 
 /**
- * Moves the copies behind a set of copy-kind list entries into another
- * collection, reusing the /collections {@link MoveDialog} picker. Every copy in
- * `copyIds` moves — there is no per-card quantity choice, since a copy entry is
- * already one physical card.
- *
- * The list itself is left alone: membership follows the copy, so a manually
- * added entry survives the move. A dynamic rule restricted to source
- * collections (ADR-034) stops matching once the copies land elsewhere, which is
- * what makes "sorted out, now filed away" self-clearing — hence the list
- * refresh on success.
- * @returns The collection picker dialog wired to the move mutation.
+ * The list is left alone; membership follows the copy. The list detail query
+ * is invalidated because a dynamic rule scoped to source collections stops
+ * matching once the copies land elsewhere.
  */
 export function MoveCopiesToCollectionDialog({
   listId,

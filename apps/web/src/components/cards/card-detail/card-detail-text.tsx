@@ -15,8 +15,6 @@ import { StatChip } from "./stat-chip";
  * The card's flavor line. Its own component because the stream overlay and the
  * presentation stage switch flavor on and off separately from the rules text,
  * and there it renders without the blocks above it.
- *
- * @returns The flavor line, or null when the printing has none.
  */
 export function CardDetailFlavorText({ printing }: { printing: Printing }) {
   if (!printing.flavorText) {
@@ -29,7 +27,6 @@ export function CardDetailFlavorText({ printing }: { printing: Printing }) {
  * Printed rules text, effect text and flavor in one text box, each with its
  * errata notice when the card has one. The box closes like the printed card's:
  * the bracket base, with the rarity glyph in the medallion.
- * @returns The card's text box, or null when the printing has no text.
  */
 export function CardDetailText({
   printing,
@@ -39,15 +36,7 @@ export function CardDetailText({
 }: {
   printing: Printing;
   onKeywordClick?: (keyword: string) => void;
-  /**
-   * Off for callers that render {@link CardDetailFlavorText} themselves, so a
-   * flavor switch can act independently of the rules text.
-   */
   showFlavorText?: boolean;
-  /**
-   * Off on capture surfaces (the OBS source, the presentation stage), where a
-   * keyword hover state is nothing the audience can use.
-   */
   interactive?: boolean;
 }) {
   const { card } = printing;

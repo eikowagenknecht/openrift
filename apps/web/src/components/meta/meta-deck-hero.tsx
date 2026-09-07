@@ -13,12 +13,6 @@ import { formatRank, formatRecord } from "@/lib/meta-format";
 
 type MetaDeckContext = MetaDeckDetailResponse["meta"];
 
-/**
- * What the entry scored, as the hero's first block. The field size is the one
- * the source reported, left out when the source published none.
- *
- * @returns The finish block.
- */
 export function MetaDeckFinish({ meta }: { meta: MetaDeckContext }) {
   const medal = medalRank(meta.rank, meta.rankIsTier);
   const record = formatRecord(meta.wins, meta.losses, meta.draws);
@@ -36,8 +30,7 @@ export function MetaDeckFinish({ meta }: { meta: MetaDeckContext }) {
       </span>
       {field !== null && (
         <span className="text-muted-foreground text-xs tabular-nums">
-          {/* Pinned grouping: a server on another default locale would send
-              "1.280" into a browser rendering "1,280". */}
+          {/* en-US pinned: a server on another locale would send "1.280" to a "1,280" browser. */}
           of {field.toLocaleString("en-US")} players
         </span>
       )}
@@ -48,18 +41,11 @@ export function MetaDeckFinish({ meta }: { meta: MetaDeckContext }) {
   );
 }
 
-/**
- * Who played the list, what they played, and where — the archive's replacement
- * for a deck name it generated itself.
- *
- * @returns The heading block.
- */
 export function MetaDeckHeading({
   meta,
   identity,
 }: {
   meta: MetaDeckContext;
-  /** Null for a list whose source published neither a Legend nor a champion. */
   identity: ArchivedDeckIdentity | null;
 }) {
   return (

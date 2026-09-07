@@ -9,7 +9,6 @@ import { ordinalPlace } from "@/lib/tournament-display";
 
 interface PodResultFormProps {
   pod: PodResponse;
-  /** The active scheme, so the live points preview matches what will be scored. */
   scheme: PodScoringScheme;
   onSubmit: (results: { playerId: string; gamePoints: number }[]) => Promise<void> | void;
   submitting: boolean;
@@ -22,10 +21,7 @@ function formatPoints(points: number): string {
   return Number.isInteger(points) ? String(points) : Number(points.toFixed(2)).toString();
 }
 
-/**
- * Parse a controlled points input back to a whole, non-negative game-point count.
- * @returns The parsed count, or `null` when blank/invalid.
- */
+/** Parses a controlled points input to a whole, non-negative game-point count. */
 export function parsePoints(value: string): number | null {
   if (value.trim() === "") {
     return null;
@@ -35,12 +31,8 @@ export function parsePoints(value: string): number | null {
 }
 
 /**
- * Result entry for one pod. Each player's raw game points are typed (in Riftbound
- * a game is won at 8 points; more is possible if a turn overshoots). Once every
- * player has a value, the derived placement and scheme points (with tie averaging)
- * preview live next to each name; the server re-derives both on save. The same
- * form serves the organizer and the participant link.
- * @returns The result-entry form.
+ * Result entry for one pod: raw game points per player, with derived placement
+ * and scheme points previewed live once every value is entered.
  */
 export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: PodResultFormProps) {
   const [points, setPoints] = useState<Record<string, string>>(() =>
@@ -51,9 +43,8 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
       ]),
     ),
   );
-  // Server values at open (or last sync). The round views poll while reporting, so
-  // someone else's save can land mid-edit — the mismatch surfaces a notice below
-  // instead of being silently overwritten on save.
+  // Snapshot at open (or last sync); a mismatch against the current pod means
+  // someone else saved mid-edit.
   const [serverBaseline, setServerBaseline] = useState<Record<string, number | null>>(() =>
     Object.fromEntries(pod.members.map((member) => [member.playerId, member.gamePoints])),
   );
@@ -100,9 +91,8 @@ export function PodResultForm({ pod, scheme, onSubmit, submitting, onCancel }: P
   return (
     <div className="flex flex-col gap-3">
       {pod.members.map((member, index) => (
-        // No flex-wrap: a long name used to push the points field onto its own
-        // line, breaking the column of inputs the organizer is typing down.
-        // The name truncates instead — it is the one part that can give.
+        // No flex-wrap: a long name would push the points field onto its own
+        // line, breaking the column of inputs. The name truncates instead.
         <div key={member.playerId} className="flex items-center justify-between gap-x-3">
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium" title={member.displayName}>

@@ -48,11 +48,6 @@ function ReportTabLink({
   );
 }
 
-/**
- * Participant follow-along frame: loads the token's report payload and wraps the
- * active tab in the shared header + route-based tab nav.
- * @returns The framed participant page.
- */
 export function TournamentReportFrame({
   token,
   active,
@@ -63,8 +58,6 @@ export function TournamentReportFrame({
   render: (data: PodReportResponse) => ReactNode;
 }) {
   const { data } = useTournamentReport(token);
-  // While a round is open the report query polls (see tournamentReportQueryOptions),
-  // so the page is live — the badge tells players they don't need to reload.
   const live = data.rounds.some((round) => round.status === "reporting");
   return (
     <>

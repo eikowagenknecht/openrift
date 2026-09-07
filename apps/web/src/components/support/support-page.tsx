@@ -82,11 +82,7 @@ function TierCard({ tier, label }: { tier: SupportTier; label: string }) {
   );
 }
 
-/**
- * One share action: a link out when `href` is set, a plain action otherwise.
- * Exported for the markup test that pins the anchor/button shape.
- * @returns The share button.
- */
+/** One share action: a link out when `href` is set, a plain action otherwise. */
 export function ShareButton({
   label,
   icon,
@@ -98,10 +94,8 @@ export function ShareButton({
   onClick?: () => void;
   href?: string;
 }) {
-  // A share that goes somewhere is a button-styled anchor, the same treatment
-  // the donate links use. It used to be a Button inside an <a>, which an anchor
-  // may not contain, and Base UI's `render` escape hatch is no better here: it
-  // stamps role="button" on the anchor, so a link stops announcing as one.
+  // Button-styled anchor, not Button-in-<a> (invalid) or BaseUI's `render` escape
+  // hatch (it stamps role="button" on the anchor, so it stops announcing as a link).
   if (href) {
     return (
       <a
@@ -140,7 +134,6 @@ export function SupportPage() {
 
   return (
     <div className={cn(PAGE_WIDTH.capped, "flex flex-1 flex-col", PAGE_PADDING)}>
-      {/* Hero */}
       <div className="mb-10">
         <Heading level={1} className="mb-4">
           Support the Rift
@@ -163,7 +156,6 @@ export function SupportPage() {
         </div>
       </div>
 
-      {/* Donate */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Fuel the Rift</h2>
         <p className="text-muted-foreground mb-4 text-sm">
@@ -202,7 +194,6 @@ export function SupportPage() {
         </p>
       </section>
 
-      {/* Share */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Widen the Rift</h2>
         <p className="text-muted-foreground mb-4 text-sm">
@@ -228,7 +219,6 @@ export function SupportPage() {
         </div>
       </section>
 
-      {/* Affiliate */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Shop Through the Rift</h2>
         <p className="text-muted-foreground text-sm">
@@ -255,7 +245,6 @@ export function SupportPage() {
         </p>
       </section>
 
-      {/* Community */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Join the Party</h2>
         <p className="text-muted-foreground mb-4 text-sm">
@@ -273,7 +262,6 @@ export function SupportPage() {
         </a>
       </section>
 
-      {/* Merch */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Gear Up</h2>
         <Card size="sm" className="border-dashed">
@@ -299,7 +287,6 @@ export function SupportPage() {
         </Card>
       </section>
 
-      {/* Sign-off */}
       <section className="text-muted-foreground mt-auto border-t pt-6 text-center text-sm">
         <p>
           OpenRift is a free, open-source project. No one here is getting rich (well, except in

@@ -44,8 +44,6 @@ describe("OrganizationPage member removal", () => {
     removeMutateAsync.mockClear();
   });
 
-  // Regression (3c7e92bc): clicking Remove must open a confirmation first, never
-  // remove the member on the spot.
   it("opens a confirmation instead of removing the member immediately", async () => {
     const user = userEvent.setup();
     render(<OrganizationPage id="org-1" />);

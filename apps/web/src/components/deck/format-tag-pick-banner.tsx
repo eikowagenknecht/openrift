@@ -11,18 +11,8 @@ import { useUpdateDeckMeta } from "@/hooks/use-decks";
 import { getFormatTagConfig } from "@/lib/format-tag-config";
 
 /**
- * Shown inside the deck builder when a tag-locked deck format has no tags
- * picked yet. Generic across formats — the noun and tag category come from
- * the per-format config table (see `getFormatTagConfig`). User picks one or
- * more, the banner disappears, and the deck's `format_config.tagSlugs` is
- * persisted via PATCH /decks/{id}.
- *
  * Switching INTO a tag-locked format from the action menu clears
  * `formatConfig` server-side, so existing decks land here too.
- *
- * @returns The banner, or null when the deck's format isn't tag-locked
- *   (defensive: the wrapper {@link needsFormatTagPick} should already gate
- *   this, but we double-check).
  */
 export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
   const config = getFormatTagConfig(deck.format);
@@ -51,9 +41,8 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
     updateDeckMeta(
       { formatConfig: { tagSlugs: selected } },
       {
-        // Seed the Custom Tags filter to match the chosen tags so the user
-        // lands in the builder with only legal cards visible. The URL is the
-        // single source of truth from here on (no soft fallback).
+        // Seeds the Custom Tags filter so the user lands in the builder with
+        // only legal cards visible.
         onSuccess: () => setArrayFilter("customTags", selected),
       },
     );
@@ -87,13 +76,6 @@ export function FormatTagPickBanner({ deck }: { deck: DeckResponse }) {
   );
 }
 
-/**
- * Convenience predicate: a tag-locked deck without any tags is in the
- * "needs picker" state. Used by the deck builder to gate the card browser
- * behind {@link FormatTagPickBanner}.
- *
- * @returns `true` when the banner should be shown instead of the builder.
- */
 export function needsFormatTagPick(deck: Pick<DeckResponse, "format" | "formatConfig">): boolean {
   if (getFormatTagConfig(deck.format) === null) {
     return false;

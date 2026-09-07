@@ -22,7 +22,6 @@ interface ListShareDialogProps {
   listId: string;
   listName: string;
   kind: ListKind;
-  /** Decides whether the bundle cross-link applies (the bundle skips organize lists). */
   intent: ListIntent;
   tradeDefaults: TradePreference;
   currency: Currency | null;
@@ -31,7 +30,6 @@ interface ListShareDialogProps {
   entries: readonly ListEntryDetailResponse[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Switches to the group-visibility dialog so the two surfaces cross-reference. */
   onManageGroups: () => void;
 }
 
@@ -71,7 +69,6 @@ export function ListShareDialog({
         // Prices unavailable — fall back to no CardTrader prices.
       }
     }
-    // shareUrl is null when the list isn't shared; the text block omits it.
     return formatListShareText(listName, kind, entries, shareUrl, labels.finishes, {
       tradeDefaults,
       currency,

@@ -19,22 +19,11 @@ export interface PickerRequest {
 interface ScanPrintingPickerProps {
   request: PickerRequest | null;
   onPick: (printing: Printing) => void;
-  /** Dismissed without a pick: the lock is discarded (rescan to retry). */
   onDismiss: () => void;
-  /** Dialog heading; defaults to the unresolved-lock copy. */
   title?: string;
-  /** Dialog body copy; defaults to the unresolved-lock explanation. */
   description?: string;
 }
 
-/**
- * The immediate picker for locks the engine would not guess on (foils, and
- * variants no pixel evidence separates). Shows every candidate printing of
- * the locked artwork; picking adds that printing, dismissing discards the
- * lock entirely.
- *
- * @returns The picker dialog (a drawer on phones).
- */
 export function ScanPrintingPicker({
   request,
   onPick,
@@ -54,8 +43,7 @@ export function ScanPrintingPicker({
 
   const candidates = request?.candidates ?? [];
   const languages = candidates.map((candidate) => candidate.language);
-  // The stated card language wins when the card was printed in it; English is
-  // the fallback because it is the language most stacks are in.
+  // EN is the fallback default: most stacks are in it.
   const statedLanguage =
     cardLanguage !== null && languages.includes(cardLanguage) ? cardLanguage : null;
   const defaultLanguage = statedLanguage ?? (languages.includes("EN") ? "EN" : languages[0]);
@@ -70,8 +58,7 @@ export function ScanPrintingPicker({
         >
           <PrintingRowContent
             printing={candidate}
-            // The full candidate set, not the tab's: the variant label needs
-            // every sibling to know what distinguishes this printing.
+            // Full candidate set, not the tab's: the variant label needs every sibling.
             siblings={candidates}
             name={legendDisplayName(candidate.card)}
           />
@@ -80,13 +67,10 @@ export function ScanPrintingPicker({
     </div>
   );
 
-  // Only the list scrolls, never the tab row above it, so the height cap sits
-  // on the container the drawer and dialog each provide.
   const body =
     request === null ? null : (
-      // Keyed on the request so a new one re-derives its default tab. Candidates
-      // arrive sorted language-first, so no language order is handed over and
-      // the grouping keeps that order rather than the taxonomy's.
+      // Keyed on the request so a new one re-derives its default tab.
+      // Candidates arrive sorted language-first; no order is passed separately.
       <PrintingLanguageTabs
         key={`${request.label}:${candidates[0]?.id}`}
         printings={candidates}

@@ -73,8 +73,6 @@ const KIND_TITLES: Record<RuleKind, string> = {
 /**
  * Returns the version immediately before `current` in the chronologically
  * ascending `versions` list, or null if there is no earlier version.
- *
- * @returns The previous version string or null.
  */
 function getPreviousVersion(
   versions: readonly { version: string }[],
@@ -244,16 +242,14 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
             <div className="min-w-0 flex-1">
               <div
                 className={cn(
-                  // The base, not PAGE_TOP_BAR_STICKY: this tier lives in the
-                  // ToC's content column, so its surface must not bleed 100vw.
+                  // Base, not PAGE_TOP_BAR_STICKY: this tier lives in the ToC's
+                  // content column, so its surface must not bleed 100vw.
                   PAGE_TOP_BAR_STICKY_BASE,
-                  // `mx-safe-neg` cancels the page container's gutter so the
-                  // blur band reaches the physical edge (the bar's own px-safe
-                  // re-insets the controls), matching the card-browser toolbar.
+                  // mx-safe-neg cancels the container gutter so the blur band
+                  // reaches the physical edge; the bar's own px-safe re-insets controls.
                   "px-safe mx-safe-neg z-20 mb-4 flex flex-wrap items-center gap-3",
                 )}
-                // -1px matches the page top bar's own -1px offset in
-                // PAGE_TOP_BAR_STICKY_BASE, keeping this tier flush with its bottom.
+                // -1px matches PAGE_TOP_BAR_STICKY_BASE's own offset, keeping this tier flush.
                 style={{ top: `calc(var(--header-height) + ${topBarHeight - 1}px)` }}
               >
                 <PageTocMobileTrigger items={tocItems} />

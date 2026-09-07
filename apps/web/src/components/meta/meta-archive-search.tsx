@@ -4,11 +4,6 @@ import { Input } from "@/components/ui/input";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { cn } from "@/lib/utils";
 
-/**
- * The archive's free-text field, sitting on the same row as the scope bar and
- * matching its control height. Local state keeps typing instant; the debounced
- * value lands in the URL, which is what the lists narrow from.
- */
 export function MetaArchiveSearch({
   value,
   onCommit,

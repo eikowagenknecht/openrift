@@ -17,40 +17,18 @@ import { disposeConfirmState } from "@/lib/dispose-confirm";
 interface DisposeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** How many copies the removal can touch — the stepper's upper bound. */
   count: number;
-  /**
-   * How many of them actually get removed. Controlled by the caller (unlike the
-   * other dialogs' steppers) because the list-membership check and the
-   * recorded-details count are computed there and have to track the chosen
-   * slice, not the whole stack.
-   */
   quantity: number;
   onQuantityChange: (quantity: number) => void;
-  /**
-   * True when all target copies are copies of the same card (the right-click /
-   * single-card path). Only then is a "how many copies" choice meaningful; a
-   * multi-card selection from the float bar removes everything selected.
-   */
   singleCard?: boolean;
   onConfirm: () => void;
   isPending: boolean;
-  /** Which of the viewer's lists reference the copies being disposed. */
   memberships?: CopyListMembershipsResponse;
-  /** True while the list-membership check is still in flight. */
   membershipsLoading?: boolean;
-  /** How many targets carry recorded details (condition, notes, photos — ADR-038). */
   annotatedCount?: number;
 }
 
-/**
- * Confirms permanently removing copies from a collection. Disposing
- * hard-deletes each copy, so a copy that also sits on one of the viewer's lists
- * silently drops off it too — when that happens this dialog surfaces a red
- * cross-list warning that names the lists. A cross-list dispose, or a large
- * batch, also asks the user to type the count before the button enables.
- * @returns The dispose confirmation dialog.
- */
+/** Disposing hard-deletes each copy, so it silently drops off any list it's also on. */
 export function DisposeDialog({
   open,
   onOpenChange,
@@ -81,9 +59,6 @@ export function DisposeDialog({
     setConfirmText("");
   }
 
-  // Hold the button while the membership check resolves: until then we don't
-  // know whether this is a cross-list dispose, so we can't show the right
-  // friction.
   const typedConfirmSatisfied = !needsTypeConfirm || confirmText.trim() === String(quantity);
   const confirmDisabled = isPending || membershipsLoading || !typedConfirmSatisfied;
 

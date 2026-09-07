@@ -10,16 +10,11 @@ function formatMb(bytes: number): string {
 interface ScanLoadRowProps {
   label: string;
   done: boolean;
-  /** Byte progress, for the resources that report it. */
   progress?: ResourceProgress;
 }
 
-/**
- * One line of the engine loading screen: a resource's name, its download
- * progress while it has one, and a check once it is ready.
- *
- * @returns The load row element.
- */
+// One line of the engine loading screen: a resource's name, its download
+// progress while it has one, and a check once it is ready.
 export function ScanLoadRow({ label, done, progress }: ScanLoadRowProps) {
   let detail: string | null = null;
   let percent: number | null = null;
@@ -44,8 +39,7 @@ export function ScanLoadRow({ label, done, progress }: ScanLoadRowProps) {
           <LoaderIcon className="size-4 shrink-0 animate-spin" />
         )}
         {/* Colours are inherited, not pinned: these rows also run on the dark
-            plate of the pre-start panel, where `text-foreground` would be
-            invisible in the light theme. */}
+            plate of the pre-start panel where text-foreground would be invisible. */}
         <span className="flex-1 text-left">{label}</span>
         {detail !== null && <span className="text-sm tabular-nums opacity-70">{detail}</span>}
       </div>

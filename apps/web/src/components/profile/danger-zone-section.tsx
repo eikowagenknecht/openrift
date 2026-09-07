@@ -24,12 +24,8 @@ import { errorText } from "@/lib/error-text";
 
 const RESET_CONFIRM_WORD = "reset";
 
-/**
- * Both live outside the handlers below because React Compiler cannot lower a
- * conditional (ternary, `??`, `?.`) that sits inside a try/catch — moving the
- * branching into a plain function keeps the handler compilable.
- * @returns The message for a completed reset.
- */
+// Lives outside the handler: React Compiler cannot lower a conditional inside
+// a try/catch.
 function resetSummaryMessage(summary: {
   removedCopies: number;
   removedCollections: number;
@@ -145,13 +141,9 @@ function DeleteAccountAction() {
       setError(result.error.message ?? "Failed to delete account.");
       return;
     }
-    // Navigate first so the profile page (and any other authenticated
-    // subtree) starts unmounting, then refetch the session — the deleted
-    // user's cookie is gone, the server returns null. Synchronously
-    // flipping the session would re-render hooks under the still-mounted
-    // authenticated routes with no userId — useRequiredUserId throws.
-    // The refetch is async; its network round-trip gives React time to
-    // commit the unmount before observers see the new state.
+    // Navigate before invalidating the session query: flipping the session
+    // synchronously would re-render the still-mounted authenticated routes
+    // with no userId, and useRequiredUserId throws.
     try {
       await router.navigate({ to: "/" });
       void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });

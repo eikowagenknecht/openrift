@@ -7,23 +7,14 @@ import { DialogForm } from "@/components/ui/dialog-form";
 import { QuantityStepper } from "@/components/ui/quantity-stepper";
 
 interface TakeConfirmDialogProps {
-  /** The card to take, or null when the dialog is closed. */
   printing: Printing | null;
-  /** How many copies of this card the group box holds (the quantity cap). */
   maxQuantity: number;
-  /** Quantity the stepper opens on (1 from the Take button, N from "Take N"). */
   initialQuantity: number;
   isPending: boolean;
   onConfirm: (quantity: number) => void;
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Confirms taking copies out of a group "bulk box" and lets the viewer choose
- * how many (1 up to what the box holds) before the move runs. Wording stays
- * neutral about what a take means socially; it only states the mechanical move.
- * @returns The take confirmation dialog.
- */
 export function TakeConfirmDialog({
   printing,
   maxQuantity,
@@ -35,7 +26,6 @@ export function TakeConfirmDialog({
   const open = printing !== null;
   const [quantity, setQuantity] = useState(initialQuantity);
 
-  // Re-arm the stepper whenever the dialog opens for a fresh take.
   const [armedFor, setArmedFor] = useState({ printing, initialQuantity });
   if (armedFor.printing !== printing || armedFor.initialQuantity !== initialQuantity) {
     setArmedFor({ printing, initialQuantity });

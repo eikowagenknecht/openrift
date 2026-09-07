@@ -5,19 +5,10 @@ import { computeRegionOverview } from "@/lib/region-overview";
 
 import { formatScore } from "./standings-display";
 
-// Default region label: the raw slug (named so the React Compiler can reorder it).
+// Named so the React Compiler can reorder it.
 const rawRegionSlug = (slug: string): string => slug;
 
-/**
- * The fill width for a region's bar, as a share of the leading region's
- * average. The comparison is what the number means, so the top region always
- * fills the track and the rest read against it. A leading average of zero (no
- * scores yet) leaves every track empty rather than dividing by nothing.
- *
- * @param avgScore The region's average points.
- * @param topAvgScore The leading region's average points.
- * @returns The fill width as a CSS percentage.
- */
+// Guards against dividing by zero: a zero leading average leaves every track empty.
 function barWidth(avgScore: number, topAvgScore: number): string {
   if (topAvgScore <= 0) {
     return "0%";
@@ -26,11 +17,8 @@ function barWidth(avgScore: number, topAvgScore: number): string {
 }
 
 /**
- * The region leaderboard: regions ranked by the average points of their
- * players, as bars against the leading region. Renders nothing while no player
- * has a region yet.
- *
- * @returns The region overview, or null.
+ * The region leaderboard: regions ranked by average points, as bars against
+ * the leading region. Renders nothing while no player has a region yet.
  */
 export function RegionOverview({
   standings,

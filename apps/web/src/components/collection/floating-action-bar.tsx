@@ -14,17 +14,10 @@ interface FloatingAction {
 
 interface FloatingActionBarProps {
   selectedCount: number;
-  /** Action buttons rendered between the count and the clear button. */
   actions: FloatingAction[];
   onClear: () => void;
 }
 
-/**
- * Bottom-centered bar shown in select mode. The owning surface supplies the
- * action buttons (Move / Add to list / Dispose for collections, Move / Remove
- * for lists); this component only owns the count, mobile sizing, and clear.
- * @returns The floating action bar.
- */
 export function FloatingActionBar({ selectedCount, actions, onClear }: FloatingActionBarProps) {
   const isMobile = useIsMobile();
   const buttonSize = isMobile ? "sm" : undefined;

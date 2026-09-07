@@ -9,9 +9,6 @@ import {
 
 import { PairingsView } from "./pairings-view";
 
-// All rounds for the participant, newest-first. The open reporting round's pods
-// offer inline result entry — each player their own score, or a whole pod at
-// once; past rounds are read-only.
 export function ReportRoundsContent({ token, data }: { token: string; data: PodReportResponse }) {
   const submitResult = useSubmitTournamentReportResult(token);
   const submitPlayerResult = useSubmitTournamentReportPlayerResult(token);
@@ -21,7 +18,6 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
     : undefined;
   const swiss = data.pairingStyle === "swiss";
   const hasOpenRound = data.rounds.some((round) => round.status === "reporting");
-  // The follow-only link resolves the report but can't enter results.
   const canSubmit = data.canSubmit;
 
   async function submit(podId: string, results: { playerId: string; gamePoints: number }[]) {
@@ -29,7 +25,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
       await submitResult.mutateAsync({ podId, results });
       toast.success("Result submitted");
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   }
 
@@ -38,7 +34,7 @@ export function ReportRoundsContent({ token, data }: { token: string; data: PodR
       await submitPlayerResult.mutateAsync({ podId, playerId, gamePoints });
       toast.success("Score saved");
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   }
 

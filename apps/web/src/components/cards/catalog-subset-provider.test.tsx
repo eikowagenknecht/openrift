@@ -22,7 +22,6 @@ const SET = {
   setType: "main",
 };
 
-/** Strips the enriched fields back off a stub Printing to get the wire shape. */
 function toWirePrinting(printing: Printing) {
   const { setSlug: _slug, setReleased: _released, card: _card, ...value } = printing;
   return { ...value, setId: SET_ID };
@@ -117,7 +116,7 @@ describe("CatalogSubsetProvider", () => {
 describe("the deck detail pane's inputs", () => {
   it("resolves the deck's printings from the subset", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    // `useDeckTokens` reads the language order off /init, which is beside the point here.
+    // `useDeckTokens` reads the language order off /init; required for the hook to run.
     client.setQueryData(initQueryOptions.queryKey, {
       enums: { languages: [] },
     } as unknown as InitResponse);

@@ -7,9 +7,6 @@ import { ShareButton } from "./support-page";
 const ICON = <svg aria-hidden="true" />;
 
 describe("ShareButton", () => {
-  // It used to render the Button inside an <a>, which an anchor may not
-  // contain: the DOM had a link and a button for one action, and both took a
-  // tab stop.
   it("renders a linking share as the anchor, not a button inside one", () => {
     const { container } = render(
       <ShareButton label="Star on GitHub" icon={ICON} href="https://example.test/repo" />,

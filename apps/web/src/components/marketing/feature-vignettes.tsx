@@ -54,16 +54,6 @@ import {
 export { DiscordVignette } from "./discord-vignette";
 export { DecksVignette } from "./decks-vignette";
 
-/**
- * Miniatures for the /features and landing sections. Every string, control
- * shape and number here is the app's own — see the UI fidelity dossier. Where
- * a real primitive cannot be imported (filter bar, card cell, recharts) the
- * miniature reproduces its markup rather than inventing a simpler one.
- */
-
-// Catalog shares of the live per-facet splits, measured from the DB. The
-// vignette has no facet counts, so the filtered figure is derived from the
-// real total rather than invented.
 const DOMAINS = [
   { slug: "fury", label: "Fury", share: 0.169 },
   { slug: "calm", label: "Calm", share: 0.17 },
@@ -103,7 +93,6 @@ export function CatalogVignette({
   thumbnails,
   cardCount,
 }: {
-  /** The full tagged daily sample; the grid shows the first eight matches. */
   thumbnails: TaggedThumbnail[];
   cardCount?: number;
 }) {
@@ -115,9 +104,8 @@ export function CatalogVignette({
         ? RARITIES.find((entry) => entry.slug === filter.slug)
         : DOMAINS.find((entry) => entry.slug === filter.slug);
   const shown = thumbnails.filter((thumb) => matches(thumb, filter)).slice(0, 8);
-  // The sample comes from a client query, so SSR has nothing to judge a facet
-  // by. Greying every chip there and un-greying them on arrival is a hydration
-  // mismatch on the `disabled` attribute.
+  // The sample is client-only; disabling chips before it arrives would flip
+  // the `disabled` attribute on hydration and mismatch.
   const hasSample = thumbnails.length > 0;
   const filtered = active && cardCount ? Math.round(cardCount * active.share) : undefined;
   const count =
@@ -236,10 +224,7 @@ export function CatalogVignette({
   );
 }
 
-// Three cards leave the inbox over the cycle: two to the binder, one to the
-// deck box. Every state is arithmetically honest — the two ends both total the
-// 842 All Cards claims, and that total never moves, because sorting a card into
-// a collection does not change what you own.
+// Before/after counts must keep summing to the 842 the "All Cards" badge shows.
 const COLLECTION_ROWS = [
   {
     icon: BookOpenIcon,
@@ -254,7 +239,6 @@ const COLLECTION_ROWS = [
   { icon: BoxIcon, name: "Azir Order", was: 60, count: 61, active: false, receives: "b" as const },
 ] as const;
 
-/** When each row's count ticks over, and when its drop ring flashes. */
 const DROP_PHASE = {
   a: {
     until: "motion-safe:animate-collect-until-a",
@@ -269,7 +253,6 @@ const DROP_PHASE = {
 } as const;
 
 const SIDEBAR_ROW = "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm";
-// SidebarMenuButton's data-active styling; one row always carries it.
 const SIDEBAR_ROW_ACTIVE = "bg-sidebar-accent text-sidebar-accent-foreground font-medium";
 
 const COPY_LOCATIONS = [
@@ -278,11 +261,6 @@ const COPY_LOCATIONS = [
   { name: "Azir Order", count: 1 },
 ] as const;
 
-/**
- * A sidebar count that ticks over when its drop lands. Both states share one
- * grid cell, like {@link Swap}, but on the sort cycle rather than the shared
- * 9s one.
- */
 function DropCount({ was, now, phase }: { was: number; now: number; phase: "a" | "b" }) {
   return (
     <span className="inline-grid justify-items-end">
@@ -298,7 +276,7 @@ function DropCount({ was, now, phase }: { was: number; now: number; phase: "a" |
   );
 }
 
-/** CardDragGhost's own width and fan offsets, which are fractions of it. */
+// GHOST_FAN offsets are fractions of this.
 const GHOST_WIDTH = 36;
 const GHOST_FAN = [
   { x: 0, y: 0, rotate: 0 },
@@ -306,12 +284,6 @@ const GHOST_FAN = [
   { x: 0.214, y: -0.018, rotate: 12 },
 ] as const;
 
-/**
- * The ghost that rides the cursor during a real drag: the front card, the rest
- * fanned behind it, a lone one tilted instead, and the count badge CardDragGhost
- * shows above a single card. Wider than a row on purpose, so it reads as
- * hovering over the list the way the real overlay does.
- */
 function DragGhost({ urls, className }: { urls: readonly string[]; className?: string }) {
   return (
     <span
@@ -345,7 +317,6 @@ function DragGhost({ urls, className }: { urls: readonly string[]; className?: s
   );
 }
 
-/** DroppableCollection's hover ring, flashed on the row taking a drop. */
 function DropRing({ className }: { className?: string }) {
   return (
     <span
@@ -358,7 +329,6 @@ function DropRing({ className }: { className?: string }) {
   );
 }
 
-/** A variant-locations row's resting [- count +] cluster. */
 function CopyStepper({ count, strong }: { count: number; strong?: boolean }) {
   return (
     <div className="flex shrink-0 items-center gap-0.5">
@@ -386,8 +356,6 @@ function CopyStepper({ count, strong }: { count: number; strong?: boolean }) {
   );
 }
 
-// PrintingVariantLabel's order: the language chip leads, then the code, then
-// the variant words.
 function VariantHeaderRow({
   label,
   count,
@@ -431,8 +399,6 @@ export function CollectionsVignette({ thumbnailUrls }: { thumbnailUrls: string[]
         <div className={cn(SIDEBAR_ROW, "relative")}>
           <InboxIcon className="size-4 shrink-0" aria-hidden="true" />
           <span className="flex-1">Inbox</span>
-          {/* At zero the real sidebar drops the badge rather than showing a 0,
-              so a cleared inbox is what both animated states resolve to. */}
           <span className="ml-auto inline-grid justify-items-end">
             <Badge
               variant="default"
@@ -490,13 +456,11 @@ export function CollectionsVignette({ thumbnailUrls }: { thumbnailUrls: string[]
   );
 }
 
-// Origins commons, so Rule 1 below can actually be what put them on the list.
 const WISHLIST_ROWS = [
   { name: "Hidden Blade", rule: "2" },
   { name: "Legion Rearguard", rule: "3" },
 ] as const;
 
-/** RuleSourceBadge: a sparkle plus the rule-contributed quantity. */
 function RuleSourceBadge({ children }: { children: ReactNode }) {
   return (
     <Badge
@@ -510,9 +474,6 @@ function RuleSourceBadge({ children }: { children: ReactNode }) {
   );
 }
 
-// CONTROL_WIDTH from rule-filter-editor.tsx: every criterion, the quantity mode
-// and the combine mode share one trigger, which is what makes the editor read as
-// a stack of interchangeable rows.
 const RULE_CONTROL =
   "border-input dark:bg-input/30 flex h-8 items-center justify-between gap-1.5 rounded-lg border bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap";
 
@@ -525,7 +486,6 @@ function RuleControl({ children, className }: { children: ReactNode; className?:
   );
 }
 
-/** FilterRow: the criterion on the left, its control on the right. Wraps on phones. */
 function RuleRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
@@ -535,7 +495,7 @@ function RuleRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** A checked Switch, at the geometry Switch renders (h-[18.4px] w-8, size-4 thumb). */
+// Matches the geometry Switch renders: h-[18.4px] w-8, size-4 thumb.
 function RuleSwitch() {
   return (
     <span className="bg-primary inline-flex h-[18.4px] w-8 shrink-0 items-center rounded-full border border-transparent">
@@ -544,7 +504,6 @@ function RuleSwitch() {
   );
 }
 
-/** QuantityControl: the mode select (w-36) beside its amount input (w-20). */
 function QuantityControl({ mode, amount }: { mode: string; amount: string }) {
   return (
     <span className="flex items-center gap-2">
@@ -554,11 +513,6 @@ function QuantityControl({ mode, amount }: { mode: string; amount: string }) {
   );
 }
 
-/**
- * A list total that ticks over as the completed row drops out. Stacked in one
- * grid cell like {@link Swap}, but on the lists cycle rather than the shared 9s
- * one, so the number never moves before the row it is counting.
- */
 function ListsCount({ was, now }: { was: string; now: string }) {
   return (
     <span className="inline-grid justify-items-start tabular-nums">
@@ -614,7 +568,6 @@ export function ListsVignette() {
         <RuleRow label="Languages">
           <RuleControl>English</RuleControl>
         </RuleRow>
-        {/* The signed summary an exclude-only row collapses to. */}
         <RuleRow label="Finishes">
           <RuleControl>&minus;Metal</RuleControl>
         </RuleRow>
@@ -642,8 +595,6 @@ export function ListsVignette() {
           </span>
         </div>
         <ul className="flex flex-col text-sm">
-          {/* The row's last copy lands, it goes green, and the rule drops it off
-              the list. Rows below close the gap as its height collapses. */}
           <li className="motion-safe:animate-lists-row relative h-0 overflow-hidden opacity-0">
             <span
               aria-hidden="true"
@@ -677,17 +628,12 @@ export function ListsVignette() {
             <RuleSourceBadge>3</RuleSourceBadge>
           </li>
         </ul>
-        {/* Static: the completed row leaves the total and the shown rows alike,
-            so the remainder between them never moves. */}
         <span className="text-muted-foreground text-xs">210 more</span>
       </div>
     </Vignette>
   );
 }
 
-// Every row resolves exactly: OGN-213 is a common (normal finish), SFD-154-Foil
-// carries the suffix, and SFD-148a is a showcase, which isAlwaysFoilRarity
-// reads as foil. Name-only input never matches exactly, so the source is a CSV.
 const IMPORT_CSV_LINES = [
   "Variant Number,Card Name,Set,Rarity,Quantity,Language",
   "OGN-213,Hidden Blade,Origins,common,4,English",
@@ -762,37 +708,26 @@ export function ImportVignette() {
   );
 }
 
-// Default marketplaceOrder: CardTrader, TCGplayer, Cardmarket.
 const PRICE_SOURCES = [
   { marketplace: "cardtrader" as const, price: 3.65, phase: 0.6, swing: 0.9, rate: 0.02 },
   { marketplace: "tcgplayer" as const, price: 4.52, phase: 2.2, swing: 1.4, rate: -0.014 },
   { marketplace: "cardmarket" as const, price: 3.8, phase: 4.1, swing: 1.1, rate: 0.011 },
 ];
 
-// TIME_RANGES, minus the `all` entry's days: 0 sentinel, which the real chart
-// resolves against the printing's own span.
+// The real chart resolves `all`'s days:0 sentinel against the printing's span.
 const PRICE_RANGES = TIME_RANGES.map((range) => ({
   ...range,
   days: range.days === 0 ? 210 : range.days,
 }));
 
-// The plot box inside the 300x110 viewBox, and the pixel gap between the three
-// gridlines the y labels sit on.
 const PLOT = { left: 44, right: 296, top: 20, bottom: 92, step: 26 };
 const SAMPLE_COUNT = 12;
-// Anchors the x labels. A constant rather than today, so the server and the
-// client render the same dates.
+// Fixed: using today's date would mismatch between server and client renders.
 const PRICE_END_DAY = Date.parse("2026-08-24T00:00:00Z");
 
 const TICK_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 25];
 
-/**
- * A price series for one marketplace over one window, ending on the price the
- * buy row shows. Two sines rather than a random walk, so every render draws the
- * same line, and the drift grows with the square root of the window, so a wider
- * one moves further without running away.
- * @returns `SAMPLE_COUNT` values, oldest first.
- */
+// No randomness: output must match between server and client renders.
 function priceSeries(source: (typeof PRICE_SOURCES)[number], days: number): number[] {
   const drift = source.price * source.rate * Math.sqrt(days);
   const raw = Array.from({ length: SAMPLE_COUNT }, (_, index) => {
@@ -805,12 +740,10 @@ function priceSeries(source: (typeof PRICE_SOURCES)[number], days: number): numb
   return raw.map((value) => value + shift);
 }
 
-/** @returns The smallest tick step whose three gridlines contain the whole series. */
 function tickStep(min: number, max: number): number {
   return TICK_STEPS.find((step) => Math.ceil(max / step) * step - 2 * step <= min) ?? 50;
 }
 
-/** @returns A `YYYY-MM-DD` day, `daysAgo` before the anchor the chart ends on. */
 function chartDay(daysAgo: number): string {
   return new Date(PRICE_END_DAY - daysAgo * 86_400_000).toISOString().slice(0, 10);
 }
@@ -830,8 +763,6 @@ export function PricesVignette() {
   ]);
   const line = points.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x},${y}`).join(" ");
   const area = `${line} L${PLOT.right},${PLOT.bottom} L${PLOT.left},${PLOT.bottom} Z`;
-  // Measured rather than fixed, so the draw-in starts fully retracted whichever
-  // series is on screen.
   const length = points.reduce(
     (total, [x, y], index) =>
       index === 0 ? total : total + Math.hypot(x - points[index - 1][0], y - points[index - 1][1]),
@@ -1002,12 +933,6 @@ const GROUP_CARDS = [
   },
 ] as const;
 
-/**
- * The groups index: one card per group, leading with the cards you could
- * actually move there and how busy the group has been. Mirrors
- * `groups-index-page.tsx`, which is where this section's action link lands.
- * @returns The groups vignette.
- */
 export function GroupsVignette({ thumbnailUrls }: { thumbnailUrls: string[] }) {
   return (
     <Vignette>

@@ -50,25 +50,17 @@ import { applySwaps, hasActiveSwaps } from "@/lib/deck-swap-test";
 import { cn } from "@/lib/utils";
 import { useDeckOddsGroupsStore } from "@/stores/deck-odds-groups-store";
 
-/** Picker section order. */
 const GROUP_THEMES: readonly OddsGroupTheme[] = ["Curve", "Interaction", "Economy", "Card types"];
 
-/** Typing here must not trigger the bench's single-letter shortcuts. */
 const TEXT_ENTRY = 'input, textarea, select, [contenteditable], [role="dialog"]';
 
-/** Types offered in the custom-group form (the drawn main deck's types). */
 const CUSTOM_GROUP_TYPES: readonly string[] = [
   WellKnown.cardType.UNIT,
   "spell",
   WellKnown.cardType.GEAR,
 ];
 
-/**
- * Inline form for a deck-specific custom group: name, main-deck types, and an
- * energy range. At least one condition is required so a group can't silently
- * match the whole deck.
- * @returns The add-group form.
- */
+// At least one condition is required so a group can't silently match the whole deck.
 function CustomGroupForm({
   typeLabels,
   onAdd,
@@ -135,7 +127,6 @@ function CustomGroupForm({
           value={energyMin}
           onChange={(event) => setEnergyMin(event.target.value)}
           aria-label="Minimum energy"
-          // Hide the native number spinners — they crowd an already narrow field.
           className="h-7 w-14 [appearance:textfield] text-sm [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         to
@@ -162,12 +153,8 @@ function CustomGroupForm({
   );
 }
 
-/**
- * Odds of having channeled enough runes of a domain by each early turn. Runes
- * are their own shuffled deck, so this reads the real deck's rune zone and is
- * deliberately untouched by the sideboard experiment (runes can't be swapped).
- * @returns The rune-odds block, or null when the deck has no runes.
- */
+// Runes are their own shuffled deck; this deliberately reads the real deck's
+// rune zone and ignores the sideboard experiment, since runes can't be swapped.
 function RuneOddsPanel({ cards }: { cards: DeckBuilderCard[] }) {
   const [goingSecond, setGoingSecond] = useState(false);
   const domainColors = useDomainColors();
@@ -224,9 +211,7 @@ function RuneOddsPanel({ cards }: { cards: DeckBuilderCard[] }) {
                     key={RUNE_ODDS_TURNS[index]}
                     className="w-px px-2 py-1 text-right whitespace-nowrap tabular-nums"
                   >
-                    {/* Exactly 0 means structurally impossible (fewer runes
-                        channeled than the threshold) — a dash reads clearer
-                        than a percentage. */}
+                    {/* 0 is structurally impossible; show a dash, not 0%. */}
                     {chance === 0 ? (
                       <span className="text-muted-foreground/60">–</span>
                     ) : (
@@ -247,9 +232,6 @@ function RuneOddsPanel({ cards }: { cards: DeckBuilderCard[] }) {
   );
 }
 
-/**
- * @returns The odds-table row title, flagging what of it sits in the hand.
- */
 function oddsRowTitle(label: string, inHand: number): string {
   if (inHand > 1) {
     return `${label} (${inHand} in your hand)`;
@@ -260,10 +242,6 @@ function oddsRowTitle(label: string, inHand: number): string {
   return label;
 }
 
-/**
- * Ties an odds row to the hand on the left: this row is one you are holding.
- * @returns The marker, or null for a row the hand does not cover.
- */
 function InHandDot({ inHand }: { inHand: number }) {
   if (inHand === 0) {
     return null;
@@ -273,11 +251,6 @@ function InHandDot({ inHand }: { inHand: number }) {
   );
 }
 
-/**
- * A muted line of "chance to hit each group in the next few cards", counted off
- * the live library rather than the deck list.
- * @returns The line, or null when there is nothing to say.
- */
 function LibraryOddsLine({
   lead,
   rows,
@@ -307,7 +280,6 @@ function LibraryOddsLine({
 }
 
 interface PoolCard {
-  /** Unique per physical copy so two copies of one card select independently. */
   key: string;
   cardId: string;
   cardName: string;
@@ -318,16 +290,9 @@ interface BenchState {
   hand: PoolCard[];
   library: PoolCard[];
   mulliganUsed: boolean;
-  /** A card was drawn past the opening hand — the mulligan window is closed. */
   hasDrawn: boolean;
 }
 
-/**
- * The Test tab: sample opening hands with the real Riftbound rule (4 cards,
- * mulligan up to 2 once) plus a hypergeometric draw-odds table for every
- * main-deck card. All client-side math — no server involvement.
- * @returns The test bench.
- */
 export function DeckTestBench({
   cards,
   deckId,
@@ -338,41 +303,25 @@ export function DeckTestBench({
   onCardClick,
 }: {
   cards: DeckBuilderCard[];
-  /** Keys the device-local odds-group state (viewer overrides, local decks). */
   deckId: string;
-  /**
-   * The deck's server-stored odds settings. Omit entirely for browser-local
-   * decks (device-local storage applies); null means a server deck that has
-   * not been customized yet.
-   */
   oddsConfig?: DeckOddsConfig | null;
-  /** Owner save path. Absent on read-only views — viewer toggles stay local. */
   onSaveOddsConfig?: (config: DeckOddsConfig) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   onHoverCard?: HoverHandler;
-  /** Opens a card's detail from an odds-table row. */
   onCardClick?: (card: CardOpenTarget) => void;
 }) {
   const [bench, setBench] = useState<BenchState | null>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  // Sideboard experiment: purely local to this tab, never saved anywhere. It
-  // carries the deck plan's swap shape so a matchup's swaps could be loaded
-  // straight in later.
   const [swaps, setSwaps] = useState<PlanSwapDraft[]>([]);
-  // Collapsed by default so the Test tab opens quiet; not persisted.
   const [sideboardOpen, setSideboardOpen] = useState(false);
   const { labels } = useEnumOrders();
   const hydrated = useHydrated();
 
   const swapsActive = hasActiveSwaps(swaps);
-  // Every number on this tab — hands, odds, group rows — reads the swapped
-  // deck, so the experiment is visible everywhere at once.
   const testCards = swapsActive ? applySwaps(cards, swaps) : cards;
 
-  // One entry per physical copy of the main deck. The copy counter runs per
-  // card across entries — a card split over two pinned printings must not
-  // restart at 0 and hand two copies the same key (duplicate React keys, and
-  // selecting one would select both).
+  // The counter runs per card across pool entries: a card split over two
+  // pinned printings must not restart at 0 and hand two copies the same key.
   const copySeq = new Map<string, number>();
   const pool: PoolCard[] = testCards
     .filter((card) => card.zone === WellKnown.deckZone.MAIN)
@@ -399,10 +348,8 @@ export function DeckTestBench({
   const oddsRows = buildDrawOddsRows(testCards);
   const hasRunes = cards.some((card) => card.zone === WellKnown.deckZone.RUNES);
 
-  // The swap columns work off the real deck, so a card stays on its list (and
-  // keeps its cap) no matter how far the experiment has moved its copies.
-  // Swaps are counted per card, so copies split across pinned printings
-  // collapse into one row, and the order matches the deck list's default view.
+  // Uses `cards`, not `testCards`: a card must stay on the swap list at its
+  // real cap no matter how far the experiment has already moved its copies.
   const swapRowsFor = (zone: DeckZone) => {
     const aggregated = [
       ...Map.groupBy(
@@ -413,8 +360,6 @@ export function DeckTestBench({
       ...group[0],
       quantity: group.reduce((sum, card) => sum + card.quantity, 0),
     }));
-    // Narrowed back down on the way out: the raw `cardType` slug would
-    // surface as the picker's detail column.
     return sortOverviewCards(aggregated, zone).map((card) => ({
       cardId: card.cardId,
       cardName: card.cardName,
@@ -428,11 +373,6 @@ export function DeckTestBench({
     ...mainRows.map((card) => [`out:${card.cardId}`, card.quantity] as const),
   ]);
 
-  // Three-layer group rows: core presets + deck-adaptive suggestions by
-  // default, plus per-deck custom groups, all overridable through the picker.
-  // Storage depends on the surface: server decks persist on the deck row (so
-  // the settings travel with the share page); browser-local decks and share-
-  // page viewers use the device-local store.
   const presets = oddsGroupPresets(testCards, labels.cardTypes);
   const storedSelection = useDeckOddsGroupsStore((state) => state.selectionByDeck[deckId]);
   const storedCustom = useDeckOddsGroupsStore((state) => state.customByDeck[deckId]);
@@ -442,13 +382,10 @@ export function DeckTestBench({
   const removeCustomGroup = useDeckOddsGroupsStore((state) => state.removeCustomGroup);
   const serverBacked = oddsConfig !== undefined;
   const canEditServer = serverBacked && onSaveOddsConfig !== undefined;
-  // The custom-group form shows where edits have somewhere to live: the
-  // owner's server config, or the device store for local decks.
   const canCustomize = canEditServer || !serverBacked;
 
-  // Hydration gate: the share page SSRs this section, and device-local state
-  // must not flip the tree during hydration. Server config is part of the
-  // SSR payload, so it needs no gate.
+  // The share page SSRs this section; device-local state must not flip the
+  // tree during hydration. Server config is part of the SSR payload already.
   const localCustom = hydrated ? storedCustom : undefined;
   const localSelection = hydrated ? storedSelection : undefined;
   const customDefs: readonly OddsGroupDef[] = serverBacked
@@ -457,15 +394,10 @@ export function DeckTestBench({
   const allDefs: readonly OddsGroupDef[] = [...customDefs, ...presets];
   const rowsByKey = new Map(allDefs.map((def) => [def.key, oddsGroupRow(testCards, def)]));
   const mainDeckSize = pool.length;
-  // New custom groups are visible without touching the selection: the
-  // suggested set includes them all.
   const suggestedKeys = [
     ...customDefs.map((def) => def.key),
     ...defaultOddsGroupKeys(testCards, presets),
   ];
-  // Explicit selection precedence: the owner edits the server value; a
-  // share-page viewer's device override shadows the author's selection; a
-  // local deck is device-only.
   const serverSelection = oddsConfig?.selection ?? undefined;
   const explicitSelection = canEditServer
     ? serverSelection
@@ -535,8 +467,7 @@ export function DeckTestBench({
 
   const handleAddCustom = (group: OddsGroupDef) => {
     if (canEditServer) {
-      // A null selection means "suggested", which includes every custom group
-      // automatically; an explicit selection needs the new key appended.
+      // null selection means "suggested" and already covers every custom group.
       onSaveOddsConfig({
         customGroups: [...customDefs, group],
         selection: serverSelection === undefined ? null : [...serverSelection, group.key],
@@ -566,9 +497,9 @@ export function DeckTestBench({
     }
   };
 
-  // Any swap invalidates a drawn hand — it came out of the old pool.
   const commitSwaps = (next: PlanSwapDraft[]) => {
     setSwaps(next);
+    // A swap invalidates a drawn hand: it came out of the old pool.
     setBench(null);
     setSelected(new Set());
   };
@@ -593,7 +524,6 @@ export function DeckTestBench({
   };
 
   const drawHand = () => {
-    // Mirrors the button's disabled state for the keyboard path.
     if (pool.length === 0) {
       return;
     }
@@ -621,14 +551,11 @@ export function DeckTestBench({
   };
 
   const mulliganSelected = () => {
-    // hasDrawn matters on the keyboard path: the button is disabled after a
-    // draw, but the shortcut would still fire.
+    // hasDrawn is checked here too: the button is disabled after a draw, but
+    // the N/M/D keyboard shortcuts bypass the button and would still fire.
     if (!bench || bench.mulliganUsed || bench.hasDrawn || selected.size === 0) {
       return;
     }
-    // Real procedure (rule 118): set the chosen cards aside, draw that many,
-    // then Recycle the set-aside cards to the bottom of the deck — so a later
-    // "Draw a card" can still reach the mulliganed copies.
     const result = applyMulligan(bench.hand, bench.library, selected, shuffle);
     setBench({
       hand: result.hand,
@@ -652,11 +579,7 @@ export function DeckTestBench({
     setSelected(new Set());
   };
 
-  // Single-letter shortcuts while the Test tab is mounted: N new hand,
-  // M mulligan the selected cards, D draw a card. Modifier chords stay with
-  // the browser and the editor's own Ctrl+K / Ctrl+Z handlers. No dependency
-  // array on purpose: the handlers close over fresh state each render, so the
-  // listener re-binds per render instead of chasing their identities.
+  // No dependency array: handlers must close over fresh state each render.
   // oxlint-disable-next-line react-hooks/exhaustive-deps -- see comment above
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -685,8 +608,8 @@ export function DeckTestBench({
     };
   });
 
-  // Keyed on the real deck, not the experiment: cutting every main-deck card
-  // must not swap the whole tab for a placeholder with no way back.
+  // mainRows reflects the real deck, not the experiment: cutting every
+  // main-deck card must not swap the whole tab for a placeholder with no way back.
   if (mainRows.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -700,9 +623,6 @@ export function DeckTestBench({
   return (
     <div className="flex flex-col gap-8 @3xl:flex-row @3xl:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        {/* The row keeps a fixed shape across states — every button stays
-            mounted with a constant label, so nothing moves under the cursor
-            between draws. */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -716,16 +636,12 @@ export function DeckTestBench({
             <Kbd
               className={cn(
                 "max-sm:hidden",
-                // The filled variant needs the chip re-inked or it floats as a
-                // light-gray island on the primary fill.
                 !bench && "bg-primary-foreground/20 text-primary-foreground",
               )}
             >
               N
             </Kbd>
           </Button>
-          {/* The mulligan happens before any extra draw, so drawing a card
-              locks the button. */}
           <Button
             type="button"
             variant="outline"
@@ -797,9 +713,6 @@ export function DeckTestBench({
             Draw a sample hand to see how the deck opens.
           </div>
         )}
-        {/* Both lines sit below the cards, never above them: a line that
-            appears on a card click must not shove the cards out from under the
-            cursor mid-mulligan. */}
         {bench && selected.size > 0 && (
           <LibraryOddsLine
             lead={`Exchanging ${selected.size}:`}
@@ -822,8 +735,6 @@ export function DeckTestBench({
                   Sideboard test
                 </SectionHeading>
               </ExpandToggle>
-              {/* Reset stays put while collapsed: swaps still skew every
-                  number, so it doubles as the "something is active" flag. */}
               {swapsActive && (
                 <Button
                   type="button"
@@ -836,8 +747,7 @@ export function DeckTestBench({
                 </Button>
               )}
             </div>
-            {/* Collapsing hides the controls only — active swaps keep
-                shaping the odds and the sample hand. */}
+            {/* Collapsing hides the controls only; active swaps keep shaping the odds. */}
             {sideboardOpen && (
               <>
                 <SwapColumns
@@ -847,8 +757,7 @@ export function DeckTestBench({
                   onAdd={addSwap}
                   onSetQuantity={setSwapQuantity}
                   onRemove={removeSwap}
-                  // These copies feed the odds math directly, so a box can't
-                  // go past what the zone actually holds.
+                  // Caps at what the zone actually holds; these copies feed the odds math directly.
                   maxQuantityFor={(cardId, direction) =>
                     copiesAvailable.get(`${direction}:${cardId}`) ?? 1
                   }
@@ -863,8 +772,6 @@ export function DeckTestBench({
         )}
       </div>
 
-      {/* The two odds tables stack in the fixed side rail, then sit next to
-          each other once the container leaves room for both columns. */}
       {(oddsRows.length > 0 || hasRunes) && (
         <div className="flex w-full shrink-0 flex-col gap-6 @3xl:w-96 @7xl:grid @7xl:w-[49.5rem] @7xl:grid-cols-2 @7xl:items-start">
           {oddsRows.length > 0 && (
@@ -899,15 +806,11 @@ export function DeckTestBench({
                         </Button>
                       )}
                     </div>
-                    {/* A viewer of someone else's deck can toggle rows but has
-                    nowhere to save a new group, so point at the copy. */}
                     {!canCustomize && (
                       <p className="text-muted-foreground mt-2 text-xs">
                         Copy this deck to your decks to make your own groups.
                       </p>
                     )}
-                    {/* Hidden when there is nothing deck-specific to show: no
-                    custom groups and no way to add one (read-only viewer). */}
                     {(customDefs.length > 0 || canCustomize) && (
                       <SectionHeading as="h3" size="sm" className="mt-3 mb-1">
                         This deck
@@ -1008,8 +911,6 @@ export function DeckTestBench({
                   <thead>
                     <tr className="text-muted-foreground text-xs">
                       <th className="px-2 py-1.5 text-left font-medium">Card</th>
-                      {/* w-px pins the number columns to their content so the
-                      name column gets every remaining pixel. */}
                       <th className="w-px px-2 py-1.5 text-right font-medium whitespace-nowrap">
                         Hand
                       </th>
@@ -1019,8 +920,7 @@ export function DeckTestBench({
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Role rows first: "will I see *something of this kind*",
-                    built from structured card data (types, energy). */}
+                    {/* Group rows first, then per-card rows below. */}
                     {groupRows.map((row) => {
                       const inHand = inHandGroupCounts.get(row.key) ?? 0;
                       return (
@@ -1095,8 +995,6 @@ export function DeckTestBench({
               )}
             </div>
           )}
-          {/* Runes are a separate shuffled deck, so this reads the real deck
-              and ignores the sideboard experiment. */}
           <RuneOddsPanel cards={cards} />
         </div>
       )}

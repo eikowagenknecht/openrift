@@ -39,10 +39,6 @@ import type { SourceSubmitter } from "@/lib/candidate-submitter";
 import { buildSourceSubmitters } from "@/lib/candidate-submitter";
 import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
 
-// ---------------------------------------------------------------------------
-// Shared hook: data + mutations used by both existing and new detail pages
-// ---------------------------------------------------------------------------
-
 export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) {
   const { orders, labels } = useEnumOrders();
 
@@ -54,9 +50,8 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
 
   const { data: channelsData } = useDistributionChannels();
   const distributionChannels = channelsData?.distributionChannels ?? [];
-  // Card-detail can only attach printings to leaf channels. Show the full
-  // breadcrumb (e.g. "Regional Event › Houston › Top 1") so the picker stays
-  // unambiguous when the same leaf label repeats under different parents.
+  // Show the full breadcrumb so the picker stays unambiguous when the same
+  // leaf label repeats under different parents.
   const channelTree = buildChannelTree(distributionChannels);
   const channelPickerOptions = leafChannels(channelTree).map((node) => ({
     value: node.channel.slug,
@@ -112,10 +107,6 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
   };
 }
 
-// ---------------------------------------------------------------------------
-// Utility: build provider label maps from candidate card sources
-// ---------------------------------------------------------------------------
-
 export function buildSourceLabels(
   sources: CandidateCardResponse[],
   canonicalName?: string | null,
@@ -142,10 +133,6 @@ export function buildSourceLabels(
   return { labels, names, submitters: buildSourceSubmitters(sources) };
 }
 
-// ---------------------------------------------------------------------------
-// Utility: map API printing groups to local PrintingGroup shape
-// ---------------------------------------------------------------------------
-
 export function buildPrintingGroups(
   apiGroups: CandidatePrintingGroupResponse[],
   candidatePrintings: CandidatePrintingResponse[],
@@ -163,10 +150,6 @@ export function buildPrintingGroups(
     };
   });
 }
-
-// ---------------------------------------------------------------------------
-// Utility: deduplicate source images by URL, collecting provider labels
-// ---------------------------------------------------------------------------
 
 export interface DeduplicatedSourceImage {
   candidatePrintingId: string;
@@ -198,26 +181,8 @@ export function deduplicateSourceImages(
   ];
 }
 
-// ---------------------------------------------------------------------------
-// Utility: resolve the printing the derived ("auto") substitute art comes from
-// ---------------------------------------------------------------------------
-
-/**
- * The printing whose artwork the derived substitute mode would borrow for
- * `printing`, resolved with the rules the public site uses
- * ({@link findStandardArtFallback}): the standard printing of the same card in
- * the same language, else the standard EN one.
- *
- * The admin shapes name the same data differently (marker slugs instead of
- * markers, images in one flat per-card array), so candidates are mapped to the
- * catalog shape first. Only active, rehosted images count, matching what the
- * catalog serves: an external-only image is not servable, so deriving from it
- * would name a source the site never shows. No candidate carries a substitute
- * override into the search, so the answer stays "what Derived would pick" even
- * while the printing is pinned or suppressed.
- *
- * @returns The source printing, or null when nothing derives.
- */
+// Mirrors findStandardArtFallback's catalog rule; only active, rehosted images
+// count, since an external-only image is not servable on the site.
 export function findDerivedArtPrinting(
   printing: AdminPrintingResponse,
   printings: readonly AdminPrintingResponse[],
@@ -247,10 +212,6 @@ export function findDerivedArtPrinting(
   return printings.find((p) => p.id === sourceId) ?? null;
 }
 
-// ---------------------------------------------------------------------------
-// Utility: sort comparator by provider sort order
-// ---------------------------------------------------------------------------
-
 export function sortByProviderOrder(providerSettings: ProviderSettingResponse[]) {
   const settingsMap = new Map(providerSettings.map((s) => [s.provider, s]));
   return (aLabel: string, bLabel: string) => {
@@ -262,10 +223,6 @@ export function sortByProviderOrder(providerSettings: ProviderSettingResponse[])
     return aLabel.localeCompare(bLabel);
   };
 }
-
-// ---------------------------------------------------------------------------
-// Utility: normalize candidate printing values for comparison
-// ---------------------------------------------------------------------------
 
 function candidateHasValue(value: unknown): boolean {
   if (value === null || value === undefined || value === "") {
@@ -291,33 +248,18 @@ function isValidFieldOption(field: FieldDef, value: unknown): boolean {
   return true;
 }
 
-/** Card-field keys the accept-new-card schema actually persists (everything in
- * `cardFieldsSchema` except `id`, which the page collects via its own Card ID
- * input). Pre-seeding is limited to these so the Active column never fills with
- * fields the accept endpoint would silently strip (e.g. rules/effect text). */
+// cardFieldsSchema minus id (collected separately); pre-seeding stays limited to
+// these so Active never fills with fields the accept endpoint would strip.
 const ACCEPT_CARD_FIELD_KEYS = new Set(
   Object.keys(cardFieldsSchema.shape).filter((key) => key !== "id"),
 );
 
-// Whether a field carries a dropdown with at least one loaded option. Used to
-// decide when option validation is meaningful: before the enum lists load,
-// `labeledOptions` is an empty (but truthy) array, so validating would wrongly
-// reject every value.
+// Before enum lists load, `labeledOptions` is an empty but truthy array, so
+// validating against it would wrongly reject every value.
 function hasDropdownOptions(field: FieldDef): boolean {
   return (field.options?.length ?? 0) > 0 || (field.labeledOptions?.length ?? 0) > 0;
 }
 
-/**
- * Build the initial Active-column selection for the new-card page: for each
- * accept-persisted card field, take the value from the highest-priority source
- * (provider sort order, then name) that has a usable value. Dropdown values are
- * skipped when they aren't a valid option so an unknown slug never pre-fills.
- *
- * The result is a suggestion the admin reviews before accepting, not a commit.
- * Nothing is saved until they click "Accept as new card".
- *
- * @returns A partial card-fields record; empty when no source has usable values.
- */
 export function buildPreseededActiveCard(
   sources: readonly CandidateCardResponse[],
   fields: readonly FieldDef[],
@@ -353,26 +295,6 @@ export function buildPreseededActiveCard(
   return seed;
 }
 
-/**
- * Build the initial Active-column selection for a new printing group, mirroring
- * {@link buildPreseededActiveCard}: for each writable printing field, take the
- * value from the highest-priority source (provider sort order, then name) that
- * has a usable, option-valid value.
- *
- * Two prefills go beyond a plain source copy:
- * - `imageUrl` is taken from the first favorited-provider source that has one, so
- *   accepting the printing carries that image and the accept endpoint inserts it
- *   as the main image. Without a favorited source no image is pre-filled, so the
- *   auto-main behaviour only triggers when a favorite provider is present.
- * - `printedYear` falls back to the year of the set's release date when no source
- *   supplies one (a provider value always wins). `setReleaseYears` is keyed both
- *   by set slug (the set's earliest release) and by `slug|LANGUAGE`, and the
- *   language-specific entry wins. It stays editable in the grid.
- *
- * The result is a suggestion the admin reviews before accepting, not a commit.
- *
- * @returns A partial printing-fields record; empty when no source has usable values.
- */
 export function buildPreseededActivePrinting(
   candidates: readonly CandidatePrintingResponse[],
   fields: readonly FieldDef[],
@@ -444,16 +366,8 @@ export function buildPreseededActivePrinting(
   return seed;
 }
 
-/** Fields where `fixTypography()` is applied with default options on accept. */
 const TYPOGRAPHY_FIELDS = new Set(["printedRulesText", "printedEffectText"]);
 
-/**
- * Build a normalizer that mirrors the server-side transformations applied when
- * accepting a printing field from a provider. This lets the comparison in
- * CandidateSpreadsheet treat formatting-only differences as equal.
- *
- * @returns A normalizeCandidate callback suitable for the CandidateSpreadsheet prop.
- */
 export function buildPrintingNormalizer(
   setTotals: Record<string, number>,
   candidateSetSlug?: string | null,

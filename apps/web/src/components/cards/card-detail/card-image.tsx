@@ -29,22 +29,15 @@ export function CardImage({
   const getFallbackArt = useStandardArtFallback();
   const frontImage = printing.images[0] ?? null;
   const [imgLoaded, setImgLoaded] = useState(false);
-  // Failed loads (missing on the server, network error) accumulate here so the
-  // chain can advance: printing image → standard-art fallback → placeholder.
-  // Keyed by URL so a different printing's image on a reused instance gets a
-  // fresh attempt.
+  // Keyed by URL, not printing id, so a reused instance retries a new printing's image.
   const [failedUrls, setFailedUrls] = useState<readonly string[]>([]);
   const markFailed = (url: string) =>
     setFailedUrls((prev) => (prev.includes(url) ? prev : [...prev, url]));
   const primarySrc = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
   const fallback = showImages ? getFallbackArt(printing) : null;
   const fallbackSrc = fallback === null ? null : imageUrl(fallback.image.imageId, "400w");
-  // The image actually shown: the printing's own, else substitute artwork
-  // (marked by the FallbackArtBadges row), else null → drawn placeholder.
-  // A `const` so the narrowed type survives into the onLoad/onError closures
-  // below. `isSubstitute` drives the badge row rather than `artSource`, which
-  // is null both for the printing's own art and for a pinned substitute whose
-  // source printing is unknown — two cases that must not render the same.
+  // `isSubstitute` drives the badge row, not `artSource`: `artSource` is null for
+  // both the printing's own art and a pinned substitute with an unknown source.
   const shown =
     frontImage && primarySrc !== null && !failedUrls.includes(primarySrc)
       ? {
@@ -61,9 +54,8 @@ export function CardImage({
             artSource: fallback.printing,
           }
         : null;
-  // The pane is SSR'd, so the browser can finish the fetch before hydration
-  // attaches the load/error listeners. Cover both outcomes via ref: a broken
-  // image reports `complete` with naturalWidth 0.
+  // SSR: the browser can finish the image fetch before hydration attaches
+  // load/error listeners, so check ref.complete on mount too.
   const shownSrc = shown?.src;
   const coverCachedResult = (node: HTMLImageElement | null) => {
     if (node?.complete && shownSrc !== undefined) {
@@ -75,18 +67,14 @@ export function CardImage({
     }
   };
   return (
-    // overflow-hidden must live BELOW the tilt (not above), or the tilt rotates
-    // outside an invisible clip box. It also can't share the tilt element with
-    // preserve-3d — Firefox mis-sizes absolute descendants when both combine.
+    // overflow-hidden must be below the tilt element, not combined with it:
+    // Firefox mis-sizes absolute descendants when overflow-hidden and preserve-3d share a node.
     <div className="relative">
       <div
         ref={innerRef}
         style={{
-          // Percentage border-radius creates elliptical corners on non-square
-          // elements. Use the / syntax to keep corners circular: horizontal
-          // radius is 5% of width, vertical is scaled by the card aspect
-          // ratio (63/88) so both resolve to the same pixel value.
-          // 5% covers the range of built-in artwork corner radii (~3.9-4.7%).
+          // "5% / 3.6%" keeps corners circular on the non-square card (63/88 aspect);
+          // a plain percentage radius would render elliptical.
           borderRadius: "5% / 3.6%",
           transform:
             "perspective(1000px) rotateX(var(--foil-rotate-x, 0deg)) rotateY(var(--foil-rotate-y, 0deg))",

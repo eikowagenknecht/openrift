@@ -58,8 +58,6 @@ function buildContext(deckCards: DeckBuilderCard[]): DeckPlanContext {
   return { maindeck, sideboard, battlefieldCardIds };
 }
 
-// The small uppercase field label used across the matchup editor, matching the
-// "Out (maindeck)" / "In (sideboard)" swap-column headers.
 function ColumnLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
@@ -151,8 +149,6 @@ function MatchupEditor({
 }: MatchupEditorProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  // The linked card is the primary name; the label is secondary (or primary on
-  // its own when no card is linked).
   const cardName = matchup.opponentCardId ? nameOf(matchup.opponentCardId) : null;
   const label = matchup.opponentLabel.trim();
   const hasOpponent = cardName !== null || label !== "";
@@ -182,10 +178,7 @@ function MatchupEditor({
   const removeSwap = (swapIndex: number) => {
     onChange({ swaps: matchup.swaps.filter((_, i) => i !== swapIndex) });
   };
-  // Cap each quantity box at the copies the zone actually holds. A card that
-  // has since left the deck isn't in the candidates any more — leave it
-  // uncapped so the row stays editable, and let the amber
-  // out-exceeds-maindeck / in-exceeds-sideboard warnings report the drift.
+  // A card missing from candidates returns Infinity, so the row stays editable.
   const maxSwapQuantity = (cardId: string, direction: SwapDirection) => {
     const candidates = direction === "out" ? maindeckCandidates : sideboardCandidates;
     return (
@@ -312,8 +305,6 @@ function MatchupEditor({
   );
 }
 
-// The deck Plan editor (ADR-029): deck-level strategy + mulligan + battlefields,
-// plus matchup sideboard swaps.
 export function DeckPlanEditor({
   deckId,
   deckCards,
@@ -333,8 +324,6 @@ export function DeckPlanEditor({
   const [draft, setDraft] = useState<PlanDraft>(() => planResponseToDraft(data.plan));
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
-  // Formats that play a single battlefield (Custom Region) get one slot
-  // instead of the Game 1 / going-first / going-second trio.
   const singleBattlefield = zoneExpected(WellKnown.deckZone.BATTLEFIELD, format) === 1;
 
   const context = buildContext(deckCards);
@@ -345,8 +334,6 @@ export function DeckPlanEditor({
   );
   const nameOf = (cardId: string) => getPreferredPrinting(cardId)?.card.name ?? "a card";
 
-  // Candidate sets for the pickers. The opponent card can be any catalog card
-  // (a Legend, Aurora, a domain signpost), deduped by card id.
   const cardSeen = new Set<string>();
   const cardCandidates: { cardId: string; cardName: string; altNames: string[] }[] = [];
   for (const printing of allPrintings) {
@@ -359,9 +346,6 @@ export function DeckPlanEditor({
       });
     }
   }
-  // Swap pickers list cards in the deck list's default order. Rows stay
-  // per-entry, but the copy count sums a card's pinned printings so "of N"
-  // reports what the zone really holds.
   const zoneCandidates = (zone: DeckZone) => {
     const inZone = deckCards.filter((card) => card.zone === zone);
     const totalByCard = new Map<string, number>();
@@ -446,8 +430,6 @@ export function DeckPlanEditor({
 
   const completeMatchups = draft.matchups.filter(isMatchupComplete).length;
 
-  // The host (the overview's Plan tab) lends a slot in its tab row; labels
-  // collapse to their icons on phones so the row fits beside the tabs.
   const actions = (
     <>
       {isDirty ? (
@@ -482,7 +464,6 @@ export function DeckPlanEditor({
 
   return (
     <div className="space-y-6 pb-8">
-      {/* No host slot (standalone use): the actions stay inline at the top. */}
       {actionsSlot === undefined && <div className="flex items-center gap-2">{actions}</div>}
       {actionsSlot ? createPortal(actions, actionsSlot) : null}
 
@@ -587,9 +568,7 @@ export function DeckPlanEditor({
             <div className="grid gap-3 sm:grid-cols-3">
               {singleBattlefield ? (
                 <>
-                  {/* One battlefield in play — a single slot. Stale extra picks
-                      (saved before a format switch) stay visible so they can
-                      be cleared, but no new ones can be chosen. */}
+                  {/* Extra picks saved before a format switch stay visible to be cleared. */}
                   {battlefieldRow("Battlefield", "battlefieldGame1CardId")}
                   {draft.battlefieldFirstCardId
                     ? battlefieldRow("Going first", "battlefieldFirstCardId")
@@ -643,8 +622,7 @@ export function DeckPlanEditor({
           <div className="space-y-3">
             {draft.matchups.map((matchup, index) => (
               <MatchupEditor
-                // Keyed by the stable client uid so each matchup's component
-                // instance (and its collapse state) follows it across reorders.
+                // Keyed by uid, not index, so collapse state follows a matchup across reorders.
                 key={matchup.uid}
                 matchup={matchup}
                 index={index}

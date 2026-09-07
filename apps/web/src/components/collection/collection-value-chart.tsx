@@ -25,16 +25,10 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
-// --chart-2 rather than the neutral --chart-3: the dataviz validator puts the
-// gold/gray pair at ΔE 10.9 in dark mode, under the 15 floor for normal vision,
-// so the two lines would be hard to tell apart. Gold/teal clears it at 22.9,
-// and matches the headline/secondary pairing on the card price history chart.
+// --chart-2, not the neutral --chart-3: gold/gray falls under the ΔE 15
+// contrast floor in dark mode, gold/teal clears it.
 const chartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
-  // On a shorter range this line is floored at the range start, so a card held
-  // for years enters at its price then rather than at what it cost. "Acquired"
-  // is still the honest word for the common case, and naming the floor as well
-  // would take a sentence the legend has no room for.
   baselineValue: { label: "Value when acquired", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
@@ -55,9 +49,8 @@ function CollectionValueTooltipContent({
     return null;
   }
   const point = payload[0].payload;
-  // The whole reason the second line exists. Left in body ink rather than
-  // red/green: those are the reserved status colors, and the sign already says
-  // which way it went without leaning on hue.
+  // Body ink, not red/green: those are the reserved status colors, and the
+  // sign already carries the direction.
   const { sign, magnitude, percent } = describePriceChange(point.value, point.baselineValue);
   return (
     <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-md">
@@ -123,7 +116,6 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
 
   return (
     <div className="space-y-3">
-      {/* Controls row */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <ToggleGroup
           variant="outline"
@@ -171,7 +163,6 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
         </ToggleGroup>
       </div>
 
-      {/* Chart */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
           <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
@@ -223,10 +214,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
               connectNulls
               isAnimationActive={false}
             />
-            {/* Same holdings at what each card was worth when it was acquired,
-                so it moves only when cards are bought or sold. Dashed and
-                unfilled to read as the reference the real line is measured
-                against, not a second total. */}
+            {/* Dashed and unfilled: a reference line, not a second total. */}
             <Line
               dataKey="baselineValue"
               type="monotone"

@@ -2,13 +2,8 @@ import { useDndContext } from "@dnd-kit/core";
 import { useEffect } from "react";
 
 /**
- * Forces dnd-kit to re-measure all droppable rects on any scroll event during
- * drag. This is needed on surfaces with a `position: sticky` sidebar: dnd-kit's
- * `Rect` class assumes all elements move with scroll (applying scroll deltas to
- * the initial getBoundingClientRect). Sticky elements don't move, so the rects
- * drift and the drop target ends up offset from the cursor. Re-measuring
- * creates fresh Rect objects with correct values.
- * @returns Nothing (invisible helper component).
+ * dnd-kit's `Rect` applies scroll deltas to the initial getBoundingClientRect, assuming everything
+ * moves with scroll. A `position: sticky` sidebar doesn't, so its rects drift; re-measure on scroll.
  */
 export function DndScrollWatcher() {
   const { active, measureDroppableContainers } = useDndContext();
@@ -28,7 +23,6 @@ export function DndScrollWatcher() {
       }
     };
 
-    // Capture phase catches scroll on any element (sidebar, page, etc.)
     globalThis.addEventListener("scroll", handleScroll, true);
     return () => {
       globalThis.removeEventListener("scroll", handleScroll, true);

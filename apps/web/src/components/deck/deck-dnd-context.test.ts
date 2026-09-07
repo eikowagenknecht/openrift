@@ -41,9 +41,6 @@ describe("isDropRejected", () => {
   });
 
   it("rejects a browser card on a disabled zone", () => {
-    // Regression: a Custom Region deck with a leftover sideboard renders the
-    // sideboard tile as banned (disabled droppable). Dropping a browser card
-    // there must be a no-op, exactly like dropping a deck card there.
     expect(isDropRejected(browserCard(), zone(WellKnown.deckZone.SIDEBOARD, true))).toBe(true);
   });
 
@@ -93,9 +90,7 @@ describe("resolveDraggedCard", () => {
     expect(resolveDraggedCard(dragged, [])).toBe(dragged.card);
   });
 
-  it("looks a deck drag up in its source zone", () => {
-    // Same card in two zones: the copy in the drag's fromZone is the one whose
-    // quantity the fullness checks must read.
+  it("looks a deck drag up in its source zone, not any zone holding the same card", () => {
     expect(resolveDraggedCard(deckCard(WellKnown.deckZone.MAIN), [inSideboard, inMain])).toBe(
       inMain,
     );
@@ -106,10 +101,6 @@ describe("resolveDraggedCard", () => {
   });
 
   it("picks the row whose printing the drag names", () => {
-    // One card, one zone, two rows — a deck may hold the same card under two
-    // printings, and they carry separate quantities. Matching on card + zone
-    // alone returns whichever row sorts first, which is the wrong quantity for
-    // the copy limit checks half the time.
     const alt = stubDeckBuilderCard({
       cardId: "card-1",
       zone: WellKnown.deckZone.MAIN,
@@ -143,7 +134,6 @@ describe("DRAG_SOURCE_ZONES", () => {
     expect(DRAG_SOURCE_ZONES.has(WellKnown.deckZone.MAIN)).toBe(true);
     expect(DRAG_SOURCE_ZONES.has(WellKnown.deckZone.SIDEBOARD)).toBe(true);
     expect(DRAG_SOURCE_ZONES.has(WellKnown.deckZone.OVERFLOW)).toBe(true);
-    // Single-slot zones are set by picking a card, not by dragging one out.
     expect(DRAG_SOURCE_ZONES.has(WellKnown.deckZone.LEGEND)).toBe(false);
     expect(DRAG_SOURCE_ZONES.has(WellKnown.deckZone.RUNES)).toBe(false);
   });

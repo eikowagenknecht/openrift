@@ -17,12 +17,6 @@ import { useWishEntries } from "@/hooks/use-wish-entries";
 import { useUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 
-/**
- * The sentence above the +/- strip: how many of the shown printing the viewer
- * owns, and the card-wide figure when it differs (so owning a different
- * printing doesn't read as owning nothing).
- * @returns The owned-copies summary sentence.
- */
 export function ownedSummary(ownedCount: number, cardTotal: number): string {
   if (cardTotal === 0) {
     return "You don't own this card yet.";
@@ -38,21 +32,8 @@ export function ownedSummary(ownedCount: number, cardTotal: number): string {
     : `You own ${ownedCount} copies of this printing.`;
 }
 
-/**
- * Owned count, +/- and the wishlist heart for the printing the card page is
- * showing, so a signed-in visitor can record the card here — owned or wanted —
- * instead of detouring to /collections.
- *
- * Adds go to the inbox, the same default target the catalog's quick-add palette
- * uses. A minus removes the newest bare copy; when the copies span several
- * collections it escalates to the variant×collection popover so the viewer
- * picks the row.
- *
- * Every count here comes from a live query, which has no server snapshot. The
- * card page is a full-SSR route, so this must only ever be mounted behind
- * `useHydrated()`.
- * @returns The collection panel.
- */
+// Every count here comes from a live query with no server snapshot; the card
+// page is full-SSR, so this must only ever be mounted behind `useHydrated()`.
 export function CardPageCollectionActions({
   printing,
   siblings,

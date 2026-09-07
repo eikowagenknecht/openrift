@@ -26,7 +26,6 @@ export default function GroupsArticle() {
         at, and see matches when one member&apos;s wants overlap with another&apos;s haves.
       </p>
 
-      {/* Anatomy diagram */}
       <Callout>
         <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
           A group page at a glance
@@ -68,7 +67,6 @@ export default function GroupsArticle() {
         </AlertDescription>
       </Alert>
 
-      {/* Roles */}
       <section>
         <Heading className="mb-2">Roles and permissions</Heading>
         <p className="text-muted-foreground">
@@ -90,7 +88,6 @@ export default function GroupsArticle() {
         </DefinitionList>
       </section>
 
-      {/* Starting a group */}
       <section>
         <Heading className="mb-2">Starting a group</Heading>
         <p className="text-muted-foreground">
@@ -116,7 +113,6 @@ export default function GroupsArticle() {
         </div>
       </section>
 
-      {/* Joining */}
       <section>
         <Heading className="mb-2">Joining a group</Heading>
         <p className="text-muted-foreground">
@@ -137,7 +133,6 @@ export default function GroupsArticle() {
         </div>
       </section>
 
-      {/* Sharing lists */}
       <section>
         <Heading className="mb-2">Sharing your lists</Heading>
         <p className="text-muted-foreground">
@@ -165,7 +160,6 @@ export default function GroupsArticle() {
         </div>
       </section>
 
-      {/* Matches */}
       <section>
         <Heading className="mb-2">Matches</Heading>
         <p className="text-muted-foreground">
@@ -193,7 +187,6 @@ export default function GroupsArticle() {
         </p>
       </section>
 
-      {/* Group collections */}
       <section>
         <Heading className="mb-2">Group collections</Heading>
         <p className="text-muted-foreground">
@@ -213,7 +206,6 @@ export default function GroupsArticle() {
         </p>
       </section>
 
-      {/* Personal collections shared with the group */}
       <section>
         <Heading className="mb-2">Personal collections</Heading>
         <p className="text-muted-foreground">
@@ -231,7 +223,6 @@ export default function GroupsArticle() {
         </p>
       </section>
 
-      {/* Members and contacts */}
       <section>
         <Heading className="mb-2">Members and contacts</Heading>
         <p className="text-muted-foreground">
@@ -248,7 +239,6 @@ export default function GroupsArticle() {
         </p>
       </section>
 
-      {/* Leaving, deleting, transferring */}
       <section>
         <Heading className="mb-2">Leaving, deleting, transferring</Heading>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">

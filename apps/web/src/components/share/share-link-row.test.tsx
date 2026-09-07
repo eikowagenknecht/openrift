@@ -17,8 +17,6 @@ beforeEach(() => {
 /**
  * user-event's setup installs its own `navigator.clipboard` stub, so the mock
  * has to be planted afterwards or the component writes to the stub instead.
- *
- * @returns The user-event session.
  */
 function setupUser() {
   const user = userEvent.setup();

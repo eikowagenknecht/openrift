@@ -7,18 +7,8 @@ import { CardSearchDropdown } from "@/components/cards/card-search-dropdown";
 import { useResolveMetaOverlayName } from "@/hooks/use-admin-meta-overlays";
 import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 
-/**
- * The fix for one unresolved card name (ADR-014): pick the card the source
- * meant, and the pick is stored as a name alias, so every future upload from
- * any provider matches it without asking again. Rematching runs immediately, so
- * the same name in other staged decks resolves in the same click.
- *
- * Same interaction as the card pipeline's AssignButton, and now literally the
- * same component: {@link CardPickerButton} owns the trigger-swaps-to-search
- * behavior both share.
- *
- * @returns The "Link card" trigger and its card picker.
- */
+// The pick is stored as a name alias, so every future upload from any provider
+// matches it without asking again; rematching runs immediately for other staged decks.
 export function MetaCardNamePicker({ name }: { name: string }) {
   const resolveName = useResolveMetaOverlayName();
   const [search, setSearch] = useState("");

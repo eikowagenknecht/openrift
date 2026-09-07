@@ -17,11 +17,6 @@ export interface SourceMappingConfig {
   source: string;
   displayName: string;
   shortName: string;
-  /**
-   * Build a deep link to the marketplace's product page. Pass the printing's
-   * language (e.g. "EN", "SC") to land on listings filtered by that language.
-   * Omit the language for a language-agnostic link.
-   */
   productUrl: (id: number, language?: string | null) => string;
 }
 
@@ -29,12 +24,6 @@ export interface MappingGroup extends MappingGroupHeader {
   printings: MappingPrintingResponse[];
   stagedProducts: StagedProductResponse[];
   assignedProducts: StagedProductResponse[];
-  /**
-   * Optional per-product evidence from sibling assignments in other languages
-   * on this marketplace. Keyed by `${externalId}|${finish}` → set of
-   * short_codes already bound to that (externalId, finish) pair. Only
-   * meaningful for CardTrader (the sole per-language marketplace); TCG/CM
-   * leave this undefined.
-   */
+  /** Key: `${externalId}|${finish}` */
   crossLanguageEvidence?: ReadonlyMap<string, ReadonlySet<string>>;
 }

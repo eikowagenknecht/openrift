@@ -7,27 +7,15 @@ import { cn } from "@/lib/utils";
 
 import { Reveal } from "./reveal";
 
-/** The gold rule that sits under every marketing heading. */
 export function SectionRule() {
   return <OrnamentRule className="w-40" />;
 }
 
-/**
- * Class for the quiet "Open X" link that closes a feature section. Applied to
- * a `Link` or an `<a>` at the call site so each destination stays type-checked
- * against the route tree.
- */
 export const FEATURE_ACTION_CLASS =
   "text-primary focus-visible:ring-ring group inline-flex items-center gap-1.5 text-sm font-medium hover:underline focus-visible:ring-2 focus-visible:outline-none";
 
-/**
- * Section headings on the marketing tour. One tier above the page title from
- * `sm` up, so a section fills its own viewport instead of reading as a card in
- * a stack. Both sizes are on the scale in docs/typography.md.
- */
 export const FEATURE_HEADING_CLASS = "text-2xl sm:text-4xl";
 
-/** The arrow that trails a {@link FEATURE_ACTION_CLASS} link. */
 export function ActionArrow() {
   return (
     <ArrowRightIcon
@@ -53,24 +41,18 @@ export function FeatureSection({
   description: string;
   action: ReactNode;
   vignette: ReactNode;
-  /** Puts the vignette on the left from `lg` up, so sections alternate. */
+  /** Puts the vignette on the left from `lg` up. */
   flip?: boolean;
-  /** Widens the vignette column for the one or two showpiece sections. */
+  /** Widens the vignette column. */
   emphasis?: boolean;
-  /** Small label above the title, for a section that is one step of a sequence. */
+  /** Small label above the title. */
   eyebrow?: string;
-  /**
-   * Drops the viewport-height floor and tightens the padding. For a run of
-   * sections telling one story: at full height each step floats in its own
-   * screen of empty space and the run reads as unrelated features.
-   */
+  /** Drops the viewport-height floor and tightens the padding. */
   compact?: boolean;
 }) {
   return (
-    // content-visibility keeps the looping vignette animations from rendering
-    // while offscreen; the intrinsic size stops the scrollbar from jumping as
-    // sections enter. Anchor jumps force rendering on their own, so the TOC
-    // links still land correctly.
+    // content-visibility pauses offscreen vignette animations; the intrinsic
+    // size keeps the scrollbar from jumping as sections enter.
     <section
       id={id}
       className={cn(

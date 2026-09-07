@@ -29,29 +29,16 @@ const CURRENCY_ITEMS: { value: Currency; label: string }[] = CURRENCIES.map((val
 export interface TradePreferenceEditorProps {
   value: TradePreference;
   onChange: (next: TradePreference) => void;
-  /** Currency the absolute-price input edits in. Null disables the absolute branch. */
   currency: Currency | null;
-  /** Shown when currency is required for the chosen price-pref but isn't set. */
   showCurrency?: boolean;
   onCurrencyChange?: (next: Currency) => void;
-  /** ID prefix so multiple editors on one page don't collide on label htmlFor. */
   idPrefix?: string;
-  /**
-   * Parent list's default (per-entry override editor only). When set, the
-   * "no preference" dropdown options name what the entry would inherit
-   * (e.g. "Use list default (Cards or money)") instead of the bare
-   * "No preference (negotiate)" label that's only correct when there is
-   * no list default to fall back on.
-   */
   listDefault?: TradePreference;
 }
 
 /**
- * The price-preference options the editor offers. "Fixed" (absolute) is a
- * per-card price, not a list-wide rule, so it's hidden from the list-default
- * editor (when there's no `listDefault` to inherit from) — unless the list
- * already defaults to it, in which case it stays so the user can switch away.
- * @returns The price-pref values to offer, in display order.
+ * "Fixed" (absolute) is a per-card price, not a list-wide rule, so it's hidden
+ * from the list-default editor unless the list already defaults to it.
  */
 export function offeredPricePrefs(
   isListDefaultEditor: boolean,
@@ -63,12 +50,6 @@ export function offeredPricePrefs(
   return TRADE_PRICE_PREFS.filter((option) => option !== "absolute");
 }
 
-/**
- * Renders the trade-preference triple (price-pref + amount + trade-type), plus
- * an optional currency picker. Used in the list create/edit dialog and the
- * per-entry override popover.
- * @returns The form fields, in a column.
- */
 export function TradePreferenceEditor({
   value,
   onChange,
@@ -82,12 +63,8 @@ export function TradePreferenceEditor({
   const tradeTypeValue = value.tradeType ?? TRADE_TYPE_NONE;
   const isAbsolute = value.pricePref === "absolute";
 
-  // `listDefault === undefined` means this editor is editing the list defaults
-  // themselves (list create/edit dialog), so there's nothing to inherit from
-  // and the option reads as the plain "no preference" label. When listDefault
-  // IS provided (per-entry override dialog), the option always names what's
-  // inherited — including "Negotiate" when the list itself has no value set,
-  // so the user can tell inheritance is happening either way.
+  // listDefault undefined means this editor edits the list defaults themselves;
+  // only show inheritance labels when a listDefault to inherit from is given.
   const pricePrefNoneLabel =
     listDefault === undefined
       ? "No preference (negotiate)"
@@ -136,8 +113,8 @@ export function TradePreferenceEditor({
   };
 
   const handleAmountChange = (text: string) => {
-    // Accept "4", "4.50". Empty input keeps the absolute pref but unsets the amount;
-    // the parent should treat that as a draft state and refuse to save.
+    // Empty input keeps the absolute pref but unsets the amount; the parent
+    // must treat that as a draft state and refuse to save.
     if (text.trim() === "") {
       onChange({ ...value, priceAbsoluteCents: null });
       return;

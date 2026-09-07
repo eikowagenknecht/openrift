@@ -24,12 +24,9 @@ import { useProductDetail } from "@/hooks/use-products";
 import type { ProductCopyRow } from "@/lib/product-copies";
 import { chunkProductCopies, expandProductContents, productCopyTotal } from "@/lib/product-copies";
 
-/**
- * Sends the batches one after another, so the server never sees a later batch
- * before an earlier one. Lives outside the component because React Compiler
- * cannot lower a loop that sits inside a try/catch.
- * @returns Nothing; it resolves once every batch has landed.
- */
+// Sends batches sequentially so the server never sees a later one before an
+// earlier one. Lives outside the component: React Compiler cannot lower a
+// loop that sits inside a try/catch.
 async function addBatchesInOrder(
   batches: ProductCopyRow[][],
   addCopies: (input: { copies: ProductCopyRow[] }) => Promise<unknown>,
@@ -46,14 +43,6 @@ interface ProductAddDialogProps {
   productName: string;
 }
 
-/**
- * Adds a product's full card list to one of the viewer's collections
- * (defaulting to the inbox), with a count for owning the product more than
- * once. The contents come from the product-detail query, so opening the
- * dialog from the products index fetches them on demand while the detail
- * page hits the already-primed cache.
- * @returns The dialog element.
- */
 export function ProductAddDialog({
   open,
   onOpenChange,
@@ -133,9 +122,8 @@ function ProductAddBody({
       toast.success(`Added ${totalCards} ${cardNoun} to ${targetName}.`);
       onClose();
     } catch {
-      // Deliberately a SECOND toast on top of the global mutation error one:
-      // that one says why the call failed, this one says the add was left
-      // half-done. Batches before the failing one already committed.
+      // Second toast alongside the global mutation error one: batches before
+      // the failing one already committed.
       toast.error("Adding failed. Some cards may have been added.");
       setIsAdding(false);
     }

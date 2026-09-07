@@ -58,7 +58,6 @@ interface ProductDraft {
   setId: string;
 }
 
-/** @returns A client-side validation error for the metadata fields, or null. */
 function validateDraft(draft: { name: string; slug: string }): string | null {
   if (!draft.name.trim()) {
     return "Name is required";
@@ -71,8 +70,6 @@ function validateDraft(draft: { name: string; slug: string }): string | null {
   }
   return null;
 }
-
-// ── Display cells ────────────────────────────────────────────────────────────
 
 function NameCell({ row }: AdminCellSlotProps<ProductSummary>) {
   if (!row) {
@@ -107,8 +104,6 @@ function UpdatedCell({ row }: AdminCellSlotProps<ProductSummary>) {
   }
   return <span className="text-muted-foreground text-xs">{formatDayTime(row.updatedAt)}</span>;
 }
-
-// ── Edit draft cells ─────────────────────────────────────────────────────────
 
 function NameInput({ draft, setDraft }: AdminDraftSlotProps<ProductDraft>) {
   if (!draft || !setDraft) {
@@ -221,8 +216,6 @@ const productColumns: AdminColumnDef<ProductSummary, ProductDraft>[] = [
   { header: "Updated", sortValue: (p) => p.updatedAt, cell: <UpdatedCell /> },
 ];
 
-// ── List picker (shared by create + re-sync dialogs) ─────────────────────────
-
 interface ListPickerItem {
   value: string;
   label: string;
@@ -280,8 +273,6 @@ function ListPicker({
     </Combobox>
   );
 }
-
-// ── Create dialog ────────────────────────────────────────────────────────────
 
 const EMPTY_CREATE_DRAFT = { name: "", slug: "", description: "", setId: "", listId: "" };
 
@@ -347,8 +338,6 @@ function CreateProductDialog({
               <ListPicker
                 value={draft.listId}
                 onChange={(listId, listName) =>
-                  // Picking a list pre-fills name and slug from the list name;
-                  // both stay editable afterwards.
                   setDraft((prev) => ({
                     ...prev,
                     listId,
@@ -419,8 +408,6 @@ function CreateProductDialog({
   );
 }
 
-// ── Re-sync dialog ───────────────────────────────────────────────────────────
-
 function ResyncDialog({
   product,
   onOpenChange,
@@ -431,14 +418,10 @@ function ResyncDialog({
   const { data: lists } = useLists();
   const [listId, setListId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  // Tracks which product the picker was pre-filled for, so opening the dialog
-  // for a product suggests the list named like it exactly once.
   const [suggestedFor, setSuggestedFor] = useState<string | null>(null);
   const resyncProduct = useResyncProduct();
 
-  // Adjust state during render (React's alternative to an effect): when the
-  // dialog opens for a new product, pre-select the printing list that looks
-  // like it so the admin usually just confirms.
+  // Sets state during render, not in an effect: must land before the first paint for a new product.
   if (product && product.id !== suggestedFor) {
     setSuggestedFor(product.id);
     setListId(suggestListIdForProduct(lists, product) ?? "");
@@ -517,8 +500,6 @@ function ResyncAction({
     </Button>
   );
 }
-
-// ── Page ─────────────────────────────────────────────────────────────────────
 
 export function AdminProductsPage() {
   const { data } = useProductsList();

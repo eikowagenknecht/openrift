@@ -37,7 +37,6 @@ function OgTile({ quantity }: { quantity?: number }) {
   );
 }
 
-/** A miniature of the 1200×630 image a chat client pulls off the share link. */
 function OgImage() {
   return (
     <div
@@ -76,11 +75,6 @@ function OgImage() {
   );
 }
 
-/**
- * The share dialog's Link tab and what the link becomes once it is pasted: the
- * read-only field with Copy and the QR beside it, then the unfurl a chat client
- * builds from the deck's own og:image and meta tags.
- */
 export function ShareVignette() {
   return (
     <ClipFrame className="flex flex-col gap-4 p-5">

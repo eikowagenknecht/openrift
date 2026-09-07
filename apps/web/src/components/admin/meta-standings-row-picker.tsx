@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminMetaEventPlayersQueryOptions } from "@/hooks/use-admin-meta";
 
-/** The whole event's standings, searchable. `currentPlayerId`'s row is listed but not pickable. */
 function StandingsRows({
   metaEventId,
   currentPlayerId,
@@ -65,7 +64,6 @@ function StandingsRows({
   );
 }
 
-/** The trigger for {@link StandingsRows}. Its query only fires once opened. */
 export function MetaStandingsRowPicker({
   metaEventId,
   currentPlayerId,

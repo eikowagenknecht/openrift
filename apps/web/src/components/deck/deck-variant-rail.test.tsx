@@ -96,7 +96,6 @@ describe("DeckVariantRail", () => {
     renderRail();
     await screen.findByText("−0");
 
-    // What an autosave does: rewrite the open deck's detail in the cache.
     act(() => {
       queryClient.setQueryData<DeckDetailResponse>(
         queryKeys.decks.detail(USER_ID, "deck-b"),

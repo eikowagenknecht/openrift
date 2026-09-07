@@ -6,13 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-// Default region label: the raw slug (named so the React Compiler can reorder it).
+// Named so the React Compiler can reorder it.
 const rawRegionSlug = (slug: string): string => slug;
 
 /**
- * Rebuild the engine's snapshot players (Map opponents, plus the 2v2 team) from
- * the wire snapshot.
- * @returns The players in the engine's snapshot shape.
+ * Rebuilds the engine's snapshot players (Map opponents, plus the 2v2 team)
+ * from the wire snapshot.
  */
 export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): TeamSnapshotPlayer[] {
   return snapshot.map((player) => ({
@@ -29,10 +28,6 @@ export function snapshotToPlayers(snapshot: PodSnapshotPlayer[]): TeamSnapshotPl
   }));
 }
 
-/**
- * A human-readable, organizer-facing description of one warning.
- * @returns The warning sentence.
- */
 function describeWarning(
   warning: PairingWarning,
   nameById: Map<string, string>,
@@ -72,7 +67,6 @@ function describeWarning(
 /**
  * The pod's warnings written out, one line each, in the app's amber warning
  * callout. Renders nothing when there are no warnings.
- * @returns The warning alert, or null.
  */
 export function WarningList({
   warnings,
@@ -105,7 +99,6 @@ export function WarningList({
 /**
  * The compact form: a warning badge with the count, and the warnings themselves
  * in a tooltip. Renders nothing when there are no warnings.
- * @returns The badge, or null.
  */
 export function WarningBadge({
   warnings,

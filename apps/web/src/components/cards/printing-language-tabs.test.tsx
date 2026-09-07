@@ -12,10 +12,6 @@ vi.mock("@/hooks/use-enums", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { PrintingLanguageTabs } from "./printing-language-tabs";
 
-/**
- * Renders one row per printing, identifiable by its short code.
- * @returns The stand-in list for the shell's children slot.
- */
 const renderList = (printings: Printing[]) => (
   <div>
     {printings.map((printing) => (

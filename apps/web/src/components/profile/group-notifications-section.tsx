@@ -3,18 +3,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useEmailNotifications } from "@/hooks/use-email-notifications";
 
-/**
- * Group email settings. The join-request switch is shown to everyone rather
- * than only to group admins: anyone can create a group at any moment, and the
- * send side gates on membership anyway, so a stored preference on a non-admin
- * delivers nothing.
- * @returns The groups notifications card.
- */
+// Join-request switch is shown to everyone, not just group admins: anyone can
+// create a group at any time, and the send side gates on membership anyway.
 export function GroupNotificationsSection() {
   const { gates, isLoading, isSaving, setChannel } = useEmailNotifications();
-  // Same rule as the trading email controls: disabled while the saved values
-  // load (so the switch never shows an interactive but wrong position) and
-  // during a save.
   const disabled = isLoading || isSaving;
 
   return (

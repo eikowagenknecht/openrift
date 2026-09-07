@@ -16,15 +16,11 @@ const captured = vi.hoisted(() => ({
   dismiss: vi.fn(),
   undismiss: vi.fn(),
   fetchEvent: vi.fn(() => Promise.resolve({ status: "running", runId: "run-1" })),
-  /** How many times the page asked for the accept mutation, to pin it per page rather than per row. */
   acceptSubscriptions: 0,
 }));
 
-/**
- * The route's search params, which the page reads its whole filter set from.
- * Interactions go out through `navigate` and only reach the page when they come
- * back around through here, which is the loop the real router closes.
- */
+// The route's search params. Interactions go out through `navigate` and only
+// reach the page when they come back around through here.
 const searchStore = vi.hoisted(() => {
   let value: Record<string, unknown> = {};
   const listeners = new Set<() => void>();

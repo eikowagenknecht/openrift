@@ -12,12 +12,6 @@ import { ZONE_LABELS, zoneExpected } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 import { useDeckUndoStore } from "@/stores/deck-undo-store";
 
-/**
- * The zone's fill as a conic ring. Colour rides on `currentColor` so the tone
- * classes pick the same greens the rest of the deck surfaces use, in both
- * themes, instead of hard-coding a palette value into the gradient.
- * @returns The ring, or a plain dot when the zone has no target count.
- */
 function ZoneRing({ count, expected }: { count: number; expected?: number }) {
   if (expected === undefined) {
     return (
@@ -40,22 +34,12 @@ function ZoneRing({ count, expected }: { count: number; expected?: number }) {
   );
 }
 
-/**
- * Bottom dock for the phone deck editor: while a zone browser fills the
- * screen, this keeps the zone's fill, its counter and the last edit pinned to
- * the bottom edge, and offers a one-tap way back to the zone list.
- *
- * Mount it inside the editor's `SidebarProvider` — it opens the zone sheet
- * through `useSidebar`.
- *
- * @returns The docked bar.
- */
+// Must be mounted inside the editor's SidebarProvider: it opens the zone sheet via useSidebar.
 export function DeckMobileDock({ deckId, zone }: { deckId: string; zone: DeckZone }) {
   const cards = useDeckCards(deckId);
   const { data } = useDeckDetail(deckId);
   const { setOpenMobile } = useSidebar();
   const { canUndo, undo, canRedo, redo } = useDeckUndo(deckId);
-  // The step the undo stack would restore, i.e. the deck before the last edit.
   const previous = useDeckUndoStore((state) =>
     state.deckId === deckId ? state.past.at(-1) : undefined,
   );

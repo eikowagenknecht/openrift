@@ -59,39 +59,25 @@ import { borrowedReasonText } from "@/lib/loan-derivation";
 import { cn } from "@/lib/utils";
 import type { DeckOverviewSort } from "@/stores/deck-overview-view-store";
 
-/** The compact printing shape the ownership data carries for a row. */
 type OwnershipPrinting = NonNullable<CardOwnership["displayPrinting"]>;
 
-/** What a row renders about the printing it stands for. */
 interface RowPrinting {
-  /** Drives the set code and the rarity icon; absent when nothing resolved. */
   printing: OwnershipPrinting | undefined;
-  /** Price of that printing on the selected marketplace, when it has one. */
   price: number | undefined;
-  /** Printing id handed to the hover preview. */
   hoverPrintingId: string | null;
 }
 
 /**
- * Which optional cells every row reserves, decided once for the whole list. A
- * row is right-packed around its `flex-1` name, so a cell rendered on only some
- * rows shifts every column after the name on those rows out of line with their
- * neighbours. Reserving per list rather than always is what keeps the width for
- * card names in the decks that need neither cell.
+ * A row is right-packed around its `flex-1` name; a cell rendered on only
+ * some rows shifts later columns out of line with their neighbours.
  */
 interface ReservedCells {
-  /** Some row has copies locked away from deck building. */
   lock: boolean;
-  /** Some row has copies borrowed from a friend. */
   borrowed: boolean;
-  /** Some row has a price on the selected marketplace. */
   price: boolean;
 }
 
-/** Sort choices exposed by the overview list toolbar. */
 export const DECK_OVERVIEW_SORT_OPTIONS: SortGroupOption<DeckOverviewSort>[] = [
-  // "default" is the sidebar's curve order (energy → power → name) — named for
-  // what it does rather than for being the fallback.
   { value: "default", label: "Curve order" },
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
@@ -101,7 +87,7 @@ export const DECK_OVERVIEW_SORT_OPTIONS: SortGroupOption<DeckOverviewSort>[] = [
   { value: "ownership", label: "Ownership" },
 ];
 
-// Zone render order — mirrors the sidebar and the thumbnail dashboard.
+// Mirrors the sidebar and thumbnail dashboard's zone order.
 const ZONE_ORDER: readonly DeckZone[] = [
   WellKnown.deckZone.LEGEND,
   WellKnown.deckZone.CHAMPION,
@@ -117,61 +103,22 @@ interface DeckOverviewListProps {
   format: DeckFormat;
   violations: DeckViolation[];
   ownership?: DeckOwnershipData;
-  /** Show the owned/needed column. False for anonymous share viewers. */
   showOwnership: boolean;
   marketplace: Marketplace;
   sortBy: DeckOverviewSort;
   sortDir: "asc" | "desc";
-  /** Sub-grouping axis inside main / sideboard / overflow. */
   groupBy: DeckOverviewGroup;
-  /** Direction for `groupBy` — flips the group order. */
   groupDir: "asc" | "desc";
-  /** Active stats-chart focus: non-matching rows render dimmed. */
   statsFocus?: StatsFocus | null;
   onHoverCard?: HoverHandler;
   onCardClick?: (card: CardOpenTarget) => void;
-  /**
-   * The printing the viewer owns for a card, while "show my printings" is on —
-   * `undefined` when the toggle is off or they own none. Built by
-   * `DeckOverview` so the list, the grid and the hero all swap together. A row
-   * shows this printing's set code, rarity and price.
-   */
   ownedPrintingFor?: (cardId: string) => OwnershipPrinting | undefined;
-  /**
-   * Printing id to preview on hover. Also from `DeckOverview`, which knows
-   * whether the host can resolve an arbitrary printing id.
-   */
   resolveHoverPrintingId?: (cardId: string, preferredPrintingId: string | null) => string | null;
-  /**
-   * Enables drag-and-drop between zones, at parity with the thumbnail grid.
-   * Every dnd-kit hook in this file sits behind it, because the read-only share
-   * page renders the list with no DndContext ancestor — so pass `!readOnly`.
-   * Phones are excluded here rather than at the call site (same as
-   * `DeckCardRow`), since DnD is desktop-only everywhere.
-   */
   draggable?: boolean;
-  /**
-   * Opens a zone's card browser. Its presence is the edit-mode gate: with it,
-   * empty zones stay listed (so their violations are visible) and every zone
-   * gets a trailing add row. The read-only share page passes nothing and keeps
-   * the hide-empty layout.
-   */
   onZoneClick?: (zone: DeckZone) => void;
-  /**
-   * The deck's tokens, rendered as one more block of the multicolumn flow after
-   * the zones. Passed in rather than derived here because it suspends on the
-   * catalog, which the host has already gated behind hydration.
-   */
   tokensSlot?: React.ReactNode;
 }
 
-/**
- * Dense, read-only list rendering of a deck's contents, grouped by zone (and by
- * card type inside the grouped zones). Rows show count, rarity + short code,
- * name, energy/power, ownership, and price. Used as the overview's list mode
- * alongside the thumbnail dashboard.
- * @returns The deck list view.
- */
 export function DeckOverviewList({
   cards,
   format,
@@ -201,25 +148,14 @@ export function DeckOverviewList({
   const fmtPrice = formatterForMarketplace(marketplace);
   const dragEnabled = draggable && !isMobile;
 
-  // The ownership data prices the deck's *display* printings, so an owned
-  // printing has to be priced here instead. Non-suspending on purpose: the map
-  // is shared with every other price consumer and usually already warm, and the
-  // display price keeps the column filled until it lands. (This list only ever
-  // mounts client-side — the display mode is hydration-gated to "grid" — so it
-  // can't pull the price map into SSR.)
+  // Non-suspending: this map is shared with every other price consumer and
+  // usually already warm.
   const { data: prices } = useQuery(pricesQueryOptions);
 
   const resolveRowPrinting = (
     card: DeckBuilderCard,
     entry: CardOwnership | undefined,
   ): RowPrinting => {
-    // No art gate on the printing itself: an owned printing with no image on
-    // file still prices as the owned printing and still shows its set code.
-    // The art gate lives in `resolveHoverPrintingId`, where an image is what's
-    // actually being asked for. Without the owned override, the price is the
-    // cheapest acceptable printing's — the same basis as the hero's value chip
-    // — so the visible row prices sum to the headline even when a premium
-    // printing is pinned for display.
     const owned = ownedPrintingFor?.(card.cardId);
     return {
       printing: owned ?? entry?.displayPrinting,
@@ -235,9 +171,6 @@ export function DeckOverviewList({
   const getEntry = (card: DeckBuilderCard) =>
     ownership?.byCardZone.get(`${card.cardId}:${card.zone}`);
 
-  // Locked copies are rare and an unpriced printing rarer still, so both cells
-  // are reserved per deck rather than always — see `ReservedCells`.
-  // Names only, built once for the whole list — see `DeckListRowProps`.
   const { data: borrowedLenders } = useBorrowedLenders();
   const reserved: ReservedCells = {
     lock: showOwnership && cards.some((card) => (getEntry(card)?.locked ?? 0) > 0),
@@ -249,9 +182,6 @@ export function DeckOverviewList({
     getEntry,
     rarityOrder: orders.rarities,
     setIndexById: setIndexById(sets),
-    // Sort what the rows show: with "show my printings" on, the price, the
-    // rarity icon and the set code all describe the owned printing, not the
-    // deck's.
     getRowPrice: (card) => resolveRowPrinting(card, getEntry(card)).price,
     getRowRarity: (card) => resolveRowPrinting(card, getEntry(card)).printing?.rarity,
     getRowPrinting: (card) => resolveRowPrinting(card, getEntry(card)).printing,
@@ -265,11 +195,6 @@ export function DeckOverviewList({
       getEntry,
     });
 
-  // Edit mode mirrors the grid's tile visibility, so both views scaffold the
-  // same zones: an empty one still carries its header, its violation and its
-  // add row. The sideboard shows only where the format plays one (or strays
-  // are parked there), overflow only when occupied. Read-only keeps hiding
-  // every empty zone — a share page shows the deck, not the scaffolding.
   const editing = onZoneClick !== undefined;
   const zoneVisible = (zone: DeckZone, count: number) => {
     if (count > 0) {
@@ -292,16 +217,12 @@ export function DeckOverviewList({
   const renderZone = ({ zone, cards: zoneCards }: (typeof zones)[number]) => {
     const quantity = zoneCards.reduce((sum, card) => sum + card.quantity, 0);
     const expected = zoneExpected(zone, format);
-    // Formats without a sideboard still list a non-empty one so stray cards
-    // are visible; the /8 target only applies where the zone is in-format.
     const showExpected =
       expected !== undefined &&
       (zone !== WellKnown.deckZone.SIDEBOARD || formatHasSideboard(format));
     const zoneViolations = violations.filter(
       (violation) => violation.zone === zone && !violation.cardId,
     );
-    // Card-level violations annotate the offending row itself (first message
-    // per card wins, matching the sidebar's behavior).
     const cardViolations = new Map<string, string>();
     for (const violation of violations) {
       if (violation.zone === zone && violation.cardId && !cardViolations.has(violation.cardId)) {
@@ -313,8 +234,6 @@ export function DeckOverviewList({
 
     return (
       <ZoneSection key={zone} zone={zone} format={format} allCards={cards} droppable={dragEnabled}>
-        {/* Same header grammar as the grid view's frameless zones: small-caps
-            label over the hairline rule. */}
         <DeckZoneHeader label={ZONE_LABELS[zone]}>
           {zoneViolations.length > 0 && (
             <Popover>
@@ -403,9 +322,6 @@ export function DeckOverviewList({
           </div>
         )}
 
-        {/* A full zone needs no invitation to add more: the row hides once the
-            zone's target (or the sideboard's cap) is met. Freeform has no
-            caps, and targetless zones (overflow) always take more. */}
         {onZoneClick &&
           (format === WellKnown.deckFormat.FREEFORM ||
             quantity <
@@ -424,12 +340,6 @@ export function DeckOverviewList({
     );
   };
 
-  // Full-width CSS multicolumn: the browser fits as many ~30rem columns as the
-  // container allows. The basis is generous on purpose — a row carries rarity,
-  // code, pips, energy, ownership, and price around the name, so narrower
-  // columns truncate card names. Every zone is an unbreakable block (header
-  // and rows stay together), so columns are only as balanced as the zone
-  // sizes allow — that's the intended trade.
   return (
     <div className="w-full columns-[30rem] gap-x-10">
       {zones.map((entry) => renderZone(entry))}
@@ -438,24 +348,13 @@ export function DeckOverviewList({
   );
 }
 
-/**
- * One block of the list's multicolumn flow. A section never splits across
- * columns — its header and rows stay together. Exported for the tokens band,
- * which is not a zone but sits in the same flow and has to fold the same way.
- */
+// Exported for the tokens band, which isn't a zone but shares this flow.
 export const DECK_LIST_SECTION_CLASS =
   "mb-6 flex break-inside-avoid flex-col gap-1.5 rounded-md transition-all";
 
 /**
- * Trailing add row for a zone, edit mode only: a dashed full-width target that
- * opens that zone's card browser. An empty zone spells out what's missing
- * (the same hint the grid's empty tile carries); a filled one just offers more.
- *
- * Empty Runes is the one non-interactive case, mirroring the grid tile: runes
- * auto-fill from the Legend, so the row states that rather than inviting a
- * click. The zone is still reachable — the section header opens it, which is
- * how you override the auto-fill.
- * @returns The add row.
+ * Empty Runes stays non-interactive: runes auto-fill from the Legend, so the
+ * row states that instead. The section header still opens the zone.
  */
 function ZoneAddRow({
   zone,
@@ -490,13 +389,8 @@ function ZoneAddRow({
   );
 }
 
-/**
- * A zone's block in the list. With `droppable` it registers as a drop target
- * for the same `DeckDropData` the grid's zone tiles use, so a card released
- * over it lands in this zone. Split in two so the dnd hooks never run on the
- * read-only share page, which renders the list outside any DndContext.
- * @returns The zone section element.
- */
+// Split in two so the dnd hooks never run on the read-only share page, which
+// renders the list outside any DndContext.
 function ZoneSection({
   zone,
   format,
@@ -506,7 +400,6 @@ function ZoneSection({
 }: {
   zone: DeckZone;
   format: DeckFormat;
-  /** The whole deck — zone-fullness checks count copies across zones. */
   allCards: DeckBuilderCard[];
   droppable: boolean;
   children: React.ReactNode;
@@ -532,8 +425,6 @@ function DroppableZoneSection({
   allCards: DeckBuilderCard[];
   children: React.ReactNode;
 }) {
-  // Mirrors the grid zone tiles: the same two helpers decide whether this zone
-  // can take the card in flight, so both surfaces reject the same drags.
   const { active } = useDndContext();
   const dragData = asDragData<AnyDragData>(active?.data.current, DECK_DRAG_TYPES);
   const draggedCard = resolveDraggedCard(dragData, allCards);
@@ -549,10 +440,8 @@ function DroppableZoneSection({
   const dropDisabled =
     draggedCard !== undefined && (!isCardAllowedInZone(draggedCard, zone) || isZoneFull);
 
-  // Registered even when it can't accept the card, with the rejection carried
-  // in the data — a disabled droppable leaves collision detection, and a
-  // release over it would read as "dropped outside any zone" and remove a copy.
-  // Same reasoning as the sidebar's zone sections.
+  // Registered even when disabled: a droppable that drops out of collision
+  // detection makes a release read as "outside any zone" and remove a copy.
   const dropData: DeckDropData = { type: "deck-zone", zone, disabled: dropDisabled };
   const { setNodeRef, isOver } = useDroppable({ id: `overview-list-zone-${zone}`, data: dropData });
 
@@ -570,13 +459,6 @@ function DroppableZoneSection({
   );
 }
 
-/**
- * Renders a grouped zone (main / sideboard / overflow) as sub-groups along the
- * chosen axis — types by default, each with a small header — sorting rows
- * inside each group by the chosen sort. The single "none" group renders
- * headerless.
- * @returns The stacked sub-group sections.
- */
 function GroupedRows({
   groups,
   groupBy,
@@ -598,20 +480,17 @@ function GroupedRows({
   draggable,
 }: {
   groups: DeckCardGroup[];
-  /** The active grouping axis — type groups keep their icons. */
   groupBy: DeckOverviewGroup;
   sortBy: DeckOverviewSort;
   sortDir: "asc" | "desc";
   sortContext: DeckListSortContext;
   rarityLabels: Record<string, string>;
-  /** Slug → display name for the power pips accessible label. */
   domainLabels: Record<string, string>;
   domainColors: Record<string, string>;
   showOwnership: boolean;
   reserved: ReservedCells;
   borrowedLenders?: Record<string, string[]>;
   fmtPrice: (cents: number) => string;
-  /** Resolves the printing a row stands for, plus its price and hover id. */
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
   cardViolations: ReadonlyMap<string, string>;
   isDimmed: (card: DeckBuilderCard) => boolean;
@@ -657,35 +536,21 @@ interface DeckListRowProps {
   card: DeckBuilderCard;
   entry: CardOwnership | undefined;
   rarityLabels: Record<string, string>;
-  /** Slug → display name for the power pips accessible label. */
   domainLabels: Record<string, string>;
   domainColors: Record<string, string>;
   showOwnership: boolean;
-  /** The optional cells this row holds space for, whether it fills them or not. */
   reserved: ReservedCells;
-  /**
-   * Lender names per cardId, for the borrow glyph's tooltip. Threaded rather
-   * than read per row: the aggregate is rebuilt on every call, so a hook here
-   * would recompute it once per row and hand every row a fresh object.
-   */
   borrowedLenders?: Record<string, string[]>;
   fmtPrice: (cents: number) => string;
-  /** Resolves the printing a row stands for, plus its price and hover id. */
   resolveRowPrinting: (card: DeckBuilderCard, entry: CardOwnership | undefined) => RowPrinting;
-  /** Card-level rule violation, rendered as a warning on the row itself. */
   violationMessage?: string;
-  /** Stats-chart focus active and this card isn't in it — render faded. */
   dimmed?: boolean;
   onHoverCard?: HoverHandler;
   onCardClick?: (card: CardOpenTarget) => void;
 }
 
-/**
- * One list row, draggable or not. A plain function picking between two
- * components — the dnd hook lives in only one of them, so it never runs on the
- * share page (hooks can't be conditional; components can).
- * @returns The row element.
- */
+// The dnd hook lives in only one branch, so it never runs on the share page
+// (hooks can't be conditional; components can).
 function ListRow({ draggable, ...props }: DeckListRowProps & { draggable: boolean }) {
   if (draggable) {
     return <DraggableDeckListRow {...props} />;
@@ -693,14 +558,8 @@ function ListRow({ draggable, ...props }: DeckListRowProps & { draggable: boolea
   return <DeckListRow {...props} />;
 }
 
-/**
- * Drag source wrapper. The payload is byte-for-byte the grid thumbnail's
- * `DeckCardDragData`, so every existing drop handler — zone tiles, sidebar
- * sections, the list's own sections — treats a list drag exactly like a grid
- * drag. Shift-to-move-all needs nothing here: DeckDndContext tracks the key
- * itself and reads `quantity` off this payload.
- * @returns The row, wired as a dnd-kit draggable.
- */
+// The payload is byte-for-byte the grid thumbnail's `DeckCardDragData`, so
+// every existing drop handler treats a list drag exactly like a grid drag.
 function DraggableDeckListRow(props: DeckListRowProps) {
   const { card } = props;
   const dragData: DeckCardDragData = {
@@ -711,8 +570,8 @@ function DraggableDeckListRow(props: DeckListRowProps) {
     quantity: card.quantity,
     preferredPrintingId: card.preferredPrintingId,
   };
-  // Destructured before the JSX below: member access on the hook's return
-  // object during render makes the React Compiler bail (see CLAUDE.md).
+  // Destructured before use: member access on the hook's return object during
+  // render makes the React Compiler bail.
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `overview-list-${card.cardId}-${card.zone}-${card.preferredPrintingId ?? "default"}`,
     data: dragData,
@@ -728,10 +587,7 @@ function DraggableDeckListRow(props: DeckListRowProps) {
   );
 }
 
-/**
- * The row itself, hook-free so the tests can render it on its own.
- * @returns One list row.
- */
+// Hook-free so tests can render it on its own.
 export function DeckListRow({
   card,
   entry,
@@ -751,7 +607,6 @@ export function DeckListRow({
   dragProps,
   isDragging,
 }: DeckListRowProps & {
-  /** Set by DraggableDeckListRow; absent when the list isn't draggable. */
   dragRef?: (element: HTMLElement | null) => void;
   dragProps?: React.HTMLAttributes<HTMLDivElement>;
   isDragging?: boolean;
@@ -761,8 +616,6 @@ export function DeckListRow({
     types: card.cardTypes,
     tags: card.tags,
   });
-  // Set code, rarity and price all describe one printing — the viewer's own
-  // while "show my printings" is on, the deck's otherwise.
   const { printing, price, hoverPrintingId } = resolveRowPrinting(card, entry);
   const rarity = printing?.rarity;
   const missing = (entry?.shortfall ?? 0) > 0;
@@ -771,16 +624,12 @@ export function DeckListRow({
     <div
       ref={dragRef}
       className={cn(
-        // Tighter gaps on phones: the row keeps every column but the set code
-        // there, and the seven gaps are what the card name pays for them.
         "flex items-center gap-1.5 rounded-md px-2 py-1 text-sm sm:gap-2",
         onCardClick && "hover:bg-muted/50 cursor-pointer",
         // Gate on dragProps, not dragRef: reading a `…Ref`-named value during
-        // render trips the compiler's refs-during-render check (build-failing
-        // bailout); the two props are always set together.
+        // render trips the React Compiler's refs-during-render check
+        // (build-failing bailout); the two props are always set together.
         dragProps && "cursor-grab active:cursor-grabbing",
-        // Dragging the only copy empties the row's slot; a stack keeps showing
-        // because the copies left behind stay put. Matches the grid thumbs.
         isDragging && card.quantity === 1 && "opacity-40",
         dimmed && "opacity-30 transition-opacity",
       )}
@@ -815,8 +664,6 @@ export function DeckListRow({
         )}
       </span>
 
-      {/* Power shows on phones too, next to energy — it's half of what a card
-          costs, and no more than four pips wide. */}
       <PowerPips
         power={card.power}
         domains={card.domains}

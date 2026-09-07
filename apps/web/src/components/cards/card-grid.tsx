@@ -36,9 +36,8 @@ import { computeRowStarts } from "./compute-row-starts";
 import { ScrollIndicator } from "./scroll-indicator";
 import { useStickyHeader } from "./use-sticky-header";
 
-// Persists the measured grid offset across re-mounts within a session so the
-// first render can use the real value instead of 0. SSR initializes to 0; the
-// ResizeObserver below corrects it once the DOM is in place.
+// Module-level cache: persists the measured grid offset across re-mounts so
+// SSR's 0 doesn't flash before the ResizeObserver corrects it.
 let cachedScrollMargin = 0;
 
 function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
@@ -58,10 +57,8 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   return rows;
 }
 
-// Explicit memo + primitive `groupId` prop: lets the two call sites pass a
-// stable onSelect (scrollToGroup) instead of minting a fresh `() => scrollToGroup(id)`
-// arrow on every CardGrid re-render. Without this, every scroll tick changed
-// the onClick reference and forced GroupHeaderLabel to re-render.
+// Explicit memo + primitive `groupId` prop avoids minting a fresh onClick
+// arrow every scroll tick, which would force this to re-render.
 // oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const GroupHeaderLabel = memo(function GroupHeaderLabel({
   slug,
@@ -132,25 +129,15 @@ const CardRowContent = memo(function CardRowContent({
   eagerCount: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
 }) {
-  // Track whether this row has been fully rendered before. Once rendered,
-  // keep showing real content even during scroll (memo prevents re-render anyway).
-  // Defer full rendering: show a lightweight placeholder on mount, then swap in
-  // real content when the browser is idle. During fast scroll the browser stays
-  // busy so placeholders persist; during slow scroll or once stopped, the idle
-  // callback fires quickly and real content appears.
-  // Eager rows (those containing priority/LCP cards) skip the deferred phase —
-  // their images were preloaded by the SSR <FirstRowPreview>, so rendering the
-  // muted-grey placeholder on hydration just adds a visible flash before the
-  // cached image paints.
+  // Eager rows are SSR-preloaded by <FirstRowPreview>; skipping the deferred
+  // placeholder phase for them avoids a flash before the cached image paints.
   const isEager = row.cardsBefore < eagerCount;
   const [deferred, setDeferred] = useState(!isEager);
   useEffect(() => {
     if (!deferred) {
       return;
     }
-    // Safari doesn't support requestIdleCallback. Fall back to
-    // rAF + setTimeout so the callback runs after the next frame paints,
-    // giving scroll/layout priority — closer to "when idle" behavior.
+    // Safari has no requestIdleCallback; rAF + setTimeout approximates it.
     if (typeof globalThis.requestIdleCallback === "function") {
       const id = requestIdleCallback(() => setDeferred(false), { timeout: 300 });
       return () => cancelIdleCallback(id);
@@ -190,10 +177,8 @@ const CardRowContent = memo(function CardRowContent({
     <div style={gridStyle}>
       {row.items.map((item, colIndex) => {
         const flatIndex = row.cardsBefore + colIndex;
-        // isSelected / isFlashing default to false here — each cell subscribes
-        // to useGridFocusStore by its own itemId and overrides them. Keeping
-        // them out of this map's ctx closure is what lets the per-cell memo
-        // skip on +/- (the only `ctx` inputs left are stable per render).
+        // Kept false here; each cell subscribes to useGridFocusStore by its
+        // own itemId, keeping ctx stable so the per-cell memo can skip re-renders.
         return (
           <Fragment key={item.id}>
             {renderCard(item, {
@@ -214,16 +199,12 @@ interface CardGridProps {
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
-  /** Section order for the "collection" axis. Only /collections supplies it. */
   collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
-  /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
-  /** Total height of sticky elements above the grid (app header + toolbar). */
   stickyOffset?: number;
-  /** Surface-specific no-results copy; see {@link CardViewerEmptyState}. */
   noResultsDescription?: ReactNode;
 }
 
@@ -241,9 +222,8 @@ export function CardGrid({
   noResultsDescription,
 }: CardGridProps) {
   const { orders, labels } = useEnumOrders();
-  // Resolve the sticky offset in the body (not as a default param) so the live
-  // header measurement settles after hydration instead of mismatching the SSR
-  // markup. See useHeaderHeight.
+  // Resolved in the body, not as a default param: the live header
+  // measurement settles after hydration and would mismatch SSR markup.
   const headerHeight = useHeaderHeight();
   const stickyOffset = stickyOffsetProp ?? headerHeight;
 
@@ -253,9 +233,6 @@ export function CardGrid({
   const adminSettings = useAdminSettings();
   const debugOverlayEnabled = adminSettings?.debugOverlay === true;
 
-  // ── Responsive column layout ─────────────────────────────────────
-  // Measures the container and computes how many columns fit.
-  // Publishes physical min/max/auto for the column slider UI.
   const {
     containerRef,
     containerEl,
@@ -270,11 +247,8 @@ export function CardGrid({
     setMeasurements({ physicalMax, physicalMin, autoColumns });
   }, [physicalMax, physicalMin, autoColumns, setMeasurements]);
 
-  // Gap and cell width move together: the gutter between cards scales with the
-  // card, so both come out of one call. See card-grid-metrics.ts.
   const { gap, cardWidth: thumbWidth } = computeGridMetrics(containerWidth, columns);
 
-  // ── Group items, then flatten into virtual rows ──────────────────
   const groups = buildGroups(items, groupBy, setOrder, groupDir, orders, labels, collectionOrder);
   const multipleGroups = groups.length > 1;
 
@@ -296,11 +270,6 @@ export function CardGrid({
 
   const rowStarts = computeRowStarts(virtualRows, estimateRowHeight, gap);
 
-  // ── Scroll margin (container's document offset) ────────────────────
-  // Module-level cache: lets re-mounts within the same session skip the
-  // initial 0 → measured re-render. The grid's document offset is determined
-  // by surrounding layout (sticky header, toolbar), not by items shown, so
-  // it's stable across mounts of the same page.
   const [scrollMargin, setScrollMargin] = useState(() => cachedScrollMargin);
 
   useLayoutEffect(() => {
@@ -314,15 +283,12 @@ export function CardGrid({
       setScrollMargin((prev) => (prev === next ? prev : next));
     };
     measure();
-    // ResizeObserver on body catches toolbar/chip wrap above the grid. The
-    // previous `[items]` dep re-measured on every filter change even when the
-    // grid's offset hadn't moved.
+    // Observes body, not the container: catches toolbar/chip wrap above the grid too.
     const observer = new ResizeObserver(measure);
     observer.observe(document.body);
     return () => observer.disconnect();
   }, [containerEl]);
 
-  // ── Virtualizer ────────────────────────────────────────────────────
   const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({
     count: virtualRows.length,
     estimateSize: estimateRowHeight,
@@ -332,7 +298,6 @@ export function CardGrid({
     overscan: 3,
   });
 
-  // ── Extracted hooks ────────────────────────────────────────────────
   const activeHeaderRow = useStickyHeader({
     multipleGroups,
     virtualRows,
@@ -343,7 +308,6 @@ export function CardGrid({
     headerHeight: HEADER_PT + HEADER_CONTENT_HEIGHT + HEADER_PB,
   });
 
-  // ── Selected-card scroll + flash ───────────────────────────────────
   const virtualRowsRef = useRef(virtualRows);
   const virtualizerRef = useRef(virtualizer);
   const stickyOffsetRef = useRef(stickyOffset);
@@ -378,10 +342,6 @@ export function CardGrid({
     }
   };
 
-  // Flash state lives in useGridFocusStore (alongside selectedItemId) so the
-  // per-cell `isFlashing` subscription in each grid cell sees only its own
-  // value flip — broadcasting flashCardId as a CardRowContent prop forced
-  // every row + cell to re-render whenever the flash started or cleared.
   useScopeEffect(selectedItemId, (itemId) => {
     if (!itemId) {
       useGridFocusStore.getState().setFlashCardId(null);
@@ -393,7 +353,6 @@ export function CardGrid({
     return () => clearTimeout(timer);
   });
 
-  // Track the first visible card so we can anchor scroll when columns change.
   const topVisibleCardRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -413,23 +372,13 @@ export function CardGrid({
     return () => globalThis.removeEventListener("scroll", onScroll);
   }, []);
 
-  // react-virtual's getMeasurements memo doesn't track estimateSize, so any
-  // estimate-input change that keeps the row count identical leaves stale row
-  // heights behind until measure() is called: a smaller thumbWidth from
-  // resizing within the same column count (visible gaps), or new items whose
-  // header/cards rows land at different indexes than the old ones at the same
-  // total row count — e.g. switching between two lists — which stacks card
-  // rows into header-sized slots. The kind signature is a primitive so the
-  // effect can't re-fire (and loop via measure → notify → render) when a
-  // compiler bail-out hands us a fresh virtualRows array each render. Layout
-  // effect so corrected positions land before paint instead of flashing one
-  // mis-stacked frame.
+  // react-virtual's estimateSize memo misses input changes that keep the row
+  // count identical, leaving stale/mis-stacked row heights until measure() runs.
   const rowKindSignature = virtualRows.map((row) => (row.kind === "header" ? "h" : "c")).join("");
   useScopeLayoutEffect(`${rowKindSignature} ${columns} ${containerWidth} ${addStripHeight}`, () =>
     virtualizerRef.current.measure(),
   );
 
-  // Re-scroll when columns change: anchor to selected card or first visible card.
   useScopeEffect(`${columns} ${selectedItemId ?? ""}`, () => {
     const anchor = selectedItemId ?? topVisibleCardRef.current;
     if (anchor) {
@@ -437,9 +386,8 @@ export function CardGrid({
     }
   });
 
-  // Reads only from mirror refs, so the React Compiler memoizes this to a
-  // stable reference — HeaderRow's onScrollToGroup prop stays equal across
-  // scroll-driven re-renders and its memo doesn't bust on every tick.
+  // Reads only mirror refs, so the compiler keeps this reference stable and
+  // HeaderRow's memo doesn't bust on every scroll tick.
   const scrollToGroup = (groupId: string) => {
     const rowIndex = virtualRowsRef.current.findIndex(
       (r) => r.kind === "header" && r.group.id === groupId,
@@ -451,7 +399,6 @@ export function CardGrid({
 
   const eagerCount = columns;
 
-  // ── Render ─────────────────────────────────────────────────────────
   if (items.length === 0) {
     return (
       <div ref={containerRef} className="flex flex-1 flex-col">
@@ -481,7 +428,6 @@ export function CardGrid({
         stickyOffset={stickyOffset}
       />
 
-      {/* Sticky set header overlay */}
       <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
           <div className="pointer-events-none flex justify-center pt-2">

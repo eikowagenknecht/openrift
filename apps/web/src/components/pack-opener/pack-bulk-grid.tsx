@@ -6,7 +6,6 @@ import { PullCard } from "@/components/pack-opener/pull-card";
 interface PackBulkGridProps {
   packs: PackResult[];
   imagesByPrintingId: Map<string, CatalogPrintingResponse["images"]>;
-  /** When true, foil pulls animate their rainbow overlay. */
   shimmer?: boolean;
 }
 
@@ -19,7 +18,6 @@ const RARITY_RANK: Record<string, number> = {
   Common: 5,
 };
 
-// Multi-pack grid: face-up pulls sorted by rarity desc, with per-pack dividers.
 export function PackBulkGrid({ packs, imagesByPrintingId, shimmer }: PackBulkGridProps) {
   return (
     <div className="space-y-6">

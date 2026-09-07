@@ -20,13 +20,6 @@ function FactCounters({ counts }: { counts: MetaLegendCounts }) {
   );
 }
 
-/**
- * The legend page's header: who the legend is, what the archive holds for them,
- * and the artwork the rest of the page is about.
- *
- * The champion's name links at the card page, which is the one place on this
- * page that leaves the archive.
- */
 export function MetaLegendHero({
   legend,
   counts,

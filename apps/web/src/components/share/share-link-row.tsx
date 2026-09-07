@@ -8,30 +8,16 @@ import { QrCode } from "@/components/ui/qr-code";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 interface ShareLinkRowProps {
-  /** The share link shown and copied. */
   url: string;
-  /** Accessible name for the read-only field, e.g. "Result reporting link". */
   label: string;
-  /**
-   * Renders the QR expanded on mount. Use on full pages, where an organizer
-   * wants the code on screen for people to scan; dialogs leave it collapsed.
-   */
   defaultQrOpen?: boolean;
-  /** Drops the QR affordance for links nobody scans off a screen. */
   hideQr?: boolean;
-  /** Extra buttons after Copy, e.g. rotate or disable. */
   actions?: ReactNode;
 }
 
 /**
  * The canonical way to present a share link: the URL in a read-only field, a
  * Copy button that confirms inline, and the same QR affordance everywhere.
- *
- * Every share surface grew its own version of this row, which is how the QR
- * ended up on three of them and not the others, and how one of them confirmed
- * copies with a toast while the rest did it inline.
- *
- * @returns The share-link row.
  */
 export function ShareLinkRow({
   url,
@@ -45,8 +31,6 @@ export function ShareLinkRow({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* flex-wrap: with rotate/disable actions present the row does not fit a
-          phone width, and without it the trailing buttons clip off-screen. */}
       <div className="flex flex-wrap items-center gap-2">
         <Input
           value={url}

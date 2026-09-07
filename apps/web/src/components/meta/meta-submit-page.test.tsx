@@ -133,7 +133,6 @@ async function pasteDeck(text: string): Promise<void> {
   });
 }
 
-/** Picks an archived event from the tournament select. */
 async function pickEvent(): Promise<void> {
   await userEvent.click(screen.getByLabelText("Tournament"));
   await userEvent.click(await screen.findByRole("option", { name: /Summoner Skirmish/u }));

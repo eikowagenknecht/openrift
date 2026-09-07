@@ -3,17 +3,6 @@ import type { ReactNode } from "react";
 import { Heading } from "@/components/heading";
 import { UserAvatar } from "@/components/user-avatar";
 
-/**
- * The one-line person header shared by the pages that are "about a person":
- * the trade sheet and the group member page. One style so the header doesn't
- * jump as the viewer navigates between the two: a size-12 avatar, the name at
- * heading level 2's face (these pages are about a person, not a product, and
- * the page-title size would shout their name across a page whose job is the
- * content under it), and one chip line below the name.
- * @param children The chip line under the name (badges, contact chips).
- * @param actions Right-aligned header actions (buttons, overflow menu).
- * @returns The header row.
- */
 export function PersonPageHeader({
   image,
   name,

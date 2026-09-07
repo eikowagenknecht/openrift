@@ -4,12 +4,7 @@ interface CollectionValueSummaryProps {
   formatValue: (value: number) => string;
 }
 
-/**
- * The marketplace value shown next to the collection title in the top bar.
- *
- * @returns The formatted value with an optional unpriced-copy note, or null
- * when the value is missing or zero (a worthless collection shows nothing).
- */
+// A missing or zero value renders nothing, not "$0.00".
 export function CollectionValueSummary({
   valueCents,
   unpricedCount,

@@ -72,8 +72,6 @@ import { cn, PAGE_WIDTH } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 
-// ── Hero Stats ─────────────────────────────────────────────────────────────
-
 function StatsHeroStats({ stats }: { stats: CollectionStats }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -155,13 +153,8 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
   );
 }
 
-// ── Scope from URL filters ────────────────────────────────────────────────
-
-// Dimensions the completion scope doesn't use: collection state, supertypes,
-// markers/channels values, and the range sliders (stats, price) the old scope
-// editor never offered. Every section left visible must be mapped in
-// `useScopeFromFilters` below — a chip the scope ignores looks live and does
-// nothing.
+// Every section left visible must stay mapped in useScopeFromFilters below,
+// or a chip the scope ignores looks live and does nothing.
 const HIDDEN_FILTER_SECTIONS = new Set([
   "owned",
   "superTypes",
@@ -173,10 +166,6 @@ const HIDDEN_FILTER_SECTIONS = new Set([
   "price",
 ]);
 
-/**
- * Builds a CompletionScopePreference from the standard URL filter state.
- * @returns A scope object for filterByScope / computeCompletion.
- */
 function useScopeFromFilters(): CompletionScopePreference {
   const { filters } = useFilterValues();
   const scope: CompletionScopePreference = {};
@@ -225,9 +214,8 @@ function useScopeFromFilters(): CompletionScopePreference {
   if (filters.presence.customTags) {
     scope.customTagsPresence = filters.presence.customTags;
   }
-  // Negation companions (ADR-034). Without these a chip cycled into
-  // exclude-mode changed the URL and the chip but left every figure on the
-  // page untouched.
+  // Without these an exclude-mode chip changes the URL but leaves every
+  // figure on the page untouched.
   if (filters.setsExclude.length > 0) {
     scope.setsExclude = filters.setsExclude;
   }
@@ -274,8 +262,6 @@ function useScopeFromFilters(): CompletionScopePreference {
   }
   return scope;
 }
-
-// ── Completion Section ─────────────────────────────────────────────────────
 
 const GROUP_BY_OPTIONS: { value: CompletionGroupBy; label: string }[] = [
   { value: "set", label: "Set" },
@@ -423,7 +409,6 @@ function CompletionSection({
     },
   });
 
-  // For set grouping, split main/supplemental
   const mainEntries =
     groupBy === "set"
       ? entries.filter((entry) => entry.setType === WellKnown.setType.MAIN)
@@ -487,8 +472,6 @@ function CompletionSection({
     </section>
   );
 }
-
-// ── Distribution Donut Charts ─────────────────────────────────────────────
 
 interface DonutEntry {
   name: string;
@@ -629,9 +612,6 @@ function TypeDistributionChart({ data }: { data: { type: string; total: number }
   return <DistributionDonut data={chartData} config={config} />;
 }
 
-// ── Most Expensive Printings ──────────────────────────────────────────────
-
-/** Printings shown before the user asks for more. */
 const COLLAPSED_EXPENSIVE_PRINTINGS = 2;
 
 function MostExpensivePrintings({
@@ -671,9 +651,8 @@ function MostExpensivePrintings({
               </span>
               {printing.thumbnail && (
                 <HoverCard>
-                  {/* The span is required, not cosmetic: this trigger sits
-                      inside the row's link, and Base UI's default trigger
-                      element is an anchor, which may not nest in another. */}
+                  {/* Base UI's default trigger is an anchor, which can't nest
+                      inside the row's own link. */}
                   <HoverCardTrigger render={<span />}>
                     <CardArtThumb src={printing.thumbnail} className="h-32" />
                   </HoverCardTrigger>
@@ -709,8 +688,6 @@ function MostExpensivePrintings({
   );
 }
 
-// ── Empty State ────────────────────────────────────────────────────────────
-
 function StatsSkeleton() {
   return (
     <div className="space-y-6">
@@ -740,8 +717,6 @@ function StatsEmptyState() {
     </EmptyState>
   );
 }
-
-// ── Collection Selector ────────────────────────────────────────────────────
 
 function CollectionSelector({
   value,
@@ -776,24 +751,13 @@ function CollectionSelector({
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
-
 export function CollectionStatsPage() {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
   const [collectionScope, setCollectionScope] = useState("all");
   const collectionId = collectionScope === "all" ? undefined : collectionScope;
-  // Everything below the filter bar recomputes and re-renders five charts when
-  // the scope changes, which on a phone is a few hundred ms of work. Deferring
-  // it lets the chip flip and paint on the urgent render while the figures
-  // catch up in an interruptible one, so a rapid series of toggles doesn't
-  // queue a full recompute per tap.
-  //
-  // Safe to defer only because `scope` is identity-stable per URL state:
-  // `useScopeFromFilters` builds it from `useFilterValues().filters`, which the
-  // compiler keeps memoized (see the memo-poisoning guard in
-  // use-card-filters.test.ts). A scope that re-minted every render would make
-  // this a self-sustaining background render loop rather than a one-step lag.
+  // Deferred so the chip paints on the urgent render while the five charts
+  // recompute; safe only because `scope` stays identity-stable per URL state.
   const liveScope = useScopeFromFilters();
   const scope = useDeferredValue(liveScope);
   const stats = useCollectionStats(collectionId, scope);
@@ -826,7 +790,6 @@ export function CollectionStatsPage() {
     <div className={cn(PAGE_WIDTH.capped, "pt-3")}>
       {topBarPortal}
 
-      {/* ── Controls bar ─────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <CollectionSelector value={collectionScope} onChange={setCollectionScope} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -873,9 +836,8 @@ export function CollectionStatsPage() {
           </TooltipProvider>
         </div>
       </div>
-      {/* The same compact filter bar the card browsers use, scoping the
-          completion math instead of a grid. `flex` unhides it below sm — this
-          page has no mobile filter drawer, so the chips just wrap there. */}
+      {/* `flex` unhides the bar below sm: this page has no mobile filter
+          drawer, so the chips just wrap there. */}
       <CompactFilterBar
         className="flex"
         availableFilters={availableFilters}
@@ -890,7 +852,6 @@ export function CollectionStatsPage() {
           <StatsEmptyState />
         ) : (
           <div className="space-y-6">
-            {/* ── Completion ──────────────────────────────────── */}
             <section className="space-y-4">
               <h2 className="text-base font-semibold">Completion</h2>
               <CompletionSection
@@ -903,7 +864,6 @@ export function CollectionStatsPage() {
 
             <Separator />
 
-            {/* ── Cost to Complete ────────────────────────────── */}
             <section className="space-y-4">
               <h2 className="text-base font-semibold">Cost to Complete</h2>
               <CostToCompleteChart
@@ -921,7 +881,6 @@ export function CollectionStatsPage() {
               <>
                 <Separator />
 
-                {/* ── Value Over Time ─────────────────────────────── */}
                 <section className="space-y-4">
                   <h2 className="text-base font-semibold">Value Over Time</h2>
                   <Card>
@@ -935,7 +894,6 @@ export function CollectionStatsPage() {
 
             <Separator />
 
-            {/* ── Stats ───────────────────────────────────────── */}
             <section className="space-y-4">
               <h2 className="text-base font-semibold">Stats</h2>
               <StatsHeroStats stats={stats} />

@@ -12,35 +12,18 @@ interface CardMetaLabelProps {
   shortCode: string;
   name: string;
   rarity: Rarity;
-  /** Tooltip title for the rarity icon (the human-readable rarity label). */
   rarityTitle?: string;
-  /**
-   * Finish slug — renders a per-finish icon when it's foil/metal/metal-deluxe.
-   * The foil icon is suppressed at always-foil rarities (everything above
-   * uncommon), where foil is the plain version and the icon would be noise.
-   */
   finish?: string;
-  /** Tooltip title for the finish icon (usually the human-readable finish label). */
   finishTitle?: string;
-  /** True when the printing is an oversized variety; renders a small size chip. */
   oversized?: boolean;
-  /** Human-readable size label shown in the chip (e.g. "Oversized"). */
   sizeLabel?: string;
-  /** Ban records to show as a warning icon with tooltip. */
   bans?: CardBan[];
-  /** True when printed rules text differs from the card's current rules text. */
   hasRulesDeviation?: boolean;
-  /** Editor note about this specific printing. Rendered as an info icon with tooltip. */
   printingComment?: string | null;
   className?: string;
-  /** Optional price element rendered right-aligned on the name line. */
   price?: ReactNode;
 }
 
-/**
- * Card metadata label — shortcode, name, rarity icon and printing flags.
- * @returns The label element.
- */
 export function CardMetaLabel({
   shortCode,
   name,
@@ -66,9 +49,7 @@ export function CardMetaLabel({
     // price on narrow cells (see priceNode in card-thumbnail.tsx).
     <div className={cn("bg-background @container space-y-0.5 rounded-md px-1.5 py-0.5", className)}>
       {/* ⚠ text-xs is mirrored as META_LINE_HEIGHT in card-grid-constants.ts — update both together */}
-      {/* min-h-4: WebKit computes block height from font metrics instead of line-height */}
-      {/* when overflow:hidden is set (via truncate), causing 1px shorter elements on iOS Safari. */}
-      {/* See https://bugs.webkit.org/show_bug.cgi?id=225695 */}
+      {/* min-h-4: WebKit truncate + overflow:hidden shortens by 1px on iOS Safari, see webkit.org/b/225695 */}
       <div className="text-muted-foreground flex min-h-4 items-center justify-between gap-1 text-xs">
         <span className="truncate font-medium">{shortCode}</span>
         <span className="flex shrink-0 items-center gap-1">

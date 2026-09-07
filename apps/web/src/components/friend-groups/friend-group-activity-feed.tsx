@@ -26,13 +26,7 @@ import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 
 const FEED_VISIBLE = 20;
 
-/**
- * The group's recent activity: completed trades, new matches for the viewer,
- * shared lists/collections, and members joining — newest first, each calendar
- * day anchored by a small date leaf (the events-timeline treatment). Derived
- * server-side from existing rows (no event log); see the activity endpoint.
- * @returns The activity-feed section.
- */
+// Derived server-side from existing rows; there is no dedicated event log.
 export function FriendGroupActivityFeed({ slug }: { slug: string }) {
   const { data } = useFriendGroupActivity(slug);
   const rows = aggregateActivityEvents(data.events.slice(0, FEED_VISIBLE));
@@ -97,12 +91,6 @@ function activityKey(event: FriendGroupActivityEvent): string {
   }
 }
 
-/**
- * A collapsed run of completed trades between the same two members: one line
- * of text ("Mira traded 20 cards to you") over an overlapping stack of the
- * traded cards' art. Links to the Trades page like the single-trade row.
- * @returns The batch row.
- */
 function TradeBatchRow({ slug, batch }: { slug: string; batch: TradeBatch }) {
   const { printingsById } = useCards();
   const viewerId = useRequiredUserId();

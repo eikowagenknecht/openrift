@@ -8,16 +8,8 @@ import { useDeckFormatList, useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-/**
- * The deck list's active-filter chips, mirroring the card browser's strip.
- *
- * It only renders where the filter controls aren't visible — below `md`, where
- * they live behind the drawer — because a control that already shows its own
- * selection makes the chip a duplicate. Above that the controls speak for
- * themselves, exactly as the card browser's strip stands down once its compact
- * bar appears.
- * @returns The chip strip, or null when nothing is filtered.
- */
+// Visible only below `md`; the toolbar hides it above via CSS once the
+// filter controls themselves are visible.
 export function DeckActiveFilters() {
   const {
     search,
@@ -42,11 +34,6 @@ export function DeckActiveFilters() {
     return null;
   }
 
-  /**
-   * One chip. Excluded values read the way the card browser's do: a leading
-   * minus and a struck-out label, rather than a separate "not" section.
-   * @returns The chip.
-   */
   const chip = (
     key: string,
     label: string,
@@ -78,7 +65,6 @@ export function DeckActiveFilters() {
         chip(slug, formatLabels[slug] ?? slug, false, () => cycleFormat(slug)),
       )}
       {formatsExclude.map((slug) =>
-        // Cycling an excluded value once clears it, so removal is one call.
         chip(`ex-${slug}`, formatLabels[slug] ?? slug, true, () => cycleFormat(slug)),
       )}
 

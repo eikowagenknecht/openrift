@@ -64,8 +64,7 @@ function renderReopenable() {
   };
 }
 
-// The dialog renders into a portal on document.body, so query the document
-// rather than the render container.
+// Renders into a portal on document.body: query document, not the render container.
 function pickFirstCollection() {
   const row = document.querySelector<HTMLElement>('[data-slot="picker-row"]');
   if (!row) {

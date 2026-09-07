@@ -23,25 +23,10 @@ const PREF_TO_MARKETPLACE: Record<TradePricePref, Marketplace | null> = {
 interface MatchPreferenceCellProps {
   label: string;
   pref: EffectiveTradePreference;
-  /**
-   * Marketplace product IDs for the printing this side references. When
-   * present, marketplace-preset labels render as anchor tags to the product
-   * page. When `null`, the side falls back to a search URL keyed off
-   * `searchQuery`.
-   */
   marketplaceInfos: Record<Marketplace, MarketplaceInfo> | null;
-  /** Card name used for the search-URL fallback (card-kind wishes). */
   searchQuery: string;
 }
 
-/**
- * One side of the matches-tile preference panel ("They want" / "You'd pay").
- * Always renders, even when the side has no resolved preference — null prefs
- * fall back to "Not set" so both panels stay visually balanced. Marketplace
- * presets render as external links (product page when the marketplace product
- * ID is known, search page otherwise).
- * @returns The panel cell.
- */
 export function MatchPreferenceCell({
   label,
   pref,
@@ -51,9 +36,6 @@ export function MatchPreferenceCell({
   const priceNode = renderPrice(pref, marketplaceInfos, searchQuery);
   const typeNode = pref.tradeType ? TRADE_TYPE_LABEL[pref.tradeType] : null;
   return (
-    // Two-line cell (label, then price · accepts on one line) so the row height
-    // stays compact. Short marketplace labels ("Cardmarket") keep the price line
-    // from wrapping in the narrow column.
     <div className="flex min-w-0 flex-col gap-0.5 px-2 py-1">
       <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
         {label}

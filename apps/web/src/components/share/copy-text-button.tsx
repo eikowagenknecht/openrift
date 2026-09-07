@@ -4,30 +4,17 @@ import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 interface CopyTextButtonProps {
-  /** Button label, e.g. "Copy text" or "Copy for Cardmarket". */
   label: string;
-  /**
-   * Produces the text to copy when clicked. May be async (e.g. a price lookup
-   * feeding the text); a rejection leaves the button idle rather than toasting,
-   * since the surrounding surface always offers another way to the content.
-   */
   getText: () => string | Promise<string>;
-  /**
-   * Rewrites `\n` to `\r\n` before copying, which is what keeps line breaks
-   * intact through iOS Safari's clipboard. On by default; turn off only for
-   * single-line payloads where the rewrite is pure noise.
-   */
+  /** Keeps line breaks intact through iOS Safari's clipboard. */
   normalizeLineBreaks?: boolean;
   size?: "default" | "sm";
 }
 
 /**
- * A copy button with its own inline "Copied" feedback, for copying a computed
- * block of text (deck lists, Cardmarket wants, share blurbs). Each instance
- * holds its own feedback state, so several can sit side by side without
- * sharing a checkmark.
- *
- * @returns The copy button.
+ * A copy button with its own inline "Copied" feedback. Each instance holds
+ * its own feedback state, so several can sit side by side without sharing a
+ * checkmark.
  */
 export function CopyTextButton({
   label,
@@ -42,7 +29,6 @@ export function CopyTextButton({
     try {
       text = await getText();
     } catch {
-      // Text production failed (e.g. prices unavailable); stay idle.
       return;
     }
     const payload = normalizeLineBreaks ? text.replaceAll("\n", "\r\n") : text;

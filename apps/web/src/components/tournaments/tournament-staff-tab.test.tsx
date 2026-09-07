@@ -14,8 +14,6 @@ vi.mock("@/hooks/use-tournaments", () => ({
   useTournamentStaffCandidates: () => ({ data: { items: [] }, isLoading: false }),
 }));
 
-// The invite URL must come from the env-backed origin, never a hardcoded site
-// URL — pinning it here also keeps the copied-text assertion deterministic.
 vi.mock("@/lib/site-config", () => ({
   getSiteUrl: () => "https://preview.example.test",
 }));
@@ -82,8 +80,6 @@ describe("TournamentStaffTab roster", () => {
     expect(within(judges).getByText("1")).toBeInTheDocument();
   });
 
-  // The whole point of grouping: an event with no judge should say so rather
-  // than silently omitting the group.
   it("says so when a role group is empty", () => {
     render(<TournamentStaffTab detail={makeDetail({ staff: [makeStaff("u1", "organizer")] })} />);
 
@@ -122,8 +118,6 @@ describe("TournamentStaffTab remove action", () => {
       />,
     );
 
-    // Only the grant-sourced judge gets a kebab; the org-derived organizer has
-    // no menu at all.
     const menus = screen.getAllByRole("button", { name: "Staff actions" });
     expect(menus).toHaveLength(1);
 
@@ -170,11 +164,9 @@ describe("TournamentStaffTab invite band", () => {
   it("renders a share row and disable for a live link, and counts the active ones", () => {
     render(<TournamentStaffTab detail={makeDetail({ judgeInviteToken: "tok-judge" })} />);
 
-    // One of the two links is live.
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.getByLabelText("Judge invite link")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disable judge invite link" })).toBeInTheDocument();
-    // The organizer row keeps the same shape, still offering a create action.
     expect(screen.getByRole("button", { name: "Create link for organizer" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Organizer invite link")).toBeNull();
   });

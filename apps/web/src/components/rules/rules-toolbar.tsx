@@ -14,8 +14,8 @@ import { useRulesFoldStore } from "@/stores/rules-fold-store";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
 import { useRulesShowChangesStore } from "@/stores/rules-show-changes-store";
 
-// Lives in its own component so its `foldedRules.size`-based selector doesn't
-// re-render the whole RulesContent tree on every fold toggle.
+// Keep as its own component: inlining the `foldedRules.size` selector here
+// would re-render the whole RulesContent tree on every fold toggle.
 export function ExpandCollapseAllButton({ foldGroupKeys }: { foldGroupKeys: string[] }) {
   const allCollapsed = useRulesFoldStore(
     (state) => foldGroupKeys.length > 0 && state.foldedRules.size >= foldGroupKeys.length,
@@ -69,8 +69,8 @@ export function ShowChangesToggle({
 
   return (
     <Tooltip>
-      {/* A disabled toggle takes no pointer events, so the tooltip hangs off a
-          wrapper span rather than the toggle itself. */}
+      {/* A disabled toggle takes no pointer events: the tooltip trigger wraps
+          it in a span instead of attaching to the toggle. */}
       <TooltipTrigger render={<span className="inline-flex" />}>
         <Toggle
           variant="outline"
@@ -78,9 +78,6 @@ export function ShowChangesToggle({
           disabled={!hasPreviousVersion}
           onPressedChange={(next) => setShow(kind, next)}
           aria-label="Show changes since previous version"
-          // Persistent primary fill for the pressed state (incl. on hover), overriding
-          // the base toggle's muted active look — same treatment as the card-browser
-          // and deck-list toolbar toggles.
           className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
         >
           <FileClockIcon />
@@ -103,8 +100,6 @@ export function KindTabs({ kind }: { kind: RuleKind }) {
         if (value === kind) {
           return;
         }
-        // Keeps ?q= across the switch: looking the same term up in the other
-        // document is the reason you press this.
         void navigate({ to: "/rules/$kind", params: { kind: value }, search: (prev) => prev });
       }}
     >
@@ -117,8 +112,6 @@ export function KindTabs({ kind }: { kind: RuleKind }) {
 }
 
 export function RulesSearchBar({ trailing }: { trailing: string }) {
-  // Local draft state keeps each keystroke's re-render scoped to this component
-  // instead of bubbling up and re-rendering the entire rules list.
   const urlQuery = useSearch({ strict: false, select: (search) => search.q });
   const [draft, setDraft] = useState(typeof urlQuery === "string" ? urlQuery : "");
   const setQuery = useRulesSearchStore((state) => state.setQuery);
@@ -127,9 +120,7 @@ export function RulesSearchBar({ trailing }: { trailing: string }) {
   const debouncedApply = useDebouncedCallback(
     (next: string) => {
       setQuery(next);
-      // Mirrored to the URL so a rules search is a link. Debounced with the
-      // store update and replacing rather than pushing, so typing one query
-      // leaves one history entry.
+      // Use replace, not push: avoids one history entry per keystroke.
       void navigate({
         to: ".",
         search: (prev: Record<string, unknown>) => ({ ...prev, q: next === "" ? undefined : next }),
@@ -139,10 +130,6 @@ export function RulesSearchBar({ trailing }: { trailing: string }) {
     { wait: 150 },
   );
 
-  // Arriving with ?q= (a shared link, the command palette's rules row) seeds
-  // both the input and the store. Typing cannot loop back through here: by the
-  // time the URL carries the new query the draft and the store already hold
-  // it, so both guards are false and the input is left alone mid-keystroke.
   const [seenUrlQuery, setSeenUrlQuery] = useState(urlQuery);
   if (seenUrlQuery !== urlQuery) {
     setSeenUrlQuery(urlQuery);
@@ -156,11 +143,8 @@ export function RulesSearchBar({ trailing }: { trailing: string }) {
     }
   });
 
-  // Programmatic resets (e.g. an anchor click that needs to reveal a hidden
-  // rule) bump resetSignal — clear the local draft so the input mirrors the
-  // store. We deliberately gate on resetSignal rather than the query value:
-  // during normal typing the store is briefly empty until the debounce fires,
-  // which would otherwise wipe the draft mid-keystroke.
+  // Gated on resetSignal, not the query value: during normal typing the store
+  // is briefly empty until the debounce fires, which would wipe the draft.
   const [handledSignal, setHandledSignal] = useState(resetSignal);
   if (handledSignal !== resetSignal) {
     setHandledSignal(resetSignal);

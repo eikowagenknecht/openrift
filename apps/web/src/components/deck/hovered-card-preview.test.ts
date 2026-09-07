@@ -17,7 +17,6 @@ describe("pickDockSide", () => {
   });
 
   it("keeps the previous side inside the deadband", () => {
-    // Just past the midline either way — not far enough to move the panel.
     expect(pickDockSide(610, "left", WIDTH)).toBe("left");
     expect(pickDockSide(610, "right", WIDTH)).toBe("right");
     expect(pickDockSide(590, "left", WIDTH)).toBe("left");
@@ -32,7 +31,6 @@ describe("pickDockSide", () => {
   });
 
   it("scales the midline with the viewport", () => {
-    // 600px viewport: midline 300, so an x of 400 sits in the right half.
     expect(pickDockSide(400, null, 600)).toBe("left");
     expect(pickDockSide(400, null, 1600)).toBe("right");
   });

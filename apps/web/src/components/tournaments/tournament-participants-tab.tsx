@@ -46,18 +46,11 @@ import {
 } from "@/hooks/use-tournaments";
 import { canCheckDecks, canManageTournament } from "@/lib/tournament-display";
 
-// The roster's groups, in reading order: the things waiting on the viewer first
-// (join requests, then pending invites), the field itself, and the players who
-// are out of it sunk to the bottom. This is the priority the flat list used to
-// imply via `compareParticipantsForList`; the groups make the split visible, and
-// sort by name inside each one.
 const ROSTER_GROUPS: {
   key: string;
   heading: string;
   statuses: TournamentParticipantStatus[];
-  /** The group carries an identity chip — it is an approval queue, not a list. */
   icon?: typeof UserPlusIcon;
-  /** Out of the field: dimmed, matching the standings table's dropped rows. */
   dimmed?: boolean;
 }[] = [
   { key: "requested", heading: "Join requests", statuses: ["requested"], icon: UserPlusIcon },
@@ -74,16 +67,14 @@ export function TournamentParticipantsTab({
   detail: TournamentDetailResponse;
 }) {
   const manage = canManageTournament(detail.myRoles);
-  // Judges assign regions (part of deck check) even without manage rights.
   const canAssignRegion = detail.regionsEnabled && canCheckDecks(detail.myRoles);
   const { data } = useTournamentParticipants(id);
   const participants = data.items;
   const updateParticipant = useUpdateParticipant();
   const participantAction = useParticipantAction();
 
-  // The deck-check endpoint is staff-only and 404s when deck submission is
-  // off, so only fetch when the viewer can manage AND the tournament collects
-  // decks. Maps each participant to their deck entry so the row can link to it.
+  // The deck-check endpoint 404s when deck submission is off; only fetch when
+  // the viewer can manage and the tournament collects decks.
   const { data: deckCheck } = useTournamentDeckCheckEntries(
     id,
     manage && detail.deckSubmission !== "none",
@@ -126,8 +117,6 @@ export function TournamentParticipantsTab({
             value: `${activeCount - unteamedCount}/${activeCount}`,
             label: "on a team",
             icon: CheckIcon,
-            // A fully-teamed field is what unblocks pairing; a partial count
-            // is the number to fix below.
             tone: (unteamedCount === 0 && activeCount > 0
               ? "good"
               : "default") as StatStripItem["tone"],
@@ -142,8 +131,6 @@ export function TournamentParticipantsTab({
             label: "with region",
             icon: GlobeIcon,
             iconTone: "info" as const,
-            // A full field is the verdict this page exists to deliver: pairing
-            // is unblocked. A partial count is just a number.
             tone: (missingRegionPlayers.length === 0 && activeCount > 0
               ? "good"
               : "default") as StatStripItem["tone"],
@@ -165,9 +152,7 @@ export function TournamentParticipantsTab({
     try {
       await action();
     } catch {
-      // The failure is reported by the global mutation onError toast; swallow
-      // the rejection here so the `void run(...)` call sites don't surface it
-      // as an uncaught promise.
+      // Reported by the global mutation onError toast.
     }
   }
 
@@ -416,11 +401,7 @@ export function TournamentParticipantsTab({
   );
 }
 
-/**
- * Parse the fixed-table dialog's draft: empty clears the fixed table (null), a
- * whole number 1..999 sets it, anything else is invalid.
- * @returns The value to save, or undefined when the draft is invalid.
- */
+// Empty clears the fixed table (null); undefined means the draft is invalid.
 function parseFixedTable(draft: string): number | null | undefined {
   const trimmed = draft.trim();
   if (trimmed === "") {
@@ -433,11 +414,6 @@ function parseFixedTable(draft: string): number | null | undefined {
   return parsed;
 }
 
-/**
- * Region picker for the set-region dialog: the `region` custom-tag vocabulary
- * (the same one Custom - Region decks use) plus a "No region" option.
- * @returns The region select.
- */
 function RegionSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const { byCategory } = useCustomTagList();
   const items = [
@@ -460,13 +436,6 @@ function RegionSelect({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
-/**
- * The "Add player" call-to-action for the participants top bar: a primary button
- * that opens a dialog asking for the player's name and creates the participant
- * by hand (no account or email). Self-contained so it can sit in the section
- * frame's actions slot.
- * @returns The add-player button and its dialog.
- */
 export function AddParticipantButton({ id }: { id: string }) {
   const addParticipant = useAddParticipant();
   const [open, setOpen] = useState(false);
@@ -482,7 +451,7 @@ export function AddParticipantButton({ id }: { id: string }) {
       setName("");
       setOpen(false);
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   }
 

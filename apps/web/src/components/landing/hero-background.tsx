@@ -11,7 +11,6 @@ export function HeroBackground({
 }) {
   return (
     <div className={cn("relative flex flex-1 flex-col overflow-hidden", className)}>
-      {/* Background: Gradient */}
       <div
         className="absolute inset-0"
         style={{ backgroundImage: "var(--hero-gradient)" }}

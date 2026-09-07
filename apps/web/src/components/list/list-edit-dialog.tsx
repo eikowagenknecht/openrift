@@ -26,13 +26,6 @@ interface ListEditDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Edit dialog for an existing list: name, plus (for wish/trade lists)
- * the list-level trade defaults and currency from ADR-017. Replaces the
- * old rename-only dialog so users can change trade prefs without
- * re-creating the list.
- * @returns The dialog node.
- */
 export function ListEditDialog({
   listId,
   intent,
@@ -50,9 +43,6 @@ export function ListEditDialog({
   const [currency, setCurrency] = useState<Currency>(currentCurrency ?? defaultCurrency);
   const updateList = useUpdateList();
 
-  // Reset draft state whenever the dialog opens — covers the user opening
-  // it for a different list (or after a prior cancel) and finding stale
-  // values from the last edit.
   const [seed, setSeed] = useState({
     open,
     currentName,

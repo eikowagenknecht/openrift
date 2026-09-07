@@ -8,10 +8,7 @@ describe("overviewHoverHandler", () => {
     expect(overviewHoverHandler(false, onHoverCard)).toBe(onHoverCard);
   });
 
-  // Stacks mode expands the hovered card inside its pile, so the zones that
-  // don't stack (Legend, Chosen Champion, a short Runes row) must not be the
-  // only thumbs left popping the docked preview.
-  it("drops the handler in stacks mode", () => {
+  it("drops the handler in stacks mode so non-stacking zones can't pop the docked preview alone", () => {
     expect(overviewHoverHandler(true, vi.fn())).toBeUndefined();
   });
 

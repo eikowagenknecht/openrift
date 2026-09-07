@@ -52,20 +52,10 @@ import { cn, PAGE_WIDTH } from "@/lib/utils";
 
 const routeApi = getRouteApi("/_app/meta_/events");
 
-/** How many rows the page opens with, and how many each "more" adds. */
 const PAGE_SIZE = 50;
 
-/** The holdings control's "no narrowing" option. An empty string clears the param. */
 const ANY_HOLDINGS = "";
 
-/**
- * `/meta/events` — every archived tournament as one row: when and where it ran,
- * how much it counted for, how much of it the archive holds, and who won it.
- *
- * The era the scope names ships as one payload (ADR-014), so the search box, the
- * remaining facets and the column sort all run client-side over it. The count
- * under the title measures what is on screen against the whole archive.
- */
 export function MetaEventsPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
@@ -95,8 +85,7 @@ export function MetaEventsPage() {
     direction,
   );
   const countries = metaEventCountries(fetched);
-  // Reordering is not renarrowing: the same events in a new order stay expanded,
-  // so the sort keys are deliberately absent here.
+  // Sort keys are deliberately absent: reordering keeps the same rows expanded.
   const listKey = `${search.q ?? ""}|${search.holds ?? ""}|${scopeKey(search)}`;
 
   return (
@@ -163,7 +152,6 @@ export function MetaEventsPage() {
   );
 }
 
-/** What the holdings control offers, in the words the index uses for the columns. */
 const HOLDINGS_ITEMS: Record<string, string> = {
   [ANY_HOLDINGS]: "Any events",
   decks: "With decklists",
@@ -171,11 +159,6 @@ const HOLDINGS_ITEMS: Record<string, string> = {
   upcoming: "Upcoming",
 };
 
-/**
- * How much of an event the archive must already hold. An index of every event
- * is mostly dates with nothing behind them yet, and a reader after decklists
- * would otherwise open each row to find that out.
- */
 function HoldingsSelect({
   value,
   onChange,
@@ -206,11 +189,6 @@ function HoldingsSelect({
   );
 }
 
-/**
- * The search box, holding the typed value itself so a keystroke re-renders one
- * input rather than the whole list behind it. The debounced value commits to
- * the URL, which is what the filtering reads.
- */
 function EventSearchBox({
   urlValue,
   onCommit,
@@ -229,11 +207,6 @@ function EventSearchBox({
   );
 }
 
-/**
- * The rows, opened at {@link PAGE_SIZE} and extended a page at a time. Remounted
- * whenever the filters change (its `key`), so a narrowed view always starts at
- * the top of its own list rather than at whatever depth the previous one reached.
- */
 function EventList({ events }: { events: MetaEventSummary[] }) {
   const [shown, setShown] = useState(PAGE_SIZE);
   const remaining = events.length - shown;
@@ -258,10 +231,6 @@ function EventList({ events }: { events: MetaEventSummary[] }) {
   );
 }
 
-/**
- * The column labels, each a sort control. Hidden on phones, where the rows are
- * cards rather than columns and there is nothing for a header to label.
- */
 function SortHeader({
   sort,
   direction,

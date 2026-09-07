@@ -49,7 +49,6 @@ describe("TakeOffTradelistDialog", () => {
 
   it("shows the cross-list warning only once Sold is selected", async () => {
     setup({ count: 1, memberships: onOtherLists });
-    // Keep is the default, so no warning yet.
     expect(screen.queryByText(/also on your other lists/u)).toBeNull();
     await userEvent.click(screen.getByRole("radio", { name: /traded or sold/u }));
     expect(screen.getByText(/1 of these is also on your other lists/u)).toBeDefined();
@@ -69,7 +68,6 @@ describe("TakeOffTradelistDialog", () => {
 
   it("never gates the Keep path, even when copies are on other lists", () => {
     setup({ count: 1, memberships: onOtherLists });
-    // Default Keep selection: confirm enabled, no type-to-confirm, no warning.
     const confirm = screen.getByRole("button", { name: "Take off list" });
     expect((confirm as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByLabelText(/Type/u)).toBeNull();
@@ -82,7 +80,6 @@ describe("TakeOffTradelistDialog", () => {
       "true",
     );
     expect(screen.getByText(/in a live trade\. Complete or cancel it first/u)).toBeDefined();
-    // Keep is still available.
     expect(screen.getByRole("button", { name: "Take off list" })).toBeEnabled();
   });
 });

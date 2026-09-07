@@ -7,14 +7,6 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { useAcceptFriendGroupInvite, useDeclineFriendGroupInvite } from "@/hooks/use-friend-groups";
 
-/**
- * The pending join requests as an accented action band (the overview's
- * trades-hub treatment): a headline count, then one row per request with
- * inline approve / deny. Rendered on both the group overview and the members
- * page, so an admin can act wherever the "N requests to review" badge led
- * them. Call sites own the admin + non-empty gate.
- * @returns The requests band.
- */
 export function PendingRequestsBand({
   slug,
   requests,

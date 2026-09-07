@@ -30,7 +30,6 @@ vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({ cardsById, printingsByCardId }),
 }));
 
-/** The saved board: one card ranked, one tier left empty. */
 const savedTiers: TierRow[] = [
   { label: "S", cards: [{ cardId: "card-a", printingId: printingA.id }] },
   { label: "A", cards: [] },
@@ -48,10 +47,6 @@ vi.mock("@/hooks/use-tier-list-autosave", () => ({
   useTierListAutosave: () => autosave,
 }));
 
-// The three middles are stubbed to markers. Each is tested where it lives, and
-// the real ones draw card art through the router and the catalog query — none of
-// which bears on the two questions here: which board feeds the queue, and which
-// middle the stage is handed.
 vi.mock("@/components/tier-lists/tier-list-dnd-context", () => ({
   TierListDndContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -65,10 +60,6 @@ vi.mock("@/components/present/card-stage-main", () => ({
   CardStageMain: () => <div data-testid="card-show" />,
 }));
 
-/**
- * Captures what the tier source hands the stage. The queue is the whole
- * question — everything the show puts on screen is derived from it.
- */
 interface StageCall {
   items: PresentationItem[];
   index: number;
@@ -85,7 +76,6 @@ vi.mock("@/components/present/presentation-stage", () => ({
   },
 }));
 
-/** @returns The props of the most recent stage render. */
 function lastStage(): StageCall {
   const call = stageCalls.at(-1);
   if (!call) {
@@ -94,7 +84,6 @@ function lastStage(): StageCall {
   return call;
 }
 
-/** @returns The card names the show would walk, in queue order. */
 function queuedCardIds(): string[] {
   return lastStage().items.map((item) => item.printing.cardId);
 }
@@ -149,8 +138,6 @@ describe("OwnedTierListPresentation", () => {
     expect(useTierListBuilderStore.getState().listId).toBeNull();
   });
 
-  // The autosave debounce can hold the last few drags for over a second, which
-  // is easily less than the time between a creator's last drag and their Escape.
   it("sends what is still queued before leaving the stage", () => {
     const { onExit } = renderOwned();
     act(() => {
@@ -161,10 +148,6 @@ describe("OwnedTierListPresentation", () => {
   });
 });
 
-// The claim the merge rests on: the show and the editor read one board, so
-// switching between them never shows a card that was ranked a moment ago as
-// still missing. Presenting off the *saved* board instead would fail these,
-// because the save is debounced and its refetch is not free.
 describe("OwnedTierListPresentation draft as the single source of truth", () => {
   it("puts a card ranked in the editor straight into the show's queue", () => {
     renderOwned({ editing: true });
@@ -187,8 +170,6 @@ describe("OwnedTierListPresentation draft as the single source of truth", () => 
     act(() => {
       useTierListBuilderStore.getState().assign("card-b", 1);
     });
-    // What the autosave's invalidation looks like from here: the query hands
-    // back a new array for the same list. The draft must survive it.
     tierListData.data = { ...tierListData.data, tiers: [...savedTiers] };
     act(() => {
       useTierListBuilderStore.getState().assign("card-b", 0);
@@ -206,8 +187,6 @@ describe("OwnedTierListPresentation draft as the single source of truth", () => 
     act(() => {
       useTierListBuilderStore.getState().unassign("card-b");
     });
-    // Clamped rather than left dangling: an out-of-range index renders a blank
-    // stage, which on a capture is a black hole where the show was.
     expect(lastStage().index).toBe(0);
     expect(lastStage().items).toHaveLength(1);
   });
@@ -215,9 +194,6 @@ describe("OwnedTierListPresentation draft as the single source of truth", () => 
 
 describe("OwnedTierListPresentation board for the OBS overlay", () => {
   it("offers the board as the list saves it, not as the stage resolved it", () => {
-    // The overlay resolves the rows against its own catalogue, exactly as the
-    // board on stage does. Handing it resolved rows would put card objects on
-    // the wire and fail the board schema.
     renderOwned();
     expect(lastStage().obsBoard).toMatchObject({ title: "Best legends", tiers: savedTiers });
   });
@@ -225,8 +201,6 @@ describe("OwnedTierListPresentation board for the OBS overlay", () => {
   it("follows the run once the board is filling card by card", () => {
     usePresentationStore.setState({ reveal: true });
     renderOwned({ index: 1 });
-    // One card is ranked, so the run is one stop long and the index clamps to
-    // it — the card in hand is not on the board.
     expect(lastStage().obsBoard?.revealCount).toBe(0);
   });
 

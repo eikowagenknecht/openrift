@@ -26,17 +26,9 @@ import {
 } from "@/lib/card-submission-copy";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * One submission: what was sent, where it ended up, and anything the reviewer
- * wrote back.
- * @param props.submission The submission to render.
- * @returns The submission card element.
- */
 function SubmissionRow({ submission }: { submission: CardSubmissionStatusResponse }) {
   const explanation = submissionExplanation(submission.reason, submission.resolutionNote);
   const hint = submissionStatusHints[submission.status];
-  // Only link out once the card is really there. A correction always has a
-  // target; a new card only gets a slug once it has been added.
   const cardLink = submission.cardSlug;
 
   return (
@@ -80,11 +72,6 @@ function SubmissionRow({ submission }: { submission: CardSubmissionStatusRespons
   );
 }
 
-/**
- * The contributor's own submission history (ADR-036). Every card sent through
- * /contribute, with what review did about it.
- * @returns The page element.
- */
 export function MySubmissionsPage() {
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useCardSubmissions();
   const submissions = data?.pages.flatMap((page) => page.items) ?? [];

@@ -72,15 +72,10 @@ interface PriceHistoryChartProps {
   printingId: string;
   range?: TimeRange;
   onRangeChange?: (range: TimeRange) => void;
-  /** Date string to highlight on the chart (e.g. from table row hover). */
   highlightedDate?: string | null;
-  /** Called when the user hovers a point on the chart (date string or null on leave). */
   onDateHover?: (date: string | null) => void;
-  /** Externally controlled marketplace source. */
   source?: Marketplace;
-  /** Called when the user changes the marketplace source. */
   onSourceChange?: (source: Marketplace) => void;
-  /** Hide the built-in toolbar (time range + source buttons). */
   hideControls?: boolean;
 }
 
@@ -106,8 +101,6 @@ export function PriceHistoryChart({
 
   const { data: allData } = usePriceHistory(printingId, "all");
 
-  // Compute the actual data span (in days) for the active source so we can
-  // hide range buttons that exceed available history.
   const allSnapshots = allData?.[source]?.snapshots;
   const dataSpanDays =
     allSnapshots && allSnapshots.length >= 2
@@ -123,7 +116,6 @@ export function PriceHistoryChart({
     (tr) => tr.days === 0 || dataSpanDays === null || dataSpanDays >= tr.days,
   );
 
-  // If the active range was hidden (e.g. source switch), fall back to "all".
   const effectiveRange = availableRanges.some((tr) => tr.value === range)
     ? range
     : ("all" as TimeRange);
@@ -132,13 +124,8 @@ export function PriceHistoryChart({
 
   const currencyFormatter = formatterForMarketplace(source);
   const sourceData = data?.[source];
-  // Normalize per-source snapshot shapes into a uniform `{date, value, low?}`.
-  // TCG/CM: headline is `market`, `low` is the secondary line. CardTrader:
-  // headline is the Zero-eligible low drawn directly (breaking on null days,
-  // so snapshots from before zero_low_cents was recorded don't get silently
-  // plotted as the cheaper overall-low — which would make the line appear to
-  // jump up at the point the Zero data begins). The overall low is plotted
-  // as the always-on secondary dashed line, matching TCG/CM.
+  // CardTrader returns null for days before zero_low_cents existed; don't
+  // fall back to the overall low here or those snapshots plot a false drop.
   const rawSnapshots: AnySnapshot[] = sourceData?.snapshots ?? [];
   const snapshots = rawSnapshots.map((s) => ({
     date: s.date,
@@ -158,7 +145,6 @@ export function PriceHistoryChart({
 
   return (
     <div className="space-y-3">
-      {/* Time range + source row */}
       {!hideControls && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <ToggleGroup
@@ -180,8 +166,6 @@ export function PriceHistoryChart({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          {/* Names the plotted series in full. The toggle beside it is logos
-              only, so this is where the source is actually spelled out. */}
           <span className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
             {marketplaceLabel(source)}
             <PriceTrend values={plottedValues} range={effectiveRange} />
@@ -224,10 +208,7 @@ export function PriceHistoryChart({
         </div>
       )}
 
-      {/* Chart */}
-      {/* Chart-shaped rather than a short spinner row: this is the card
-          detail's default view now, so a stubby placeholder would snap the
-          whole panel taller the moment the history lands. */}
+      {/* Full chart-height placeholder avoids a layout jump when the history loads. */}
       {isLoading && (
         <div className="flex aspect-[2.5/1] w-full items-center justify-center">
           <Loader2Icon className="text-muted-foreground size-5 animate-spin" />
@@ -294,7 +275,6 @@ export function PriceHistoryChart({
                 <PriceHistoryTooltipContent source={source} currencyFormatter={currencyFormatter} />
               }
             />
-            {/* Headline value: filled area + solid line */}
             <Area
               dataKey="value"
               type="monotone"
@@ -305,7 +285,6 @@ export function PriceHistoryChart({
               connectNulls
               isAnimationActive={false}
             />
-            {/* Low: dashed line */}
             {hasLow && (
               <Line
                 dataKey="low"

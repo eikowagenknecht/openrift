@@ -47,7 +47,6 @@ describe("PrintingVariantLabel", () => {
       { wrapper: makeWrapper() },
     );
     const text = container.textContent ?? "";
-    // The chip (title "Chinese", text "SC") comes before the code.
     expect(container.querySelector('[title="Chinese"]')?.textContent).toBe("SC");
     expect(text.indexOf("SC")).toBeLessThan(text.indexOf("OGN-001"));
   });
@@ -61,7 +60,6 @@ describe("PrintingVariantLabel", () => {
     expect(text).toContain("OGN-001");
     expect(text).toContain("Standard");
     expect(text.indexOf("OGN-001")).toBeLessThan(text.indexOf("Standard"));
-    // No language chip for a lone standard English printing.
     expect(container.querySelector("[title]")).toBeNull();
   });
 

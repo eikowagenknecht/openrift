@@ -13,22 +13,12 @@ interface DragState {
   offsetY: number;
 }
 
-/**
- * The live card preview. Subscribes to the designer store and renders through
- * the shared `CardPlaceholderImage`. When `interactive` and a background image
- * is present, dragging repositions the image (pan); zoom is driven from the
- * separate controls. The non-interactive variant is used for the off-screen
- * export clone.
- *
- * @returns The preview element.
- */
 export function CardDesignerPreview({
   interactive = false,
   forExport = false,
   className,
 }: {
   interactive?: boolean;
-  /** Render glyph icons from pre-tinted white rasters so html2canvas can capture them. */
   forExport?: boolean;
   className?: string;
 }) {

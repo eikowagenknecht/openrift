@@ -33,18 +33,12 @@ import {
 } from "@/hooks/use-feature-flags";
 import { isValidKebabKey } from "@/lib/admin-slug";
 
-// ---------------------------------------------------------------------------
-// Global flags section
-// ---------------------------------------------------------------------------
-
 interface FlagDraft {
   key: string;
   description: string;
 }
 
-// ── Known flags ──────────────────────────────────────────────────────────────
 // Flags that application code checks. Other keys are stored but have no effect.
-
 interface KnownFlag {
   key: string;
   description: string;
@@ -231,8 +225,6 @@ function GlobalFlagsSection() {
   );
 }
 
-// ── Known flag placeholder row ──────────────────────────────────────────────
-
 function KnownFlagRow({
   known,
   onCreate,
@@ -269,10 +261,6 @@ function KnownFlagRow({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Per-user overrides section
-// ---------------------------------------------------------------------------
 
 interface OverrideRow {
   userId: string;
@@ -472,10 +460,6 @@ function OverridesSection() {
     />
   );
 }
-
-// ---------------------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------------------
 
 export function FeatureFlagsPage() {
   return (

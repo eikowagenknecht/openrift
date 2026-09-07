@@ -15,14 +15,8 @@ import { moveQueueEntry } from "@/lib/card-queue";
 import { formatPublicCode } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/**
- * Small square card thumbnail for the queue rows.
- * @returns The thumbnail, or a name-only placeholder when the printing has no art.
- */
 function QueueThumb({ printing }: { printing: Printing }) {
   return (
-    // Card-shaped, unlike the app's list rows: the queue mirrors what the stage
-    // will put on screen, so each entry reads as the whole card.
     <CardArtThumb
       imageId={printing.images[0]?.imageId}
       variant="400w"
@@ -41,27 +35,14 @@ function QueueThumb({ printing }: { printing: Printing }) {
 }
 
 /**
- * Sortable id for the queue entry at `index`. The same card may sit in the
- * queue more than once, so the printing id alone would not be unique — the
- * position disambiguates, and positions only change on drop, after dnd-kit is
- * done with them.
- *
- * @returns The row's sortable id.
+ * The printing id alone is not unique: the same card can sit in the queue
+ * more than once, so the position disambiguates.
  */
 function rowId(id: string, index: number): string {
   return `${id}-${index}`;
 }
 
-/**
- * One queue entry: a drag handle, its position, the card, and the move /
- * remove controls.
- *
- * The up/down buttons are not redundant with the handle — they are the
- * keyboard and screen-reader path to the same reorder, which a pointer-only
- * grip would leave with no equivalent.
- *
- * @returns The queue row.
- */
+/** The up/down buttons are the keyboard and screen-reader path to the reorder the grip does by pointer. */
 function QueueRow({
   id,
   index,
@@ -83,9 +64,8 @@ function QueueRow({
   rowAction?: (printing: Printing, index: number) => ReactNode;
 }) {
   const rowData: StageQueueRowData = { type: "stage-queue-row", index };
-  // Destructure into locals before JSX: the React Compiler reads member access
-  // on the hook's return object (sortable.listeners, …) as a ref read during
-  // render and bails on the file. Same rule as SortableSidebarRow.
+  // Destructure before JSX: member access on the hook's return object in
+  // render makes the React Compiler bail on the file.
   const {
     setNodeRef,
     setActivatorNodeRef,
@@ -95,9 +75,8 @@ function QueueRow({
     transition,
     isDragging,
   } = useSortable({ id: rowId(id, index), data: rowData });
-  // The target a card arriving from the browser lands on. Separate from the
-  // sortable above, and on an inner element so both can be measured — see
-  // StageQueueSlotDropData for why they cannot be the same droppable.
+  // Separate droppable from the sortable above, on an inner element so both
+  // can be measured (see StageQueueSlotDropData).
   const { setNodeRef: setSlotRef, isOver: isSlotOver } = useDroppable({
     id: `stage-queue-slot-${index}`,
     data: { type: "stage-queue-slot", index },
@@ -115,7 +94,6 @@ function QueueRow({
       style={style}
       className={cn(
         "bg-card ring-border relative flex items-center gap-3 rounded-md p-2 ring-1",
-        // Where the card would land: above this stop, so the line goes on top.
         isSlotOver &&
           "before:bg-primary before:absolute before:inset-x-0 before:-top-0.5 before:h-0.5 before:rounded-full",
       )}
@@ -131,9 +109,8 @@ function QueueRow({
         className={cn(
           "text-muted-foreground hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-md outline-hidden",
           "cursor-grab active:cursor-grabbing",
-          // dnd-kit's PointerSensor needs the browser to keep sending pointer
-          // events; the default touch-action scrolls the page instead and the
-          // pointercancel aborts the drag before it activates.
+          // dnd-kit's PointerSensor needs pointer events; the default
+          // touch-action scrolls the page and aborts the drag instead.
           "touch-none",
           "focus-visible:ring-ring focus-visible:ring-2",
         )}
@@ -146,8 +123,6 @@ function QueueRow({
       <QueueThumb printing={printing} />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{legendDisplayName(printing.card)}</span>
-        {/* Which variant is queued. Two entries for the same card only differ
-            here, so without it a deliberately-picked promo is invisible. */}
         <PrintingVariantLabel
           printing={printing}
           siblings={siblings}
@@ -182,19 +157,7 @@ function QueueRow({
   );
 }
 
-/**
- * The assembled queue, reorderable by dragging a row's grip or by the per-row
- * up/down buttons, and fillable by dragging a card in from the browser beside
- * it.
- *
- * The drags themselves are owned by {@link StageDndContext} rather than by a
- * context of this list's own: a card arriving from the browser starts outside
- * the queue, and only one context can see both ends of that. This list supplies
- * the targets and keeps the button path, which is the keyboard and
- * screen-reader equivalent of the grip.
- *
- * @returns The ordered queue list.
- */
+/** Drags are owned by {@link StageDndContext}, not by a context of this list's own: a card arriving from the browser starts outside the queue, and only one context can see both ends of that drag. */
 export function QueueList({
   ids,
   printingsById,

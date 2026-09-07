@@ -8,19 +8,6 @@ import { SectionHeading } from "@/components/ui/section-heading";
 
 const BREADCRUMB_SEP = " \u203A ";
 
-/**
- * Printing-specific notes shown in the detail pane. Split into three boxes: a
- * "Promo" box (markers + distribution channels), a "Sources" box citing where
- * those claims come from, and a separate "Note" box for the printing's comment,
- * since comments aren't always promo-related. Each box is omitted when its data
- * isn't present.
- *
- * Sources get their own box rather than a line inside "Promo": a printing can
- * be cited without carrying a marker or a channel at all (a leak video is
- * evidence the printing exists before anyone knows how it was handed out).
- *
- * @returns Up to three stacked boxes, or `null` when there's nothing to say.
- */
 export function PrintingNotesSection({ printing }: { printing: Printing }) {
   const hasMarkers = printing.markers.length > 0;
   const hasChannels = printing.distributionChannels.length > 0;

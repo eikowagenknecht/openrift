@@ -4,14 +4,7 @@ import { getOrientation, legendDisplayName } from "@openrift/shared";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
-/**
- * The quick-add palette's card image preview. The palette renders it twice —
- * above the drawer on mobile, floating off the left edge of the dialog on
- * desktop — differing only in the wrapper's size and position, which the caller
- * supplies. Landscape cards (battlefields) are rotated in CSS, which needs the
- * extra clipping wrapper.
- * @returns The framed preview image.
- */
+/** Landscape cards (battlefields) are rotated in CSS, which needs the extra clipping wrapper. */
 export function QuickAddPreview({
   printing,
   src,

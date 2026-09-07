@@ -27,19 +27,7 @@ import {
   validateMetaEventCorrectionDraft,
 } from "@/lib/meta-event-correction-form";
 
-/**
- * "Suggest a correction" for an archived event's own facts (ADR-014's User
- * submissions). Every box opens holding what the archive says, so changing one
- * is the whole gesture; the note is what a reviewer reads first and is the one
- * required field.
- *
- * Nothing here edits the event. The correction goes into the same review queue a
- * decklist does, and an admin applies it by hand.
- *
- * @param props.event The event as the page has it.
- * @param props.onClose Closes the dialog.
- * @returns The dialog element.
- */
+/** Submits to the review queue; nothing here edits the event, an admin applies it by hand. */
 export function MetaEventCorrectionDialog({
   event,
   onClose,

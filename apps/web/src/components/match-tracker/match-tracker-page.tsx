@@ -20,11 +20,7 @@ import {
 import type { MedallionSize, Seat, XpSize } from "@/lib/match-layout";
 import { useMatchTrackerStore } from "@/stores/match-tracker-store";
 
-/**
- * Match tracker entry point. The store reads localStorage, so rendering is
- * gated behind hydration to avoid an SSR mismatch (see `useHydrated`).
- * @returns The tracker, or null during SSR / before hydration.
- */
+// The store reads localStorage, so rendering is gated behind hydration to avoid an SSR mismatch.
 export function MatchTrackerPage() {
   const hydrated = useHydrated();
   if (!hydrated) {
@@ -43,12 +39,9 @@ function MatchTracker() {
 
 function MatchBoard() {
   const playerIds = useMatchTrackerStore(useShallow((state) => state.players.map((p) => p.id)));
-  // Portrait stacks everyone into one column; landscape keeps a two-row grid.
   const isLandscape = useIsLandscape();
   const rows = planSeats(playerIds, isLandscape);
 
-  // The score and XP cluster scale to how much height each panel gets, measured
-  // from the actual board height (see scoreSizeClass / xpSizeTier).
   const boardRef = useRef<HTMLDivElement>(null);
   const boardHeight = useMeasuredHeight(boardRef);
   const panelHeight = perRowHeight(boardHeight, rows.length);
@@ -57,10 +50,8 @@ function MatchBoard() {
   const xpSize = xpSizeTier(panelHeight);
 
   return (
-    // Full-bleed board: clear the iOS safe areas so a landscape Dynamic Island
-    // (sides) and the home indicator (bottom) don't cover the edge panels. Top
-    // is handled by the sticky app header. max() keeps the dense 8px gutter
-    // everywhere the insets resolve to 0.
+    // Clears the iOS safe areas so a landscape Dynamic Island (sides) and home indicator
+    // (bottom) don't cover the edge panels; max() keeps the 8px gutter where insets are 0.
     <div className="relative flex min-h-0 flex-1 flex-col pt-2 pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))]">
       <div ref={boardRef} className="relative flex min-h-0 flex-1 flex-col gap-2">
         {rows.map((seats) => (
@@ -79,11 +70,7 @@ function MatchBoard() {
   );
 }
 
-/**
- * Track an element's pixel height, updating on resize. Measured in a layout
- * effect so the corrected value lands before the browser paints.
- * @returns The element's current `clientHeight` (0 until first measured).
- */
+// Measured in a layout effect so the corrected value lands before the browser paints.
 function useMeasuredHeight(ref: RefObject<HTMLDivElement | null>): number {
   const [height, setHeight] = useState(0);
   useLayoutEffect(() => {
@@ -159,8 +146,7 @@ function WinnerBanner() {
   }
 
   return (
-    // Above the seam controls (z-20), which would otherwise punch through the
-    // banner because neither sits in its own stacking context.
+    // z-30: above the seam controls (z-20), which don't sit in their own stacking context.
     <div className="bg-background/80 absolute inset-0 z-30 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-card w-full max-w-sm space-y-4 rounded-lg border p-6 text-center shadow-lg">
         <TrophyIcon className="text-primary mx-auto size-10" />

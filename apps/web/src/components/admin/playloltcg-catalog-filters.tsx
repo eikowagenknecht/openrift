@@ -15,19 +15,12 @@ import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 const STATUS_OPTIONS = [{ value: ANY, label: "Any status" }, ...PLAYLOLTCG_STATUS_CHOICES];
 
-/** Narrows a status select's value to the lifecycle step the URL carries. */
 function playloltcgStatusParam(value: string): MetaSearch["plStatus"] {
   return PLAYLOLTCG_STATUSES.find((status) => String(status) === value);
 }
 
-/**
- * The playloltcg catalogue's filter row, with the count line under it. The
- * uvsgames row's twin, minus the decklist filter: the source has no
- * decklist-status field, so "awaiting results" is the only thing that can be
- * said about an accepted event's coverage.
- *
- * @returns The catalogue toolbar.
- */
+// The uvsgames row's twin, minus the decklist filter: the source has no
+// decklist-status field.
 export function PlayloltcgCatalogFilters({
   filters,
   triage,

@@ -6,9 +6,6 @@ vi.mock("@tanstack/react-router", () => ({
   useNavigate: () => vi.fn(),
 }));
 
-// The overlay is exercised by its own test; here it only has to report which
-// printing the provider handed it and which sequence came with it. The "next"
-// control stands in for the detail's own prev/next.
 vi.mock("@/components/cards/card-detail-overlay", () => ({
   CardDetailOverlay: ({
     openPrintingId,
@@ -85,8 +82,6 @@ describe("CardDetailNameButton", () => {
   });
 
   it("keeps the sequence while stepping to another card", async () => {
-    // Checking a stack of cards one by one is the point of the sequence, so it
-    // has to survive every step rather than only the row that opened it.
     const user = userEvent.setup();
     render(
       <CardDetailOverlayProvider>
@@ -112,7 +107,6 @@ describe("CardDetailNameButton", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Yasuo" }));
-    // With no sequence the stand-in reports null, the same as a real dismissal.
     await user.click(screen.getByRole("button", { name: "next" }));
 
     expect(screen.queryByText(/overlay for/u)).not.toBeInTheDocument();
@@ -130,8 +124,6 @@ describe("CardDetailNameButton", () => {
   });
 
   it("renders plain text outside a provider", () => {
-    // The row components are shared with surfaces that mount no overlay; a name
-    // that looks clickable and does nothing would be worse than a label.
     render(<CardDetailNameButton printingId="printing-1">Yasuo</CardDetailNameButton>);
 
     expect(screen.getByText("Yasuo")).toBeInTheDocument();
@@ -152,8 +144,6 @@ describe("CardDetailOverlayProvider", () => {
   });
 
   it("reports opening once, and not again for a step to the next printing", async () => {
-    // The scan page stops locking cards while a detail is up, so a step through
-    // the sequence must not read as a close and a reopen.
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     render(
@@ -181,7 +171,6 @@ describe("CardDetailOverlayProvider", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Yasuo" }));
-    // With no sequence the stand-in reports null, the same as a real dismissal.
     await user.click(screen.getByRole("button", { name: "next" }));
 
     expect(onOpenChange.mock.calls).toEqual([[true], [false]]);

@@ -102,9 +102,6 @@ describe("SelectionMobileOverlay neighbor navigation", () => {
   });
 
   it("offers no neighbor navigation when the stored index is stale", async () => {
-    // The list shrank while the overlay was open: selectedIndex points past the
-    // current items, so items[selectedIndex - 1] is undefined and the old
-    // handler crashed with a TypeError on click.
     const items = [stubCardViewerItem()];
     useSelectionStore.setState({
       selectedCard: stubCardViewerItem().printing,
@@ -113,8 +110,6 @@ describe("SelectionMobileOverlay neighbor navigation", () => {
     });
     renderOverlay(items);
 
-    // Awaiting the stub proves the lazy CardDetail resolved, so the absence
-    // checks below don't pass vacuously against the Suspense skeleton.
     await screen.findByText("Card detail stub");
     expect(screen.queryByRole("button", { name: "Previous card" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next card" })).not.toBeInTheDocument();

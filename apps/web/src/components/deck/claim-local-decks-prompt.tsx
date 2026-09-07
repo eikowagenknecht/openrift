@@ -21,14 +21,6 @@ import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocalDecksStore } from "@/stores/local-decks-store";
 
-/**
- * One-time prompt (ADR-035) shown on `/decks` after sign-in when browser-local
- * decks exist. The user picks which to keep; selected decks are written to the
- * account and removed from local storage, unpicked ones stay local. Mounting it
- * here catches every sign-in path (email, OTP, social) with one seam.
- *
- * @returns The claim prompt, or null when there's nothing to claim.
- */
 export function ClaimLocalDecksPrompt() {
   const userId = useUserId();
   const hydrated = useHydrated();
@@ -67,21 +59,17 @@ export function ClaimLocalDecksPrompt() {
           format: deck.format,
         });
         await saveDeckCards.mutateAsync({ deckId: created.id, cards: deck.cards });
-        // `create` can't set formatConfig (e.g. Custom-Region tags), so patch it
-        // afterward to keep the claim lossless.
+        // `create` can't set formatConfig (e.g. Custom-Region tags); patch it afterward.
         if (deck.formatConfig) {
           await updateDeck.mutateAsync({ deckId: created.id, formatConfig: deck.formatConfig });
         }
         importedIds.push(deck.id);
       } catch {
-        // Deliberately a SECOND toast on top of the global mutation error one:
-        // this loop claims several decks, and only this toast names which one
-        // failed while the others carried on.
+        // Second toast beside the global mutation error one: this loop claims several decks, only this toast names which one failed.
         toast.error(`Couldn't import "${deck.name}".`);
       }
     }
-    // Refresh the server list, THEN drop the imported locals — so a freshly
-    // imported deck never appears twice in the merged list.
+    // Refresh the server list before dropping the imported locals, or a freshly imported deck can appear twice in the merged list.
     if (userId) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId) });
     }

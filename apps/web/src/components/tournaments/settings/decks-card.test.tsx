@@ -53,8 +53,6 @@ beforeEach(() => {
 });
 
 describe("DecksCard deadline visibility", () => {
-  // The deadline, the edit-lock and the push guidance only mean anything once
-  // lists are actually being collected.
   it("hides the deadline block when no decks are collected", () => {
     render(<DecksCard detail={makeDetail({ deckSubmission: "none" })} locked={false} />);
 
@@ -119,7 +117,6 @@ describe("DecksCard deadline validation", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
-  // A tournament with no end has nothing to compare the deadline against.
   it("accepts any deadline when the tournament has no end", async () => {
     const user = userEvent.setup();
     render(<DecksCard detail={makeDetail({ endsAt: null })} locked={false} />);

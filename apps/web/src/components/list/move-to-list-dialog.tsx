@@ -17,18 +17,12 @@ import { cn } from "@/lib/utils";
 interface MoveToListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Eligible targets: same kind + intent as the source, current list excluded. */
   lists: ListResponse[];
   onMove: (toListId: string) => void;
   isPending: boolean;
 }
 
-/**
- * Picks a destination list for moving the selected entries. Mirrors the
- * collection MoveDialog; the caller filters `lists` to same-kind + same-intent
- * targets (the API rejects mismatches) and excludes the current list.
- * @returns The move-to-list picker dialog.
- */
+/** Caller must filter `lists` to same-kind + same-intent targets; the API rejects mismatches. */
 export function MoveToListDialog({
   open,
   onOpenChange,
@@ -47,7 +41,7 @@ export function MoveToListDialog({
           <AlertDialogDescription>
             Choose a list to move the selected cards to.
           </AlertDialogDescription>
-          {/* No overflow here — CommandList scrolls internally, keeping the filter input pinned. */}
+          {/* Do not add overflow here: CommandList scrolls internally. */}
           <div>
             {lists.length === 0 ? (
               <p className="text-muted-foreground py-4 text-center text-sm">

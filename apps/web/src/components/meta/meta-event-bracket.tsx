@@ -9,7 +9,6 @@ import type { MetaBracketMatch, MetaBracketRound, MetaBracketSeat } from "@/lib/
 import { metaEventBracket } from "@/lib/meta-bracket";
 import { cn } from "@/lib/utils";
 
-/** The final's card wears the archive's winning colour, quieter than a podium seat. */
 const FINAL_GLOW = accentGlow(12);
 
 const SEAT_NAME_CLASS = "min-w-0 flex-1 truncate";
@@ -43,8 +42,6 @@ function Seat({ seat, player }: { seat: MetaBracketSeat; player: MetaEventPlayer
     >
       {player === undefined ? <span className="size-5 shrink-0" /> : <Medal rank={player.rank} />}
       <SeatName seat={seat} player={player} />
-      {/* The compact bracket is the one surface allowed the champion alone: a
-          full "Kennen · Heart of the Tempest" does not fit a bracket cell. */}
       <MetaIdentity
         name={player?.legend?.name}
         championOnly
@@ -97,16 +94,6 @@ function Round({
   );
 }
 
-/**
- * The top cut as a bracket, one column per round.
- *
- * Phones read it final first: a bracket's point is who won, and a vertical list
- * that opens on the quarterfinals buries that under eight rows. Desktop keeps
- * the left-to-right progression the rounds actually ran in.
- *
- * Renders nothing when the event's matches record no cut — most of the archive
- * is standings without pairings, and the page is complete without this section.
- */
 export function MetaEventBracket({
   matches,
   phases,
@@ -126,8 +113,7 @@ export function MetaEventBracket({
   return (
     <section className="mt-8">
       <Heading className="mb-3">{bracket.title}</Heading>
-      {/* `flex-col-reverse` is what turns the rounds final-first on phones,
-          without a second copy of the markup to keep in step. */}
+      {/* flex-col-reverse renders the rounds final-first on phones without duplicate markup. */}
       <div
         className="flex flex-col-reverse gap-4 lg:grid lg:gap-5"
         style={{ gridTemplateColumns: `repeat(${bracket.rounds.length}, minmax(0, 1fr))` }}

@@ -17,8 +17,7 @@ const captured = vi.hoisted(() => ({
   unknownZoneCounts: null as ReadonlyMap<string, number> | null,
 }));
 
-// The surface itself is the public share renderer; these tests are about what
-// the archive hands it, so it renders only the slots under test.
+// Stubs the public share renderer's slots; these tests are about what the archive hands it.
 vi.mock("@/components/deck/public-deck-surface", () => ({
   PublicDeckSurface: ({
     topBar,
@@ -48,14 +47,12 @@ vi.mock("@/components/deck/public-deck-surface", () => ({
   },
 }));
 
-// The runes read the enum orders off a suspense query, which this file has no
-// client for; the legend's name is what the assertions are about.
+// DomainIcon reads enum orders off a suspense query this file has no client for.
 vi.mock("@/components/deck/domain-icon", () => ({
   DomainIcon: ({ domain }: { domain: string }) => <span>{domain}</span>,
 }));
 
-// Mounts the print and export dialogs, which subscribe a draft collection this
-// file has no query client for. The menu is covered by its own tests.
+// Mounts print/export dialogs that subscribe a draft collection this file has no query client for.
 vi.mock("@/components/deck/public-deck-actions-menu", () => ({
   PublicDeckActionsMenu: () => <div>Deck actions</div>,
 }));
@@ -124,7 +121,6 @@ vi.mock("@tanstack/react-router", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { MetaDeckPage } from "./meta-deck-page";
 
-/** One deck card, filled out enough for the encoder and the zone counting. */
 function deckCard(zone: string, quantity: number): Record<string, unknown> {
   return {
     cardId: `card-${zone}`,
@@ -140,7 +136,6 @@ function deckCard(zone: string, quantity: number): Record<string, unknown> {
   };
 }
 
-/** Renders the page for one archived deck's contributors and list status. */
 function renderDeck(
   meta: {
     listStatus?: string;
@@ -159,7 +154,6 @@ function renderDeck(
   render(<MetaDeckPage token="aB3dE5gH7jK9" />);
 }
 
-/** @returns The contributor line's text, or null when there is none. */
 function line(): string | null {
   return screen.queryByText(/^Contributed by/u)?.textContent ?? null;
 }
@@ -241,8 +235,7 @@ describe("MetaDeckPage archive frame", () => {
     expect(screen.queryByText(/players$/u)).toBeNull();
   });
 
-  // The event date renders as `2026-08-01`, which is the shape of a record too,
-  // so the assertion counts them rather than matching one.
+  // The event date `2026-08-01` also matches the record pattern, so this counts matches.
   it("leaves the record out when the source published none, rather than inventing 0-0-0", () => {
     renderDeck({ wins: null, losses: null });
     expect(screen.getAllByText(/^\d+-\d+-\d+$/u)).toHaveLength(1);

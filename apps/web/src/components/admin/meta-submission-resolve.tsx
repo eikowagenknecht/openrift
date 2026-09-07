@@ -38,49 +38,24 @@ import {
   metaSubmissionStatusLabels,
 } from "@/lib/meta-submission-copy";
 
-/**
- * The three outcomes, in the order an admin meets them. `already_correct` leads
- * because it is the expected result when a second person sends a list the
- * archive already has — the common case and the polite one — and it is a plain
- * radio option beside the other two, never a step further away than `rejected`.
- */
 const RESOLUTION_ORDER: MetaSubmissionResolution[] = ["already_correct", "not_applied", "rejected"];
 
-/** The reason a given outcome usually carries, so the common case is one click. */
 const DEFAULT_REASON: Record<MetaSubmissionResolution, MetaSubmissionReason | null> = {
   already_correct: "already_correct",
-  // Nothing generic fits "read it and took nothing from it", and a wrong canned
-  // sentence is worse than none, so the admin picks one or writes their own.
   not_applied: null,
   rejected: "not_an_event",
 };
 
-/**
- * Declared above the component: the React Compiler bails on a function declared
- * after the return, and on one called before its declaration.
- *
- * @param status - The outcome currently selected.
- * @param note - The reviewer's own words, trimmed.
- * @param reason - The canned reason, if one is picked.
- * @returns True when the submit must stay disabled.
- */
+// Declared above the component: the React Compiler bails on a function
+// declared after the return, or one called before its declaration.
 function blocksSubmit(
   status: MetaSubmissionResolution,
   note: string,
   reason: MetaSubmissionReason | null,
 ): boolean {
-  // A rejection is the one outcome that is a judgement, so it may never reach
-  // the contributor as a bare "Not used". Either half of the explanation will
-  // do — a note replaces the canned sentence anyway.
   return status === "rejected" && reason === null && note.length === 0;
 }
 
-/**
- * What the archive already told this contributor, for a submission that is
- * settled. Shown instead of the form, with the reopen that undoes a misclick.
- *
- * @returns The resolved summary.
- */
 function ResolvedSummary({
   submission,
   onReopen,
@@ -128,24 +103,9 @@ function ResolvedSummary({
 
 interface MetaSubmissionResolveProps {
   submission: AdminMetaSubmission;
-  /**
-   * Scopes the cache invalidation to the overlay this was resolved from. Null
-   * for a correction to an event's facts, which stages no overlay.
-   */
   playerOverlayId: string | null;
 }
 
-/**
- * The resolve control for one contributed decklist (ADR-014's user
- * submissions). Accepting is the accept path's job and writes a public credit
- * with it, so `accepted` is deliberately not among the outcomes here: this is
- * the other half, the one that tells someone their list was not used and why.
- *
- * Without it a submission could only ever reach `accepted`, and a declined
- * contributor would read "pending" forever.
- *
- * @returns The pending form's trigger, or the resolved summary with its reopen.
- */
 export function MetaSubmissionResolve({ submission, playerOverlayId }: MetaSubmissionResolveProps) {
   const resolve = useResolveMetaSubmission();
   const reopen = useReopenMetaSubmission();
@@ -153,14 +113,10 @@ export function MetaSubmissionResolve({ submission, playerOverlayId }: MetaSubmi
   const [status, setStatus] = useState<MetaSubmissionResolution>("already_correct");
   const [reason, setReason] = useState<MetaSubmissionReason | null>("already_correct");
   const [note, setNote] = useState("");
-  // The API's own explanation when the accept settled this first; shown in
-  // place of a failure toast, which would say nothing an admin could act on.
   const [conflict, setConflict] = useState(false);
 
   function pickStatus(next: MetaSubmissionResolution) {
     setStatus(next);
-    // Follow the outcome's usual reason until the admin overrides it, which is
-    // what keeps the common case one click.
     setReason(DEFAULT_REASON[next]);
   }
 
@@ -279,9 +235,7 @@ export function MetaSubmissionResolve({ submission, playerOverlayId }: MetaSubmi
                 note={note}
                 onReasonChange={setReason}
                 onNoteChange={setNote}
-                // Unlike the card dialog, a reason is genuinely optional here:
-                // `not_applied` has no canned sentence that fits, and the
-                // contract's `reason` is nullable.
+                // `not_applied` has no canned sentence, and the contract's `reason` is nullable.
                 allowNoReason
               />
               {submission.note !== null && (

@@ -72,7 +72,6 @@ const EMPTY_FILTER_STATE = {
   banned: null,
   errata: null,
   standard: null,
-  // Negation companions (ADR-034).
   setsEx: [],
   languagesEx: [],
   raritiesEx: [],
@@ -187,9 +186,6 @@ describe("ActiveFilters custom tags", () => {
   });
 
   it("renders a badge for each selected custom tag, grouped by category", () => {
-    // Regression: custom-tag URL state had no representation in the active
-    // filters bar, so a tag added from the filter panel couldn't be removed
-    // from there.
     setupHooks({
       customTags: [
         makeCustomTag({
@@ -234,7 +230,6 @@ describe("ActiveFilters custom tags", () => {
     const user = userEvent.setup();
     const { getByText } = render(<ActiveFilters availableFilters={makeAvailable()} />);
 
-    // The badge for "Bilgewater" wraps an X button — click it.
     const badge = getByText("Bilgewater").closest("span") ?? getByText("Bilgewater");
     const removeButton = badge.parentElement?.querySelector("button");
     expect(removeButton).not.toBeNull();
@@ -253,7 +248,6 @@ describe("ActiveFilters custom tags", () => {
       <ActiveFilters availableFilters={makeAvailable()} hiddenSections={new Set(["customTags"])} />,
     );
 
-    // No other filters are set, so the bar should not render at all.
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -335,7 +329,6 @@ describe("ActiveFilters copies range", () => {
       <ActiveFilters availableFilters={makeAvailable()} ownedCountMax={9} />,
     );
 
-    // min-only renders as "≥3".
     const badge = getByText("≥3").closest("span") ?? getByText("≥3");
     const removeButton = badge.parentElement?.querySelector("button");
     await user.click(removeButton!);
@@ -354,7 +347,6 @@ describe("ActiveFilters copies range", () => {
       />,
     );
 
-    // No other filters are set, so the bar should not render at all.
     expect(container).toBeEmptyDOMElement();
   });
 });
@@ -423,8 +415,6 @@ describe("ActiveFilters standard flag + exclude chips (ADR-034)", () => {
   });
 
   it("renders the Standard chip in the include/exclude language when forbidden", () => {
-    // The false state reads as a struck-out "Standard" with a minus (like an
-    // exclude chip), not the old "Non-standard" wording.
     setupExcludeHooks({ standard: false });
 
     const { getByText } = render(<ActiveFilters availableFilters={makeAvailable()} />);

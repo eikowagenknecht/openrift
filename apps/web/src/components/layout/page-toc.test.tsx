@@ -17,7 +17,6 @@ let resetStore: () => void;
 
 beforeEach(() => {
   resetStore = createStoreResetter(usePageTocStore);
-  // Render a target for each id so the click handler's querySelector resolves.
   for (const item of ITEMS) {
     const heading = document.createElement("div");
     heading.id = item.id;

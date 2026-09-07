@@ -53,20 +53,13 @@ import { parseDeckImportAuto } from "@/lib/deck-import-parsers";
 import { errorText } from "@/lib/error-text";
 import { formatRank } from "@/lib/meta-format";
 
-/**
- * How a pasted line named its card, for the unmatched and review lists.
- * @returns The source's own name or short code.
- */
 function sourceLabel(entry: DeckMatchedEntry): string {
   return entry.entry.cardName ?? entry.entry.shortCode ?? "(unnamed line)";
 }
 
-/** What one parse produced: the rows to save, plus everything worth reporting. */
 interface ParseResult {
   cards: ImportedDeckCard[];
-  /** Fuzzy name matches — saved, but worth eyeballing before the save. */
   needsReview: { source: string; matched: string }[];
-  /** Lines no card was found for. These are dropped. */
   unresolved: string[];
   warnings: string[];
   detected: string;
@@ -89,11 +82,6 @@ const isChampionUnit = (card: Card) =>
   card.types.includes(WellKnown.cardType.UNIT) &&
   card.superTypes.includes(WellKnown.superType.CHAMPION);
 
-/**
- * One catalog pick for the player's legend or champion.
- *
- * @returns The picker, or the picked card with a clear button.
- */
 function PlayerCardPicker({
   label,
   hint,
@@ -153,20 +141,12 @@ function PlayerCardPicker({
 
 interface MetaPlayerDialogProps {
   eventId: string;
-  /** The event's own format, used as the default for a new decklist. */
   eventFormat: string;
-  /** The standings row being edited. Omitted when the dialog adds a new one. */
   player?: AdminMetaPlayer;
   onClose: () => void;
 }
 
-/**
- * The add / edit form for one standings row (ADR-014). A decklist is optional;
- * when there is one its cards come from the same paste-and-match pipeline as
- * /decks/import, so a deck code, a text list, or a TTS string all work.
- *
- * @returns The standings-row dialog.
- */
+/** A decklist's cards come from the same paste-and-match pipeline as /decks/import. */
 export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: MetaPlayerDialogProps) {
   const { allPrintings, cardsById } = useCards();
   const { formats, labels: formatLabels } = useDeckFormatList();
@@ -198,7 +178,6 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
 
   const isPending = createPlayer.isPending || writeOverlay.isPending || renameDeck.isPending;
   const wantsList = draft.listStatus !== "none";
-  /** True when the stored row already has a deck the save can leave alone. */
   const hasStoredList = player !== undefined && player.listStatus !== "none";
 
   function set<TKey extends keyof MetaPlayerDraft>(key: TKey, value: MetaPlayerDraft[TKey]) {
@@ -235,9 +214,8 @@ export function MetaPlayerDialog({ eventId, eventFormat, player, onClose }: Meta
   }
 
   /**
-   * Claims only what moved, so an edit that touched the finish never takes the
-   * name out of the sources' hands as a side effect. A rename with no new list
-   * is its own call: the deck name is a durable write, not a claim.
+   * Claims only what moved. A rename with no new list is its own call: the
+   * deck name is a durable write, not a claim.
    */
   async function saveEdit(current: AdminMetaPlayer, cards: ImportedDeckCard[]): Promise<void> {
     const fields = metaPlayerOverlayFields(current, draft);

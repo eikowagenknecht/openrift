@@ -11,13 +11,6 @@ import { useUserId } from "@/lib/auth-session";
 import { STAFF_ROLE_LABEL } from "@/lib/tournament-display";
 import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * The one action the landing offers, which differs by who is looking: a
- * stranger signs in first, a host who already holds the role is told so, and
- * everyone else gets the confirm that actually grants it.
- *
- * @returns The action for this viewer.
- */
 function StaffInviteAction({
   alreadyStaff,
   roleLabel,
@@ -56,15 +49,7 @@ function StaffInviteAction({
   );
 }
 
-/**
- * The staff-invite landing: someone opens the host's link, sees the event and
- * the role they'd take, and confirms. The grant happens only on that explicit
- * confirm (a POST that needs a session), never on opening the page, so a link
- * scanner claims nothing and a signed-out invitee still reads what they were
- * invited to before creating an account.
- *
- * @returns The staff-invite confirmation surface.
- */
+// The grant only happens on explicit confirm (a POST), never on opening the page.
 export function TournamentStaffInvitePage({ token }: { token: string }) {
   const { data } = useTournamentStaffInviteLanding(token);
   const claim = useClaimStaffInvite();
@@ -79,7 +64,7 @@ export function TournamentStaffInvitePage({ token }: { token: string }) {
       toast.success(successMessage);
       void navigate({ to: "/tournaments/$id", params: { id: result.tournamentId } });
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   }
 

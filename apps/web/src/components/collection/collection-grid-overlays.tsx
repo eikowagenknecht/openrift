@@ -34,20 +34,8 @@ interface CollectionGridOverlaysProps {
 }
 
 /**
- * Every dialog mounted once below the collection grid (quick add, delete,
- * clear inbox, edit, share, annotated dispose, copy details, take confirm,
- * take follow-up). Rendered as the trailing sibling of the empty/populated
- * content branch rather than inside either arm, so these overlays keep a
- * single, stable mount point across the empty <-> populated transition (an
- * open QuickAddPalette keeps its state across the first add instead of
- * remounting when the empty-state subtree unmounts).
- *
- * Which overlay is open comes from the collection overlay store, not from
- * props: the grid dispatches into that store without subscribing to it, so
- * opening a dialog doesn't re-render the virtualized grid behind it. What stays
- * as props is what only the grid can supply — the catalog maps, the mutation
- * handlers and their pending flags.
- * @returns The overlay dialogs for the collection grid.
+ * Must render as a sibling of the empty/populated branch, not inside either
+ * arm, or an open QuickAddPalette remounts and loses state on the first add.
  */
 export function CollectionGridOverlays({
   addTarget,

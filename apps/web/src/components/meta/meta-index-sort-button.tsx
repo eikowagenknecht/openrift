@@ -3,11 +3,6 @@ import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Pressable } from "@/components/ui/pressable";
 import { cn } from "@/lib/utils";
 
-/**
- * One column label in an archive index's header row, doubling as its sort
- * control: a click sorts by the column, a second click flips the direction.
- * Shared by the tournament and legend indexes so the headers read the same.
- */
 export function IndexSortButton<TColumn extends string>({
   column,
   sort,

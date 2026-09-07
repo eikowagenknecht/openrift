@@ -8,13 +8,6 @@ interface ListRemoveDialogProps {
   isPending: boolean;
 }
 
-/**
- * Confirms removing the selected entries from a list. Mirrors the collection
- * DisposeDialog so the bulk-remove flow reads the same across surfaces, with
- * list-appropriate copy (a list entry is easily re-added, unlike a disposed
- * owned copy).
- * @returns The confirmation dialog.
- */
 export function ListRemoveDialog({
   open,
   onOpenChange,

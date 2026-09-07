@@ -9,12 +9,8 @@ import { cn } from "@/lib/utils";
 const GAP_PX = 12;
 
 /**
- * Large preview of a printing, anchored beside the given element (the
- * dropdown/menu popup) so it doesn't overlap it. Picks whichever horizontal
- * side has the most room and centers vertically on the anchor, clamped to the
- * viewport. Rendered via portal to body so it can float above the host popup
- * without being clipped.
- * @returns The portal'd preview element, or null when no front image exists.
+ * Rendered via portal to body so it can float above the host popup without
+ * being clipped.
  */
 export function PrintingHoverPreview({
   printing,
@@ -28,8 +24,6 @@ export function PrintingHoverPreview({
   const fullUrl = front ? imageUrl(front.imageId, "full") : null;
   const landscape = getOrientation(printing.card.types) === "landscape";
   const [fullLoaded, setFullLoaded] = useState(false);
-  // A failed thumbnail hides the preview entirely — the same behavior as a
-  // printing with no image. Keyed by URL so another printing retries fresh.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 

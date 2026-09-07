@@ -48,7 +48,6 @@ function Panel({
   domains: string[];
   art?: string;
   rotated?: boolean;
-  /** This side takes the next point: its numeral and pip row tick over. */
   scoring?: boolean;
 }) {
   return (
@@ -129,11 +128,6 @@ function Panel({
   );
 }
 
-/**
- * The match tracker mid-game: one board, one panel per player, the far side
- * turned to face across the table. A point lands on the near side, the way it
- * does when someone taps a scoring medallion.
- */
 export function TrackerVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] }) {
   return (
     <ClipFrame className="p-5">

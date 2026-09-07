@@ -21,38 +21,22 @@ import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 
-/** One option in the picker: a board row, in board order. */
 export interface TierPickerRow {
   label: string;
-  /** The grey cut pile rather than a rank. */
   unranked?: boolean;
 }
 
 interface TierPickerProps {
-  /** Rows in board order; the index is the tier the option assigns to. */
   rows: readonly TierPickerRow[];
-  /** Card being ranked, shown as the drawer's heading on touch. */
   cardName: string;
-  /** Index of the row the card currently sits in, or null when it is unranked. */
   currentRowIndex: number | null;
   onPick: (rowIndex: number) => void;
   onUnrank: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The control the menu anchors to (and, on touch, the tap target). */
   trigger: ReactElement<{ onClick?: (event: MouseEvent) => void }>;
 }
 
-/**
- * Picks the tier a card belongs to. An anchored menu on desktop, a bottom
- * drawer on touch — the same split the card detail overlay makes, and the
- * reason the builder stays usable on a phone at all, where dragging is off.
- *
- * Ordering within a row is a drag-only affordance: the picker appends, which is
- * what someone ranking on a phone wants anyway.
- *
- * @returns The picker node, including its trigger.
- */
 export function TierPicker({
   rows,
   cardName,
@@ -68,8 +52,6 @@ export function TierPicker({
   if (isMobile) {
     return (
       <>
-        {/* The trigger is already a button, so it takes the open handler
-            directly rather than being wrapped in a second clickable. */}
         {cloneElement(trigger, { onClick: () => onOpenChange(true) })}
         <Drawer open={open} onOpenChange={onOpenChange}>
           <DrawerContent>

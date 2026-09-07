@@ -70,8 +70,6 @@ describe("formatPlayerRecord", () => {
   });
 
   it("counts pod wins on a pod event, where W-L-D would read 0-0-0 for everyone", () => {
-    // The engine records wins/draws/losses for 1v1s only; an FFA row leaves
-    // them zeroed, so a match record here would be worse than no record.
     const row = makeRow("a", { podWins: 2, wins: 0, draws: 0, losses: 0 });
     expect(formatPlayerRecord(row, false)).toBe("2 pod wins");
   });

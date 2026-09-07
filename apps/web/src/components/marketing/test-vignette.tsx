@@ -7,13 +7,10 @@ import { cn } from "@/lib/utils";
 
 import { ClipFrame } from "./clip-frame";
 
-/** Staggered so the four cards land one after another, as they are dealt. */
 const DEAL_DELAYS = [0, 130, 260, 390];
 
 const HAND_CARD_CLASS = "aspect-card h-24 object-cover shadow-sm sm:h-28";
 
-// The same calm-and-order list the deck and box vignettes build, so no card
-// here is one an Emperor of the Sands legend would rule out.
 const ODDS_ROWS = [
   { copies: 3, name: "Soul Sword", hand: "28%", early: "46%" },
   { copies: 3, name: "Guards!", hand: "28%", early: "46%" },
@@ -28,9 +25,7 @@ function HandCard({
 }: {
   art?: string;
   delay: number;
-  /** Ringed while the mulligan window is open. */
   selected?: boolean;
-  /** The replacement art this card mulligans into. */
   swap?: string;
 }) {
   return (
@@ -77,11 +72,6 @@ function HandCard({
   );
 }
 
-/**
- * The deck test bench: four cards dealt flat and upright, the three controls
- * that never move between states, and the hypergeometric odds for every card in
- * the list. The animation deals the hand, then mulligans one card.
- */
 export function TestVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] }) {
   return (
     <ClipFrame className="flex flex-col gap-3 p-5">

@@ -374,11 +374,6 @@ function fieldSizeOf(summary: MetaEventSummary | undefined): number | null {
   return summary === undefined ? null : metaEventFieldSize(summary);
 }
 
-/**
- * The rows, opened at {@link PAGE_SIZE} and extended a page at a time. Remounted
- * whenever the filters change (its `key`), so a narrowed view always starts at
- * the top of its own list.
- */
 function DeckList({ decks, summaries, costs, marketplace }: DeckListProps) {
   const [shown, setShown] = useState(PAGE_SIZE);
   const remaining = decks.length - shown;
@@ -438,11 +433,8 @@ function DeckGrid({ decks, summaries, costs, marketplace }: DeckListProps) {
   );
 }
 
-/**
- * `/meta/decks` — the cross-event deck browser. The endpoint hands over the
- * scoped archive and every filter runs client-side (ADR-014), so narrowing is
- * instant and one cacheable payload serves every view.
- */
+// The endpoint hands over the scoped archive and every filter runs
+// client-side, so one cacheable payload serves every view.
 export function MetaDeckBrowserPage() {
   const hydrated = useHydrated();
   const [count, setCount] = useState<{ shown: number; total: number }>();

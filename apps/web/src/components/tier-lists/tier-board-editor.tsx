@@ -37,38 +37,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
-/** Longest row label the chip can show; matches the contract's cap. */
 const MAX_LABEL_LENGTH = 24;
 
-/**
- * Width of the row drag handle, shared with the spacer the unranked row puts in
- * its place so both stay the same size and every label chip lines up.
- */
 const ROW_HANDLE_WIDTH = "w-5 shrink-0";
 
 interface TierBoardEditorProps {
   cardsById: Record<string, Card>;
   printingsByCardId: Map<string, Printing[]>;
-  /**
-   * True on touch: drag is disabled and each tile opens the tier picker
-   * instead, so a card can be moved or unranked without a drag.
-   */
   tapToAssign: boolean;
-  /** Called as the pointer enters and leaves a tile, for the floating preview. */
   onHoverCard?: (view: TierCardView | null) => void;
 }
 
 /**
- * The editable board. Rows are drop targets, cards on them are both drag
- * sources and drop targets (so releasing over a card inserts before it, which
- * is what gives ordering within a row without a sortable context per row), and
- * each row carries a handle so the ladder itself can be restacked.
- *
- * Reads rows straight from the builder store rather than taking them as props:
- * the board is the one surface that must re-render on every drag, so there is
- * nothing to gain by lifting that state and a prop chain to keep in sync if we did.
- *
- * @returns The editable board node.
+ * Dropping a card onto another card inserts before it.
  */
 export function TierBoardEditor({
   cardsById,
@@ -105,9 +86,6 @@ export function TierBoardEditor({
             Add a tier
           </Button>
           {!hasUnranked && (
-            // The cut pile: a place for cards the creator considered and passed
-            // on, so a viewer of the finished board can tell "not ranked" from
-            // "never looked at".
             <Button variant="outline" className="flex-1 border-dashed" onClick={addUnrankedRow}>
               <PlusIcon />
               Add an unranked row
@@ -122,11 +100,9 @@ export function TierBoardEditor({
 interface EditableTierRowProps {
   rowIndex: number;
   label: string;
-  /** The grey cut pile, which is pinned to the bottom and cannot be reordered. */
   unranked?: boolean;
   cards: TierCardView[];
   rowCount: number;
-  /** Whether the board carries an unranked row, which no ranked row may move below. */
   hasUnranked: boolean;
   tapToAssign: boolean;
   onHoverCard?: (view: TierCardView | null) => void;
@@ -164,20 +140,10 @@ function EditableTierRow({
         }
       }}
       onChange={(event) => renameRow(rowIndex, event.target.value.replaceAll(/\s*\n\s*/gu, " "))}
-      // A textarea rather than an Input: an input scrolls its text sideways and
-      // hides the tail, while `field-sizing-content` lets this wrap and grow.
-      // Transparent so the chip's tier colour shows through: the control *is*
-      // the chip, rather than something sitting on top of one.
       className="min-h-0 resize-none border-0 bg-transparent px-0 py-0 text-center font-bold wrap-anywhere shadow-none focus-visible:ring-0 dark:bg-transparent"
     />
   );
 
-  // The handle is the only drag source for a row: the label is an editable
-  // control and the tiles are their own drag sources, so neither can double as
-  // one. Hidden while tap-to-assign is on, where the menu does the reordering.
-  // The unranked row is pinned to the bottom, so it gets no grip either — but it
-  // still reserves the grip's width, or its label chip would sit a grip further
-  // left than every chip above it.
   let handle: ReactNode;
   if (!tapToAssign) {
     handle =
@@ -192,9 +158,6 @@ function EditableTierRow({
   // belongs to the cut pile when the board has one.
   const lastMovableIndex = hasUnranked ? rowCount - 2 : rowCount - 1;
 
-  // A menu rather than a stack of icon buttons: three stacked buttons are
-  // taller than the row itself, and reordering is a rare action next to
-  // dragging cards.
   const controls = (
     <div className="flex shrink-0 items-center pr-1">
       <DropdownMenu>
@@ -272,16 +235,10 @@ function EditableTierRow({
   );
 }
 
-/**
- * The grip that drags a whole row. Sits before the label chip so the ladder's
- * rungs all present the same grab point, and so a drag never starts on the
- * label's text cursor.
- * @returns The handle node.
- */
 function RowDragHandle({ rowIndex, label }: { rowIndex: number; label: string }) {
   const dragData: RowHandleDragData = { type: "tier-row-handle", rowIndex };
-  // Destructure before JSX — member access on a dnd-kit hook's return in render
-  // makes the React Compiler bail (see CLAUDE.md / DraggableCard).
+  // Destructure before JSX: member access on a dnd-kit hook's return in render
+  // makes the React Compiler bail.
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
     id: `tier-row-handle-${rowIndex}`,
     data: dragData,
@@ -293,8 +250,7 @@ function RowDragHandle({ rowIndex, label }: { rowIndex: number; label: string })
       {...listeners}
       {...attributes}
       aria-label={`Reorder tier ${label}`}
-      // touch-none: the PointerSensor needs the browser to keep sending pointer
-      // events rather than scrolling the page from the grip.
+      // touch-none: dnd-kit's PointerSensor needs pointer events here, not touch-scroll.
       className={cn(
         "text-muted-foreground hover:text-foreground flex cursor-grab touch-none items-center justify-center active:cursor-grabbing",
         ROW_HANDLE_WIDTH,
@@ -315,25 +271,16 @@ interface BoardCardProps {
   onHoverCard?: (view: TierCardView | null) => void;
 }
 
-/**
- * A card sitting on the board. Both a drag source and a drop target: dropping
- * another card over it inserts before it, which is how a row gets ordered. In
- * tap-to-assign mode the tile opens the tier picker instead, same as the pool
- * cell's pill. Right-click picks which printing supplies the art.
- *
- * @returns The board card node.
- */
 function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }: BoardCardProps) {
   const dragData: BoardCardDragData = {
     type: "tier-board-card",
     cardId: view.cardId,
-    // The printing this tile is actually rendering, pinned or defaulted, so the
-    // ghost under the cursor carries the same art the row does.
     printingId: view.printing?.id,
   };
   const dropData: TierCardDropData = { type: "tier-card", cardId: view.cardId, rowIndex, position };
 
-  // Labels captured at open, not subscribed — see PoolCardStrip for why.
+  // Captured on open, not subscribed: a `rows.map(...)` selector would never
+  // compare equal and would re-render every cell on every drag.
   const [picker, setPicker] = useState<{ open: boolean; rows: TierPickerRow[] }>({
     open: false,
     rows: [],
@@ -342,8 +289,7 @@ function BoardCard({ view, rowIndex, position, width, tapToAssign, onHoverCard }
   const unassign = useTierListBuilderStore((state) => state.unassign);
 
   // Destructure both hook returns into locals before JSX: member access on a
-  // dnd-kit hook's return object in render makes the React Compiler bail with a
-  // refs-during-render error (see CLAUDE.md / DraggableCard).
+  // dnd-kit hook's return object in render makes the React Compiler bail.
   const {
     setNodeRef: setDragRef,
     listeners,

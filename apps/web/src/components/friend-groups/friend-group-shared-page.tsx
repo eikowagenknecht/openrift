@@ -35,15 +35,8 @@ import { ContactMethodChips } from "./contact-method-chips";
 import { ShareCollectionsWithGroupDialog } from "./share-collections-with-group-dialog";
 import { SharedCollectionRow } from "./shared-collection-row";
 
-/** Max fan slots per group-collection tile (the sm CardFan holds four). */
 const TILE_COVER_COUNT = 4;
 
-/**
- * The Collections page: the group's pooled collections as showcase tiles,
- * then each member's own collections shared with the group (grouped under the
- * member). Wishlists and tradelists live on the Trades page, not here.
- * @returns The collections-page content.
- */
 export function SharedPageContent({
   slug,
   data,
@@ -59,13 +52,6 @@ export function SharedPageContent({
   );
 }
 
-/**
- * The Shared page's top-bar action: a button to create a new group-pooled
- * collection, plus the dialog it opens. Reads the (already-loaded) group from
- * the cache so the route can pass it as a plain element. Any member may create a
- * group collection, so it's shown to everyone.
- * @returns The create-collection action.
- */
 export function SharedCollectionAction({ slug }: { slug: string }) {
   const { data } = useFriendGroupDetail(slug);
   const [createOpen, setCreateOpen] = useState(false);
@@ -85,19 +71,11 @@ export function SharedCollectionAction({ slug }: { slug: string }) {
   );
 }
 
-/**
- * Cover art for the group's pooled collections, derived from the synced copies
- * store (group-owned copies sync alongside personal ones) and resolved to
- * front-image fan covers. Ranking mirrors the server-side covers on member
- * shares: most-copies-first. Skipped during SSR — like the hero's fan, the art
- * appears after hydration; the tiles render with outline fans until then.
- * @returns Fan covers keyed by collection id.
- */
 function useGroupCollectionCoverFans(): Map<string, { key: string; imageId: string }[]> {
   const copiesCollection = useCopiesCollection();
   const { printingsById } = useCards();
-  // The same SSR/sign-out guard as useCollections: a null query on the server
-  // (no server snapshot) and mid-sign-out (collection evicted).
+  // Same SSR/sign-out guard as useCollections: null query on the server
+  // or mid-sign-out (collection evicted).
   const { data: copies } = useLiveQuery({
     query: (q) =>
       globalThis.window === undefined || !copiesCollection
@@ -138,13 +116,6 @@ function GroupCollectionsSection({ data }: { data: FriendGroupDetailResponse }) 
   );
 }
 
-/**
- * One pooled collection as a showcase tile: the warm-glow cover band with a
- * fan of the collection's own card art (dashed outlines while it's empty),
- * then the name and copy count. The same tile grammar as the groups index and
- * the products page.
- * @returns The tile element.
- */
 function GroupCollectionTile({
   collection,
   covers,
@@ -164,8 +135,8 @@ function GroupCollectionTile({
       }
       className="flex-col gap-0 py-0"
     >
-      {/* overflow-hidden crops the fan's bottom bleed at the band edge, so
-          the rotated card corners never paint over the name below. */}
+      {/* overflow-hidden crops the fan's bottom bleed so rotated corners
+          don't paint over the name below. */}
       <CoverBand aria-hidden="true" className="h-32 overflow-hidden">
         {covers.length === 0 ? <CardFanOutline /> : <CardFan covers={covers} />}
       </CoverBand>
@@ -179,12 +150,6 @@ function GroupCollectionTile({
   );
 }
 
-/**
- * The dashed create tile at the end of the pooled-collections grid. Doubles
- * as the section's empty state: when the group has no collections yet, this
- * tile alone explains what a pooled collection is.
- * @returns The tile and its create dialog.
- */
 function NewCollectionTile({ group }: { group: FriendGroupDetailResponse["group"] }) {
   const [createOpen, setCreateOpen] = useState(false);
   return (
@@ -216,11 +181,6 @@ interface OwnerShares {
 
 function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const viewerId = useRequiredUserId();
-  // Group each member's shared collections under the member, joined to the
-  // roster for the avatar/nickname. Wishlists and tradelists live on the Trades
-  // page. Anonymous owners and members with nothing shared fall away — except
-  // the viewer, whose block is always shown so they have a stable place to
-  // share from.
   const membersById = new Map(data.members.map((member) => [member.userId, member]));
   const byOwner = new Map<string, OwnerShares>();
   const bucketFor = (userId: string): OwnerShares | undefined => {
@@ -238,10 +198,8 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
   for (const share of data.collectionShares) {
     bucketFor(share.userId)?.collections.push(share);
   }
-  // Always keep the viewer's own block, even when they've shared nothing yet.
+  // Kept even when they've shared nothing, so the viewer always has a block.
   bucketFor(viewerId);
-  // The viewer first (their shares are the ones they can act on), then the
-  // rest alphabetically. Other members with nothing shared are dropped.
   const owners = [...byOwner.values()]
     .filter((owner) => owner.collections.length > 0 || owner.member.userId === viewerId)
     .sort((a, b) => {
@@ -281,12 +239,6 @@ function MemberSharesSection({ slug, data }: { slug: string; data: FriendGroupDe
   );
 }
 
-/**
- * One member's shares: a header row (avatar, name, count, contact chips, and
- * the viewer's share entry point) over the bordered list of their shared
- * collections — always visible, replacing the old collapsed-by-default fold.
- * @returns The member block.
- */
 function MemberSharesBlock({
   slug,
   groupName,
@@ -317,7 +269,6 @@ function MemberSharesBlock({
         )}
         {isViewer ? (
           <span className="ml-auto shrink-0">
-            {/* Only renders a button when there's a collection left to share. */}
             <Suspense fallback={null}>
               <ShareMoreButton slug={slug} groupName={groupName} />
             </Suspense>
@@ -338,13 +289,7 @@ function MemberSharesBlock({
   );
 }
 
-/**
- * The viewer's "Share more" button next to their own block. Renders nothing
- * when they have no unshared collection left, so it never opens a dead-end
- * "you've already shared everything" dialog. Reads the shareable-collections
- * query, so it must be wrapped in a Suspense boundary.
- * @returns The share button and its dialog, or null when nothing is shareable.
- */
+/** Renders null when nothing is left to share; must be wrapped in Suspense. */
 function ShareMoreButton({ slug, groupName }: { slug: string; groupName: string }) {
   const { data } = useFriendGroupShareableCollections(slug);
   const [open, setOpen] = useState(false);

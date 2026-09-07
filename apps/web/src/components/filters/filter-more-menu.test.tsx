@@ -39,10 +39,7 @@ vi.mock("@/hooks/use-enums", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { FilterMoreMenu } from "./filter-more-menu";
 
-// The default placement: core units top-level, chip units in More — matching
-// what the compact bar passes for a user who hasn't customized anything.
 const DEFAULT_TOP = new Set(PREFERENCE_DEFAULTS.topLevelFilters);
-// Variant demoted → its Signed flag moves into the menu.
 const WITHOUT_VARIANT = new Set(
   PREFERENCE_DEFAULTS.topLevelFilters.filter((key) => key !== "variant"),
 );
@@ -73,8 +70,6 @@ function makeAvailable(overrides: Partial<AvailableFilters> = {}): AvailableFilt
     energy: { min: 1, max: 7 },
     might: { min: 1, max: 7 },
     power: { min: 1, max: 7 },
-    // Default to no priced cards so the Price slider stays out of the way; the
-    // market-footer test opts in by overriding price.max.
     price: { min: 0, max: 0 },
     ...overrides,
   };
@@ -151,8 +146,6 @@ function setupHooks(filterStateOverrides: Partial<MoreFilterState> = {}) {
     toggleStandard: vi.fn(),
   };
   mockUseFilterValues.mockReturnValue({
-    // `ranges` and the ownedCount fields back the market sliders rendered at
-    // the foot of the menu via FilterRangeSections.
     ranges: {
       energy: { min: null, max: null },
       might: { min: null, max: null },
@@ -239,7 +232,6 @@ describe("FilterMoreMenu", () => {
 
   it("renders nothing when no More content applies on the surface", () => {
     setupHooks();
-    // Nothing enabled and owned hidden → no demoted unit has content.
     const { container } = render(
       <FilterMoreMenu
         availableFilters={makeAvailable()}
@@ -288,8 +280,6 @@ describe("FilterMoreMenu", () => {
         topLevelUnits={DEFAULT_TOP}
       />,
     );
-    // Like the value dropdowns, a lone selection surfaces by name instead of a
-    // bare "More (1)" — no "More" text and no count badge.
     const trigger = screen.getByRole("button", { name: "More filters: Foil" });
     expect(trigger).toHaveTextContent("Foil");
     expect(trigger.textContent).not.toContain("More");
@@ -312,12 +302,8 @@ describe("FilterMoreMenu", () => {
     );
     await user.click(screen.getByRole("button", { name: "More" }));
     expect(await screen.findByRole("menuitem", { name: /Signed/u })).toBeInTheDocument();
-    // Markers is exclude-capable, so it renders as an include/exclude combobox
-    // row (found by text, not a submenu menuitem). Owned stays a submenu.
     expect(screen.getByText("Markers")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Owned" })).toBeInTheDocument();
-    // Marker presence folds into the top of the Markers combobox, not a
-    // standalone row — open it and the "Has any marker" toggle leads the list.
     await user.click(screen.getByText("Markers"));
     expect(await screen.findByRole("option", { name: /Has any marker/u })).toBeInTheDocument();
   });
@@ -336,7 +322,6 @@ describe("FilterMoreMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
-    // Markers opens an include/exclude combobox; its option carries the count.
     await user.click(await screen.findByText("Markers"));
     expect(await screen.findByRole("option", { name: /Foil.*\(5\)/u })).toBeInTheDocument();
   });
@@ -344,8 +329,7 @@ describe("FilterMoreMenu", () => {
   it("renders a long dimension as a searchable combobox row, not a submenu", async () => {
     const user = userEvent.setup();
     setupHooks();
-    // Nine channels is over the search threshold, so Distribution Channels
-    // becomes a combobox (a button row) rather than a submenu (a menuitem).
+    // 9 is past SEARCH_THRESHOLD, so this renders as a combobox, not a submenu.
     const channels = Array.from({ length: 9 }, (_, index) => ({
       id: `channel-${index}`,
       slug: `channel-${index}`,
@@ -364,7 +348,6 @@ describe("FilterMoreMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
-    // The row exists, but as a combobox trigger (not a submenu menuitem).
     expect(await screen.findByText("Distribution Channels")).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: /Distribution Channels/u }),
@@ -374,8 +357,6 @@ describe("FilterMoreMenu", () => {
   it("keeps a short include-only dimension as a submenu", async () => {
     const user = userEvent.setup();
     setupHooks();
-    // Owned (4 buckets, include-only — it has no exclude axis) stays a checkbox
-    // submenu; exclude-capable dimensions always use the combobox instead.
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable()}
@@ -402,8 +383,6 @@ describe("FilterMoreMenu", () => {
       />,
     );
     await user.click(screen.getByRole("button", { name: "More" }));
-    // Keyword presence folds into the Keywords combobox — open it, then click
-    // the "Has any keyword" toggle that leads the list.
     await user.click(await screen.findByText("Keywords"));
     await user.click(await screen.findByRole("option", { name: /Has any keyword/u }));
     expect(actions.cyclePresence).toHaveBeenCalledWith("keywords");
@@ -443,8 +422,6 @@ describe("FilterMoreMenu", () => {
   it("keeps the Signed flag out when the Variant unit is top level", async () => {
     const user = userEvent.setup();
     setupHooks();
-    // Signed belongs to the Variant unit: promoted (the default), it renders in
-    // the bar's chip sections, never here.
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable({ hasSigned: true, hasBanned: true })}
@@ -510,8 +487,6 @@ describe("FilterMoreMenu", () => {
   it("opens even with no discrete content when only the market sliders apply", async () => {
     const user = userEvent.setup();
     setupHooks();
-    // Owned hidden (no buckets/copies) and no flags/markers, but priced cards
-    // exist → the menu still shows for the Price slider alone.
     render(
       <FilterMoreMenu
         availableFilters={makeAvailable({ price: { min: 0, max: 1000 } })}

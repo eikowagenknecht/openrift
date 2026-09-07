@@ -14,31 +14,11 @@ import { getApplicablePlacementUnits, keepPlacementUnits } from "@/lib/filter-se
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
-/**
- * Inline "Customize filters" control for the filter chrome. Lets the user pick
- * where each filter unit lives — at the top level (an inline chip / panel
- * section) or in the "More" group (the compact bar's More menu, the panel's
- * collapsed More-filters fold) — stored as a global per-user preference
- * (synced for signed-in users, device-local otherwise). Reads the surface's
- * own hides from context so it only offers units this surface actually
- * supports — moving one is never a no-op.
- *
- * Renders nothing outside a card-browser surface (no filter-meta context) or
- * when the surface has no placeable units to offer.
- * @returns The customize button + popover, or null when not applicable.
- */
 export function FilterCustomizeControl({
   className,
   revealOnHover,
 }: {
   className?: string;
-  /**
-   * Fade the trigger in only while the surrounding filter zone is hovered or the
-   * trigger is focused, so the control doesn't clutter the panel at rest. The
-   * parent must carry the `group` class. The changed-placement indicator dot
-   * fades with it — a small loss of its visibility in exchange for a cleaner
-   * panel.
-   */
   revealOnHover?: boolean;
 }) {
   const meta = useFilterMetaOptional();
@@ -86,8 +66,6 @@ export function FilterCustomizeControl({
         render={<Button variant="ghost" size="icon-sm" />}
         className={cn(
           "text-muted-foreground relative",
-          // Reveal on hover/focus only. The indicator dot reveals with it — fine
-          // to trade a bit of its visibility for a less cluttered panel at rest.
           revealOnHover &&
             "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
           className,
@@ -98,8 +76,6 @@ export function FilterCustomizeControl({
       >
         <SlidersHorizontalIcon className="size-4" />
         {placementOverridden && (
-          // Changed-placement dot, kept inside the button bounds so it isn't
-          // clipped when the panel is an overflow-hidden / scrolling container.
           <span className="bg-primary ring-background absolute top-0.5 right-0.5 size-2 rounded-full ring-2" />
         )}
       </PopoverTrigger>
@@ -116,8 +92,6 @@ export function FilterCustomizeControl({
             return (
               <div key={unit.key} className="flex items-center justify-between gap-2 px-1 py-1">
                 <span className="min-w-0 flex-1 truncate">{unit.label}</span>
-                {/* Two-button segment instead of a checkbox: placement is a
-                    choice between two homes, not an on/off. */}
                 <div className="flex shrink-0 items-center gap-0.5">
                   <Button
                     variant={isTop ? "secondary" : "ghost"}

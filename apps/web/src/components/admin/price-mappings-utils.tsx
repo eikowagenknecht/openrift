@@ -8,7 +8,6 @@ export function ProductLink({
 }: {
   config: SourceMappingConfig;
   externalId: number;
-  /** Printing language to pass through to the marketplace's language filter. */
   language?: string | null;
   children: React.ReactNode;
 }) {

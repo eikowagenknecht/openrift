@@ -49,8 +49,6 @@ import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 /**
  * Formats a better-auth date (a Date on the type, an ISO string on the wire).
- *
- * @returns The formatted date, or "—" when null.
  */
 function keyDate(value: Date | string | null): string {
   if (!value) {
@@ -61,8 +59,7 @@ function keyDate(value: Date | string | null): string {
 }
 
 function CreatedKeyDialog({ createdKey, onClose }: { createdKey: string; onClose: () => void }) {
-  // A secret, not a share link, so this stays a plain copy button rather than a
-  // ShareLinkRow — the key must never end up in a QR.
+  // The key must never end up in a QR.
   const { copied: justCopied, copy } = useCopyToClipboard();
 
   return (

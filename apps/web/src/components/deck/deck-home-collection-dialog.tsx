@@ -25,9 +25,7 @@ import { useUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
 import { sharedBoxWarning } from "@/lib/deck-box-label";
 
-/** Sentinel for "no home collection" — Select values must be strings. */
 const NONE = "none";
-/** Sentinel that opens the create-collection dialog instead of picking a row. */
 const NEW = "new";
 
 interface DeckHomeCollectionDialogProps {
@@ -38,16 +36,9 @@ interface DeckHomeCollectionDialogProps {
 }
 
 /**
- * Picks the collection a deck is physically stored in. Copies in that
- * collection count as available for this deck even when the collection is
- * excluded from deck building, which is what lets a sleeved deck sit in its own
- * deckbox without every other deck cannibalizing it.
- *
- * Only personal collections qualify: pulling cards into a group binder would
- * hand them to the group, so a shared binder can't be the box a deck is filled
- * from. A deck linked to one before that rule keeps working, and the row stays
- * visible (disabled) so the dialog can still name where the deck lives.
- * @returns The dialog.
+ * Copies in the picked collection count as available for this deck even when
+ * the collection is excluded from deck building. Only personal collections
+ * are pickable; group binders are shared and can't be a deck's box.
  */
 export function DeckHomeCollectionDialog({
   deckId,
@@ -82,7 +73,6 @@ export function DeckHomeCollectionDialog({
     (collection) => collection.id === currentCollectionId && collection.groupId !== null,
   );
   const selected = pickable.find((collection) => collection.id === value);
-  // Decks other than this one that already call the selected collection home.
   const warning = selected
     ? sharedBoxWarning(
         selected.name,
@@ -167,7 +157,6 @@ export function DeckHomeCollectionDialog({
         onOpenChange={setCreateOpen}
         title="New deck box"
         description="A deck box holds the cards of one deck. It starts out excluded from deck building, so its cards only count for the deck stored in it."
-        // The whole point of a box is that other decks don't raid it.
         availableForDeckbuilding={false}
         onCreated={(collectionId) => {
           setValue(collectionId);

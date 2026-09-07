@@ -36,19 +36,10 @@ function Harness({ initialName }: { initialName: string }) {
 
 describe("EditCollectionDialog", () => {
   it("shows the current name when opened after navigating to a different collection", async () => {
-    // Regression: dialog was mounted once by CollectionGrid and stayed mounted
-    // across collection navigations. useState seeded `name` on first mount and
-    // the onOpenChange-based reset never fired (BaseUI doesn't echo controlled
-    // open prop changes), so the input stuck on whichever collection's name
-    // was current when the dialog first mounted.
     const user = userEvent.setup();
     render(<Harness initialName="Inbox" />);
 
-    // Simulate navigating to a different collection: the parent passes a new
-    // `currentName` prop while the dialog is closed.
     await user.click(screen.getByRole("button", { name: "change-name" }));
-
-    // Now open the dialog.
     await user.click(screen.getByRole("button", { name: "open-dialog" }));
 
     expect(screen.getByLabelText("Name")).toHaveValue("RiftCoreImport");

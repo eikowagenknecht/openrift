@@ -13,7 +13,6 @@ export function CardHoldingsSection({
   printing: Printing;
   printings?: readonly Printing[];
 }) {
-  // Scoped to all of the detail's printings, not just the one on screen.
   const siblingIds = (printings ?? []).map((sibling) => sibling.id);
   const lines = useCardHoldingLines(siblingIds.length > 0 ? siblingIds : [printing.id]);
 

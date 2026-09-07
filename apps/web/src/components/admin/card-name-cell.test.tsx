@@ -3,8 +3,6 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-// Resolves `$param` the way the real router does, so a missing path segment
-// shows up as an observable href rather than being silently swallowed.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
@@ -86,7 +84,6 @@ describe("CardNameCell", () => {
   });
 
   it("keeps a non-Latin name linkable", () => {
-    // The normalizer preserves the script, so these rows still get a real key.
     render(
       <CardNameCell
         row={makeRow({ name: "影流之主", normalizedName: "影流之主" })}
@@ -97,8 +94,6 @@ describe("CardNameCell", () => {
   });
 
   describe("when the name normalizes to nothing", () => {
-    // `/admin/cards/new/` with an empty `$name` is a dead link, and link/accept
-    // /assign all key off the same empty value. None may be rendered.
     const emptyRow = makeRow({
       name: "!?!",
       normalizedName: "",

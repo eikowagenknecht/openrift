@@ -3,13 +3,8 @@ import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 /**
- * The name + count line above one sub-group of a grouped deck zone. Shared by
- * the overview's list rows, its thumbnail wraps and its stacks-mode piles, so
- * the three read identically whatever the display mode.
- *
- * The single "none" group has no label, and renders nothing.
- *
- * @returns The group header, or null for the unlabelled group.
+ * Shared by the overview's list rows, thumbnail wraps, and stacks-mode piles
+ * so all three read identically. The "none" group has no label and renders nothing.
  */
 export function DeckCardGroupHeader({
   group,
@@ -18,14 +13,8 @@ export function DeckCardGroupHeader({
   truncate,
 }: {
   group: DeckCardGroup;
-  /** The active grouping axis — type groups keep their icons. */
   groupBy: DeckOverviewGroup;
-  /** Extra classes for the row (the list's grid padding). */
   className?: string;
-  /**
-   * Clamp a long label rather than let it set the row's width. Stacks mode
-   * needs it: a pile is exactly one card wide.
-   */
   truncate?: boolean;
 }) {
   if (group.label === null) {

@@ -6,41 +6,24 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/compone
 import { Pressable } from "@/components/ui/pressable";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
-/** One artwork from the identified frame's embedding shortlist. */
 export interface IdentifyCandidate {
-  /** Bank key (an image id) — doubles as the thumbnail source. */
   key: string;
   artKey: string;
-  /** Display label from the scan bank, e.g. "Lux (OGN-011/298 EN)". */
   label: string;
-  /** Battlefield art, stored landscape, so the thumbnail rotates it upright. */
   landscape: boolean;
 }
 
 interface ScanIdentifySheetProps {
   open: boolean;
-  /**
-   * The frame being identified, as a JPEG data URL. Shown from the moment the
-   * user asks, so which frame is being answered is never in doubt — the camera
-   * has long moved on by the time the answer comes back.
-   */
   snapshot: string | null;
-  /** The frame is still going through the pipeline. */
   pending: boolean;
-  /** The shortlist to offer, once there is one. */
   candidates: IdentifyCandidate[];
   onPick: (candidate: IdentifyCandidate) => void;
   onDismiss: () => void;
 }
 
-/**
- * The manual escape hatch when the scanner will not lock: the captured frame
- * and its best matches, offered as tappable thumbnails. Picking one adds it
- * exactly like a lock would (finish default, language preference and the
- * printing picker all still apply); dismissing adds nothing.
- *
- * @returns The identify sheet (a drawer on phones).
- */
+// The manual escape hatch when the scanner will not lock: the captured frame
+// and its best matches, offered as tappable thumbnails.
 export function ScanIdentifySheet({
   open,
   snapshot,
@@ -77,8 +60,6 @@ export function ScanIdentifySheet({
             />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">{name}</span>
-              {/* The bank's label already reads as a code, so it keeps the mono
-                  face the printing picker's variant line gets from its code slot. */}
               <span className="text-muted-foreground block truncate font-mono text-xs">
                 {detail}
               </span>

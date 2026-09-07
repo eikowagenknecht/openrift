@@ -43,24 +43,6 @@ interface ListExportDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Card-kind lists export as a plain-text deck list (one `<quantity> <name>`
- * per line); printing- and copy-kind lists export as a CSV download in any of
- * the supported formats, reusing the collection export writers. Card- and
- * printing-kind lists additionally get a Cardmarket-ready wants block —
- * copy-kind lists hold owned copies, not wants, so they don't.
- *
- * Copies pinned to a live trade are dropped by default, because an export is
- * where a user promises cards without checking a badge. The filter runs once
- * here so no format below can miss it, and the toggle only appears when the
- * list actually holds a reserved copy.
- *
- * The same goes for the grid's own filters: with any active, the export
- * defaults to what the user is looking at rather than the whole list, since
- * narrowing the grid and then exporting is the whole reason to filter before
- * exporting. Both scoping steps run before any format sees the entries.
- * @returns The export dialog.
- */
 export function ListExportDialog({
   listName,
   kind,
@@ -126,7 +108,6 @@ function TextExport({
   options,
 }: {
   entries: readonly ListEntryDetailResponse[];
-  /** Extra export options, rendered between the text area and the button. */
   options?: ReactNode;
 }) {
   const code = formatCardListAsDeckText(entries);
@@ -146,8 +127,6 @@ function TextExport({
           onClick={(event) => (event.target as HTMLTextAreaElement).select()}
         />
         {options}
-        {/* Nothing to copy once the scope filters leave the list empty, so the
-            button steps aside rather than sitting there dead. */}
         {code.length > 0 && (
           <div className="flex justify-end">
             <CopyTextButton label="Copy" getText={() => code} />
@@ -165,7 +144,6 @@ function CsvExport({
 }: {
   listName: string;
   entries: readonly ListEntryDetailResponse[];
-  /** Extra export options, rendered between the format select and the button. */
   options?: ReactNode;
 }) {
   const { printingsById, sets } = useCards();
@@ -218,12 +196,8 @@ function CsvExport({
   );
 }
 
-/**
- * Cardmarket-ready wants block: pure `Nx Name` lines with its own copy button,
- * because Cardmarket's shopping wizard matches lines by card name and any
- * extra text (short codes, prices, CSV columns) breaks the match.
- * @returns The wants block, or null when the list has no entries.
- */
+// Cardmarket's shopping wizard matches lines by card name; any extra text
+// (short codes, prices, CSV columns) breaks the match.
 function CardmarketBlock({ entries }: { entries: readonly ListEntryDetailResponse[] }) {
   const text = formatCardmarketWants(
     entries.map((entry) => ({ name: entry.cardName, quantity: entry.quantity })),

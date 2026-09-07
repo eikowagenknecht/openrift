@@ -75,11 +75,8 @@ interface FullSectionDef {
   action: ReactNode;
   vignette: ReactNode;
   emphasis?: boolean;
-  /** Alternates left/right across ALL full sections, so set per section. */
   flip?: boolean;
-  /** Small label above the title, for a section that is one step of a sequence. */
   eyebrow?: string;
-  /** Tightens a run of sections that tell one story. See FeatureSection. */
   compact?: boolean;
 }
 
@@ -162,15 +159,9 @@ export function FeaturesPage() {
     domains: thumb.domains,
   }));
   const thumbnailCards = landingThumbnailCards(data?.thumbnails);
-  // One sampled card carried through every stage of the trade chapter, so the
-  // art and the name always belong together and the five sections read as a
-  // single swap; the strips behind it fill the group's band.
   const tradedFlowCard = tradedCard(thumbnailCards.slice(15));
   const tradeStripUrls = thumbnailUrls.slice(16, 22);
 
-  // Same idle-time /cards warm-up the landing page does: fetch the lazy chunk
-  // and run its loader while the visitor reads, so the catalog links land on a
-  // live grid instead of a Suspense fallback.
   useEffect(() => {
     if (typeof requestIdleCallback === "undefined") {
       return;

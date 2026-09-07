@@ -22,7 +22,6 @@ describe("CardStrip", () => {
     const { container } = render(<CardStrip center={<span>pill</span>} />);
     const row = container.firstElementChild;
     expect(row).not.toBeNull();
-    // left basket, center group, right basket
     expect(row?.children.length).toBe(3);
     expect(row?.children[0]?.className).toContain("flex-1");
     expect(row?.children[2]?.className).toContain("flex-1");

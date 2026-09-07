@@ -10,30 +10,18 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 interface DeckShareDialogProps {
   deckId: string;
   deckName: string;
-  /** Server decks only; a browser-local deck has no share row. */
   isPublic?: boolean;
   shareToken?: string | null;
-  /** Warns that the render still shows the last saved state. */
   isDirty?: boolean;
-  /**
-   * Cards for a browser-local deck's from-cards render. Falls back to the live
-   * editor draft, which the deck-list menus don't have hydrated.
-   */
   cards?: DeckBuilderCard[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/** @returns The image size parameter for a chosen multiplier. */
 function sizeFor(choice: ShareImageRenderChoice): "hq" | undefined {
   return choice.scale >= 2 ? "hq" : undefined;
 }
 
-/**
- * Share dialog for a saved deck: the public link plus the server-rendered
- * image, which is both the link's unfurl preview and a download.
- * @returns The share dialog element.
- */
 function ServerDeckShareDialog({
   deckId,
   deckName,
@@ -95,11 +83,6 @@ function ServerDeckShareDialog({
   );
 }
 
-/**
- * Share dialog for a browser-local deck (ADR-035): no server row, so no link
- * and no QR — only the image, rendered from the cards themselves.
- * @returns The share dialog element.
- */
 function LocalDeckShareDialog({
   deckId,
   deckName,
@@ -123,8 +106,7 @@ function LocalDeckShareDialog({
       image={{
         title: deckName,
         filenameBase: deckName || "deck",
-        // A local deck has no server row to resolve by id, so the render is
-        // posted the cards instead — which means no GET URL, and no preview.
+        // No server row to resolve by id, so the render is posted the cards instead: no GET URL, no preview.
         buildUrl: () => deckImageFromCardsUrl(getSiteUrl()),
         download: (choice, filename) =>
           downloadImageFromPost(
@@ -143,12 +125,6 @@ function LocalDeckShareDialog({
   );
 }
 
-/**
- * The deck share surface: a link and an image for a saved deck, an image alone
- * for a browser-local one. Split so the local branch never reaches the
- * account-only share mutations.
- * @returns The share dialog element.
- */
 export function DeckShareDialog(props: DeckShareDialogProps) {
   if (isLocalDeckId(props.deckId)) {
     return <LocalDeckShareDialog {...props} />;

@@ -25,13 +25,6 @@ import { useSession } from "@/lib/auth-session";
 import { bundleShareImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
-/**
- * Profile-page card managing the user share bundle token (ADR-018): the link
- * itself plus the two ways to hand it out offline, a card image for chats and
- * a printable binder QR sheet. This is the only entry point for the bundle.
- *
- * @returns The settings card node.
- */
 export function PublicSharingSection() {
   const { data, isPending } = useUserShareState();
   const { data: session } = useSession();
@@ -39,9 +32,8 @@ export function PublicSharingSection() {
   const disableShare = useDisableUserShare();
   const rotateShare = useRotateUserShare();
   const [imageOpen, setImageOpen] = useState(false);
-  // A bundle has no single updatedAt, so the cache-bust is stamped when the
-  // dialog opens. Stamping it inside the URL builder instead would hand the
-  // preview a new URL on every render and reload the image forever.
+  // Stamped only when the dialog opens; stamping it in the URL builder would
+  // give the preview a new URL on every render and reload the image forever.
   const [imageVersion, setImageVersion] = useState(0);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [confirmRotateOpen, setConfirmRotateOpen] = useState(false);

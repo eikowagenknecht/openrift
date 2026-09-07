@@ -20,9 +20,8 @@ function annotation(phase: CardTradeLivePhase): CardTradeLiveAnnotation {
   return { printingId: "p-1", role: "giver", phase, tradeCount: 1, quantity: 2 };
 }
 
-// The copies view puts one physical copy on each tile, so the two data sources
-// split: `copy.reserved` is the only per-copy fact and decides whether a marker
-// belongs here at all, while the printing-wide annotation supplies its wording.
+// copy.reserved decides whether a marker belongs here; the printing-wide
+// annotation only supplies its wording.
 describe("CopyMetadataStrip live-trade marker", () => {
   it("marks a pinned copy with its printing's word", () => {
     render(
@@ -35,17 +34,14 @@ describe("CopyMetadataStrip live-trade marker", () => {
     expect(screen.getByLabelText("Reserved (outgoing)")).toBeInTheDocument();
   });
 
-  // There is no phase past `reserved` to move the word on to. The giver's
-  // settle deletes the copy outright, so a handed-over card has no strip to
-  // draw (ADR-019, amendment 2026-08-10).
+  // The giver's settle deletes the copy outright, so a handed-over card has
+  // no strip to draw.
   it("drops the badge entirely once the printing has no live annotation", () => {
     render(<CopyMetadataStrip copy={stubCopy({ printingId: "p-1", reserved: true })} />);
 
     expect(screen.queryByLabelText("Reserved (outgoing)")).not.toBeInTheDocument();
   });
 
-  // The annotation covers the printing, not this copy. It may belong to a
-  // sibling copy, or to a pending trade that has pinned nothing yet.
   it("leaves an unpinned copy unmarked even when its printing has a live trade", () => {
     render(
       <CopyMetadataStrip
@@ -67,7 +63,6 @@ describe("CopyMetadataStrip live-trade marker", () => {
     render(
       <CopyMetadataStrip
         copy={stubCopy({ printingId: "p-1", reserved: true })}
-        // The annotation covers two copies of the printing.
         tradeAnnotation={annotation("reserved")}
       />,
     );

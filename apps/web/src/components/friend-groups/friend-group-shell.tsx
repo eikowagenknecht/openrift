@@ -29,15 +29,6 @@ export function isAdmin(role: FriendGroupRole | null): role is "admin" | "owner"
   return role === "admin" || role === "owner";
 }
 
-/**
- * The group overview frame: loads the group, shows the pending-approval stub
- * for would-be members, and otherwise renders the full-bleed hero identity
- * band (which carries the page title and the Manage action — the overview has
- * no page top bar) above `render(data)`. Only the overview mounts through
- * this; the section pages (trades / shared / members / events) use
- * {@link FriendGroupSectionFrame}.
- * @returns The framed overview, or the pending stub.
- */
 export function FriendGroupPageFrame({
   slug,
   render,
@@ -59,15 +50,6 @@ export function FriendGroupPageFrame({
   );
 }
 
-/**
- * Frame for a group section page (trades, shared, members, events): loads the
- * group, shows the pending stub, and otherwise renders the section's title as
- * the big page heading *inside* the drill-down bar (`Group / <Title>`), matching
- * the collection/list drill-down pages. Sections are reached from the overview
- * tiles and navigated back via the breadcrumb, which collapses to a single back
- * arrow on phones — replacing the old horizontal tab bar.
- * @returns The framed section page, or the pending stub.
- */
 export function FriendGroupSectionFrame({
   slug,
   title,

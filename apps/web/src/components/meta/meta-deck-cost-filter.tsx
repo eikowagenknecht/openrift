@@ -76,7 +76,6 @@ function sliderScale(max: number | undefined): { max: number; step: number } {
   return { max: Math.ceil(ceiling / step) * step, step };
 }
 
-// Keeps a drag out of the bound until commit; the draft resets when the bound changes.
 function useSliderDraft<T>(external: T, key: string): [T, (next: T) => void] {
   const [draft, setDraft] = useState<T | null>(null);
   const [seen, setSeen] = useState(key);

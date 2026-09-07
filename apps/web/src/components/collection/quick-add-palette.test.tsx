@@ -58,7 +58,6 @@ function renderPalette(printing: Printing) {
   );
 }
 
-/** Types a query and expands the card, which is what reveals the +/- row. */
 function openPrintingRow(cardName: string) {
   fireEvent.change(screen.getByLabelText("Add card to Deckbox"), {
     target: { value: cardName },
@@ -66,13 +65,7 @@ function openPrintingRow(cardName: string) {
   fireEvent.click(screen.getByText(cardName));
 }
 
-// Regression: the palette used to reimplement add/undo instead of calling
-// useQuickAddActions, and its copy of undo disposed the newest session copy
-// unconditionally. That silently destroyed grade / condition / notes / links a
-// user had recorded on the copy since adding it, which ADR-038 requires
-// confirming first. The palette now routes through the shared hook, so the
-// confirmation applies here too.
-describe("QuickAddPalette undo honors the ADR-038 confirmation", () => {
+describe("QuickAddPalette undo confirms before destroying recorded copy details", () => {
   const resetAddMode = createStoreResetter(useAddModeStore);
 
   beforeEach(() => {
@@ -89,7 +82,6 @@ describe("QuickAddPalette undo honors the ADR-038 confirmation", () => {
 
   it("asks before undoing an add whose copy has since been annotated", async () => {
     const printing = stubPrinting({ card: { name: "Yasuo" } });
-    // Added this session, then graded — undoing now would destroy the grade.
     copies = [
       stubCopy({
         id: COPY_ID,
@@ -108,8 +100,6 @@ describe("QuickAddPalette undo honors the ADR-038 confirmation", () => {
 
     expect(await screen.findByText("Remove this copy?")).toBeInTheDocument();
     expect(disposeMutateAsync).not.toHaveBeenCalled();
-    // The session entry survives the parked removal, so cancelling leaves the
-    // undo available.
     expect(useAddModeStore.getState().addedItems.get(printing.id)?.quantity).toBe(1);
   });
 
@@ -130,8 +120,6 @@ describe("QuickAddPalette undo honors the ADR-038 confirmation", () => {
 
   it("never removes a copy this session did not add", async () => {
     const printing = stubPrinting({ card: { name: "Zed" } });
-    // Owned, but not added through the palette — the minus stays inert rather
-    // than falling through to the grid's owned-copy removal.
     copies = [stubCopy({ id: COPY_ID, printingId: printing.id, collectionId: COLLECTION_ID })];
 
     renderPalette(printing);

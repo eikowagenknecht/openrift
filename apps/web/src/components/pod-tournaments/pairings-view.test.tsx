@@ -272,7 +272,6 @@ describe("PairingsView", () => {
       ],
     });
 
-    // Ashe (fixed table 7) is displaced to table 3; Caitlyn already sits at 3.
     expect(screen.getByText("Ashe moves from table 7 to table 3 this round")).toBeInTheDocument();
     expect(screen.queryByText(/Caitlyn moves/u)).not.toBeInTheDocument();
   });
@@ -308,14 +307,11 @@ describe("PairingsView", () => {
       ],
     });
 
-    // Placement and the game points that produced it read as one badge, so the
-    // row's end carries only the round points (no standings total).
     const ashe = screen.getByText("Ashe").closest("li") as HTMLElement;
     expect(within(ashe).getByTitle("Finished 1st in the pod")).toHaveTextContent("1");
     expect(within(ashe).getByTitle("8 game points")).toHaveTextContent("8g");
     expect(within(ashe).queryByTitle(/points in the standings/u)).not.toBeInTheDocument();
     expect(within(ashe).getByTitle("3 points from this round")).toHaveTextContent("+3");
-    // The old free-standing "N game" figure is gone from the row's end.
     expect(within(ashe).queryByText(/game$/u)).not.toBeInTheDocument();
   });
 
@@ -376,7 +372,6 @@ describe("PairingsView", () => {
     expect(screen.queryByText(/0 rematches/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/spread 0/u)).not.toBeInTheDocument();
 
-    // Nonzero figures still show, zero ones stay out of the line.
     renderView({
       rounds: [
         makeRound({
@@ -419,7 +414,6 @@ describe("PairingsView", () => {
 
     const ashe = screen.getByText("Ashe").closest("li") as HTMLElement;
     expect(within(ashe).getByTitle("6 game points")).toHaveTextContent("6g");
-    // Nothing to seed Braum with yet, so he carries no badge at all.
     const braum = screen.getByText("Braum").closest("li") as HTMLElement;
     expect(within(braum).queryByTitle(/game points/u)).not.toBeInTheDocument();
   });
@@ -484,15 +478,12 @@ describe("PairingsView 2v2 team matches", () => {
       rounds: [makeRound({ pods: [makeTeamPod()] })],
     });
 
-    // Team rounds count matches, and the card is named a match, not a pod.
     expect(screen.getByText("1 match")).toBeInTheDocument();
     expect(screen.getByText("Match 1")).toBeInTheDocument();
     expect(screen.getByText("vs")).toBeInTheDocument();
-    // Each side is one entity: the joined team name, not four player rows.
     expect(screen.getByText("Ashe & Braum")).toBeInTheDocument();
     expect(screen.getByText("Caitlyn & Darius")).toBeInTheDocument();
     expect(screen.queryByText("Ashe")).not.toBeInTheDocument();
-    // Reporting progress counts sides, not the four players.
     expect(screen.getByText("0 of 2 in")).toBeInTheDocument();
   });
 
@@ -507,7 +498,6 @@ describe("PairingsView 2v2 team matches", () => {
     expect(screen.getByText("Ashe & Braum")).toBeInTheDocument();
     expect(screen.getByText("Caitlyn & Darius")).toBeInTheDocument();
     expect(screen.getByText("Draw")).toBeInTheDocument();
-    // Orientation lives in the accessible names, winner-first.
     expect(screen.getByRole("button", { name: "Ashe & Braum wins 1–0" })).toBeInTheDocument();
   });
 
@@ -522,7 +512,6 @@ describe("PairingsView 2v2 team matches", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Enter result" }));
-    // Bo1 chips read Win / Draw; the accessible name is the outcome alone.
     await user.click(screen.getByRole("button", { name: "Ashe & Braum wins" }));
     await user.click(screen.getByRole("button", { name: "Save result" }));
 

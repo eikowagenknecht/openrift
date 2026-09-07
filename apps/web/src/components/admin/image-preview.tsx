@@ -7,10 +7,6 @@ import {
 } from "@/components/admin/card-detail-shared";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// ---------------------------------------------------------------------------
-// ImagePreview — single image with resolution overlay
-// ---------------------------------------------------------------------------
-
 export function ImagePreview({
   url,
   alt,
@@ -64,10 +60,6 @@ export function ImagePreview({
   );
 }
 
-// ---------------------------------------------------------------------------
-// GroupImagePreview — read-only image preview for new/ambiguous groups
-// ---------------------------------------------------------------------------
-
 export function GroupImagePreview({
   sources,
   providerLabels,
@@ -95,7 +87,6 @@ export function GroupImagePreview({
 
   return (
     <div className="w-full max-w-96 shrink-0 space-y-2">
-      {/* Source image tabs */}
       <Tabs
         value={selected.candidatePrintingId}
         onValueChange={(value) => {

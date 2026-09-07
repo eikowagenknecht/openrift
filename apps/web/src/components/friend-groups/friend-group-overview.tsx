@@ -25,18 +25,6 @@ import { LIST_INTENT_ICON, LIST_INTENT_NOUN } from "./list-intent-meta";
 import { PendingRequestsBand } from "./pending-requests-band";
 import { TradesHubBand } from "./trades-hub-band";
 
-/**
- * The group overview / dashboard: pending join requests (admins only) as the
- * page's first band, the trades band (what is going on between the viewer and
- * the group, as rows of card art), a row of tiles linking to the shared /
- * members / events pages, then the recent activity feed beside a rail with the
- * newest shares and the tournament nudge.
- *
- * The requests band leads because the groups index and the avatar badge both
- * advertise "N requests to review" and land here; without it the only trace on
- * this page is the Members tile's hint, which reads as nothing to do.
- * @returns The overview-page content.
- */
 export function OverviewContent({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   return (
     <div className="flex flex-col gap-8">
@@ -58,26 +46,15 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
   const viewerId = useRequiredUserId();
   const { data: collections } = useCollections();
 
-  // The Shared page lists collections owned by the group itself plus members'
-  // personal collections shared in. The tile leads with the group's own count;
-  // member shares are the supporting hint. The viewer's own shares live in
-  // `collectionShares` too, so "from members" excludes them by `userId`.
   const groupCollections = collections.filter((col) => col.groupId === data.group.id);
   const memberShareCount = data.collectionShares.filter(
     (share) => share.userId !== viewerId,
   ).length;
 
-  // A group with no box of its own has nothing to want from, so it never asks.
   const boxWants = useGroupBoxWants(groupCollections.length > 0 ? slug : undefined);
 
-  // Cards the viewer's wish lists want that the group's bulk boxes can actually
-  // hand over. The tile leads to the box holding the most of them, already
-  // filtered; a group with no box, or nothing wanted in one, gets no tile at
-  // all rather than a zero.
   const bestBoxId = boxWants.bestCollection(groupCollections.map((box) => box.id));
   const wantedBox = groupCollections.find((col) => col.id === bestBoxId);
-  // The value counts every wanted card in the group, so when more than one box
-  // holds some, the hint says so instead of naming only the linked one.
   const boxesWithWants = groupCollections.filter(
     (col) => boxWants.wantedCardCount(col.id) > 0,
   ).length;
@@ -126,20 +103,10 @@ function ActionTiles({ slug, data }: { slug: string; data: FriendGroupDetailResp
   );
 }
 
-/**
- * The Tournaments tile, shown to every group member: the count of the group's
- * open tournaments, with the viewer's participation in those same tournaments
- * as the supporting hint. When nothing is open, admins get a nudge to plan one
- * (creation is admin-gated); members get a plain empty state. The
- * group-tournaments list is member-scoped server-side, so the query is safe
- * for any role that reaches the overview.
- * @returns The Tournaments tile.
- */
+// The group-tournaments list is member-scoped server-side, so the query is safe for any role.
 function GroupTournamentsTile({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: tournaments } = useGroupTournaments(slug);
-  // The same date-aware "current" bucket the events page renders, so the tile
-  // can never disagree with it. Completed and cancelled tournaments only
-  // surface through the "N total" fallback.
+  // Uses the same "current" bucket as the events page so the two never disagree.
   const open = partitionTournaments(tournaments.items).current;
   const joined = open.filter((tournament) => tournament.myRoles.includes("participant")).length;
 
@@ -182,11 +149,6 @@ type StatCardTarget =
   | "/groups/$slug/members"
   | "/groups/$slug/events";
 
-/**
- * A group-page StatTile: binds the shared dashboard-tile primitive to the
- * group's typed navigation targets.
- * @returns The tile.
- */
 function StatCard({
   to,
   slug,
@@ -206,9 +168,6 @@ function StatCard({
   return <StatTile render={<Link to={to} params={{ slug }} />} {...props} />;
 }
 
-// Pending requests are announced by the band at the top of the page, which
-// carries the count and the approve/deny actions, so the tile no longer
-// repeats them — one accent per page, and no second count to keep in step.
 function MembersCard({ slug, data }: { slug: string; data: FriendGroupDetailResponse }): ReactNode {
   const shown = data.members.slice(0, 5);
   return (
@@ -225,11 +184,6 @@ function MembersCard({ slug, data }: { slug: string; data: FriendGroupDetailResp
   );
 }
 
-/**
- * The overview's right rail: the group's newest shared lists and collections,
- * and, while no tournament is open, the role-aware "plan one" nudge.
- * @returns The rail column.
- */
 function OverviewRail({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   return (
     <aside className="flex flex-col gap-8">
@@ -247,7 +201,6 @@ type SharedRow = {
   sub: string;
 } & ({ target: "list"; listId: string } | { target: "collection"; collectionId: string });
 
-/** @returns The icon + name + sub body shared by every rail row. */
 function RailRowBody({ row }: { row: SharedRow }) {
   return (
     <>
@@ -260,11 +213,6 @@ function RailRowBody({ row }: { row: SharedRow }) {
   );
 }
 
-/**
- * The most recently shared lists and collections, so fresh shares don't drown
- * in the activity feed. Renders nothing when the group has no shares yet.
- * @returns The newest-shared section, or null.
- */
 function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const rows: SharedRow[] = [
     ...data.shares.map((share): SharedRow => ({
@@ -298,8 +246,7 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
       <CardList>
         {rows.map((row) => (
           <li key={row.key}>
-            {/* Each branch renders its own concrete <Link> so `to`/`params`
-                stay correlated (TanStack types them together). */}
+            {/* Each branch renders its own concrete <Link> so `to`/`params` stay correlated. */}
             {row.target === "list" ? (
               <Link
                 to="/groups/$slug/lists/$listId"
@@ -324,12 +271,6 @@ function NewestShared({ slug, data }: { slug: string; data: FriendGroupDetailRes
   );
 }
 
-/**
- * The rail's tournament slot: the group's next open tournaments as compact
- * rows when there are any, otherwise a role-aware nudge — admins (who can
- * create tournaments) get a call-to-action, members a plain heads-up.
- * @returns The next-up section.
- */
 function TournamentNudge({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const { data: tournaments } = useGroupTournaments(slug);
   const current = partitionTournaments(tournaments.items)

@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   events: [] as MetaEventSummary[],
-  /** What the archive holds all told, which the fetched era is measured against. */
   totalEvents: 0,
   ranges: [] as unknown[],
   search: {} as Record<string, unknown>,
@@ -45,8 +44,6 @@ vi.mock("@/hooks/use-meta", () => ({
   }),
 }));
 vi.mock("@/hooks/use-meta-eras", () => ({ useMetaEras: () => [] }));
-// Stubbed down to the slot the page fills: the bar's own controls have their
-// own tests, but the holdings select is this page's and rides inside it.
 vi.mock("@/components/meta/meta-scope-bar", () => ({
   MetaScopeBar: ({ extras }: { extras?: React.ReactNode }) => <div>{extras}</div>,
 }));
@@ -83,7 +80,6 @@ function renderPage(
   captured.search = search;
   const view = render(<MetaEventsPage />);
   return {
-    /** Re-renders under new URL params, the way a navigate would. */
     navigateTo(next: Record<string, unknown>) {
       captured.search = next;
       view.rerender(<MetaEventsPage />);
@@ -111,7 +107,7 @@ function winner(playerName: string): MetaEventSummary["topFinishes"][number] {
   };
 }
 
-/** @returns 52 events, one more than a page and a half. */
+// 52 events: one more than a page and a half.
 function manyEvents(): MetaEventSummary[] {
   return Array.from({ length: 52 }, (_, index) =>
     event({
@@ -122,13 +118,7 @@ function manyEvents(): MetaEventSummary[] {
   );
 }
 
-/**
- * The event names in the order the list renders them. Both the column layout
- * and the card layout are in the DOM at once (CSS picks between them), so the
- * first title of each row is the one to read.
- *
- * @returns One name per row.
- */
+/** Both the column and card layouts are in the DOM at once (CSS picks between them); reads the first title. */
 function rowNames(): string[] {
   return screen.getAllByRole("listitem").map((row) => row.querySelector("p")?.textContent ?? "");
 }

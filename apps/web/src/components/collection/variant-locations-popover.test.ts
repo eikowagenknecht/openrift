@@ -35,7 +35,6 @@ describe("buildVariantGroups", () => {
       "inbox",
       "binder-a",
     ]);
-    // Only Binder B remains as an add candidate (inbox + binder-a already held).
     expect(groups[0].addCandidates.map((collection) => collection.id)).toEqual(["binder-b"]);
   });
 
@@ -155,8 +154,6 @@ describe("ownedCountInCollection", () => {
   });
 
   it("returns 0 when the variant is not held in that collection (header `-` disabled)", () => {
-    // Copies live only in Binder A, so the default target (inbox) has none —
-    // the header quick-remove must read 0 and render disabled.
     const group = groupWith([{ collectionId: "binder-a", collectionName: "Binder A", count: 3 }]);
 
     expect(ownedCountInCollection(group, "inbox")).toBe(0);

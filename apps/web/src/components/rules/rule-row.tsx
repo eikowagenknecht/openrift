@@ -28,18 +28,11 @@ export function RuleRow({
   isContext?: boolean;
   termAnchors: ReadonlyMap<string, string>;
   changeKind?: ChangeKind;
-  /** For `changed` rules: the rule's content as of the previous version. */
   previousContent?: string;
-  /**
-   * For `moved` rules: the rule_number this content used to live under.
-   * For `replaced` rules: the rule_number where the previous content now lives.
-   */
   relatedRuleNumber?: string;
 }) {
-  // Per-row store subscriptions: only this row re-renders when its own fold
-  // state or any of its ancestors' fold state flips. The parent doesn't
-  // subscribe to fold state at all, so its `.map()` result stays cached
-  // across fold toggles and the React Compiler can do its job.
+  // Fold state is subscribed per-row, not by the parent, so its `.map()`
+  // result stays cached across fold toggles.
   const isFolded = useRulesFoldStore((state) => state.foldedRules.has(rule.ruleNumber));
   const isHidden = useRulesFoldStore((state) =>
     ancestors.some((ancestor) => state.foldedRules.has(ancestor)),
@@ -85,10 +78,8 @@ export function RuleRow({
         }}
         aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
         className={cn(
-          // The copy glyph is drawn by `rule-copy-affordance` as a ::after mask
-          // rather than a <CopyIcon> element. It is decorative and hover-only,
-          // and this page renders ~2,400 of them — as markup that was ~1.05 MB
-          // of the document. See the utility's note in index.css.
+          // Copy glyph is a ::after mask via rule-copy-affordance, not a <CopyIcon>
+          // element, since this page renders ~2,400 of them. See index.css.
           "rule-copy-affordance text-muted-foreground hover:text-foreground mr-3 flex shrink-0 items-start gap-1 font-mono text-xs no-underline",
           isTitle && "font-semibold",
         )}

@@ -73,7 +73,6 @@ describe("CardCountStrip", () => {
 
   it("uses a custom icon when supplied", () => {
     render(<CardCountStrip count={1} icon={ListIcon} />);
-    // ListIcon is from lucide; verify count text — the icon presence is a smoke check via no-crash.
     expect(screen.getByText("1")).toBeDefined();
   });
 

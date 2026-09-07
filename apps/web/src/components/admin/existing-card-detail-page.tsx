@@ -45,12 +45,7 @@ import {
 /** Stable placeholder so the filter hook can run before the detail lands. */
 const NO_PRINTINGS: AdminPrintingResponse[] = [];
 
-/**
- * The fold keys a freshly-opened card starts collapsed: every printing and
- * every ambiguous-source group except the first printing, which stays open.
- *
- * @returns The keys to collapse on the card's first visit.
- */
+/** Every printing and ambiguous-source group except the first printing, which stays open. */
 function defaultCollapsedKeys(detail: AdminCardDetailResponse): string[] {
   const groups = buildPrintingGroups(detail.candidatePrintingGroups, detail.candidatePrintings);
   return [...detail.printings.slice(1).map((p) => p.id), ...groups.map((g) => g.groupKey)];
@@ -70,23 +65,18 @@ export function ExistingCardDetailPage({
   focusFinish?: string;
   focusLanguage?: string;
   setSlug?: string;
-  /** The list page's status filter, when the visit started from one. */
   listStatus?: AdminCardListStatus;
-  /** Source+language scope for the price filter; absent means all assignable buckets. */
   priceScope?: string;
 }) {
   const cardId = identifier;
   const { data: access } = useAdminAccess();
-  // card-review grant holders keep the per-field accept flow and image
-  // finishing; triage (check/ignore), printing create/delete, rename, bans,
-  // errata, and marketplace stay full-admin.
+  // card-review grant holders keep the per-field accept flow and image finishing;
+  // triage, printing create/delete, rename, bans, errata, and marketplace stay full-admin.
   const isAdmin = access?.isAdmin === true;
 
-  // Narrow invalidation so mutations only refetch this card's detail + the
-  // admin card list — not every query under `admin.cards`.
+  // Only refetches this card's detail and the admin card list, not every query under `admin.cards`.
   const invalidateScope = [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list];
 
-  // --- Data fetching ---
   const {
     data: existingData,
     isLoading,
@@ -97,11 +87,9 @@ export function ExistingCardDetailPage({
     isError: boolean;
   };
 
-  // --- Shared hooks ---
   const { providerSettings, candidateCardFields, printingSourceFields, ignorePrintingSource } =
     useCardDetailData(invalidateScope);
 
-  // --- Existing-mode hooks ---
   const acceptPrintingGroup = useAcceptPrintingGroup(invalidateScope);
   const copyPrintingSource = useCopyCandidatePrinting(invalidateScope);
   const deletePrintingSource = useDeleteCandidatePrinting(invalidateScope);
@@ -109,7 +97,6 @@ export function ExistingCardDetailPage({
   const { data: setsData } = useSets();
   const keywordStyles = useKeywordStyles();
 
-  // --- Review run: prev/next, hotkeys, check-all-and-advance ---
   const { prevNextCards, isCheckingAll, checkAllAndNext, goToCard, goToList, checkAllCardSources } =
     useCardReviewNavigation({
       identifier,
@@ -121,7 +108,6 @@ export function ExistingCardDetailPage({
       invalidates: invalidateScope,
     });
 
-  // --- State ---
   const storedCollapsedPrintings = useAdminCardFoldStore((state) =>
     getStoredCollapsedPrintings(state, cardId),
   );
@@ -149,9 +135,8 @@ export function ExistingCardDetailPage({
   const pendingScrollTarget = useRef<string | null>(null);
   const focusHandledRef = useRef(false);
 
-  // A card opens folded down to its first printing, so a 30-printing card is a
-  // readable list instead of a wall of spreadsheets. Seeding runs before the
-  // focus effects below, which reach into a seeded card to open one row.
+  // Seeding runs before the focus effects below, which reach into a seeded card
+  // to open one row.
   useEffect(() => {
     if (!existingData) {
       return;
@@ -159,7 +144,6 @@ export function ExistingCardDetailPage({
     initCollapsedForCard(cardId, new Set(defaultCollapsedKeys(existingData)));
   }, [existingData, cardId, initCollapsedForCard]);
 
-  // After accepting a printing, expand it and scroll into view once data refetches
   useEffect(() => {
     const targetId = pendingScrollTarget.current;
     if (!targetId || !existingData) {
@@ -179,10 +163,8 @@ export function ExistingCardDetailPage({
     });
   }, [existingData, cardId, expandPrintingFold]);
 
-  // When the user arrives via a "Route to card" click on the Unmatched tab,
-  // find the printing that matches the staging row (finish match, plus
-  // language match for non-aggregate marketplaces — Cardmarket rows apply to
-  // all siblings so any matching finish works), auto-expand it and scroll to it.
+  // Cardmarket rows apply to all siblings, so any matching finish works there;
+  // other marketplaces also require a language match.
   useEffect(() => {
     if (focusHandledRef.current || !focusMarketplace || !focusFinish || !existingData) {
       return;
@@ -212,7 +194,6 @@ export function ExistingCardDetailPage({
     });
   }, [existingData, focusMarketplace, focusFinish, focusLanguage, cardId, expandPrintingFold]);
 
-  // --- Error / loading states ---
   if (isError) {
     return (
       <div className="space-y-2">
@@ -233,15 +214,13 @@ export function ExistingCardDetailPage({
     );
   }
 
-  // --- Resolved data ---
   const sources = existingData.sources;
   const candidatePrintings = existingData.candidatePrintings;
   const printings = existingData.printings;
   const printingImages = existingData.printingImages;
   const setTotals = existingData.setTotals ?? {};
-  // Release-year lookup for the Printed Year pre-fill, keyed both by set slug
-  // (the set's earliest release, as a fallback) and by `slug|LANGUAGE`, since
-  // a set reaches each language in its own year.
+  // Keyed both by set slug (earliest release, as a fallback) and by
+  // `slug|LANGUAGE`, since a set reaches each language in its own year.
   const setReleaseYears: Record<string, number> = {};
   for (const set of setsData.sets) {
     for (const [language, release] of Object.entries(set.releases)) {
@@ -278,7 +257,6 @@ export function ExistingCardDetailPage({
     submitters: sourceSubmitters,
   } = buildSourceLabels(sources, canonicalName);
 
-  // Build printing groups for ambiguous/unmatched sources
   const ambiguousGroups = buildPrintingGroups(
     existingData.candidatePrintingGroups,
     candidatePrintings,
@@ -287,7 +265,6 @@ export function ExistingCardDetailPage({
   const hasUnchecked =
     sources.some((s) => !s.checkedAt) || candidatePrintings.some((ps) => !ps.checkedAt);
 
-  // Compute collapse/expand keys once for the toggle button
   const allPrintingKeys = [
     ...printings.map((p) => p.id),
     ...ambiguousGroups.map((g) => g.groupKey),
@@ -339,7 +316,7 @@ export function ExistingCardDetailPage({
         isAdmin={isAdmin}
       />
 
-      {/* ── Marketplace (admin-only: the endpoint 403s for grant holders) ───── */}
+      {/* The endpoint 403s for grant holders. */}
       {isAdmin && (
         <section className="space-y-3">
           <ExpandToggle
@@ -353,7 +330,6 @@ export function ExistingCardDetailPage({
         </section>
       )}
 
-      {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <ExpandToggle
@@ -398,7 +374,6 @@ export function ExistingCardDetailPage({
             />
           ))}
 
-        {/* Bulk assign all matchable ambiguous groups */}
         {isAdmin &&
           printingsExpanded &&
           ambiguousGroups.length > 0 &&
@@ -437,7 +412,6 @@ export function ExistingCardDetailPage({
             );
           })()}
 
-        {/* Ambiguous / new printing groups */}
         {printingsExpanded &&
           ambiguousGroups.map((group) => (
             <NewPrintingGroupCard

@@ -63,7 +63,6 @@ const TOKEN_PRINTING = stubPrinting({
   card: { name: "Sand Soldier", superTypes: ["token"] },
 });
 
-/** Strips the enriched fields back off a stub Printing to get the wire shape. */
 function toWirePrinting(printing: Printing) {
   const { setSlug: _slug, setReleased: _released, card: _card, ...value } = printing;
   return { ...value, setId: SET_ID };

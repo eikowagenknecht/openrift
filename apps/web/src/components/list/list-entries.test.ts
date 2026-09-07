@@ -185,7 +185,6 @@ describe("selectableEntryIds", () => {
   });
 
   it("skips tiles with no entry behind them", () => {
-    // Library (catalog) mode renders printings that aren't on the list at all.
     const items = [{ id: "pz", printing: stubPrinting({ id: "pz" }) }];
     expect(selectableEntryIds(items, new Map())).toEqual([]);
   });
@@ -216,8 +215,6 @@ describe("resolveCopyMoveTarget", () => {
   });
 
   it("targets a rule-produced copy alone even while other entries are selected", () => {
-    // Rule entries have no list_entries row, so they can never be in the
-    // selection — clicking one must not drag the selection along.
     expect(resolveCopyMoveTarget(entries, new Set(["e1", "e2"]), "copy-3")).toEqual(["copy-3"]);
   });
 

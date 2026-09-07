@@ -60,53 +60,31 @@ interface PodResultEntry {
   gamePoints: number;
 }
 
-// Default region label: the raw slug (named so the React Compiler can reorder it).
+// Named so the React Compiler can reorder it.
 const rawRegionSlug = (slug: string): string => slug;
 
 interface PairingsViewProps {
   rounds: PodRoundResponse[];
-  /** 2v2 renders each size-4 pod as a team match (two sides, team results). */
   playMode: TournamentPlayMode;
-  /** The active scheme, so the result form previews the right points. */
   scheme: PodScoringScheme;
-  /** Score points a sat-out (bye) game is worth, shown on the byes card. */
   byePoints: number;
-  /** Swiss result entry: which scoreline presets a match offers. */
   matchFormat: TournamentMatchFormat;
-  /** Swiss match points, for the result form's preview. */
   winPoints: number;
   drawPoints: number;
-  /** Region per player (when the region layer is on), rendered as chips. */
   regionByPlayer?: Map<string, string | null>;
-  /** Region slug -> display label; defaults to the raw slug. */
   regionLabel?: (slug: string) => string;
-  /** Organizer view: show the fairness internals (penalty, rematches, spread, warnings). */
   showPenalty: boolean;
-  /**
-   * Per-player aggregates entering the open round (organizer-only). When present,
-   * the reporting round shows advisory warnings (rematch / 3-pod / spread / bye).
-   */
   snapshot?: PodSnapshotPlayer[] | null;
-  /** Warnings written out per pod (`true`) vs a compact header icon (`false`). Default `true`. */
   warningsExpanded?: boolean;
-  /** Whether the given pod may be scored right now (e.g. its round is reporting). */
   canEnterResult: (round: PodRoundResponse, pod: PodResponse) => boolean;
   onSubmitResult: (podId: string, results: PodResultEntry[]) => Promise<void>;
-  /**
-   * Per-player self-reporting (participant link): when present, each member row
-   * offers inline entry of that player's own game points, and the pod completes
-   * once everyone has entered theirs.
-   */
   onSubmitPlayerResult?: (podId: string, playerId: string, gamePoints: number) => Promise<void>;
-  /** Organizer round-level controls (re-roll / edit), rendered in the round header. */
   renderRoundActions?: (round: PodRoundResponse) => ReactNode;
-  /** Empty-state title. Pass `""` to render nothing at all. */
   emptyMessage: string;
-  /** Optional empty-state second line. */
   emptyDescription?: string;
 }
 
-// Engine pods from a stored round (members in order); index aligns with round.pods.
+// Members are in the same order as round.pods; index aligns with round.pods.
 function toEnginePods(round: PodRoundResponse) {
   return round.pods.map((pod) => ({
     size: pod.size,
@@ -135,8 +113,7 @@ export function PairingsView({
   emptyDescription,
 }: PairingsViewProps) {
   if (rounds.length === 0) {
-    // The manual pairing editor takes the whole surface over, so it asks for no
-    // empty state at all rather than an empty-string title.
+    // An empty-string title renders nothing at all.
     if (emptyMessage === "") {
       return null;
     }
@@ -176,10 +153,8 @@ export function PairingsView({
   return (
     <div className="flex flex-col gap-8">
       {rounds.toReversed().map((round) => {
-        // Warnings are organizer-only and only meaningful on the open round, where
-        // the snapshot reflects the state the pairing was built from. In 2v2 they
-        // are computed over team units — the level the pairing was drawn at — so
-        // a team rematch reads as one warning, not four player pairs.
+        // Warnings only apply to the open round, and in 2v2 are computed over
+        // team units, so a team rematch is one warning, not four player pairs.
         const players = snapshot ? snapshotToPlayers(snapshot) : [];
         let warnings: PairingWarning[] = [];
         if (showPenalty && snapshot && round.status === "reporting") {
@@ -300,11 +275,8 @@ export function PairingsView({
   );
 }
 
-/**
- * "3 pods" / "4 matches" — an all-1v1 (Swiss) round pairs matches, not pods,
- * and every 2v2 team round is matches throughout.
- * @returns The pod count with the round's noun.
- */
+// "3 pods" / "4 matches" — an all-1v1 (Swiss) round pairs matches, not pods,
+// and every 2v2 team round is matches throughout.
 function formatPodCount(round: PodRoundResponse, teamMode: boolean): string {
   const allMatches = teamMode || isAllMatchRound(round.pods.map((pod) => pod.size));
   if (allMatches) {
@@ -313,11 +285,6 @@ function formatPodCount(round: PodRoundResponse, teamMode: boolean): string {
   return `${round.pods.length} pod${round.pods.length === 1 ? "" : "s"}`;
 }
 
-/**
- * The round's pairing quality, as the organizer's stat row: how much penalty the
- * engine had to accept, and where it had to accept it.
- * @returns The stat strip.
- */
 function RoundPenaltyStats({ round }: { round: PodRoundResponse }) {
   const rematches = round.pods.reduce((sum, pod) => sum + (pod.penalty?.rematchPairs ?? 0), 0);
   const inThreePods = round.pods
@@ -382,12 +349,6 @@ function RoundPenaltyStats({ round }: { round: PodRoundResponse }) {
   return <StatStrip items={items} />;
 }
 
-/**
- * The round's sat-out players, as a section of their own. A player who has byed
- * before is flagged on their own row — a repeat bye is the thing an organizer
- * wants to catch here.
- * @returns The byes section.
- */
 function ByesSection({
   byes,
   byePoints,
@@ -395,7 +356,6 @@ function ByesSection({
 }: {
   byes: PodRoundResponse["byes"];
   byePoints: number;
-  /** Byes each player had entering this round; organizer-only, open round only. */
   priorByesByPlayer: Map<string, number>;
 }) {
   return (
@@ -428,19 +388,6 @@ function ByesSection({
   );
 }
 
-/**
- * A member's seed in the pod: where they finished and the game points that put
- * them there. One badge rather than two figures at opposite ends of the row —
- * the placement is derived from the game points, so they are one fact, and
- * pairing them frees the row's end for the two point totals.
- *
- * Both halves are optional: an unreported pod has neither, and a pod mid
- * self-entry has game points before anyone has placed.
- *
- * @param placement The 1-based finish within the pod, or null before results.
- * @param gamePoints The member's game points, or null before they are entered.
- * @returns The badge, or null when there is nothing to seed with.
- */
 function MemberSeedBadge({
   placement,
   gamePoints,
@@ -470,12 +417,7 @@ function MemberSeedBadge({
   );
 }
 
-/**
- * The pod's fairness internals, nonzero figures only — a clean pairing (no
- * rematches, no spread, no penalty) says nothing at all instead of a row of
- * zeros.
- * @returns The joined summary, or null when every figure is zero.
- */
+// Omits zero-value figures: a clean pairing renders nothing.
 function podPenaltySummary(penalty: NonNullable<PodResponse["penalty"]>): string | null {
   const parts: string[] = [];
   if (penalty.rematchPairs > 0) {
@@ -508,7 +450,6 @@ function PodCard({
   onSubmitPlayerResult,
 }: {
   pod: PodResponse;
-  /** 2v2: the pod is a team match (two sides of two, one result per side). */
   teamMode: boolean;
   scheme: PodScoringScheme;
   matchFormat: TournamentMatchFormat;
@@ -527,7 +468,6 @@ function PodCard({
   const isMatch = teamMode || isMatchPairing(pod.size);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  // Per-player self-entry: which member row is open for input, and its draft value.
   const [scoringPlayerId, setScoringPlayerId] = useState<string | null>(null);
   const [scoreDraft, setScoreDraft] = useState("");
   const reported = pod.resultStatus === "reported";
@@ -571,9 +511,8 @@ function PodCard({
     setSaving(false);
   }
 
-  // One row per side: a lone player in 1v1 and pods, the whole team in 2v2. A
-  // team is one entity here — one name, one score, one points figure — and the
-  // shared result lives on the side's first member (teammates mirror it).
+  // One row per side. In 2v2 the result lives on the side's first member and
+  // teammates mirror it; a team never scores independently per player.
   function sideRow(members: PodMemberResponse[]) {
     const lead = members[0];
     if (!lead) {
@@ -584,9 +523,6 @@ function PodCard({
       <li key={lead.teamId ?? lead.playerId} className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">
           {isMatch ? (
-            // A match reads like a scoreboard: the side's score in front,
-            // the winner evident from comparing the two rows — no
-            // placement · Ng pod vocabulary.
             lead.gamePoints === null ? null : (
               <Badge
                 variant="secondary"
@@ -736,7 +672,6 @@ function PodCard({
                 ? groupPodMembersByTeam(pod.members)
                 : pod.members.map((member) => [member])
               ).flatMap((group, groupIndex) => [
-                // A quiet divider between the two sides of a team match.
                 ...(teamMode && groupIndex > 0
                   ? [
                       <li
@@ -768,12 +703,6 @@ function PodCard({
   );
 }
 
-/**
- * The pod's reporting state at a glance: green once every score is in, amber
- * while the pod is part-way (someone still owes a score), quiet before anyone
- * has entered anything.
- * @returns The status badge.
- */
 function PodStatusBadge({
   reported,
   enteredCount,

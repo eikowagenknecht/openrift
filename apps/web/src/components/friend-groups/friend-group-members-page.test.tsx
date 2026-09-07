@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const acceptMutate = vi.fn();
 const declineMutate = vi.fn();
 
-/** Swapped per test so the top-bar actions can read a group from "the cache". */
 let detailData: FriendGroupDetailResponse | undefined;
 
 vi.mock("@/hooks/use-friend-groups", () => ({
@@ -148,7 +147,6 @@ function makeRequest(userId: string): FriendGroupDetailResponse["pendingRequests
   };
 }
 
-/** @returns The roster rows' member names, top to bottom. */
 function rowNames(): string[] {
   return screen
     .getAllByRole("listitem")
@@ -260,7 +258,6 @@ describe("MembersPageContent roster", () => {
     );
     expect(screen.getByText("Owner")).toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
-    // "Member" never renders as a chip — no chip means plain member.
     expect(screen.queryByText("Member")).not.toBeInTheDocument();
   });
 
@@ -294,9 +291,6 @@ describe("MembersPageContent roster", () => {
     expect(screen.queryByText(/1 owner/u)).not.toBeInTheDocument();
   });
 
-  // The count is the viewer's own trades with that member, so the label says
-  // so. It used to be group-wide and read as a claim about the two of them,
-  // which put "3 traded" beside someone the viewer had never traded with.
   it("shows a traded-count stat only for members the viewer has traded with", () => {
     render(
       <MembersPageContent
@@ -308,9 +302,6 @@ describe("MembersPageContent roster", () => {
       />,
     );
     expect(screen.getByText("12 traded with you")).toBeInTheDocument();
-    // The zero-count member (viewer-1) carries no stat at all. The pattern is
-    // anchored to the stat's "<n> traded with you" shape so the sort select's
-    // "Most traded with you" label doesn't count as a match.
     expect(screen.getAllByText(/^\d+ traded with you$/u)).toHaveLength(1);
   });
 
@@ -321,7 +312,6 @@ describe("MembersPageContent roster", () => {
         slug="bothfeld"
         data={makeDetail({
           members: [
-            // Fixture default joinedAt (2026-02-10) is far outside the window.
             makeMember("viewer-1", "owner"),
             makeMember("u2", "member", { joinedAt: recent }),
           ],
@@ -333,7 +323,7 @@ describe("MembersPageContent roster", () => {
 });
 
 describe("MembersPageContent volume pills", () => {
-  it("sums cards offered and wanted and counts collections, hiding zeroes", () => {
+  it("sums cards offered and wanted and counts collections, hiding zeroes and organize-list shares", () => {
     render(
       <MembersPageContent
         slug="bothfeld"
@@ -343,7 +333,6 @@ describe("MembersPageContent volume pills", () => {
             makeShare("u2", "wish", 3, "l1"),
             makeShare("u2", "wish", 1, "l2"),
             makeShare("u2", "trade", 12, "l3"),
-            // Organize lists don't count toward trading and stay hidden.
             makeShare("u2", "organize", 40, "l4"),
           ],
         })}

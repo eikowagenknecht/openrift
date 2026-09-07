@@ -15,25 +15,22 @@ interface SearchInputProps {
   /** Accessible name for the input (defaults to the placeholder). */
   ariaLabel?: string;
   /**
-   * In-field adornment after the magnifier icon, e.g. a search-scope chip.
-   * Clicks on non-interactive parts focus the input (InputGroup's addon
-   * delegation); buttons inside (e.g. a chip's remove X) receive their own
-   * clicks — the delegation skips them.
+   * In-field adornment after the magnifier icon. Clicks on non-interactive
+   * parts focus the input; buttons inside (e.g. a chip's remove X) keep their
+   * own clicks.
    */
   leading?: ReactNode;
   /** Right-aligned trailing text, e.g. a `"12 / 40 decks"` result count. */
   trailing?: ReactNode;
-  /** Extra classes for the group wrapper (e.g. `flex-1 min-w-[200px]`). */
   className?: string;
   inputRef?: Ref<HTMLInputElement>;
   onFocus?: () => void;
   onBlur?: () => void;
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   /**
-   * Backspace pressed while the field is empty — the chip-input idiom for
-   * "delete the adornment left of the caret" (e.g. drop the search scope shown
-   * in `leading`). Soft keyboards can send the delete as an input event with no
-   * matching key event, so both signals are watched.
+   * Backspace pressed while the field is empty (drops the adornment shown in
+   * `leading`). Soft keyboards may not fire a matching key event, so both
+   * signals are watched.
    */
   onBackspaceEmpty?: () => void;
 }
@@ -41,12 +38,8 @@ interface SearchInputProps {
 /**
  * Presentational search box shared by every search surface: a left magnifier
  * icon, the input, a right-aligned result count, and a clear button that shows
- * once there's a value. Surfaces layer their own behaviour (scope chips, URL
- * sync, store wiring) on top by passing handlers and the formatted `trailing`
- * count. Built on InputGroup, so the addons sit in flex flow and the typed
- * text can never run under them.
- *
- * @returns The search input box.
+ * once there's a value. Built on InputGroup, so the addons sit in flex flow
+ * and the typed text can never run under them.
  */
 export function SearchInput({
   value,
@@ -73,13 +66,9 @@ export function SearchInput({
     onKeyDown?.(event);
   };
 
-  // Soft keyboards (Android) can report the delete key as `Unidentified`, so
-  // the key handler above never sees it; `beforeinput` carries the intent
-  // instead. The listener is native because React's synthetic `onBeforeInput`
-  // is synthesized from text insertion and never fires for a deletion. On an
-  // empty field there is nothing to delete, so the event is the press itself.
-  // Firing twice (a browser that sends both signals) is harmless: the callers
-  // clear a filter, which is idempotent.
+  // Android soft keyboards can report delete as `Unidentified`, so the key
+  // handler above misses it; `beforeinput` catches it (React's synthetic
+  // onBeforeInput never fires for deletions).
   const node = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const input = node.current;
@@ -135,10 +124,8 @@ export function SearchInput({
 }
 
 /**
- * Writes a node into a caller-supplied ref of either shape. Lives at module
- * scope because assigning `ref.current` inside the component reads as mutating
- * a prop to the React Compiler.
- * @returns Nothing.
+ * Must stay at module scope: the React Compiler treats `ref.current` assignment
+ * inside the component as mutating a prop.
  */
 function assignRef(ref: Ref<HTMLInputElement> | undefined, node: HTMLInputElement | null) {
   if (typeof ref === "function") {

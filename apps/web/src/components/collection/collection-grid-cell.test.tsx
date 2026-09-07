@@ -20,9 +20,6 @@ const copiesByPrinting: Record<string, string[]> = {
   "p-y": ["cy1"],
 };
 
-// Per-test state for the mocked feeds: which copies a live trade has pinned,
-// which are out on a loan, and the viewer's live annotations. Reset in
-// beforeEach.
 const reservedCopyIds = new Set<string>();
 const loanedCopyIds = new Set<string>();
 let liveAnnotations: CardTradeLiveAnnotation[] = [];
@@ -31,8 +28,6 @@ function copiesFor(printingIds: readonly string[]): string[] {
   return printingIds.flatMap((id) => copiesByPrinting[id] ?? []);
 }
 
-// Stub the per-cell live queries: return exactly the copies for whatever
-// printingIds the cell decides to query. The fix is about which ids it queries.
 vi.mock("@/hooks/use-owned-count", () => ({
   useCopyRowsForPrintings: (printingIds: readonly string[]) => ({
     data: printingIds.flatMap((printingId) =>
@@ -55,30 +50,17 @@ vi.mock("@/hooks/use-owned-count", () => ({
   },
 }));
 
-// The cell reads its own live-trade annotations (ADR-019) rather than taking
-// them from the grid, so the test feeds the hook directly.
 vi.mock("@/hooks/use-card-trades", () => ({
   useLiveTradesByPrinting: () => ({ data: { annotations: liveAnnotations } }),
 }));
 
-/** The strip props the probe below reads. */
 interface StripProbeProps {
-  /** Where the stacked strips put the loan / trade / metadata chips. */
   extras?: ReactNode;
-  /** What the copies-view strip receives to word its marker with. */
   tradeAnnotation?: CardTradeLiveAnnotation | null;
 }
 
-// Render the left overlay (where the SelectionCheckbox lives) and a marker for
-// which strip the cell decided to produce (count strip vs. the ADR-038 copy
-// metadata strip), identified by the element's component name; skip the whole
-// thumbnail tree.
-//
-// Of the strip itself only the `extras` slot is rendered, which is where the
-// chips under test live. Mounting a real count strip would drag in the
-// owned-collections popover, which this test has no providers for. The
-// copies-view strip has no extras, so its annotation is probed as an attribute
-// instead. How it draws that annotation is copy-metadata-badges.test.tsx's job.
+// Renders leftOverlay and the strip's extras/tradeAnnotation only, skipping the
+// thumbnail tree; a real count strip would drag in the owned-collections popover.
 vi.mock("@/components/cards/card-cell", () => ({
   CardCell: ({
     leftOverlay,
@@ -106,9 +88,8 @@ vi.mock("@/components/cards/card-cell", () => ({
 const { CollectionGridCell } = await import("./collection-grid-cell");
 
 const collectionId = "col-1";
-// Only getFallbackArt is real: the cell calls it to decide whether to render
-// the standalone suggest-image pill; the thumbnail tree consuming the rest of
-// the bundle is mocked out above.
+// Only getFallbackArt is real; the cell calls it to decide whether to render
+// the standalone suggest-image pill.
 const display = { getFallbackArt: () => null } as unknown as CardThumbnailDisplay;
 
 function renderCell(props: { dataView: "cards" | "printings"; siblings: Printing[] | undefined }) {
@@ -138,15 +119,10 @@ describe("CollectionGridCell selection checkbox", () => {
   afterEach(resetSelection);
 
   it("checks a printing in printings view when only its own copies are selected", () => {
-    // Select just printing X's copies — the user clicked one of two printings.
     useGridSelectionStore.getState().addToSelection(["cx1", "cx2"]);
 
-    // The parent (catalog grouping) still hands both siblings to the cell.
     renderCell({ dataView: "printings", siblings: [printingX, printingY] });
 
-    // Regression: before the fix the cell folded in sibling Y's copy (cy1),
-    // so the "every copy selected" test failed and the box stayed unchecked
-    // even though the action bar reported a selection.
     expect(screen.getByRole("checkbox")).toBeChecked();
   });
 
@@ -157,8 +133,6 @@ describe("CollectionGridCell selection checkbox", () => {
   });
 
   it("still aggregates sibling copies in cards view", () => {
-    // Cards view shows one cell per card; selecting it must require every
-    // sibling printing's copies to be selected.
     useGridSelectionStore.getState().addToSelection(["cx1", "cx2"]);
     const { rerender } = renderCell({ dataView: "cards", siblings: [printingX, printingY] });
     expect(screen.getByRole("checkbox")).not.toBeChecked();
@@ -216,9 +190,6 @@ describe("CollectionGridCell strip gating", () => {
   beforeEach(resetSelection);
   afterEach(resetSelection);
 
-  // A copies-view tile (`!stacked`) is a single physical copy, so its count is
-  // always 1 and the per-printing count controls don't apply — the strip row
-  // instead carries the copy's metadata chips (ADR-038).
   it("renders the metadata strip, not the count strip, on a copies-view tile in browse mode", () => {
     renderStripCell({ stacked: false, mode: "browse", itemId: "cx1" });
     expect(screen.getByTestId("cell-strip").dataset.stripKind).toBe("CopyMetadataStrip");
@@ -246,8 +217,7 @@ function annotation(overrides: Partial<CardTradeLiveAnnotation> = {}): CardTrade
   };
 }
 
-// Wiring only: which annotation the cell picks up and what it does with it.
-// The picking rules themselves are tile-trade-status.test.ts's job.
+// Picking rules themselves are tile-trade-status.test.ts's job.
 describe("CollectionGridCell live-trade chip", () => {
   beforeEach(() => {
     resetSelection();
@@ -281,9 +251,6 @@ describe("CollectionGridCell live-trade chip", () => {
     expect(screen.queryByLabelText(/Reserved/u)).not.toBeInTheDocument();
   });
 
-  // The product rule: "3" must never read as "3 committed", so the tooltip
-  // names the copies still free next to it. Printing X holds two copies here
-  // and one is already pinned, leaving one.
   it("qualifies an asked count with the copies still free", () => {
     reservedCopyIds.add("cx1");
     liveAnnotations = [annotation({ phase: "asked", quantity: 3 })];
@@ -295,8 +262,6 @@ describe("CollectionGridCell live-trade chip", () => {
     ).toBeInTheDocument();
   });
 
-  // The cell hands its whole copy set to the count, so a loaned copy is
-  // subtracted here exactly as the server's reservable supply subtracts it.
   it("counts neither the pinned nor the loaned copy as available", () => {
     reservedCopyIds.add("cx1");
     loanedCopyIds.add("cx2");
@@ -309,9 +274,6 @@ describe("CollectionGridCell live-trade chip", () => {
     ).toBeInTheDocument();
   });
 
-  // A group "bulk box" holds the group's copies, and an annotation names only a
-  // printing. So a trade on it is about copies the viewer holds personally, in
-  // some other collection entirely.
   it("shows no chip on a group bulk-box tile", () => {
     liveAnnotations = [annotation({ phase: "reserved" })];
 
@@ -338,8 +300,6 @@ describe("CollectionGridCell live-trade chip", () => {
     ).toBeInTheDocument();
   });
 
-  // A copies-view tile is one physical copy, so the cell hands the strip the
-  // annotation and lets the copy's own `reserved` flag decide whether to draw it.
   it("hands the copies-view strip its printing's annotation instead of a chip", () => {
     liveAnnotations = [annotation({ phase: "reserved" })];
 

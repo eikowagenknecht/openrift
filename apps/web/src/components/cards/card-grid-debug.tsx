@@ -23,21 +23,11 @@ interface CardGridDebugProps {
   estimateRowHeight: (index: number) => number;
 }
 
-// ── Tree types & rendering ──────────────────────────────────────────
-
-/**
- * Every node shows:  label  exp -> meas  check/cross.
- * Composite nodes show their formula so you can see which children sum
- * to the parent.  Mismatches at any level propagate visually -- nothing
- * is hidden behind tolerances.
- */
+/** Each node prints `label exp->meas check/cross`; composite nodes also show the formula summing their children. */
 interface Node {
   label: string;
-  /** Expected value (from constants / formula). */
   exp: number;
-  /** Measured value (from DOM). */
   meas: number;
-  /** Shown after ✓/✗ — formula for composite nodes, context for leaves. */
   note?: string;
   children?: Node[];
 }
@@ -77,8 +67,6 @@ function renderTree(root: Node): string[] {
   return lines;
 }
 
-// ── Component ───────────────────────────────────────────────────────
-
 export function CardGridDebug({
   enabled,
   virtualizer,
@@ -105,7 +93,6 @@ export function CardGridDebug({
       const items: VirtualItem[] = virtualizer.getVirtualItems();
       const prevTotal = prevTotalRef.current;
 
-      // Derived layout values — mirrors estimateRowHeight logic
       const { gap, cardWidth, gutter } = computeGridMetrics(containerWidth, columns);
       const expImgH = (cardWidth - BUTTON_PAD * 2) * CARD_ASPECT_INVERSE;
       const expRow = estimateRowHeight(items[0]?.index ?? 0);
@@ -117,25 +104,20 @@ export function CardGridDebug({
         `scroll=${Math.round(globalThis.scrollY)} total=${total} items=${items.length} cols=${columns} cW=${cardWidth.toFixed(0)} gap=${gap} gutter=${gutter} rem=${rootFontSize} sans=${sansLoaded}`,
       ];
 
-      // Find first card row and build measurement tree
       const firstCard = items.find((it) => virtualRows[it.index]?.kind === "cards");
       if (firstCard) {
         const rowEl = document.querySelector(`[data-index="${firstCard.index}"]`);
         const gridEl = rowEl?.firstElementChild;
-        // In normal mode the card root is a <button class="p-0.75">.
-        // In add mode it's a <div class="p-0.75"> with AddStrip + image <button> + label.
+        // Normal mode: card root is a <button>. Add mode: a <div> with AddStrip + image <button> + label.
         const cardEl = gridEl?.firstElementChild as HTMLElement | null;
         const isAddMode = cardEl !== null && cardEl.tagName !== "BUTTON";
-        // Image section: in add mode find the direct-child <button> (image wrapper),
-        // in normal mode take the first child of the card root.
         const imgDiv = isAddMode
           ? [...cardEl.children].find((c) => c.tagName === "BUTTON")?.firstElementChild
           : cardEl?.children[0];
         const lblDiv = cardEl?.lastElementChild;
         const metaEl = lblDiv ? lblDiv.children[0] : undefined;
 
-        // Row-level measurements — use raw getBoundingClientRect for fractional
-        // precision (firstCard.size is the virtualizer's rounded integer).
+        // getBoundingClientRect for fractional precision; firstCard.size is the virtualizer's rounded integer.
         const virtSize = firstCard.size;
         const measRow = rowEl?.getBoundingClientRect().height ?? virtSize;
         const measImg = imgDiv?.getBoundingClientRect().height ?? 0;
@@ -158,7 +140,6 @@ export function CardGridDebug({
           rowChildren.push({ label: "lblMt", exp: LABEL_WRAPPER_MT, meas: measLblMt });
           const labelChildren: Node[] = [];
 
-          // Meta subtree
           if (metaEl) {
             const measMeta = (metaEl as Element).getBoundingClientRect().height;
             const metaCS = getComputedStyle(metaEl as Element);
@@ -222,8 +203,6 @@ export function CardGridDebug({
         }
         rowChildren.push({ label: "padB", exp: BUTTON_PAD, meas: measPadB });
 
-        // Tree: fractional expected (from constants, before ceil) vs fractional
-        // DOM measurement.  This is where you fix constant mismatches.
         const rawSum = expImgH + BUTTON_PAD * 2 + labelHeight;
 
         lines.push(
@@ -236,13 +215,11 @@ export function CardGridDebug({
           }),
         );
 
-        // Virtualizer line: integer comparison that drives scroll stability.
-        // est = estimateRowHeight (our prediction), virt = what the virtualizer stored.
+        // est = estimateRowHeight's prediction, virt = what the virtualizer stored.
         const estOk = expRow === virtSize ? "✓" : "✗";
         lines.push(`est=${expRow} virt=${virtSize} ${estOk}  ⌈${rawSum}⌉→${expRow}`);
       }
 
-      // Log jumps
       if (prevTotal && Math.abs(total - prevTotal) > 1) {
         jumpLogRef.current.push(`JUMP ${prevTotal}→${total} (Δ${total - prevTotal})`);
         if (jumpLogRef.current.length > 6) {

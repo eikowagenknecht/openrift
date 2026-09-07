@@ -36,7 +36,7 @@ export function CreateCardPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugDirty, setSlugDirty] = useState(false);
-  // Ordered multi-type (ADR-037): selection order matters, first type is primary.
+  // Selection order matters: the first type is primary.
   const [types, setTypes] = useState<string[]>([]);
   const [domains, setDomains] = useState<string[]>([]);
   const [superTypes, setSuperTypes] = useState<string[]>([]);

@@ -45,19 +45,11 @@ export type ParticipantAction =
   | "unlink"
   | "reissue";
 
-/** A participant the roster can act on, plus the name the dialogs prefill with. */
 export interface ParticipantTarget {
   participantId: string;
   name: string;
 }
 
-/**
- * Whether this player blocks a region-aware pairing: region-aware tournaments
- * cannot pair a round while an active player has no region. The one definition,
- * so the band, the badge, and the row's quick action can't drift apart.
- *
- * @returns True when the player is active in a region-aware tournament and has no region.
- */
 export function participantMissesRegion(
   participant: TournamentParticipantResponse,
   regionsEnabled: boolean,
@@ -71,35 +63,21 @@ function statusBadgeVariant(status: TournamentParticipantResponse["status"]) {
 
 export interface ParticipantRowProps {
   participant: TournamentParticipantResponse;
-  /** The tournament id, for the deck link's route params. */
   tournamentId: string;
   regionsEnabled: boolean;
-  /** The viewer may edit the roster (host / organizer): full kebab and actions. */
   manage: boolean;
-  /** The viewer may set regions (adds judges, who have no manage rights). */
   canAssignRegion: boolean;
-  /** Dims the row — the dropped group, matching the standings table. */
   dimmed?: boolean;
-  /** The 2v2 teammate's name, rendered as a chip; absent outside team play. */
   teammateName?: string;
-  /** The player's deck-check entry, when they submitted one. */
   deckEntryId?: string;
   actionPending: boolean;
   onAction: (participantId: string, action: ParticipantAction) => void;
   onRename: (target: ParticipantTarget) => void;
   onSetRegion: (target: ParticipantTarget & { region: string }) => void;
-  /** Opens the fixed-table dialog; `fixedTable` is the input draft ("" = unset). */
   onSetFixedTable: (target: ParticipantTarget & { fixedTable: string }) => void;
   onRemove: (target: ParticipantTarget) => void;
 }
 
-/**
- * One roster row: the player's identity and status on the left, their actions on
- * the right. On phones the quick Set region / Deck buttons collapse into the
- * kebab (which carries both anyway) so they can't crush the name.
- *
- * @returns The participant row card.
- */
 export function ParticipantRow({
   participant,
   tournamentId,
@@ -129,7 +107,6 @@ export function ParticipantRow({
     if (!token) {
       return;
     }
-    // Built from the env-backed origin, never a hardcoded site URL.
     if (await copy(`${getSiteUrl()}/tournaments/claim/${token}`)) {
       toast.success("Claim link copied");
     } else {

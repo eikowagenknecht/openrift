@@ -4,23 +4,8 @@ import { Select, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 /**
- * The message a contributor gets back about something they submitted: a canned
- * reason and, optionally, the reviewer's own words.
- *
- * Shared by the card pipeline's resolution dialog (ADR-036) and the meta
- * archive's (ADR-014) because this is the one surface where drift actually
- * hurts. What a reason is called, what the note's placeholder promises, and how
- * the canned sentence is previewed are the words behind the only message a
- * contributor ever receives, and two copies of them would drift in tone long
- * before they drifted in code.
- *
- * What is deliberately NOT here: the outcome. The card pipeline derives a
- * submission's status from its check and ignore verbs and this form only
- * describes it; the meta archive has no ignore path to derive from, so its
- * shell stamps the status explicitly. That difference is why the two keep
- * separate shells instead of becoming one dialog with a mode flag.
- *
- * @returns The reason picker, its preview line, and the note field.
+ * Shared by the card pipeline and meta archive resolution dialogs. Renders
+ * only the reason/note inputs; each caller derives and stamps its own status.
  */
 export function SubmissionMessageFields<TReason extends string>({
   idPrefix,
@@ -35,22 +20,14 @@ export function SubmissionMessageFields<TReason extends string>({
   noReasonLabel = "No canned reason",
   disabled = false,
 }: {
-  /** Namespaces the field ids, so two of these can coexist on one page. */
   idPrefix: string;
-  /** The reasons to offer, in the order the reviewer is most likely to want them. */
   reasonOrder: readonly TReason[];
-  /** Short labels for the picker. */
   reasonLabels: Record<TReason, string>;
-  /** The sentence each reason puts in front of the contributor. */
   reasonSentences: Record<TReason, string>;
   reason: TReason | null;
   onReasonChange: (reason: TReason | null) => void;
   note: string;
   onNoteChange: (note: string) => void;
-  /**
-   * Offers an explicit "say nothing canned" option. Off by default: a surface
-   * that requires a reason should not show a way to clear it.
-   */
   allowNoReason?: boolean;
   noReasonLabel?: string;
   disabled?: boolean;

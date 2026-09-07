@@ -76,7 +76,6 @@ function manyFinishes(count: number, from = 0): MetaLegendFinish[] {
   );
 }
 
-/** The section as a page hands it over: the API's five best plus one page of the record. */
 function renderFinishes(
   rows: MetaLegendFinish[],
   overrides: {

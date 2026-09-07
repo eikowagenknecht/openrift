@@ -24,13 +24,7 @@ import { describeAction, useMatchTrackerStore } from "@/stores/match-tracker-sto
 const SEAM_BUTTON_CLASS =
   "bg-popover hover:border-primary grid size-8 place-items-center rounded-full border shadow-sm transition-colors disabled:opacity-50";
 
-/**
- * The shared controls, centred on the divider between the two halves. Anything
- * that belongs to both players lives here rather than in a corner that belongs
- * to one of them. Only symmetric icons work: the seam is upside down for
- * whoever sits on the far side, so it can never carry a word.
- * @returns The seam control cluster.
- */
+// Only symmetric icons work here: the seam is upside down for whoever sits on the far side.
 export function MatchSeamControls() {
   const { isRolling, roll } = useFirstPlayerSpotlight();
   // A plain string compares by value, so no shallow wrapper is needed here.
@@ -47,9 +41,6 @@ export function MatchSeamControls() {
   const setFirstPlayer = useMatchTrackerStore((state) => state.setFirstPlayer);
 
   return (
-    // Sits on the seam and takes no layout space, so the two halves stay equal.
-    // A margin of clear space keeps it out of the way of a thumb travelling
-    // between panels.
     <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 flex -translate-y-1/2 justify-center">
       <div className="pointer-events-auto flex gap-2">
         <Pressable
@@ -67,9 +58,6 @@ export function MatchSeamControls() {
             <Settings2Icon className="text-muted-foreground size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center">
-            {/* The row names the change it will reverse, which is what makes a
-                shared menu safe for a per-player action: there is exactly one
-                last change and you read it before committing. */}
             <DropdownMenuItem disabled={undoLabel === null} onClick={() => undoLast()}>
               <Undo2Icon className="size-4" />
               {undoLabel ?? "Nothing to undo"}
@@ -84,8 +72,6 @@ export function MatchSeamControls() {
               Back to setup
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {/* The dice roll is the fast path; naming a player directly lives
-                here so the seam stays two buttons. */}
             <DropdownMenuGroup>
               <DropdownMenuLabel>Goes first</DropdownMenuLabel>
               {players.map((player) => (

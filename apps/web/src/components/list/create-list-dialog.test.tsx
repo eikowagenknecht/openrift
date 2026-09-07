@@ -168,8 +168,6 @@ describe("CreateListDialog trade preferences", () => {
   });
 
   it("does not submit the form when the trade-preferences trigger is clicked", async () => {
-    // The trigger lives inside the <form>, so it must be type="button" — a
-    // default submit button would create the list on a mere expand click.
     const user = userEvent.setup();
     render(<Harness />);
 

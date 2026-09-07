@@ -9,19 +9,6 @@ import { useCatalogCardSearch } from "@/hooks/use-catalog-card-search";
 import type { ContributeFormState } from "@/lib/contribute-json";
 import { prefillFromCard } from "@/lib/contribute-json";
 
-/**
- * Lets a contributor start from a card OpenRift already has instead of an empty
- * form: pick it, and every field plus all its printings are filled in, so a new
- * variant is a copied printing with two edits rather than a page of retyping.
- *
- * The trigger swaps to the shared card search inline via
- * {@link CardPickerButton}, matching the admin pickers. The catalog behind the
- * search is the app's largest payload, so the searching half mounts only once
- * the trigger is used and suspends on its own rather than holding up the form.
- *
- * @param props.onPick Receives form state prefilled from the chosen card.
- * @returns The trigger button, or the card search once it is open.
- */
 export function ExistingCardPicker({
   onPick,
 }: {
@@ -50,12 +37,7 @@ export function ExistingCardPicker({
   );
 }
 
-/**
- * The half of the picker that needs the catalog. Split out so `useCards`
- * suspends inside the boundary above instead of on first render of the form.
- * @param props.onPick Receives form state prefilled from the chosen card.
- * @returns The card search autocomplete.
- */
+// Split out so useCards suspends inside the boundary above, not on the form's first render.
 function CatalogSearch({ onPick }: { onPick: (prefilled: ContributeFormState) => void }) {
   const [search, setSearch] = useState("");
   const results = useCatalogCardSearch(search);

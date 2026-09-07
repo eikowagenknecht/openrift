@@ -10,11 +10,8 @@ import { deckFormatBadgeState } from "@/lib/deck-format-badge-state";
 import { cn } from "@/lib/utils";
 
 /**
- * The two-state format badge: plain for Freeform, green check when the deck
- * passes its format's rules, amber alert otherwise. Used where there is no
- * build figure to show (the deck-check surfaces). Deck pages, tiles and rows
- * go through `DeckFormatBadge`, which adds the draft and progress states.
- * @returns The badge element.
+ * Two-state badge with no build figure, for the deck-check surfaces. Deck
+ * pages, tiles and rows use `DeckFormatBadge` instead.
  */
 export function FormatStateBadge({ format, isValid }: { format: string; isValid: boolean }) {
   const { labels: formatLabels } = useDeckFormatList();
@@ -43,22 +40,8 @@ export function FormatStateBadge({ format, isValid }: { format: string; isValid:
 }
 
 /**
- * The deck's format badge, carrying its build state. One component for the
- * deck page, the grid tile and the list row, so a deck's status reads the same
- * wherever you meet it. The states, in order:
- *
- * 1. an empty non-Freeform deck reads as a draft, not as a failure;
- * 2. a deck that breaks its format's rules shows amber with the figure, and
- *    opens the violation list when the caller has the detail;
- * 3. an incomplete deck shows the figure plainly, which is what keeps Freeform
- *    and Custom-Region decks (never reported invalid by the list endpoint)
- *    from losing their card count entirely;
- * 4. a complete deck shows its format alone, with a check where the format has
- *    rules to pass.
- *
- * The figure counts the format's required zones and excludes the sideboard, so
- * it is deliberately not the deck's total card count.
- * @returns The badge element.
+ * Deck's format badge with build state. One component for the deck page, grid
+ * tile, and list row. Progress counts required zones only, excluding sideboard.
  */
 export function DeckFormatBadge({
   format,
@@ -72,9 +55,7 @@ export function DeckFormatBadge({
   totalCards: number;
   requiredProgress: number;
   requiredTotal: number;
-  /** Pass/fail, for callers with no violation detail (the deck list). */
   isValid: boolean;
-  /** Full detail where the caller has it, which turns the badge into a popover. */
   violations?: DeckViolation[];
 }) {
   const { labels: formatLabels } = useDeckFormatList();
@@ -110,8 +91,6 @@ export function DeckFormatBadge({
     );
   }
 
-  // Still building: the figure rather than a check, which would claim more
-  // than the list endpoint actually verified for these formats.
   if (kind === "building") {
     return (
       <Badge variant="outline" className="text-xs">
@@ -124,10 +103,6 @@ export function DeckFormatBadge({
   return <FormatStateBadge format={format} isValid={isValid} />;
 }
 
-/**
- * Text for the state, keeping the figure where there is one.
- * @returns The label with its figure or draft marker.
- */
 function formatStateText(
   formatLabel: string,
   kind: DeckFormatBadgeKind,
@@ -142,10 +117,6 @@ function formatStateText(
   return formatLabel;
 }
 
-/**
- * Colour for the state, dropped to inherited muted where there's nothing to say.
- * @returns The colour classes, or undefined to inherit.
- */
 function formatStateTone(kind: DeckFormatBadgeKind, isFreeform: boolean): string | undefined {
   if (kind === "invalid") {
     return "text-warning";
@@ -156,14 +127,7 @@ function formatStateTone(kind: DeckFormatBadgeKind, isFreeform: boolean): string
   return undefined;
 }
 
-/**
- * The badge's text-only twin, for the dense list rows: the same states from the
- * same function, but without the chip's border and padding, so the row spends
- * its width on the deck name instead. Colour carries what the icons carry on
- * the badge — amber for a deck that breaks its format, green for one that
- * passes.
- * @returns The state as a plain span.
- */
+/** Text-only twin of `DeckFormatBadge`, without the chip's border and padding. */
 export function DeckFormatText({
   format,
   totalCards,

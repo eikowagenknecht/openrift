@@ -13,17 +13,7 @@ import { Pressable } from "@/components/ui/pressable";
 import type { ResolvedTierRow } from "@/lib/tier-list-presentation";
 import { cn } from "@/lib/utils";
 
-/**
- * Resolves a board's entries against the catalogue. Ids that no longer resolve
- * (a card pulled from the catalogue after the list was saved) are dropped
- * rather than rendered as blanks, matching what the share image does.
- *
- * The art comes from the entry's pinned printing when the creator chose one and
- * it still exists, so a board built out of alt arts keeps them; otherwise it
- * falls back to the first printing, which is already sorted by the viewer's
- * languages and canonical rank.
- * @returns The rows with their cards resolved, in board order.
- */
+/** Cards whose id no longer resolves against the catalogue are dropped, not rendered blank. */
 export function resolveTierRows(
   rows: readonly TierRow[],
   cardsById: Record<string, Card>,
@@ -55,38 +45,19 @@ export function resolveTierRows(
 
 interface TierRowFrameProps {
   rowIndex: number;
-  /** Draws the chip grey and off the ranking ramp. */
   unranked?: boolean;
-  /** The label chip. Static text on a read-only board, a rename control in the builder. */
   label: ReactNode;
-  /** Controls shown before the label chip (e.g. the builder's drag handle). */
   leading?: ReactNode;
-  /** Row-level controls (reorder grip, remove) shown after the card strip. */
   trailing?: ReactNode;
-  /** Set while a drag is hovering this row. */
   active?: boolean;
-  /** Overrides the reader's own tile size (see {@link TierBoard}). */
   tileWidth?: number;
-  /**
-   * Keeps the strip to a single line, letting the frame clip whatever doesn't
-   * fit. For previews, where a row that wrapped would make one list's card as
-   * tall as the screen; a real board wraps so nothing is hidden.
-   */
   clip?: boolean;
   children: ReactNode;
 }
 
 /**
- * The chrome every board row shares: the coloured label chip, the card strip,
- * and an optional trailing control cluster. Both the read-only board and the
- * builder compose this, so a row looks identical on the share page and in the
- * editor — which matters, because the editor is what gets screen-captured.
- *
- * The strip's minimum height is derived from the tile size rather than picked,
- * so an empty tier is exactly as tall as a full one and dropping the first card
- * into it doesn't resize the row under the pointer.
- *
- * @returns The row frame node.
+ * The strip's minimum height is derived from tile size, so an empty tier is
+ * the same height as a full one and doesn't resize when the first card lands.
  */
 export function TierRowFrame({
   rowIndex,
@@ -113,8 +84,7 @@ export function TierRowFrame({
     >
       {leading}
       <div
-        // wrap-anywhere, not truncate: a renamed tier ("Absolutely broken")
-        // should read on more than one line rather than lose its tail.
+        // wrap-anywhere, not truncate: a long tier name must not lose its tail.
         className="flex w-12 shrink-0 items-center justify-center px-1 text-center font-bold wrap-anywhere sm:w-14"
         style={{ backgroundColor: tierRowColor(rowIndex, unranked), color: TIER_LABEL_INK }}
       >
@@ -136,39 +106,15 @@ export function TierRowFrame({
 
 interface TierBoardProps {
   rows: readonly ResolvedTierRow[];
-  /** Called when a tile is clicked; opens the card detail on the share page. */
   onCardClick?: (view: TierCardView) => void;
-  /**
-   * Card the board scrolls to keep in view. Presentation mode points this at
-   * the card the run is on, so a ladder taller than the stage follows the walk
-   * instead of leaving it offscreen.
-   */
   focusCardId?: string | null;
-  /**
-   * Dims every tile but the focused one. On a capture this is what makes the
-   * board readable as "we are talking about this card" rather than a wall of art.
-   */
   spotlight?: boolean;
-  /** Text shown in a row with nothing in it. */
   emptyRowLabel?: string;
-  /**
-   * Tile width in pixels, overriding the reader's own board size. Set by
-   * surfaces whose size is somebody else's decision — the stream overlay sizes
-   * its board off the scene's scale slider, not off the display store, because
-   * the board is being drawn for the audience rather than for the creator.
-   */
   tileWidth?: number;
   className?: string;
 }
 
-/**
- * Read-only board. Used by the public share page, by presentation mode, and
- * anywhere else the ranking is shown rather than edited. Empty rows are drawn —
- * a deliberately empty bottom tier is a statement about the set, not missing
- * data, and during a reveal it is a tier the run hasn't reached yet.
- *
- * @returns The board node.
- */
+/** Empty rows are drawn: an empty tier is a deliberate ranking, not missing data. */
 export function TierBoard({
   rows,
   onCardClick,

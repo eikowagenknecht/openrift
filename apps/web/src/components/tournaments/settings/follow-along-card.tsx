@@ -18,12 +18,6 @@ import { useSetTournamentFollowToken, useSetTournamentReportToken } from "@/hook
 import { runReportedMutation } from "@/lib/run-reported-mutation";
 import { getSiteUrl } from "@/lib/site-config";
 
-/**
- * The two participant-facing links: one that also accepts pod results, one that
- * is read-only. Disabling either kills the link for everyone holding it, so
- * both are confirmed.
- * @returns The follow-along card.
- */
 export function FollowAlongCard({
   detail,
   locked,

@@ -142,8 +142,7 @@ export function ErrorMessageLayout({
   );
 }
 
-// A route can be handed anything as its error, including an object with no
-// message.
+// A route can be handed anything as its error, including an object with no message.
 function thrownMessage(thrown: unknown): string | undefined {
   if (thrown instanceof Error) {
     return thrown.message;
@@ -169,10 +168,6 @@ export function RouteErrorFallback({ error }: { error?: unknown }) {
   );
 }
 
-/**
- * Not-found fallback without Header/Footer — used as the router-level default.
- * @returns Not-found UI
- */
 export function NotFoundFallback() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
@@ -186,10 +181,6 @@ export function NotFoundFallback() {
   );
 }
 
-/**
- * Not-found fallback with Header/Footer — used on the root route.
- * @returns Not-found page
- */
 export function RouteNotFoundFallback() {
   return (
     <>

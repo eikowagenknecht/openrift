@@ -39,7 +39,6 @@ describe("PointsCard fields", () => {
     expect(screen.getByLabelText("Points for a bye")).toBeInTheDocument();
   });
 
-  // Pod events have no match result, so win/draw would be dead inputs.
   it("offers only bye for a pod event", () => {
     render(<PointsCard detail={makeDetail({ pairingStyle: "pod" })} locked={false} />);
 
@@ -62,8 +61,6 @@ describe("PointsCard validation", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
-  // The field is a plain text input, so the 0-99 whole-number rule is only
-  // enforced here.
   it.each([
     ["a three-digit value", "100"],
     ["a decimal", "1.5"],
@@ -95,7 +92,6 @@ describe("PointsCard validation", () => {
     expect(screen.queryByText(/whole numbers between 0 and 99/u)).not.toBeInTheDocument();
   });
 
-  // A blank win field must block the save even though bye alone is valid.
   it("blocks the save when a Swiss-only field is invalid", async () => {
     const user = userEvent.setup();
     render(<PointsCard detail={makeDetail()} locked={false} />);

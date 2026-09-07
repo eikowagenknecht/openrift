@@ -70,11 +70,7 @@ const COMPETITIVE_LIMIT = 4;
 const LOCAL_LIMIT = 5;
 const UPCOMING_LIMIT = 6;
 
-/**
- * The link to a contributor's own ledger, which only exists once they have sent
- * something. Signed-in visitors who have never contributed get an action that
- * would only ever show them an empty page.
- */
+/** Hidden for a signed-in visitor who has never contributed, so the link is never to an empty page. */
 function ContributionsLink() {
   const { data } = useMetaSubmissions();
   const hasSubmissions = data?.pages.some((page) => page.items.length > 0) === true;
@@ -86,7 +82,6 @@ function ContributionsLink() {
   );
 }
 
-/** Under the counts, not the top bar: both are places to browse, not actions on this page. */
 function ArchiveIndexTiles() {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -106,7 +101,6 @@ function ArchiveIndexTiles() {
   );
 }
 
-/** @returns The empty archive's state, with a create CTA only an admin sees. */
 function MetaEmptyState() {
   const { data: isAdmin } = useIsAdmin();
   return (
@@ -131,7 +125,6 @@ function Section({
   id?: string;
   title: string;
   action?: ReactNode;
-  /** The tier marker's color class; the untinted sections pass none. */
   accent?: string;
   children: ReactNode;
 }) {
@@ -149,11 +142,7 @@ function Section({
   );
 }
 
-/**
- * The "All …" link a tier section carries, opening the event index narrowed to
- * that tier and nothing else. The count is of the whole archive, so the link
- * has to clear the index's default era and format or it lands short of it.
- */
+/** Clears the index's default era and format, or the shown count lands short of `count`. */
 function TierIndexLink({ tiers, count }: { tiers: MetaEventTier[]; count: number }) {
   return (
     <Link
@@ -166,7 +155,6 @@ function TierIndexLink({ tiers, count }: { tiers: MetaEventTier[]; count: number
   );
 }
 
-/** Stands in for the rail below `lg`, where the rail follows the tier sections. */
 function UpcomingTeaser({ next, count }: { next: MetaEventSummary; count: number }) {
   const leaf = dateLeafPartsUtc(next.eventDate);
 
@@ -196,13 +184,7 @@ function UpcomingTeaser({ next, count }: { next: MetaEventSummary; count: number
   );
 }
 
-/**
- * `/meta` — the archive's front page: how much is on record, the events with
- * results split by how much they count for (each with the podium the archive
- * holds), the events still to come in the rail beside them, what landed lately,
- * and how to add to it. Nothing here rates a deck, a card, or a legend against
- * another.
- */
+/** Nothing here rates a deck, a card, or a legend against another. */
 export function MetaFrontPage() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
@@ -215,8 +197,6 @@ export function MetaFrontPage() {
   const setScope = (patch: Partial<MetaScope>) => {
     void navigate({ search: (prev) => nextScopeSearch(prev, patch) });
   };
-  // Reset clears the text field too: the scope bar's control is the only one on
-  // the row, and leaving a search behind would look like a reset that did not.
   const clearScope = () => {
     void navigate({ search: (prev) => nextScopeSearch({ ...prev, q: undefined }, CLEARED_SCOPE) });
   };
@@ -231,7 +211,6 @@ export function MetaFrontPage() {
     sections.premier.length > 0 || sections.competitive.length > 0 || sections.local.length > 0;
   const playerResults = events.reduce((total, event) => total + event.playerRowCount, 0);
   const deckResults = events.reduce((total, event) => total + event.deckCount, 0);
-  // The activity feed is archive-wide, so it hides while the page is narrowed.
   const showActivity = !isScopeCustomized(search) && (search.q ?? "").trim() === "";
   const hasRail = sections.upcoming.length > 0 || (showActivity && activityData.items.length > 0);
 
@@ -240,8 +219,6 @@ export function MetaFrontPage() {
       <PageTopBarSticky width="capped">
         <PageTopBar>
           <PageTopBarTitle>Meta Archive</PageTopBarTitle>
-          {/* The ask lives in the contribute band at the foot of the page, which
-              says what is wanted; a bare button here said only where to go. */}
           <PageTopBarActions>{userId !== null && <ContributionsLink />}</PageTopBarActions>
         </PageTopBar>
       </PageTopBarSticky>

@@ -20,15 +20,9 @@ interface DeckOwnershipBridgeProps {
 }
 
 /**
- * Client-only sibling that computes `DeckOwnershipData` for a deck the viewer
- * doesn't own — the shared-deck page and the deck-import preview — and
- * publishes it to the parent. Lives outside the rendering component so the
- * shell stays mounted across hydration: only the `ownershipData` prop flips
- * from `undefined` to filled. Render this only when `useHydrated()` is
- * true, and wrap in a Suspense boundary since `useCards()` and `usePrices()`
- * both suspend on their fetches.
- *
- * @returns null — output flows through `onResult`.
+ * Client-only: computes `DeckOwnershipData` for a deck the viewer doesn't own.
+ * Render only after `useHydrated()` is true, inside a Suspense boundary —
+ * `useCards()` and `usePrices()` both suspend on their fetches.
  */
 export function DeckOwnershipBridge({
   builderCards,
@@ -37,18 +31,16 @@ export function DeckOwnershipBridge({
   onResult,
 }: DeckOwnershipBridgeProps) {
   const { allPrintings } = useCards();
-  // No home-collection exemption here: this measures someone else's deck
-  // against the viewer's own collection, and the deck's home collection is
-  // owner-only anyway (never part of a shared deck's payload).
+  // No home-collection exemption here: the deck's home collection is owner-only
+  // and never part of a shared deck's payload.
   const { data: counts } = useDeckBuildingCounts(isLoggedIn);
   const { data: borrowedCounts } = useBorrowedCounts(isLoggedIn);
-  // Cards arriving from reserved trades (ADR-019) are not in hand: advisory
-  // only, so the user doesn't buy a copy that's already on its way.
+  // Cards from reserved trades are not in hand: advisory only, so the user
+  // doesn't buy a copy that's already on its way.
   const { data: incomingCounts } = useIncomingTradeCounts(isLoggedIn);
 
-  // Pass `{}` for logged-out viewers so useDeckOwnership still computes deck
-  // pricing (it bails out only when the map is undefined). Matches the
-  // previous in-route behavior on the share page.
+  // Pass `{}` for logged-out viewers so useDeckOwnership still computes pricing;
+  // it bails out only when the map is undefined.
   const ownershipData = useDeckOwnership(
     builderCards,
     allPrintings,
@@ -72,14 +64,8 @@ export function DeckOwnershipBridge({
 }
 
 /**
- * Client-only sibling that gathers everything the ownership bands need — the
- * viewer's deck-building copy counts plus the catalog's printings — and
- * publishes them as one object. The counts come from a `useLiveQuery` (no
- * server snapshot) and the catalog suspends, so this lives in a child the
- * overview mounts only after hydration, inside a Suspense boundary; the shell
- * itself stays SSR-safe. "Available" (not raw owned) is the right figure here:
- * copies in collections excluded from deck building can't be sleeved tonight.
- * @returns null — the lookups flow through `onResult`.
+ * Client-only: gathers deck-building copy counts and catalog printings, using
+ * "available" counts since copies in excluded collections can't be sleeved.
  */
 export function OwnershipBandSourcesBridge({
   cards,
@@ -93,9 +79,8 @@ export function OwnershipBandSourcesBridge({
   const { printingsByCardId } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
   const { data } = useDeckBuildingCounts(true, homeCollectionId);
-  // Borrowed copies come from the loans feed, not the copies collection — they
-  // are never phantom copy rows (ADR-039). Undefined while it loads, which
-  // just means no borrowed segments yet.
+  // Borrowed copies come from the loans feed, not the copies collection, so
+  // they are never phantom copy rows.
   const { data: borrowedCounts } = useBorrowedCounts(true);
   const sources = data
     ? collectOwnershipBandSources(

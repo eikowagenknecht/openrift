@@ -37,15 +37,11 @@ interface ListImportDialogProps {
 export function ListImportDialog({ listId, listKind, open, onOpenChange }: ListImportDialogProps) {
   const flow = useListImportFlow(listId, listKind, () => onOpenChange(false));
 
-  // Each open of the dialog is a fresh session — clear stale parse results
-  // from a previous attempt so the user doesn't see them.
   useEffect(() => {
     if (!open) {
       flow.reset();
     }
-    // Only react to the open flag; flow.reset is stable enough for this purpose
-    // and re-running on every render would clobber the active session.
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional, see above
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- reacting to flow.reset would clobber an active session
   }, [open]);
 
   return (

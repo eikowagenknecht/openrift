@@ -9,22 +9,8 @@ import { PrintingThumbnail } from "@/components/cards/printing-option-content";
 import { useCardSearch } from "@/hooks/use-card-search";
 
 const MAX_RESULTS = 20;
-
-/** One letter is a useful filter here, the way it is in the palettes. */
 const MIN_QUERY_LENGTH = 1;
 
-/**
- * Searches the full printing catalog by card name or short code, returning a
- * Printing on selection (one entry per printing — variants are distinct).
- * Hovering (or keyboard-highlighting) a result shows a large card preview so
- * the user can tell near-identical printings apart.
- *
- * Printing-scoped, so the shared matcher is fed one row per printing rather
- * than one per card: the row's own code is what the searcher is holding when
- * they type `OGN-202`, and two variants of a card must be able to rank apart.
- *
- * @returns An inline combobox for picking a printing.
- */
 export function PrintingSearch({
   allPrintings,
   onSelect,
@@ -39,8 +25,6 @@ export function PrintingSearch({
       allPrintings.map((printing) => ({
         id: printing.id,
         slug: printing.shortCode,
-        // Shown as the colloquial Legend form, but findable under the stored
-        // name and the printing's localized one too.
         name: legendDisplayName(printing.card),
         altNames: cardSearchAltNames(printing.card, [printing.printedName]),
         printing,
@@ -68,11 +52,6 @@ export function PrintingSearch({
       results={results}
       onQueryChange={setQuery}
       getKey={(row) => row.id}
-      // The layout of `PrintingRowContent`, but not the component: this is a
-      // flat catalog search with no sibling list, so the shared variant line
-      // would drop the language entirely and render a Chinese printing exactly
-      // like its English twin. `ImportPrintingLabel` names every non-English
-      // language instead; the remaining attributes are the same set.
       renderItem={(row) => (
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <PrintingThumbnail printing={row.printing} className="h-10" />
@@ -85,9 +64,8 @@ export function PrintingSearch({
         </div>
       )}
       renderActivePreview={(row, anchorRef) => (
-        // Keyed per printing so the preview remounts on each hover; without a
-        // fresh mount the position effect won't re-run after an imageless entry
-        // unmounts the preview, leaving later previews mispositioned.
+        // Keyed per printing: without a fresh mount, the position effect won't
+        // re-run after an imageless entry unmounts the preview.
         <PrintingHoverPreview key={row.id} printing={row.printing} anchorRef={anchorRef} />
       )}
       onSelect={(row) => onSelect(row.printing)}

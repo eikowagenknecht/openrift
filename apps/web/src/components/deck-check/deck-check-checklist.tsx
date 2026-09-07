@@ -32,16 +32,13 @@ import { sortDeckCheckCards } from "@/lib/deck-check-sort";
 import { cn } from "@/lib/utils";
 import type { DeckCheckDisplayMode, DeckCheckSort } from "@/stores/deck-check-view-store";
 
-/** The floating-preview payload built from a row's resolved printing. */
 interface HoveredPreview {
   thumbnailUrl: string;
   fullUrl: string;
   landscape: boolean;
 }
 
-/** Gap between checker cells, matching the grid's `gap-3` (used in width math). */
 export const CHECK_GRID_GAP = 12;
-/** Fallback rendered cell width before the grid has been measured. */
 export const CHECK_CELL_WIDTH = 172;
 
 export function CardChecklist({
@@ -67,13 +64,9 @@ export function CardChecklist({
   sortDir: "asc" | "desc";
   columns: number;
   cellWidth: number;
-  /** Adding and removing cards are only allowed while submitted (ADR-027). */
   locked: boolean;
-  /** Zone fixes are allowed while submitted, approved, or checked. */
   fixLocked: boolean;
-  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
   fixZoneOnly: boolean;
-  /** Found-ticks are frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
 }) {
@@ -86,7 +79,6 @@ export function CardChecklist({
 
   const printingById = new Map(allPrintings.map((printing) => [printing.id, printing]));
   const setIndexes = setIndexById(sets);
-  // Resolve catalogue identity for the "name" / "id" / "domain" / "energy" sorts.
   const identify = (printingId: string | null) => {
     const printing = printingId ? printingById.get(printingId) : undefined;
     return printing
@@ -101,8 +93,6 @@ export function CardChecklist({
       : undefined;
   };
 
-  // List rows float a large card image while hovered (desktop only); build the
-  // preview payload from the row's resolved front image.
   const handleHover = (printing: Printing | null) => {
     const front = printing?.images.find((image) => image.face === "front");
     setHovered(
@@ -120,9 +110,6 @@ export function CardChecklist({
   const zoneCards = (zone: DeckCheckEntryCardResponse["zone"]) =>
     sortDeckCheckCards(cardsByZone.get(zone) ?? [], sortBy, sortDir, identify, orders.domains);
 
-  // The small zones (one to three cards each) flow on a shared wrapping row,
-  // so on wide screens legend, champion, and battlefields share one line and
-  // fall onto separate lines only when they no longer fit.
   const flowZones = (
     [
       WellKnown.deckZone.LEGEND,
@@ -140,8 +127,6 @@ export function CardChecklist({
   ).filter((zone) => cardsByZone.has(zone));
 
   if (displayMode === "list") {
-    // List view stacks every zone vertically — the flow/stacked split only
-    // matters for the thumbnail grid's wrapping row.
     const orderedZones = [...flowZones, ...stackedZones];
     return (
       <div ref={previewContainerRef} className="relative flex flex-col gap-6">
@@ -218,7 +203,6 @@ export function CardChecklist({
   );
 }
 
-/** Active-state classes for the toolbar toggle groups (filled when pressed). */
 const ACTIVE_TOGGLE_CLASS =
   "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
 
@@ -283,23 +267,14 @@ function ZoneSection({
   label: string;
   cards: DeckCheckEntryCardResponse[];
   displayMode: DeckCheckDisplayMode;
-  /** Printing lookup for resolving list-row names; only passed in list mode. */
   printingById?: Map<string, Printing>;
-  /** Floating-preview hover callback; only passed in list mode. */
   onHover?: (printing: Printing | null) => void;
-  /** Resolved cards-per-row count for the stacked (full-width) zones. */
   columns: number;
-  /** Rendered width of one card, driving image sizing and intrinsic sections. */
   cellWidth: number;
-  /** Content-sized section for the wrapping zone row. */
   intrinsic?: boolean;
-  /** Locked outside the submitted state; hides the per-copy remove control. */
   locked: boolean;
-  /** Locked outside submitted/approved/checked; hides the per-copy fix control. */
   fixLocked: boolean;
-  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
   fixZoneOnly: boolean;
-  /** Found-ticks frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
 }) {
@@ -350,8 +325,6 @@ function ZoneSection({
     );
   }
 
-  // Flow zones size each card to `cellWidth`; stacked zones fill the row with
-  // exactly `columns` equal tracks so the count matches the toolbar control.
   const intrinsicWidth = totalCopies * cellWidth + (totalCopies - 1) * CHECK_GRID_GAP;
   const gridTemplateColumns = intrinsic
     ? `repeat(auto-fill, minmax(min(${cellWidth}px, 100%), 1fr))`
@@ -385,13 +358,6 @@ function ZoneSection({
   );
 }
 
-/**
- * One physical copy of a card line as a dense text row: a found checkbox, set
- * code, name, and (for multi-copy lines) the copy number. Tapping the row
- * toggles found for that copy; remove and (for unmatched lines) fix sit at the
- * right. Hovering floats the large card image via the shared preview.
- * @returns The tappable copy row.
- */
 function ChecklistRow({
   tournamentId,
   entryId,
@@ -411,13 +377,9 @@ function ChecklistRow({
   copyIndex: number;
   printing?: Printing;
   onHover?: (printing: Printing | null) => void;
-  /** Locked outside the submitted state; hides the per-copy remove control. */
   locked: boolean;
-  /** Locked outside submitted/approved/checked; hides the fix control. */
   fixLocked: boolean;
-  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
   fixZoneOnly: boolean;
-  /** Ticking frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
 }) {
@@ -430,7 +392,6 @@ function ChecklistRow({
   const name = matched ? legendDisplayName(printing.card) : card.rawName;
 
   const toggle = async () => {
-    // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.
     if (tickLocked) {
       return;
     }
@@ -553,13 +514,6 @@ function ChecklistRow({
   );
 }
 
-/**
- * One physical copy of a card line. A line with quantity 3 renders three
- * cells — the deck on the table is unsorted, so the judge finds copies one at
- * a time. Each cell carries its own found tick, so the cell you tap is the
- * one that lights up.
- * @returns The tappable copy cell.
- */
 function ChecklistCell({
   tournamentId,
   entryId,
@@ -577,13 +531,9 @@ function ChecklistCell({
   card: DeckCheckEntryCardResponse;
   copyIndex: number;
   cellWidth: number;
-  /** Locked outside the submitted state; hides the remove control. */
   locked: boolean;
-  /** Locked outside submitted/approved/checked; hides the fix control. */
   fixLocked: boolean;
-  /** Once approved or checked, the fix dialog only moves zones (no re-identify). */
   fixZoneOnly: boolean;
-  /** Ticking frozen outside the submitted and approved (physical check) states. */
   tickLocked: boolean;
   onStale: () => void;
 }) {
@@ -596,7 +546,6 @@ function ChecklistCell({
   const found = card.foundCopies[copyIndex] === true;
 
   const toggle = async () => {
-    // Ticking is the physical check; allowed while submitted or approved, frozen otherwise.
     if (tickLocked) {
       return;
     }
@@ -632,9 +581,6 @@ function ChecklistCell({
     </div>
   ) : null;
 
-  // Fix / remove live in a bar above the card (not overlaid on the image), so
-  // the controls stay fully tappable on touch instead of fighting the cell's
-  // tap-to-tick handler. Mirrors the deck editor's DeckAddStrip placement.
   const actionStrip =
     fixLocked && locked ? null : (
       <>

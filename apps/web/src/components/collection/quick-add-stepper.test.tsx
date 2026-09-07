@@ -56,7 +56,6 @@ describe("QuickAddStepper", () => {
 
     expect(onIncrement).toHaveBeenCalledTimes(1);
     expect(onDecrement).toHaveBeenCalledTimes(1);
-    // The palette is driven from the search input, which keeps focus.
     expect(increment).toHaveAttribute("tabindex", "-1");
     expect(decrement).toHaveAttribute("tabindex", "-1");
   });

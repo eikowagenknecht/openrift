@@ -103,19 +103,6 @@ const INTENT_GROUPS: IntentGroup[] = [
   },
 ];
 
-/**
- * Sidebar group whose header is a click-to-fold trigger. The open state is
- * persisted per-user via the sidebar-fold store, so refreshing the page
- * keeps the user's collapse choices.
- *
- * The group's create action lives in the header rather than as a row at the
- * foot of the group: a labelled "New …" row costs a full row per group, and
- * with three list groups plus one per friend group that adds up to more
- * vertical space than the lists themselves. The fold chevron moves to the left
- * as a disclosure triangle so the two controls sit at opposite ends of the row
- * instead of competing for the right edge.
- * @returns A collapsible sidebar group with a chevron-bearing label.
- */
 function CollapsibleSidebarGroup({
   label,
   foldKey,
@@ -132,8 +119,8 @@ function CollapsibleSidebarGroup({
   const open = useSidebarFoldStore((state) => state.byKey[foldKey] ?? true);
   const setOpen = useSidebarFoldStore((state) => state.setOpen);
 
-  // The action is reachable while the group is folded, where a new row would
-  // land out of sight — so creating always opens the group first.
+  // Opens the group first: the create action is reachable while folded, but a
+  // new row would land out of sight.
   function handleCreate() {
     setOpen(foldKey, true);
     onCreate();
@@ -162,12 +149,6 @@ function CollapsibleSidebarGroup({
   );
 }
 
-/**
- * The labelled "New …" row, kept only for a group with no rows at all: an
- * empty group would otherwise render as a bare header, leaving the header's
- * icon-only `+` as the sole (and easily missed) way in.
- * @returns The create row.
- */
 function SidebarCreateRow({ label, onCreate }: { label: string; onCreate: () => void }) {
   return (
     <SidebarMenuItem>
@@ -179,18 +160,8 @@ function SidebarCreateRow({ label, onCreate }: { label: string; onCreate: () => 
   );
 }
 
-/**
- * Marks a list whose contents come from a rule (ADR-034). The sidebar shows no
- * count for these: `entryCount` counts manual entries only, so a rule-filled
- * list reports 0 and the count badge stays hidden. Expanding the rules to get a
- * real count means a full-catalog filter pass per list on every sidebar load,
- * which is why the marker stands in for the number rather than beside it.
- *
- * Uses the same sparkle as the `RuleSourceBadge` on the list page, so one symbol
- * means "a rule did this" everywhere.
- *
- * @returns The sparkle marker.
- */
+// entryCount counts manual entries only, so a rule-filled list reports 0; this
+// marker stands in because a real count needs a full-catalog filter pass.
 function DynamicListMarker() {
   return (
     <span title="Kept up to date by a rule" className="flex shrink-0 items-center">
@@ -200,12 +171,6 @@ function DynamicListMarker() {
   );
 }
 
-/**
- * One intent bucket (wishlists / tradelists / organize lists) of the sidebar.
- * Owns its own "Show more" state, which is why it's a component rather than
- * inline JSX in a `.map()` — the reveal state is a hook read per group.
- * @returns The collapsible group for this intent.
- */
 function ListIntentGroup({
   group,
   lists,
@@ -260,7 +225,6 @@ function ListIntentGroup({
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         isActive={activeId === list.id}
-                        // Keep the row highlighted while the cursor is over the desktop grip (which overlays the button); max-md:pr-8 reserves room for the mobile grip on the right.
                         className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground max-md:pr-8"
                         render={
                           <Link to="/collections/lists/$listId" params={{ listId: list.id }} />
@@ -338,12 +302,6 @@ interface SharedGroupSection {
   collections: ReturnType<typeof useCollections>["data"];
 }
 
-/**
- * Partitions collections into the personal section and one section per friend
- * group the viewer belongs to. Groups with at least one shared collection get
- * a section; groups with zero collections are not rendered.
- * @returns The personal collections and the group sections (alphabetised by group name).
- */
 function partitionCollections(collections: ReturnType<typeof useCollections>["data"]): {
   personal: typeof collections;
   groups: SharedGroupSection[];
@@ -371,12 +329,6 @@ function partitionCollections(collections: ReturnType<typeof useCollections>["da
   return { personal, groups };
 }
 
-/**
- * The personal collections group: the pinned inbox, the reorderable
- * collections, the "Show more" toggle for the ones the user pushed behind it,
- * and the create row. Owns its own reveal state (a hook read per group).
- * @returns The collapsible personal-collections group.
- */
 function PersonalCollectionsGroup({
   inbox,
   collections,
@@ -454,10 +406,7 @@ function PersonalCollectionsGroup({
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       isActive={activeId === col.id}
-                      // Keep the row highlighted while the cursor is over the desktop grip (which overlays the button); max-md:pr-8 reserves room for the mobile grip on the right.
                       className="group-hover/menu-item:bg-sidebar-accent group-hover/menu-item:text-sidebar-accent-foreground max-md:pr-8"
-                      // A deck box says so on hover; the row itself has no width
-                      // to spare for the deck's name next to the count badge.
                       title={deckBoxLabel(col.homeDecks)}
                       render={
                         <Link
@@ -497,11 +446,7 @@ function PersonalCollectionsGroup({
   );
 }
 
-/**
- * One friend group's shared collections. Same reveal behaviour as the personal
- * group; these rows aren't reorderable (the server keeps them alphabetical).
- * @returns The collapsible group section for this friend group.
- */
+// Not reorderable: the server keeps shared-group rows alphabetical.
 function SharedCollectionsGroup({
   section,
   activeId,
@@ -538,8 +483,7 @@ function SharedCollectionsGroup({
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={activeId === col.id}
-                // Group binders can no longer be picked as a deck box, but a
-                // deck linked to one before that rule still lives here.
+                // col.homeDecks can include decks linked to a group binder even though group binders aren't selectable as a deck box.
                 title={deckBoxLabel(col.homeDecks)}
                 render={
                   <Link
@@ -571,13 +515,8 @@ function SharedCollectionsGroup({
   );
 }
 
-/**
- * Wires the sidebar's drag-end events to the reorder mutations. Lives as a
- * child of the route-level `DndContext` so `useDndMonitor` sees the same
- * events the route does. Non-reorder drags (card / list-entry) are ignored
- * here — those keep flowing to the route handler.
- * @returns Nothing (invisible helper).
- */
+// Must live as a child of the route-level DndContext so useDndMonitor sees
+// the same events the route does; non-reorder drags are left to it.
 function SidebarReorderMonitor({
   personalSortableIds,
   listIdsByIntent,
@@ -679,8 +618,6 @@ export function CollectionSidebar() {
   const { active } = useDndContext();
   const isReorderActive =
     asDragData<AnyDragData>(active?.data.current, SIDEBAR_REORDER_DRAG_TYPES) !== undefined;
-  // Narrowed rather than cast: only a card drag has a source collection, and
-  // reading the field off whatever else is in flight would answer by accident.
   const dragSourceCollectionId = asDragData<CardDragData>(active?.data.current, [
     "collection-card",
   ])?.sourceCollectionId;

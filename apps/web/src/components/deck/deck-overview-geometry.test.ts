@@ -51,8 +51,6 @@ describe("stackStripGeometry", () => {
     expect(geometry.cardHeightRatio).toBe(CARD_HEIGHT_RATIO);
   });
 
-  // A landscape strip spans a portrait card's height in width, so its own
-  // height comes back to exactly one --deck-card-w.
   it("sizes a landscape strip against a card's height", () => {
     const geometry = stackStripGeometry(battlefield, "middle");
     expect(geometry.isLandscape).toBe(true);
@@ -77,9 +75,6 @@ describe("stackStripGeometry", () => {
     );
   });
 
-  // The pile hit-tests the pointer against these heights while the strips size
-  // themselves from the same numbers, so a rest window must never exceed the
-  // card it is a window onto.
   it("keeps the rest window inside the card", () => {
     for (const variant of ["top", "middle"] as const) {
       for (const card of [unit, battlefield]) {
@@ -114,8 +109,6 @@ describe("smallZoneGridStyles", () => {
     expect(smallZoneGridStyles(6, false).battlefield).toEqual({ gridColumn: "1 / -1" });
   });
 
-  // A stacked battlefield cascade is one landscape card wide, so from six
-  // columns up it joins row one instead of claiming a band of its own.
   it("folds a stacked battlefield onto row one from six columns up", () => {
     const styles = smallZoneGridStyles(6, true);
     expect(styles.runes).toEqual({ gridColumn: "span 2 / span 2" });
@@ -126,7 +119,6 @@ describe("smallZoneGridStyles", () => {
     expect(smallZoneGridStyles(5, true).battlefield).toEqual({ gridColumn: "1 / -1" });
   });
 
-  // Everything stacks in one column until the container has been measured.
   it("stacks every zone at the unmeasured single column", () => {
     const styles = smallZoneGridStyles(1, false);
     expect(styles.runes).toEqual({ gridColumn: "span 1 / span 1" });

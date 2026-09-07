@@ -5,12 +5,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
-/**
- * Per-player region tracking, which feeds both the pairing engine and the
- * standings leaderboard. 2v2 has no region axis, so the tab hides this card
- * entirely in that mode.
- * @returns The regions card.
- */
 export function RegionsCard({
   detail,
   locked,

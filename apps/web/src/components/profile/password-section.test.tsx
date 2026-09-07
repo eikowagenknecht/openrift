@@ -51,8 +51,6 @@ describe("PasswordSection", () => {
     listAccounts.mockResolvedValue({ data: [{ providerId: "google" }], error: null });
     renderSection();
 
-    // `changePassword` needs a credential account, which this user has never
-    // had, so the change form could only ever fail here.
     expect(await screen.findByRole("button", { name: "Set a password" })).toHaveAttribute(
       "href",
       "/reset-password?email=vi%40example.com",

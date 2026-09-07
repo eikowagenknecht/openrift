@@ -24,14 +24,6 @@ import { cn } from "@/lib/utils";
 
 import { ShareListsWithGroupDialog } from "./share-lists-with-group-dialog";
 
-/**
- * The card's gold line: what the two of you are waiting on *you* for, split by
- * the act it takes — a request wants a decision, a settle wants the cards in
- * someone's hand. The expiry tail is appended only when a request will run out
- * on its own, which is the one thing on the card with a deadline.
- * @param card The person's card.
- * @returns The line, or null when nothing waits on the viewer.
- */
 function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
   if (card.needsYou.length === 0) {
     return null;
@@ -45,8 +37,7 @@ function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
     acts.push(`${toHandOver} to hand over`);
   }
   if (toReceive > 0) {
-    // "Confirm", not "receive": the same stage the overview band labels "To
-    // confirm", and the act is confirming a card that already changed hands.
+    // Matches the overview band's "To confirm" label for the same stage.
     acts.push(`${toReceive} to confirm`);
   }
 
@@ -58,20 +49,10 @@ function actionLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
   return parts.join(" · ");
 }
 
-/**
- * The card's muted line: what is out with this person and not yours to move.
- * Plain text rather than badges — colored chips read as things to act on, and
- * the whole point of the line is that this one is not. Suggestions are
- * deliberately not in here: they are the one fact that is an opportunity, so
- * they get their own green line on the card.
- * @param card The person's card.
- * @returns The line, or null when nothing is waiting on them.
- */
 function factsLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
   return card.open.length > 0 ? `${card.open.length} waiting on them` : null;
 }
 
-/** @returns The card's muted footer line, or null when there's nothing behind it. */
 function footerLine(card: TradeHubCard<FriendGroupMemberResponse>): string | null {
   const parts: string[] = [];
   if (card.tradedCount > 0) {
@@ -86,26 +67,11 @@ function footerLine(card: TradeHubCard<FriendGroupMemberResponse>): string | nul
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-/**
- * One member's card on the hub: who they are, and what stands between the two
- * of you. The whole card is the link to their trade sheet, where every one of
- * those things is acted on — so the card only has to be legible, never
- * operated, and nothing inside it competes for the click.
- *
- * Only what waits on the viewer is gold; the rest is muted text, because a card
- * where four counts all shout has no way left to say "this one".
- *
- * A member with nothing going on still gets a card, dimmed: they are who you'd
- * start the next trade with, and a hub that hides them is a hub that only ever
- * shows the people you already trade with.
- * @returns The member card.
- */
 export function TradeHubMemberCard({
   card,
   slug,
 }: {
   card: TradeHubCard<FriendGroupMemberResponse>;
-  /** The group this hub belongs to, so the sheet's trail leads back to it. */
   slug: string;
 }) {
   const { member } = card;
@@ -138,21 +104,11 @@ export function TradeHubMemberCard({
         <ChevronRightIcon className="text-muted-foreground/40 group-hover/card:text-muted-foreground size-4 shrink-0 transition-transform group-hover/card:translate-x-0.5" />
       </div>
 
-      {/* "in this group", because the card only counts what this group's shared
-          lists produced. The same two people may well have trades and
-          suggestions through another shared group, and the sheet this card
-          opens shows those too — a bare "Nothing traded yet" then reads as a
-          contradiction. */}
       {quiet ? <p className="text-muted-foreground">Nothing in this group yet</p> : null}
       {action === null ? null : <p className="text-warning text-sm font-medium">{action}</p>}
-      {/* The art of what waits on you, so the card says which cards they are
-          before you open the sheet. One thumb per distinct printing. */}
       {waitingArt.length > 0 ? (
         <CardArtThumbStack items={waitingArt} max={5} thumbClassName="w-8" />
       ) : null}
-      {/* The one fact that is an opportunity rather than a record, so it sits
-          apart from the muted line — green like the incoming arrow, one step
-          below the gold of what already waits. */}
       {suggestions === null ? null : (
         <p className="text-success flex items-center gap-1 text-sm font-medium">
           <SparklesIcon className="size-3.5 shrink-0" />
@@ -165,14 +121,6 @@ export function TradeHubMemberCard({
   );
 }
 
-/**
- * The slim band closing the hub: how much of the viewer's own shelf this group
- * can see, and a one-press way to widen it. Sharing is the only thing that makes
- * the cards above fill up, so it sits on the page rather than on Manage.
- *
- * Reads the shareable-lists query, so it must be wrapped in a Suspense boundary.
- * @returns The band.
- */
 export function ShareYourListsBand({ slug, groupName }: { slug: string; groupName: string }) {
   const { data } = useFriendGroupShareableLists(slug);
   const [open, setOpen] = useState(false);

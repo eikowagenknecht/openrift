@@ -3,28 +3,18 @@ import { useSetTierListShare } from "@/hooks/use-tier-lists";
 import { tierListOwnerImageUrl } from "@/lib/share-image";
 import { getSiteUrl } from "@/lib/site-config";
 
-/** Multipliers the server accepts; 3 is the cap on this owner-only route. */
 const SCALES = [1, 2, 3];
 
 interface TierListShareDialogProps {
   tierListId: string;
-  /** Used for the preview's alt text and the downloaded file's name. */
   title: string;
   isPublic: boolean;
   shareToken: string | null;
-  /** Set while the board has unsaved edits, which the render won't include. */
   dirty?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * The tier list's one outward surface: the public link on one tab, the board
- * image on the other. Sharing is opt-in — an unshared list has no token at all,
- * so there is no URL to guess, and its image renders without the QR mark.
- *
- * @returns The share dialog node.
- */
 export function TierListShareDialog({
   tierListId,
   title,

@@ -16,22 +16,14 @@ interface DragSelectionArgs {
 
 /** Fan + count for a select-mode drag overlay. */
 interface DragSelectionSummary {
-  /** Up to three unique printings whose copies are selected, in items order. */
   printings: Printing[];
-  /**
-   * Number of selected tiles in the current view's unit — distinct printings in
-   * cards/printings view, individual copies in copies view. This is what the
-   * overlay labels ("3 printings"), not the underlying copy count.
-   */
   count: number;
 }
 
 /**
  * Walks `items` + `selected` to build the drag-overlay fan (first three unique
  * printings whose copies are selected) and to count how many tiles the
- * selection spans. Pure so the grid can recompute it on selection changes and
- * the overlay can read a stable result from {@link useDragPreviewStore}.
- * @returns The fanned printings and the selected-tile count.
+ * selection spans.
  */
 export function computeDragSelectionSummary({
   mode,
@@ -66,23 +58,13 @@ export function computeDragSelectionSummary({
   return { printings, count };
 }
 
-/**
- * Singular noun for the unit the active collection view selects.
- * @returns "card", "printing", or "copy".
- */
 export function dragSelectionNoun(view: "cards" | "printings" | "copies"): string {
   return view === "cards" ? "card" : view === "copies" ? "copy" : "printing";
 }
 
 /**
- * Resolves a card drag's copy IDs at grab/drop time. A tile that's part of an
- * active multi-selection carries `fromSelection: true` rather than a frozen
- * `copyIds` list: already-selected grid cells don't re-render when more cards
- * join the selection, so a list baked in at render time would only carry that
- * one tile's copies. Reading the live selection store here makes a select-mode
- * drag move the whole selection.
- * @returns The drag data, with `copyIds` swapped for the live selection when
- *   the drag originated from a multi-selection.
+ * A tile in an active multi-selection carries `fromSelection: true`, not a frozen
+ * `copyIds`, since already-selected cells don't re-render as the selection grows.
  */
 export function resolveSelectionDrag(data: CardDragData): CardDragData {
   if (!data.fromSelection) {
@@ -92,14 +74,8 @@ export function resolveSelectionDrag(data: CardDragData): CardDragData {
 }
 
 /**
- * Narrows a card drag's copy ids to what the drop should carry. A stack drag
- * takes one copy by default, the whole stack when Shift is held, and `n` copies
- * when a digit key 2-9 is held during the drag. Drags that aren't stacks (a
- * single copy, or a hand-built select-mode selection) always carry every
- * dragged copy — the user picked that set themselves, so there is nothing to
- * trim. Both drop targets go through this, so dropping on a collection and
- * dropping on a sidebar list read the same modifier the same way.
- * @returns The copy ids the drop should act on.
+ * A stack drag takes one copy by default, the whole stack on Shift, or `n`
+ * copies on digit key 2-9. Non-stack drags always carry every dragged copy.
  */
 export function resolveDropCopyIds(
   data: Pick<CardDragData, "copyIds" | "isStackDrag">,

@@ -5,11 +5,9 @@ import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import type { MetaDateRange } from "@/lib/meta-scope";
 
 /**
- * Prices the archive, and compares it against the reader's collection when
- * asked, only ever on the client: the copies live query has no server snapshot,
- * and the catalog it needs to match printings back to cards is a payload the
- * page otherwise never pulls. Mount it under `useHydrated` and a Suspense
- * boundary.
+ * Client-only: the copies live query has no server snapshot, and the catalog
+ * needed to match printings to cards is not otherwise loaded on this page.
+ * Mount under `useHydrated` and a Suspense boundary.
  */
 export function MetaDeckCostsBridge({
   includeSideboard,

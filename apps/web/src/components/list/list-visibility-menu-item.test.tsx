@@ -14,8 +14,6 @@ let groupItems: { id: string }[] = [];
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: { items: shareItems } }),
-  // The shared listGroupSharesQueryOptions (hooks/use-list-group-shares)
-  // builds its options at render; pass them through untouched.
   queryOptions: (options: unknown) => options,
   useSuspenseQuery: () => ({ data: { items: shareItems } }),
 }));
@@ -47,11 +45,7 @@ const { ListVisibilityMenuItem } = await import("./list-visibility-menu-item");
 const GROUP_ALPHA = { groupId: "g1", groupSlug: "alpha", groupName: "Alpha" };
 const GROUP_BETA = { groupId: "g2", groupSlug: "beta", groupName: "Beta" };
 
-/**
- * A menu item needs a menu around it — BaseUI's Item reads its root context.
- * The menu starts open so assertions don't have to click the trigger first.
- * @returns The render result of the menu hosting the item.
- */
+/** A menu item needs a menu around it — BaseUI's Item reads its root context. */
 function renderInMenu(item: ReactNode) {
   return render(
     <DropdownMenu defaultOpen>

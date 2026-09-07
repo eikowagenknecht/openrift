@@ -15,17 +15,11 @@ import { formatCardmarketWants } from "@/lib/list-export";
 
 interface TradeCardmarketExportDialogProps {
   counterpartyName: string | null;
-  /** The reserved trades with this counterparty (both directions). */
   trades: readonly CardTradeResponse[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * One direction of the trade as a Cardmarket-ready text block with its own
- * copy button, so each side can be pasted into the shopping wizard separately.
- * @returns The labeled textarea block, or null when the direction is empty.
- */
 function DirectionBlock({ heading, text }: { heading: string; text: string }) {
   if (text.length === 0) {
     return null;
@@ -51,11 +45,8 @@ function DirectionBlock({ heading, text }: { heading: string; text: string }) {
 }
 
 /**
- * Exports a counterparty's reserved trades as Cardmarket-ready want lists, one
- * block per direction. The blocks are pure `Nx Card Name` lines (no prices, no
- * printing markers) so they paste straight into Cardmarket's shopping wizard,
- * where the actual pricing happens with the user's own seller filters.
- * @returns The export dialog.
+ * Blocks are pure `Nx Card Name` lines with no prices or printing markers,
+ * pastable directly into Cardmarket's shopping wizard.
  */
 export function TradeCardmarketExportDialog({
   counterpartyName,

@@ -37,19 +37,13 @@ interface SelectionDetailModalProps {
   printingsByCardId: Map<string, Printing[]>;
   showImages: boolean;
   onSearchAndClose: (query: string) => void;
-  /** Surface-specific add controls for the shown card. See SelectionDetailPane. */
   actions?: (printing: Printing) => ReactNode;
 }
 
 /**
- * The desktop card detail dialog, shown when the detail pane is not docked.
- * Wide enough for a two-column arrangement, so clicking a card never reflows
- * the grid underneath it.
- *
- * Arrow-key navigation is not handled here: `useGridKeyboardNav` already steps
- * the selection from a window listener, and the dialog follows the store, so a
- * second handler would double-step.
- * @returns The detail dialog, or null when the pane is docked.
+ * Arrow-key navigation is not handled here: `useGridKeyboardNav` already
+ * steps the selection from a window listener, so a second handler here would
+ * double-step.
  */
 export function SelectionDetailModal({
   items,
@@ -87,8 +81,6 @@ export function SelectionDetailModal({
   // without the pop being read as a dismissal.
   const dockingRef = useRef(false);
 
-  // A history entry keeps the browser back button closing the dialog, matching
-  // the mobile drawer.
   useOverlayHistoryEntry({
     active: open,
     stateKey: "cardDetail",
@@ -128,13 +120,11 @@ export function SelectionDetailModal({
         className="sm:max-w-[860px]"
         style={getDomainTintStyle(selectedCard.card.domains, domainColors)}
         onKeyDown={handleKeyDown}
-        // The stock close is named just "Close"; the pane and the mobile drawer
-        // both say "Close card details", and one name across all three is what
-        // lets a user (or a locator) find it the same way everywhere.
         showCloseButton={false}
       >
         <DialogClose
           render={<Button variant="ghost" className="absolute top-2 right-2" size="icon-sm" />}
+          // Must match the pane and mobile drawer's close button label: one locator finds all three.
           aria-label="Close card details"
         >
           <XIcon className="size-4" />
@@ -175,11 +165,9 @@ export function SelectionDetailModal({
 }
 
 /**
- * Placeholder for the lazily-loaded modal detail. It has to mirror the modal's
- * own two-column arrangement: the pane's skeleton puts an `aspect-card` block at
- * full width, which in an 860px dialog is a ~1150px-tall placeholder, so the
- * dialog opened enormous and snapped down the moment the real layout mounted.
- * @returns The modal-shaped loading skeleton.
+ * Mirrors the modal's two-column layout: the pane's skeleton puts an
+ * `aspect-card` block at full width, which at 860px is ~1150px tall and made
+ * the dialog open oversized before snapping down.
  */
 function CardDetailModalSkeleton() {
   return (
@@ -189,8 +177,6 @@ function CardDetailModalSkeleton() {
         <Skeleton className="h-4 w-32" />
       </div>
       <div className="grid gap-5 @2xl:grid-cols-[340px_minmax(0,1fr)]">
-        {/* Same 340px column the real layout gives the art, so the placeholder
-            occupies the height the card will. */}
         <Skeleton className="aspect-card w-full rounded-xl" />
         <div className="min-w-0 space-y-4">
           <div className="flex gap-1.5">

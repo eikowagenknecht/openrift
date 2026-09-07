@@ -2,8 +2,7 @@ import { Badge } from "@/components/ui/badge";
 
 /**
  * Status pill for a job run: muted "running", red "failed", green "ok" for
- * anything else (succeeded). Shared by the job-runs and status admin pages.
- * @returns The status badge.
+ * anything else (succeeded).
  */
 export function JobStatusBadge({ status }: { status: string }) {
   if (status === "running") {

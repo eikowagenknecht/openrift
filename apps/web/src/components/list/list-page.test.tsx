@@ -5,17 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
-// Two catalog printings of the same card, only the first of which is on the
-// list. Lets the detail-pane test tell the full catalog fan (2 printings)
-// apart from the list-scoped map (1 printing).
 const printingOnList = stubPrinting({ id: "printing-1", cardId: "card-1" });
 const printingOffList = stubPrinting({ id: "printing-2", cardId: "card-1" });
 
-// A card-kind wish list with one entry, so ListPage renders the non-empty
-// branch (the card browser). Regression: the group-visibility dialog used to
-// be mounted only in the empty-state branch, so the top-bar people icon did
-// nothing on any list that had cards (see the `visibilityDialog` node in both
-// return branches of ListPage).
 const cardKindListDetail = {
   list: {
     id: "list-1",
@@ -40,9 +32,6 @@ const cardKindListDetail = {
   ],
 };
 
-// Same list pinned to a specific printing. Regression: printing- and
-// copy-kind lists used to feed the detail pane the list-scoped printing map,
-// so the pane's picker hid every variant not on the list.
 const printingKindListDetail = {
   list: { ...cardKindListDetail.list, kind: "printing" },
   entries: [
@@ -58,27 +47,18 @@ const printingKindListDetail = {
   ],
 };
 
-// The same list with a rule behind it, so the empty state can pitch editing
-// the rules rather than setting them up.
 const ruleDrivenListDetail = {
   ...cardKindListDetail,
   list: { ...cardKindListDetail.list, rules: [{ id: "rule-1" }] },
 };
 
-// Nothing on the list at all — ListPage renders the empty-state branch.
 const emptyListDetail = { ...cardKindListDetail, entries: [] };
 
-// The same list with a public link. The binder sheet prints a QR of that link,
-// so its menu entry only exists here.
 const sharedListDetail = {
   ...cardKindListDetail,
   list: { ...cardKindListDetail.list, shareToken: "AbCdEfGhIjKl" },
 };
 
-// A copy-kind organize list whose single entry came from a dynamic rule
-// (id: null, source: "rule"). Rule entries can't be selected, so "Move all to
-// collection" is the only way to file them somewhere else — it must be offered
-// even though nothing on the list is individually editable.
 const copyKindListDetail = {
   list: { ...cardKindListDetail.list, kind: "copy", intent: "organize" },
   entries: [
@@ -171,15 +151,11 @@ vi.mock("@/hooks/use-cards", () => ({
   }),
 }));
 
-// What the filter pipeline leaves on screen. Empty by default (the grid itself
-// is mocked out); the select-mode tests put a printing here so the list has a
-// tile to manage.
 let sortedCards: (typeof printingOnList)[] = [];
 
 vi.mock("@/hooks/use-card-data", () => ({
   useCardData: () => ({
     sortedCards,
-    // List-scoped map: only the printing actually on the list survives.
     printingsByCardId: new Map([["card-1", [printingOnList]]]),
     priceRangeByCardId: undefined,
     availableFilters: {},
@@ -206,8 +182,6 @@ vi.mock("@/hooks/use-card-filters", () => ({
 const clearSelection = vi.fn();
 const resetSelection = vi.fn();
 const toggleSelectAll = vi.fn();
-// Select mode is delegated to the real store, which now owns it, so entering
-// and leaving select mode behaves as it does in the app.
 vi.mock("@/hooks/use-card-selection", async () => {
   const { useGridSelectionStore: store } = await import("@/stores/grid-selection-store");
   return {
@@ -261,14 +235,10 @@ vi.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({ toggleSidebar: vi.fn() }),
 }));
 
-// The grid itself is irrelevant here, but the detail pane is hosted via the
-// viewer's `rightPane` prop, so render that slot.
 vi.mock("@/components/card-viewer", () => ({
   CardViewer: ({ rightPane }: { rightPane?: unknown }) => <div>{rightPane as never}</div>,
 }));
 
-// The real pane renders nothing without a selection; this stub surfaces the
-// printing fan ListPage hands it, which is what the detail-pane test asserts.
 vi.mock("@/components/selection-detail-pane", () => ({
   SelectionDetailPane: ({ printingsByCardId }: { printingsByCardId: Map<string, unknown[]> }) => (
     <div>Detail pane printings: {printingsByCardId.get("card-1")?.length ?? 0}</div>
@@ -282,15 +252,10 @@ vi.mock("@/components/cards/card-browser-filter-scaffold", () => ({
   BrowserActiveFilters: () => null,
 }));
 
-// The header just needs to host the actions cluster so the top-bar buttons are
-// clickable; its real layout is irrelevant here.
 vi.mock("@/components/list/list-header", () => ({
   ListHeader: ({ actions }: { actions?: unknown }) => <div>{actions as never}</div>,
 }));
 
-// Stubbed down to a plain menu item — the real one's group queries are covered
-// by list-visibility-menu-item.test.tsx. It stays a DropdownMenuItem so the
-// menu still closes itself on click the way the real entry does.
 vi.mock("@/components/list/list-visibility-menu-item", async () => {
   const { DropdownMenuItem } = await import("@/components/ui/dropdown-menu");
   return {
@@ -300,8 +265,6 @@ vi.mock("@/components/list/list-visibility-menu-item", async () => {
   };
 });
 
-// The dialog's own behavior is covered by list-group-visibility-dialog.test.tsx;
-// here we only care that ListPage mounts it and wires `open` up.
 vi.mock("@/components/list/list-group-visibility-dialog", () => ({
   ListGroupVisibilityDialog: ({ open }: { open: boolean }) =>
     open ? <div role="dialog" aria-label="Group visibility" /> : null,
@@ -313,7 +276,6 @@ vi.mock("@/components/list/list-share-dialog", () => ({ ListShareDialog: () => n
 vi.mock("@/components/list/list-export-dialog", () => ({ ListExportDialog: () => null }));
 vi.mock("@/components/list/list-import-dialog", () => ({ ListImportDialog: () => null }));
 vi.mock("@/components/list/rule-editor-dialog", () => ({ RuleEditorDialog: () => null }));
-// Pulls in the PDF writer, which this file has no use for.
 vi.mock("@/components/share/binder-sheet-dialog", () => ({ BinderSheetDialog: () => null }));
 
 vi.mock("@/routes/_app/_authenticated/collections/route", async () => {
@@ -340,9 +302,8 @@ const resetters = [
   createStoreResetter(useSiblingOverrideStore),
 ];
 
-// The dropdown portals outside the render tree, and this file's teardown wipes
-// document.body before React unmounts — an open menu would then fail to detach.
-// Close it and wait for the portal to go.
+// The dropdown portals outside the render tree, and teardown wipes
+// document.body before React unmounts, so an open menu must detach first.
 async function closeOpenMenu(user: ReturnType<typeof userEvent.setup>) {
   await user.keyboard("{Escape}");
   await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
@@ -379,8 +340,6 @@ describe("ListPage", () => {
     await user.click(screen.getByRole("button", { name: "List actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Group visibility" }));
     expect(await screen.findByRole("dialog", { name: "Group visibility" })).toBeInTheDocument();
-    // The item's own click closes the menu; let the portal detach before
-    // teardown wipes the body (see closeOpenMenu).
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
@@ -476,13 +435,11 @@ describe("ListPage", () => {
     const user = userEvent.setup();
     renderListPage();
 
-    // Browse mode: the manage button sits next to the list's own actions.
     expect(screen.getAllByRole("button", { name: "Manage cards" })[0]).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Select all" })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Manage cards" })[0]);
 
-    // Select mode: select-all and done take over, browse-only actions step aside.
     expect(screen.getAllByRole("button", { name: "Done" })[0]).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Manage cards" })).not.toBeInTheDocument();
 
@@ -494,8 +451,6 @@ describe("ListPage", () => {
   });
 
   it("hides the manage button on a list whose entries all came from a dynamic rule", () => {
-    // Rule-produced entries have no list_entries row (ADR-034), so there is
-    // nothing select mode could act on.
     listDetail = copyKindListDetail;
     sortedCards = [printingOnList];
     renderListPage();
@@ -507,7 +462,6 @@ describe("ListPage", () => {
     listDetail = printingKindListDetail;
     renderListPage();
 
-    // Both catalog printings, not just the one pinned by the list entry.
     expect(screen.getByText("Detail pane printings: 2")).toBeInTheDocument();
   });
 });

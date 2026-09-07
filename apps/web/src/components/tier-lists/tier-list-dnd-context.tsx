@@ -24,18 +24,10 @@ import {
 import { collisionDropData } from "@/lib/dnd-data";
 import { useTierListBuilderStore } from "@/stores/tier-list-builder-store";
 
-/** Pointer travel before a press becomes a drag, so a click still reads as a click. */
 const DRAG_ACTIVATION = { distance: 8 };
 
 /**
- * Prefers the deepest target under the pointer. A card on the board sits inside
- * its row, so both register a hit; without this the row could win and the drop
- * would append instead of inserting at the card's position, making ordering
- * within a row impossible.
- *
- * A row being dragged is the exception: it lands *between* rows, so the cards
- * inside them are noise and only row targets are considered.
- * @returns The collisions, card targets first.
+ * Prefers the deepest target so a row hit never wins over a card inside it.
  */
 const preferCardTargets: CollisionDetection = (args) => {
   const collisions = pointerWithin(args);
@@ -57,21 +49,8 @@ interface TierListDndContextProps {
 }
 
 /**
- * Wires the builder's drag interactions to the board store. A card drag has
- * three outcomes, decided by what the pointer is over on release:
- *
- * - a card on the board → insert before it (this is how a row gets ordered);
- * - a row → append to that row;
- * - the pool → take the card off the board.
- *
- * A row drag has one: release over another row moves the ladder's rung to that
- * position, which is how a freshly added tier gets in between two others.
- *
- * A release over nothing is a no-op rather than an unrank: unlike the deck
- * builder, where dropping outside a zone removes a copy, an accidental release
- * here would silently undo work that took a while to do.
- *
- * @returns The drag context wrapping `children`.
+ * A release over nothing is a no-op, not an unrank: unlike the deck builder,
+ * an accidental release here would silently undo work that took a while to do.
  */
 export function TierListDndContext({
   cardsById,
@@ -139,11 +118,6 @@ export function TierListDndContext({
   );
 }
 
-/**
- * What rides the cursor: the card's art for a card drag, the row's coloured
- * label chip for a row drag.
- * @returns The overlay node, or null when nothing is being dragged.
- */
 function DragPreview({
   dragged,
   cardsById,
@@ -178,10 +152,7 @@ function DragPreview({
     return null;
   }
   const printings = printingsByCardId.get(dragged.cardId);
-  // Both card drags now name their printing: the pool cell carries the one the
-  // creator pointed at, a board tile the one it is rendering. Only a cards-view
-  // pool cell, which stands for the card rather than a printing, leaves it to
-  // the default.
+  // Undefined only for a cards-view pool cell, which stands for the card, not a printing.
   const shown = dragged.printingId
     ? printings?.find((printing) => printing.id === dragged.printingId)
     : printings?.[0];

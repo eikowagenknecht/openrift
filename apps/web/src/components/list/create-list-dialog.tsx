@@ -42,9 +42,6 @@ interface KindOption {
   icon: IconComponent;
 }
 
-// Icons mirror the filter-chrome view-mode toggle (apps/web/src/components/
-// filters/options-bar.tsx): cards / printings / copies use the same glyphs
-// so the visual mapping is consistent across surfaces.
 const KIND_OPTIONS: Record<ListKind, KindOption> = {
   card: {
     kind: "card",
@@ -105,42 +102,14 @@ interface CreateListDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (listId: string) => void;
-  /**
-   * Pre-fills the name input. The user can still edit it before submitting.
-   */
   defaultName?: string;
-  /**
-   * If provided, the dialog bulk-adds the returned entries to the new list
-   * immediately after creation. Called with the chosen kind so the caller
-   * can shape entries per kind (e.g. `cardId` for "card", `printingId` for
-   * "printing"). Return an empty array to skip the bulk-add.
-   */
   initialEntries?: (kind: ListKind) => InitialEntry[];
-  /**
-   * Overrides the dialog title. Use when the dialog is opened from a
-   * surface where the generic "New wishlist" copy doesn't fit (e.g. a
-   * deck's missing-cards view).
-   */
   title?: string;
-  /**
-   * Overrides the dialog body description. Replaces the default copy
-   * (including the "learn the difference" help link) entirely.
-   */
   description?: string;
-  /**
-   * Per-kind overrides for the kind-picker hint text. Falls back to the
-   * default hints for any kind not present in the map.
-   */
   kindHints?: Partial<Record<ListKind, string>>;
 }
 
-/**
- * Picks the list's `kind` (when the intent allows more than one) and its
- * name. Trade defaults straight to a name input since `copy` is the only
- * valid kind. The created list's id is passed to onCreated so callers can
- * navigate or chain follow-ups.
- * @returns The dialog component.
- */
+/** Picks the list's `kind` (when the intent allows more than one) and its name. */
 export function CreateListDialog({
   intent,
   open,
@@ -158,23 +127,18 @@ export function CreateListDialog({
   const defaultCurrency = useDisplayStore((s) => s.defaultCurrency);
   const [tradeDefaults, setTradeDefaults] = useState<TradePreference>(EMPTY_TRADE_PREFERENCE);
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
-  // Tracks groups the user has explicitly opted into. Defaulting to an empty
-  // set means a new list starts private — the user checks a group to share it.
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
-  // Trade preferences are secondary, so the section starts collapsed.
   const [tradePrefsOpen, setTradePrefsOpen] = useState(false);
   const createList = useCreateList();
   const bulkAdd = useBulkAddListEntries();
   const shareWithGroup = useShareListWithFriendGroup();
-  // Only fetched while the dialog is open; non-suspending so it never blocks
-  // the rest of the dialog from rendering.
+  // Non-suspending: fetching groups never blocks the rest of the dialog from rendering.
   const groups = useFriendGroupsList(open).data?.items ?? [];
 
   const supportsPrefs = intent !== "organize";
   const absoluteNeedsAmount =
     tradeDefaults.pricePref === "absolute" && tradeDefaults.priceAbsoluteCents === null;
 
-  // Reset state on close so the next open starts fresh.
   const handleOpenChange = (next: boolean) => {
     if (!next) {
       setName(defaultName ?? "");
@@ -197,9 +161,7 @@ export function CreateListDialog({
         return;
       }
     }
-    // Group visibility is opt-in (ADR-013): the API creates every list private,
-    // so we only share it with the groups the user checked. A failure doesn't
-    // block creation — visibility can be fixed later from the share dialog.
+    // allSettled: one group's share failing shouldn't block the others or the create.
     const selectedGroups = groups.filter((group) => selectedGroupIds.has(group.id));
     await Promise.allSettled(
       selectedGroups.map((group) =>
@@ -226,10 +188,7 @@ export function CreateListDialog({
         name: trimmed,
         intent,
         kind,
-        // Save currency for every wish/trade list so a later per-entry
-        // "fixed price" override has a unit to render. Only the absolute
-        // branch actually uses the value, but having it pre-set avoids the
-        // "?" the user would otherwise see when toggling to fixed price.
+        // Currency is saved even when unused: a later fixed-price override needs a unit.
         ...(supportsPrefs && { tradeDefaults, currency }),
       },
       { onSuccess: (list) => void finishCreate(list) },
@@ -392,12 +351,8 @@ export function CreateListDialog({
   );
 }
 
-/**
- * Glyph for a list's kind, for sidebar rows and badges. A record rather than a
- * lookup function so call sites index it: the React Compiler cannot prove a
- * function returns a stable component and treats the result as created during
- * render.
- */
+// A record, not a lookup function: the React Compiler can't prove a function
+// returns a stable component and would treat the result as created during render.
 export const LIST_KIND_ICON: Record<ListKind, IconComponent> = {
   card: KIND_OPTIONS.card.icon,
   printing: KIND_OPTIONS.printing.icon,

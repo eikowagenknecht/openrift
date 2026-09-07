@@ -45,10 +45,6 @@ import {
 } from "@/lib/loan-derivation";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * One loan as a wide row with a contextual action set, oriented to the viewer.
- * @returns The loan row element.
- */
 function LoanRow({ loan }: { loan: LoanResponse }) {
   const { cardsById, printingsById } = useCards();
   const { labels } = useEnumOrders();
@@ -85,7 +81,6 @@ function LoanRow({ loan }: { loan: LoanResponse }) {
   return (
     <Card className="gap-2 p-2 sm:flex-row sm:items-center sm:gap-3">
       <div className="flex min-w-0 items-center gap-3 sm:contents">
-        {/* Art only — CardMetaLine below the name already carries code and rarity. */}
         <CardArtThumb
           shape="strip"
           imageId={imageId}
@@ -227,11 +222,6 @@ function LoanRow({ loan }: { loan: LoanResponse }) {
   );
 }
 
-/**
- * Status badge oriented to the viewer: consent state while a loan is active
- * (member borrowers only), the plain status once it's closed.
- * @returns The badge element, or null when there's nothing worth flagging.
- */
 function LoanStatusBadge({ loan }: { loan: LoanResponse }) {
   if (loan.status !== "active") {
     return (
@@ -284,11 +274,6 @@ function LoanGroup({ heading, loans }: { heading: string; loans: LoanResponse[] 
   );
 }
 
-/**
- * The personal Lending page (ADR-039): everything the viewer has lent out or
- * is borrowing, plus closed loans as collapsed history.
- * @returns The page element.
- */
 export function LoansPage() {
   const { data } = useLoans();
 
@@ -309,7 +294,6 @@ export function LoansPage() {
       history.push(loan);
     }
   }
-  // Group the lent section by borrower so one friend's cards sit together.
   lent.sort((a, b) => loanCounterpartyLabel(a).localeCompare(loanCounterpartyLabel(b)));
 
   const empty = data !== undefined && loans.length === 0;

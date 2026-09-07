@@ -4,10 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Fades and rises content in the first time it scrolls into view. Starts
- * visible on purpose: the server render and no-JS visitors must never get
- * hidden content, and above-the-fold sections must not flash. The effect
- * hides the element only when it is below the viewport, motion allowed.
+ * Starts visible so SSR and no-JS visitors never get hidden content; hides
+ * only when off-screen and motion is allowed, then fades back in on scroll.
  */
 export function Reveal({
   children,
@@ -16,7 +14,6 @@ export function Reveal({
 }: {
   children: ReactNode;
   className?: string;
-  /** Staggers the rise-in behind a sibling Reveal. Only delays the entrance. */
   delayMs?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);

@@ -13,9 +13,7 @@ const captured = vi.hoisted(() => ({
 }));
 
 /**
- * The route's search params, which the page reads its whole filter set from.
- * Interactions go out through `navigate` and only reach the page when they come
- * back around through here, which is the loop the real router closes.
+ * Stands in for route search params: `navigate` writes here, and the page rereads it.
  */
 const searchStore = vi.hoisted(() => {
   let value: Record<string, unknown> = {};
@@ -120,8 +118,6 @@ describe("MetaEventsPage", () => {
   it("names each live row's sources, since the link is the citation now", () => {
     render(<MetaEventsPage />);
 
-    // A badge rather than a link: there is no candidate page to open, and
-    // drift lives on the event's own dialog.
     expect(screen.getByText("uvsgames")).toBeInTheDocument();
   });
 

@@ -22,7 +22,6 @@ export default function DiscordBotArticle() {
         full decklist, and rules questions get the exact rule quoted in chat.
       </p>
 
-      {/* Adding the bot */}
       <section>
         <Heading className="mb-2">Add it to your server</Heading>
         <p className="text-muted-foreground">
@@ -58,7 +57,6 @@ export default function DiscordBotArticle() {
         </p>
       </section>
 
-      {/* Slash command */}
       <section>
         <Heading className="mb-2">Look up a card with /card</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -79,7 +77,6 @@ export default function DiscordBotArticle() {
         </p>
       </section>
 
-      {/* Deck codes */}
       <section>
         <Heading className="mb-2">Share a deck with /deck</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -101,7 +98,6 @@ export default function DiscordBotArticle() {
         </p>
       </section>
 
-      {/* Rules lookup */}
       <section>
         <Heading className="mb-2">Quote a rule with /rule</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -125,7 +121,6 @@ export default function DiscordBotArticle() {
         </p>
       </section>
 
-      {/* Inline references */}
       <section>
         <Heading className="mb-2">Mention cards in chat</Heading>
         <p className="text-muted-foreground">
@@ -137,7 +132,6 @@ export default function DiscordBotArticle() {
         </p>
       </section>
 
-      {/* Prices */}
       <Alert>
         <CoinsIcon className="size-4" />
         <AlertDescription>

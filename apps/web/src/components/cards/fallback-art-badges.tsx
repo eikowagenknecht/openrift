@@ -8,32 +8,11 @@ import { useEnumOrders } from "@/hooks/use-enums";
 const PILL_CLASS =
   "bg-background/85 text-foreground/90 flex items-center gap-[1.5cqi] rounded-[2cqi] px-[3cqi] py-[1.5cqi] text-[5.5cqi] font-medium shadow-md";
 
-/**
- * Bottom-centered badge row over substitute artwork: one badge per property
- * the real variant has that the shown art doesn't. The art's language when it
- * differs, each marker (e.g. "Promo"), a non-normal art variant, a signature,
- * and a metal finish. The "what is this / what can I do" message lives in
- * `SuggestImageNotice`; this row only enumerates the differences. Sized in
- * container-query units so it scales with the card.
- *
- * Art pinned by an admin may come from outside the catalogue, leaving no
- * printing to diff against (`artPrinting` null). That case takes a generic
- * badge instead of the language one, because the row's job is first to say
- * "this is not this printing's own scan" — silently showing borrowed art as if
- * it were the real thing is the one outcome to avoid. The printing's own
- * distinguishing properties still list out either way: they describe the card
- * in hand, not the substitute.
- *
- * @returns The badge row overlay, or null when nothing differs; the parent
- * must be `relative`.
- */
 export function FallbackArtBadges({
   printing,
   artPrinting,
 }: {
-  /** The printing being displayed (the one without an image). */
   printing: Printing;
-  /** The printing whose artwork is shown instead, or null when it came from outside the catalogue. */
   artPrinting: Printing | null;
 }) {
   const { labels } = useEnumOrders();

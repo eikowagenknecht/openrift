@@ -55,17 +55,8 @@ function SharedCollectionCountCell({
   return <StaticCountTableActions count={countByPrintingId[printing.id] ?? 0} />;
 }
 
-// "copies" is a collection-owner concept (one tile per physical copy keyed by
-// copyId); a viewer with read-only access doesn't own anything, so clamp to
-// "printings".
-//
-// "owned" is meaningless without an authed inventory, so it's hidden for
-// logged-out viewers. Logged-in viewers DO get it: the Owned/Copies filters
-// are scoped to the viewer's own personal collections (not this collection's
-// counts), so they can answer "which cards here do I have less than a playset
-// of?". See the `ownedCountByPrinting` wiring in SharedCollectionGrid.
-// Markers and channels stay visible (a shared collection can hold promo
-// printings); both sections self-hide when no printing here carries one.
+// "owned" means the viewer's own personal collections, not this shared one,
+// so it's hidden entirely for logged-out viewers who have no inventory.
 const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
 const SHARED_HIDDEN_FILTER_SECTIONS_AUTHED: ReadonlySet<string> = new Set(["customTags"]);
 
@@ -73,17 +64,13 @@ interface SharedCollectionViewProps {
   data: PublicCollectionDetailResponse;
   search: FilterSearch;
   topBarTrailing?: ReactNode;
-  /** Callout rendered above the description, e.g. the full-access notice. */
   notice?: ReactNode;
 }
 
 /**
- * Read-only collection browser. Used by both the anonymous
+ * Read-only collection browser used by both the anonymous
  * `/collections/share/$token` route and the authenticated group-scoped
- * `/groups/$slug/collections/$id` route. Pass `topBarTrailing` to render a
- * back button or breadcrumb in the page header.
- *
- * @returns The shared collection page node.
+ * `/groups/$slug/collections/$id` route.
  */
 export function SharedCollectionView({
   data,
@@ -143,9 +130,7 @@ export function SharedCollectionView({
 
 function SharedCollectionBody({ data }: { data: PublicCollectionDetailResponse }) {
   const hydrated = useHydrated();
-  // Pre-hydration the top bar already shows the collection name and owner.
-  // The grid relies on the global catalog (useCards) plus client-only
-  // display + filter state, so defer the mount.
+  // The grid relies on client-only catalog and filter state, so defer the mount.
   if (!hydrated) {
     return null;
   }
@@ -166,10 +151,6 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   const isMobile = useIsMobile();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
-  // The viewer's own owned counts, scoped to their personal collections only
-  // (useOwnedCount excludes group-collection copies). This drives the
-  // Owned/Copies filters below — "owned" here means "in my collections", not
-  // "in this shared collection".
   const { data: viewerOwnedByPrinting } = useOwnedCount(isLoggedIn);
 
   const { filters, sortBy, sortDir, view: rawView, groupBy, hasActiveFilters } = useFilterValues();
@@ -177,9 +158,8 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
   const view = rawView === "copies" ? "printings" : rawView;
 
   const countByPrintingId: Record<string, number> = {};
-  // Copies out on a loan (ADR-039). The friend-group projection carries the
-  // flag (badge-only, no borrower identity); the anonymous public share
-  // deliberately doesn't, so this map stays empty there and no badges render.
+  // The anonymous public share never carries the onLoan flag, so this map
+  // stays empty there and no badges render.
   const onLoanByPrintingId: Record<string, number> = {};
   for (const copy of copies as { printingId: string; onLoan?: boolean }[]) {
     countByPrintingId[copy.printingId] = (countByPrintingId[copy.printingId] ?? 0) + 1;
@@ -195,9 +175,8 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
     }
   }
 
-  // Mirror the catalog's gating: only feed the owned map into useCardData when
-  // an owned/copies filter is actually active, so the returned ref stays stable
-  // and the grid doesn't churn as the viewer's inventory updates elsewhere.
+  // Only feed the owned map into useCardData when an owned/copies filter is
+  // active, so the ref stays stable and the grid doesn't churn on inventory updates.
   const ownedFilterActive =
     filters.ownedFilter.length > 0 ||
     filters.ownedCountMin !== null ||
@@ -232,18 +211,14 @@ function SharedCollectionGrid({ data }: { data: PublicCollectionDetailResponse }
     channels,
   });
 
-  // The detail-pane picker lists every printing of the clicked card from the
-  // global catalog, not just the ones present in this shared collection. Scope
-  // only by the active language filter.
+  // Lists every printing of the clicked card from the global catalog, not just
+  // the ones present in this shared collection.
   const detailPanePrintingsByCardId = filterPrintingsByLanguages(
     catalogAllPrintingsByCardId,
     filters.languages,
   );
 
-  // Upper bound for the "Copies" slider — the most copies the viewer personally
-  // owns of any one card that appears in this collection. Computed from the
-  // always-on owned map (not the gated one above), so the chrome bound is
-  // stable; feeds only the filter panel.
+  // Uses the always-on owned map, not the gated one above, so this bound stays stable.
   const ownedCountBound = maxOwnedCount(
     collectionPrintings,
     viewerOwnedByPrinting ?? {},

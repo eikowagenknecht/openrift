@@ -25,8 +25,6 @@ describe("tradeBadgeState", () => {
   });
 
   it("does not let a settle-awaiting legacy completed row take the ready-to-swap state", () => {
-    // The ready-to-swap section suppresses only `ready-to-swap`, so this row
-    // keeps a badge saying it is something else.
     expect(tradeBadgeState({ status: "completed", viewerSettled: false })).not.toBe(
       "ready-to-swap",
     );

@@ -38,15 +38,11 @@ export function MetaPlayerPage() {
   const navigate = routeApi.useNavigate();
   const { data } = useMetaPlayer(key);
   const eras = useMetaEras();
-  // Uncapped and read by the loader: one player's lists are a few dozen rows,
-  // so the grid pages itself rather than the endpoint.
   const { data: deckData } = useMetaDecks({
     ...metaScopeQueryFromScope(search, eras),
     player: key,
   });
 
-  // Replaced rather than pushed: a scope bar is one control the reader adjusts
-  // several times, and each dropdown would otherwise cost a press of Back.
   const setScope = (patch: Partial<MetaScope>) => {
     void navigate({ search: (prev) => nextScopeSearch(prev, patch), replace: true });
   };

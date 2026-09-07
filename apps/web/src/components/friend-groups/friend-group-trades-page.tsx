@@ -16,14 +16,6 @@ import { buildTradeHubCards } from "@/lib/trade-hub";
 
 import { ShareYourListsBand, TradeHubMemberCard } from "./trade-hub";
 
-/**
- * The Trades page: one card per member, then the band about your own lists. The
- * page has a single job, which is getting you to the right person — a trade is
- * carried out with someone, and their requests, their suggestions and their
- * shared lists are one conversation. Acting on any of it happens on their trade
- * sheet, so nothing here is a button.
- * @returns the trades-page content.
- */
 export function TradesPageContent({
   slug,
   data,
@@ -41,20 +33,13 @@ export function TradesPageContent({
   );
 }
 
-/**
- * The hub proper: the group as people, the ones who want something from you
- * first.
- * @returns The member cards.
- */
 function TradeHub({ slug, data }: { slug: string; data: FriendGroupDetailResponse }) {
   const viewerId = useRequiredUserId();
   const { data: matches } = useFriendGroupMatches(slug);
   const { data: tradesData } = useGroupTrades(data.group.id);
   const { data: allTradesData } = useUserTrades();
-  // The card a member gets opens their person-level sheet, which pools every
-  // shared group, so the card reads the other groups too — otherwise a member
-  // whose suggestions all sit in another group looks like there is nothing
-  // between the two of you.
+  // The member card opens a person-level sheet pooling every shared group,
+  // so matches from other groups are read here too.
   const { data: groups } = useFriendGroups();
   const elsewhere = useFriendGroupMatchesForSlugs(
     groups.items.filter((group) => group.slug !== slug).map((group) => group.slug),

@@ -23,7 +23,6 @@ beforeEach(() => {
 });
 afterEach(resetSelection);
 
-// Builds a stacked grid (one tile per printing, keyed by printingId).
 function stackedGrid(copyIdsByPrinting: string[][]): {
   items: CardViewerItem[];
   stackByItemId: Map<string, StackedEntry>;
@@ -41,7 +40,6 @@ function stackedGrid(copyIdsByPrinting: string[][]): {
   return { items, stackByItemId, printings };
 }
 
-// Builds a copies grid (one tile per copy, keyed by copyId).
 function copiesGrid(copyIdsByPrinting: string[][]): {
   items: CardViewerItem[];
   stackByItemId: Map<string, StackedEntry>;
@@ -171,8 +169,6 @@ describe("resolveSelectionDrag", () => {
   });
 
   it("replaces a selection drag's copyIds with the whole live selection", () => {
-    // Regression: dragging one tile of a multi-selection must move every
-    // selected copy, not just the grabbed tile's copy.
     useGridSelectionStore.setState({ selected: new Set(["c1", "c2", "c3"]) });
     const resolved = resolveSelectionDrag({ ...baseDrag, fromSelection: true });
     expect(resolved.copyIds).toEqual(["c1", "c2", "c3"]);
@@ -200,8 +196,6 @@ describe("resolveDropCopyIds", () => {
   });
 
   it("leaves a non-stack drag whole whatever the modifier", () => {
-    // A hand-built select-mode selection is exactly what the user picked, so
-    // there is nothing to trim.
     expect(resolveDropCopyIds(unit, null)).toEqual(["c1", "c2", "c3"]);
     expect(resolveDropCopyIds(unit, 2)).toEqual(["c1", "c2", "c3"]);
   });

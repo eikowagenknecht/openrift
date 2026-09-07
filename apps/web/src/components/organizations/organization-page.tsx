@@ -43,9 +43,7 @@ const ROLE_LABEL: Record<OrganizationRole, string> = {
   judge: "Judge",
 };
 
-// Role options for the per-member role picker. Only an owner sees this picker, so
-// it offers every role; the server enforces the last-owner guard. A judge is a
-// deck-check-only role on the org's tournaments, with no org-admin access.
+// The server enforces the last-owner guard, not this list.
 const MEMBER_ROLE_ITEMS = [
   { value: "owner", label: "Owner" },
   { value: "manager", label: "Manager" },
@@ -77,9 +75,8 @@ export function OrganizationPage({ id }: { id: string }) {
     try {
       await action();
     } catch {
-      // The failure is reported by the global mutation onError toast; swallow
-      // the rejection here so the `void run(...)` call sites don't surface it
-      // as an uncaught promise.
+      // Reported by the global mutation onError toast; swallowed so
+      // `void run(...)` call sites don't surface an uncaught promise.
     }
   }
 

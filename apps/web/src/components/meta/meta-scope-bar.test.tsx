@@ -42,13 +42,11 @@ function option(name: string) {
   return screen.findByRole("option", { name });
 }
 
-/** Opens the menu that hosts the format and country facets. */
 async function openFilters(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "More filters" }));
   await screen.findByRole("menu");
 }
 
-/** One value facet's dropdown trigger, which reads as the facet until something is picked. */
 function facet(text: string) {
   // Inline in the bar the trigger is a combobox; inside the filters menu it is
   // a menu row, which the combobox renders as a plain button.

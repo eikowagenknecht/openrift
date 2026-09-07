@@ -2,12 +2,6 @@ import { CopyIcon, DownloadIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-/**
- * Presentational export buttons (Download PNG / Copy) plus a status line. The
- * actual capture lives in the page so it can drive the off-screen render clone.
- *
- * @returns The export controls element.
- */
 export function CardExportControls({
   onDownload,
   onCopy,

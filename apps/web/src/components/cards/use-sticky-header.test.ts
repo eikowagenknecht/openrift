@@ -16,7 +16,6 @@ const header = (id: string): VRow => ({
 });
 const cards = (): VRow => ({ kind: "cards", items: [], cardsBefore: 0 });
 
-// Two groups: header "a" at the container's top, header "b" 400px down.
 const VIRTUAL_ROWS: VRow[] = [header("a"), cards(), header("b"), cards()];
 const ROW_STARTS = [0, 40, 400, 440];
 
@@ -42,9 +41,8 @@ function params(overrides: { multipleGroups?: boolean } = {}) {
   };
 }
 
-// Animation frames are queued by hand so a test can assert on what has and has
-// not run yet. cancelAnimationFrame must actually neutralize the callback: the
-// hook relies on it to drop a pending pass on unmount.
+// Frames are queued by hand; cancelAnimationFrame must actually neutralize a
+// pending callback, since the hook relies on it to drop a pass on unmount.
 let frames: FrameRequestCallback[];
 
 function flushFrames() {
@@ -74,8 +72,6 @@ describe("useStickyHeader", () => {
   it("reads no layout during the commit, only on the next frame", () => {
     const { result } = renderHook(() => useStickyHeader(params()));
 
-    // The forced layout this hook performs must not sit inside the commit that
-    // a filter change just produced — that cost lands on time-to-new-cards.
     expect(getVirtualItems).not.toHaveBeenCalled();
     expect(result.current).toBeNull();
 
@@ -109,8 +105,6 @@ describe("useStickyHeader", () => {
   });
 
   it("hides the overlay when the real header sits at the sticky position", () => {
-    // threshold lands exactly on header "b" (400), so the real one is already
-    // in place and the floating copy would double it up.
     vi.stubGlobal("scrollY", 500);
     const { result } = renderHook(() => useStickyHeader(params()));
 
@@ -119,9 +113,7 @@ describe("useStickyHeader", () => {
   });
 
   it("hides the overlay while the real header is sliding under the toolbar", () => {
-    // Header "b" has crossed the threshold by 20px of its 40px row: part of it
-    // is still visible, and the previous group's cards are gone, so neither
-    // group's label belongs in the overlay.
+    // Header "b" has crossed the threshold by 20px of its 40px row.
     vi.stubGlobal("scrollY", 520);
     const { result } = renderHook(() => useStickyHeader(params()));
 

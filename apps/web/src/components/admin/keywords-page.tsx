@@ -287,8 +287,6 @@ export function KeywordsPage() {
   const styleMap = new Map(data.styles.map((s) => [s.name, s]));
   const translationsByKeyword = Map.groupBy(data.translations, (t) => t.keywordName);
 
-  // Merge keyword counts with styles — show all keywords that exist in cards,
-  // plus any styles that don't have matching cards
   const rows: KeywordRow[] = [
     ...data.counts.map((c) => {
       const style = styleMap.get(c.keyword);

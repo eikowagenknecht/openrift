@@ -15,18 +15,6 @@ import {
   metaCreditVisibilityLabels,
 } from "@/lib/meta-submission-copy";
 
-/**
- * The line an event page would print for this account right now.
- *
- * The sentence itself comes from {@link MetaContributors}, the same component
- * the event and deck pages render, rather than a second copy of it here: a
- * preview that disagreed with the real line would be worse than no preview.
- *
- * @param props.creditedAs The name that would appear, or null when none would.
- * @param props.usesDisplayNameFallback Whether a missing Riot ID pushed this to the display name.
- * @param props.visibility The setting as it currently stands.
- * @returns The preview block.
- */
 function CreditPreview({
   creditedAs,
   usesDisplayNameFallback,
@@ -69,22 +57,8 @@ function CreditPreview({
   );
 }
 
-/**
- * Profile-page card for the meta archive's contributor credit (ADR-014).
- *
- * This is the switch that puts a person's name on public archive pages, and it
- * is off by default on purpose: credit rows are written for every accepted
- * contribution whatever this says, and the public read filters on this setting
- * at render time. Turning it on therefore credits everything already
- * contributed, and turning it off removes every one of those names again.
- *
- * The preview runs the server's own two fallbacks (`riot_id` with no Riot ID
- * set drops to the display name; an empty chosen field drops the contributor
- * entirely), because a preview promising a line the event page will not print
- * is worse than no preview.
- *
- * @returns The settings card, or null while the archive is unlaunched.
- */
+// Credit rows are written regardless of this setting; the public read filters
+// on it at render time, so toggling it retroactively (un)credits everything.
 export function MetaCreditSection() {
   const metaEnabled = useFeatureEnabled("meta");
   const { data: session } = useSession();

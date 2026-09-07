@@ -12,22 +12,14 @@ export interface LinkDraft {
 interface LinkRowsFieldProps {
   links: LinkDraft[];
   onChange: (next: LinkDraft[]) => void;
-  /** How many rows the caller accepts; the add button hides at the cap. */
   max: number;
-  /** Marks a row invalid. Only consulted for rows with a non-empty URL. */
   isValidUrl: (url: string) => boolean;
   urlPlaceholder?: string;
   titlePlaceholder?: string;
   addLabel?: string;
 }
 
-/**
- * A repeatable URL + title list. Empty rows are the caller's to filter on save,
- * so a user can add a row and abandon it. With no rows yet only the add button
- * shows, which keeps an unused field from competing with the rest of the form.
- * Shared by the copy-details and deck-details dialogs.
- * @returns The rows plus their add button.
- */
+/** A repeatable URL + title list; empty rows are the caller's to filter on save. */
 export function LinkRowsField({
   links,
   onChange,

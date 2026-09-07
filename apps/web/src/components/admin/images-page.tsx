@@ -33,13 +33,9 @@ import {
 
 const REGENERATE_KIND = "images.regenerate";
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
 const BYTE_UNITS = ["B", "KB", "MB", "GB"] as const;
 const BYTES_PER_UNIT = 1024;
 const MAX_DISPLAYED_ERRORS = 5;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) {
@@ -49,8 +45,6 @@ function formatBytes(bytes: number): string {
   const value = bytes / BYTES_PER_UNIT ** i;
   return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${BYTE_UNITS[i]}`;
 }
-
-// ── MutationStatus ────────────────────────────────────────────────────────────
 
 function MutationStatus({
   mutation,
@@ -100,12 +94,7 @@ function MutationStatus({
   return null;
 }
 
-/**
- * Status block for the regenerate-images job, driven by the polled job_runs
- * row rather than client-side mutation state, so it survives a tab refresh.
- * @returns Progress bar plus per-status detail line, or null when there's
- *   nothing to show.
- */
+/** Driven by the polled job_runs row, not client-side mutation state, so it survives a tab refresh. */
 function RegenerateJobStatus({
   run,
 }: {
@@ -190,8 +179,6 @@ function ErrorsList({ errors }: { errors: string[] }) {
   );
 }
 
-// ── Manage Rehosted Images ───────────────────────────────────────────────────
-
 function ManageSection() {
   const { data: status, refetch } = useRehostStatus();
   const { data: latestRegenRun } = useLatestJobRunByKind(REGENERATE_KIND);
@@ -251,7 +238,6 @@ function ManageSection() {
       </CardHeader>
 
       <CardContent className="space-y-3 pt-0">
-        {/* ── Action buttons ────────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -344,7 +330,6 @@ function ManageSection() {
           />
         </div>
 
-        {/* ── Progress / results ─────────────────────────────────────── */}
         {latestRegenRun && <RegenerateJobStatus run={latestRegenRun} />}
 
         {migrateMutation.isSuccess && migrateMutation.data && (
@@ -400,8 +385,6 @@ function ManageSection() {
     </Card>
   );
 }
-
-// ── MissingImagesSection ──────────────────────────────────────────────────────
 
 function MissingImagesSection() {
   const { data: cards } = useMissingImages();
@@ -476,8 +459,6 @@ function MissingImagesSection() {
     </Card>
   );
 }
-
-// ── BrokenImagesSection ──────────────────────────────────────────────────────
 
 function BrokenImagesSection() {
   const [enabled, setEnabled] = useState(false);
@@ -593,8 +574,6 @@ function BrokenImagesSection() {
   );
 }
 
-// ── LowResImagesSection ───────────────────────────────────────────────────────
-
 function LowResImagesSection() {
   const [enabled, setEnabled] = useState(false);
   const { data, isLoading } = useLowResImages(enabled);
@@ -639,7 +618,6 @@ function LowResImagesSection() {
     );
   }
 
-  // Group by set for readability
   const bySet = new Map<string, typeof data.lowRes>();
   for (const entry of data.lowRes) {
     const list = bySet.get(entry.setSlug) ?? [];
@@ -686,8 +664,6 @@ function LowResImagesSection() {
     </Card>
   );
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export function ImagesPage() {
   return (

@@ -37,13 +37,9 @@ vi.mock("@/hooks/use-enums", () => ({
 
 vi.mock("@/lib/auth-session", () => ({ useUserId: () => captured.userId }));
 
-// The page's chrome pulls the router's own link primitives; neither is what
-// these tests are about.
 vi.mock("@/components/layout/page-top-bar", () => ({
   PageTopBar: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   PageTopBarActions: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  // Mirrors the real wrapper's `render` prop: the element replaces the button
-  // and the children land inside it, which is what makes the CTA a link.
   PageTopBarPrimaryButton: ({
     children,
     render: node,
@@ -71,8 +67,6 @@ vi.mock("@/components/meta/meta-event-correction-dialog", () => ({
   MetaEventCorrectionDialog: () => null,
 }));
 
-// The standings' inline preview suspends on the deck query and pulls the price
-// feed with it. Nothing on this page opens one.
 vi.mock("@/components/meta/meta-event-deck-preview", () => ({
   MetaEventDeckPreview: () => null,
   MetaEventDeckPreviewSkeleton: () => null,
@@ -119,7 +113,6 @@ function renderPage(
   render(<MetaEventPage slug="summoner-skirmish" />);
 }
 
-/** Finds the submission link by its visible label; it no longer sits in a fixed top-bar slot. */
 function ctaHref(label: string): string | null {
   return screen.getByText(label).closest("a")?.getAttribute("href") ?? null;
 }

@@ -28,9 +28,7 @@ vi.mock("@/hooks/use-deck-builder", () => ({ useDeckCards: () => [] }));
 
 vi.mock("@/lib/auth-session", () => ({ useSession: () => ({ data: undefined }) }));
 
-// Only the client read is stubbed: the dialog's module graph pulls a real
-// QueryClient in through the server cache, and replacing the whole module takes
-// that with it.
+// Only the client read is stubbed; the module graph pulls a real QueryClient through the server cache.
 vi.mock("@tanstack/react-query", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactQuery>()),
   useQueryClient: () => ({}),

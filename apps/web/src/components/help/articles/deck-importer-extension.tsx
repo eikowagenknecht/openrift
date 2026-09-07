@@ -15,7 +15,6 @@ export default function DeckImporterExtensionArticle() {
         works whether or not you&apos;re signed in.
       </p>
 
-      {/* Install */}
       <section>
         <Heading className="mb-2">Install it</Heading>
         <p className="text-muted-foreground">
@@ -55,7 +54,6 @@ export default function DeckImporterExtensionArticle() {
         </p>
       </section>
 
-      {/* Use */}
       <section>
         <Heading className="mb-2">Import a deck</Heading>
         <div className="mt-3 space-y-2">
@@ -81,7 +79,6 @@ export default function DeckImporterExtensionArticle() {
         </p>
       </section>
 
-      {/* What it reads */}
       <section>
         <Heading className="mb-2">What it can read</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -108,7 +105,6 @@ export default function DeckImporterExtensionArticle() {
         </div>
       </section>
 
-      {/* Access */}
       <section>
         <Heading className="mb-2">What it can access</Heading>
         <p className="text-muted-foreground">
@@ -119,7 +115,6 @@ export default function DeckImporterExtensionArticle() {
         </p>
       </section>
 
-      {/* Limitation */}
       <section>
         <Alert>
           <InfoIcon className="text-primary" />

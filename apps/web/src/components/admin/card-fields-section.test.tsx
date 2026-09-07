@@ -50,9 +50,7 @@ vi.mock("@/hooks/use-ignored-candidates", () => ({
   useIgnoreCandidateCard: () => stubMutation,
 }));
 
-// The section mounts the reject/reply dialog, which fetches the submission
-// behind a column. Stub the hooks so this stays a render test with no query
-// client in scope.
+// Stubbed so this stays a render test with no query client in scope.
 vi.mock("@/hooks/use-admin-card-submissions", () => ({
   useSubmissionForCandidate: () => ({ data: { submission: null } }),
   useSetSubmissionResolution: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -122,9 +120,6 @@ describe("CardFieldsSection", () => {
     ]);
   });
 
-  // Regression: the grid also carries read-only provider columns the accept
-  // endpoint's `field` enum does not list. Sending one gets a 400 per field, and
-  // "Accept all fields" used to do exactly that for `rulesText`/`effectText`.
   it("skips grid columns the accept endpoint cannot write", () => {
     renderSection();
 
@@ -169,8 +164,6 @@ describe("CardFieldsSection", () => {
     expect(queryByText(/unchecked/u)).toBeNull();
   });
 
-  // Bans, errata and triage are full-admin; a card-review grant holder still
-  // sees the grid but gets no check/uncheck handlers and no managers.
   it("withholds the triage affordances from non-admins", () => {
     const { queryByText } = renderSection({
       isAdmin: false,

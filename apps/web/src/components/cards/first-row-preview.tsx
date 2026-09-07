@@ -22,16 +22,9 @@ import { cn } from "@/lib/utils";
 
 const cardsRoute = getRouteApi("/_app/cards");
 
-// SSR can't tell whether the user is signed in, so we hide the Owned chip in
-// the shell. The live <CardBrowser> shows it for logged-in users on hydration.
-// Markers and channels live with /promos and have no /cards UI; always hide.
 const SSR_HIDDEN: ReadonlySet<string> = new Set(["owned", "markers", "channels"]);
 
-// Per-cell visibility classes that pair with the grid's column breakpoints so
-// each viewport shows exactly two complete rows. We always render 16 cells
-// (two rows at the widest, 8-col breakpoint) and trim the overflow with
-// container-query `display:none` at narrower widths. Full class strings are
-// required for Tailwind's scanner — don't concatenate dynamically.
+// Full class strings required for Tailwind's scanner: don't concatenate dynamically.
 function visibilityForIndex(i: number): string {
   if (i < 4) {
     return "";
@@ -55,34 +48,14 @@ function visibilityForIndex(i: number): string {
 }
 
 /**
- * SSR-only preview of the cards page. Rendered inside the route's Suspense
- * fallback so the served HTML carries:
- *  - Real filter chrome (toolbar, compact filter bar, active filters) sized
- *    to its final dimensions, populated from the loader's `facets` payload —
- *    so the swap to the live `<CardBrowser>` on hydration doesn't shift the
- *    layout.
- *  - Real `<img>` tags for the first two rows of cards as the LCP candidate.
- *    The cells span the widest grid breakpoint (16 = 8 cols × 2 rows); narrower
- *    breakpoints hide the overflow via `visibilityForIndex` so each viewport
- *    shows exactly two complete rows.
- *
- * On client-side navigation the loader returns `facets: null` and this
- * component renders nothing — the live grid is already mounting.
- *
- * SSR caveats (cosmetic, not layout shifts):
- *  - `isLoggedIn` is treated as false here; the add-mode button slots into
- *    the toolbar after hydration for signed-in users.
- *  - `useDisplayStore` reads use Zustand defaults until the persist
- *    middleware rehydrates from localStorage; the bar renders the default
- *    filter placement here, so a customized placement snaps in on hydration.
- * @returns The SSR shell, or null when there's no SSR loader payload.
+ * SSR-only preview of the cards page, rendered inside the route's Suspense
+ * fallback so it must pixel-match the live `<CardBrowser>` layout to avoid a
+ * hydration shift. Treats the viewer as logged out and uses default (not
+ * persisted) filter placement, since neither is known at SSR time.
  */
 export function FirstRowPreview() {
   const { firstRow, facets, availableLanguages, setLabels, counts, filterCounts } =
     cardsRoute.useLoaderData();
-  // Match the live toolbar's grouping: tighten the gap below the search row when
-  // the active-filters strip renders below it. Keeps SSR chrome dimensions in
-  // step with the hydrated <CardBrowser> so the swap doesn't shift the layout.
   const { hasActiveFilters } = useFilterValues();
   if (facets === null) {
     return null;
@@ -118,9 +91,6 @@ export function FirstRowPreview() {
             filterCounts={filterCountsHydrated}
             topLevelUnits={DEFAULT_TOP_LEVEL_UNITS}
           />
-          {/* Mirrors BrowserActiveFilters: the strip lives in the same sticky
-              tier as the search row and only shows below sm, where the compact
-              bar gives way to the mobile drawer. */}
           <div className="contents sm:hidden">
             <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
           </div>
@@ -128,16 +98,8 @@ export function FirstRowPreview() {
       }
       gridSlot={
         firstRow.length === 0 ? null : (
-          // flex-col carrying the same gap classes as the grid: the virtualizer
-          // puts one row gap between the header row and the first card row, so
-          // header → cards has to be the identical measurement, and both change
-          // together with the container width.
+          // Header-to-cards gap must match the virtualizer's row gap for hydration parity.
           <div className={cn("flex flex-col", SSR_RESPONSIVE_GRID_GAP)}>
-            {/* Set-group header — mirrors <HeaderRow> in card-grid.tsx so the
-                live grid lands here on hydration without shifting cards down.
-                aria-hidden because the live grid renders an interactive button
-                with the same text; we just need the SSR HTML to occupy the
-                matching height/baseline. */}
             <OrnamentRule fade="tips" className="pt-4 pb-2" aria-hidden="true">
               <span className="flex flex-row gap-3 text-sm">
                 <span className="text-muted-foreground font-medium">{firstRow[0]?.setSlug}</span>
@@ -146,40 +108,23 @@ export function FirstRowPreview() {
                 </span>
               </span>
             </OrnamentRule>
-            {/* Nothing is measured yet, so the column count and the gap both
-                come from container-query classes that mirror the live rules
-                (useResponsiveColumns' table and card-grid-metrics). They query
-                `@container/grid`, set on the center column in
-                <CardBrowserLayout> — viewport breakpoints would over-count
-                columns whenever the filter sidebar is open. */}
             <div className={cn("grid", SSR_RESPONSIVE_GRID_COLS, SSR_RESPONSIVE_GRID_GAP)}>
               {firstRow.map((card, i) => {
                 const srcSet = `${imageUrl(card.imageId, "120w")} 120w, ${imageUrl(card.imageId, "240w")} 240w, ${imageUrl(card.imageId, "400w")} 400w, ${imageUrl(card.imageId, "full")} 800w`;
-                // A resolution hint, so the per-breakpoint gap totals are
-                // computeGridMetrics evaluated at each breakpoint's own width
-                // and only approximate in between (100vw also ignores the
-                // filter sidebar). The trailing term is 2 × BUTTON_PAD, exact.
+                // Approximate resolution hint only; exact per-breakpoint values come from computeGridMetrics.
                 const sizes =
                   "(min-width: 1920px) calc((100vw - 126px) / 8 - 6px), (min-width: 1600px) calc((100vw - 102px) / 7 - 6px), (min-width: 1280px) calc((100vw - 75px) / 6 - 6px), (min-width: 1024px) calc((100vw - 56px) / 5 - 6px), (min-width: 768px) calc((100vw - 39px) / 4 - 6px), (min-width: 640px) calc((100vw - 30px) / 3 - 6px), calc((100vw - 10px) / 2 - 6px)";
                 const fetchPriority = i === 0 ? "high" : undefined;
                 return (
-                  // Mirrors the live <CardRowContent> deferred-cell shape:
-                  // p-0.75 wrapper (BUTTON_PAD), card image, then a label-height
-                  // spacer matching CardThumbnail's two-line CardMetaLabel block.
-                  // Without the wrapper the SSR cells render ~6px wider and
-                  // ~LABEL_HEIGHT shorter than the live cells, shifting the
-                  // grid down and inward when CardBrowser hydrates.
+                  // Must mirror <CardRowContent>'s cell shape (wrapper padding, image, label spacer)
+                  // or the SSR cells render a different size and hydration shifts the grid.
                   <div
                     key={card.printingId}
                     className={cn("rounded-lg p-0.75", visibilityForIndex(i))}
                   >
                     {card.rotated ? (
-                      // Landscape battlefields: mirror CardThumbnail's rotated
-                      // branch so the SSR shell shows them in their final
-                      // portrait-framed, -90deg-rotated orientation. The
-                      // in-flow aspect-card spacer gives the overflow-hidden box
-                      // a definite height so the rotated overlay's top: 50%
-                      // resolves (Firefox needs this — see card-thumbnail.tsx).
+                      // aspect-card spacer gives the box a definite height so the rotated
+                      // overlay's top: 50% resolves in Firefox (see card-thumbnail.tsx).
                       <div className="relative w-full overflow-hidden rounded-lg">
                         <div className="aspect-card" />
                         <div

@@ -10,7 +10,6 @@ const captured = vi.hoisted(() => ({
   playloltcgStatus: null as unknown,
   topdeckStatus: null as unknown,
   overlays: [] as unknown[],
-  /** What the router would hand a functional `search`, i.e. the URL as it stands. */
   prevSearch: {} as Record<string, unknown>,
   run: vi.fn(),
   cancelRun: vi.fn(),
@@ -122,7 +121,6 @@ const status: MetaSyncStatus = {
   },
 };
 
-/** A run of `kind` still in flight, which is what a Stop is aimed at. */
 function runningRun(kind: string): MetaSyncStatus["runs"][number] {
   return {
     id: "run-7",
@@ -178,7 +176,6 @@ function statusWith(overrides: Partial<MetaSyncStatus["catalog"]>): MetaSyncStat
 describe("MetaSourceSyncSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Assertions read relative time against `now`, so the clock is pinned.
     vi.useFakeTimers({ shouldAdvanceTime: true, now: NOW });
     captured.prevSearch = {};
     captured.status = status;
@@ -203,7 +200,6 @@ describe("MetaSourceSyncSection", () => {
     expect(stage("Untriaged")).toHaveTextContent("30");
     expect(stage("Untriaged")).toHaveTextContent("of 266,000 catalogued");
     expect(stage("Awaiting results")).toHaveTextContent("17");
-    // Both overlays are pending: the queue has no settled state to filter by.
     expect(stage("Needs review")).toHaveTextContent("2");
     expect(stage("Needs review")).toHaveTextContent("0 unmatched card names");
     expect(stage("Published")).toHaveTextContent("480");
@@ -219,8 +215,7 @@ describe("MetaSourceSyncSection", () => {
 
     render(<MetaSourceSyncSection source="uvsgames" />);
 
-    // The scraped playloltcg row belongs to the other tab; the person's
-    // overlay names no source and shows on both.
+    // The playloltcg-provider overlay belongs to the other tab; the null-provider one shows on both.
     expect(stage("Needs review")).toHaveTextContent("2");
     expect(stage("Needs review")).toHaveTextContent("0 unmatched card names");
   });
@@ -433,7 +428,6 @@ describe("MetaSourceSyncSection", () => {
   });
 
   it("marks the crawls this deployment has no cron for", () => {
-    // The fixture schedules meta.uvsgames_sync off; recheck joins it here.
     captured.status = {
       ...status,
       schedules: { ...status.schedules, "meta.uvsgames_recheck": false },

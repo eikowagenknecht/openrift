@@ -10,8 +10,6 @@ import { PickerList, PickerRow } from "@/components/ui/picker-list";
 import { useBulkAddListEntries, useLists } from "@/hooks/use-lists";
 import { cn } from "@/lib/utils";
 
-// User-facing translation of a wishlist's kind, matching the create-flow
-// copy: card-kind wishes accept any printing, printing-kind pin exact ones.
 const KIND_LABEL: Record<ListKind, string> = {
   card: "Any printing",
   printing: "Exact printings",
@@ -21,27 +19,12 @@ const KIND_LABEL: Record<ListKind, string> = {
 interface AddToWishlistDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /**
-   * Entries to add, shaped for the picked list's kind (`cardId` for card-kind
-   * lists, `printingId` for printing-kind). Return an empty array when nothing
-   * maps to that kind.
-   */
   entriesFor: (kind: ListKind) => InitialEntry[];
-  /**
-   * Invoked when the user picks "New wishlist" instead of an existing one.
-   * The dialog closes itself first; the caller opens its create flow.
-   */
   onCreateNew: () => void;
   onAdded?: (listId: string) => void;
 }
 
-/**
- * Picker that adds a prepared set of cards (e.g. a deck's missing cards) to
- * one of the user's existing wishlists, or hands off to the caller's
- * create-wishlist flow. Quantities are added on top of what's already on the
- * list — the server sums duplicates rather than replacing them.
- * @returns The dialog component.
- */
+/** Adds a prepared set of cards to an existing wishlist, or hands off to the create-wishlist flow. */
 export function AddToWishlistDialog({
   open,
   onOpenChange,
@@ -56,8 +39,6 @@ export function AddToWishlistDialog({
   const addToList = (listId: string, listName: string, kind: ListKind) => {
     const entries = entriesFor(kind);
     if (entries.length === 0) {
-      // Printing-kind list but none of the cards resolve to a printing —
-      // nothing the server could accept.
       toast.info(`Nothing to add to "${listName}"`);
       return;
     }

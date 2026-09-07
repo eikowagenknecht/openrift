@@ -5,7 +5,6 @@ import type { VariantPopoverIntent } from "@/stores/add-mode-store";
 
 interface RouteDecrementDeps {
   dataView: "cards" | "printings" | "copies";
-  /** Tile axis — owned printings are bucketed per tile (see cardsViewTileKey). */
   groupBy: GroupByField;
   ownedPrintingIdsByTile: Map<string, string[]>;
   handleOpenVariants?: (
@@ -17,14 +16,8 @@ interface RouteDecrementDeps {
 }
 
 /**
- * Builds the registered onDecrement handler for the collection grid. The tile
- * `-` removes a copy only when there is exactly one place it could come from;
- * otherwise it opens the variant×collection popover so the user picks the exact
- * row to remove. It escalates in two cases: multiple owned variants in the tile
- * (cards view), or a single variant whose copies span multiple collections
- * (reported as "ambiguous" by tryUndoAdd). The popover needs `anchorEl`, so
- * callers must forward it through.
- * @returns A function that routes a `-` click to the right action.
+ * Escalates to the variant×collection popover when multiple owned variants
+ * share the tile, or a single variant's copies span multiple collections.
  */
 export function buildOnDecrement({
   dataView,
@@ -40,9 +33,6 @@ export function buildOnDecrement({
       handleOpenVariants(printing, anchorEl, "remove");
       return;
     }
-    // Single owned variant: try the silent path (session undo / single-collection
-    // dispose). If the variant spans multiple collections, escalate to the
-    // popover so the user picks the exact collection row to remove from.
     void (async () => {
       const result = await tryUndoAdd?.(printing);
       if (result === "ambiguous" && handleOpenVariants && anchorEl) {

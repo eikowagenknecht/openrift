@@ -33,10 +33,6 @@ import { deckBoxLabel } from "@/lib/deck-box-label";
 
 interface CollectionTopBarProps {
   title: string;
-  /**
-   * The viewer's decks stored in this collection. Rendered as a chip next to
-   * the title so the box says which deck it holds, and links to it.
-   */
   homeDecks: { id: string; name: string }[];
   onToggleSidebar: () => void;
   mode: "browse" | "select";
@@ -44,16 +40,7 @@ interface CollectionTopBarProps {
   unpricedCount: number | null | undefined;
   formatValue: (value: number) => string;
   addTarget?: string;
-  /**
-   * Whether Scan and Quick add ride in the bar. True on the surfaces where
-   * adding is the point (All cards, the inbox); on a single collection they
-   * move into the ⋮ menu so the bar has room for the title and its value.
-   */
   addActionsInBar: boolean;
-  /**
-   * False while the page shows its empty state, which carries its own Scan and
-   * Quick add buttons.
-   */
   showAddActions: boolean;
   onQuickAdd: () => void;
   onSelectAll: () => void;
@@ -68,13 +55,7 @@ interface CollectionTopBarProps {
   canShare: boolean;
   canToggleDeckbuilding: boolean;
   deckbuildingAvailable: boolean;
-  /**
-   * The live public link, when the collection is shared. Its presence is what
-   * offers the binder sheet — the sheet is a printed QR, so there has to be
-   * something for it to point at.
-   */
   shareUrl?: string;
-  /** Prefills the binder sheet's title and filename. */
   collectionName?: string;
   onEdit: () => void;
   onDelete: () => void;
@@ -117,17 +98,9 @@ export function CollectionTopBar({
 }: CollectionTopBarProps) {
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
 
-  // Scan and Quick add are one gesture — put cards into this collection — so
-  // they come and go together rather than on separate conditions: only with a
-  // target to add to, only while browsing (select mode needs the room), and
-  // never over the empty state, which offers its own pair.
   const canAdd = Boolean(addTarget) && mode === "browse" && showAddActions;
   const showAddMenuItems = canAdd && !addActionsInBar;
   const canPrintBinder = canShare && shareUrl !== undefined;
-  // Share earns a visible button on the surfaces whose bar is otherwise sparse:
-  // a named collection while browsing. On "All cards" and the inbox the bar is
-  // already carrying Scan and Quick add, and in select mode it carries Select
-  // all and Done, so there Share stays in the ⋮ menu with everything else.
   const shareInBar = canShare && mode === "browse" && !addActionsInBar;
   const boxLabel = deckBoxLabel(homeDecks);
   const singleHomeDeck = homeDecks.length === 1 ? homeDecks[0] : undefined;
@@ -138,8 +111,6 @@ export function CollectionTopBar({
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
 
-          {/* One deck gets a link straight to it; several would need a menu the
-            bar has no room for, so they only get named. */}
           {boxLabel && (
             <Badge variant="muted" className="shrink-0 gap-1 self-center">
               <BoxIcon className="size-3" />

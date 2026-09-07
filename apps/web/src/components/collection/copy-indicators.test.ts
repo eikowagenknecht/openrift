@@ -13,9 +13,6 @@ describe("copyHasRecordedDetails", () => {
     expect(copyHasRecordedDetails(stubCopy({ onLoan: true }))).toBe(true);
   });
 
-  // A reservation is the most consequential thing a copy can record: it is
-  // promised to someone. An otherwise blank pinned copy used to report
-  // "No details yet" in the copy picker.
   it("counts a copy pinned to a live trade with no other details", () => {
     expect(copyHasRecordedDetails(stubCopy({ reserved: true }))).toBe(true);
   });
@@ -30,8 +27,6 @@ describe("copyHasRecordedDetails", () => {
     expect(copyHasRecordedDetails(stubCopy({ grader: "psa", grade: 9 }))).toBe(true);
   });
 
-  // Regression: an altered flag (or a note, or links) alone used to read as
-  // "No details yet" because the summary only looked at condition/grade.
   it("counts any marker on its own", () => {
     expect(copyHasRecordedDetails(stubCopy({ isAltered: true }))).toBe(true);
     expect(copyHasRecordedDetails(stubCopy({ notesPublic: "mint corners" }))).toBe(true);

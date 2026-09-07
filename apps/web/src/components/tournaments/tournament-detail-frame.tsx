@@ -32,7 +32,6 @@ type TournamentTab =
   | "staff"
   | "settings";
 
-/** A tournament section page (every tab except the overview/dashboard landing). */
 export type TournamentSection = Exclude<TournamentTab, "overview">;
 
 const TOURNAMENT_SECTION_LABEL: Record<TournamentSection, string> = {
@@ -47,12 +46,8 @@ const TOURNAMENT_SECTION_LABEL: Record<TournamentSection, string> = {
 };
 
 /**
- * The tournament overview / dashboard chrome. Unlike a section page, the
- * overview has no title in its bar: the hero below is the title row (the group
- * overview's precedent), so the bar keeps only the trail — with the tournament
- * name as its trailing crumb, which is what still names the page once the hero
- * has scrolled away — and the organizers' Settings shortcut.
- * @returns The overview-page chrome with its dashboard content.
+ * The overview has no title in its bar: the hero below is the title row, so
+ * the bar keeps only the breadcrumb trail and the organizers' Settings shortcut.
  */
 export function TournamentOverviewFrame({
   id,
@@ -88,13 +83,6 @@ export function TournamentOverviewFrame({
   );
 }
 
-/**
- * The shared sticky title bar for a tournament section page: the
- * `Tournaments / {name}` breadcrumb trail (collapsing to a back arrow on
- * phones), the section title, and an optional actions slot. Replaces the old
- * tab nav — sections are reached from the dashboard tiles and the breadcrumb.
- * @returns The section-page chrome with its content.
- */
 export function TournamentSectionFrame({
   id,
   section,
@@ -107,8 +95,6 @@ export function TournamentSectionFrame({
   render: (data: TournamentDetailResponse) => ReactNode;
 }) {
   const { data } = useTournamentDetail(id);
-  // Measure the sticky bar so any sticky child below it (e.g. the settings
-  // page's PageToc) offsets past the bar instead of tucking under it.
   const [barEl, setBarEl] = useState<HTMLDivElement | null>(null);
   const barHeight = useMeasuredHeight(barEl);
 

@@ -11,10 +11,6 @@ vi.mock("@/hooks/use-collections", () => ({
   useUnshareCollection: () => ({ mutate: unshareMutate, isPending: false }),
 }));
 
-// Friend-group sharing is exercised at the route level; here we just stub the
-// hooks so the dialog renders without a QueryClientProvider. The default empty
-// groups list short-circuits the "Share with friend groups" section; tests that
-// need the section rendered override `groupsMock`.
 const { groupsMock, groupSharesMock } = vi.hoisted(() => ({
   groupsMock: vi.fn(
     (): {
@@ -70,9 +66,7 @@ function Harness({
 
 describe("CollectionShareDialog", () => {
   afterEach(() => {
-    // mockReset (not mockClear) so the throwing implementation below doesn't
-    // leak, and so call counts start empty for the assertions that check the
-    // panel's query never ran.
+    // mockReset, not mockClear: clears the throwing implementation set below.
     groupsMock.mockReset();
     groupsMock.mockReturnValue({ data: { items: [], outgoingRequests: [] } });
     groupSharesMock.mockReset();
@@ -128,11 +122,7 @@ describe("CollectionShareDialog", () => {
     expect(screen.getByText("Share with friend groups")).toBeInTheDocument();
   });
 
-  // Regression: the panel shares a *personal* binder with a
-  // group, and its `groupShares` query 404s on a pooled collection by design.
-  // Rendering it for a group collection threw out of the suspense query and
-  // killed the whole route.
-  it("omits the friend-group panel for a group collection", () => {
+  it("omits the friend-group panel and skips the groupShares query for a group collection", () => {
     groupsMock.mockReturnValue({
       data: {
         items: [{ id: "group-1", slug: "allerlei", name: "Allerlei Spielerei" }],
@@ -157,8 +147,6 @@ describe("CollectionShareDialog", () => {
     expect(screen.getByRole("switch", { name: /qr code/iu })).toBeEnabled();
   });
 
-  // The owner route renders an unshared collection too, so the image stays
-  // downloadable — only the QR needs a link to point at.
   it("offers the image without a QR before the collection is shared", async () => {
     const user = userEvent.setup();
     render(<Harness isPublic={false} shareToken={null} />);
@@ -169,8 +157,7 @@ describe("CollectionShareDialog", () => {
       "src",
       "https://openrift.test/api/v1/collections/abc/image.png?qr=0",
     );
-    // BaseUI's switch is a span, so it marks the disabled state with the ARIA
-    // attribute rather than the native `disabled` property.
+    // BaseUI's switch is a span: disabled state is `aria-disabled`, not the `disabled` property.
     expect(screen.getByRole("switch", { name: /qr code/iu })).toHaveAttribute(
       "aria-disabled",
       "true",

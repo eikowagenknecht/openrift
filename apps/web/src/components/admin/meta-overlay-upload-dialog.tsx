@@ -76,12 +76,6 @@ function FormatHelp() {
   );
 }
 
-/**
- * What the ingest did, as the shared compact counts row.
- *
- * @param result - The upload response.
- * @returns The strip's items, event counts first.
- */
 function summaryItems(result: MetaUploadResponse): StatStripItem[] {
   return [
     { key: "new-events", value: result.newEvents, label: "new events" },
@@ -159,12 +153,8 @@ function UploadSummary({ result }: { result: MetaUploadResponse }) {
 }
 
 /**
- * The push-provider upload flow (ADR-014): pick a `{ provider, events }` JSON
- * file and mirror it. The same payload the maintainer's tooling pushes with an
- * API key, so the dialog validates only the envelope; per-event validation
- * happens server-side and comes back in the summary's error list.
- *
- * @returns The upload dialog.
+ * Validates only the envelope; per-event validation happens server-side and
+ * comes back in the summary's error list.
  */
 export function MetaOverlayUploadDialog({ onClose }: { onClose: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);

@@ -8,14 +8,11 @@ import { getFilterIconPath } from "@/lib/icons";
 
 import { ClipFrame } from "./clip-frame";
 
-// Section breadcrumbs join the same way the promos page joins them.
 const BREADCRUMB_SEP = " › ";
 
 type PromoSection = LandingSummaryResponse["promoSections"][number];
 type PromoPrinting = PromoSection["printings"][number];
 
-// Holds the layout until the landing summary lands, the same way the card
-// tiles have always stood in for their art.
 const PENDING_SECTION: PromoSection = {
   path: [],
   printingCount: 0,
@@ -87,14 +84,6 @@ function Cell({ printing }: { printing: PromoPrinting }) {
   );
 }
 
-/**
- * The promos browser: a breadcrumb section for one distribution channel, with
- * each printing's marker chips under it.
- *
- * The channel and its printings are the real ones, so a cell chipped "Promo"
- * is a printing that channel actually handed out.
- * @returns The promos vignette.
- */
 export function PromosVignette({ sections = [] }: { sections?: PromoSection[] }) {
   const section = sections[0] ?? PENDING_SECTION;
   return (

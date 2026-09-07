@@ -30,17 +30,8 @@ import { zoneEmptyReadOnlyLabel } from "@/lib/deck-zone-labels";
 import { cn } from "@/lib/utils";
 import type { CollapsibleDeckSection } from "@/stores/deck-builder-ui-store";
 
-/**
- * Above this many missing cards the slots collapse to one counted tile: three
- * blanks read as three cards nobody knows, forty read as a wall.
- */
 const MAX_UNKNOWN_SLOTS = 3;
 
-/**
- * Where the cards an archived list never published would sit: dashed blanks at
- * thumbnail size, one per missing card until there are too many to draw.
- * @returns The blank slots.
- */
 function UnknownSlots({ count, isLandscape }: { count: number; isLandscape: boolean }) {
   const slots = count <= MAX_UNKNOWN_SLOTS ? count : 1;
   const label = slots === count ? "Unknown" : `${count} unknown`;
@@ -60,24 +51,15 @@ function UnknownSlots({ count, isLandscape }: { count: number; isLandscape: bool
 
 export interface ZoneTileProps {
   deckId: string;
-  /** Deck card key → collection-status band; empty when bands are off. */
   bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
-  /** Deck card key -> preformatted price chip text; empty when chips are off. */
   priceTextByCardKey: ReadonlyMap<string, string>;
-  /** Copies each entry may still add, keyed by deck card key (empty read-only). */
   addRoomByCardKey: ReadonlyMap<string, number>;
-  /** Printing id the hover preview should show for an entry. */
   resolveHoverPrintingId: (cardId: string, preferredPrintingId: string | null) => string | null;
   showAllCopies: boolean;
-  /** Active stats-chart focus: non-matching thumbs render dimmed. */
   statsFocus: StatsFocus | null;
-  /** Splits a grouped zone's cards along the chosen axis (see groupDeckCards). */
   groupCards: (cards: DeckBuilderCard[]) => DeckCardGroup[];
-  /** Orders cards inside one sub-group (see sortDeckOverviewList). */
   sortCards: (cards: DeckBuilderCard[]) => DeckBuilderCard[];
-  /** The active grouping axis — type groups keep their icons. */
   groupBy: DeckOverviewGroup;
-  /** Stacks mode: grouped zones render overlapping piles instead of wraps. */
   stacked: boolean;
   zone: DeckZone;
   label: string;
@@ -85,20 +67,12 @@ export interface ZoneTileProps {
   allCards: DeckBuilderCard[];
   expected: number | undefined;
   emptyHint: string;
-  /**
-   * Cards this zone is short by that nobody ever published — an archived list
-   * the source cut off, not a zone its player left empty. Renders as dashed
-   * "Unknown" slots where the missing cards would sit.
-   */
   unknownCount?: number;
-  /** Sections currently collapsed to their header row (zones and the tokens band). */
   collapsedZones: ReadonlySet<CollapsibleDeckSection>;
-  /** Toggles a zone's collapsed state (wired to the builder UI store). */
   onToggleCollapsed: (zone: DeckZone) => void;
   zoneViolations: DeckViolation[];
   format: DeckFormat;
   className?: string;
-  /** Grid placement from the caller (the small-zone row's spans). */
   style?: React.CSSProperties;
   onClick?: () => void;
   onHoverCard?: HoverHandler;
@@ -107,12 +81,6 @@ export interface ZoneTileProps {
   onCardClick?: (card: CardOpenTarget) => void;
 }
 
-/**
- * One zone of the deck overview's thumbnail grid: a small-caps label over a
- * hairline rule, with the zone's cards beneath it as thumbnails, piles, or an
- * empty-state affordance. Also the zone's drop target.
- * @returns The zone tile.
- */
 export function ZoneTile({
   deckId,
   bandByCardKey,
@@ -152,16 +120,10 @@ export function ZoneTile({
   const isLandscape = LANDSCAPE_ZONES.has(zone);
   const hoverCard = overviewHoverHandler(stacked, onHoverCard);
 
-  // Grouped zones split along the user's axis and sort inside each group
-  // (curve order by default); single-card zones keep the API-provided order
-  // (alphabetical by card name within the zone), matching the sidebar.
   const groups = GROUPED_ZONES.has(zone) ? groupCards(cards) : null;
   const unknownSlots =
     unknownCount > 0 ? <UnknownSlots count={unknownCount} isLandscape={isLandscape} /> : null;
 
-  // Drop-target wiring — the same hook the sidebar's zone sections use, so the
-  // two reject the same drags (copy limit, battlefield dedupe, 12-rune cap,
-  // type compatibility).
   const { dropRef, isOver, dropDisabled } = useDeckZoneDrop({
     id: `overview-zone-${zone}`,
     zone,
@@ -170,11 +132,6 @@ export function ZoneTile({
     disabled: readOnly,
   });
 
-  // T3 "frameless bands": no boxes — a zone is a small-caps label over a
-  // hairline rule with its thumbnails beneath. The whole header is the
-  // click target for entering the zone (the old corner pencil is gone).
-  // Complete zones stay quiet (the green count says it); only problems get
-  // an icon.
   const headerLabel = (
     <span className="text-2xs font-semibold tracking-wide uppercase">{label}</span>
   );
@@ -185,16 +142,12 @@ export function ZoneTile({
       style={style}
       className={cn(
         "relative flex flex-col gap-2 rounded-lg transition-all",
-        // Same ring + offset as the sidebar's zone rows (deck-zone-section),
-        // so the two drop-target markings read identically.
         !readOnly && isOver && !dropDisabled && "ring-primary/60 ring-2 ring-offset-2",
         !readOnly && dropDisabled && "opacity-40",
         className,
       )}
     >
-      {/* Fixed height so the violation icon (a 20px button) can't stretch one
-          tile's header past its row-mates' — side-by-side zones keep their
-          rules aligned whether or not an issue is showing. */}
+      {/* Fixed height keeps sibling zone headers aligned whether the violation icon shows or not. */}
       <div className="flex h-6 items-center gap-2 border-b">
         <ExpandToggle
           expanded={!collapsed}
@@ -253,16 +206,12 @@ export function ZoneTile({
           )}
         >
           {unknownCount > 0 && expected !== undefined ? (
-            // The slots below already stand for the missing cards, so the
-            // count says how far the record got rather than restating them.
             `${quantity} of ${expected} known`
           ) : (
             <>
               {quantity}
               {expected !== undefined && `/${expected}`}
-              {/* "· N more" only for zones with a real target (the sideboard's
-                  figure is a cap, not a goal) and only once building has
-                  started — empty zones already carry their hint. */}
+              {/* Sideboard's number is a cap, not a goal, so it never gets a "more" hint. */}
               {expected !== undefined &&
                 zone !== WellKnown.deckZone.SIDEBOARD &&
                 quantity > 0 &&
@@ -278,11 +227,6 @@ export function ZoneTile({
         unknownSlots ? (
           <div className="flex flex-wrap items-center gap-1.5">{unknownSlots}</div>
         ) : zone === WellKnown.deckZone.RUNES || readOnly || !onClick ? (
-          // Runes fills itself when a Legend is set, so the primary path
-          // isn't "click this button" — mirror the CTA styling minus the
-          // icon and interactivity; the clickable header covers the rare
-          // manual-override case. Read-only views also land here since
-          // there's no action to take.
           <div className="text-muted-foreground flex items-center justify-center rounded-md border border-dashed px-3 py-4 text-center">
             {readOnly ? zoneEmptyReadOnlyLabel(zone) : emptyHint}
           </div>
@@ -384,9 +328,6 @@ export function ZoneTile({
               />
             );
           })}
-          {/* Partially-filled target zones keep their gap visible: the open
-              slot itself is the add affordance, inline where the next card
-              will land. */}
           {!readOnly &&
             onClick !== undefined &&
             expected !== undefined &&

@@ -36,11 +36,6 @@ import { runSettleBatch } from "@/lib/trade-settle-batch";
 import { stepSequence } from "@/lib/trade-sheet";
 import { talliedCount, useTradeTallyStore } from "@/stores/trade-tally-store";
 
-/**
- * Reads a trade's candidate copies, turning a failure into "nothing to choose
- * between". The read refines the settle rather than gating it.
- * @returns The options, or null when the read failed.
- */
 async function copyOptionsOrNull(
   read: () => Promise<CardTradeCopyOptionsResponse>,
 ): Promise<CardTradeCopyOptionsResponse | null> {
@@ -52,15 +47,6 @@ async function copyOptionsOrNull(
   }
 }
 
-/**
- * One card in a running session, as the same two-line row the rest of the sheet
- * uses: only the slots differ. The status badge is gone (every row in this
- * section is ready to swap, and the count it would compete with is the whole
- * point of the session), the stepper takes the place the actions had, and the
- * meta line gains the language — with the card in your hand, the print run and
- * the language are what decide whether it is this row's card.
- * @returns The row element.
- */
 function TallyRow({
   trade,
   sequence,
@@ -95,9 +81,7 @@ function TallyRow({
       />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex min-w-0 items-baseline gap-1.5">
-          {/* Same truncation rule as the ordinary row: the quantity rides inside
-              the button, because a nested inline-block clips without an
-              ellipsis. */}
+          {/* The quantity rides inside the button: a nested inline-block clips without an ellipsis. */}
           <CardDetailNameButton
             printingId={printing?.id}
             sequence={sequence}
@@ -136,13 +120,6 @@ function TallyRow({
   );
 }
 
-/**
- * What the commit is about to do to the viewer's collection, in the two terms
- * it can be wrong in: how many cards land somewhere, and how many leave. The
- * landing place is a button, because it is the one part of the sentence that is
- * a choice — and the only place left to make it, now that settling is a batch.
- * @returns The summary line, or null when nothing is tallied.
- */
 function CommitSummary({
   incomingCards,
   outgoingCards,
@@ -173,31 +150,11 @@ function CommitSummary({
   );
 }
 
-/**
- * The trade sheet's settle section: the swaps the two of you have agreed and
- * not yet exchanged.
- *
- * Out of session it is an ordinary ledger section — the rows read like every
- * other row on the page, and the only settle-shaped thing on it is the button
- * that starts a session. In session the rows become a tally: card by card, say
- * how many actually turned up, and one commit settles exactly that much across
- * both directions at once. Whatever is left at 0 keeps its trade open for the
- * next meet-up.
- *
- * Nothing in a session reaches the server until the commit button is pressed,
- * and the tally survives a reload. A saved count never puts the page straight
- * back into a session though: arriving on the sheet is usually about something
- * else entirely, and a page that opens counting is a page you have to back out
- * of. The count instead offers itself in the heading row, to resume or discard.
- * @returns The section element.
- */
 export function TradeSettleSection({
   trades,
   showGroupLabels,
 }: {
-  /** The swaps with this person the viewer can still settle, across every shared group. */
   trades: CardTradeResponse[];
-  /** Whether to name each row's group; false while only one group is in play. */
   showGroupLabels: boolean;
 }) {
   const userId = useRequiredUserId();
@@ -227,21 +184,18 @@ export function TradeSettleSection({
   );
 
   function discardCounts(): void {
-    // Only the rows this section shows: the store is keyed by trade id across
-    // every counterparty, so a count left on someone else's sheet is not ours
-    // to throw away.
+    // The tally store is keyed by trade id across every counterparty, so only
+    // clear counts for rows this section actually shows.
     clearCounts(trades.filter((trade) => counts[trade.id] !== undefined).map((trade) => trade.id));
   }
 
   function finishBatch(result: SettleBatchResult): void {
-    // Only the rows that actually went through lose their tally. A row waiting
-    // on a copy choice keeps its count, which is what the picker settles with.
+    // A row waiting on a copy choice keeps its tally; the picker settles with it.
     clearCounts(result.settledTradeIds);
     setPendingChoices(result.pendingChoices);
     setBusy(false);
     if (result.failed) {
-      // Not the global mutation toast's job: some rows settled before this one
-      // did not, and that partial progress is the thing worth saying.
+      // The global mutation toast won't fire: this batch partially succeeded.
       toast.warning("Some cards could not be settled. The rest went through.");
     }
   }
@@ -268,9 +222,6 @@ export function TradeSettleSection({
           Ready to swap
         </SectionHeading>
         {session ? null : hasSavedCount ? (
-          // An interrupted session left a count behind. It is only worth
-          // something if the same pile of cards is still on the table, so the
-          // strip offers both ways out rather than assuming either.
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground text-xs">
               You started counting these earlier
@@ -291,16 +242,12 @@ export function TradeSettleSection({
       </div>
 
       {session ? (
-        // One bounded surface for the whole session: header, rows and commit
-        // read as a thing you are inside of and can leave, which a bare list
-        // with a floating button does not. No overflow-hidden — it would trap
-        // the sticky footer inside the panel's own scroll box.
+        // No overflow-hidden here: it would trap the sticky footer below
+        // inside this panel's own scroll box.
         <div className="bg-card border-success/30 rounded-xl border">
           <div className="bg-success-soft flex flex-wrap items-center justify-between gap-2 rounded-t-xl px-3 py-2">
             <div className="flex min-w-0 flex-col">
               <span className="text-sm font-medium">Counting cards</span>
-              {/* The guarantee belongs where the session starts, not on the
-                  commit button, so it is readable before anything is counted. */}
               <span className="text-muted-foreground text-xs">
                 Nothing is saved until you settle
               </span>
@@ -323,8 +270,7 @@ export function TradeSettleSection({
                   <EllipsisVerticalIcon />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {/* Leaving keeps the count; this is the one way to say the
-                      count itself is wrong and start over. */}
+                  {/* "Done for now" leaves the panel keeping the tally; this discards it instead. */}
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={() => {
@@ -346,9 +292,7 @@ export function TradeSettleSection({
             ))}
           </ul>
 
-          {/* The panel's bottom edge, which sticks: a pile long enough to
-              scroll is exactly the pile whose commit button must stay in reach.
-              Opaque, because it slides over the rows' art. */}
+          {/* Opaque background: this slides over the rows' art as it sticks. */}
           <div className="bg-card pb-safe sticky bottom-0 z-20 flex flex-col gap-2 rounded-b-xl border-t px-3 pt-3">
             <CommitSummary
               incomingCards={incomingCards}
@@ -375,7 +319,6 @@ export function TradeSettleSection({
               trade={trade}
               sequence={sequence}
               groupLabel={showGroupLabels ? trade.groupName : undefined}
-              // The heading says it once for the whole section.
               redundantStatus="ready-to-swap"
             />
           ))}
@@ -406,8 +349,7 @@ export function TradeSettleSection({
               );
             },
             cancel: () => {
-              // Dropping the choice leaves the row reserved and its tally
-              // intact, so it is still there to settle on the next pass.
+              // Leaves the row reserved with its tally intact for the next pass.
               setPendingChoices((rest) => rest.slice(1));
             },
           }}

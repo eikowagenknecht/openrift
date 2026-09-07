@@ -27,14 +27,6 @@ import { useMetaEvent } from "@/hooks/use-meta";
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * The overflow menu beside the main call to action: the ways in that are not
- * "add a decklist".
- *
- * A correction is a resubmission into the same review queue, never a direct
- * edit, so it needs a signed-in sender the same way a decklist does. Signed out
- * the menu is not rendered at all: its only item would be a dead end.
- */
 function EventActionsMenu({ event }: { event: MetaEventDetail }) {
   const userId = useUserId();
   const [correcting, setCorrecting] = useState(false);
@@ -65,14 +57,6 @@ function EventActionsMenu({ event }: { event: MetaEventDetail }) {
   );
 }
 
-/**
- * `/meta/$slug` — one archived event, top-down: who won it, how the cut played
- * out, and the whole field with its decklists opening in place (ADR-014).
- *
- * Every section stands down on its own when the archive has nothing for it, so
- * an event that arrived as bare standings still reads as a finished page rather
- * than a page with holes in it.
- */
 export function MetaEventPage({ slug }: { slug: string }) {
   const { data } = useMetaEvent(slug);
   const { event, players, matches, phases } = data;
@@ -89,8 +73,6 @@ export function MetaEventPage({ slug }: { slug: string }) {
               ]}
             />
           </div>
-          {/* The ask lives in the contribute band further down, which says how
-              many entries are still missing a list. */}
           <PageTopBarActions>
             <EventActionsMenu event={event} />
           </PageTopBarActions>

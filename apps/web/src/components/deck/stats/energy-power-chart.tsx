@@ -17,17 +17,9 @@ interface EnergyPowerChartProps {
   powerData: PowerCount[];
   powerStacks: DomainCombo[];
   averagePower: number | null;
-  /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
-  /**
-   * Neutral columns with the domain stacks revealed on hover, for the energy
-   * curve only — power keeps its stacks, since runes pay power and the domain
-   * split is that chart's whole story. Same split the deck overview draws.
-   */
   revealDomainsOnHover?: boolean;
-  /** Print each column's total above its bar. */
   showTotals?: boolean;
-  /** Muted note rendered under the energy chart, e.g. to disclose which zones it counts. */
   footnote?: string;
 }
 
@@ -36,56 +28,24 @@ interface SingleChartProps {
   stacks: DomainCombo[];
   average: number | null;
   label: string;
-  /** Metric axis key: "energy" for EnergyCostCount, "power" for PowerCount. */
   metric: "energy" | "power";
-  /** Floor for the x-axis max — pads the chart out when the deck is small. */
   minAxisMax: number;
-  /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
-  /**
-   * Paint columns in the neutral primary by default and reveal the
-   * domain-colored stacks only on the hovered column (the tooltip names the
-   * domains alongside). For charts where the domain split is secondary, so
-   * the band's charts don't all wear the same palette.
-   */
   revealDomainsOnHover?: boolean;
-  /** Print each column's total above its bar. */
   showTotals?: boolean;
-  /** Makes the bars clickable — called with the column's metric value. */
   onBarClick?: (value: number) => void;
-  /**
-   * Metric value of the focused column, if any. The matching column keeps full
-   * opacity and the rest dim, so the chart shows what the card grid below is
-   * filtered to. Null when the focus belongs to another chart or is cleared.
-   */
   focusValue?: number | null;
-  /**
-   * Counts matching another chart's focus, in the same row/stack shape as
-   * `data`. Each segment then splits: the matching part keeps full strength and
-   * the filtered-out remainder fades, so this chart shows how the other chart's
-   * filter cuts across it. Rows and stacks missing here count as 0; stacks are
-   * never taken from this data. Mutually exclusive with `focusValue` — a chart
-   * either owns the focus or reflects it, never both.
-   */
+  /** Mutually exclusive with `focusValue` — a chart either owns the focus or reflects it, never both. */
   hitData?: (EnergyCostCount | PowerCount)[];
 }
 
-/**
- * The chart-level click state recharts 3 hands external handlers. It carries
- * the active index and label only — `activePayload` was part of the v2 state
- * and is gone, so a click has to be resolved positionally against the chart's
- * own data. (`activeIndex` is typed `string | null` upstream.)
- */
+/** recharts 3's external click state has no `activePayload` (a v2 field); clicks resolve positionally. */
 export interface ChartClickState {
   activeLabel?: string | number;
   activeIndex?: string | number | null;
   activeTooltipIndex?: string | number | null;
 }
 
-/**
- * Resolves a chart click to a row index in the data the chart was given.
- * @returns The row index, or null when the click didn't land on a column.
- */
 export function activeRowIndex(state: ChartClickState, rowCount: number): number | null {
   const raw = state.activeIndex ?? state.activeTooltipIndex;
   if (raw === null || raw === undefined || raw === "") {
@@ -98,11 +58,6 @@ export function activeRowIndex(state: ChartClickState, rowCount: number): number
   return index;
 }
 
-/**
- * Count label above a bar column. Zero columns (axis padding) stay unlabeled
- * so the empty tail doesn't fill with noise.
- * @returns The label text node, or null for empty columns.
- */
 export function TotalLabel(props: {
   x?: string | number;
   y?: string | number;
@@ -146,17 +101,11 @@ function buildChartConfig(
   return config;
 }
 
-// The tooltip label is the axis bucket, but ChartTooltipContent types it as the
-// wider ReactNode a config label may hold.
+// ChartTooltipContent types the label as the wider ReactNode a config label may hold; it's always the axis bucket here.
 function bucketLabel(value: unknown, axis: string): string {
   return typeof value === "string" || typeof value === "number" ? `${value} ${axis}` : axis;
 }
 
-/**
- * Returns the fill value for a domain combo — solid color for singles,
- * gradient URL reference for multi-domain combos.
- * @returns A CSS fill string.
- */
 function comboFill(stack: DomainCombo, colors: Record<string, string>): string {
   if (stack.domains.length === 1) {
     return getDomainColor(stack.domains[0], colors);
@@ -164,10 +113,6 @@ function comboFill(stack: DomainCombo, colors: Record<string, string>): string {
   return `url(#gradient-${stack.key})`;
 }
 
-/**
- * Renders SVG gradient definitions for all multi-domain combos.
- * @returns An SVG defs element with gradient definitions.
- */
 function GradientDefs({
   stacks,
   colors,
@@ -199,10 +144,6 @@ function GradientDefs({
   );
 }
 
-/**
- * Single stacked bar chart for one numeric metric (energy or power).
- * @returns A single chart with a heading row and stacked bars.
- */
 function SingleChart({
   data,
   stacks,
@@ -219,21 +160,14 @@ function SingleChart({
 }: SingleChartProps) {
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
-  // Hovered column while `revealDomainsOnHover` is on — that column swaps
-  // from the neutral fill to its domain stacks.
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   if (data.length === 0) {
     return null;
   }
 
-  // Matched counts keyed the same way as the rows, so a missing row is simply
-  // "nothing matched here" rather than a hole.
   const hitMap = new Map((hitData ?? []).map((entry) => [Number(entry[metric]), entry]));
   const hitKeyFor = (key: string) => `${metric}_${key}__hit`;
 
-  // Per-column opacity for the focused-column treatment. Cells inherit the
-  // Bar's fill (solid or gradient) and only override the opacity, so this
-  // works the same for the single-color and stacked variants.
   const columnOpacity = (columnValue: string) =>
     focusValue === null || focusValue === undefined || Number(columnValue) === focusValue ? 1 : 0.3;
 
@@ -248,7 +182,6 @@ function SingleChart({
         }
       }
     : undefined;
-  // Total labels need headroom above the tallest bar.
   const chartMargin = { top: showTotals ? 14 : 0, right: 0, bottom: 0, left: 0 };
 
   const heading = (
@@ -321,13 +254,10 @@ function SingleChart({
     for (const stack of stacks) {
       const count = (entry?.[stack.key] as number) ?? 0;
       row[`${metric}_${stack.key}`] = count;
-      // Read by SplitCrispBar only — not a dataKey, so it never becomes a
-      // series, a tooltip row or part of a total.
+      // Kept off dataKey so it never becomes a series, tooltip row, or total; SplitCrispBar reads it directly.
       row[hitKeyFor(stack.key)] = Math.min(count, (hitEntry?.[stack.key] as number) ?? 0);
       total += count;
     }
-    // Column total for the label above the stack (rendered by the last Bar,
-    // whose segment top is the whole column's top).
     row.columnTotal = total;
     return row;
   });
@@ -383,10 +313,7 @@ function SingleChart({
                 <Cell
                   key={String(row.value)}
                   fillOpacity={columnOpacity(String(row.value))}
-                  // Always a concrete color: an explicit `fill={undefined}`
-                  // overrides the Bar's fill and paints SVG-default black.
-                  // Neutral until hovered; the hovered column shows its real
-                  // domain stacks.
+                  // `fill={undefined}` overrides the Bar's fill and paints SVG-default black, so this stays a concrete color.
                   fill={
                     revealDomainsOnHover && hoverIndex !== rowIndex
                       ? "var(--color-primary)"
@@ -421,17 +348,11 @@ export function EnergyChart({
   stacks: DomainCombo[];
   average: number | null;
   singleColor?: boolean;
-  /** See SingleChartProps — neutral columns, domain stacks on hover only. */
   revealDomainsOnHover?: boolean;
-  /** Muted note rendered under the chart, e.g. to disclose which zones it counts. */
   footnote?: string;
-  /** Print each column's total above its bar. */
   showTotals?: boolean;
-  /** Makes the bars clickable — called with the column's energy cost. */
   onBarClick?: (value: number) => void;
-  /** Energy cost of the focused column; the others dim. Null when unfocused. */
   focusValue?: number | null;
-  /** Energy counts matching another chart's focus — see SingleChartProps. */
   hitData?: EnergyCostCount[];
 }) {
   if (data.length === 0) {
@@ -472,13 +393,9 @@ export function PowerChart({
   stacks: DomainCombo[];
   average: number | null;
   singleColor?: boolean;
-  /** Print each column's total above its bar. */
   showTotals?: boolean;
-  /** Makes the bars clickable — called with the column's power value. */
   onBarClick?: (value: number) => void;
-  /** Power value of the focused column; the others dim. Null when unfocused. */
   focusValue?: number | null;
-  /** Power counts matching another chart's focus — see SingleChartProps. */
   hitData?: PowerCount[];
 }) {
   return (

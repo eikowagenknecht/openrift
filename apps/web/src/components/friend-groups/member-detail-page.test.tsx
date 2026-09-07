@@ -16,7 +16,6 @@ vi.mock("@/hooks/use-friend-groups", () => ({
   useFriendGroupDetail: () => ({
     data: { group: { id: "group-1", name: "Bothfeld Basement", slug: "bothfeld" } },
   }),
-  // u2 shares a tradelist; everyone else (including the viewer) shares nothing.
   useFriendGroupMemberDetail: (_slug: string, userId: string) => ({
     data: {
       member: {
@@ -85,9 +84,6 @@ describe("MemberDetailPage", () => {
     expect(tradeSheet).toHaveBeenCalledWith("u2");
   });
 
-  // A member with no shares and no trade activity used to stack "Nothing
-  // traded yet" + "Open trade sheet" on top of "hasn't shared anything yet":
-  // two empties pretending to be content.
   it("folds a quiet, share-less member into one empty state", () => {
     render(<MemberDetailPage slug="bothfeld" userId="u3" />);
     expect(screen.getByText("Nothing here yet")).toBeInTheDocument();
@@ -100,9 +96,6 @@ describe("MemberDetailPage", () => {
     expect(screen.queryByText(/hasn't shared any collections/u)).not.toBeInTheDocument();
   });
 
-  // The API refuses a trade sheet with yourself, so the viewer's own page
-  // (reached from their roster row) must not request one. Regression: the
-  // whole page crashed with "Cannot open a trade sheet with yourself".
   it("skips the trades section and the sheet fetch on the viewer's own page", () => {
     render(<MemberDetailPage slug="bothfeld" userId="viewer-1" />);
     expect(screen.queryByText("Open trade sheet")).not.toBeInTheDocument();

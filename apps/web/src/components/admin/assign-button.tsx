@@ -9,7 +9,6 @@ import { useAdminCardSearch } from "@/hooks/use-card-search";
 
 /**
  * Links an unmatched normalized card name to an existing card.
- * @returns The "Assign" trigger and its card picker.
  */
 export function AssignButton({
   normalizedName,

@@ -11,7 +11,6 @@ const jinxPrinting = stubPrinting({ id: "p-jinx", cardId: "card-jinx", card: { n
 vi.mock("@/hooks/use-cards", () => ({
   useCards: () => ({
     printingsById: { [viPrinting.id]: viPrinting, [jinxPrinting.id]: jinxPrinting },
-    // The export sorts by card ID, which orders by set before card number.
     sets: [{ id: viPrinting.setId, setType: "main" }],
   }),
 }));
@@ -22,8 +21,6 @@ vi.mock("@/hooks/use-enums", () => ({
   }),
 }));
 
-// The filter pass itself is covered by use-filtered-list-entries.test.ts; the
-// dialog only has to scope the export to whatever it reports.
 let filtered: { hasActiveFilters: boolean; filteredEntries: ListEntryDetailResponse[] } = {
   hasActiveFilters: false,
   filteredEntries: [],

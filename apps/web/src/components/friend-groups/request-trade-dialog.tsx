@@ -17,23 +17,14 @@ import { maxTradeQuantity } from "@/lib/trade-derivation";
 interface RequestTradeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** `request` = "I want this card"; `offer` = "I have this, want it?". */
   mode: "request" | "offer";
   cardName: string;
-  /** Copies currently available to trade (already nets out reserved). */
   availableCount: number;
-  /** The wanter's quantity, used to pre-fill the stepper. */
   demandQuantity: number;
-  /** Whether the create mutation is in flight. */
   pending: boolean;
   onConfirm: (quantity: number) => void;
 }
 
-/**
- * Quantity dialog for creating a trade from a match row. The stepper is bounded
- * to `1..availableCount` and defaults to `min(demand, available)`.
- * @returns The dialog element.
- */
 export function RequestTradeDialog({
   open,
   onOpenChange,
@@ -44,8 +35,6 @@ export function RequestTradeDialog({
   pending,
   onConfirm,
 }: RequestTradeDialogProps) {
-  // Capped by what the wanting side wants AND what's available — you never trade
-  // more than is wanted (offering 5 when they want 1 makes no sense).
   const maxQuantity = maxTradeQuantity(demandQuantity, availableCount);
   const [quantity, setQuantity] = useState(() => Math.max(1, maxQuantity));
 

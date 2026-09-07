@@ -7,9 +7,7 @@ import { STICKY_SURFACE } from "@/lib/sticky-surface";
 import { cn } from "@/lib/utils";
 
 interface CardBrowserLayoutOffsets {
-  /** Top offset for content sticking to the bottom of the toolbar row. */
   toolbarOffset: number;
-  /** Top offset for content sticking to the bottom of the above-grid row (e.g. group headers inside CardGrid). */
   stickyOffset: number;
 }
 
@@ -19,17 +17,9 @@ const CardBrowserLayoutContext = createContext<CardBrowserLayoutOffsets>({
 });
 
 /**
- * Reads sticky offsets computed by the surrounding {@link CardBrowserLayout}.
- * Call from inside the layout's `gridSlot` to size group-header sticky positions.
- *
- * These are safe to write into inline styles during a hydration render because
- * the layout itself resolves them from SSR-stable inputs until it has hydrated.
- * That holds only while the layout and the consumer hydrate together: putting a
- * `<Suspense>` between them would let the consumer read live offsets against
- * server markup written with the pre-measurement ones. Gate the consumer on
- * `useHydrated()` if you ever need that shape.
- *
- * @returns Toolbar and grid sticky-top offsets in pixels.
+ * Safe in inline styles during hydration only while this and the surrounding
+ * {@link CardBrowserLayout} hydrate together; a `<Suspense>` between them
+ * would read live offsets against pre-measurement server markup.
  */
 export function useCardBrowserLayoutOffsets(): CardBrowserLayoutOffsets {
   return use(CardBrowserLayoutContext);
@@ -38,33 +28,17 @@ export function useCardBrowserLayoutOffsets(): CardBrowserLayoutOffsets {
 interface CardBrowserLayoutProps {
   toolbar?: ReactNode;
   leftPane?: ReactNode;
-  /** Content rendered above the grid + rightPane columns (e.g. ActiveFilters). */
   aboveGrid?: ReactNode;
-  /**
-   * Non-sticky content between the above-grid tier and the grid (e.g. an
-   * onboarding intro). Unlike `aboveGrid` it scrolls away with the page.
-   */
   banner?: ReactNode;
   rightPane?: ReactNode;
-  /** When true, dims the grid area during deferred updates. */
   stale?: boolean;
-  /** The grid area itself — CardGrid, a skeleton, or an SSR preview. */
   gridSlot?: ReactNode;
-  /** Extra elements rendered after the flex row (overlays, portal mounts). */
   children?: ReactNode;
 }
 
 /**
- * Shared outer shell for the card browser surfaces (live `<CardBrowser>` and
- * the SSR `<FirstRowPreview>`). Owns the `@container` wrapper, the sticky
- * toolbar row, and the three-column flex layout (leftPane / center / rightPane)
- * so both paths render through a single structural source, preventing
- * SSR-shell vs hydrated-shell layout drift.
- *
- * Sticky offsets for grouped headers are derived here via ResizeObservers and
- * exposed through {@link useCardBrowserLayoutOffsets}.
- *
- * @returns The card browser layout shell.
+ * Shared shell for both the live `<CardBrowser>` and the SSR `<FirstRowPreview>`,
+ * so both render through one structural source and can't drift apart.
  */
 export function CardBrowserLayout({
   toolbar,
@@ -109,19 +83,8 @@ export function CardBrowserLayout({
     return () => observer.disconnect();
   }, []);
 
-  // -1: tuck the tier chain 1px up under the header. The header and this
-  // toolbar are separate sticky layers; at fractional browser zoom their shared
-  // edge lands between device pixels and each layer snaps to the grid
-  // independently, which can open a 1px seam of raw scrolling content. The
-  // overlapped strip hides behind the z-50 header.
-  // PAGE_TOP_BAR_STICKY carries the same -1px for the same reason, so with a
-  // page top bar present the toolbar stays flush with the bar's bottom edge.
-  //
-  // Every term here is SSR-stable on a hydration render, which is what keeps
-  // the inline offsets below from mismatching the server markup: useHeaderHeight
-  // seeds its state to SSR_HEADER_HEIGHT, usePageTopBarHeight gates the measured
-  // context to 0, and the two heights are freshly-initialised 0 state. So a
-  // hydration render always reproduces the server's SSR_HEADER_HEIGHT - 1.
+  // -1 tucks the tier chain under the z-50 header, closing the 1px seam that
+  // fractional browser zoom opens between independently-snapping sticky layers.
   const headerOffset = useHeaderHeight() + pageTopBarHeight - 1;
   const toolbarOffset = headerOffset + toolbarHeight;
   const stickyOffset = toolbarOffset + aboveGridHeight;
@@ -132,22 +95,13 @@ export function CardBrowserLayout({
         <div
           ref={toolbarRef}
           className={cn(
-            // z-30 (co-planar with the page top bar, not below it): the toolbar
-            // sits flush under the bar with no top padding, so a focused
-            // control's 3px outset ring pokes up into the bar's pb gap. At
-            // z-20 the bar's own bg painted over that strip and clipped the
-            // ring; co-planar lets the ring win the overlap. The bar has no
-            // bottom border, so its edge is covered invisibly in any real
-            // overlap. See the sticky z-ladder note in CLAUDE.md.
+            // z-30, co-planar with the page top bar: at z-20 the bar's own bg
+            // painted over and clipped a focused control's outset ring. See
+            // the sticky z-ladder note in CLAUDE.md.
             STICKY_SURFACE,
             "mx-safe-neg px-safe sticky z-30",
-            // Only pad the top when this toolbar is the first tier under the
-            // global header. When a page top bar sits above it, that bar's
-            // pb-3 already provides the gap (avoids a doubled 24px band).
-            // -mt-px pairs with headerOffset's -1: it moves the flow position
-            // up to match the pin position, so the toolbar doesn't travel 1px
-            // on the first scroll before sticking. With a page top bar above,
-            // the bar's own -mt-px already shifted this tier's flow position.
+            // Only the first tier under the header gets top padding; a page
+            // top bar above already provides the gap via its own pb-3.
             pageTopBarHeight === 0 && "-mt-px pt-3",
             aboveGridHeight === 0 && "sm:rounded-b-lg",
           )}

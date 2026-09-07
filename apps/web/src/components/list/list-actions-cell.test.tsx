@@ -103,8 +103,7 @@ describe("ListActionsCell trade status", () => {
     expect(screen.getByText("Reserved")).toBeInTheDocument();
   });
 
-  // Wish lists are card- or printing-kind and carry no `reserved` flag, so they
-  // could never show a trade status at all before.
+  // Wish lists are card- or printing-kind and carry no `reserved` flag.
   it("gives a card-kind wish row the incoming status of any printing of the card", () => {
     renderCell(wishRow, [
       annotation({ printingId: wishedSibling.id, role: "receiver", phase: "reserved" }),

@@ -6,10 +6,6 @@ import { InfoIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 
-/**
- * @returns The four intro steps, with the battlefield step adjusted to the
- *   format's cap (custom-region plays a single battlefield).
- */
 function introSteps(format: DeckFormat): readonly { title: string; description: string }[] {
   const singleBattlefield = format === WellKnown.deckFormat.CUSTOM_REGION;
   return [
@@ -27,12 +23,7 @@ const INTRO_TIPS: readonly string[] = [
   "Edits save automatically as you go.",
 ];
 
-/**
- * First-run guide above an empty deck: the four zones to fill, in order, plus
- * what the chosen format does and doesn't validate. Dismissed for good once
- * closed (the flag lives in the onboarding store).
- * @returns The intro banner.
- */
+// Dismissed for good once closed; the flag lives in the onboarding store.
 export function DeckBuilderIntroBanner({
   format,
   onDismiss,

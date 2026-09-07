@@ -15,14 +15,6 @@ interface Props {
   readOnly?: boolean;
 }
 
-/**
- * Overview-area summary of a deck's format-specific settings, rendered at
- * the top of the deck overview for tag-locked formats. Shows the chosen
- * tags (e.g. regions) + an Edit button. Non-tag-locked formats render
- * nothing, so this can sit unconditionally in the overview layout.
- *
- * @returns The card, or null when the deck's format has no config to show.
- */
 export function FormatConfigCard({ deckId, format, formatConfig, readOnly }: Props) {
   const { labels: formatLabels } = useDeckFormatList();
   const { all: customTags } = useCustomTagList();
@@ -34,8 +26,7 @@ export function FormatConfigCard({ deckId, format, formatConfig, readOnly }: Pro
   }
 
   const tagSlugs = formatConfig?.tagSlugs ?? [];
-  // Drop slugs that no longer resolve (admin-deleted) from the display;
-  // validation will surface that separately as CARD_NOT_IN_FORMAT_TAG.
+  // Unresolvable slugs are surfaced separately as CARD_NOT_IN_FORMAT_TAG; don't duplicate that here.
   const visibleSlugs = tagSlugs.filter((slug) => customTags.some((tag) => tag.slug === slug));
   const labelFor = (slug: string) => customTags.find((tag) => tag.slug === slug)?.label ?? slug;
   const formatLabel = formatLabels[format] ?? format;

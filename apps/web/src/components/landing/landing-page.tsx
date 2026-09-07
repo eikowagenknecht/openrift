@@ -16,9 +16,7 @@ import { HeroBackground } from "./hero-background";
 import { HeroCtas } from "./hero-ctas";
 import { LandingClosing } from "./landing-closing";
 
-// How long the logo "tap to play" hint stays visible after a tap.
 const HINT_DURATION_MS = 400;
-// How long the celebratory logo spin runs before the fan re-deals.
 const SPIN_DURATION_MS = 1000;
 
 function HeroStats({
@@ -49,11 +47,8 @@ export function LandingPage() {
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
 
-  // Idle-time preload of /cards: fetches the lazy chunk, runs the loader, and
-  // (via the loader's catalog query) warms the catalog into the client
-  // QueryClient. By the time a user taps "Browse cards" the route can render
-  // the live grid instantly — no chunk fetch, no SSR shell, no Suspense
-  // fallback. Mobile-friendly: doesn't depend on hover/touchstart intent.
+  // Idle-time preload of /cards: warms the lazy chunk and catalog query so
+  // "Browse cards" renders the live grid instantly.
   useEffect(() => {
     if (typeof requestIdleCallback === "undefined") {
       return;
@@ -86,9 +81,8 @@ export function LandingPage() {
 
   return (
     <HeroBackground>
-      {/* Extra top padding below lg: the stacked text+fan column can exceed
-          the viewport, and justify-center then pins the logo right under the
-          header. On lg the two-column grid centers with room to spare. */}
+      {/* Extra top padding below lg: the stacked column can exceed the
+          viewport, and justify-center would pin the logo under the header. */}
       <div className="relative flex min-h-[calc(100svh-var(--header-height))] flex-col justify-center p-4 pt-12 lg:pt-4">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-12">
           <div className="flex flex-col items-center gap-3 text-center lg:items-start lg:text-left">
@@ -111,8 +105,6 @@ export function LandingPage() {
                 <div className="flex items-center justify-center gap-3 lg:justify-start">
                   <h1 className="font-heading text-4xl font-bold md:text-5xl">OpenRift</h1>
                 </div>
-                {/* The motto lives in the brand lockup: as a free-standing
-                    row below it competed with the tagline. */}
                 <p className="text-muted-foreground/60 text-xs italic">
                   Built with Fury. Maintained with Calm.
                 </p>
@@ -138,8 +130,6 @@ export function LandingPage() {
             onAllCollected={handleAllCollected}
           />
         </div>
-        {/* Inside the 100svh hero, so it reads as "there is more below" rather
-            than as a divider between two sections. */}
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-6 flex flex-col items-center gap-1"

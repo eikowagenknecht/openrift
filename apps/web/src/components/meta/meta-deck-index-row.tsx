@@ -15,10 +15,7 @@ import type { MetaDeckCost } from "@/lib/meta-deck-collection";
 import { formatRank, formatRecord, MEDAL_RANKS } from "@/lib/meta-format";
 import { cn } from "@/lib/utils";
 
-/**
- * The desktop column track, shared by the rows and the sort header above them so
- * the two can never drift apart.
- */
+// Shared by the rows and the sort header above them; keep both in sync.
 export const DECK_INDEX_GRID =
   "grid grid-cols-[3.5rem_2.75rem_11rem_10rem_minmax(0,1fr)_2.75rem_4rem_10.5rem] items-center gap-x-3.5";
 
@@ -118,11 +115,6 @@ function deckLabel(deck: MetaDeckSummary): string {
     : `${deck.playerName}'s ${deck.legendName} decklist`;
 }
 
-/**
- * One archived list, in the two arrangements the browser needs: a column row from
- * `sm` up and a card row on phones. The row is a stretched link to the list's
- * permalink; the legend and player names inside it take their own clicks.
- */
 export function MetaDeckIndexRow({
   deck,
   cost,

@@ -45,19 +45,12 @@ function renderTable(onDelete: (row: Row) => Promise<unknown>) {
   );
 }
 
-// Regression: the destructive confirm button used to render through the
-// AlertDialog's native Close trigger, which closes the dialog synchronously
-// on click, before the async onDelete promise ever settles. A rejection
-// (e.g. the server refusing to delete a set still in use) was therefore
-// invisible: the dialog had already vanished by the time the error arrived.
 describe("AdminTable delete confirmation", () => {
-  it("keeps the dialog open and shows the error when the delete rejects", async () => {
+  it("keeps the dialog open with the error even after a delayed close would have fired", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn().mockRejectedValue(new Error("Set still has printings"));
     renderTable(onDelete);
 
-    // The trigger is the only button rendered (no edit/actions config), and
-    // it's icon-only with no accessible name.
     await user.click(screen.getByRole("button"));
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
@@ -67,11 +60,6 @@ describe("AdminTable delete confirmation", () => {
       expect(screen.getByText("Set still has printings")).toBeInTheDocument();
     });
 
-    // The old Close-trigger implementation also shows the error for a brief
-    // instant, then closes the dialog anyway once the exit transition
-    // finishes (unmounting the error along with it) — so the assertion above
-    // alone doesn't pin the regression. Give any such delayed close a chance
-    // to happen and confirm the dialog is still there afterwards.
     // oxlint-disable-next-line promise/avoid-new -- wrapping the setTimeout callback API to await a delay
     await new Promise((resolve) => {
       setTimeout(resolve, 50);
@@ -111,9 +99,6 @@ describe("AdminTable delete confirmation", () => {
   });
 });
 
-// The sorted row model, the `sortFn` comparator and the header toggle are all
-// plumbing the component owns rather than the table library, so pin the
-// behavior they produce: sort order on load, on toggle, and where the nulls go.
 describe("AdminTable sorting", () => {
   interface Scored {
     slug: string;
@@ -158,14 +143,10 @@ describe("AdminTable sorting", () => {
     );
   }
 
-  /**
-   * Reads the rendered label column top to bottom.
-   * @returns The row labels in render order.
-   */
   function renderedLabels(): string[] {
     return screen
       .getAllByRole("row")
-      .slice(1) // header row
+      .slice(1)
       .map((tr) => within(tr).getAllByRole("cell")[0].textContent ?? "");
   }
 
@@ -183,9 +164,6 @@ describe("AdminTable sorting", () => {
     expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
   });
 
-  // Alpha's score is null. A blank is not the answer to "highest first" and it
-  // is not the answer to "lowest first" either, so it trails both ways, which
-  // is also how the server orders a nullable column.
   it("sorts blank values behind real ones when ascending", () => {
     renderScored({ column: "Score", direction: "asc" });
     expect(renderedLabels()).toEqual(["Gamma", "Beta", "Alpha"]);
@@ -390,10 +368,6 @@ describe("AdminTable sortable headers", () => {
   });
 });
 
-// The drag itself is dnd-kit's (pointer simulation in jsdom buys little), but
-// everything around it is this component's: which buttons are live at the ends
-// of the list, what the arrows commit, and that the dropped order stays on
-// screen until the save comes back.
 describe("AdminTable reorder", () => {
   const reorderRows: Row[] = [
     { slug: "a", label: "Alpha" },
@@ -415,14 +389,10 @@ describe("AdminTable reorder", () => {
     );
   }
 
-  /**
-   * Reads the rendered label column top to bottom.
-   * @returns The row labels in render order.
-   */
   function renderedLabels(): string[] {
     return screen
       .getAllByRole("row")
-      .slice(1) // header row
+      .slice(1)
       .map((tr) => within(tr).getAllByRole("cell").at(-1)?.textContent ?? "");
   }
 
@@ -452,10 +422,7 @@ describe("AdminTable reorder", () => {
     expect(onReorder).toHaveBeenCalledWith(["b", "a", "c"]);
   });
 
-  // The reorder mutations only invalidate, so the `data` prop still holds the
-  // old order for as long as the refetch takes. Without the pending order the
-  // row would visibly snap back in the meantime.
-  it("keeps showing the new order while the save is in flight", async () => {
+  it("keeps showing the new order and locks further moves while the save is in flight", async () => {
     const user = userEvent.setup();
     let settle = () => {};
     // oxlint-disable-next-line promise/avoid-new -- a promise the test resolves by hand to hold the save open
@@ -467,7 +434,6 @@ describe("AdminTable reorder", () => {
     await user.click(screen.getAllByRole("button", { name: "Move down" })[0]);
 
     expect(renderedLabels()).toEqual(["Beta", "Alpha", "Gamma"]);
-    // A second move can't be computed off the stale order, so it stays locked.
     expect(screen.getAllByRole("button", { name: "Move down" })[0]).toBeDisabled();
     settle();
   });

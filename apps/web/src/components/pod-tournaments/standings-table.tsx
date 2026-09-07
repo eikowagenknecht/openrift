@@ -16,21 +16,13 @@ import { cn } from "@/lib/utils";
 
 import { formatPlayerRecord, formatScore, POD_WINS_HINT, standingRanks } from "./standings-display";
 
-// Default region label: the raw slug. A named module-level default keeps the
-// React Compiler from bailing out (inline arrow defaults are not reorderable).
+// Named module-level default: an inline arrow default is not reorderable and
+// makes the React Compiler bail out.
 const rawRegionSlug = (slug: string): string => slug;
 
-// The two headers that read as codes rather than words. The columns are named
-// the way organizers say them out loud, so the long form is a tooltip on the
-// header rather than a wider column.
 const OPP_TITLE = "Average opponent points";
 const GAME_TITLE = "Game points";
 
-/**
- * The rank marker at the head of a row: a medal for the top three, the plain
- * number below that.
- * @returns The rank element.
- */
 function RankMark({ rank }: { rank: number }) {
   if (rank <= 3) {
     return <Medal rank={rank} />;
@@ -38,10 +30,6 @@ function RankMark({ rank }: { rank: number }) {
   return <span className="text-muted-foreground tabular-nums">{rank}</span>;
 }
 
-/**
- * A player's identity in a standings row: face, name, region, drop state.
- * @returns The player cell contents.
- */
 function PlayerIdentity({
   row,
   regionsEnabled,
@@ -93,8 +81,6 @@ export function StandingsTable({
   const ranks = standingRanks(standings);
   return (
     <>
-      {/* Mobile: a compact divided list. Only the tie-break chain (wins, opponent
-          score, game points) is shown; rounds/pods/byes stay desktop-only. */}
       <ul className="divide-y sm:hidden">
         {standings.map((row, index) => (
           <li
@@ -126,7 +112,6 @@ export function StandingsTable({
         ))}
       </ul>
 
-      {/* Desktop: the full table. */}
       <div className="hidden sm:block">
         <Table>
           <TableHeader>
@@ -137,8 +122,6 @@ export function StandingsTable({
               {swiss ? (
                 <TableHead className="text-right">W-L-D</TableHead>
               ) : (
-                // "Wins" alone invites reading it as a match record; the column
-                // counts pods won outright.
                 <TableHead className="text-right" title={POD_WINS_HINT}>
                   Pod wins
                 </TableHead>

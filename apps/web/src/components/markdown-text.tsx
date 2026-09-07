@@ -9,22 +9,10 @@ import { cn } from "@/lib/utils";
 
 const ALLOWED_ELEMENTS = ["p", "a", "em", "strong", "code", "ul", "ol", "li", "br"];
 
-/** Heading levels available to primer-style surfaces (deck descriptions). */
 const HEADING_ELEMENTS = ["h1", "h2", "h3"];
 
-/**
- * Internal href scheme carrying a `[[Card Name]]` reference through the
- * markdown pipeline. Never rendered as a real link — the `a` component
- * intercepts it and hands the name to `renderCardLink`.
- */
 const CARD_HREF_PREFIX = "#card=";
 
-/**
- * Rewrites `[[Card Name]]` spans into markdown links on the internal card
- * href, so the markdown parser carries them as regular links.
- * Percent-encoding keeps names with parentheses inside the link target.
- * @returns The text with card spans expanded.
- */
 function expandCardLinks(text: string): string {
   return text.replaceAll(
     /\[\[(?<name>[^[\]\n]{1,80})\]\]/gu,
@@ -37,10 +25,6 @@ function isAllowedLinkHref(href: string | undefined): boolean {
   return href !== undefined && isAllowedLinkUrl(href);
 }
 
-/**
- * The bare hostname an http(s) link points at, `www.` stripped.
- * @returns The hostname, or null for a relative, malformed, or non-web href.
- */
 function linkHost(href: string | undefined): string | null {
   if (href === undefined) {
     return null;
@@ -58,14 +42,11 @@ function linkHost(href: string | undefined): string | null {
   return hostname.startsWith("www.") ? hostname.slice(4) : hostname;
 }
 
-/** Characters that can continue a hostname, so a match mid-domain isn't one. */
 const HOSTNAME_CHAR = /[a-z0-9.-]/u;
 
 /**
- * Whether `text` already names `host` as a whole domain. A written `www.` is
- * dropped first, since it is the same site. The boundary check is what stops
- * `evil.example.com` from passing itself off as a mention of `evil.example`.
- * @returns True when the host appears in the text.
+ * `www.` is dropped before matching, since it's the same site; the boundary
+ * check stops `evil.example.com` passing itself off as `evil.example`.
  */
 function namesHost(text: string, host: string): boolean {
   const haystack = text.toLowerCase().replaceAll("www.", "");
@@ -83,11 +64,6 @@ function namesHost(text: string, host: string): boolean {
   }
 }
 
-/**
- * The visible text of a rendered markdown node, so a link's own label can be
- * checked for the host it points at.
- * @returns The concatenated text.
- */
 function nodeText(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") {
     return String(node);
@@ -101,31 +77,11 @@ function nodeText(node: ReactNode): string {
   return "";
 }
 
-/** Renders a resolved `[[Card Name]]` reference. */
 export type RenderCardLink = (name: string, children: React.ReactNode) => React.ReactElement;
 
-/** Renders plain text as a constrained markdown subset.
- *
- * Supports inline formatting and links; external links open in a new tab
- * with `rel="noreferrer nofollow ugc"`. Block elements like images, tables,
- * and raw HTML are stripped; headings only render when `headings` is set
- * (primer-style surfaces).
- *
- * The `links` mode decides how far a link may point:
- * - `"allowlist"` (default) holds hrefs to the shared host allowlist
- *   (`link-hosts.ts`, also used by deck links). One outside it is dropped, so
- *   the text stays visible but is no longer clickable. For anything a
- *   stranger can reach, where an open URL field would be a spam vector.
- * - `"labeled"` accepts any web host but appends the destination host after
- *   the link, unless the link's own text already names it. For user-written
- *   text whose reach is bounded by membership rather than by the allowlist,
- *   where the risk left is a label that lies about where it goes.
- * - `"any"` accepts any web host bare. Admin-curated content only.
- *
- * With `renderCardLink`, `[[Card Name]]` spans become card references
- * rendered through the callback (deck descriptions); without it they stay
- * literal text.
- * @returns The rendered markdown tree.
+/**
+ * `links`: "allowlist" (default) drops non-allowlisted hrefs, "labeled" allows any
+ * host but appends it, "any" allows any host bare (admin-curated content only).
  */
 export function MarkdownText({
   text,
@@ -136,21 +92,15 @@ export function MarkdownText({
 }: {
   text: string;
   className?: string;
-  /** How far a link may point, and whether its destination is shown. */
   links?: "allowlist" | "labeled" | "any";
-  /** Allow h1-h3, styled as compact section headings. */
   headings?: boolean;
-  /** Turns `[[Card Name]]` spans into card references. */
   renderCardLink?: RenderCardLink;
 }) {
   const allowlisted = links === "allowlist";
   const components: Components | undefined =
     renderCardLink || links !== "any"
       ? {
-          // react-markdown takes a components map, so the renderer has to be
-          // built here to close over the link mode and renderCardLink; the
-          // compiler memoizes it against both.
-          // oxlint-disable-next-line react/no-unstable-nested-components -- see above
+          // oxlint-disable-next-line react/no-unstable-nested-components -- built inline to close over link mode and renderCardLink
           a: ({ href, children, ...rest }) => {
             if (renderCardLink && href?.startsWith(CARD_HREF_PREFIX)) {
               return renderCardLink(

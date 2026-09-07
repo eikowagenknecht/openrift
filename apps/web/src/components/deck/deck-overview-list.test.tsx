@@ -61,9 +61,6 @@ const NEITHER = { lock: false, borrowed: false, price: false };
 const WITH_BORROWED = { lock: true, borrowed: true, price: true };
 
 describe("DeckListRow", () => {
-  // Regression: the row is right-packed around a flex-1 name, so a cell
-  // rendered only on the rows that have one shoves their ownership fraction
-  // (and everything else after the name) left of every other row's.
   it("gives locked and unlocked rows the same cells once the list reserves the lock", () => {
     expect(renderRow({ locked: 0, price: 420, reserved: BOTH }).children.length).toBe(
       renderRow({ locked: 2, price: 420, reserved: BOTH }).children.length,
@@ -76,9 +73,6 @@ describe("DeckListRow", () => {
     );
   });
 
-  // The reservation is per deck: a deck with nothing locked and no prices on
-  // file spends no width on empty cells, which is what keeps the phone layout
-  // affordable.
   it("reserves neither cell when the list needs neither", () => {
     expect(renderRow({ price: 420, reserved: NEITHER }).children.length).toBe(
       renderRow({ price: 420, reserved: BOTH }).children.length - 2,
@@ -97,9 +91,6 @@ describe("DeckListRow", () => {
     );
   });
 
-  // The whole point of the glyph: borrowed copies already shrank the
-  // shortfall, so a row that needs nothing more would otherwise say nothing
-  // about the copies that are going back to their owner.
   it("names the lender even when the row has no shortfall left", () => {
     const row = renderRow({
       borrowed: 2,
@@ -110,8 +101,6 @@ describe("DeckListRow", () => {
     expect(row.querySelector('[data-slot="tooltip-trigger"]')).not.toBeNull();
   });
 
-  // Regression: power was the one card stat gated behind `sm:`, so a phone
-  // showed a card's energy cost but not the domain pips it also costs.
   it("shows the power pips on phones", () => {
     const pips = renderRow({ reserved: NEITHER }).querySelector('[aria-label="Power 2 (Fury)"]');
     expect(pips?.querySelectorAll("img").length).toBe(2);

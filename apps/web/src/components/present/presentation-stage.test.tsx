@@ -14,7 +14,6 @@ const { mockPushBoard, mockSetReveal, mockClear, mockSetHidden, channelHidden } 
     mockSetReveal: vi.fn(() => Promise.resolve()),
     mockClear: vi.fn(),
     mockSetHidden: vi.fn(),
-    // The curtain's current state, as the channel query would report it.
     // Undefined stands for a channel that has not loaded yet.
     channelHidden: vi.fn<() => boolean | undefined>(() => false),
   }),
@@ -37,15 +36,11 @@ vi.mock("@/hooks/use-stage-presets", () => ({
   useCreateStagePreset: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-// Signed out by default: the OBS push key and the presets block both need a
-// session, and neither is what these tests are about.
 const userId = vi.fn<() => string | null>(() => null);
 vi.mock("@/lib/auth-session", () => ({
   useUserId: () => userId(),
 }));
 
-// The strip renders card art through the image pipeline; a marker is enough to
-// assert whether the stage put a running order on screen at all.
 vi.mock("@/components/present/presentation-filmstrip", () => ({
   PresentationFilmstrip: () => <div data-testid="filmstrip" />,
 }));
@@ -57,7 +52,6 @@ const items: PresentationItem[] = [
   { id: "b", printing: stubPrinting(), contextLabel: "A" },
 ];
 
-/** What a tier source hands the stage to mirror onto the overlay. */
 const obsBoard = {
   title: "Best legends",
   tiers: [{ label: "S", cards: [{ cardId: "card-a", printingId: null }] }],
@@ -68,9 +62,7 @@ const obsBoard = {
 interface StageOptions {
   items?: PresentationItem[];
   editing?: boolean;
-  /** Omitted entirely means a source with nothing to edit, e.g. a shared list. */
   withEdit?: boolean;
-  /** Omitted means a source with no board to mirror, e.g. a deck walk. */
   withObsBoard?: boolean;
   index?: number;
 }
@@ -102,7 +94,6 @@ function renderStage({
   return { onIndexChange, onToggle, onExit };
 }
 
-/** Fires a bare keydown on the document, the way the stage listens for one. */
 function press(key: string) {
   fireEvent.keyDown(document, { key });
 }
@@ -142,11 +133,10 @@ describe("PresentationStage while presenting", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves E alone on a source with nothing to edit", () => {
+  it("leaves E alone without disabling the rest of the stage on a source with nothing to edit", () => {
     const { onToggle, onIndexChange } = renderStage({ withEdit: false });
     press("e");
     expect(onToggle).not.toHaveBeenCalled();
-    // Still a live stage otherwise — E being inert must not mean the rest is.
     press("ArrowRight");
     expect(onIndexChange).toHaveBeenCalledWith(1);
   });
@@ -164,10 +154,8 @@ describe("PresentationStage while editing", () => {
     expect(screen.getByTestId("main")).toHaveTextContent("editor");
   });
 
-  // The load-bearing one. dnd-kit's PointerSensor leaves the keyboard alone, so
-  // nothing here collides with a drag — but an arrow that still stepped a queue
-  // the creator cannot see would move the show out from under them the moment
-  // they switched back.
+  // dnd-kit's PointerSensor doesn't listen to the keyboard, so this covers a real gap:
+  // nothing else stops an arrow key from stepping a queue the creator can't see.
   it("hands the walk's keys back rather than stepping a hidden queue", () => {
     const { onIndexChange } = renderStage({ editing: true });
     for (const key of ["ArrowRight", "ArrowLeft", " ", "Home", "End"]) {
@@ -223,9 +211,7 @@ describe("PresentationStage while editing", () => {
     userId.mockReturnValue("user-1");
     renderStage({ editing: true });
     press("?");
-    // Scoped to the push and the mirror rather than every mention of the
-    // overlay: the curtain is deliberately still listed here, because it covers
-    // the overlay rather than the walk.
+    // The curtain is deliberately not checked here: it covers the overlay, not the walk.
     expect(screen.queryByText(/Push this card/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/Show this board/u)).not.toBeInTheDocument();
   });
@@ -262,8 +248,6 @@ describe("PresentationStage board on OBS", () => {
   });
 
   it("leaves O alone on a source with no board to mirror", () => {
-    // A deck walk has nothing to put up, so the key keeps whatever the browser
-    // does with it rather than being swallowed for nothing.
     renderStage({ withObsBoard: false });
 
     press("o");
@@ -283,8 +267,6 @@ describe("PresentationStage board on OBS", () => {
   });
 
   it("stands the mirror down while the board is being ranked", () => {
-    // The switch is off the settings panel while editing, so the key that does
-    // the same thing has to be inert too.
     renderStage({ editing: true });
 
     press("o");
@@ -307,8 +289,6 @@ describe("PresentationStage curtain", () => {
   });
 
   it("raises it again from the state the channel reports", () => {
-    // Read from the channel rather than a local boolean, so the key, the phone,
-    // and the OBS panel cannot drift onto opposite states.
     channelHidden.mockReturnValue(true);
     renderStage();
 
@@ -318,8 +298,6 @@ describe("PresentationStage curtain", () => {
   });
 
   it("stays live while the board is being ranked, unlike the walk's keys", () => {
-    // The whole point: the mirror is frozen on the old board during a rank, and
-    // hiding is what takes that stale ladder off the stream.
     renderStage({ editing: true });
 
     press("h");
@@ -337,7 +315,6 @@ describe("PresentationStage curtain", () => {
   });
 
   it("leaves H alone until the channel has loaded", () => {
-    // Guessing at a state here could blank a live scene on the first keypress.
     channelHidden.mockReturnValue(undefined);
     renderStage();
 
@@ -363,9 +340,7 @@ describe("PresentationStage curtain", () => {
 });
 
 describe("PresentationStage with nothing queued", () => {
-  // A fresh tier list is entirely unranked, so this is the state the stage opens
-  // in the first time it is used, not an error path.
-  it("points an editable source at the way to fill it", () => {
+  it("points a freshly created, unranked source at the way to fill it", () => {
     renderStage({ items: [] });
     expect(screen.getByText(/Press E to start ranking/u)).toBeInTheDocument();
   });

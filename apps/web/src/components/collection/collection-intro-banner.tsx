@@ -21,7 +21,6 @@ interface ToolbarGuideRow {
   icons: readonly LucideIcon[];
   title: string;
   description: string;
-  /** Rendered only on `sm`+ — the control sits in the mobile options drawer on phones. */
   desktopOnly?: boolean;
 }
 
@@ -52,13 +51,6 @@ const DISPLAY_ROW: ToolbarGuideRow = {
   desktopOnly: true,
 };
 
-/**
- * First-visit guide shown above the collection grid while the collection is
- * empty. Explains the toolbar controls (library toggle, view modes, filters)
- * and how to add the first cards. Dismissal persists via the onboarding store.
- *
- * @returns The dismissible intro banner.
- */
 export function CollectionIntroBanner({
   showLibrary,
   onDismiss,
@@ -137,11 +129,6 @@ export function CollectionIntroBanner({
   );
 }
 
-/**
- * Small framed icon squares mirroring how the controls look in the toolbar.
- *
- * @returns The icon row for a guide entry.
- */
 function GuideIcons({ icons }: { icons: readonly LucideIcon[] }) {
   return (
     <span className="flex shrink-0 items-center gap-1">

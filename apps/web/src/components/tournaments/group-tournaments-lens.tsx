@@ -9,19 +9,9 @@ import { useGroupTournaments } from "@/hooks/use-tournaments";
 interface GroupTournamentsLensProps {
   slug: string;
   canCreate: boolean;
-  /** The group's id, for pre-filling the create wizard from the empty state. */
   groupId: string;
 }
 
-/**
- * The group's tournaments lens (ADR-033): every tournament associated with this
- * friend group, each linking to the unified tournament surface. The next (or
- * live) event gets a hero tile with a card-art band; completed and cancelled
- * events read as the group's history down a timeline, with winner callouts.
- * Group admins get a "New tournament" shortcut (in the page top bar) that
- * pre-fills the group.
- * @returns The lens content.
- */
 export function GroupTournamentsLens({ slug, canCreate, groupId }: GroupTournamentsLensProps) {
   const { data } = useGroupTournaments(slug);
 

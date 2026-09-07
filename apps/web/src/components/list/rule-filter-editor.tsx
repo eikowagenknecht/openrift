@@ -39,12 +39,6 @@ import { cycleIncludeExclude } from "@/lib/filter-cycle";
 import { PRESENCE_LABELS, presenceToFlagState } from "@/lib/presence-filter";
 import { useDisplayStore } from "@/stores/display-store";
 
-/**
- * Makes the `button`-style combobox trigger match the SelectTrigger on the other
- * rows: same height (h-8, vs the button's `size="sm"` h-7), text size (text-sm,
- * vs `text-[0.8rem]`), weight (normal, vs the button's `font-medium`), radius,
- * and the subtle input fill — so every control in the editor is identical.
- */
 export const CONTROL_WIDTH =
   "h-8 w-44 justify-between rounded-lg bg-transparent text-sm font-normal hover:bg-muted dark:bg-input/30 dark:hover:bg-input/50";
 
@@ -54,22 +48,12 @@ const STANDARD_HINT =
 const PRICE_HINT =
   "Compares each printing's latest market price on the marketplace you pick. Leave min or max empty for an open end.";
 
-/** Marketplace picker options, currency spelled out (each quotes its own). */
 const PRICE_MARKETPLACE_OPTIONS: { value: Marketplace; label: string }[] = [
   { value: "cardtrader", label: "CardTrader (EUR)" },
   { value: "tcgplayer", label: "TCGplayer (USD)" },
   { value: "cardmarket", label: "Cardmarket (EUR)" },
 ];
 
-/**
- * One form row: title on the left, control on the right (mirrors the Enable-rule
- * row). The title is a plain span, not a `<label>`, since the control to its
- * right (a dropdown or switch) carries its own accessible name. An optional
- * `hint` adds an {@link InfoHint} next to the title for derived/non-obvious
- * fields (hover on desktop, tap on touch); an optional `onRemove` adds a
- * trailing button to take the row back out.
- * @returns The row node.
- */
 export function FilterRow({
   label,
   hint,
@@ -112,43 +96,25 @@ interface Option {
   label: string;
 }
 
-/** Array-valued keys of CardFilters (every include/exclude multi-select dimension). */
 type ArrayKey = {
   [K in keyof CardFilters]: CardFilters[K] extends string[] ? K : never;
 }[keyof CardFilters];
 
-/** Boolean-tri-state keys of CardFilters. */
 type FlagKey = {
   [K in keyof CardFilters]: CardFilters[K] extends boolean | null ? K : never;
 }[keyof CardFilters];
 
-/** Which group a dimension belongs to in the "Add filter" menu. */
 type DimGroup = "standard" | "card" | "printing";
 
-/** One addable/removable criterion in the rule's filter. */
 interface DimEntry {
   key: string;
   label: string;
   group: DimGroup;
-  /** Whether the dimension has options to offer (gates the Add menu only). */
   available: boolean;
-  /** Whether the current filter carries a value for this dimension. */
   active: boolean;
-  /** The rendered row (only shown when active or explicitly added). */
   node: ReactNode;
 }
 
-/**
- * The full controlled facet editor for a dynamic list rule (ADR-034 §V). Renders
- * the same dimensions as the card-browser filter panel — search, the tri-state
- * flags, and every multi-select with its negation companion — bound to a local
- * `CardFilters` instead of the URL. Criteria are added on demand from a grouped
- * "Add filter" menu (Standard, then Card, then Printing), so an unused rule stays
- * compact; each shown row carries a remove button. Each multi-select hosts an
- * "Exclude" group in the same dropdown, so a dimension can both include and
- * exclude values.
- * @returns The editor rows plus the add control.
- */
 export function RuleFilterEditor({
   value,
   onChange,
@@ -157,7 +123,7 @@ export function RuleFilterEditor({
 }: {
   value: CardFilters;
   onChange: (next: CardFilters) => void;
-  /** The rule's persisted price marketplace; null until the price criterion is used. */
+  /** Null until the price criterion is used. */
   priceMarketplace: Marketplace | null;
   onPriceMarketplaceChange: (marketplace: Marketplace) => void;
 }) {
@@ -167,15 +133,10 @@ export function RuleFilterEditor({
   const { all: customTags } = useCustomTagList();
   const prices = usePrices();
   const customTagAssignments = useCustomTagAssignments();
-  // The marketplace shown before the user has picked one: their favorite from
-  // the display preferences (same resolution as the card thumbnails). Setting
-  // a price bound persists it, so the saved rule never depends on preferences.
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const shownMarketplace = priceMarketplace ?? marketplaceOrder[0] ?? "cardtrader";
   const available = getAvailableFilters(allPrintings, { orders, sets });
 
-  // Dimensions pinned to a row: added from the menu or edited in place. Resets
-  // on remount (the dialog unmounts when closed).
   const [shownKeys, setShownKeys] = useState<readonly string[]>([]);
 
   const patch = (next: Partial<CardFilters>) => onChange({ ...value, ...next });
@@ -183,10 +144,6 @@ export function RuleFilterEditor({
   const pin = (key: string) =>
     setShownKeys((current) => (current.includes(key) ? current : [...current, key]));
 
-  // The presence map with one dimension dropped, rebuilt without a dynamic
-  // delete. Used both to set/clear a single presence (patchPresence) and to fold
-  // that clear into a dimension's combined remove — one patch, so include/exclude
-  // and presence clear together instead of racing on the stale `value`.
   const presenceWithout = (
     dimension: PresenceDimension,
   ): Partial<Record<PresenceDimension, PresenceState>> => {
@@ -202,7 +159,6 @@ export function RuleFilterEditor({
     return next;
   };
 
-  // Writes a presence dimension's any/none state (or clears it) into the map.
   const patchPresence = (dimension: PresenceDimension, state?: PresenceState) => {
     const nextPresence = presenceWithout(dimension);
     if (state !== undefined) {
@@ -220,15 +176,6 @@ export function RuleFilterEditor({
 
   const setNames = new Map(sets.map((set) => [set.slug, set.name]));
 
-  /**
-   * A multi-select dimension entry whose options cycle off → include → exclude →
-   * off (ADR-034), the same way the card browser's filter badges and dropdowns
-   * do. When a `presenceDimension` is given, that dimension's any/none presence
-   * folds into the picker as a "Has any …" row pinned to the top — matching the
-   * card-browser filter panel rather than exposing presence as its own add-filter
-   * entry. Removing the row clears its include, exclude, and presence together.
-   * @returns The dimension entry.
-   */
   const dimension = (
     key: string,
     label: string,
@@ -306,13 +253,6 @@ export function RuleFilterEditor({
     };
   };
 
-  /**
-   * A boolean flag entry rendered with the same cycling dropdown as the
-   * multi-selects: its single option cycles off → include (requires the trait) →
-   * exclude (forbids it) → off, mapping to null → true → false → null. Removing
-   * it resets the tri-state field to null.
-   * @returns The flag entry.
-   */
   const flag = (
     key: string,
     label: string,
@@ -365,10 +305,8 @@ export function RuleFilterEditor({
   };
 
   const priceActive = value.price.min !== null || value.price.max !== null;
-  // Matched printings the price bound silently drops because the chosen
-  // marketplace has no price for them — surfaced under the row so "no price =
-  // skipped" never reads as a bug. Only computed while a bound is set (it is
-  // a full-catalog pass).
+  // Printings matching the filter but with no price on the chosen marketplace
+  // are silently dropped; this count is surfaced under the row so it isn't mistaken for a bug.
   const pricelessMatchCount = priceActive
     ? filterCards(
         allPrintings,
@@ -377,8 +315,6 @@ export function RuleFilterEditor({
       ).filter((printing) => prices.get(printing.id, shownMarketplace) === undefined).length
     : 0;
 
-  // Writing a bound persists the displayed marketplace: the saved rule must
-  // carry the marketplace its numbers are quoted in, not a viewer preference.
   const patchPrice = (price: FilterRange) => {
     pin("price");
     patch({ price });
@@ -492,9 +428,6 @@ export function RuleFilterEditor({
     ),
   };
 
-  // Canonical order: Standard first, then the Card group, then the Printing
-  // group. Active rows render top-to-bottom in this order regardless of add
-  // order, so the layout never jumps.
   const entries: DimEntry[] = [
     flag(
       "standard",

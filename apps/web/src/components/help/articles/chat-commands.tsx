@@ -6,17 +6,8 @@ import { chatBotSetups } from "@/lib/creator-chat-commands";
 import { getSiteUrl } from "@/lib/site-config";
 
 /**
- * The setup lines, rendered only after hydration.
- *
- * Everything else on this page server-renders, but a bot command has to carry
- * an absolute URL, and the only source for one is `getSiteUrl()` — which reads
- * `process.env.SITE_URL` on the server and `window.location.origin` on the
- * client. Those can disagree, and this app hydrates the whole document, so a
- * disagreement is a React #418 that takes out the page rather than one line of
- * text. Rendering the commands client-side sidesteps it; the prose around them
- * still reaches crawlers.
- *
- * @returns The per-bot copy rows, or their placeholder during SSR.
+ * Client-only: `getSiteUrl()` can disagree between server and browser, and
+ * this app hydrates the whole document, so rendering it during SSR risks React #418.
  */
 function ChatBotSetups() {
   const hydrated = useHydrated();

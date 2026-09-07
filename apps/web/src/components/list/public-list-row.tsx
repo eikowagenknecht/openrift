@@ -24,19 +24,9 @@ interface PublicListRowProps {
   kind: ListKind;
   name: string;
   entryCount: number;
-  /** Optional inline slot between the name and the entry-count, e.g. visibility badges. */
   badges?: ReactNode;
 }
 
-/**
- * Read-only row summarising a list on public surfaces (user share bundle,
- * group member detail). Intent icon on the left, name + badges in the middle
- * (badges wrap to additional rows when they don't fit alongside the name),
- * kind + entry count on the right. Pass the navigation target via
- * `render={<Link ... />}`.
- *
- * @returns A CardLink tile rendered as the supplied `render` target.
- */
 export function PublicListRow({
   intent,
   kind,

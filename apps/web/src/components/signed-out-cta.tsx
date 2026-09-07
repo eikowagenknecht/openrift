@@ -8,10 +8,7 @@ import { useUserId } from "@/lib/auth-session";
 
 /**
  * Sign-in / create-account pair that sends the visitor back to the page they
- * came from. Every landing reached through a share or invite link uses it, so
- * the token in the URL survives the trip through login.
- *
- * @returns The two auth links.
+ * came from, so a token in the URL survives the trip through login.
  */
 export function SignedOutAuthButtons({
   signInLabel = "Sign in",
@@ -35,12 +32,8 @@ export function SignedOutAuthButtons({
 }
 
 /**
- * Conversion prompt for the public share surfaces, shown only to a visitor
- * without an account. Gated on hydration because these pages are SSR'd behind a
- * shared public cache, so anything per-viewer has to be resolved on the client
- * (same reason as SharedCollectionAccessNotice).
- *
- * @returns The prompt, or null for a signed-in viewer.
+ * Gated on hydration because these pages are SSR'd behind a shared public
+ * cache, so anything per-viewer has to be resolved on the client.
  */
 export function PublicShareCta({ title, children }: { title: string; children: ReactNode }) {
   const hydrated = useHydrated();

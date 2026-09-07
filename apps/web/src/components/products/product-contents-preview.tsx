@@ -7,16 +7,14 @@ import { CARD_BORDER_RADIUS, LABEL_HEIGHT } from "@/components/cards/card-grid-c
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
-// Mirrors the live grid's column breakpoints, which query `@container/grid` on
-// the center column in <CardBrowserLayout>. Viewport breakpoints would
-// over-count columns whenever the filter sidebar is open.
+// Mirrors the live grid's `@container/grid` breakpoints; viewport breakpoints
+// would over-count columns whenever the filter sidebar is open.
 const GRID_COLS =
   "grid grid-cols-2 gap-4 @min-[640px]/grid:grid-cols-3 @min-[768px]/grid:grid-cols-4 @min-[1024px]/grid:grid-cols-5 @min-[1280px]/grid:grid-cols-6 @min-[1600px]/grid:grid-cols-7 @min-[1920px]/grid:grid-cols-8";
 
 const SIZES =
   "(min-width: 1920px) calc((100vw - 112px) / 8 - 12px), (min-width: 1600px) calc((100vw - 96px) / 7 - 12px), (min-width: 1280px) calc((100vw - 80px) / 6 - 12px), (min-width: 1024px) calc((100vw - 64px) / 5 - 12px), (min-width: 768px) calc((100vw - 48px) / 4 - 12px), (min-width: 640px) calc((100vw - 32px) / 3 - 12px), calc((100vw - 16px) / 2 - 12px)";
 
-/** @returns One cell's art, landscape-rotated for battlefields like the live thumbnail. */
 function PreviewArt({ printing }: { printing: Printing }) {
   const frontImage = printing.images[0] ?? null;
   const rotated = needsCssRotation(getOrientation(printing.card.types));
@@ -59,27 +57,13 @@ function PreviewArt({ printing }: { printing: Printing }) {
 }
 
 interface ProductContentsPreviewProps {
-  /** The product's printings, deduplicated by card, in canonical order. */
   printings: readonly Printing[];
   quantityByPrintingId: Record<string, number>;
 }
 
 /**
- * Server-rendered view of a product's contents.
- *
- * The live grid (`<CardViewer>` → `<CardGrid>`) is window-virtualized, so it
- * emits no cards until the client has measured the viewport. This renders the
- * same card set as plain markup instead: real `<img>` tags as LCP candidates
- * and a real link per card, so the served HTML carries the product's actual
- * contents. Products are fixed-size (tens of cards, not the full catalogue),
- * so rendering every card here is affordable in a way it isn't on /cards —
- * which is why that page's `<FirstRowPreview>` stops after two rows.
- *
- * The cell shape mirrors `CardThumbnail` (p-1.5 wrapper, card image, then a
- * label block of `LABEL_HEIGHT`) so the live grid lands in the same place on
- * hydration instead of shifting the page.
- *
- * @returns The pre-hydration contents grid.
+ * Plain markup: SSR has no viewport to virtualize against, so every cell must render.
+ * Cell shape mirrors `CardThumbnail` to avoid a hydration shift.
  */
 export function ProductContentsPreview({
   printings,

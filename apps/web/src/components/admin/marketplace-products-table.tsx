@@ -118,34 +118,14 @@ interface TableEntry {
   isAssigned: boolean;
   assignedPrintings: AssignedPrinting[];
   assignedPrintingIds: Set<string>;
-  /**
-   * Printings already assigned to a *different* external ID within the same
-   * marketplace. Used by the Assign dropdown to dim entries that would
-   * conflict with an existing mapping — the user can still pick them, but the
-   * visual cue flags the conflict.
-   */
   otherAssignedPrintingIds: Set<string>;
 }
 
-/**
- * The set portion of a short code — everything before the first dash.
- * "OGN-027a" → "OGN", "SFD-123" → "SFD". Short codes without a dash return
- * the full string as the prefix.
- * @returns The set prefix portion of a short code.
- */
 function setPrefix(shortCode: string): string {
   const dash = shortCode.indexOf("-");
   return dash === -1 ? shortCode : shortCode.slice(0, dash);
 }
 
-/**
- * Whether a product name does not normalize to the exact same string as the
- * card name. Uses the alphanumeric-spaceless normalization from
- * `suggest-mapping`, so cosmetic differences (punctuation, spacing, casing)
- * don't trigger a mismatch — but any extra suffix like "(Foil)" or
- * "Alternate Art" does.
- * @returns true when the normalized product and card names are not equal.
- */
 export function isCardNameMismatch(productName: string, cardName: string): boolean {
   const normProduct = normalizeNameForIdentity(productName);
   const normCard = normalizeNameForIdentity(cardName);
@@ -155,14 +135,8 @@ export function isCardNameMismatch(productName: string, cardName: string): boole
   return normProduct !== normCard;
 }
 
-/**
- * The language string to surface in the table's Language column for a staged
- * product. Cardmarket's price guide is language-aggregate, so every CM
- * staging row carries a placeholder "EN" regardless of the physical card's
- * real language — displaying it would falsely imply we've identified an
- * English product. Return null for CM so the UI renders a dash.
- * @returns Display string, or null when no meaningful language is known.
- */
+// Cardmarket's price guide is language-aggregate: every CM staging row carries a
+// placeholder "EN" regardless of the card's real language, so it renders as a dash.
 export function displayedProductLanguage(
   marketplace: AdminMarketplaceName,
   language: string | null,
@@ -191,9 +165,8 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
           ap.finish === product.finish &&
           ap.language === product.language,
       );
-      // Match assignments that apply to this specific (externalId, finish, language)
-      // tuple. Language-aggregate marketplaces (Cardmarket) store `null` for the
-      // assignment language, so a null assignment matches every row's language.
+      // Cardmarket stores `null` for the assignment language, so a null
+      // assignment matches every row's language.
       const matchingPrintings = assignments
         .filter(
           (a) =>
@@ -251,14 +224,6 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
   return entries;
 }
 
-/**
- * Group every strong-match (score ≥ {@link STRONG_MATCH_THRESHOLD}) suggestion
- * for unassigned products by marketplace. Language-aggregate marketplaces
- * (Cardmarket, TCG) can legitimately emit multiple strong siblings for the
- * same product — all of them are included so a batch accept materialises every
- * sibling mapping.
- * @returns A record keyed by marketplace with one entry per accepted mapping.
- */
 export function collectStrongMappings(
   group: UnifiedMappingGroup,
   suggestions: Map<string, ProductSuggestion[]> | undefined,
@@ -293,13 +258,6 @@ export function collectStrongMappings(
   return out;
 }
 
-/**
- * Group every weak (sibling-derived, `isWeak: true`) suggestion for unassigned
- * products by marketplace. Powers a separate "Accept N weak" button so admins
- * can batch-clear bogus marketplace listings (e.g. a Cardmarket "normal" SKU
- * on a foil-only card) once the legitimate sibling has been mapped.
- * @returns A record keyed by marketplace with one entry per weak mapping.
- */
 export function collectWeakMappings(
   group: UnifiedMappingGroup,
   suggestions: Map<string, ProductSuggestion[]> | undefined,
@@ -364,9 +322,8 @@ export function MarketplaceProductsTable({
     weakMappingsByMarketplace.tcgplayer.length +
     weakMappingsByMarketplace.cardmarket.length +
     weakMappingsByMarketplace.cardtrader.length;
-  // Ctrl+Enter falls through to weak suggestions only when no strong matches
-  // are available, so the hotkey never silently accepts low-confidence
-  // mappings while higher-confidence ones are waiting on the same page.
+  // Ctrl+Enter falls through to weak suggestions only when no strong matches are
+  // available, so it never silently accepts a low-confidence mapping over a strong one.
   const showWeakAcceptAll = totalStrongCount === 0 && totalWeakCount > 0;
   const anyMarketplacePending = Object.values(handlers).some((h) => h.isAssigningToPrinting);
 
@@ -539,9 +496,8 @@ function MarketplaceProductRow({
   const canReassign = !isAssigned && !product.isOverride;
   const nameMismatched = isCardNameMismatch(product.productName, cardName);
   const highlightLanguage = displayedProductLanguage(marketplace, product.language) ?? undefined;
-  // A marketplace that doesn't stock a language can't price its printings, so
-  // they drop out of the manual Assign dropdown the same way they drop out of
-  // the suggester.
+  // A marketplace that doesn't stock a language drops its printings from the
+  // manual Assign dropdown the same way it drops out of the suggester.
   const assignablePrintings = printings.filter((p) =>
     marketplaceCarriesLanguage(marketplace, p.language),
   );
@@ -763,11 +719,8 @@ function SuggestionChip({
   const { printing } = suggestion;
   const isWeak = suggestion.isWeak === true;
   const isStrong = !isWeak && suggestion.score >= STRONG_MATCH_THRESHOLD;
-  // Local pending flag gives synchronous click feedback — the parent's
-  // `disabled` (driven by mutation isPending) also applies but transitions
-  // later, and has the same value across every chip in the marketplace, so we
-  // can't tell which one the user actually clicked. Timeout resets it if the
-  // server somehow skips the save, so the chip doesn't get stuck.
+  // The parent's `disabled` transitions later and is shared across every chip in
+  // the marketplace, so this local flag gives the clicked chip synchronous feedback.
   const [pending, setPending] = useState(false);
   useEffect(() => {
     if (!pending) {
@@ -816,14 +769,6 @@ function SuggestionChip({
   );
 }
 
-/**
- * Render a printing's label as segmented spans so individual fields can be
- * highlighted. When the printing's language/finish match the caller's
- * `highlight*` values, those segments are underlined as a visual confirmation
- * — helping admins spot whether the assigned/suggested printing matches the
- * staged product's finish and language.
- * @returns A span containing the printing label with optional underlines.
- */
 function PrintingLabel({
   printing,
   highlightFinish,
@@ -907,9 +852,7 @@ function AssignToPrintingButton({
           const currentlyAssigned = assignedPrintingIds.has(printing.printingId);
           const assignedElsewhere =
             !currentlyAssigned && otherAssignedPrintingIds.has(printing.printingId);
-          // Printings are sorted by (language, shortCode), so any change in
-          // language OR set-prefix across adjacent items marks a group
-          // boundary. One separator covers either case — no doubles.
+          // Sorted by (language, shortCode); either changing marks a group boundary.
           const prev = index > 0 ? sorted[index - 1] : null;
           const needsSeparator =
             prev !== null &&

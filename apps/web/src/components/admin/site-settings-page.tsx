@@ -36,20 +36,13 @@ interface SettingDraft {
   scope: string;
 }
 
-// ── Known settings ──────────────────────────────────────────────────────────
 // Settings that application code reads. Other keys are stored but have no effect.
 
 interface KnownSetting {
   key: string;
   scope: "web" | "api";
   description: string;
-  /** Free-text settings only — a boolean is edited with a Switch. */
   placeholder?: string;
-  /**
-   * Booleans are stored as the strings `"true"` / `"false"` and rendered as a
-   * Switch instead of a text field. The server reads anything that isn't
-   * `"false"` as on, so a key that was never created stays on.
-   */
   type?: "boolean";
 }
 
@@ -87,12 +80,10 @@ const KNOWN_SETTINGS: KnownSetting[] = [
   },
 ];
 
-/** @returns The known-setting entry for `key`, or `undefined` for a custom key. */
 function knownSetting(key: string): KnownSetting | undefined {
   return KNOWN_SETTINGS.find((ks) => ks.key === key);
 }
 
-/** @returns Whether the stored string counts as on (anything but `"false"`). */
 function isSettingOn(value: string): boolean {
   return value !== "false";
 }
@@ -115,8 +106,7 @@ function ValueCell({ row }: AdminCellSlotProps<SiteSettingResponse>) {
   if (!row) {
     return null;
   }
-  // Booleans toggle in place — going through the row's edit mode to type the
-  // word "false" would be a poor switch for something that stops live sends.
+  // Booleans toggle here directly; they never go through the row's edit mode.
   if (knownSetting(row.key)?.type === "boolean") {
     const on = isSettingOn(row.value);
     return (
@@ -160,8 +150,8 @@ function ValueInput({ draft, setDraft }: AdminDraftSlotProps<SettingDraft>) {
   if (!draft || !setDraft) {
     return null;
   }
-  // A boolean row edits as a Switch here too, so the scope-editing path can't
-  // save a typo like "off" into a value the server only compares to "false".
+  // A boolean row edits as a Switch too, so this path can't save a typo like
+  // "off" into a value the server only compares to "false".
   if (knownSetting(draft.key)?.type === "boolean") {
     return (
       <Switch
@@ -241,8 +231,6 @@ const columns: AdminColumnDef<SiteSettingResponse, SettingDraft>[] = [
     addCell: <ScopeSelect />,
   },
 ];
-
-// ── Component ───────────────────────────────────────────────────────────────
 
 export function SiteSettingsPage() {
   const { data } = useSiteSettings();
@@ -334,8 +322,6 @@ export function SiteSettingsPage() {
   );
 }
 
-// ── Analytics exclusion (per-browser localStorage toggle) ───────────────────
-
 const UMAMI_DISABLED_KEY = "umami.disabled";
 
 function AnalyticsExclusionPanel() {
@@ -378,8 +364,6 @@ function AnalyticsExclusionPanel() {
     </Field>
   );
 }
-
-// ── Known setting placeholder row ───────────────────────────────────────────
 
 function KnownSettingRow({
   known,

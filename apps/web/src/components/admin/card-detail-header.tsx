@@ -28,33 +28,20 @@ import type { PrevNextSlugs } from "@/lib/admin-card-nav";
 
 interface CardDetailHeaderProps {
   card: AdminCardResponse;
-  /** Route slug currently in the URL, which may lag `expectedCardId`. */
   cardId: string;
-  /** Slug the card's current fields would generate; a mismatch offers a rename. */
   expectedCardId: string;
   sourceCount: number;
-  /** Any unchecked source on the card, which promotes the check-all button. */
   hasUnchecked: boolean;
   prevNextCards: PrevNextSlugs;
   isCheckingAll: boolean;
   onCheckAllAndNext: () => void;
   goToCard: (cardSlug: string) => void;
   goToList: () => void;
-  /** Opens the ban form in the Card Fields section, expanding it if folded. */
   onAddBan: () => void;
-  /** Opens the errata form in the Card Fields section, expanding it if folded. */
   onAddErrata: () => void;
-  /** Rename, delete, create-printing, bans and errata all stay full-admin. */
   isAdmin: boolean;
 }
 
-/**
- * Title row for the admin card detail page: review-run navigation, the
- * check-all-and-next action, the card-level overflow menu, and the slug line
- * that offers a regenerate when the stored slug no longer matches the fields.
- *
- * @returns The header element.
- */
 export function CardDetailHeader({
   card,
   cardId,

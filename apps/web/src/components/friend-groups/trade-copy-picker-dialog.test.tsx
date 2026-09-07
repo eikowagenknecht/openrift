@@ -14,7 +14,6 @@ const syncMutate = vi.fn((_variables: unknown, options?: { onSettled?: () => voi
   options?.onSettled?.();
 });
 
-// Mutated per test before rendering; read lazily inside the mocked queryFn.
 let currentOptions: CardTradeCopyOptionsResponse;
 let optionsFail = false;
 
@@ -66,8 +65,6 @@ function makeCopy(id: string, overrides: Partial<CardTradeCopyOption> = {}): Car
   };
 }
 
-// Two interchangeable copies plus one the giver would rather keep. The server
-// puts the plain ones first, so they are what an unchosen accept would pin.
 const PLAIN_A = makeCopy("copy-a", { collectionName: "Spare Foils" });
 const PLAIN_B = makeCopy("copy-b", { collectionName: "Bulk Box" });
 const GRADED = makeCopy("copy-graded", {
@@ -141,8 +138,6 @@ describe("TradeCopyPickerDialog", () => {
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(3);
-    // The server's order is plainest first, so `copies.slice(0, quantity)` is
-    // byte-for-byte what an accept without copyIds would promise.
     expect(checkboxes[0]).toBeChecked();
     expect(checkboxes[1]).toBeChecked();
     expect(checkboxes[2]).not.toBeChecked();
@@ -160,7 +155,6 @@ describe("TradeCopyPickerDialog", () => {
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(screen.getByText("Pick 1 more copy.")).toBeInTheDocument();
 
-    // Back to two, then one too many.
     await user.click(checkboxes[0]);
     await user.click(checkboxes[2]);
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
@@ -174,7 +168,6 @@ describe("TradeCopyPickerDialog", () => {
 
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
-    // Swap the second plain copy out for the graded one.
     await user.click(checkboxes[1]);
     await user.click(checkboxes[2]);
     await user.click(screen.getByRole("button", { name: "Accept" }));
@@ -196,8 +189,6 @@ describe("TradeCopyPickerDialog", () => {
     await screen.findByRole("dialog");
     expect(screen.getByRole("checkbox", { name: /PSA 9/u })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /Vault/u })).toBeInTheDocument();
-    // The two plain copies have nothing else to say, so the binder they sit in
-    // has to lead the row.
     expect(
       screen.getByRole("checkbox", { name: /^Spare Foils\s*No details$/u }),
     ).toBeInTheDocument();
@@ -225,7 +216,6 @@ describe("useTradeAcceptFlow", () => {
     await startAccept();
 
     await waitFor(() => expect(acceptMutate).toHaveBeenCalledTimes(1));
-    // No copyIds: the server pins the plainest copies itself.
     expect(acceptMutate.mock.calls[0][0]).toEqual({
       tradeId: "trade-1",
       groupSlug: "bothfeld",
@@ -274,18 +264,6 @@ describe("useTradeAcceptFlow", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Settle picker
-// ---------------------------------------------------------------------------
-
-/**
- * Drives the dialog the way the settle session does: the choice already exists
- * when the picker opens (the batch runner read the options and held the row
- * back), and the harness only records what the dialog hands back. The gating
- * that used to live in a per-row hook is `runSettleBatch`'s now, covered by
- * its own tests.
- * @returns The picker plus a button that opens it on `currentOptions`.
- */
 function SettleHarness() {
   const [choice, setChoice] = useState<TradeSettleChoice | null>(null);
   const flow: TradeSettleChoiceControl = {
@@ -313,11 +291,6 @@ function SettleHarness() {
   );
 }
 
-/**
- * The settle session's shape: several rows held back at once, answered one
- * after another in the same dialog, which never closes in between.
- * @returns The picker plus a button that starts the queue.
- */
 function SettleQueueHarness({ choices }: { choices: TradeSettleChoice[] }) {
   const [index, setIndex] = useState<number | null>(null);
   const choice = index === null ? null : (choices[index] ?? null);
@@ -355,8 +328,6 @@ async function openSettlePicker() {
 
 describe("TradeSettleCopyPickerDialog", () => {
   beforeEach(() => {
-    // What a reserved trade returns: the pinned copy first, then the free
-    // alternatives from the giver's other collections.
     currentOptions = {
       tradeId: "trade-1",
       quantity: 1,
@@ -383,7 +354,6 @@ describe("TradeSettleCopyPickerDialog", () => {
 
     await screen.findByRole("dialog");
     const checkboxes = screen.getAllByRole("checkbox");
-    // The graded copy stayed home; the one out of Bulk Box is what travelled.
     await user.click(checkboxes[0]);
     await user.click(checkboxes[2]);
     await user.click(screen.getByRole("button", { name: "Remove copy" }));

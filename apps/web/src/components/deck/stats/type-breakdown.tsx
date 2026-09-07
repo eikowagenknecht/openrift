@@ -16,34 +16,14 @@ import { cn } from "@/lib/utils";
 interface TypeBreakdownProps {
   data: TypeCount[];
   domains: Domain[];
-  /** When true, render a single primary-colored bar instead of domain-colored stacks. */
   singleColor?: boolean;
-  /** Print each column's total above its bar. */
   showTotals?: boolean;
-  /** Makes the bars clickable — called with the column's card-type slug. */
   onBarClick?: (type: string) => void;
-  /** Muted note rendered under the chart, e.g. the multi-type double-count disclosure. */
   footnote?: string;
-  /**
-   * Card-type slug of the focused column, if any. The matching column keeps
-   * full opacity and the rest dim, so the chart shows what the card grid below
-   * is filtered to. Null when the focus belongs to another chart or is cleared.
-   */
   focusValue?: string | null;
-  /**
-   * Counts matching another chart's focus, in the same row/stack shape as
-   * `data`. Each segment splits: the matching part keeps full strength, the
-   * filtered-out remainder fades. Types and domains missing here count as 0;
-   * domains are never taken from this data. Mutually exclusive with
-   * `focusValue` — a chart either owns the focus or reflects it.
-   */
+  /** Mutually exclusive with `focusValue` — a chart either owns the focus or reflects it. */
   hitData?: TypeCount[];
-  /** Skip the built-in "Types" heading when the host renders its own header row. */
   hideHeading?: boolean;
-  /**
-   * Paint columns in the neutral primary by default and reveal the
-   * domain-colored stacks only on the hovered column — see the curve charts.
-   */
   revealDomainsOnHover?: boolean;
 }
 
@@ -73,22 +53,17 @@ export function TypeBreakdown({
 }: TypeBreakdownProps) {
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
-  // Hovered column while `revealDomainsOnHover` is on.
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
   if (data.length === 0) {
     return null;
   }
 
-  // Per-column opacity for the focused-column treatment. Cells inherit the
-  // Bar's fill and only override the opacity.
   const columnOpacity = (type: string) =>
     focusValue === null || focusValue === undefined || type === focusValue ? 1 : 0.3;
 
   const chartMargin = { top: showTotals ? 14 : 0, right: 0, bottom: 0, left: 0 };
 
-  // Matched counts by type, so a column can show how another chart's focus
-  // cuts across it. Types missing here simply matched nothing.
   const hitByType = new Map((hitData ?? []).map((entry) => [entry.type, entry]));
   const hitKeyFor = (domain: string) => `${domain}__hit`;
 
@@ -98,8 +73,7 @@ export function TypeBreakdown({
     const hits: Record<string, number> = {};
     let hitTotal = 0;
     for (const domain of domains) {
-      // Read by SplitCrispBar only — never a dataKey, so these stay out of the
-      // series list, the tooltip and the column total.
+      // Kept off dataKey so it stays out of the series list, tooltip, and column total; SplitCrispBar reads it directly.
       const hit = Math.min((entry[domain] as number) ?? 0, (hitEntry?.[domain] as number) ?? 0);
       hits[hitKeyFor(domain)] = hit;
       hitTotal += hit;
@@ -112,11 +86,8 @@ export function TypeBreakdown({
     };
   });
 
-  // The x-axis shows display labels ("12 Units"), not the type slug, so the
-  // click is resolved by position: recharts 3 hands external handlers only the
-  // active index and label — `activePayload` was a v2 field and is gone, which
-  // is why reading it silently never fired. Param stays `unknown`: recharts'
-  // chart-state type isn't structurally assignable to a narrowed shape.
+  // recharts 3's external click handler has no `activePayload`, so this resolves by index instead.
+  // Stays `unknown`: recharts' chart-state type isn't structurally assignable to a narrowed shape.
   const handleChartClick = onBarClick
     ? (state: unknown) => {
         const index = activeRowIndex(state as ChartClickState, labeledData.length);
@@ -212,9 +183,7 @@ export function TypeBreakdown({
                 <Cell
                   key={entry.type}
                   fillOpacity={columnOpacity(entry.type)}
-                  // Always a concrete color — an explicit `fill={undefined}`
-                  // overrides the Bar's fill and paints SVG-default black.
-                  // Neutral until hovered; see the curve charts.
+                  // `fill={undefined}` overrides the Bar's fill and paints SVG-default black, so this stays a concrete color.
                   fill={
                     revealDomainsOnHover && hoverIndex !== rowIndex
                       ? "var(--color-primary)"

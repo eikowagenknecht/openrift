@@ -49,27 +49,17 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: "price", label: "Price" },
 ];
 
-// Every shared axis in GROUP_BY_FIELDS order, minus "collection": that one is
-// copies-only, so the single surface offering it (/collections) appends it
-// rather than every other surface having to filter it back out.
-// Exported so those surfaces extend this list instead of restating the labels.
+// Excludes "collection" (copies-only); only /collections appends it back.
 export const defaultGroupByOptions = groupByOptionsFor(
   GROUP_BY_FIELDS.filter((field) => !isCopiesOnlyGrouping(field)),
 );
 
-// Persistent primary fill for the active toggle option, overriding the base
-// toggle's muted active state (including on hover) to match the prior
-// variant="default" Button look. Exported so surfaces with their own toggles
-// outside this bar (the deck overview's view controls) read the same when on.
 export const activeToggleClass =
   "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
 
 /**
- * The default group-by options available in the given view. Cards view drops
- * the printings-only axes (card / marker / distribution channel), which collapse
- * every card into one bucket there — or, for card, into a section apiece (see
- * isPrintingsOnlyGrouping).
- * @returns The group-by options for `view`.
+ * Cards view drops the printings-only axes (card / marker / distribution
+ * channel), which collapse every card into one bucket there.
  */
 function groupByOptionsForView(view: "cards" | "printings" | "copies") {
   return view === "cards"
@@ -79,16 +69,12 @@ function groupByOptionsForView(view: "cards" | "printings" | "copies") {
 
 /**
  * Docks or undocks the card detail pane. Off by default, in which case a card
- * click opens the detail modal instead — clicking then never reflows the grid
- * under the pointer. Not rendered on phones, where the detail is always the
- * fullscreen drawer and there is no pane to dock.
+ * click opens the detail modal instead. Not rendered on phones, where the
+ * detail is always the fullscreen drawer and there is no pane to dock.
  *
- * Exported rather than placed inside {@link DesktopOptionsBar} because it sits
- * at the far right of whatever row hosts it, after any surface-specific extras:
- * `BrowserToolbar` renders it last, and the two surfaces with a detail pane but
- * no toolbar at all (the deck overview and the public deck share, both via
- * `DeckOverview`) end their own view-controls cluster with it.
- * @returns The pane toggle, or null on mobile.
+ * Exported from {@link DesktopOptionsBar} because it also ends the
+ * view-controls cluster on surfaces with a detail pane but no toolbar
+ * (the deck overview and the public deck share).
  */
 export function DetailPaneToggle({ className }: { className?: string }) {
   const paneDocked = useDisplayStore((state) => state.paneDocked);
@@ -96,10 +82,8 @@ export function DetailPaneToggle({ className }: { className?: string }) {
   const closeDetail = useSelectionStore((state) => state.closeDetail);
   const isMobile = useIsMobile();
 
-  // Undocking clears the selection too, mirroring the pane's own X
-  // (SelectionDetailPane.handleClose). Flipping paneDocked alone leaves
-  // detailOpen set, which is exactly what the modal opens on, so the card the
-  // user just hid would reappear in a dialog.
+  // Undocking must also clear the selection (mirrors SelectionDetailPane's
+  // own X); otherwise detailOpen stays set and the hidden card reopens as a modal.
   const handlePressedChange = (next: boolean) => {
     setPaneDocked(next);
     if (!next) {
@@ -256,10 +240,6 @@ function ViewModeToggle({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Shared hook                                                        */
-/* ------------------------------------------------------------------ */
-
 function useOptionsBarState() {
   const { sortBy, sortDir, hasActiveFilters, view, groupBy, groupDir } = useFilterValues();
   const { setSortBy, setSortDir, setView, setGroupBy, setGroupDir } = useFilterActions();
@@ -298,10 +278,6 @@ function useOptionsBarState() {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  DesktopOptionsBar — visible sm and up                              */
-/* ------------------------------------------------------------------ */
-
 export function DesktopOptionsBar({
   className,
   showCopies,
@@ -315,20 +291,8 @@ export function DesktopOptionsBar({
   hideViewToggle?: boolean;
   /** Drop the grid/table toggle on a surface that renders no table (the pickers). */
   hideDisplayModeToggle?: boolean;
-  /**
-   * Override the default group-by options (e.g. /promos uses
-   * channel/card/year/marker). `value` is widened to `string` because
-   * surface-specific keys like "card" aren't in the shared `GroupByField` —
-   * the URL is loosely typed and each surface re-parses on read.
-   */
+  /** `value` is `string`: surface-specific keys like "card" aren't in the shared `GroupByField`. */
   groupByOptions?: { value: string; label: string }[];
-  /**
-   * Override the displayed group-by value. Surfaces with their own valid
-   * group-by set (e.g. /promos, where the URL default "set" isn't a valid
-   * promo grouping) pass the normalized value so the dropdown shows a real
-   * option instead of the raw URL string. Falls back to `filterState.groupBy`
-   * when not provided.
-   */
   groupByValue?: string;
 }) {
   const {
@@ -346,8 +310,6 @@ export function DesktopOptionsBar({
     displayMode,
   } = useOptionsBarState();
 
-  // Surfaces that pass their own options (e.g. /promos) keep them; otherwise the
-  // defaults are narrowed to what makes sense in the current view.
   const options = groupByOptions ?? groupByOptionsForView(view);
 
   return (
@@ -370,16 +332,10 @@ export function DesktopOptionsBar({
         <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
       )}
       {!hideDisplayModeToggle && <DisplayModeToggle />}
-      {/* A surface with no table is always a grid, whatever the shared display
-          preference says, so its column controls stay up. */}
       {(hideDisplayModeToggle || displayMode === "grid") && <ColumnControls {...columnProps} />}
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  MobileOptionsDrawer — generic drawer shell                         */
-/* ------------------------------------------------------------------ */
 
 export function MobileOptionsDrawer({
   doneLabel,
@@ -390,14 +346,6 @@ export function MobileOptionsDrawer({
   children?: ReactNode;
   className?: string;
 }) {
-  // Published so data hooks can skip computing the faceted filter counts while
-  // no chip surface is visible (on phones that's whenever the drawer is
-  // closed). keepMounted keeps the filter panel mounted across open/close so
-  // an open just replays the slide-in instead of paying the full panel mount
-  // (~300ms on a mid-range phone). The idle pre-mount extends that to the
-  // FIRST open: shortly after load, once the main thread is idle, the panel
-  // mounts hidden. Desktop (sm and up) never opens this drawer, so it never
-  // pre-mounts there.
   const openedOnce = useFilterDrawerStore((state) => state.openedOnce);
   const setDrawerOpen = useFilterDrawerStore((state) => state.setOpen);
   const smUp = useSmUp();
@@ -426,9 +374,6 @@ export function MobileOptionsDrawer({
         }
         aria-label="Options"
       />
-      {/* data-ending-style:duration-250: the grid behind is already updated
-          when "Show N cards" is tapped, so a quicker exit reads as snappier —
-          the 450ms default made the dismiss the slowest part of filtering. */}
       <DrawerContent
         className="pb-4 data-ending-style:duration-250"
         keepMounted={openedOnce || idlePremounted}
@@ -447,10 +392,6 @@ export function MobileOptionsDrawer({
     </Drawer>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Mobile drawer sections — self-contained, composable                */
-/* ------------------------------------------------------------------ */
 
 export function MobileOptionsContent({
   showCopies,

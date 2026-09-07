@@ -26,8 +26,6 @@ vi.mock("@tanstack/react-router", () => ({
   },
 }));
 
-// The layout shell pulls in sticky-offset context and store reads that aren't
-// what this component is responsible for; the grid slot is.
 vi.mock("@/components/card-browser-layout", () => ({
   CardBrowserLayout: ({ gridSlot }: { gridSlot: ReactNode }) => <div>{gridSlot}</div>,
 }));
@@ -91,14 +89,12 @@ describe("ProductContentsPreview", () => {
     expect(getByText("OGN-001/298")).toBeTruthy();
   });
 
-  it("falls back to a placeholder box when a printing has no image", () => {
+  it("falls back to a placeholder box and keeps the link when a printing has no image", () => {
     const noArt = [stubPrinting({ id: "p3", images: [], card: { slug: "artless" } })];
     const { container } = render(
       <ProductContentsPreview printings={noArt} quantityByPrintingId={{}} />,
     );
     expect(container.querySelectorAll("img").length).toBe(0);
-    // The link must still exist — a missing render shouldn't cost the card its
-    // inbound link from the product page.
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/cards/artless");
   });
 });

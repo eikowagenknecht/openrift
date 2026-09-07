@@ -31,8 +31,7 @@ vi.mock("@/hooks/use-enums", () => ({
     domainColors: {},
     rarityColors: {},
   }),
-  // Taxonomy order, deliberately not alphabetical, so the tab-order test proves
-  // the picker follows /init rather than sorting the codes itself.
+  // Deliberately not alphabetical: the tab-order test proves the picker follows this order.
   useLanguageList: () => [
     { code: "EN", name: "English", color: null },
     { code: "JA", name: "Japanese", color: null },
@@ -89,9 +88,6 @@ describe("PrintingPicker", () => {
     expect(row?.tagName).not.toBe("BUTTON");
   });
 
-  // The 30-day history is only a fallback for rows with no current price.
-  // Fetching it unconditionally fans out into one price-history call per
-  // printing every time a card is selected (Sentry: N+1 API call on /cards).
   it("skips the price-history fetch when an inline price exists", () => {
     priceGetMock.mockReturnValue(4.2);
     const printing = stubPrinting();
@@ -128,7 +124,6 @@ describe("PrintingPicker", () => {
 
       render(<PrintingPicker current={printings[1]} printings={printings} onSelect={() => {}} />);
 
-      // Each trigger is the bare language code followed by that language's row count.
       expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
         "EN1",
         "JA1",
@@ -153,8 +148,6 @@ describe("PrintingPicker", () => {
         <PrintingPicker current={english} printings={[english, german]} onSelect={() => {}} />,
       );
 
-      // Scoped to the open panel, which is the only one that should exist —
-      // a closed language's rows must not linger in the accessibility tree.
       expect(
         within(screen.getByRole("tabpanel")).getAllByRole("button", { name: "owned" }),
       ).toHaveLength(1);
@@ -176,8 +169,6 @@ describe("PrintingPicker", () => {
     });
 
     it("falls back to the first tab when the shown card's language has no rows", () => {
-      // A surface can hand the picker a filtered sibling set that excludes the
-      // shown card's own language.
       const current = stubPrinting({ language: "JA" });
       const printings = [stubPrinting({ language: "EN" }), stubPrinting({ language: "DE" })];
 

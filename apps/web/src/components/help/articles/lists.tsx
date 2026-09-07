@@ -27,7 +27,6 @@ export default function ListsArticle() {
         and OpenRift matches your wants against other members&apos; haves.
       </p>
 
-      {/* Wishlist vs tradelist at a glance */}
       <div className="grid gap-3 sm:grid-cols-2">
         <FeatureCard
           icon={<HeartIcon className="size-4" />}
@@ -41,7 +40,6 @@ export default function ListsArticle() {
         />
       </div>
 
-      {/* Kinds */}
       <section>
         <Heading className="mb-2">What lists can be made of</Heading>
         <p className="text-muted-foreground">
@@ -67,7 +65,6 @@ export default function ListsArticle() {
         </DefinitionList>
       </section>
 
-      {/* Creating a wishlist */}
       <section>
         <Heading className="mb-2">Creating a wishlist</Heading>
         <p className="text-muted-foreground">
@@ -93,7 +90,6 @@ export default function ListsArticle() {
         </div>
       </section>
 
-      {/* Filling a wishlist */}
       <section>
         <Heading className="mb-2">Filling a wishlist</Heading>
         <p className="text-muted-foreground">
@@ -135,7 +131,6 @@ export default function ListsArticle() {
         </div>
       </section>
 
-      {/* Creating a tradelist */}
       <section>
         <Heading className="mb-2">Creating a tradelist</Heading>
         <p className="text-muted-foreground">
@@ -161,7 +156,6 @@ export default function ListsArticle() {
         </div>
       </section>
 
-      {/* Filling a tradelist */}
       <section>
         <Heading className="mb-2">Filling a tradelist</Heading>
         <p className="text-muted-foreground">
@@ -190,7 +184,6 @@ export default function ListsArticle() {
         </p>
       </section>
 
-      {/* Trade preferences */}
       <section>
         <Heading className="mb-2">Setting prices and trade preferences</Heading>
         <p className="text-muted-foreground">
@@ -228,7 +221,6 @@ export default function ListsArticle() {
         </p>
       </section>
 
-      {/* Adjusting quantities and removing entries */}
       <section>
         <Heading className="mb-2">Adjusting quantities and removing entries</Heading>
         <p className="text-muted-foreground">
@@ -239,7 +231,6 @@ export default function ListsArticle() {
         </p>
       </section>
 
-      {/* Moving copies into another collection */}
       <section>
         <Heading className="mb-2">Filing a copy list into another collection</Heading>
         <p className="text-muted-foreground">
@@ -259,7 +250,6 @@ export default function ListsArticle() {
         </p>
       </section>
 
-      {/* Importing and exporting */}
       <section>
         <Heading className="mb-2">Importing and exporting</Heading>
         <p className="text-muted-foreground">
@@ -274,7 +264,6 @@ export default function ListsArticle() {
         </p>
       </section>
 
-      {/* Sharing with a group */}
       <section>
         <Heading className="mb-2">Sharing a list with a group</Heading>
         <p className="text-muted-foreground">
@@ -289,7 +278,6 @@ export default function ListsArticle() {
         </p>
       </section>
 
-      {/* Organize lists */}
       <section>
         <Heading className="mb-2">A note on organize lists</Heading>
         <p className="text-muted-foreground">

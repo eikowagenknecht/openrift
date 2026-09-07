@@ -20,14 +20,6 @@ import {
   tournamentContextLabel,
 } from "@/lib/tournament-display";
 
-/**
- * The hero's band content, by the fallback ladder: submitted legend art →
- * dashed fan (deck submission on, nothing in yet) → participant avatar
- * cluster → a quiet trophy emblem. The dashed fan is reserved for events that
- * actually collect decks, so nothing reads as "missing" on ones that don't.
- *
- * @returns The band content.
- */
 function HeroBandContent({ tournament }: { tournament: TournamentSummaryResponse }) {
   if (tournament.coverLegends.length > 0) {
     return (
@@ -61,17 +53,9 @@ function HeroBandContent({ tournament }: { tournament: TournamentSummaryResponse
 
 interface NextEventHeroProps {
   tournament: TournamentSummaryResponse;
-  /** Label the event with its group / org host (the cross-group personal list). */
   showContext?: boolean;
 }
 
-/**
- * The events hero: the next (or live) tournament as a large tile with a
- * date leaf, countdown, facepile, and a card-art band. The whole tile links to
- * the tournament page.
- *
- * @returns The hero tile.
- */
 export function NextEventHero({ tournament, showContext = false }: NextEventHeroProps) {
   const { labels: formatLabels } = useDeckFormatList();
   const state = effectiveTournamentState(tournament.startsAt, tournament.endsAt, tournament.status);

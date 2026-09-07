@@ -1,8 +1,3 @@
-/**
- * Reusable form primitives shared by the contribute form (ADR data entry) and
- * the card designer (ADR-023). Extracting them keeps a single source of truth
- * for the labelled field row, number input, single-select, and chip input.
- */
 import { InfoIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -32,14 +27,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-/**
- * A labelled field with optional required marker, hint, and inline error. The
- * hint renders as a small info button next to the label that opens on click or
- * tap, rather than always-on helper text — this keeps grid rows a uniform
- * height so fields line up in columns instead of going ragged.
- *
- * @returns The field row element.
- */
+// Hint renders as an info button that opens on click, not always-on helper
+// text, so grid rows keep a uniform height.
 export function FieldRow({
   label,
   hint,
@@ -68,12 +57,6 @@ export function FieldRow({
   );
 }
 
-/**
- * Info affordance for a {@link FieldRow} hint: a muted icon that opens the hint
- * text in a popover on click/tap (works on touch, unlike a hover tooltip).
- *
- * @returns The hint popover element.
- */
 function FieldHint({ label, hint }: { label: string; hint: string }) {
   return (
     <Popover>
@@ -96,11 +79,6 @@ function FieldHint({ label, hint }: { label: string; hint: string }) {
   );
 }
 
-/**
- * An integer input that maps an empty value to `null`.
- *
- * @returns The number input element.
- */
 export function NumberInput({
   value,
   onChange,
@@ -128,12 +106,6 @@ export function NumberInput({
   );
 }
 
-/**
- * A single-select dropdown over slugs with a label lookup. Maps an empty
- * selection to `null`.
- *
- * @returns The select element.
- */
 export function SingleSelect({
   value,
   onChange,
@@ -169,11 +141,6 @@ export function SingleSelect({
   );
 }
 
-/**
- * A free-text chip input: type and press Enter or comma to add a chip.
- *
- * @returns The chip input element.
- */
 export function ChipInput({
   value,
   onChange,
@@ -219,12 +186,6 @@ export function ChipInput({
   );
 }
 
-/**
- * A multi-select dropdown over `{ slug, label }` options with a chips-style
- * summary. Used for promo markers in the contribute form.
- *
- * @returns The combobox element.
- */
 export function MultiSelectDropdown({
   value,
   onChange,

@@ -62,9 +62,8 @@ function ProductQuantityCell({
   return <StaticCountTableActions count={quantityByPrintingId[printing.id] ?? 0} />;
 }
 
-// Products are curated snapshots: distribution/marker/tag filters add noise on
-// a fixed set. "owned" stays for logged-in viewers ("which kit cards am I
-// missing?") and is hidden for anonymous ones (no inventory to filter on).
+// Products are curated fixed sets: distribution/marker/tag filters add noise.
+// "owned" stays for logged-in viewers, hidden for anonymous ones.
 const PRODUCT_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "owned",
   "markers",
@@ -82,15 +81,8 @@ interface ProductDetailViewProps {
   search: FilterSearch;
 }
 
-/**
- * Public product page (ADR-015): a read-only card-browser surface over the
- * product's fixed printing set. No add strips — browsing a product never
- * touches collections. The one deliberate write path is the top-bar
- * "Add to collection" action, which bulk-adds the product's contents via
- * an explicit confirm dialog.
- *
- * @returns The product page node.
- */
+// Read-only card-browser surface over the product's fixed printing set. No
+// add strips; the top-bar "Add to collection" action is the one write path.
 export function ProductDetailView({ data, search }: ProductDetailViewProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -111,7 +103,6 @@ export function ProductDetailView({ data, search }: ProductDetailViewProps) {
                 <PageTopBarTitle>{product.name}</PageTopBarTitle>
                 <span className="text-muted-foreground hidden shrink-0 text-xs sm:inline">
                   {formatProductCounts(product.cardTotal, product.printingCount)}
-                  {/* Prices are a client-only suspense query — mount after hydration. */}
                   {hydrated && (
                     <Suspense fallback={null}>
                       <ProductValue contents={data.contents} />
@@ -146,14 +137,7 @@ export function ProductDetailView({ data, search }: ProductDetailViewProps) {
   );
 }
 
-/**
- * Total worth of the product's contents (quantity × price at the viewer's
- * favorite marketplace), like the collection headers show. Printings without
- * a price are counted separately instead of silently reading as free.
- *
- * @returns The value fragment for the top-bar stats line, or null while
- * nothing is priced.
- */
+// Printings without a price are counted separately; they do not count as free.
 function ProductValue({ contents }: { contents: ProductDetailResponse["contents"] }) {
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = (marketplaceOrder[0] ?? "cardtrader") as Marketplace;
@@ -182,13 +166,6 @@ function ProductValue({ contents }: { contents: ProductDetailResponse["contents"
   );
 }
 
-/**
- * Deduplicates the product's printings by card, keeping the payload's
- * canonical order. The preview shows one cell per card, like the grid's
- * "cards" view, so reprints inside a kit don't render twice.
- *
- * @returns One printing per distinct card.
- */
 function uniqueByCard(printings: readonly Printing[]): Printing[] {
   const seen = new Set<string>();
   const unique: Printing[] = [];
@@ -208,9 +185,7 @@ function ProductDetailBody({ data }: { data: EnrichedProductDetail }) {
   for (const content of data.contents) {
     quantityByPrintingId[content.printingId] = content.quantity;
   }
-  // The live grid is virtualized and renders nothing server-side, so the
-  // served HTML gets a plain non-virtualized pass over the same cards. It
-  // doubles as the Suspense fallback: the page never drops back to a spinner
+  // Doubles as the Suspense fallback: the page never drops back to a spinner
   // once the contents have painted.
   const preview = (
     <ProductContentsPreview
@@ -231,8 +206,7 @@ function ProductDetailBody({ data }: { data: EnrichedProductDetail }) {
 function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
   const { printingsById, sets } = data;
   // The detail pane lists every printing of the clicked card from the global
-  // catalog, not just the ones in this product, so it still reads the client
-  // catalog. It only opens post-hydration, where that fetch is already warm.
+  // catalog, not just the ones in this product.
   const { printingsByCardId: catalogAllPrintingsByCardId } = useCards();
   const display = useCardThumbnailDisplay();
   const showImages = useDisplayStore((state) => state.showImages);
@@ -241,14 +215,11 @@ function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
   const isMobile = useIsMobile();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
-  // The viewer's owned counts drive the Owned/Copies filters — "owned" means
-  // "in my collections", not anything about this product.
   const { data: viewerOwnedByPrinting } = useOwnedCount(isLoggedIn);
 
   const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
-  // Contents are printings with per-printing quantities; a cards view would
-  // collapse variants and show one representative's quantity. Pin the view.
+  // Pinned: a cards view would collapse variants and lose per-printing quantity.
   const view = "printings" as const;
 
   const quantityByPrintingId: Record<string, number> = {};
@@ -261,8 +232,7 @@ function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
     }
   }
 
-  // Only feed the owned map into useCardData when an owned filter is active so
-  // the grid doesn't churn as the viewer's inventory updates elsewhere.
+  // Feed the owned map into useCardData only when an owned filter is active.
   const ownedFilterActive =
     filters.ownedFilter.length > 0 ||
     filters.ownedCountMin !== null ||
@@ -295,8 +265,6 @@ function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
     channels,
   });
 
-  // The detail-pane picker lists every printing of the clicked card from the
-  // global catalog, not just the ones in this product.
   const detailPanePrintingsByCardId = filterPrintingsByLanguages(
     catalogAllPrintingsByCardId,
     filters.languages,
@@ -320,9 +288,8 @@ function ProductDetailGrid({ data }: { data: EnrichedProductDetail }) {
     }
   };
 
-  // The pill shows the kit quantity (what the product ships). The grid stays
-  // ownership-neutral — no owned dimming; the viewer's collection shows up
-  // only in the detail pane and through the Owned filter section.
+  // Grid stays ownership-neutral (no owned dimming); the viewer's collection
+  // shows up only in the detail pane and the Owned filter.
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => (
     <CardCell
       printing={item.printing}

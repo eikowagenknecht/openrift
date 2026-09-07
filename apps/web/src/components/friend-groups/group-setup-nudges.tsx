@@ -9,17 +9,7 @@ import { useRequiredUserId } from "@/lib/auth-session";
 import type { GroupNudgeKind } from "@/stores/onboarding-store";
 import { groupNudgeKey, useOnboardingStore } from "@/stores/onboarding-store";
 
-/**
- * The two things a member has to set up before the group works for them:
- * a contact method the others can see, and at least one shared list. Both are
- * invisible omissions — nothing on the page looks broken, the member just
- * never shows up in anyone's matches — so the overview says so out loud.
- *
- * Returns the kinds that are still missing. The viewer's membership row is
- * required: without it there is nothing to read a reveal state off, and the
- * detail payload is either still loading or the viewer isn't a member.
- * @returns The nudges that apply, in display order.
- */
+/** Empty when the viewer isn't in data.members yet (still loading, or not a member). */
 export function pendingGroupNudges(
   data: FriendGroupDetailResponse,
   viewerId: string,
@@ -42,7 +32,6 @@ interface NudgeCopy {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   title: string;
   description: string;
-  /** Anchor on the group's Manage page where the setting lives. */
   hash: string;
   actionLabel: string;
   helpLabel: string;
@@ -69,12 +58,6 @@ const NUDGE_COPY: Record<GroupNudgeKind, NudgeCopy> = {
   },
 };
 
-/**
- * The dismissible setup nudges at the top of the group overview. Each one is
- * dismissed per group, so leaving it on one group doesn't hide the same gap on
- * another. Renders nothing once both are handled or dismissed.
- * @returns The nudge stack, or null.
- */
 export function GroupSetupNudges({
   slug,
   data,

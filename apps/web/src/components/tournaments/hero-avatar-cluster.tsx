@@ -2,8 +2,6 @@ import type { TournamentParticipantPreview } from "@openrift/shared";
 
 import { UserAvatar } from "@/components/user-avatar";
 
-// Loose organic spread for the avatar-cluster band (percent offsets from the
-// band's top-left), indexed to the facepile preview order.
 const CLUSTER_SPOTS = [
   { left: "50%", top: "40%", size: "lg" },
   { left: "31%", top: "28%", size: "default" },
@@ -12,14 +10,7 @@ const CLUSTER_SPOTS = [
   { left: "73%", top: "26%", size: "sm" },
 ] as const;
 
-/**
- * The people variant of the hero band: participant avatars loosely clustered
- * on the glow, for events that never collect decks and for the tournament
- * page's own hero. Shared by the events lens and the tournament overview so
- * the two spreads can't drift.
- *
- * @returns The cluster elements (host must be relative).
- */
+/** Host element must be `position: relative`; children are absolutely positioned. */
 export function HeroAvatarCluster({
   preview,
   totalCount,

@@ -38,34 +38,14 @@ import { cn } from "@/lib/utils";
 
 export interface MetaScopeBarProps extends MetaScopeControls {
   eras: readonly MetaEra[];
-  /**
-   * The country codes worth offering, which is the set the page's own payload
-   * covers. A control that offers a country nothing was played in is a dead end,
-   * and there is no endpoint that would know better than the caller.
-   */
   countries?: readonly string[];
-  /**
-   * A surface's own controls, rendered inside the bar so they wrap with it
-   * rather than forming a second row of filters below it.
-   */
   extras?: ReactNode;
-  /** Whether {@link extras} are narrowing anything, so Reset offers itself. */
   extrasActive?: boolean;
-  /** What a facet the URL says nothing about includes on this surface. */
   facetDefaults?: ScopeFacetDefaults;
   showTier?: boolean;
   className?: string;
 }
 
-/**
- * The one scope bar every archive page carries: which era, format, tier and
- * country the page is about. Controlled, so the route owns the URL and the bar
- * can be driven straight from a test.
- *
- * The era is a single window, so it stays a select. The three value facets cycle
- * off → include → exclude → off like the card browser's, so a reader who wants
- * every country but one picks the one.
- */
 export function MetaScopeBar({
   scope,
   setScope,
@@ -106,8 +86,7 @@ export function MetaScopeBar({
         items={eraItems}
         className="w-44"
         onValueChange={(next) =>
-          // Leaving the custom range drops its bounds with it, so a later return
-          // to it opens empty instead of re-applying dates the reader cannot see.
+          // Leaving the custom range clears from/to; it does not re-apply hidden dates.
           setScope(
             next === ERA_CUSTOM
               ? { era: ERA_CUSTOM }
@@ -164,10 +143,6 @@ export function MetaScopeBar({
   );
 }
 
-/**
- * One value facet as a cycling include/exclude dropdown. The trigger names the
- * facet while nothing is picked, then the picks themselves.
- */
 function ScopeFacet({
   label,
   facet,
@@ -190,8 +165,6 @@ function ScopeFacet({
     <MultiSelectCombobox
       label={label}
       triggerStyle={triggerStyle}
-      // The bar's button triggers share the h-8 of the search input and the
-      // era select beside them, not the compact filter bar's h-7.
       triggerSize="default"
       options={options}
       selected={[...included]}
@@ -202,18 +175,11 @@ function ScopeFacet({
   );
 }
 
-/** How many values a facet is holding, either bucket. */
 function facetCount(scope: MetaScope, facet: MetaScopeFacet): number {
   const { included, excluded } = scopeFacetValues(scope, facet);
   return included.length + excluded.length;
 }
 
-/**
- * Format and country, one click in. Both are set once and then read rather than
- * adjusted, so they cost the bar more room than they earn beside the era and
- * tier a reader actually works with. The count on the trigger is what is picked
- * inside, the default format included, so a filtered page never looks unfiltered.
- */
 function ScopeFilterMenu({
   scope,
   setScope,
@@ -234,11 +200,7 @@ function ScopeFilterMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        // Default size, so the trigger shares the bar's h-8 control height.
-        render={<Button variant="outline" />}
-        aria-label="More filters"
-      >
+      <DropdownMenuTrigger render={<Button variant="outline" />} aria-label="More filters">
         <SlidersHorizontalIcon className="size-4" />
         Filters
         {active > 0 && <span className="text-muted-foreground tabular-nums">({active})</span>}
@@ -269,12 +231,6 @@ function ScopeFilterMenu({
   );
 }
 
-/**
- * One select, showing its fallback rather than the raw key when the URL carries
- * a value the options no longer hold. A bookmarked `?era=retired-set` scopes as
- * all time, and BaseUI would otherwise label the trigger with the dead slug
- * while the page showed everything.
- */
 function ScopeSelect({
   label,
   value,
@@ -292,8 +248,7 @@ function ScopeSelect({
 }) {
   const shown = value in items ? value : fallback;
   return (
-    // BaseUI hands back null when a select is cleared, which for these means the
-    // unnarrowed option rather than an absent value.
+    // BaseUI passes null on clear; map it to fallback.
     <Select value={shown} onValueChange={(next) => onValueChange(next ?? fallback)} items={items}>
       <SelectTrigger className={className} aria-label={label}>
         <SelectValue />

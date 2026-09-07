@@ -23,24 +23,14 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-/**
- * Sections a picker never shows. What the creator personally owns has nothing
- * to do with which cards they want to rank or talk about, and custom tags are a
- * collection concept for the same reason.
- */
 const PICKER_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
   "owned",
   "customTags",
   "copies",
 ]);
 
-/**
- * Views a picker offers. "copies" is an inventory view over what you own, which
- * is not what any picker is choosing between, so it is clamped away.
- */
 type PickerView = "cards" | "printings";
 
-/** Everything a picker's cell needs; the surface supplies the component. */
 export interface PickerCellProps {
   item: CardViewerItem;
   ctx: CardRenderContext;
@@ -53,43 +43,13 @@ export interface PickerCellProps {
 }
 
 interface PickerCardBrowserProps {
-  /**
-   * The cell component. Deliberately a component rather than a render function:
-   * a cell subscribes to its own slice of the surface's store (its tier, its
-   * queue count), and that subscription has to live inside a component of its
-   * own or every cell in the grid re-renders on every pick.
-   */
   cell: ComponentType<PickerCellProps>;
-  /**
-   * Rebuilds the cell's pick control for the card shown in the detail pane,
-   * drawer or modal, so an overlay never hides the control it covers. On a
-   * phone the drawer is the whole interaction surface, so without this a card
-   * could not be picked from its own detail view.
-   */
   detailActions: (printing: Printing, view: PickerView) => ReactNode;
-  /** Drops the cards/printings toggle for a surface that only deals in cards. */
   hideViewToggle?: boolean;
-  /** Ref on the browser's own container, e.g. a drop target that unranks. */
   containerRef?: Ref<HTMLDivElement>;
-  /** Extra classes on that container. */
   className?: string;
 }
 
-/**
- * The catalogue as a standard card browser with a pick control on every cell.
- *
- * This is the shared half of the tier-list pool and the presentation queue
- * builder: both filter the whole catalogue down to a set, a domain or a keyword
- * and then choose cards one at a time, and everything about how that browser is
- * assembled — the filter chrome, the data hook, the detail pane and its
- * overlays — is the same on both. What differs is only what a cell offers, which
- * arrives as `cell` and `detailActions`.
- *
- * Deliberately subscribes to no pick state of its own. The counts and rank pills
- * live on the cells, so picking a card never re-renders the grid around it.
- *
- * @returns The browser node.
- */
 export function PickerCardBrowser({
   cell: Cell,
   detailActions,
@@ -137,8 +97,6 @@ export function PickerCardBrowser({
     sortDir,
     view,
     groupBy,
-    // The owned filters are hidden here (see PICKER_HIDDEN_FILTER_SECTIONS), so
-    // there is no owned map to feed in.
     ownedCountByPrinting: undefined,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
@@ -152,10 +110,8 @@ export function PickerCardBrowser({
     filters.languages,
   );
 
-  // Grouping by set or rarity renders one tile per (card, group), so several
-  // cells share a cardId and a click has to find its cell by printing —
-  // otherwise clicking a reprint's tile jumps the selection back to the first
-  // tile carrying that card.
+  // A split grouping renders one tile per (card, group), so a click must find its
+  // cell by printing, not card, or it jumps to the first tile carrying that card.
   const inCardsView = view === "cards";
   const findBy: "card" | "printing" =
     inCardsView && !splitsCardIntoTiles(groupBy) ? "card" : "printing";
@@ -181,8 +137,6 @@ export function PickerCardBrowser({
       showImages={showImages}
       view={view}
       siblings={
-        // Scoped to the tile when the grouping splits a card, so the variant
-        // chevron on a set-grouped tile offers that set's printings only.
         inCardsView
           ? tileSiblings(item.printing, printingsByCardId.get(item.printing.cardId), groupBy)
           : undefined
@@ -205,10 +159,6 @@ export function PickerCardBrowser({
           items={items}
           totalItems={sortedCards.length}
           renderCard={renderCard}
-          // The group-by control is in the toolbar, so the grid has to be told
-          // what it picked: without these the cards were sorted into groups and
-          // then rendered as one flat run, which reads as the control doing
-          // nothing at all.
           setOrder={sets}
           groupBy={groupBy}
           groupDir={groupDir}
@@ -217,9 +167,6 @@ export function PickerCardBrowser({
               totalCards={totalUniqueCards}
               filteredCount={filteredCount}
               hideViewToggle={hideViewToggle}
-              // A picker has no table: its cells carry the pick control, and a
-              // table row has nowhere to put one. Offering the toggle only let
-              // a creator switch to a view that silently fell back to the grid.
               hideDisplayModeToggle
               mobileDoneLabel={hasActiveFilters ? `Show ${filteredCount} cards` : undefined}
             />

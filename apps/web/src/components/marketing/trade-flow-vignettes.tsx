@@ -7,34 +7,20 @@ import { cn } from "@/lib/utils";
 
 import { ArtStrip, MiniCardArt, Vignette, VignetteHeading } from "./vignette-parts";
 
-/**
- * The five stages of a trade, as the marketing tour tells it. Each vignette
- * mirrors the screen that stage actually happens on, so the tour reads as a
- * walkthrough rather than an illustration: the group's trades band, a
- * suggestion row, the reserved trade row, both halves of the settle, and the
- * copy sitting in a collection.
- *
- * Everything here is hand-built from plain markup for the same reason the rest
- * of the vignettes are (see vignette-parts.tsx): the real components pull in
- * filter stores and data hooks that have no place on a marketing page.
- */
+// Hand-built from plain markup like the rest of these vignettes (see
+// vignette-parts.tsx): the real components pull in filter stores and data
+// hooks that have no place on a marketing page.
 
-/** The counterparty the whole tour follows, so the five stages read as one trade. */
 const THEM = "Mira";
 
-/**
- * The stages share one sampled card, so the art and the name always belong
- * together and the five sections read as a single swap. The landing summary is
- * edge-cached for up to a day and can predate the identity fields, hence the
- * fallbacks.
- */
+// The landing summary is edge-cached for up to a day and can predate the
+// identity fields, hence the fallbacks below.
 interface TradedCard {
   url: string;
   name: string;
   detail: string;
 }
 
-/** @returns The card the tour trades, from the landing sample. */
 export function tradedCard(cards: LandingThumbnailCard[]): TradedCard {
   const card = cards[0];
   return {
@@ -44,7 +30,6 @@ export function tradedCard(cards: LandingThumbnailCard[]): TradedCard {
   };
 }
 
-/** The app's direction badge: arrow in reads success, arrow out warning. */
 function DirectionBadge({ incoming }: { incoming: boolean }) {
   const Icon = incoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
   return (
@@ -82,7 +67,6 @@ function MiniBadge({
   );
 }
 
-/** A pressed-looking control. Nothing on a vignette is interactive. */
 function MiniButton({ children, muted }: { children: ReactNode; muted?: boolean }) {
   return (
     <span
@@ -96,14 +80,12 @@ function MiniButton({ children, muted }: { children: ReactNode; muted?: boolean 
   );
 }
 
-/** A miniature of the app's Card surface, for the rows each stage happens on. */
 function MiniPanel({
   children,
   accent,
   className,
 }: {
   children: ReactNode;
-  /** The trades band's warm wash and primary edge. */
   accent?: boolean;
   className?: string;
 }) {
@@ -157,7 +139,6 @@ function ShelfRow({
   );
 }
 
-/** Stage 1: the group overview's trades band, leading with what you could get. */
 export function TradeMatchVignette({ thumbnailUrls }: { thumbnailUrls: string[] }) {
   return (
     <Vignette>
@@ -189,7 +170,6 @@ export function TradeMatchVignette({ thumbnailUrls }: { thumbnailUrls: string[] 
   );
 }
 
-/** Stage 2: one suggestion, with the request control that starts the trade. */
 export function TradeRequestVignette({ card }: { card: TradedCard }) {
   return (
     <Vignette>
@@ -215,7 +195,6 @@ export function TradeRequestVignette({ card }: { card: TradedCard }) {
   );
 }
 
-/** Stage 3: the accepted trade, with the copy held on the other side. */
 export function TradeReservedVignette({ card }: { card: TradedCard }) {
   return (
     <Vignette>
@@ -240,7 +219,6 @@ export function TradeReservedVignette({ card }: { card: TradedCard }) {
   );
 }
 
-/** Stage 4: the two halves of the settle, each party confirming only its own. */
 export function TradeSettleVignette() {
   return (
     <Vignette>
@@ -274,7 +252,6 @@ export function TradeSettleVignette() {
   );
 }
 
-/** Stage 5: the copy in your collection, and gone from theirs. */
 export function TradeArrivedVignette({ card }: { card: TradedCard }) {
   return (
     <Vignette>

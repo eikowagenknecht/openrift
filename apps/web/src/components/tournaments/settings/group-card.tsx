@@ -12,14 +12,6 @@ import {
 import { useFriendGroups } from "@/hooks/use-friend-groups";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
-/**
- * Friend-group link picker, shown to the host only. Lets them link the
- * tournament to one of their groups, switch it to another, or unlink it
- * entirely after creation. The viewer can only pick groups they belong to; the
- * currently linked group is always offered so its name stays visible even if the
- * viewer isn't a member of it.
- * @returns The group-picker card.
- */
 export function GroupCard({
   detail,
   locked,
@@ -45,7 +37,7 @@ export function GroupCard({
       await updateTournament.mutateAsync({ id: detail.id, groupId });
       toast.success(successMessage);
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Errors surface via the global mutation error toast.
     }
   }
 

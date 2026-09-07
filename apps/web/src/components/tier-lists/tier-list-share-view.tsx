@@ -28,19 +28,9 @@ interface TierListShareViewProps {
 }
 
 interface TierListSharePageProps extends TierListShareViewProps {
-  /** The share token from the URL, for the Present link. */
   token: string;
 }
 
-/**
- * Public, read-only view of a shared tier list.
- *
- * The title, byline, and blurb render server-side so a crawler (and the link
- * unfurl's fallback) sees them; the board itself waits for hydration because it
- * resolves cards against the client-held catalogue.
- *
- * @returns The share page node.
- */
 export function TierListShareView({ data, token }: TierListSharePageProps) {
   const { tierList, owner } = data;
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
@@ -57,9 +47,6 @@ export function TierListShareView({ data, token }: TierListSharePageProps) {
           </div>
           {rankedCount > 0 && (
             <PageTopBarActions>
-              {/* A shared ranking is presentable by whoever holds the link, not
-                  just its owner — running someone else's list is half of what a
-                  co-stream does with one. */}
               <PageTopBarButton
                 render={
                   <Link to="/stage" search={{ tierShare: token, i: 0 }}>
@@ -83,9 +70,6 @@ export function TierListShareView({ data, token }: TierListSharePageProps) {
 
 function TierListShareBoard({ data }: TierListShareViewProps) {
   const hydrated = useHydrated();
-  // The board resolves card ids against the client-held catalogue, so there is
-  // nothing to render server-side; the title and blurb above already carry the
-  // page's meaning for a crawler.
   if (!hydrated) {
     return <Skeleton className="h-72 w-full" />;
   }
@@ -101,9 +85,7 @@ function TierListShareBoardInner({ data }: TierListShareViewProps) {
   const showImages = useDisplayStore((state) => state.showImages);
 
   const rows = resolveTierRows(data.tierList.tiers, cardsById, printingsByCardId);
-  // Every ranked card, in board order, so the detail overlay's next/previous
-  // walks the ranking the way it reads. Same flattening presentation mode runs
-  // on, which is why it lives in the shared helper.
+  // Board order, so the detail overlay's next/previous walks the ranking as read.
   const items: CardViewerItem[] = tierRowsToQueue(rows);
 
   const handleCardClick = (view: TierCardView) => {
@@ -120,9 +102,7 @@ function TierListShareBoardInner({ data }: TierListShareViewProps) {
         printingsByCardId={printingsByCardId}
         showImages={showImages}
         onSearchAndClose={() => {
-          // No grid here for a search to drive, so tag and keyword chips in the
-          // detail have nothing to filter — swallow the click rather than
-          // navigating the viewer away from the ranking they came to see.
+          // No grid here to filter.
         }}
       />
     </>

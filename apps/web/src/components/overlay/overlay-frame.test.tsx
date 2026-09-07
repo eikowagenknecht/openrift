@@ -6,9 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { OverlayBoardScene } from "@/lib/overlay-board-scene";
 import { stubCard, stubPrinting } from "@/test/factories";
 
-// Keyword styling, enum labels and domain colors are all suspending reads
-// against the init query, and none of them change what this file is about —
-// which lines the plate carries, and where.
+// Keyword styling, enum labels and domain colors read the init query, which
+// this file's mocks don't provide and don't need to test plate layout.
 vi.mock("@/components/cards/card-text", () => ({
   CardText: ({ text }: { text: string }) => <span>{text}</span>,
 }));
@@ -36,7 +35,6 @@ function payload(overrides: Partial<OverlayPayload> = {}): OverlayPayload {
   return { ...DEFAULT_OVERLAY_PAYLOAD, printingId: PRINTING.id, ...overrides };
 }
 
-/** @returns The element holding the card and the plate. */
 function cluster(container: HTMLElement): HTMLElement {
   return container.firstElementChild?.firstElementChild as HTMLElement;
 }
@@ -60,10 +58,6 @@ describe("resolvePlatePosition", () => {
 
 describe("OverlayFrame placement", () => {
   it("justifies a left corner to the left edge", () => {
-    // Regression: the left corners carried `flex-row-reverse` on the container
-    // that holds the single cluster. It reordered nothing (one child) and
-    // flipped the main axis, so `justify-start` resolved to the right edge and
-    // both left corners rendered on the right.
     const { container } = render(
       <OverlayFrame payload={payload({ corner: "bottom-left" })} printing={PRINTING} />,
     );
@@ -267,7 +261,6 @@ const BOARD: OverlayBoard = {
   direction: "best-first",
 };
 
-/** @returns One resolved board row holding `cardIds`. */
 function row(label: string, ...cardIds: string[]) {
   return {
     label,
@@ -284,11 +277,8 @@ function row(label: string, ...cardIds: string[]) {
   };
 }
 
-/**
- * Walks up from a tile's art: the thumb's own span, then the sized tile, then
- * the span the spotlight ring and dimming live on.
- * @returns The tile and the spotlight wrapper around it.
- */
+// Walks up from a tile's art: the thumb's own span, then the sized tile, then
+// the span the spotlight ring and dimming live on.
 function tileFor(art: HTMLElement): { tile: HTMLElement; spotlight: HTMLElement } {
   const tile = art.closest("span")?.parentElement as HTMLElement;
   return { tile, spotlight: tile.parentElement as HTMLElement };
@@ -375,7 +365,6 @@ describe("OverlayFrame board", () => {
 });
 
 describe("OverlayFrame curtain", () => {
-  /** @returns The element the slide's transform and opacity sit on. */
   function boardCluster(getByText: (text: string) => HTMLElement): HTMLElement {
     return getByText("Origins, ranked").closest("div")?.parentElement as HTMLElement;
   }
@@ -393,9 +382,6 @@ describe("OverlayFrame curtain", () => {
   });
 
   it("puts the same board back when the curtain lifts, without a second push", () => {
-    // The point of the feature: hiding is not clearing, so the payload still
-    // carries the board and raising the curtain needs nothing from the server
-    // beyond the flag itself.
     const { rerender, getByText } = render(
       <OverlayFrame
         payload={payload({ board: BOARD, printingId: null, hidden: true })}
@@ -424,8 +410,6 @@ describe("OverlayFrame curtain", () => {
       />,
     );
 
-    // The title is still in the tree — a curtain that unmounted would snap the
-    // board back rather than sliding it.
     expect(getByText("Origins, ranked")).toBeTruthy();
   });
 });

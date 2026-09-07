@@ -6,10 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useUserId } from "@/lib/auth-session";
 
-/**
- * The archive's ask, aimed at this event: the reader looking at a field whose
- * lists are half missing is exactly the person who was in the room.
- */
 export function MetaEventContributeBand({
   event,
   players,

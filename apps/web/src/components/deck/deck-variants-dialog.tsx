@@ -55,36 +55,26 @@ import { DeckVariantCreateForm } from "./deck-variant-create-dialog";
 
 interface DeckVariantsDialogProps {
   deckId: string;
-  /** The open deck's name, for the name a new variant defaults to. */
   deckName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/** The parent picker's "this version came from nothing" option. */
 const NO_PARENT = "none";
 
-/** Horizontal distance between two lanes of the graph gutter. */
 const LANE_WIDTH = 14;
-/** Height of a row's first line, which the dot is centred on. */
 const HEADER_HEIGHT = 28;
-/** Padding above and below a row's content; rows themselves sit flush. */
 const ROW_PAD_Y = 8;
-/** Distance from the top of a row to the centre of its dot. */
 const DOT_Y = ROW_PAD_Y + HEADER_HEIGHT / 2;
-/** Diameter of a dot (`size-2`). */
 const DOT_SIZE = 8;
 
-/** @returns The pixel centre of a lane inside the gutter. */
 function laneX(lane: number): number {
   return lane * LANE_WIDTH + LANE_WIDTH / 2;
 }
 
 /**
- * The decks that can still join this family: everything else the user owns,
- * minus the members already in it and minus archived decks (linking one would
- * hide it in the family right after).
- * @returns Picker options, by name.
+ * The decks that can still join this family: excludes members already in it
+ * and archived decks, since linking one would immediately hide it.
  */
 export function linkableDeckOptions(
   decks: readonly DeckSummaryResponse[],
@@ -97,12 +87,8 @@ export function linkableDeckOptions(
 }
 
 /**
- * The family members a deck may be pointed at as the version it came from:
- * everyone but itself and its own descendants, since either would close the
- * history into a loop. The server enforces the same rule; this only keeps
- * impossible choices out of the menu.
- *
- * @returns Picker options, by name.
+ * A deck may be pointed at any family member except itself or its own
+ * descendants, since either would close the history into a loop.
  */
 export function parentOptions(
   members: readonly DeckSummaryResponse[],
@@ -131,13 +117,7 @@ export function parentOptions(
     .toSorted((left, right) => left.label.localeCompare(right.label));
 }
 
-/**
- * One row's slice of the graph: the lines running past it, the line into its
- * dot, and any fork leaving it. Drawn with plain boxes rather than an SVG so a
- * row can be as tall as its content and the lines still meet across rows.
- *
- * @returns The gutter element for one row.
- */
+/** Plain boxes, not SVG: a row's height follows its content and the lines still meet across rows. */
 function LineageGutter({
   row,
   isCurrent,
@@ -164,8 +144,6 @@ function LineageGutter({
         <span className="bg-border absolute bottom-0 w-px" style={{ left: x, top: DOT_Y }} />
       )}
       {row.branchLanes.map((lane) => (
-        // A fork leaves the dot sideways and turns down a lane of its own, so
-        // it reads as branching off this version rather than following it.
         <span
           key={lane}
           className={cn(
@@ -175,9 +153,8 @@ function LineageGutter({
           style={{
             left: Math.min(x, laneX(lane)),
             top: DOT_Y,
-            // One past the lane distance: a `w-px` line covers [laneX, laneX+1),
-            // so a box that stops at laneX leaves its border a pixel short of
-            // the column it joins, on either side.
+            // +1: a `w-px` line covers [laneX, laneX+1), so a box stopping at
+            // laneX leaves its border a pixel short of the column it joins.
             width: Math.abs(laneX(lane) - x) + 1,
           }}
         />
@@ -193,11 +170,6 @@ function LineageGutter({
   );
 }
 
-/**
- * The per-version overflow menu. Split out so the row itself stays readable.
- *
- * @returns The actions menu for one version.
- */
 function RowActions({
   deck,
   isCurrent,
@@ -264,7 +236,6 @@ function LineageRow({
   onDelete,
 }: {
   deck: DeckSummaryResponse;
-  /** Where this version's dot sits, and which lines pass its row. */
   row: VariantGraphRow;
   laneCount: number;
   isCurrent: boolean;
@@ -279,8 +250,8 @@ function LineageRow({
 }) {
   const parentItems = [{ value: NO_PARENT, label: "Nothing" }, ...parentChoices];
   return (
-    // Rows sit flush against each other and pad their own content, so the
-    // gutter's lines run unbroken from one row into the next.
+    // Rows sit flush and pad their own content so the gutter's lines run
+    // unbroken from one row into the next.
     <li className="flex min-w-0 items-stretch gap-2">
       <LineageGutter row={row} isCurrent={isCurrent} laneCount={laneCount} />
       <div className="flex min-w-0 flex-1 flex-col gap-1 py-2">
@@ -309,8 +280,6 @@ function LineageRow({
             onDelete={onDelete}
           />
         </div>
-        {/* A family of one has nothing to have come from, so the picker only
-            shows up once there is another version to point at. */}
         {parentChoices.length > 0 && (
           <div className="flex min-w-0 items-center gap-2">
             <span className="text-muted-foreground text-2xs shrink-0">Came from</span>
@@ -357,8 +326,7 @@ function VariantsDialogBody({
   const setPredecessor = useSetDeckPredecessor();
   const deleteDeck = useDeleteDeck();
 
-  // The version awaiting a delete confirm. Held as the deck rather than a
-  // boolean so the prompt can name it, and so one dialog serves every row.
+  // Holds the deck, not a boolean: the prompt needs to name it and one dialog serves every row.
   const [deleteTarget, setDeleteTarget] = useState<DeckSummaryResponse | null>(null);
 
   // At most one panel is expanded at a time: two forms open under a short list
@@ -372,9 +340,8 @@ function VariantsDialogBody({
     .filter((item) => (familyId ? item.deck.familyId === familyId : item.deck.id === deckId))
     .map((item) => item.deck);
 
-  // The family as a commit graph: rows arrive oldest-first with every version
-  // above the ones that came from it, and each row carries the lines to draw
-  // beside it. Repointing a version re-runs this, so the graph redraws itself.
+  // Rows arrive oldest-first with every version above the ones it came from.
+  // Repointing a version re-runs this, so the graph redraws itself.
   const graph = buildVariantGraph(members, deckId);
   const membersById = new Map(members.map((member) => [member.id, member]));
 
@@ -404,8 +371,7 @@ function VariantsDialogBody({
       return;
     }
     // The family repairs itself server-side: a sole survivor goes standalone,
-    // and a deleted primary hands the flag on. The graph redraws from the
-    // refreshed list, so there is nothing to fix up here.
+    // and a deleted primary hands the flag on.
     deleteDeck.mutate(target.id, {
       onSuccess: () => toast.success("Version deleted"),
       // Errors are reported by the global mutation error toast.
@@ -563,13 +529,7 @@ function VariantsDialogBody({
   );
 }
 
-/**
- * The variant family of a deck (ADR-042), as its history: every member under
- * the version it came from, with the lineage editable row by row. Comparing two
- * versions lives on the changes page, not here.
- *
- * @returns The variants dialog element.
- */
+/** Comparing two versions lives on the changes page, not here. */
 export function DeckVariantsDialog({
   deckId,
   deckName,
@@ -585,9 +545,8 @@ export function DeckVariantsDialog({
             Manage versions of this deck, compare and link them.
           </DialogDescription>
         </DialogHeader>
-        {/* The body reads the deck list, a suspending query; mounting it only
-            while open keeps a closed dialog from suspending the page that
-            hosts it. */}
+        {/* Mounting the body only while open keeps a closed dialog from
+            suspending the page that hosts it. */}
         {open && (
           <Suspense fallback={<p className="text-muted-foreground text-sm">Loading variants…</p>}>
             <VariantsDialogBody

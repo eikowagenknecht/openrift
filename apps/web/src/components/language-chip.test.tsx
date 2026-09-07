@@ -32,7 +32,6 @@ function makeWrapper() {
 
 describe("languageChipStyle", () => {
   it("uses the stored color as the fill and picks a contrasting foreground", () => {
-    // #1d4ed8 is a saturated blue → white text.
     expect(languageChipStyle("#1d4ed8")).toEqual({ backgroundColor: "#1d4ed8", color: "#ffffff" });
   });
 
@@ -62,7 +61,6 @@ describe("LanguageChip", () => {
     const { container } = render(<LanguageChip code="SC" />, { wrapper: makeWrapper() });
     const chip = container.querySelector("span[title]");
     expect(chip?.textContent).toBe("SC");
-    // #6a6a6a → rgb(106, 106, 106).
     expect((chip as HTMLElement).style.backgroundColor).toBe("rgb(106, 106, 106)");
   });
 

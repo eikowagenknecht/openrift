@@ -19,16 +19,6 @@ interface CreateTierListDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Creates a tier list and opens its builder.
- *
- * Title only. A list used to carry a set as a scope hint, which pre-filtered the
- * pool and labelled the share page, but the pool is a full card browser with the
- * whole filter bar — picking a set is one filter among many and does not belong
- * on the list itself.
- *
- * @returns The create dialog node.
- */
 export function CreateTierListDialog({ open, onOpenChange }: CreateTierListDialogProps) {
   const [title, setTitle] = useState("");
   const navigate = useNavigate();

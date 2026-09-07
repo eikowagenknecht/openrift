@@ -17,11 +17,7 @@ const captured = vi.hoisted(() => ({
   undismiss: vi.fn(),
 }));
 
-/**
- * The route's search params, which the page reads its whole filter set from.
- * Interactions go out through `navigate` and only reach the page when they come
- * back around through here, which is the loop the real router closes.
- */
+/** Stands in for the router: navigate() writes here, useSearch() reads it back. */
 const searchStore = vi.hoisted(() => {
   let value: Record<string, unknown> = {};
   const listeners = new Set<() => void>();

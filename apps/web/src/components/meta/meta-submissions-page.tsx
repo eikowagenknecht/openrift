@@ -27,14 +27,6 @@ import {
 } from "@/lib/meta-submission-copy";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * One decklist a contributor sent: what it was, where it ended up, and anything
- * the reviewer wrote back.
- *
- * @param props.submission The row to render.
- * @param props.shareToken The archived deck's permalink slug, when it has one.
- * @returns The row element.
- */
 function SubmissionRow({
   submission,
   shareToken,
@@ -92,16 +84,6 @@ function SubmissionRow({
   );
 }
 
-/**
- * `/meta/submissions` — every decklist the viewer has sent to the archive, and
- * what happened to each one (ADR-014's User submissions).
- *
- * This page is the reason the archive keeps outcomes at all: provider uploads
- * get none, because those are the maintainer's own tooling, while a person who
- * types in a top-8 list needs to see whether it landed.
- *
- * @returns The page element.
- */
 export function MetaSubmissionsPage() {
   const { data, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMetaSubmissions();
   const submissions = data?.pages.flatMap((page) => page.items) ?? [];

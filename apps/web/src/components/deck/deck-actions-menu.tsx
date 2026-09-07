@@ -67,11 +67,6 @@ import { DeckShareDialog } from "./deck-share-dialog";
 import { DeckVariantsDialog } from "./deck-variants-dialog";
 import { ManageDeckFoldersDialog } from "./manage-deck-folders-dialog";
 
-/**
- * Dropdown menu with deck actions (share, export, print, rename, format toggle, variants, delete).
- * Owns its dialogs and mutations so both tile and list-row layouts can drop it in.
- * @returns The actions menu element.
- */
 export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const userId = useRequiredUserId();
   const { deck } = item;
@@ -96,8 +91,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const setDeckFolders = useSetDeckFolders();
   const folderList = folders ?? [];
 
-  // Lazy-fetch full deck detail only while a dialog needs it. Share reads the
-  // link state from the same payload, so the list row itself stays lean.
+  // Fetched lazily: only while share/export/print need it.
   const needsDetail = shareOpen || exportOpen || printOpen;
   const { data: detail } = useQuery({
     ...deckDetailQueryOptions(userId, deck.id),
@@ -111,9 +105,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
     : undefined;
 
   const handleDelete = () => {
-    // Guard against double-submission: a second confirm (re-opened dialog,
-    // rapid double-click) while the first delete is still in flight would
-    // 404 on the server and surface a "Not found" toast.
+    // A second confirm while the delete is in flight 404s on the server.
     if (deleteDeck.isPending) {
       return;
     }
@@ -125,8 +117,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
     updateDeck.mutate({ deckId: deck.id, format: slug });
   };
 
-  // Membership is replaced wholesale rather than patched, so the toggle sends
-  // the full set the deck should end up in.
+  // Folder membership is set wholesale; the toggle sends the full resulting set.
   const handleToggleFolder = (folderId: string) => {
     const next = item.folderIds.includes(folderId)
       ? item.folderIds.filter((id) => id !== folderId)
@@ -217,8 +208,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           )}
-          {/* "Add to" rather than "Move to": a deck can sit in several folders,
-              so toggling one on doesn't take it out of the others. */}
+          {/* A deck can sit in several folders; toggling one doesn't remove others. */}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <FolderIcon className="size-4" />
@@ -247,9 +237,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          {/* Always available, and the only variant entry in this menu: the
-              dialog is where a version is created, and also where a standalone
-              deck gets linked to its first sibling. */}
+          {/* Also where a standalone deck gets linked to its first sibling. */}
           <DropdownMenuItem
             onClick={() => {
               setVariantsOpen(true);

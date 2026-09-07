@@ -12,12 +12,8 @@ const CHECKERBOARD = {
 const INPUT_CHROME =
   "border-input flex h-8 min-w-0 flex-1 items-center rounded-lg border bg-transparent px-2.5 py-1 text-sm dark:bg-input/30";
 
-/**
- * The Stage's OBS panel: the browser source's live preview over the
- * transparency checkerboard, and the URL you paste into OBS. The overlay's own
- * type is sized for this miniature rather than the 1920-wide canvas it runs at,
- * which is the one thing here drawn out of scale.
- */
+// The overlay's own type is sized for this miniature, not the 1920-wide
+// canvas it runs at, on purpose.
 export function StageVignette({ thumbnailUrls = [] }: { thumbnailUrls?: string[] }) {
   const art = thumbnailUrls[0];
   return (

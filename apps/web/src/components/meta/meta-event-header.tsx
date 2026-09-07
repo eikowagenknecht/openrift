@@ -25,7 +25,7 @@ import { formatRecord } from "@/lib/meta-format";
 import { metaEventWinners } from "@/lib/meta-front-page";
 import { metaCutLineRecord } from "@/lib/meta-player-run";
 
-/** Every citation is printed, never collapsed behind a "+2 more": this is attribution. */
+/** Every citation is printed, never collapsed behind a "+2 more". */
 function EventSources({ sources }: { sources: MetaEventDetail["sources"] }) {
   return (
     <p className="text-muted-foreground text-xs">
@@ -131,11 +131,7 @@ function ChampionPlate({
   );
 }
 
-/**
- * The flag and the venue are independently optional: the country comes from an
- * address heuristic that gives up on formats it does not know. The tier badge
- * rides beside the title in the top bar, not here.
- */
+/** The flag and venue are independently optional; the tier badge lives in the top bar, not here. */
 export function MetaEventHeader({
   event,
   players,

@@ -89,22 +89,13 @@ import { useSiblingOverrideStore } from "@/stores/sibling-override-store";
 import { DisposeDialog } from "./dispose-dialog";
 import { MoveDialog } from "./move-dialog";
 
-// Custom tags are a deck-builder concept (format constraints, freeform
-// self-narrowing). Hiding them here keeps the collection grid focused on
-// physical attributes you actually own copies of. Markers and channels stay
-// visible: collections can hold promo printings, and both sections self-hide
-// when no owned printing carries one.
+// Custom tags are a deck-builder concept; hiding them keeps this grid scoped
+// to physical attributes of owned copies. Markers/channels self-hide instead.
 const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["customTags"]);
 
 interface CollectionGridProps {
   collectionId?: string;
   title: string;
-  /**
-   * Whether the group-box "Wanted" filter is on. Owned by the route as a search
-   * param, so a link can open a box straight into the filtered view. Only the
-   * single-collection route passes these two — the "All cards" aggregate has no
-   * one box to filter.
-   */
   wantedOnly?: boolean;
   onWantedOnlyChange?: (next: boolean) => void;
 }
@@ -120,20 +111,11 @@ export function CollectionGrid({
   const topBarSlot = use(TopBarSlotContext);
   const { data: collections } = useCollections();
   const showImages = useDisplayStore((state) => state.showImages);
-  // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
-  // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
   const favoriteMarketplace = display.favoriteMarketplace;
 
-  // ── Mode state ──────────────────────────────────────────────────────
-  // `showLibrary` widens the grid from "cards in this collection" to "every
-  // card in the catalog", with unowned cards rendered as a + affordance only.
-  // Per-session state (see library-toggle-store): it survives collection
-  // switches so browsing the library isn't interrupted, but a fresh page load
-  // always starts in the collection-only view; the toggle never persists.
   const [showLibrary, setShowLibrary] = useLibraryToggle("collection");
 
-  // ── Filter state (active in all modes) ──────────────────────────────
   const {
     filters,
     sortBy,
@@ -143,12 +125,8 @@ export function CollectionGrid({
     groupDir,
     hasActiveFilters,
   } = useFilterValues();
-  // The "Collection" axis buckets physical copies, so it needs copies view (one
-  // item per copy, each carrying its holding collection) and the "All cards"
-  // aggregate, the only scope with more than one collection in play. Everywhere
-  // else the axis is absent from the dropdown, so a value left over from the
-  // URL or the remembered pref normalizes back to the surface default instead
-  // of driving a grouping the toolbar can't show.
+  // The "Collection" grouping axis only applies to copies view of the "All
+  // cards" aggregate; elsewhere a leftover value normalizes back to "set".
   const collectionGroupingAvailable =
     collectionId === undefined && view === "copies" && !showLibrary;
   const groupBy =
@@ -162,23 +140,10 @@ export function CollectionGrid({
   } = useCards();
   const prices = display.prices;
 
-  // On first mount, seed the URL `languages` filter from the user's preferred
-  // languages if none are set — same behaviour as the /cards catalog. Owned
-  // cards in non-preferred languages are hidden until the user clears the
-  // (visible, clearable) Language filter; users who want to see every language
-  // clear the Language section in the filter panel. After seeding,
-  // `filters.languages` is the single source of truth (empty = show all).
   useSeedLanguagesFromPrefs(filters.languages);
 
-  // Quick Add palette adds *new* cards, so it should only surface languages
-  // the user has enabled in their profile prefs — unlike the collection grid
-  // above, where we deliberately keep showing already-owned cards in any
-  // language. Empty pref means "show all".
   const preferredLanguages = useDisplayStore((state) => state.languages);
 
-  // ── Collection grid data pipeline (collection-scoped + catalog-scoped card
-  //    data, show-library active-set selection, group-collection personal
-  //    shortfall override, tile grouping axis, deferred/stale bookkeeping) ──
   const {
     dataView,
     currentCollection,
@@ -221,7 +186,6 @@ export function CollectionGrid({
     prices,
   });
 
-  // ── Selection state (select mode) ───────────────────────────────────
   const {
     selected,
     selectMode,
@@ -237,49 +201,26 @@ export function CollectionGrid({
   } = useCardSelection();
   const mode = selectMode ? "select" : "browse";
 
-  // "copies" view expands individual copies. When the library is shown the
-  // toolbar hides the "copies" option, but if the user had it selected from
-  // a previous visit we treat the grid as stacked anyway — unowned cards
-  // have no copies to expand.
+  // Library mode always treats the grid as stacked: unowned cards have no
+  // copies to expand.
   const stacked = showLibrary || view !== "copies";
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
-  // "Lend to a friend" (ADR-039): the clicked stack's printing + a stepper cap.
   const [lendTarget, setLendTarget] = useState<{ printing: Printing; maxQuantity: number } | null>(
     null,
   );
-  // Copy IDs the Move / Add-to-list / Dispose dialogs operate on. The floating
-  // action bar sets this to the whole selection; the right-click menu sets it
-  // to the selection or to just the clicked card. Decoupled from `selected` so
-  // a browse-mode right-click can act on one card without entering select mode.
+  // Copy IDs the Move / Add-to-list / Dispose dialogs operate on, decoupled
+  // from `selected` so a browse-mode right-click can target one card without
+  // entering select mode.
   const [actionCopyIds, setActionCopyIds] = useState<string[]>([]);
-  // True when `actionCopyIds` are all copies of a single card, so the Move,
-  // Add-to-list and Dispose dialogs can offer a "how many copies" stepper
-  // instead of always acting on every copy.
   const [actionSingleCard, setActionSingleCard] = useState(false);
-  // How many copies the dispose dialog's stepper currently targets. Unlike the
-  // other dialogs this one lives here: the membership check and the
-  // recorded-details count below are computed over the chosen slice.
   const [disposeQuantity, setDisposeQuantity] = useState(0);
-  // Which of `actionCopyIds` carry recorded details (ADR-038), snapshotted when
-  // the dispose dialog opens so it can warn about deleting them.
   const [actionAnnotatedIds, setActionAnnotatedIds] = useState<ReadonlySet<string>>(new Set());
-  // The dialogs below the grid (quick add, delete, clear inbox, edit, share,
-  // per-copy details, and the two group "bulk box" take steps) keep their
-  // open/close state in collection-overlay-store, and this component only ever
-  // writes to it. Same reasoning as the variant popover below: subscribing here
-  // would re-render the whole virtualized grid every time a dialog opened.
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
-  // Raw synced copy rows, for metadata-aware checks at action time (ADR-038).
   const copiesStore = useCopiesCollection();
-  // The copies the dispose dialog would actually remove: the front of the
-  // target stack, narrowed by its stepper. Every warning below is scoped to
-  // exactly these, so lowering the count re-checks rather than overstating.
   const disposeCopyIds = actionCopyIds.slice(0, disposeQuantity);
-  // Which of the viewer's lists reference the copies about to be disposed — only
-  // checked while the dispose dialog is open so the warning can name them.
   const disposeListMemberships = useCopyListMemberships(disposeCopyIds, disposeOpen);
   const disposeAnnotatedCount = disposeCopyIds.filter((copyId) =>
     actionAnnotatedIds.has(copyId),
@@ -289,35 +230,24 @@ export function CollectionGrid({
   const setDeckbuilding = useSetCollectionDeckbuilding();
   const navigate = useNavigate();
 
-  // ── Navigation helpers ──────────────────────────────────────────────
   const inbox = collections.find((collection) => collection.isInbox);
   const inboxId = inbox?.id;
   const inboxName = inbox?.name;
-  // In a group collection every copy is shared, not personally owned, so it
-  // can't go on a trade/wish list. We gate the drag/add affordances on this.
-  // (The "All cards" view has no single collection, so this is false there and
-  // the server still enforces the rule.) `currentCollection` / `isGroupCollection`
-  // are defined above (near the owned-filter wiring).
+  // Group-collection copies are shared, not personally owned, so they can't
+  // go on a trade/wish list; the server enforces this too.
   const sourceCollectionIsGroup = isGroupCollection;
   const addTarget = collectionId ?? inboxId;
   const quickAddCollectionName = currentCollection?.name ?? "Collection";
   useRegisterQuickAdd({
     key: addTarget ? `collection:${addTarget}` : null,
     label: `Add to ${quickAddCollectionName}`,
-    // Moving needs somewhere to move from, so it is offered only once the
-    // viewer has a second collection.
     moveLabel: (collections?.length ?? 0) >= 2 ? `Move to ${quickAddCollectionName}` : null,
   });
 
-  // A collection that loads empty opens straight in library mode, so a first
-  // visit shows a page full of addable cards instead of an empty grid. This is
-  // a render-phase state adjustment (not an effect) so the empty state never
-  // paints first, and one-shot per collection so the library toggle and the
-  // first adds stick afterwards instead of the view flipping back.
+  // Render-phase (not effect) so an empty collection never paints before
+  // flipping into library mode, and one-shot per collection so a later
+  // manual toggle sticks.
   const [autoLibraryApplied, setAutoLibraryApplied] = useState(false);
-  // Switching collections re-arms the one-shot, so an empty target opens in
-  // library mode again. The "All cards" aggregate has no id, hence a separate
-  // tracker rather than comparing against the applied-for value.
   const [autoLibraryScope, setAutoLibraryScope] = useState(collectionId);
   if (autoLibraryScope !== collectionId) {
     setAutoLibraryScope(collectionId);
@@ -332,22 +262,15 @@ export function CollectionGrid({
 
   const introDismissed = useOnboardingStore((state) => state.collectionIntroDismissed);
   const dismissIntro = useOnboardingStore((state) => state.dismissCollectionIntro);
-  // Shown to everyone (established collections included) until explicitly
-  // dismissed — the toolbar legend is worth one read for existing users too.
   const showIntroBanner = !introDismissed;
 
-  // A group-owned collection is a communal "bulk box": any member can take a
-  // copy into their own inbox (a free-pile claim, distinct from the 1:1 trade
-  // matcher). Wishlist highlighting + the "Take a copy" action only apply here.
-  // (`isGroupCollection` is defined above, near the owned-filter wiring.)
+  // Group-owned collections are a communal "bulk box": any member can take a
+  // copy into their own inbox, distinct from the 1:1 trade matcher.
   const canTake = isGroupCollection && Boolean(inboxId);
   const wish = useWishEntries(isGroupCollection);
 
-  // ── Variant×collection popover handlers (used by the count-pill, the tile
-  //    minus, and keyboard +/- on table rows). The popover's own open/close
-  //    state lives in VariantLocationsPopoverHost, NOT here: subscribing this
-  //    component to `variantPopover` would re-render the whole virtualized grid
-  //    on every open/close and reset the window scroll position. ─────────────
+  // The popover's open/close state lives in VariantLocationsPopoverHost, not
+  // here, so opening it doesn't re-render the whole virtualized grid.
   const {
     handleQuickAdd,
     handleAddToCollection,
@@ -380,34 +303,18 @@ export function CollectionGrid({
     clearSelection();
   };
 
-  // Switching collections drops any in-progress selection — a selected
-  // copy from the previous collection wouldn't be visible in the new grid,
-  // and the floating action bar would operate on invisible rows. Sibling
-  // overrides also reset because pinned variants are scoped to this view.
-  // The library toggle deliberately does NOT reset: someone adding cards to
-  // several collections in a row would otherwise have to turn it back on
-  // after every switch.
+  // Switching collections drops any in-progress selection (it wouldn't be
+  // visible in the new grid) and sibling overrides. The library toggle is
+  // deliberately NOT reset here.
   useScopeEffect(collectionId, () => {
     resetSelection();
     useSiblingOverrideStore.getState().clearScope("collection");
     useAddModeStore.getState().reset();
-    // A dialog left open would otherwise still be pointing at the collection
-    // the viewer just navigated away from. Leaving the grid entirely is handled
-    // on the way out instead — see useCloseCollectionOverlaysOnUnmount.
     useCollectionOverlayStore.getState().reset();
   });
 
   useCloseCollectionOverlaysOnUnmount();
 
-  // ── Mutation handlers ───────────────────────────────────────────────
-  // All three bulk actions operate on `actionCopyIds` (set when the dialog is
-  // opened), not on `selected` directly — a browse-mode right-click targets a
-  // single card without a visible selection. clearSelection() on success is a
-  // no-op in that case and clears the selection in the select-mode paths.
-  //
-  // A single-card target can act on part of the stack: the dialogs offer a
-  // stepper and hand back how many copies to touch, taken off the front of
-  // `actionCopyIds`.
   const handleMove = (toCollectionId: string, quantity: number) => {
     const copyIds = actionCopyIds.slice(0, quantity);
     moveCopies.mutate(
@@ -436,7 +343,6 @@ export function CollectionGrid({
     );
   };
 
-  // Snapshot the action target, then open the matching dialog.
   const openAction = (action: CollectionContextAction, copyIds: string[]) => {
     setActionCopyIds(copyIds);
     setActionSingleCard(copyIdsShareOneCard(copyIds));
@@ -445,9 +351,6 @@ export function CollectionGrid({
     } else if (action === "addToList") {
       setAddToListOpen(true);
     } else {
-      // Note which targets have recorded details (ADR-038) so the dispose
-      // dialog can warn that removing them deletes those details. Snapshotted
-      // as ids, not a count, because the stepper can narrow the target set.
       const ids = new Set(copyIds);
       setActionAnnotatedIds(
         new Set(
@@ -463,9 +366,6 @@ export function CollectionGrid({
     }
   };
 
-  // Whether every target copy belongs to the same card. The right-click menu on
-  // a single card resolves to all its copies; the float bar can span several
-  // cards. Only the single-card case gets the "how many copies" stepper.
   const copyIdsShareOneCard = (copyIds: string[]) => {
     if (copyIds.length <= 1) {
       return true;
@@ -515,24 +415,16 @@ export function CollectionGrid({
     });
   };
 
-  // Shared collections live in a friend group; rename/delete/share is gated on
-  // group owner/admin (or always allowed for personal collections, where viewerCanAdmin
-  // is true). The inbox is special-cased — it can never be deleted, so it gets
-  // a "clear inbox" action instead.
   const canAdminCollection = Boolean(currentCollection?.viewerCanAdmin);
   const canDeleteCollection = Boolean(
     currentCollection && !currentCollection.isInbox && canAdminCollection,
   );
   const canClearInbox = Boolean(currentCollection?.isInbox && canAdminCollection);
 
-  // ── Build items list ────────────────────────────────────────────────
   let items: CardViewerItem[];
   const stackByItemId = new Map<string, StackedEntry>();
 
   if (showLibrary) {
-    // Library view: every catalog row gets a cell. Owned printings still
-    // resolve to their stack so +/-/select/drag keep working on them; unowned
-    // printings have no stack and the renderer drops the strip + overlays.
     items = renderedCards.map((printing) => {
       const stack = stackByPrintingId.get(printing.id);
       if (stack) {
@@ -541,7 +433,6 @@ export function CollectionGrid({
       return { id: printing.id, printing };
     });
   } else {
-    // Browse/select: use stacked collection data
     const filteredStacks = renderedCards.map((printing) => ({
       printing,
       stack: stackByPrintingId.get(printing.id),
@@ -565,8 +456,6 @@ export function CollectionGrid({
           .flatMap((entry) =>
             entry.stack.copyIds.map((copyId) => {
               stackByItemId.set(copyId, entry.stack);
-              // One item per physical copy, so it can name its holding
-              // collection — what the "Collection" grouping axis buckets on.
               return {
                 id: copyId,
                 printing: entry.printing,
@@ -576,20 +465,13 @@ export function CollectionGrid({
           );
   }
 
-  // Take one copy of a card from the group "bulk box" into the viewer's inbox.
-  // Reuses the move pipeline (member → inbox is a writable move); no trade
-  // record, since a free pile has no reciprocation. If the card was on the
-  // viewer's wishlist, offer to prune it afterwards — never silently.
-  // Resolve which copies a take could claim and open the confirm dialog first,
-  // so a stray click on the Take button can't silently move cards out of the
-  // box. The dialog offers a 1..available quantity stepper before the move.
+  // Reuses the move pipeline (member -> inbox); no trade record since a free
+  // pile has no reciprocation.
   const handleTake = (itemId: string, count: number) => {
     const stack = stackByItemId.get(itemId);
     if (!stack || !inboxId) {
       return;
     }
-    // Copies view: the tile *is* one physical copy. Stacked views: every copy
-    // of the printing currently in the box is takeable.
     const availableCopyIds = stacked ? stack.copyIds : [itemId];
     if (availableCopyIds.length === 0) {
       return;
@@ -600,7 +482,6 @@ export function CollectionGrid({
       .setTakeConfirm({ printing: stack.printing, availableCopyIds, initialQuantity });
   };
 
-  // ── Grid click handlers, drag-preview effect, row-actions-store effect ──
   const { allCopyIdsByTile } = useCollectionGridSelection({
     items,
     stackByItemId,
@@ -627,9 +508,6 @@ export function CollectionGrid({
     openAction,
   });
 
-  // Run the take the viewer confirmed: move the chosen number of copies into
-  // their inbox, then offer the wishlist cleanup when the card was one they
-  // wanted.
   const performTake = (quantity: number) => {
     const takeConfirm = useCollectionOverlayStore.getState().takeConfirm;
     if (!takeConfirm || !inboxId) {
@@ -666,15 +544,9 @@ export function CollectionGrid({
     }
   };
 
-  // ── Render card ─────────────────────────────────────────────────────
-  // Thin wrapper around CollectionGridCell. The cell takes only stable
-  // item-level props and self-subscribes to override / count / selection /
-  // copy IDs so this closure doesn't bust the per-row memo when stacks change
-  // on +/-.
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    // Wish entries only on a group "bulk box". Pass `undefined` for cards the
-    // viewer doesn't want so the cell's memo holds (a fresh empty array each
-    // render would bust it); only genuinely-wished cells carry an array.
+    // `undefined` (not an empty array) for cards the viewer doesn't want, so
+    // the cell's memo holds across renders.
     const wishEntries = isGroupCollection
       ? wish.entriesForPrinting(item.printing.cardId, item.printing.id)
       : undefined;
@@ -708,32 +580,21 @@ export function CollectionGrid({
     );
   };
 
-  // ── Toolbar ─────────────────────────────────────────────────────────
   const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);
-  // The "All Cards" aggregate (no collection selected) excludes shared group
-  // collections — their copies are communal, not the viewer's own, so they must
-  // not inflate the headline worth. A selected group collection still shows its
-  // own value via `currentCollection`.
+  // Excludes shared group collections: their copies are communal, not the
+  // viewer's own.
   const aggregate = aggregatePersonalCollectionValue(collections);
   const valueCents = currentCollection ? currentCollection.totalValueCents : aggregate.valueCents;
   const unpricedCount = currentCollection
     ? currentCollection.unpricedCopyCount
     : aggregate.unpricedCount;
 
-  // Count of selectable copies in the filtered grid, mirroring the temp-id
-  // filtering `toggleSelectAll` applies, so "all selected" lines up with what a
-  // select-all click can actually select (optimistic temp copies never enter
-  // the selection).
+  // Excludes optimistic temp copies, mirroring what `toggleSelectAll` can
+  // actually select.
   const selectableRealCount = selectableCopyIds.filter((id) => !isTempCopyId(id)).length;
 
-  // The empty check uses the unfiltered stack count, so an empty collection
-  // shows the prompt even when filters (including auto-seeded language prefs)
-  // are active. Gated on `copiesReady` so the empty state doesn't flash while
-  // the first copies fetch is still in flight.
   const isEmpty = !showLibrary && copiesReady && stacks.length === 0;
 
-  // Only a live public link can back a printed QR sheet, so the bar's binder
-  // entry appears with the link and goes away again when sharing stops.
   const collectionShareUrl =
     currentCollection?.isPublic && currentCollection.shareToken
       ? `${getSiteUrl()}/collections/share/${currentCollection.shareToken}`
@@ -742,8 +603,6 @@ export function CollectionGrid({
   const collectionTopBar = (
     <CollectionTopBar
       title={title}
-      // Only a single collection can be a deck's box; the "All cards" and list
-      // aggregates have no one collection to speak for.
       homeDecks={currentCollection?.homeDecks ?? []}
       onToggleSidebar={toggleSidebar}
       mode={mode}
@@ -751,13 +610,7 @@ export function CollectionGrid({
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
-      // "All cards" and the inbox are where cards get put in, so Scan and Quick
-      // add stay in reach there. A named collection is a place you organize into
-      // from elsewhere, so they fold into the ⋮ menu and the bar keeps its room.
       addActionsInBar={!currentCollection || currentCollection.isInbox}
-      // Only the empty state hides them, because that screen offers its own
-      // Scan and Quick add. An empty collection that auto-opened into library
-      // mode is not the empty state, and it still needs both.
       showAddActions={!isEmpty}
       onQuickAdd={() => useCommandPaletteStore.getState().openQuickAdd("add")}
       onSelectAll={() => toggleSelectAll(selectableCopyIds)}
@@ -770,8 +623,6 @@ export function CollectionGrid({
       canDelete={canDeleteCollection}
       canClearInbox={canClearInbox}
       canShare={Boolean(currentCollection) && canAdminCollection}
-      // Per-viewer preference: every member with access can toggle whether a
-      // collection feeds *their own* deck inventory, not just group admins.
       canToggleDeckbuilding={Boolean(currentCollection)}
       deckbuildingAvailable={currentCollection?.availableForDeckbuilding ?? false}
       shareUrl={collectionShareUrl}
@@ -793,16 +644,12 @@ export function CollectionGrid({
 
   const topBarPortal = topBarSlot && createPortal(collectionTopBar, topBarSlot);
 
-  // Only a group bulk box has cards to want off someone else, so the filter
-  // shows there and nowhere else. Same heart the tiles use for a wished card.
   const wantedButton =
     isGroupCollection && onWantedOnlyChange ? (
       <Toggle
         variant="outline"
         pressed={wantedOnly}
         onPressedChange={onWantedOnlyChange}
-        // Persistent primary fill for the active state, matching the neighbouring
-        // library button's active look.
         className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
         title={wantedOnly ? "Show everything in the box" : "Show only cards you want"}
         aria-label={wantedOnly ? "Show everything in the box" : "Show only cards you want"}
@@ -825,16 +672,13 @@ export function CollectionGrid({
     </Button>
   ) : null;
 
-  // In cards+set / cards+rarity a card splits into one tile per section, so
-  // sortedCards over-counts cards. Count distinct cardIds to match totalCards.
+  // In cards+set / cards+rarity, a card splits into one tile per section, so
+  // sortedCards over-counts; count distinct cardIds instead.
   const filteredCardCount =
     dataView === "cards"
       ? new Set(sortedCards.map((card) => card.cardId)).size
       : sortedCards.length;
 
-  // Section order for the "Collection" axis, and the names its headers show.
-  // Sidebar order, so the sections read top to bottom the way the sidebar
-  // lists them (inbox first, then the user's own arrangement).
   const collectionOrder = collections.map((collection) => ({
     id: collection.id,
     slug: "",
@@ -869,16 +713,10 @@ export function CollectionGrid({
           ? [...defaultGroupByOptions, { value: "collection", label: GROUP_BY_LABELS.collection }]
           : undefined
       }
-      // `groupBy` here is the normalized value, so the dropdown never shows
-      // "Collection" while the grid has fallen back to the set grouping.
       groupByValue={groupBy}
     />
   );
 
-  // ── Panes ───────────────────────────────────────────────────────────
-
-  // Only browse mode puts add controls on the tiles, so only browse mode puts
-  // them in the detail overlay.
   const detailActions =
     mode === "browse"
       ? (printing: Printing) => (
@@ -896,11 +734,8 @@ export function CollectionGrid({
     />
   );
 
-  // Rendered once below, as the trailing sibling of the empty/populated content
-  // branch rather than inside either arm. That keeps a single, stable mount
-  // point for these overlays across the empty↔populated transition, so an open
-  // QuickAddPalette keeps its state (search input, expanded card) on the first
-  // add instead of remounting when the empty-state subtree unmounts.
+  // Rendered as a trailing sibling of the empty/populated branch so an open
+  // QuickAddPalette keeps its state across the empty <-> populated transition.
   const collectionOverlays = (
     <CollectionGridOverlays
       addTarget={addTarget}
@@ -922,7 +757,6 @@ export function CollectionGrid({
     />
   );
 
-  // ── Content branch ──────────────────────────────────────────────────
   return (
     <>
       {isEmpty ? (
@@ -954,9 +788,6 @@ export function CollectionGrid({
                     <LibraryBigIcon />
                     Browse & add
                   </Button>
-                  {/* An empty collection is exactly when a stack of physical
-                      cards is waiting to be entered, so the scanner belongs
-                      here even though the bar only carries it on the inbox. */}
                   <Link to="/scan" className={buttonVariants({ variant: "ghost" })}>
                     <CameraIcon />
                     Scan cards
@@ -1013,18 +844,11 @@ export function CollectionGrid({
             rightPane={rightPane}
             addStripHeight={ADD_STRIP_HEIGHT}
             table={{
-              // Copies view (`!stacked`) is one row per physical copy, so the
-              // per-printing count + add controls don't apply — drop the column
-              // entirely (mirrors the dropped grid strip). Otherwise browse shows
-              // the +/- buttons; select mode shows a read-only count.
               actionsColumn: collectionTableActionsColumn({
                 stacked,
                 mode,
                 hasQuickAdd: Boolean(handleQuickAdd),
               }),
-              // The catalog map carries every sibling variant (owned or not).
-              // In cards view the table sums across siblings so the count
-              // matches the grid's per-card aggregate.
               actionsCell: (
                 <CollectionActionsCell
                   collectionId={collectionId}
@@ -1047,7 +871,6 @@ export function CollectionGrid({
               ),
             }}
           >
-            {/* Floating action bar (select mode) */}
             {mode === "select" && selected.size > 0 && (
               <FloatingActionBar
                 selectedCount={selected.size}
@@ -1107,9 +930,6 @@ export function CollectionGrid({
               annotatedCount={disposeAnnotatedCount}
             />
 
-            {/* Mounted only while open: it reads the user's lists with a
-                suspense query, and a mounted-but-closed dialog suspends into
-                whatever boundary the page sits behind (ADR-034). */}
             {addToListOpen && (
               <AddToListDialog
                 open={addToListOpen}
@@ -1137,8 +957,6 @@ export function CollectionGrid({
             ) : null}
           </BrowserCardViewer>
 
-          {/* Variant×collection popover (browse add mode only). Self-subscribes to
-            the add-mode store so opening it never re-renders this grid. */}
           <VariantLocationsPopoverHost
             catalogPrintingsByCardId={catalogPrintingsByCardId}
             languageScopedPrintingsByCardId={detailPanePrintingsByCardId}

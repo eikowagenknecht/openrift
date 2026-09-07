@@ -4,21 +4,8 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-/**
- * A button that swaps itself for a card search when pressed, with an X to swap
- * back. Three surfaces grew their own copy of this (the card pipeline's
- * "Assign", the meta pipeline's "Link card", and the contribute form's "Select
- * an existing card"), each repeating the open state, the trigger, the wrapper
- * and the close button.
- *
- * The search itself stays with the caller, passed as a render prop rather than
- * props: the contribute form has to keep its catalog-backed half behind a
- * Suspense boundary that mounts only once the trigger is used, which it cannot
- * do if this component resolves the results.
- *
- * @param props.children Renders the search; call `close` after a pick.
- * @returns The trigger, or the search once it is open.
- */
+// `children` is a render prop, not a resolved result: the contribute form's
+// search stays behind a Suspense boundary that mounts only on open.
 export function CardPickerButton({
   label,
   icon,
@@ -34,7 +21,6 @@ export function CardPickerButton({
   icon: ReactNode;
   variant?: "outline" | "ghost";
   size?: "xs" | "sm";
-  /** Set to "button" inside a form, so the trigger can't submit it. */
   type?: "button";
   disabled?: boolean;
   closeLabel?: string;

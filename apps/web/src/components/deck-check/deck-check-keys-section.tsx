@@ -33,7 +33,6 @@ import {
   useRevokeOrgDeckCheckKey,
 } from "@/hooks/use-deck-check-keys";
 
-/** Bound key actions, supplied by the personal / org wrappers below. */
 interface KeyActions {
   keys: DeckCheckKeyResponse[] | undefined;
   mint: (label: string) => Promise<string>;
@@ -45,11 +44,6 @@ interface KeyActions {
   removePending: boolean;
 }
 
-/**
- * Personal deck-check API keys (host = the current user). Keys here let a
- * provider push entrant decklists into the tournaments this account hosts.
- * @returns The personal API-keys card.
- */
 export function MyDeckCheckKeysSection({ enabled = true }: { enabled?: boolean }) {
   const { data } = useMyDeckCheckKeys(enabled);
   const mintKey = useMintMyDeckCheckKey();
@@ -79,11 +73,6 @@ export function MyDeckCheckKeysSection({ enabled = true }: { enabled?: boolean }
   );
 }
 
-/**
- * Organization-owned deck-check API keys (owner/manager only). Keys here let a
- * provider push entrant decklists into the tournaments the org hosts.
- * @returns The org API-keys card.
- */
 export function OrgDeckCheckKeysSection({
   orgId,
   enabled = true,
@@ -119,12 +108,6 @@ export function OrgDeckCheckKeysSection({
   );
 }
 
-/**
- * The shared API-key management card plus the integration details an organizer
- * needs to send entrant decklists. Host-agnostic: the personal and org wrappers
- * supply the bound mutations.
- * @returns The API-keys settings card.
- */
 function DeckCheckKeysCard(actions: KeyActions) {
   const { keys } = actions;
   const [createOpen, setCreateOpen] = useState(false);

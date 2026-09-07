@@ -23,11 +23,9 @@ import { cn } from "@/lib/utils";
 import { useCardDesignerStore } from "@/stores/card-designer-store";
 
 /**
- * The editor for every field the card visibly shows. Reuses the contribute
- * form's inputs; drops all printing-catalog metadata (set, language, year,
- * markers, finish, art variant, signed) since it designs an invented card.
- *
- * @returns The card designer form element.
+ * Reuses the contribute form's inputs but drops printing-catalog metadata
+ * (set, language, year, markers, finish, art variant, signed) since this
+ * designs an invented card.
  */
 export function CardDesignerForm() {
   const card = useCardDesignerStore((state) => state.card);
@@ -74,8 +72,6 @@ export function CardDesignerForm() {
         </div>
 
         <FieldRow label="Domains">
-          {/* Spaced chips instead of a joined segment: the seven domains don't
-              fit one phone-width line, and a joined group can't wrap. */}
           <ToggleGroup
             multiple
             variant="outline"
@@ -106,7 +102,6 @@ export function CardDesignerForm() {
         </FieldRow>
 
         <FieldRow label="Supertypes">
-          {/* Same wrapping treatment as the Domains row above. */}
           <ToggleGroup
             multiple
             variant="outline"

@@ -12,7 +12,6 @@ interface UseStickyHeaderParams {
   virtualizer: Virtualizer<Window, Element>;
   scrollMargin: number;
   stickyOffset: number;
-  /** Height of a header row in px; the overlay waits until the whole row is out of view. */
   headerHeight: number;
 }
 
@@ -27,9 +26,8 @@ export function useStickyHeader({
 }: UseStickyHeaderParams) {
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
-  // Mirror refs so the scroll handler reads current values without
-  // re-subscribing every render. Writes live in an effect so the compiler
-  // can optimize the render phase (refs must not be touched during render).
+  // Refs mirror props so the scroll handler avoids re-subscribing every render;
+  // writes happen in an effect since refs must not be touched during render.
   const multipleGroupsRef = useRef(multipleGroups);
   const virtualRowsRef = useRef(virtualRows);
   const rowStartsRef = useRef(rowStarts);
@@ -67,7 +65,6 @@ export function useStickyHeader({
       const margin = scrollMarginRef.current;
       const threshold = globalThis.scrollY - margin + stickyOffsetRef.current;
 
-      // Prefer the virtualizer's measured positions over rowStarts (estimated).
       const measuredStarts = new Map(
         virtualizerRef.current.getVirtualItems().map((item) => [item.index, item.start - margin]),
       );
@@ -100,15 +97,8 @@ export function useStickyHeader({
       });
     };
 
-    // The first pass runs after paint, not inside the commit. `update` reads
-    // `scrollY` and the virtualizer's measured items, which forces a synchronous
-    // layout — and this effect re-subscribes exactly when the layout above the
-    // grid has just changed (`scrollMargin` moved) or the grid gained a second
-    // group. Both happen on the same commit as a filter change, so running it
-    // inline put a full forced layout on the path to showing the new cards:
-    // measured at 22–40ms on a phone (8× CPU), ~50ms of the toggle's total.
-    // After paint it costs the same but nobody is waiting on it, and the
-    // overlay is only ever one frame late.
+    // Runs after paint: `update` forces a synchronous layout, and inline it
+    // would land on the same commit as a filter change showing new cards.
     const frame = requestAnimationFrame(update);
     globalThis.addEventListener("scroll", update, { passive: true });
     return () => {

@@ -17,10 +17,8 @@ vi.mock("@/stores/display-store", () => ({
   useDisplayStore: mockUseDisplayStore,
 }));
 
-// The real Base UI slider needs pointer capture and layout boxes to produce a
-// drag, neither of which jsdom provides. The stub exposes the three callback
-// paths the component distinguishes (pointer move, pointer release, keyboard)
-// so the commit timing can be asserted directly.
+// jsdom has no pointer capture or layout boxes, so the real Base UI slider
+// can't produce a drag; this stub exposes its three callback paths directly.
 vi.mock("@/components/ui/slider", () => ({
   Slider: ({
     onValueChange,
@@ -109,8 +107,6 @@ describe("FilterRangeSections commit timing", () => {
   }
 
   it("does not commit while a thumb is being dragged", () => {
-    // Regression: mid-drag commits re-rendered the filter chrome, which moved
-    // the bar under the pointer and yanked the thumb off target.
     const { getByText } = renderCopiesSlider();
     fireEvent.click(getByText("drag-move"));
     act(() => {
@@ -130,8 +126,6 @@ describe("FilterRangeSections commit timing", () => {
   });
 
   it("still debounce-commits keyboard changes without a release", () => {
-    // Keyboard has no pointer to displace, and auto-repeat must not write the
-    // URL per keystroke, so those changes keep the debounce.
     const { getByText } = renderCopiesSlider();
     fireEvent.click(getByText("keyboard"));
     act(() => {

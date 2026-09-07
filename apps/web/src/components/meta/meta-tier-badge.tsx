@@ -4,12 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 import { cn } from "@/lib/utils";
 
-/**
- * Gold is the archive's colour for winning, so only the top tier gets it. The
- * competitive teal is written out for both themes on purpose: the dark palette's
- * primary is amber, so a themed outline would land back on the premier gold and
- * the two tiers would stop being distinguishable at a glance.
- */
+// `competitive` pins `text-primary`/`border-primary`: the dark palette's default
+// outline color is amber, which would collide with `premier`'s gold.
 const TIER_STYLE: Record<MetaEventTier, { variant: "outline" | "muted"; className: string }> = {
   premier: { variant: "outline", className: "border-border-accent text-border-accent" },
   competitive: {
@@ -19,10 +15,6 @@ const TIER_STYLE: Record<MetaEventTier, { variant: "outline" | "muted"; classNam
   local: { variant: "muted", className: "" },
 };
 
-/**
- * How much an event counts for. One badge for every archive surface — an event
- * row, an event header, a deck tile — so a tier reads the same everywhere.
- */
 export function MetaTierBadge({ tier, className }: { tier: MetaEventTier; className?: string }) {
   const style = TIER_STYLE[tier];
   return (

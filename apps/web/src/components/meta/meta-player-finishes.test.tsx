@@ -64,7 +64,6 @@ function finish(overrides: Parameters<typeof makeMetaPlayerFinish>[0] = {}): Met
   });
 }
 
-/** Enough finishes to push the list past the "Best" cut. */
 function manyFinishes(count: number): MetaPlayerFinish[] {
   return Array.from({ length: count }, (_, index) =>
     finish({

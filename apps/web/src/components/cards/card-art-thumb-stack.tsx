@@ -2,7 +2,7 @@ import { CardArtThumb } from "@/components/cards/card-art-thumb";
 import { CountPill } from "@/components/ui/count-pill";
 import { cn } from "@/lib/utils";
 
-/** One card in the stack: `src` wins over `imageId` (mirrors CardArtThumb). */
+/** `src` wins over `imageId` when both are set. */
 interface CardArtThumbStackItem {
   key: string;
   imageId?: string | null;
@@ -10,15 +10,6 @@ interface CardArtThumbStackItem {
   alt?: string;
 }
 
-/**
- * An overlapping strip of card-art thumbs with a "+N" pill for the overflow —
- * the avatar-stack treatment applied to card art. Used where one row stands
- * for many cards (aggregated activity events, batch summaries). Thumbs get a
- * background-colored ring so the overlap reads as separate cards; size them
- * with `thumbClassName` (default `w-8`).
- *
- * @returns The thumb-stack element.
- */
 export function CardArtThumbStack({
   items,
   max = 5,
@@ -26,10 +17,8 @@ export function CardArtThumbStack({
   thumbClassName,
 }: {
   items: CardArtThumbStackItem[];
-  /** How many thumbs to show before collapsing the rest into the +N pill. */
   max?: number;
   className?: string;
-  /** Sizing utilities per thumb, e.g. `"w-10"`. */
   thumbClassName?: string;
 }) {
   const shown = items.slice(0, max);

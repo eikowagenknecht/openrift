@@ -85,8 +85,6 @@ function StatusCell({ row }: AdminCellSlotProps<MetaCatalogRow>) {
   const status = catalogStatusDisplay(row.displayStatus);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {/* The only filled badge on the row: an official template is the strongest
-          reason to take an event, so it outranks every other chip here. */}
       {row.officialLabel !== null && (
         <Badge title="Runs on a recognized official Organized Play template">
           {row.officialLabel}
@@ -153,14 +151,6 @@ function CoverageCell({ row }: AdminCellSlotProps<MetaCatalogRow>) {
   );
 }
 
-/**
- * Built per render rather than as a module constant so the format column is
- * handed the one label lookup the page already holds, instead of each of the
- * fifty cells resolving the same map for itself.
- *
- * @param formatLabels - Deck-format slug to display label.
- * @returns The catalogue's columns.
- */
 function catalogColumns(formatLabels: Record<string, string>): AdminColumnDef<MetaCatalogRow>[] {
   return [
     { header: "Date", width: "w-28", sortKey: "startAt", sortFirst: "desc", cell: <DateCell /> },
@@ -182,22 +172,12 @@ function catalogColumns(formatLabels: Record<string, string>): AdminColumnDef<Me
 
 const SORT_FALLBACK = { sort: "startAt", direction: "desc" } as const;
 
-/** What an accept does next, and whether that work is still in flight. */
 interface AcceptFollowUp {
   follow: (row: MetaCatalogRow, slug: string) => Promise<void>;
   isPending: boolean;
 }
 
-/**
- * What happens after a row is accepted. An accepted event is only queued for
- * the recheck ladder, and a deployment with no cron never drains that queue, so
- * an event that has already run is pulled here instead of being left empty:
- * inline when the fetch is a handful of requests, and as a background recheck
- * when the organizer published decklists, since a 400-deck event outlives the
- * request. An event that has not run yet has nothing to fetch either way.
- *
- * @returns The follow-up to run once an accept resolves.
- */
+/** No cron drains the recheck queue in this deployment, so a completed event's fetch runs here instead. */
 function useAcceptFollowUp(): AcceptFollowUp {
   const fetchEvent = useFetchCatalogEvent();
   const runSync = useRunMetaSync();
@@ -215,8 +195,6 @@ function useAcceptFollowUp(): AcceptFollowUp {
         description: `Archived as ${slug}. Its standings and decklists are being fetched in the background.`,
       });
       try {
-        // An already-running recheck picks this event up on its own, so a
-        // refusal here is not worth saying anything about.
         await runSync.mutateAsync({ trigger: "runRecheck" });
       } catch {
         // Reported by the global mutation error toast.
@@ -234,9 +212,7 @@ function useAcceptFollowUp(): AcceptFollowUp {
       // Reported by the global mutation error toast.
       return;
     }
-    // Accepting already queued this event for the recheck ladder, so a fetch
-    // busy with another event still leaves this one covered. Saying "already
-    // running" here would read as a failure when nothing was lost.
+    // Already queued by the accept; not an error.
     if (result.status === "already_running") {
       return;
     }
@@ -246,13 +222,7 @@ function useAcceptFollowUp(): AcceptFollowUp {
   return { follow, isPending: fetchEvent.isPending || runSync.isPending };
 }
 
-/**
- * The per-row triage actions, split from the guard below so the handlers can be
- * declared with a row that is definitely there. The React Compiler bails on a
- * function declared after a return, so an early guard cannot sit above them.
- *
- * @returns The actions for one catalogue row.
- */
+// The React Compiler bails on a function declared after a return, so the row-null guard sits in a wrapper below instead.
 function CatalogRowActionsFor({
   row,
   onPickFormat,
@@ -366,18 +336,6 @@ function CatalogRowActions({
   return <CatalogRowActionsFor row={row} onPickFormat={onPickFormat} />;
 }
 
-/**
- * The Meta Archive's catalogue triage list (ADR-014). The catalogue mirrors the
- * source's whole event listing — hundreds of thousands of rows — so the table is
- * paged on the server and every filter is part of the query. Those filters live
- * in the URL, which is what lets the overview's funnel land on an exact slice
- * and what survives the reload a long triage session eventually takes. Nothing
- * here edits an event: a row is either accepted into the archive, which creates
- * the live event and queues its deep fetch, or dismissed, which writes the
- * ignore key the sync honours from then on.
- *
- * @returns The catalogue tab.
- */
 export function MetaCatalogPage() {
   const filters = Route.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);

@@ -7,12 +7,8 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(path.resolve(import.meta.dirname, "./deck-print-dialog.tsx"), "utf-8");
 
-/**
- * Modules that reach jsPDF (or the canvas rasteriser) and so drag ~100 KB of
- * compressed JavaScript in behind them. This dialog is mounted by every surface
- * that renders a deck tile, so a value import of any of these puts that weight
- * on the deck list's initial graph.
- */
+// Modules that reach jsPDF (or the canvas rasteriser), ~100 KB compressed.
+// This dialog mounts on every deck tile, so a value import puts that weight on the deck list's initial graph.
 const PDF_BACKED_MODULES = [
   "@/lib/image-pdf",
   "@/lib/pdf-document",
@@ -23,12 +19,7 @@ const PDF_BACKED_MODULES = [
   "html2canvas-pro",
 ];
 
-/**
- * The specifiers the module pulls in at load time. `import type` is erased
- * before bundling and dynamic `import()` becomes its own chunk, so neither
- * counts.
- * @returns The statically value-imported module specifiers.
- */
+// `import type` is erased before bundling and dynamic `import()` becomes its own chunk, so neither counts.
 function staticValueImports(): string[] {
   const specifiers: string[] = [];
   const statements = /^import\s+(?<typeOnly>type\s+)?[\S\s]*?from\s+"(?<spec>[^"]+)";/gmu;

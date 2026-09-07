@@ -46,13 +46,8 @@ function buildVirtualRows(groups: CardGroup[]): VRow[] {
   return rows;
 }
 
-// Data subscriptions (live owned-count, per-cell) live inside the actions
-// component the surface passes through `actionsCell` — see
-// CatalogTableActions / CollectionTableActions / StaticCountTableActions.
-// The actions element identity changes with each parent render (it closes
-// over parent state), but the memoized children inside the actions
-// component are cached by React Compiler, so the re-render cost stays
-// per-row-local.
+// actionsCell's element identity changes every parent render, but its own
+// memoized children are cached by React Compiler, so re-render stays row-local.
 // oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const DataRow = memo(function DataRow({
   printing,
@@ -97,11 +92,8 @@ const DataRow = memo(function DataRow({
   );
 });
 
-// Floating "current group" pill for the table's sticky overlay. Memoized with a
-// primitive `groupId` + a stable `onSelect` (scrollToGroup reads from refs) so
-// it doesn't re-render on every scroll-driven CardTable render. Mirrors the
-// grid's GroupHeaderLabel but appends the card count, matching the table's
-// inline group headers.
+// Memoized with a primitive groupId + stable onSelect so it doesn't re-render
+// on every scroll-driven CardTable render.
 // oxlint-disable-next-line eslint/prefer-arrow-callback -- named for React DevTools
 const GroupStickyLabel = memo(function GroupStickyLabel({
   slug,
@@ -140,46 +132,20 @@ interface CardTableProps {
   items: CardViewerItem[];
   totalItems: number;
   setOrder?: GroupInfo[];
-  /** Section order for the "collection" axis. Only /collections supplies it. */
   collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
-  /** Window-scroll offset for sticky elements above the table (header + toolbar). */
   stickyOffset?: number;
-  /** Width + presence of the rightmost actions column. See {@link ActionsColumn}. */
   actionsColumn: ActionsColumn;
-  /**
-   * JSX element rendered inside the actions cell for each row. Per-row data
-   * (`printing`, `itemId`) is injected via cloneElement, so the actions
-   * component should declare those as optional props.
-   */
   actionsCell?: ReactElement<TableRowSlotProps>;
-  /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
-  /**
-   * Optional wrapper element applied around each data row. Surfaces use this
-   * for drag wiring — e.g. /collections wraps rows in `<DraggableCard>` so the
-   * table row becomes a drag handle alongside grid cells. Per-row data is
-   * injected via cloneElement and the row node is provided as children.
-   */
   rowWrapper?: ReactElement<TableRowSlotProps & { children?: ReactNode }>;
-  /** Surface-specific no-results copy; see {@link CardViewerEmptyState}. */
   noResultsDescription?: ReactNode;
 }
 
 let cachedScrollMargin = 0;
 
-/**
- * Virtualized table view for the card browser. Mirrors CardGrid's grouping +
- * window-scroll virtualization but renders rows instead of grid cells. Each
- * row hovers a full-size preview via HoverCard, and the rightmost column
- * surfaces whatever {@link CardTableProps.renderActions} returns — typically
- * a CatalogTableActions / CollectionTableActions / DeckTableActions /
- * StaticCountTableActions cell.
- *
- * @returns The rendered virtualized table.
- */
 export function CardTable({
   items,
   totalItems,
@@ -196,9 +162,8 @@ export function CardTable({
   noResultsDescription,
 }: CardTableProps) {
   const { orders, labels } = useEnumOrders();
-  // Resolve the sticky offset in the body (not as a default param) so the live
-  // header measurement settles after hydration instead of mismatching the SSR
-  // markup. See useHeaderHeight.
+  // Not a default param: the live header measurement must settle after
+  // hydration, or it mismatches the SSR markup.
   const headerHeight = useHeaderHeight();
   const stickyOffset = stickyOffsetProp ?? headerHeight;
 
@@ -227,11 +192,8 @@ export function CardTable({
       return;
     }
     const measure = () => {
-      // The non-sticky column header sits between this container's top and the
-      // virtualized rows, so the rows' document offset is one header-height
-      // lower. scrollMargin must equal that row offset, or scrollToIndex (pill
-      // click, scrubber release) and the active-group threshold land a row off.
-      // The grid has no column header, so its scrollMargin needs no such adjustment.
+      // The non-sticky column header pushes the rows one header-height below
+      // this container's top; scrollMargin must include it or scrollToIndex lands a row off.
       const next =
         Math.round(el.getBoundingClientRect().top + globalThis.scrollY) + CARD_TABLE_HEADER_HEIGHT;
       cachedScrollMargin = next;
@@ -261,8 +223,6 @@ export function CardTable({
     stickyOffsetRef.current = stickyOffset;
   });
 
-  // Tracks the group whose header has scrolled up out of view, so the floating
-  // pill below the toolbar can show the current set as you scroll.
   const activeHeaderRow = useStickyHeader({
     multipleGroups,
     virtualRows,
@@ -298,9 +258,8 @@ export function CardTable({
     virtualizerRef.current.scrollToIndex(rowIndex, { align: "start" });
   }, [selectedItemId]);
 
-  // Reads only from mirror refs so the React Compiler keeps this reference
-  // stable across scroll-driven re-renders — GroupStickyLabel's memoized
-  // onSelect prop then doesn't bust on every tick.
+  // Reads only from mirror refs so React Compiler keeps this reference stable
+  // across scroll-driven re-renders; GroupStickyLabel's onSelect prop stays intact.
   const scrollToGroup = (groupId: string) => {
     const rowIndex = virtualRowsRef.current.findIndex(
       (row) => row.kind === "header" && row.group.id === groupId,
@@ -310,9 +269,8 @@ export function CardTable({
     }
   };
 
-  // Only drop the grouped column when group headers are actually on screen
-  // (more than one group). With a single group the headers are suppressed, so
-  // that column is the only place its value shows — keep it.
+  // With a single group, headers are suppressed, so the column is the only
+  // place its value shows.
   const groupingColumn = multipleGroups ? groupBy : undefined;
   const columns = getCardTableColumns(actionsColumn, groupingColumn);
   const minWidth = getCardTableMinWidth(actionsColumn, groupingColumn);
@@ -335,10 +293,8 @@ export function CardTable({
         multipleGroups={multipleGroups}
         stickyOffset={stickyOffset}
       />
-      {/* Floating group pill — pins below the toolbar as you scroll. It sits
-          outside the horizontal-scroll wrapper below so CSS sticky references
-          the window rather than that scroll container (which would trap it).
-          The column header inside the wrapper stays non-sticky for now. */}
+      {/* Outside the horizontal-scroll wrapper below, so CSS sticky references
+          the window instead of that scroll container (which would trap it). */}
       <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
           <div className="pointer-events-none flex justify-center pt-2">

@@ -20,7 +20,6 @@ export default function DeckBuildingArticle() {
         Pick a legend, fill your zones, and the editor checks the rules as you go.
       </p>
 
-      {/* Decks vs Collections concept */}
       <Alert>
         <AlertTitle>Decks are blueprints, not physical locations</AlertTitle>
         <AlertDescription>
@@ -54,7 +53,6 @@ export default function DeckBuildingArticle() {
         </AlertDescription>
       </Alert>
 
-      {/* Deck structure diagram */}
       <Callout>
         <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wide uppercase">
           Deck structure
@@ -99,7 +97,6 @@ export default function DeckBuildingArticle() {
         </div>
       </Callout>
 
-      {/* Getting started */}
       <section>
         <Heading className="mb-2">Getting started</Heading>
         <p className="text-muted-foreground">
@@ -118,7 +115,6 @@ export default function DeckBuildingArticle() {
         </p>
       </section>
 
-      {/* Building your deck */}
       <section>
         <Heading className="mb-2">Building your deck step by step</Heading>
         <p className="text-muted-foreground">
@@ -155,7 +151,6 @@ export default function DeckBuildingArticle() {
         </p>
       </section>
 
-      {/* Adding cards */}
       <section>
         <Heading className="mb-2">Adding cards</Heading>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -186,7 +181,6 @@ export default function DeckBuildingArticle() {
         </p>
       </section>
 
-      {/* Validation rules */}
       <section>
         <Heading className="mb-2">Validation rules (Constructed format)</Heading>
         <p className="text-muted-foreground">
@@ -236,7 +230,6 @@ export default function DeckBuildingArticle() {
         </p>
       </section>
 
-      {/* Rune auto-population */}
       <section>
         <Heading className="mb-2">Rune auto-population</Heading>
         <p className="text-muted-foreground">
@@ -247,7 +240,6 @@ export default function DeckBuildingArticle() {
         </p>
       </section>
 
-      {/* Domain filtering */}
       <section>
         <Heading className="mb-2">Domain filtering</Heading>
         <p className="text-muted-foreground">
@@ -256,7 +248,6 @@ export default function DeckBuildingArticle() {
         </p>
       </section>
 
-      {/* Stats panel */}
       <section>
         <Heading className="mb-2">Deck stats</Heading>
         <p className="text-muted-foreground">
@@ -279,7 +270,6 @@ export default function DeckBuildingArticle() {
         </ul>
       </section>
 
-      {/* Managing decks */}
       <section>
         <Heading className="mb-2">Managing decks</Heading>
         <p className="text-muted-foreground">
@@ -315,7 +305,6 @@ export default function DeckBuildingArticle() {
         </ul>
       </section>
 
-      {/* Auto-save */}
       <section>
         <Heading className="mb-2">Auto-save</Heading>
         <p className="text-muted-foreground">

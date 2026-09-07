@@ -59,14 +59,8 @@ type ParseResult =
   | { ok: true; candidates: UploadCandidatesBody["candidates"] }
   | { ok: false; error: "invalid-json" | "empty-or-wrong-shape" };
 
-/**
- * Parses a candidates JSON file. Accepts either a bare array or `{ candidates: [...] }`.
- *
- * Kept as a module-level helper so react-compiler doesn't try to lower the ternary + logical
- * expressions inside the try/catch (it bails on "value blocks" within try statements).
- * @param text Raw file contents.
- * @returns Parsed candidates on success; otherwise a tagged error indicating which failure occurred.
- */
+// Module-level so react-compiler doesn't try to lower the ternary + logical
+// expressions inside the try/catch (it bails on "value blocks" within try statements).
 function parseCandidates(text: string): ParseResult {
   try {
     const json = JSON.parse(text) as unknown[] | { candidates?: unknown };
@@ -83,9 +77,8 @@ function parseCandidates(text: string): ParseResult {
 const exportCardsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context }): Promise<string> => {
-    // The export is a loose passthrough JSON array; serialize it server-side to
-    // a string (trivially serializable across the server-fn boundary) — the
-    // client just writes it to a download blob.
+    // Serialized server-side since the export is a loose passthrough array; the client
+    // just writes the string to a download blob.
     const data = await apiOrpcClient(adminCardQueriesContract, context.cookie).exportCandidates();
     return JSON.stringify(data, null, 2);
   });
@@ -553,13 +546,7 @@ function RelinkCandidatesCard() {
   );
 }
 
-/**
- * The export server fn surfaces an ORPCError (or any Error) whose prototype is
- * dropped crossing the server-fn boundary, so the message is read structurally
- * rather than via `instanceof`. Module-level because the compiler bails on a
- * branch inside a `catch`.
- * @returns The error's message, or the fallback.
- */
+// The error's prototype is dropped crossing the server-fn boundary.
 function exportErrorText(error: unknown): string {
   if (
     typeof error === "object" &&

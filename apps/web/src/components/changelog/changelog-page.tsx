@@ -80,12 +80,8 @@ export function ChangelogPage() {
                 className="bg-background/80 sticky z-10 flex items-baseline justify-between py-2 pb-2 backdrop-blur-lg"
                 style={{ top: dateHeaderTop }}
               >
-                {/* One date per heading: the relative label falls back to the
-                    plain day, which is what the second column used to show.
-                    A <time> rather than a <span> so the ISO day stays readable
-                    to machines — assistive tech, feed readers, and the e2e test
-                    that asserts the newest entry rendered — while the visible
-                    text is the relative wording. */}
+                {/* <time> keeps the ISO day machine-readable (assistive tech, feed
+                    readers, the e2e test) while the visible text is relative. */}
                 <time
                   dateTime={group.date}
                   className="text-foreground text-sm font-semibold tabular-nums"

@@ -16,12 +16,6 @@ import { DialogForm } from "@/components/ui/dialog-form";
 import { useCancelTournament, useDeleteTournament } from "@/hooks/use-tournaments";
 import { runReportedMutation } from "@/lib/run-reported-mutation";
 
-/**
- * Cancel (read-only, data kept) and delete (gone for good). Both are confirmed;
- * a successful delete navigates away because the page it lives on no longer
- * exists.
- * @returns The danger-zone card.
- */
 export function DangerZoneCard({ detail }: { detail: TournamentDetailResponse }) {
   const navigate = useNavigate();
   const cancelTournament = useCancelTournament();

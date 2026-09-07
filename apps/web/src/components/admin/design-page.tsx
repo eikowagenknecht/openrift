@@ -268,14 +268,6 @@ const BADGE_VARIANTS = [
   "count",
 ] as const;
 
-/**
- * The page's sections, in the order they render. The nav below is built from
- * this same list, so a section can never be on the page without a link to it
- * (Tiles was, for a while) and the two orders can never disagree.
- *
- * `title` repeats each section's own `DemoSection` title, which is what the TOC
- * link reads.
- */
 const SECTIONS = [
   { id: "tokens", title: "Tokens", Component: TokensSection },
   { id: "buttons", title: "Buttons", Component: ButtonsSection },
@@ -304,16 +296,7 @@ const TOC_ITEMS: PageTocItem[] = SECTIONS.map((section) => ({
   label: section.title,
 }));
 
-/**
- * Admin-only kitchen sink: every `components/ui/` primitive rendered in its
- * variants so drift is visible at a glance. Toggle the app theme in the header
- * to review both modes. When you add a primitive to `ui/`, add a demo here.
- *
- * @returns The design review page.
- */
 export function DesignPage() {
-  // The admin page top bar is sticky above this column, so the TOC has to
-  // offset past it instead of tucking underneath.
   const topBarHeight = usePageTopBarHeight();
 
   return (
@@ -389,8 +372,6 @@ function DemoRow({
   );
 }
 
-// A variant-sweep row of Swatches: bottom-aligned so the captions line up,
-// with wider gaps to keep caption columns readable.
 function SwatchRow({
   label,
   hint,
@@ -407,10 +388,6 @@ function SwatchRow({
   );
 }
 
-// One variant/size sample: the live component, its token name, and a spec
-// caption (size, radius, text size) measured from the rendered DOM so the
-// numbers can never drift from the cva source. `colors` adds bg/fg chips
-// with the resolved computed color in the tooltip.
 function Swatch({
   label,
   colors = false,
@@ -446,7 +423,6 @@ function Swatch({
   );
 }
 
-// Tiny inline color sample; the resolved computed value lives in the tooltip.
 function ColorChip({ value, label }: { value: string; label: string }) {
   return (
     <span
@@ -457,10 +433,6 @@ function ColorChip({ value, label }: { value: string; label: string }) {
   );
 }
 
-// One component per cell: the component's name, a one-line "what it's for"
-// hint, then the live demo. Sections whose demos are variant sweeps of a
-// single component (Buttons, Badges) use SwatchRow instead. `spec` carries
-// convention facts that can't be measured (tier names, doc rules).
 function Demo({
   name,
   hint,
@@ -572,9 +544,6 @@ const TYPE_TIERS: readonly { role: string; cls: string; note?: string }[] = [
   { role: "Micro", cls: "text-2xs" },
 ];
 
-// One theme color: a click-to-copy tile filled with the token's color. When
-// `fg` is set, the tile shows an "Aa" sample in that color (the token's
-// paired foreground); line/chart tokens omit it.
 function ColorTokenTile({ token, fg, value }: { token: string; fg?: string; value?: string }) {
   const { copy } = useCopyToClipboard();
 
@@ -605,8 +574,6 @@ function ColorTokenTile({ token, fg, value }: { token: string; fg?: string; valu
   );
 }
 
-// One type-scale tier: live sample text plus role, class token, and the
-// measured font size.
 function TypeSpecimen({ role, cls, note }: { role: string; cls: string; note?: string }) {
   const { ref, spec } = useElementSpec<HTMLDivElement>();
   const fontSize = spec ? parsePx(spec.fontSize) : Number.NaN;
@@ -1562,10 +1529,6 @@ function TilesSection() {
   );
 }
 
-// Self-contained sample art so the design page stays static (no catalog
-// fetch). Portrait fills the frame directly; the landscape sample stands in for
-// a Battlefield — upright landscape content that the `landscape` prop rotates
-// into the portrait frame.
 const PORTRAIT_SAMPLE_ART = `data:image/svg+xml,${encodeURIComponent(
   "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 63 88'><defs><linearGradient id='p' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#6366f1'/><stop offset='1' stop-color='#0ea5e9'/></linearGradient></defs><rect width='63' height='88' fill='url(#p)'/><circle cx='31.5' cy='26' r='10' fill='#fde047'/><text x='31.5' y='58' font-family='sans-serif' font-size='8' font-weight='bold' fill='white' text-anchor='middle'>UNIT</text></svg>",
 )}`;
@@ -2312,8 +2275,6 @@ function demoTradeAnnotation(
   return { printingId: "printing-1", role, phase, tradeCount: 1, quantity: 2 };
 }
 
-// One captioned row inside the trade-chip demo: the chips sweep a mode, the
-// caption names it. Hover a chip for the tooltip the strip modes rely on.
 function TradeChipRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-1">
@@ -2323,11 +2284,7 @@ function TradeChipRow({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-/**
- * Local stand-in for the search-scope store's toggle, so the demo chip behaves
- * like the real one — including its refusal to leave the scope empty.
- * @returns The next scope.
- */
+/** Mirrors the search-scope store's toggle, which refuses to leave the scope empty. */
 function toggleDemoScope(scope: SearchField[], field: SearchField): SearchField[] {
   if (!scope.includes(field)) {
     return [...scope, field];
@@ -2340,8 +2297,6 @@ const DEMO_LEGEND = "Lux, Lady of Luminosity";
 
 function MetaArchiveSection() {
   const [scope, setScope] = useState<MetaScope>({});
-  // The live eras, not a fixture: the dropdown is only reviewable if it shows
-  // the set boundaries the archive will actually offer.
   const eras = useMetaEras();
   return (
     <DemoSection

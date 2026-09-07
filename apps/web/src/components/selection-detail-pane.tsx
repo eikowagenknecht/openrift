@@ -20,21 +20,10 @@ interface SelectionDetailPaneProps {
   printingsByCardId: Map<string, Printing[]>;
   showImages: boolean;
   onSearchAndClose: (query: string) => void;
-  /**
-   * Surface-specific add controls for the shown card, mirrored from the card
-   * cell's strip. A function so the surface builds them from its own per-card
-   * state without having to subscribe to the selection itself.
-   */
   actions?: (printing: Printing) => ReactNode;
 }
 
-/**
- * Desktop detail pane that subscribes to the selection store. Rendered only
- * while the pane is docked (the `paneDocked` display preference), and stays in
- * place with an empty state when no card is selected — docking is a layout
- * choice, so the column must not appear and vanish as cards are clicked.
- * @returns The detail pane.
- */
+/** Stays mounted with an empty state when no card is selected; never unmounts. */
 export function SelectionDetailPane({
   items,
   printingsByCardId,
@@ -46,9 +35,8 @@ export function SelectionDetailPane({
   const paneDocked = useDisplayStore((s) => s.paneDocked);
   const setPaneDocked = useDisplayStore((s) => s.setPaneDocked);
 
-  // The X closes the panel, not just the card in it. Clearing the selection
-  // alone left the empty pane sitting there, and undocking alone would have
-  // handed the still-selected card straight to the modal.
+  // Closes the panel, not just the card: undocking alone would hand the
+  // still-selected card to the modal.
   const handleClose = () => {
     setPaneDocked(false);
     closeDetail();

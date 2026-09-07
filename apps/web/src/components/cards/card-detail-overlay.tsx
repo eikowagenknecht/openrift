@@ -38,47 +38,25 @@ const CardDetail = lazy(async () => {
 });
 
 interface CardDetailOverlayProps {
-  /**
-   * Printing ids of the host's rows, in the order they are listed. This is the
-   * prev/next sequence, so the overlay steps through those rows rather than the
-   * whole catalog. Pass an empty array for a surface that opens one card at a
-   * time — prev/next and the position label then stay out of the detail.
-   */
   printingIds: string[];
-  /** Which row's detail is open, or null when closed. */
   openPrintingId: string | null;
   onOpenPrintingIdChange: (printingId: string | null) => void;
   showImages: boolean;
-  /** Runs a catalog search for a clicked tag or keyword, closing the overlay. */
   onSearchAndClose: (query: string) => void;
-  /**
-   * Which history flag this overlay owns. A host that stacks it on another
-   * overlay needs a key of its own, so neither reads the other's entry as one
-   * of theirs.
-   */
   historyKey: OverlayHistoryKey;
 }
 
 /**
  * A card detail overlay a surface drives itself, by printing id: the fullscreen
- * drawer on phones, the two-column dialog on desktop.
- *
- * Unlike every card-browser surface this does not touch the global selection
- * store, which makes it the one to reach for where that store is unavailable or
- * already spoken for: a page that mounts no `SelectionDetailOverlays` at all
- * (the trades surfaces, which have no grid and so no docked pane to fall back
- * to when a card click finds the modal standing down), or a dialog stacked on a
- * page that does mount one, where a second reader of that store would put two
- * copies of the detail on screen at once (the deck's missing-cards dialog).
- * @returns The detail overlay for this viewport, or null while closed.
+ * drawer on phones, the two-column dialog on desktop. Unlike a card-browser
+ * surface, it does not touch the global selection store.
  */
 export function CardDetailOverlay(props: CardDetailOverlayProps) {
   if (props.openPrintingId === null) {
     return null;
   }
-  // The catalog read suspends. Every host has it cached by the time it can show
-  // a card row at all, so this resolves in the same commit; the null fallback
-  // only ever covers a cold cache.
+  // The catalog read suspends; every host has it cached by the time it can show
+  // a row, so the null fallback only ever covers a cold cache.
   return (
     <Suspense fallback={null}>
       <CardDetailOverlayContent {...props} />
@@ -98,9 +76,7 @@ function CardDetailOverlayContent({
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
 
-  // A printing chosen in the overlay's own picker is remembered against the row
-  // it was chosen from, so moving to another row drops it without needing an
-  // effect to reset the state.
+  // Keyed by forPrintingId so moving to another row drops the pick without an effect.
   const [picked, setPicked] = useState<{ forPrintingId: string; printing: Printing } | null>(null);
 
   const items: CardViewerItem[] = printingIds.flatMap((id) => {
@@ -147,9 +123,6 @@ function CardDetailOverlayContent({
     },
   });
 
-  // A history entry keeps the browser (and Android) back button closing the
-  // detail and returning to whatever it was opened from, rather than leaving
-  // the page with everything still open.
   useOverlayHistoryEntry({
     active: true,
     stateKey: historyKey,
@@ -213,8 +186,7 @@ function CardDetailOverlayContent({
         className="sm:max-w-[860px]"
         style={tint}
         onKeyDown={handleKeyDown}
-        // Named to match the pane and the drawer, so one label finds the close
-        // control on every surface.
+        // aria-label matches the pane and the drawer so one label finds the close control everywhere.
         showCloseButton={false}
       >
         <DialogClose
@@ -247,11 +219,8 @@ function CardDetailOverlayContent({
 }
 
 /**
- * Modal-shaped placeholder for the lazily-loaded detail. It has to mirror the
- * two-column arrangement: a full-width `aspect-card` block inside an 860px
- * dialog is a ~1150px-tall placeholder, which opens the dialog enormous and
- * then snaps it down.
- * @returns The modal-shaped loading skeleton.
+ * Mirrors the two-column arrangement: a full-width `aspect-card` block inside
+ * an 860px dialog would open the dialog ~1150px tall and then snap it down.
  */
 function CardDetailModalSkeleton() {
   return (
@@ -276,10 +245,6 @@ function CardDetailModalSkeleton() {
   );
 }
 
-/**
- * Single-column placeholder for the drawer, matching the pane arrangement.
- * @returns The pane-shaped loading skeleton.
- */
 function CardDetailPaneSkeleton() {
   return (
     <div className="bg-background rounded-lg px-3">

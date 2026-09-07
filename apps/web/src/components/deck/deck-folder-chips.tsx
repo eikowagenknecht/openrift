@@ -2,22 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-/**
- * How many chips render before the rest collapse into a "+N". A deck tile is
- * three to a row on desktop, so two names plus the overflow is what reliably
- * fits without pushing the format badge around.
- */
 const VISIBLE_CHIPS = 2;
 
-/**
- * The folders a deck is filed in, as chips.
- *
- * Renders nothing when the deck is in no folder, so an unfiled deck's tile is
- * exactly as tall as it was before folders existed. Names are resolved through
- * `folderLabels`; an id with no label (a folder deleted in another tab, before
- * the list refetches) is dropped rather than shown raw.
- * @returns The chip row, or null when there is nothing to show.
- */
+/** Folder ids with no label are dropped, not shown raw. */
 export function DeckFolderChips({
   folderIds,
   folderLabels,

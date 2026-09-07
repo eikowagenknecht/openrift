@@ -4,15 +4,7 @@ import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { cn } from "@/lib/utils";
 
-/**
- * Two-column settings shell: a sticky {@link PageToc} sidebar (desktop only)
- * beside a single content column of stacked {@link SettingsGroup}s. Shared by
- * the profile page and the tournament settings tab so both read the same way.
- * The caller owns the outer page padding and max width (pass it via
- * `className`); on a page that already centers its content (e.g. inside a
- * section frame) just drop this in as the single child.
- * @returns The TOC-plus-column layout.
- */
+// The caller owns the outer page padding and max width, passed via `className`.
 export function SettingsLayout({
   toc,
   children,

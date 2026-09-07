@@ -6,10 +6,7 @@ import { swissPointsPreview, swissResultPresets } from "@/lib/swiss-results";
 import { groupPodMembersByTeam, teamDisplayName } from "@/lib/team-display";
 
 interface SwissResultFormProps {
-  /**
-   * The match: a 2-player pod (1v1 Swiss) or a 4-player team pod (2v2). The
-   * first side of the scorelines is members[0]'s side.
-   */
+  /** The first side of the scorelines is `members[0]`'s side. */
   pod: PodResponse;
   /** Treat the pod as a 2v2 team match (two sides of two players each). */
   teamMatch?: boolean;
@@ -21,13 +18,7 @@ interface SwissResultFormProps {
   onCancel?: () => void;
 }
 
-/**
- * Result entry for one Swiss match — 1v1 or a 2v2 team match: pick a scoreline
- * preset (grouped by outcome, winner-first), preview the match points, save.
- * In 2v2 each side's score fans out to both of its players (a team shares one
- * result). The same form serves the organizer and the participant link.
- * @returns The match result-entry form.
- */
+/** In 2v2, each side's score fans out to both of its players. */
 export function SwissResultForm({
   pod,
   teamMatch = false,
@@ -75,11 +66,6 @@ export function SwissResultForm({
     return null;
   }
 
-  // The presets are stored side1-first; grouping them into one row per
-  // outcome (side 1 wins / draw / side 2 wins) makes the orientation visible
-  // from layout alone, so each button can show its scoreline winner-first
-  // (the way a result is spoken). Bo1 has only one scoreline per outcome, so
-  // its chips say Win / Draw instead of a redundant 1–0 / 0–0.
   const bo1 = matchFormat === "bo1";
   interface OutcomeEntry {
     index: number;
@@ -108,9 +94,6 @@ export function SwissResultForm({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Row per outcome: the name truncates on the left, its scoreline chips
-          keep to one cluster on the right, so long team names never explode
-          the layout. */}
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
         {outcomeGroups.map((group) => (
           <Fragment key={group.aria}>

@@ -21,9 +21,7 @@ import { getSiteUrl } from "@/lib/site-config";
 
 /**
  * Self-registration toggle plus the shareable sign-up / deck submission link.
- * The link is only shown when it does something, and rotating it is confirmed
- * because the old link dies immediately.
- * @returns The sign-up links card.
+ * Rotating it is confirmed because the old link dies immediately.
  */
 export function SignupLinksCard({
   detail,
@@ -40,7 +38,6 @@ export function SignupLinksCard({
     ? `${getSiteUrl()}/tournaments/submit/${detail.submissionToken}`
     : null;
   const deckExpected = detail.deckSubmission !== "none";
-  // The link is shown when it does something: open registration or deck submission.
   const showLink = detail.selfRegistration || deckExpected;
   const linkLabel = detail.selfRegistration ? "Registration link" : "Deck submission link";
 

@@ -8,30 +8,15 @@ import { cn } from "@/lib/utils";
 
 export interface TopBarCrumb {
   label: string;
-  /**
-   * Link to this level (e.g. `<Link to="/groups/$slug" params={{ slug }} />`);
-   * the label is injected as its children. Omit for the current page, which
-   * renders as plain text.
-   */
   link?: ReactElement<{ children?: ReactNode; className?: string; "aria-label"?: string }>;
 }
 
-/**
- * Separator between breadcrumb levels. Exported so a bar that follows a trail
- * with its own page title can separate the two without re-deriving the glyph.
- * @returns The separator element.
- */
+/** Exported so a bar with its own page title can separate a trail without re-deriving the glyph. */
 export function TopBarBreadcrumbSeparator({ className }: { className?: string }) {
   return <span className={cn("text-muted-foreground/60", className)}>/</span>;
 }
 
-/**
- * The unified drill-down trail: on `sm`+ a clickable breadcrumb
- * ("Group / Events / My Little Tournament"), on phones collapsed to a single
- * back arrow pointing at the nearest linked parent. Inline so it can sit in an
- * existing PageTopBar; pages without one use {@link TopBarBreadcrumbBar}.
- * @returns The trail element.
- */
+/** On `sm`+ a clickable breadcrumb, on phones a single back arrow to the nearest linked parent. */
 export function TopBarBreadcrumbTrail({ segments }: { segments: TopBarCrumb[] }) {
   const parent = segments.findLast((segment) => segment.link);
   return (
@@ -62,12 +47,7 @@ export function TopBarBreadcrumbTrail({ segments }: { segments: TopBarCrumb[] })
   );
 }
 
-/**
- * Standalone sticky bar hosting a {@link TopBarBreadcrumbTrail}, for drill-down
- * pages that don't already render their own PageTopBar. Pass `actions` to pin
- * right-aligned action buttons (wrap them in the `PageTopBar*Button` family).
- * @returns The sticky breadcrumb bar.
- */
+/** For drill-down pages that don't already render their own PageTopBar. */
 export function TopBarBreadcrumbBar({
   segments,
   actions,

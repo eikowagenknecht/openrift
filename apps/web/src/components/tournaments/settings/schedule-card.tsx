@@ -18,7 +18,6 @@ import {
  * Start and end times, entered in the host's local timezone and stored as UTC.
  * "End now" stamps the current instant so a running tournament can be closed
  * without picking a date.
- * @returns The schedule card.
  */
 export function ScheduleCard({
   detail,

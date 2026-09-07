@@ -6,21 +6,11 @@ import { Callout } from "@/components/ui/callout";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-// Local decks (ADR-035) live only in this browser's localStorage until the user
-// creates an account and claims them. These calm, informational hints tell a
-// signed-out user that fact at the moments they build a deck: the create dialog,
-// the deck list, and the builder top bar (the "On this device" badge tooltip).
-
-/**
- * Shared login link for the local-save hints, matching the deck builder's sign-in link.
- * Both hints render on /decks, which is also the only page that mounts the
- * claim prompt, so signing in has to come back here for the decks to be claimed.
- * @returns The sign-in link element.
- */
 function SignInLink({ className }: { className?: string }) {
   return (
     <Link
       to="/login"
+      // Redirect is hardcoded to /decks: this component only mounts there.
       search={{ redirect: "/decks", email: undefined }}
       className={cn("hover:text-foreground font-medium underline", className)}
     >
@@ -29,14 +19,8 @@ function SignInLink({ className }: { className?: string }) {
   );
 }
 
-/**
- * The "On this device" badge for a local deck, with a tooltip explaining that
- * it's browser-only and how to keep it. Used on the builder top bar and on deck
- * list rows/tiles. The Badge itself is the tooltip trigger (via `render`) so it
- * stays a span, valid inside the anchor-wrapped list rows/tiles.
- * @param className Extra classes for the badge (responsive visibility, size).
- * @returns The badge element.
- */
+// The Badge is the tooltip trigger (via `render`) so it stays a span, valid
+// inside the anchor-wrapped list rows/tiles.
 export function LocalDeckBadge({ className }: { className?: string }) {
   return (
     <Tooltip>
@@ -50,11 +34,6 @@ export function LocalDeckBadge({ className }: { className?: string }) {
   );
 }
 
-/**
- * Muted one-liner for the "New deck" dialog, shown to signed-out users so they
- * know the deck they're about to create won't leave this device.
- * @returns The note element.
- */
 export function LocalDeckSaveNote() {
   return (
     <p className="text-muted-foreground flex items-start gap-1.5 text-sm">
@@ -67,11 +46,6 @@ export function LocalDeckSaveNote() {
   );
 }
 
-/**
- * Info banner above the deck list, shown when a signed-out visitor has one or
- * more browser-local decks that aren't backed up to an account yet.
- * @returns The banner element.
- */
 export function LocalDeckSaveBanner() {
   return (
     <Callout className="text-muted-foreground mb-3 flex items-start gap-2 px-3 py-2 text-sm">

@@ -58,13 +58,6 @@ interface TierListBuilderPageProps {
   tierList: TierListResponse;
 }
 
-/**
- * The tier list builder: the board on the left, the card pool on the right,
- * dragging between them. Laid out in the shared {@link BuilderWorkbench}, which
- * owns why the board is the sticky column and the pool the scrolled one.
- *
- * @returns The builder page node.
- */
 export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -72,17 +65,15 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const { cardsById, printingsByCardId } = useCards();
   const dirty = useTierListBuilderStore((state) => state.dirty);
   const loadedListId = useTierListBuilderStore((state) => state.listId);
-  // Counted off the saved board rather than the draft: that is what the show
-  // would actually put on screen.
+  // Counted from the saved board, not the draft state.
   const rankedCount = tierList.tiers.reduce((sum, tier) => sum + tier.cards.length, 0);
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // Floating preview for the tile under the pointer, the same affordance the
-  // deck builder gives its rows. Anchored to the two-column container rather
-  // than the board's own sticky box, which clips its overflow.
+  // Anchored to the two-column container: the board's own sticky box clips
+  // overflow, which would cut off the floating preview.
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [hoveredView, setHoveredView] = useState<TierCardView | null>(null);
   const hoveredImageId = hoveredView ? frontImageId(hoveredView.printing) : null;
@@ -97,8 +88,7 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
   const updateTierList = useUpdateTierList();
   const deleteTierList = useDeleteTierList();
 
-  // Adopt the saved board on mount and whenever the route switches lists. Keyed
-  // on the id rather than the response object so a background refetch of an
+  // Keyed on the id, not the response object, so a background refetch of an
   // unchanged list can't discard an in-progress draft.
   useEffect(() => {
     if (loadedListId !== tierList.id) {
@@ -106,13 +96,11 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
     }
   }, [tierList.id, tierList.tiers, loadedListId]);
 
-  // Leaving the builder drops the draft, so returning to a list always starts
-  // from what the server has rather than a board from a previous visit.
   useEffect(() => useTierListBuilderStore.getState().reset, []);
 
   const handleSave = () => {
-    // Snapshot what actually goes to the server: markSaved compares against it,
-    // so a drag landing mid-save keeps the board dirty instead of being lost.
+    // Snapshot the rows here: markSaved compares against this snapshot, so a
+    // drag landing mid-save still leaves the board marked dirty.
     const rows = useTierListBuilderStore.getState().rows;
     updateTierList.mutate(
       { id: tierList.id, tiers: rows },
@@ -164,10 +152,8 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                 <TierTileSizeControls />
                 {rankedCount > 0 && (
                   <PageTopBarButton
-                    // The stage reads the *saved* board, so an unsaved draft
-                    // would go up as whatever the server still holds. The
-                    // "Unsaved changes" badge sits in this same bar and says
-                    // why the button is off.
+                    // The stage reads the saved board, so an unsaved draft would
+                    // go up as whatever the server still holds.
                     disabled={dirty}
                     onClick={() => {
                       void navigate({ to: "/stage", search: { tier: tierList.id, i: 0 } });
@@ -196,10 +182,8 @@ export function TierListBuilderPage({ tierList }: TierListBuilderPageProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      // Same reason the Present button is disabled: the stage
-                      // opens from the *saved* board. No `rankedCount` gate
-                      // though — a board with everything still unranked is
-                      // exactly what this is for.
+                      // Same reason as Present: the stage opens from the saved
+                      // board. No rankedCount gate, an all-unranked board is fine.
                       disabled={dirty}
                       onClick={() => {
                         void navigate({

@@ -49,12 +49,6 @@ import { cn, PAGE_PADDING_NO_TOP, PAGE_WIDTH } from "@/lib/utils";
 import type { LocalDeck } from "@/stores/local-decks-store";
 import { isLocalDeckId, useLocalDecksStore } from "@/stores/local-decks-store";
 
-// The comparison between two decks, side by side, older on the left: the page
-// behind both "show what changed" inside a variant family (ADR-042) and
-// "compare with another deck". Each side is a deck-list row — the same art
-// strip, count, name and costs the deck page shows — minus the ownership and
-// price columns, which say nothing about a comparison.
-
 /** Which column a picker fills. Doubles as the search-param name. */
 type SideKey = "from" | "to";
 
@@ -71,12 +65,7 @@ const CELL_STYLES: Record<SideBySideRow["kind"], { from: string; to: string }> =
   },
 };
 
-/**
- * What a row shows about its card, resolved once per row by the page. Both
- * sides stand for the same card, so they share it — including the printing,
- * which is the catalog's default rather than either deck's pinned art (a
- * comparison aggregates a card's printings into one line).
- */
+/** Both sides share the printing: the catalog's default, not either deck's pinned art. */
 interface RowCatalog {
   card?: Card;
   printing?: Printing;
@@ -182,18 +171,6 @@ function ChangesRow({
   );
 }
 
-/**
- * One side's deck picker: the deck as it looks everywhere else (fanned art,
- * name, domains, size and date) with the variant family listed first, the rest
- * of the user's decks under their own heading below, and its own way into the
- * deck beside it — so "open" always names which of the two it means. Picking
- * rewrites the URL rather than local state, so a comparison stays linkable.
- *
- * The list is a `PickerList`, so a filter field sits above it and a name is
- * enough to reach any deck without scrolling the whole collection.
- *
- * @returns The labelled picker.
- */
 function DeckPicker({
   label,
   value,
@@ -207,15 +184,10 @@ function DeckPicker({
   onClear,
 }: {
   label: string;
-  /** The picked deck's id, or null for an unset or pasted side. */
   value: string | null;
-  /** What the picked side shows; null when nothing is picked yet. */
   identity: DeckIdentity | null;
-  /** What was pasted into this side, when it holds a pasted list. */
   pastedText: string | null;
-  /** The anchor deck's variant family, listed first under its own heading. */
   familyIds: string[];
-  /** Everything else the user owns, in the group below the family. */
   otherIds: string[];
   identityById: ReadonlyMap<string, DeckIdentity>;
   onPick: (deckId: string) => void;
@@ -223,9 +195,7 @@ function DeckPicker({
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  // Opening on the picked deck means the arrow keys start from what is already
-  // there. Set on each open rather than once, since picking changes `value`
-  // while this component stays mounted.
+  // Reset per open, not once: picking changes `value` while this stays mounted.
   const [highlightedId, setHighlightedId] = useState("");
   const name = identity?.name ?? "Choose a deck";
 
@@ -265,8 +235,6 @@ function DeckPicker({
             )}
             <ChevronDownIcon className="text-muted-foreground size-4 shrink-0" />
           </PopoverTrigger>
-          {/* Wide enough for a deck row rather than the popover default, and
-              capped so a long deck name can't push it past the viewport. */}
           <PopoverContent
             align="start"
             className="w-80 max-w-(--available-width) gap-0 p-0 sm:w-96"
@@ -280,9 +248,6 @@ function DeckPicker({
               {familyIds.length > 0 && (
                 <CommandGroup
                   className="p-0"
-                  // Naming the group is what separates the versions of the deck
-                  // you came from off the rest; with only one version there is
-                  // nothing to name, so the rows stand alone.
                   heading={familyIds.length > 1 ? "Versions of this deck" : undefined}
                 >
                   {familyIds.map((deckId) => (
@@ -313,9 +278,6 @@ function DeckPicker({
                 </CommandGroup>
               )}
             </PickerList>
-            {/* Outside the list: pasting is not a deck to find by name, and a
-                filter that hid it would strand the only way to compare against
-                something you don't own. */}
             <div className="border-t p-1">
               <Button
                 variant="ghost"
@@ -332,9 +294,6 @@ function DeckPicker({
             </div>
           </PopoverContent>
         </Popover>
-        {/* One trailing action per side, plus a way out of it. A picked deck
-            opens; a pasted list is not a deck yet, so its action is the import
-            flow that would make it one. */}
         {value !== null && (
           <Button
             variant="outline"
@@ -377,7 +336,7 @@ function DeckPicker({
   );
 }
 
-/** @returns One deck's row in a picker list, or null if the deck went away. */
+/** One deck's row in a picker list; null if the deck went away. */
 function DeckPickerRow({
   deckId,
   identityById,
@@ -406,12 +365,10 @@ function DeckPickerRow({
   );
 }
 
-/** @returns Total copies across every zone. */
 function countCopies(cards: readonly OwnDeckCard[]): number {
   return cards.reduce((total, card) => total + card.quantity, 0);
 }
 
-/** @returns The identity a server deck shows in a picker. */
 function serverIdentity(item: DeckListItemResponse): DeckIdentity {
   return {
     name: item.deck.name,
@@ -422,11 +379,7 @@ function serverIdentity(item: DeckListItemResponse): DeckIdentity {
   };
 }
 
-/**
- * The identity a browser-local deck shows. The list endpoint's legend and
- * champion ids have no local equivalent, so they come off the deck's own rows.
- * @returns The identity.
- */
+/** The list endpoint's legend and champion ids have no local equivalent, so these come off the deck's own rows. */
 function localIdentity(deck: LocalDeck): DeckIdentity {
   return {
     name: deck.name,
@@ -437,13 +390,7 @@ function localIdentity(deck: LocalDeck): DeckIdentity {
   };
 }
 
-/**
- * One side's card rows. A `local:` id resolves from the browser store (ADR-035,
- * works logged out); a server id goes through the deck-detail query, which the
- * route has already warmed for the ids it was opened with.
- *
- * @returns The rows, or null while the side is unset or still loading.
- */
+/** A `local:` id resolves from the browser store; a server id goes through the deck-detail query, already warmed by the route for the ids it opened with. */
 function useSideRows(deckId: string | null, userId: string | null): readonly OwnDeckCard[] | null {
   const localDecks = useLocalDecksStore((state) => state.decks);
   const isLocal = deckId !== null && isLocalDeckId(deckId);
@@ -460,25 +407,8 @@ function useSideRows(deckId: string | null, userId: string | null): readonly Own
   return data?.cards ?? null;
 }
 
-/**
- * The deck comparison page: what one deck holds that another doesn't, card for
- * card.
- * @returns The page element.
- */
-export function DeckComparePage({
-  fromId,
-  toId,
-}: {
-  /** The left side's deck id, when one is picked. */
-  fromId?: string;
-  /** The right side's deck id, when one is picked. */
-  toId?: string;
-}) {
-  // What changed is the reason to open the page at all; the cards that stayed
-  // are the context you ask for after.
+export function DeckComparePage({ fromId, toId }: { fromId?: string; toId?: string }) {
   const [changesOnly, setChangesOnly] = useState(true);
-  // A pasted list belongs to the session, not the URL — it is something to look
-  // at once, not a deck to link to. Picking a deck for that side clears it.
   const [pastedFrom, setPastedFrom] = useState<PastedCompareSource | null>(null);
   const [pastedTo, setPastedTo] = useState<PastedCompareSource | null>(null);
   const [pasteFor, setPasteFor] = useState<SideKey | null>(null);
@@ -493,8 +423,6 @@ export function DeckComparePage({
   const { labels } = useEnumOrders();
   const domainColors = useDomainColors();
   const localDecks = useLocalDecksStore((state) => state.decks);
-  // Auth-optional (ADR-035): a logged-out visitor still has browser-local decks
-  // to compare, so the server list is fetched only when there is a session.
   const { data: serverDecks } = useQuery({
     ...decksQueryOptions(userId ?? ""),
     enabled: userId !== null,
@@ -515,17 +443,11 @@ export function DeckComparePage({
     identityById.set(deck.id, localIdentity(deck));
   }
 
-  // Neither side is in the path, so the deck the menus lead with is whichever
-  // one is picked — the right, which is the deck you came from everywhere that
-  // links here. Its variant family comes first, newest first; everything else
-  // the user owns sits behind "More decks", by name.
   const anchorId = toId ?? fromId ?? null;
   const anchorFamilyId = items.find((item) => item.deck.id === anchorId)?.deck.familyId ?? null;
   const familyIds =
     anchorFamilyId === null
-      ? // A standalone deck (or a browser-local one, which has no family at all)
-        // leads with itself.
-        anchorId !== null && identityById.has(anchorId)
+      ? anchorId !== null && identityById.has(anchorId)
         ? [anchorId]
         : []
       : items
@@ -537,8 +459,6 @@ export function DeckComparePage({
     .filter((option) => !familySet.has(option.id))
     .map((option) => option.id);
 
-  // A side picked as a deck wins over a stale paste; the handlers keep the two
-  // from ever being set at once.
   const fromDeckId = pastedFrom ? null : (fromId ?? null);
   const toDeckId = pastedTo ? null : (toId ?? null);
   const fromRows = useSideRows(fromDeckId, userId);
@@ -555,9 +475,6 @@ export function DeckComparePage({
       ? ownDeckDiffCards(toRows, cardsById).theirs
       : null;
 
-  // A pasted list names its zones like any other, so it can show the same
-  // fanned pair as a deck — the Legend and champion are what make a list
-  // recognisable at a glance, pasted or not.
   const pastedIdentity = (pasted: PastedCompareSource): DeckIdentity => ({
     name: "Pasted list",
     legendCardId: pasted.cards.find((card) => card.zone === WellKnown.deckZone.LEGEND)?.cardId,
@@ -574,8 +491,6 @@ export function DeckComparePage({
   const zones = fromCards && toCards ? alignDeckLists(fromCards, toCards) : [];
   const rows = zones.flatMap((zone) => zone.rows);
   const sharedCount = rows.reduce((total, row) => total + Math.min(row.from, row.to), 0);
-  // Chosen and loaded are different things: a deck picked a moment ago has no
-  // rows yet, and the prompt to pick one would read as a step backwards.
   const bothChosen =
     (fromDeckId !== null || pastedFrom !== null) && (toDeckId !== null || pastedTo !== null);
   const bothPicked = fromCards !== null && toCards !== null;
@@ -666,13 +581,8 @@ export function DeckComparePage({
         </PageTopBar>
       </PageTopBarSticky>
 
-      {/* Full-width and positioned: the hover preview places itself against
-          this box, so docking it away from the cursor has to mean the viewport
-          edge rather than the edge of the centred column. */}
       <div ref={containerRef} className="relative">
         <div className={cn(PAGE_WIDTH.capped, PAGE_PADDING_NO_TOP, "flex flex-col gap-5 pt-3")}>
-          {/* The pickers sit on the row grid, so each one heads the column it
-            fills and the comparison needs no second row of deck names. */}
           <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-2">
             <DeckPicker
               label="From"
@@ -686,9 +596,6 @@ export function DeckComparePage({
               onPaste={() => setPasteFor("from")}
               onClear={() => handleClear("from")}
             />
-            {/* Same size and column as the row arrows below, offset past the
-              caption line so it centres on the deck cards rather than on the
-              column as a whole. */}
             <span className="hidden items-center justify-center self-stretch pt-6 sm:flex">
               <ArrowRightIcon aria-hidden className="text-muted-foreground size-3 shrink-0" />
             </span>

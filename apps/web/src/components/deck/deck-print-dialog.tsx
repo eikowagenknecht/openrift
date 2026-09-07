@@ -74,11 +74,8 @@ const PAGE_SIZE_LABELS: Record<ProxyPageSize, string> = {
 // Full render width for html2canvas capture (px)
 const RENDER_WIDTH_PX = 504;
 
-/**
- * html2canvas supports clip-path polygon with percentages but not em/calc units.
- * Resolve clip-path values via getComputedStyle (which returns px) and convert
- * to percentages of the element's dimensions.
- */
+// html2canvas supports clip-path polygon with percentages but not em/calc units; resolve via
+// getComputedStyle (returns px) and convert to percentages of the element's dimensions.
 function resolveClipPaths(element: HTMLElement): void {
   const inlineClip = element.style.clipPath;
   if (
@@ -87,17 +84,13 @@ function resolveClipPaths(element: HTMLElement): void {
     (inlineClip.includes("em") || inlineClip.includes("calc"))
   ) {
     const computed = getComputedStyle(element).clipPath;
-    // Computed value is in px: "polygon(4.2px 0px, 95.8px 0px, 91.6px 20px, 0px 20px)"
-    // Convert to percentages using element dimensions
     const width = element.offsetWidth;
     const height = element.offsetHeight;
     if (width > 0 && height > 0 && computed.includes("polygon")) {
       const converted = computed.replaceAll(/[\d.]+px/gu, (match, offset) => {
         // oxlint-disable-next-line unicorn/prefer-number-coercion -- match includes the "px" unit; Number() would yield NaN
         const px = Number.parseFloat(match);
-        // Determine if this is an x or y coordinate by counting commas and spaces before this point
-        // In polygon(), coordinates alternate: x y, x y, ...
-        // Count how many values came before this one in the current polygon
+        // Coordinates alternate x y, x y, ... within the polygon; count values before this one.
         const before = computed.slice(computed.indexOf("(") + 1, offset);
         const valueIndex = before.split(/[\s,]+/u).filter(Boolean).length;
         const isX = valueIndex % 2 === 0;
@@ -114,40 +107,20 @@ function resolveClipPaths(element: HTMLElement): void {
   }
 }
 
-/**
- * Loads the jsPDF-backed registration generator on first export.
- *
- * This dialog is reachable from any page that renders a deck tile, so importing
- * the generator at module scope put jsPDF plus the ~400 KB logo raster on those
- * pages' initial graph. It lives at module scope rather than inside the handler
- * because react-compiler cannot lower an `import()` expression inside a
- * component and bails on the whole file.
- * @returns The generator function.
- */
+// Dynamic import at module scope: react-compiler can't lower an `import()` inside a component
+// and bails on the whole file, and eager import would put jsPDF on every deck tile's page.
 async function loadRegistrationPdfGenerator() {
   const module = await import("@/lib/registration-pdf");
   return module.generateRegistrationPdf;
 }
 
-/**
- * Loads the jsPDF-backed deck-sheet wrapper on first export, at module scope
- * and for the same reasons as `loadRegistrationPdfGenerator` above.
- * @returns The download function.
- */
+// Module scope for the same reasons as loadRegistrationPdfGenerator above.
 async function loadImagePdfDownloader() {
   const module = await import("@/lib/image-pdf");
   return module.downloadImageAsPdf;
 }
 
-/**
- * Captures a rendered CardPlaceholderImage DOM element via html2canvas.
- * The element must already be in the page's React tree (with all providers).
- *
- * html2canvas-pro is imported here rather than at module scope: it is ~250 KB
- * and only a proxy export ever needs it, while this dialog module itself gets
- * pulled into any page that renders a deck tile.
- * @returns PNG data URL.
- */
+// The element must already be in the page's React tree (with all providers).
 async function captureElement(element: HTMLElement): Promise<string> {
   resolveClipPaths(element);
 
@@ -162,10 +135,7 @@ async function captureElement(element: HTMLElement): Promise<string> {
   return canvas.toDataURL("image/png");
 }
 
-/**
- * Waits two animation frames for React to commit and browser to compute styles.
- * @returns void
- */
+// Waits two animation frames for React to commit and the browser to compute styles.
 function waitForRender(): Promise<void> {
   // oxlint-disable-next-line promise/avoid-new -- wrapping requestAnimationFrame callback API
   return new Promise<void>((resolve) => {
@@ -191,15 +161,8 @@ interface GenerateProxyPdfParams {
   setPreviewUrl: (url: string | null) => void;
 }
 
-/**
- * Runs the full "deck → rendered cards → assembled PDF" pipeline.
- *
- * Lives at module scope (not inside the component) so react-compiler doesn't
- * try to lower the mixed async/branch/try-catch control flow — the compiler
- * bails out on "value blocks within try/catch" otherwise.
- * @param params Generation inputs and UI state setters.
- * @returns Resolves once the PDF has been assembled and downloaded.
- */
+// Lives at module scope: react-compiler bails on "value blocks within try/catch"
+// when this mixed async/branch/try-catch control flow sits inside the component.
 async function generateProxyPdf({
   cards,
   catalog,
@@ -215,12 +178,9 @@ async function generateProxyPdf({
   setRenderingCard,
   setPreviewUrl,
 }: GenerateProxyPdfParams): Promise<void> {
-  // jsPDF and the proxy layout code load on first export, not with the dialog.
   const { assembleProxyPdf, prerenderImageCards, proxyRenderKey, resolveProxyCards } =
     await import("@/lib/proxy-pdf");
-  // Pre-fetch init data so CardText doesn't suspend during rendering, then
-  // compose the effective language order so `preferredPrinting` picks
-  // variants in the same order the rest of the UI does.
+  // Pre-fetch so CardText doesn't suspend during rendering.
   const init = await queryClient.query({ ...initQueryOptions, staleTime: "static" });
   const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
   const languageOrder = effectiveLanguageOrder(languages, languageRows);
@@ -311,16 +271,10 @@ async function generateProxyPdf({
   });
 }
 
-/** @returns The deck name reduced to a filesystem-safe base. */
 function fileNameBase(deckName: string | undefined): string {
   return (deckName ?? "deck").replaceAll(/[^\w -]+/gu, "_").trim() || "deck";
 }
 
-/**
- * The proxy tab: render options plus the generate button, and the off-screen
- * card the text renderer captures one at a time.
- * @returns The proxy panel element.
- */
 function ProxyPrintPanel({
   cards,
   deckName,
@@ -336,9 +290,7 @@ function ProxyPrintPanel({
   const [watermark, setWatermark] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
-  // Card currently being rendered off-screen for html2canvas capture
   const [renderingCard, setRenderingCard] = useState<ProxyCard | null>(null);
-  // Last captured card image shown as a thumbnail preview
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const cardElementRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -430,7 +382,6 @@ function ProxyPrintPanel({
           <Switch id="proxy-watermark" checked={watermark} onCheckedChange={setWatermark} />
         </div>
 
-        {/* Captured card thumbnail preview */}
         {previewUrl && (
           <div className="flex justify-center">
             <img
@@ -458,9 +409,7 @@ function ProxyPrintPanel({
         </Button>
       </div>
 
-      {/* Off-screen render container — in the React tree for provider access,
-          but portalled out of the dialog so the popup's transform and scroll
-          box can't reach it. */}
+      {/* Portalled out of the dialog so the popup's transform/scroll box can't clip it. */}
       {renderingCard &&
         createPortal(
           <Suspense fallback={null}>
@@ -499,11 +448,6 @@ function ProxyPrintPanel({
   );
 }
 
-/**
- * The registration tab: the player and event fields a tournament sheet needs,
- * plus the page size.
- * @returns The registration panel element.
- */
 function RegistrationPrintPanel({
   cards,
   deckName,
@@ -655,7 +599,6 @@ function RegistrationPrintPanel({
   );
 }
 
-/** Fetches the wide deck image the sheet wraps, from whichever route the deck is reachable on. */
 function fetchSheetImage(
   deckId: string,
   publicSource: PublicDeckSource | undefined,
@@ -673,10 +616,6 @@ function fetchSheetImage(
   return fetchImageBlob(deckOwnerImageUrl(getSiteUrl(), deckId, options));
 }
 
-/**
- * The deck-sheet tab: the wide share image wrapped on a single A4 page.
- * @returns The deck sheet panel element.
- */
 function DeckSheetPrintPanel({
   deckId,
   deckName,
@@ -695,9 +634,6 @@ function DeckSheetPrintPanel({
 
   const handleDownload = async () => {
     setDownloading(true);
-    // The sheet is the printable page, so it always takes the wide image at 2×.
-    // It honours the QR choice, though: a printed decklist is exactly where
-    // someone might not want a code on the page.
     const options = { size: "hq" as const, qr: isLocal ? false : qr };
     const blob = fetchSheetImage(deckId, publicSource, options, imageBody);
     // React Compiler can't yet lower try/finally, so reset in both paths.
@@ -751,19 +687,10 @@ interface DeckPrintDialogProps {
   deckName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Cards to print. Falls back to the live editor draft when omitted. */
   cards?: DeckBuilderCard[];
-  /** Set when the deck is only reachable by share token, never owned. */
   publicSource?: PublicDeckSource;
 }
 
-/**
- * The deck's one print surface: proxy cards, a tournament registration sheet,
- * and the one-page deck sheet. Everything that ends up as a PDF lives here, so
- * the export dialog can stay machine-readable data alone.
- *
- * @returns The print dialog element.
- */
 export function DeckPrintDialog({
   deckId,
   deckName,
@@ -773,9 +700,8 @@ export function DeckPrintDialog({
   publicSource,
 }: DeckPrintDialogProps) {
   const [tab, setTab] = useState<PrintTab>("proxies");
-  // The deck-list menus pass their own cards (the draft collection isn't
-  // hydrated there); the editor leaves it to the live draft. Subscribing only
-  // in the editor's case keeps the list from opening one draft per row.
+  // Subscribing only when cardsProp is omitted keeps the deck-list menus from
+  // opening one draft per row; the editor still gets the live draft.
   const liveCards = useDeckCards(cardsProp === undefined ? deckId : "");
   const cards = cardsProp ?? liveCards;
 

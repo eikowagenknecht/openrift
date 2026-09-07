@@ -38,9 +38,7 @@ interface CardSourceColumnActionsProps {
     source?: "manual" | "provider";
   }) => void;
   onIgnoreSource: (input: { provider: string; externalId: string }) => void;
-  /** Opens the reject/reply dialog for a user-submission column. */
   onResolveSubmission: (candidateCardId: string, mode: "reject" | "reply") => void;
-  /** Ignoring is triage and stays full-admin; card-review grant holders only accept. */
   isAdmin: boolean;
 }
 
@@ -57,9 +55,7 @@ function CardSourceColumnActions({
     return null;
   }
   const cardRow = row as CandidateCardResponse;
-  // A submission's external_id is minted per submission and never re-uploaded,
-  // so "ignore permanently" only ever means "reject this". Say that instead,
-  // and route it through the dialog so the contributor gets a reason.
+  // A submission's external_id is minted per submission and never re-uploaded.
   const isUserSubmission = cardRow.provider === USER_SUBMISSION_PROVIDER;
   return (
     <>
@@ -67,9 +63,7 @@ function CardSourceColumnActions({
         onClick={() => {
           const record = row as unknown as Record<string, unknown>;
           for (const field of candidateCardFields) {
-            // The grid also carries read-only provider columns (externalId,
-            // extraData) that the accept endpoint does not take; the contract's
-            // own field list decides what is sendable.
+            // The grid also carries read-only provider columns the accept endpoint does not take.
             if (!isAcceptCardField(field.key)) {
               continue;
             }
@@ -109,31 +103,21 @@ function CardSourceColumnActions({
 
 interface CardFieldsSectionProps {
   card: AdminCardResponse;
-  /** The card's candidate sources, one column each in the compare grid. */
   sources: CandidateCardResponse[];
   candidateCardFields: FieldDef<CandidateCardFieldKey>[];
   providerSettings: ProviderSettingResponse[];
   expanded: boolean;
   onToggleExpanded: () => void;
-  /** Checks every source at once; shared with the header's full review run. */
   onCheckAllSources: () => void;
   isCheckingAllSources: boolean;
   showBanForm: boolean;
   onShowBanFormChange: (show: boolean) => void;
   showErrataForm: boolean;
   onShowErrataFormChange: (show: boolean) => void;
-  /** Query keys this section's mutations invalidate. */
   invalidates: readonly (readonly unknown[])[];
-  /** Card-review grant holders accept fields; check/ignore, bans and errata are full-admin. */
   isAdmin: boolean;
 }
 
-/**
- * The card-level compare grid: accepted values in the Active column against one
- * column per candidate source, with the ban and errata managers below it.
- *
- * @returns The Card Fields section element.
- */
 export function CardFieldsSection({
   card,
   sources,
@@ -154,8 +138,7 @@ export function CardFieldsSection({
   const checkCandidateCard = useCheckCandidateCard(invalidates);
   const uncheckCandidateCard = useUncheckCandidateCard(invalidates);
   const ignoreCardSource = useIgnoreCandidateCard();
-  // The column menu is cloned per source column, so the dialog it opens lives
-  // here rather than inside the menu.
+  // The column menu is cloned per source column; dialog state must live here, not in the menu.
   const [resolution, setResolution] = useState<{
     candidateCardId: string;
     mode: "reject" | "reply";

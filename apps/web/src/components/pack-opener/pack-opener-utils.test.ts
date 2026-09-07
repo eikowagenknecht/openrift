@@ -21,8 +21,6 @@ describe("isBoosterEligible", () => {
     expect(isBoosterEligible(stubPrinting({ card: { types: ["other"] } }))).toBe(false);
   });
 
-  // ADR-037: eligibility is set-membership, so a multi-type card that includes
-  // "other" is still excluded even when "other" isn't its primary type.
   it("rejects a multi-type card that includes 'other' as a secondary type", () => {
     expect(isBoosterEligible(stubPrinting({ card: { types: ["unit", "other"] } }))).toBe(false);
   });

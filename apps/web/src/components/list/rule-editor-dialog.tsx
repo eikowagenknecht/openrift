@@ -71,23 +71,11 @@ interface RuleEditorDialogProps {
   intent: ListIntent;
   kind: ListKind;
   currentRules: ListRule[];
-  /** The saved combine mode; null = the kind's default (ADR-034 amendment 2). */
   currentRuleCombine: ListRuleCombine | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Editor for a list's dynamic rules (ADR-034). Each rule's predicate is the full
- * controlled {@link RuleFilterEditor} (the same facets as the card browser) plus
- * mode math: a target quantity on card/printing lists, a keep-threshold plus
- * collection scope on copy lists. Which of the two appears follows the list's
- * *kind*, so organize lists get an editor too (amendment 4); the surrounding
- * copy follows the intent, via {@link ruleWording}. Every list may carry several
- * rules (add/remove); with two or more, a combine-mode select says how they
- * reconcile. A live preview counts the deduped matches.
- * @returns The dialog node.
- */
 export function RuleEditorDialog({
   listId,
   intent,
@@ -104,23 +92,13 @@ export function RuleEditorDialog({
   const reset = useRuleEditorStore((state) => state.reset);
   const buildRules = useRuleEditorStore((state) => state.buildRules);
 
-  // Seed the draft from the saved rules whenever the dialog opens, and warm the
-  // catalog + init queries the editor reads. Without the prewarm, the first time
-  // a rule block mounts its `useSuspenseQuery` could suspend cold and collapse
-  // the route's pending boundary (which would reset `open` and close the dialog).
-  // The inner <Suspense> below is the safety net if a query is still in flight.
-  //
-  // Seeding runs in a layout effect so the drafts are loaded before the first
-  // paint: the store is a singleton that outlives the dialog's mount, so a plain
-  // effect would let one frame paint with the previous list's drafts. The
-  // cleanup resets the store on close/unmount so nothing lingers between opens.
+  // Prewarms queries so a rule block's useSuspenseQuery doesn't suspend cold
+  // and collapse the pending boundary, resetting `open` and closing the dialog.
   useLayoutEffect(() => {
     if (!open) {
       return;
     }
     load(currentRules, currentRuleCombine);
-    // Rules preview evaluates against the whole catalog, so make sure the
-    // language-split fetch's tail is merged too (no-op when complete).
     void (async () => {
       await queryClient.query({ ...catalogQueryOptions, staleTime: "static" });
       await loadCatalogTail(queryClient);
@@ -187,14 +165,7 @@ export function RuleEditorDialog({
   );
 }
 
-/**
- * The shared rule-list shell: an empty-state hint with one-click presets (common
- * setups that seed editable drafts), one {@link RuleBlock} per draft rule, the
- * combine-mode select (once two rules exist), an optional footer (the combined
- * preview), and an "Add rule" button that hides once the rule count reaches
- * `MAX_LIST_RULES` (each rule is a full-catalog pass at read time).
- * @returns The list shell node.
- */
+/** Each rule is a full-catalog pass at read time, hence the `MAX_LIST_RULES` cap. */
 function RuleList({
   intent,
   kind,
@@ -207,15 +178,12 @@ function RuleList({
   kind: ListKind;
   wording: RuleWording;
   collectionOptions: { value: string; label: string }[];
-  /** How many cards/printings/copies each rule produces on its own (by index). */
   perRuleCounts?: number[];
   footer?: ReactNode;
 }) {
   const rules = useRuleEditorStore((state) => state.rules);
   const addRule = useRuleEditorStore((state) => state.addRule);
   const addDrafts = useRuleEditorStore((state) => state.addDrafts);
-  // Seed a new rule's language facet from the user's preferred languages, so a
-  // fresh rule starts scoped the way they browse. Still fully editable afterwards.
   const preferredLanguages = useDisplayStore((state) => state.languages);
   // Set-scoped presets snapshot the catalog's current main sets at apply time.
   const { sets } = useCards();
@@ -249,8 +217,6 @@ function RuleList({
       )}
 
       {rules.map((_, index) => (
-        // Rules have no stable id; the store is the single source of truth and
-        // each block selects its own slice by index, so an index key is fine.
         // oxlint-disable-next-line no-array-index-key -- store-keyed draft rows
         <RuleBlock
           key={index}
@@ -287,14 +253,7 @@ const KEEP_PER_OPTIONS = [
   { value: "printing", label: "Printing (each separately)" },
 ] as const;
 
-/**
- * The combine-mode select, shown once a list has two or more rules (ADR-034
- * amendment 2). Card/printing lists reconcile overlapping quantities (sum /
- * max); copy lists reconcile keep-per-card splits (protect / count-sum /
- * count-max). The store's `null` renders as the kind's default so the select
- * never looks unset.
- * @returns The combine row node.
- */
+/** The store's `null` renders as the kind's default so the select never looks unset. */
 function RuleCombineRow({ kind, wording }: { kind: ListKind; wording: RuleWording }) {
   const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
   const setRuleCombine = useRuleEditorStore((state) => state.setRuleCombine);
@@ -329,15 +288,9 @@ function RuleCombineRow({ kind, wording }: { kind: ListKind; wording: RuleWordin
 }
 
 /**
- * Copy-list rule editor (trade and organize lists of kind copy): the shared
- * {@link RuleList} with the copy-only collection scope. Several rules combine
- * per the list's mode (ADR-034 amendment 2). Each block shows how many copies
- * that rule produces; a footer shows the combined total once two rules exist.
- *
- * Both intents draw on the owner's *personal* copies only, mirroring the
+ * Both intents draw on the owner's personal copies only, mirroring the
  * server's `ownedRowsForUser`. An organize list may hold group-shared copies
- * added by hand, but a rule never produces one (ADR-034 amendment 4).
- * @returns The copy editor node.
+ * added by hand, but a rule never produces one.
  */
 function CopyRuleEditor({
   intent,
@@ -352,8 +305,8 @@ function CopyRuleEditor({
   const { data: collections } = useSuspenseQuery(collectionsQueryOptions(userId));
   const { allPrintings, printingsById } = useCards();
   const customTagAssignments = useCustomTagAssignments();
-  // Reference orders make the offered-copy count exact (same keep/offer split as
-  // the server) rather than sort-dependent in overlapping protect cases.
+  // Reference orders keep the offered-copy count exact, matching the server's
+  // keep/offer split, in overlapping protect cases.
   const { orders: enumOrders } = useEnumOrders();
   const rules = useRuleEditorStore((state) => state.rules);
   const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
@@ -363,16 +316,13 @@ function CopyRuleEditor({
     label: collection.name,
   }));
 
-  // The offered-copies preview needs the owner's real copies (not the catalog),
-  // so fetch them without suspending: the editor renders immediately and the
-  // counts fill in once the (possibly large) copy list loads. Skip the fetch
-  // until there's a rule worth previewing.
+  // Fetched without suspending so the editor renders immediately and counts
+  // fill in once the (possibly large) copy list loads.
   const { data: copies } = useQuery({
     ...copiesQueryOptions(userId),
     enabled: rules.length > 0,
   });
 
-  // Serialize from the reactive `rules` value (see CardRuleEditor).
   const serialized = serializeRules(rules, kind);
   const priceLookup = usePrices();
   const ctx = {
@@ -382,9 +332,7 @@ function CopyRuleEditor({
     enumOrders,
     priceLookup,
   };
-  // Per-rule: copies each rule offers on its own. Combined: the deduped offer set
-  // under the combine mode. Undefined/null while copies load, so the UI shows no
-  // count rather than a misleading zero.
+  // Undefined while copies load; the UI shows no count, never a misleading zero.
   const perRuleCounts = copies
     ? serialized.map((rule) => evaluateListRule(rule, kind, ctx).length)
     : undefined;
@@ -411,14 +359,7 @@ function CopyRuleEditor({
   );
 }
 
-/**
- * Card/printing-list rule editor (wish and organize lists of kind card or
- * printing): zero or more rules, each its own block, plus an "Add rule" button.
- * Each block shows how many cards/printings that rule matches on its own; once
- * two rules exist, a footer shows the combined total after they merge (which,
- * under sum or netting, need not equal the sum of the per-rule counts).
- * @returns The card editor node.
- */
+/** Under sum or netting, the combined footer total need not equal the sum of the per-rule counts. */
 function CardRuleEditor({
   intent,
   kind,
@@ -433,30 +374,24 @@ function CardRuleEditor({
   const rules = useRuleEditorStore((state) => state.rules);
   const ruleCombine = useRuleEditorStore((state) => state.ruleCombine);
 
-  // Net-owned rules subtract the user's copies, so the preview needs them too.
-  // Expand the per-printing owned counts into rows the evaluator can tally
-  // (only when a rule actually nets, to skip the work otherwise).
+  // Owned counts only fetched when a rule nets, to skip the work otherwise.
   const needsOwned = rules.some((rule) => rule.netOwned);
   const { data: ownedCounts } = useOwnedCount(needsOwned);
   const ownedCopies = ownedCopiesFromCounts(needsOwned ? ownedCounts : undefined, printingsById);
 
-  // Serialize from the reactive `rules` value (not the store's `buildRules`,
-  // which reads `get()`) so the React Compiler sees the filter contents as a
-  // dependency and recomputes on every edit.
+  // Serialized from the reactive `rules` value, not the store's `buildRules`
+  // (which reads `get()`), so the React Compiler tracks it as a dependency.
   const serialized = serializeRules(rules, kind);
   const priceLookup = usePrices();
   const ctx = { catalog: allPrintings, ownedCopies, customTagAssignments, priceLookup };
-  // Per-rule: what each rule matches on its own (owned-netting applied per rule).
   const perRuleCounts = serialized.map((rule) => evaluateListRule(rule, kind, ctx).length);
-  // Combined: the deduped union across every rule under the combine mode — the
-  // count the user actually gets.
   const previewCount =
     rules.length > 0
       ? expandList(kind, [], evaluateListRules(serialized, kind, ctx, ruleCombine)).length
       : null;
 
-  // With every rule netting owned copies, the combined figure is a shortfall,
-  // not a match count — label it as such (mixed rules keep the neutral phrasing).
+  // Distinguishes a shortfall count (every rule nets owned copies) from a
+  // match count, for the footer phrasing below.
   const allNet = rules.every((rule) => rule.netOwned);
 
   return (
@@ -478,13 +413,6 @@ function CardRuleEditor({
   );
 }
 
-/**
- * One rule, rendered as a bordered block with a remove button and the full facet
- * editor + quantity control. Shared by both editors; `title` is the header label
- * ("Rule 1", "Rule 2", …). `matchCount` shows what the rule produces on its own,
- * phrased by {@link ruleCountLabel}, next to the title.
- * @returns The block node.
- */
 function RuleBlock({
   index,
   kind,
@@ -534,11 +462,6 @@ function RuleBlock({
   );
 }
 
-/**
- * The shared per-rule fields: the facet editor, the copy-only collection scope,
- * and the quantity / keep-per-card control. Reads and writes its rule by index.
- * @returns The fields node.
- */
 function RuleFields({
   index,
   kind,
@@ -653,11 +576,6 @@ function RuleFields({
   );
 }
 
-/**
- * A single removable exclusion chip: the resolved label plus an "X" that puts the
- * card/copy back on the list. Shared by both exclusion rows.
- * @returns The chip node.
- */
 function ExclusionChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
     <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md py-0.5 pr-0.5 pl-2 text-sm">
@@ -673,14 +591,6 @@ function ExclusionChip({ label, onRemove }: { label: string; onRemove: () => voi
   );
 }
 
-/**
- * The rule's current manual exclusions, shown as removable chips so the user can
- * put a card back after excluding it from the list (ADR-034 §V). Card/printing
- * lists name each excluded card/printing from the catalog; copy lists exclude
- * individual physical copies, resolved to their card through
- * {@link CopyExclusions}.
- * @returns The exclusions row, or null when there are none.
- */
 function RuleExclusions({
   index,
   kind,
@@ -725,13 +635,6 @@ function RuleExclusions({
   );
 }
 
-/**
- * A copy rule's excluded physical copies, one removable chip each so the user
- * can put a single copy back without clearing the rest (ADR-034 §V). Each copy id
- * resolves to its printing through the viewer's collection, so the chip names the
- * card; a copy that has since left the collection falls back to a generic label.
- * @returns The exclusions row.
- */
 function CopyExclusions({ index, copyIds }: { index: number; copyIds: string[] }) {
   const userId = useRequiredUserId();
   const { data: copies } = useSuspenseQuery(copiesQueryOptions(userId));
@@ -762,10 +665,8 @@ function CopyExclusions({ index, copyIds }: { index: number; copyIds: string[] }
 }
 
 /**
- * Expands per-printing owned counts into the lightweight copy rows the evaluator
- * tallies (it only counts by printing/card, so collection/reserved are unused).
- * Used purely for the net-owned live preview; the server uses real copies.
- * @returns Owned copy rows, or an empty array when counts are unavailable.
+ * For the net-owned live preview only; the server uses real copies. The
+ * evaluator only counts by printing/card, so collection/reserved are unused.
  */
 function ownedCopiesFromCounts(
   counts: Record<string, number> | undefined,
@@ -793,16 +694,7 @@ function ownedCopiesFromCounts(
   return rows;
 }
 
-/**
- * Maps the owner's real copies to the {@link OwnedCopyRow}s a copy rule
- * evaluates, for the produced-copies preview. Personal copies only
- * (`groupId === null`), mirroring the server's `ownedRowsForUser`: a rule draws
- * only on what you personally own, on trade and organize lists alike.
- * `cardId` comes from the catalog; a copy whose printing isn't in the catalog is
- * skipped. `reserved` is irrelevant to the *count* (reserved copies still
- * appear), so it's left false.
- * @returns One owned-copy row per previewable personal copy.
- */
+/** Personal copies only (`groupId === null`), mirroring the server's `ownedRowsForUser`. */
 function ownedCopiesFromCopyList(
   copies: CopyResponse[],
   printingsById: Record<string, Printing>,
@@ -832,10 +724,6 @@ const QUANTITY_MODES = [
   { value: "playset", label: "Playset ×" },
 ] as const;
 
-/**
- * Compound control for a {@link RuleQuantity}: a mode select plus a number.
- * @returns The control node.
- */
 function QuantityControl({
   value,
   onChange,

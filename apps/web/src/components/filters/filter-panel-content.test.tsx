@@ -142,10 +142,6 @@ describe("FilterRangeSections", () => {
   });
 
   it("renders the stat slider even when its faceted range collapses to one value", () => {
-    // Regression: when an extreme price filter narrows results to a single
-    // card, energy/might/power facet ranges collapse (min === max). The
-    // slider used to vanish; it now renders disabled so the row keeps its
-    // layout and the user can see what was filtered away.
     setupHooks();
     const { queryByText } = render(
       <FilterRangeSections
@@ -157,11 +153,6 @@ describe("FilterRangeSections", () => {
   });
 
   it("disables the price slider when its faceted range collapses to one value", () => {
-    // Regression: the price slider is logarithmic, so its internal slider
-    // scale always spans 0–LOG_STEPS regardless of the faceted bounds. The
-    // degeneracy check used to compare that fixed scale to itself and could
-    // never trip, so a collapsed faceted range (min === max, but > 0 — not
-    // the "no priced cards" case) left the slider enabled and broken.
     setupHooks();
     const { container } = render(
       <FilterRangeSections
@@ -221,7 +212,6 @@ describe("FilterRangeSections", () => {
         hiddenSections={new Set(["price"])}
       />,
     );
-    // The user opted Price out; the others stay.
     expect(queryByText("Price")).toBeNull();
     expect(queryByText("Energy")).not.toBeNull();
   });
@@ -354,7 +344,6 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
         hiddenSections={new Set(["owned"])}
       />,
     );
-    // Row label + the flag chip both read "Standard".
     expect(queryAllByText("Standard").length).toBeGreaterThan(0);
   });
 
@@ -367,13 +356,11 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
       />,
     );
     expect(queryByText("Standard")).toBeNull();
-    // Another flag keeps the row mounted, proving the gating is per-flag.
     expect(queryByText("Signed")).not.toBeNull();
   });
 
   it("renders nothing when every chip unit is hidden", () => {
     setupBadgeHooks();
-    // Owned and Signed are the only chip units with content here; hide both.
     const { container } = render(
       <FilterChipSections
         availableFilters={makeAvailable({ hasSigned: true })}
@@ -383,7 +370,7 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("keeps a unit out when it isn't in the requested set", () => {
+  it("keeps Signed (Variant unit) out when only Owned is requested", () => {
     setupBadgeHooks();
     const { queryByText } = render(
       <FilterChipSections
@@ -392,16 +379,11 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
         units={new Set(["owned"])}
       />,
     );
-    // Signed rides the variant unit, which isn't requested here.
     expect(queryByText("Signed")).toBeNull();
     expect(queryByText("Owned")).not.toBeNull();
   });
 
   it("keeps a selected value visible and toggleable when it drops out of options", async () => {
-    // Regression: a Set selected while it was available (e.g. show-library
-    // mode) used to vanish from the panel once the available set narrowed
-    // (owned-only), even though it kept filtering. It must stay visible,
-    // and clicking it must still toggle it off.
     const user = userEvent.setup();
     const cycleArrayFilter = vi.fn();
     setupBadgeHooks({ sets: ["ORPHANED"] });
@@ -421,9 +403,7 @@ describe("FilterBadgeSections — hiddenSections gating", () => {
         hiddenSections={new Set(["owned"])}
       />,
     );
-    // The in-range option still renders normally.
     expect(getByText("OGN")).not.toBeNull();
-    // The orphaned selection renders too, appended after the real options.
     const orphanedBadge = getByText("ORPHANED");
     expect(orphanedBadge).not.toBeNull();
     await user.click(orphanedBadge);

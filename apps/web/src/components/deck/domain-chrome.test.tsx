@@ -21,9 +21,7 @@ describe("DomainIcon", () => {
     expect(screen.queryByAltText("fury")).not.toBeInTheDocument();
   });
 
-  // A decorative icon whose only job is a tooltip should not be a tab stop,
-  // and Base UI's default tooltip trigger element is a button.
-  it("renders no tab stop", () => {
+  it("renders no tab stop for a decorative icon whose only job is a tooltip", () => {
     const { container } = render(<DomainIcon domain="fury" />);
 
     expect(container.querySelector("button")).toBeNull();

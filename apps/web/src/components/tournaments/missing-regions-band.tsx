@@ -6,16 +6,7 @@ import { ActionBand } from "@/components/ui/action-band";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 
-/**
- * The region-aware blocker, hoisted out of the roster: every active player still
- * missing a region, each with the Set region button on their own row, so the
- * thing stopping the next pairing is fixed here instead of hunted for below.
- *
- * A static band — it holds real buttons, so it takes no `render` (a nested
- * anchor would be invalid HTML).
- *
- * @returns The missing-regions band.
- */
+// Holds real buttons, so no `render` prop: a nested anchor would be invalid HTML.
 export function MissingRegionsBand({
   players,
   onSetRegion,

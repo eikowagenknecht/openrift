@@ -185,7 +185,6 @@ function ParentSelect({ draft, setDraft, tree, channels }: ParentSelectProps) {
   );
 }
 
-// The `kind` Select shared by the edit and add-row cells below.
 function KindSelect({ draft, setDraft }: AdminDraftSlotProps<ChannelDraft>) {
   if (!draft || !setDraft) {
     return null;
@@ -249,9 +248,8 @@ export function DistributionChannelsPage() {
   const nodeById = new Map(tree.map((n) => [n.channel.id, n]));
   const labelById = new Map(channels.map((c) => [c.id, c.label]));
 
-  // Sibling-scoped: a channel only moves among the channels sharing its parent,
-  // and it takes its own children along. `orderedChannels` is depth-first, which
-  // is what makes a subtree a contiguous block the move can splice.
+  // A channel moves only among its own siblings, taking its children along.
+  // orderedChannels must stay depth-first so a subtree is a contiguous block.
   const reorderMoves = treeReorder(
     orderedChannels,
     (channel) => channel.id,

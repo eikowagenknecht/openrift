@@ -35,7 +35,6 @@ describe("PrintingChannelCell", () => {
   });
 
   it("names only the first channel, counting the rest in the title", () => {
-    // Neither the table column nor the phone card has room for two breadcrumbs.
     const { getByText, container } = render(
       <PrintingChannelCell channels={[stubChannel("Worlds 2026"), stubChannel("Store Kit")]} />,
     );

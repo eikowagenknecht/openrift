@@ -23,41 +23,19 @@ import { getDomainColor, getDomainGradientStyle } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-type ControlMode =
-  | "quantity" // +/- with count (main, sideboard, runes)
-  | "remove-only" // just an XIcon button (legend, champion, battlefield)
-  | "none"; // no controls (search panel results)
+type ControlMode = "quantity" | "remove-only" | "none";
 
 interface DeckCardRowProps {
   card: DeckBuilderCard;
   hasViolation?: boolean;
   violationMessage?: string;
-  /**
-   * Copies still missing from the viewer's collection for this row. Rendered
-   * as an amber owned/needed fraction; omit (or 0) to show nothing — fully
-   * owned rows stay quiet.
-   */
   shortfall?: number;
-  /**
-   * Copies the viewer holds but which are locked away from deck building
-   * (loan, trade reservation, excluded collection), capped to this row's
-   * shortfall. Rendered as a muted lock glyph with the count.
-   */
   locked?: number;
-  /** Tooltip sentence for the lock glyph — from `lockedReasonText`. */
   lockedReason?: string;
-  /**
-   * Copies of this row the viewer is borrowing from a friend (ADR-039). The
-   * opposite sign of `locked`: these are in hand and already counted as
-   * buildable, which is why they need their own glyph — they shrink the
-   * shortfall, so a fully-borrowed row would otherwise render nothing at all.
-   */
   borrowed?: number;
-  /** Tooltip sentence for the borrow glyph — from `borrowedReasonText`. */
   borrowedReason?: string;
   dimmed?: boolean;
   controlMode?: ControlMode;
-  /** Largest copy count in this row's zone — used to size the count column so names align. */
   maxQuantity?: number;
   draggable?: boolean;
   shiftHeld?: boolean;
@@ -69,21 +47,10 @@ interface DeckCardRowProps {
   onContextMenu?: (event: React.MouseEvent) => void;
 }
 
-/**
- * The wild Power symbol: a cost payable with a rune of any domain. Same glyph
- * the card art and the card designer reach for when a card has no single domain
- * rune to show — `/images/domains/colorless.svg` is the colorless *domain's*
- * icon and does not mean "any", which is what this used to draw here.
- */
+// `/images/domains/colorless.svg` is the colorless *domain's* icon, not a
+// wild/any-domain glyph; the rainbow rune is used for that instead.
 const WILD_RUNE_ICON = "/images/glyphs/rune-rainbow.svg";
 
-/**
- * One power pip: the card's domain rune, or the wild rune when it has no single
- * one. Mirrors `CardPlaceholderImage` and the designer, which pick the same
- * glyph for the same card. Decorative on purpose — `PowerPips` names the whole
- * stack once rather than letting a 4-power card announce its domain four times.
- * @returns The pip glyph.
- */
 export function PowerDomainIcon({
   domains,
   colors,
@@ -96,12 +63,8 @@ export function PowerDomainIcon({
     const domainIcon = getFilterIconPath("domains", domain);
     return domainIcon ? <img src={domainIcon} alt="" className="inline size-3" /> : null;
   }
-  // The domain badges ship as .webp and carry their own color, but both glyphs
-  // below are SVG shapes filled with `currentColor` — inside an <img> that
-  // resolves against the SVG's own document, paints black, and disappears in
-  // dark mode. The other surfaces tint them against a domain-colored pip; a
-  // deck row has no pip behind them, so the glyph paints the card's domain
-  // colors itself through a mask.
+  // These glyphs are `currentColor` SVGs; inside an <img> that paints black
+  // and vanishes in dark mode, so they're masked and tinted instead.
   const icon =
     domains.length > 1 ? WILD_RUNE_ICON : getFilterIconPath("domains", WellKnown.domain.COLORLESS);
   const c1 = getDomainColor(domain, colors);
@@ -119,12 +82,6 @@ export function PowerDomainIcon({
   );
 }
 
-/**
- * A card's power cost, one rune pip per point. The stack carries the accessible
- * name for all of them, since the pips repeat a single fact and reading it once
- * per pip is noise; a card with no power cost renders nothing at all.
- * @returns The pip row, or null when there is no power cost.
- */
 export function PowerPips({
   power,
   domains,
@@ -134,7 +91,6 @@ export function PowerPips({
   power: number | null;
   domains: string[];
   colors: Record<string, string>;
-  /** Slug → display name, from `useEnumOrders().labels.domains`. */
   domainLabels: Record<string, string>;
 }) {
   if (power === null || power <= 0) {
@@ -151,11 +107,6 @@ export function PowerPips({
   );
 }
 
-/**
- * A card's energy cost. Named like the power pips beside it, so the two costs
- * don't read as a bare number next to a labelled one.
- * @returns The energy glyph.
- */
 export function EnergyGlyph({ value }: { value: number }) {
   return (
     <span
@@ -190,9 +141,8 @@ function CardControls({
   }
 
   if (controlMode === "remove-only") {
-    // Collapse the button out of layout until hover (display-based, like the +/-
-    // buttons) so the name sits flush-left instead of being indented by an empty
-    // delete slot. Always shown on touch, where there is no hover.
+    // Collapsed out of layout until hover so the name sits flush-left; always
+    // shown on touch, where there is no hover.
     return (
       <span className="contents md:hidden md:group-hover/card:contents">
         <Button
@@ -306,11 +256,8 @@ export function DeckCardRow({
     disabled: !enableDrag,
   });
 
-  // When dragging 1 copy from a multi-copy stack, show the remaining count
   const displayQuantity = isDragging && card.quantity > 1 ? card.quantity - 1 : card.quantity;
 
-  // Size the count column to the widest count in the zone so card names line up.
-  // Single-digit zones (the common case) stay tight; only mixed/10×+ zones widen.
   const countDigits = String(maxQuantity ?? card.quantity).length;
   const countWidthClass = countDigits >= 3 ? "w-9" : countDigits === 2 ? "w-7" : "w-4";
 

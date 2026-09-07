@@ -114,8 +114,6 @@ describe("listEntryTradeStatus", () => {
     expect(listEntryTradeStatus(copyEntry(alphaOne.id, false), EMPTY_INDEX)).toBeNull();
   });
 
-  // The feed's annotation wins over the bare `reserved` boolean, and carries the
-  // role the flag cannot express.
   it("gives a pinned copy the feed's annotation, not just the boolean", () => {
     const index = buildListTradeIndex([annotation({ phase: "reserved", quantity: 2 })], CATALOG);
     expect(listEntryTradeStatus(copyEntry(alphaOne.id, true), index)).toMatchObject({
@@ -134,8 +132,6 @@ describe("listEntryTradeStatus", () => {
     });
   });
 
-  // An unpinned commitment belongs to the printing, so it shows on the copies
-  // that are still free rather than on the one a different trade pinned.
   it("shows an unpinned offer on a copy that isn't reserved", () => {
     const index = buildListTradeIndex([annotation({ phase: "offered", quantity: 2 })], CATALOG);
     expect(listEntryTradeStatus(copyEntry(alphaOne.id, false), index)).toMatchObject({
@@ -172,9 +168,7 @@ describe("listEntryTradeStatus", () => {
     });
   });
 
-  // Any printing can fill a card-kind wish, so a trade on a printing the entry
-  // never names still has to reach the tile.
-  it("reads a card-kind wish entry off every printing of the card", () => {
+  it("reads a card-kind wish entry off every printing of the card, not just a named one", () => {
     const index = buildListTradeIndex(
       [annotation({ printingId: alphaTwo.id, role: "receiver", phase: "offered", quantity: 3 })],
       CATALOG,

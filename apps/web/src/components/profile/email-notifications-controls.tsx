@@ -11,7 +11,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useEmailNotifications } from "@/hooks/use-email-notifications";
 
-/** Cadence presets, ordered fastest-first, shown in the frequency dropdown. */
 const CADENCE_OPTIONS: { value: TradeRequestEmailCadence; label: string }[] = [
   { value: "instant", label: "Instant" },
   { value: "5min", label: "Every 5 minutes" },
@@ -20,18 +19,8 @@ const CADENCE_OPTIONS: { value: TradeRequestEmailCadence; label: string }[] = [
   { value: "60min", label: "Every hour" },
 ];
 
-/**
- * The ADR-030 email-notification controls, shown inside the Trading section.
- * Trade-request emails are on by default with a per-user delivery cadence; the
- * daily match digest is opt-in.
- * @returns The email-notifications group (request toggle + cadence, digest toggle).
- */
 export function EmailNotificationsControls() {
   const { gates, isLoading, isSaving, setChannel, setCadence } = useEmailNotifications();
-  // Disable while the saved values are loading (so we never show interactive but
-  // wrong/default positions) and during a save. The read is a fast client-only
-  // query (see useEmailNotifications), so this can't get stuck on like the old
-  // SSR-dehydrated shared query did.
   const disabled = isLoading || isSaving;
 
   return (

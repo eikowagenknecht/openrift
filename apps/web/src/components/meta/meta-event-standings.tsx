@@ -274,7 +274,6 @@ function DeckPreview({ token }: { token: string }) {
   );
 }
 
-/** Offset and measurement for one row, empty on the pre-hydration opening slice. */
 interface RowSlot {
   "data-index"?: number;
   ref?: (node: HTMLElement | null) => void;
@@ -297,7 +296,6 @@ function ownsClick(event: React.SyntheticEvent<HTMLElement>): boolean {
   return target instanceof Element && target.closest("a, button, [role=menu]") !== null;
 }
 
-/** The row is the disclosure: click anywhere on it, or Enter / Space while it has focus. */
 function rowToggleProps(token: string | null, expanded: boolean, onToggle: () => void) {
   if (token === null) {
     return {};
@@ -620,12 +618,6 @@ function subtitleFor(total: number, withLists: number): string {
   return `${entries} · ${withLists.toLocaleString("en-US")} with a decklist`;
 }
 
-/**
- * The whole field, best finish first, with every decklist the archive holds
- * openable in place (ADR-014). A table on desktop and two-line rows on phones:
- * the facts a row carries do not survive being squeezed into phone-width
- * columns, and the legend is the first thing a narrow table drops.
- */
 export function MetaEventStandings({
   players,
   matches,

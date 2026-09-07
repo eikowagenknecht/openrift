@@ -34,14 +34,11 @@ import {
   requestListKind,
 } from "@/lib/tradelist-exchange";
 
-/** Sentinel for the "create a new wishlist" radio option. */
 const NEW_LIST = "__new__";
 
 export interface TradelistRequestContext {
-  /** The group slug, used as the trade + share scope. */
   groupSlug: string;
   groupName: string;
-  /** The tradelist owner — the giver of the requested copies. */
   counterpartyUserId: string;
   counterpartyName: string;
 }
@@ -49,21 +46,10 @@ export interface TradelistRequestContext {
 interface RequestFromTradelistDialogProps extends TradelistRequestContext {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The printing being requested; `null` while the dialog is closed. */
   printing: Printing | null;
-  /** Copies of this printing visible on the tradelist — a soft cap for the stepper. */
   availableHint: number;
 }
 
-/**
- * "I want this" flow launched from a member's shared tradelist. Adds the card to
- * one of the viewer's wishlists (creating one if needed), shares that wishlist
- * with the group after an explicit confirmation so a match exists, then sends
- * the trade request. When the card already matches a shared wishlist the picker
- * is skipped and it goes straight to a one-tap confirm.
- *
- * @returns The dialog element.
- */
 export function RequestFromTradelistDialog({
   open,
   onOpenChange,
@@ -114,9 +100,6 @@ function RequestBody({
   const { data: matches } = useFriendGroupMatches(groupSlug);
   const options = listTargetOptions(shareable.items, "wish");
 
-  // If the card already matches a wishlist shared with this group, there is
-  // nothing to add or share — skip straight to the request confirm. This also
-  // avoids bumping the existing wish quantity on every click.
   const existingMatch = matches.othersHaveYourWants.find(
     (row) => row.printingId === printing.id && row.counterpartyUserId === counterpartyUserId,
   );
@@ -140,12 +123,9 @@ function RequestBody({
 
   const cardName = printing.card.name;
   const chosen = options.find((option) => option.listId === selectedId);
-  // The kind a new wishlist would be created as, shown as its glyph on the
-  // "New wishlist" option so the picker stays consistent with the rows above.
   const NewKindIcon = LIST_KIND_ICON[requestListKind()];
-  // New lists are always private at first, and an existing list the viewer
-  // picked might not be shared with this group yet — both need the explicit
-  // share confirmation before the request can match.
+  // New lists are always private; an unshared existing list needs the same
+  // confirmation. Either way the request can't match until it's shared.
   const needsShare = selectedId === NEW_LIST ? true : chosen ? !chosen.isShared : false;
   const chosenName =
     selectedId === NEW_LIST ? newName.trim() || "Wishlist" : (chosen?.listName ?? "");
@@ -194,7 +174,7 @@ function RequestBody({
       toast.success(`Requested ${cardName} from ${counterpartyName}`);
       onClose();
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
   };
 
@@ -205,7 +185,6 @@ function RequestBody({
     </div>
   );
 
-  // Already a shared match → one-tap confirm, no list picking or sharing.
   if (existingMatch) {
     return (
       <DialogForm onSubmit={() => void sendRequest()}>
@@ -227,7 +206,6 @@ function RequestBody({
     );
   }
 
-  // Share confirmation step (only reached when the chosen list isn't shared yet).
   if (phase === "confirm-share") {
     return (
       <DialogForm onSubmit={() => void sendRequest()}>

@@ -6,18 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserId } from "@/lib/auth-session";
 
-/**
- * Where the queue ends up: a full-screen show on this machine, or a browser
- * source in OBS. Two tabs rather than two pages, because they are two outputs
- * of the same queue and a creator switches between them mid-session.
- *
- * Sits under the queue in the stage's aside, so the thing being built and the
- * ways to put it on screen stay in one column.
- *
- * @param props.onStart Opens the full-screen show with the queue as it stands.
- * @param props.canStart False while the queue is empty, which is nothing to show.
- * @returns The output block.
- */
 export function StageOutputBlock({
   onStart,
   canStart,

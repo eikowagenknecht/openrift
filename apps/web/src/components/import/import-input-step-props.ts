@@ -1,9 +1,4 @@
-/**
- * Props every import input step takes. The step itself stays per-surface (the
- * collections page is a full-width form, the list dialog is a dialog form with
- * its own submit button), but the flow hooks all hand down the same six values,
- * so the shape lives here to keep them from drifting apart.
- */
+/** Shared props for every import input step; each surface renders its own layout around them. */
 export interface ImportInputStepProps {
   rawText: string;
   onTextChange: (text: string) => void;

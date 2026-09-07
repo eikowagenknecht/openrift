@@ -20,14 +20,6 @@ interface TradePreferenceGridPillProps {
   onEdit: () => void;
 }
 
-/**
- * Strip-friendly variant of the trade-preference pill used inside the
- * per-cell CardCountStrip in grid view. Matches the count-pill style
- * (h-5, rounded-md, bg-muted) so it sits naturally beside the quantity
- * pill, and falls back to a tag-icon-only badge when there's no price
- * reference to display.
- * @returns The pill button.
- */
 export function TradePreferenceGridPill({
   override,
   listDefault,
@@ -54,8 +46,6 @@ export function TradePreferenceGridPill({
         event.stopPropagation();
         onEdit();
       }}
-      // Tint when the entry has its own override; otherwise keep the muted
-      // look so the inherited state doesn't shout.
       className={cn(isOverridden && "text-primary")}
     >
       <Icon className="size-3" />

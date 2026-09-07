@@ -22,8 +22,6 @@ vi.mock("@tanstack/react-router", () => ({
   createLink: (Component: unknown) => Component,
 }));
 
-// Stub out the chrome components so the test focuses on the LCP-grid output
-// without pulling in their suspense / store dependencies.
 vi.mock("@/components/filters/search-bar", () => ({
   SearchBar: () => <div data-testid="search-bar" />,
 }));
@@ -43,9 +41,6 @@ vi.mock("@/components/filters/active-filters", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { FirstRowPreview } from "./first-row-preview";
 
-// FirstRowPreview reads filter search (for the toolbar's active-filter grouping),
-// so renders need a FilterSearchProvider. An empty value is enough — these tests
-// exercise the SSR grid/chrome, not specific filter state.
 function renderPreview() {
   return render(
     <FilterSearchProvider value={{}}>
@@ -125,8 +120,6 @@ describe("FirstRowPreview", () => {
   it("renders the SSR chrome even when firstRow is empty", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [] }));
     const { container } = renderPreview();
-    // Chrome is present even without a first-row payload — the layout shell
-    // still reserves the toolbar / compact-bar space.
     expect(container.firstChild).not.toBeNull();
     expect(container.querySelectorAll("img")).toHaveLength(0);
   });
@@ -163,9 +156,6 @@ describe("FirstRowPreview", () => {
   });
 
   it("uses @container/grid breakpoints that mirror the live useResponsiveColumns table", () => {
-    // SSR must query the same container (the center column) the live grid measures —
-    // otherwise the filter sidebar makes viewport-based breakpoints over-count
-    // columns vs. what `useResponsiveColumns` picks at runtime.
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0)] }));
     const { container } = renderPreview();
     const grid = container.querySelector(".grid");
@@ -180,26 +170,18 @@ describe("FirstRowPreview", () => {
   });
 
   it("trims overflow cells per breakpoint so each viewport shows two complete rows", () => {
-    // We always render up to 16 cells (2 rows at the widest 8-col breakpoint).
-    // Narrower viewports hide the overflow via container-query `display:none`
-    // so 3-col / 5-col / 7-col layouts don't render a half row of cards on
-    // the SSR shell.
     const cards = Array.from({ length: 16 }, (_, i) => makeCard(i));
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: cards }));
     const { container } = renderPreview();
     const cells = container.querySelectorAll(".grid > div");
     expect(cells).toHaveLength(16);
-    // Items 0-3 always visible (2 cols × 2 rows at base).
     for (let i = 0; i < 4; i++) {
       expect(cells[i]?.className).not.toContain("hidden");
     }
-    // Items 4-5 visible at 3-col breakpoint (640px).
     for (let i = 4; i < 6; i++) {
       expect(cells[i]?.className).toContain("hidden");
       expect(cells[i]?.className).toContain("@min-[640px]/grid:block");
     }
-    // Items 6-7 → 4 cols (768px), 8-9 → 5 cols (1024px), 10-11 → 6 cols (1280px),
-    // 12-13 → 7 cols (1600px), 14-15 → 8 cols (1920px).
     expect(cells[7]?.className).toContain("@min-[768px]/grid:block");
     expect(cells[9]?.className).toContain("@min-[1024px]/grid:block");
     expect(cells[11]?.className).toContain("@min-[1280px]/grid:block");
@@ -213,8 +195,6 @@ describe("FirstRowPreview", () => {
     );
     const { container } = renderPreview();
     const img = container.querySelector("img");
-    // Rotated branch fills a -90deg-rotated overlay (size-full object-cover),
-    // unlike the portrait branch's aspect-card image.
     expect(img?.className).toContain("size-full");
     expect(img?.className).not.toContain("aspect-card");
     expect(img?.parentElement?.getAttribute("style")).toContain("rotate(-90deg)");

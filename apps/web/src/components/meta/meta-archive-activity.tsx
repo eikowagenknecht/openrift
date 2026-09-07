@@ -38,8 +38,7 @@ function ActivityRow({ item }: { item: MetaActivityItem }) {
       <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full">
         <Icon aria-hidden className="size-3.5" />
       </span>
-      {/* The event takes its own line: sharing one with the headline in a 20rem
-          rail truncated away the only part that names what happened. */}
+      {/* The event takes its own line: sharing one with the headline truncated it away in a 20rem rail. */}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-semibold">{itemHeadline(item)}</span>
         <span className="truncate">{item.event.name}</span>
@@ -50,13 +49,6 @@ function ActivityRow({ item }: { item: MetaActivityItem }) {
   );
 }
 
-/**
- * What landed in the archive lately, across events: new events on record,
- * decklist batches, standings batches. Each row is a burst the API already
- * grouped, so a bulk import reads as one line.
- *
- * @returns The activity card, or null when the archive has no additions to name.
- */
 export function MetaArchiveActivity({ items }: { items: readonly MetaActivityItem[] }) {
   if (items.length === 0) {
     return null;

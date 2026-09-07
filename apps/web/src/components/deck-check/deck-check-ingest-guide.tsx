@@ -3,11 +3,6 @@ import { Link } from "@tanstack/react-router";
 
 import { getSiteUrl } from "@/lib/site-config";
 
-/**
- * Example request body, pre-filled with this tournament's id so the organizer
- * can copy it straight into their integration.
- * @returns The example JSON request payload.
- */
 function buildExamplePayload(tournamentId: string): string {
   return `{
   "tournamentId": "${tournamentId}",
@@ -30,10 +25,6 @@ function buildExamplePayload(tournamentId: string): string {
 }`;
 }
 
-/**
- * Example success response.
- * @returns The example JSON response body.
- */
 function buildExampleResponse(tournamentId: string): string {
   return `{
   "tournamentId": "${tournamentId}",
@@ -52,14 +43,6 @@ function buildExampleResponse(tournamentId: string): string {
 }`;
 }
 
-/**
- * Organizer-facing guide for pushing entrant decklists into this tournament over
- * the deck-check ingest API. Lives on the tournament's Deck check tab so the
- * example carries the real tournament id. A push must use a key whose host
- * matches the tournament's host, so the guide links to the right place to manage
- * them: the organization's page for org-run events, or your profile otherwise.
- * @returns The collapsible API ingest guide.
- */
 export function DeckCheckIngestGuide({
   tournamentId,
   host,

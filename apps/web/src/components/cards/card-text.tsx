@@ -6,36 +6,16 @@ import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { getKeywordStyle } from "@/lib/keywords";
 import { cn } from "@/lib/utils";
 
-// Default shape: slanted parallelogram (left edge angled right, right edge angled left).
-// pointedRight: right edge becomes an arrow pointing right.
-// pointedLeft: left edge becomes an arrow pointing right (upgrade marker).
-// Clip paths traced clockwise from top-left:
-//
-// Default (parallelogram):
-//   polygon(0.3em 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%)
-//   TL shifted right, TR at corner, BR shifted left, BL at corner → / / shape
-//
-// pointedRight (arrow on right):
-//   ...same left, but right edge becomes: TR → tip at mid-right → BR
-//   polygon(0.3em 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%)
-//
-// pointedLeft (arrow on left, upgrade marker):
-//   Left edge becomes: TL at 0,0 → tip at 0.3em,50% → BL at 0,100%
-//   polygon(0% 0%, ...right..., 0% 100%, 0.3em 50%)
 function keywordClipPath(pointedRight?: boolean, pointedLeft?: boolean): string {
   if (pointedLeft && pointedRight) {
-    // Both arrows: > shape on left, > shape on right
     return "polygon(0% 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%, 0.3em 50%)";
   }
   if (pointedLeft) {
-    // Arrow on left, slanted right
     return "polygon(0% 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%, 0.3em 50%)";
   }
   if (pointedRight) {
-    // Slanted left, arrow on right
     return "polygon(0.3em 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%)";
   }
-  // Default parallelogram
   return "polygon(0.3em 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%)";
 }
 
@@ -43,11 +23,7 @@ interface CardTextProps {
   text: string;
   onKeywordClick?: (keyword: string) => void;
   interactive?: boolean;
-  /**
-   * When true, glyphs render in their always-light treatment (white energy
-   * badge, white-inverted might/exhaust). Use on dark backgrounds where the
-   * default theme-aware tokens would render dark on dark.
-   */
+  /** Forces the always-light glyph treatment for use on dark backgrounds. */
   onDark?: boolean;
 }
 
@@ -87,9 +63,7 @@ function renderTokens(
               key={`${i}-${token.name}`}
               aria-label={`energy ${energyMatch[1]}`}
               className={cn(
-                // inline-block + overflow-hidden anchors align at the box bottom (an inline-flex baseline
-                // is the digit's, hanging the circle ~4px low); leading-[1.45em] = the box height centers
-                // the digit, and -0.179em of the own 0.7em font-size = the glyph images' -0.125em offset
+                // -0.179em matches the glyph images' -0.125em offset at this element's own 0.7em font-size.
                 "inline-block size-[1.45em] overflow-hidden rounded-full text-center align-[-0.179em] text-[0.7em] leading-[1.45em] font-bold not-italic",
                 onDark ? "bg-white text-black" : "bg-foreground text-background",
               )}

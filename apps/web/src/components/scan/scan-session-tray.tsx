@@ -43,47 +43,17 @@ import { sessionCountOf, useScanSessionStore } from "@/stores/scan-session-store
 
 interface ScanSessionTrayProps {
   index: ScanPrintingIndex | null;
-  /** Move one copy of the row's printing to the given finish sibling. */
   onSwitchFinish: (row: ScanSessionRow, sibling: Printing) => void;
-  /** Add one more copy of the row's printing without rescanning. */
   onAddOne: (row: ScanSessionRow) => void;
-  /** Remove one copy of the row's printing from the collection. */
   onRemoveOne: (row: ScanSessionRow) => void;
-  /** Open the printing swap for the row (all printings of that card). */
   onChangePrinting: (row: ScanSessionRow) => void;
-  /** Undo the whole session: every copy it added goes back out again. */
   onRemoveAll: () => void;
-  /**
-   * Commit the readings the session only identified to a collection ("scan
-   * first, decide later"). Offered whenever such readings exist, including
-   * after the session switched to a real target mid-scan.
-   */
   onAddAll: () => void;
-  /**
-   * Cards the scanner watched land and could not name, after the second look.
-   * Each carries the picture of how it lay, which is usually enough for the
-   * user to recognise it at a glance.
-   */
   unidentified?: UnidentifiedCard[];
-  /** Open the identify picker for one of them. */
   onIdentifyMissed?: (id: string) => void;
-  /** Forget one without answering. */
   onDismissMissed?: (id: string) => void;
 }
 
-/**
- * The session log under the camera: what this scan session added, newest
- * first. Every row is already in the collection — the controls here fix the
- * exceptions (a foil pull, a mis-scan) without leaving the page.
- *
- * A row's controls do not fit beside its name on a phone, so only one row
- * shows them at a time, on a line of its own below the card. That row is the
- * newest one by default (see {@link useScanTrayDisclosure}), which is the card
- * still in the user's hand; every other row is a plain log line the user can
- * tap to correct.
- *
- * @returns The tray, or a hint while the session is still empty.
- */
 export function ScanSessionTray({
   index,
   onSwitchFinish,
@@ -103,24 +73,18 @@ export function ScanSessionTray({
   const { labels } = useEnumOrders();
   const domainColors = useDomainColors();
   const newestFirst = [...rows.values()].toReversed();
-  // Tray order, which is also the order the detail overlay's prev/next steps
-  // through once a row opens it.
+  // Also the order the detail overlay's prev/next steps through.
   const sequence = newestFirst.map((row) => row.printing.id);
   const { openId, toggle } = useScanTrayDisclosure(sequence, scans);
 
-  // What the session is worth to the user: prices, wishlist membership and
-  // owned-before counts, shared by the summary line and the row badges. All
-  // of it streams in without suspending — a price fetch must never blank the
-  // camera page.
+  // Streams in without suspending: a price fetch must never blank the camera page.
   const hydrated = useHydrated();
   const marketplace = useDisplayStore((state) => state.marketplaceOrder[0] ?? "cardtrader");
   const { data: prices } = useQuery(pricesQueryOptions);
   const wish = useWishEntries(true);
   const { data: owned } = useOwnedCountsForPrintings(sequence, hydrated);
-  // Owned counts include what this session already added (the copies
-  // collection is optimistic), so "owned before" subtracts the session's own
-  // copies. Identify-only readings never reach the collection, so they
-  // subtract nothing.
+  // Owned counts include what this session already added, so "owned before"
+  // subtracts the session's own copies.
   const ownedBefore = owned
     ? new Map(
         newestFirst.map((row) => [
@@ -186,9 +150,6 @@ export function ScanSessionTray({
           />
         ))}
       </ul>
-      {/* Below the log rather than above it: undoing the whole session is the
-          last thing anyone reaches for, and a destructive button under the
-          user's thumb while they scan is not what the tray is for. */}
       <div className="flex flex-wrap items-center gap-2">
         {identifiedCards > 0 && (
           <Button onClick={onAddAll}>
@@ -207,14 +168,10 @@ export function ScanSessionTray({
 
 interface TrayRowProps {
   row: ScanSessionRow;
-  /** Every tray row's printing id, for the detail overlay's prev/next. */
   sequence: string[];
-  /** Same-card printings that differ only in finish, for the switch buttons. */
   siblings: Printing[];
   finishLabels: Record<string, string>;
-  /** Live rarity labels, read once at the list — see {@link CardMiniRow}. */
   rarityLabels: Record<string, string>;
-  /** Live domain colors, likewise lifted to the list. */
   domainColors: Record<string, string>;
   open: boolean;
   onToggle: (printingId: string) => void;
@@ -222,24 +179,12 @@ interface TrayRowProps {
   onAddOne: (row: ScanSessionRow) => void;
   onRemoveOne: (row: ScanSessionRow) => void;
   onChangePrinting: (row: ScanSessionRow) => void;
-  /** Headline price of the row's printing at the chosen marketplace, if any. */
   price?: number;
   formatValue: (value?: number | null) => string;
-  /** The viewer's wish entries matching this card (empty = no heart). */
   wishEntries: WishEntryFlat[];
-  /** Copies owned before this session, or null while ownership is unknown. */
   ownedBefore: number | null;
 }
 
-/**
- * One scanned card in the tray: a tappable log line, plus its corrections on a
- * second line while it is the open row.
- *
- * The line keeps its padding whether or not it is open, so opening a row never
- * shifts the rows above it out from under the user's thumb.
- *
- * @returns The tray row.
- */
 function TrayRow({
   row,
   sequence,
@@ -294,14 +239,9 @@ function TrayRow({
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="flex items-center gap-2">
               <span className="truncate font-medium">{name}</span>
-              {/* Outside the truncating span: a count that gets cut off is worse
-                  than a name that does, because nothing else states it. */}
               {count > 1 && <CountPill className="shrink-0">×{count}</CountPill>}
             </span>
             <span className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-sm">
-              {/* The lead's meta column stands down below sm (the name needs
-                  its width back), so the code takes the room line two has
-                  going spare there rather than dropping off the row. */}
               <span className="font-mono sm:hidden">{printing.shortCode}</span>
               <PrintingVariantLabel printing={printing} siblings={siblings} />
             </span>
@@ -332,9 +272,8 @@ function TrayRow({
       </div>
       {open && (
         <div id={actionsId} className="mt-2 flex flex-wrap items-center gap-2">
-          {/* The detail opens over the page, because leaving for the card page
-              would end a running camera session. Without a provider above the
-              tray there is nothing to open in place, so the card page it is. */}
+          {/* Opens over the page: leaving for the card page would end a running
+              camera session. Falls back to the card page if there's no provider. */}
           {openCardDetail ? (
             <Button
               variant="outline"
@@ -354,10 +293,6 @@ function TrayRow({
               Details
             </Button>
           )}
-          {/* Identify-only readings get the same corrections as copies — a
-              mis-counted or mis-finished reading skews the session summary
-              just as much. The page routes each control to the store or the
-              API depending on what stands behind the row. */}
           {count > 0 && (
             <>
               {siblings.map((sibling) => {
@@ -366,9 +301,6 @@ function TrayRow({
                   <Button
                     key={sibling.id}
                     variant={isFoil ? "secondary" : "outline"}
-                    // The button that makes a card foil carries the same amber
-                    // cue as a foil thumbnail. A rainbow wash sat over the
-                    // label and cost it contrast, so the ring gets it instead.
                     className={cn(toFoil && "ring-border-accent/60 ring-1")}
                     onClick={() => onSwitchFinish(row, sibling)}
                     aria-label={`Mark one ${name} as ${finishLabels[sibling.finish]}`}
@@ -412,20 +344,11 @@ function TrayRow({
   );
 }
 
-/**
- * One line answering "was there anything good in that pack": card count,
- * marketplace value, what is new to the collection and what is wished for.
- * The best pull gets its own line once the session is more than one card,
- * because that is the single number people open a pack for.
- *
- * @returns The summary block above the tray rows.
- */
 function SessionSummary({
   summary,
   formatValue,
 }: {
   summary: ScanSessionSummaryData;
-  /** Null while prices have not loaded — the value spans stay hidden. */
   formatValue: ((value?: number | null) => string) | null;
 }) {
   const bestName = summary.best ? legendDisplayName(summary.best.printing.card) : null;
@@ -478,15 +401,6 @@ function SessionSummary({
   );
 }
 
-/**
- * The cards the scanner watched land and could not name.
- *
- * Shown with the frame they settled on, because that picture is what turns an
- * unhelpful "one card was missed" into something the user can answer in a
- * second: they recognise the card at a glance and tap to say what it was.
- *
- * @returns The list, or nothing when every placement was identified.
- */
 function UnidentifiedList({
   cards,
   onIdentify,

@@ -140,9 +140,6 @@ describe("collectEntries", () => {
   });
 
   it("does not cross-contaminate assigned printings across language variants for per-language marketplaces", () => {
-    // CT product EN and SC both have the same externalId in staging. Only the
-    // SC variant is assigned to a printing. The EN row must not show the SC
-    // printing under "Assigned printings".
     const enPrint = printing({ printingId: "p-en", language: "EN" });
     const scPrint = printing({ printingId: "p-sc", language: "SC" });
     const entries = collectEntries(
@@ -173,14 +170,10 @@ describe("collectEntries", () => {
             staged({ externalId: 99, language: "EN" }),
             staged({ externalId: 99, language: "SC" }),
           ],
-          assignments: [
-            // One Cardmarket assignment fans out across languages via null.
-            { externalId: 99, printingId: "p-en", finish: "normal", language: null },
-          ],
+          assignments: [{ externalId: 99, printingId: "p-en", finish: "normal", language: null }],
         },
       }),
     );
-    // Both language variants see the same printing (language fan-out).
     const enEntry = entries.find((e) => e.product.language === "EN");
     const scEntry = entries.find((e) => e.product.language === "SC");
     expect(enEntry?.assignedPrintings.map((p) => p.printingId)).toEqual(["p-en"]);
@@ -188,9 +181,6 @@ describe("collectEntries", () => {
   });
 
   it("lists every printing a multi-variant assignment covers", () => {
-    // Two products for the same printing in the same marketplace — both should
-    // surface with their own row AND resolve to the same printing in the
-    // Assigned printings column.
     const shared = printing({ printingId: "p-1", language: "EN" });
     const entries = collectEntries(
       group([shared], {
@@ -232,15 +222,10 @@ describe("collectEntries", () => {
       group([printing()], {
         tcgplayer: {
           staged: [
-            // Same language + set → reverse finish puts foil before normal,
-            // then externalId breaks the final tie.
             staged({ externalId: 11, language: "EN", groupName: "Alpha", finish: "normal" }),
             staged({ externalId: 10, language: "EN", groupName: "Alpha", finish: "foil" }),
             staged({ externalId: 12, language: "EN", groupName: "Alpha", finish: "normal" }),
-            // Different set within the same language sorts after "Alpha".
             staged({ externalId: 13, language: "EN", groupName: "Beta", finish: "normal" }),
-            // SC outranks EN at the language tier, so this row sorts last
-            // despite having the earliest set name.
             staged({ externalId: 14, language: "SC", groupName: "Alpha", finish: "normal" }),
           ],
           assigned: [],
@@ -269,23 +254,14 @@ describe("collectEntries", () => {
   });
 
   it("hides the Cardmarket placeholder language so non-EN products don't falsely render as EN", () => {
-    // Regression: CM 873230 is a SC-only product on Cardmarket, but our
-    // staging layer stamps every CM row as "EN" (CM's price guide is
-    // language-aggregate — it doesn't expose per-product language). The UI
-    // must not surface that placeholder, otherwise SC cards appear as EN.
     expect(displayedProductLanguage("cardmarket", "EN")).toBeNull();
     expect(displayedProductLanguage("cardmarket", "SC")).toBeNull();
-    // TCG/CT keep their stored language — CT is per-language, TCG is
-    // effectively English-only for Riftbound so "EN" is meaningful there.
     expect(displayedProductLanguage("tcgplayer", "EN")).toBe("EN");
     expect(displayedProductLanguage("cardtrader", "SC")).toBe("SC");
     expect(displayedProductLanguage("cardtrader", "")).toBeNull();
   });
 
   it("populates otherAssignedPrintingIds with printings assigned to a different external ID in the same marketplace", () => {
-    // Two CT products, each with its own assignment. From product 1's view,
-    // the printing assigned to product 2 shows up in otherAssignedPrintingIds
-    // so the Assign dropdown can dim it as a conflict hint.
     const pNormal = printing({ printingId: "p-normal", finish: "normal" });
     const pFoil = printing({ printingId: "p-foil", finish: "foil" });
     const entries = collectEntries(
@@ -307,14 +283,11 @@ describe("collectEntries", () => {
     const two = entries.find((e) => e.product.externalId === 2);
     expect([...(one?.otherAssignedPrintingIds ?? [])]).toEqual(["p-foil"]);
     expect([...(two?.otherAssignedPrintingIds ?? [])]).toEqual(["p-normal"]);
-    // Own assignment does not appear in otherAssignedPrintingIds.
     expect(one?.otherAssignedPrintingIds.has("p-normal")).toBe(false);
     expect(two?.otherAssignedPrintingIds.has("p-foil")).toBe(false);
   });
 
   it("skips assignment entries whose printingId is not in group.printings", () => {
-    // Defensive — should never happen after the merge fix, but if a stale
-    // assignment sneaks through we shouldn't crash or produce undefined rows.
     const entries = collectEntries(
       group([printing({ printingId: "p-known" })], {
         cardtrader: {
@@ -360,9 +333,6 @@ describe("collectStrongMappings", () => {
   });
 
   it("skips products that are already assigned", () => {
-    // The suggestion chip for an assigned product is hidden anyway (see
-    // MarketplaceProductRow — suggestions render only when !isAssigned), so
-    // the batch helper must skip them too or it would re-submit stale pairs.
     const product = staged({ externalId: 1 });
     const g = group([printing({ printingId: "p-1" })], {
       cardtrader: {
@@ -378,10 +348,6 @@ describe("collectStrongMappings", () => {
   });
 
   it("emits every sibling printing for one language-aggregate product", () => {
-    // Cardmarket's price guide is language-aggregate, so a single CM product
-    // can legitimately suggest multiple sibling printings (EN and SC). Batch
-    // accept must fire one mapping per sibling — not just the top scorer —
-    // otherwise the aggregate price only attaches to one language variant.
     const en = printing({ printingId: "p-en", language: "EN" });
     const sc = printing({ printingId: "p-sc", language: "SC" });
     const g = group([en, sc], {
@@ -460,16 +426,12 @@ describe("collectWeakMappings", () => {
 
 describe("isCardNameMismatch", () => {
   it("returns false only when the normalized names are exactly equal", () => {
-    // "Kai'Sa, Survivor" vs "KaiSa Survivor" — same card, different surface
-    // form — punctuation, spacing, and casing normalize away.
     expect(isCardNameMismatch("Kai'Sa, Survivor", "KaiSa Survivor")).toBe(false);
     expect(isCardNameMismatch("BLAST CONE", "Blast Cone")).toBe(false);
     expect(isCardNameMismatch("Mega-Mech", "Mega Mech")).toBe(false);
   });
 
   it("returns true when the product name has any extra suffix beyond the card name", () => {
-    // Substring containment is not enough — suffixes like "(Foil)" or variant
-    // markers must trigger the yellow highlight so the admin notices them.
     expect(isCardNameMismatch("Blast Cone (Foil)", "Blast Cone")).toBe(true);
     expect(isCardNameMismatch("Jinx Loose Cannon Signature", "Loose Cannon")).toBe(true);
     expect(isCardNameMismatch("Kai'Sa, Survivor - Alt Art", "KaiSa Survivor")).toBe(true);

@@ -27,9 +27,7 @@ const NOTICE = /you have full access to this collection/iu;
 
 describe("SharedCollectionAccessNotice", () => {
   afterEach(() => {
-    // mockReset (not mockClear) so a throwing implementation doesn't leak, and
-    // so call counts start empty for the assertions that check the collections
-    // query never ran.
+    // mockReset, not mockClear, so a throwing implementation doesn't leak between tests.
     hydratedMock.mockReset();
     hydratedMock.mockReturnValue(true);
     userIdMock.mockReset();
@@ -57,7 +55,6 @@ describe("SharedCollectionAccessNotice", () => {
     collectionsMapMock.mockReturnValue(new Map([["col-1", { id: "col-1" }]]));
     const { container } = render(<SharedCollectionAccessNotice collectionId="col-1" />);
     expect(container.firstChild).toBeNull();
-    // The collections query needs a session; it must not run without one.
     expect(collectionsMapMock).not.toHaveBeenCalled();
   });
 

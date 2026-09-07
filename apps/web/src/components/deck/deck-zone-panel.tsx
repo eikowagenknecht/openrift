@@ -24,13 +24,8 @@ import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
 /**
- * The sidebar's identity header: mini fanned legend/champion pair over the
- * deck's domain glow, the deck name, and the shared completion figure — so
- * the deck's face stays on screen while a zone browser fills the main area.
- * On phones this sits at the top of the off-canvas zone sheet. With
- * `onOverviewClick` it doubles as the way back to the overview, which is why
- * the Overview button below can hide once the overview is showing.
- * @returns The identity header card.
+ * With `onOverviewClick` this doubles as the way back to the overview, which
+ * is why the Overview button below can hide once the overview is showing.
  */
 function PanelIdentityHeader({
   name,
@@ -125,10 +120,7 @@ function PanelIdentityHeader({
           </p>
         </div>
       </div>
-      {/* The deck's real domain split, the same strip the overview hero carries.
-          A legend-colored gradient used to sit here, which washed every deck
-          into its identity colors regardless of what the list holds. No
-          tooltips: the header itself is a button, so the segments stay
+      {/* No tooltips: the header itself is a button, so the segments stay
           decoration. */}
       <DomainBar
         data={stats.domainDistribution}
@@ -163,20 +155,8 @@ interface DeckZonePanelProps {
   onOverviewClick?: () => void;
   onHoverCard?: HoverHandler;
   ownershipData?: DeckOwnershipData;
-  /**
-   * Hides the Stats panel. Set while the overview is showing, which draws its
-   * own (larger, cross-filtering) stats band — the sidebar copy would be a
-   * second set of the same charts on screen at once.
-   */
   hideStats?: boolean;
-  /**
-   * True while the main area shows the overview (no zone active). The Overview
-   * button hides then — it would be a no-op, and the identity header above it
-   * already leads back here.
-   */
   overviewShowing?: boolean;
-  /** Deck items in display order — passed to each zone section so a row click
-   * seeds the detail pane's prev/next nav with the same list the overview uses. */
   deckItems: CardViewerItem[];
 }
 
@@ -200,9 +180,8 @@ export function DeckZonePanel({
   );
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
 
-  // Formats without a sideboard hide the zone once it's empty. A non-empty
-  // sideboard (format switch, imported list) stays visible with its
-  // violation so the cards can still be moved out.
+  // A non-empty sideboard (format switch, imported list) stays visible with
+  // its violation so the cards can still be moved out.
   const visibleZones = zoneOrder.filter(
     (zone) =>
       zone !== WellKnown.deckZone.SIDEBOARD ||
@@ -231,9 +210,7 @@ export function DeckZonePanel({
   }, []);
 
   return (
-    // Frameless sections separate by space, not boxes, so the rhythm has to be
-    // wide enough to read as separation on its own — and to clear the drop
-    // ring a section grows while a card hovers over it.
+    // gap-4 must clear the drop ring a section grows to while a card hovers over it.
     <div className="flex flex-col gap-4">
       <PanelIdentityHeader
         name={deckDetail.deck.name}
@@ -269,8 +246,7 @@ export function DeckZonePanel({
         />
       ))}
       {/* No ownership breakdown here: the overview's hero carries the
-          owned/missing counts, the value chip and the missing-cards entry, and
-          its Collection lens draws the same split. */}
+          owned/missing counts and its Collection lens draws the same split. */}
       {!hideStats && <DeckStatsPanel deckId={deckId} />}
     </div>
   );

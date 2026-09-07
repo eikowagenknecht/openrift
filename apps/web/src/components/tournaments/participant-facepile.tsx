@@ -4,19 +4,11 @@ import { UserAvatarStack } from "@/components/user-avatar-stack";
 
 interface ParticipantFacepileProps {
   preview: TournamentParticipantPreview[];
-  /** The tournament's full participant count; the overflow count shows the rest. */
   totalCount: number;
   size?: "sm" | "default";
   className?: string;
 }
 
-/**
- * The tournament summary's participant preview adapted onto the app's
- * standard {@link UserAvatarStack}. Participants without a linked account get
- * an initials avatar (no image, no Gravatar).
- *
- * @returns The avatar stack, or null when there are no participants.
- */
 export function ParticipantFacepile({
   preview,
   totalCount,

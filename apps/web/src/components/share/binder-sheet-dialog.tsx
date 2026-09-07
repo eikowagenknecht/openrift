@@ -26,13 +26,9 @@ import { BINDER_SHEET_PAPERS, BINDER_SHEET_SPECS } from "@/lib/binder-sheet-spec
 interface BinderSheetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The share link the QR code encodes. */
   shareUrl: string;
-  /** Prefill for the title line, e.g. the owner's display name or the list name. */
   defaultTitle: string;
-  /** Prefill for the instruction line under the title. */
   defaultSubtitle: string;
-  /** Base name for the downloaded file. */
   filenameHint?: string;
 }
 
@@ -52,23 +48,14 @@ const STYLE_ITEMS: { value: BinderSheetStyle; label: string }[] = [
 ];
 
 /**
- * Loads the sheet generator on first use, so jsPDF, the QR encoder and the
- * brand logo raster stay off the initial graph of every page that offers a
- * share dialog. Module scope, not the handler: react-compiler cannot lower an
- * `import()` expression inside a component and bails on the whole file.
- * @returns The generator function.
+ * Module scope, not the handler: react-compiler cannot lower an `import()`
+ * expression inside a component and bails on the whole file.
  */
 async function loadBinderSheetGenerator() {
   const module = await import("@/lib/binder-sheet-pdf");
   return module.generateBinderSheetPdf;
 }
 
-/**
- * Options for the printable binder QR sheet, then a PDF download. Callers own
- * the open state and pass the share link plus its prefills, so the same dialog
- * serves the all-lists bundle, a single list, and a collection.
- * @returns The binder sheet dialog.
- */
 export function BinderSheetDialog({
   open,
   onOpenChange,
@@ -81,8 +68,6 @@ export function BinderSheetDialog({
   const [subtitle, setSubtitle] = useState(defaultSubtitle);
   const [contact, setContact] = useState("");
   const [showLink, setShowLink] = useState(false);
-  // Marks are opt-in: the common case is printing a binder page and sliding it
-  // straight into a sleeve, where a clean sheet is what you want.
   const [cutMarks, setCutMarks] = useState(false);
   const [ruler, setRuler] = useState(false);
   const [size, setSize] = useState<BinderSheetSize>("card");

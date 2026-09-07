@@ -29,7 +29,6 @@ export function useScrollIndicator({
   multipleGroups,
   stickyOffset,
 }: UseScrollIndicatorParams) {
-  // ── Mirror refs (read current values from event handlers) ──────────
   const virtualRowsRef = useRef(virtualRows);
   const rowStartsRef = useRef(rowStarts);
   const virtualizerRef = useRef(virtualizer);
@@ -44,7 +43,6 @@ export function useScrollIndicator({
     stickyOffsetRef.current = stickyOffset;
   });
 
-  // ── Indicator state ────────────────────────────────────────────────
   const [indicator, setIndicator] = useState<IndicatorState>({
     cardId: "",
     indicatorTop: stickyOffset + INDICATOR_PAD,
@@ -76,7 +74,6 @@ export function useScrollIndicator({
   const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
   const snapPointElsRef = useRef<Map<number, HTMLElement>>(new Map());
 
-  // ── Measure indicator height ───────────────────────────────────────
   useLayoutEffect(() => {
     const el = indicatorRef.current;
     if (!el) {
@@ -93,7 +90,6 @@ export function useScrollIndicator({
     return () => observer.disconnect();
   }, []);
 
-  // ── Prevent native touch scrolling during drag ─────────────────────
   useEffect(() => {
     const preventScroll = (e: TouchEvent) => {
       if (isDraggingRef.current) {
@@ -104,7 +100,6 @@ export function useScrollIndicator({
     return () => document.removeEventListener("touchmove", preventScroll);
   }, []);
 
-  // ── Scroll-position tracking (updates indicator on scroll) ─────────
   useEffect(() => {
     let rafId = 0;
     const update = () => {
@@ -140,7 +135,6 @@ export function useScrollIndicator({
       const trackBottom = viewportH - halfH - INDICATOR_PAD;
       const indicatorTop = trackTop + contentPct * (trackBottom - trackTop);
 
-      // During drag: only update the card ID label.
       if (isDraggingRef.current) {
         if (cardIdRef.current) {
           cardIdRef.current.textContent = firstItem.printing.shortCode;
@@ -148,13 +142,12 @@ export function useScrollIndicator({
         return;
       }
 
-      // When hovered, freeze the indicator so the user can grab it easily.
+      // Frozen while hovered so the user can grab it.
       if (isHoveredRef.current) {
         return;
       }
 
-      // After a drag release, scrollTo triggers scroll events. Don't let
-      // those reset the shorter post-drag hide timer.
+      // scrollTo after a drag release fires scroll events; don't let those reset the hide timer.
       if (postDragCooldownRef.current) {
         return;
       }
@@ -188,7 +181,6 @@ export function useScrollIndicator({
     };
   }, []);
 
-  // ── Pointer down handler ───────────────────────────────────────────
   const handleIndicatorPointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     isDraggingRef.current = true;
@@ -213,7 +205,6 @@ export function useScrollIndicator({
     setIndicator((prev) => ({ ...prev, visible: true, dragging: true }));
   };
 
-  // ── Drag move/up (exposed via refs for element-level handlers) ─────
   // oxlint-disable-next-line no-empty-function -- initialised lazily in effect
   const handleMoveRef = useRef((_clientY: number) => {});
   // oxlint-disable-next-line no-empty-function -- initialised lazily in effect
@@ -228,7 +219,6 @@ export function useScrollIndicator({
         Math.min(trackBottom, clientY - dragStartRef.current.grabOffsetY),
       );
 
-      // Snap to nearby ghost badges (set headers).
       const SNAP_DISTANCE = 20;
       let snapped = false;
       for (const sp of snapPointsRef.current) {
@@ -247,7 +237,6 @@ export function useScrollIndicator({
         }
       }
 
-      // Hide snap point badges that overlap the drag indicator.
       for (const sp of snapPointsRef.current) {
         const el = snapPointElsRef.current.get(sp.rowIndex);
         if (el) {
@@ -298,7 +287,6 @@ export function useScrollIndicator({
       if (badge) {
         badge.style.width = "";
       }
-      // Reset snap point visibility overrides from drag.
       for (const el of snapPointElsRef.current.values()) {
         el.style.visibility = "";
       }
@@ -347,7 +335,6 @@ export function useScrollIndicator({
     handleUpRef.current = handleUp;
   }, []);
 
-  // ── Snap points (only computed while dragging) ─────────────────────
   const snapPoints = indicator.dragging
     ? computeSnapPoints({
         virtualRows,
@@ -364,7 +351,6 @@ export function useScrollIndicator({
     snapPointsRef.current = snapPoints;
   });
 
-  // ── Hover handlers (for the indicator element) ─────────────────────
   const handleMouseEnter = () => {
     isHoveredRef.current = true;
     globalThis.clearTimeout(hideTimerRef.current);

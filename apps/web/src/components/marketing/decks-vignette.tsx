@@ -10,17 +10,6 @@ import { EnergyGlyph, PowerPips, Swap, Vignette } from "./vignette-parts";
 
 const META_WIDTH = "w-16";
 
-/**
- * Five rows off an Azir Unleashed list — an Emperor of the Sands legend over
- * Azir, Sovereign, which is what puts calm beside order in a deck named for a
- * single champion. Every card is real, and so are its rune cost, energy and
- * rarity. The vignette has no printing to draw art from, so `CardMiniRow` falls
- * back to its domain-tinted placeholder the way the app does for an art-less
- * printing.
- *
- * `Guards!` is the row the loop adds a copy to: the main deck reaches 39, and
- * the collection is left one copy behind.
- */
 const DECK_ROWS = [
   {
     shortCode: "OGN-045",
@@ -75,11 +64,8 @@ const ADDED_ROW = {
   owned: 1,
 } as const;
 
-// The stats band counts the champion alongside the main deck, so these columns
-// run to 40 rather than the zone's 39. The 3 column is where the added copy
-// lands, and it carries the count the list had before it — both totals average
-// to the Ø 2.3 the heading prints (89/39 and 92/40), which is why the heading
-// itself never swaps. The axis runs to 8 whatever the deck costs.
+// Includes the champion, so columns total 40, not the zone's 39. Column 3's
+// before/after counts both average to the printed Ø 2.3.
 const ENERGY_CURVE: { energy: number; count: number; was?: number }[] = [
   { energy: 0, count: 0 },
   { energy: 1, count: 15 },
@@ -94,16 +80,11 @@ const ENERGY_CURVE: { energy: number; count: number; was?: number }[] = [
 
 const CURVE_PEAK = 15;
 
-// Height reserved above every column for its total, matching the 14px top
-// margin the real chart leaves for the same labels.
+// Matches the 14px top margin the real chart leaves for its column labels.
 const CURVE_LABEL_HEIGHT = "0.875rem";
 
-/**
- * The split across the legend's two domains, in enum order. Counted as DomainBar
- * counts it: over the champion and main deck, and a dual-domain card for both
- * its domains — which is why the two segments overrun the 40 they divide by, and
- * why the bar clips them.
- */
+// A dual-domain card counts for both domains, so the split overruns the 40
+// it divides by; the bar clips it.
 const DOMAIN_SPLIT = [
   { domain: "calm", count: 23 },
   { domain: "order", count: 20 },
@@ -111,10 +92,8 @@ const DOMAIN_SPLIT = [
 
 const MAIN_DECK_SIZE = 39;
 
-/** Main deck plus the champion, which is the figure the stats band prints. */
 const STATS_DECK_SIZE = 40;
 
-/** DeckFormatBadge's settled state: green outline, check, the format label. */
 function SettledFormatBadge() {
   return (
     <Badge variant="outline" className="bg-success-soft border-success/30 text-success text-xs">
@@ -124,7 +103,6 @@ function SettledFormatBadge() {
   );
 }
 
-/** DeckFormatBadge's invalid state: amber, the format label, the figure, the alert. */
 function InvalidFormatBadge() {
   return (
     <Badge variant="outline" className="bg-warning-soft border-warning/40 text-warning text-xs">
@@ -135,7 +113,6 @@ function InvalidFormatBadge() {
   );
 }
 
-/** The zone's own count, green once it reaches the format's target. */
 function ZoneCount({ quantity, complete }: { quantity: number; complete?: boolean }) {
   return (
     <span className={cn("tabular-nums", complete ? "text-success" : "text-muted-foreground")}>
@@ -144,7 +121,6 @@ function ZoneCount({ quantity, complete }: { quantity: number; complete?: boolea
   );
 }
 
-/** The owned/needed fraction, amber while the collection is short. */
 function Ownership({ owned, needed }: { owned: number; needed: number }) {
   return (
     <span className={cn("tabular-nums", owned < needed ? "text-warning" : "text-muted-foreground")}>
@@ -191,12 +167,6 @@ function DeckRow({
   );
 }
 
-/**
- * One count over its bar, sized against the tallest column. Label and bar are
- * one layer so the count always sits on the bar it belongs to — swapping the
- * bar alone would leave the label floating a step above it.
- * @returns The layer.
- */
 function CurveBar({ count, className }: { count: number; className?: string }) {
   return (
     <span className={cn("flex h-full flex-col justify-end", className)}>
@@ -211,12 +181,6 @@ function CurveBar({ count, className }: { count: number; className?: string }) {
   );
 }
 
-/**
- * One column of the energy curve. A column given `was` grows on the shared
- * swap, so the chart agrees with the count in the zone header throughout the
- * loop.
- * @returns The column.
- */
 function CurveColumn({ count, was }: { count: number; was?: number }) {
   const swaps = was !== undefined;
   return (
@@ -232,14 +196,6 @@ function CurveColumn({ count, was }: { count: number; was?: number }) {
   );
 }
 
-/**
- * The deck overview's list mode: the format badge over one zone of the list,
- * with the stats band the sidebar carries underneath. The loop adds the copy
- * that completes the main deck — the count settles, the badge turns from the
- * build figure to a legal Constructed deck, the curve's 3 column grows, and the
- * collection is left a copy short of the list.
- * @returns The deck vignette.
- */
 export function DecksVignette() {
   return (
     <Vignette>

@@ -94,7 +94,6 @@ function CreateDeckDialog({
   const [format, setFormat] = useState<string>(formats[0]?.slug ?? "");
 
   const handleCreate = () => {
-    // Logged out (ADR-035): create a browser-local deck instead of a server one.
     if (!userId) {
       const localId = createLocalDeck(format, name);
       void navigate({ to: "/decks/$deckId", params: { deckId: localId } });
@@ -200,9 +199,8 @@ function GroupHeader({ label, count }: { label: string; count: number }) {
 }
 
 export function DeckListPage() {
-  // Auth-optional (ADR-035): server decks load only when signed in; browser-local
-  // decks always render (client-only, gated behind hydration). The two merge
-  // into one list. Non-suspense query so a logged-out visitor doesn't suspend.
+  // Server decks load only when signed in; local decks always render, gated
+  // behind hydration. Non-suspense so a logged-out visitor doesn't suspend.
   const userId = useUserId();
   const serverQuery = useQuery({ ...decksQueryOptions(userId ?? ""), enabled: Boolean(userId) });
   const serverItems = serverQuery.data ?? [];
@@ -230,9 +228,6 @@ export function DeckListPage() {
   const deckItems: DeckListItemResponse[] = [...localItems, ...serverItems];
   const [createOpen, setCreateOpen] = useState(false);
 
-  // One-click sample deck (see lib/sample-deck.ts): decodes the bundled deck
-  // code and drops the visitor into a populated builder. Logged out it becomes
-  // a browser-local deck (ADR-035), logged in a server deck.
   const sampleCards =
     deckItems.length === 0 || creatingSample ? buildSampleDeckCards(allPrintings) : null;
   const sampleKeyCards = sampleCards ? sampleDeckKeyCards(sampleCards) : null;
@@ -255,9 +250,7 @@ export function DeckListPage() {
       toast.error("The sample deck could not be loaded.");
       return;
     }
-    // Pending flag keeps the page on the empty-state view while the builder
-    // route loads — without it the list flashes in as soon as the new deck
-    // lands in the store, before navigation completes.
+    // Without this, the list flashes in before navigation to the new deck completes.
     setCreatingSample(true);
     if (!userId) {
       const store = useLocalDecksStore.getState();
@@ -277,26 +270,21 @@ export function DeckListPage() {
               onSuccess: () => {
                 void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
               },
-              // Reported by the global mutation error toast (see reportMutationError);
-              // still reset the pending flag so the empty-state view is interactive again.
+              // Error is reported by the global mutation error toast (reportMutationError).
               onError: () => {
                 setCreatingSample(false);
               },
             },
           );
         },
-        // Reported by the global mutation error toast (see reportMutationError);
-        // still reset the pending flag so the empty-state view is interactive again.
+        // Error is reported by the global mutation error toast (reportMutationError).
         onError: () => {
           setCreatingSample(false);
         },
       },
     );
   }
-  // Stick the toolbar directly below the title bar: measure the title bar and
-  // add its height to the header height, mirroring CardBrowserLayout's offset
-  // (including its -1px: the title bar tucks 1px under the header via
-  // PAGE_TOP_BAR_STICKY, so its bottom edge sits 1px higher too).
+  // -1px: the title bar tucks 1px under the header via PAGE_TOP_BAR_STICKY.
   const [titleSlot, setTitleSlot] = useState<HTMLDivElement | null>(null);
   const titleHeight = useMeasuredHeight(titleSlot);
   const toolbarOffset = useHeaderHeight() + titleHeight - 1;
@@ -316,15 +304,14 @@ export function DeckListPage() {
   const { sortField, sortDir, groupBy, groupDir } = useDeckListViewPrefs();
   const density = useDeckListPrefsStore((state) => state.density);
   const { labels: formatLabels } = useDeckFormatList();
-  // Folders are server-side and per-user, so a signed-out list has none — the
-  // toolbar and the deck chips both stand down rather than showing empty chrome.
+  // Folders are server-side and per-user: a signed-out list has none.
   const { data: deckFolders } = useDeckFolders();
   const folderList = userId ? (deckFolders ?? []) : [];
   const folderLabels = Object.fromEntries(folderList.map((folder) => [folder.id, folder.name]));
 
   const enriched = useEnrichedItems(deckItems);
-  // Compute filter availability against the enriched set (before any filter is applied)
-  // so a chip group doesn't disappear just because the user filtered everything out.
+  // Availability is computed pre-filter so a chip group doesn't disappear
+  // just because the user filtered everything out.
   const availableDomains = availableDomainsFrom(enriched);
   const availability = filterAvailabilityFrom(enriched);
   const visible = partitionByArchived(enriched, showArchived);
@@ -353,9 +340,6 @@ export function DeckListPage() {
       ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
       : "flex flex-col gap-1.5";
 
-  // Variant families (ADR-042) collapse to their front entry until opened. The
-  // set is session-local on purpose: which families you expanded while browsing
-  // isn't worth a store or a URL param.
   const [expandedFamilies, setExpandedFamilies] = useState<ReadonlySet<string>>(new Set());
   const toggleFamily = (familyId: string) => {
     setExpandedFamilies((previous) => {
@@ -388,9 +372,7 @@ export function DeckListPage() {
 
   return (
     <div className={`${PAGE_WIDTH.full} ${PAGE_PADDING_NO_TOP}`}>
-      {/* mx-safe-neg (not -mx-3): the container's gutter is px-safe, so the
-          full-bleed margin must cancel the same amount or the bar's px-safe
-          content lands double-inset on notched phones in landscape. */}
+      {/* mx-safe-neg, not -mx-3: must cancel the same px-safe amount as the gutter. */}
       <div ref={setTitleSlot} className={cn(PAGE_TOP_BAR_STICKY, "mx-safe-neg")}>
         <PageTopBar>
           <PageTopBarTitle>Decks</PageTopBarTitle>
@@ -440,8 +422,6 @@ export function DeckListPage() {
               Import a deck
             </Link>
           </div>
-          {/* A real, openable deck as the page's second act: one click builds
-              it (locally when signed out) and opens the builder. */}
           {sampleCards && sampleLegendImage && (
             <Pressable
               onClick={handleTrySample}
@@ -474,14 +454,8 @@ export function DeckListPage() {
       ) : (
         <div className="flex flex-col">
           <div
-            // No pt here: this toolbar always sits under the "Decks" title bar,
-            // whose pb-3 already provides the gap (see CardBrowserLayout). pb-3
-            // gives the sticky band a clean bottom — unlike card-browser
-            // surfaces, the filters live inside this toolbar, not a separate
-            // aboveGrid strip, so the band must pad its own bottom.
-            // z-30 keeps it co-planar with the title bar (later DOM order wins)
-            // so the search input's 2px focus ring isn't clipped by the bar's
-            // frosted pb band — same rule as CardBrowserLayout's toolbar.
+            // No pt: the title bar's pb-3 already provides the gap. z-30 keeps this
+            // co-planar with the title bar so the search input's focus ring isn't clipped.
             className="bg-background/80 mx-safe-neg px-safe sticky z-30 pb-3 backdrop-blur-lg sm:rounded-b-lg"
             style={{ top: toolbarOffset }}
           >
@@ -504,8 +478,6 @@ export function DeckListPage() {
           ) : (
             <div className="flex flex-col gap-2 pt-3">
               {groups.map((group) => {
-                // Collapsed here rather than inside the map below, so the item
-                // callback closes over the derived array alone.
                 const entries = collapseFamilies(group.items, expandedFamilies);
                 return (
                   <div key={group.key}>

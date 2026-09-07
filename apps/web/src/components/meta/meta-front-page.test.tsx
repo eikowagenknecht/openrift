@@ -180,22 +180,18 @@ beforeEach(() => {
   captured.submissionCount = 0;
 });
 
-/** @returns The section following the heading with this name. */
 function section(name: string): HTMLElement {
   return screen.getByRole("heading", { name }).closest("section") as HTMLElement;
 }
 
-/** @returns The headline numeral printed above one of the archive-count labels. */
 function archiveCount(label: string): string {
   return screen.getByText(label).previousElementSibling?.textContent ?? "";
 }
 
-/** @returns How many legend card frames a section renders. */
 function thumbCount(scope: HTMLElement): number {
   return scope.querySelectorAll('[data-slot="card-art-thumb"]').length;
 }
 
-/** @returns The signed-in action row, empty when the page renders none. */
 function pageActions(): HTMLElement | null {
   return screen.queryByTestId("page-actions");
 }
@@ -393,8 +389,6 @@ describe("MetaFrontPage", () => {
     const actions = pageActions() as HTMLElement;
     expect(within(actions).queryByText("Send a decklist")).not.toBeInTheDocument();
     expect(within(actions).queryByText("Your contributions")).not.toBeInTheDocument();
-    // The contribute band still explains where lists come from; it just leads
-    // through sign-in rather than promising a form.
     expect(screen.getByText("Help complete the record")).toBeInTheDocument();
   });
 

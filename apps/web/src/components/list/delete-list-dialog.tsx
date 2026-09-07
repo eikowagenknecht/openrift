@@ -21,8 +21,6 @@ export function DeleteListDialog({
   onConfirm,
   isPending,
 }: DeleteListDialogProps) {
-  // Only copy-kind lists reference specific physical cards, so the
-  // "stays in your collection" reassurance is copy-specific.
   const itemNoun = kind === "copy" ? "copy" : kind === "printing" ? "printing" : "card";
   const itemPluralNoun = kind === "copy" ? "copies" : kind === "printing" ? "printings" : "cards";
   const tailMessage =

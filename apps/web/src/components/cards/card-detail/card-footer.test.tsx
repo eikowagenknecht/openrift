@@ -53,15 +53,11 @@ describe("CardFooter chart lazy boundary", () => {
     await waitForElementToBeRemoved(skeleton, { timeout: 5000 });
   });
 
-  // The chart is what the price means, the chips are where to act on it.
   it("puts the chart above the buy row", async () => {
     const printing = stubPrinting();
     const { container } = render(<CardFooter printing={printing} />, {
       wrapper: makeWrapper({ [printing.id]: { cardtrader: 4.5 } }),
     });
-    // Waits on the chart's own content rather than the Suspense fallback: by
-    // this point in the file the lazy chunk is already resolved, so the
-    // fallback never renders.
     await screen.findByText("CardTrader", undefined, { timeout: 5000 });
 
     const text = container.textContent ?? "";

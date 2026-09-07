@@ -62,7 +62,6 @@ describe("MetaSubmissionResolve", () => {
     const user = userEvent.setup();
     renderResolve();
     const dialog = await openDialog(user);
-    // Both are plain radios in the same group, visible without opening anything.
     expect(within(dialog).getByRole("radio", { name: /Already in the archive/u })).toBeVisible();
     expect(within(dialog).getByRole("radio", { name: /Reject/u })).toBeVisible();
   });
@@ -145,8 +144,6 @@ describe("MetaSubmissionResolve", () => {
     renderResolve();
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole("radio", { name: /Reject/u }));
-    // Clear the canned reason: a rejection with neither reason nor note would
-    // reach the contributor as a bare "Not used".
     await user.click(within(dialog).getByLabelText("Reason"));
     await user.click(await screen.findByRole("option", { name: "No canned reason" }));
     expect(screen.getByRole("button", { name: "Send outcome" })).toBeDisabled();
@@ -162,7 +159,6 @@ describe("MetaSubmissionResolve", () => {
     const dialog = await openDialog(user);
     await user.click(screen.getByRole("button", { name: "Send outcome" }));
     expect(dialog).toHaveTextContent(/already accepted, so its outcome is settled/u);
-    // The dialog stays open: the admin has to see why nothing happened.
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 

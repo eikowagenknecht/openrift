@@ -11,18 +11,7 @@ interface ListValueLabelProps {
   entries: readonly ListEntryDetailResponse[];
 }
 
-/**
- * Total value of a list at the user's preferred marketplace, with an
- * "(N unpriced)" tail when some entries have no price for that marketplace.
- *
- * Card-kind entries are valued at the cheapest printing of the card scoped to
- * the user's preferred languages (mirrors the in-tile fan-out). Printing- and
- * copy-kind entries are valued at their own printing's price.
- *
- * SSR-unsafe via the `useSuspenseQuery` hooks below; consumers gate mount with
- * `useHydrated()`.
- * @returns A span suitable for inline placement in a page top bar.
- */
+/** SSR-unsafe via the `useSuspenseQuery` hooks below; consumers gate mount with `useHydrated()`. */
 export function ListValueLabel({ kind, entries }: ListValueLabelProps) {
   const display = useCardThumbnailDisplay();
   const { printingsByCardId } = useCards();

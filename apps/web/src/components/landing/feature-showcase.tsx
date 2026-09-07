@@ -10,21 +10,11 @@ import { cn } from "@/lib/utils";
 
 import { GroupsVignette, ListsVignette, PricesVignette } from "./landing-vignettes";
 
-/**
- * The landing page's four differentiator sections: what OpenRift does that a
- * visitor cannot already get elsewhere, one large alternating text-plus-vignette
- * block each. Vignettes are miniatures built from the app's real primitives
- * (badges, validation colors, viewfinder brackets, card thumbnails) so the
- * section shows the product instead of describing it.
- * @returns The feature showcase section.
- */
 export function FeatureShowcase({
   scanCards,
   thumbnailUrls,
 }: {
-  /** The sampled printings the scanner vignette logs (landing-summary payload). */
   scanCards: LandingThumbnailCard[];
-  /** Sampled art for the group cards' trade strips. */
   thumbnailUrls: string[];
 }) {
   const features = [

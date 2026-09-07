@@ -13,9 +13,8 @@ const RANGE_LABELS: Record<TimeRange, string> = {
 };
 
 /**
- * Bare up/down percentage. Use this where a tooltip would be unwelcome, e.g.
- * inside another interactive element; otherwise prefer `PriceTrend`.
- * @returns The badge, or null when the price did not move.
+ * Bare up/down percentage, for use inside another interactive element where
+ * a tooltip would be unwelcome. Otherwise prefer `PriceTrend`.
  */
 function TrendBadge({ pctChange, className }: { pctChange: number; className?: string }) {
   if (pctChange === 0) {
@@ -38,12 +37,8 @@ function TrendBadge({ pctChange, className }: { pctChange: number; className?: s
 
 /**
  * How much a price series moved over the window it covers, with the window
- * spelled out in a tooltip.
- *
- * Takes the plotted values rather than fetching its own, so the figure always
- * matches the line it sits beside — see `percentChange`.
- *
- * @returns The trend badge, or null when the price did not move.
+ * spelled out in a tooltip. `values` must be the same series plotted
+ * alongside it.
  */
 export function PriceTrend({
   values,

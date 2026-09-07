@@ -5,29 +5,17 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-/**
- * A deck reduced to what it takes to recognise it in a picker. Deliberately
- * not `DeckListItemResponse`: a browser-local deck and a pasted list have to
- * fit this shape too.
- */
+/** Deliberately not `DeckListItemResponse`: a browser-local deck and a pasted list must fit this shape too. */
 export interface DeckIdentity {
   name: string;
-  /** Drives the left card of the fanned pair, and the deck's domain colors. */
   legendCardId?: string | null;
-  /** Drives the right card of the pair. */
   championCardId?: string | null;
-  /** Copies across every zone. */
   cardCount?: number;
-  /** ISO instant of the deck's last change; shown as the day it happened. */
+  /** ISO instant. */
   updatedAt?: string | null;
 }
 
-/**
- * One card of the fanned pair. A slot with nothing to show keeps its outline,
- * so a deck missing its champion still reads as a deck rather than a lone card
- * that drifted left.
- * @returns The art, or its dashed placeholder.
- */
+/** A slot with nothing to show keeps its dashed outline; it doesn't collapse. */
 function FanSlot({
   imageId,
   alt,
@@ -64,20 +52,8 @@ function FanSlot({
 }
 
 /**
- * A deck at a glance: the fanned Legend/champion pair, the deck's name, and a
- * line of the facts that tell two versions of one deck apart — its domains,
- * its size, and when it last changed. The deck sidebar's identity header
- * shrunk to fit a button or a menu row.
- *
- * No domain glow behind it, unlike the sidebar header: at this size the wash
- * reads as noise, and the domain icons on the meta line already say the same
- * thing.
- *
- * Built from spans so it can sit inside a button, and it reads its own hooks —
- * keep it to short lists (a variant family, a picker menu) rather than the
- * deck list, where the per-row subscriptions would add up.
- *
- * @returns The identity block.
+ * Built from spans so it can sit inside a button. Reads its own hooks, so
+ * keep it to short lists (a variant family, a picker menu), not the deck list.
  */
 export function DeckMiniIdentity({
   identity,

@@ -30,16 +30,6 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 import { META_SOURCE_LABELS, syncTriggerAnnouncement } from "@/lib/meta-catalog-display";
 import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
-// Pieces the catalogue triage table and the sync panel both use (ADR-014).
-
-/**
- * Says what a manual trigger did. Started, finished, refused because one of its
- * kind is already in flight, and failed are four different answers, and the
- * global mutation toast only ever knows about the last one.
- *
- * @param label - The trigger's name, as the button spells it.
- * @param result - What the endpoint answered.
- */
 export function announceSyncTrigger(label: string, result: MetaSyncTriggerResult): void {
   const announcement = syncTriggerAnnouncement(label, result);
   const options =
@@ -56,10 +46,6 @@ const SOURCE_OPTIONS = META_CATALOG_PROVIDERS.map((provider) => ({
   label: META_SOURCE_LABELS[provider],
 }));
 
-/**
- * The catalogue's source picker. Switching drops the filters only one source
- * has; the rest mean the same on both tables and stay.
- */
 export function CatalogSourceSelect({
   source,
   applyFilter,
@@ -91,13 +77,6 @@ export function CatalogSourceSelect({
   );
 }
 
-/**
- * The format picker an accept needs when the source's own format maps to
- * nothing of ours. The live event's format is a foreign key, so such a row
- * cannot be accepted without one being chosen here.
- *
- * @returns The dialog, or null when no row is waiting on a format.
- */
 export function MetaCatalogAcceptDialog({
   row,
   pending,

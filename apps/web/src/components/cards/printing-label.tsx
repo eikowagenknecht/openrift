@@ -15,11 +15,8 @@ interface LabelPiece {
 }
 
 /**
- * Renders label pieces inline, separated by a muted middot — except the language
- * chip, which is followed by a plain gap so it reads as a distinct leading mark
- * rather than another dotted attribute.
- *
- * @returns The inline dotted label.
+ * Renders label pieces inline, separated by a muted middot. The language chip
+ * is followed by a plain gap instead, with no separator.
  */
 function DottedLabel({ pieces, className }: { pieces: LabelPiece[]; className?: string }) {
   return (
@@ -38,16 +35,6 @@ function DottedLabel({ pieces, className }: { pieces: LabelPiece[]; className?: 
   );
 }
 
-/**
- * Display form of {@link formatPrintingVariantLabel}: the language renders as a colored
- * chip instead of a `[XX]` tag. The chip is always the first entry of the row,
- * so an optional `code` slot (the shortcode, rendered by the caller so it can
- * carry a link) lands after the chip, then the remaining variant labels. Falls
- * back to `fallback` (default "Standard") when a printing has no distinguishing
- * attributes — after the code, so a plain row reads e.g. "OGN-021 · Standard".
- *
- * @returns The inline variant label with a leading language chip.
- */
 export function PrintingVariantLabel({
   printing,
   siblings,
@@ -55,8 +42,6 @@ export function PrintingVariantLabel({
   fallback = "Standard",
   className,
 }: {
-  // Structural, like `formatPrintingVariantLabelParts` itself: the catalog's
-  // `Printing` satisfies it, and so does a form's in-progress printing.
   printing: VariantLabelPrinting;
   siblings?: readonly VariantLabelPrinting[];
   code?: ReactNode;
@@ -66,7 +51,6 @@ export function PrintingVariantLabel({
   const { labels } = useEnumOrders();
   const { language, rest } = formatPrintingVariantLabelParts(printing, siblings, labels);
   const isPlain = !language && rest.length === 0;
-  // No code slot and nothing to distinguish: the bare fallback word.
   if (isPlain && code === undefined) {
     return fallback;
   }
@@ -86,13 +70,7 @@ export function PrintingVariantLabel({
   return <DottedLabel pieces={pieces} className={className} />;
 }
 
-/**
- * Display form of {@link formatImportPrintingLabel} for import/search rows. The
- * language chip leads (first entry of the row), then the card ID, then the
- * variant labels.
- *
- * @returns The inline import label with a leading language chip.
- */
+/** Display form of {@link formatImportPrintingLabelParts} for import/search rows. */
 export function ImportPrintingLabel({
   printing,
   className,

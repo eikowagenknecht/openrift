@@ -56,7 +56,6 @@ interface ListPageProps {
   listId: string;
 }
 
-/** Prefilled instruction line on the printed binder sheet, per list intent. */
 const BINDER_SUBTITLES: Record<ListIntent, string> = {
   wish: "Scan to see my wishlist",
   trade: "Scan to see my trades",
@@ -87,13 +86,8 @@ export function ListPage({ listId }: ListPageProps) {
   const KindIcon = LIST_KIND_ICON[data.list.kind];
   const empty = emptyStateCopy(data.list.kind);
 
-  // Per-session library toggle: when on, the grid renders the whole catalog
-  // so the user can add cards. Copy-kind lists can't add via the catalog (a
-  // "copy" only exists inside a collection; the float-bar / sidebar DnD are
-  // the canonical paths), so the toggle is hidden for them.
-  // The value lives in library-toggle-store, so it survives switching lists
-  // (adding cards to several lists in a row shouldn't mean turning the
-  // library back on each time) but still starts off on a fresh page load.
+  // A "copy" only exists inside a collection, so copy-kind lists can't add
+  // via the catalog; the toggle is hidden for them below.
   const [showLibrary, setShowLibrary] = useLibraryToggle("list");
   const showLibraryActive = showLibrary && data.list.kind !== "copy";
 
@@ -124,10 +118,8 @@ export function ListPage({ listId }: ListPageProps) {
     tradeOverride: TradePreference,
     listCurrencyToSet?: Currency,
   ) => {
-    // The dialog asks the user for a currency when the list doesn't have one
-    // yet and they pick an absolute price. Patch the list first so the entry
-    // update applies against a list that already has a currency, and so the
-    // user doesn't have to open Edit list separately afterwards.
+    // Patch the list's currency first so the entry update below applies
+    // against a list that already has one.
     if (listCurrencyToSet) {
       updateList.mutate({ listId, currency: listCurrencyToSet });
     }
@@ -137,24 +129,16 @@ export function ListPage({ listId }: ListPageProps) {
   const entriesCount = data.entries.length;
   const activeRuleCount = data.list.rules.length;
 
-  // Copy-kind lists sit on top of physical copies, so the whole list can be
-  // filed into another collection in one go — the "sorted out, now move it to
-  // the bulk box" path. It deliberately targets every copy on the list rather
-  // than the grid's current filter or selection: rule-produced entries can't be
-  // selected (ADR-034), and they're exactly the ones a dynamic bulk list is
-  // made of. Per-entry and per-selection moves live in the grid context menu.
+  // Targets every copy on the list; rule-produced entries can't be selected,
+  // so the current filter/selection can't be used here.
   const allCopyIds = listCopyIds(data.entries);
 
-  // The binder sheet prints a QR of the public link, so it only applies once
-  // the list has one.
   const shareUrl = data.list.shareToken
     ? `${getSiteUrl()}/lists/share/${data.list.shareToken}`
     : null;
 
-  // The bar is assembled here (it belongs to the page) but rendered by the
-  // browser, which owns select mode — hence the callback. Share is the one
-  // action promoted out of the ⋮ menu; everything else stays in it, so the bar
-  // still has room for Select all / Done on a phone.
+  // Assembled here since it belongs to the page, but rendered by the browser,
+  // which owns select mode - hence the callback.
   const renderTopBar = (selectActions: ReactNode = null) => {
     const topBar = (
       <ListHeader
@@ -299,8 +283,7 @@ export function ListPage({ listId }: ListPageProps) {
   );
 
   // Mounted only while open: it re-runs the grid's filter pass over every
-  // entry to offer the "current filters" scope, which is wasted work on a
-  // page that re-renders on each quantity tick.
+  // entry, which would be wasted work on every quantity tick otherwise.
   const exportDialog = exportOpen && (
     <ListExportDialog
       listName={data.list.name}
@@ -311,9 +294,8 @@ export function ListPage({ listId }: ListPageProps) {
     />
   );
 
-  // Both mounted only while open, same reasoning as ruleDialog below: each
-  // reads with a suspense query, and a mounted-but-closed dialog suspends into
-  // whatever boundary the page sits behind rather than one of its own.
+  // Mounted only while open: each reads with a suspense query, and a
+  // mounted-but-closed dialog would suspend into the page's own boundary.
   const importDialog = importOpen &&
     (data.list.kind === "card" || data.list.kind === "printing") && (
       <ListImportDialog
@@ -334,7 +316,7 @@ export function ListPage({ listId }: ListPageProps) {
   );
 
   // Mounted only while open so its catalog/collections queries are paid on
-  // demand, not on every list view (ADR-034).
+  // demand, not on every list view.
   const ruleDialog = ruleOpen && (
     <RuleEditorDialog
       listId={listId}
@@ -348,7 +330,7 @@ export function ListPage({ listId }: ListPageProps) {
   );
 
   // When the library is shown we fall through to the browser even with zero
-  // entries — the grid renders the whole catalog so the user can start adding.
+  // entries, since the grid renders the whole catalog so the user can start adding.
   if (entriesCount === 0 && !showLibraryActive) {
     const canShowLibrary = data.list.kind !== "copy";
     return (
@@ -374,9 +356,6 @@ export function ListPage({ listId }: ListPageProps) {
             </>
           }
         >
-          {/* The rule editor leads: a dynamic list is the answer most people
-              want here and the least discoverable one, since the alternatives
-              (library, drag from a collection) are visible on the page already. */}
           <Button onClick={() => setRuleOpen(true)}>
             <SparklesIcon />
             {activeRuleCount > 0 ? "Edit dynamic rules" : "Set up dynamic rules"}

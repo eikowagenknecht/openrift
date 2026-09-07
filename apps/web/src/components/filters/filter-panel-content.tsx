@@ -17,43 +17,18 @@ export interface FilterPanelContentProps {
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
-  /**
-   * Restricts the Custom Tags section to specific tag categories. Useful in
-   * the deck builder where a tag-locked format only cares about one
-   * category (e.g. Custom-Region → just "region") and other categories
-   * would be noise. Omit (default) to show every category that has tags.
-   */
+  /** Restricts the Custom Tags section to specific categories. Omit to show every category with tags. */
   visibleCustomTagCategories?: ReadonlySet<string>;
   /** Override selected values for array filters (e.g. zone presets in the deck builder). */
   filterOverrides?: Partial<Record<string, string[]>>;
-  /**
-   * Per-dimension faceted counts. When present, each badge shows its match
-   * count and zero-count options are dimmed. Omit to fall back to plain
-   * unfaceted badges (deck builder, collection grid).
-   */
+  /** Per-dimension faceted counts. Omit to fall back to plain unfaceted badges. */
   filterCounts?: FilterCounts;
-  /**
-   * Upper bound for the "Copies" owned-count range slider — the most copies the
-   * user owns of any one card on this surface. Omit or pass 0 to hide the
-   * slider (logged-out catalog, or surfaces where `"owned"` is hidden).
-   */
+  /** Upper bound for the "Copies" slider. Omit or pass 0 to hide it. */
   ownedCountMax?: number;
-  /**
-   * The user's top-level placement units (see `lib/filter-sections.ts`).
-   * Units in this set render in the main panel body; every other applicable
-   * unit renders inside the collapsed "More filters" fold at the bottom.
-   * Omit to fall back to the default placement (SSR preview, stats page).
-   */
+  /** Units in this set render in the main panel body; the rest go in the "More filters" fold. */
   topLevelUnits?: ReadonlySet<string>;
 }
 
-/**
- * Partitions the applicable placement units of a surface into the top-level
- * set and the More set, mirroring what the panel / compact bar will render
- * where. Shared by `FilterPanelContent` and `CollapsibleFilterPanel` so their
- * fold gating stays identical.
- * @returns The top-level and More unit sets, plus whether the More fold has any content.
- */
 function useFilterUnitPartition({
   availableFilters,
   availableLanguages,
@@ -142,13 +117,6 @@ export function FilterPanelContent({
   );
 }
 
-/**
- * Collapsed-by-default host for the demoted ("in More") filter units at the
- * bottom of a vertical filter surface (sidebar, collapsible panel, mobile
- * drawer). Everything inside stays reachable in one click without crowding
- * the main panel body.
- * @returns The collapsible More-filters group.
- */
 function MoreFiltersFold({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (

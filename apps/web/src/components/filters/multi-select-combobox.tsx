@@ -17,188 +17,74 @@ import {
 import { cn } from "@/lib/utils";
 
 interface MultiSelectOption {
-  /** Stored selection value (typically a slug). */
   value: string;
-  /** Visible label rendered in the row. Long labels wrap onto multiple lines. */
   label: string;
-  /**
-   * Optional short code (e.g. a set code like "UNL") rendered in a fixed-width
-   * gutter column before the label, so codes/labels line up across rows. It's
-   * folded back into the trigger summary and search text as `"<prefix> — <label>"`.
-   */
   prefix?: string;
 }
 
-/**
- * An extra include/exclude axis rendered below the primary options under its own
- * header (e.g. Finish hosted inside the Variant dropdown). Each axis owns its own
- * include + exclude arrays and a single `onCycle`; the combobox routes a click
- * back to the axis that owns it, which cycles the value off → include → exclude →
- * off (ADR-034). Groups carry plain label/count rows — no icons, prefixes, or
- * muted styling (those stay on the primary `options`).
- */
 interface MultiSelectGroup {
-  /** Section header shown above this group's options. */
   label: string;
   options: readonly MultiSelectOption[];
-  /** Currently included values within this group. */
   included: string[];
-  /** Currently excluded values within this group. */
   excluded: string[];
-  /** Cycles one of this group's values off → include → exclude → off. */
   onCycle: (value: string) => void;
-  /** Optional per-option faceted match count, shown inline and dimmed at zero. */
   counts?: Map<string, number>;
 }
 
 export interface MultiSelectComboboxProps {
-  /** Trigger label (e.g. "Channels", "Markers"). */
   label: string;
   options: readonly MultiSelectOption[];
-  /** Currently selected values (the included set when `onCycle` is given). */
   selected: string[];
-  /**
-   * Plain multi-select handler — called with the new selection on every change.
-   * Used by the include-only dropdowns (e.g. Owned, Size). Omit when the
-   * dimension is a cycling include/exclude axis (pass `onCycle` instead).
-   */
   onChange?: (next: string[]) => void;
-  /**
-   * Currently excluded values. Pass alongside `onCycle` to turn the primary
-   * options into a cycling include/exclude axis (ADR-034); each row then shows a
-   * tri-state indicator (check = include, minus = exclude, none = off).
-   */
   excluded?: string[];
-  /**
-   * Cycles one of the primary options off → include → exclude → off. When given,
-   * the primary section is a cycling axis: clicking a row routes here instead of
-   * toggling `selected`, so the same value never sits in both buckets. Mirrors
-   * the Domain/Rarity badge toggle groups via the shared `cycleIncludeExclude`.
-   */
   onCycle?: (value: string) => void;
   searchPlaceholder?: string;
   emptyText?: string;
-  /**
-   * Trigger appearance. "chip" (default) is the rounded badge used inside the
-   * expanded filter panel; "button" is the outline button used in the compact
-   * filter bar so every dropdown shares the toggle-group's button language;
-   * "menu" is a full-width row that matches a dropdown-menu item, for hosting a
-   * searchable dimension inside the compact bar's "More" menu.
-   */
   triggerStyle?: "chip" | "button" | "menu";
-  /** Optional per-option icon path (e.g. type / supertype icons). */
   icon?: (value: string) => string | undefined;
-  /**
-   * Render the per-option icon after the label (right-aligned) instead of
-   * before it. Used by the compact filter bar so the Type / Supertype rows
-   * keep their labels left-aligned with the icon-less dropdowns.
-   */
   iconAfterLabel?: boolean;
-  /** Optional per-option faceted match count, shown right-aligned and dimmed at zero. */
   counts?: Map<string, number>;
-  /** Options to render dimmed when unselected (e.g. supplemental sets). */
   mutedOptions?: ReadonlySet<string>;
-  /**
-   * Header shown above the primary `options` block. Only renders when the
-   * dropdown also hosts `groups` below — a single-section dropdown stays
-   * headerless. Ignored when `groups` is empty.
-   */
   primaryLabel?: string;
-  /**
-   * Extra labeled include/exclude axes appended after the primary options, each
-   * with its own include/exclude arrays + `onCycle` (e.g. Finish hosted inside
-   * the Variant dropdown). Rendered under their own headers, separated by a
-   * divider.
-   */
   groups?: readonly MultiSelectGroup[];
-  /**
-   * Extra tri-state flags rendered as regular list rows (e.g. Overnumbered and
-   * Signed hosted inside Art Variant), in the order given. They're real combobox
-   * rows, so they inherit the same hover/keyboard styling as the options; only
-   * the indicator differs — a check for include, a minus for exclude, nothing
-   * when off. They are never part of the `selected` value.
-   */
   flags?: readonly MultiSelectFlag[];
-  /**
-   * Where the {@link flags} rows sit relative to the options: "bottom" (default,
-   * e.g. Signed under Art Variant) or "top" (e.g. a "Has any …" presence toggle
-   * that should read before the specific values it generalises).
-   */
   flagPosition?: "top" | "bottom";
-  /**
-   * Size the option list to its content and only scroll once it would overflow
-   * the viewport — like a dropdown menu — instead of the default fixed cap
-   * (~18rem) that scrolls early. Use for short, grouped dropdowns (e.g. Variant)
-   * where the cap looks like a needless scrollbar; leave off for long lists
-   * (sets, types) that should stay compact.
-   */
   fitContent?: boolean;
-  /**
-   * When set, the trigger reads as a value control rather than a self-labelled
-   * chip: empty shows this placeholder, a single pick shows its option label,
-   * and multiple show "N selected". Use when an external label already names the
-   * dimension (e.g. a label-left / control-right form row).
-   */
   placeholder?: string;
-  /** Extra classes for the `button`-style trigger (e.g. a fixed width). */
   triggerClassName?: string;
-  /**
-   * Height of the `button`-style trigger. "sm" (default) matches the compact
-   * filter bar's toggle groups; "default" matches the h-8 inputs and selects of
-   * the meta archive's scope bar.
-   */
   triggerSize?: "sm" | "default";
 }
 
 interface MultiSelectFlag {
   label: string;
-  /** Tri-state: null = off, true = include, false = exclude. */
   state: boolean | null;
   count?: number;
   onToggle: () => void;
 }
 
-/** Sentinel list-value prefix backing {@link MultiSelectFlag} — never stored in the selection. */
 const FLAG_PREFIX = "__flag__:";
 const flagId = (index: number) => `${FLAG_PREFIX}${index}`;
 const isFlagId = (id: string) => id.startsWith(FLAG_PREFIX);
 const flagIndex = (id: string) => Number(id.slice(FLAG_PREFIX.length));
 
-/**
- * Outline-button styling matched to the Domain/Rarity toggle group, shared by
- * the compact bar's button-style filter triggers (value dropdowns, Stats, More):
- * a transparent resting fill (so the toolbar's blur shows through, like the
- * toggles) instead of the Button outline variant's solid `bg-background`.
- * Combine with {@link FILTER_TRIGGER_ACTIVE_CLASS} when a filter is set.
- */
 export const FILTER_TRIGGER_CLASS =
   "border-input bg-transparent hover:bg-muted hover:text-foreground dark:bg-transparent dark:hover:bg-muted";
 
-/** The toggle group's pressed look (`bg-muted`), applied when a filter is active. */
 export const FILTER_TRIGGER_ACTIVE_CLASS = "bg-muted dark:bg-muted";
 
 /**
- * Namespace separator for group item ids. A space never appears in a slug, so a
- * group option's id (`" <groupIndex> <value>"`) can't collide with a primary
- * option's raw value or another group's, and `decodeId` can route a click back
- * to the section that owns it.
+ * A space never appears in a slug, so a group option's id (` <groupIndex> <value>`)
+ * never collides with a primary option's raw value.
  */
 const GROUP_SEP = " ";
 
-/** Internal, ordered view over the primary options plus any extra `groups`. */
 interface Section {
-  /** 0 for the primary options; 1-based for each extra group. */
   index: number;
-  /** Header shown above the section; absent on a headerless single section. */
   label?: string;
   options: readonly MultiSelectOption[];
-  /** Included values (also the plain selection when the section isn't cycling). */
   selected: string[];
-  /** Plain multi-select handler; present on non-cycling sections only. */
   onChange?: (next: string[]) => void;
-  /** Excluded values; present on cycling sections only. */
   excluded?: string[];
-  /** Tri-state cycle handler; present on cycling sections only. */
   onCycle?: (value: string) => void;
   counts?: Map<string, number>;
   icon?: (value: string) => string | undefined;
@@ -206,20 +92,14 @@ interface Section {
   mutedOptions?: ReadonlySet<string>;
 }
 
-/**
- * A cycling section routes clicks to {@link Section.onCycle} instead of toggling.
- * @returns Whether the section is a cycling include/exclude axis.
- */
 function isCycleSection(section: Section): boolean {
   return section.onCycle !== undefined;
 }
 
-// Encodes a section-local value into a globally-unique combobox item id.
 function encodeId(sectionIndex: number, value: string): string {
   return sectionIndex === 0 ? value : `${GROUP_SEP}${sectionIndex}${GROUP_SEP}${value}`;
 }
 
-// Splits a combobox item id back into its owning section index and raw value.
 function decodeId(id: string): { sectionIndex: number; value: string } {
   if (!id.startsWith(GROUP_SEP)) {
     return { sectionIndex: 0, value: id };
@@ -232,25 +112,10 @@ function decodeId(id: string): { sectionIndex: number; value: string } {
   };
 }
 
-// Membership-only equality — order doesn't matter for a filter selection.
 function sameMembers(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value) => right.includes(value));
 }
 
-/**
- * Multi-select combobox with a searchable popover list. Built on the shadcn
- * BaseUI Combobox recipe — selection, filtering, and keyboard navigation are
- * handled by the primitive; this wrapper adapts the trigger styling and the row
- * rendering (optional icon + faceted count) to match the surrounding filter
- * chrome.
- *
- * A single axis is the common case (pass `options` + `selected` + `onChange`).
- * Pass `groups` to host extra independently-selected sections in the same
- * popover, each under its own header — e.g. the Variant dropdown that folds Art
- * Variant, Finish, and the Signed flag together to save bar space.
- *
- * @returns The combobox trigger and popover.
- */
 export function MultiSelectCombobox({
   label,
   options,
@@ -275,9 +140,6 @@ export function MultiSelectCombobox({
   triggerSize = "sm",
 }: MultiSelectComboboxProps) {
   const hasGroups = (groups?.length ?? 0) > 0;
-  // The primary options ride as section 0; each extra group follows in order.
-  // The primary header only shows once a group sits below it — a lone section
-  // stays headerless so existing single-axis dropdowns are unchanged.
   const sections: Section[] = [
     {
       index: 0,
@@ -303,10 +165,6 @@ export function MultiSelectCombobox({
     })),
   ];
 
-  // Flatten every section's options into the combobox's id-keyed item list (and
-  // a lookup back to the owning section/option), with the flag riding first or
-  // last via its sentinel per `flagPosition`. The flag never enters the
-  // selection — its click is translated to flag.onToggle below.
   const items: string[] = [];
   const idMeta = new Map<string, { section: Section; option: MultiSelectOption }>();
   const flagList = flags ?? [];
@@ -319,15 +177,8 @@ export function MultiSelectCombobox({
       items.push(id);
       idMeta.set(id, { section, option });
     }
-    // Keep selected values that have dropped out of `options` visible, appended
-    // right after their section's real options. `options` is derived from the
-    // currently-available data (e.g. a collection's printings), so a selection
-    // can outlive its option — move every OGN card out of a collection and OGN
-    // vanishes from availableFilters while still sitting in the filter state.
-    // Without this row the filter is stuck: the trigger shows it active, but the
-    // list has no row to clear it. Both buckets can orphan, so include excluded
-    // values too. The orphan has no idMeta, so it renders as a plain
-    // (slug-labelled) row via the fallbacks below — still cyclable/clearable.
+    // A selection can outlive its option (e.g. a set filter after the last card
+    // in it leaves the collection); keep it as an orphan row so it stays clearable.
     for (const value of [...section.selected, ...(section.excluded ?? [])]) {
       if (!section.options.some((option) => option.value === value)) {
         items.push(encodeId(section.index, value));
@@ -338,11 +189,8 @@ export function MultiSelectCombobox({
     items.push(...flagList.map((_, i) => flagId(i)));
   }
 
-  // The combobox's controlled value carries only the plain (non-cycling)
-  // sections' selections. A cycling section shows its state through custom
-  // check/minus indicators and routes every click to `onCycle`, so its values
-  // must stay out of the primitive's selection model (mirroring the flag row) —
-  // otherwise the primitive would also draw a checkmark and fight the cycle.
+  // Cycling sections must stay out of the primitive's controlled value, or their
+  // own check/minus indicator fights the primitive's checkmark.
   const cycleSections = sections.filter((section) => isCycleSection(section));
   const selectedIds = sections
     .filter((section) => !isCycleSection(section))
@@ -370,16 +218,6 @@ export function MultiSelectCombobox({
     }
     return option.prefix ? `${option.prefix} — ${option.label}` : option.label;
   };
-  // A single selection shows that option's name (e.g. "Unit") so the chosen
-  // value is visible at a glance; multiple collapse to a count. With a
-  // `placeholder` the trigger reads as a value control ("Any" / "EN" / "2
-  // selected"); without it, it self-labels with the dimension name ("Type (3)").
-  //
-  // Once any value is excluded — or always, in a `placeholder` value control like
-  // the rule editor — a bare count hides which bucket the values landed in.
-  // Instead sign each axis's buckets (+ include, − exclude): name when an axis
-  // holds one value, count otherwise ("−Foil", "+Origins, −2"). The signs keep it
-  // compact so a mixed selection still fits the fixed-width trigger.
   const summarise = (section: Section, values: readonly string[]) =>
     values.length === 1
       ? labelFor(encodeId(section.index, values[0] ?? ""))
@@ -426,16 +264,8 @@ export function MultiSelectCombobox({
 
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
-  // Mirror the combobox's case-insensitive substring filter so we know which
-  // rows are currently visible when deciding where dividers/headers belong.
   const isVisible = (id: string) => needle === "" || labelFor(id).toLowerCase().includes(needle);
 
-  // Sets arrive partitioned (main first, then supplemental/muted). Drop a
-  // divider above the first muted option (e.g. between main and supplemental
-  // sets) — but only while a non-muted option is still visible above it, so a
-  // search that filters every main set away doesn't leave a stray divider at
-  // the top. Muted styling only applies to the primary options (sets), which
-  // never carry groups, so this works off the raw section-0 ids.
   const dividerBeforeValue = ((): string | undefined => {
     if (!mutedOptions) {
       return;
@@ -452,11 +282,6 @@ export function MultiSelectCombobox({
     }
   })();
 
-  // Section headers: above the first currently-visible option of each labeled
-  // section, render its header — with a divider when a visible row precedes it,
-  // so a search that empties the sections above doesn't leave a stray rule. The
-  // per-item render below can't wrap a range in a ComboboxGroup, so the header
-  // is a styled row matching ComboboxLabel rather than a semantic group label.
   const headerBeforeId = new Map<string, { label: string; withDivider: boolean }>();
   {
     let seenVisibleSection = false;
@@ -473,11 +298,6 @@ export function MultiSelectCombobox({
     }
   }
 
-  // The flag row (e.g. Signed inside Art Variant, or a "Has any …" presence
-  // toggle) is a distinct concern from the options, so set it off with a divider
-  // — below it when it leads the list, above it when it trails — but only while
-  // at least one option is still visible, so a search that filters every option
-  // away (or matches only the flag itself) doesn't leave a stray divider.
   const showFlagDivider = flagList.length > 0 && items.some((id) => !isFlagId(id) && isVisible(id));
   const visibleFlagIds = items.filter((id) => isFlagId(id) && isVisible(id));
 
@@ -487,8 +307,6 @@ export function MultiSelectCombobox({
       items={items}
       value={selectedIds}
       onValueChange={(next) => {
-        // The flag sentinel never persists in the selection: a click on it
-        // toggles the flag's tri-state instead.
         let working = next;
         for (const id of working) {
           if (isFlagId(id)) {
@@ -496,11 +314,8 @@ export function MultiSelectCombobox({
           }
         }
         working = working.filter((id) => !isFlagId(id));
-        // A cycling section's values never sit in the controlled `value`, so the
-        // primitive can only ever *add* one to `next` — that added id is the row
-        // the user just clicked. Route it to the owning section's `onCycle`
-        // (off → include → exclude → off) and drop it before the plain diff
-        // below, which would otherwise read it as a stray include.
+        // A cycling section's values are never in the controlled value, so the
+        // primitive can only ever add the one the user just clicked to `next`.
         for (const id of working) {
           if (selectedIds.includes(id)) {
             continue;
@@ -511,7 +326,6 @@ export function MultiSelectCombobox({
             section.onCycle?.(value);
           }
         }
-        // Route the remaining change back to each plain section that owns it.
         for (const section of sections) {
           if (isCycleSection(section)) {
             continue;
@@ -527,17 +341,9 @@ export function MultiSelectCombobox({
       onInputValueChange={(value) => setQuery(value)}
       itemToStringLabel={labelFor}
     >
-      {/* ComboboxTrigger appends its own chevron, so the trigger children only
-          carry the label. The button trigger mirrors the Domain/Rarity toggle
-          group (outline, h-7) with the toggle's pressed `bg-muted` when active. */}
       {triggerStyle === "menu" ? (
         <ComboboxTrigger
           render={
-            // A full-width row mirroring DropdownMenuSubTrigger so a searchable
-            // dimension sits among the "More" menu's items: the same hover/focus
-            // accent and a trailing right-chevron. The combobox appends its own
-            // down-chevron, which we hide ([&>svg:last-of-type]) in favour of the
-            // right-chevron that matches the sibling submenu rows.
             // oxlint-disable-next-line jsx-a11y/control-has-associated-label, react/forbid-elements -- bespoke menu-item-row trigger; matches DropdownMenu item styling, no primitive covers it yet; label injected as ComboboxTrigger children below
             <button
               type="button"
@@ -551,9 +357,6 @@ export function MultiSelectCombobox({
       ) : triggerStyle === "button" ? (
         <ComboboxTrigger
           render={
-            // Outline matched to the Domain/Rarity toggle group (transparent
-            // resting, `bg-muted` when active) rather than the primary fill, so a
-            // set filter reads as selected, not highlighted.
             <Button
               variant="outline"
               size={triggerSize}
@@ -582,46 +385,28 @@ export function MultiSelectCombobox({
           {triggerLabel}
         </ComboboxTrigger>
       )}
-      {/* Override the default w-(--anchor-width) so the popup grows to fit
-          its widest item (e.g. long breadcrumbs), capped at 90vw on narrow
-          screens with an 18rem floor so the search input stays usable. */}
       <ComboboxContent
         className={cn("w-max max-w-[90vw] min-w-72")}
-        // The popup portals out of the DOM but stays a React child of whatever
-        // hosts the trigger, so keystrokes still bubble to that ancestor — and
-        // in the compact bar's "More" menu (triggerStyle="menu") the menu's
-        // typeahead claims every character key and preventDefaults it, leaving
-        // the search field permanently empty. The popup owns its own keyboard
-        // handling, so nothing above it needs these keys: stop them here, after
-        // the combobox's own handlers on this element have run.
+        // The popup's typeahead in the "More" menu's ComboboxTrigger otherwise
+        // claims every keystroke and preventDefaults it before it reaches the input.
         onKeyDown={(event) => event.stopPropagation()}
       >
-        {/* Home/End (including Shift+Home/End) belong to the search text field,
-            not the option list. The combobox's list-navigation layer otherwise
-            claims them without honouring Shift, swallowing text selection.
-            Intercept in the capture phase so the browser's native caret +
-            selection behaviour wins; arrow keys still navigate the list. */}
         <ComboboxInput
           placeholder={searchPlaceholder}
           showTrigger={false}
           onKeyDownCapture={(event) => {
+            // Home/End (incl. Shift+) belong to the search field's native
+            // caret/selection; the list-navigation layer otherwise claims them.
             if (event.key === "Home" || event.key === "End") {
               event.stopPropagation();
             }
           }}
         />
         <ComboboxEmpty>{emptyText}</ComboboxEmpty>
-        {/* fitContent drops the list's fixed ~18rem cap so it grows to its
-            content and only scrolls when it would overflow the viewport — the
-            (--available-height) the popup itself already respects, minus the
-            search input's row. */}
         <ComboboxList
           className={cn(fitContent && "max-h-[calc(var(--available-height)---spacing(9))]")}
         >
           {(value: string) => {
-            // The flag rides as a normal row — same hover/keyboard styling as the
-            // options — but with a tri-state indicator (check = include, minus =
-            // exclude, none = off) instead of the default selection checkmark.
             if (isFlagId(value)) {
               const entry = flagList[flagIndex(value)];
               const flagItem = (
@@ -650,8 +435,6 @@ export function MultiSelectCombobox({
                   )}
                 </ComboboxItem>
               );
-              // One divider for the whole block: above it when the flags trail
-              // the options, below it when they lead.
               const leads = flagPosition === "bottom" && value === visibleFlagIds[0];
               const trails = flagPosition === "top" && value === visibleFlagIds.at(-1);
               if (showFlagDivider && (leads || trails)) {
@@ -675,11 +458,6 @@ export function MultiSelectCombobox({
             const count = section?.counts?.get(rawValue);
             const isMuted =
               section?.mutedOptions?.has(rawValue) && !section.selected.includes(rawValue);
-            // A cycling row carries the same tri-state indicator as the flag row
-            // (check = include, minus = exclude, none = off) instead of the
-            // primitive's selection checkmark — its values never enter the
-            // controlled `value`, so the default indicator never fires. Resolve
-            // the owning section by index so orphan rows (no idMeta) still show it.
             const ownerSection = sections.find(
               (entry) => entry.index === decodeId(value).sectionIndex,
             );
@@ -691,21 +469,11 @@ export function MultiSelectCombobox({
                 {iconPath && !section?.iconAfterLabel && (
                   <CardIcon src={iconPath} className="size-4" />
                 )}
-                {/* Fixed-width, muted code gutter (e.g. set codes) so the codes
-                    and the names that follow line up across every row regardless
-                    of code length. */}
                 {prefix && (
                   <span className="text-muted-foreground w-9 shrink-0 tabular-nums">{prefix}</span>
                 )}
-                {/* Wrap long labels (e.g. breadcrumb paths) instead of truncating
-                    when the popover is capped on narrow screens. The count sits
-                    inline right after the label (muted) rather than right-aligned,
-                    so an unchecked row doesn't leave a gap before the checkmark. */}
                 <span className="min-w-0 flex-1 break-words whitespace-normal">
                   {name}
-                  {/* When `iconAfterLabel`, the icon sits inline right after the
-                      name (before the muted count) so the labels stay
-                      left-aligned with the icon-less dropdowns. */}
                   {iconPath && section?.iconAfterLabel && (
                     <CardIcon
                       src={iconPath}
@@ -734,8 +502,6 @@ export function MultiSelectCombobox({
                 )}
               </ComboboxItem>
             );
-            // Section header (with a divider above when a section precedes it),
-            // e.g. the "Art Variant" / "Finish" headers inside the Variant menu.
             const header = headerBeforeId.get(value);
             if (header) {
               return (
@@ -746,8 +512,6 @@ export function MultiSelectCombobox({
                 </Fragment>
               );
             }
-            // Divider above the first muted option (e.g. between main and
-            // supplemental sets). Keyed so the fragment stays stable.
             if (value === dividerBeforeValue) {
               return (
                 <Fragment key={value}>

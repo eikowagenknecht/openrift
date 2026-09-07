@@ -153,8 +153,6 @@ export function DisplaySection() {
   );
 }
 
-// ── Sub-components ──────────────────────────────────────────────────────────
-
 const THEME_OPTIONS: { value: Theme | "auto"; label: string }[] = [
   { value: "auto", label: "Auto" },
   { value: "light", label: "Light" },

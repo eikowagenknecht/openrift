@@ -15,17 +15,7 @@ const EMPTY_DESCRIPTION: Record<MetaArchivedDecksSubject, string> = {
   player: "No list on this player's record falls in this scope.",
 };
 
-/**
- * The archived lists a legend or a player page holds, as a grid.
- *
- * The rest of the lists arrive in place rather than behind a link: the deck
- * browser has no per-legend or per-player address, and sending a reader to the
- * unfiltered archive would promise a narrower list than it opens on.
- *
- * `total` is the lists the scope holds, which a page may know before it holds
- * them: the legend page renders one grid's worth from the server and asks for
- * the rest through `onShowAll`.
- */
+/** `total` may exceed `decks.length`; `onShowAll` fetches the rest. */
 export function MetaArchivedDecks({
   decks,
   total,

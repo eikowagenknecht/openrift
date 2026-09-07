@@ -18,13 +18,8 @@ import { DialogForm } from "@/components/ui/dialog-form";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 import { useTradeAddTargetStore } from "@/stores/trade-add-target-store";
 
-/**
- * Changes where incoming trade copies land, and nothing else. No trade is
- * touched: the settle session commits every row at once, so the target has to be
- * settable before there is anything to file — picking it mid-settle would mean
- * answering the same question once per card.
- * @returns The dialog element.
- */
+// Changes where incoming trade copies land, and nothing else: the settle
+// session commits every row at once, so the target must be set beforehand.
 export function TradeAddTargetDialog({
   open,
   onOpenChange,
@@ -54,9 +49,7 @@ function TradeAddTargetBody({ onClose }: { onClose: () => void }) {
   const createCollection = useCreateCollection();
   const setTarget = useTradeAddTargetStore((state) => state.setTarget);
 
-  // Opens on whatever the session would add to, so the dialog and the summary
-  // above it never disagree. A remembered collection that has since been deleted
-  // falls back to the inbox.
+  // A remembered collection that has since been deleted falls back to the inbox.
   const remembered = useTradeAddTargetStore((state) => state.target);
   const inbox = collections.find((collection) => collection.isInbox);
   const rememberedId = collections.find((collection) => collection.id === remembered?.id)?.id;

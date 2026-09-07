@@ -30,16 +30,10 @@ const PLAYER_COUNT_OPTIONS = Array.from(
 
 const TEAM_OPTIONS: TeamId[] = [0, 1];
 
-// Persistent primary fill for the active toggle option, overriding the base
-// toggle's muted active state (including on hover) to match the prior
-// variant="default" Button look.
+// Overrides the base toggle's muted active state to keep the prior variant="default" Button look.
 const activeToggleClass =
   "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground";
 
-/**
- * A two-button toggle that puts one player on a team. Used only in 2v2 setup.
- * @returns The team selector for a single player row.
- */
 function TeamToggle({
   playerName,
   team,
@@ -75,12 +69,6 @@ function TeamToggle({
   );
 }
 
-/**
- * One seat: the legend whose art the panel wears, the player's name, and their
- * team in a 2v2. The legend slot opens the picker, which is the only thing on
- * this screen that reads the card catalog.
- * @returns The seat row.
- */
 function SeatRow({
   playerId,
   index,
@@ -146,11 +134,6 @@ function SeatRow({
   );
 }
 
-/**
- * Pre-game setup: choose the player count and format, name everyone (and pick
- * teams for a 2v2), and set a points target before starting.
- * @returns The setup form.
- */
 export function SetupScreen() {
   const players = useMatchTrackerStore((state) => state.players);
   const mode = useMatchTrackerStore((state) => state.mode);

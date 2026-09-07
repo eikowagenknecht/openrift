@@ -24,7 +24,6 @@ import {
 } from "@/hooks/use-admin-meta-overlays";
 
 interface IgnoredRowProps {
-  /** The source's event id, shown on player rows: player ids repeat across events. */
   eventExternalId?: string;
   externalId: string;
   provider: string;
@@ -66,7 +65,6 @@ function IgnoredRow({
 interface IgnoredListProps {
   title: string;
   emptyText: string;
-  /** Row count, so the section can say "nothing here" without reading the rows. */
   count: number;
   children: ReactNode;
 }
@@ -82,11 +80,7 @@ function IgnoredList({ title, emptyText, count, children }: IgnoredListProps) {
 }
 
 /**
- * The source keys the mirrors skip (ADR-014). A catalogue tab's Dismiss writes
- * one; ignoring leaves the mirrored row in place, so unignoring brings the same
- * source event straight back rather than waiting for the next crawl.
- *
- * @returns The dismissed-keys dialog.
+ * Ignoring leaves the mirrored row in place; unignoring restores it immediately, without a re-crawl.
  */
 export function MetaIgnoredSourcesDialog({ onClose }: { onClose: () => void }) {
   const { data, isPending } = useAdminMetaIgnoredSources();

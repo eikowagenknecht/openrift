@@ -13,14 +13,6 @@ import {
 } from "@/hooks/use-deck-check-player";
 import { useDeckFormatList } from "@/hooks/use-enums";
 
-/**
- * The deck-submission section for a tournament's shared link (ADR-026/033).
- * Embedded in the tournament join landing when the event expects a deck: it
- * shows the format / deadline and the deck picker. If the viewer already has a
- * linked entry, submitting replaces that entry's list instead of duplicating
- * it. Owns no page chrome — the join page supplies the title.
- * @returns The submission section.
- */
 export function PlayerSubmitDeckSection({ token }: { token: string }) {
   const { data, isPending, isError } = useTournamentSubmissionPage(token);
   const submitDeck = useSubmitTournamentDeck();
@@ -45,7 +37,7 @@ export function PlayerSubmitDeckSection({ token }: { token: string }) {
     );
   }
 
-  // The player's own clock, not the server's. Safe here: route is `data-only`.
+  // Local time zone is safe only because this route is `data-only`.
   const closesAt = data.submissionsCloseAt ? formatDayTimeLocal(data.submissionsCloseAt) : null;
   const linkedState = data.linkedEntry?.state;
   const blockedMessage =

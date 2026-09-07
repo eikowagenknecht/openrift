@@ -54,7 +54,6 @@ interface NewPrintingColumnActionsProps {
   onAcceptAllForRow: (rowId: string, values: Record<string, unknown>) => void;
   onIgnore: (externalId: string, finish: string) => void;
   onDelete: (id: string) => void;
-  /** Card-review grant holders keep only the client-side "Accept all fields". */
   isAdmin: boolean;
 }
 
@@ -135,11 +134,9 @@ export function NewPrintingGroupCard({
   existingPrintings: AdminPrintingResponse[];
   providerLabels: Record<string, string>;
   providerNames: Record<string, string>;
-  /** Keyed by candidate card id — printing rows resolve theirs via their parent. */
   providerSubmitters: Record<string, SourceSubmitter>;
   providerSettings: ProviderSettingResponse[];
   setTotals: Record<string, number>;
-  /** Map from set slug to the year of its release date, for pre-filling Printed Year. */
   setReleaseYears: Record<string, number>;
   isExpanded: boolean;
   onToggle: () => void;
@@ -153,23 +150,17 @@ export function NewPrintingGroupCard({
   printingFields: FieldDef<CandidatePrintingFieldKey>[];
   costKeywords?: readonly string[];
   invalidates: readonly (readonly unknown[])[];
-  /** Card-review grant holders keep the accept flow; check/assign/ignore/delete stay full-admin. */
   isAdmin: boolean;
 }) {
   const { checkPrintingSource, uncheckPrintingSource, checkAllCandidatePrintings } =
     useCardDetailData(invalidates);
   const [activePrinting, setActivePrinting] = useState<Record<string, unknown>>({});
-  // Once the admin edits the Active column the pre-seed stops re-applying and the
-  // "Pre-filled" marker clears. From then on the selection is their explicit choice.
+  // Once the admin edits the Active column the pre-seed stops re-applying and
+  // the "Pre-filled" marker clears.
   const [touched, setTouched] = useState(false);
 
-  /**
-   * Append `/{printedTotal}` to a public code via the shared `appendSetTotal`,
-   * which skips runes/tokens and codes that already carry a slash — so a full
-   * code like `VEN-R02-EN` is left untouched.
-   *
-   * @returns The record with publicCode updated, or unchanged if not applicable.
-   */
+  // appendSetTotal skips runes/tokens and codes that already carry a slash, so
+  // a full code like `VEN-R02-EN` is left untouched.
   function withSetTotal(record: Record<string, unknown>): Record<string, unknown> {
     const code = record.publicCode;
     const setSlug = record.setId;
@@ -180,9 +171,8 @@ export function NewPrintingGroupCard({
     return withTotal === code ? record : { ...record, publicCode: withTotal };
   }
 
-  // Mirrors the transforms the accept endpoint applies (typography fixes on
-  // rules/effect/flavor, set-total on publicCode), so values copied from a
-  // provider land in their final saved form instead of needing a manual "Fix".
+  // Mirrors the accept endpoint's transforms: typography fixes on
+  // rules/effect/flavor, set-total on publicCode.
   const normalizePrinting = buildPrintingNormalizer(
     setTotals,
     group.candidates[0]?.setId,
@@ -194,9 +184,8 @@ export function NewPrintingGroupCard({
     );
   }
 
-  // Pre-seed the Active column from the highest-priority source so the admin
-  // reviews a filled-in candidate instead of an empty grid. Re-runs while
-  // untouched so it converges once the enum/provider lists finish loading.
+  // Re-runs while untouched, so the pre-seed converges once the enum/provider
+  // lists finish loading.
   useEffect(() => {
     if (touched) {
       return;
@@ -244,21 +233,17 @@ export function NewPrintingGroupCard({
 
   const guessedId = group.expectedPrintingId;
 
-  // Active values came from the pre-seed and the admin hasn't touched them yet.
   const isPreseeded = !touched && Object.keys(activePrinting).length > 0;
 
-  // The first-provider source image, matching what GroupImagePreview shows by
-  // default, so the richText editor's side preview stays consistent with the list.
+  // Must match GroupImagePreview's default image selection.
   const previewImageUrl =
     deduplicateSourceImages(group.candidates, providerLabels).toSorted((a, b) =>
       sortByProviderOrder(providerSettings)(a.source, b.source),
     )[0]?.url ?? null;
 
-  // custom: find existing printing whose expectedPrintingId matches the guessed ID so we can offer a quick "assign all" action
   const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId);
-  // No exact match: fall back to the server-side suggestion (same code +
-  // language, markers/finish may drift). Shown with the target's label so the
-  // admin sees what they'd be linking to before clicking.
+  // Falls back to the server-side near-miss suggestion (same code + language,
+  // marker/finish may drift) when there's no exact match.
   const suggestedExisting = matchingExisting
     ? undefined
     : existingPrintings.find((p) => p.id === group.suggestedPrintingId);
@@ -304,7 +289,6 @@ export function NewPrintingGroupCard({
               Check {group.candidates.filter((s) => !s.checkedAt).length} unchecked
             </Button>
           )}
-          {/* custom: quick-assign all candidates to matching existing printing */}
           {isAdmin && matchingExisting && (
             <Button
               variant="default"
@@ -320,7 +304,6 @@ export function NewPrintingGroupCard({
               Assign all to existing
             </Button>
           )}
-          {/* custom: near-miss suggestion — same code + language but marker/finish drift; outline styling signals it needs a look before clicking */}
           {isAdmin && suggestedExisting && (
             <Button
               variant="outline"

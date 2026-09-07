@@ -17,26 +17,17 @@ import { listDetailQueryOptions, listsQueryOptions } from "@/hooks/use-lists";
 import { useUserId } from "@/lib/auth-session";
 import { deckPrintingIds, listPrintingIds } from "@/lib/present-queue-sources";
 
-/** Mirrors the labels the list header uses, so a list reads the same everywhere. */
 const INTENT_LABEL: Record<ListIntent, string> = {
   wish: "Wishlist",
   trade: "Tradelist",
   organize: "Organize",
 };
 
-/** What a picked source contributes to the queue. */
 export interface QueueSource {
-  /** Name of the deck / set / list, for the confirmation message. */
   label: string;
   printingIds: string[];
 }
 
-/**
- * Shared shell for the three source pickers: a button that opens a searchable
- * list of that source's items.
- *
- * @returns The trigger button and its popover.
- */
 function SourcePopover({
   label,
   icon,
@@ -77,10 +68,6 @@ function SourcePopover({
   );
 }
 
-/**
- * One row in a source list, with a spinner while its cards are being fetched.
- * @returns The picker row.
- */
 function SourceRow({
   id,
   name,
@@ -108,13 +95,6 @@ function SourceRow({
   );
 }
 
-/**
- * Loads a deck's cards, tolerating a failure by reporting it and contributing
- * nothing. Lives outside the component so the awaited call and its error
- * branch stay out of a compiled render body.
- *
- * @returns The deck's cards, or an empty list when the fetch failed.
- */
 async function loadDeckCards(queryClient: QueryClient, userId: string, deckId: string) {
   try {
     const detail = await queryClient.query({
@@ -128,10 +108,6 @@ async function loadDeckCards(queryClient: QueryClient, userId: string, deckId: s
   }
 }
 
-/**
- * Loads a list's entries, reporting a failure the same way as the deck path.
- * @returns The list's entries, or an empty list when the fetch failed.
- */
 async function loadListEntries(queryClient: QueryClient, userId: string, listId: string) {
   try {
     const detail = await queryClient.query({
@@ -145,22 +121,7 @@ async function loadListEntries(queryClient: QueryClient, userId: string, listId:
   }
 }
 
-/**
- * Fills the presentation queue from something the creator already curated: an
- * organize list, or one of their decks.
- *
- * Deliberately no "whole set" source. A set is several hundred printings
- * against a queue that holds {@link MAX_QUEUE_LENGTH}, so it could only ever
- * truncate, and it would truncate in catalog order — a queue nobody would
- * choose to present. Narrowing to a set is a filter in the browser beside this
- * panel, where the creator picks which of its cards they actually want.
- *
- * Every source lands in the same editable queue, so a list can be pulled in and
- * then trimmed and reordered before the show — the difference between this and
- * the `?deck=` walk, where the deck's own order is the order.
- *
- * @returns The row of source buttons.
- */
+/** No "whole set" source: it would truncate the queue in catalog order. Use the browser filter instead. */
 export function QueueSourcePicker({ onAdd }: { onAdd: (source: QueueSource) => void }) {
   const userId = useUserId();
   const queryClient = useQueryClient();
@@ -212,8 +173,6 @@ export function QueueSourcePicker({ onAdd }: { onAdd: (source: QueueSource) => v
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-muted-foreground text-sm">Fill from</span>
 
-      {/* Lists lead: an organize list is a curated, ordered set of cards, which
-          is the same shape as a presentation queue. A deck is a deck. */}
       <SourcePopover
         label="a list"
         icon={<ListIcon className="size-4" />}
@@ -242,8 +201,6 @@ export function QueueSourcePicker({ onAdd }: { onAdd: (source: QueueSource) => v
         searchPlaceholder="Search your decks…"
       >
         <CommandEmpty>{decks.isPending ? "Loading decks…" : "No decks yet."}</CommandEmpty>
-        {/* Archived decks are out of the way on purpose; they don't belong in
-            a picker the creator reaches for seconds before recording. */}
         {(decks.data ?? [])
           .filter((item) => item.deck.archivedAt === null)
           .map(({ deck }) => (

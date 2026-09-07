@@ -10,21 +10,13 @@ import { StatChip } from "./stat-chip";
 
 /**
  * The chip row under the artwork: energy, power, might, domains, finish and
- * card size. Rarity sits in the text box's medallion instead. Prev/next
- * navigation is the caller's business — the pane puts it beside this row on
- * phones, the modal puts it under the art.
- * @returns The stats chip row.
+ * card size. Rarity sits in the text box's medallion instead.
  */
 export function CardDetailStats({
   printing,
   align = "center",
 }: {
   printing: Printing;
-  /**
-   * `center` fills the row it shares with the pane's prev/next buttons.
-   * `start` lines the chips up with the text above and below them, which is
-   * what a left-aligned column (the presentation stage) needs.
-   */
   align?: "center" | "start";
 }) {
   const { card } = printing;

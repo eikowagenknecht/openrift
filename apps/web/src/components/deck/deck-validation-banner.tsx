@@ -4,12 +4,7 @@ import { CircleAlertIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-/**
- * Badge showing a click-to-open popover listing each violation. Purely
- * presentational, so the hero can reuse it on surfaces (public share page)
- * where owner-only deck hooks must never run.
- * @returns The violation badge element.
- */
+// Purely presentational: reused on surfaces (public share page) where owner-only deck hooks must never run.
 export function ViolationBadge({
   formatLabel,
   violations,
@@ -17,10 +12,6 @@ export function ViolationBadge({
 }: {
   formatLabel: string;
   violations: DeckViolation[];
-  /**
-   * Build progress ("48/56") shown after the format label while the deck is
-   * still incomplete — the hero folded its separate cards chip into this badge.
-   */
   progress?: string;
 }) {
   return (

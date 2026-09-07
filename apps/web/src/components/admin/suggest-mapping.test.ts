@@ -175,9 +175,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not suggest a CardTrader product across a language mismatch", () => {
-    // Regression: a SC CT product should never be proposed for an EN printing,
-    // even when the EN printing is the only unmapped printing with matching
-    // finish — the server rejects such mappings with a "variant mismatch".
     const enPrinting = printing({ printingId: "p-en", language: "EN", finish: "foil" });
     const result = computeProductSuggestions(
       group([enPrinting], {
@@ -210,10 +207,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("still suggests CM products across languages (that staging pool is EN-only)", () => {
-    // CM staging uses placeholder EN regardless of the physical printing
-    // language, and Cardmarket does list non-English stock, so the SKU-level
-    // language gate stays CT-only here. Gating CM would suppress every
-    // legitimate non-EN-printing suggestion, since staging is never SC.
     const scPrinting = printing({ printingId: "p-sc", language: "SC", finish: "foil" });
     const result = computeProductSuggestions(
       group([scPrinting], {
@@ -231,10 +224,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("never suggests a non-EN printing for TCGplayer, which stocks English only", () => {
-    // Regression: TCGplayer is a US storefront with no Chinese stock, so its
-    // SKUs must not land on SC printings — the SC printing would inherit an
-    // English card's price. Same shape as the Cardmarket case above, which is
-    // still allowed.
     const scPrinting = printing({ printingId: "p-sc", language: "SC", finish: "foil" });
     const result = computeProductSuggestions(
       group([scPrinting], {
@@ -250,8 +239,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("suggests only the EN sibling for a language-aggregate TCG product", () => {
-    // The sibling expansion is what produced the bad rows: one TCGplayer SKU
-    // fanned out to both the EN and the SC printing. Only the EN chip is left.
     const en = printing({ printingId: "p-en", language: "EN" });
     const sc = printing({ printingId: "p-sc", language: "SC" });
     const result = computeProductSuggestions(
@@ -276,9 +263,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("suggests a metal printing for a foil-staging product whose name contains 'Metal'", () => {
-    // Marketplaces only emit `normal` or `foil` in staging — "metal" never
-    // appears there. A metal printing must accept foil staging to ever see a
-    // price update.
     const metal = printing({ printingId: "p-metal", finish: "metal" });
     const result = computeProductSuggestions(
       group([metal], {
@@ -293,10 +277,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("routes the Metal-titled product to the metal printing and leaves the plain foil ambiguous", () => {
-    // The "Metal" keyword positively boosts the metal printing for product 901.
-    // Product 900 ("Ahri" with no suffix) has no signal to prefer one foil class
-    // over the other, so both printings tie and the mutual-best gate emits no
-    // suggestion — preferred over guessing wrong.
     const foil = printing({ printingId: "p-foil", finish: "foil" });
     const metal = printing({ printingId: "p-metal", finish: "metal" });
     const result = computeProductSuggestions(
@@ -345,11 +325,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("skips when multiple printings tie for the same Cardmarket product (mutual-best-match)", () => {
-    // Regression: CM 872479 used to suggest one of three tied printings
-    // (SFD-R02 EN, SFD-R02 SC, OGN-042 SC) based on iteration order — which
-    // was non-deterministic since the unified printings query didn't tie-break
-    // on language. With mutual-best-match, three printings competing for one
-    // product means the product has no unique top → no suggestion at all.
     const enSfd = printing({ printingId: "p-sfd-en", language: "EN" });
     const scSfd = printing({ printingId: "p-sfd-sc", language: "SC" });
     const scOgn = printing({ printingId: "p-ogn-sc", language: "SC", shortCode: "OGN-042" });
@@ -365,8 +340,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("still suggests when only one printing matches a Cardmarket product", () => {
-    // The mutual-best gate must not over-suppress: when a single unmapped
-    // printing is the unique top match, the suggestion still fires.
     const en = printing({ printingId: "p-en", language: "EN" });
     const result = computeProductSuggestions(
       group([en], {
@@ -384,10 +357,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("suggests every sibling printing for a language-aggregate CM product", () => {
-    // Two printings identical except for language: one EN, one SC. Cardmarket
-    // (language-aggregate, stored with language=null) has a single SKU for
-    // them. The suggester emits both as independent chips — admin clicks each
-    // to materialise the mapping.
     const en = printing({ printingId: "p-en", language: "EN" });
     const sc = printing({ printingId: "p-sc", language: "SC" });
     const result = computeProductSuggestions(
@@ -413,14 +382,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("breaks a CardTrader SC tie using the short_code already bound to the EN SKU", () => {
-    // Regression: CT 345503 ("Darius - Hand of Noxus", foil) has the EN SKU
-    // bound to OGN-302* (signed). The SC SKU used to have no suggestion
-    // because three SC foil printings exist (OGN-253 normal, OGN-302
-    // overnumbered, OGN-302* normal+signed), the product name "Darius - Hand
-    // of Noxus" carries no disambiguator, and OGN-253 + OGN-302* tied at the
-    // same base score while differing on short_code (so the sibling fallback
-    // didn't apply either). Cross-language transfer resolves it: the EN
-    // assignment to OGN-302* is strong evidence that SC should map the same.
     const ognOverEn = printing({
       printingId: "p-302-en",
       shortCode: "OGN-302*",
@@ -485,9 +446,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("uses price alone to prefer the signed printing over an otherwise tied unsigned sibling", () => {
-    // Cross-language transfer doesn't apply (no existing assignment). The
-    // high product price (€450) is enough to tip the mutual-best match from
-    // "ambiguous tie" to "prefer the signed printing".
     const normalUnsigned = printing({
       printingId: "p-normal-unsigned",
       shortCode: "OGN-100",
@@ -527,7 +485,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not apply the price signal below the premium threshold", () => {
-    // Cheap foil product: signed vs unsigned remains a tie, no suggestion emitted.
     const unsigned = printing({
       printingId: "p-unsigned",
       shortCode: "OGN-100",
@@ -563,9 +520,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not propagate cross-language evidence across marketplaces", () => {
-    // A CardTrader assignment must not leak into TCG/CM scoring. The TCG
-    // product with externalId 333 exists on its own and should score via
-    // suffix inference only — the CT assignment to OGN-100 is irrelevant.
     const ognA = printing({ printingId: "p-a", shortCode: "OGN-100", finish: "foil" });
     const ognB = printing({ printingId: "p-b", shortCode: "OGN-200", finish: "foil" });
     const result = computeProductSuggestions(
@@ -582,15 +536,10 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    // Both TCG printings still tie on name alone (no CT-derived tiebreak),
-    // so the mutual-best gate suppresses the suggestion.
     expect(result.get(productSuggestionKey("tcgplayer", 333, "foil", "EN"))).toBeUndefined();
   });
 
   it("prefers a promo printing over a basic one when the group is tagged 'special'", () => {
-    // Same card with two printings — one regular, one promo (has markers).
-    // A staged product whose group is tagged `special` should point to the
-    // promo printing, not the regular one.
     const regular = printing({ printingId: "p-regular", markerSlugs: [] });
     const promo = printing({ printingId: "p-promo", markerSlugs: ["launch-exclusive"] });
     const result = computeProductSuggestions(
@@ -613,10 +562,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("disambiguates a basic-named product away from a promo printing when group is 'basic'", () => {
-    // Regression: a name-only match can't distinguish "Ahri" (basic) from
-    // "Ahri" (promo) if there's no suffix. The group_kind tag is the
-    // tiebreaker — a product in a `basic` group shouldn't point to a promo
-    // printing even when it's the only one available.
     const promo = printing({ printingId: "p-promo", markerSlugs: ["promo"] });
     const result = computeProductSuggestions(
       group([promo], {
@@ -626,15 +571,10 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    // The -80 penalty drags the score below the 100 threshold → no suggestion.
     expect(result.get(productSuggestionKey("tcgplayer", 1100, "normal", "EN"))).toBeUndefined();
   });
 
   it("resolves CT normal vs altart per language using price-rank (Miss Fortune scenario)", () => {
-    // Real scenario from Miss Fortune, Buccaneer: CardTrader has two products
-    // ("Miss Fortune - Buccaneer") per language, one cheap (normal) and one
-    // expensive (altart). Language is part of the SKU so EN and SC are
-    // separate products. Price-rank must bucket independently per language.
     const normalEn = printing({ printingId: "p-n-en", language: "EN", finish: "foil" });
     const altEn = printing({
       printingId: "p-a-en",
@@ -707,16 +647,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("preserves price-rank after one product in the pair has been assigned", () => {
-    // Regression: accepting a suggestion moves the product from `stagedProducts`
-    // to `assignedProducts`. The price-rank bucket must still treat both as
-    // context — otherwise the remaining staged sibling drops its rank hint,
-    // ties against every available printing at the group-kind score, and gets
-    // stripped by the mutual-best gate. Effectively: clicking one chip would
-    // vaporise every other suggestion in the card.
-    // Four printings: the normal-EN was consumed by the cheap product, and
-    // the remaining three (normal-SC + altart EN/SC siblings) all score the
-    // same without the price-rank boost — so the mutual-best gate relies on
-    // the boost to pick altart for the remaining pricey product.
     const normalEn = printing({ printingId: "p-normal", artVariant: "normal" });
     const normalZh = printing({ printingId: "p-normal-sc", artVariant: "normal", language: "SC" });
     const altEn = printing({
@@ -733,9 +663,6 @@ describe("computeProductSuggestions", () => {
     const result = computeProductSuggestions(
       group([normalEn, normalZh, altEn, altZh], {
         cardmarket: {
-          // The "cheap" product (1300) has been accepted on p-normal and now
-          // lives in assignedProducts — the "pricey" product (1301) still
-          // needs to be resolved to the altart fan-out (EN + SC siblings).
           staged: [
             staged({
               externalId: 1301,
@@ -762,9 +689,6 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    // Language-aggregate CM-style product (language=null): altart siblings
-    // fan out, so both printings should come back as suggestions keyed by
-    // the same product.
     const suggested = result
       .get(productSuggestionKey("cardmarket", 1301, "normal", null))
       ?.map((s) => s.printingId)
@@ -773,11 +697,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("uses price to pair a normal/altart product split across two same-name products", () => {
-    // The two TCG products have identical names ("Ahri"), one cheap, one 20×
-    // more expensive. The altart printing should win the expensive product and
-    // the normal printing the cheap one — the price-rank within a (finish,
-    // language, groupKind) bucket is the tiebreak when the marketplace doesn't
-    // disclose the variant in the name.
     const normal = printing({ printingId: "p-normal", artVariant: "normal" });
     const alt = printing({ printingId: "p-alt", shortCode: "OGN-001a", artVariant: "altart" });
     const result = computeProductSuggestions(
@@ -814,9 +733,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("disqualifies printings whose set doesn't match the product's group setSlug", () => {
-    // When a marketplace group is pinned to set "ogn", products in that
-    // group must only suggest printings with setId === "ogn". A printing
-    // from set "sfd" gets a -1 score and never surfaces.
     const sfdPrinting = printing({ printingId: "p-sfd", setId: "sfd", shortCode: "SFD-001" });
     const result = computeProductSuggestions(
       group([sfdPrinting], {
@@ -859,8 +775,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("ignores the set filter when the group's setSlug is null (no scoping)", () => {
-    // A marketplace group with no assigned set should keep the original
-    // permissive behaviour — no cross-set disqualification.
     const sfdPrinting = printing({ printingId: "p-sfd", setId: "sfd" });
     const result = computeProductSuggestions(
       group([sfdPrinting], {
@@ -883,9 +797,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("skips the sibling fan-out when the tied printings aren't actually siblings", () => {
-    // A three-way tie with one printing on a different short_code isn't a
-    // legitimate sibling group — fall back to the old "skip on ambiguity"
-    // behaviour rather than proposing all three.
     const enSfd = printing({ printingId: "p-sfd-en", shortCode: "SFD-001", language: "EN" });
     const scSfd = printing({ printingId: "p-sfd-sc", shortCode: "SFD-001", language: "SC" });
     const scOgn = printing({ printingId: "p-ogn-sc", shortCode: "OGN-042", language: "SC" });
@@ -903,10 +814,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("emits a weak (amber) suggestion when a CM SKU has no matching printing finish but a sibling SKU is assigned", () => {
-    // Bogus Cardmarket "normal" SKU on a foil-only card: the legit foil SKU
-    // (same externalId) is already mapped to the foil printing, so we mirror
-    // that mapping for the bogus normal — derived from the user's prior
-    // assignment, not a heuristic.
     const foil = printing({ printingId: "p-foil", finish: "foil" });
     const result = computeProductSuggestions(
       group([foil], {
@@ -922,9 +829,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not emit a weak suggestion when no sibling SKU is yet assigned", () => {
-    // User explicitly chose: the amber hint must wait until the legit sibling
-    // is mapped, so the suggestion derives from a real prior decision rather
-    // than guessing at the only-printing-on-this-card.
     const foil = printing({ printingId: "p-foil", finish: "foil" });
     const result = computeProductSuggestions(
       group([foil], {
@@ -941,9 +845,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not emit a weak suggestion when only a different-externalId sibling is assigned", () => {
-    // Q1: bogus entries should only mirror siblings sharing the same CM ID.
-    // A legit foil product with a different externalId is not a sibling and
-    // must not feed the amber hint.
     const foil = printing({ printingId: "p-foil", finish: "foil" });
     const result = computeProductSuggestions(
       group([foil], {
@@ -957,9 +858,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("mirrors every sibling printing when one externalId fans out to multiple printings", () => {
-    // Cardmarket's language-aggregate SKUs can map to both EN and SC foils
-    // under one externalId. The bogus normal SKU should mirror all of them so
-    // the resulting state matches the legit sibling's coverage.
     const enFoil = printing({ printingId: "p-en-foil", finish: "foil", language: "EN" });
     const scFoil = printing({
       printingId: "p-sc-foil",
@@ -989,9 +887,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("drops the SC printing from a TCG weak suggestion even when a legacy SC binding exists", () => {
-    // Same shape as the Cardmarket multi-sibling case above, but on
-    // TCGplayer, and with the legacy SC binding this cleanup removes still in
-    // place. Mirroring it would keep seeding fresh SC suggestions.
     const enFoil = printing({ printingId: "p-en-foil", finish: "foil", language: "EN" });
     const scFoil = printing({
       printingId: "p-sc-foil",
@@ -1020,9 +915,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("prefers a strong suggestion over a weak one when the printing finish does match", () => {
-    // The weak path is restricted to SKUs whose finish matches no printing on
-    // the card. When a real same-finish printing exists, the strong scorer
-    // owns the suggestion and the amber path stays out of its way.
     const normal = printing({ printingId: "p-normal", finish: "normal" });
     const result = computeProductSuggestions(
       group([normal], {
@@ -1038,9 +930,6 @@ describe("computeProductSuggestions", () => {
   });
 
   it("does not emit a weak suggestion on CardTrader (per-language SKUs handle this differently)", () => {
-    // CT enforces language at the SKU level and has its own cross-language
-    // evidence path; layering an amber sibling-mirror would conflict with
-    // those guards and risk language-mismatched assignments.
     const foil = printing({ printingId: "p-foil", finish: "foil", language: "EN" });
     const result = computeProductSuggestions(
       group([foil], {

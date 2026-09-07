@@ -115,9 +115,8 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
   );
 }
 
-// The pill background is reserved for hover/focus; the active route is marked
-// by text emphasis only. Otherwise an active item next to a hovered one renders
-// as two same-color pills fused at their rounded corners.
+// Pill background is hover/focus-only, active is text-only, or an active item
+// next to a hovered one renders as two same-color pills fused at their corners.
 const DESKTOP_NAV_ITEM_CLASS = cn(
   navigationMenuTriggerStyle(),
   "text-muted-foreground hover:text-foreground focus:text-foreground data-[status=active]:text-foreground data-[status=active]:font-semibold",
@@ -321,14 +320,8 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
       usePaletteStore.getState().reset();
       useAddModeStore.getState().reset();
       useDeckBuilderUiStore.getState().reset();
-      // Navigate first so authenticated routes start unmounting, then
-      // refetch the session (the cookie is gone, the server returns null).
-      // Synchronously setting the session to null would re-render the
-      // still-mounted CollectionGrid / CollectionSidebar / deck builder
-      // before React commits the unmount — useRequiredUserId throws and
-      // the route crashes. The refetch is async; its network round-trip
-      // gives React time to commit, so observers only see the new state
-      // once those components are gone.
+      // Navigate before invalidating the session query: a still-mounted
+      // authenticated component would see the null session and crash on useRequiredUserId.
       await router.navigate({ to: "/cards", search: {} });
       void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     } catch {
@@ -380,9 +373,8 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   );
 }
 
-// Signing in from one of these would either bounce through an auth page or
-// land back on the marketing page, so they carry no redirect and fall through
-// to the post-sign-in default.
+// Signing in from one of these bounces through an auth page or the marketing
+// page, so they carry no redirect and fall through to the post-sign-in default.
 const NO_SIGN_IN_REDIRECT: ReadonlySet<string> = new Set([
   "/",
   "/login",
@@ -391,9 +383,7 @@ const NO_SIGN_IN_REDIRECT: ReadonlySet<string> = new Set([
   "/verify-email",
 ]);
 
-/** Picks the `redirect` the header's Sign in button carries from the current location.
- * @returns The href to return to after signing in, or `undefined` to use the default.
- */
+/** Picks the `redirect` the header's Sign in button carries from the current location. */
 export function signInRedirectFor(location: {
   pathname: string;
   href: string;
@@ -451,7 +441,6 @@ function MobileNavItem({
   onLockedClick,
 }: {
   item: NavItemConfig;
-  /** Tighter rows for the titled sections; the primary block keeps the roomy padding. */
   compact?: boolean;
   isLoggedIn: boolean;
   badges: NavBadgeCounts;
@@ -460,8 +449,6 @@ function MobileNavItem({
   const lockedKey = item.lockedKey;
   const rowClass = cn(MOBILE_NAV_ITEM_CLASS, compact && "py-2.5");
   const icon = <item.icon className="text-muted-foreground size-5" />;
-  // Signed out, a locked entry closes the sheet and opens the sign-in dialog
-  // instead of navigating.
   if (lockedKey && !isLoggedIn) {
     return (
       <SheetClose
@@ -678,16 +665,8 @@ function FeedbackPopover({
   );
 }
 
-/**
- * Opens the command palette. This is the only search affordance a phone has,
- * since Ctrl+K is not reachable there; the label and the shortcut hint appear
- * once the header has room for them.
- *
- * The hint reads Ctrl rather than a platform-detected glyph because the
- * shortcut accepts either modifier, and picking the label off `navigator`
- * would differ between the server render and the client one.
- * @returns The header's search button.
- */
+// Do not swap in a platform-detected glyph (Cmd/Ctrl): navigator-based
+// detection differs between server and client and breaks SSR hydration.
 function HeaderSearchButton() {
   const openPalette = useCommandPaletteStore((state) => state.openPalette);
   return (
@@ -715,12 +694,8 @@ export function Header() {
   const isLoggedIn = Boolean(session?.user);
   const { data: pendingRequestsData } = useFriendGroupPendingRequestsCount({ enabled: isLoggedIn });
   const { data: tradeActionCounts } = useTradeActionCounts();
-  // Loans awaiting the viewer's acknowledgment as borrower (ADR-039), shown on
-  // the Lending entries in the More menus.
   const { data: loanActionCounts } = useLoanActionCounts();
   const loansBadge = loanActionCounts?.total ?? 0;
-  // One "Groups need your attention" badge: join requests awaiting your
-  // approval + trades awaiting action.
   const groupsBadge = (pendingRequestsData?.count ?? 0) + (tradeActionCounts?.total ?? 0);
 
   return (
@@ -740,7 +715,6 @@ export function Header() {
           <LogoLink />
         </div>
 
-        {/* Left: logo + expanded menu on desktop */}
         <div className="hidden gap-4 md:flex">
           <LogoLink />
           <DesktopNav

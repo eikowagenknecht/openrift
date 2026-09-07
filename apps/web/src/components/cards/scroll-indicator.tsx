@@ -49,8 +49,6 @@ export function ScrollIndicator({
 
   return (
     <>
-      {/* Scroll position indicator — appears while scrolling, fades out after idle.
-          Draggable: grab to scrub through the page; snaps to set headers on release. */}
       <div
         ref={indicatorRef}
         className={cn(
@@ -61,10 +59,8 @@ export function ScrollIndicator({
         style={{
           right: 20,
           top: 0,
-          // During drag, the pointer-move handler sets transform directly on
-          // indicatorRef to avoid React re-renders per mousemove. The render
-          // value here only matters at drag-start/end — both moments sync
-          // indicator.indicatorTop with the ref (see use-scroll-indicator).
+          // Drag sets transform directly on indicatorRef to skip React re-renders;
+          // this value only matters at drag-start/end, when it resyncs to the ref.
           transform: `translateY(calc(${indicator.indicatorTop}px - 50%))`,
           willChange: "transform",
           opacity: indicator.visible ? 1 : 0,
@@ -115,7 +111,6 @@ export function ScrollIndicator({
         </div>
       </div>
 
-      {/* Ghost badges — set-section marks, visible only while dragging */}
       {indicator.dragging &&
         multipleGroups &&
         snapPoints.map((pt) => (

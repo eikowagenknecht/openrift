@@ -6,15 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import type { DeckFamilyEntry } from "@/lib/deck-family";
 import { cn } from "@/lib/utils";
 
-// The two variant affordances the deck list's row and tile both carry (ADR-042),
-// kept together so the list and the grid can't drift apart on wording or state.
-
-/**
- * The expand control on a family's front entry. The row and the tile are
- * stretched-link surfaces, so this sits above the link overlay to take its own
- * clicks rather than cancelling the row's navigation after the fact.
- * @returns The toggle pill.
- */
+// z-10 keeps this above the row's stretched-link overlay so its clicks register.
 export function VariantCountToggle({
   family,
   onToggle,
@@ -41,11 +33,8 @@ export function VariantCountToggle({
   );
 }
 
-/**
- * The draft marker. Like `LocalDeckBadge` it renders as a span, so it adds no
- * tab stop to a row that already has one for the deck itself.
- * @returns The draft badge.
- */
+// Renders as a span, like `LocalDeckBadge`, so it adds no tab stop to a row
+// that already has one for the deck itself.
 export function DraftBadge({ className }: { className?: string }) {
   return (
     <Tooltip>

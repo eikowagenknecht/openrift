@@ -13,23 +13,9 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDisplayStore } from "@/stores/display-store";
 
 export interface CardTableProps {
-  /** Width + presence of the rightmost actions column. "none" omits the column entirely. */
   actionsColumn: ActionsColumn;
-  /**
-   * JSX element rendered inside each row's actions cell. Per-row data
-   * (`printing`, `itemId`) is injected via cloneElement, so the actions
-   * component should declare those as optional props.
-   */
   actionsCell?: ReactElement<TableRowSlotProps>;
-  /** Label for the rightmost column header. Defaults to "Owned". */
   actionsLabel?: string;
-  /**
-   * Optional wrapper element applied around each data row. Mirrors the grid's
-   * per-cell `wrap` slot — surfaces use this for drag wiring (e.g. /collections
-   * wraps rows in `<DraggableCard>` so table rows are draggable just like grid
-   * cells). Per-row data is injected via cloneElement and the row node is
-   * provided as children.
-   */
   rowWrapper?: ReactElement<TableRowSlotProps & { children?: ReactNode }>;
 }
 
@@ -38,49 +24,27 @@ interface CardViewerProps {
   totalItems: number;
   renderCard: (item: CardViewerItem, ctx: CardRenderContext) => ReactNode;
   setOrder?: GroupInfo[];
-  /**
-   * Section order for the "collection" grouping axis, supplied only by
-   * /collections' copies view (where an item is one physical copy). Its absence
-   * is what makes the axis inert on every other surface.
-   */
   collectionOrder?: GroupInfo[];
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
   siblingPrintings?: Printing[];
-
-  /** When true, dims the grid during deferred updates. */
   stale?: boolean;
-
   toolbar?: ReactNode;
   leftPane?: ReactNode;
-  /** Content rendered above the grid + rightPane columns. */
   aboveGrid?: ReactNode;
-  /** Non-sticky content between the above-grid tier and the grid (scrolls away). */
   banner?: ReactNode;
   rightPane?: ReactNode;
-  /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
-  /** Owned counts + click + add-mode handlers used by the table view. When omitted, table view falls back to the grid. */
   table?: CardTableProps;
-  /**
-   * Replaces the generic "try adjusting your filters" line when one filter in
-   * particular explains an empty result (e.g. /collections' group-box "Wanted"
-   * toggle). Applies to both the grid and the table.
-   */
   noResultsDescription?: ReactNode;
   children?: ReactNode;
 }
 
 /**
- * Shared layout shell used by both the card browser and the collection grid.
- * Renders a toolbar, an optional three-pane layout, and a virtualized CardGrid
- * or CardTable depending on the user's `displayMode` preference.
- *
  * Outer structure (sticky offsets, slots) lives in {@link CardBrowserLayout};
- * this component owns the grid logic — items, render context, and the
- * hydration toggle between the live `CardGrid` and the SSR-time skeleton.
- * @returns The card viewer layout.
+ * this owns the grid logic and the hydration toggle between the live
+ * `CardGrid`/`CardTable` and the SSR-time skeleton.
  */
 export function CardViewer({
   items,
@@ -109,12 +73,8 @@ export function CardViewer({
 
   useGridKeyboardNav({ items, siblingPrintings });
 
-  // No useHydrated() gate here: every CardViewer consumer (CardBrowser,
-  // deck-card-browser, collection-grid via BrowserCardViewer) only mounts
-  // post-hydration, so the previous SSR-skeleton fallback only ever rendered
-  // for one frame on initial mount due to useSyncExternalStore returning the
-  // server snapshot first — producing a visible flash between FirstRowPreview
-  // and the live grid.
+  // No useHydrated() gate: every consumer already mounts post-hydration, so
+  // an SSR-skeleton fallback here would only ever flash for one frame.
   return (
     <CardBrowserLayout
       toolbar={toolbar}
@@ -171,11 +131,6 @@ type HydratedGridProps = Pick<
   | "noResultsDescription"
 >;
 
-/**
- * Reads the layout's sticky offset from context and forwards it to CardGrid.
- *
- * @returns The hydrated CardGrid wired up with the surrounding sticky offset.
- */
 function HydratedGrid(props: HydratedGridProps) {
   const { stickyOffset } = useCardBrowserLayoutOffsets();
   return <CardGrid {...props} stickyOffset={stickyOffset} />;
@@ -193,11 +148,6 @@ interface HydratedTableProps {
   noResultsDescription?: ReactNode;
 }
 
-/**
- * Reads the layout's sticky offset from context and forwards it to CardTable.
- *
- * @returns The hydrated CardTable wired up with the surrounding sticky offset.
- */
 function HydratedTable({ table, ...props }: HydratedTableProps) {
   const { stickyOffset } = useCardBrowserLayoutOffsets();
   return <CardTable {...props} {...table} stickyOffset={stickyOffset} />;

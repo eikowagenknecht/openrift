@@ -123,7 +123,6 @@ describe("pendingGroupNudges", () => {
     expect(pendingGroupNudges(data, "viewer-1")).toEqual(["contacts"]);
   });
 
-  // Another member's share says nothing about the viewer's own setup.
   it("ignores shares owned by other members", () => {
     const data = makeDetail({ shares: [makeShare({ userId: "other-1" })] });
     expect(pendingGroupNudges(data, "viewer-1")).toContain("lists");
@@ -137,8 +136,6 @@ describe("pendingGroupNudges", () => {
     expect(pendingGroupNudges(data, "viewer-1")).toEqual([]);
   });
 
-  // No membership row means the payload can't answer the question — showing a
-  // nudge off a missing row would nag non-members and mid-load renders.
   it("returns nothing when the viewer has no membership row", () => {
     expect(pendingGroupNudges(makeDetail({ members: [] }), "viewer-1")).toEqual([]);
   });

@@ -24,7 +24,6 @@ vi.mock("@/hooks/use-domain-colors", () => ({ useDomainColors: () => ({}) }));
 
 const { MetaEventHeader } = await import("./meta-event-header");
 
-/** A provider citation with a URL unless overridden. */
 function source(overrides: Partial<MetaEventSource> = {}): MetaEventSource {
   return {
     id: "src-1",
@@ -70,7 +69,6 @@ function sourcesText(): string | null {
   return screen.queryByText(/^Sources?:/u)?.textContent ?? null;
 }
 
-/** The card artwork on the band, which the domain runes and the flag are not. */
 function cardArt(container: HTMLElement): string[] {
   return [...container.querySelectorAll("img")]
     .map((img) => img.getAttribute("src") ?? "")
@@ -101,8 +99,6 @@ describe("MetaEventHeader facts", () => {
     expect(screen.getByText("ES")).toBeInTheDocument();
   });
 
-  // The country is guessed from the address, and the guess fails on formats it
-  // does not know — the venue must not vanish along with it.
   it("still prints the venue when the country could not be read off the address", () => {
     renderHeader({ event: metaEvent({ country: null, location: "Fira, Barcelona" }) });
     expect(screen.getByText("Fira, Barcelona")).toBeInTheDocument();

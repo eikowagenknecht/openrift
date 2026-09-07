@@ -15,12 +15,6 @@ const SWITCH_POINTS = [
   "Every printing and promo: English, Chinese, French, Korean.",
 ];
 
-/**
- * Everything after the differentiator sections: the switcher band for visitors
- * who already keep a collection somewhere else, the way through to the full
- * feature tour, and the closing call to action.
- * @returns The landing page's closing section.
- */
 export function LandingClosing() {
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-6 pb-20 md:gap-16 md:pb-28">

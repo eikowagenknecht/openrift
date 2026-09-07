@@ -75,13 +75,7 @@ function flattenUnmatched(data: {
   return rows;
 }
 
-/**
- * Build the post-assign redirect target. The card-detail route is keyed by
- * `cardSlug`, not the UUID — passing the UUID lands on a "No card data" error
- * page. The redirect pre-focuses the marketplace cell that was just assigned
- * so the admin can finalize the printing mapping in place.
- * @returns A TanStack Router navigation descriptor for the card detail page.
- */
+/** The card-detail route is keyed by `cardSlug`, not the UUID. */
 export function buildAssignSuccessNavigation(
   marketplace: Marketplace,
   product: { finish: string; language: string | null },
@@ -111,8 +105,6 @@ export function UnmatchedProductsPanel() {
 
   const allRows = flattenUnmatched(data);
 
-  // Populate finish and language filters from the visible data so options
-  // reflect what's actually in the current dataset, not a fixed allow-list.
   const availableFinishes = [...new Set(allRows.map((row) => row.product.finish))].toSorted();
   const availableLanguages = [
     ...new Set(allRows.map((row) => row.product.language).filter((l): l is string => l !== null)),
@@ -135,8 +127,7 @@ export function UnmatchedProductsPanel() {
     return true;
   });
 
-  // Sort rows so marketplace-grouped header rows render in a stable order and
-  // the rows within each marketplace match the per-card marketplace table.
+  // Matches the row order of the per-card marketplace table.
   const sortedRows = (() => {
     const marketplaceOrder: Record<Marketplace, number> = {
       tcgplayer: 0,
@@ -153,7 +144,6 @@ export function UnmatchedProductsPanel() {
     );
   })();
 
-  // Mutations — one per marketplace, reused from the old unified page.
   const tcgAssign = useUnifiedAssignToCard("tcgplayer");
   const cmAssign = useUnifiedAssignToCard("cardmarket");
   const ctAssign = useUnifiedAssignToCard("cardtrader");
@@ -288,8 +278,6 @@ export function UnmatchedProductsPanel() {
   );
 }
 
-// ── Row ─────────────────────────────────────────────────────────────────────
-
 function UnmatchedProductRow({
   marketplace,
   product,
@@ -407,9 +395,7 @@ function UnmatchedProductRow({
                 results={filteredResults}
                 onSearch={setCardSearchQuery}
                 onSelect={(cardId) => {
-                  // The dropdown emits only the id, so resolve the slug from
-                  // the same allCards list the results were built from. The
-                  // card-detail route is keyed by slug, not id.
+                  // The card-detail route is keyed by slug, not id.
                   const card = allCards.find((c) => c.cardId === cardId);
                   if (!card) {
                     return;
@@ -429,8 +415,6 @@ function UnmatchedProductRow({
     </>
   );
 }
-
-// ── Filter bar ──────────────────────────────────────────────────────────────
 
 function FilterBar({
   marketplaceFilter,

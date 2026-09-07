@@ -22,31 +22,17 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useCreateLoan, useLoanBorrowerOptions } from "@/hooks/use-loans";
 
-/** Sentinel radio value for the free-text "someone else" borrower option. */
 const FREE_TEXT = "__name__";
 
 interface LendCardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The exact printing the loan targets — named in the dialog so a multi-printing owner sees which variant goes out. */
   printing: Printing;
   cardName: string;
-  /**
-   * Upper bound for the quantity stepper — the viewer's owned copies of this
-   * printing. The server additionally rejects copies already reserved or lent
-   * ("only N available"), surfaced as an error toast.
-   */
   maxQuantity: number;
-  /** Collection the lend action was triggered in; biases copy selection (ADR-039). */
   contextCollectionId?: string;
 }
 
-/**
- * The "Lend to a friend" dialog (ADR-039): pick a borrower (a group co-member,
- * or anyone by name) and a quantity. Recording is one-sided — the loan is
- * active immediately; a member borrower gets it as unconfirmed.
- * @returns The dialog element.
- */
 export function LendCardDialog({
   open,
   onOpenChange,
@@ -83,7 +69,6 @@ export function LendCardDialog({
           onOpenChange(false);
           toast.success(`Lent ${cardName} — track it on the Lending page`);
         },
-        // Reported by the global mutation error toast (see reportMutationError).
       },
     );
   }

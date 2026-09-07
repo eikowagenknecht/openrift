@@ -3,13 +3,7 @@ import { MinusIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 
-/**
- * Minus / Auto / plus control for the cards-per-row count. `maxColumns === null`
- * means "Auto" (driven by the measured `autoColumns`); a number is the user's
- * override, clamped to `[minColumns, maxColumnsLimit]`. Tapping the middle label
- * resets back to Auto.
- * @returns The column-count button group.
- */
+/** `maxColumns === null` means "Auto"; a number is the user's override, clamped to `[minColumns, maxColumnsLimit]`. */
 export function ColumnControls({
   compact,
   maxColumns,

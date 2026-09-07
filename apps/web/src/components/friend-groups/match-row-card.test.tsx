@@ -105,8 +105,6 @@ describe("groupTradeMatches", () => {
     expect(groups[0].totalAvailable).toBe(25);
   });
 
-  // The collapsed header's available-count popover looks the viewer's own
-  // copies up by card, so the group has to carry the card id its variants share.
   it("carries the card id its variants share", () => {
     const groups = groupTradeMatches([
       makeDirected({ printingId: "printing-a" }),
@@ -150,9 +148,6 @@ describe("groupTradeMatches", () => {
       makeDirected({ groupSlug: "rift-crew", copyId: "copy-1", printingId: "printing-a" }),
       makeDirected({ groupSlug: "summoner-skirmish", copyId: "copy-2", printingId: "printing-a" }),
     ];
-    // The trade sheet's Suggestions heading counts with countTradeSuggestions
-    // while the list below it renders groupTradeMatches. The two disagreeing is
-    // what made one suggestion show up as a pair of identical tiles.
     expect(groupTradeMatches(rows)).toHaveLength(countTradeSuggestions(rows, []));
   });
 
@@ -205,8 +200,6 @@ describe("resolveMatchRows", () => {
     return resolveMatchRows(rows, {}, {}, [], LABELS, "rift-crew", groupNames);
   }
 
-  // Only the fields resolveMatchRows reads; the rest of a match row is beside
-  // the point here.
   function makeListRow(overrides: Partial<ListRow> = {}): ListRow {
     return { ...makeMatch(), groupSlug: undefined, ...overrides } as ListRow;
   }

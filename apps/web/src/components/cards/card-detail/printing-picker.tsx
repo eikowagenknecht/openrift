@@ -25,15 +25,11 @@ export function PrintingPicker({
 }) {
   const languageOrder = useLanguageList();
 
-  // Which tab the user picked, and the printing it was picked against. Keying
-  // on the printing means selecting a card in another language moves the tab
-  // with it, without an effect to sync the two.
+  // Keyed on printing id so switching printings resets the tab without an effect.
   const [picked, setPicked] = useState<{ language: string; forPrintingId: string } | null>(null);
 
   const pickedLanguage = picked?.forPrintingId === current.id ? picked.language : current.language;
 
-  // The wrapper owns the gap in both modes: the shell renders the heading and
-  // the list bare when there is only one language.
   return (
     <div className="space-y-2">
       <PrintingLanguageTabs
@@ -62,7 +58,6 @@ function PrintingList({
   current,
   onSelect,
 }: {
-  /** The rows to show, which is also the sibling set labels disambiguate against. */
   printings: Printing[];
   current: Printing;
   onSelect: (printing: Printing) => void;
@@ -115,11 +110,8 @@ function PrintingPrices({ printing }: { printing: Printing }) {
   const favorite = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
   const prices = usePrices();
   const inline = prices.get(printing.id, favorite) ?? null;
-  // The 30-day history is only a fallback for printings with no current
-  // price. With one row per printing, fetching it unconditionally fans out
-  // into N parallel price-history calls every time a card is selected
-  // (Sentry flags it as an N+1 API call) — so skip the query whenever the
-  // inline price already answers the question.
+  // 30-day history is only a fallback; querying it unconditionally fans out into
+  // an N+1 of price-history calls across one row per printing.
   const { data: history } = usePriceHistory(inline === null ? printing.id : null, "30d");
 
   let value: number | null = inline;

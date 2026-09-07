@@ -26,13 +26,8 @@ function catalogStatusParam(value: string): MetaSearch["eventStatus"] {
   return META_CATALOG_DISPLAY_STATUSES.find((status) => status === value);
 }
 
-/**
- * The uvsgames catalogue's filter row, with the count line under it. Every
- * control writes straight to the URL through `applyFilter`, so nothing here
- * holds filter state of its own.
- *
- * @returns The catalogue toolbar.
- */
+// Every control writes straight to the URL through `applyFilter`; nothing
+// here holds filter state of its own.
 export function CatalogFilters({
   filters,
   triage,
@@ -46,8 +41,6 @@ export function CatalogFilters({
   total: number;
   applyFilter: (next: Partial<MetaSearch>) => void;
 }) {
-  // The number field commits on a pause rather than a keystroke, so a two-digit
-  // threshold does not fire a query for its first digit.
   const [minPlayersInput, setMinPlayersInput] = useSearchUrlSync({
     urlValue: filters.minPlayers === undefined ? "" : String(filters.minPlayers),
     onCommit: (value) =>

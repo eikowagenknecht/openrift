@@ -22,28 +22,6 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useGenerateTournamentRound, useParticipantAction } from "@/hooks/use-tournaments";
 import { teamDisplayName } from "@/lib/team-display";
 
-/**
- * The next round's state band: the "generate" action plus an optional bye
- * picker. The organizer can sit active players out (a manual bye, worth
- * win-equivalent points); the rest are paired. This is also how an otherwise
- * unrepresentable field (1, 2, or 5 active players) is resolved.
- *
- * The picker is a searchable popover rather than a chip per player — a 40-player
- * event turned the old toggle group into a wall — with the chosen byes echoed as
- * removable chips so the selection stays visible with the popover shut.
- *
- * @param id The tournament id.
- * @param players The roster (only active players can be byed).
- * @param standings Standings rows, used to flag a player who has already byed.
- * @param isFirstRound Whether no rounds exist yet (button label).
- * @param nextRoundNumber The round this generates.
- * @param reachedSuggestion Whether the Swiss-suggested round count is met.
- * @param suggested The suggested round count (for the nudge text).
- * @param swissAutoBye Whether odd fields auto-bye a player (Swiss mode hint).
- * @param missingRegionIds Active players without a region on a region-aware
- *   tournament; generating is blocked while any of them would be seated.
- * @returns The generate controls.
- */
 export function GenerateRoundControls({
   id,
   players,
@@ -64,7 +42,6 @@ export function GenerateRoundControls({
   reachedSuggestion: boolean;
   suggested: number;
   swissAutoBye?: boolean;
-  /** 2v2: byes sit out whole teams, and unteamed players block pairing. */
   playMode?: TournamentPlayMode;
   missingRegionIds?: string[];
 }) {
@@ -78,8 +55,6 @@ export function GenerateRoundControls({
   const byeCountById = new Map(standings.map((row) => [row.playerId, row.byeCount]));
   const nameById = new Map(players.map((player) => [player.id, player.displayName]));
 
-  // What the bye picker offers: whole teams in 2v2 (a bye covers both members;
-  // an unteamed player can still be sat out alone), individual players in 1v1.
   const byeUnits: { key: string; label: string; memberIds: string[] }[] = [];
   if (teamMode) {
     const byTeam = new Map<string, PodPlayerResponse[]>();
@@ -118,7 +93,6 @@ export function GenerateRoundControls({
   // The server rejects a pairing that seats a region-less player, so mirror
   // that here: byed players are exempt, everyone else needs a region first.
   const seatedWithoutRegion = missingRegionIds.filter((playerId) => !byeIds.includes(playerId));
-  // Likewise for 2v2: every seated player must be on a team.
   const seatedWithoutTeam = teamMode
     ? activePlayers
         .filter((player) => player.teamId === null && !byeIds.includes(player.id))
@@ -135,10 +109,8 @@ export function GenerateRoundControls({
     );
   }
 
-  // Dropping is immediate, not staged like a bye: a player who has left the
-  // venue is out of the event, not out of the next pairing, and the organizer
-  // may be dropping them after the final round. Matches the participants page,
-  // which drops straight from its row menu (only Remove confirms).
+  // Dropping is immediate, unlike a bye: it applies straight away, not staged
+  // until the round is generated.
   async function setDropped(player: PodPlayerResponse, dropped: boolean) {
     // Resolved before the try: React Compiler cannot lower a conditional that
     // sits inside a try/catch.
@@ -236,11 +208,6 @@ export function GenerateRoundControls({
               </PopoverContent>
             </Popover>
           ) : null}
-          {/* Dropping sits beside sitting out because they are the same
-              question at the table ("who isn't playing this round?") with
-              different answers: a bye is for this round, a drop is for good.
-              Sending the organizer to the Participants page for the second one
-              breaks the flow mid-event. */}
           <Popover>
             <PopoverTrigger render={<Button variant="outline" size="sm" />}>
               <UserXIcon />
@@ -260,17 +227,13 @@ export function GenerateRoundControls({
                         onSelect={() => void setDropped(player, true)}
                       >
                         <UserAvatar name={player.displayName} size="sm" />
-                        {/* flex-1 rather than ml-auto on the icon: CommandItem
-                            appends its own ml-auto CheckIcon, and two auto
-                            margins split the slack between them, so the icon
-                            drifted with the name's length. */}
+                        {/* CommandItem appends its own ml-auto CheckIcon; a second ml-auto here
+                            would split the slack between the two icons. */}
                         <span className="min-w-0 flex-1 truncate">{player.displayName}</span>
                         <UserXIcon className="text-muted-foreground size-4" />
                       </CommandItem>
                     ))}
                   </CommandGroup>
-                  {/* Dropped players stay listed so a mis-tap is undone where
-                      it happened, rather than on another page. */}
                   {droppedPlayers.length > 0 ? (
                     <CommandGroup heading="Dropped">
                       {droppedPlayers.map((player) => (

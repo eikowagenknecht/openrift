@@ -27,25 +27,13 @@ interface DeckCardPrintingMenuProps {
   children: ReactNode;
 }
 
-/**
- * The shift-click note beside a section label, shown only for a multi-copy row.
- * @returns The note, hidden on phones where there is no shift key.
- */
 function SplitHint({ children }: { children: ReactNode }) {
   return (
     <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">{children}</span>
   );
 }
 
-/**
- * Right-click / long-press menu for a deck row. Lists allowed target zones
- * (the only way to move cards on mobile, where drag is disabled) and
- * available printings with thumbnails and a hover preview. Click a printing
- * to convert every copy in this row; shift-click to split off a single copy.
- * On mobile a multi-copy row gets an extra "move 1" entry per zone, since
- * there is no shift key to split with.
- * @returns The wrapped children with the context menu attached.
- */
+// On mobile (no drag, no shift key) a multi-copy row gets an extra "move 1" entry per zone.
 export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintingMenuProps) {
   const { changePreferredPrinting, moveCard, moveOneCard } = useDeckBuilderActions(deckId);
   const isMobile = useIsMobile();
@@ -61,8 +49,6 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
     return children;
   }
 
-  // Shift-click on a row with >1 copies splits off one copy to the target.
-  // Otherwise convert the whole row.
   const countFor = (event: MouseEvent) => (event.shiftKey && card.quantity > 1 ? 1 : card.quantity);
 
   const handleSelect = (printing: Printing, event: MouseEvent) => {
@@ -75,8 +61,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
     );
   };
 
-  // Clears the pinned printing (toPrintingId: null) so the row falls back to the
-  // language/set default. Shift-click splits off a single copy like handleSelect.
+  // `null` clears the pinned printing so the row falls back to the language/set default.
   const handleSelectDefault = (event: MouseEvent) => {
     changePreferredPrinting(
       card.cardId,

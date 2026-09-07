@@ -10,12 +10,6 @@ import {
 } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 
-/**
- * The app's empty-state signature: a small fan of dashed card outlines — the
- * TCG gesture for "your cards go here". The surface's icon sits inside the
- * center card, where it adds meaning without carrying the whole visual.
- * @returns The fan element.
- */
 function EmptyCardFan({ icon: Icon }: { icon?: ComponentType<SVGProps<SVGSVGElement>> }) {
   const sideCardClass =
     "aspect-card absolute bottom-0 left-1/2 w-16 origin-bottom -translate-x-1/2 rounded-md border border-dashed";
@@ -36,12 +30,6 @@ function EmptyCardFan({ icon: Icon }: { icon?: ComponentType<SVGProps<SVGSVGElem
   );
 }
 
-/**
- * House empty state: the card-fan visual over the shared Empty anatomy.
- * Use for genuinely-empty surfaces ("no decks yet"); filtered-empty states
- * ("no decks match your filters") stay as quiet description-only Empty calls.
- * @returns The composed empty state.
- */
 export function EmptyState({
   icon,
   title,
@@ -52,7 +40,6 @@ export function EmptyState({
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
   title: string;
   description?: ReactNode;
-  /** Action buttons, rendered in the EmptyContent slot. */
   children?: ReactNode;
   className?: string;
 }) {

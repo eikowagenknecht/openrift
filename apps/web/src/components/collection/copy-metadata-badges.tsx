@@ -12,12 +12,8 @@ import { conditionShortCode } from "@/lib/condition-codes";
 import { dispatchContextAction } from "@/stores/card-row-actions-store";
 
 /**
- * A metadata pill that opens the copy-details editor for its tile. Clicks
- * stop propagating so the tile's own click (detail pane / select toggle)
- * doesn't fire; keyboard users reach the editor via the context menu, so the
- * pill stays out of the tab order like the other strip buttons.
- *
- * @returns The clickable pill.
+ * Stops click propagation so the tile's own click handler doesn't fire.
+ * Kept out of tab order; keyboard users reach it via the context menu.
  */
 function MetadataPillButton({
   itemId,
@@ -48,21 +44,8 @@ function MetadataPillButton({
 }
 
 /**
- * Per-copy metadata strip for copies-view tiles (ADR-038): a condition or
- * grade pill plus altered/notes/links markers, in the same fixed above-card
- * row the stacked views use for their count strips. Every pill opens the
- * copy-details editor. A copy that is out on a loan or pinned to a live trade
- * additionally leads with the static loan (ADR-039) and trade (ADR-019)
- * markers. Renders the empty row for a bare (or still loading) copy so tiles in
- * a row stay aligned.
- *
- * `tradeAnnotation` is the copy's printing's collapsed annotation. It is only
- * ever the source of the *word*, never of whether to show one: a printing's
- * annotation covers whichever copies a trade happens to have pinned, so an
- * unpinned copy of a traded printing must stay unmarked. See
- * {@link CopyMetadataPills}.
- *
- * @returns The strip row.
+ * `tradeAnnotation` only supplies the label text; `copy.reserved` alone
+ * decides whether a trade marker shows on this specific copy.
  */
 export function CopyMetadataStrip({
   copy,
@@ -89,14 +72,6 @@ function CopyMetadataPills({
   return (
     <>
       {copy.onLoan && <OnLoanChip iconOnly count={1} />}
-      {/* Two sources, each answering the half of this the other cannot. The
-          copy's own `reserved` flag decides *whether* a marker belongs on this
-          tile, because it is the only per-copy fact. A sibling copy's
-          reservation, or a pending trade with nothing pinned yet, leaves this
-          copy free and unmarked. The annotation decides *what it says*, because
-          `reserved` stays true through the handover until the giver applies
-          their sync, so it cannot tell "Reserved" from "Traded". Icon only: the
-          tile is one copy, so a count would always read 1. */}
       {copy.reserved && tradeAnnotation && (
         <TradeStatusChip detail="icon" annotation={tradeAnnotation} />
       )}
@@ -124,14 +99,7 @@ function CopyMetadataPills({
   );
 }
 
-/**
- * Stacked-tile indicator (ADR-038) for the count strip's extras slot: one
- * compact pill when any of the stack's copies carries metadata. Clicking it
- * opens the Copies… picker, so annotations stay one click away without
- * expanding to copies view.
- *
- * @returns The indicator pill.
- */
+/** Count-strip extras pill shown when any of the stack's copies carries metadata; opens the Copies… picker. */
 export function StackMetadataChip({
   itemId,
   annotatedCount,

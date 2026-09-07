@@ -82,8 +82,7 @@ interface CustomTagCategoryDraft {
   description: string;
 }
 
-// Mirrors `slugRegex` in apps/api/src/routes/admin/schemas.ts — keep in sync
-// so the UI rejects exactly what the server would reject.
+// Mirrors `slugRegex` in apps/api/src/routes/admin/schemas.ts; keep in sync.
 
 export function CustomTagsPage() {
   const { data: tagsData } = useCustomTags();
@@ -104,8 +103,6 @@ export function CustomTagsPage() {
     </div>
   );
 }
-
-// ── Categories ────────────────────────────────────────────────────────────
 
 function CategorySlugCell({ row }: AdminCellSlotProps<CustomTagCategoryResponse>) {
   if (!row) {
@@ -262,8 +259,6 @@ function CategoriesSection({ categories }: { categories: CustomTagCategoryRespon
   );
 }
 
-// ── Tags ──────────────────────────────────────────────────────────────────
-
 function TagSlugCell({ row }: AdminCellSlotProps<CustomTagResponse>) {
   if (!row) {
     return null;
@@ -364,13 +359,7 @@ function TagCategorySelect({ draft, setDraft, items }: TagCategorySelectProps) {
   );
 }
 
-/**
- * Per-row "Clear" action: removes every card assignment from the tag after a
- * confirmation, keeping the tag itself. Hidden while the tag has no cards.
- * `row` is injected by AdminTable via cloneElement.
- *
- * @returns The confirm-dialog trigger, or null when there is nothing to clear.
- */
+/** `row` is injected by AdminTable via cloneElement. */
 export function TagClearCardsAction({
   row,
   onClear,
@@ -544,8 +533,6 @@ function CategorySelect({
   );
 }
 
-// ── Card tag editor ───────────────────────────────────────────────────────
-
 export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
   const { data: allCards } = useAllCards();
   const [search, setSearch] = useState("");
@@ -571,11 +558,8 @@ export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
         <CardSearchDropdown
           results={searchResults}
           onSearch={setSearch}
-          // Clearing the selection tracks the raw keystrokes, not the debounced
-          // query: editing the text after a pick must drop the selection at
-          // once, not 150ms later. Picking a result makes the Combobox fill the
-          // input with the card's name, which fires this too, so only drop the
-          // selection when the text no longer matches the selected card.
+          // Raw keystrokes, not the debounced query: a pick also fills the input
+          // and fires this, so only drop the selection once the text diverges.
           onRawInputChange={(value) => {
             setSelectedCardId((prev) =>
               prev !== null && allCards.find((c) => c.id === prev)?.name === value ? prev : null,
@@ -601,8 +585,6 @@ export function CardTagEditor({ tags }: { tags: CustomTagResponse[] }) {
   );
 }
 
-// ── Bulk import ───────────────────────────────────────────────────────────
-
 function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
   const { data: allCards } = useAllCards();
   const mutation = useAddCardsToCustomTag();
@@ -619,8 +601,6 @@ function BulkImport({ tags }: { tags: CustomTagResponse[] }) {
   const selectedTag = tags.find((t) => t.id === tagId);
   const canImport = selectedTag !== undefined && plan.cardIds.length > 0 && !mutation.isPending;
 
-  // Group tags by category label for the select so the admin can find the
-  // right one even when several formats share the dropdown.
   const tagsByCategory = Map.groupBy(tags, (t) => t.categoryLabel);
   const tagItems = tags.map((tag) => ({ value: tag.id, label: tag.label }));
 

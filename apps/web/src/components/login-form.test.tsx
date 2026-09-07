@@ -42,8 +42,6 @@ vi.mock("@/lib/auth-client", () => ({
   },
 }));
 
-// Stand-ins for the parts of the card that have nothing to do with the email
-// field. Counting their renders is how we detect the whole tree rebuilding.
 vi.mock("@/components/auth-form-shell", () => ({
   AuthFormCard: ({ children }: { children: ReactNode }) => {
     shellRenders.card += 1;
@@ -67,9 +65,7 @@ function renderLoginForm(props?: { redirectTo?: string }) {
   );
 }
 
-// Both tabs render an "Email" field and BaseUI can keep the outgoing panel
-// mounted for a while, so pick the one the user can actually type into rather
-// than indexing into the matches.
+// BaseUI can keep the outgoing tab panel mounted, so pick the input the user can actually type into.
 function activeEmailInput() {
   const active = screen
     .getAllByLabelText("Email")
@@ -102,8 +98,6 @@ describe("LoginForm", () => {
     const email = activeEmailInput();
     await user.type(email, "jinx@example.com");
 
-    // Regression: the email watch used to live in LoginForm, so all 16
-    // characters re-rendered the card, both tab panels, and the social buttons.
     expect(shellRenders.card).toBe(rendersAfterMount.card);
     expect(shellRenders.social).toBe(rendersAfterMount.social);
     expect(email).toHaveValue("jinx@example.com");
@@ -179,8 +173,6 @@ describe("LoginForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Send a verification code" }));
 
-    // /login has no OTP field, so sending in place left the user with a code
-    // and nowhere to type it.
     expect(sendVerificationOtp).toHaveBeenCalledWith({
       email: "vi@example.com",
       type: "email-verification",

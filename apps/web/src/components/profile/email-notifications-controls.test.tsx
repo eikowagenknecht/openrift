@@ -18,7 +18,6 @@ beforeEach(() => {
   setChannel.mockReset();
   setCadence.mockReset();
   hookValue = {
-    // Defaults for an absent preference: request + status on, digest off, default cadence.
     gates: {
       tradeMatches: false,
       tradeRequests: true,
@@ -74,8 +73,7 @@ describe("EmailNotificationsControls", () => {
     expect(frequency).toHaveTextContent("Every 5 minutes");
 
     await userEvent.click(frequency);
-    // Base UI opens the popup a frame after the click (useClick defers the open
-    // into a requestAnimationFrame), so the options must be awaited.
+    // Base UI's useClick defers opening the popup into a requestAnimationFrame.
     await userEvent.click(await screen.findByRole("option", { name: "Instant" }));
     expect(setCadence).toHaveBeenCalledWith("instant");
   });

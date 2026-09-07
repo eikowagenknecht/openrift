@@ -9,27 +9,14 @@ import { ContextMenuItem } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 
 /**
- * The hover-preview wiring every printing chooser repeats: which row the mouse
- * is on, and the anchor the floating preview positions against.
- *
- * The anchor is the host's own popup element (a context menu's content, a
- * select's content), so the host spreads `popupRef` onto it and renders
- * {@link PrintingChoicePreview} *outside* that popup — inside it the preview
- * would be clipped by the popup's own overflow. Hover state lives above the
- * popup for the same reason, which is why `reset` has to run on close rather
- * than falling out of unmounting.
- *
- * @param clearDelayMs How long a leave waits before clearing, so the preview
- *   doesn't flash while the pointer crosses between adjacent rows.
- * @returns The anchor ref, the per-row pointer handlers, the hovered id, and a
- *   `reset` for the host's `onOpenChange`.
+ * Host must spread `popupRef` on its popup and render {@link PrintingChoicePreview}
+ * outside it, or the popup's overflow clips the preview; call `reset` from `onOpenChange`, not unmount.
  */
 export function usePrintingChoiceHover(clearDelayMs?: number) {
   const { hoveredId, onEnter, onLeave, reset } = usePrintingHover(clearDelayMs);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Touch and pen never hover, and firing on them would strand a preview over
-  // the list the tap is trying to read.
+  // Touch and pen also fire pointerenter; only mouse should trigger a hover preview.
   const hoverProps = (printingId: string) => ({
     onPointerEnter: (event: PointerEvent) => {
       if (event.pointerType === "mouse") {
@@ -46,13 +33,6 @@ export function usePrintingChoiceHover(clearDelayMs?: number) {
   return { hoveredId, popupRef, hoverProps, reset };
 }
 
-/**
- * The floating card preview for whichever printing the pointer is on. Renders
- * nothing when the pointer is off the list, or on a row whose printing is no
- * longer in `printings`.
- *
- * @returns The preview, or null.
- */
 export function PrintingChoicePreview({
   hoveredId,
   printings,
@@ -66,26 +46,14 @@ export function PrintingChoicePreview({
   if (!hovered) {
     return null;
   }
-  // Keyed per printing so the preview remounts on each hover; without a fresh
-  // mount the position effect won't re-run after an imageless entry unmounts
-  // the preview, leaving later previews mispositioned.
+  // Remount per printing: an imageless entry unmounts the preview, and without
+  // a fresh key the position effect won't re-run for the next hover.
   return <PrintingHoverPreview key={hovered.id} printing={hovered} anchorRef={anchorRef} />;
 }
 
 /**
- * The "Change printing" block of a context menu: the section label, an optional
- * "Use default printing" escape hatch, and one row per printing. Shared by the
- * deck builder's row menu and the tier list's tile menu, which differ only in
- * what a pick means, not in how the list looks.
- *
- * Renders nothing when there are no printings to offer, so a host can drop it
- * in without guarding first.
- *
- * @param props.hint Trailing note on the section label (the deck menu's
- *   shift-click hint); hidden on phones by the caller's own markup.
- * @param props.onSelectDefault Omit when the surface has no default to fall
- *   back to, which also hides the row.
- * @returns The section, or null when there is nothing to choose from.
+ * Shared by the deck builder's row menu and the tier list's tile menu, which
+ * differ only in what a pick means, not in how the list looks.
  */
 export function PrintingChoiceMenuSection({
   printings,

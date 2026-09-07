@@ -15,29 +15,16 @@ import {
 import { DialogForm } from "@/components/ui/dialog-form";
 
 interface CardTextExpandDialogProps {
-  /** Field label, shown in the dialog title and on the editor. */
   label: string;
-  /** Current value to seed the editor with when opened. */
   value: string;
-  /** Card image to copywrite from, shown beside the editor. */
   imageUrl?: string | null;
   /** Commit the edited text (empty string clears the field). */
   onSave: (next: string) => void;
-  /** Editor variant — "rules" (default) or "flavor". */
   variant?: CardTextVariant;
-  /** Optional reformat transform (shows a "Fix" button in the editor). */
   reformat?: (value: string) => string;
-  /** Extra classes for the trigger button. */
   triggerClassName?: string;
 }
 
-/**
- * A maximize button that opens a full editor for a rich card-text field: the
- * card image on the left (what you copywrite from) and the token toolbar + live
- * preview on the right. Edits are held locally and committed on Save.
- *
- * @returns The trigger button plus its dialog.
- */
 export function CardTextExpandDialog({
   label,
   value,

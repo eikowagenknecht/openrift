@@ -123,8 +123,6 @@ interface ViewSection<TView extends string> {
  *
  * `view` is optional — pass it to render a third section for view-mode toggles
  * (e.g. grid/list on /promos).
- *
- * @returns The control UI.
  */
 export function SortGroupControls<
   TSort extends string,
@@ -156,9 +154,6 @@ export function SortGroupControls<
 
   const [open, setOpen] = useState(false);
 
-  // Picking a group/sort/view option closes the popover so the user can see the
-  // result of their selection. The asc/desc DirToggle stays open — it's a small
-  // adjustment the user may want to make alongside other choices in the panel.
   const renderOptions = <TValue extends string>(
     options: SortGroupOption<TValue>[],
     selectedValue: TValue,
@@ -262,8 +257,6 @@ export function SortGroupControls<
           "border-input bg-background ring-ring/10 dark:bg-input/30 hover:bg-muted hover:text-foreground dark:hover:bg-input/50 inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
       >
-        {/* Sort glyph so the closed trigger reads as a sorting control even
-            when the selected label alone wouldn't say so. */}
         <ArrowUpDownIcon className="text-muted-foreground size-3.5" />
         {groupingActive && group && (
           <>

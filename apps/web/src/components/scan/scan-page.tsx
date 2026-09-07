@@ -67,36 +67,14 @@ import { SCAN_IDENTIFY_ONLY, useScanPrefsStore } from "@/stores/scan-prefs-store
 import type { ScanSessionRow } from "@/stores/scan-session-store";
 import { useScanSessionStore } from "@/stores/scan-session-store";
 
-/**
- * How long one artwork must top the plausible ranking without a lock before
- * the "Is it X?" suggestion chip offers it. Long enough that a normal lock
- * (well under a second on a healthy aim) never sees the chip, short enough
- * that a stuck scan gets its escape hatch before frustration.
- */
 const AIM_SUGGEST_SECONDS = 3;
 
-/**
- * How old a restored session must be before the tray leads with a resume
- * banner. A reload mid-session should feel like nothing happened; a tray from
- * days ago should not silently pass as today's pulls.
- */
 const RESUME_PROMPT_AFTER_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Whether a restored session is old enough to lead with the resume banner
- * rather than picking up silently.
- *
- * @returns True when the banner should show.
- */
 function shouldPromptResume(lastScanAt: number | null): boolean {
   return lastScanAt === null || Date.now() - lastScanAt >= RESUME_PROMPT_AFTER_MS;
 }
 
-/**
- * When the restored session last scanned, in banner words.
- *
- * @returns A phrase for the resume banner ("yesterday", "3 days ago").
- */
 function describeLastScan(lastScanAt: number | null): string {
   if (lastScanAt === null) {
     return "an earlier session";
@@ -111,18 +89,8 @@ function describeLastScan(lastScanAt: number | null): string {
   return `${days} days ago`;
 }
 
-/** Card-language value for a stack that is not all one language. */
 const ANY_LANGUAGE = "any";
 
-/**
- * The scanning page: aim a card in the guide, and every confident lock is
- * added to the target collection immediately — the tray below logs the
- * session with undo and finish controls. Locks the engine will not settle
- * itself (foils, unsplittable variants) open a picker right away; dismissing
- * it discards that lock.
- *
- * @returns The /scan page.
- */
 export function ScanPage() {
   const { allPrintings } = useCards();
   const { data: collections } = useCollections();
@@ -137,13 +105,8 @@ export function ScanPage() {
   const setAutoScan = useScanPrefsStore((state) => state.setAutoScan);
   const languageLabels = useLanguageLabels();
 
-  // Recognise but do not collect. Null is a blob from before identify-only
-  // became the default, so it belongs here too: whoever never picked a target
-  // is exactly who the default is for.
   const identifyOnly = storedTargetId === SCAN_IDENTIFY_ONLY || storedTargetId === null;
-  // A picked collection may have been deleted since the last session; fall back
-  // to the inbox, which every account has, rather than silently stopping the
-  // collecting the user asked for.
+  // storedTargetId may reference a deleted collection; fall back to the inbox.
   const target = identifyOnly
     ? undefined
     : (collections.find((collection) => collection.id === storedTargetId) ??
@@ -155,8 +118,7 @@ export function ScanPage() {
     ...collections.map((collection) => ({ value: collection.id, label: collection.name })),
   ];
 
-  // The catalog's printing languages, for the card-language preference. The
-  // stored value is kept selectable even if no printing carries it (yet).
+  // Include cardLanguage even if no printing currently has it, so it stays selectable.
   const languageItems = [
     { value: ANY_LANGUAGE, label: "Any language" },
     ...[...new Set([...allPrintings.map((printing) => printing.language), cardLanguage ?? "EN"])]
@@ -164,10 +126,6 @@ export function ScanPage() {
       .map((code) => ({ value: code, label: languageLabels[code] ?? code })),
   ];
 
-  // The session log survives leaving the page: anything persisted is rebuilt
-  // from the catalog on arrival. A recent session resumes silently (a reload
-  // mid-scan should feel like nothing happened); an old one leads with a
-  // banner so yesterday's pulls cannot pass as today's.
   useEffect(() => {
     if (allPrintings.length === 0) {
       return;
@@ -183,23 +141,20 @@ export function ScanPage() {
       : null;
 
   function handleStartFresh() {
-    // Start fresh discards the log only: copies an old session added were
-    // added on purpose and stay in the collection.
+    // Discards the log only; copies an old session added stay in the collection.
     useScanSessionStore.getState().reset();
   }
 
   const [loaded, setLoaded] = useState<LoadedScanBank | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<ScannerSettings>(DEFAULT_SCANNER_SETTINGS);
-  // Null until hydration: reading navigator during the SSR pass would make the
-  // server and an https client render different markup.
+  // Null until hydration: reading navigator during SSR would mismatch server/client markup.
   const hydrated = useHydrated();
   const cameraAvailable = hydrated ? navigator.mediaDevices?.getUserMedia !== undefined : null;
 
   const serving = useScanServing();
   const assets = serving.assets;
-  // Primitive deps: the assets object is re-derived per render, and an
-  // identity change mid-download would cancel the in-flight load.
+  // assets is re-derived every render; depending on it directly would cancel the in-flight load.
   const bankUrl = assets?.bankUrl ?? null;
   const labelsUrl = assets?.labelsUrl ?? null;
   useEffect(() => {
@@ -225,9 +180,7 @@ export function ScanPage() {
     };
   }, [bankUrl, labelsUrl]);
 
-  // Nothing published means nothing to download: the scanner has one source,
-  // so there is no local export to fall back to. Keep the wording plain here;
-  // the actionable version lives on the admin scan page.
+  // Actionable guidance for an unpublished bank lives on the admin scan page.
   const unavailableMessage =
     serving.status === "unavailable"
       ? "The card index has not been published yet. Please try again later."
@@ -239,16 +192,13 @@ export function ScanPage() {
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
 
-  // Locked cards in flight to the tray, and the counter that keys them.
   const [flights, setFlights] = useState<ScanFlight[]>([]);
   const flightSeqRef = useRef(0);
 
-  // A tray row's detail is up, over the whole page.
   const [detailOpen, setDetailOpen] = useState(false);
 
   async function addPrinting(printing: Printing) {
     if (identifyOnly) {
-      // Named, logged, and that is the whole job — nothing reaches the account.
       useScanSessionStore.getState().recordIdentified(printing);
       return;
     }
@@ -267,8 +217,7 @@ export function ScanPage() {
   }
 
   function handleLock(lock: Pick<LockedCard, "key" | "artKey" | "label" | "resolved">) {
-    // While the user reads a card's detail they are not aiming, and in collect
-    // mode with auto-scan a card left in the guide would keep counting.
+    // With auto-scan, a card left in the guide would keep counting while the detail is open.
     if (detailOpen) {
       return;
     }
@@ -284,27 +233,20 @@ export function ScanPage() {
       playLockTick();
     }
     if (resolution.kind === "picker") {
-      // Each lock is one physical copy, so two foil pulls queue two picks.
       setPickerQueue((queue) => [
         ...queue,
         { artKey: lock.artKey, label: lock.label, candidates: resolution.candidates },
       ]);
       return;
     }
-    // Only an auto-resolved lock flies: a picker lock does not reach the tray
-    // until the user answers it, by which time the card has left the guide and
-    // a snapshot would show the next one.
+    // A picker lock doesn't reach the tray until answered, by which point the
+    // card has left the guide and a snapshot would show the next one.
     launchFlight();
     void addPrinting(resolution.printing);
   }
 
-  /**
-   * Send a snapshot of whatever is in the guide right now flying into the
-   * tray. Decoration only — a missing video, an unmeasurable box or a tainted
-   * canvas all just mean no flight, never a failed add.
-   *
-   * @returns Nothing; the flight is queued as state.
-   */
+  // Decoration only: a missing video, unmeasurable box, or tainted canvas
+  // just means no flight, never a failed add.
   function launchFlight() {
     const video = videoRef.current;
     if (!video) {
@@ -335,9 +277,8 @@ export function ScanPage() {
   }
 
   function handleLockResolved(update: { artKey: string; key: string; label: string }) {
-    // The engine kept looking after an unresolved lock and settled it — a
-    // pending pick can be answered without the user. One entry per event: a
-    // second queued copy of the same artwork still needs its own answer.
+    // The engine settled a pending pick on its own; a second queued copy of
+    // the same artwork still needs its own answer, hence find() not filter().
     if (!index) {
       return;
     }
@@ -359,8 +300,7 @@ export function ScanPage() {
   }
 
   // Destructured before any JSX: member access on the hook's return object
-  // during render makes the React Compiler bail with a refs-during-render
-  // error. Same rule as the dnd-kit hooks.
+  // during render makes the React Compiler bail with a refs-during-render error.
   const {
     videoRef,
     overlayRef,
@@ -384,25 +324,13 @@ export function ScanPage() {
 
   const ready = loaded !== null && cvReady && embedderReady;
 
-  // Aim coaching. The engine already knows why a scan is stalling — the card
-  // is too small, the frame is soft, verification is a couple of inliers
-  // short — and it rides along with the readout, smoothed frame to frame in
-  // the scanner so a single unlucky frame never flashes a message.
   const aimHint = active ? readout.aimHint : null;
 
-  // Tap-to-scan IS the slow-device path (see the admin harness) and outranks
-  // the toggle; otherwise auto-scan is what decides whether a card that stays
-  // in shot keeps counting. Both guide modes share one session plan, so this
-  // can change mid-run without rebuilding anything.
   const mode: ScannerMode = deviceTooSlow ? "capture" : autoScan ? "auto" : "single";
   if (settings.mode !== mode) {
     setSettings((previous) => ({ ...previous, mode }));
   }
 
-  // The manual identify sheet and the automatic "Is it X?" chip both funnel
-  // into handleLock with an unresolved lock, so the language preference, the
-  // finish default and the printing picker all apply exactly as for a real
-  // lock.
   const [identify, setIdentify] = useState<{
     snapshot: string | null;
     pending: boolean;
@@ -416,8 +344,6 @@ export function ScanPage() {
   const aim = readout.aim;
   const dismissalStale =
     aim !== null && dismissedSuggestion !== null && aim.artKey !== dismissedSuggestion;
-  // A dismissal holds only while the same artwork stays aimed at; once the
-  // user aims at something else, the dismissed card may suggest again later.
   if (dismissalStale) {
     setDismissedSuggestion(null);
   }
@@ -437,8 +363,6 @@ export function ScanPage() {
     if (!suggestion || !suggestionLabel) {
       return;
     }
-    // One tap adds one copy; the dismissal stops the chip from immediately
-    // re-offering the card still sitting in the guide.
     setDismissedSuggestion(suggestion.artKey);
     handleLock({
       key: suggestion.key,
@@ -454,14 +378,8 @@ export function ScanPage() {
     }
   }
 
-  /**
-   * Identify (and, when the frame is convincing enough, add) whatever is in
-   * the guide at the moment of the tap. This is also how a second copy of the
-   * card still in hand is counted: the engine will not lock it twice on its
-   * own, and the tap is the user saying there really are two.
-   *
-   * @returns Nothing; the sheet and the tray carry the result.
-   */
+  // Also how a second copy of a card still in hand gets counted: the engine
+  // won't lock the same artwork twice on its own.
   async function handleIdentifyNow() {
     if (!loaded) {
       return;
@@ -477,8 +395,7 @@ export function ScanPage() {
       return;
     }
     if (attempt.identified) {
-      // Reported through onLock already, so the tray, the flight and the
-      // printing picker have all had their turn.
+      // Reported through onLock already; nothing left for this sheet to do.
       setIdentify(null);
       return;
     }
@@ -500,8 +417,6 @@ export function ScanPage() {
     setAnsweringId(null);
   }
 
-  // Which unidentified card the open identify sheet is answering, if any: the
-  // sheet is shared with the live "identify now" button, which answers no card.
   const [answeringId, setAnsweringId] = useState<string | null>(null);
 
   function handleIdentifyPick(candidate: IdentifyCandidate) {
@@ -519,12 +434,6 @@ export function ScanPage() {
     });
   }
 
-  /**
-   * Open the identify sheet for a card the scanner watched land but could not
-   * name, offering the second look's own best guesses.
-   *
-   * @returns Nothing; the sheet opens as state.
-   */
   function handleIdentifyMissed(id: string) {
     const card = unidentified.find((entry) => entry.id === id);
     if (!card || !loaded) {
@@ -549,15 +458,9 @@ export function ScanPage() {
     });
   }
 
-  // The "Is it X?" chip is an escape hatch for a scan that is not converging,
-  // so it takes the spot; coaching is what plays while things are still going
-  // well.
   const shownHint = suggestion === null ? aimHint : null;
 
-  // The artwork the engine is closing in on, shown as a converging ghost so
-  // the lock never arrives out of nowhere. Bank keys are image ids, so the aim
-  // key addresses the art directly; the printing lookup is only needed to know
-  // whether the art is a landscape battlefield.
+  // readout.aim.key is a bank image id; byImageId resolves it only to check orientation.
   const ghostImageId = active && suggestion === null ? (readout.aim?.key ?? null) : null;
   const ghostPrinting = ghostImageId ? index?.byImageId.get(ghostImageId)?.[0] : undefined;
   const ghostLandscape =
@@ -572,16 +475,13 @@ export function ScanPage() {
   }
 
   function handlePickerDismiss() {
-    // User decision: dismissing the picker discards the lock — rescan the
-    // card if it was wanted after all.
     setPickerQueue((queue) => queue.slice(1));
   }
 
   async function handleRemoveOne(row: ScanSessionRow) {
     const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
     if (!copyId) {
-      // An identify-only reading has no copy behind it: the undo is a plain
-      // count decrement, nothing to ask the API.
+      // Identify-only reading: no copy behind it, so undo is a plain count decrement.
       if (row.identifiedCount > 0) {
         useScanSessionStore.getState().removeIdentified(row.printing.id);
         return;
@@ -602,8 +502,7 @@ export function ScanPage() {
   async function handleSwitchPrinting(row: ScanSessionRow, to: Printing) {
     const copyId = row.copyIds.findLast((id) => !isTempCopyId(id));
     if (!copyId) {
-      // An identify-only reading moves between printings entirely in the
-      // store — the finish switch is what corrects a foil pull's value.
+      // Identify-only: moves between printings entirely in the store.
       if (row.identifiedCount > 0) {
         useScanSessionStore.getState().removeIdentified(row.printing.id);
         void addPrinting(to);
@@ -625,13 +524,6 @@ export function ScanPage() {
     void addPrinting(row.printing);
   }
 
-  /**
-   * Undo the session in one go: every copy it added leaves the collection and
-   * the log starts over. What a test run needs, and the only alternative to
-   * removing a long list of cards one at a time.
-   *
-   * @returns Nothing; the tray and the collection are updated.
-   */
   async function handleRemoveAll() {
     const rows = [...useScanSessionStore.getState().rows.values()];
     const copyIds = rows.flatMap((row) => row.copyIds.filter((id) => !isTempCopyId(id)));
@@ -646,15 +538,10 @@ export function ScanPage() {
       useScanSessionStore.getState().reset();
       toast.success(`Removed ${removedLabel}`);
     } catch {
-      // The global mutation onError already toasted. The rows stay, because
-      // they are the only handle left on copies that are still in the
-      // collection.
+      // Rows stay: they're the only handle left on copies still in the collection.
     }
   }
 
-  // "Scan first, decide later": the dialog that commits an identify-only
-  // session to a collection, and the wishlist follow-ups queued by a commit
-  // (one dialog per wished card, answered in turn).
   const [addAllOpen, setAddAllOpen] = useState(false);
   const [wishFollowUps, setWishFollowUps] = useState<
     { printing: Printing; entries: WishEntryFlat[]; taken: number }[]
@@ -666,13 +553,6 @@ export function ScanPage() {
     0,
   );
 
-  /**
-   * Commit every identify-only reading to the chosen collection. Each reading
-   * becomes a batched optimistic add; a failed add puts the reading back so
-   * nothing is silently lost.
-   *
-   * @returns Nothing; the tray rows convert in place.
-   */
   async function handleAddAll(collectionId: string) {
     const rowsNow = [...useScanSessionStore.getState().rows.values()];
     const jobs: { printing: Printing; tempId: string; result: Promise<{ id: string }> }[] = [];
@@ -711,8 +591,6 @@ export function ScanPage() {
       toast.success(`Added ${added} ${added === 1 ? "card" : "cards"} to ${collectionName}`);
     }
     if (failed > 0) {
-      // Partial-progress warning after a batched loop; the global mutation
-      // toast already carries the server's error message.
       toast.warning(
         `${failed} ${failed === 1 ? "card" : "cards"} could not be added and stayed in the list`,
       );
@@ -729,7 +607,6 @@ export function ScanPage() {
     }
   }
 
-  // The row whose printing is being swapped via the full printing picker.
   const [swapRow, setSwapRow] = useState<ScanSessionRow | null>(null);
   const swapRequest: PickerRequest | null = swapRow
     ? {
@@ -760,22 +637,14 @@ export function ScanPage() {
     void capture();
   }
 
-  // On a phone the card in the guide is what needs the pixels, so once the
-  // camera is running the page hands the whole viewport to the viewfinder and
-  // floats its chrome over the picture. Before that the normal page layout
-  // stays: the user keeps the header, the loading rows and the way back out.
   const layout = useScanLayout();
   const immersive = layout !== "boxed" && active;
-  // A boxed layout on a coarse pointer is a tablet, whose rear camera is
-  // already the good one. Only a mouse-driven desktop gets the phone offer.
   const coarsePointer = useCoarsePointer();
   const phoneHandoff = layout === "boxed" && !coarsePointer;
   const trayAnchorRef = useRef<HTMLDivElement>(null);
 
-  // Hides the app header and stops the page scrolling under the viewfinder;
-  // the matching rules live in index.css. Cleared on unmount as well as when
-  // the camera stops, so leaving the page mid-scan cannot strand the document
-  // in the immersive state.
+  // Matching rules live in index.css. Cleared on unmount too, so leaving the
+  // page mid-scan cannot strand the document in the immersive state.
   useEffect(() => {
     if (!immersive) {
       return;
@@ -786,9 +655,6 @@ export function ScanPage() {
     };
   }, [immersive]);
 
-  // Secondary controls sit on top of a live camera image, which can be any
-  // brightness in either theme — so they carry their own dark plate instead of
-  // trusting the surface tokens.
   const overVideo = immersive
     ? "border-white/20 bg-black/60 text-white hover:bg-black/70 hover:text-white"
     : "";
@@ -835,15 +701,10 @@ export function ScanPage() {
         imageId={ghostImageId}
         confidence={ghostConfidence(readout.bestInliers, readout.lockProgress)}
         landscape={ghostLandscape}
-        // Immersive floats the target-collection row over the top of the
-        // picture, so the ghost drops below it instead of under the mute
-        // button.
         className={cn("absolute right-4", immersive ? "top-20" : "top-4")}
       />
       {shownHint && (
         <p
-          // Keyed on the kind so a changed line animates in rather than
-          // swapping text under the reader's eye.
           key={shownHint.kind}
           className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-sm text-white"
         >
@@ -883,8 +744,8 @@ export function ScanPage() {
   );
 
   const targetSelect = (
-    // The full items array still goes to the root: BaseUI resolves the
-    // trigger's display label from it, however the list below is grouped.
+    // items must carry the full flat list: BaseUI's Select.Value resolves
+    // the trigger label from it, even though the list below renders grouped.
     <Select
       items={targetItems}
       value={identifyOnly ? SCAN_IDENTIFY_ONLY : (targetId ?? "")}
@@ -898,8 +759,6 @@ export function ScanPage() {
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {/* Identifying is not one of the collections, so it leads the list and
-            a rule separates it from them. */}
         <SelectItem value={SCAN_IDENTIFY_ONLY}>Just identify</SelectItem>
         {collections.length > 0 && <SelectSeparator />}
         {collections.map((collection) => (
@@ -923,8 +782,6 @@ export function ScanPage() {
     </Button>
   );
 
-  // Hidden on a device slow enough to be tapping every shot: there is nothing
-  // continuous there for the toggle to change.
   const autoScanButton = !deviceTooSlow && (
     <Button
       size="icon"
@@ -952,8 +809,6 @@ export function ScanPage() {
     </>
   );
 
-  // Starting the camera is the pre-start panel's own call to action, so this
-  // row carries nothing but the card language until the camera is running.
   const controls = (
     <>
       {active && (
@@ -964,9 +819,6 @@ export function ScanPage() {
               Scan card
             </Button>
           )}
-          {/* The one control a user reaches for mid-scan without looking, and
-              the way a second copy of the card in hand gets counted, so it is
-              sized for a thumb. */}
           <Button size="lg" className="h-11 px-6" onClick={() => void handleIdentifyNow()}>
             <ScanSearchIcon />
             Identify now
@@ -1041,8 +893,6 @@ export function ScanPage() {
   );
 
   return (
-    // Wraps the whole page so the tray inside the stage can open a card's
-    // detail over it, rather than navigating away from a running session.
     <CardDetailOverlayProvider onOpenChange={setDetailOpen}>
       {!immersive && (
         <PageTopBarSticky width="capped">
@@ -1125,8 +975,6 @@ export function ScanPage() {
         entries={wishFollowUps[0]?.entries ?? []}
         takenQuantity={wishFollowUps[0]?.taken ?? 0}
         onOpenChange={(open) => {
-          // Answering or dismissing one follow-up surfaces the next wished
-          // card from the same commit.
           if (!open) {
             setWishFollowUps((queue) => queue.slice(1));
           }

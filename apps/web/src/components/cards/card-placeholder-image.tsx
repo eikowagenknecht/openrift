@@ -10,22 +10,12 @@ import { getFilterIconPath, getTypeIconPaths } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { getCachedTintedIcon, TINT_BLACK, TINT_WHITE } from "@/lib/white-icon";
 
-/** Gold tint for the card-type glyph, rendered in a black pip above the title. */
 export const TYPE_ICON_COLOR = "#985920";
 
-/** Maps the white/black keywords to their flat-tint hex; any other value is a literal color. */
 const GLYPH_TINT: Record<string, string> = { white: TINT_WHITE, black: TINT_BLACK };
 
-/**
- * A glyph icon forced to a flat color: white, black (the might shield), or an
- * arbitrary tint (the gold type icon). When `tinted` (the card designer's export
- * clone) a pre-tinted raster is used, because html2canvas-pro ignores CSS
- * filters and masks. Otherwise white/black use the cheap `brightness-0[ invert]`
- * filter and any other color masks a solid fill with the icon's alpha. See
- * ADR-023 and `@/lib/white-icon`.
- *
- * @returns The icon image, or null when there is no source.
- */
+// `tinted` uses a pre-tinted raster; html2canvas-pro (the card designer's
+// export clone) ignores CSS filters and masks.
 function GlyphIcon({
   src,
   className,
@@ -35,7 +25,6 @@ function GlyphIcon({
   src?: string;
   className?: string;
   tinted?: boolean;
-  /** "white", "black", or any CSS color string. */
   color?: string;
 }) {
   if (!src) {
@@ -50,7 +39,6 @@ function GlyphIcon({
     const filter = color === "black" ? "brightness-0" : "brightness-0 invert";
     return <img src={src} alt="" aria-hidden="true" className={cn(className, filter)} />;
   }
-  // Recolor to an arbitrary tint by masking a solid fill with the icon's alpha.
   return (
     <span
       aria-hidden="true"
@@ -86,28 +74,9 @@ interface CardPlaceholderImageProps {
   rarity?: Rarity;
   publicCode?: string;
   artist?: string;
-  /**
-   * Label of the printing's promo marker, rendered as a small line below the
-   * rarity icon. Callers pass only the promo marker's label — other markers
-   * (judge, prerelease, …) are never surfaced on the placeholder.
-   */
   promoLabel?: string;
-  /**
-   * Optional full-bleed background image (a data URL in the card designer).
-   * When set, the placeholder's logo watermark and noise texture are hidden and
-   * a legibility scrim is drawn behind the lower text region. See ADR-023.
-   */
   backgroundImageUrl?: string;
-  /**
-   * Absolute size/position for the background image (computed by the designer
-   * for cover + pan + zoom). Defaults to a plain centered cover.
-   */
   backgroundImageStyle?: CSSProperties;
-  /**
-   * Render the white glyph icons from pre-tinted rasters instead of the CSS
-   * `brightness-0 invert` filter, so they survive html2canvas export. Used by
-   * the card designer's export clone. See ADR-023.
-   */
   tintIcons?: boolean;
   className?: string;
 }
@@ -136,20 +105,15 @@ export function CardPlaceholderImage({
 }: CardPlaceholderImageProps) {
   const domainColors = useDomainColors();
   const primaryDomain = domain[0] ?? WellKnown.domain.COLORLESS;
-  // Power pips show the domain rune; a multi-domain card has no single domain,
-  // so it uses the generic (rainbow) rune instead.
   const runePipIcon =
     domain.length > 1
       ? "/images/glyphs/rune-rainbow.svg"
       : getFilterIconPath("domains", primaryDomain);
-  // The pip rune sits on the domain background; tint it for legible contrast
-  // (matches the foreground the admin domains/rarities previews use).
   const runePipColor = getPipGlyphTint(domain, domainColors);
   const typeIconPaths = getTypeIconPaths(types ?? [], superTypes ?? []);
   const typeText = types?.join(" ") ?? "";
-  // Gear shows its energy cost in a diamond (a square rotated 45°) instead of
-  // the circular badge every other type uses. Any Gear type in the set counts
-  // (a Unit Gear has the diamond frame — ADR-037).
+  // Gear shows its energy cost in a rotated-diamond frame; any Gear type in
+  // the set counts, so a Unit Gear also gets the diamond.
   const isGear = types?.includes(WellKnown.cardType.GEAR) ?? false;
   const bgStyle = getDomainGradientStyle(domain, "", domainColors);
   const noiseId = useId();
@@ -173,8 +137,6 @@ export function CardPlaceholderImage({
         />
       )}
       {backgroundImageUrl ? (
-        // Darken the lower text region so name / rules / footer stay legible
-        // over any photo. The name bar carries its own domain gradient.
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-0 h-[55%] bg-linear-to-t from-black/85 via-black/55 to-transparent"
@@ -280,7 +242,6 @@ export function CardPlaceholderImage({
         </div>
       )}
 
-      {/* Type + Tags */}
       {(typeText || (tags && tags.length > 0)) && (
         <div className="absolute top-[55%] ml-[1.7cqw] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
           {typeIconPaths.map((path) => (
@@ -320,7 +281,6 @@ export function CardPlaceholderImage({
         </div>
       )}
 
-      {/* Card name bar */}
       <div
         className="font-display absolute inset-x-0 top-[55.25%] flex h-[12cqw] w-full items-center px-[10cqw]"
         style={bgStyle}
@@ -339,22 +299,18 @@ export function CardPlaceholderImage({
         )}
       </div>
 
-      {/* Card text — keywords must be non-interactive here: CardThumbnail wraps
-          the placeholder in a <button>, and HTML5 forbids nested buttons.
-          Firefox's parser auto-closes the outer button mid-tree, which punts
-          the rest of the thumbnail out of its grid cell and below the footer. */}
+      {/* Keywords stay non-interactive: nesting a <button> inside CardThumbnail's
+          outer <button> makes Firefox auto-close it, ejecting the thumbnail's rest. */}
       {(rulesText ||
         effectText ||
         flavorText ||
         (mightBonus !== null && mightBonus !== undefined && mightBonus > 0)) && (
         <div className="card-text-scaled absolute inset-x-0 top-[67%] flex flex-col gap-[1.5cqw] px-[8cqw]">
-          {/* Rules */}
           {rulesText && (
             <p className="px-[3cqw] text-[3.5cqw] leading-[1.3] text-white/80">
               <CardText text={rulesText} interactive={false} onDark />
             </p>
           )}
-          {/* Effect + Might Bonus or Flavor Text + Might Bonus */}
           {(effectText || (mightBonus !== null && mightBonus !== undefined)) && (
             <div
               className="mt-[2cqw] flex items-start gap-[2cqw] rounded-[1.5cqw] px-[3cqw] py-[1cqw]"
@@ -379,7 +335,6 @@ export function CardPlaceholderImage({
               )}
             </div>
           )}
-          {/* Flavor Text */}
           {(effectText || mightBonus === null || mightBonus === undefined) && flavorText && (
             <p className="px-[3cqw] text-[3.5cqw] leading-[1.3] text-white/50 italic">
               {flavorText}
@@ -388,7 +343,6 @@ export function CardPlaceholderImage({
         </div>
       )}
 
-      {/* Footer: rarity + meta line */}
       <div className="absolute inset-x-0 bottom-[2%] flex flex-col items-center gap-[0.5cqw] px-[5cqw]">
         {rarity && (
           <img

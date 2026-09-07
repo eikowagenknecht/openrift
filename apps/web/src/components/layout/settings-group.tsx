@@ -5,17 +5,8 @@ import { ExpandToggle } from "@/components/ui/expand-toggle";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { cn } from "@/lib/utils";
 
-/**
- * A labelled group of settings cards. Renders an uppercase muted heading and a
- * scroll anchor matching its {@link PageToc} entry, then stacks its children
- * (one or more `Card`s) below. Each card inside carries its own `id` +
- * `scroll-mt-16` for the TOC sub-items. Shared by the profile page and the
- * tournament settings tab.
- *
- * With `collapsible`, the heading becomes a disclosure toggle and the cards
- * can be folded away; `defaultCollapsed` starts the group folded.
- * @returns The settings group section.
- */
+// Each card inside carries its own `id` + `scroll-mt-16` for the TOC sub-items.
+// `defaultCollapsed` only applies when `collapsible` is set.
 export function SettingsGroup({
   id,
   title,

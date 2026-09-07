@@ -16,37 +16,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDecks } from "@/hooks/use-decks";
 import { parseManualDecklist } from "@/lib/deck-check-manual-entry";
 
-/**
- * The ways a player can provide a list (an own deck, a pasted compact deck
- * code, or the parsed lines of a pasted text list), plus the sharing consent
- * stated alongside the submission.
- */
 export interface DeckSourceInput {
   deckId?: string;
   deckCode?: string;
   cards?: { name: string; quantity: number; section: string }[];
-  /** Consent for the organizer to publish the deck list publicly. */
   allowDeckPublishing: boolean;
-  /** Consent to show the player's name on public platforms. */
   allowNameSharing: boolean;
-  /** Consent to show the player's Riot ID on public platforms. */
   allowRiotIdSharing: boolean;
 }
 
 const NO_DECK = "__none__";
 
-/** The list part of the input, before the consent flags are attached. */
 type DeckSource = Omit<
   DeckSourceInput,
   "allowDeckPublishing" | "allowNameSharing" | "allowRiotIdSharing"
 >;
 
-/**
- * Classifies a paste and converts it to a submission input. A compact deck
- * code is one whitespace-free token; anything with spaces or line breaks is
- * treated as a text decklist and parsed like the judge's manual entry.
- * @returns The input, or null when the paste yields no cards.
- */
 function pasteToInput(paste: string): DeckSource | null {
   const trimmed = paste.trim();
   if (trimmed.length === 0) {
@@ -59,13 +44,6 @@ function pasteToInput(paste: string): DeckSource | null {
   return parsed.cards.length > 0 ? { cards: parsed.cards } : null;
 }
 
-/**
- * The shared submission form (ADR-026): pick one of the player's own decks or
- * paste a deck code / text decklist, preview the resolved list with its
- * advisory legality findings, then submit. Used by both the token submission
- * page and the entry's replace-deck dialog.
- * @returns The form.
- */
 export function PlayerDeckSourceForm({
   submitLabel,
   pendingLabel,
@@ -85,7 +63,6 @@ export function PlayerDeckSourceForm({
   onPreview: (input: DeckSourceInput) => void;
   preview: DeckCheckSubmissionResultResponse | null;
   isPreviewing: boolean;
-  /** Stored sharing consent of an existing entry; defaults to allowed. */
   initialAllowDeckPublishing?: boolean;
   initialAllowNameSharing?: boolean;
   initialAllowRiotIdSharing?: boolean;
@@ -233,12 +210,6 @@ export function PlayerDeckSourceForm({
   );
 }
 
-/**
- * What the dry run resolved: card counts, lines the catalog could not
- * identify, and the advisory legality findings. None of it blocks submitting;
- * the judge decides.
- * @returns The preview panel.
- */
 function PreviewSummary({ preview }: { preview: DeckCheckSubmissionResultResponse }) {
   const totalCopies = preview.cards.reduce((sum, card) => sum + card.quantity, 0);
   const unmatched = preview.cards.filter((card) => card.matchStatus !== "matched");

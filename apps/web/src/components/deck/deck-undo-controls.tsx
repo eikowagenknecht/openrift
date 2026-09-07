@@ -17,14 +17,11 @@ import { useDeckUndoStore } from "@/stores/deck-undo-store";
 
 type DeckCollection = Collection<DeckBuilderCard, string | number>;
 
-/** Typing inside these should keep the browser's own undo, not ours. */
+// Typing inside these should keep the browser's own undo, not ours.
 const TEXT_ENTRY = 'input, textarea, select, [contenteditable], [role="dialog"]';
 
-/**
- * Steps the deck one snapshot back or forward. Restoring goes through the
- * normal draft-replace path, so the debounced autosave writes it back like any
- * other edit.
- */
+// Restoring goes through the normal draft-replace path, so the debounced
+// autosave writes it back like any other edit.
 function restoreSnapshot(
   direction: "undo" | "redo",
   queryClient: QueryClient,
@@ -41,10 +38,6 @@ function restoreSnapshot(
   applyDeckSnapshot(queryClient, scope, deckId, snapshot);
 }
 
-/**
- * Ctrl/Cmd+Z to undo, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y to redo, for as long as
- * the calling component is mounted. Mount it once per deck editor.
- */
 export function useDeckUndoShortcuts(deckId: string): void {
   const queryClient = useQueryClient();
   const scope = useDeckDraftScope(deckId);
@@ -78,11 +71,6 @@ export function useDeckUndoShortcuts(deckId: string): void {
   }, [collection, scope, deckId, queryClient]);
 }
 
-/**
- * Undo/redo state and actions for a deck, so any surface (top bar, mobile
- * dock) drives the same history through the same apply path.
- * @returns Whether each direction is available, and the actions to run them.
- */
 export function useDeckUndo(deckId: string): {
   canUndo: boolean;
   canRedo: boolean;
@@ -110,11 +98,7 @@ export function useDeckUndo(deckId: string): {
   };
 }
 
-/**
- * Undo/redo buttons for the deck editor's top bar. Card edits only — the
- * deck's name, format, plan and odds settings are not part of this history.
- * @returns The two icon buttons.
- */
+// Card edits only: deck name, format, plan and odds settings are not part of this history.
 export function DeckUndoControls({ deckId }: { deckId: string }) {
   const { canUndo, canRedo, undo, redo } = useDeckUndo(deckId);
 
@@ -131,8 +115,6 @@ export function DeckUndoControls({ deckId }: { deckId: string }) {
       <Tooltip>
         <TooltipTrigger
           render={
-            // On phones the bar has no room for a second always-on button, so
-            // redo only appears there while a redo actually exists.
             <PageTopBarIconButton
               aria-label="Redo"
               disabled={!canRedo}

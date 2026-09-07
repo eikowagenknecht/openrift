@@ -8,8 +8,7 @@ vi.mock("@/stores/display-store", () => ({
     selector({ marketplaceOrder: ["cardtrader"] }),
 }));
 
-// The real Base UI slider needs pointer capture and layout boxes jsdom does not
-// provide. The stub commits fixed positions so the write-back rules are testable.
+// Base UI's Slider needs pointer capture and layout boxes jsdom does not provide.
 vi.mock("@/components/ui/slider", () => ({
   Slider: ({
     "aria-label": label,

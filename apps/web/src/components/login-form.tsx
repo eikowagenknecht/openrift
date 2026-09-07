@@ -24,21 +24,8 @@ const signInSchema = z.object({
 type SignInValues = z.infer<typeof signInSchema>;
 
 /**
- * Both tabs share one react-hook-form instance, so the email carries across a
- * tab switch without any copying, and `LoginForm` itself subscribes to nothing.
- *
- * Every `useWatch` / `useFormState` / `Controller` below sits in a leaf that
- * renders only what depends on the value. Keeping any of them in `LoginForm`
- * re-rendered the whole card on every keystroke: both tab panels, the social
- * buttons, and two router links whose `search` object was rebuilt per character.
- * On iOS that showed up as the email input flickering while typing.
- *
- * Those hooks rather than `form.watch()` / `form.formState`: the former returns
- * a function the React Compiler flags as un-memoizable (IncompatibleLibrary),
- * bailing on the whole component, and the latter is a proxy whose reads
- * subscribe wherever they happen.
- *
- * @returns The login card with password and email-code sign-in tabs.
+ * useWatch/useFormState/Controller stay in leaf components below, never in
+ * LoginForm: lifting one re-renders the whole card per keystroke.
  */
 export function LoginForm({
   className,
@@ -79,9 +66,7 @@ export function LoginForm({
           />
         </TabsContent>
         <TabsContent value="otp" tabIndex={-1}>
-          {/* BaseUI keeps inactive panels mounted, so the key is what clears a
-              half-finished code when the user leaves and comes back. Its email
-              lives in the shared form, so that part survives the remount. */}
+          {/* BaseUI keeps inactive panels mounted; the key clears a half-finished code on return. */}
           <OtpSignIn
             key={method}
             form={form}
@@ -98,9 +83,6 @@ export function LoginForm({
   );
 }
 
-/**
- * @returns The password sign-in form.
- */
 function PasswordSignIn({
   form,
   redirectTo,
@@ -135,10 +117,7 @@ function PasswordSignIn({
       setServerError(form, error);
       return;
     }
-    // Refetch the session: better-auth set the cookie, but our React Query
-    // cache for ["session"] still holds the prior value. User-scoped queries
-    // are keyed by userId, so once the new session lands every consumer
-    // attaches to the new user's data automatically.
+    // Cache is keyed by the prior session's userId; invalidate so it re-keys to the new one.
     await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     void navigate({ to: (redirectTo as "/collections") ?? "/collections" });
   }
@@ -146,9 +125,7 @@ function PasswordSignIn({
   async function handleResend() {
     const email = form.getValues("email").trim();
     setResending(true);
-    // `sendVerificationEmail` would mail a 6-digit code (the emailOTP plugin
-    // runs with `overrideDefaultEmailVerification`), and /login has no field to
-    // type one into. Send the code and hand the user to the page that does.
+    // /login has no field for the 6-digit code sendVerificationEmail would mail; use the OTP flow instead.
     const result = await authClient.emailOtp
       .sendVerificationOtp({ email, type: "email-verification" })
       .catch(() => null);
@@ -172,8 +149,6 @@ function PasswordSignIn({
             <Button
               type="button"
               variant="link-muted"
-              // text-inherit keeps the link in the FieldError's color so it
-              // reads as part of the error sentence.
               className="ml-1 h-auto px-0 text-inherit hover:text-inherit"
               disabled={resending}
               onClick={() => void handleResend()}
@@ -239,9 +214,6 @@ function PasswordSignIn({
   );
 }
 
-/**
- * @returns The email-code sign-in form: request a code, then verify it.
- */
 function OtpSignIn({
   form,
   redirectTo,
@@ -375,9 +347,6 @@ function OtpSignIn({
   );
 }
 
-/**
- * @returns The form-level server error, or null when there is none.
- */
 function RootFormError({
   control,
   children,
@@ -397,9 +366,6 @@ function RootFormError({
   );
 }
 
-/**
- * @returns A reset-password link carrying the email typed so far.
- */
 function ForgotPasswordLink({
   control,
   className,
@@ -415,9 +381,6 @@ function ForgotPasswordLink({
   );
 }
 
-/**
- * @returns A sign-up link carrying the email typed so far.
- */
 function SignupLink({
   control,
   redirectTo,

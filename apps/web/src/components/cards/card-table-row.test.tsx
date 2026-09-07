@@ -7,8 +7,6 @@ import { CardTableRow, getCardTableColumns, getCardTableMinWidth } from "./card-
 
 describe("CardTableRow", () => {
   it("renders data-printing-id on the row so keyboard `-` can anchor the dispose picker to it", () => {
-    // Regression: without this attribute, useGridKeyboardNav.querySelector returns
-    // null, anchorEl is undefined, and the multi-collection picker silently bails.
     const printing = stubPrinting({ id: "p-row-1" });
     const { container } = render(
       <CardTableRow
@@ -107,16 +105,13 @@ describe("CardTableRow", () => {
     expect(getByText("Worlds 2026")).not.toBeNull();
     expect(getByText("Events › Championships")).not.toBeNull();
     expect(getByText("+1")).not.toBeNull();
-    // The full list is the title, since only the first fits in the cell.
     expect(container.querySelector('[title*="Store Kit"]')).not.toBeNull();
   });
 });
 
 describe("getCardTableMinWidth", () => {
-  // Regression: the table sits in a horizontal-scroll wrapper sized to this
-  // width. If it drifts below the sum of the fixed grid-template columns +
-  // gap-3 spacing, cells start clipping into the detail pane again at
-  // intermediate viewport widths.
+  // The horizontal-scroll wrapper is sized to this width; below the sum of
+  // fixed columns + gap-3, cells clip into the detail pane at mid viewports.
   it("matches the sum of fixed grid-template column tracks + gap-3 spacing", () => {
     expect(getCardTableMinWidth("none")).toBe(72 + 180 + 160 + 200 + 130 + 4 * 12);
     expect(getCardTableMinWidth("narrow")).toBe(72 + 180 + 160 + 200 + 130 + 96 + 5 * 12);
@@ -125,16 +120,12 @@ describe("getCardTableMinWidth", () => {
   });
 
   it("drops the grouped column's track and gap when grouping by set/type/rarity", () => {
-    // Grouping by set removes the 160px Set track (and one 12px gap), since the
-    // group headers already spell out the set on every row.
     expect(getCardTableMinWidth("narrow", "set")).toBe(72 + 180 + 200 + 130 + 96 + 4 * 12);
     expect(getCardTableMinWidth("narrow", "type")).toBe(72 + 180 + 160 + 130 + 96 + 4 * 12);
     expect(getCardTableMinWidth("narrow", "rarity")).toBe(72 + 180 + 160 + 200 + 96 + 4 * 12);
   });
 
   it("sizes a surface's own column set, not the default one", () => {
-    // /promos drops set, type and rarity and adds notes (plus channel when its
-    // sections are not channels).
     expect(getCardTableMinWidth("narrow", undefined, { columns: ["image", "name", "notes"] })).toBe(
       72 + 180 + 112 + 96 + 3 * 12,
     );
@@ -171,8 +162,6 @@ describe("getCardTableColumns", () => {
   });
 
   it("moves the flexible track to the column named by `stretch`", () => {
-    // Regression: with name flexible, a deep channel breadcrumb truncated at
-    // 200px while the name column sat on hundreds of pixels of padding.
     expect(
       getCardTableColumns("narrow", undefined, {
         columns: ["image", "name", "channel", "notes"],
@@ -182,7 +171,6 @@ describe("getCardTableColumns", () => {
   });
 
   it("keeps the canonical left-to-right order whatever order the surface names", () => {
-    // Otherwise the header, the rows and the tracks could each disagree.
     expect(getCardTableColumns("none", undefined, { columns: ["notes", "name", "image"] })).toBe(
       "72px minmax(180px, 1fr) minmax(112px, 0.8fr)",
     );

@@ -95,43 +95,29 @@ function PrintingSourceColumnActions({
 
 interface PrintingReviewCardProps {
   printing: AdminPrintingResponse;
-  /** Route slug of the owning card: fold-store key and create-printing link param. */
   cardId: string;
-  /** All accepted printings on the card, for the "assign source elsewhere" targets. */
   printings: AdminPrintingResponse[];
-  /** Every candidate source on the card; narrowed to this printing here. */
   candidatePrintings: CandidatePrintingResponse[];
-  /** Every accepted image on the card; narrowed to this printing here. */
   printingImages: AdminPrintingImageResponse[];
   marketplaceMappings: AdminPrintingMarketplaceMappingResponse[];
   sourceLabels: Record<string, string>;
   sourceNames: Record<string, string>;
-  /** Keyed by candidate card id — printing rows resolve theirs via their parent. */
+  /** Keyed by candidate card id; printing rows resolve theirs via their parent. */
   sourceSubmitters: Record<string, SourceSubmitter>;
   providerSettings: ProviderSettingResponse[];
   printingSourceFields: FieldDef<CandidatePrintingFieldKey>[];
   setTotals: Record<string, number>;
   costKeywords: readonly string[];
-  /** Query keys this row's mutations invalidate. */
   invalidates: readonly (readonly unknown[])[];
-  /**
-   * Fold state to show until the page seeds the card's defaults — true for the
-   * first printing only, so a card never renders every row expanded.
-   */
+  /** True only for the card's first printing, so a card never renders every row expanded. */
   defaultExpanded: boolean;
   /** Card-review grant holders only accept fields; triage and delete stay full-admin. */
   isAdmin: boolean;
 }
 
 /**
- * One accepted printing in the card review list: a foldable header carrying the
- * triage actions, over the candidate spreadsheet for its sources.
- *
  * The row owns its own mutations and reads its own fold slice so the detail
- * page's `.map()` closes over nothing that changes per render, and toggling one
- * row re-renders only that row.
- *
- * @returns The printing card element.
+ * page's `.map()` closes over nothing that changes per render.
  */
 export function PrintingReviewCard({
   printing,
@@ -178,7 +164,6 @@ export function PrintingReviewCard({
     imageUrl: activeImage?.originalUrl ?? null,
   };
 
-  // Deduplicate source images not yet accepted as printing images
   const sourceImagesForSwitcher = deduplicateSourceImages(
     allSources.filter(
       (ps) => ps.imageUrl && !ownImages.some((pi) => pi.originalUrl === ps.imageUrl),
@@ -188,10 +173,8 @@ export function PrintingReviewCard({
 
   const uncheckedSources = allSources.filter((ps) => !ps.checkedAt);
 
-  // Substitute art the admin can pin: every image on the card's *other*
-  // printings, one entry per underlying file. Two printings often list the same
-  // scan, and offering it twice would suggest a choice that isn't one — the pin
-  // stores the file, so both entries would do the same thing.
+  // One entry per underlying image file: the pin stores the file, so a scan shared
+  // across printings would otherwise offer the same pin twice.
   const siblingImages: SiblingImage[] = [];
   const seenImageFiles = new Set<string>();
   for (const image of printingImages) {
@@ -206,8 +189,6 @@ export function PrintingReviewCard({
     });
   }
 
-  // What the "Derived" mode resolves to today, so the toggle can name its
-  // source instead of leaving the admin to guess which printing it borrows.
   const derivedArtPrinting = findDerivedArtPrinting(printing, printings, printingImages);
 
   return (

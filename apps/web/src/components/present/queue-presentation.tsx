@@ -4,11 +4,6 @@ import { useCards } from "@/hooks/use-cards";
 import type { PresentationItem } from "@/lib/presentation-queue";
 import { resolveQueuePrintings } from "@/lib/presentation-queue";
 
-/**
- * Presents an ad-hoc queue of printings assembled before recording.
- *
- * @returns The stage, driven by the queue's printing ids.
- */
 export function QueuePresentation({
   printingIds,
   index,
@@ -22,9 +17,7 @@ export function QueuePresentation({
 }) {
   const { printingsById } = useCards();
 
-  // The same printing may legitimately appear twice in a queue, so the item id
-  // carries its position — a bare printing id would collide and React would
-  // reuse one card's DOM for both stops.
+  // A printing may repeat in the queue; the id includes position so React keys don't collide.
   const items: PresentationItem[] = resolveQueuePrintings(printingIds, printingsById).map(
     (printing, position) => ({ id: `${position}:${printing.id}`, printing }),
   );

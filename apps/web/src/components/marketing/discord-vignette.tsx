@@ -5,28 +5,17 @@ import type { LandingThumbnailCard } from "@/lib/landing-thumbnails";
 
 import { Vignette } from "./vignette-parts";
 
-// EMBED_COLOR in apps/discord-bot/src/card-embed.ts. Fixed for every embed
-// type, so it never varies with the card.
 const EMBED_ACCENT = "#24705F";
 
-// The bot formats embed prices with Intl currency, which prefixes the euro
-// symbol — deliberately unlike the web app's "3,80 €".
 const PRICE_FIELDS = [
   { name: "TCGplayer", value: "$4.52" },
   { name: "Cardmarket", value: "€3.80" },
   { name: "CardTrader", value: "€3.65" },
 ] as const;
 
-// Shown when the sample has no identity for its art — the payload is edge
-// cached for a day, so a bundle can be served a body that predates those
-// fields. The embed then names a card it cannot show, so the art drops out.
+// Fallback for when the daily-cached sample predates the art-identity fields.
 const UNNAMED = { name: "Jinx, Rebel", shortCode: "OGN-202" };
 
-/**
- * Two lines per holder: the name and count, then a Discord "-#" subtext line
- * of printings. A repeated public code drops off the second entry.
- * @returns The holders the tradelist field lists.
- */
 function holders(shortCode: string) {
   return [
     { name: "Alice", quantity: "2×", detail: `${shortCode} 2× (Binder)` },
@@ -47,17 +36,6 @@ function EmbedField({ name, value }: { name: string; value: string }) {
   );
 }
 
-/**
- * The bot's reply to an inline card reference: the full-width tradelist field
- * first, then the inline price fields, the card art large at the bottom, and
- * one `Details` button. There is no stat line on a card embed — the stats are
- * printed on the artwork the embed already shows.
- *
- * Every name in the reply comes off the sampled printing, so the embed names
- * the card whose art it shows. Passing art without its identity would have the
- * bot answer `[[Jinx, Rebel]]` with whatever the day's sample happened to be.
- * @returns The Discord vignette.
- */
 export function DiscordVignette({ card }: { card?: LandingThumbnailCard }) {
   const named = card?.name ? card : undefined;
   const name = named?.name ?? UNNAMED.name;
@@ -73,8 +51,6 @@ export function DiscordVignette({ card }: { card?: LandingThumbnailCard }) {
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-sm font-medium">riftcaptain</span>
           <p className="text-primary text-sm font-medium">
-            {/* One step per character, since the card the sample names sets
-                the length. */}
             <span
               className="motion-safe:animate-vignette-type inline-block"
               style={{ animationTimingFunction: `steps(${reference.length}, end)` }}
@@ -117,8 +93,6 @@ export function DiscordVignette({ card }: { card?: LandingThumbnailCard }) {
               ))}
             </div>
             {named && (
-              // Cropped to the artwork: the embed image is the card the footer
-              // names, and a whole card face would run taller than the reply.
               <img
                 src={named.url}
                 alt=""

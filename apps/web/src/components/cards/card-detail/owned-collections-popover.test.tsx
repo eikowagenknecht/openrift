@@ -9,9 +9,6 @@ import { useDisplayStore } from "@/stores/display-store";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
 import { createStoreResetter } from "@/test/store-helpers";
 
-// The mocked Link records the search it was handed, which is what the view
-// fallback decides: `id:<shortCode>` in printings view, the card name in cards
-// view.
 const { linkSearches } = vi.hoisted(() => ({ linkSearches: [] as unknown[] }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -54,9 +51,8 @@ vi.mock("@/hooks/use-enums", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { OwnedCollectionsPopover } from "./owned-collections-popover";
 
-// React 19 reports uncaught render errors through onUncaughtError instead of
-// rethrowing from render(), so the no-provider case needs a boundary to
-// observe the thrown error deterministically.
+// React 19 reports uncaught render errors via onUncaughtError, not by rethrowing
+// from render(), so observing a thrown error here needs a boundary.
 class CatchBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -91,10 +87,6 @@ describe("OwnedCollectionsPopover", () => {
     vi.restoreAllMocks();
   });
 
-  // Regression: /decks/share/$token rendered the card detail pane without a
-  // FilterSearchProvider, so every card click crashed here.
-  // The share page provides an empty filter value; that must be enough for
-  // the popover's whole hook chain.
   it("renders the owned badge under an empty filter context like the share page provides", () => {
     const { getByText } = render(
       <FilterSearchProvider value={{}}>{renderPopover()}</FilterSearchProvider>,
@@ -110,11 +102,6 @@ describe("OwnedCollectionsPopover", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  // Regression: the group trades and member pages open the card detail from a
-  // row, through CardDetailOverlay, so there is no filter context anywhere
-  // above this popover. Reading it strictly threw and the whole detail fell to
-  // its error boundary (Sentry OPENRIFT-SSR-17). Rendering must survive the
-  // absence rather than depend on each such surface wrapping itself.
   it("renders the owned badge with no FilterSearchProvider above it", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { container, getByText } = render(<CatchBoundary>{renderPopover()}</CatchBoundary>);
@@ -122,9 +109,6 @@ describe("OwnedCollectionsPopover", () => {
     expect(getByText("2")).toBeTruthy();
   });
 
-  // Without a filter context there is no view to carry, so the display-store
-  // default decides how the collection link searches: by short code in
-  // printings view, by card name in cards view.
   it("links by short code with no provider when the default view is printings", async () => {
     useDisplayStore.getState().setDefaultCardView("printings");
     const { findByText } = render(renderPopover());
@@ -145,8 +129,6 @@ describe("OwnedCollectionsPopover", () => {
     expect(linkSearches.at(-1)).toEqual({ search: "Annie" });
   });
 
-  // A surface that does carry filter params still wins over the default, so
-  // the fallback never overrides a real view.
   it("prefers the provider's view over the display-store default", async () => {
     useDisplayStore.getState().setDefaultCardView("cards");
     const { findByText } = render(

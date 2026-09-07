@@ -8,7 +8,6 @@ describe("offeredPricePrefs", () => {
   it("omits Fixed when editing a list's defaults", () => {
     const options = offeredPricePrefs(true, null);
     expect(options).not.toContain("absolute");
-    // The marketplace presets remain valid list-wide defaults.
     expect(options).toEqual(["cm_lowest", "tcg_lowest", "ct_zero"]);
   });
 
@@ -16,17 +15,13 @@ describe("offeredPricePrefs", () => {
     expect(offeredPricePrefs(false, null)).toContain("absolute");
   });
 
-  it("keeps Fixed for a list that already defaults to it", () => {
-    // Grandfather existing Fixed-default lists so the dropdown still resolves
-    // and the user can switch away from it.
+  it("keeps Fixed for a list that already defaults to it, so it can be switched away from", () => {
     expect(offeredPricePrefs(true, "absolute")).toContain("absolute");
   });
 });
 
 describe("TradePreferenceEditor", () => {
   it("still renders the Fixed label for a grandfathered list default", () => {
-    // If "absolute" were dropped from the items, BaseUI's <SelectValue> couldn't
-    // resolve the label and the trigger would render blank.
     const fixed: TradePreference = {
       pricePref: "absolute",
       priceAbsoluteCents: 450,

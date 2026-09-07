@@ -7,7 +7,6 @@ import { SearchInput } from "./search-input";
 /**
  * The component listens for the native `beforeinput` (React's synthetic one
  * never fires for deletions), so the test dispatches the real event.
- * @returns A bubbling `beforeinput` event carrying the given input type.
  */
 function beforeInputEvent(inputType: string) {
   return new InputEvent("beforeinput", { inputType, bubbles: true, cancelable: true });

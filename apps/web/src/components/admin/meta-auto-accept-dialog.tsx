@@ -36,11 +36,6 @@ function toDraft(settings: MetaSyncSettings): RulesDraft {
   };
 }
 
-/**
- * What each source's crawl actually consults. Only uvsgames has templates and a
- * format mapping, so the other two rules would be dead switches on the other
- * sources' tabs rather than settings they ignore quietly.
- */
 const SOURCE_INTRO: Record<MetaSource, string> = {
   uvsgames:
     "When a crawl sees an event matching any rule below, it is accepted automatically: the live event is created and its UVS Games standings are fetched and published without review. Events you dismissed never auto-accept, whatever they match.",
@@ -171,13 +166,6 @@ function AutoAcceptForm({
   );
 }
 
-/**
- * The rules that let a crawled event into the archive without a click
- * (ADR-014). They belong beside the triage queue they short-circuit, so the
- * catalogue tab hosts them and mounts this only while it is open.
- *
- * @returns The auto-accept rules dialog.
- */
 export function MetaAutoAcceptDialog({
   source,
   onClose,

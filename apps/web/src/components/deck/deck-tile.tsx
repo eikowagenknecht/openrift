@@ -38,7 +38,6 @@ function CardPreviewImage({
   sizes: string;
   className: string;
   style?: React.CSSProperties;
-  /** Rendered instead when the image fails to load — the slot's dashed placeholder. */
   fallback: React.ReactNode;
 }) {
   return (
@@ -75,7 +74,6 @@ function PlaceholderPreviewCard({
       )}
       style={{ aspectRatio: "var(--aspect-card)", ...style }}
     >
-      {/* Flat-fill SVG tinted via mask so it follows the theme. */}
       <span
         className="bg-muted-foreground/70 size-7"
         style={{
@@ -88,11 +86,7 @@ function PlaceholderPreviewCard({
   );
 }
 
-/**
- * The deck-list tile's fanned art: legend tilted left, champion tilted right,
- * over a domain gradient. Also reused by the deck-check checker hero.
- * @returns The fanned preview block.
- */
+// Also reused by the deck-check checker hero.
 export function FannedPreview({
   legendImage,
   championImage,
@@ -103,12 +97,9 @@ export function FannedPreview({
 }: {
   legendImage?: PrintingImage | null;
   championImage?: PrintingImage | null;
-  /** Custom cover art for the blurred backdrop; the fan stays legend/champion. */
   coverImage?: PrintingImage | null;
-  /** Vertical crop focus for the cover (percent from the top); null = default. */
   coverPosition?: number | null;
   gradientStyle?: React.CSSProperties;
-  /** No champion is ever expected here; center the legend instead of pairing it with a placeholder. */
   soloLegend?: boolean;
 }) {
   const isEmpty = !legendImage && !championImage;
@@ -138,10 +129,6 @@ export function FannedPreview({
     />
   );
   return (
-    // One layout for every fill state: each slot shows its card image, or a
-    // dashed placeholder in the same fan position, so a half-built deck
-    // previews the exact shape its missing card will fill. The domain
-    // gradient only backs the fully-empty tile.
     <div
       className="bg-muted/30 relative flex items-center justify-center overflow-hidden"
       style={{
@@ -156,9 +143,6 @@ export function FannedPreview({
     >
       {backdropImage && (
         <>
-          {/* Full-art identity: the cover (or legend) art blurred behind the
-              fan, with a bottom fade into the tile body. Mirrors the deck
-              hero's treatment. */}
           <ImgWithFallback
             src={imageUrl(backdropImage.imageId, "240w")}
             alt=""
@@ -206,20 +190,12 @@ export function FannedPreview({
   );
 }
 
-/**
- * The deck tile's pluralized type summary ("22 units · 12 spells").
- * @returns The joined summary string.
- */
 export function typeCountSummary(typeCounts: { cardType: string; count: number }[]): string {
   return typeCounts
     .map(({ cardType, count }) => `${count} ${count === 1 ? cardType : `${cardType}s`}`)
     .join(" · ");
 }
 
-/**
- * Visual tile for a single deck in the deck grid.
- * @returns The deck tile element.
- */
 export function DeckTile({
   item,
   folderLabels = {},
@@ -227,9 +203,7 @@ export function DeckTile({
   onToggleFamily,
 }: {
   item: DeckListItemResponse;
-  /** Folder id → name, for the deck's folder chips. Empty while signed out. */
   folderLabels?: Record<string, string>;
-  /** The deck's place in its variant family (ADR-042). Absent for a standalone deck. */
   family?: DeckFamilyEntry;
   onToggleFamily?: (familyId: string) => void;
 }) {
@@ -278,32 +252,21 @@ export function DeckTile({
     <div
       className={cn(
         cardLinkVariants(),
-        // No hover wash here: the domain gradient is an inline style that overrides
-        // the wash on legend decks, so drop it everywhere to keep tiles consistent.
         "ring-border group relative flex flex-col overflow-hidden rounded-lg ring-1 hover:bg-transparent data-[archived=true]:opacity-60",
-        // The deck name's link stretches over the whole tile through its ::after
-        // instead of the tile being one big anchor, because an anchor may not
-        // contain the menu and the badges that live in here. It is the only
-        // anchor in the tile, so the ring the root used to wear follows it.
+        // An anchor can't contain the menu and badges here, so the name's
+        // ::after link stretches over the tile, and the ring follows it.
         "has-[a:focus-visible]:ring-ring/50 has-[a:focus-visible]:ring-2",
-        // Anything that reacts to a hover has to sit above that overlay or it
-        // never sees one: every tooltip trigger, and every native title. The
-        // menu and the variant plates carry their own z-10.
+        // Must sit above the ::after overlay or hover never reaches them.
         "**:data-[slot=tooltip-trigger]:relative **:data-[slot=tooltip-trigger]:z-10",
         "[&_[title]]:relative [&_[title]]:z-10",
       )}
       data-archived={deck.archivedAt !== null}
       style={gradientStyle}
     >
-      {/* The menu rides above the art rather than sitting in the footer flow:
-          there it competed with the stats for width and got clipped by the
-          tile's overflow-hidden on narrow columns. */}
       <div className="bg-background/60 absolute top-2 right-2 z-10 rounded-md backdrop-blur-sm">
         {isLocal ? <LocalDeckActionsMenu item={item} /> : <DeckActionsMenu item={item} />}
       </div>
 
-      {/* Opposite corner from the menu, on the same plate treatment: the art is
-          the only place on a tile with room for it. */}
       {variantToggle && (
         <div className="bg-background/60 absolute top-2 left-2 z-10 rounded-md backdrop-blur-sm">
           {variantToggle}
@@ -323,7 +286,6 @@ export function DeckTile({
       />
 
       <div className="flex flex-1 flex-col gap-2 p-3">
-        {/* Name */}
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             {deck.isPinned && (
@@ -335,8 +297,6 @@ export function DeckTile({
                 aria-label="Archived"
               />
             )}
-            {/* The ::after is what makes the whole tile clickable. It resolves
-                against the tile root, the only positioned ancestor. */}
             <h3 className="min-w-0 truncate leading-tight font-semibold">
               <Link
                 to="/decks/$deckId"
@@ -361,7 +321,6 @@ export function DeckTile({
           )}
         </div>
 
-        {/* Domain icons, type counts + format badge */}
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1">
             <span className="flex shrink-0 items-center gap-1">
@@ -369,8 +328,6 @@ export function DeckTile({
                 <DomainIcon key={domain} domain={domain} />
               ))}
             </span>
-            {/* Truncates rather than pushing the format badge out of the tile:
-                a deck with four card types outruns a three-column layout. */}
             {typeSummary && (
               <span className="text-muted-foreground text-2xs ml-1 truncate">{typeSummary}</span>
             )}
@@ -389,10 +346,8 @@ export function DeckTile({
 
         <DeckFolderChips folderIds={item.folderIds} folderLabels={folderLabels} />
 
-        {/* Domain distribution */}
         {domainDistribution.length > 0 && <DeckDomainBar distribution={domainDistribution} />}
 
-        {/* Footer */}
         <DeckMetaLine item={item} className="mt-auto pt-1" />
       </div>
     </div>

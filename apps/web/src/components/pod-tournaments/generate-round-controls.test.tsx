@@ -99,7 +99,6 @@ describe("GenerateRoundControls", () => {
     await user.click(await screen.findByRole("option", { name: /Caitlyn/u }));
 
     expect(screen.getByRole("button", { name: "Sitting out 1" })).toBeInTheDocument();
-    // The seated count drops by the byed player.
     expect(screen.getByText("3")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Don't sit Caitlyn out" }));
@@ -156,7 +155,6 @@ describe("GenerateRoundControls", () => {
     await user.click(screen.getByRole("button", { name: "Drop players" }));
     await user.click(await screen.findByRole("option", { name: /Caitlyn/u }));
 
-    // Dropping is immediate — it is not held until the round is generated.
     expect(participantMutate).toHaveBeenCalledWith({
       id: "t1",
       participantId: "p3",
@@ -178,7 +176,6 @@ describe("GenerateRoundControls", () => {
     await user.click(await screen.findByRole("option", { name: /Ashe/u }));
     await user.keyboard("{Escape}");
 
-    // A dropped player can't be seated, so they can't hold a bye either.
     expect(screen.getByRole("button", { name: "Sit players out" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Generate next round" }));
     expect(generateMutate).toHaveBeenCalledWith({ id: "t1", byes: [] });
@@ -206,7 +203,6 @@ describe("GenerateRoundControls", () => {
       players: players.map((player) => ({ ...player, status: "dropped" as const })),
     });
 
-    // No one to sit out, but the organizer still needs a way back.
     expect(screen.queryByRole("button", { name: "Sit players out" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Drop players" }));
     expect(await screen.findByRole("option", { name: /Ashe/u })).toBeInTheDocument();

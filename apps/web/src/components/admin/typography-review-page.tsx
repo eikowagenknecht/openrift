@@ -10,10 +10,6 @@ import { useAcceptTypographyFix, useTypographyReview } from "@/hooks/use-typogra
 import type { DiffSegment } from "@/lib/text-diff";
 import { textDiff } from "@/lib/text-diff";
 
-/**
- * Renders diff segments for one side of the comparison.
- * @returns highlighted text nodes for either the "current" or "proposed" column
- */
 function renderDiffSide(segments: DiffSegment[], side: "current" | "proposed"): ReactNode[] {
   return segments.flatMap((seg, idx) => {
     if (seg.type === "equal") {
@@ -33,7 +29,6 @@ function renderDiffSide(segments: DiffSegment[], side: "current" | "proposed"): 
         </span>
       );
     }
-    // Skip removed segments on proposed side and added segments on current side
     return [];
   });
 }

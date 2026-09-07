@@ -47,13 +47,9 @@ import { formatCardId } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 import { liveTradeStatus, tradeStatusTitle } from "@/lib/trade-status-labels";
 
-/** What the grid resolved from the right-clicked tile. */
 export interface CopyDetailsTarget {
-  /** The tile's copies (one id in copies view, the whole stack otherwise). */
   copyIds: string[];
-  /** Card name for the dialog title. */
   cardName: string;
-  /** Printing per copy, for labeling rows when the tile spans printings. */
   printingByCopyId: Map<string, Printing>;
 }
 
@@ -65,20 +61,13 @@ const GRADED = "__graded";
 const MAX_LINKS = 10;
 const URL_PATTERN = /^https?:\/\//u;
 
-// 10 down to 1 in half steps, best first — slabs cluster at the top grades,
-// so the common picks sit at the start of the list. String values match
-// `String(copy.grade)` so the select round-trips stored grades exactly.
+// 10 down to 1 in half steps; string values match `String(copy.grade)` so the
+// select round-trips stored grades exactly.
 const GRADE_OPTIONS = Array.from({ length: 19 }, (_, index) => String(10 - index * 0.5));
 const GRADE_ITEMS = Object.fromEntries(GRADE_OPTIONS.map((grade) => [grade, grade]));
 
-/**
- * Per-copy metadata viewer/editor (ADR-038). With one target copy it opens
- * straight in the editor; with a stack it first lists the copies (condition
- * or grade summary per row) and edits the picked one. Keep mounted with a
- * null target so open/close animates.
- *
- * @returns The dialog.
- */
+// With one target copy it opens straight in the editor; with a stack it first
+// lists the copies and edits the one picked.
 export function CopyDetailsDialog({
   target,
   onOpenChange,
@@ -92,10 +81,8 @@ export function CopyDetailsDialog({
     target && target.copyIds.length === 1 ? target.copyIds[0] : null,
   );
 
-  // Seed the editor when a new target arrives: a single-copy tile skips the
-  // list and opens its one copy directly. Keyed off the target rather than a
-  // useState seed, because BaseUI only fires onOpenChange for user-initiated
-  // closes, so the dialog stays mounted across targets.
+  // Keyed off the target, not a useState seed: BaseUI only fires onOpenChange
+  // for user-initiated closes, so the dialog stays mounted across targets.
   const [seededTarget, setSeededTarget] = useState(target);
   if (seededTarget !== target) {
     setSeededTarget(target);
@@ -147,14 +134,8 @@ export function CopyDetailsDialog({
   );
 }
 
-/**
- * The distinct printings among a tile's copies, deduped by printing id, used as
- * the `siblings` list for `formatPrintingVariantLabel`. Deduping to the printings
- * actually on screen means the label only calls out attributes that differ
- * across these copies — a tile whose copies all share one printing stays
- * "Standard" rather than spelling out attributes no sibling contradicts.
- * @returns The unique printings, one per id.
- */
+// Deduped so the variant label only calls out attributes that differ across
+// the copies actually on screen.
 function distinctPrintings(printingByCopyId: Map<string, Printing>): Printing[] {
   const byId = new Map<string, Printing>();
   for (const printing of printingByCopyId.values()) {
@@ -163,12 +144,6 @@ function distinctPrintings(printingByCopyId: Map<string, Printing>): Printing[] 
   return [...byId.values()];
 }
 
-/**
- * The shortcode, distinguishing variant label, and (on mixed-rarity tiles) a
- * rarity icon for one printing — mirrors the card detail pane's printing rows
- * so copies that span printings are told apart the same descriptive way.
- * @returns The inline printing descriptor.
- */
 function PrintingDescriptor({ printing, siblings }: { printing: Printing; siblings: Printing[] }) {
   const hasMixedRarities = new Set(siblings.map((p) => p.rarity)).size > 1;
   const rarityIcon = getFilterIconPath("rarities", printing.rarity);
@@ -195,11 +170,6 @@ function PrintingDescriptor({ printing, siblings }: { printing: Printing; siblin
   );
 }
 
-/**
- * One indicator icon in a copy's summary row: an icon (with an optional count)
- * whose tooltip carries the detail (the note text, "Altered", the link list).
- * @returns The tooltip-wrapped icon.
- */
 function SummaryIcon({
   icon: Icon,
   label,
@@ -207,18 +177,14 @@ function SummaryIcon({
   count,
 }: {
   icon: LucideIcon;
-  /** Accessible name and default tooltip text. */
   label: string;
-  /** Tooltip body when it differs from the label (e.g. a note's text). */
   content?: string;
-  /** Rendered next to the icon (e.g. a link count). */
   count?: number;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger
-        // Not a tab stop: the picker row owns keyboard focus, and clicking an
-        // icon just selects the row (opening the editor with the full detail).
+        // Not a tab stop: the picker row owns keyboard focus.
         tabIndex={-1}
         className="text-muted-foreground inline-flex cursor-default items-center gap-0.5 text-sm"
         aria-label={label}
@@ -231,11 +197,6 @@ function SummaryIcon({
   );
 }
 
-/**
- * The condition/grade chip for a copy: the grader + grade when slabbed,
- * otherwise the raw condition, or nothing when neither is recorded.
- * @returns The badge, or `null`.
- */
 function ConditionBadge({ copy, labels }: { copy: CopyResponse; labels: EnumLabels }) {
   if (copy.grader !== null && copy.grade !== null) {
     return (
@@ -250,13 +211,6 @@ function ConditionBadge({ copy, labels }: { copy: CopyResponse; labels: EnumLabe
   return null;
 }
 
-/**
- * Summary of what a copy actually records — a condition/grade badge, the loan
- * and live-trade markers, plus an icon per marker (altered, notes, links).
- * "No details yet" shows only when the copy is genuinely blank, so an
- * altered-but-unrecorded copy is no longer mislabeled as having nothing.
- * @returns The indicator row, or a "No details yet" hint.
- */
 function CopySummary({
   copy,
   tradeAnnotation,
@@ -270,8 +224,6 @@ function CopySummary({
     return <span className="text-muted-foreground text-sm">No details yet</span>;
   }
 
-  // This copy's own flag decides whether it is one of the pinned ones. The
-  // printing's annotation supplies the word (see tradeAnnotationByCopyId).
   const trade = copy.reserved && tradeAnnotation ? liveTradeStatus(tradeAnnotation) : null;
 
   return (

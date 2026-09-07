@@ -5,9 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_TRADE_PREFERENCE, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
-// Two catalog printings of the same card, only the first of which is on the
-// list. Lets the detail-pane test tell the full catalog fan (2 printings)
-// apart from the list-scoped map (1 printing).
+// Two catalog printings of the same card; only the first is on the list.
 const printingOnList = stubPrinting({ id: "printing-1", cardId: "card-1" });
 const printingOffList = stubPrinting({ id: "printing-2", cardId: "card-1" });
 
@@ -38,7 +36,6 @@ vi.mock("@/hooks/use-cards", () => ({
 vi.mock("@/hooks/use-card-data", () => ({
   useCardData: () => ({
     sortedCards: [printingOnList],
-    // List-scoped map: only the printing actually on the list survives.
     printingsByCardId: new Map([["card-1", [printingOnList]]]),
     priceRangeByCardId: undefined,
     availableFilters: {},
@@ -99,9 +96,7 @@ vi.mock("@/components/cards/card-browser-filter-scaffold", () => ({
   BrowserActiveFilters: () => null,
 }));
 
-// Stands in for the virtualised grid: renders the detail pane (hosted via the
-// viewer's `rightPane` prop) plus, per item, the grid cell and the table's
-// actions cell with the per-row props the real table injects via cloneElement.
+// Stands in for the virtualised grid, rendering rightPane plus per-item cells.
 vi.mock("@/components/card-viewer", async () => {
   const { cloneElement } = await import("react");
   return {
@@ -136,13 +131,10 @@ vi.mock("@/components/card-viewer", async () => {
   };
 });
 
-// The tile art is irrelevant here; only the strip above it carries status.
 vi.mock("@/components/cards/card-cell", () => ({
   CardCell: ({ strip }: { strip?: unknown }) => <div>{strip as never}</div>,
 }));
 
-// The real pane renders nothing without a selection; this stub surfaces the
-// printing fan SharedListContent hands it, which is what the test asserts.
 vi.mock("@/components/selection-detail-pane", () => ({
   SelectionDetailPane: ({ printingsByCardId }: { printingsByCardId: Map<string, unknown[]> }) => (
     <div>Detail pane printings: {printingsByCardId.get("card-1")?.length ?? 0}</div>
@@ -171,9 +163,6 @@ const { useSelectionStore } = await import("@/stores/selection-store");
 
 const resetSelectionStore = createStoreResetter(useSelectionStore);
 
-// A printing-kind list pinning one specific printing. Regression: printing-
-// and copy-kind lists used to feed the detail pane the list-scoped printing
-// map, so the pane's picker hid every variant not on the list.
 const printingKindList: PublicListDetailResponse = {
   list: {
     id: "list-1",
@@ -207,8 +196,6 @@ const printingKindList: PublicListDetailResponse = {
   owner: { displayName: "Some Member", gravatarHash: null },
 };
 
-// A member's tradelist as a fellow group member sees it: one copy, already
-// pinned to a live trade someone else is party to.
 const reservedCopyTradelist: PublicListDetailResponse = {
   list: {
     ...printingKindList.list,
@@ -261,12 +248,9 @@ describe("SharedListContent", () => {
       </FilterSearchProvider>,
     );
 
-    // Both catalog printings, not just the one pinned by the list entry.
     expect(screen.getByText("Detail pane printings: 2")).toBeInTheDocument();
   });
 
-  // This surface is reachable through a share token, so it uses the shared
-  // chip: one word, no annotation, nothing that could name a counterparty.
   it("marks a reserved copy with the shared trade chip in both the grid and the table", () => {
     render(
       <FilterSearchProvider value={{}}>
@@ -274,7 +258,6 @@ describe("SharedListContent", () => {
       </FilterSearchProvider>,
     );
 
-    // One in the tile's strip, one in the table's actions column.
     const chips = screen.getAllByLabelText("Reserved");
     expect(chips).toHaveLength(2);
     for (const chip of chips) {
@@ -289,10 +272,7 @@ describe("SharedListContent", () => {
       </FilterSearchProvider>,
     );
 
-    // The owner's name is in the payload and in the exchange context, so it is
-    // available to leak. The chip takes no prop that could carry it.
     expect(screen.queryByText(/Poppy/u)).not.toBeInTheDocument();
-    // Nor does the reserved copy expose the claim controls.
     expect(screen.queryByRole("button", { name: /request/iu })).not.toBeInTheDocument();
   });
 });

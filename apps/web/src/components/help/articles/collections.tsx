@@ -28,10 +28,8 @@ export default function CollectionsArticle() {
         &quot;Lent to Sebastian&quot;. Every copy in your collection lives in exactly one place.
       </p>
 
-      {/* Overview diagram */}
       <Callout>
         <div className="flex flex-col gap-3 text-sm sm:flex-row">
-          {/* Sidebar mock */}
           <div className="bg-background flex flex-col gap-1.5 rounded-lg border p-3 sm:w-48">
             <span className="text-muted-foreground text-2xs mb-1 font-medium tracking-wide uppercase">
               Collections
@@ -61,7 +59,6 @@ export default function CollectionsArticle() {
             </div>
           </div>
 
-          {/* Grid mock */}
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
               <div className="bg-muted flex-1 rounded-md px-2 py-1 text-xs">
@@ -81,7 +78,6 @@ export default function CollectionsArticle() {
         </div>
       </Callout>
 
-      {/* Concept: physical location */}
       <section>
         <Heading className="mb-2">Collections as physical locations</Heading>
         <p className="text-muted-foreground">
@@ -100,7 +96,6 @@ export default function CollectionsArticle() {
         </p>
       </section>
 
-      {/* Deck building availability */}
       <section>
         <Heading id="deck-building-availability" className="mb-2">
           Deck building availability
@@ -125,7 +120,6 @@ export default function CollectionsArticle() {
         </Alert>
       </section>
 
-      {/* Getting started */}
       <section>
         <Heading className="mb-2">Getting started</Heading>
         <p className="text-muted-foreground">
@@ -141,7 +135,6 @@ export default function CollectionsArticle() {
         </p>
       </section>
 
-      {/* Adding cards */}
       <section>
         <Heading className="mb-2">Adding cards</Heading>
         <p className="text-muted-foreground">There are a few ways to add cards to a collection:</p>
@@ -172,7 +165,6 @@ export default function CollectionsArticle() {
         </p>
       </section>
 
-      {/* Organizing */}
       <section>
         <Heading className="mb-2">Organizing your cards</Heading>
 
@@ -200,7 +192,6 @@ export default function CollectionsArticle() {
         </div>
       </section>
 
-      {/* View modes */}
       <section>
         <Heading className="mb-2">View modes in collections</Heading>
         <p className="text-muted-foreground">
@@ -223,7 +214,6 @@ export default function CollectionsArticle() {
         </div>
       </section>
 
-      {/* Sidebar info */}
       <section>
         <Heading className="mb-2">The sidebar</Heading>
         <p className="text-muted-foreground">

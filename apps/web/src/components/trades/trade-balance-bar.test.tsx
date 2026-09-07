@@ -44,18 +44,13 @@ function trade(overrides: Partial<CardTradeResponse> = {}): CardTradeResponse {
   };
 }
 
-/**
- * The two colored segments of the rail, in DOM order (give, then get). The
- * spacer between them carries no inline style, so the style attribute is what
- * separates the segments from it.
- * @returns The amber and green segments, or null when no bar was drawn.
- */
+// The spacer between the two rail segments carries no inline style, so the
+// style attribute is what tells segments apart from it.
 function segments(container: HTMLElement): [HTMLElement, HTMLElement] | null {
   const found = container.querySelectorAll<HTMLElement>("span[style]");
   return found.length === 2 ? [found[0]!, found[1]!] : null;
 }
 
-/** @returns A segment's flex-grow factor as a number. */
 function grow(segment: HTMLElement): number {
   return Number(segment.style.flexGrow);
 }
@@ -71,9 +66,6 @@ describe("TradeBalanceBar", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // The bug: flex-grow factors are shares of the free space, and CSS hands out
-  // only their sum of it when that sum is under 1. Feeding raw money in meant a
-  // sub-1 deal drew a third of a bar and two thirds of bare track.
   it("fills the whole rail when the deal is worth less than one unit", () => {
     priceGetMock.mockReturnValue(0.16);
     const { container } = render(
@@ -106,8 +98,6 @@ describe("TradeBalanceBar", () => {
     expect(grow(get)).toBeCloseTo(0.25);
   });
 
-  // Priced at zero on both sides is still a priced deal, so the bar draws — and
-  // the share math must not divide by the zero total.
   it("draws an even split when both sides price at zero", () => {
     priceGetMock.mockReturnValue(0);
     const { container } = render(

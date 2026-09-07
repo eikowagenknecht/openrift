@@ -356,9 +356,7 @@ export function RoadmapPage() {
                   </div>
                 )}
                 <div className="flex gap-4">
-                  {/* Timeline column */}
                   <div className="flex w-20 shrink-0 flex-col items-center md:w-28">
-                    {/* Date label */}
                     <span
                       className={cn(
                         "mb-2 hidden text-xs md:block",
@@ -368,7 +366,6 @@ export function RoadmapPage() {
                       {item.done ? item.date : "Soon™"}
                     </span>
 
-                    {/* Dot */}
                     <div
                       className={cn(
                         "z-10 flex size-6 shrink-0 items-center justify-center rounded-full border-2",
@@ -384,12 +381,10 @@ export function RoadmapPage() {
                       )}
                     </div>
 
-                    {/* Connector line */}
                     {!isLast && (
                       <div
                         className={cn(
                           "w-0.5 flex-1",
-                          // Line between done items
                           item.done && roadmapItems[i + 1]?.done
                             ? "bg-primary/30"
                             : "bg-muted-foreground/15",
@@ -398,7 +393,6 @@ export function RoadmapPage() {
                     )}
                   </div>
 
-                  {/* Card */}
                   <div className={cn("flex-1 pb-6", isLast && "pb-0")}>
                     <Card
                       size="sm"
@@ -421,7 +415,6 @@ export function RoadmapPage() {
                         </CardDescription>
                       </CardHeader>
 
-                      {/* Mobile date */}
                       <p
                         className={cn(
                           "px-3 pb-3 text-xs md:hidden",

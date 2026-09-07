@@ -16,86 +16,39 @@ import { cn } from "@/lib/utils";
 export const CARD_TABLE_ROW_HEIGHT = 56;
 export const CARD_TABLE_HEADER_HEIGHT = 48;
 
-/** Layout for the rightmost actions column. */
 export type ActionsColumn = "none" | "narrow" | "stepper" | "wide";
 
-/** The static (non-actions) columns the row and header render, left to right. */
 type StaticColumnKey = "image" | "name" | "set" | "type" | "rarity" | "channel" | "notes";
 
 interface StaticColumn {
   key: StaticColumnKey;
-  /**
-   * grid-template-columns track for this column when it is not the stretcher
-   * (see {@link CardTableColumnOptions.stretch}). Never `auto` or `max-content`:
-   * every row is its own grid, so a content-sized track would size per row and
-   * the columns would stop lining up.
-   */
   track: string;
-  /** px contribution to the min-width floor (the name column uses its 180px min). */
   minPx: number;
 }
 
 const STATIC_COLUMNS: readonly StaticColumn[] = [
-  // 72px holds an h-8 art strip (32px tall × ~45px wide at the landscape-card
-  // ratio) plus the cell's px-3. The column was 60px while the thumb was
-  // portrait and only ~29px wide.
   { key: "image", track: "72px", minPx: 72 },
-  // Card names average 15 characters, so 240px seats the great majority and the
-  // long tail truncates under its own title rather than holding width open on
-  // every other row. Only a surface that points `stretch` elsewhere sees the
-  // cap; the catalog still grows this column to fill the table.
   { key: "name", track: "minmax(180px, 240px)", minPx: 180 },
   { key: "set", track: "160px", minPx: 160 },
   { key: "type", track: "200px", minPx: 200 },
   { key: "rarity", track: "130px", minPx: 130 },
-  // Two lines like the name column: the channel's own label, under the
-  // breadcrumb of everything it hangs under. 200px is a floor, not a fit — a
-  // deep channel's breadcrumb runs past 400px, which is why /promos makes this
-  // the stretcher rather than the name.
   { key: "channel", track: "200px", minPx: 200 },
-  // The floor holds the note icon plus three source marks, which covers every
-  // cited printing in the catalog today. Above it the column is flexible so a
-  // wide table spends its spare width spelling the note out rather than handing
-  // all of it to the name column; the cell watches its own width and falls back
-  // to the icons when the note would not fit.
   { key: "notes", track: "minmax(112px, 0.8fr)", minPx: 112 },
 ];
 
-// What a surface gets when it names no columns of its own. `channel` and
-// `notes` are left out: they only carry anything on promo printings, so on the
-// catalog they would be an empty track on every row.
 const DEFAULT_COLUMN_KEYS: readonly StaticColumnKey[] = ["image", "name", "set", "type", "rarity"];
 
-// A group axis whose value is already spelled out in every group header makes
-// the matching column redundant, so it's hidden while grouping by that axis.
-// The other axes (superType, domain, channel, year, marker) have no column.
 const GROUP_HIDDEN_COLUMN: Partial<Record<GroupByField, StaticColumnKey>> = {
   set: "set",
   type: "type",
   rarity: "rarity",
 };
 
-/** How a surface departs from the default column set. */
 export interface CardTableColumnOptions {
-  /**
-   * The static columns this surface wants. Order is ignored — the table renders
-   * them in the canonical left-to-right order either way, so the header, the
-   * rows and the grid tracks cannot drift apart.
-   */
   columns?: readonly StaticColumnKey[];
-  /**
-   * Which column absorbs the width past every column's minimum — it becomes the
-   * `1fr` track and the rest stop at their own maximum. Defaults to `name`,
-   * which is right when the alternatives are fixed-width facts (set, rarity);
-   * point it at a column whose content actually scales instead, and name stops
-   * growing into padding. Naming a column the surface does not render leaves the
-   * table short of the container, so keep the two in step.
-   */
   stretch?: StaticColumnKey;
 }
 
-// The static columns visible for the given column set, minus the one the
-// group-by axis already spells out in every group header.
 function visibleStaticColumns(
   groupBy?: GroupByField,
   options?: CardTableColumnOptions,
@@ -105,9 +58,6 @@ function visibleStaticColumns(
   return STATIC_COLUMNS.filter((column) => column.key !== hidden && wanted.has(column.key));
 }
 
-// Track width of the rightmost actions column. "narrow" is a read-only count;
-// "stepper" adds the +/- buttons (collections browse); "wide" additionally fits
-// the trade-pref pill + trash on list rows, with a little breathing room.
 const ACTIONS_WIDTH_PX: Record<Exclude<ActionsColumn, "none">, number> = {
   narrow: 96,
   stepper: 150,
@@ -115,15 +65,8 @@ const ACTIONS_WIDTH_PX: Record<Exclude<ActionsColumn, "none">, number> = {
 };
 
 /**
- * Resolve the gridTemplateColumns string for the card table — keeps every row,
- * the column header, and any group headers locked to identical track widths.
- * The rightmost actions column follows `actionsColumn` ("none" omits it); when
- * `groupBy` matches a set/type/rarity column, that column is dropped since the
- * group headers already show its value. One column is flexible — see
- * {@link CardTableColumnOptions.stretch} — so the table always fills its
- * container and only ever grows the column that can use the room.
- *
- * @returns CSS grid-template-columns value.
+ * Keeps every row, the column header, and any group headers locked to
+ * identical grid-template-columns track widths.
  */
 export function getCardTableColumns(
   actionsColumn: ActionsColumn,
@@ -140,17 +83,9 @@ export function getCardTableColumns(
   return tracks.join(" ");
 }
 
-// gap-3 (12px) between tracks. The table's horizontal-scroll wrapper uses the
-// min-width below so cells stay readable when the surrounding flex column is
-// squeezed (e.g. detail pane open at intermediate viewport widths).
 const COLUMN_GAP = 12;
 
-/**
- * Minimum total width (in px) of the table for the given actions-column variant
- * and group-by axis, used as the `min-width` of the horizontal-scroll wrapper.
- *
- * @returns Minimum table width in pixels.
- */
+/** Used as the `min-width` of the table's horizontal-scroll wrapper. */
 export function getCardTableMinWidth(
   actionsColumn: ActionsColumn,
   groupBy?: GroupByField,
@@ -176,24 +111,14 @@ const STATIC_COLUMN_HEADER: Record<StaticColumnKey, string> = {
 interface CardTableHeaderProps {
   columns: string;
   actionsColumn: ActionsColumn;
-  /** Group-by axis — the matching set/type/rarity column header is dropped. */
   groupBy?: GroupByField;
-  /** Column set, mirroring what the rows below render. */
   options?: CardTableColumnOptions;
-  /** When true, sticks to the top of the viewport at `stickyOffset`. */
   sticky?: boolean;
   stickyOffset?: number;
-  /** Show a bottom border. Drop it when group headers will visually separate the body. */
   bordered?: boolean;
-  /** Label for the rightmost column. Defaults to "Owned". */
   actionsLabel?: string;
 }
 
-/**
- * Column-header bar for the card table — used by the virtualized CardTable
- * (sticky) and the non-virtualized promo branch table (static).
- * @returns The column-header element.
- */
 export function CardTableHeader({
   columns,
   actionsColumn,
@@ -234,16 +159,10 @@ interface CardTableGroupHeaderProps {
   slug?: string;
   name: string;
   count: number;
-  /** When provided, the header text becomes a button (e.g. scroll-to-group). */
   onClick?: () => void;
-  /** When provided, renders a hover-visible `#anchorId` link next to the title. */
   anchorId?: string;
 }
 
-/**
- * Centered group-header row used between groups in the card table.
- * @returns The group-header row element.
- */
 export function CardTableGroupHeader({
   columns,
   slug,
@@ -285,37 +204,20 @@ interface CardTableRowProps {
   isSelected?: boolean;
   actionsColumn: ActionsColumn;
   columns: string;
-  /** Group-by axis — the matching set/type/rarity cell is dropped to mirror the header. */
   groupBy?: GroupByField;
-  /** Column set, mirroring what the header above renders. */
   options?: CardTableColumnOptions;
   cardTypeLabels: Record<string, string>;
   superTypeLabels: Record<string, string>;
   rarityLabels: Record<string, string>;
   setNameBySlug: Map<string, string>;
   onRowClick: (printing: Printing) => void;
-  /**
-   * Pre-bound content for the rightmost cell. Required when
-   * `actionsColumn !== "none"`. The wrapper styling (right-aligned text for
-   * "narrow", flex+gap for "wide") is owned by the row.
-   */
   actionsCell?: ReactNode;
-  /**
-   * Item id for this row. Surfaces with multiple items per printing (e.g.
-   * copy-kind lists) target the specific entry; falls back to `printing.id`
-   * when the surface has 1:1 items-to-printings.
-   */
   itemId?: string;
 }
 
 /**
- * Pure-presentation row for the card table. Owned counts, +/- buttons, and
- * any per-row data subscriptions live in the actions component passed via
- * {@link CardTableRowProps.actionsCell} (e.g. CatalogTableActions,
- * CollectionTableActions, StaticCountTableActions, DeckTableActions). The row
- * only owns the static cells (image, name, set, type, rarity) and the click
- * dispatch.
- * @returns The data-row element.
+ * Owned counts, +/- buttons, and per-row data subscriptions live in the
+ * actions component passed via `actionsCell`, not here.
  */
 export function CardTableRow({
   printing,

@@ -81,18 +81,13 @@ interface DeckExportDialogProps {
   isDirty: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Cards for a browser-local deck. Falls back to the live editor draft. */
   cards?: DeckBuilderCard[];
-  /** Set when the deck is only reachable by share token, never owned. */
   publicSource?: PublicDeckSource;
 }
 
 /**
- * Export dialog for the machine-readable deck data: the plain text list, the
- * Piltover deck code, and the Tabletop Simulator codes. The share image lives
- * in the share dialog and every PDF in the print dialog.
- *
- * @returns The export dialog element.
+ * Export dialog for the machine-readable deck data. The share image lives in
+ * the share dialog and every PDF in the print dialog.
  */
 export function DeckExportDialog({
   deckId,
@@ -103,8 +98,8 @@ export function DeckExportDialog({
   publicSource,
 }: DeckExportDialogProps) {
   const exportDeck = useExportDeck();
-  // A browser-local deck (ADR-035) or one reached by share token has no server
-  // row to export by id; encode its cards through the public endpoint instead.
+  // A local deck or one reached by share token has no server row to export by
+  // id; encode its cards through the public endpoint instead.
   const encodeDeck = useEncodeDeckCards();
   const fromCards = publicSource !== undefined || isLocalDeckId(deckId);
   // Subscribing the draft of a deck the viewer doesn't own would fetch someone
@@ -136,14 +131,12 @@ export function DeckExportDialog({
     discardMutations();
   }, [open]);
 
-  // Whichever mutation this deck exports through. In-flight and failed states
-  // are read off it rather than mirrored into `formats`, which only caches the
-  // code each format came back with.
+  // In-flight/failed state is read off the mutation, not `formats`, which
+  // only caches the code each format came back with.
   const exportMutation = fromCards ? encodeDeck : exportDeck;
 
-  // The deck itself is read as it stands when a format is first opened, not
-  // reactively: an edit landing behind the dialog must not silently refetch the
-  // text the user is in the middle of copying.
+  // Reads the deck as it stands when a format is first opened, not
+  // reactively, or an edit behind the dialog refetches mid-copy.
   const fetchFormat = useEffectEvent((format: ExportFormat) => {
     if (
       formats[format] ||
@@ -155,8 +148,6 @@ export function DeckExportDialog({
       setFormats((prev) => ({ ...prev, [format]: data }));
     };
     if (fromCards) {
-      // Use the passed-in cards when available (the list menu, where the draft
-      // collection isn't hydrated); fall back to the live editor draft.
       encodeDeck.mutate(
         { format, cards: toEncodeDeckCards(cardsProp ?? liveCards) },
         { onSuccess },

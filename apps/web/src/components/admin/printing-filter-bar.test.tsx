@@ -72,8 +72,6 @@ describe("usePrintingFilters", () => {
     expect(result.current.filters.availableSets).toEqual([["unnamed", "unnamed"]]);
   });
 
-  // The marker picker is only meaningful when the card mixes both kinds — with
-  // only markered (or only markerless) printings one option would always be empty.
   it("shows the marker picker only when both kinds are present", () => {
     expect(renderHook(() => usePrintingFilters(all)).result.current.filters.showMarkerFilter).toBe(
       true,

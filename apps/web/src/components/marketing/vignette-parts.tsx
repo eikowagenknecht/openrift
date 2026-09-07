@@ -5,11 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { ClipFrame } from "./clip-frame";
 
-/**
- * Pieces shared by the marketing miniatures. Everything here mirrors a real
- * app primitive that cannot be imported directly (see the dossier's list of
- * modules that drag in filter stores, recharts or data hooks).
- */
+// Reimplements real app primitives; importing them directly would drag in filter stores, recharts, or data hooks.
 
 export function Vignette({ children, className }: { children: ReactNode; className?: string }) {
   return <ClipFrame className={cn("flex flex-col gap-4 p-5", className)}>{children}</ClipFrame>;
@@ -19,11 +15,7 @@ export function VignetteHeading({ children }: { children: ReactNode }) {
   return <span className="text-muted-foreground text-xs font-medium">{children}</span>;
 }
 
-/**
- * Two states of the same element, stacked in one grid cell and crossfaded on
- * the shared 9s vignette cycle. The `now` layer is the base state, so reduced
- * motion (and the server render) shows the finished miniature.
- */
+// The `now` layer is the base state, so reduced motion and the server render show the finished miniature.
 export function Swap({
   was,
   now,
@@ -43,9 +35,8 @@ export function Swap({
   );
 }
 
-// The card edge in the app is a 1px inset ::after over a percentage elliptical
-// radius, never a border on the <img> — copied from AFTER_BORDER rather than
-// imported, because card-thumbnail.tsx pulls the whole thumbnail stack.
+// Mirrors AFTER_BORDER (a 1px inset ::after, never a border on the <img>);
+// not imported because card-thumbnail.tsx pulls in the whole thumbnail stack.
 const CARD_EDGE =
   "after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]";
 
@@ -66,19 +57,13 @@ export function MiniCardArt({ url, className }: { url: string; className?: strin
   );
 }
 
-/**
- * The overlapping art strip with a "+N" pill, mirroring `CardArtThumbStack`.
- * The app uses it wherever one row stands for many cards: the group cards, the
- * overview's trades band, the trade-hub member cards.
- * @returns The strip element.
- */
+// Mirrors `CardArtThumbStack`.
 export function ArtStrip({
   urls,
   extra,
   className,
 }: {
   urls: string[];
-  /** Cards beyond the ones shown, as the trailing pill. */
   extra?: number;
   className?: string;
 }) {
@@ -100,7 +85,6 @@ export function ArtStrip({
   );
 }
 
-/** The white circular energy glyph from DeckCardRow. */
 export function EnergyGlyph({ energy }: { energy: number }) {
   return (
     <span
@@ -113,7 +97,6 @@ export function EnergyGlyph({ energy }: { energy: number }) {
   );
 }
 
-/** One domain rune per point of power, like PowerPips in DeckCardRow. */
 export function PowerPips({ power, domain }: { power: number; domain: string }) {
   if (power <= 0) {
     return null;
@@ -127,10 +110,7 @@ export function PowerPips({ power, domain }: { power: number; domain: string }) 
   );
 }
 
-/**
- * A ghost strip icon button that is not a button: the miniatures sit inside a
- * link on the landing page, so nothing in them may be interactive.
- */
+// Not a real button: the miniatures sit inside a link, so nothing in them may be interactive.
 export function StripGlyph({ children }: { children: ReactNode }) {
   return (
     <span

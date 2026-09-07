@@ -41,20 +41,8 @@ import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useDeckFormatList, useZoneOrder } from "@/hooks/use-enums";
 import { deckCardsFromCheckEntry } from "@/lib/deck-check-save";
 
-/** Rendered width of one card in the read-only grid. */
 const PLAYER_CELL_WIDTH = 150;
 
-/**
- * The viewer's own deck in one tournament (ADR-026/027, re-homed under the
- * tournament by ADR-033): the list by zone, the lifecycle state, the judge's
- * player-facing message, and the state-dependent actions (edit and submit while
- * editable, unlock when submitted, request an unlock when approved). Never any
- * other entrant, never judge notes.
- *
- * The route guard only lets a viewer who holds an entry this far, so a missing
- * entry here means it was withdrawn (or the tournament changed) mid-visit.
- * @returns The page.
- */
 export function PlayerDeckPage({ tournamentId }: { tournamentId: string }) {
   const { data, isPending, isError } = useMyTournamentDeck(tournamentId);
 
@@ -89,12 +77,10 @@ export function PlayerDeckPage({ tournamentId }: { tournamentId: string }) {
   );
 }
 
-/** @returns The deck's state banners, sharing summary, and card grid. */
 function PlayerDeckBody({ data }: { data: PlayerDeckCheckEntryDetailResponse }) {
   const { entry } = data;
   const eventDate = entry.eventDate ? formatDay(entry.eventDate) : null;
-  // The deadline is the player's to plan around, so it renders on their own
-  // clock rather than the server's. Safe here: this route is `data-only`.
+  // Local time zone is safe only because this route is `data-only`.
   const closesAt = entry.submissionsCloseAt ? formatDayTimeLocal(entry.submissionsCloseAt) : null;
 
   return (
@@ -176,11 +162,7 @@ function PlayerDeckBody({ data }: { data: PlayerDeckCheckEntryDetailResponse }) 
   );
 }
 
-/**
- * The entry's lifecycle as one badge (ADR-027). The dashboard's My deck tile
- * names the same states as plain text, in `MY_DECK_STATE_LABEL`.
- * @returns The state badge.
- */
+// Mirrors the labels in `MY_DECK_STATE_LABEL`; keep both in sync.
 function PlayerStateBadge({
   state,
   reviewOutcome,
@@ -207,10 +189,6 @@ function PlayerStateBadge({
   return <Badge variant="secondary">Submitted</Badge>;
 }
 
-/**
- * One sentence describing what the player allows public platforms to show.
- * @returns The summary sentence.
- */
 function sharingSummary(allowPublish: boolean, allowName: boolean, allowRiotId: boolean): string {
   if (!allowPublish) {
     return "The organizer may not publish this deck list publicly.";
@@ -257,10 +235,6 @@ function DeckMetaSummary({ data }: { data: PlayerDeckCheckEntryDetailResponse })
   );
 }
 
-/**
- * Read-only zone-grouped card grid; one cell per line with a quantity chip.
- * @returns The grid.
- */
 function PlayerCardGrid({ cards }: { cards: DeckCheckEntryCardResponse[] }) {
   const { zoneLabels } = useZoneOrder();
   const cardsByZone = Map.groupBy(cards, (card) => card.zone);
@@ -338,13 +312,6 @@ function PlayerCardCell({ card }: { card: DeckCheckEntryCardResponse }) {
   );
 }
 
-/**
- * Copies the entry's resolved list into a new deck in the player's /decks
- * collection, named after the tournament. Available in every entry state,
- * since the list is the player's own. Hidden when no line resolved to a
- * catalog card.
- * @returns The button, or null.
- */
 function SaveToDecksButton({ data }: { data: PlayerDeckCheckEntryDetailResponse }) {
   const createDeck = useCreateDeck();
   const saveDeckCards = useSaveDeckCards();
@@ -375,16 +342,14 @@ function SaveToDecksButton({ data }: { data: PlayerDeckCheckEntryDetailResponse 
                 );
                 void navigate({ to: "/decks/$deckId", params: { deckId: deck.id } });
               },
-              // Reported by the global mutation error toast (see reportMutationError);
-              // still reset the pending flag so the button is clickable again.
+              // Error itself is reported by the global mutation toast.
               onError: () => {
                 setIsSaving(false);
               },
             },
           );
         },
-        // Reported by the global mutation error toast (see reportMutationError);
-        // still reset the pending flag so the button is clickable again.
+        // Error itself is reported by the global mutation toast.
         onError: () => {
           setIsSaving(false);
         },
@@ -399,12 +364,6 @@ function SaveToDecksButton({ data }: { data: PlayerDeckCheckEntryDetailResponse 
   );
 }
 
-/**
- * The state-dependent top-bar actions (ADR-027): replace + submit while
- * editable, unlock while submitted, request (or cancel) an unlock while
- * approved. Nothing once checked, withdrawn, or after the deadline.
- * @returns The action buttons, or null.
- */
 function PlayerDeckActions({
   entry,
   tournamentId,

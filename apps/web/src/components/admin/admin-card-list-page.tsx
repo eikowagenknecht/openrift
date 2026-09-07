@@ -27,9 +27,8 @@ const ALL_SETS = "__all__";
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
   const { data: access } = useAdminAccess();
-  // card-review grant holders share this page with full admins; everything
-  // beyond reviewing candidates (creating cards, marketplace data, the
-  // unmatched-products tab) is admin-only and hidden for them.
+  // card-review grant holders share this page with full admins; only card
+  // creation, marketplace data, and the unmatched-products tab are admin-only.
   const isAdmin = access?.isAdmin === true;
   const { data: unified } = useUnifiedMappingsWhen(isAdmin);
   const { data: setsData } = useSets();
@@ -49,9 +48,8 @@ export function AdminCardListPage() {
     setOptions.push({ value: setSlug, label: setSlug });
   }
 
-  // Each row carries the set slugs of its printings (accepted + pending
-  // candidates), so the set filter narrows both tabs — including cards whose
-  // only VEN printings are still unaccepted candidates.
+  // Each row carries the set slugs of both accepted and candidate printings,
+  // so the set filter narrows both tabs including still-unaccepted cards.
   const cards = filterCardsBySet(
     data.filter((r) => r.cardSlug),
     setSlug,

@@ -23,7 +23,6 @@ export function PodPairingsSection({
 }: {
   id: string;
   data: PodTournamentDetailResponse;
-  /** Region slug -> display label, from the custom-tag vocabulary. */
   regionLabel?: (slug: string) => string;
 }) {
   const rerollRound = useRerollTournamentRound();
@@ -62,9 +61,7 @@ export function PodPairingsSection({
     try {
       await action();
     } catch {
-      // The failure is reported by the global mutation onError toast; swallow
-      // the rejection here so the `void run(...)` call sites don't surface it
-      // as an uncaught promise.
+      // Reported by the global mutation onError toast.
     }
   }
 

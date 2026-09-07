@@ -31,8 +31,6 @@ describe("TradeStatusChip", () => {
     },
   );
 
-  // The word is the same on both sides, so the arrow is what a reader has to
-  // go on. It must actually change with the side.
   it("draws the two sides with opposite arrows", () => {
     const { container: out } = render(
       <TradeStatusChip
@@ -65,14 +63,10 @@ describe("TradeStatusChip", () => {
     expect(chip).not.toHaveTextContent("1");
   });
 
-  // A per-copy row stands for one physical card, so the annotation's
-  // printing-wide count would read as several times what is really in flight.
   it("keeps the word but drops the number in word detail", () => {
     render(
       <TradeStatusChip detail="word" annotation={annotation({ phase: "reserved", quantity: 2 })} />,
     );
-    // Dropping the count also drops it from the tooltip, so the title is the
-    // word and the direction alone.
     const chip = screen.getByTitle("Reserved (outgoing)");
     expect(chip).toHaveTextContent("Reserved");
     expect(chip).not.toHaveTextContent("2");
@@ -113,8 +107,6 @@ describe("TradeStatusChip", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  // Offered and Reserved both mean "do not promise this card again", so the
-  // chip must not draw Offered as the weaker of the two. Only a bid is soft.
   it.each([
     ["offered", "Offered (outgoing) · 1 copy"],
     ["reserved", "Reserved (outgoing) · 1 copy"],
@@ -137,8 +129,6 @@ describe("SharedTradeStatusChip", () => {
     expect(screen.getByTitle("Reserved")).toHaveTextContent("Reserved");
   });
 
-  // "Outgoing" is relative to a side of the trade, and whoever opens a share
-  // link is on neither. The private chips spell it out; this one must not.
   it("leaves the direction out of the tooltip", () => {
     render(<SharedTradeStatusChip count={2} />);
     expect(screen.queryByTitle(/outgoing/u)).toBeNull();
@@ -154,8 +144,6 @@ describe("SharedTradeStatusChip", () => {
     expect(screen.getByTitle("Reserved")).not.toHaveTextContent("2");
   });
 
-  // The public chip must stay unable to carry identity or negotiation detail.
-  // These are type errors, and typecheck fails if a prop ever accepts them.
   it("takes no prop that could carry a name or a phase", () => {
     render(
       <>

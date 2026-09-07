@@ -35,38 +35,15 @@ import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 import { sourceProviderDisplay } from "@/lib/meta-source-review";
 import { cn } from "@/lib/utils";
 
-/**
- * What each linked mirror would contribute to one event, beside what the
- * archive shows (ADR-014 revision 3).
- *
- * Two remedies, both here: reorder the sources, or claim a field for the
- * archive. There is deliberately no "take this cell" button — claiming writes
- * an overlay, which is the same row a user's correction is, so there stays
- * exactly one way a value leaves the sources' hands.
- *
- * Agreement is collapsed by default. Most fields agree on most events, and a
- * table where eight rows of "everyone concurs" surround the one that does not
- * buries exactly the thing the screen exists to surface.
- */
-
 type DriftField = MetaEventDrift["fields"][number];
 
-/** The contract's priority bounds, which the arrows clamp to at both ends. */
 const MIN_PRIORITY = 0;
 const MAX_PRIORITY = 999;
 
-/**
- * True when the field is one an overlay can claim. The drift view lists live
- * columns, which is a wider set than the overlay's own enum.
- *
- * @param field - The drift row's field name.
- * @returns Whether the row can be edited or released.
- */
 export function isOverlayField(field: string): field is MetaEventOverlayField {
   return (META_EVENT_OVERLAY_FIELDS as readonly string[]).includes(field);
 }
 
-/** A field is contested when a source published something the live row does not show. */
 export function isContested(field: DriftField): boolean {
   return (
     !field.claimedByOverlay &&
@@ -120,12 +97,6 @@ function SourceHeader({ source }: { source: MetaEventDrift["sources"][number] })
   );
 }
 
-/**
- * The form one field's overlay is written from.
- *
- * Prefilled with the live value, because the common correction is a small edit
- * to what a source published rather than something typed from nothing.
- */
 function ClaimForm({
   metaEventId,
   field,
@@ -134,7 +105,6 @@ function ClaimForm({
 }: {
   metaEventId: string;
   field: MetaEventOverlayField;
-  /** The value the form starts from, which is what the archive shows today. */
   live: string | null;
   onDone: () => void;
 }) {
@@ -214,7 +184,6 @@ function ClaimForm({
   );
 }
 
-/** Hands one claimed field back to the sources. */
 function ReleaseButton({
   metaEventId,
   field,
@@ -260,8 +229,6 @@ function FieldRow({
 }) {
   const [claiming, setClaiming] = useState(false);
   const contested = isContested(field);
-  // The drift view lists live columns, which is the wider set: a row outside
-  // the overlay's own vocabulary is readable but has nothing to claim.
   const editable = isOverlayField(field.field) ? field.field : null;
 
   return (
@@ -337,7 +304,6 @@ export function MetaEventDriftPanel({
   enabled,
 }: {
   metaEventId: string;
-  /** False while the panel's disclosure is closed, so drift is not joined for nothing. */
   enabled: boolean;
 }) {
   const { data, isPending, isError } = useMetaEventDrift(metaEventId, enabled);

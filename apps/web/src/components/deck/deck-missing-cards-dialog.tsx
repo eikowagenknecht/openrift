@@ -38,26 +38,12 @@ interface DeckMissingCardsDialogProps {
   missingCards: CardOwnership[];
   totalMissingValue: number | undefined;
   marketplace: Marketplace;
-  /**
-   * "missing" (default) frames the list as cards the viewer still needs;
-   * "prices" drops the ownership framing for anonymous viewers and shows
-   * the same rows as a price breakdown for the whole deck.
-   */
+  /** "prices" drops the ownership framing and shows a price breakdown instead. */
   mode?: "missing" | "prices";
-  /**
-   * Deck name used to pre-fill the wishlist name. When provided (and mode is
-   * "missing"), a "Create wishlist" button is shown that opens the
-   * wishlist-creation dialog seeded with these missing cards.
-   */
+  /** Pre-fills the wishlist name; shows the "Create wishlist" button when set (mode "missing"). */
   deckName?: string;
 }
 
-/**
- * Card rarity icon, short code, and display name. Opens the card detail on top
- * of this dialog when the row has a catalog printing; falls back to plain text
- * otherwise (a card with no catalog printings has nothing to show).
- * @returns The card identification content.
- */
 function CardIdentity({
   card,
   printing,
@@ -100,15 +86,8 @@ function CardIdentity({
   );
 }
 
-/**
- * Builds the "why is this locked" tooltip sentence for a missing-card row,
- * branching on which reasons actually contributed: out on loan, reserved for
- * a trade, or sitting in a collection excluded from deck building. Several
- * reasons read as alternatives ("out on loan or reserved for a trade"), since
- * the per-reason counts are not zone-capped the way `locked` is and so must
- * not be shown beside it.
- * @returns The tooltip sentence.
- */
+// Reasons are joined as alternatives, not counted per-reason: the per-reason
+// counts aren't zone-capped the way `locked` is, so they can't be shown beside it.
 function lockedTooltipText(card: CardOwnership): string {
   const reasons: string[] = [];
   if (card.lockedLoaned > 0) {
@@ -131,29 +110,16 @@ function lockedTooltipText(card: CardOwnership): string {
   return `You have ${card.locked} ${copyWord} that are ${rest} or ${last}.`;
 }
 
-/**
- * Tooltip for a row's incoming copies — cards on their way from a trade the
- * viewer has reserved but not settled (ADR-019). Separate from
- * {@link lockedTooltipText} because these copies aren't locked, and aren't the
- * viewer's yet: they explain part of the shortfall without reducing it.
- * @returns The tooltip sentence.
- */
+// Incoming copies aren't locked and aren't the viewer's yet: they explain
+// part of the shortfall without reducing it.
 function incomingTooltipText(card: CardOwnership): string {
   return card.incoming === 1
     ? "1 copy is on the way from a trade. It'll count once you've got it."
     : `${card.incoming} copies are on the way from a trade. They'll count once you've got them.`;
 }
 
-/**
- * Suspense boundary for the dialog below. Every call site mounts this dialog
- * while it is closed, so a suspending read inside it would be caught by
- * whatever boundary the *page* sits behind — hiding the page, which destroys
- * its effects. The deck editor lost the open zone that way: hiding ran its
- * unmount cleanup, which resets the builder's UI state. `null` is the right
- * fallback because a closed dialog renders nothing anyway.
- *
- * @returns The dialog, behind its own boundary.
- */
+// A suspending read inside this dialog, mounted while closed, would else be
+// caught by the page's own boundary and hide the whole page mid-edit.
 export function DeckMissingCardsDialog(props: DeckMissingCardsDialogProps) {
   return (
     <Suspense fallback={null}>
@@ -173,9 +139,7 @@ function MissingCardsDialogBody({
 }: DeckMissingCardsDialogProps) {
   const [wishlistPickerOpen, setWishlistPickerOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
-  // Which row's card detail is stacked on top, by printing id. The raw setter
-  // is handed to the overlay, which needs a stable identity for its history
-  // entry — see CardDetailOverlay.
+  // The raw setter is handed to the overlay: it needs a stable identity for its history entry.
   const [detailPrintingId, setDetailPrintingId] = useState<string | null>(null);
   const navigate = useNavigate();
   const fmt = formatterForMarketplace(marketplace);
@@ -193,16 +157,13 @@ function MissingCardsDialogBody({
 
   const groupedByZone = [...Map.groupBy(sorted, (card) => card.zone).entries()];
 
-  // The printing each row shows, in row order. Rows deep-link to (and open the
-  // detail for) the completion printing — the cheapest one that fills the
-  // shortfall — rather than the deck's displayed pin, see `CardOwnership`.
+  // Rows deep-link to the completion printing (cheapest one that fills the
+  // shortfall), not the deck's displayed pin.
   const rowPrintingIds = sorted.flatMap((card) => {
     const printing = card.cheapestPrinting ?? card.displayPrinting;
     return printing ? [printing.id] : [];
   });
 
-  // Fetch marketplace source metadata only when the dialog is open, so we don't
-  // send the extra request until the user actually needs the deep-link URLs.
   const { data: marketplaceInfo } = useMarketplaceInfo(open ? rowPrintingIds : []);
 
   const linkFor = (card: CardOwnership, printing: CardOwnership["displayPrinting"]): string => {
@@ -226,8 +187,7 @@ function MissingCardsDialogBody({
       })
       .join("\n");
 
-  // Pure `Nx Name` lines — Cardmarket's wants import matches by card name, so
-  // the short codes and prices of the readable list above would break it.
+  // Cardmarket's wants import matches by card name; short codes or prices break it.
   const cardmarketText = () => formatCardmarketWants(missingCardsToWants(sorted));
 
   const totalMissing = sorted.reduce((sum, card) => sum + card.shortfall, 0);
@@ -236,8 +196,6 @@ function MissingCardsDialogBody({
 
   const showWishlistButton = mode === "missing" && deckName !== undefined && sorted.length > 0;
 
-  // Tag and keyword chips in the detail have nothing to filter here, so they
-  // hand the query to the catalog and close both dialogs behind themselves.
   const handleSearchAndClose = (query: string) => {
     setDetailPrintingId(null);
     onOpenChange(false);
@@ -259,8 +217,6 @@ function MissingCardsDialogBody({
           </div>
         </DialogHeader>
 
-        {/* scrollbar-gutter keeps a classic scrollbar out of the row; the row's
-            pr-3 keeps the cart clear of an overlay scrollbar. */}
         <div className="max-h-80 [scrollbar-gutter:stable] overflow-y-auto text-sm">
           {groupedByZone.map(([zone, cards]) => (
             <div key={zone} className="pt-3 first:pt-0">
@@ -268,9 +224,6 @@ function MissingCardsDialogBody({
                 {zoneLabel(zone)}
               </SectionHeading>
               {cards.map((card) => {
-                // The viewer completes the deck by buying the cheapest
-                // acceptable printing, not the creator's (possibly premium)
-                // pin — see `CardOwnership.cheapestPrinting`.
                 const printing = card.cheapestPrinting ?? card.displayPrinting;
                 const price = card.cheapestPrice ?? card.displayPrice;
                 return (
@@ -278,8 +231,6 @@ function MissingCardsDialogBody({
                     key={`${card.cardId}:${card.zone}`}
                     className="hover:bg-muted/50 flex items-center gap-2 rounded-md py-1.5 pr-3 pl-2 sm:gap-3"
                   >
-                    {/* Small card thumbnail alongside the two stacked rows on mobile;
-                      hidden on desktop where the row is a single line. */}
                     <CardArtThumb
                       shape="strip"
                       imageId={printing?.imageId}
@@ -288,11 +239,8 @@ function MissingCardsDialogBody({
                       loading="lazy"
                       className="h-9 sm:hidden"
                     />
-                    {/* On mobile this column stacks the name over the price; on
-                      desktop `contents` dissolves it so both align inline with
-                      the cart. The cart stays a direct child of the row either
-                      way, so it centers against the full row height instead of
-                      sitting at the bottom of the stack. */}
+                    {/* sm:contents dissolves this wrapper so the cart stays a direct
+                        child of the row and centers on the full row height. */}
                     <div className="flex min-w-0 flex-1 flex-col gap-1 sm:contents">
                       <div className="flex min-w-0 items-center gap-1.5 sm:flex-1">
                         <CardIdentity
@@ -322,9 +270,6 @@ function MissingCardsDialogBody({
                                 <span className="text-muted-foreground inline-flex items-center" />
                               }
                             >
-                              {/* Same arrow the collection browser's trade chips
-                                  use for a card coming in, so the two surfaces
-                                  read as one vocabulary. */}
                               <ArrowDownLeftIcon className="size-3" />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-56 text-xs">
@@ -388,14 +333,11 @@ function MissingCardsDialogBody({
         onOpenPrintingIdChange={setDetailPrintingId}
         showImages={showImages}
         onSearchAndClose={handleSearchAndClose}
-        // Its own key: the page underneath already mounts a store-driven
-        // overlay, and neither may read the other's history entry as its own.
+        // Must differ from the page's own store-driven overlay's history key.
         historyKey="missingCardDetail"
       />
-      {/* Mounted only while open: AddToWishlistDialog reads the user's
-          wishlists with a suspense query in its body, and this dialog itself
-          stays mounted while closed, so an unconditional mount fetched (and
-          suspended on) wishlists for a picker nobody had opened. */}
+      {/* Mounted only while open: AddToWishlistDialog suspends on a wishlists
+          query in its body, and this dialog stays mounted while closed. */}
       {showWishlistButton && wishlistPickerOpen && (
         <AddToWishlistDialog
           open={wishlistPickerOpen}

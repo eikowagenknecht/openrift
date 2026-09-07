@@ -69,7 +69,6 @@ function tile(props: Partial<React.ComponentProps<typeof MetaArchiveDeckTile>> =
   return <MetaArchiveDeckTile deck={DECK} marketplace="cardtrader" {...props} />;
 }
 
-/** The tile frame, which owns the stretched permalink every other element sits under. */
 function frameOf(element: HTMLElement): HTMLElement {
   const frame = element.closest<HTMLElement>(".group");
   if (frame === null) {
@@ -95,9 +94,7 @@ describe("MetaArchiveDeckTile", () => {
     const legend = screen.getByRole("link", { name: "Kennen" });
     expect(legend).toHaveClass("relative");
 
-    // A positioned ancestor is a full-width flex child, so it would cover the
-    // stretched permalink across the whole card body while only the short name
-    // inside it led anywhere.
+    // A relative ancestor here would cover the stretched permalink.
     const frame = frameOf(legend);
     for (
       let node = legend.parentElement;

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { MetaContributors } from "./meta-contributors";
 
-/** @returns The rendered line's text, or null when nothing was rendered. */
 function line(names: string[]): string | null {
   render(<MetaContributors contributors={names} />);
   return screen.queryByText(/^Contributed by/u)?.textContent ?? null;

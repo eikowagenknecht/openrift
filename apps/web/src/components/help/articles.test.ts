@@ -34,9 +34,7 @@ describe("visibleHelpArticles", () => {
     );
   });
 
-  it("gates each flagged article independently", () => {
-    // Guards the original bug: the index dropped every article that merely had
-    // a `featureFlag`, so enabling one flag still showed nothing.
+  it("gates each flagged article independently, without hiding unrelated flagged articles", () => {
     for (const article of flaggedArticles) {
       const visible = visibleHelpArticles({ [article.featureFlag as string]: true });
       const slugs = visible.map((entry) => entry.slug);

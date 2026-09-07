@@ -3,13 +3,7 @@ import { imageUrl } from "@openrift/shared";
 import { ImgWithFallback } from "@/components/ui/img-with-fallback";
 import { cn } from "@/lib/utils";
 
-/**
- * A legend's splash beside a record. The crop is pulled toward the top third,
- * which is where the character sits on every Riftbound legend, and fades into the
- * card from the text side so the counters stay readable over it.
- *
- * @returns The artwork layer, or null when the card has no usable image.
- */
+/** The crop is pulled toward the top third, where the character sits on every Riftbound legend. */
 export function MetaHeroArt({ imageId, alt }: { imageId: string | null; alt: string }) {
   if (imageId === null) {
     return null;
@@ -30,7 +24,6 @@ export function MetaHeroArt({ imageId, alt }: { imageId: string | null; alt: str
   );
 }
 
-/** One number an archive hero states about what the page's record holds. */
 export function MetaHeroCounter({
   value,
   label,

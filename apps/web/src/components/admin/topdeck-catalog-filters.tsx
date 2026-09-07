@@ -14,10 +14,7 @@ import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
 const FORMAT_OPTIONS = [{ value: ANY, label: "Any format" }, ...TOPDECK_FORMAT_CHOICES];
 
-/**
- * The source answers about completed tournaments only, so there is no lifecycle
- * to filter and nothing can be awaiting results. Its format word takes that slot.
- */
+/** Topdeck covers completed tournaments only, so there's no lifecycle to filter; format takes that slot instead. */
 export function TopdeckCatalogFilters({
   filters,
   triage,

@@ -1,18 +1,9 @@
-/**
- * Every headline numeral on the archive is pinned to `en-US` grouping rather
- * than the runtime's locale: the page is server-rendered, and a server on a
- * different default would send "1.247" into a browser that then renders
- * "1,247".
- */
+// Pinned to `en-US` grouping (not the runtime's locale): the page is server-rendered,
+// and a server on a different locale would otherwise mismatch what the browser renders.
 function grouped(value: number): string {
   return value.toLocaleString("en-US");
 }
 
-/**
- * The archive's headline counts, all facts about what it holds in the scope the
- * page is showing: how many events, how many archived finishes, and how many of
- * those finishes a decklist is known for.
- */
 export function MetaArchiveCounts({
   eventCount,
   playerResultCount,

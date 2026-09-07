@@ -27,39 +27,18 @@ import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-/** Section label, matching the zone labels' small-caps grammar. */
 const TOKENS_LABEL = "Tokens";
-/** States what the band is, without telling the player what to do about it. */
 const TOKENS_HINT = "Created by cards in this deck. Not part of the deck itself.";
 
-/**
- * The front-face art of the printing a token entry stands for. Resolved from
- * the entry itself rather than the host's thumbnail resolver: the share page
- * builds that map from the deck's own cards, so a token would never be in it.
- *
- * @returns The image URL at that size, or undefined when the printing has no front art.
- */
 function tokenImageUrl(entry: DeckTokenEntry, size: "120w" | "400w"): string | undefined {
   const front = entry.printing.images.find((image) => image.face === "front");
   return front ? imageUrl(front.imageId, size) : undefined;
 }
 
-/**
- * Who asks for this token, as the hover title both layouts carry.
- *
- * @returns The token's name and the deck cards that create it.
- */
 function tokenTitle(entry: DeckTokenEntry): string {
   return `${entry.card.name}, from ${entry.sourceNames.join(", ")}`;
 }
 
-/**
- * The header's info affordance. The zone headers carry no description, so the
- * not-a-zone caveat sits in a tooltip instead of a second line, which would be
- * the one thing making this band look unlike the zones above it.
- *
- * @returns The info icon with its tooltip.
- */
 function TokensHint() {
   return (
     <Tooltip>
@@ -72,14 +51,6 @@ function TokensHint() {
   );
 }
 
-/**
- * One token thumb, at the same size and with the same chrome as a zone thumb.
- * Read-only by design: a token is never a deck entry (rule 133.7.c), so there
- * is no count, no printing pin and nothing to drag — but clicking opens the
- * detail exactly like a deck card does.
- *
- * @returns The token's card image, or a name card once its image fails to load.
- */
 function TokenThumb({
   entry,
   onSelect,
@@ -93,8 +64,7 @@ function TokenThumb({
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showFallback = !thumbnail || thumbnail === failedUrl;
   const isLandscape = entry.card.types.includes(WellKnown.cardType.BATTLEFIELD);
-  // Tokens are the overview's only zone-less items, so a null selected zone
-  // with a matching printing is this thumb and nothing else.
+  // Tokens have no zone, so a null selected zone with a matching printing means this thumb.
   const isSelected = useSelectionStore(
     (state) => state.selectedZone === null && state.selectedCard?.id === entry.printing.id,
   );
@@ -117,8 +87,6 @@ function TokenThumb({
       )}
     >
       {showFallback ? (
-        // The zone thumbs' name card, to the letter: a token with no art on
-        // file degrades exactly the way a deck card does.
         <div className="border-muted-foreground/25 bg-muted/30 flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-[inherit] border border-dashed p-2 text-center">
           <ImageOffIcon aria-hidden="true" className="text-muted-foreground/70 size-5 shrink-0" />
           <span className="text-muted-foreground line-clamp-3 text-xs">{entry.card.name}</span>
@@ -136,14 +104,6 @@ function TokenThumb({
   );
 }
 
-/**
- * One token as a list row, built on the same grammar as the deck list's rows:
- * art strip, domain pip, rarity + short code, name. The quantity slot stays
- * empty rather than reading "1×" — a token has no copy count — and the cards
- * that ask for it fill the space the price and ownership columns leave.
- *
- * @returns The row element.
- */
 function TokenRow({
   entry,
   domainColors,
@@ -178,8 +138,7 @@ function TokenRow({
         hideMetaOnMobile
       />
 
-      {/* Keeps the names on the same x as the zones' rows, which spend this
-          slot on the copy count. */}
+      {/* Aligns names with the zones' rows, which use this slot for the copy count. */}
       <span aria-hidden className="w-6 shrink-0" />
 
       <span className="min-w-0 flex-1 truncate">{entry.card.name}</span>
@@ -191,36 +150,19 @@ function TokenRow({
   );
 }
 
-/**
- * The tokens a deck puts on the table, rendered as one more band of the
- * overview — a zone-shaped header over thumbs in the grid views, a zone-shaped
- * section of rows in the list view.
- *
- * Not a zone, though: tokens can't be deck entries, and `DeckZone` is a closed
- * union keyed as `Record<DeckZone, …>` in the validation, drag and codec paths.
- * This is a derived, read-only block instead, so none of that has to know about
- * it. What it does share is the fold state (the UI store's collapsed set takes
- * a `"tokens"` key) and the detail overlay: `useDeckItems` appends the tokens
- * after the zones, so a click selects one and prev/next walks into them.
- *
- * Suspends through `useDeckTokens`. Both hosts mount it behind their hydration
- * gate inside a `Suspense` boundary.
- *
- * @returns The section, or null when the deck needs no tokens.
- */
+// Not a zone: `DeckZone` is a closed union keyed as `Record<DeckZone, …>` in the
+// validation, drag and codec paths.
 export function DeckTokensSection({
   cards,
   variant,
   onHoverCard,
 }: {
   cards: DeckBuilderCard[];
-  /** Which overview mode is showing — the band matches its surroundings. */
   variant: "grid" | "list";
   onHoverCard?: HoverHandler;
 }) {
   const tokens = useDeckTokens(cards);
-  // The same list the host hands its detail pane, so the index a click sets
-  // lines up with the pane's prev/next.
+  // Same list the host hands its detail pane, so a click's index lines up with prev/next.
   const { items } = useDeckItems(cards);
   const collapsed = useDeckBuilderUiStore((state) => state.collapsedZones.has("tokens"));
   const toggleCollapsed = useDeckBuilderUiStore((state) => state.toggleZoneCollapsed);
@@ -267,8 +209,6 @@ export function DeckTokensSection({
 
   return (
     <section className="flex flex-col gap-2">
-      {/* Same fixed-height header row as a zone tile, so the band's rule lines
-          up with the zones' above it. */}
       <div className="flex h-6 items-center gap-2 border-b">
         <ExpandToggle
           expanded={!collapsed}

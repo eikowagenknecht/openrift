@@ -53,7 +53,6 @@ import { useDeckFormatList } from "@/hooks/use-enums";
 import { runningRunId } from "@/lib/meta-catalog-display";
 import { META_EVENT_TIER_LABELS } from "@/lib/meta-format";
 
-/** The Select value that stands for "mapped to nothing of ours". */
 const UNMAPPED = "__unmapped";
 
 const TIER_ITEMS: Record<string, string> = {
@@ -61,12 +60,6 @@ const TIER_ITEMS: Record<string, string> = {
   ...META_EVENT_TIER_LABELS,
 };
 
-/**
- * One template's row. The mutation lives on the section rather than here, so a
- * fifty-template list holds one of them instead of fifty.
- *
- * @returns The template's row.
- */
 function TemplateRow({
   template,
   busy,
@@ -82,8 +75,8 @@ function TemplateRow({
     onUpdate({ templateId: template.templateId, watched });
   }
 
-  // BaseUI hands null when the open Select is dismissed without a pick. The
-  // clear is the explicit "Unmapped" item, so null is not one.
+  // BaseUI hands null when the open Select is dismissed without a pick; the
+  // "Unmapped" item is the explicit clear, so null is not one.
   function setTier(value: string | null) {
     if (value === null) {
       return;
@@ -168,18 +161,10 @@ function TemplateRow({
   );
 }
 
-/**
- * The field size that files an event as competitive whatever its template
- * says; saved on click since a half-typed number should not fire a request.
- *
- * @returns The player-count floor field.
- */
 function PlayerFloorField() {
   const { data } = useMetaSyncSettings();
   const update = useUpdateMetaSyncSettings();
   const [draft, setDraft] = useState("");
-  // A save answers with the stored row, so its stamp is what says the draft is
-  // stale and the server's value should be showing instead.
   const [seenAt, setSeenAt] = useState<string | null>(null);
   if (data !== undefined && data.updatedAt !== seenAt) {
     setSeenAt(data.updatedAt);
@@ -315,12 +300,6 @@ function TemplatesSection() {
   );
 }
 
-/**
- * One format string's row. The mutation lives on the section for the reason
- * {@link TemplateRow} states.
- *
- * @returns The format's row.
- */
 function FormatRow({
   format,
   options,
@@ -332,7 +311,7 @@ function FormatRow({
   busy: boolean;
   onUpdate: (input: MetaSourceFormatInput) => void;
 }) {
-  // Null is a dismissed Select, not a clear; unmapping is the "Unmapped" item.
+  // A dismissed Select reports null; unmapping is the "Unmapped" item, not null.
   function pick(next: string | null) {
     if (next === null) {
       return;
@@ -425,15 +404,6 @@ function FormatsSection() {
   );
 }
 
-/**
- * The source's own vocabulary, as the crawl discovered it (ADR-014): the event
- * templates the maintainer names and watches, and the format strings they map
- * onto ours. Both used to be hardcoded lists; a template appears here because a
- * crawled event ran it, so nothing is added or removed, only named.
- *
- * @param onClose - Closes the dialog.
- * @returns The vocabulary dialog.
- */
 export function MetaSourceVocabularyDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>

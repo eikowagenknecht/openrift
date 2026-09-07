@@ -18,12 +18,7 @@ interface GroupsJoinPageProps {
   code?: string;
 }
 
-/**
- * The request button, split out because `useJoinFriendGroupByCode` requires a
- * signed-in user and this page is reachable without one.
- *
- * @returns The join action.
- */
+/** Split out because useJoinFriendGroupByCode requires a signed-in user and this page doesn't. */
 function JoinAction({
   code,
   preview,
@@ -76,13 +71,6 @@ function JoinAction({
   );
 }
 
-/**
- * The landing page for an invite link. The code only ever arrives in the URL,
- * so a missing one means a mangled link rather than a typo, and reads the same
- * to the visitor as a code that has since been rotated away.
- *
- * @returns The join page.
- */
 export function GroupsJoinPage({ code = "" }: GroupsJoinPageProps) {
   const userId = useUserId();
   const preview = useQuery(friendGroupJoinPreviewQueryOptions(code));

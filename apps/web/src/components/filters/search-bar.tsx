@@ -41,27 +41,13 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
     onCommit: commitSearch,
   });
 
-  // Counts a prefix the user is still typing ("n:"), so the chip below swaps
-  // over on the colon rather than waiting for the first letter of the term.
+  // Also matches a prefix with no term yet ("n:"), so the chip swaps on the colon.
   const prefixFields = searchPrefixFields(localSearch);
   const hasPrefixes = prefixFields.length > 0;
 
-  // The unit is already on the trailing count ("142 copies"), so the
-  // placeholder doesn't repeat it — that just crowds the field on a phone.
   const placeholder = "Search...";
 
-  // The scope persists across searches and sessions, so a forgotten
-  // "keywords only" scope reads as broken search. Keep it visible as an
-  // in-field chip whenever it's narrowed, with its own remove X that resets
-  // to all fields — the input's clear X only clears the typed text. Explicit
-  // n:/k: prefixes override the scope, so the read-only prefix chip stands in
-  // for it while one is typed.
   const scopeNarrowed = !allSelected && !hasPrefixes;
-  // An un-narrowed scope still needs a way in, so the chip also appears on
-  // focus while the field is empty — the moment the user is deciding what to
-  // search, and the only moment where growing the leading addon can't shove
-  // typed text sideways. It stays put while its own menu is open, since that
-  // menu takes the focus the chip is mounted on.
   const focusedAndEmpty = searchFocused && localSearch === "";
   const showScopeChip = !hasPrefixes && (scopeNarrowed || scopeMenuOpen || focusedAndEmpty);
   const scopeChip = showScopeChip ? (
@@ -75,8 +61,6 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       inputRef={inputRef}
     />
   ) : undefined;
-  // A typed prefix beats the picked scope for that term, so the chip reports
-  // the prefix instead of a scope the query is ignoring.
   const leadingChip = hasPrefixes ? <SearchPrefixChip fields={prefixFields} /> : scopeChip;
 
   const cardCountLabel =
@@ -99,8 +83,6 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       trailing={`${cardCountLabel} ${unitLabel}`}
       onFocus={() => setSearchFocused(true)}
       onBlur={() => setSearchFocused(false)}
-      // Backspace on an empty field drops the scope chip, the way a chip
-      // input deletes the token left of the caret.
       onBackspaceEmpty={scopeNarrowed ? selectAllSearchFields : undefined}
       onKeyDown={(e) => {
         if (e.key === "Enter") {

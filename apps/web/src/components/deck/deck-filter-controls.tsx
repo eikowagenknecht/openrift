@@ -15,12 +15,6 @@ import { formatDomainFilterLabel } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-/**
- * Whether any deck filter would change the result for this deck set. Hosts use
- * it to decide whether to render a filter row at all, so an empty one never
- * takes up space.
- * @returns True when at least one control is worth showing.
- */
 export function hasUsableDeckFilters(
   availability: DeckListFilterAvailability,
   availableDomains: Domain[],
@@ -40,27 +34,14 @@ export interface DeckFilterControlsProps {
   availableDomains: Domain[];
   availability: DeckListFilterAvailability;
   counts: DeckListFilterCounts;
-  /** The user's folders. Empty while signed out, which hides the control. */
   folders?: DeckFolderResponse[];
-  /** "chip" for the mobile drawer's panel language, "button" for the compact bar. */
   triggerStyle?: "chip" | "button";
-  /** Render each control on its own row, as the drawer does. */
   stacked?: boolean;
 }
 
 /**
- * The deck list's filter controls, built from the card browser's own parts so
- * the two surfaces share one visual language: a multi-select dropdown for
- * format, the tri-state flag badge for legality, and the icon cluster for
- * domains — the same cluster `/cards` uses for its own domain filter. Format
- * and domain both cycle off → include → exclude → off through the shared
- * `cycleIncludeExclude` (ADR-034).
- *
- * A control that could not change the result is left out entirely (one format,
- * no invalid decks, a single domain). That is deck-specific and deliberate:
- * these lists are small enough that a dead dropdown is noise, where the card
- * browser always has enough data for every facet to mean something.
- * @returns The controls, or null when the deck set makes all of them useless.
+ * A control that could not change the result is left out entirely (one
+ * format, no invalid decks, a single domain).
  */
 export function DeckFilterControls({
   availableDomains,
@@ -91,27 +72,18 @@ export function DeckFilterControls({
   } = useDeckListFilters();
   const { formats: formatList } = useDeckFormatList();
   const { labels: enumLabels } = useEnumOrders();
-  // Same fit measurement the compact filter bar runs: the domain cluster shows
-  // its labels and counts inline whenever one row still has the room.
   const { barRef, measureRef, labelsFit } = useClusterLabelsFit();
 
   const showFormat = availability.hasMixedFormat;
   const showValidity = availability.hasMixedValidity;
   const showDrafts = availability.hasDrafts;
   const showDomains = availableDomains.length > 1;
-  // One folder is still worth a control, unlike one format: it splits the list
-  // into "in it" and "not in it", which is a real narrowing.
   const showFolders = folderList.length > 0;
 
-  // Still render for an active filter the deck set has since made pointless —
-  // a bookmarked `?domains=fury` on an all-Fury list hides every control, and
-  // without this the reset button goes with them.
   if (!hasUsableDeckFilters(availability, availableDomains, folderList) && !hasActiveFilters) {
     return null;
   }
 
-  // The drawer stacks its controls in a column with room to spare, so labels
-  // are always on there; only the single-row bar has to measure.
   const domainCluster = (showLabels: boolean) =>
     showDomains ? (
       <FilterIconCluster
@@ -163,8 +135,6 @@ export function DeckFilterControls({
         <FlagBadge
           label="Legal"
           triggerStyle={triggerStyle}
-          // The flag's include/exclude cycle is exactly the validity axis:
-          // require legal, require illegal, or don't care.
           state={validity === "all" ? null : validity === "valid"}
           count={
             validity === "invalid" ? counts.validity.get("invalid") : counts.validity.get("valid")
@@ -177,8 +147,6 @@ export function DeckFilterControls({
         <FlagBadge
           label="Draft"
           triggerStyle={triggerStyle}
-          // Drafts (ADR-042) read as a flag like legality does: keep only the
-          // drafts, keep only the finished lists, or don't care.
           state={drafts === "all" ? null : drafts === "only"}
           count={drafts === "hide" ? counts.drafts.get("hide") : counts.drafts.get("only")}
           onClick={cycleDrafts}
@@ -187,10 +155,8 @@ export function DeckFilterControls({
 
       {domainCluster(stacked === true || labelsFit)}
 
-      {/* Invisible measuring strip: the cluster as it would render with labels
-          on, so the fit check knows the width labels need whatever the current
-          state is — that independence is what stops the verdict oscillating.
-          Out of flow, invisible, and inert. */}
+      {/* Measures label width independent of the current fit state, or the
+          verdict oscillates. */}
       {!stacked && (
         <div
           ref={measureRef}

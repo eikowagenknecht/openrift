@@ -8,23 +8,14 @@ import {
 
 interface SelectModeActionsProps {
   mode: "browse" | "select";
-  /** Plural noun for the browse-mode label: "cards", "printings", "copies". */
   view: string;
   isAllSelected: boolean;
-  /** False hides the enter-select button — there is nothing to manage. */
   hasSelectableItems: boolean;
   onEnterSelect: () => void;
   onExitSelect: () => void;
   onSelectAll: () => void;
 }
 
-/**
- * Select-mode entry and exit for card-browser surfaces with bulk actions
- * (/collections, list pages): "Manage <view>" while browsing, "Select all" plus
- * "Done" once selecting. Lives in the page top bar; labels collapse to icons
- * below `sm` so a phone bar still fits the rest of the surface's actions.
- * @returns The top-bar buttons for the current mode.
- */
 export function SelectModeActions({
   mode,
   view,

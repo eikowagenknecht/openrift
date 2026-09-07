@@ -20,28 +20,14 @@ import {
 interface ScanAddAllDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The viewer's collections, in display order. */
   collections: CollectionResponse[];
-  /** How many identify-only cards the commit would add. */
   count: number;
-  /**
-   * The collection the scanner is already adding to, preselected so a session
-   * that switched out of identify-only commits its leftovers to the same
-   * place. Absent while the session only identifies.
-   */
   targetId?: string;
-  /** Commit the session to the chosen collection. */
   onConfirm: (collectionId: string) => void;
 }
 
-/**
- * The "scan first, decide later" commit step: readings the session only
- * identified turn into real copies in one go. The collection choice defaults
- * to the scanner's current target, or to the inbox while there is none, which
- * is where an undecided scan would have landed anyway.
- *
- * @returns The add-all confirmation dialog.
- */
+// Readings the session only identified turn into real copies in one go; the
+// collection choice defaults to the scanner's current target, or the inbox.
 export function ScanAddAllDialog({
   open,
   onOpenChange,

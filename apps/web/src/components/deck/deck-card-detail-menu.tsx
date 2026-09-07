@@ -12,11 +12,6 @@ interface DeckCardDetailMenuProps {
   children?: ReactNode;
 }
 
-/**
- * Wraps a deck-browser card with a context menu that opens the card detail view.
- * Fires on desktop right-click and mobile long-press.
- * @returns The wrapped children with the context menu attached.
- */
 export function DeckCardDetailMenu({ onViewDetail, children }: DeckCardDetailMenuProps) {
   return (
     <ContextMenu>

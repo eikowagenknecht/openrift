@@ -7,27 +7,10 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 interface PaletteFrameProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Screen-reader name for the dialog. */
   title: string;
   children: ReactNode;
 }
 
-/**
- * The shell every palette opens in: the centered dialog on desktop, the
- * swipeable drawer on phones.
- *
- * Shared so the global palette and the two quick-adds are the same object to
- * the user rather than three dialogs that happen to answer the same key. The
- * body is only mounted while open, which is what keeps a palette's catalog
- * reads and search index off the closed route.
- *
- * Which quick-add you are inside is said by the search box's leading token, not
- * by anything here: a level marker on its own row repeated the placeholder
- * below it, and put the way out nowhere near the caret it answers to. See
- * `PaletteScopeToken`.
- *
- * @returns The dialog (desktop) or drawer (mobile) host.
- */
 export function PaletteFrame({ open, onOpenChange, title, children }: PaletteFrameProps) {
   const isMobile = useIsMobile();
 

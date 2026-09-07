@@ -89,10 +89,6 @@ describe("buildOnDecrement", () => {
   });
 
   it("buckets owned variants per tile when grouped by set", async () => {
-    // Regression: a card reprinted in two sets must judge removal ambiguity per
-    // set tile, not across the whole card. Owning two OGN printings and one UNL
-    // printing means the OGN tile is ambiguous (open the popover) while the UNL
-    // tile removes its single printing directly.
     const ognTile = { id: "p1", cardId: "c1", setId: "set-ogn" } as Printing;
     const unlTile = { id: "p3", cardId: "c1", setId: "set-unl" } as Printing;
     const anchor = document.createElement("button");

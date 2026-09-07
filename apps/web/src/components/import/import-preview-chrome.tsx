@@ -5,16 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Pressable } from "@/components/ui/pressable";
 import { SOCIAL_LINKS } from "@/lib/social-links";
 
-/**
- * The status badge row shown above the import button on every import preview
- * (collections, decks, lists). Counts of zero are omitted, except `ready` which
- * always shows so the row is never empty.
- *
- * The badge row sits below the entry list, so with `onJumpToNeedsAttention` the
- * needs-attention count becomes the way back to the first row that needs work —
- * those rows are ordered among all the others, not gathered at the top.
- * @returns The badge row.
- */
 export function ImportStatusBadges({
   readyCount,
   toVerifyCount,
@@ -26,7 +16,6 @@ export function ImportStatusBadges({
   toVerifyCount: number;
   needsAttentionCount: number;
   skippedCount: number;
-  /** Makes the needs-attention badge a button that scrolls to the first such row. */
   onJumpToNeedsAttention?: () => void;
 }) {
   return (
@@ -38,8 +27,7 @@ export function ImportStatusBadges({
           <Badge
             variant="destructive"
             render={<Pressable />}
-            // The badge's own hover rules only target anchors, so a button
-            // rendering needs its feedback spelled out.
+            // Badge's built-in hover rules only target anchor renders.
             className="hover:bg-destructive/20"
             aria-label={`Jump to the first of ${needsAttentionCount} ${
               needsAttentionCount === 1 ? "row" : "rows"
@@ -56,12 +44,7 @@ export function ImportStatusBadges({
   );
 }
 
-/**
- * Folded list of source rows the parser could not turn into an entry at all.
- * `unit` names what a source record is called on the surface: a CSV import
- * reads rows, a plain-text list reads lines.
- * @returns The disclosure, or null when there is nothing to report.
- */
+/** `unit` names what a source record is called on the surface: CSV import reads rows, a plain-text list reads lines. */
 export function ImportParseErrorDetails({
   errors,
   unit,
@@ -90,11 +73,6 @@ export function ImportParseErrorDetails({
   );
 }
 
-/**
- * Folds the exactly-matched rows away so attention stays on the entries that
- * still need action. Children are the rendered rows.
- * @returns The disclosure, or null when nothing matched exactly.
- */
 export function ImportExactMatchesDisclosure({
   count,
   children,
@@ -118,10 +96,6 @@ export function ImportExactMatchesDisclosure({
   );
 }
 
-/**
- * Explains that best-guess rows import as-is.
- * @returns The note, or null when nothing needs verifying.
- */
 export function ImportToVerifyNote({ count }: { count: number }) {
   if (count === 0) {
     return null;
@@ -135,10 +109,6 @@ export function ImportToVerifyNote({ count }: { count: number }) {
   );
 }
 
-/**
- * Points users at the issue tracker when rows could not be matched.
- * @returns The note, or null when every row resolved.
- */
 export function ImportTroubleNote({ needsAttentionCount }: { needsAttentionCount: number }) {
   if (needsAttentionCount === 0) {
     return null;

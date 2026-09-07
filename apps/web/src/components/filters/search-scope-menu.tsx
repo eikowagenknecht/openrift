@@ -14,9 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 /**
- * Display name and typed prefix for every searchable field. The prefix rides
- * alongside the label in the menu's gutter, so the scope picker doubles as the
- * only documentation of the `n:` / `k:` search syntax.
+ * Display name and typed prefix for every searchable field; the picker
+ * doubles as the only documentation of the `n:` / `k:` search syntax.
  */
 export const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
   name: { label: "Name", prefix: "n:" },
@@ -30,10 +29,8 @@ export const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: s
 };
 
 /**
- * Human summary of the current scope for the chip: "all" while every field is
- * in, otherwise up to two field names with a "+N" tail so the chip can't grow
- * past the input's leading addon.
- * @returns The summary text, without the "in: " prefix.
+ * Human summary of the current scope, without the "in: " prefix: "all" while
+ * every field is in, otherwise up to two field names with a "+N" tail.
  */
 export function scopeSummary(scope: readonly SearchField[]): string {
   if (scope.length === ALL_SEARCH_FIELDS.length) {
@@ -51,13 +48,9 @@ interface SearchPrefixChipProps {
 }
 
 /**
- * Read-only echo of the `n:` / `k:` prefixes in the query, in the same slot the
- * scope chip uses. It appears the moment the colon lands, so a typed prefix
- * confirms itself the way picking a field from the menu does. It carries no
- * menu and no ×: the query text is the control, and editing it is how the
+ * Read-only echo of the `n:` / `k:` prefixes in the query, in the same slot
+ * the scope chip uses. No menu and no x: editing the query is how the
  * prefix goes away.
- *
- * @returns The prefix chip.
  */
 export function SearchPrefixChip({ fields }: SearchPrefixChipProps) {
   const summary = scopeSummary(fields);
@@ -80,22 +73,17 @@ interface SearchScopeChipProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /**
-   * The search input. Focus returns here when the menu closes — the chip is
-   * only mounted while the input is focused (or the menu open), so restoring
-   * focus to the trigger the way a popover normally does would unmount the
-   * element holding focus.
+   * The search input. Focus returns here when the menu closes: the chip
+   * unmounts once the input blurs, so restoring focus to the trigger instead
+   * would restore focus to a removed element.
    */
   inputRef: RefObject<HTMLInputElement | null>;
 }
 
 /**
- * The in-field search-scope chip and its picker. The chip reports which fields
- * a bare query searches ("in: all", "in: name +2") and opens an anchored menu
- * to change it; the trailing × resets to every field. Lives in the search
- * input's leading addon, so the picker never covers the filter chrome the way
- * a full-width panel below the input did.
- *
- * @returns The chip, with its popover menu.
+ * The in-field search-scope chip and its picker. The chip reports which
+ * fields a bare query searches ("in: all", "in: name +2") and opens an
+ * anchored menu to change it; the trailing x resets to every field.
  */
 export function SearchScopeChip({
   scope,
@@ -170,9 +158,6 @@ export function SearchScopeChip({
                 </span>
                 <span className="min-w-0 truncate">{label}</span>
               </Label>
-              {/* Narrowing to one field would otherwise mean unchecking seven.
-                  Explicit and labelled, rather than the old panel's invisible
-                  mode where a click meant "only this" while all were selected. */}
               {!isOnly && (
                 <Pressable
                   className="text-muted-foreground hover:text-foreground text-2xs rounded-sm"

@@ -66,14 +66,7 @@ const STATE_ORDER: Record<DeckCheckEntrySummaryResponse["state"], number> = {
   withdrawn: 4,
 };
 
-/**
- * The tournament's deck-check entrant list (ADR-033): search, unchecked-first
- * sort, live progress, and the add-player action. Polls so all judges share
- * state. Rendered inside the tournament's Deck check tab; the tournament page
- * owns the title, so this is just the working area. Re-resolving unmatched
- * cards lives on each deck's detail page, not this overview.
- * @returns The entrant-list content.
- */
+// Polls so all judges share state.
 export function TournamentDeckCheckEntries({
   tournamentId,
   canManage,
@@ -142,13 +135,6 @@ export function TournamentDeckCheckEntries({
   );
 }
 
-/**
- * The "Add deck" top-bar action for the tournament Deck check section: opens the
- * manual-entry dialog. Lifted out of the entrant list so it lives in the page's
- * top bar. Derives the taken-participant set from the entries query (one deck
- * per participant). Render only for hosts / organizers.
- * @returns The top-bar button and its dialog.
- */
 export function TournamentDeckCheckAddButton({ tournamentId }: { tournamentId: string }) {
   const { data: detail } = useTournamentDeckCheckEntries(tournamentId);
   const [addOpen, setAddOpen] = useState(false);
@@ -177,13 +163,6 @@ export function TournamentDeckCheckAddButton({ tournamentId }: { tournamentId: s
   );
 }
 
-/**
- * A compact physical-check progress chip for an entry row: the verified-over-total
- * copy count, tinted by completeness — green once every copy is ticked, amber while
- * a check is under way, muted before any copy is found. Hidden for an entry with no
- * cards (nothing to check).
- * @returns The progress chip, or null when there are no copies.
- */
 function CheckedProgressChip({ verified, total }: { verified: number; total: number }) {
   if (total === 0) {
     return null;
@@ -212,8 +191,7 @@ function EntryRow({
   canManage: boolean;
 }) {
   // The owning participant has left the event: flag the deck so a judge isn't
-  // checking a list for someone who is out (ADR-033). The deck entry itself is
-  // untouched — drop and the entry's own withdrawn state stay independent.
+  // checking a list for someone who is out. The entry's own state is untouched.
   const participantInactive =
     entry.participantStatus === "dropped" || entry.participantStatus === "no_show";
   return (
@@ -277,15 +255,6 @@ function EntryRow({
   );
 }
 
-/**
- * The per-row overflow menu: withdraw a live entry (or restore a withdrawn one)
- * and delete it outright, mirroring the controls on the entry detail page so a
- * host need not open each deck to manage it. Delete is confirmed because it
- * destroys the list and check history; withdraw is reversible, so it fires
- * directly. The list query is invalidated by the mutations, so the row updates
- * or drops in place.
- * @returns The entry's actions menu.
- */
 function EntryRowMenu({
   tournamentId,
   entry,
@@ -407,9 +376,6 @@ function AddDeckDialog({
   const [participantId, setParticipantId] = useState("");
   const [decklist, setDecklist] = useState("");
 
-  // A deck attaches to someone already on the roster who is still playing and
-  // doesn't have a deck yet (one deck per participant). If they're not on the
-  // roster, add them on the Participants tab first.
   const available = participants.items
     .filter(
       (participant) =>

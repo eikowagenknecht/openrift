@@ -2,13 +2,7 @@ import { ExternalLinkIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-/**
- * A link out to the public archive, shown wherever an admin row already has a
- * live counterpart. The archive pages live outside the admin shell, so this is
- * a plain anchor opening its own tab rather than a router `Link`.
- *
- * @returns The link button.
- */
+/** Archive pages live outside the admin shell, so this is a plain anchor, not a router `Link`. */
 export function MetaPublicLinkButton({
   href,
   label,
@@ -18,7 +12,6 @@ export function MetaPublicLinkButton({
   href: string;
   label: string;
   ariaLabel: string;
-  /** Set when the label is a slug or token rather than prose. */
   mono?: boolean;
 }) {
   return (

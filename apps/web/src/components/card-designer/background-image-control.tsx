@@ -7,12 +7,6 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 import { CARD_MAX_ZOOM, CARD_MIN_ZOOM } from "@/lib/card-designer";
 import { useCardDesignerStore } from "@/stores/card-designer-store";
 
-/**
- * Controls for the background image: upload / replace, a zoom slider, and
- * remove. Reposition happens by dragging the preview itself.
- *
- * @returns The background image control element.
- */
 export function BackgroundImageControl() {
   const dataUrl = useCardDesignerStore((state) => state.background.dataUrl);
   const scale = useCardDesignerStore((state) => state.background.scale);

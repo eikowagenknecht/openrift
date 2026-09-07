@@ -13,42 +13,22 @@ import {
 } from "./trade-preference-labels";
 
 interface ReadOnlyProps {
-  /** Resolved (entry-override ?? list-default) preference. */
   effective: EffectiveTradePreference;
   readOnly: true;
 }
 
 interface EditableProps {
-  /** Entry override values. Display falls back to `listDefault` when these are null. */
   override: TradePreference;
   listDefault: TradePreference;
-  /** Currency of the parent list. Required to format absolute prices. */
   currency: Currency | null;
-  /** True iff the entry override has any non-null field. */
   isOverridden: boolean;
-  /** Opens the editor (a dialog) — wired by the parent to the same dialog as
-   * the context menu so we have one editor surface, not two. */
   onEdit: () => void;
-  /** Optional disabled state (e.g. while a mutation is in flight). */
   disabled?: boolean;
   readOnly?: false;
 }
 
 type Props = ReadOnlyProps | EditableProps;
 
-/**
- * Compact indicator for an entry's effective trade preference.
- *
- * Read-only variant: renders the effective labels inline (used on shared-list
- * browse where there's room beneath the card title).
- *
- * Editable variant: renders an icon-only button that opens the parent's
- * dialog. The icon is muted when nothing is set, accented when an entry
- * override is in effect, and tinted when the row is using the list default.
- * A tooltip surfaces the current effective value so users can read it without
- * opening the dialog.
- * @returns The pill node, or `null` when read-only with nothing to display.
- */
 export function TradePreferencePill(props: Props) {
   if (props.readOnly) {
     const labels = preferenceLabels(props.effective);
@@ -77,10 +57,6 @@ export function TradePreferencePill(props: Props) {
   const ariaLabel = hasAnyPref
     ? `Edit trade preference (${labels.join(" · ")})`
     : "Set trade preference";
-  // Pill content: marketplace abbreviation ("CM" / "TCG" / "CT"), the
-  // formatted amount for absolute pricing, or the tag icon as a fallback
-  // (only trade-type set, or nothing set at all). Keeps the actions cell
-  // narrow while still telling the user the price reference at a glance.
   const pillBody = renderPillBody(effective);
   const Icon = TRADE_TYPE_ICON[effective.tradeType ?? "none"];
 
@@ -92,7 +68,6 @@ export function TradePreferencePill(props: Props) {
       onClick={props.onEdit}
       className={cn(
         "hover:bg-muted inline-flex h-6 shrink-0 items-center justify-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap transition-colors",
-        // visual states: empty (dashed muted), inherited from list (solid muted), overridden (accent)
         !hasAnyPref && "text-muted-foreground size-6 border-dashed px-0",
         hasAnyPref && !props.isOverridden && "text-muted-foreground",
         hasAnyPref && props.isOverridden && "text-primary border-primary/40",

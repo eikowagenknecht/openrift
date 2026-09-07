@@ -13,19 +13,14 @@ interface PrintingTarget {
 }
 
 interface PrintingSourceActionsProps {
-  /** Other printings this source can be assigned/moved/copied to */
   targets: PrintingTarget[];
-  /** Reassign to a target printing */
   onAssign?: (printingId: string) => void;
-  /** Copy data to a target printing */
   onCopy?: (printingId: string) => void;
-  /** Accept all fields from this source into the active printing */
   onAcceptAll?: () => void;
-  /** Remove manual assignment */
   onUnassign?: () => void;
-  /** Permanently ignore this source (omitted for card-review grant holders — triage is full-admin) */
+  /** Omitted for card-review grant holders; triage is full-admin. */
   onIgnore?: () => void;
-  /** Delete this source (omitted for card-review grant holders) */
+  /** Omitted for card-review grant holders. */
   onDelete?: () => void;
 }
 

@@ -26,11 +26,8 @@ vi.mock("@/components/cards/select-mode-actions", () => ({
 
 const { CollectionTopBar } = await import("./collection-top-bar");
 
-/**
- * Renders the bar for a collection the viewer administers, so the ⋮ menu is
- * present in every case and only the placement of the add actions varies.
- * @returns Nothing; assertions read from the screen.
- */
+// Renders the bar for a collection the viewer administers, so the ⋮ menu is
+// present in every case and only the placement of the add actions varies.
 function renderTopBar(overrides: {
   addActionsInBar: boolean;
   hasCards?: boolean;
@@ -77,8 +74,7 @@ function renderTopBar(overrides: {
 }
 
 describe("CollectionTopBar", () => {
-  // Both breakpoint variants of each action are in the DOM (CSS picks one), so
-  // these count matches rather than expecting a single node.
+  // Both breakpoint variants of each action are in the DOM; CSS picks one.
   it("keeps Scan and Quick add in the bar where adding is the point", () => {
     renderTopBar({ addActionsInBar: true });
 
@@ -102,8 +98,6 @@ describe("CollectionTopBar", () => {
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
-  // A collection with no copies auto-opens in library mode, so the empty state
-  // (and its own pair of buttons) never renders — the bar has to carry them.
   it("still offers both actions on a collection holding no cards", () => {
     renderTopBar({ addActionsInBar: true, hasCards: false });
 
@@ -128,8 +122,6 @@ describe("CollectionTopBar", () => {
     expect(await screen.findByRole("menuitem", { name: "Share" })).toBeInTheDocument();
   });
 
-  // "All cards" and the inbox already carry Scan and Quick add, so Share stays
-  // in the menu there rather than making a fourth labelled button.
   it("leaves Share menu-only where the bar carries the add actions", () => {
     renderTopBar({ addActionsInBar: true });
 

@@ -11,7 +11,6 @@ const IMAGE_URLS = [
   "https://img.example/e.webp",
 ];
 
-// fly-away (800ms) + all-collected delay (500ms), with headroom.
 const COLLECT_SETTLE_MS = 1500;
 
 describe("CardFan", () => {
@@ -34,9 +33,6 @@ describe("CardFan", () => {
   });
 
   it("keeps the fan cards out of the keyboard tab order", () => {
-    // The fan is an aria-hidden decorative minigame — clickable via pointer,
-    // but TAB should skip it. Native <button> elements are focusable by
-    // default, so each must be explicitly removed.
     const { container } = render(<CardFan imageUrls={IMAGE_URLS} />);
     const buttons = container.querySelectorAll("button");
     expect(buttons.length).toBeGreaterThan(0);

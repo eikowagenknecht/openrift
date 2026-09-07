@@ -27,19 +27,17 @@ import {
 import { getDomainColor } from "@/lib/domain";
 
 interface ChapterFeatureLink {
-  /** Anchor of the feature's section on the page, without the `#`. */
+  /** Without the `#`. */
   hash: string;
   label: string;
   icon: LucideIcon;
 }
 
 export interface FeatureChapter {
-  /** Chapter anchor id is `chapter-${id}`. */
   id: string;
   number: string;
   title: string;
   tagline: string;
-  /** Domain hex driving the chapter's ambient glow. */
   glowColor: string;
   icon: LucideIcon;
   features: ChapterFeatureLink[];
@@ -49,11 +47,6 @@ export function chapterAnchor(id: string): string {
   return `chapter-${id}`;
 }
 
-/**
- * The five acts of the features tour. Section content (copy, vignettes,
- * weights) lives in features-page.tsx; this is the shared structure the hero
- * TOC, the scroll-spy rail, and the chapter dividers all render from.
- */
 export const FEATURE_CHAPTERS: FeatureChapter[] = [
   {
     id: "collect",

@@ -85,35 +85,19 @@ function SharedListQuantityCell({
   return <StaticCountTableActions count={entryByItemId.get(itemId)?.quantity ?? 0} />;
 }
 
-// Stable empty so the non-request path doesn't allocate a fresh map each render.
 const EMPTY_PENDING_REQUESTS: ReadonlyMap<string, PendingRequest> = new Map();
 
-// Public visitor has no owned-count context, and custom tags are private to
-// their owner. Markers and channels stay visible (matching the public
-// collection share); both self-hide when no listed printing carries one.
 const SHARED_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set(["owned", "customTags"]);
 
-/**
- * The friend-group exchange surfaced on a member's shared list: a "Want" request
- * on a member's tradelist (`request`), or an "Offer" on a member's wishlist
- * (`offer`). Both contexts carry the same fields; `mode` selects the direction.
- */
+/** A "Want" request on a member's tradelist, or an "Offer" on a member's wishlist. */
 export type ListExchangeContext =
   | ({ mode: "request" } & TradelistRequestContext)
   | ({ mode: "offer" } & OfferToWishlistContext);
 
 interface SharedListContentProps {
   data: PublicListDetailResponse;
-  /** Back arrow rendered as the first slot inside the list header. */
   backLink?: React.ReactNode;
-  /** Callout rendered above the grid, e.g. the signed-out signup prompt. */
   notice?: React.ReactNode;
-  /**
-   * Enables the per-card friend-group exchange (Want on a tradelist, Offer on a
-   * wishlist). Passed only by the friend-group shared-list route, and only for a
-   * list viewed by someone other than its owner — never on the public share
-   * route.
-   */
   exchange?: ListExchangeContext;
 }
 
@@ -121,8 +105,6 @@ interface SharedListContentProps {
  * Public list browser: header + virtualised card grid. Shared between the
  * per-list public share route, the user-bundle nested list route, and the
  * friend-group shared-list route.
- *
- * @returns The full page body.
  */
 export function SharedListContent({ data, backLink, exchange, notice }: SharedListContentProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
@@ -157,9 +139,8 @@ function SharedListBody({
   exchange?: ListExchangeContext;
 }) {
   const hydrated = useHydrated();
-  // The top bar renders before hydration (so crawlers see the name + owner).
-  // The grid depends on the global catalog (useCards) plus client-only
-  // display + filter state, so defer that subtree.
+  // Top bar renders before hydration so crawlers see the name + owner; the grid
+  // needs client-only catalog and filter state, so it's deferred.
   if (!hydrated) {
     return null;
   }
@@ -184,25 +165,18 @@ function SharedListGrid({
   const channels = useChannelRegistry();
   const keywordReverseMap = useKeywordReverseMap();
   const isMobile = useIsMobile();
-  // The printing whose "I want this" dialog is open (request surfaces only).
   const [requestPrinting, setRequestPrinting] = useState<Printing | null>(null);
-  // The open "Offer" dialog target: the printings of the wanted card the viewer
-  // owns, plus how many the member wants (offer surfaces only).
   const [offerTarget, setOfferTarget] = useState<{
     choices: OfferablePrintingChoice[];
     wantQuantity: number;
   } | null>(null);
 
-  // Offer needs the viewer's own copies to know what they can give. The whole
-  // grid is client-only (gated above), so the SSR-unsafe live query is safe.
+  // Renders only when SharedListBody has gated this client-only; the query is SSR-unsafe otherwise.
   const { data: ownedCopies } = useCopies();
   const copyIdsByPrinting =
     exchange?.mode === "offer"
       ? personalCopyIdsByPrinting(ownedCopies)
       : new Map<string, string[]>();
-  // The printings (with backing copy ids) the viewer can offer against a wanted
-  // entry: the exact printing for a printing-kind wishlist, any printing of the
-  // card for a card-kind one, narrowed to what the viewer personally owns.
   const offerChoicesForPrinting = (printing: Printing): OfferablePrintingChoice[] => {
     const candidatePrintingIds =
       list.kind === "printing"
@@ -214,25 +188,18 @@ function SharedListGrid({
     }));
   };
 
-  // The viewer's pending "Want" request for each printing (trade id + claimed
-  // quantity), against this member in this group. Drives per-copy claim/release
-  // and marks exactly the claimed copies as requested. The query is polled and
-  // invalidated on every claim/release, so the markers track the live state.
+  // Polled and invalidated on every claim/release, so the markers track live state.
   const { data: userTrades } = useUserTrades();
   const pendingByPrinting =
     exchange?.mode === "request" && userTrades
       ? pendingRequestsByPrinting(userTrades.items, exchange.groupSlug, exchange.counterpartyUserId)
       : EMPTY_PENDING_REQUESTS;
 
-  // The viewer's wish-list membership, to flag cards they already want on a
-  // member's tradelist (a red heart in the strip, mirroring the group bulk box).
-  // Only fetched in request mode; safe (empty) for logged-out public viewers.
+  // Only fetched in request mode; empty for logged-out visitors.
   const wish = useWishEntries(exchange?.mode === "request");
 
-  // Claim/release resize the single live trade per printing rather than opening a
-  // second one (forbidden by the backend's unique-live-trade index): claiming the
-  // first copy opens the request dialog (to pick + share a wishlist), every later
-  // claim just bumps the quantity, and releasing decrements or cancels at zero.
+  // Claim/release resize the single live trade per printing; the backend's
+  // unique-live-trade index forbids opening a second one.
   const setTradeQuantity = useSetTradeQuantity();
   const cancelTrade = useCancelTrade();
   const tradeMutating = setTradeQuantity.isPending || cancelTrade.isPending;
@@ -265,9 +232,7 @@ function SharedListGrid({
     if (pending === undefined) {
       return;
     }
-    // Releasing the last claimed copy cancels the request; otherwise it just
-    // shrinks the quantity by one. Built outside the try so the React Compiler
-    // doesn't bail (it can't handle a conditional value inside try/catch).
+    // Built outside the try: the React Compiler can't handle a conditional value inside try/catch.
     const release =
       pending.quantity > 1
         ? setTradeQuantity.mutateAsync({
@@ -286,8 +251,6 @@ function SharedListGrid({
   const { filters, sortBy, sortDir, groupBy, hasActiveFilters } = useFilterValues();
   const { setSearch } = useFilterActions();
   const filterSearch = useFilterSearch();
-  // Public share mirrors the authenticated list page: the view is locked to
-  // the list's kind, and the view-mode toggle is hidden in the toolbar.
   const view: "cards" | "printings" | "copies" = kindToView(list.kind);
   const dataView: "cards" | "printings" = view === "copies" ? "printings" : view;
 
@@ -297,18 +260,12 @@ function SharedListGrid({
     printingsByCardId,
   );
 
-  // On a member's tradelist, surface how many of each printing the viewer
-  // already owns next to the "Want" button, so they don't request duplicates
-  // they don't need. Only the request surface shows this; the live query is
-  // safe because the whole grid is client-only (gated above).
   const { data: ownedCounts } = useOwnedCountsForPrintings(
     listPrintings.map((printing) => printing.id),
     exchange?.mode === "request",
   );
 
-  // Card-kind fan: scope the catalog map to the user's preferred languages
-  // so a public viewer sees the printings they care about, not every
-  // language reprint. Empty prefs means show all.
+  // Empty language prefs means show all.
   const userLanguages = useDisplayStore((state) => state.languages);
   const userScopedPrintingsByCardId = filterPrintingsByLanguages(printingsByCardId, userLanguages);
 
@@ -339,18 +296,15 @@ function SharedListGrid({
 
   const items: CardViewerItem[] = [];
   const entryByItemId = new Map<string, ListEntryDetailResponse>();
-  // The specific copy tiles to mark as "Requested": for each printing, the first
-  // N non-reserved copies, where N is the viewer's pending requested quantity.
-  // Marking individual copies (rather than the whole printing) leaves the rest of
-  // a multi-copy entry requestable. Reserved copies are skipped — they carry the
-  // "Reserved" marker already. Only relevant for the copy-kind tradelist view.
+  // Marks individual copy tiles, not whole printings, so unrequested copies of a
+  // multi-copy entry stay requestable. Reserved copies are skipped (already
+  // marked "Reserved").
   const requestedItemIds = new Set<string>();
   if (view === "copies") {
     for (const sortedPrinting of sortedCards) {
       let remainingRequested = pendingByPrinting.get(sortedPrinting.id)?.quantity ?? 0;
       for (const entry of entriesByPrintingId.get(sortedPrinting.id) ?? []) {
-        // One tile = one copy. Rule-derived copy entries (ADR-034) have no entry
-        // id, so key the tile on the copyId instead.
+        // Rule-derived copy entries have no entry id; fall back to copyId for the tile key.
         const itemId = entry.id ?? (entry.kind === "copy" ? entry.copyId : sortedPrinting.id);
         items.push({ id: itemId, printing: sortedPrinting });
         entryByItemId.set(itemId, entry);
@@ -386,36 +340,18 @@ function SharedListGrid({
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
-    // Card-kind lists fan every printing of the card behind the tile,
-    // scoped to the user's preferred languages. Other kinds stay scoped to
-    // printings actually on the list.
     const siblings =
       view === "cards"
         ? (list.kind === "card" ? userScopedPrintingsByCardId : filteredPrintingsByCardId).get(
             cardId,
           )
         : undefined;
-    // Surface the per-entry quantity so a visitor can see "I want 4 of this".
-    // Copy-kind lists have implicit quantity 1 per entry, so the strip
-    // adds nothing there.
     const entry = entryByItemId.get(item.id);
-    // A copy pinned to a live (accepted) trade — yours or another member's — can't
-    // be claimed; it carries the "Reserved" chip and no action.
     const reserved = entry?.kind === "copy" && entry.reserved;
-    // This specific copy is covered by one of the viewer's pending requests to
-    // this member. It shows a "Requested" badge (click to release) and no claim
-    // button. Reserved copies are never in this set, so the markers don't overlap.
+    // Reserved copies are never in requestedItemIds, so these two never overlap.
     const alreadyRequested = exchange?.mode === "request" && requestedItemIds.has(item.id);
-    // Strip = the per-card action. On a tradelist (request mode), only a claimable
-    // copy gets a "Claim" button — requested copies show no button (release is on
-    // the badge), and reserved copies show none. On a wishlist it's "Offer";
-    // otherwise the read-only quantity pill. Tradelists are copy-kind, so the
-    // action never collides with the quantity pill.
     let strip: React.ReactNode;
     if (exchange?.mode === "request") {
-      // Mirror the catalog: the owned-count pill opens the "in your collections"
-      // breakdown. Shown on every tradelist copy that the viewer owns, regardless
-      // of claim state.
       const ownedCount = ownedCounts?.totals[item.printing.id] ?? 0;
       const ownedSlot =
         ownedCount > 0 ? (
@@ -427,17 +363,8 @@ function SharedListGrid({
             align="start"
           />
         ) : undefined;
-      // A red heart when the viewer already wishes for this card, mirroring the
-      // group bulk box; click opens a popover listing every wishlist it's on.
-      // This is the cue that explains the request dialog: a wished card already
-      // matches a shared wishlist, so its first request skips the list picker.
       const wishEntries = wish.entriesForPrinting(item.printing.cardId, item.printing.id);
       const wishSlot = wishEntries.length > 0 ? <WishlistHeart entries={wishEntries} /> : undefined;
-      // The action and the status both live in this one strip row (right-aligned),
-      // so every tradelist copy keeps the same height: a claimable copy shows
-      // "Request", a requested copy shows "Requested ×" (click to release), and a
-      // reserved copy shows "Reserved". The owned-count and wish-heart pills sit
-      // left.
       strip = (
         <RequestStrip
           state={reserved ? "reserved" : alreadyRequested ? "requested" : "claimable"}
@@ -493,10 +420,6 @@ function SharedListGrid({
     />
   );
 
-  // The detail-pane picker lists every printing of the clicked card from the
-  // global catalog, scoped to the user's preferred languages — not just the
-  // printings on the list. The grid tiles keep their per-kind scoping; only
-  // the pane fans out.
   const detailPanePrintingsByCardId = userScopedPrintingsByCardId;
 
   const rightPane = isMobile ? undefined : (
@@ -523,9 +446,8 @@ function SharedListGrid({
     );
   }
 
-  // Override the filter-search `view` so the SearchBar's "Search X..." label
-  // and unit count match the locked view. Without this it falls back to the
-  // URL/default ("cards") on printing- and copy-kind lists.
+  // Without this override, filterSearch.view falls back to the URL/default
+  // ("cards") on printing- and copy-kind lists.
   return (
     <FilterSearchProvider value={{ ...filterSearch, view }}>
       <CardBrowserFilterProvider
@@ -626,15 +548,6 @@ function SharedListGrid({
   );
 }
 
-// Per-cell strip rendered above every copy on a member's tradelist. The status
-// and the action share one right-aligned slot so the row height never changes as
-// a copy moves between states: a claimable copy shows a "Request" button (first
-// request opens the dialog to pick + share a wishlist, later requests bump the
-// live request's quantity), a requested copy shows a "Requested ×" button that
-// releases one copy (decrement, or cancel at the last), and a reserved copy shows
-// a read-only "Reserved" chip. The owned-count and wish-heart pills, when
-// present, sit at the left. `disabled` guards against a request/release already
-// in flight.
 function RequestStrip({
   state,
   ownedSlot,
@@ -644,9 +557,7 @@ function RequestStrip({
   onRelease,
 }: {
   state: "claimable" | "requested" | "reserved";
-  /** Owned-count pill (collections popover), left-aligned. Omitted when the viewer owns none. */
   ownedSlot?: React.ReactNode;
-  /** Wishlist heart pill, left-aligned next to the owned count. Omitted when not wished. */
   wishSlot?: React.ReactNode;
   disabled?: boolean;
   onRequest: () => void;
@@ -663,12 +574,7 @@ function RequestStrip({
         )
       }
       right={
-        /* All three states share the count-pill shape so they read as one
-           control across cards; the two actionable ones carry a tint (neutral =
-           claimable, primary = requested by you) while the locked one is the
-           app-wide reserved chip. That chip takes no annotation and no text, so
-           this page can never spell out who the copy is promised to — it is
-           reachable through a share token with no session behind it. */
+        // Share-token access has no session: the reserved chip must never name who the copy is promised to.
         state === "reserved" ? (
           <SharedTradeStatusChip />
         ) : state === "requested" ? (
@@ -709,9 +615,6 @@ function RequestStrip({
   );
 }
 
-// Per-cell "Offer" pill rendered above a wishlist card; opens the offer flow.
-// Disabled when the viewer owns no copies of the card — you can only offer what
-// you have.
 function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
   return (
     <CardStrip
@@ -736,14 +639,7 @@ function OfferStrip({ disabled, onClick }: { disabled: boolean; onClick: () => v
   );
 }
 
-/**
- * Table-row request action for a member's tradelist. `printing` and `itemId` are
- * injected by the table via cloneElement; absent on header/placeholder rows. A
- * copy in one of the viewer's pending requests shows a "Requested" chip with a
- * release (×) button; a reserved copy shows a read-only "Reserved" chip; a
- * claimable copy shows the "Request" button.
- * @returns The request button, a release control, a Reserved chip, or null when no printing is bound.
- */
+/** `printing` and `itemId` are injected by the table via cloneElement; absent on header/placeholder rows. */
 function TradelistRequestActionsCell({
   printing,
   itemId,
@@ -796,12 +692,7 @@ function TradelistRequestActionsCell({
   );
 }
 
-/**
- * Table-row offer action for a member's wishlist. `printing` and `itemId` are
- * injected by the table via cloneElement; absent on the header/placeholder rows.
- * Disabled when the viewer owns no copies to offer.
- * @returns The offer button, or null when no printing is bound.
- */
+/** `printing` and `itemId` are injected by the table via cloneElement; absent on header/placeholder rows. */
 function OfferActionsCell({
   printing,
   itemId,
@@ -834,7 +725,6 @@ function OfferActionsCell({
   );
 }
 
-/** @returns Empty-state title text appropriate for a read-only viewer. */
 function emptyTitleFor(kind: ListKind): string {
   if (kind === "copy") {
     return "No copies on this list yet";

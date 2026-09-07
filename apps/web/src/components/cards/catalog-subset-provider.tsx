@@ -5,14 +5,12 @@ import type { ReactNode } from "react";
 import type { UseCardsResult } from "@/lib/catalog-query";
 import { enrichCatalogSubset } from "@/lib/catalog-query";
 
-/** Null outside a provider, which is what makes `useCards` fall back to the catalogue query. */
+/** Null outside a provider: `useCards` falls back to the catalogue query in that case. */
 export const CatalogSubsetContext = createContext<UseCardsResult | null>(null);
 
 /**
  * Serves `useCards` from the slice of the catalogue a page already holds, so
- * nothing under it fetches or dehydrates the whole thing. A consumer that has
- * to resolve a card outside the slice calls `useFullCatalog` instead.
- * @returns The provider.
+ * nothing under it fetches or dehydrates the whole thing.
  */
 export function CatalogSubsetProvider({
   catalog,

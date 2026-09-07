@@ -4,16 +4,7 @@ import type { ReactNode } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 
-/**
- * Shared empty/error state for the card viewers (grid and table). Shows a
- * connectivity error with a retry when nothing could be loaded
- * (`totalItems === 0`), or a no-results hint when the active filters excluded
- * every card. The caller provides the outer container.
- * @param props.totalItems How many items the surface has before filtering.
- * @param props.noResultsDescription Replaces the generic "try adjusting your
- *   filters" line when one filter in particular explains the empty result.
- * @returns The centered empty-state content.
- */
+/** Shows a connectivity error when nothing loaded, or a no-results hint when filters excluded everything. */
 export function CardViewerEmptyState({
   totalItems,
   noResultsDescription,

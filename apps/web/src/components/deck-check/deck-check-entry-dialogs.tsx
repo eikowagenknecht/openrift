@@ -57,13 +57,8 @@ export function EditPlayerDialog({
   const [allowRiotIdSharing, setAllowRiotIdSharing] = useState(entry.allowRiotIdSharing);
   const updateEntry = useUpdateTournamentDeckCheckEntry();
 
-  // Seed on the open transition, as a render-phase adjustment rather than an
-  // effect. The dialog has no DialogTrigger — the parent flips the controlled
-  // `open` prop — and BaseUI's Dialog only fires onOpenChange for user-initiated
-  // changes, so an onOpenChange re-seed never runs and the fields would show
-  // whatever `entry` held when the page first mounted. Keying the reset on the
-  // transition rather than on `entry` itself matters because the feeding query
-  // polls: re-seeding on every response would overwrite the judge mid-edit.
+  // Seeds on the open transition, not on `entry`: BaseUI's Dialog only fires
+  // onOpenChange for user changes, and the feeding query polls mid-edit.
   const [seededOpen, setSeededOpen] = useState(open);
   if (open !== seededOpen) {
     setSeededOpen(open);
@@ -182,11 +177,6 @@ export function EditPlayerDialog({
   );
 }
 
-/**
- * Card-name input with catalog typeahead, shared by the add-card and fix-card
- * dialogs. Free text stays valid (unknown names become flagged placeholders).
- * @returns The combobox field.
- */
 function CardNameSearchField({
   initialName,
   onNameChange,
@@ -214,27 +204,14 @@ function CardNameSearchField({
       results={results}
       onSearch={setQuery}
       onSelect={(_id, result) => onNameChange(result.label)}
-      // Free text is itself valid here: an unknown name becomes a flagged
-      // placeholder, so the field reports every keystroke, not just picks.
       onRawInputChange={onNameChange}
     />
   );
 }
 
-/** How many name matches the deck-check field offers. */
 const MAX_NAME_MATCHES = 8;
-
-/** One letter is a useful filter here, the way it is in the palettes. */
 const MIN_QUERY_LENGTH = 1;
 
-/**
- * Name matches for the deck-check field: one representative printing per card,
- * ranked by the app-wide matcher. Matches the colloquial Legend name too, so
- * "Azir" finds "Emperor of the Sands" (displayed as "Azir, Emperor of the
- * Sands").
- *
- * @returns Up to {@link MAX_NAME_MATCHES} representative printings.
- */
 function useMatchingPrintings(
   printingsByCardId: ReadonlyMap<string, Printing[]>,
   query: string,
@@ -249,8 +226,7 @@ function useMatchingPrintings(
                 id: printing.cardId,
                 slug: printing.cardId,
                 name: legendDisplayName(printing.card),
-                // A decklist may spell the card either way, so both forms have
-                // to find it.
+                // A decklist may spell the card either way; match against both forms.
                 altNames: cardSearchAltNames(printing.card, [printing.printedName]),
                 printing,
               },
@@ -260,8 +236,8 @@ function useMatchingPrintings(
     [printingsByCardId],
   );
 
-  // Names only: the judge is reading a decklist, not a card in hand, so there
-  // is no code to type and the codes map would just cost an index rebuild.
+  // Names only: the judge reads a decklist, not a card in hand, so there is no
+  // code to type here.
   const matches = useCardSearch(searchable, query, undefined, MAX_NAME_MATCHES, MIN_QUERY_LENGTH);
   return matches.map((row) => row.printing);
 }
@@ -280,9 +256,8 @@ export function FixCardDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /**
-   * Restrict the dialog to moving the card between zones, leaving its name (and
-   * thus its catalog identity) fixed. Used once a list is approved or checked,
-   * where re-identifying a card would amount to swapping it out.
+   * Restricts the dialog to moving zones, keeping the card's catalog identity
+   * fixed. Used once a list is approved or checked.
    */
   zoneOnly?: boolean;
 }) {
@@ -292,9 +267,7 @@ export function FixCardDialog({
   const [copies, setCopies] = useState(String(card.quantity));
   const fixCard = useFixTournamentDeckCheckCard();
 
-  // Seed on the open transition — see the note in EditPlayerDialog. This dialog
-  // is reused for every row in the checklist, so without the reset it would
-  // reopen holding the previously fixed card's name and zone.
+  // This dialog is reused per row: fields reset only when `open` transitions to true.
   const [seededOpen, setSeededOpen] = useState(open);
   if (open !== seededOpen) {
     setSeededOpen(open);
@@ -306,7 +279,6 @@ export function FixCardDialog({
   }
 
   const zoneChanged = section !== card.zone;
-  // Only a multi-copy line moving to a different zone can be split.
   const splittable = zoneChanged && card.quantity > 1;
   const parsedCopies = Number(copies);
   const copiesValid =

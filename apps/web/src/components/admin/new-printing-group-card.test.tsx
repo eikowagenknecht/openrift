@@ -4,8 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { PrintingGroup } from "@/components/admin/candidate-spreadsheet";
 import type * as CardDetailShared from "@/components/admin/card-detail-shared";
 
-// Capture the props the group card hands to CandidateSpreadsheet so we can assert
-// the cost-keyword list is forwarded to the "Fix" reformat path.
 const spreadsheetProps: { costKeywords?: readonly string[] } = {};
 vi.mock("@/components/admin/candidate-spreadsheet", () => ({
   CandidateSpreadsheet: (props: { costKeywords?: readonly string[] }) => {
@@ -43,10 +41,6 @@ const group = {
 const noop = () => {};
 
 describe("NewPrintingGroupCard", () => {
-  // Regression: the "Fix" button reformats via fixTypography, which only keeps a
-  // cost keyword's glyphs inside its bracket (e.g. [Empower :rb_energy_1:]) when
-  // the keyword is in the forwarded costKeywords list. When the group card
-  // dropped the prop, every Fix click ejected the glyphs to [Empower] :rb_...:.
   it("forwards costKeywords to the candidate spreadsheet's Fix reformat", () => {
     render(
       <NewPrintingGroupCard
@@ -76,10 +70,6 @@ describe("NewPrintingGroupCard", () => {
     expect(spreadsheetProps.costKeywords).toEqual(["Empower"]);
   });
 
-  // The server suggests the closest accepted printing when no existing printing
-  // matches the group's expected id exactly (marker/finish/case drift). The
-  // header then offers a one-click assign labelled with the target so the admin
-  // sees what they would link to.
   it("offers a one-click assign to the suggested printing when no exact match exists", () => {
     const onLink = vi.fn();
     const suggestedGroup = {
@@ -124,8 +114,6 @@ describe("NewPrintingGroupCard", () => {
     const exactGroup = {
       groupKey: "g1",
       expectedPrintingId: "OGN-066::foil",
-      // The server still fills the suggestion (it prefers the exact match);
-      // the exact button must win so only one assign action renders.
       suggestedPrintingId: "p-exact",
       candidates: [],
     } as unknown as PrintingGroup & { groupKey: string };

@@ -15,12 +15,8 @@ interface RefreshCountdownButtonProps {
 }
 
 /**
- * Top-bar Refresh action for an auto-refreshing admin page, counting down to the
- * next automatic fetch. Both readings come off the viewer's clock, so they stay
- * hidden until hydration — rendering them in the SSR pass would mismatch every
- * non-UTC visitor.
- *
- * @returns The refresh button.
+ * Both readings come off the viewer's clock, so they stay hidden until hydration:
+ * rendering them in the SSR pass would mismatch every non-UTC visitor.
  */
 export function RefreshCountdownButton({
   onRefresh,

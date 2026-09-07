@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/** The shape every citation list shares: a free label and an optional link. */
 export interface EditableCitation {
   id: string;
   label: string;
@@ -15,39 +14,22 @@ export interface EditableCitation {
 
 interface SourceCitationsEditorProps<T extends EditableCitation> {
   citations: readonly T[];
-  /** True while the list itself is still loading. */
   isPending: boolean;
-  /** Sentence under the heading saying what this list is for. */
   description: ReactNode;
-  /** Sentence shown in place of the list when nothing is cited yet. */
   emptyText: string;
-  /** Example value for the label field, e.g. "Twitch VOD". */
   labelPlaceholder: string;
-  /**
-   * Prefix for the two field ids. Distinct per surface, so a page hosting more
-   * than one editor never points two `<Label htmlFor>` at the same input.
-   */
+  /** Distinct per surface, so a page hosting more than one editor never
+   * points two `<Label htmlFor>` at the same input. */
   idPrefix: string;
   creating: boolean;
   deleting: boolean;
   onAdd: (input: { label: string; sourceUrl: string | null }) => Promise<unknown>;
   onDelete: (citationId: string) => void;
-  /** Optional mark next to a citation's label (meta's provider badge). */
   renderBadge?: (citation: T) => ReactNode;
-  /**
-   * When this returns a string, the row cannot be deleted here and says so
-   * instead. Meta uses it for provider rows, which are owned by their
-   * candidate's link.
-   */
+  /** When this returns a string, the row cannot be deleted here and says so instead. */
   lockedReason?: (citation: T) => string | null;
 }
 
-/**
- * One citation row: its label, an optional badge, its link, and either a delete
- * button or the reason it has none.
- *
- * @returns The citation row.
- */
 function CitationRow<T extends EditableCitation>({
   citation,
   deleting,
@@ -98,13 +80,8 @@ function CitationRow<T extends EditableCitation>({
 }
 
 /**
- * The citation list as an admin edits it: what the public page credits, plus a
- * form for adding another. Shared by the meta archive's event editor and the
- * catalog's promo printings — the two lists differ in what owns a row, not in
- * how a citation looks or is entered, so the differences arrive as the
- * `renderBadge` / `lockedReason` callbacks rather than a second copy of this.
- *
- * @returns The citation editor.
+ * Shared by the meta archive's event editor and the catalog's promo printings;
+ * per-surface differences arrive via the `renderBadge` / `lockedReason` callbacks.
  */
 export function SourceCitationsEditor<T extends EditableCitation>({
   citations,

@@ -45,11 +45,8 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
   const { data: orgsData } = useMyOrganizations();
   const { data: groupsData } = useFriendGroups();
 
-  // The route hands us a group id (a uuid). Resolve it against the viewer's own
-  // groups: an unknown value (a slug passed by mistake, or a group the viewer
-  // left) falls back to "none" so it can never reach the `z.uuid()` create
-  // contract as a group id. This is the type-safety backstop for the create-
-  // from-group prefill.
+  // Falls back to "none" for an unknown group id so it never reaches the
+  // `z.uuid()` create contract as a group id.
   const initialGroupId =
     defaultGroupId && groupsData.items.some((group) => group.id === defaultGroupId)
       ? defaultGroupId
@@ -118,7 +115,6 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
       setRoundsChoice("swiss-bo1");
     }
   }
-  // Points inputs: an integer 0-99, kept as text for controlled editing.
   const parsePoints = (text: string): number | null => {
     if (!/^\d{1,2}$/u.test(text.trim())) {
       return null;
@@ -148,8 +144,8 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
         : ({ type: "organization", orgId: hostValue } as const);
     const linkedGroupId = groupId === "none" ? null : groupId;
     const listLockMode = wantsDeck ? lockMode : undefined;
-    // Built before the try block: the React Compiler cannot lower conditional
-    // value blocks inside try/catch and would bail out of this component.
+    // Must be built before the try block: the React Compiler bails out of
+    // conditional value blocks inside try/catch.
     const payload = {
       name: name.trim(),
       host,
@@ -172,7 +168,7 @@ export function TournamentCreateWizard({ defaultGroupId }: { defaultGroupId?: st
       const created = await createTournament.mutateAsync(payload);
       void navigate({ to: "/tournaments/$id", params: { id: created.id } });
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Errors surface via the global mutation error toast.
     }
   }
 

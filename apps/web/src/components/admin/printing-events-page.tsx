@@ -60,7 +60,7 @@ export function PrintingEventsPage() {
     try {
       started = await flush.mutateAsync();
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
       return;
     }
     if (started.status === "already_running") {
@@ -77,7 +77,7 @@ export function PrintingEventsPage() {
       await retry.mutateAsync(ids);
       toast.success(`Reset ${ids.length} event${suffix} to pending`);
     } catch {
-      // Reported by the global mutation error toast (see reportMutationError).
+      // Reported by the global mutation error toast.
     }
     setRetryingIds(new Set());
   }

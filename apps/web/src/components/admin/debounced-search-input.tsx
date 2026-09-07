@@ -4,13 +4,8 @@ import { Input } from "@/components/ui/input";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { cn } from "@/lib/utils";
 
-/**
- * Search input whose local state lives inside this small component, so every
- * keystroke only re-renders the input itself — not the parent table with its
- * potentially thousands of rows. The debounced value commits to the URL via
- * `onCommit`, at which point the parent re-renders for a new filtered set.
- * @returns A debounced search input with a leading magnifier icon.
- */
+// State lives here, not lifted, so each keystroke re-renders only this input
+// and not the parent table with its potentially thousands of rows.
 export function DebouncedSearchInput({
   urlValue,
   onCommit,

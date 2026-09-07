@@ -31,8 +31,8 @@ vi.mock("@tanstack/react-router", async (importOriginal) => ({
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ open, children }: { open?: boolean; children?: ReactNode }) =>
     open === false ? null : <div>{children}</div>,
-  // Spreads the rest so the modal's own onKeyDown reaches the DOM — the whole
-  // point of the arrow-key tests below.
+  // Spreads props so the modal's onKeyDown reaches the DOM for the
+  // arrow-key tests below.
   DialogContent: ({
     children,
     ...props
@@ -166,8 +166,6 @@ describe("SelectionDetailModal", () => {
     await user.click(await screen.findByRole("button", { name: "Dock it beside the grid" }));
 
     expect(useDisplayStore.getState().paneDocked).toBe(true);
-    // The pane picks the card up from here — dropping the selection would make
-    // the handoff look like a dismissal.
     expect(useSelectionStore.getState().selectedCard).toBe(items[0].printing);
     expect(useSelectionStore.getState().detailOpen).toBe(true);
   });
@@ -181,8 +179,6 @@ describe("SelectionDetailModal", () => {
   });
 
   describe("keyboard navigation", () => {
-    // The grid's window listener never reaches inside the focus-trapped
-    // dialog, so arrow keys did nothing at all once the modal was open.
     it("steps to the next and previous card with the arrow keys", async () => {
       const items = [stubCardViewerItem(), stubCardViewerItem(), stubCardViewerItem()];
       useSelectionStore.setState({
@@ -223,8 +219,6 @@ describe("SelectionDetailModal", () => {
 
       fireEvent.keyDown(await screen.findByRole("tab"), { key: "ArrowRight" });
 
-      // The tab strip's own roving focus owns this key; hijacking it would
-      // move the card out from under the user mid-tab-change.
       expect(useSelectionStore.getState().selectedIndex).toBe(0);
     });
   });

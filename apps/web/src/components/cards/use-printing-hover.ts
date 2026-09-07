@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * State for a hover-triggered printing preview. Clearing is debounced so the
- * preview doesn't flash off-and-on when the pointer moves between adjacent
- * items (pointerleave → pointerenter in the same gesture).
- * @returns `{ hoveredId, onEnter, onLeave, reset }` — feed `onEnter`/`onLeave`
- * to each item's pointer events, and call `reset` when the host popup closes.
- */
+/** Clearing is debounced so the preview doesn't flash when the pointer moves between adjacent items. */
 export function usePrintingHover(clearDelayMs = 80) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

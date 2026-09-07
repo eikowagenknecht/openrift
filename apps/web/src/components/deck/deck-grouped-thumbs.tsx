@@ -12,14 +12,6 @@ import type { OwnershipBandSegments } from "@/lib/deck-ownership-band";
 import type { StatsFocus } from "@/lib/deck-stats-focus";
 import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";
 
-/**
- * Renders grouped thumbs for main / sideboard / overflow zones. Each sub-group
- * along the chosen axis (types by default) gets its own row with a name +
- * count header above a flex-wrap of thumbs, mirroring the sidebar's grouped
- * layout but with thumbnails instead of list rows. The single "none" group
- * renders headerless as one flat wrap.
- * @returns Stacked sub-group sections.
- */
 export function GroupedThumbs({
   deckId,
   bandByCardKey,
@@ -41,21 +33,15 @@ export function GroupedThumbs({
 }: {
   deckId: string;
   bandByCardKey: ReadonlyMap<string, OwnershipBandSegments>;
-  /** Deck card key -> preformatted price chip text; empty when chips are off. */
   priceTextByCardKey: ReadonlyMap<string, string>;
-  /** Copies each entry may still add, keyed by deck card key (empty read-only). */
   addRoomByCardKey: ReadonlyMap<string, number>;
-  /** Printing id the hover preview should show for an entry. */
   resolveHoverPrintingId: (cardId: string, preferredPrintingId: string | null) => string | null;
   showAllCopies: boolean;
   statsFocus: StatsFocus | null;
   zone: DeckZone;
   groups: DeckCardGroup[];
-  /** Orders cards inside one sub-group (see sortDeckOverviewList). */
   sortCards: (cards: DeckBuilderCard[]) => DeckBuilderCard[];
-  /** The active grouping axis — type groups keep their icons. */
   groupBy: DeckOverviewGroup;
-  /** Stacks mode: piles of name strips with the last card fully visible. */
   stacked: boolean;
   isLandscape: boolean;
   onHoverCard?: HoverHandler;

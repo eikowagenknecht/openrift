@@ -29,10 +29,8 @@ function makeWrapper() {
 
 describe("CardPlaceholderImage", () => {
   it("never emits <button> elements (so it can nest inside CardThumbnail's click target)", () => {
-    // CardThumbnail wraps the whole card in a <button>. If the placeholder
-    // emits any <button> (e.g. a keyword chip from CardText), HTML5's parser
-    // auto-closes the outer button in Firefox, ejecting the rest of the
-    // thumbnail out of its grid cell.
+    // Firefox's HTML5 parser auto-closes an outer <button> around any nested
+    // <button>, ejecting the rest of the thumbnail out of its grid cell.
     const { container } = render(
       <CardPlaceholderImage
         name="Swift Scout"
@@ -58,9 +56,6 @@ describe("CardPlaceholderImage", () => {
   });
 
   it("renders the might-bonus badge when no rules / effect / flavor text is set", () => {
-    // Regression: the outer text wrapper used to be gated only on rulesText /
-    // effectText / flavorText, so a card with only mightBonus had its "+N"
-    // badge silently dropped from the placeholder.
     const { container } = render(
       <CardPlaceholderImage
         name="Pure Bonus"
@@ -102,8 +97,7 @@ describe("CardPlaceholderImage", () => {
       { wrapper: makeWrapper() },
     );
 
-    // One type glyph per type, in printed order. The glyphs render as masked
-    // <span>s (GlyphIcon's arbitrary-tint branch), so query the mask images.
+    // Type glyphs render as masked <span>s (GlyphIcon's arbitrary-tint branch).
     const glyphSpans = [...container.querySelectorAll("span")].filter((el) =>
       el.style.maskImage.includes("/images/types/"),
     );
@@ -111,7 +105,6 @@ describe("CardPlaceholderImage", () => {
       'url("/images/types/unit.svg")',
       'url("/images/types/gear.svg")',
     ]);
-    // A Gear type in the set gives the energy badge the rotated diamond frame.
     const diamond = container.querySelector('[aria-label="Energy: 2"] .rotate-45');
     expect(diamond).not.toBeNull();
   });
@@ -145,9 +138,6 @@ describe("CardPlaceholderImage", () => {
   });
 
   it("omits the rarity glyph when no rarity is set", () => {
-    // Regression: the contribute-form preview used to fall back to a "common"
-    // glyph when rarity was unset, making it look like the user had picked
-    // common when they hadn't.
     const { container } = render(
       <CardPlaceholderImage
         name="Unknown Rarity"
@@ -171,9 +161,6 @@ describe("CardPlaceholderImage", () => {
   });
 
   it("renders inline rules-text glyphs with em-relative sizing so they scale with the card", () => {
-    // Regression: glyphs in rules text used `size-4` (fixed 16px), so they
-    // didn't scale when the card was rendered at a different font size (e.g.
-    // the placeholder text-[3.5cqw]). Switched to `size-[1em]`.
     const { container } = render(
       <CardPlaceholderImage
         name="Energy Ant"

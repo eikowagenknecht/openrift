@@ -19,10 +19,8 @@ const SPREAD = [
   { left: 210, top: 48, rotate: 13 },
 ];
 
-/**
- * The container is fixed-size so the spread can arrive with the catalog query
- * without moving the headline beside it.
- */
+// Fixed-size so the spread can arrive with the catalog query without moving
+// the headline beside it.
 function CardFlourish({ urls }: { urls: string[] }) {
   return (
     <div
@@ -91,12 +89,12 @@ export function FeaturesHero({
   thumbnailUrls,
 }: {
   chapters: FeatureChapter[];
-  /** Card art thumbnails from the landing summary, already full URLs. May be empty until the query resolves. */
+  /** May be empty until the query resolves. */
   thumbnailUrls: string[];
 }) {
   return (
-    // Full-bleed band: the gradient spans the viewport while the inner column
-    // matches the page column exactly, so the hero never reads as its own width.
+    // Full-bleed: the gradient spans the viewport, the inner column matches
+    // the page column.
     <section className="relative">
       <span
         aria-hidden="true"

@@ -15,9 +15,8 @@ import {
   findDerivedArtPrinting,
 } from "./card-detail-shared";
 
-// Minimal field set mirroring buildCandidateCardFields: a plain string field, two
-// dropdown array fields, a numeric field, a read-only field, and a rich-text field
-// that the accept schema does not persist.
+// Mirrors buildCandidateCardFields: string, dropdown-array, numeric, read-only
+// and rich-text fields.
 const fields: FieldDef[] = [
   { key: "externalId", label: "External ID", readOnly: true },
   { key: "name", label: "Name" },
@@ -80,7 +79,6 @@ describe("buildPreseededActiveCard", () => {
       { provider: "gallery", sortOrder: 1 },
     ]);
 
-    // energy is missing on the top source, so it comes from the second source.
     expect(buildPreseededActiveCard(sources, fields, providerSettings)).toEqual({
       name: "Top",
       types: ["unit"],
@@ -111,15 +109,12 @@ describe("buildPreseededActiveCard", () => {
       source("official", { name: "Card", types: ["contraption"], domains: ["fury"] }),
     ];
 
-    // "contraption" is not a known type, so it must not pre-fill.
     const seed = buildPreseededActiveCard(sources, fields, settings([]));
     expect(seed).not.toHaveProperty("types");
     expect(seed).toEqual({ name: "Card", domains: ["fury"] });
   });
 
   it("seeds dropdown values unvalidated when the option list has not loaded yet", () => {
-    // Enum lists load async: before they arrive, labeledOptions is empty. In that
-    // window we must still seed the raw slug rather than reject everything.
     const fieldsWithoutOptions: FieldDef[] = [
       { key: "name", label: "Name" },
       { key: "types", label: "Types", labeledOptions: [], array: true },
@@ -153,8 +148,7 @@ describe("buildPreseededActiveCard", () => {
   });
 });
 
-// Printing fields mirror buildCandidatePrintingFields: writable fields, a dropdown,
-// a numeric printedYear, plus the read-only imageUrl the image switcher owns.
+// Mirrors buildCandidatePrintingFields, including the read-only imageUrl the image switcher owns.
 const printingFields: FieldDef[] = [
   { key: "externalId", label: "External ID", readOnly: true },
   { key: "setId", label: "Set" },
@@ -171,7 +165,6 @@ const printingFields: FieldDef[] = [
   { key: "imageUrl", label: "Image", readOnly: true, collapsible: true },
 ];
 
-// A candidate printing; `candidateCardId` is how the provider is looked up.
 function printing(
   candidateCardId: string,
   values: Record<string, unknown>,
@@ -210,8 +203,6 @@ describe("buildPreseededActivePrinting", () => {
   });
 
   it("pre-fills imageUrl only from a favorited provider", () => {
-    // gallery (non-favorite) sorts first but must not supply the image; official
-    // (favorite) does, so accepting sets the favorite's image as the main image.
     const favoriteFirst = printingSettings([
       { provider: "gallery", sortOrder: 0 },
       { provider: "official", sortOrder: 1, isFavorite: true },
@@ -347,8 +338,6 @@ describe("findDerivedArtPrinting", () => {
     expect(derived?.id).toBe("p2");
   });
 
-  // The catalog serves rehosted, active images only, so deriving from anything
-  // else would name a source the site never actually shows.
   it("ignores images that are inactive or not rehosted", () => {
     const subject = acceptedPrinting({ id: "p1", finish: "metal" });
     const standard = acceptedPrinting({ id: "p2" });
@@ -375,8 +364,6 @@ describe("findDerivedArtPrinting", () => {
     ).toBeNull();
   });
 
-  // The label answers "what would Derived pick", so it stays the same while the
-  // printing is pinned elsewhere or has substitutes switched off.
   it("ignores the subject's own override", () => {
     const standard = acceptedPrinting({ id: "p2" });
     const images = [printingImage({ printingId: "p2" })];

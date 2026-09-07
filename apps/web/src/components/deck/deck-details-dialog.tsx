@@ -32,30 +32,22 @@ const DESCRIPTION_MAX = 8000;
 /** How many card suggestions the [[ autocomplete shows. */
 const AUTOCOMPLETE_LIMIT = 6;
 
-/** The inert preview look of a `[[Card Name]]` reference. */
 const PREVIEW_CARD_LINK_CLASS =
   "text-foreground inline font-medium underline decoration-dotted underline-offset-2";
 
-/**
- * The `[[` token being typed at the caret, or null when the caret isn't
- * inside an unclosed card reference.
- * @returns The partial card name after the opening brackets.
- */
+/** The `[[` token being typed at the caret, or null when the caret isn't inside an unclosed card reference. */
 export function cardTokenAtCaret(value: string, caret: number): string | null {
   const upto = value.slice(0, caret);
   const match = /\[\[(?<token>[^[\]\n]{0,60})$/u.exec(upto);
   return match?.groups?.token ?? null;
 }
 
-/** Names the accepted sites, so an invalid row says more than "invalid". */
 const ALLOWED_HOSTS_HINT = `Links must be https and point at one of: ${ALLOWED_LINK_SITE_NAMES.join(", ")}.`;
 
-/** @returns The stored links as editable rows (a missing title edits as ""). */
 function toDrafts(links: readonly DeckLink[]): LinkDraft[] {
   return links.map((link) => ({ url: link.url, title: link.title ?? "" }));
 }
 
-/** @returns The filled rows as stored links, dropping empty titles. */
 function toLinks(drafts: readonly LinkDraft[]): DeckLink[] {
   return drafts.map((draft) => {
     const title = draft.title.trim();
@@ -72,13 +64,6 @@ interface DeckDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * The deck's name and guide editor: the deck name, then a side-by-side
- * Markdown write/preview surface with `[[` card-name autocomplete, then the
- * deck's outbound links. On phones the two panes collapse into a
- * Write/Preview toggle.
- * @returns The dialog.
- */
 export function DeckDetailsDialog({
   deckId,
   currentName,
@@ -128,8 +113,7 @@ export function DeckDetailsDialog({
     const next = `${draft.slice(0, start)}[[${cardName}]]${draft.slice(caret)}`;
     setDraft(next);
     setToken(null);
-    // Focus returns to the caret right after the closing brackets once the
-    // controlled value has been committed.
+    // requestAnimationFrame waits for the controlled value to commit before the caret moves.
     const position = start + cardName.length + 4;
     requestAnimationFrame(() => {
       element.focus();

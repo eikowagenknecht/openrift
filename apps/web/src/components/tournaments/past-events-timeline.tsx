@@ -12,12 +12,6 @@ import { DateLeaf } from "@/components/ui/date-leaf";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { tournamentContextLabel } from "@/lib/tournament-display";
 
-/**
- * The winner callout of a completed event: trophy, the winner's legend art
- * (when they consented to deck publishing), and their name.
- *
- * @returns The winner chip.
- */
 function WinnerChip({ winner }: { winner: TournamentWinner }) {
   return (
     <span className="border-border-accent/40 bg-border-accent/10 flex shrink-0 items-center gap-2 rounded-md border py-1 pr-2.5 pl-2">
@@ -33,7 +27,6 @@ function WinnerChip({ winner }: { winner: TournamentWinner }) {
   );
 }
 
-/** @returns One completed event on the timeline: title, meta, winner, facepile. */
 function PastEventCard({
   tournament,
   showContext,
@@ -87,18 +80,11 @@ function PastEventCard({
   );
 }
 
-/**
- * Completed and cancelled events as a plain stacked list, each row
- * anchored by a small date leaf.
- *
- * @returns The timeline element.
- */
 export function PastEventsTimeline({
   tournaments,
   showContext = false,
 }: {
   tournaments: TournamentSummaryResponse[];
-  /** Label each event with its group / org host (the cross-group personal list). */
   showContext?: boolean;
 }) {
   return (

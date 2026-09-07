@@ -15,11 +15,7 @@ export function FilterBadgeSections({
   filterCounts,
   units,
 }: Omit<FilterPanelContentProps, "visibleCustomTagCategories" | "topLevelUnits"> & {
-  /**
-   * Placement units to render here (see `lib/filter-sections.ts`). The main
-   * panel body passes the top-level set, the More fold passes the demoted
-   * set. Omit to render every badge section (collection stats page).
-   */
+  /** Placement units to render here; omit to render every badge section (collection stats page). */
   units?: ReadonlySet<string>;
 }) {
   const { labels } = useEnumOrders();

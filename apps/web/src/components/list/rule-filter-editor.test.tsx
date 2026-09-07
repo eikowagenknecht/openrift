@@ -6,10 +6,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// getAvailableFilters is fed real printings in the app; here we return a fixed
-// facet set so only Markers and Custom Tags are offered — enough to prove the
-// presence folding without dragging in the whole catalog. Everything else in
-// @openrift/shared (EMPTY_CARD_FILTERS, types) stays real.
+// A fixed facet set so only Markers and Custom Tags are offered, to prove
+// presence folding without dragging in the whole catalog.
 const AVAILABLE = {
   hasNonStandard: true,
   types: [],
@@ -32,8 +30,7 @@ vi.mock("@openrift/shared", async (importOriginal) => {
   return { ...actual, getAvailableFilters: () => AVAILABLE };
 });
 
-// Full printing shape: the price row's skipped-count pass runs the real
-// `filterCards` over these, which reads card stats, bans, and printing facets.
+// The price row's skipped-count pass runs the real `filterCards` over these.
 const printing = (id: string, language: string) => ({
   id,
   cardId: `card-${id}`,
@@ -131,7 +128,6 @@ describe("RuleFilterEditor presence folding", () => {
 
     expect(await screen.findByRole("menuitem", { name: "Markers" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Custom Tags" })).toBeInTheDocument();
-    // The regression: presence must fold into its picker, never appear here.
     expect(screen.queryByRole("menuitem", { name: /has any marker/iu })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /has any tag/iu })).not.toBeInTheDocument();
   });
@@ -166,7 +162,6 @@ describe("RuleFilterEditor presence folding", () => {
     await user.click(screen.getByRole("button", { name: /add filter/iu }));
     await user.click(await screen.findByRole("menuitem", { name: "Price" }));
 
-    // The row carries the bounds, the marketplace picker, and the volatility note.
     expect(screen.getByLabelText("Price marketplace")).toBeInTheDocument();
     expect(
       screen.getByText(/cards can join or leave this list on their own/iu),
@@ -177,8 +172,7 @@ describe("RuleFilterEditor presence folding", () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ price: { min: 2, max: null } }),
     );
-    // Setting a bound pins the displayed default so the saved rule never
-    // depends on a viewer preference (default order starts with CardTrader).
+    // Default marketplace order starts with CardTrader.
     expect(onPriceMarketplaceChange).toHaveBeenCalledWith("cardtrader");
   });
 

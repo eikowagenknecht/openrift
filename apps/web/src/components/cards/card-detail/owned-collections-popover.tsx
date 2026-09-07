@@ -20,26 +20,14 @@ import { useDisplayStore } from "@/stores/display-store";
 
 interface OwnedCollectionsPopoverProps {
   printingId: string;
-  /** Card name used to filter by name in cards view. */
   cardName: string;
-  /** Printing short code used to filter by id in printings view. */
   shortCode: string;
-  /** Override the displayed count (e.g. from stacked copies). Falls back to the global owned count. */
   count?: number;
-  /** All sibling variants of the same card (cards view). When provided with >1 entries, the breakdown groups by variant. */
   siblings?: readonly OwnedBreakdownVariant[];
-  /** Wider-scope total (e.g. global across collections). When set and different from `count`, the trigger renders `N (M)`. */
   totalCount?: number;
-  /** Horizontal alignment of the popover relative to the trigger. */
   align?: PopoverPrimitive.Positioner.Props["align"];
 }
 
-/**
- * Clickable owned-count badge that opens a popover showing owned breakdown.
- * In cards view (with siblings), entries are grouped by variant; otherwise it shows a flat per-collection list for the single printing.
- * Only renders when the user is authenticated and owns at least one copy of the printing.
- * @returns The popover, or null if the user is not authenticated or owns no copies.
- */
 export function OwnedCollectionsPopover({
   printingId,
   cardName,
@@ -51,11 +39,7 @@ export function OwnedCollectionsPopover({
 }: OwnedCollectionsPopoverProps) {
   const { data: session } = useSession();
   const isAuthenticated = Boolean(session?.user);
-  // The map-wide owned query is only a fallback for callers that don't pass
-  // `count` (the detail-pane printing picker). Grid cells always pass it, and
-  // every enabled instance subscribes to the ENTIRE copies collection — so an
-  // ungated call here would add one full-collection live query per visible
-  // cell, torn down and rebuilt on each cell remount.
+  // Must stay gated: an enabled instance subscribes to the entire copies collection.
   const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated && count === undefined);
   const totalOwned = count ?? ownedCountByPrinting?.[printingId] ?? 0;
   const showTotal = totalCount !== undefined && totalCount !== totalOwned;
@@ -68,14 +52,7 @@ export function OwnedCollectionsPopover({
     siblings ?? [],
     isAuthenticated && totalOwned > 0 && groupByVariant,
   );
-  // The filter context is optional here, the same way it is for the detail's
-  // tag chips (see useApplyTagFilter). This popover renders on the card
-  // browsers, which have one, and inside CardDetailOverlay, which the group
-  // trades and member pages open from a row rather than a grid and so carry no
-  // filter params at all. Reading it strictly threw there and broke the whole
-  // detail. Off a filter surface there is no current view to carry into the
-  // link, so the display-store default stands in — the same fallback
-  // useFilterValues applies to an absent `view` param.
+  // Optional: CardDetailOverlay renders this outside any FilterSearchProvider.
   const filterSearch = useContext(FilterSearchProvider);
   const defaultView = useDisplayStore((state) => state.defaultCardView);
   const view = filterSearch?.view ?? defaultView;

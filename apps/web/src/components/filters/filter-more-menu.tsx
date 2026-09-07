@@ -45,25 +45,13 @@ interface FilterMoreMenuProps {
   /** See {@link FilterPanelContentProps.visibleCustomTagCategories}. */
   visibleCustomTagCategories?: ReadonlySet<string>;
   filterCounts?: FilterCounts;
-  /** Upper bound for the Copies range slider; see {@link FilterPanelContentProps.ownedCountMax}. */
+  /** See {@link FilterPanelContentProps.ownedCountMax}. */
   ownedCountMax?: number;
-  /** Active selections across every More dimension; shown as "(n)" on the trigger. */
   activeCount: number;
-  /**
-   * The user's top-level placement units (see `lib/filter-sections.ts`). The
-   * menu hosts every applicable unit NOT in this set — including demoted core
-   * dimensions like Set or Domain.
-   */
+  /** Menu hosts every applicable unit not in this set, including demoted core dimensions. */
   topLevelUnits: ReadonlySet<string>;
 }
 
-/**
- * A tri-state flag row inside the More menu: a check for include, a minus for
- * exclude, nothing when off. Clicking cycles off → include → exclude without
- * closing the menu, mirroring the panel's {@link FlagBadge} and the combobox's
- * flag row.
- * @returns The flag menu item.
- */
 function FlagMenuItem({
   label,
   state,
@@ -100,24 +88,13 @@ function FlagMenuItem({
 interface DimensionOption {
   value: string;
   label: string;
-  /** Optional faceted match count, rendered after the label and dimmed at zero. */
   count?: number;
 }
 
-/**
- * Above this option count a dimension renders as a searchable combobox (full
- * keyboard navigation: type to filter, ↓ to first row, ↑ to last) rather than a
- * plain checkbox submenu — a menu submenu can't host a working search field.
- * Short lists (Owned's 4 buckets, small marker sets) stay as submenus.
- */
+// Above this option count, a menu submenu can't host a working search field,
+// so the dimension renders as a combobox instead.
 const SEARCH_THRESHOLD = 8;
 
-/**
- * One short multi-select dimension as a plain checkbox submenu (no search). The
- * trigger carries the dimension label plus an active-selection count; each row
- * shows its faceted count when available.
- * @returns The dimension submenu, or null when it has no options.
- */
 function DimensionSubmenu({
   label,
   options,
@@ -135,9 +112,6 @@ function DimensionSubmenu({
   const activeCount = options.filter((option) => selected.includes(option.value)).length;
   return (
     <DropdownMenuSub>
-      {/* Open on click, not hover, so a short submenu matches the click-to-open
-          combobox rows the long dimensions use — otherwise Owned would fly out
-          on hover while Distribution Channels needs a click. */}
       <DropdownMenuSubTrigger openOnHover={false}>
         <span className="flex-1">{label}</span>
         {activeCount > 0 && (
@@ -151,8 +125,6 @@ function DimensionSubmenu({
             checked={selected.includes(option.value)}
             onCheckedChange={() => onToggle(option.value)}
           >
-            {/* Wrap long labels (e.g. channel breadcrumb paths) instead of
-                truncating, matching the combobox rows the menu replaces. */}
             <span className="min-w-0 flex-1 break-words whitespace-normal">
               {option.label}
               {option.count !== undefined && (
@@ -173,16 +145,6 @@ function DimensionSubmenu({
   );
 }
 
-/**
- * One multi-select dimension inside the More menu. An exclude-capable dimension
- * (it passes `excluded` + `onCycle`) always renders as a searchable
- * {@link MultiSelectCombobox} whose rows cycle off → include → exclude → off
- * (ADR-034), since a checkbox submenu can't host the tri-state. An include-only
- * dimension (Owned) keeps the size-based split: a long list opens the searchable
- * combobox, a short one stays a plain checkbox submenu. Faceted counts flow to
- * every path.
- * @returns The dimension's submenu or combobox row, or null when it has no options.
- */
 function MoreDimension({
   label,
   options,
@@ -198,20 +160,13 @@ function MoreDimension({
   label: string;
   options: readonly DimensionOption[];
   included: string[];
-  /** Plain multi-select handler for the include-only path (Owned). */
   onIncludeChange?: (next: string[]) => void;
-  /** Single-value include toggle for the checkbox submenu (include-only path). */
   onIncludeToggle?: (value: string) => void;
   excluded?: string[];
-  /** Tri-state cycle for the exclude-capable path. */
   onCycle?: (value: string) => void;
   searchPlaceholder: string;
   emptyText: string;
-  /**
-   * Optional tri-state flag folded into the top of the combobox (e.g. a "Has
-   * any …" presence toggle above the specific values). Only honoured on the
-   * combobox path (exclude-capable dimensions like Markers / Channels).
-   */
+  /** Only honoured on the combobox path (exclude-capable dimensions), not the submenu. */
   flag?: { label: string; state: boolean | null; count?: number; onToggle: () => void };
 }) {
   if (options.length === 0) {
@@ -222,9 +177,6 @@ function MoreDimension({
   );
   const facetedCounts = counts.size > 0 ? counts : undefined;
   const excludeCapable = excluded !== undefined && onCycle !== undefined;
-  // The checkbox submenu is the include-only short-list path; everything else
-  // (exclude-capable, a long list, or a caller that gave no submenu toggle)
-  // renders the searchable combobox.
   if (excludeCapable || options.length > SEARCH_THRESHOLD || onIncludeToggle === undefined) {
     return (
       <MultiSelectCombobox
@@ -253,13 +205,6 @@ function MoreDimension({
   );
 }
 
-/**
- * A range-slider block (Price, Copies, or the three stat sliders) inside the
- * More menu. The sliders are focusable widgets, not menu items: the menu's
- * arrow-key navigation lives on the popup and bubbles up, so we stop keydown
- * here and the slider's own arrow/Home/End handling wins.
- * @returns The wrapped range slider row(s).
- */
 function RangeSliderBlock({
   scope,
   availableFilters,
@@ -276,9 +221,8 @@ function RangeSliderBlock({
   return (
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- the wrapper only guards keydown bubbling; the focusable controls are its slider children
     <div
-      // The other menu rows highlight via the menu's roving focus; a slider block
-      // isn't a menu item, so it highlights on hover and while a slider child is focused.
       className="hover:bg-muted focus-within:bg-muted flex flex-col gap-1.5 rounded-md px-1.5 py-1.5"
+      // Stops the menu's roving-focus keydown handling so the slider's own arrow/Home/End keys work.
       onKeyDown={(event) => event.stopPropagation()}
     >
       <FilterRangeSections
@@ -287,26 +231,12 @@ function RangeSliderBlock({
         filterCounts={filterCounts}
         hiddenSections={hiddenSections}
         ownedCountMax={ownedCountMax}
-        // Match the menu's other entries (text-sm, not the panel's muted
-        // text-xs gutter) so the slider labels don't look out of place.
         labelClassName="text-inherit text-sm font-normal"
       />
     </div>
   );
 }
 
-/**
- * The compact filter bar's "More" entry point as a dropdown menu, hosting
- * every placement unit the user hasn't promoted to the top level. Flags cycle
- * in place, each multi-value dimension opens as a submenu (short) or
- * searchable combobox (long), and the range dimensions (Stats, Price, Copies)
- * ride as slider rows. Entries are grouped into themed blocks separated by
- * dividers: core card dimensions (Language … Stats, when demoted),
- * distribution (Signed / Standard / Oversized / Markers / Channels / Keywords
- * / custom tags), collection (Owned / Copies), legality (Banned / Errata), and
- * Price on its own.
- * @returns The More menu, or null when no More content applies here.
- */
 export function FilterMoreMenu({
   availableFilters,
   availableLanguages,
@@ -346,14 +276,11 @@ export function FilterMoreMenu({
   const visibleCategories = [...customTagsByCategory.entries()].filter(([category]) =>
     visibleCustomTagCategories === undefined ? true : visibleCustomTagCategories.has(category),
   );
-  // Printed tags: values from AvailableFilters, category grouping from /init.
   const { categories: tagCategories, categoryByTag } = useTagCategories();
   const tagGroups = groupTagsByCategory(availableFilters.tags, tagCategories, categoryByTag);
 
-  // One predicate per dimension, from the registry: the axis has content the
-  // surface hasn't hidden, and its placement unit is demoted here. The Variant
-  // and Stats units resolve through their own axes (artVariants / finishes /
-  // signed, energy / might / power), so a per-axis hide still works.
+  // Variant and Stats resolve through their own axes (artVariants / finishes /
+  // signed, energy / might / power), so a per-axis hide still applies to them.
   const shows = (key: string) =>
     visibleDimensions.has(key) && !topLevelUnits.has(filterDimension(key).unit);
 
@@ -371,10 +298,6 @@ export function FilterMoreMenu({
   const showCustomTags = shows("customTags");
   const showTags = shows("tags");
 
-  // Markers, Distribution Channels and Keywords fold their any/none presence
-  // into the top of their own picker (see FilterValueDropdown). Custom tags and
-  // printed tags render several category pickers with no single picker to fold
-  // into, so their presence rides as its own tri-state row.
   const presenceRow = (dimension: PresenceDimension, value: PresenceParamValue, shown: boolean) => {
     if (!shown) {
       return null;
@@ -395,12 +318,8 @@ export function FilterMoreMenu({
     filterState.customTagsPresence,
     showCustomTags,
   );
-  // Printed tags mirror custom tags: several per-category pickers, so their
-  // any/none presence rides as its own row.
   const tagsPresenceNode = presenceRow("tags", filterState.tagsPresence, showTags);
 
-  // Every value dimension renders through the shared dropdown, so the menu's
-  // rows and the compact bar's chips come from one definition per axis.
   const dropdownProps = { availableFilters, availableLanguages, setDisplayLabel, filterCounts };
   const dropdownRow = (key: string) =>
     shows(key) ? (
@@ -428,7 +347,6 @@ export function FilterMoreMenu({
     />
   ) : null;
 
-  // ── Chip dimension rows ────────────────────────────────────────────────────
   const showOversizeNode = shows("cardSizes");
   const oversizeState_ = oversizeState(filterState.cardSizes);
   const oversizeNode = showOversizeNode ? (
@@ -488,12 +406,8 @@ export function FilterMoreMenu({
 
   const customTagNodes = showCustomTags
     ? visibleCategories.map(([category, tagsInCategory]) => {
-        // `byCategory` groups from non-empty arrays, so the first tag always
-        // exists and carries the joined category label from /init.
         const categoryLabel = tagsInCategory[0]?.categoryLabel ?? category;
-        // All categories write to the one `customTags` / `customTagsEx` key; the
-        // cycle operates on the full arrays by value, so other categories' slugs
-        // are untouched. Slice this category's slugs for the dropdown's display.
+        // Shared `customTags`/`customTagsEx` keys across categories; slice per category.
         const categorySlugs = new Set(tagsInCategory.map((tag) => tag.slug));
         const selectedInCategory = filterState.customTags.filter((slug) => categorySlugs.has(slug));
         const excludedInCategory = filterState.customTagsEx.filter((slug) =>
@@ -515,9 +429,6 @@ export function FilterMoreMenu({
     : [];
   const tagNodes = showTags
     ? tagGroups.map((group) => {
-        // All categories write to the one `tags` / `tagsEx` key; slice this
-        // category's values for the dropdown's display (values are the exact
-        // printed strings, so they label themselves).
         const groupValues = new Set(group.tags);
         const selectedInGroup = filterState.tags.filter((tag) => groupValues.has(tag));
         const excludedInGroup = filterState.tagsEx.filter((tag) => groupValues.has(tag));
@@ -571,16 +482,6 @@ export function FilterMoreMenu({
     />
   ) : null;
 
-  // Themed blocks, separated by dividers; empty blocks collapse away. The row
-  // order mirrors the compact bar's chip order exactly (the canonical
-  // FILTER_PLACEMENT_UNITS order), so a unit sits in the same spot whether
-  // it's promoted or demoted. Markers / Distribution Channels fold their
-  // any/none presence into the picker itself; custom-tag and keyword presence
-  // ride as their own rows.
-  //  • Core:       Language, Sets, Domain, Rarity, Type, Supertype, Variant, Standard, Stats
-  //  • Dimensions: Markers, Oversized (Size), Channels, custom tags, Keywords
-  //  • Flags:      Signed, Banned, Errata
-  //  • Market:     Owned, Copies, Price
   const blocks = [
     {
       id: "core",
@@ -623,9 +524,6 @@ export function FilterMoreMenu({
   const active = activeCount > 0;
   return (
     <DropdownMenu>
-      {/* Same button language as the value dropdowns and the Stats chip: outline
-          matched to the Domain/Rarity toggle group (transparent resting, muted
-          when active) rather than the primary fill. */}
       <DropdownMenuTrigger
         render={
           <Button
@@ -650,7 +548,6 @@ export function FilterMoreMenu({
         {active && !singleActiveLabel && <span className="tabular-nums">({activeCount})</span>}
         <ChevronDownIcon />
       </DropdownMenuTrigger>
-      {/* Widen to fit the slider rows when Stats/Price/Copies are present. */}
       <DropdownMenuContent align="start" className={cn(showWideContent ? "w-80" : "min-w-56")}>
         {blocks.map((block, index) => (
           <Fragment key={block.id}>

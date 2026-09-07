@@ -22,53 +22,23 @@ import { isLocalDeckId } from "@/stores/local-decks-store";
 import { DeckVariantCreateDialog } from "./deck-variant-create-dialog";
 import { DeckVariantsDialog } from "./deck-variants-dialog";
 
-// The rail is a git-style branch graph of the deck's family (ADR-042): HTML
-// nodes positioned over an SVG that draws only the connections. Geometry lives
-// here because it is pure presentation; the graph itself (who sits where, in
-// which lane, at which column) comes from lib/deck-variant-rail.
+// HTML nodes positioned over an SVG that draws only the connections. Geometry
+// lives here; the graph itself (who sits where, which lane, which column)
+// comes from lib/deck-variant-rail.
 
-/** How many members fit before the rail collapses the rest into "+N more". */
 const MAX_RAIL_NODES = 6;
-/** Horizontal distance between two generations. */
 const SLOT_WIDTH = 168;
-/** Diameter of a node's dot (`size-2`). */
 const DOT_SIZE = 8;
-/** The name label's `mb-2` over the dot. */
 const LABEL_GAP = 8;
-/** The date's `mt-1` under the dot. */
 const DATE_GAP = 4;
-/** One `text-2xs` line box (`--text-2xs--line-height`). */
 const LABEL_LINE_HEIGHT = 16;
-/**
- * Distance from a lane's line down to the centre of its step-diff numbers. Half
- * a chip clears the line; the rest is the air that keeps the two apart.
- */
 const COUNTS_GAP_Y = LABEL_LINE_HEIGHT / 2 + 5;
-/** Clear air between two neighbouring name labels. */
 const LABEL_MARGIN_X = 12;
-/**
- * Width of a node's label box: as wide as a slot allows, so a long deck name
- * spends its ellipsis late. Neighbours nearly touch, which is the point —
- * anything narrower truncates names the rail has the room to show.
- */
 const LABEL_WIDTH = SLOT_WIDTH - LABEL_MARGIN_X;
-/** Left inset: half a label, since labels are centred on their dot. */
 const PAD_X = LABEL_WIDTH / 2;
-/** Room to the right of the last node for the other half of its label. */
 const TRAILING_X = LABEL_WIDTH / 2;
-/** Baseline of lane 0, leaving room for the name over the dot. */
 const LANE_TOP_Y = DOT_SIZE / 2 + LABEL_GAP + LABEL_LINE_HEIGHT;
-/**
- * Vertical distance between two lanes: a dot, its date below it, and the name
- * over the dot of the lane beneath — two lanes can share a column, so those
- * two lines sit directly above one another.
- */
 const LANE_GAP = DOT_SIZE + DATE_GAP + LABEL_LINE_HEIGHT + LABEL_GAP + LABEL_LINE_HEIGHT;
-/**
- * Room under the last lane for its date and the step-diff numbers, whichever
- * hangs lower. Derived rather than eyeballed: a pixel short here gives the
- * scroller a stray vertical scrollbar.
- */
 const LANE_BOTTOM_PAD = Math.max(
   DOT_SIZE / 2 + DATE_GAP + LABEL_LINE_HEIGHT,
   COUNTS_GAP_Y + LABEL_LINE_HEIGHT / 2,
@@ -78,7 +48,6 @@ const CHIP_BASE = "rounded-md px-1.5 font-mono text-2xs font-bold tabular-nums";
 const ADD_CHIP = "bg-success-soft text-success";
 const CUT_CHIP = "bg-destructive-soft text-destructive";
 const CHANGE_CHIP = "bg-warning-soft text-warning";
-/** Deepened tints for the step-diff chips, driven by their trigger's `group`. */
 const ADD_CHIP_HOVER =
   "transition-colors group-hover:bg-success/20 group-focus-visible:bg-success/20";
 const CUT_CHIP_HOVER =
@@ -90,7 +59,6 @@ const CHIP_STYLES: Record<DeckDiffEntry["kind"], string> = {
   change: CHANGE_CHIP,
 };
 
-/** @returns The chip text for one diff entry, e.g. "+2", "−1", or "3→2". */
 function chipLabel(entry: DeckDiffEntry): string {
   if (entry.kind === "add") {
     return `+${entry.theirs}`;
@@ -101,23 +69,14 @@ function chipLabel(entry: DeckDiffEntry): string {
   return `${entry.ours}→${entry.theirs}`;
 }
 
-/** @returns The pixel x of a node's dot. */
 function nodeX(node: { x: number }): number {
   return PAD_X + node.x * SLOT_WIDTH;
 }
 
-/** @returns The pixel y of a lane's baseline. */
 function laneY(lane: number): number {
   return LANE_TOP_Y + lane * LANE_GAP;
 }
 
-/**
- * The SVG path for one connection. A step along the same lane is a straight
- * run; a fork eases down into its own lane, which is what makes it read as a
- * fork rather than a second unrelated row.
- *
- * @returns The `d` attribute, or null when either end is missing.
- */
 function edgePath(edge: RailEdge, byId: ReadonlyMap<string, RailNode>): string | null {
   const from = byId.get(edge.fromId);
   const to = byId.get(edge.toId);
@@ -135,14 +94,6 @@ function edgePath(edge: RailEdge, byId: ReadonlyMap<string, RailNode>): string |
   return `M ${x1} ${y1} C ${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
 }
 
-/**
- * Places an edge's step-diff numbers clear of both the labels and the dots:
- * midway along the edge, just under the line it lands on. Names hang above
- * their dots and dates sit right under them, so the air under a line between
- * two dots is the one strip nothing else wants.
- *
- * @returns The pixel centre for the numbers, or null when either end is missing.
- */
 function edgeCountsPosition(
   edge: RailEdge,
   byId: ReadonlyMap<string, RailNode>,
@@ -155,13 +106,7 @@ function edgeCountsPosition(
   return { left: (nodeX(from) + nodeX(to)) / 2, top: laneY(to.lane) + COUNTS_GAP_Y };
 }
 
-/**
- * The copies added and cut along one edge. Both ends have to be loaded before
- * a number means anything, so a half-loaded edge draws nothing at all rather
- * than a misleading zero.
- *
- * @returns The add/cut totals, or null while either end is still loading.
- */
+// Both ends must be loaded before a count means anything; a half-loaded edge draws nothing.
 function edgeCounts(
   cardsByDeck: Record<string, DeckCardResponse[]>,
   cardsById: Record<string, Card>,
@@ -176,7 +121,6 @@ function edgeCounts(
   return { addCount: diff.addCount, cutCount: diff.cutCount };
 }
 
-/** @returns Just the card list of a deck detail, the only part the rail reads. */
 function selectDeckCards(detail: DeckDetailResponse): DeckCardResponse[] {
   return detail.cards;
 }
@@ -204,13 +148,8 @@ function RailDiffRows({ diff }: { diff: DeckDiff }) {
   );
 }
 
-/**
- * The popover's diff body. Split out so the comparison only runs once the
- * popup actually mounts — a rail draws up to six of these, and none of them is
- * on screen until someone hovers a node.
- *
- * @returns The zone-grouped diff, or a loading line while a side is missing.
- */
+// Split out so the comparison only runs once the popup actually mounts: a
+// rail draws up to six of these, none on screen until someone hovers a node.
 function RailNodeDiff({
   ourCards,
   theirCards,
@@ -233,12 +172,6 @@ function RailNodeDiff({
   );
 }
 
-/**
- * One edge's step diff: the numbers on the line, opening the same card-by-card
- * list a node popup shows, narrowed to what changed along this one step.
- *
- * @returns The step-diff chips and their popover.
- */
 function EdgeCounts({
   fromId,
   toId,
@@ -262,9 +195,6 @@ function EdgeCounts({
     <Popover>
       <PopoverTrigger
         aria-label={`What changed between ${fromLabel} and ${toLabel}`}
-        // The plate is opaque so the edge behind it doesn't run through the
-        // numbers; hovering deepens both tints and lifts the pair a little,
-        // which reads as one clickable thing without drawing a box around it.
         className="group bg-background focus-visible:ring-ring flex items-center gap-1 rounded-full px-1 transition-transform outline-none hover:scale-110 focus-visible:scale-110 focus-visible:ring-2 data-popup-open:scale-110"
       >
         <span className={cn(CHIP_BASE, ADD_CHIP, ADD_CHIP_HOVER)}>+{addCount}</span>
@@ -297,14 +227,6 @@ function EdgeCounts({
   );
 }
 
-/**
- * The version the open deck is compared against when the comparison is opened
- * from its own node: the one it came from, or failing that the family's most
- * recently updated other member. The changes page can re-pick either side, so
- * this only has to be a sensible place to land.
- *
- * @returns A deck id, or null when the family has no other member.
- */
 function defaultCompareFrom(
   layout: RailLayout,
   members: readonly { id: string; updatedAt: string }[],
@@ -320,12 +242,6 @@ function defaultCompareFrom(
   return newestOther?.id ?? null;
 }
 
-/**
- * The open deck's own node. It has no diff to show against itself, so the popup
- * is just the two things you can still do from here.
- *
- * @returns The popover body for the current node.
- */
 function RailCurrentPopover({
   node,
   updatedAt,
@@ -381,7 +297,6 @@ function RailNodePopover({
   onBranchFrom,
 }: {
   node: RailNode;
-  /** The deck the rail belongs to, i.e. the other side of the comparison. */
   openDeckId: string;
   updatedAt: string | undefined;
   ourCards: DeckCardResponse[] | undefined;
@@ -405,8 +320,6 @@ function RailNodePopover({
       <div className="flex flex-wrap items-center gap-1 border-t pt-2">
         {/* Neither link is a PopoverClose: the navigation unmounts the whole
             rail, and closing first would only race the route change. */}
-        {/* The filled variant: opening the version is what the popup is for,
-            and the other two actions read as follow-ups next to it. */}
         <Button
           variant="default"
           size="sm"
@@ -435,8 +348,6 @@ function RailNodeLabel({ node }: { node: RailNode }) {
   return (
     <span
       className={cn(
-        // Every name hangs above its dot, with the date under it: the name is
-        // what the row is scanned for, so it leads.
         "text-2xs absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 items-center justify-center gap-1.5",
         node.isCurrent ? "text-foreground font-medium" : "text-muted-foreground",
       )}
@@ -448,12 +359,6 @@ function RailNodeLabel({ node }: { node: RailNode }) {
   );
 }
 
-/**
- * The node's day, under its dot. Sitting opposite the name keeps the pair
- * readable at a glance: what the version is called, and when it last moved.
- *
- * @returns The date line, or null for a member with no timestamp loaded.
- */
 function RailNodeDate({ updatedAt }: { updatedAt: string | undefined }) {
   if (!updatedAt) {
     return null;
@@ -469,8 +374,7 @@ function RailDot({ isCurrent }: { isCurrent: boolean }) {
   return (
     <span
       className={cn(
-        // The hover/open growth is on the dot rather than the trigger so the
-        // label beside it stays put.
+        // Growth is on the dot, not the trigger, so the label beside it stays put.
         "block size-2 rounded-full transition-[scale,background-color]",
         isCurrent
           ? "bg-primary ring-primary/25 ring-4"
@@ -500,13 +404,7 @@ function VariantRailBody({ deckId }: { deckId: string }) {
       ? { nodes: [], edges: [], overflowCount: 0 }
       : buildRailLayout(members, deckId, MAX_RAIL_NODES);
 
-  // Subscribed rather than fetched once into state: the open deck's detail is
-  // rewritten in the query cache after every autosave, and a snapshot would
-  // leave the step diffs describing the deck as it was when the page loaded.
-  // React Query dedupes these with the builder's own detail query, so the
-  // subscription costs one observer per member and no extra request. A member
-  // that fails to load simply leaves its step-diff blank; the rail never blocks
-  // the deck page on it.
+  // Must subscribe, not fetch once: the open deck's cache entry is rewritten after every autosave.
   const railResults = useQueries({
     queries: layout.nodes.map((node) => ({
       ...deckDetailQueryOptions(userId, node.id),
@@ -547,11 +445,8 @@ function VariantRailBody({ deckId }: { deckId: string }) {
     <div className="flex items-start gap-2 px-1">
       <nav
         aria-label="Deck variants"
-        // `overflow-y` has to be stated: left at `visible` next to an
-        // `overflow-x` that isn't, CSS promotes it to `auto`, and then a
-        // hair of vertical overflow (a hover scale, or a horizontal
-        // scrollbar eating into the height) shows a vertical scrollbar for a
-        // graph that only ever scrolls sideways.
+        // overflow-y must be stated: left at `visible` next to a set `overflow-x`,
+        // CSS promotes it to `auto` and a hair of vertical overflow shows a scrollbar.
         className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain"
       >
         <div className="relative" style={{ width, height }}>
@@ -631,8 +526,6 @@ function VariantRailBody({ deckId }: { deckId: string }) {
             }
             return (
               <Popover key={node.id}>
-                {/* The dot opens the comparison rather than the deck: the deck
-                    is one click further in, behind "Open deck". */}
                 <PopoverTrigger
                   aria-label={node.fullName}
                   className="focus-visible:ring-ring group absolute -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:ring-2 focus-visible:outline-none"
@@ -702,19 +595,12 @@ function VariantRailBody({ deckId }: { deckId: string }) {
   );
 }
 
-/**
- * The variant rail (ADR-042): the deck's family drawn as a branch graph between
- * the hero and the tab strip. Renders nothing for a standalone deck, and never
- * for a browser-local one — local decks have no family.
- *
- * @returns The rail element, or null when there is no family to draw.
- */
+// Never renders for a browser-local deck: local decks have no family.
 export function DeckVariantRail({ deckId }: { deckId: string }) {
   if (isLocalDeckId(deckId)) {
     return null;
   }
-  // The deck list and the catalog both suspend; the rail is decoration, so it
-  // waits invisibly rather than holding up the deck page behind a fallback.
+  // Fallback must be null: the rail must not hold up the deck page while loading.
   return (
     <Suspense fallback={null}>
       <VariantRailBody deckId={deckId} />

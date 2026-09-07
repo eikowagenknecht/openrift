@@ -31,11 +31,8 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(unifiedMappingsForCardQueryOptions(cardId));
 
-  // Most actions (ignore, unassign, reassign-to-card) await the invalidations
-  // so `.mutate`'s promise only resolves after fresh data has been pulled. The
-  // per-card cache is what this page reads; the corpus-wide cache (used by the
-  // /admin/cards list for coverage badges and unmatched products) is
-  // invalidated too so it can't disagree with this view after a mutation.
+  // Invalidates both the per-card cache this page reads and the corpus-wide
+  // cache (coverage badges, unmatched products on /admin/cards) so they can't disagree.
   const mutateOpts = {
     onSuccess: async () => {
       await Promise.all([
@@ -47,11 +44,8 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
 
   const cardKey = queryKeys.admin.unifiedMappings.byCard(cardId);
 
-  // Optimistic path for suggestion-chip clicks and batch-accept. Without this,
-  // chips stay on screen until the unifiedMappings refetch finishes. We fold
-  // optimistic updates over the cache so every row visibly assigns right
-  // away, then reconcile via a background invalidation. On error we roll back
-  // to the pre-batch snapshot, not partway through.
+  // Optimistic path: without this, chips stay on screen until the
+  // unifiedMappings refetch finishes. On error, rolls back to the pre-batch snapshot.
   const applyAssignments =
     (marketplace: AdminMarketplaceName) =>
     (
@@ -148,9 +142,8 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
     const suggestions = computeProductSuggestions(group);
     const strong = collectStrongMappings(group, suggestions);
     const weak = collectWeakMappings(group, suggestions);
-    // Strong wins when both kinds are present, so Ctrl+Enter never silently
-    // accepts a low-confidence amber match while a green one is still on the
-    // page. Weak only fires when the entire card has no strong matches.
+    // Strong wins when both are present, so Ctrl+Enter never accepts a
+    // low-confidence match while a strong one is still on the page.
     const totalStrong =
       strong.tcgplayer.length + strong.cardmarket.length + strong.cardtrader.length;
     acceptAllRef.current = () => {
@@ -281,12 +274,8 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
 }
 
 /**
- * Return a new group with a single (product SKU → printing) assignment
- * applied: the matching staged product becomes assigned, and the assignment
- * row is appended. The SKU is identified by the exact `(externalId, finish,
- * language)` tuple the caller passes through — finish/language describe the
- * marketplace's view of the SKU, not the printing's.
- * @returns The updated group, or the original when nothing changed.
+ * SKU is matched by the `(externalId, finish, language)` tuple the caller
+ * passes through — finish/language describe the marketplace's SKU, not the printing's.
  */
 function applyOptimisticAssignmentToGroup(
   group: UnifiedMappingGroupResponse,
@@ -330,12 +319,7 @@ function applyOptimisticAssignmentToGroup(
   };
 }
 
-/**
- * Optimistic assignment for the card-detail page's
- * {@link UnifiedMappingsCardResponse} cache entry — folds a single
- * (product SKU → printing) assignment into the cached group.
- * @returns The updated response, or the original when nothing changed.
- */
+/** Folds a single (product SKU → printing) assignment into the cached {@link UnifiedMappingsCardResponse}. */
 export function applyOptimisticAssignmentForCard(
   response: UnifiedMappingsCardResponse,
   marketplace: AdminMarketplaceName,

@@ -141,24 +141,14 @@ export function SignupForm({
   );
 }
 
-/**
- * @returns The form-level server error, or null when there is none.
- */
 function RootFormError({ control }: { control: Control<SignUpValues> }) {
   const { errors } = useFormState({ control });
   return errors.root ? <FieldError>{errors.root.message}</FieldError> : null;
 }
 
 /**
- * Isolated so the watch re-renders one link instead of the whole card. Reading
- * the email in `SignupForm` itself rebuilt every field, the social buttons, and
- * this link's router `search` object on each keystroke.
- *
- * `useWatch` rather than `form.watch()`: the latter returns a function the React
- * Compiler flags as un-memoizable (IncompatibleLibrary), bailing on the whole
- * component. The hook subscribes the same way without the bailout.
- *
- * @returns A login link carrying the email typed so far.
+ * Isolated so the watch re-renders this link, not the whole card. Uses
+ * `useWatch`, not `form.watch()`: the latter bails out the React Compiler.
  */
 function LoginLink({
   control,

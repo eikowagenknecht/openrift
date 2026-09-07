@@ -11,18 +11,9 @@ import { cn } from "@/lib/utils";
 interface Props {
   listId: string;
   intent: ListIntent;
-  /** Opens the list's visibility control (the share dialog's group section). */
   onManageVisibility?: () => void;
 }
 
-/**
- * Group-visibility entry for the list's ⋮ menu. The item names the action
- * ("Group visibility") and the current state rides along as a compact trailing
- * marker: muted when the list isn't visible to any of the owner's groups,
- * primary when it is. It sits in the menu rather than the actions cluster so
- * the title row keeps room for the title and the list value on a phone.
- * @returns The menu item, or `null` when there is nothing to signal.
- */
 export function ListVisibilityMenuItem({ listId, intent, onManageVisibility }: Props) {
   const userId = useRequiredUserId();
   const { data } = useQuery({
@@ -36,8 +27,6 @@ export function ListVisibilityMenuItem({ listId, intent, onManageVisibility }: P
   }
 
   const sharedCount = data.items.length;
-  // An unshared organize list is the default state, so there's nothing to nudge
-  // about; only wish/trade lists are expected to be visible to groups.
   if (sharedCount === 0 && intent === "organize") {
     return null;
   }

@@ -60,8 +60,6 @@ describe("CardDetailHeader", () => {
     expect(getByText("Checking…")).toBeTruthy();
   });
 
-  // The slug is derived from the card's fields, so editing a name leaves the
-  // stored slug behind. The header surfaces the drift and offers a rename.
   it("offers a regenerate when the stored slug no longer matches", () => {
     const { getByText } = renderHeader({ cardId: "yasu", expectedCardId: "yasuo" });
 
@@ -89,8 +87,6 @@ describe("CardDetailHeader", () => {
     expect(queryByText("Regenerate")).toBeNull();
   });
 
-  // Triage, rename and delete are full-admin; a card-review grant holder gets
-  // navigation and the title only.
   it("hides the admin actions from non-admins", () => {
     const { queryByText } = renderHeader({ isAdmin: false });
 

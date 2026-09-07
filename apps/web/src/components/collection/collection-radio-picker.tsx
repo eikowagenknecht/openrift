@@ -5,26 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-/** Sentinel value for the "create a new collection" radio option. */
 export const NEW_COLLECTION_OPTION = "__new__";
 
 interface CollectionRadioPickerProps {
   collections: CollectionResponse[];
   selectedId: string;
   onSelectedIdChange: (id: string) => void;
-  /** Name for the collection created when the "New collection" row is picked. */
   newName: string;
   onNewNameChange: (name: string) => void;
-  /** Namespaces the radio input ids so two pickers can coexist in one page. */
   idPrefix: string;
 }
 
-/**
- * Radio list of the viewer's collections plus a "New collection" row with an
- * inline name input. The dialogs that pick a target for incoming copies
- * (completed trades, product adds) share this so the rows read identically.
- * @returns The radio group element.
- */
 export function CollectionRadioPicker({
   collections,
   selectedId,
@@ -52,7 +43,6 @@ export function CollectionRadioPicker({
                 </Badge>
               ) : null}
               {collection.groupName ? (
-                // Group-shared: adding here makes the cards visible to that group.
                 <Badge variant="outline" className="max-w-32 shrink-0 truncate">
                   {collection.groupName}
                 </Badge>

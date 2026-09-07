@@ -17,25 +17,16 @@ interface DeckDescriptionProps {
   text: string;
   className?: string;
   onHoverCard?: HoverHandler;
-  /** Opens the card detail; card links fall back to plain text without it. */
   onCardClick?: (card: CardOpenTarget) => void;
 }
 
 /** The same span `expandCardLinks` rewrites, so nothing loads the catalogue for a description without one. */
 const CARD_REFERENCE = /\[\[[^[\]\n]{1,80}\]\]/u;
 
-/** The inline look of a resolved card reference inside the description. */
 const CARD_LINK_CLASS =
   "text-foreground decoration-muted-foreground/60 hover:decoration-foreground inline font-medium underline decoration-dotted underline-offset-2";
 
-/**
- * A deck description with `[[Card Name]]` references resolved against the
- * catalog: hovering raises the host's floating card preview, clicking opens
- * the card detail. Unresolved names render as plain emphasized text. The
- * catalog is client-only, so before hydration every reference renders as the
- * plain-text fallback (no layout shift — same inline span).
- * @returns The rendered description.
- */
+/** The catalog is client-only, so before hydration every reference renders as the plain-text fallback (no layout shift, same inline span). */
 export function DeckDescription({
   text,
   className,
@@ -66,12 +57,7 @@ export function DeckDescription({
   );
 }
 
-/**
- * Client half of {@link DeckDescription}; owns the catalog subscription. A
- * reference can name any card, including one a subset-serving page (the share
- * and archive deck pages) never carries, so this reads the whole catalogue.
- * @returns The rendered description with resolved card links.
- */
+/** A reference can name any card, including one a subset-serving page (the share and archive deck pages) never carries, so this reads the whole catalogue. */
 function ResolvedDeckDescription({
   text,
   className,
@@ -87,7 +73,7 @@ function ResolvedDeckDescription({
       const builderCard = catalogCardToDeckBuilderCard(cardId, card);
       cardByName.set(card.name.toLowerCase(), builderCard);
       // Legends also resolve by their colloquial display name ("Azir, Emperor
-      // of the Sands"), which is what the editor's autocomplete inserts.
+      // of the Sands"): the editor's autocomplete inserts that form.
       cardByName.set(legendDisplayName(card).toLowerCase(), builderCard);
     }
   }
@@ -119,13 +105,7 @@ function ResolvedDeckDescription({
   );
 }
 
-/**
- * A deck's outbound links, rendered as chips next to the description on the
- * deck and share pages. A link with no title of its own is named after the
- * site it points at. Hosts are allowlisted, so one that no longer resolves
- * (written before the list changed) is dropped rather than shown bare.
- * @returns The chip row, or null when nothing resolves.
- */
+/** Hosts are allowlisted; a link with an unrecognized host is dropped. */
 export function DeckLinkChips({ links }: { links: readonly DeckLink[] }) {
   const resolved = links
     .map((link) => ({ link, host: resolveLinkHost(link.url) }))

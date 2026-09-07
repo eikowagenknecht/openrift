@@ -16,9 +16,8 @@ import { prewarmTintedIcons, TINT_BLACK, TINT_WHITE } from "@/lib/white-icon";
 import type { DesignerCard } from "@/stores/card-designer-store";
 import { useCardDesignerStore } from "@/stores/card-designer-store";
 
-// The glyph icons the card renders, with the color they're tinted to, so they
-// can be pre-tinted before the export clone is captured (html2canvas can't apply
-// the CSS color filters). Mirrors CardPlaceholderImage.
+// Pre-tints the glyph icons before the export clone is captured, since
+// html2canvas can't apply the CSS color filters. Mirrors CardPlaceholderImage.
 function designerTintedIcons(
   card: DesignerCard,
   domainColors: Record<string, string>,
@@ -43,8 +42,7 @@ function designerTintedIcons(
   if (card.might !== null) {
     icons.push({ src: "/images/might.svg", color: TINT_BLACK });
   }
-  // Power pips render a rune tinted to contrast with the domain background, so
-  // it can be black (e.g. on the order/body domains). See CardPlaceholderImage.
+  // Power pip rune tint must contrast with the domain background (black on order/body domains); see CardPlaceholderImage.
   if (card.power !== null && card.power > 0) {
     const runeSrc =
       card.domains.length > 1
@@ -59,13 +57,6 @@ function designerTintedIcons(
   return icons;
 }
 
-/**
- * Card designer layout: the field editor beside a sticky live preview with the
- * background-image controls and export buttons. Owns the off-screen, fixed-size
- * render clone used to rasterize the export at a deterministic width.
- *
- * @returns The card designer page element.
- */
 export function CardDesignerPage() {
   const cardName = useCardDesignerStore((state) => state.card.name);
   const domainColors = useDomainColors();

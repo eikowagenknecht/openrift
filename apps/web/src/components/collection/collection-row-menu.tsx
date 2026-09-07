@@ -23,21 +23,10 @@ import { EditCollectionDialog } from "./edit-collection-dialog";
 
 interface CollectionRowMenuProps {
   collection: CollectionResponse;
-  /** True when this collection's page is the one open — a delete has to navigate away. */
   isActive: boolean;
   children: ReactNode;
 }
 
-/**
- * Right-click (long-press on touch) menu for a collection row in the
- * collections sidebar. Mirrors the collection page's actions menu so the same
- * things are reachable from the row you are looking at, and adds the sidebar
- * visibility toggle — the row itself is where you notice the clutter.
- *
- * Rename / share / delete follow `viewerCanAdmin`; sidebar visibility and
- * deck-building availability are per-viewer preferences every member may set.
- * @returns The row wrapped in a context-menu trigger, plus its dialogs.
- */
 export function CollectionRowMenu({ collection, isActive, children }: CollectionRowMenuProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -99,9 +88,6 @@ export function CollectionRowMenu({ collection, isActive, children }: Collection
               Share
             </ContextMenuItem>
           )}
-          {/* The inbox stays pinned: it is one row, it is where scans and
-              imports land, and hiding it would bury the count that tells you
-              there is something to file. */}
           {!collection.isInbox && (
             <>
               <ContextMenuSeparator />

@@ -39,28 +39,11 @@ import {
 import { getSiteUrl } from "@/lib/site-config";
 import { captureOverlayPreset, presetToOverlaySettings } from "@/lib/stage-preset-apply";
 
-/**
- * The browser-source URL pinned to one preset. A source added with this link
- * paints that scene's dressing regardless of what the dashboard is set to, so a
- * creator can keep two OBS scenes on the same channel.
- *
- * @returns The pinned source URL.
- */
+/** URL pinned to one preset; a source added with it ignores the live dashboard settings. */
 function presetSourceUrl(token: string, presetId: string): string {
   return `${getSiteUrl()}/stage/source/${token}?preset=${presetId}`;
 }
 
-/**
- * Saved scene dressing for the stream overlay: apply one to the live channel,
- * keep the current setup as a new one, or copy a source URL pinned to one.
- *
- * The same presets the presentation stage keeps — one creator dresses one
- * stage, and each surface applies the half it can render. Applying here writes
- * the overlay's switches through the ordinary settings mutation, so the browser
- * source picks the change up on its next poll like any other.
- *
- * @returns The presets section.
- */
 export function OverlayPresetsSection({ channel }: { channel: OverlayChannelResponse }) {
   const { data: presets } = useStagePresets();
   const createPreset = useCreateStagePreset();
@@ -71,9 +54,6 @@ export function OverlayPresetsSection({ channel }: { channel: OverlayChannelResp
     createPreset.mutate(
       { name, config: captureOverlayPreset(channel.payload) },
       {
-        // Only closed on success: a duplicate name (or the preset cap) comes
-        // back as a 409 the global mutation toast reports, and the dialog stays
-        // up with the typed name to be corrected.
         onSuccess: () => setSaveOpen(false),
       },
     );
@@ -125,12 +105,6 @@ export function OverlayPresetsSection({ channel }: { channel: OverlayChannelResp
   );
 }
 
-/**
- * One saved scene: its name applies it, and the menu holds the things that
- * aren't applying it.
- *
- * @returns The preset row.
- */
 function OverlayPresetRow({
   preset,
   token,
@@ -154,8 +128,6 @@ function OverlayPresetRow({
       toast.success("Source URL copied.");
       return;
     }
-    // A clipboard write is not a mutation, so the global mutation toast never
-    // sees this one — it reports itself.
     toast.error("Could not copy the URL.");
   };
 

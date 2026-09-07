@@ -3,18 +3,6 @@ import { deckIdentityLabels } from "@openrift/shared";
 
 import { cn } from "@/lib/utils";
 
-/**
- * The Legend/champion subtitle shared by the deck tile and the deck list row,
- * with the deck's format tags appended.
- *
- * In constructed the Legend's champion tag always matches the champion unit, so
- * the plain pairing repeats the champion on both halves ("Mel, Soul's
- * Reflection / Mel, Newly Awakened"). This names it once up front, in the
- * foreground colour, and leaves the two epithets muted behind it — the same
- * arrangement the deck hero uses.
- *
- * @returns The subtitle line, or null when there is nothing to name.
- */
 export function DeckIdentityLine({
   legendCard,
   championCard,

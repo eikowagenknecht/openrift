@@ -33,21 +33,8 @@ import { cn } from "@/lib/utils";
 import type { StatsLens } from "@/stores/deck-builder-ui-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
-/** The printing the viewer owns for a card, while "show my printings" is on. */
 type OwnedPrinting = ReturnType<DeckOwnershipData["ownedPrintingByCardId"]["get"]>;
 
-/**
- * The deck's charts, under one collapsible header: the energy and power curves,
- * the type breakdown, and the rarity / collection lenses. Clicking a bar sets
- * the surface's stats focus, which dims the non-matching cards in the grid
- * below; every other chart then splits its own segments into the matching part
- * (lit) and the rest (faded), so a focus reads as a cross-filter.
- *
- * Rendered above the grid on desktop and below it on phones — one instance
- * either way, so `#deck-stats` deep links always land on it.
- *
- * @returns The stats band, or null for a deck with nothing to chart.
- */
 export function DeckStatsBand({
   cards,
   stats,
@@ -63,22 +50,14 @@ export function DeckStatsBand({
 }: {
   cards: DeckBuilderCard[];
   stats: ReturnType<typeof useDeckStats>;
-  /** Absent on surfaces with no collection behind them — drops the rarity lens. */
   ownershipData?: DeckOwnershipData;
-  /** Per-entry owned/other/missing split; absent until the band sources land. */
   ownershipSegmentsByCardKey?: ReadonlyMap<string, OwnershipBandSegments>;
-  /** The printing a row stands for, so the rarity lens matches the list rows. */
   ownedPrintingFor: (cardId: string) => OwnedPrinting;
   enumLabels: ReturnType<typeof useEnumOrders>["labels"];
   enumOrders: ReturnType<typeof useEnumOrders>["orders"];
-  /** The surface's active focus; the charts render it, they don't own it. */
   statsFocus: StatsFocus | null;
-  /** Sets the focus, or clears it when the same bar is clicked again. */
   applyStatsFocus: (focus: StatsFocus) => void;
-  /**
-   * Whether the charts are expanded. Hydration-gated by the host, so SSR always
-   * renders the band open — keep the gate there, not here.
-   */
+  /** Hydration-gated by the host; SSR always renders the band open. Keep the gate there, not here. */
   statsOpen: boolean;
   onStatsOpenChange: (open: boolean) => void;
 }) {
@@ -91,18 +70,11 @@ export function DeckStatsBand({
   const hasStats =
     stats.energyCurve.length > 0 || stats.powerCurve.length > 0 || stats.typeBreakdown.length > 0;
 
-  // Cards matching the active focus, run through the same stats pipeline. The
-  // two charts the focus doesn't belong to use these counts to keep the
-  // matching part of every column lit and fade the rest, so a focus reads as
-  // a cross-filter rather than "the other charts are switched off".
   const focusedCards = statsFocus
     ? cards.filter((card) => cardMatchesStatsFocus(card, statsFocus))
     : NO_CARDS;
   const focusedStats = useDeckStats(focusedCards);
 
-  // Rarity lens: the rarity each row stands for (owned printing while "show my
-  // printings" is on, display printing otherwise — same resolution as the list
-  // rows), one column per rarity in the rarity icons' colors.
   const rarityByCardKey = ownershipData
     ? buildRarityByCardKey(
         cards,
@@ -122,8 +94,6 @@ export function DeckStatsBand({
       ? buildRarityRows(focusedCards, rarityByCardKey, enumOrders.rarities, enumLabels.rarities)
       : undefined;
 
-  // Ownership lens: the deck's copies split owned / other printing / missing,
-  // from the same per-entry segments the thumbnails' bands draw.
   const ownershipRows = ownershipSegmentsByCardKey
     ? buildOwnershipRows(cards, ownershipSegmentsByCardKey)
     : undefined;
@@ -132,10 +102,6 @@ export function DeckStatsBand({
       ? buildOwnershipRows(focusedCards, ownershipSegmentsByCardKey)
       : undefined;
 
-  // Stats band layout: measured, not breakpoint-guessed. When the band is
-  // wide enough for every chart on one row, all five render side by side
-  // (energy/power on wider tracks). Otherwise the band keeps its three slots
-  // and the third cycles Types / Rarity / Collection via the lens switcher.
   const [statsChartsEl, setStatsChartsEl] = useState<HTMLDivElement | null>(null);
   const statsChartsWidth = useMeasuredWidth(statsChartsEl);
   const rarityLensAvailable = rarityRows !== undefined && rarityRows.length > 0;
@@ -147,21 +113,15 @@ export function DeckStatsBand({
   ];
   const storedStatsLens = useDeckBuilderUiStore((state) => state.statsLens);
   const setStatsLens = useDeckBuilderUiStore((state) => state.setStatsLens);
-  // An unavailable stored choice (deck switch, signed-out view) falls back to
-  // the first lens that exists rather than an empty slot.
   const statsLens = lensOptions.some((option) => option.key === storedStatsLens)
     ? storedStatsLens
     : (lensOptions[0]?.key ?? "types");
-  // Per-chart minimum widths the one-row layout must fit (the curves need
-  // room for their many columns, the categorical charts for three to five).
   const chartTracks = [
     { present: stats.energyCurve.length > 0, track: "1.5fr", minWidth: 260 },
     { present: stats.powerCurve.length > 0, track: "1.5fr", minWidth: 260 },
     { present: stats.typeBreakdown.length > 0, track: "1fr", minWidth: 170 },
-    // Rarity and Collection render as thin bars and share one column.
     { present: rarityLensAvailable || ownershipLensAvailable, track: "1fr", minWidth: 200 },
   ].filter((chart) => chart.present);
-  // Wide mode separates cells with a centered hairline: pr-5 + border + pl-5.
   const statsGap = 40;
   const wideMinWidth =
     chartTracks.reduce((sum, chart) => sum + chart.minWidth, 0) +
@@ -231,18 +191,12 @@ export function DeckStatsBand({
       />
     ) : null;
 
-  // The deck's curves and lenses, rendered bare (no cards): the band's
-  // hairline header is the only chrome. The focused chart dims its
-  // non-matching columns via focusValue; every other chart splits its
-  // segments into the focus-matching part (lit) and the rest (faded).
   const energyChartNode =
     stats.energyCurve.length > 0 ? (
       <EnergyChart
         data={stats.energyCurve}
         stacks={stats.energyCurveStacks}
         average={stats.averageEnergy}
-        // Domain color is Power's story (runes pay power); here the split
-        // only shows on the hovered column, so the two curves read apart.
         revealDomainsOnHover
         footnote="Counts the main deck. Click a bar to see its cards."
         showTotals
@@ -265,9 +219,6 @@ export function DeckStatsBand({
       />
     ) : null;
 
-  // Wide mode's one-row cells, in track order, dropped where a chart has no
-  // data — the track list above filters on the same conditions. The two lens
-  // bars stack inside one cell, top-aligned against the taller charts.
   const lensBarsNode =
     rarityLensAvailable || ownershipLensAvailable ? (
       <div className="flex flex-col gap-4">
@@ -282,12 +233,8 @@ export function DeckStatsBand({
     { key: "lenses", node: lensBarsNode },
   ].filter((cell) => cell.node !== null);
 
-  // Narrow mode's third slot: the lens switcher, or the single remaining
-  // chart when there's nothing to cycle through.
   const thirdSlotNode = hasLensCharts ? (
     <div>
-      {/* Same grammar as the charts' own heading rows, with the active
-          lens standing where the h4 would be. */}
       <div className="mb-1 flex items-center gap-3 text-xs">
         {lensOptions.map((option) => (
           <Pressable
@@ -318,10 +265,6 @@ export function DeckStatsBand({
     { key: "slot", node: thirdSlotNode },
   ].filter((cell) => cell.node !== null);
 
-  // The deck's curves and lenses, rendered bare (no cards): the band's
-  // hairline header is the only chrome. The focused chart dims its
-  // non-matching columns via focusValue; every other chart splits its
-  // segments into the focus-matching part (lit) and the rest (faded).
   const statsCharts = (
     <div
       ref={setStatsChartsEl}
@@ -338,8 +281,6 @@ export function DeckStatsBand({
               key={cell.key}
               className={cn(
                 "min-w-0",
-                // Hairline dividers centered in the gaps — the frameless
-                // charts otherwise run into each other on one row.
                 index > 0 && "border-l pl-5",
                 index < wideCells.length - 1 && "pr-5",
               )}
@@ -352,10 +293,6 @@ export function DeckStatsBand({
               key={cell.key}
               className={cn(
                 "min-w-0",
-                // Same dividers, applied only where the responsive grid puts
-                // two cells side by side: the second cell borders from two
-                // columns up, the third only in the three-column layout (at
-                // two columns it starts its own row).
                 index === 0 && "@lg:pr-5",
                 index === 1 && "@lg:border-l @lg:pl-5 @3xl:pr-5",
                 index === 2 && "@3xl:border-l @3xl:pl-5",
@@ -367,10 +304,6 @@ export function DeckStatsBand({
     </div>
   );
 
-  // Headline reliability figures, visible even with the charts collapsed:
-  // turn-1 play odds from the existing opening-hand presets, and the
-  // simulated curve-out rate through turn 3 (base rune economy, seeded so the
-  // numbers are stable per deck). Both show going first / going second.
   const presets = oddsGroupPresets(cards, enumLabels.cardTypes);
   const turnOneFirst = presets.find((preset) => preset.key === "turn-one-first");
   const turnOneSecond = presets.find((preset) => preset.key === "turn-one-second");
@@ -409,8 +342,6 @@ export function DeckStatsBand({
     return null;
   }
 
-  // The collapsible band hosting the charts; rendered above the grid on
-  // desktop and below it on phones (one instance either way).
   return (
     <div
       id="deck-stats"

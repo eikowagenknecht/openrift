@@ -4,7 +4,6 @@ import { StandingsTable } from "@/components/pod-tournaments/standings-table";
 import { useRegionLabel } from "@/hooks/use-region-label";
 import { useTournamentRunState } from "@/hooks/use-tournaments";
 
-// Standings come from the same pod engine, reused via the shared id.
 export function TournamentStandingsTab({ id }: { id: string }) {
   const { data } = useTournamentRunState(id);
   const regionLabel = useRegionLabel();

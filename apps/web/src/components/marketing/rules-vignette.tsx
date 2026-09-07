@@ -13,12 +13,10 @@ const INDENT = {
   2: "pl-6 sm:pl-12",
 } as const;
 
-/** An italicised game term, which the rules page renders as a jump link. */
 function Term({ children }: { children: ReactNode }) {
   return <em className="text-primary">{children}</em>;
 }
 
-/** A cross-reference: the whole matched phrase is the link, not just the number. */
 function RuleRef({ children }: { children: ReactNode }) {
   return <span className="text-primary">{children}</span>;
 }
@@ -49,7 +47,6 @@ function RuleRow({
   );
 }
 
-/** A row the search filters away: it collapses out of the list, it does not fade in place. */
 function FilteredRow({ children }: { children: ReactNode }) {
   return (
     <div className="motion-safe:animate-rules-collapse grid grid-rows-[1fr]">
@@ -58,12 +55,6 @@ function FilteredRow({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * The rules reference: every numbered paragraph on one page, with italic game
- * terms and cross-references as jump links. The animation types a query and
- * filters the list to the rules that match, the way the real search does — no
- * highlighting, just fewer rows and a new count.
- */
 export function RulesVignette() {
   return (
     <ClipFrame className="flex flex-col gap-4 p-5">

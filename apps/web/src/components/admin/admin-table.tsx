@@ -63,14 +63,8 @@ import { errorText } from "@/lib/error-text";
 import { downloadJSON } from "@/lib/json-export";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Feature set
-// ---------------------------------------------------------------------------
-
-// Sorting is the only table feature these pages use; v9 leaves everything else
-// (filtering, pagination, selection, pinning) out of the bundle. The row model
-// is registered unconditionally even on reorder tables, where `enableSorting:
-// false` keeps every column out of `createSortedRowModel`'s sort list.
+// The row model is registered unconditionally even on reorder tables, where
+// `enableSorting: false` keeps every column out of its sort list.
 const features = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
@@ -78,20 +72,9 @@ const features = tableFeatures({
 
 type AdminTableFeatures = typeof features;
 
-// ---------------------------------------------------------------------------
-// Column definition (public API — consumed by all admin pages)
-// ---------------------------------------------------------------------------
-
-/** One column's sort, as a server-paged table reports and receives it. */
 export interface ServerSort {
-  /** The active column's {@link AdminColumnDef.sortKey}. */
   key: string;
   direction: "asc" | "desc";
-  /**
-   * A null key is the third step of the header's cycle: the reader has taken
-   * the sort off, and the list falls back to whatever order the endpoint
-   * returns unasked.
-   */
   onChange: (sort: { key: string | null; direction: "asc" | "desc" }) => void;
 }
 
@@ -108,56 +91,20 @@ export interface AdminDraftSlotProps<TDraft> {
 }
 
 export interface AdminColumnDef<TData, TDraft = TData> {
-  /** Header label */
   header: string;
-  /**
-   * Identifies the column to sort state and to {@link AdminTableProps.defaultSort}.
-   * Defaults to {@link header}, which is enough until two columns share a
-   * label — at which point the sort silently lands on whichever comes first.
-   */
   id?: string;
-  /** Tooltip for header (title attribute) */
   headerTitle?: string;
-  /** Tailwind width class, e.g. "w-28" */
   width?: string;
-  /** Text alignment */
   align?: "left" | "center" | "right";
 
-  /** Return a sortable value for this column. If provided, the column header becomes clickable. */
   sortValue?: (row: TData) => string | number | null;
-
-  /**
-   * Names this column to the server's own sort vocabulary. The header becomes
-   * clickable and reports through {@link AdminTableProps.serverSort} instead of
-   * reordering the rows in the browser, which is the only honest option on a
-   * table whose page is one slice of a much larger result.
-   */
   sortKey?: string;
-
-  /**
-   * Which way a first click on this column sorts, whether it orders on the
-   * server ({@link sortKey}) or in the browser ({@link sortValue}). Defaults to
-   * ascending.
-   */
   sortFirst?: "asc" | "desc";
 
-  /**
-   * JSX element rendered as the display-mode cell. The per-row `row` and
-   * `index` are injected via cloneElement, so the component should declare
-   * them as optional props.
-   */
   cell: ReactElement<AdminCellSlotProps<TData>>;
-
-  /** JSX element rendered when the row is being edited. Falls back to `cell` if omitted. */
   editCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
-
-  /** JSX element rendered in the "add" row. If omitted, renders an empty cell. */
   addCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 }
-
-// ---------------------------------------------------------------------------
-// Column meta (passed through TanStack Table's meta field)
-// ---------------------------------------------------------------------------
 
 interface AdminColumnMeta<TDraft> {
   headerTitle?: string;
@@ -167,109 +114,54 @@ interface AdminColumnMeta<TDraft> {
   addCell?: ReactElement<AdminDraftSlotProps<TDraft>>;
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface AdminTableProps<TData, TDraft = TData> {
   columns: AdminColumnDef<TData, TDraft>[];
   data: TData[];
-  /** Unique key for each row */
   getRowKey: (row: TData) => string;
-  /** Text shown when data is empty */
   emptyText?: string;
 
-  /** Initial sort state. `column` is a column's {@link AdminColumnDef.id}, which defaults to its header. */
   defaultSort?: { column: string; direction: "asc" | "desc" };
-
-  /**
-   * Controlled sort for a server-paged table, over the columns carrying a
-   * {@link AdminColumnDef.sortKey}. Switches the table to TanStack's
-   * `manualSorting`, so the rows render in the order they arrived and the
-   * headers only report the click.
-   */
   serverSort?: ServerSort;
 
-  /**
-   * Page title. When set, the table owns the page's sticky top bar
-   * ({@link AdminPageTopBar}) and lifts the Add / Export buttons into it.
-   * Omit on pages that render several tables (or their own top bar) — the
-   * buttons then stay in the inline toolbar row above the table.
-   */
   title?: ReactNode;
-
-  /** Optional toolbar content rendered above the table (description, filters, etc.) */
   toolbar?: ReactNode;
 
-  // --- Inline add ---
   add?: {
-    /** Initial draft for the add row */
     emptyDraft: TDraft;
-    /** Called when Save is clicked. Should return a promise (closes on resolve). */
     onSave: (draft: TDraft) => Promise<unknown>;
-    /** Client-side validation. Return an error string to block save, or null. */
     validate?: (draft: TDraft) => string | null;
-    /** Button label. Defaults to "Add". */
     label?: string;
   };
 
-  // --- Inline add-child ---
-  // Renders an "Add child" button per row that opens the inline add row directly
-  // beneath that row, prefilled by `toDraft(row)`. Requires `add` to be set.
   addChild?: {
     toDraft: (row: TData) => TDraft;
     canAddChild?: (row: TData) => boolean;
   };
 
-  // --- Inline edit ---
   edit?: {
-    /** Convert a data row to an editable draft */
     toDraft: (row: TData) => TDraft;
-    /** Called when Save is clicked. Should return a promise (closes on resolve). */
     onSave: (draft: TDraft) => Promise<unknown>;
-    /** Client-side validation. Return an error string to block save, or null. */
     validate?: (draft: TDraft) => string | null;
   };
 
-  // --- Delete ---
   delete?: {
     onDelete: (row: TData) => Promise<unknown>;
-    /** If provided, shows a confirmation dialog. */
     confirm?: (row: TData) => { title: string; description: ReactNode };
   };
 
-  // --- Reorder ---
-  // Rows get a drag handle plus up/down buttons, and sorting is switched off so
-  // the displayed order is always the stored one.
   reorder?: {
-    /** Move math over the current row order — build with `flatReorder` / `treeReorder`. */
     moves: ReorderMoves;
-    /**
-     * Commits the new order. Return the mutation's promise so a failed save
-     * rolls the rows back to the server's order.
-     */
     onReorder: (keys: string[]) => Promise<unknown> | void;
     isPending?: boolean;
   };
 
-  // --- Export ---
   export?: {
-    /** Filename for the downloaded JSON file (e.g. "sets.json"). */
     filename: string;
-    /** Optional transform applied to the data before serializing. Defaults to identity. */
     transform?: (data: TData[]) => unknown;
   };
 
-  /**
-   * Extra JSX element rendered in each row's action cell (before Edit/Delete).
-   * Per-row `row` and `index` are injected via cloneElement.
-   */
   actions?: ReactElement<AdminCellSlotProps<TData>>;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 const ALIGN_CLASSES: Record<string, string> = { right: "text-right", center: "text-center" };
 
@@ -279,12 +171,10 @@ function alignClass(align?: "left" | "center" | "right") {
   }
 }
 
-/** What sort state and `defaultSort` name a column by. */
 function columnId<TData, TDraft>(col: AdminColumnDef<TData, TDraft>): string {
   return col.id ?? col.header;
 }
 
-// Convert our public AdminColumnDef to TanStack ColumnDef.
 function toTanStackColumns<TData extends RowData, TDraft>(
   adminCols: AdminColumnDef<TData, TDraft>[],
   enableSort: boolean,
@@ -307,36 +197,30 @@ function toTanStackColumns<TData extends RowData, TDraft>(
     };
 
     if (sortsOnServer) {
-      // `getCanSort` refuses a column with no accessor, and under
-      // `manualSorting` the value is never read, so this only unlocks the
-      // header. The row order comes back with the page.
+      // `getCanSort` refuses a column with no accessor; under `manualSorting`
+      // the value is never read, so this only unlocks the header.
       (def as ColumnDef<AdminTableFeatures, TData> & { accessorFn: () => null }).accessorFn = () =>
         null;
     }
 
-    // A server-sorted column always states the direction, because its accessor
-    // is a constant null and table-core's own guess reads that as descending.
+    // A server-sorted column always states the direction: its accessor is a
+    // constant null and table-core's own guess reads that as descending.
     if (sortsOnServer || col.sortFirst !== undefined) {
       def.sortDescFirst = col.sortFirst === "desc";
     }
 
     if (col.sortValue) {
       const { sortValue } = col;
-      // A blank reaches the row model as undefined rather than null, because
-      // `sortUndefined` is the sorted row model's only blank handling and it
-      // tests for undefined. That path also returns before the descending pass
-      // negates the comparison, which is what keeps blanks trailing whichever
-      // way the column runs, the way the server orders a nullable column.
+      // `sortUndefined` is the sorted row model's only blank handling, and it
+      // tests for undefined, so a blank must reach it as undefined, not null.
       (
         def as ColumnDef<AdminTableFeatures, TData> & {
           accessorFn: (row: TData) => string | number | undefined;
         }
       ).accessorFn = (row: TData) => sortValue(row) ?? undefined;
       def.sortUndefined = "last";
-      // Only ever handed two present values, since sortUndefined settles the
-      // rest. Kept over a built-in because those coerce through String, which
-      // misorders negatives and decimals, and compare by char code, which files
-      // every accented name after Z.
+      // Built-in comparators coerce through String, misordering negatives and
+      // decimals and filing accented names after Z.
       def.sortFn = (rowA, rowB, id) => {
         const va = rowA.getValue<string | number>(id);
         const vb = rowB.getValue<string | number>(id);
@@ -351,7 +235,6 @@ function toTanStackColumns<TData extends RowData, TDraft>(
   });
 }
 
-/** The sorting state a server-sorted table is showing, keyed back to column ids. */
 function serverSortingState<TData, TDraft>(
   adminCols: AdminColumnDef<TData, TDraft>[],
   serverSort: ServerSort,
@@ -362,10 +245,6 @@ function serverSortingState<TData, TDraft>(
   }
   return [{ id: columnId(column), desc: serverSort.direction === "desc" }];
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function AdminTable<TData extends RowData, TDraft = TData>({
   columns: adminColumns,
@@ -397,15 +276,11 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
 
   const [deleteError, setDeleteError] = useState("");
 
-  // Key order shown right after a drop, before the save's refetch lands. See
-  // `showsPendingOrder` below.
   const [pendingOrder, setPendingOrder] = useState<{ keys: string[]; from: string } | null>(null);
-  /** Key of the row being dragged, so the rows it can't land on stand down. */
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   const sensors = useSensors(
-    // A distance threshold so a click on the handle isn't read as a drag, and
-    // the keyboard sensor so the handle does something when tabbed to.
+    // A distance threshold so a click on the handle isn't read as a drag.
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
@@ -449,20 +324,15 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
   const hasActions = Boolean(edit || del || actions || addChild);
   const totalCols = adminColumns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
 
-  // --- Row order ---
-  // Row-model order, so a sortable table keeps rendering in its sorted order (a
-  // reorderable one has sorting switched off, leaving the stored order).
   const rows = table.getRowModel().rows;
   const rowKeys = rows.map((row) => row.id);
-  // The reorder mutations only invalidate, so the rows would snap back to the
-  // old order until the refetch lands. Keep the dropped order on screen while
-  // the data still reads exactly as it did at drop time. Any change at all (the
-  // confirming refetch, an added row) retires it, so a save that comes back
-  // different can't strand a stale order.
+  // The reorder mutation only invalidates, so rows would snap back to the old
+  // order until the refetch lands. Keep the dropped order on screen until the
+  // underlying data actually changes.
   const orderSignature = rowKeys.join("\u0000");
   const showsPendingOrder = pendingOrder !== null && pendingOrder.from === orderSignature;
   const orderedKeys = showsPendingOrder ? pendingOrder.keys : rowKeys;
-  // While the dropped order is still unconfirmed, `reorder.moves` describes the
+  // While the dropped order is unconfirmed, `reorder.moves` still describes the
   // pre-move order, so a second move would compute from the wrong list.
   const reorderLocked = Boolean(reorder?.isPending) || showsPendingOrder;
 
@@ -474,8 +344,6 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
     try {
       await reorder.onReorder(keys);
     } catch {
-      // Back to the server's order. The global mutation error toast reports the
-      // failure itself.
       setPendingOrder(null);
     }
   }
@@ -497,7 +365,6 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
     void commitReorder(reorder.moves.moveTo(String(active.id), String(over.id)));
   }
 
-  // --- Add handlers ---
   function startAdding(draft?: TDraft, underKey: string | null = null) {
     if (!add) {
       return;
@@ -537,7 +404,6 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
     }
   }
 
-  // --- Edit handlers ---
   function startEditing(row: TData) {
     if (!edit) {
       return;
@@ -575,7 +441,6 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
     }
   }
 
-  // --- Render ---
   const headerGroups = table.getHeaderGroups();
   const rowByKey = new Map(rows.map((row) => [row.id, row]));
 
@@ -637,10 +502,9 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
           }
         />
       )}
-      {/* The second Export/Add pair below is not a duplicate: `title` is
-          optional, and a table rendered without one has no top bar to host
-          them, so they move into the toolbar row. The two branches are
-          mutually exclusive, so only ever one pair renders. */}
+      {/* A table without `title` has no top bar to host Export/Add, so they
+          render in this toolbar row instead; the two branches are mutually
+          exclusive. */}
       {title === undefined
         ? (toolbar || add || exportConfig) && (
             <div className="flex items-center justify-between gap-4">
@@ -707,10 +571,8 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
               ))}
             </TableHeader>
             <TableBody>
-              {/* Top-of-table add row (only when not adding under a parent) */}
               {addingUnderKey === null && addRow}
 
-              {/* Empty state */}
               {rows.length === 0 && !adding && (
                 <TableRow>
                   <TableCell colSpan={totalCols} className="text-muted-foreground h-24 text-center">
@@ -719,8 +581,6 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
                 </TableRow>
               )}
 
-              {/* Data rows, in the displayed order (which may be a just-dropped
-                order the save hasn't confirmed yet). */}
               {orderedKeys.map((key) => {
                 const row = rowByKey.get(key);
                 if (!row) {
@@ -735,10 +595,9 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
 
                 const cells = (
                   <>
-                    {/* getAllCells, not getVisibleCells: see the same call in
-                      admin-card-table-shared.tsx. Equivalent while no column
-                      can hide; re-pair them if columnVisibilityFeature is
-                      ever registered. */}
+                    {/* getAllCells, not getVisibleCells: pair with the same
+                      call in admin-card-table-shared.tsx if that ever
+                      registers columnVisibilityFeature. */}
                     {row.getAllCells().map((cell) => {
                       const meta = cell.column.columnDef.meta as
                         | AdminColumnMeta<TDraft>
@@ -832,15 +691,9 @@ export function AdminTable<TData extends RowData, TDraft = TData>({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Internal: reorder chrome
-// ---------------------------------------------------------------------------
-
 /**
  * Puts the table inside a dnd-kit sortable context, or renders it untouched on
  * the tables that don't reorder.
- *
- * @returns The table, wrapped when reordering is on.
  */
 function ReorderProvider({
   enabled,
@@ -883,8 +736,6 @@ function ReorderProvider({
 /**
  * A data row on a reorderable table: draggable by its grip, with the up/down
  * buttons beside it for single steps and keyboard use.
- *
- * @returns The row, including its leading Order cell.
  */
 function ReorderableRow({
   id,
@@ -896,9 +747,7 @@ function ReorderableRow({
   children,
 }: {
   id: string;
-  /** True while a previous move is still being saved — everything is inert. */
   locked: boolean;
-  /** Whether the row currently being dragged is allowed to land here. */
   droppable: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -979,10 +828,6 @@ function ReorderableRow({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Internal: Save / Cancel button pair
-// ---------------------------------------------------------------------------
-
 function SaveCancelButtons({
   onSave,
   onCancel,
@@ -1009,10 +854,6 @@ function SaveCancelButtons({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Internal: Delete button (with optional confirmation dialog)
-// ---------------------------------------------------------------------------
-
 function DeleteButton<TData>({
   row,
   config,
@@ -1028,7 +869,6 @@ function DeleteButton<TData>({
   const [deletePending, setDeletePending] = useState(false);
 
   async function handleConfirmedDelete() {
-    // Guard against double-submission while a delete is in flight.
     if (deletePending) {
       return;
     }

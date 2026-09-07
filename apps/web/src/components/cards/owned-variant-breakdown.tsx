@@ -6,16 +6,6 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import type { VariantCollectionBreakdownEntry } from "@/hooks/use-owned-count";
 import { cn } from "@/lib/utils";
 
-/**
- * Where a card's copies actually sit: one section per sibling printing the
- * viewer owns at least one copy of, each listing the personal collections that
- * hold it and how many. Every row links into that collection filtered to the
- * variant, so the breakdown doubles as a way to go look at the copies.
- *
- * Shared by the card detail's owned-count popover and the trade sheet's
- * available-count popover, so "which variants, where" reads the same on both.
- * @returns The grouped breakdown list.
- */
 export function OwnedVariantBreakdown({
   variants,
 }: {

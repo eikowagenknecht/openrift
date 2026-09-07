@@ -22,9 +22,6 @@ interface EditCollectionDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Renames a collection (owner/admin only). Deck-building availability is no
-// longer edited here — it's a per-viewer preference toggled from the
-// collection actions menu, available to every member.
 export function EditCollectionDialog({
   collectionId,
   currentName,
@@ -35,11 +32,8 @@ export function EditCollectionDialog({
   const [name, setName] = useState(currentName);
   const updateCollection = useUpdateCollection();
 
-  // BaseUI's Dialog only fires onOpenChange for user-initiated changes
-  // (Esc / backdrop / close button), not when the parent toggles the
-  // controlled `open` prop. The dialog stays mounted across collection
-  // navigations, so useState seeds would otherwise stick to whichever
-  // collection was current when the component first mounted.
+  // BaseUI's Dialog only fires onOpenChange for user-initiated changes, not
+  // when the parent toggles the controlled `open` prop, so seed on both.
   const [seed, setSeed] = useState({ open, currentName });
   if (seed.open !== open || seed.currentName !== currentName) {
     setSeed({ open, currentName });

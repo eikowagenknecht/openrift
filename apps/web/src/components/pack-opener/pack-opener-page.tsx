@@ -47,12 +47,7 @@ function poolFromPrintings(printings: readonly Printing[], language: string): Pa
   return buildPool(eligible.map((p) => toPackPrinting(p)));
 }
 
-/**
- * Collect distinct languages that have a workable pool in this set. The
- * threshold is a small sanity filter — a single stray FR printing shouldn't
- * surface as "French boosters".
- * @returns Sorted language codes with at least 20 booster-eligible printings.
- */
+/** Sorted language codes with at least 20 booster-eligible printings, so a single stray printing doesn't surface as its own language. */
 function languagesWithEnoughPrintings(printings: readonly Printing[]): string[] {
   const counts = new Map<string, number>();
   for (const p of printings) {
@@ -162,8 +157,6 @@ function PackOpenerTopBar({ children }: { children?: ReactNode }) {
     <PageTopBarSticky width="full">
       <PageTopBar>
         <PackagePlusIcon className="mr-2 size-5 shrink-0" />
-        {/* "simulator" drops on phones: next to the two toggles the full title
-            would ellipsize mid-word. */}
         <PageTopBarTitle>
           Pack opener<span className="max-sm:hidden"> simulator</span>
         </PageTopBarTitle>
@@ -187,8 +180,6 @@ function ToggleField({
       variant="outline"
       pressed={checked}
       onPressedChange={onChange}
-      // Persistent primary fill for the active state, matching the catalog's
-      // owned-counts toolbar toggle.
       className="aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary aria-pressed:hover:text-primary-foreground"
     >
       {label}
@@ -303,10 +294,7 @@ function CountField({
             max={500}
             value={custom}
             onChange={(e) => onCustomChange(Number(e.target.value))}
-            // [moz-appearance:textfield] hides Firefox's up/down spinners; the
-            // webkit selectors do the same for Chrome/Safari/Edge. The page's
-            // custom-count input is typed directly — the spinner adds noise
-            // at small sizes without meaningful value.
+            // Hides the native up/down spinner (Firefox via -moz-appearance, others via the webkit selectors).
             className="w-20 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
             aria-label="Custom pack count"
           />
@@ -333,7 +321,6 @@ function OpenAction({
 
   return (
     <div className="space-y-1">
-      {/* Invisible label keeps this cell's control row aligned with the other fields */}
       <Label aria-hidden="true" className="invisible select-none">
         &nbsp;
       </Label>
@@ -363,12 +350,8 @@ function SinglePackResult({
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const imagesByPrintingId = new Map(data.printings.map((p) => [p.id, p.images] as const));
-  // In auto-reveal mode stats are shown immediately; in manual mode they
-  // appear once every card has been flipped.
   const [statsVisible, setStatsVisible] = useState(autoReveal);
-  // Reset the stats gate whenever a new single-pack result arrives, so the
-  // user starts each pack with the reveal flow again (unless auto-reveal is
-  // on, in which case there's nothing to gate).
+  // Reset during render, not an effect, so the gate is armed before this render paints.
   const [gateArmedFor, setGateArmedFor] = useState({ pack, autoReveal });
   if (gateArmedFor.pack !== pack || gateArmedFor.autoReveal !== autoReveal) {
     setGateArmedFor({ pack, autoReveal });
@@ -401,9 +384,8 @@ function BulkPackResult({
 }) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const imagesByPrintingId = new Map(data.printings.map((p) => [p.id, p.images] as const));
-  // Track which packs have been fully revealed. Stats only show once every
-  // pack is flipped (auto-reveal skips the gate entirely).
   const [revealedCount, setRevealedCount] = useState(autoReveal ? packs.length : 0);
+  // Reset during render, not an effect, so the gate is armed before this render paints.
   const [countArmedFor, setCountArmedFor] = useState({ packs, autoReveal });
   if (countArmedFor.packs !== packs || countArmedFor.autoReveal !== autoReveal) {
     setCountArmedFor({ packs, autoReveal });
@@ -420,9 +402,6 @@ function BulkPackResult({
     );
   }
 
-  // Click-to-reveal across many packs: render one PackReveal per pack, each
-  // tracking its own flip state. Each section commits toward the stats gate
-  // exactly once.
   return (
     <section className="space-y-6">
       {packs.map((pack, i) => (

@@ -5,14 +5,6 @@ import { FolderIcon } from "lucide-react";
 import { CardArtThumbStack } from "@/components/cards/card-art-thumb-stack";
 import { IconChip } from "@/components/ui/icon-chip";
 
-/**
- * One row for a collection shared with the group: the sky folder chip (the
- * collections tone from the overview tiles), the name linking to the in-group
- * collection view, the copy count, and a thumb stack of the collection's
- * cover art. Rendered inside the bordered row list on the Collections and
- * member-detail pages (the overview rail's row treatment).
- * @returns The shared-collection row element.
- */
 export function SharedCollectionRow({
   slug,
   share,

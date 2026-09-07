@@ -9,14 +9,6 @@ import {
 import { formatPublicCode } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/**
- * Whether the plate would carry anything at all for this card.
- *
- * Callers that wrap the plate in their own chrome (the overlay's black plate)
- * ask first, so a card that switches down to nothing leaves no empty box behind.
- *
- * @returns True when at least one switched-on field has something to show.
- */
 export function hasCardPlateContent(printing: Printing, fields: OverlayPlateFields): boolean {
   const { card } = printing;
   // Only null means "this card has no such stat" — 0 is a real value (0-cost
@@ -34,22 +26,8 @@ export function hasCardPlateContent(printing: Printing, fields: OverlayPlateFiel
   );
 }
 
-/**
- * The card's lines written out beside its artwork: name, set code, stats, rules
- * and flavor, each on its own switch.
- *
- * One component for both capture surfaces — the OBS browser source and the
- * presentation stage — so a creator who dresses a card on one recognises it on
- * the other, and a field added here reaches both. It carries no ground of its
- * own: the caller supplies the plate, the panel width and the theme.
- *
- * Errata wins over the printed wording, via {@link CardDetailText}: a stream
- * showing a card's rules should show the rules as they are played, not as they
- * were misprinted.
- *
- * @returns The plate's lines, or null when every switched-on field is empty for
- * this card.
- */
+// Shared by the OBS overlay and the presentation stage, so a field added
+// here reaches both; errata wins over printed wording via CardDetailText.
 export function CardPlateContent({
   printing,
   fields,
@@ -58,12 +36,7 @@ export function CardPlateContent({
 }: {
   printing: Printing;
   fields: OverlayPlateFields;
-  /**
-   * The title tier, and nothing else: the stage fills a screen and the overlay
-   * sits in a corner of one, so only the name needs to differ.
-   */
   size: "stage" | "overlay";
-  /** Keyword hovers. Off by default — a capture surface has no cursor on it. */
   interactive?: boolean;
 }) {
   if (!hasCardPlateContent(printing, fields)) {

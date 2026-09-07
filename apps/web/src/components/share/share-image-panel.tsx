@@ -17,11 +17,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { downloadImageFromUrl } from "@/lib/share-image";
 
 /**
- * Default multiplier per aspect. Wide renders at 2× because 1200×630 is an
- * unfurl preview rather than a deliverable, while the vertical canvas is already
- * 1080×1920 — the native upload size for every vertical surface — so 1× there is
- * the finished image and anything more is editing headroom.
- * @returns The multiplier to preselect for an aspect.
+ * Wide renders at 2x (1200x630 is an unfurl preview, not a deliverable);
+ * vertical at 1x (1080x1920 is already the native upload size).
  */
 function defaultScale(aspect: ShareImageAspect, scales: readonly number[]): number {
   if (aspect === "vertical") {
@@ -30,58 +27,29 @@ function defaultScale(aspect: ShareImageAspect, scales: readonly number[]): numb
   return scales.includes(2) ? 2 : (scales[0] ?? 1);
 }
 
-/** The render choices a creator makes in the panel. */
 export interface ShareImageRenderChoice {
   aspect: ShareImageAspect;
-  /** Multiplier over the base canvas; the URL builder maps it to its route's params. */
   scale: number;
-  /** Whether the render should carry the scannable mark. */
   qr: boolean;
 }
 
 export interface ShareImagePanelProps {
-  /** Human name of the thing being rendered, for the preview's alt text. */
   title: string;
-  /** Base for the downloaded filename; sanitized here, "-vertical" appended for tall. */
   filenameBase: string;
-  /**
-   * Builds the render URL for a choice — both the live preview and the default
-   * download hit it. Each surface's builder maps `scale` onto whatever its
-   * route accepts (`size=hq` or `scale=N`).
-   */
   buildUrl: (choice: ShareImageRenderChoice) => string;
-  /**
-   * Overrides the download for renders with no GET URL (the from-cards POST
-   * used by browser-local decks). When set, the live preview is dropped too.
-   */
   download?: (choice: ShareImageRenderChoice, filename: string) => Promise<void>;
-  /** Canvas shapes offered. A single entry hides the Shape control. */
   aspects?: readonly ShareImageAspect[];
-  /** Multipliers offered. A single entry hides the Size control. */
   scales?: readonly number[];
-  /**
-   * QR control state: `available` renders the switch live, `requires-share`
-   * disables it with a hint to create a share link first, and `hidden` drops
-   * the control (surfaces whose render can never carry a link).
-   */
   qr: "available" | "requires-share" | "hidden";
-  /** Label for the QR switch. */
   qrLabel?: string;
-  /** Note above the controls, e.g. an unsaved-changes warning. */
   note?: ReactNode;
 }
 
 /**
  * The app's one image-export surface: a live preview of the real server render
- * plus the shape / size / QR choices, ending in a Download button. Every
- * share image (deck, list, collection, tier list, bundle) goes through this
- * panel so the controls and their behavior never drift between surfaces.
+ * plus the shape / size / QR choices, ending in a Download button.
  *
- * The preview is the actual render at 1×, not a mock: it is the same route the
- * download hits, so what it shows is what gets saved, QR and crop included.
- * Only the multiplier differs, and that changes pixel count rather than layout.
- *
- * @returns The image-export panel node.
+ * The preview is the actual render at 1x, the same route the download hits.
  */
 export function ShareImagePanel({
   title,
@@ -101,8 +69,7 @@ export function ShareImagePanel({
   const [previewLoaded, setPreviewLoaded] = useState(false);
 
   const canvas = SHARE_IMAGE_CANVAS[aspect];
-  // A render without a share link carries no mark whatever the switch says, so
-  // the preview has to ask for the same thing the server will actually draw.
+  // A render without a share link carries no mark whatever the switch says.
   const withQr = qrOn && qr === "available";
   const showPreview = download === undefined;
 
@@ -127,9 +94,8 @@ export function ShareImagePanel({
       await run;
       setDownloading(false);
     } catch {
-      // A download is not a mutation, so it never reaches the global mutation
-      // error handler and has to say so itself. The flag is reset on both paths
-      // rather than in a `finally`, which the React Compiler can't lower.
+      // Not a mutation, so it never reaches the global mutation error handler.
+      // Flag reset here and above, not in `finally`: React Compiler can't lower it.
       setDownloading(false);
       toast.error("Couldn't prepare the image. Please try again.");
     }
@@ -140,15 +106,11 @@ export function ShareImagePanel({
       {note}
       {showPreview ? (
         <div
-          // The frame keeps the host dialog's height steady while a new render
-          // arrives, so switching shape doesn't make the buttons jump.
           className="bg-muted/30 ring-border relative mx-auto w-full max-w-sm overflow-hidden rounded-md ring-1"
           style={{ aspectRatio: `${canvas.width} / ${canvas.height}` }}
         >
           <img
-            // Keyed on the URL so a shape or QR change remounts the image and
-            // the spinner comes back instead of the old render sitting there
-            // looking current.
+            // Keyed on the URL so an aspect/QR change remounts and re-shows the spinner.
             key={previewUrl}
             src={previewUrl}
             alt={`Preview of ${title}`}

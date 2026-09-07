@@ -12,20 +12,8 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
-/** Matches the name limit the contract enforces, so a field stops before the API does. */
 export const MAX_PRESET_NAME_LENGTH = 60;
 
-/**
- * The one thing saving or renaming a preset asks for.
- *
- * Shared by both surfaces that keep presets — the stage's settings popover and
- * the Stage's OBS output — so a preset is named the same way wherever it is made.
- * The dialog only collects the name: the caller owns the mutation, and closes
- * this from its own success handler so a rejected name (a duplicate, or the
- * twenty-preset cap) leaves the typed text on screen to be corrected.
- *
- * @returns The name dialog.
- */
 export function StagePresetNameDialog({
   open,
   onOpenChange,
@@ -41,7 +29,6 @@ export function StagePresetNameDialog({
   title: string;
   description: string;
   confirmLabel: string;
-  /** Prefilled on rename; empty when saving a new preset. */
   initialName?: string;
   pending: boolean;
   onConfirm: (name: string) => void;
@@ -53,8 +40,6 @@ export function StagePresetNameDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        // Reopening starts from the stored name rather than from whatever an
-        // abandoned edit left behind.
         if (next) {
           setName(initialName);
         }

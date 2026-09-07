@@ -13,7 +13,7 @@ import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 import { visibleHelpArticles } from "./articles";
 
 export function HelpIndexPage() {
-  // Prefetched in the root loader, so this resolves without an SSR waterfall.
+  // Requires featureFlagsQueryOptions prefetched in the root loader, or this suspends during SSR.
   const { data: flags } = useSuspenseQuery(featureFlagsQueryOptions);
   const articles = visibleHelpArticles(flags as FeatureFlags);
 

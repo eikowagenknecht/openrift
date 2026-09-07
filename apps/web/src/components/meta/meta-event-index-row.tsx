@@ -16,18 +16,11 @@ import {
 import { metaEventWinners } from "@/lib/meta-front-page";
 import { cn } from "@/lib/utils";
 
-/**
- * The desktop column track, shared by the rows and the sort header above them so
- * the two can never drift apart.
- */
+/** Shared with the sort header above so the two grids can never drift apart. */
 export const EVENT_INDEX_GRID =
   "grid grid-cols-[2.75rem_minmax(0,1fr)_6rem_3.75rem_4.5rem_3.5rem_10rem] items-center gap-x-3.5";
 
-/**
- * One archived event, in the two arrangements the index needs: a column row from
- * `sm` up, and a card row on phones. Both live in the same link, so an event is
- * one click target and one entry in the tab order at every width.
- */
+/** Both layouts share one Link, so an event stays one click target and tab stop at every width. */
 export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
   const leaf = dateLeafPartsUtc(event.eventDate);
   const venue = [event.organizer, event.location].filter(Boolean).join(" · ");
@@ -70,8 +63,6 @@ export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
             <WinnerCell winners={winners} />
           </>
         ) : (
-          // Nothing archived is one fact: one muted line where three empty
-          // cells ("0 · 0 · —") would each restate it.
           <span className="text-muted-foreground/60 col-span-3 text-sm">{emptyStatus}</span>
         )}
       </div>
@@ -103,7 +94,6 @@ export function MetaEventIndexRow({ event }: { event: MetaEventSummary }) {
   );
 }
 
-/** The winner column: the legend they played, then who they are. */
 function WinnerCell({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 0) {
     return (
@@ -122,11 +112,6 @@ function WinnerCell({ winners }: { winners: readonly MetaEventFinish[] }) {
   );
 }
 
-/**
- * The same fact on a phone, where the row has the width for the record too. The
- * record is only shown for a single winner: two records side by side stop
- * reading as "who won" and start reading as a standings table.
- */
 function WinnerLine({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 0) {
     return null;
@@ -147,7 +132,6 @@ function WinnerLine({ winners }: { winners: readonly MetaEventFinish[] }) {
   );
 }
 
-/** One thumbnail per winner, overlapped so a tie still fits the column. */
 function LegendThumbs({ winners }: { winners: readonly MetaEventFinish[] }) {
   if (winners.length === 1) {
     return <LegendThumb winner={winners[0]} />;
@@ -161,10 +145,6 @@ function LegendThumbs({ winners }: { winners: readonly MetaEventFinish[] }) {
   );
 }
 
-/**
- * The winner's legend at thumbnail size. Cropped to the art rather than the whole
- * card: at 24px a full card is a smudge, while the splash still reads.
- */
 function LegendThumb({ winner }: { winner: MetaEventFinish }) {
   const champion = winner.legend === null ? "" : splitLegendName(winner.legend.name).champion;
   return (

@@ -4,15 +4,11 @@ import { useState } from "react";
 import { LanguageChip } from "@/components/language-chip";
 import { Button } from "@/components/ui/button";
 
-/** Whether the list shows all printings, only markered ones, or only markerless ones. */
 export type PrintingMarkerFilter = "all" | "with" | "without";
 
 export interface PrintingFilterBarProps {
-  /** Languages present on the card; the picker hides below two entries. */
   availableLanguages: string[];
-  /** `[setSlug, setName]` pairs present on the card, in first-seen order. */
   availableSets: [string, string][];
-  /** Only meaningful when the card mixes markered and markerless printings. */
   showMarkerFilter: boolean;
   languageFilter: string | null;
   setFilter: string | null;
@@ -22,11 +18,6 @@ export interface PrintingFilterBarProps {
   onMarkerFilterChange: (filter: PrintingMarkerFilter) => void;
 }
 
-/**
- * Narrow a printing list down to the active language, set and marker filters.
- *
- * @returns The printings matching every active filter.
- */
 export function filterPrintings(
   printings: readonly AdminPrintingResponse[],
   filters: { language: string | null; setSlug: string | null; marker: PrintingMarkerFilter },
@@ -48,13 +39,6 @@ export function filterPrintings(
   });
 }
 
-/**
- * Filter state for the card detail page's printing list, plus the derived
- * option lists the bar needs. Each picker only renders when the card actually
- * offers a choice, so a single-set single-language card shows no chrome.
- *
- * @returns The filtered printings and the props for {@link PrintingFilterBar}.
- */
 export function usePrintingFilters(printings: readonly AdminPrintingResponse[]): {
   filteredPrintings: AdminPrintingResponse[];
   filters: PrintingFilterBarProps;
@@ -90,12 +74,6 @@ export function usePrintingFilters(printings: readonly AdminPrintingResponse[]):
   };
 }
 
-/**
- * The language / set / marker pickers above the printing list. Renders nothing
- * for an axis the card doesn't vary along.
- *
- * @returns The picker groups.
- */
 export function PrintingFilterBar({
   availableLanguages,
   availableSets,

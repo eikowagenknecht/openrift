@@ -11,16 +11,6 @@ import { useClaimLanding, useClaimTournamentDeck } from "@/hooks/use-deck-check-
 import { useUserId } from "@/lib/auth-session";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * The pre-claim landing for a participant claim link (ADR-026 amendment,
- * ADR-033). Reachable logged-out: it shows only the tournament, its linked group
- * (if any), and the spot's name, then either routes through login (when signed
- * out) or claims the spot on confirm. A brand-new account may claim straight
- * away; the token is the capability, so claiming never waits on email
- * verification. After claiming it lands on the deck (when the tournament runs
- * deck check) or the tournament page.
- * @returns The page.
- */
 export function PlayerClaimPage({ token }: { token: string }) {
   const { data, isPending, isError } = useClaimLanding(token);
   const claim = useClaimTournamentDeck();
@@ -65,7 +55,6 @@ export function PlayerClaimPage({ token }: { token: string }) {
       result.tournamentId !== null
     ) {
       void navigate({
-        // The deck page when the claim carried one, the tournament otherwise.
         to: result.entryId ? "/tournaments/$id/my-deck" : "/tournaments/$id",
         params: { id: result.tournamentId },
       });

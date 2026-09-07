@@ -36,8 +36,7 @@ const RARITY_ORDER: readonly string[] = [
   WellKnown.cardType.RUNE,
   WellKnown.artVariant.ULTIMATE,
 ];
-// Fallbacks for rarities the `rarities` DB table doesn't cover — Rune and
-// Ultimate are slot-derived labels rather than true rarity rows.
+// Rune and Ultimate are slot-derived labels, not rows in the `rarities` table.
 const RARITY_FALLBACK_COLORS: Record<string, string> = {
   [WellKnown.cardType.RUNE]: "#6b7280",
   [WellKnown.artVariant.ULTIMATE]: "#d946ef",
@@ -49,10 +48,6 @@ const NOTABLE_RARITIES = new Set<string>([
   WellKnown.artVariant.ULTIMATE,
 ]);
 
-// Compact summary rendered below the pack grid once the reveal is complete.
-// One panel with a headline row, a horizontal rarity breakdown bar, and a
-// single "notable pulls" list that merges top pulls (by value) with any
-// high-rarity pulls that lack price data.
 export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
   const { rarityColors, labels } = useEnumOrders();
   const rarityLabel = (slug: string) =>
@@ -92,13 +87,11 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
     }
   }
 
-  // Sort unpriced by rarity desc so the interesting ones (rares, epics) rise
-  // to the top when the user expands the list.
   unpricedPulls.sort((a, b) => RARITY_ORDER.indexOf(b.rarity) - RARITY_ORDER.indexOf(a.rarity));
 
   const totalPulls = allPulls.length;
   const averageValue = packs.length > 0 ? totalValue / packs.length : 0;
-  // 13 pulls is too few to make a meaningful distribution chart out of.
+  // A single 13-card pack is too few pulls for a meaningful distribution bar.
   const showRarityBar = packs.length > 1;
 
   const notable = buildNotablePulls(allPulls, rarityLabel);
@@ -146,10 +139,6 @@ function rarityKeyFor(pull: PackPull): string {
   return pull.printing.rarity;
 }
 
-// Build the "notable pulls" list: any rare+ or foil-slot pull is always
-// included; then the top remaining pulls by value fill out up to 10 slots.
-// Priced pulls come first, sorted by value descending. Unpriced high-rarity
-// pulls come after, sorted by rarity descending, with a `—` price marker.
 function buildNotablePulls(
   allPulls: readonly { pull: PackPull; rarity: string; value: number | undefined }[],
   rarityLabel: (slug: string) => string,
@@ -170,9 +159,7 @@ function buildNotablePulls(
     if (!isNotableRarity) {
       continue;
     }
-    // Filter out the noise: a foil common that's worth 20¢ isn't "notable"
-    // in any useful sense. Keep unpriced cards in — they might be the most
-    // interesting ones in the list (no market data yet).
+    // A priced pull under $1 isn't notable; an unpriced one might still be.
     if (value !== undefined && value < 1) {
       continue;
     }
@@ -199,7 +186,6 @@ function buildNotablePulls(
     if (aPriced !== bPriced) {
       return aPriced ? -1 : 1;
     }
-    // Both unpriced: sort by rarity desc (highest rarity first)
     return RARITY_ORDER.indexOf(b.rarity) - RARITY_ORDER.indexOf(a.rarity);
   });
 
@@ -269,8 +255,6 @@ function RarityBar({
   if (total === 0) {
     return null;
   }
-  // Segments render inline with a flex row. Small segments (narrow width)
-  // show only the count so labels don't overflow.
   return (
     <div>
       <div className="border-border/50 flex h-8 w-full overflow-hidden rounded-md border text-xs font-medium">

@@ -23,12 +23,6 @@ import {
   roundsChoiceFor,
 } from "@/lib/tournament-display";
 
-/**
- * Play mode, pairings toggle and rounds engine. Everything here is fixed once
- * the first round has been generated, so the card collapses to a summary line
- * from that point on.
- * @returns The format card.
- */
 export function FormatCard({
   detail,
   locked,
@@ -39,7 +33,6 @@ export function FormatCard({
   const updateTournament = useUpdateTournament();
   const runsRounds = hasPairing(detail.pairingStyle);
   const isSwiss = detail.pairingStyle === "swiss";
-  // Non-null exactly when pairings are on (runsRounds).
   const roundsChoice = roundsChoiceFor(detail.pairingStyle, detail.matchFormat);
   // 2v2 pairs team Swiss only; the pod option disappears while it's on.
   const roundsItems =
@@ -67,9 +60,6 @@ export function FormatCard({
               disabled={locked || updateTournament.isPending}
               onValueChange={(value) => {
                 if (value === "1v1" || value === "2v2") {
-                  // 2v2 pairs team Swiss, so a pod-style event moves to Swiss
-                  // in the same patch; leaving 2v2 dissolves any
-                  // (never-played) teams server-side.
                   void runReportedMutation(() =>
                     updateTournament.mutateAsync({
                       id: detail.id,
@@ -102,8 +92,6 @@ export function FormatCard({
                 checked={runsRounds}
                 disabled={locked || updateTournament.isPending}
                 onCheckedChange={(checked) => {
-                  // Re-enabling restores the default engine for the play mode
-                  // (2v2 pairs team Swiss only).
                   void runReportedMutation(() =>
                     updateTournament.mutateAsync({
                       id: detail.id,

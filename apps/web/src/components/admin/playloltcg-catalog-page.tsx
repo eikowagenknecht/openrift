@@ -129,7 +129,6 @@ const columns: AdminColumnDef<PlayloltcgCatalogRow>[] = [
 
 const SORT_FALLBACK = { sort: "startAt", direction: "desc" } as const;
 
-/** What a row's buttons do, held once by the page rather than once per row. */
 interface PlayloltcgRowHandlers {
   busy: boolean;
   onAccept: (activityShopId: number) => void;
@@ -138,13 +137,6 @@ interface PlayloltcgRowHandlers {
   onFetch: (activityShopId: number) => void;
 }
 
-/**
- * The per-row triage actions, on the same ghost buttons and the same
- * confirmation as the uvsgames catalogue. The mutations stay on the page rather
- * than here, so a fifty-row page holds four of them instead of two hundred.
- *
- * @returns The actions for one catalogue row.
- */
 function PlayloltcgRowActions({
   row,
   busy,
@@ -221,16 +213,6 @@ function PlayloltcgRowActions({
   );
 }
 
-/**
- * The playloltcg catalogue triage list (ADR-014, second source). Built on the
- * same {@link AdminTable} + {@link AdminPageTopBar} chrome as the uvsgames
- * catalogue so the two read identically; it is leaner only where the source is
- * (no format mapping, no watched templates, playloltcg auto-accepts on player
- * count). Filters live in the URL, shared with the uvsgames catalogue's params
- * wherever the two sources mean the same thing by them.
- *
- * @returns The catalogue tab for playloltcg.
- */
 export function PlayloltcgCatalogPage() {
   const filters = Route.useSearch();
   const { page, applyFilter, goToPage } = useUrlTableFilters(filters);

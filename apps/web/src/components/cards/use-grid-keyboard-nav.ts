@@ -19,15 +19,6 @@ const NAV_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "=", "
 const isIncrementKey = (key: string) => key === "+" || key === "=";
 const isAddRemoveKey = (key: string) => isIncrementKey(key) || key === "-";
 
-/**
- * Arrow-key navigation for the card grid. Left/right step through `items`
- * by index; up/down cycle through sibling printings (variants) of the
- * selected card without changing the grid position unless the sibling is
- * itself a tile in the grid. `+` / `=` / `-` trigger the add-mode strip's
- * increment / decrement on the selected card, and a digit key 1-9 increments
- * by that many at once (all no-ops when add mode is off); when the variant
- * popover is open, it handles its own arrows and +/=/-.
- */
 export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardNavParams) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
   const selectedIndex = useSelectionStore((s) => s.selectedIndex);
@@ -40,29 +31,22 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
       if (tag === "input" || tag === "textarea" || tag === "select") {
         return;
       }
-      // A digit key adds that many copies in one press — the keyboard twin of
-      // holding a digit while dragging a stack between collections.
       const digit = parseDigitKey(e.key);
       if (!NAV_KEYS.includes(e.key) && digit === null) {
         return;
       }
-      // Don't hijack the browser's own combos: Ctrl/Cmd +/=/- zooms, and
-      // Ctrl/Cmd/Alt + a digit switches tabs.
+      // Ctrl/Cmd +/=/- zooms and Ctrl/Cmd/Alt+digit switches tabs; let the browser handle those.
       if ((isAddRemoveKey(e.key) || digit !== null) && (e.ctrlKey || e.metaKey || e.altKey)) {
         return;
       }
-      // While the variant×collection popover is open it handles its own arrow /
-      // +/=/- / Enter keys; the grid handler steps back so we don't fight over
-      // the same keystrokes.
+      // The variant×collection popover handles its own arrow/+/=/-/Enter keys when open.
       const addMode = useAddModeStore.getState();
       if (addMode.variantPopover) {
         return;
       }
 
       if (digit !== null) {
-        // Held keys auto-repeat; one press means one batch of `digit` copies,
-        // not a stream of them. (The repeats still arm the drag-quantity
-        // modifier on /collections, which reads the key state, not the press.)
+        // Ignore auto-repeat: one press adds one batch of `digit` copies, not a stream.
         if (e.repeat || !selectedCard) {
           return;
         }
@@ -89,10 +73,8 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
           return;
         }
         e.preventDefault();
-        // Anchor for the variant×collection popover. The tile's
-        // data-printing-id is the *displayed* printing for that grid item,
-        // which differs from selectedCard only when the user has Up/Down'd
-        // to a sibling. Either way, the tile is a sensible visual anchor.
+        // Anchors the variant×collection popover to the tile's displayed printing,
+        // which can differ from selectedCard after an Up/Down cycle.
         const tileId = items[selectedIndex]?.printing.id;
         const tileEl = tileId
           ? document.querySelector<HTMLElement>(`[data-printing-id="${tileId}"]`)
@@ -114,9 +96,6 @@ export function useGridKeyboardNav({ items, siblingPrintings }: UseGridKeyboardN
         return;
       }
 
-      // Up/Down: cycle sibling printings (variants). If the sibling is also
-      // a tile in the grid (cards+set), jump to it; otherwise keep the
-      // current tile and just swap the printing in the detail pane.
       if (e.key === "ArrowUp" || e.key === "ArrowDown") {
         if (!siblingPrintings || siblingPrintings.length < 2 || !selectedCard) {
           return;

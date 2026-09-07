@@ -12,11 +12,6 @@ import {
 import { useMyOrganizations } from "@/hooks/use-organizations";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
-/**
- * Host reassignment, shown to the host only. Lets them move the tournament
- * between a personal host (themselves) and any organization they belong to.
- * @returns The host-picker card.
- */
 export function HostCard({
   detail,
   locked,

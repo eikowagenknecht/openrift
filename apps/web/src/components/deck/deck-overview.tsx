@@ -94,110 +94,37 @@ interface DeckOverviewProps {
     name: string;
     format: DeckFormat;
     formatConfig: DeckFormatConfig | null;
-    /** Custom cover art; absent or null falls back to the legend. */
     coverCardId?: string | null;
     coverPrintingId?: string | null;
     coverPosition?: number | null;
-    /** Outbound links, rendered as chips next to the description. */
     links?: readonly DeckLink[];
-    /**
-     * The deck's home collection. Its copies count as available for this deck
-     * even when the collection is excluded from deck building. Absent on the
-     * public share page — it's owner-only.
-     */
     collectionId?: string | null;
   };
   cards: DeckBuilderCard[];
-  /**
-   * Card id → custom-tag slugs. Required so deck-level validation can fire
-   * the tag-membership rule for Custom-Region decks. Pass `{}` from contexts
-   * where custom tags aren't loaded (e.g. SSR snapshots) — validation will
-   * report every card as out-of-region, matching the data we're rendering.
-   */
   customTagAssignments: Record<string, readonly string[]>;
   ownershipData?: DeckOwnershipData;
   marketplace: Marketplace;
-  /**
-   * Resolves a zone-thumbnail URL for a card. Injected so callers can source
-   * thumbs either from the live catalog (deck editor) or from a pre-denormalized
-   * payload (public share page SSR). Returning `undefined` hides the thumb.
-   */
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
-  /** Omit on read-only views — zone tiles become non-clickable and edit affordances hide. */
   onZoneClick?: (zone: DeckZone) => void;
   onViewMissing?: () => void;
   onHoverCard?: HoverHandler;
-  /** Disables DnD wiring, printing-menu popovers, and edit buttons. */
   readOnly?: boolean;
-  /**
-   * When set, renders the deck overview for an anonymous viewer: the
-   * Ownership tile is replaced with a sign-in CTA linking here, and the
-   * Value tile drops its owned/missing overlay. Used by the public share
-   * page for logged-out visitors.
-   */
   signInHref?: string;
-  /** Long-form deck description rendered above the KPI strip. */
   description?: string;
-  /**
-   * Owner-only: opens the deck-details dialog. When set and a description
-   * exists, an Edit affordance renders next to it. Read-only views and local
-   * decks (which have no description) omit it.
-   */
   onEditDescription?: () => void;
-  /** Fired when a card thumbnail is clicked. Opens the detail pane. */
   onCardClick?: (card: CardOpenTarget) => void;
-  /**
-   * Whether a plan exists. Read-only views only: drives the section nav's Plan
-   * entry (linked when present, absent when not; the host renders the plan
-   * as the share page's read-only plan view).
-   */
-  /**
-   * Editor only: content of the Plan tab (the plan editor). When omitted the
-   * Plan tab is hidden — local decks have no plan.
-   */
   planSlot?: React.ReactNode;
-  /**
-   * Editor only: the variant rail (ADR-042), drawn between the hero and the
-   * tab strip. Omitted for local decks and read-only views, neither of which
-   * has a variant family to show.
-   */
   variantRailSlot?: React.ReactNode;
-  /** Forwarded to the hero: owner attribution next to the deck name. */
   heroByline?: React.ReactNode;
-  /** Forwarded to the hero: replaces the whole name-and-subtitle block. */
   heroHeading?: React.ReactNode;
-  /** Forwarded to the hero: the block left of the text column. */
   heroLead?: React.ReactNode;
-  /** Forwarded to the hero: action row under the status chips (copy CTA). */
   heroActions?: React.ReactNode;
-  /**
-   * A callout about the deck as a whole, rendered between the hero and the tab
-   * strip so it stays visible on every tab. The meta archive uses it to say a
-   * list is only partly published; nothing else sets it.
-   */
   notice?: React.ReactNode;
-  /**
-   * Per zone, cards the list's source never published. Archive surfaces pass
-   * it so a zone the record stops short of renders dashed "Unknown" slots
-   * rather than reading as one the player left empty.
-   */
   unknownZoneCounts?: ReadonlyMap<DeckZone, number>;
-  /**
-   * The deck's server-stored draw-odds settings, forwarded to the test bench.
-   * Omit for browser-local decks.
-   */
   oddsConfig?: DeckOddsConfig | null;
-  /** Owner save path for the odds settings; absent on read-only views. */
   onSaveOddsConfig?: (config: DeckOddsConfig) => void;
 }
 
-/**
- * Full-width summary shown in the main content area when no deck zone is active.
- * Acts as both a deck dashboard and zone picker — clicking a zone tile drops
- * the user into that zone's card browser. Read-only mode renders the same
- * layout without DnD or edit affordances, for the public share page.
- * @returns The deck overview view.
- */
 export function DeckOverview({
   deck,
   cards,
@@ -243,10 +170,6 @@ export function DeckOverview({
   );
   const legendCard = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
   const championCard = cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
-  // Custom cover art bypasses the "show my printings" swap on purpose — the
-  // owner picked this exact look. The share page resolves thumbnails by the
-  // deck's own (card, printing) pairs, so a pinned cover printing that isn't
-  // the deck entry's falls back to the entry's art rather than to the legend.
   const coverEntry = deck.coverCardId
     ? cards.find((card) => card.cardId === deck.coverCardId)
     : undefined;
@@ -263,16 +186,10 @@ export function DeckOverview({
       ? "Pick a Legend to unlock matching Champions and auto-fill Runes."
       : null;
 
-  // View mode (thumbnail grid vs dense list) is a persisted device-local pref.
-  // Gate it behind hydration so SSR and the first client render both show the
-  // default grid — otherwise a stored "list" pref would flip the tree after
-  // hydration and trip a mismatch on the SSR'd public share page.
+  // Gate behind hydration: SSR and the first client render must both show grid,
+  // or a stored "list" pref flips the tree after hydration and trips a mismatch.
   const hydrated = useHydrated();
-  // The box this deck lives in. Undefined for a viewer who doesn't own the
-  // deck — the share page carries no collectionId to resolve.
   const homeCollection = useHomeCollection(deck.collectionId);
-  // Drives the phone-specific layout swaps (stats band below the cards, the
-  // tab strip's second control row). SSR-safe: false on the server.
   const isMobile = useIsMobile();
   const storedDisplayMode = useDeckOverviewViewStore((state) => state.displayMode);
   const storedColumns = useDeckOverviewViewStore((state) => state.columns);
@@ -298,19 +215,11 @@ export function DeckOverview({
   const showBands = hydrated ? storedShowBands : true;
   const canPreferOwned = ownershipData !== undefined && !signInHref;
   const preferOwned = hydrated && canPreferOwned && storedPreferOwned;
-  // Grouping is hydration-gated like the display mode (SSR renders the type
-  // default), and a stored ownership axis quietly falls back to type on
-  // surfaces without ownership data (anonymous share views).
   const hydratedGroupBy = hydrated ? storedGroupBy : "type";
   const groupBy: DeckOverviewGroup =
     hydratedGroupBy === "ownership" && !canPreferOwned ? "type" : hydratedGroupBy;
   const groupDir = hydrated ? storedGroupDir : "asc";
 
-  // Card size is a column count here, like every other card surface: the zone
-  // stack is measured, the user's override (or the measured Auto) picks the
-  // count, and one shared card width falls out of it. It ships as a CSS
-  // variable on the content wrapper, so each zone's flex-wrap rows land on the
-  // same grid without a size prop threaded through every tile.
   const columnOverride = hydrated ? storedColumns : null;
   const { containerRef, columns, autoColumns, physicalMin, physicalMax, containerWidth, measured } =
     useResponsiveColumns(columnOverride);
@@ -319,32 +228,19 @@ export function DeckOverview({
       ? `${Math.floor((containerWidth - (columns - 1) * DECK_GRID_GAP) / columns)}px`
       : UNMEASURED_CARD_WIDTH;
   const cardWidthStyle = { "--deck-card-w": cardWidth } as React.CSSProperties;
-  // Until the container is measured everything stacks in one column, matching
-  // the conservative card width above.
   const tileColumns = measured ? columns : 1;
   const smallZoneTemplateStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${tileColumns}, minmax(0, 1fr))`,
   };
   const smallZoneStyles = smallZoneGridStyles(tileColumns, displayMode === "stacks");
 
-  // Room left under the copy caps, per entry, for the thumbs' + buttons. Built
-  // here rather than per thumb so the zones' `.map()` callbacks close over one
-  // stable map; read-only surfaces have no controls to feed.
   const addRoomByCardKey = readOnly ? NO_ADD_ROOM : buildAddRoom(cards, deck.format);
 
-  // Ownership bands need per-printing copy counts and the catalog, neither of
-  // which `ownershipData` carries: it has already collapsed both into per-card
-  // figures, and one card can sit in a zone as several entries with different
-  // pinned printings. Both come from client-only hooks, so a child gathers them
-  // (see OwnershipBandSourcesBridge) and lifts one object up — SSR never mounts
-  // the subscription.
   const [bandSources, setBandSources] = useState<OwnershipBandSources>();
-  // Thumbnail modes only: list mode already spells ownership out as amber
-  // fractions. Stacks show the band on each pile's fully-visible card.
   const bandsActive = showBands && canPreferOwned && displayMode !== "list";
   const ownedPrintingByCardId = ownershipData?.ownedPrintingByCardId;
-  // Computed whenever the sources are up (not just while bands show): the
-  // stats band's ownership lens reads the same split in any display mode.
+  // Computed whenever sources are up, not just while bands show: the stats
+  // band's ownership lens reads the same split in any display mode.
   const ownershipSegmentsByCardKey =
     canPreferOwned && bandSources
       ? buildOwnershipBands(cards, bandSources, ownedPrintingByCardId, preferOwned)
@@ -352,10 +248,7 @@ export function DeckOverview({
   const bandByCardKey =
     bandsActive && ownershipSegmentsByCardKey ? ownershipSegmentsByCardKey : NO_BANDS;
 
-  // Per-thumb price chips, opt-in via the toggle in the view controls. Gated
-  // behind hydration through `showPrices`, so SSR always renders without chips.
-  // The price map is only needed to price owned printings (non-suspending, same
-  // reasoning as the list column); display printings are priced by ownership.
+  // priceMap only prices owned printings; display printings are already priced by ownership.
   const showPrices = hydrated && storedShowPrices;
   const { data: priceMap } = useQuery(pricesQueryOptions);
   const priceTextByCardKey =
@@ -363,13 +256,8 @@ export function DeckOverview({
       ? buildPriceTexts(cards, ownershipData, preferOwned, priceMap, marketplace)
       : NO_PRICE_TEXTS;
 
-  // "Show my printings": swap every deck thumbnail for the canonical printing
-  // the viewer actually owns, falling back to the deck's display printing for
-  // cards they don't own at all.
-  // One resolver behind every "show my printings" swap, so the grid, the hero
-  // and the list can't drift apart. Deliberately NOT art-gated: consumers that
-  // render an image add that check themselves, while a row's set code, rarity
-  // and price follow the owned printing whether or not it has art on file.
+  // Deliberately not art-gated: image-rendering consumers check art themselves,
+  // while a row's set code, rarity and price follow the owned printing regardless.
   const ownedPrintingFor = (cardId: string) =>
     preferOwned ? ownershipData?.ownedPrintingByCardId.get(cardId) : undefined;
 
@@ -381,11 +269,8 @@ export function DeckOverview({
     return getThumbnail(cardId, preferredPrintingId);
   };
 
-  // Which printing a hover preview should show. The two hosts resolve the id
-  // differently: the editor looks any printing up in the catalog, while the
-  // share page reads a payload keyed by the deck's own printings, where an
-  // owned printing id finds nothing. So read-only surfaces keep pointing at the
-  // entry's own printing rather than losing the preview entirely.
+  // The share page's payload is keyed by the deck's own printings; an owned
+  // printing id finds nothing there, so read-only surfaces keep the entry's own.
   const resolveHoverPrintingId = (cardId: string, preferredPrintingId: string | null) => {
     const owned = ownedPrintingFor(cardId);
     if (!readOnly && owned?.imageId) {
@@ -394,8 +279,6 @@ export function DeckOverview({
     return preferredPrintingId;
   };
 
-  // The test bench reports plain (card, printing) hovers; resolve the owned
-  // printing here so its previews match the thumbnails it renders.
   const hoverBenchCard: HoverHandler | undefined = onHoverCard
     ? (cardId, preferredPrintingId) =>
         cardId
@@ -403,9 +286,6 @@ export function DeckOverview({
           : onHoverCard(null)
     : undefined;
 
-  // One ordering pipeline for the grid and stacks modes, mirroring what the
-  // list mode resolves per row: prices and rarities follow the printing on
-  // screen (the owned one while "show my printings" is on).
   const getOwnershipEntry = (card: DeckBuilderCard) =>
     ownershipData?.byCardZone.get(`${card.cardId}:${card.zone}`);
   const overviewSortContext: DeckListSortContext = {
@@ -435,7 +315,6 @@ export function DeckOverview({
       getEntry: getOwnershipEntry,
     });
 
-  // The axes on offer: ownership only where the viewer's collection is loaded.
   const groupOptions: SortGroupOption<DeckOverviewGroup>[] = [
     { value: "type", label: "Type" },
     { value: "energy", label: "Energy" },
@@ -444,19 +323,11 @@ export function DeckOverview({
     { value: "none", label: "None" },
   ];
 
-  // Tabs (mock A): Deck | Test | Plan under the hero, on the editor and the
-  // read-only share page alike. The active tab lives in the builder UI store
-  // so the sidebar's Plan entry (and the share route's #deck-test deep link)
-  // can open a tab from outside this component.
   const tab = useDeckBuilderUiStore((state) => state.overviewTab);
   const setTab = useDeckBuilderUiStore((state) => state.setOverviewTab);
   const collapsedZones = useDeckBuilderUiStore((state) => state.collapsedZones);
   const toggleZoneCollapsed = useDeckBuilderUiStore((state) => state.toggleZoneCollapsed);
 
-  // Stats focus: clicking a chart bar narrows the deck view to the cards that
-  // bar counts, and clicking the same bar again clears it. Both surfaces put
-  // the charts directly above that grid, so the focus always lands in view —
-  // no scrolling to chase it.
   const [statsFocus, setStatsFocus] = useState<StatsFocus | null>(null);
   const applyStatsFocus = (focus: StatsFocus) => {
     const isSame =
@@ -464,13 +335,8 @@ export function DeckOverview({
     setStatsFocus(isSame ? null : focus);
   };
   const focusOpeningChance = statsFocus ? statsFocusOpeningChance(cards, statsFocus) : null;
-  // The Plan tab only exists when the host supplies its content. Any tab that
-  // isn't available right now — a stale "plan" after switching to a local deck,
-  // or a value left over from a tab that no longer exists — falls back to the
-  // deck view rather than rendering an empty page.
+  // A stale "plan" (e.g. after switching to a local deck) falls back to the deck view.
   const showPlanTab = planSlot !== undefined;
-  // The Box tab needs a box to fill and a viewer who owns the copies, so it
-  // stays off the share page and off decks that live nowhere.
   const showBoxTab = homeCollection !== undefined && !readOnly;
   const tabAvailable =
     tab === "overview" ||
@@ -478,13 +344,9 @@ export function DeckOverview({
     (tab === "plan" && showPlanTab) ||
     (tab === "box" && showBoxTab);
   const activeTab = tabAvailable ? tab : "overview";
-  // Where the Plan tab's content parks its action row: the trailing end of the
-  // tab strip, the same slot the Deck tab fills with its view controls.
   const [planActionsSlot, setPlanActionsSlot] = useState<HTMLDivElement | null>(null);
   const showOverviewContent = activeTab === "overview";
 
-  // Ordering: the Deck tab's controls and the Box tab's share it, since the
-  // box lists the deck in the same order.
   const ordering: DeckOrderingControls = {
     sortBy: listSortBy,
     sortDir: listSortDir,
@@ -497,9 +359,6 @@ export function DeckOverview({
     onGroupDirChange: setGroupDir,
   };
 
-  // View controls (columns, sort, display options, view toggle) — rendered on
-  // the right side of the tab strip row, deck view only. The desktop cluster is
-  // wider than a phone screen, so phones get the compact one instead.
   const renderViewControls = (compact: boolean) =>
     totalCards > 0 && (
       <DeckOverviewViewControls
@@ -520,14 +379,8 @@ export function DeckOverview({
       />
     );
 
-  // An empty deck has no list to render, so it falls back to the grid's empty
-  // zone tiles whatever the stored mode says.
   const showList = totalCards > 0 && displayMode === "list";
 
-  // Every zone tile takes the same two dozen props — the shared maps, the
-  // ordering pipeline, the display mode, the read-only gates. Only the zone
-  // itself and the small-zone row's grid placement differ, so the four call
-  // sites go through here rather than repeating the block.
   const renderZone = (zone: DeckZone, style?: React.CSSProperties) => (
     <ZoneTile
       key={zone}
@@ -564,11 +417,8 @@ export function DeckOverview({
     />
   );
 
-  // Built once for both display modes, which each drop it into their own flow:
-  // the list hands it to DeckOverviewList as a block of the multicolumn run,
-  // the grid appends it inside the measured container. Derived from the
-  // catalog, which suspends, so it waits for hydration exactly like the
-  // ownership-band bridge does.
+  // Derived from the catalog, which suspends, so it waits for hydration like
+  // the ownership-band bridge does.
   const tokensSection = hydrated ? (
     <Suspense fallback={null}>
       <DeckTokensSection
@@ -621,8 +471,6 @@ export function DeckOverview({
         actions={heroActions}
       />
       {notice}
-      {/* Renders nothing for a deck with no variants, so the hero and the tab
-          strip keep their usual single gap between them. */}
       {variantRailSlot}
       <TabStrip
         tab={activeTab}
@@ -642,13 +490,9 @@ export function DeckOverview({
           activeTab === "overview" ? (
             renderViewControls(false)
           ) : activeTab === "box" ? (
-            // The box lists the deck in the same order as the list view, so it
-            // carries that ordering control and none of the grid-only ones.
             <DeckOrderingControl ordering={ordering} />
           ) : activeTab === "plan" ? (
-            // Host container for the plan editor's own actions (save, clear,
-            // dirty badge). It portals into this once the ref lands — see
-            // PlanTabActionsContext. Read-only plan views portal nothing.
+            // Plan editor's actions portal in here once the ref lands (PlanTabActionsContext).
             <div ref={setPlanActionsSlot} className="flex items-center gap-2" />
           ) : undefined
         }
@@ -671,8 +515,6 @@ export function DeckOverview({
                 onHoverCard={onHoverCard}
                 onCardClick={onCardClick}
               />
-              {/* Only offered once there is something to edit — an empty deck
-                  reaches the same dialog from the top bar's menu. */}
               {!readOnly && onEditDescription && (
                 <Tooltip>
                   <TooltipTrigger
@@ -705,8 +547,7 @@ export function DeckOverview({
         <PlanTabActionsContext value={planActionsSlot}>{planSlot}</PlanTabActionsContext>
       )}
 
-      {/* Reads the live copies feed, which has no server snapshot, so it waits
-          for hydration like the ownership bridge does. */}
+      {/* No server snapshot for the live copies feed, so it waits for hydration too. */}
       {activeTab === "box" && hydrated && homeCollection && (
         <DeckBoxTab
           deckId={deck.id}
@@ -734,13 +575,6 @@ export function DeckOverview({
         />
       )}
 
-      {/* One stats band for both modes: the editor's Deck tab and the
-          read-only share page render the identical collapsible. On desktop it
-          sits directly above the grid its bars filter; on phones the cards
-          come first and the band follows them (see below). `#deck-stats`
-          stays on it so old deep links still land here. Expanded by default;
-          the open state is device-local and hydration-gated, so SSR always
-          renders it open. */}
       {showOverviewContent && !isMobile && (
         <DeckStatsBand
           cards={cards}
@@ -761,9 +595,6 @@ export function DeckOverview({
         <div id="deck-cards" style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}>
           {statsFocus && (
             <div className="mb-3 flex">
-              {/* Narrow screens stack the label above its numbers rather than
-                  overflowing one long pill — the leading "·" separators only
-                  show once the parts share a row. */}
               <span className="border-primary/40 bg-primary/10 flex max-w-full items-center gap-1.5 rounded-2xl border py-1 pr-2 pl-3 text-sm sm:rounded-full">
                 <span className="flex min-w-0 flex-col gap-x-1.5 sm:flex-row sm:items-center">
                   <span>
@@ -798,40 +629,21 @@ export function DeckOverview({
               groupBy={groupBy}
               groupDir={groupDir}
               statsFocus={statsFocus}
-              // "Show my printings" reaches the rows through these two: the set
-              // code, rarity and price follow the owned printing, and the hover
-              // preview shows it where the host can resolve it.
               ownedPrintingFor={ownedPrintingFor}
               resolveHoverPrintingId={resolveHoverPrintingId}
-              // Also the list's edit gate: absent on read-only views, so empty
-              // zones and their add rows only render in the editor.
               onZoneClick={onZoneClick}
               onHoverCard={onHoverCard}
               onCardClick={onCardClick}
-              // Drag between zones, same as the thumbnail grid. The list drops
-              // it on phones itself, so this only has to exclude read-only.
               draggable={!readOnly}
               tokensSlot={tokensSection}
             />
           ) : (
-            // The measured container for the whole surface: every zone below
-            // sizes its thumbs from the --deck-card-w it publishes, so one
-            // column count governs the small-zone tiles and the big wraps
-            // alike. A zone narrower than one card (a legend tile at five
-            // columns) is covered by max-w-full on the thumbs.
             <div ref={containerRef} style={cardWidthStyle} className="flex flex-col gap-3">
-              {/* The small zones sit on the same column grid as the cards, so a
-                  tile is always a whole number of cards wide — no breakpoint
-                  grid handing Runes a third of a row it can't fit two cards in.
-                  The column gap must match the gap between thumbs (the card
-                  width is derived from it), or a two-card tile would come out a
-                  few pixels short and wrap; rows keep the wider gap. */}
+              {/* Column gap must match the thumb gap (card width derives from it),
+                  or a two-card tile comes out short and wraps. */}
               <div className="grid gap-x-1.5 gap-y-3" style={smallZoneTemplateStyle}>
                 {SMALL_ZONES.map((zone) => renderZone(zone, smallZoneStyles[zone]))}
               </div>
-              {/* Stacks mode: the grouped zones shrink to their piles' width
-                  and flow side by side (a 3-pile main next to a 1-pile
-                  sideboard); the other modes keep full-width bands. */}
               <div
                 className={
                   displayMode === "stacks"
@@ -840,26 +652,20 @@ export function DeckOverview({
                 }
               >
                 {renderZone(WellKnown.deckZone.MAIN)}
-                {/* Formats without a sideboard hide the tile once it's empty; a
-            non-empty sideboard (format switch, imported list) stays visible
-            with its violation so the cards can be moved out. The /8 target
-            only applies where the zone is part of the format. */}
+                {/* A non-empty sideboard stays visible with its violation even in
+                    formats without one, so the cards can be moved out. */}
                 {(formatHasSideboard(deck.format) ||
                   cards.some((card) => card.zone === WellKnown.deckZone.SIDEBOARD)) &&
                   renderZone(WellKnown.deckZone.SIDEBOARD)}
                 {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) &&
                   renderZone(WellKnown.deckZone.OVERFLOW)}
               </div>
-              {/* Inside the measured container, as the last band: the token
-                  thumbs size themselves from the --deck-card-w it publishes,
-                  so they land on the same ladder as every zone above. */}
               {tokensSection}
             </div>
           )}
         </div>
       )}
 
-      {/* Phones: the cards lead and the stats band follows them. */}
       {showOverviewContent && isMobile && (
         <DeckStatsBand
           cards={cards}

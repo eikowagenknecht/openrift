@@ -29,11 +29,6 @@ interface CardBanManagerProps {
   onShowFormChange?: (show: boolean) => void;
 }
 
-/**
- * Inline admin panel for managing card bans (add/remove).
- * Hidden when there are no bans and the form is closed.
- * @returns The ban management section, or null if nothing to show.
- */
 export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanManagerProps) {
   const { data: bans, isLoading } = useCardBans(cardId);
   const { data: formats } = useFormats();
@@ -49,7 +44,6 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
   const [editBannedAt, setEditBannedAt] = useState("");
   const [editReason, setEditReason] = useState("");
 
-  // Default to first format once loaded
   const effectiveFormatId = formatId || formats?.[0]?.id || "";
 
   const hasBans = !isLoading && bans && bans.length > 0;
@@ -69,7 +63,6 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
     );
   }
 
-  // Hide entirely when there are no bans and the form is closed
   if (!hasBans && !showForm && !isLoading) {
     return null;
   }

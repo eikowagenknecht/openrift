@@ -26,12 +26,8 @@ type ParseResult =
   | { ok: false; error: "invalid-json" | "empty-or-wrong-shape" };
 
 /**
- * Parses a bulk-errata JSON file. Accepts either a bare array or `{ entries: [...] }`.
- *
  * Kept as a module-level helper so react-compiler doesn't try to lower the ternary + logical
  * expressions inside the try/catch (it bails on "value blocks" within try statements).
- * @param text Raw file contents.
- * @returns Parsed entries on success; otherwise a tagged error indicating which failure occurred.
  */
 function parseErrataEntries(text: string): ParseResult {
   try {

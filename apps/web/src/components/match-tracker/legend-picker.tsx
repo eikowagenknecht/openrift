@@ -17,16 +17,8 @@ import { collectLegendOptions, filterLegendOptions, toTrackedLegend } from "@/li
 import { cn } from "@/lib/utils";
 import type { TrackedLegend } from "@/stores/match-tracker-store";
 
-/**
- * Pick the legend a seat plays behind. The choice is cosmetic — it selects the
- * panel's art and the two domains its glow is built from, and never implies a
- * deck, so nothing here validates anything.
- *
- * The catalog only loads while this dialog is open: the board itself renders
- * from the denormalized snapshot on the seat, which is what keeps the tracker
- * usable offline.
- * @returns The picker dialog.
- */
+// The catalog only loads while this dialog is open; the board itself renders from
+// the denormalized snapshot on the seat, so the tracker stays usable offline.
 export function LegendPickerDialog({
   open,
   onOpenChange,

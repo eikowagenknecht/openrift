@@ -148,8 +148,6 @@ describe("RuleContent", () => {
     render(
       <RuleContent content="See *rule 540* for more." termAnchors={anchors} ruleNumber="100" />,
     );
-    // The rule-number plugin runs first and converts the inner text to a link;
-    // the term linkifier must not re-wrap it.
     const link = screen.getByRole("link", { name: "rule 540" });
     expect(link).toHaveAttribute("href", "#rule-540");
     expect(screen.queryAllByRole("link")).toHaveLength(1);
@@ -235,8 +233,6 @@ describe("same-page anchor click handler", () => {
   });
 
   it("pushes a history entry (not replace) so browser back returns to origin", () => {
-    // Simulate the parent re-rendering after the search reset: when the store
-    // resets, the rule that was filtered out becomes available in the DOM.
     const unsubscribe = useRulesSearchStore.subscribe((state, prev) => {
       if (state.resetSignal !== prev.resetSignal) {
         const target = document.createElement("div");

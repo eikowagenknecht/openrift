@@ -6,7 +6,6 @@ import { smoothAnchorClick, useActiveChapter } from "./features-nav";
 
 const CHAPTER_IDS = ["collect", "build", "play"];
 
-// jsdom's viewport, so the reading line sits at 256px.
 const VIEWPORT_HEIGHT = 768;
 const ABOVE_LINE = 100;
 const BELOW_LINE = 600;
@@ -170,7 +169,6 @@ describe("smoothAnchorClick", () => {
     globalThis.matchMedia = ((query: string) => ({
       matches: query.includes("reduce") && reducedMotion,
     })) as unknown as typeof matchMedia;
-    // Synchronous frames 150ms apart, so the 450ms animation ends in a few steps.
     globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
       rafCalls += 1;
       rafClock += 150;

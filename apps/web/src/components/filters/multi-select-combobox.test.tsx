@@ -11,10 +11,6 @@ import {
 
 import { MultiSelectCombobox } from "./multi-select-combobox";
 
-// A single available option (Unlimited) standing in for a collection that now
-// only holds UNL cards. "ogn" is the orphan: still selected in the URL state,
-// but no longer present in the available options because every OGN card was
-// moved out of the collection.
 const UNL_OPTION = { value: "unl", label: "Unlimited", prefix: "UNL" } as const;
 
 function renderSets(props: Partial<Parameters<typeof MultiSelectCombobox>[0]> = {}) {
@@ -37,12 +33,8 @@ describe("MultiSelectCombobox orphan selections", () => {
     const user = userEvent.setup();
     renderSets();
 
-    // The trigger summarises the two selected values even though only one has a
-    // backing option.
     await user.click(screen.getByRole("combobox"));
 
-    // Both the available option and the orphan render as list rows, so the user
-    // can see and act on either.
     expect(await screen.findByRole("option", { name: /Unlimited/u })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "ogn" })).toBeInTheDocument();
   });
@@ -54,7 +46,6 @@ describe("MultiSelectCombobox orphan selections", () => {
     await user.click(screen.getByRole("combobox"));
     await user.click(await screen.findByRole("option", { name: "ogn" }));
 
-    // Unticking the orphan removes only it, leaving the still-available UNL set.
     expect(onChange).toHaveBeenCalledExactlyOnceWith(["unl"]);
   });
 
@@ -62,7 +53,6 @@ describe("MultiSelectCombobox orphan selections", () => {
     const user = userEvent.setup();
     renderSets({ selected: ["unl"] });
 
-    // A single selection labels the trigger with that option, not the count.
     await user.click(screen.getByRole("combobox"));
 
     const list = await screen.findByRole("listbox");
@@ -70,9 +60,6 @@ describe("MultiSelectCombobox orphan selections", () => {
   });
 });
 
-// The rule editor's dropdowns are a single cycling include/exclude axis behind a
-// placeholder, so the trigger must distinguish the two buckets rather than
-// collapse them into a single "N selected".
 const SET_OPTIONS = [
   { value: "ogn", label: "Origins" },
   { value: "unl", label: "Unlimited" },
@@ -146,7 +133,6 @@ describe("MultiSelectCombobox cycling rows", () => {
   it("keeps an excluded value with no backing option visible and cyclable", async () => {
     const user = userEvent.setup();
     const onCycle = vi.fn();
-    // Only UNL has a backing option; "ogn" is excluded but no longer available.
     render(
       <MultiSelectCombobox
         triggerStyle="button"
@@ -258,9 +244,6 @@ describe("MultiSelectCombobox flag rows", () => {
   });
 });
 
-// The compact bar's "More" menu hosts these dropdowns as menu rows, so the
-// combobox popup is a React child of the menu popup even though it portals
-// elsewhere in the DOM. The menu's typeahead sees every bubbled keystroke.
 const MARKER_OPTIONS = [
   { value: "promo", label: "Promo" },
   { value: "judge", label: "Judge" },

@@ -24,7 +24,6 @@ vi.mock("@/hooks/use-meta-deck-costs", () => ({
   },
 }));
 
-// The real control is a popover over two sliders; these buttons drive the same callbacks.
 vi.mock("@/components/meta/meta-deck-cost-filter", () => ({
   EMPTY_META_COST_FILTER: {
     maxCost: null,
@@ -73,7 +72,6 @@ vi.mock("@/components/cards/card-detail-opener", () => ({
   CardDetailOverlayProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// The real preview suspends on the deck query and pulls the price feed with it.
 vi.mock("@/components/meta/meta-event-deck-preview", () => ({
   MetaEventDeckPreview: ({ token }: { token: string }) => <p>Preview for {token}</p>,
   MetaEventDeckPreviewSkeleton: () => null,
@@ -84,7 +82,6 @@ globalThis.scrollTo = () => {};
 
 const { MetaEventStandings } = await import("./meta-event-standings");
 
-/** The phone rendering, which is the one carrying every fact in one element. */
 function phoneRow(name: string): HTMLElement {
   const list = screen.getByRole("list");
   return within(list).getByText(name).closest("li") as HTMLElement;
@@ -594,7 +591,6 @@ describe("MetaEventStandings", () => {
   });
 
   describe("cost filter", () => {
-    /** Two lists a signed-in reader could finish, one they could not, and an entry with none. */
     function pricedField() {
       session.userId = "u-1";
       archive.costs = new Map([

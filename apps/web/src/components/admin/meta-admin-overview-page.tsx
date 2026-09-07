@@ -72,19 +72,8 @@ interface TriggerEntry {
   trigger: MetaSyncTrigger;
   label: string;
   description: string;
-  /** The cron this is the manual form of, when it has one. */
   scheduleKey?: string;
-  /**
-   * What the button becomes while one of these is running. Absent when the job
-   * never reads the cancel flag: the playloltcg recheck runs without a run id,
-   * so nothing there could answer a Stop.
-   */
   stop?: { job: MetaCancellableJob; label: string; description: string };
-  /**
-   * A confirmation step, for a trigger that writes rather than reads. The
-   * crawls only mirror the source, but a backlog sweep mints live archive
-   * events, and nothing takes those back in bulk.
-   */
   confirm?: { title: string; body: (pending: number | null) => string; action: string };
 }
 
@@ -108,7 +97,6 @@ const ID_SWEEP_CONFIRM = {
   action: "Run the sweep",
 };
 
-/** The manual jobs each source offers, in the order they are usually run. */
 const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
   uvsgames: [
     {
@@ -185,11 +173,6 @@ const TRIGGER_GROUPS: Record<MetaSource, TriggerEntry[]> = {
   ],
 };
 
-/**
- * The backfill controls each phase shows, per source. Every source is
- * phase-aware: one "Full backfill" while idle, and "Continue" + "from scratch"
- * once a run stopped partway (the server resumes from the checkpoint either way).
- */
 const BACKFILL_TRIGGERS_BY_SOURCE: Record<
   MetaSource,
   Record<"idle" | "resumable", TriggerEntry[]>
@@ -265,7 +248,6 @@ const JOB_KIND_PREFIX: Record<MetaSource, string> = {
   topdeck: "meta.topdeck_",
 };
 
-/** The backfill job kind for a source, so the phase reads the right runs. */
 const BACKFILL_KIND: Record<MetaSource, string> = {
   uvsgames: "meta.uvsgames_backfill",
   playloltcg: "meta.playloltcg_backfill",
@@ -354,7 +336,6 @@ function SyncFunnel({
   );
 }
 
-/** The one warehouse fact worth keeping: the mirror exists and is being fed. */
 function MirrorLine({ status }: { status: MetaSyncStatus }) {
   const { catalog } = status;
   const lastCrawl =
@@ -462,7 +443,6 @@ function TriggerRow({
   schedules: Record<string, boolean>;
   pending: boolean;
   disabled: boolean;
-  /** Rows awaiting triage, which is what a confirmed sweep would run over. */
   pendingTriage: number | null;
   onStart: () => void;
 }) {
@@ -548,7 +528,6 @@ function StopRow({
   );
 }
 
-/** What stopping a running backfill costs, given how far it has read. */
 function backfillStopDescription(coveredThrough: string | null): string {
   const covered =
     coveredThrough === null ? "" : `, covered through ${formatDayTime(coveredThrough)}`;
@@ -730,7 +709,7 @@ const ARCHIVE_KIND_BY_TRIGGER: Partial<Record<MetaSyncTrigger, string>> = {
   runRepromote: "meta.repromote",
 };
 
-/** The two passes that re-derive live rows from mirrors already held; neither belongs to a source. */
+// These re-derive live rows from mirrors already held; neither belongs to a source.
 function ArchiveJobsCard() {
   const { data } = useMetaArchiveJobs();
   const runs = data?.runs ?? [];
@@ -814,7 +793,6 @@ function ArchiveRunLine({ runs }: { runs: MetaSyncStatus["runs"] }) {
   );
 }
 
-/** One source's funnel and manual crawl controls (ADR-014). */
 export function MetaSourceSyncSection({ source }: { source: MetaSource }) {
   const { data } = useMetaSyncStatus(source);
   const overlays = useAdminMetaOverlays();
@@ -865,7 +843,6 @@ function sourceAlerts(
   return metaSyncAlerts(status, unresolvedCards, now).map((alert) => ({ ...alert, source }));
 }
 
-/** The Meta Archive's overview (ADR-014): what is wrong, then each source's own stage. */
 export function MetaAdminOverviewPage() {
   const uvsgames = useMetaSyncStatus("uvsgames");
   const playloltcg = useMetaSyncStatus("playloltcg");

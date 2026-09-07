@@ -150,7 +150,7 @@ describe("MetaEventPlayersPage", () => {
     expect(screen.queryByText(/Missing/u)).not.toBeInTheDocument();
   });
 
-  it("names the fields an overlay owns for the row", () => {
+  it("names the fields an overlay owns for the row, releasing the list and its status as one chip", () => {
     captured.players = [player({ claimedFields: ["rank", "cards", "listStatus"] })];
 
     render(<MetaEventPlayersPage eventId="event-1" />);
@@ -158,7 +158,6 @@ describe("MetaEventPlayersPage", () => {
     expect(
       screen.getByRole("button", { name: "Hand Finish back to the sources" }),
     ).toBeInTheDocument();
-    // The list and its status claim as one, so they release as one chip.
     expect(screen.getAllByRole("button", { name: /Decklist back to the sources/u })).toHaveLength(
       1,
     );

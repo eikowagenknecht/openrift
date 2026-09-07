@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BoxWantRow } from "@/lib/box-wants";
 import { buildBoxWantsLookup } from "@/lib/box-wants";
 
-// Mutated per test before rendering; read lazily inside the mock factories.
 let currentTournaments: TournamentSummaryResponse[] = [];
 let currentCollections: { id: string; name: string; groupId: string | null }[] = [];
 let currentBoxWantRows: BoxWantRow[] = [];
@@ -89,7 +88,6 @@ vi.mock("@tanstack/react-router", () => ({
 
 const { OverviewContent } = await import("./friend-group-overview");
 
-// File-level reset: these fixtures feed mocks shared by every describe below.
 beforeEach(() => {
   currentCollections = [];
   currentBoxWantRows = [];
@@ -214,8 +212,6 @@ describe("OverviewContent tournaments tile", () => {
     currentTournaments = [];
   });
 
-  // Regression: the tile used to hide for plain members with no entries,
-  // leaving no UI path to the group's tournaments page at all.
   it("shows the tournaments tile to a plain member with no tournaments", () => {
     renderOverview("member");
     const tile = screen.getByRole("link", { name: /Tournaments/u });
@@ -236,8 +232,6 @@ describe("OverviewContent tournaments tile", () => {
     );
   });
 
-  // Regression: the hint used to count deck-check entries across all of the
-  // group's tournaments, so a finished event kept inflating it forever.
   it("ignores participations in completed tournaments and falls back to the total", () => {
     currentTournaments = [
       makeTournament("done", {
@@ -258,9 +252,7 @@ describe("OverviewContent tournaments tile", () => {
     expect(screen.getByRole("link", { name: /Tournaments/u })).toBeInTheDocument();
   });
 
-  // Tournament creation is admin-gated (the events page only offers "New
-  // tournament" to admins), so the empty-state copy must not tell plain
-  // members to plan one.
+  // Tournament creation is admin-gated, so the empty-state copy must not tell plain members to plan one.
   it("nudges admins, but not members, to plan a tournament when none is open", () => {
     renderOverview("admin");
     expect(screen.getByRole("link", { name: /Tournaments/u })).toHaveTextContent(
@@ -281,8 +273,6 @@ describe("OverviewContent tournaments tile", () => {
     expect(screen.getByText(/When an admin sets one up/u)).toBeInTheDocument();
   });
 
-  // Regression: the rail's "Next up" used to vanish entirely once a tournament
-  // was open, instead of showing what's coming.
   it("lists the next open tournament in the rail", () => {
     currentTournaments = [makeTournament("a")];
     renderOverview("member");
@@ -321,9 +311,6 @@ describe("OverviewContent requests band", () => {
     declineMutate.mockClear();
   });
 
-  // Regression: the groups index and the avatar badge advertise "N requests to
-  // review" and link here, but the overview only showed the Members tile hint,
-  // so an owner landing on the page saw nothing to act on.
   it("shows the band to an owner and approves the right user", async () => {
     const user = userEvent.setup();
     renderOverview("owner", { pendingRequests: [makeRequest("u9")] });

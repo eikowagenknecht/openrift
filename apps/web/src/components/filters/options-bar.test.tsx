@@ -37,9 +37,6 @@ describe("DetailPaneToggle", () => {
     expect(useSelectionStore.getState().detailOpen).toBe(false);
   });
 
-  // Undocking has to clear the selection too. The modal opens on
-  // `detailOpen && !paneDocked`, so flipping paneDocked alone handed the card
-  // the user just hid straight to a dialog.
   it("clears the selection when undocking so the modal does not take over", async () => {
     const user = userEvent.setup();
     useDisplayStore.setState({ paneDocked: true });

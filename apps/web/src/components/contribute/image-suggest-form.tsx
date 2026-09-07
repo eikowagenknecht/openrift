@@ -114,11 +114,6 @@ export function ImageSuggestForm({ card, printing, setSlug, setName }: ImageSugg
   );
 }
 
-/**
- * Extracts a contributor-facing message from a failed submission.
- * @param error The mutation error.
- * @returns A message to show the contributor.
- */
 function submitErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : "";
   return message || "Something went wrong. Please try again in a moment.";

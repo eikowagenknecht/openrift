@@ -7,14 +7,8 @@ import type { EngineProgress } from "@/hooks/use-scan-engine";
 import { getSiteUrl } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
 
-/**
- * The bracket legs run this share of each edge, matching `BRACKET_FRACTION` in
- * `scan-overlay.ts` so the drawn reticle lands where the placeholder promised
- * it would.
- */
 const BRACKET_SIZE = "18%";
 
-/** Pre-flight advice the live coaching cannot give before the camera runs. */
 const TIPS = [
   { icon: SunIcon, label: "Good light" },
   { icon: ScanSquareIcon, label: "Fill the frame" },
@@ -22,35 +16,16 @@ const TIPS = [
 ];
 
 interface ScanStartPanelProps {
-  /** The bank, OpenCV and the encoder are all loaded. */
   ready: boolean;
-  /** Null until the client has looked; false on http, where there is no camera. */
   cameraAvailable: boolean | null;
-  /** Whether the card index itself has arrived, for the loading rows. */
   bankLoaded: boolean;
   cvReady: boolean;
   embedderReady: boolean;
   engineProgress: EngineProgress;
-  /**
-   * Whether to offer the hand-off to a phone. The desktop camera path works,
-   * it is just the weaker one, so this is an offer rather than a warning and
-   * it never blocks starting the webcam.
-   */
   showPhoneHint: boolean;
   onStart: () => void;
 }
 
-/**
- * What fills the viewfinder before the camera starts.
- *
- * It is a rehearsal of the running scanner rather than an empty box: the same
- * dark plate, the same card-shaped guide with corner brackets in the spot the
- * overlay will draw them, and the primary action sitting inside the guide
- * instead of below the picture. Once the camera runs this unmounts and the real
- * video plus its overlay canvas take over, so the two states line up.
- *
- * @returns The pre-start placeholder.
- */
 export function ScanStartPanel({
   ready,
   cameraAvailable,
@@ -62,12 +37,8 @@ export function ScanStartPanel({
   onStart,
 }: ScanStartPanelProps) {
   return (
-    // The plate stands in for the camera picture, so it is dark in both themes
-    // and carries its own light-on-dark text.
     <div className="absolute inset-0 grid place-items-center overflow-hidden bg-radial from-neutral-800 to-neutral-950 text-white">
-      {/* The guide: 70% of the box height at card aspect, exactly like
-          `guideRectIn`. The 90% width clamp it also applies cannot bite at
-          either box aspect (3/4 and 16/9), so the height alone sizes this. */}
+      {/* h-[70%] must match guideRectIn's height fraction. */}
       <div aria-hidden className="absolute aspect-[63/88] h-[70%] border-2 border-white/15">
         <Bracket className="-top-0.5 -left-0.5 border-t-2 border-l-2" />
         <Bracket className="-top-0.5 -right-0.5 border-t-2 border-r-2" />
@@ -75,8 +46,6 @@ export function ScanStartPanel({
         <Bracket className="-right-0.5 -bottom-0.5 border-r-2 border-b-2" />
       </div>
 
-      {/* Roughly the guide's own width at both box aspects, so the copy reads
-          as sitting inside the outline without being clamped by it. */}
       <div className="relative flex w-64 max-w-full flex-col items-center gap-4 px-3 text-center">
         {ready ? (
           <>
@@ -100,10 +69,8 @@ export function ScanStartPanel({
           </div>
         )}
 
-        {/* Shown while the engine loads as well as when it is ready, so the
-            hand-off is available during the wait rather than only after it.
-            The wording promises nothing about the session: the tray lives in
-            this browser's local storage and does not travel with the link. */}
+        {/* The tray lives in this browser's local storage; the QR code does
+            not carry the scanning session to the phone. */}
         {showPhoneHint && (
           <div className="flex w-full flex-col items-center gap-2 border-t border-white/15 pt-4">
             <p className="font-medium">Better on a phone</p>
@@ -129,13 +96,6 @@ export function ScanStartPanel({
   );
 }
 
-/**
- * One corner of the guide: two legs meeting at a right angle, each running
- * {@link BRACKET_SIZE} of its edge. Which two borders are set decides the
- * corner, so the caller passes them in.
- *
- * @returns The corner element.
- */
 function Bracket({ className }: { className: string }) {
   return (
     <div

@@ -6,11 +6,6 @@ import { Input } from "@/components/ui/input";
 import { useServerSeededState } from "@/hooks/use-server-seeded-state";
 import { useUpdateTournament } from "@/hooks/use-tournaments";
 
-/**
- * The tournament's display name, edited in place and saved explicitly so a
- * half-typed name never reaches the server.
- * @returns The name card.
- */
 export function NameCard({
   detail,
   locked,

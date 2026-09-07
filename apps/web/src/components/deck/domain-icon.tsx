@@ -3,10 +3,6 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
-/**
- * Domain icon with a tooltip, as used on the deck tiles and rows.
- * @returns The icon, or null when the domain has no icon asset.
- */
 export function DomainIcon({ domain, className }: { domain: string; className?: string }) {
   const { labels } = useEnumOrders();
   const domainIcon = getFilterIconPath("domains", domain);
@@ -16,10 +12,8 @@ export function DomainIcon({ domain, className }: { domain: string; className?: 
   const label = labels.domains[domain];
   return (
     <Tooltip>
-      {/* A span, not the default trigger element: Base UI renders that as a
-          button, and a decorative icon that only shows a tooltip has no
-          business taking a tab stop on every domain of every tile. The name
-          reaches assistive tech through the image's alt instead. */}
+      {/* Base UI's default trigger element renders as a button, which would
+          make a decorative icon a tab stop on every domain of every tile. */}
       <TooltipTrigger render={<span />}>
         <img src={domainIcon} alt={label} className={cn("size-6", className)} />
       </TooltipTrigger>

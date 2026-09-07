@@ -19,10 +19,6 @@ import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { getFilterIconPath } from "@/lib/icons";
 import { cn, PAGE_PADDING, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * Link to a specific rule in the core rules, used throughout the glossary.
- * @returns The "Rule N →" link.
- */
 function RuleRef({ ruleNumber, className }: { ruleNumber: string; className?: string }) {
   return (
     <Link
@@ -654,7 +650,6 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
             </div>
             <p className="text-muted-foreground mt-1">
               {set.cardCount} {set.cardCount === 1 ? "card" : "cards"}
-              {/* One date per language: a set reaches each on its own schedule. */}
               {Object.keys(set.releases)
                 .toSorted()
                 .map((language) => ` · ${language} ${formatReleasePeriod(set.releases[language])}`)

@@ -8,9 +8,7 @@ import { TopBarSlotContext } from "@/routes/_app/_authenticated/admin/route";
 
 interface AdminPageTopBarProps {
   title: ReactNode;
-  /** A `PageTopBarBack` to the parent page, for drill-down pages. */
   back?: ReactNode;
-  /** Action buttons, right-aligned. Use the PageTopBar* button wrappers. */
   actions?: ReactNode;
 }
 
@@ -18,7 +16,6 @@ interface AdminPageTopBarProps {
  * Per-page sticky top bar for admin pages. Portals a {@link PageTopBar} with
  * the page title (sidebar toggle on mobile) and optional actions into the
  * admin layout's sticky slot. Render it once at the top of every admin page.
- * @returns The portal into the layout's top bar slot, or null before the slot mounts.
  */
 export function AdminPageTopBar({ title, back, actions }: AdminPageTopBarProps) {
   const { toggleSidebar } = useSidebar();

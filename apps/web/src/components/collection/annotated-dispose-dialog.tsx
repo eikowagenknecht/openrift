@@ -13,11 +13,7 @@ import type { EnumLabels } from "@/hooks/use-enums";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { PendingAnnotatedDispose } from "@/hooks/use-quick-add-actions";
 
-/**
- * Lists what the copy has recorded, for the confirmation body (e.g.
- * "graded PSA 9.5, notes, 2 photo/video links").
- * @returns The recorded-detail phrases, in display order.
- */
+/** Lists what the copy has recorded, for the confirmation body (e.g. "graded PSA 9.5, notes"). */
 function recordedDetails(copy: CopyResponse, labels: EnumLabels): string[] {
   const parts: string[] = [];
   if (copy.grader !== null && copy.grade !== null) {
@@ -41,12 +37,9 @@ function recordedDetails(copy: CopyResponse, labels: EnumLabels): string[] {
 }
 
 /**
- * Confirms a minus-button removal that landed on a copy with recorded details
- * (ADR-038): the quick flow removes bare copies silently, so this dialog only
- * appears when the removal would destroy hand-entered data. Keep mounted with
- * a null `pending` so open/close animates.
- *
- * @returns The confirmation dialog.
+ * Only appears when a minus-button removal would destroy recorded details;
+ * bare copies are removed silently. Stays mounted with a null `pending` so
+ * open/close animates.
  */
 export function AnnotatedDisposeDialog({
   pending,

@@ -151,7 +151,6 @@ const CARDS: PublicDeckCardResponse[] = [
   }),
 ];
 
-/** The strip in render order: every thumb carries its card name as a title. */
 const STRIP_ORDER = [
   "Sivir, Battle Mistress",
   "Howling Abyss",

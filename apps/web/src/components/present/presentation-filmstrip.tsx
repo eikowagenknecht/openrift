@@ -7,13 +7,6 @@ import { frontImageId } from "@/lib/card-meta";
 import type { PresentationItem } from "@/lib/presentation-queue";
 import { cn } from "@/lib/utils";
 
-/**
- * The queue as a row of thumbnails under the stage, with the current card
- * lifted. Clicking one jumps to it, which is how a creator backtracks without
- * counting arrow presses on air.
- *
- * @returns The filmstrip row.
- */
 export function PresentationFilmstrip({
   items,
   index,
@@ -25,8 +18,6 @@ export function PresentationFilmstrip({
 }) {
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Keep the current card in view as the queue is walked. A long queue
-  // otherwise scrolls off and the strip stops telling you where you are.
   useEffect(() => {
     itemRefs.current[index]?.scrollIntoView({
       behavior: "smooth",
@@ -36,10 +27,7 @@ export function PresentationFilmstrip({
   }, [index]);
 
   return (
-    // `overflow-x-auto` computes `overflow-y` to `auto` as well, so the row
-    // clips at its content box. The current thumbnail is the tallest child and
-    // carries an outset ring, so without the top padding its outline is shaved
-    // off. `pt-2` covers the ring plus the lift.
+    // overflow-x-auto forces overflow-y: auto, clipping the lifted thumbnail's ring; pt-2 covers it.
     <div className="flex shrink-0 justify-center overflow-x-auto px-4 pt-2 pb-2">
       <div className="flex items-end gap-2">
         {items.map((item, itemIndex) => {
@@ -60,10 +48,6 @@ export function PresentationFilmstrip({
                   : "w-14 opacity-45 hover:opacity-80",
               )}
             >
-              {/* Through the shared thumb rather than a bare `img`: it is the
-                  one place the three ways art can be missing land in the same
-                  domain-tinted placeholder, and the only one that turns
-                  battlefield art the right way up. */}
               <CardArtThumb
                 imageId={frontImageId(item.printing)}
                 variant="400w"

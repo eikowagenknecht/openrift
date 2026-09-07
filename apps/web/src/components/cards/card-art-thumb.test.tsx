@@ -5,8 +5,6 @@ import { CardArtThumb } from "./card-art-thumb";
 
 describe("CardArtThumb", () => {
   it("locks the frame to the card aspect ratio and crops with object-cover", () => {
-    // The whole point of the component: the frame holds aspect-card and the
-    // image is object-cover, so a too-narrow flex/grid cell can't distort it.
     const { container } = render(<CardArtThumb src="/media/cards/ab/card-120w.webp" alt="" />);
 
     const frame = container.querySelector("span");
@@ -23,7 +21,6 @@ describe("CardArtThumb", () => {
 
     const frame = container.querySelector("span");
     expect(frame?.className).toContain("ring-border-accent/60");
-    // The still rainbow, not the shimmer keyframe: these frames lead list rows.
     const wash = container.querySelector(".bg-foil");
     expect(wash).not.toBeNull();
     expect(wash?.className).not.toContain("animate-foil-shimmer");
@@ -62,8 +59,6 @@ describe("CardArtThumb", () => {
   it("renders the generic no-image placeholder when no image, fallback, or rarity is given", () => {
     const { container } = render(<CardArtThumb imageId={null} />);
 
-    // No card <img>, but the muted frame carries a placeholder glyph (an svg),
-    // so the tile reads as intentionally art-less rather than broken.
     expect(container.querySelector("img")).toBeNull();
     const frame = container.querySelector("span");
     expect(frame?.className).toContain("bg-muted");
@@ -103,7 +98,6 @@ describe("CardArtThumb", () => {
 
     const img = container.querySelector("img");
     expect(img?.getAttribute("src")).toBe("/bf-120w.webp");
-    // The image sits inside a rotation wrapper, not directly in the frame.
     expect(img?.parentElement?.style.transform).toContain("rotate(-90deg)");
   });
 
@@ -122,14 +116,11 @@ describe("CardArtThumb", () => {
     expect(frame?.className).toContain("self-start");
   });
 
-  // Ported from the deleted DeckListRowArt, which grew these cases in the deck
-  // list. They belong to every shape now that one frame serves both.
   describe("art missing on the server", () => {
     it.each(["card", "strip"] as const)(
       "drops back to the placeholder when the file 404s (%s)",
       (shape) => {
-        // A printing can be catalogued before its art is rehosted, so the URL
-        // exists and 404s. Without this the row keeps the broken-image glyph.
+        // Art can be catalogued before it is rehosted, so the URL 404s.
         const { container } = render(<CardArtThumb shape={shape} src="/gone-120w.webp" />);
         const img = container.querySelector("img");
         expect(img).not.toBeNull();
@@ -148,8 +139,6 @@ describe("CardArtThumb", () => {
     });
 
     it("falls back to the rarity watermark rather than an empty box", () => {
-      // The old deck-row box went blank here; the shared frame keeps the card's
-      // identity visible instead.
       const { container } = render(
         <CardArtThumb shape="strip" src="/gone-120w.webp" rarity="showcase" domains={["fury"]} />,
       );
@@ -168,7 +157,6 @@ describe("CardArtThumb", () => {
       // 88/63 is the inverse of --aspect-card, so battlefield art fills it exactly.
       expect(frame?.className).toContain("aspect-[88/63]");
       expect(frame?.className).not.toContain("aspect-card");
-      // Defaults to h-6 so rows line up without every call site restating it.
       expect(frame?.className).toContain("h-6");
     });
 
@@ -184,8 +172,6 @@ describe("CardArtThumb", () => {
       const { container } = render(<CardArtThumb shape="strip" src="/bf-120w.webp" landscape />);
 
       const img = container.querySelector("img");
-      // The strip is already the art's own ratio: no crop offset, no rotation
-      // wrapper. This is the whole reason battlefields get a strip.
       expect(img?.className).not.toContain("object-[50%_18%]");
       expect(img?.parentElement?.style.transform ?? "").not.toContain("rotate");
     });

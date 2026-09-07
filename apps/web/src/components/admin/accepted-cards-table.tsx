@@ -49,15 +49,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type Row = CandidateCardSummaryResponse;
-
-// ---------------------------------------------------------------------------
-// Accept button component (needs hooks)
-// ---------------------------------------------------------------------------
 
 function AcceptFavoriteButton({ cardSlug, count }: { cardSlug: string; count: number }) {
   const acceptFavorite = useAcceptFavoritePrintings();
@@ -102,12 +94,7 @@ function AcceptFavoriteButton({ cardSlug, count }: { cardSlug: string; count: nu
   );
 }
 
-// ---------------------------------------------------------------------------
-// Marketplace coverage badges
-// ---------------------------------------------------------------------------
-
-// Match the per-printing badges on the card detail page (printing-marketplace-cells.tsx),
-// with "outline" (border-border + text-foreground, no fill) for the empty state.
+// Match the per-printing badges on printing-marketplace-cells.tsx.
 const HALF_BG_CLASS: Record<DirectionCoverage["status"], string> = {
   full: "bg-success-soft",
   partial: "bg-warning-soft",
@@ -178,9 +165,8 @@ function MarketplaceSplitBadge({
   coverage: MarketplaceCoverage;
 }) {
   const textStatus = weakerStatus(coverage.printings.status, coverage.entries.status);
-  // Native title attributes instead of BaseUI Tooltip: rendered ~500 of these
-  // in the virtualized admin Cards table and the per-instance state machine
-  // dominated scroll cost. Plain strings, no rich content needed.
+  // Native title attributes, not BaseUI Tooltip: ~500 of these render in the
+  // virtualized table and the per-instance tooltip state machine dominated scroll cost.
   return (
     <div className="relative inline-flex h-5 min-w-10 font-mono text-xs">
       <div
@@ -226,12 +212,7 @@ function MarketplaceCoverageBadges({ coverage }: { coverage: CardCoverage | unde
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sort weighting for the marketplace coverage column
-// ---------------------------------------------------------------------------
-
-// Sort partially-mapped cards highest so admins see the work-in-progress
-// rows first, then unmapped, then n/a, then fully-mapped (least urgent).
+// Partially-mapped cards sort highest, then unmapped, then n/a, then fully-mapped.
 const STATUS_WEIGHT: Record<DirectionCoverage["status"], number> = {
   partial: 0,
   none: 1,
@@ -254,19 +235,11 @@ function coverageSortValue(coverage: CardCoverage | undefined): number {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Column widths (applied with table-layout: fixed so filtering doesn't reflow)
-// ---------------------------------------------------------------------------
-
 const COLUMN_WIDTHS: Record<string, string> = {
   name: "25%",
   printings: "32%",
   marketplaces: "140px",
 };
-
-// ---------------------------------------------------------------------------
-// Column definitions
-// ---------------------------------------------------------------------------
 
 function buildColumns(
   coverageBySlug: Map<string, CardCoverage>,
@@ -275,8 +248,7 @@ function buildColumns(
   priceScope: string | undefined,
   isAdmin: boolean,
 ): ColumnDef<AdminCardTableFeatures, Row>[] {
-  // Clicking a row starts a review run, so hand the detail page the same filter
-  // the list is showing — its prev/next then walks only these cards.
+  // The detail page's prev/next walks only rows matching this filter.
   const detailSearch = {
     ...(setSlug ? { set: setSlug } : {}),
     ...(listStatus ? { status: listStatus } : {}),
@@ -317,8 +289,7 @@ function buildColumns(
         return <span className="text-muted-foreground">{codes.join(", ")}</span>;
       },
     },
-    // Marketplace data is admin-only (the endpoint 403s for card-review
-    // grant holders), so the column disappears for them entirely.
+    // Marketplace data 403s for card-review grant holders, so the column is admin-only.
     ...(isAdmin
       ? [
           {
@@ -337,19 +308,15 @@ function buildColumns(
       : []),
     {
       id: "candidatePrintings",
-      // Only favorite-source candidates are listed: with many sources enabled
-      // the non-favorite codes drown out the ones that are actually
-      // actionable (the accept button only ever takes favorites anyway).
+      // Only favorite-source candidates are listed; the accept button only ever takes favorites.
       accessorFn: (r) => r.favoriteStagingShortCodes.length,
       header: ({ column }) => <SortableHeader column={column} label="Candidate Printings" />,
       enableGlobalFilter: false,
       cell: ({ row }) => {
         const codes = formatShortCodesArray(row.original.favoriteStagingShortCodes);
         const favoriteCount = row.original.favoriteStagingShortCodes.length;
-        // The codes above are favorites-and-unchecked only, while the detail
-        // page shows every unlinked candidate printing as a "New:" group. Name
-        // the difference so a row that looks empty here but violet there is
-        // explained instead of looking like a bug.
+        // Detail page's "New:" group covers every unlinked printing, not just
+        // favorites-and-unchecked, hence the "+N other" reconciliation below.
         const otherUnlinked = row.original.unlinkedPrintingCount - favoriteCount;
         return (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -378,10 +345,6 @@ function buildColumns(
     },
   ];
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function AcceptedCardsTable({
   data,
@@ -429,19 +392,15 @@ export function AcceptedCardsTable({
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
 
-  // Cards the detail page would show at least one violet "New:" group for:
-  // a candidate printing that no accepted printing claims yet.
+  // Counts cards with a candidate printing no accepted printing claims yet.
   const newPrintingsCount = data.filter((r) => r.unlinkedPrintingCount > 0).length;
 
-  // Shared with the detail page's prev/next so a run started from this filter
-  // visits exactly the rows shown here.
+  // Shared with the detail page's prev/next so it walks exactly these rows.
   function matchesScope(slug: string | null, scope: string): boolean {
     return bucketsMatchScope(slug ? assignBucketsBySlug.get(slug) : undefined, scope);
   }
 
-  // Scope options for the picker: the umbrella, then every (source, language)
-  // bucket present in the current data, each with its card count. Built from the
-  // visible `data` so the counts track the active set filter.
+  // Built from the visible `data` so counts track the active set filter.
   const scopeCardCounts = new Map<string, number>();
   for (const row of data) {
     const buckets = row.cardSlug ? assignBucketsBySlug.get(row.cardSlug) : undefined;
@@ -490,8 +449,7 @@ export function AcceptedCardsTable({
     label: `${o.label} (${o.count})`,
   }));
 
-  // Any card with at least one unbound entry (so the toggle appears even when
-  // the only buckets are un-assignable noise the umbrella count hides).
+  // Toggle appears even when buckets are un-assignable noise the umbrella count hides.
   const pricesToAssignTotal = scopeCardCounts.size > 0;
   const activeScopeCount = data.filter((r) => matchesScope(r.cardSlug, priceScope)).length;
 
@@ -517,8 +475,7 @@ export function AcceptedCardsTable({
     });
   }
 
-  // Picking a scope also activates the prices-to-assign filter. The umbrella
-  // scope is stored as an absent param so the URL stays clean by default.
+  // Umbrella scope is stored as an absent param so the URL stays clean by default.
   function changePriceScope(value: string | null) {
     void navigate({
       search: (prev) => ({
@@ -577,8 +534,7 @@ export function AcceptedCardsTable({
       return matchesCardQuery(filterValue as string, [
         r.name,
         ...r.shortCodes,
-        // Matches only what the Candidate Printings column shows, so a hit
-        // never lands on a row with an apparently empty column.
+        // Matches only what the Candidate Printings column shows.
         ...r.favoriteStagingShortCodes,
       ]);
     },
@@ -586,7 +542,6 @@ export function AcceptedCardsTable({
 
   const rows = table.getRowModel().rows;
 
-  // Count cards that have the accept button
   const acceptableCount = data.filter(
     (r) => r.cardSlug && r.favoriteStagingShortCodes.length > 0,
   ).length;

@@ -6,8 +6,6 @@ import { getPageItems } from "@/lib/paginate";
 /**
  * The numbered pager for a server-paged admin table. Renders nothing on a
  * single-page result, so a caller can mount it unconditionally.
- *
- * @returns The pager, or null when there is only one page.
  */
 export function AdminPager({
   page,
@@ -18,7 +16,6 @@ export function AdminPager({
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  /** Names the navigation landmark, e.g. "Catalogue pages". */
   label: string;
 }) {
   if (totalPages <= 1) {

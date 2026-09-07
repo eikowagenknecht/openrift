@@ -19,7 +19,6 @@ import { Pressable } from "@/components/ui/pressable";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
-/** Per-channel brand glyph (simple-icons) where one exists. */
 const BRAND_ICONS: Partial<Record<ContactMethodType, BrandIconData>> = {
   discord: siDiscord,
   signal: siSignal,
@@ -27,7 +26,6 @@ const BRAND_ICONS: Partial<Record<ContactMethodType, BrandIconData>> = {
   whatsapp: siWhatsapp,
 };
 
-/** Lucide fallbacks for the non-brand channels. */
 const LUCIDE_ICONS: Partial<Record<ContactMethodType, typeof MailIcon>> = {
   phone: PhoneIcon,
   email: MailIcon,
@@ -35,11 +33,6 @@ const LUCIDE_ICONS: Partial<Record<ContactMethodType, typeof MailIcon>> = {
   other: LinkIcon,
 };
 
-/**
- * The actionable link for a channel, or `null` when the best a viewer can do is
- * copy the value (handles, in-person notes).
- * @returns An absolute href, or `null`.
- */
 function contactHref(method: ContactMethod): string | null {
   const trimmed = method.value.trim();
   switch (method.type) {
@@ -78,9 +71,6 @@ function ContactChip({ method }: { method: ContactMethod }) {
   const { copied, copy } = useCopyToClipboard();
   const label = CONTACT_METHOD_LABELS[method.type];
   const href = contactHref(method);
-  // Badge's scale (h-5, text-xs, px-2): these chips share a row with role and
-  // group Badges in the person headers, and a mixed-height chip row reads as
-  // clutter rather than one line of facts.
   const chipClass =
     "bg-muted text-muted-foreground inline-flex h-5 max-w-full items-center gap-1.5 rounded-full px-2 text-xs";
 
@@ -124,21 +114,9 @@ function ContactChip({ method }: { method: ContactMethod }) {
   );
 }
 
-/**
- * The compact chip's round glyph button, shared by every channel type so the
- * roster row keeps one shape regardless of what the channel can do.
- */
 const COMPACT_CHIP_CLASS =
   "bg-muted text-muted-foreground hover:text-foreground inline-flex size-7 shrink-0 items-center justify-center rounded-full transition-colors";
 
-/**
- * The dense chip used in list rows. An icon-only chip that copied on tap read
- * as a mystery button: the value was invisible on touch, and a tap that silently
- * copied surprised anyone who only wanted to read the handle. So every channel
- * type opens the same popover instead, which shows the value and offers Open
- * and Copy explicitly.
- * @returns The chip and its popover.
- */
 function ContactChipCompact({ method }: { method: ContactMethod }) {
   const { copied, copy } = useCopyToClipboard();
   const label = CONTACT_METHOD_LABELS[method.type];
@@ -161,10 +139,7 @@ function ContactChipCompact({ method }: { method: ContactMethod }) {
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {href === null ? null : (
-            // A styled anchor rather than `<Button render={<a/>}>`: Base UI's
-            // button primitive stamps `role="button"` on a non-button render
-            // target, which would announce this external navigation as a
-            // button. `buttonVariants` keeps it visually identical to Copy.
+            // Base UI's button primitive stamps role="button" on a non-button render target.
             <a
               href={href}
               target="_blank"
@@ -185,16 +160,6 @@ function ContactChipCompact({ method }: { method: ContactMethod }) {
   );
 }
 
-/**
- * Renders a member's revealed contact channels as actionable chips. Renders
- * nothing when there are none.
- * @param methods The channels the viewer is allowed to see.
- * @param className Extra classes for the chip row.
- * @param compact Round icon-only chips for dense rows (the members roster),
- * each opening a popover with the value and its actions. Defaults to the
- * labelled, directly-actionable chips used on the member detail page.
- * @returns The chip row, or `null`.
- */
 export function ContactMethodChips({
   methods,
   className,
@@ -207,10 +172,7 @@ export function ContactMethodChips({
   if (methods.length === 0) {
     return null;
   }
-  // The API returns methods in whatever order each member added them, which
-  // made the same channels line up differently row to row. Sort by the
-  // canonical channel order instead (the profile settings order); toSorted is
-  // stable, so several values of one type keep the member's own order.
+  // toSorted is stable, so several values of one type keep the member's own order.
   const ordered = methods.toSorted(
     (a, b) => CONTACT_METHOD_TYPES.indexOf(a.type) - CONTACT_METHOD_TYPES.indexOf(b.type),
   );

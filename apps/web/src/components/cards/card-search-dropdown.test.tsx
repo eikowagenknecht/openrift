@@ -26,8 +26,6 @@ describe("CardSearchDropdown", () => {
     const user = userEvent.setup();
     render(<Dropdown results={RESULTS} />);
 
-    // "ogn202" matches via a printing code, so no label contains it. The rows
-    // must still show: the surface's matcher is the only filter.
     await user.type(screen.getByRole("combobox", { name: "Legend" }), "ogn202");
 
     expect(

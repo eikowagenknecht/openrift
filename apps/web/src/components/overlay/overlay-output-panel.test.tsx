@@ -22,7 +22,6 @@ const { mockUseOverlayChannel, mockUpdateSettings, mockPushCard, mockClear, mock
     mockSetHidden: vi.fn(),
   }));
 
-/** A ranking pushed from the stage, of which the catalogue can draw one card. */
 const TIER_LIST = {
   title: "Origins, ranked",
   tiers: [
@@ -99,12 +98,10 @@ import { OverlayOutputPanel } from "./overlay-output-panel";
 
 const resetQueue = createStoreResetter(usePresentQueueStore);
 
-/** @returns The card art's height, which is what the size slider drives. */
 function cardHeight(container: HTMLElement): string | undefined {
   return container.querySelector<HTMLElement>(".aspect-card")?.style.height;
 }
 
-/** Points the mocked channel at whatever is meant to be live. */
 function channelShowing(
   printingId: string | null,
   board: OverlayBoard | null = null,
@@ -120,7 +117,6 @@ function channelShowing(
   });
 }
 
-/** @returns The picked list as a pushed board, revealed `revealCount` in. */
 function liveBoard(revealCount: number): OverlayBoard {
   return {
     title: TIER_LIST.title,
@@ -140,9 +136,6 @@ describe("OverlayOutputPanel card size", () => {
   });
 
   it("resizes the preview while the thumb is being dragged", () => {
-    // Regression: the drafted size lived inside the settings panel, so the
-    // preview above it kept the committed size until the thumb was released —
-    // which is the one moment the creator is looking at the preview.
     const { container, getByText } = render(<OverlayOutputPanel />);
     expect(cardHeight(container)).toBe("70%");
 
@@ -167,8 +160,6 @@ describe("OverlayOutputPanel card size", () => {
     fireEvent.click(getByText("drag-move"));
     fireEvent.click(getByText("drag-end"));
 
-    // The write is in flight; the preview goes back to what the channel says
-    // rather than holding a draft that nothing owns any more.
     expect(cardHeight(container)).toBe("70%");
   });
 });
@@ -178,8 +169,6 @@ describe("OverlayOutputPanel walk controls", () => {
 
   beforeEach(() => {
     mockPushCard.mockReset();
-    // The clicker steps the very queue the builder beside it is editing, so the
-    // store is where the run comes from rather than this panel's own state.
     usePresentQueueStore.getState().load(QUEUE);
     channelShowing(PRINTING.id);
   });
@@ -218,8 +207,6 @@ describe("OverlayOutputPanel walk controls", () => {
     channelShowing(null);
     const { getByText, getByLabelText } = render(<OverlayOutputPanel />);
 
-    // No position to report yet, so the readout shows a dash rather than a
-    // number the next press wouldn't honour.
     expect(getByText("– / 3")).toBeTruthy();
     expect(getByLabelText("Push the previous queued card").hasAttribute("disabled")).toBe(true);
 
@@ -269,8 +256,6 @@ describe("OverlayOutputPanel clear", () => {
   });
 
   it("is live for a board too, not just a card", () => {
-    // Regression risk from the merge: the dashboard's Clear only looked at the
-    // pushed card, so a ranking on screen left the button dead.
     channelShowing(null, liveBoard(1));
     const { getByText } = render(<OverlayOutputPanel />);
 
@@ -302,8 +287,6 @@ describe("OverlayOutputPanel curtain", () => {
   });
 
   it("stays available with nothing up, unlike Clear", () => {
-    // Dropping the curtain before the first push is how a creator sets a scene
-    // without the audience watching them do it.
     channelShowing(null);
     const { getByText } = render(<OverlayOutputPanel />);
 
@@ -320,8 +303,6 @@ describe("OverlayOutputPanel curtain", () => {
   });
 
   it("says a hidden card is still held, so the empty preview explains itself", () => {
-    // The preview paints the payload exactly as the browser source does, so it
-    // empties out — without the caption this reads as a failed push.
     channelShowing(PRINTING.id, null, true);
     const { getByText } = render(<OverlayOutputPanel />);
 
@@ -336,9 +317,6 @@ describe("OverlayOutputPanel curtain", () => {
   });
 });
 
-// A ranking is put on stream from the show itself, where the creator can see
-// the board they are pushing. What this panel still owns is showing whatever
-// arrived and saying where it comes from.
 describe("OverlayOutputPanel board on stream", () => {
   beforeEach(() => {
     mockClear.mockReset();

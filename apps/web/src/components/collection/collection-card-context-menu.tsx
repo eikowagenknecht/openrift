@@ -19,36 +19,11 @@ import {
 import { dispatchContextAction, dispatchTake } from "@/stores/card-row-actions-store";
 
 interface CollectionCardContextMenuProps {
-  /** Stack id (printingId in stacked views, copyId in copies view). */
   itemId: string;
-  /**
-   * Group "bulk box" only: show a "Take a copy" item that claims one copy from
-   * the shared group collection into the viewer's inbox. Hidden on personal
-   * collections.
-   */
   canTake?: boolean;
-  /**
-   * Group "bulk box": when the card is on the viewer's wishlist, the number of
-   * copies a single "take all you want" should claim — already capped to
-   * `min(wished, copies in box)`. Only renders the extra item when > 1.
-   */
   takeAllCount?: number;
-  /**
-   * True in stacked views (the tile stands for N copies), false in copies view
-   * (the tile is one physical copy). Labels the copy-details entry accordingly:
-   * "Copies…" opens the picker list, "Copy details" edits the one copy.
-   */
   stacked?: boolean;
-  /**
-   * Personal collections only: offer "Lend to a friend" (ADR-039). Group-owned
-   * copies belong to the group, so they can't be lent by a member.
-   */
   canLend?: boolean;
-  /**
-   * The cell's *displayed* printing (sibling swaps included). A loan targets
-   * one printing, so the lend action follows what the tile currently shows,
-   * not the tile's representative printing.
-   */
   lendPrinting?: Printing;
   children?: ReactNode;
 }
@@ -57,10 +32,7 @@ interface CollectionCardContextMenuProps {
  * Right-click / long-press menu on an owned collection card, mirroring the
  * floating action bar: Move, Add to list, Dispose. Each item dispatches to the
  * grid, which targets the current multi-selection when this card belongs to it
- * and otherwise selects just this card before acting. On a group "bulk box" it
- * also offers "Take a copy" (a free-pile claim into the viewer's inbox), plus a
- * "Take N copies" shortcut sized to how many the viewer still wants.
- * @returns The card wrapped with its context menu.
+ * and otherwise selects just this card before acting.
  */
 export function CollectionCardContextMenu({
   itemId,

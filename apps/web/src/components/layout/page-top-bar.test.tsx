@@ -5,10 +5,6 @@ import { PAGE_TOP_BAR_STICKY_BASE, PageTopBarSticky, PageTopBarTitle } from "./p
 
 describe("PageTopBarSticky", () => {
   it("tucks 1px under the header instead of sitting flush", () => {
-    // Regression: a flush top-(--header-height) opened a 1px seam of raw
-    // scrolling content at fractional browser zoom (independent device-pixel
-    // snapping of the header and bar layers). The bar overlaps the z-50
-    // header by 1px so rounding can never expose a gap.
     const { container } = render(
       <PageTopBarSticky width="full">
         <span>content</span>
@@ -16,12 +12,10 @@ describe("PageTopBarSticky", () => {
     );
     const outer = container.firstElementChild as HTMLElement;
     expect(outer.className).toContain("top-[calc(var(--header-height)_-_1px)]");
-    // -mt-px keeps the flow position equal to the pin position; without it the
-    // bar visibly travels 1px on the first scroll before sticking.
     expect(outer.className).toContain("-mt-px");
   });
 
-  it("keeps the gutter on the sticky layer at full width", () => {
+  it("keeps the gutter on the sticky layer at full width, with no inner column wrapper", () => {
     const { container } = render(
       <PageTopBarSticky width="full">
         <span>content</span>
@@ -29,15 +23,10 @@ describe("PageTopBarSticky", () => {
     );
     const outer = container.firstElementChild as HTMLElement;
     expect(outer.className).toContain("px-safe");
-    // No inner column wrapper on the full-bleed path.
     expect(outer.querySelector(".max-w-5xl")).toBeNull();
   });
 
   it("does not stack px-safe on both the full-bleed layer and the inner capped column", () => {
-    // Regression: `px-safe` is a custom utility tailwind-merge can't reconcile,
-    // so the old `cn(PAGE_TOP_BAR_STICKY, "px-0")` left `px-safe` on the outer
-    // layer AND on the inner column, double-insetting the bar's content (badly
-    // visible in landscape, where the safe-area inset is large).
     const { container } = render(
       <PageTopBarSticky width="capped">
         <span>content</span>
@@ -46,13 +35,10 @@ describe("PageTopBarSticky", () => {
     const outer = container.firstElementChild as HTMLElement;
     const inner = outer.querySelector(".max-w-5xl") as HTMLElement;
 
-    // The full-bleed layer must NOT carry the gutter...
     expect(outer.className).not.toContain("px-safe");
-    // ...and the inner centered column carries it exactly once.
     expect(inner).not.toBeNull();
     expect(inner.className).toContain("px-safe");
 
-    // Across the whole subtree the gutter appears on a single element.
     const withGutter = container.querySelectorAll('[class*="px-safe"]');
     expect(withGutter).toHaveLength(1);
   });
@@ -83,17 +69,13 @@ describe("PageTopBarSticky", () => {
 });
 
 describe("PageTopBarTitle", () => {
-  it("keeps a sidebar toggle available at desktop widths", () => {
-    // Regression: the only toggle affordance was the mobile title-button
-    // (md:hidden), so on landscape phones (≥ 768px, still "desktop" for the
-    // sidebar) the persistent sidebar could never be collapsed.
+  it("keeps a sidebar toggle available at desktop widths, hidden only below md", () => {
     const onToggleSidebar = vi.fn();
     const { getByRole } = render(
       <PageTopBarTitle onToggleSidebar={onToggleSidebar}>Cards</PageTopBarTitle>,
     );
 
     const toggle = getByRole("button", { name: "Toggle sidebar" });
-    // Hidden below md (the mobile title-button covers that range), visible at md+.
     expect(toggle.className).toContain("md:inline-flex");
 
     toggle.click();
@@ -101,10 +83,6 @@ describe("PageTopBarTitle", () => {
   });
 
   it("centers the desktop toggle inside baseline-aligned title rows", () => {
-    // Regression: collection/list headers wrap the title in an items-baseline
-    // flex row (to baseline-align the value text with the title). An icon-only
-    // button has no text baseline, so the browser synthesized one from the
-    // icon's bottom edge and the toggle sat visibly above center.
     const { getByRole } = render(
       <PageTopBarTitle onToggleSidebar={vi.fn()}>Cards</PageTopBarTitle>,
     );

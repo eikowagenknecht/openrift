@@ -117,11 +117,6 @@ const GUARDS: LoanCard = {
   counterparty: "Mira",
 };
 
-/**
- * The Lending page: what is out, who has it, and the one button that closes a
- * loan. A single outstanding copy needs no dialog, so the animation does what
- * the click does — the row leaves Lent out and lands in History.
- */
 export function LoansVignette() {
   return (
     <ClipFrame className="flex flex-col gap-5 p-5">

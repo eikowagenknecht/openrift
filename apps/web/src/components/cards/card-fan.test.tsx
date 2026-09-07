@@ -20,7 +20,6 @@ describe("CardFan", () => {
       imageId: `image-${index}`,
     }));
     const { container } = render(<CardFan covers={many} />);
-    // The `sm` spec tops out at a four-card layout.
     expect(container.querySelectorAll("img").length).toBe(4);
   });
 
@@ -38,7 +37,6 @@ describe("CardFan", () => {
   });
 
   it("loads eagerly at high priority when marked priority", () => {
-    // Above-the-fold fans are the LCP element; lazy there costs a round trip.
     const { container } = render(<CardFan covers={COVERS} priority />);
     for (const img of container.querySelectorAll("img")) {
       expect(img.getAttribute("loading")).toBe("eager");

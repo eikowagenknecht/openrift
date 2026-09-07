@@ -7,20 +7,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { sourceBrand } from "@/lib/source-brand";
 import { cn } from "@/lib/utils";
 
-/**
- * DB slug of the "Promo" marker (`markers.slug`), the one marker this cell
- * drops. Also special-cased in card-thumbnail.tsx, for placeholder art.
- */
+/** Also special-cased in card-thumbnail.tsx, for placeholder art. */
 const PROMO_MARKER_SLUG = "promo";
 
-/**
- * One citation as a single glyph: the source's brand mark, linked when there is
- * somewhere to go, with the label in a tooltip. The full-text list lives on the
- * card detail's citation list — a table row only has room for the mark, which
- * is the part a reader recognises at a glance anyway.
- *
- * @returns The citation glyph.
- */
+/** One citation as a single glyph: the source's brand mark, linked when there is somewhere to go, with the label in a tooltip. */
 function CitationGlyph({ citation }: { citation: PrintingCitation }) {
   const glyph = <BrandGlyph icon={sourceBrand(citation.sourceUrl)} fallback={LinkIcon} />;
 
@@ -64,17 +54,9 @@ function CitationGlyph({ citation }: { citation: PrintingCitation }) {
 }
 
 /**
- * Everything the catalog knows about a promo printing beyond the card itself,
- * in one cell: the editor's note, the markers that qualify it, and the sources
- * backing the claim. They share a column because each is sparse on its own — a
- * column apiece left the table mostly empty and pushed the parts of one
- * printing's story away from each other.
- *
- * The note reads out in full (truncated) once the column is wide enough for it;
- * a narrower table shrinks it back to its icon and leaves the text to the
- * tooltip, which is all the 112px floor fits.
- *
- * @returns The cell's content, or null when the printing has none of the three.
+ * The note reads out in full (truncated) once the column is wide enough for
+ * it; a narrower table shrinks it back to its icon, leaving the text to the
+ * tooltip.
  */
 export function PrintingNotesCell({
   comment,
@@ -83,11 +65,7 @@ export function PrintingNotesCell({
   className,
 }: {
   comment: string | null;
-  /**
-   * The printing's markers. The generic "Promo" one is dropped here — it sits on
-   * nearly every promo printing, so on a page of promos it is a chip that says
-   * nothing.
-   */
+  /** The generic "Promo" marker is dropped: it sits on nearly every promo printing. */
   markers: readonly Marker[];
   /** Read as `printing.citations ?? []` — the wire schema omits an empty list. */
   citations: readonly PrintingCitation[];
@@ -98,9 +76,8 @@ export function PrintingNotesCell({
     return null;
   }
   return (
-    // @container, not a viewport breakpoint: the column takes whatever the fixed
-    // columns leave over, so how much room the note has turns on the detail pane
-    // and the table's own sideways scroll as much as on the screen.
+    // @container, not a viewport breakpoint: the column's width depends on the
+    // fixed columns and the table's own scroll, not the screen size.
     <div className={cn("text-muted-foreground @container flex items-center gap-1.5", className)}>
       {comment && (
         <Tooltip>

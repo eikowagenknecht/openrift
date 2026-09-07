@@ -14,26 +14,12 @@ interface MoveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collections: CollectionResponse[];
-  /** How many copies the move can touch — the stepper's upper bound. */
   count: number;
-  /**
-   * True when all target copies are copies of the same card (the right-click /
-   * single-card path). Only then is a "how many copies" choice meaningful, so
-   * the dialog shows a 1..count stepper and moves just the chosen number. A
-   * multi-card selection from the float bar keeps the move-all behavior.
-   */
   singleCard?: boolean;
   onMove: (toCollectionId: string, quantity: number) => void;
   isPending: boolean;
 }
 
-/**
- * Picks the collection a set of owned copies moves into, and how many of them
- * move when they all belong to one card. Picking a collection is the move
- * itself, unless there is a count to set first: a confirm button that asks
- * nothing is a click spent on nothing.
- * @returns The move dialog.
- */
 export function MoveDialog({
   open,
   onOpenChange,
@@ -46,9 +32,8 @@ export function MoveDialog({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState("");
 
-  // Re-arm each time the dialog opens for a fresh target: all copies, and no
-  // collection picked. Carrying the last pick over left an unrelated row lit up
-  // and one Enter away from moving the cards somewhere nobody chose.
+  // Re-arm on every open: an old pick could leave an unrelated row lit up and
+  // one Enter away from moving the cards somewhere nobody chose.
   const canChooseQuantity = singleCard && count > 1;
   const [quantity, setQuantity] = useState(count);
   const [seed, setSeed] = useState({ open, count });
@@ -62,7 +47,6 @@ export function MoveDialog({
   }
   const effectiveQuantity = canChooseQuantity ? quantity : count;
 
-  /** Picking a row commits the move, or arms the confirm when a count is due. */
   const pick = (collectionId: string) => {
     if (isPending) {
       return;

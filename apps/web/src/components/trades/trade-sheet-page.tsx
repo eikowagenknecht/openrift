@@ -45,12 +45,6 @@ import {
 import { splitTradeLedger, stepSequence } from "@/lib/trade-sheet";
 import { cn, PAGE_WIDTH } from "@/lib/utils";
 
-/**
- * One urgency section of the sheet: a heading with the count, optional bulk
- * actions on its right, and the rows. Renders nothing when empty, which is what
- * lets a one-sided deal shrink the page instead of leaving holes.
- * @returns The section, or null.
- */
 function LedgerSection({
   heading,
   icon,
@@ -64,11 +58,9 @@ function LedgerSection({
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
   tone?: IconChipTone;
   trades: CardTradeResponse[];
-  /** Whether to name each row's group; false while only one group is in play. */
   showGroupLabels: boolean;
-  /** Bulk actions rendered on the heading's right, if the section offers any. */
   bulk?: ReactNode;
-  /** The state this section's heading already says, dropped from its rows' badges. */
+  /** Dropped from rows' own badges when the section heading already says it. */
   redundantStatus?: TradeBadgeState;
 }) {
   if (trades.length === 0) {
@@ -98,20 +90,11 @@ function LedgerSection({
   );
 }
 
-/**
- * The finished trades between the two people, folded away by default: the pile
- * accrues, rarely needs acting on, and is the one part of the sheet that is
- * purely a record. A swap the viewer has settled their half of counts as
- * completed here even though the trade is still open — from this side it is,
- * and the heading says so.
- * @returns The history fold, or null when the two have never finished a trade.
- */
 function HistoryFold({
   trades,
   showGroupLabels,
 }: {
   trades: CardTradeResponse[];
-  /** Whether to name each row's group; false while only one group is in play. */
   showGroupLabels: boolean;
 }) {
   if (trades.length === 0) {
@@ -143,26 +126,11 @@ function HistoryFold({
   );
 }
 
-/**
- * The person-level trade sheet: everything moving between the viewer and one
- * other member, pooled across every group the two share. One ledger ordered by
- * urgency — the requests waiting on the viewer, the agreed swaps to exchange,
- * what waits on the other side, then the suggestions that could extend the deal
- * — with the balance bar above answering "what's the deal" in value terms.
- * Position encodes urgency; every row's arrow encodes direction.
- *
- * Settling happens in place, as a session on the ready-to-swap section, rather
- * than on a page of its own: standing at a table you still want to answer the
- * request they just sent and see what the deal is worth, and a second view made
- * every one of those a trip back.
- * @returns The trade-sheet page.
- */
 export function TradeSheetPage({
   userId,
   fromGroupSlug,
 }: {
   userId: string;
-  /** The group the viewer came through, when they arrived from one. */
   fromGroupSlug?: string;
 }) {
   const { data: sheet } = useTradeSheet(userId);
@@ -171,40 +139,28 @@ export function TradeSheetPage({
   const [exportOpen, setExportOpen] = useState(false);
 
   const trades = allTrades?.items ?? [];
-  // The open sections run in catalog order within each direction, so the rows
-  // follow the stack the two people are working through. A printing the catalog
-  // has not caught up with sorts last rather than to the top of that stack.
+  // A printing the catalog has not caught up with sorts last, not first.
   const ledger = splitTradeLedger(
     trades,
     userId,
     (printingId) => printingsById[printingId]?.canonicalRank ?? Number.MAX_SAFE_INTEGER,
   );
 
-  // Drop suggestions that already have a live trade with this person for the
-  // same printing — in any shared group — so a suggestion and the trade it
-  // became don't both sit in the same list.
   const incoming = withoutLiveTradeMatches(sheet.othersHaveYourWants, trades);
   const outgoing = withoutLiveTradeMatches(sheet.othersWantYourHaves, trades);
 
-  // The sheet is about the person, not a group, so its trail leads back to the
-  // group the viewer came through. An unknown or absent `from` (a bookmark, a
-  // shared link) falls back to the first shared group; the API guarantees at
-  // least one, so the back arrow and the lists link always have somewhere to go.
+  // An unknown or absent `from` falls back to the first shared group; the API
+  // guarantees at least one exists.
   const anchorGroup = sheet.groups.find((group) => group.slug === fromGroupSlug) ?? sheet.groups[0];
   const { data: anchorGroupDetail } = useFriendGroupDetail(anchorGroup.slug);
-  // "View their lists" opens their member page in the anchor group, which
-  // renders their wish/trade lists and collections there — organize lists
-  // never show. When none of that exists the page is one big empty state, so
-  // the link stands down instead of promising lists that aren't there.
+  // Organize-list shares don't render on the member page, so they don't count.
   const hasListsToSee =
     anchorGroupDetail.shares.some(
       (share) => share.userId === userId && share.listIntent !== "organize",
     ) || anchorGroupDetail.collectionShares.some((share) => share.userId === userId);
   const name = sheet.counterparty.name ?? "Member";
-  // Which group a trade sits in only tells the viewer something when there is
-  // more than one it could have been, so a single shared group names nothing.
-  // A group that has since been deleted counts as one of them: its trades keep
-  // the name they were made under and sit on this sheet beside a live group's.
+  // A group since deleted still counts: its trades keep the name they were
+  // made under and stay on this sheet beside a live group's.
   const groupKeys = new Set(sheet.groups.map((group) => group.id));
   for (const trade of [
     ...ledger.yourMove,
@@ -215,14 +171,11 @@ export function TradeSheetPage({
     groupKeys.add(tradeGroupKey(trade));
   }
   const showGroupLabels = groupKeys.size > 1;
-  // Trade rows carry their own group name; suggestions are always in a live
-  // group and key on its slug, so that one map remains.
+  // Suggestions are always in a live group and key on its slug; trade rows
+  // carry their own group name already.
   const groupNamesBySlug = showGroupLabels
     ? new Map(sheet.groups.map((group) => [group.slug, group.name]))
     : null;
-  // What the balance bar weighs: the trades still in flight. A swap the viewer
-  // has settled their half of has moved to history and drops out of here with
-  // it, which is right — those cards have changed hands.
   const live = [...ledger.yourMove, ...ledger.readyToSwap, ...ledger.waiting].filter(
     (trade) => trade.status === "pending" || trade.status === "reserved",
   );
@@ -236,13 +189,7 @@ export function TradeSheetPage({
     0;
 
   return (
-    // Card names in the trade and suggestion rows below open the detail overlay
-    // the provider mounts.
     <CardDetailOverlayProvider>
-      {/* The drill-down trail rather than a bare title: the identity block
-          below is already the page's name, so the bar says where the sheet
-          hangs instead. A sheet pooling several groups is anchored to the
-          first one, the same group the trail's parent links point at. */}
       <TopBarBreadcrumbBar
         segments={[
           {
@@ -257,9 +204,7 @@ export function TradeSheetPage({
         ]}
       />
 
-      {/* px-safe matches the gutter the sticky bar's inner column uses, so the
-          bar's content edges line up with the column below it. pt-3 is the
-          vertical-gap rule: the bar's own pb sits inside its blur band. */}
+      {/* px-safe matches the sticky bar's inner-column gutter, so content edges line up. */}
       <div className={cn(PAGE_WIDTH.capped, "px-safe flex flex-col gap-6 pt-3 pb-12")}>
         <header className="flex flex-col gap-4">
           <PersonPageHeader
@@ -268,12 +213,6 @@ export function TradeSheetPage({
             gravatarHash={sheet.counterparty.gravatarHash}
             actions={
               <>
-                {/* The sheet holds the ledger and the suggestions, never the
-                    lists they came out of, so browsing what this person shares
-                    needs a way off the page. It sits in the header rather than
-                    only in the empty state below, which is where it used to
-                    live: the moment a single suggestion appeared the empty state
-                    stopped rendering and the link went with it. */}
                 {hasListsToSee ? (
                   <Button
                     variant="outline"
@@ -319,9 +258,7 @@ export function TradeSheetPage({
         </header>
 
         {empty ? (
-          // No action of its own: the header's "View their lists" is the same
-          // link and sits right above this, so repeating it here put two
-          // identically-labelled buttons on one screen.
+          // No action here: the header's "View their lists" link sits right above.
           <EmptyState
             icon={HandshakeIcon}
             title="Nothing traded yet"
@@ -349,9 +286,6 @@ export function TradeSheetPage({
             />
             {incoming.length > 0 || outgoing.length > 0 ? (
               <section className="flex flex-col gap-3">
-                {/* Counted the way the tiles render (per suggestion, not per
-                    copy, and not per group), so the heading never disagrees
-                    with the list. */}
                 <SectionHeading count={countTradeSuggestions(incoming, outgoing)}>
                   Suggestions
                 </SectionHeading>

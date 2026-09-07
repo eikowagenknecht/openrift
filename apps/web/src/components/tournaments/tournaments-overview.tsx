@@ -19,26 +19,11 @@ function UpcomingGrid({ tournaments }: { tournaments: TournamentSummaryResponse[
 }
 
 interface TournamentsOverviewProps {
-  /** The tournaments to lay out; must be non-empty (callers own the empty state). */
   tournaments: TournamentSummaryResponse[];
-  /** Shown in place of the hero when nothing is upcoming. */
   noUpcomingText: string;
-  /**
-   * Label each event with its hosting context (group or organization), for
-   * the cross-group personal list. The group lens omits it — there the
-   * context is the page.
-   */
   showContext?: boolean;
 }
 
-/**
- * The shared events layout: the next (or live) tournament as a hero tile with
- * a card-art band, further upcoming events as compact cards, and completed or
- * cancelled events down a timeline with winner callouts. Used by the group
- * events lens and the personal tournaments page.
- *
- * @returns The overview content.
- */
 export function TournamentsOverview({
   tournaments,
   noUpcomingText,

@@ -14,13 +14,6 @@ import {
   primaryViewerRole,
 } from "@/lib/tournament-display";
 
-/**
- * One tournament as a compact full-width card: name, date, format,
- * participant count, and the state/role badges. The whole card links to the
- * tournament page.
- *
- * @returns The tournament card.
- */
 export function TournamentCard({ tournament }: { tournament: TournamentSummaryResponse }) {
   const role = primaryViewerRole(tournament.myRoles);
   const state = effectiveTournamentState(tournament.startsAt, tournament.endsAt, tournament.status);

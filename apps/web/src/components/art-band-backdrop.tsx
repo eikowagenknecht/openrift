@@ -2,15 +2,8 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { deckGlowStyle } from "@/lib/domain";
 
 /**
- * The identity backdrop the deck hero and the archive's premier rows share: a
- * domain-tinted glow, the card art blurred behind the surface, and a
- * two-direction scrim — the side fade keeps text on the left readable, the
- * bottom fade settles the band into the card it sits on.
- *
- * Renders absolutely-positioned layers only: the caller provides the
- * `relative overflow-hidden` container and stacks its content above with
- * `relative`. With no art it still paints the glow, so a band without an image
- * keeps its domain identity instead of going flat.
+ * Renders absolutely-positioned layers only; the caller provides the
+ * `relative overflow-hidden` container and stacks content above with `relative`.
  */
 export function ArtBandBackdrop({
   thumbnail,
@@ -20,7 +13,6 @@ export function ArtBandBackdrop({
   thumbnail?: string | null;
   /** Vertical crop focus of the art, percent from the top. */
   position?: number;
-  /** Domain slugs driving the glow's tint. */
   domains: readonly string[];
 }) {
   const domainColors = useDomainColors();

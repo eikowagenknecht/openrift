@@ -64,8 +64,7 @@ export function FindingsBanner({
   const [fixZonesOpen, setFixZonesOpen] = useState(false);
   const unmatched = detail.cards.filter((card) => card.matchStatus !== "matched");
   const suggestions = detail.zoneSuggestions;
-  // Zone corrections are allowed while submitted, approved, or checked — the same
-  // gate the per-card pencil uses. Add/remove stays locked to submitted.
+  // Zone corrections are allowed while submitted, approved, or checked, the same gate the per-card pencil uses. Add/remove stays locked to submitted.
   const canFixZones = suggestions.length > 0 && zoneFixAllowed(detail.entry.state);
   if (detail.violations.length === 0 && unmatched.length === 0 && suggestions.length === 0) {
     return null;
@@ -156,14 +155,10 @@ function FixZonesDialog({
   const { zoneLabels } = useZoneOrder();
   const { printingsByCardId } = useCards();
   const applyZoneFixes = useApplyTournamentDeckCheckZoneFixes();
-  // Every suggestion starts selected; a judge unticks any move that is
-  // deliberate (e.g. a custom format that parks a card in a non-standard zone).
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(suggestions.map((suggestion) => suggestion.cardId)),
   );
 
-  // The server-stored name is the bare catalog name; show the colloquial Legend
-  // name ("Azir, Emperor of the Sands") from the catalog when we can resolve it.
   const displayNameFor = (suggestion: DeckCheckEntryDetailResponse["zoneSuggestions"][number]) => {
     const printing = printingsByCardId.get(suggestion.cardId)?.[0];
     return printing ? legendDisplayName(printing.card) : suggestion.cardName;

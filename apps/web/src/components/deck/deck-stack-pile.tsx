@@ -26,18 +26,6 @@ import { cardMatchesStatsFocus } from "@/lib/deck-stats-focus";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
 
-/**
- * One buried card in a stacks-mode pile: a horizontal window onto the card's
- * name bar, styled as its own small tile (rounded corners, hairline ring,
- * gap to its neighbors). Riftbound prints the name mid-card at a per-type
- * height (unit / spell / gear higher, legend / rune lower), so a top crop
- * the way MTG stacks do would never show it; cutting the name bar keeps the
- * pile legible, and the separated-tile styling makes it read as a stack of
- * labeled dividers rather than one card sliced apart. Hovering raises the
- * usual floating full-card preview; click, drag, and the printing menu match
- * the full thumbs.
- * @returns The strip element.
- */
 function StackStrip({
   deckId,
   card,
@@ -52,20 +40,11 @@ function StackStrip({
 }: {
   deckId: string;
   card: DeckBuilderCard;
-  /** Set when "show every copy" expanded this strip: hides the ×N chip. */
   copyIndex?: number | null;
-  /** Stats-chart focus active and this card isn't in it — render faded. */
   dimmed?: boolean;
-  /**
-   * Resting window: the pile's "top" card is the art anchor (its whole top
-   * half down through the name bar); every other card shows the name bar
-   * alone, so the pile reads as a cover card over a uniform index.
-   */
   variant: StackStripVariant;
-  /** Unfold the full card (pile hover hit-testing, or the selected card). */
   expanded: boolean;
   zone: DeckZone;
-  /** Absent when the shown printing has no image — renders the text strip. */
   thumbnail?: string;
   readOnly?: boolean;
   onCardClick?: (card: CardOpenTarget) => void;
@@ -91,23 +70,16 @@ function StackStrip({
 
   const interactiveProps = cardInteractiveProps(card, onCardClick);
 
-  // Resting window per variant, as fractions of the card's height; the pile
-  // owns hover hit-testing (see StackPile), so the geometry is driven purely
-  // by the `expanded` prop and the transitions animate the inline changes.
-  // Both read the same model, so the pile's hit boxes can't drift off the
-  // rows they are testing against.
+  // This must use the same geometry model as StackPile's hit-testing, or the
+  // pile's hit boxes drift off the rows they test against.
   const geometry = stackStripGeometry(card, variant);
   const stripWidth = `calc(var(--deck-card-w) * ${geometry.widthRatio})`;
   const stripHeight = `calc(var(--deck-card-w) * ${geometry.cardHeightRatio * geometry.restFraction})`;
   const cardHeight = `calc(var(--deck-card-w) * ${geometry.cardHeightRatio})`;
-  // The image anchors to the strip's bottom edge, at the name bar's lower
-  // edge; expanding slides it to the card's true bottom as the strip grows.
   const imageBottomOffset = `calc(var(--deck-card-w) * ${-geometry.cardHeightRatio * (1 - geometry.band.y1)})`;
 
   const stripBody =
     !thumbnail || thumbnail === failedUrl ? (
-      // A missing or failed image degrades to a text strip so the pile keeps
-      // its slot and the card stays reachable.
       <div
         style={{
           width: stripWidth,
@@ -130,16 +102,11 @@ function StackStrip({
         style={{
           width: stripWidth,
           height: expanded ? cardHeight : stripHeight,
-          // The same absolute corner size in both states: unfolded it is the
-          // canonical proportional card radius from the /cards grid, resting
-          // it is that radius re-expressed against the width (the percentage
-          // pair's height component would collapse on a thin slice).
+          // restRadius re-expresses the canonical card radius against width
+          // only: on the thin resting slice, a height-based radius collapses.
           borderRadius: expanded ? CARD_BORDER_RADIUS : geometry.restRadius,
         }}
         className={cn(
-          // Each strip is its own rounded tile (card-edge border + shadow +
-          // the pile's gap), so the stack reads as labeled dividers, not one
-          // cut-up card.
           "relative shrink-0 overflow-hidden shadow-sm",
           AFTER_BORDER,
           "transition-[height,border-radius] duration-200 ease-out motion-reduce:transition-none",
@@ -166,9 +133,6 @@ function StackStrip({
           <span
             className={cn(
               "bg-background/85 text-foreground absolute right-1 rounded-md px-1.5 text-sm leading-tight font-medium tabular-nums",
-              // Centered only in the thin middle slices so the larger size
-              // never clips; the tall top anchor and the unfolded card keep
-              // the grid badge's bottom-right corner.
               expanded || variant === "top" ? "bottom-1" : "top-1/2 -translate-y-1/2",
             )}
           >
@@ -189,18 +153,8 @@ function StackStrip({
   );
 }
 
-/**
- * One stacks-mode pile. Owns the expansion state with deterministic hit-testing:
- * the expanded index is computed from the pointer's Y position against the
- * pile's own layout model (rest windows, the expanded card, the 1px gaps)
- * instead of CSS :hover. The browser only re-evaluates :hover on pointer
- * events, so while the pile animates under a slow-moving cursor, CSS hover
- * misses rows — the model can't, in either scan direction.
- *
- * Touch has no hover, so a tap takes its place: the first tap on a strip
- * unfolds it, and only a tap on the already-unfolded card opens the detail.
- * @returns The pile column.
- */
+// The browser only re-evaluates CSS :hover on pointer events, so it misses
+// rows while the pile animates under a slow-moving cursor; use pointer Y instead.
 export function StackPile({
   deckId,
   entries,
@@ -228,8 +182,6 @@ export function StackPile({
 }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const coarsePointer = useCoarsePointer();
-  // The selected card holds its expansion; the pile needs it for the layout
-  // model, the strips' own subscription only draws the ring.
   const selectedCardId = useSelectionStore((state) =>
     state.selectedZone === zone ? (state.selectedCard?.cardId ?? null) : null,
   );
@@ -240,17 +192,14 @@ export function StackPile({
     thumbnail: getThumbnail(card.cardId, card.preferredPrintingId),
   }));
 
-  // A single-card pile is just the card.
   const singleCardPile = items.length === 1;
   const variantFor = (index: number): StackStripVariant => (index === 0 ? "top" : "middle");
   const isExpanded = (index: number) =>
     !singleCardPile && (hoverIndex === index || items[index].card.cardId === selectedCardId);
 
-  // The model mirrors the strips' geometry exactly (see stackStripGeometry):
-  // rest windows per variant, full height when expanded, 1px gaps between rows.
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     // A tap synthesizes a mousemove before the click, which would unfold the
-    // strip under the finger and let that same tap read as already unfolded.
+    // strip under the finger before that same tap can register as a click.
     if (coarsePointer) {
       return;
     }
@@ -260,8 +209,6 @@ export function StackPile({
     let top = 0;
     let found: number | null = null;
     for (let index = 0; index < items.length; index++) {
-      // A landscape pile is one landscape card wide, so `heightPerWidth` turns
-      // the pile's measured width straight into a card height either way.
       const geometry = stackStripGeometry(items[index].card, variantFor(index));
       const cardHeightPx = width * geometry.heightPerWidth;
       const height =

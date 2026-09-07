@@ -32,29 +32,10 @@ interface DeckVariantCreateDialogProps {
 const TITLE = "New variant";
 const DESCRIPTION = "Creates an editable copy, kept alongside this deck as another version of it.";
 
-/**
- * The name a new variant starts with: the version it branches from, marked as a
- * variant of it.
- * @returns The prefilled name.
- */
 export function defaultVariantName(deckName: string): string {
   return `${deckName} (variant)`;
 }
 
-/**
- * Names and creates a copy of a deck (ADR-042), then opens the copy.
- *
- * Two arrangements, picked by `layout`. `"dialog"` owns a dialog's whole body,
- * header and footer included. `"inline"` is the same form expanded inside a
- * surface that is already open — the variants dialog uses it so cancelling drops
- * you back where you were rather than onto the page behind a closed modal.
- *
- * `sources` turns the branch point into a choice: with more than one entry the
- * form offers a "Came from" picker, and the copy is made from whichever version
- * is picked. Without it the form always copies `deckId`.
- *
- * @returns The create-variant form element.
- */
 export function DeckVariantCreateForm({
   deckId,
   deckName,
@@ -67,7 +48,6 @@ export function DeckVariantCreateForm({
   deckId: string;
   deckName: string;
   layout: "dialog" | "inline";
-  /** Only meaningful for `"dialog"`: re-seeds the form each time it opens. */
   open?: boolean;
   sources?: { value: string; label: string }[];
   onCancel: () => void;
@@ -81,9 +61,7 @@ export function DeckVariantCreateForm({
   const showSources = sources !== undefined && sources.length > 1;
   const sourceName = sources?.find((item) => item.value === sourceId)?.label ?? deckName;
 
-  // One form instance per surface outlives any single use of it, so the fields
-  // are re-seeded on every open rather than at mount: the deck (and so the
-  // default name) may have changed since the last time it was shown.
+  // Fields re-seed on every open, not just at mount: one form instance outlives any single use.
   const [seed, setSeed] = useState({ open, deckId, deckName });
   if (seed.open !== open || seed.deckId !== deckId || seed.deckName !== deckName) {
     setSeed({ open, deckId, deckName });
@@ -98,8 +76,6 @@ export function DeckVariantCreateForm({
     const next = sources?.find((item) => item.value === nextId);
     setSourceId(nextId);
     if (next && draft === defaultVariantName(sourceName)) {
-      // The name is still the one we filled in, so it follows the branch point
-      // instead of stranding the reader with another version's name.
       setDraft(defaultVariantName(next.label));
     }
   };
@@ -195,12 +171,7 @@ export function DeckVariantCreateForm({
   );
 }
 
-/**
- * The create-variant form as its own dialog, for surfaces with no open panel to
- * expand into (the rail's "+" button, the deck editor's menu).
- *
- * @returns The create-variant dialog element.
- */
+// For surfaces with no open panel to expand into (the rail's "+" button, the deck editor's menu).
 export function DeckVariantCreateDialog({
   deckId,
   deckName,

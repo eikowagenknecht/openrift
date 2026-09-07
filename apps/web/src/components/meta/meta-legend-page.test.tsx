@@ -5,9 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captured = vi.hoisted(() => ({
   legend: {} as MetaLegendDetailResponse,
-  /** Every deck the archive holds for this legend inside the window. */
   decks: [] as MetaDeckSummary[],
-  /** Record pages after the first, in the order the page asks for them. */
   nextPages: [] as MetaLegendDetailResponse["finishes"][],
   deckQueries: [] as Record<string, unknown>[],
   legendPages: [] as number[],
@@ -147,7 +145,6 @@ const LEGEND = {
   archiveSlug: "kennen-heart-of-the-tempest",
 };
 
-/** Every scope facet opened up, so nothing but the page's own logic narrows. */
 const UNSCOPED = { era: "all", formats: [] };
 
 type EventOverrides = Partial<MetaLegendDetailResponse["finishes"][number]["event"]>;
@@ -251,7 +248,6 @@ function renderPage(options: PageOptions = {}) {
   captured.navigated = [];
   const view = render(<MetaLegendPage />);
   return {
-    /** Re-renders under new URL params, the way a navigate would. */
     navigateTo(next: Record<string, unknown>) {
       captured.search = next;
       view.rerender(<MetaLegendPage />);
@@ -259,12 +255,10 @@ function renderPage(options: PageOptions = {}) {
   };
 }
 
-/** @returns The counter's number, read off the label it sits above. */
 function counterValue(label: string): string {
   return (screen.getByText(label).previousSibling as HTMLElement).textContent ?? "";
 }
 
-/** @returns The list items inside the archived-decks grid. */
 function deckTiles(): HTMLElement[] {
   const grid = screen.getByRole("heading", { name: "Archived decklists" })
     .parentElement as HTMLElement;

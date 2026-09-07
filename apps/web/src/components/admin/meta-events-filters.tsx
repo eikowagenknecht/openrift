@@ -8,7 +8,6 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { META_SOURCE_LABELS } from "@/lib/meta-catalog-display";
 import type { MetaSearch } from "@/routes/_app/_authenticated/admin/meta";
 
-/** The "no filter" option, absent from the deck-format slugs and source keys. */
 const ANY = "any";
 
 const SOURCE_LABELS: Record<MetaEventSourceFilter, string> = {
@@ -22,14 +21,6 @@ const SOURCE_OPTIONS = [
   ...META_EVENT_SOURCE_FILTERS.map((source) => ({ value: source, label: SOURCE_LABELS[source] })),
 ];
 
-/**
- * The live archive's filter row, with the count line under it. Every control
- * writes straight to the URL through `applyFilter`, so nothing here holds
- * filter state of its own.
- *
- * @param formats The deck formats the archive can be narrowed to.
- * @returns The archive toolbar.
- */
 export function EventFilters({
   filters,
   formats,

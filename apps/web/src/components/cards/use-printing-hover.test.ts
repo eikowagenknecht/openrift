@@ -55,7 +55,6 @@ describe("usePrintingHover", () => {
     act(() => result.current.onLeave());
     act(() => result.current.reset());
     expect(result.current.hoveredId).toBeNull();
-    // Advancing past the old timer must not flip state back.
     act(() => {
       vi.advanceTimersByTime(200);
     });

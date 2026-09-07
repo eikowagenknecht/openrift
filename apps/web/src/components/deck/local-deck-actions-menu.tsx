@@ -40,13 +40,8 @@ import { DeckRenameDialog } from "./deck-rename-dialog";
 import { DeckShareDialog } from "./deck-share-dialog";
 
 /**
- * Actions menu for a browser-local deck (ADR-035): share (an image, since there
- * is no server row to link to), export, print, rename, duplicate, and delete —
- * all client-side via the local store, with no account mutations. The server
- * {@link DeckActionsMenu} (pin / archive / clone / share link) doesn't apply to
- * a local deck.
- *
- * @returns The local-deck actions menu element.
+ * Actions for a browser-local deck: share, export, print, rename, duplicate,
+ * delete, all client-side via the local store, no account mutations.
  */
 export function LocalDeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   const { deck } = item;

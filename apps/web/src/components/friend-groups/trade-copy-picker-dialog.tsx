@@ -25,55 +25,27 @@ import { tradeCopyOptionsQueryOptions, useAcceptTrade } from "@/hooks/use-card-t
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useRequiredUserId } from "@/lib/auth-session";
 
-/** The trade an accept was started for. */
 export interface TradeAcceptTarget {
   tradeId: string;
-  /** Scopes the cache invalidation; absent for a trade whose group is gone. */
   groupSlug?: string;
-  /** The viewer's side. Only a giver has copies of their own to promise. */
   role: CardTradeRole;
-  /** Card name, for the picker's heading. */
   cardName: string;
 }
 
-/** An accept paused on the giver's copy choice. */
 interface TradeCopyChoice {
   target: TradeAcceptTarget;
   options: CardTradeCopyOptionsResponse;
 }
 
-/**
- * An accept in progress, shared between the row's Accept button and the copy
- * picker. `start` is the only entry point; everything below it is the picker's
- * own plumbing.
- */
 export interface TradeAcceptFlow {
-  /** Begins an accept. Prompts only when the giver has a real choice to make. */
   start: (target: TradeAcceptTarget) => void;
-  /** True from the click until the accept settles or the picker is dismissed. */
   busy: boolean;
-  /** The paused accept the picker is showing, or null when it is closed. */
   choice: TradeCopyChoice | null;
-  /** Accepts with the chosen copies. */
   confirm: (copyIds: string[]) => void;
-  /** Drops the accept without touching the trade. */
   cancel: () => void;
-  /** True while the accept mutation itself is in flight. */
   accepting: boolean;
 }
 
-/**
- * Drives one row's Accept button: reads which copies the trade could take, then
- * either accepts straight away or hands off to `TradeCopyPickerDialog`.
- *
- * The options read happens between the click and the prompt, not on mount, so
- * a page of trade rows costs nothing until someone actually accepts. It is also
- * what decides whether to prompt at all: a giver looking at a stack of
- * identical unrecorded copies has nothing to choose, so `choiceMatters` comes
- * back false and the accept goes through with no dialog. That keeps the common
- * case a plain button press, at the cost of one request before it lands.
- * @returns The accept flow for one row.
- */
 export function useTradeAcceptFlow({ onSettled }: { onSettled?: () => void } = {}) {
   const userId = useRequiredUserId();
   const queryClient = useQueryClient();
@@ -101,8 +73,7 @@ export function useTradeAcceptFlow({ onSettled }: { onSettled?: () => void } = {
     accepting: accept.isPending,
 
     start: (target) => {
-      // The receiver never picks: the copies at stake are the other party's,
-      // and the options route answers a receiver 403.
+      // The receiver's side owns no copies to promise; the options route answers a receiver 403.
       if (target.role !== "giver") {
         acceptWith(target);
         return;
@@ -118,11 +89,8 @@ export function useTradeAcceptFlow({ onSettled }: { onSettled?: () => void } = {
             return;
           }
         } catch {
-          // The picker refines the accept, it does not gate it. If the options
-          // read fails, fall through to the plain accept this button always
-          // did and let the server pin the plainest copies. A failure that
-          // matters (the trade moved on) surfaces again on the accept itself,
-          // where the global mutation toast reports it.
+          // Options read failure falls through to a plain accept; a real
+          // failure resurfaces on the accept mutation itself.
         }
         acceptWith(target);
       })();
@@ -145,14 +113,6 @@ export function useTradeAcceptFlow({ onSettled }: { onSettled?: () => void } = {
   return flow;
 }
 
-/**
- * `copyMarkers` is typed against the full `CopyResponse`, while a trade copy
- * option is deliberately a narrower DTO (no printing, no loan or reserve
- * state). It only reads the metadata fields the two shapes share, so fill the
- * rest with inert values rather than restating the marker list here and letting
- * the two drift.
- * @returns The copy's markers, in the same order the collection surfaces use.
- */
 function markersFor(copy: CardTradeCopyOption): CopyMarker[] {
   const asCopy: CopyResponse = {
     ...copy,
@@ -164,11 +124,6 @@ function markersFor(copy: CardTradeCopyOption): CopyMarker[] {
   return copyMarkers(asCopy);
 }
 
-/**
- * How good the copy is, in one badge: its grade once it has been slabbed,
- * otherwise its condition.
- * @returns The badge, or null when the copy records neither.
- */
 function CopyQualityBadge({ copy }: { copy: CardTradeCopyOption }) {
   const { labels } = useEnumOrders();
 
@@ -185,13 +140,6 @@ function CopyQualityBadge({ copy }: { copy: CardTradeCopyOption }) {
   return null;
 }
 
-/**
- * What distinguishes one candidate copy from the next: its condition or grade,
- * then the altered/notes/links markers. Mirrors the copy-details picker's
- * summary so a copy reads the same here as it does in the collection. The row
- * names the collection ahead of this, so a plain copy still says something.
- * @returns The summary badges, or the "no details" hint.
- */
 function CopyOptionSummary({ copy }: { copy: CardTradeCopyOption }) {
   if (!copy.hasRecordedDetails) {
     return <span className="text-muted-foreground text-sm">No details</span>;
@@ -210,11 +158,6 @@ function CopyOptionSummary({ copy }: { copy: CardTradeCopyOption }) {
   );
 }
 
-/**
- * How far the selection is from what the trade needs. Spoken to screen readers
- * as it changes, so the disabled confirm button is never a mystery.
- * @returns The hint sentence.
- */
 function selectionHint(selected: number, quantity: number): string {
   const missing = quantity - selected;
   if (missing > 0) {
@@ -227,14 +170,8 @@ function selectionHint(selected: number, quantity: number): string {
   return quantity === 1 ? "1 copy picked." : `${quantity} copies picked.`;
 }
 
-/**
- * The copies the picker opens on: the ones already pinned to the trade when it
- * has any (the settle picker, where they are the current answer), otherwise the
- * server's pin order, which is byte-for-byte what an accept without a choice
- * would promise. Either way it stops at `quantity`, which on a partial settle
- * is below the trade's own and so below the number of pins.
- * @returns The initially checked copy ids.
- */
+// Opens on the copies already pinned to the trade when there are any,
+// otherwise the server's own pin order; either way capped at `quantity`.
 function defaultSelection(options: CardTradeCopyOptionsResponse, quantity: number): Set<string> {
   const pinned = options.copies.filter((copy) => copy.pinned);
   const preselected = (pinned.length > 0 ? pinned : options.copies).slice(0, quantity);
@@ -255,7 +192,6 @@ function CopyPickerBody({
   description: string;
   confirmLabel: string;
   options: CardTradeCopyOptionsResponse;
-  /** How many copies to pick. Below `options.quantity` on a partial settle. */
   quantity: number;
   pending: boolean;
   onConfirm: (copyIds: string[]) => void;
@@ -274,10 +210,6 @@ function CopyPickerBody({
         if (!ready) {
           return;
         }
-        // Always send the ids, even when they still match the preselection. The
-        // order was computed when the picker opened, so naming the copies makes
-        // a supply change since then fail loudly instead of quietly acting on a
-        // different copy than the one on screen.
         onConfirm(copies.filter((copy) => selectedIds.has(copy.id)).map((copy) => copy.id));
       }}
     >
@@ -311,13 +243,6 @@ function CopyPickerBody({
                 htmlFor={checkboxId}
                 className="flex min-w-0 flex-1 cursor-pointer flex-wrap items-center gap-1.5"
               >
-                {/*
-                  The collection leads: the settle picker counts it as a
-                  difference between copies, so it is often the only thing the
-                  giver is actually choosing between. It gives up its own width
-                  before the badges do, which is why it is capped rather than
-                  left to grow.
-                */}
                 <span className="max-w-48 truncate text-sm font-medium">{copy.collectionName}</span>
                 <CopyOptionSummary copy={copy} />
               </label>
@@ -343,14 +268,6 @@ function CopyPickerBody({
   );
 }
 
-/**
- * Lets the giver choose which physical copies an accept promises away, so a
- * graded or annotated copy is never handed over just because it happened to
- * come first out of supply. Mount it next to an Accept button wired to the same
- * `useTradeAcceptFlow`; it stays closed unless that flow found a choice worth
- * making.
- * @returns The picker dialog.
- */
 export function TradeCopyPickerDialog({ flow }: { flow: TradeAcceptFlow }) {
   const choice = flow.choice;
   const quantity = choice?.options.quantity ?? 1;
@@ -381,46 +298,19 @@ export function TradeCopyPickerDialog({ flow }: { flow: TradeAcceptFlow }) {
   );
 }
 
-/** A settle paused on the giver's copy choice. */
 export interface TradeSettleChoice {
   options: CardTradeCopyOptionsResponse;
-  /**
-   * How many copies this settle removes. Below `options.quantity` when only
-   * part of the swap changed hands, in which case the rest of the row splits
-   * off and stays in flight.
-   */
   quantity: number;
 }
 
-/**
- * A paused settle, as the picker dialog drives it. There is deliberately no
- * "start" on it: the settle session's batch runner reads each row's candidate
- * copies before it settles anything, so by the time the picker opens the
- * choice already exists and only needs answering.
- */
+// No "start": the choice already exists by the time this opens.
 export interface TradeSettleChoiceControl {
-  /** The paused settle the picker is showing, or null when it is closed. */
   choice: TradeSettleChoice | null;
-  /** Settles the giver's half, removing the chosen copies. */
   confirm: (copyIds: string[]) => void;
-  /** Drops the choice without settling. */
   cancel: () => void;
-  /** True while the settle mutation itself is in flight. */
   settling: boolean;
 }
 
-/**
- * Lets the giver correct which physical copies a settle removes, so the card
- * that actually changed hands is the one that leaves the collection — not
- * whichever copy the accept happened to pin weeks earlier. The settle session
- * mounts it and feeds it the choices its batch runner held back: a giver whose
- * candidate copies differ — one graded, one annotated, one filed in another
- * binder — is about to hard-delete a specific card with no way back (a settle
- * is final; ADR-019, amendment 2026-08-10), and the pin the accept made weeks
- * ago is only a guess at which one physically travelled. Rows whose candidates
- * are interchangeable settle without ever opening this.
- * @returns The settle picker dialog.
- */
 export function TradeSettleCopyPickerDialog({
   flow,
   cardName,
@@ -443,10 +333,7 @@ export function TradeSettleCopyPickerDialog({
       <DialogContent className="sm:max-w-lg">
         {choice === null ? null : (
           <CopyPickerBody
-            // A settle session queues one choice per row and the dialog stays
-            // open across them, so without this the second row inherits the
-            // first row's selection: ids that match none of its checkboxes,
-            // and a confirm button that never enables.
+            // Keyed by trade id to reset selection state per row.
             key={choice.options.tradeId}
             title={quantity === 1 ? "Which copy did you hand over?" : `Which ${quantity} copies?`}
             description={`Pick the ${noun} of ${cardName} that changed hands. ${quantity === 1 ? "It leaves" : "They leave"} your collection for good, and the rest stay yours.`}

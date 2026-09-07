@@ -13,7 +13,6 @@ const cardId = "card-chaos-rune";
 const printingX = stubPrinting({ id: "p-x", cardId, card: { name: "Chaos Rune" } });
 const printingY = stubPrinting({ id: "p-y", cardId, card: { name: "Chaos Rune" } });
 
-// Owned copies per printing, rewritten per test.
 let ownedByPrinting: Record<string, number> = {};
 
 vi.mock("@/hooks/use-owned-count", () => ({
@@ -31,7 +30,6 @@ vi.mock("@/components/cards/card-detail/owned-collections-popover", () => ({
   OwnedCollectionsPopover: () => <span>breakdown</span>,
 }));
 
-/** The strip decisions under test, read off the element the cell hands CardCell. */
 interface StripProbeProps {
   decrement?: { onClick: (event: { currentTarget: HTMLElement }) => void };
   increment?: { onClick: (event: { currentTarget: HTMLElement }) => void };
@@ -43,9 +41,7 @@ interface StripProbeProps {
 let strip: ReactElement<StripProbeProps> | undefined;
 let contextMenu: ReactNode;
 
-// Probe the strip element rather than its DOM: what the cell decides to put in
-// the slots is the behaviour, and mounting the real strip would drag in the
-// popover trees this test has no providers for.
+// Mounting the real strip would drag in popover trees this test has no providers for.
 vi.mock("@/components/cards/card-cell", () => ({
   CardCell: ({
     strip: cellStrip,
@@ -129,7 +125,6 @@ describe("BrowserCardCell strip", () => {
 
     expect(strip?.props.increment).toBeDefined();
     expect(strip?.props.decrement).toBeUndefined();
-    // Nothing to manage yet, so the pill keeps the read-only breakdown.
     expect(strip?.props.onPillClick).toBeUndefined();
     expect(strip?.props.pillOverride).toBeDefined();
   });

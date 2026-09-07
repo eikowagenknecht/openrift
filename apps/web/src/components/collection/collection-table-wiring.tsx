@@ -13,7 +13,6 @@ interface CollectionActionsCellProps {
   collectionId?: string;
   dataView: "cards" | "printings" | "copies";
   catalogPrintingsByCardId: Map<string, Printing[]>;
-  /** Tile axis for cards view — scopes the summed siblings to the tile. */
   tileGroupBy: GroupByField;
 }
 
@@ -49,7 +48,6 @@ interface CollectionRowWrapperProps {
   collectionId: string | undefined;
   stackByItemId: Map<string, StackedEntry>;
   allCopyIdsByTile: Map<string, string[]>;
-  /** True when the source collection is a shared group collection. */
   sourceCollectionIsGroup: boolean;
   tileGroupBy: GroupByField;
   mode: "browse" | "select";
@@ -88,9 +86,8 @@ export function CollectionRowWrapper({
   const copyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [itemId];
   const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
   const previewPrintings = dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [printing];
-  // True only when the whole (non-selection) drag is group-owned copies, so a
-  // trade/wish list can refuse it. Select-mode drags resolve their copy set
-  // live at drop time, so we don't flag them from this stale snapshot.
+  // True only for a whole (non-selection) drag of group-owned copies.
+  // Select-mode drags resolve their own copy set live at drop time.
   const sourceAllGroupCopies = !isFromSelection && copyIds.length > 0 && sourceCollectionIsGroup;
   return (
     <DraggableCard

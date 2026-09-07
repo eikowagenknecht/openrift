@@ -17,10 +17,7 @@ vi.mock("@/hooks/use-card-filters", () => ({
   useStaleGroupByGuard: mockUseStaleGroupByGuard,
 }));
 
-// The scaffold's slots delegate to heavy filter components (router search
-// state, enum queries). Their internals are covered by their own test files —
-// here each is stubbed with distinctive text so the tests can assert which
-// surfaces the scaffold mounts.
+// Each slot is stubbed with distinctive text; internals are covered elsewhere.
 vi.mock("@/components/filters/active-filters", () => ({
   ActiveFilters: () => <div>active-filters-stub</div>,
 }));
@@ -53,7 +50,6 @@ function setDisplayState() {
 }
 
 function renderInProvider(children: React.ReactNode) {
-  // The stubs never read the meta, so an empty object is enough here.
   return render(
     <CardBrowserFilterProvider availableFilters={{} as AvailableFilters}>
       {children}
@@ -75,10 +71,8 @@ describe("BrowserToolbar", () => {
   });
 
   it("renders the active-filters strip in its own sticky tier so it pins with the search row", () => {
-    // The strip must live inside the toolbar, not in a separate sticky slot —
-    // two independent sticky tiers race their measured offsets on mobile and
-    // open a gap between the search row and the chips. Keeping them in one
-    // tier is the fix, so assert co-location here.
+    // Two independent sticky tiers race their measured offsets on mobile and
+    // open a gap between the search row and the chips.
     setDisplayState();
     mockUseFilterValues.mockReturnValue({ hasActiveFilters: true });
     renderInProvider(<BrowserToolbar totalCards={10} filteredCount={10} />);
