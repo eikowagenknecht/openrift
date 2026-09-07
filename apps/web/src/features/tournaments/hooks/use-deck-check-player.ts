@@ -10,8 +10,11 @@ import type {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import {
+  tournamentDecksKeys,
+  tournamentsKeys,
+} from "@/features/tournaments/lib/tournaments-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -96,7 +99,7 @@ const claimTournamentDeckFn = createServerFn({ method: "POST" })
 export function useMyTournamentDeck(tournamentId: string) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.tournamentDecks.entry(userId, tournamentId),
+    queryKey: tournamentDecksKeys.entry(userId, tournamentId),
     queryFn: () => fetchMyTournamentDeck({ data: tournamentId }),
   });
 }
@@ -104,7 +107,7 @@ export function useMyTournamentDeck(tournamentId: string) {
 export function useTournamentSubmissionPage(token: string) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.tournamentDecks.submission(userId, token),
+    queryKey: tournamentDecksKeys.submission(userId, token),
     queryFn: () => fetchSubmissionPage({ data: token }),
     retry: false,
   });
@@ -113,7 +116,7 @@ export function useTournamentSubmissionPage(token: string) {
 // The pre-claim landing (public): event + group for a claim token, or 404.
 export function useClaimLanding(token: string) {
   return useQuery({
-    queryKey: queryKeys.tournamentDecks.claim(token),
+    queryKey: tournamentDecksKeys.claim(token),
     queryFn: () => fetchClaimLanding({ data: token }),
     retry: false,
   });
@@ -125,8 +128,8 @@ export function useClaimLanding(token: string) {
  */
 function deckWriteKeys(userId: string, tournamentId: string) {
   return [
-    queryKeys.tournamentDecks.entry(userId, tournamentId),
-    queryKeys.tournaments.detail(userId, tournamentId),
+    tournamentDecksKeys.entry(userId, tournamentId),
+    tournamentsKeys.detail(userId, tournamentId),
   ];
 }
 
@@ -179,7 +182,7 @@ export function useSubmitTournamentDeck() {
     // The token names the link, not the tournament; the result is what says
     // which tournament just took a deck.
     invalidates: (vars, data) => [
-      queryKeys.tournamentDecks.submission(userId, vars.token),
+      tournamentDecksKeys.submission(userId, vars.token),
       ...deckWriteKeys(userId, data.tournamentId),
     ],
   });

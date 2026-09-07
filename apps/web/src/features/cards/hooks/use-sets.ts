@@ -1,8 +1,8 @@
 import { adminCatalogContract } from "@openrift/shared/contracts/admin/catalog";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
 import type { AdminSetsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
@@ -46,9 +46,9 @@ const deleteSetFn = createServerFn({ method: "POST" })
   });
 
 const setHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.sets,
+  queryKey: adminKeys.sets,
   list: () => fetchSets(),
-  invalidates: [queryKeys.admin.sets],
+  invalidates: [adminKeys.sets],
   create: (vars: CreateSetInput) => createSetFn({ data: vars }),
   update: (vars: UpdateSetInput) => updateSetFn({ data: vars }),
   reorder: (ids: string[]) => reorderSetsFn({ data: { ids } }),

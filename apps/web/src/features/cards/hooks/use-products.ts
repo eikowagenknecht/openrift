@@ -10,7 +10,7 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { productsKeys } from "@/features/cards/lib/cards-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
@@ -30,7 +30,7 @@ const fetchProducts = createServerFn({ method: "GET" })
   );
 
 export const productsListQueryOptions = queryOptions({
-  queryKey: queryKeys.products.all,
+  queryKey: productsKeys.all,
   queryFn: () => fetchProducts(),
   staleTime: 5 * 60 * 1000,
 });
@@ -97,7 +97,7 @@ function enrichProductDetail(response: ProductDetailResponse): EnrichedProductDe
 
 export function productDetailQueryOptions(slug: string) {
   return queryOptions({
-    queryKey: queryKeys.products.detail(slug),
+    queryKey: productsKeys.detail(slug),
     queryFn: () => fetchProductDetail({ data: slug }),
     staleTime: 5 * 60 * 1000,
     select: enrichProductDetail,
@@ -126,7 +126,7 @@ const createProductFn = createServerFn({ method: "POST" })
 export function useCreateProduct() {
   return useMutationWithInvalidation({
     mutationFn: (vars: CreateProductInput) => createProductFn({ data: vars }),
-    invalidates: [queryKeys.products.all],
+    invalidates: [productsKeys.all],
   });
 }
 
@@ -141,7 +141,7 @@ const resyncProductFn = createServerFn({ method: "POST" })
 export function useResyncProduct() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string; listId: string }) => resyncProductFn({ data: vars }),
-    invalidates: [queryKeys.products.all],
+    invalidates: [productsKeys.all],
   });
 }
 
@@ -156,7 +156,7 @@ const updateProductFn = createServerFn({ method: "POST" })
 export function useUpdateProduct() {
   return useMutationWithInvalidation({
     mutationFn: (vars: UpdateProductInput) => updateProductFn({ data: vars }),
-    invalidates: [queryKeys.products.all],
+    invalidates: [productsKeys.all],
   });
 }
 
@@ -171,6 +171,6 @@ const deleteProductFn = createServerFn({ method: "POST" })
 export function useDeleteProduct() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string }) => deleteProductFn({ data: vars }),
-    invalidates: [queryKeys.products.all],
+    invalidates: [productsKeys.all],
   });
 }

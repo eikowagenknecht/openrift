@@ -15,7 +15,7 @@
 
 Whatever the directory, the layers are the same and imports only point down: `lib` < `stores` < `hooks` < `components` < `routes`. Type imports count. oxlint enforces the order per directory through the `no-restricted-imports` overrides in `.oxlintrc.json` (the globs match a feature's `lib/` the same as the top-level one), so a `lib/` module cannot import a type from a hook and a component cannot import a route's `Route` object.
 
-- **`lib/`**: pure logic and the types it needs. Nothing from React, nothing from a store, no server functions.
+- **`lib/`**: pure logic and the types it needs. Nothing from React, nothing from a store, no server functions. Query keys live in the owning feature's `lib/<feature>-query-keys.ts`, one exported const per group (`decksKeys`, `adminKeys`), with `src/lib/query-keys.ts` keeping only the groups no feature owns.
 - **`stores/`**: Zustand stores. A pure predicate or constant a store exports for others (`isLocalDeckId`) lives in `lib/` and the store imports it.
 - **`hooks/`**: React hooks, server functions and query options. A React context a hook consumes lives here; the provider component stays in `components/`.
 - **`components/`**: UI. The route object comes from `getRouteApi("/path")`, search-param types from `lib/`.

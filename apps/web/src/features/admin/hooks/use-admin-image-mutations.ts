@@ -2,7 +2,7 @@ import { adminCardImagesContract } from "@openrift/shared/contracts/admin/card-i
 import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/card-mutations";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type { UploadCandidatesBody, UploadCandidatesResponse } from "@/lib/server-fns/api-types";
 import { getApiUrl } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -142,7 +142,7 @@ const uploadCandidatesFn = createServerFn({ method: "POST" })
   );
 
 type Scope = readonly (readonly unknown[])[];
-const defaultScope: Scope = [queryKeys.admin.cards.all];
+const defaultScope: Scope = [adminKeys.cards.all];
 
 export function useDeletePrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
@@ -340,6 +340,6 @@ export function useUploadFallbackArt(invalidates: Scope = defaultScope) {
 export function useUploadCandidates() {
   return useMutationWithInvalidation({
     mutationFn: (payload: UploadCandidatesBody) => uploadCandidatesFn({ data: payload }),
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: [adminKeys.cards.all],
   });
 }

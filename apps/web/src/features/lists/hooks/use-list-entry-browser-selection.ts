@@ -28,12 +28,12 @@ import {
   useUpdateListEntry,
 } from "@/features/lists/hooks/use-lists";
 import { resolveCopyMoveTarget, selectableEntryIds } from "@/features/lists/lib/list-entries";
+import { listsKeys } from "@/features/lists/lib/lists-query-keys";
 import type { RuleExcludeTarget } from "@/features/rules/lib/rule-exclude";
 import { excludeEntryFromRules } from "@/features/rules/lib/rule-exclude";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useUserId } from "@/lib/auth-session";
 import type { CardViewerItem } from "@/lib/card-viewer-types";
-import { queryKeys } from "@/lib/query-keys";
 import { useSelectionStore } from "@/stores/selection-store";
 
 export interface UseListEntryBrowserSelectionParams {
@@ -314,9 +314,9 @@ export function useListEntryBrowserSelection({
           // Dispose cascades its list-entry deletes server-side; refetch to drop them from view.
           if (userId) {
             void queryClient.invalidateQueries({
-              queryKey: queryKeys.lists.detail(userId, listId),
+              queryKey: listsKeys.detail(userId, listId),
             });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+            void queryClient.invalidateQueries({ queryKey: listsKeys.all(userId) });
           }
         },
       },

@@ -2,8 +2,9 @@ import type { AdminDomainsResponse } from "@openrift/shared/contracts/admin/doma
 import { adminDomainsContract } from "@openrift/shared/contracts/admin/domains";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteDomainFn = createServerFn({ method: "POST" })
   });
 
 const domainHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.domains,
+  queryKey: adminKeys.domains,
   list: () => fetchDomains(),
-  invalidates: [queryKeys.admin.domains, queryKeys.init.all],
+  invalidates: [adminKeys.domains, initKeys.all],
   create: (vars: { slug: string; label: string; color?: string | null }) =>
     createDomainFn({ data: vars }),
   update: (vars: { slug: string; label?: string; color?: string | null }) =>

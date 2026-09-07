@@ -11,8 +11,8 @@ import type {
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { organizationsKeys } from "@/features/tournaments/lib/tournaments-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -38,20 +38,20 @@ const fetchAdminOrganizations = createServerFn({ method: "GET" })
 
 export function myOrganizationsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.organizations.mine(userId),
+    queryKey: organizationsKeys.mine(userId),
     queryFn: () => fetchMyOrganizations(),
   });
 }
 
 export function organizationQueryOptions(userId: string, id: string) {
   return queryOptions({
-    queryKey: queryKeys.organizations.detail(userId, id),
+    queryKey: organizationsKeys.detail(userId, id),
     queryFn: () => fetchOrganization({ data: id }),
   });
 }
 
 export const adminOrganizationsQueryOptions = queryOptions({
-  queryKey: queryKeys.organizations.adminAll,
+  queryKey: organizationsKeys.adminAll,
   queryFn: () => fetchAdminOrganizations(),
 });
 
@@ -123,8 +123,8 @@ function useOrgDetailMutation<TVariables extends { id: string }>(
   return useMutationWithInvalidation<OrganizationDetailResponse, TVariables>({
     mutationFn,
     invalidates: (variables) => [
-      queryKeys.organizations.mine(userId),
-      queryKeys.organizations.detail(userId, variables.id),
+      organizationsKeys.mine(userId),
+      organizationsKeys.detail(userId, variables.id),
     ],
   });
 }
@@ -151,7 +151,7 @@ export function useAdminCreateOrganization() {
     { slug: string; name: string; description?: string | null; ownerUserId: string }
   >({
     mutationFn: (data) => adminCreateOrgFn({ data }),
-    invalidates: () => [queryKeys.organizations.adminAll],
+    invalidates: () => [organizationsKeys.adminAll],
   });
 }
 
@@ -161,13 +161,13 @@ export function useAdminUpdateOrganization() {
     { id: string; slug?: string; name?: string; description?: string | null }
   >({
     mutationFn: (data) => adminUpdateOrgFn({ data }),
-    invalidates: () => [queryKeys.organizations.adminAll],
+    invalidates: () => [organizationsKeys.adminAll],
   });
 }
 
 export function useAdminDeleteOrganization() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => adminDeleteOrgFn({ data: id }),
-    invalidates: () => [queryKeys.organizations.adminAll],
+    invalidates: () => [organizationsKeys.adminAll],
   });
 }

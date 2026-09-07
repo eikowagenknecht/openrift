@@ -12,7 +12,7 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type {
   UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
@@ -29,7 +29,7 @@ const fetchUnifiedMappings = createServerFn({ method: "GET" })
 
 export function unifiedMappingsQueryOptions() {
   return queryOptions({
-    queryKey: queryKeys.admin.unifiedMappings.list,
+    queryKey: adminKeys.unifiedMappings.list,
     queryFn: () => fetchUnifiedMappings(),
   });
 }
@@ -55,7 +55,7 @@ const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
 
 export function unifiedMappingsForCardQueryOptions(cardId: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.unifiedMappings.byCard(cardId),
+    queryKey: adminKeys.unifiedMappings.byCard(cardId),
     queryFn: () => fetchUnifiedMappingsForCard({ data: { cardId } }),
   });
 }
@@ -69,7 +69,7 @@ function useUnifiedMutation<TInput, TResult>(
     mutationFn,
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.unifiedMappings.all,
+        queryKey: adminKeys.unifiedMappings.all,
       });
       void queryClient.invalidateQueries({
         queryKey: ["admin", marketplace] as const,

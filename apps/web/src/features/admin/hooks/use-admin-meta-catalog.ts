@@ -18,7 +18,8 @@ import type { META_CATALOG_DISPLAY_STATUSES, MetaEventTier } from "@openrift/sha
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -66,7 +67,7 @@ const fetchMetaCatalog = createServerFn({ method: "GET" })
 
 function adminMetaCatalogQueryOptions(params: MetaCatalogQueryParams) {
   return queryOptions({
-    queryKey: queryKeys.admin.meta.catalogueList(params),
+    queryKey: adminKeys.meta.catalogueList(params),
     queryFn: () => fetchMetaCatalog({ data: params }),
     placeholderData: keepPreviousData,
   });
@@ -86,11 +87,11 @@ const acceptCatalogEventFn = createServerFn({ method: "POST" })
 
 /** An accept also creates a live event, its candidate, and a public archive row. */
 const acceptInvalidates = [
-  queryKeys.admin.meta.catalogue,
-  queryKeys.admin.meta.syncStatus.prefix,
-  queryKeys.admin.meta.events,
-  queryKeys.admin.meta.overlays,
-  queryKeys.meta.all,
+  adminKeys.meta.catalogue,
+  adminKeys.meta.syncStatus.prefix,
+  adminKeys.meta.events,
+  adminKeys.meta.overlays,
+  metaKeys.all,
 ] as const;
 
 /** `format` is required only when the source's own format maps to nothing of ours. */
@@ -113,7 +114,7 @@ const dismissCatalogEventFn = createServerFn({ method: "POST" })
 export function useDismissCatalogEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { externalId: string }) => dismissCatalogEventFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.catalogue, queryKeys.admin.meta.ignoredSources],
+    invalidates: [adminKeys.meta.catalogue, adminKeys.meta.ignoredSources],
   });
 }
 
@@ -127,7 +128,7 @@ const undismissCatalogEventFn = createServerFn({ method: "POST" })
 export function useUndismissCatalogEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { externalId: string }) => undismissCatalogEventFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.catalogue, queryKeys.admin.meta.ignoredSources],
+    invalidates: [adminKeys.meta.catalogue, adminKeys.meta.ignoredSources],
   });
 }
 
@@ -140,7 +141,7 @@ const fetchMetaSourceTemplates = createServerFn({ method: "GET" })
 /** Every event template the source publishes, plus any the mirror still carries. */
 export function useMetaSourceTemplates() {
   return useQuery({
-    queryKey: queryKeys.admin.meta.sourceTemplates,
+    queryKey: adminKeys.meta.sourceTemplates,
     queryFn: () => fetchMetaSourceTemplates(),
   });
 }
@@ -160,10 +161,10 @@ const updateMetaSourceTemplateFn = createServerFn({ method: "POST" })
 
 /** A tier mapping only writes here; the events it maps move when the retier pass runs. */
 const vocabularyInvalidates = [
-  queryKeys.admin.meta.sourceTemplates,
-  queryKeys.admin.meta.sourceFormats,
-  queryKeys.admin.meta.catalogue,
-  queryKeys.admin.meta.syncStatus.prefix,
+  adminKeys.meta.sourceTemplates,
+  adminKeys.meta.sourceFormats,
+  adminKeys.meta.catalogue,
+  adminKeys.meta.syncStatus.prefix,
 ] as const;
 
 export function useUpdateMetaSourceTemplate() {
@@ -179,7 +180,7 @@ const fetchMetaSourceFormats = createServerFn({ method: "GET" })
 
 export function useMetaSourceFormats() {
   return useQuery({
-    queryKey: queryKeys.admin.meta.sourceFormats,
+    queryKey: adminKeys.meta.sourceFormats,
     queryFn: () => fetchMetaSourceFormats(),
   });
 }
@@ -212,7 +213,7 @@ const fetchMetaSyncSettings = createServerFn({ method: "GET" })
 
 export function useMetaSyncSettings() {
   return useQuery({
-    queryKey: queryKeys.admin.meta.syncSettings,
+    queryKey: adminKeys.meta.syncSettings,
     queryFn: () => fetchMetaSyncSettings(),
     staleTime: 5 * 60 * 1000,
   });
@@ -236,7 +237,7 @@ const updateMetaSyncSettingsFn = createServerFn({ method: "POST" })
 export function useUpdateMetaSyncSettings() {
   return useMutationWithInvalidation<MetaSyncSettings, MetaSyncSettingsInput>({
     mutationFn: (vars) => updateMetaSyncSettingsFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.syncSettings],
+    invalidates: [adminKeys.meta.syncSettings],
   });
 }
 
@@ -251,7 +252,7 @@ export const SYNC_STATUS_POLL_MS = 15_000;
 
 export function useMetaSyncStatus(source: MetaSource) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.syncStatus(source),
+    queryKey: adminKeys.meta.syncStatus(source),
     queryFn: () => fetchMetaSyncStatus({ data: { source } }),
     refetchInterval: SYNC_STATUS_POLL_MS,
   });
@@ -265,7 +266,7 @@ const fetchMetaArchiveJobsFn = createServerFn({ method: "GET" })
 
 export function useMetaArchiveJobs() {
   return useQuery({
-    queryKey: queryKeys.admin.meta.archiveJobs,
+    queryKey: adminKeys.meta.archiveJobs,
     queryFn: () => fetchMetaArchiveJobsFn(),
     refetchInterval: SYNC_STATUS_POLL_MS,
   });
@@ -302,11 +303,11 @@ const runMetaSyncFn = createServerFn({ method: "POST" })
   });
 
 const syncRunInvalidates = [
-  queryKeys.admin.meta.syncStatus.prefix,
-  queryKeys.admin.meta.archiveJobs,
-  queryKeys.admin.meta.catalogue,
-  queryKeys.admin.meta.playloltcgCatalogue,
-  queryKeys.admin.jobRuns,
+  adminKeys.meta.syncStatus.prefix,
+  adminKeys.meta.archiveJobs,
+  adminKeys.meta.catalogue,
+  adminKeys.meta.playloltcgCatalogue,
+  adminKeys.jobRuns,
 ] as const;
 
 /** The result says `running`; the crawl itself finishes in the background. */

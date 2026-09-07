@@ -2,7 +2,7 @@ import { createLiveQueryCollection } from "@tanstack/react-db";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { copiesKeys } from "@/features/collections/lib/collections-query-keys";
 
 import { getCopiesCollection } from "./copies-collection";
 
@@ -43,19 +43,19 @@ describe("getCopiesCollection", () => {
   });
 
   it("uses a per-user queryKey so two users' caches never share a slot", () => {
-    queryClient.setQueryData(queryKeys.copies.all(userA), { items: [{ id: "alice-1" }] });
-    queryClient.setQueryData(queryKeys.copies.all(userB), { items: [{ id: "bob-1" }] });
+    queryClient.setQueryData(copiesKeys.all(userA), { items: [{ id: "alice-1" }] });
+    queryClient.setQueryData(copiesKeys.all(userB), { items: [{ id: "bob-1" }] });
 
-    expect(queryClient.getQueryData(queryKeys.copies.all(userA))).toEqual({
+    expect(queryClient.getQueryData(copiesKeys.all(userA))).toEqual({
       items: [{ id: "alice-1" }],
     });
-    expect(queryClient.getQueryData(queryKeys.copies.all(userB))).toEqual({
+    expect(queryClient.getQueryData(copiesKeys.all(userB))).toEqual({
       items: [{ id: "bob-1" }],
     });
   });
 
   it("does not surface [Live Query Error] when the active user changes mid-subscription", async () => {
-    queryClient.setQueryData(queryKeys.copies.all(userA), { items: [], nextCursor: null });
+    queryClient.setQueryData(copiesKeys.all(userA), { items: [], nextCursor: null });
     const aliceCopies = getCopiesCollection(queryClient, userA);
 
     const liveQuery = createLiveQueryCollection({

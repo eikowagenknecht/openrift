@@ -2,8 +2,9 @@ import type { AdminLanguagesResponse } from "@openrift/shared/contracts/admin/la
 import { adminLanguagesContract } from "@openrift/shared/contracts/admin/languages";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -46,9 +47,9 @@ const deleteLanguageFn = createServerFn({ method: "POST" })
   });
 
 const languageHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.languages,
+  queryKey: adminKeys.languages,
   list: () => fetchLanguages(),
-  invalidates: [queryKeys.admin.languages, queryKeys.init.all],
+  invalidates: [adminKeys.languages, initKeys.all],
   staleTime: 30 * 60 * 1000,
   create: (vars: { code: string; name: string; color?: string | null; sortOrder?: number }) =>
     createLanguageFn({ data: vars }),

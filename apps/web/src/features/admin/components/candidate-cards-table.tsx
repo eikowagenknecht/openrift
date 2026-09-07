@@ -29,7 +29,7 @@ import {
 } from "@/features/admin/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/features/admin/hooks/use-admin-card-queries";
 import { parseSortParam } from "@/features/admin/lib/admin-cards-search";
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 
 const cardsRouteApi = getRouteApi("/_app/_authenticated/admin/cards");
 
@@ -109,7 +109,7 @@ export function CandidateCardsTable({ data, isAdmin }: { data: Row[]; isAdmin: b
       return { accepted: done - failed, failed };
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.cards.all] });
+      void queryClient.invalidateQueries({ queryKey: [...adminKeys.cards.all] });
       if (result.failed === 0) {
         toast.success(`Accepted ${result.accepted} new cards`);
       } else {

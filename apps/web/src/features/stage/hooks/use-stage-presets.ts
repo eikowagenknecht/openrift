@@ -8,8 +8,8 @@ import { stagePresetsContract } from "@openrift/shared/contracts/stage-presets";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { stagePresetsKeys } from "@/features/stage/lib/stage-query-keys";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -22,7 +22,7 @@ const fetchStagePresetsFn = createServerFn({ method: "GET" })
 
 function stagePresetsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.stagePresets.all(userId),
+    queryKey: stagePresetsKeys.all(userId),
     queryFn: () => fetchStagePresetsFn(),
     select: (data: StagePresetListResponse) => data.items,
   });
@@ -49,7 +49,7 @@ export function useCreateStagePreset() {
   const userId = useUserId() ?? "";
   return useMutationWithInvalidation<StagePreset, CreateStagePreset>({
     mutationFn: (body) => createStagePresetFn({ data: body }),
-    invalidates: [queryKeys.stagePresets.all(userId)],
+    invalidates: [stagePresetsKeys.all(userId)],
   });
 }
 
@@ -66,7 +66,7 @@ export function useUpdateStagePreset() {
   const userId = useUserId() ?? "";
   return useMutationWithInvalidation<StagePreset, UpdateStagePresetBody>({
     mutationFn: (body) => updateStagePresetFn({ data: body }),
-    invalidates: [queryKeys.stagePresets.all(userId)],
+    invalidates: [stagePresetsKeys.all(userId)],
   });
 }
 
@@ -81,6 +81,6 @@ export function useDeleteStagePreset() {
   const userId = useUserId() ?? "";
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (id) => deleteStagePresetFn({ data: id }),
-    invalidates: [queryKeys.stagePresets.all(userId)],
+    invalidates: [stagePresetsKeys.all(userId)],
   });
 }

@@ -3,7 +3,8 @@ import { adminSiteSettingsContract } from "@openrift/shared/contracts/admin/site
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { siteSettingsKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import type { SiteSettings } from "@/lib/site-settings";
@@ -24,7 +25,7 @@ const fetchAdminSiteSettings = createServerFn({ method: "GET" })
   );
 
 export const adminSiteSettingsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.siteSettings,
+  queryKey: adminKeys.siteSettings,
   queryFn: () => fetchAdminSiteSettings(),
 });
 
@@ -44,7 +45,7 @@ export function useUpdateSiteSetting() {
     mutationFn: async (vars: { key: string; value?: string; scope?: SettingScope }) => {
       await updateSiteSettingFn({ data: vars });
     },
-    invalidates: [queryKeys.admin.siteSettings, queryKeys.siteSettings.all],
+    invalidates: [adminKeys.siteSettings, siteSettingsKeys.all],
   });
 }
 
@@ -60,7 +61,7 @@ export function useCreateSiteSetting() {
     mutationFn: async (vars: { key: string; value: string; scope?: SettingScope }) => {
       await createSiteSettingFn({ data: vars });
     },
-    invalidates: [queryKeys.admin.siteSettings, queryKeys.siteSettings.all],
+    invalidates: [adminKeys.siteSettings, siteSettingsKeys.all],
   });
 }
 
@@ -76,6 +77,6 @@ export function useDeleteSiteSetting() {
     mutationFn: async (key: string) => {
       await deleteSiteSettingFn({ data: { key } });
     },
-    invalidates: [queryKeys.admin.siteSettings, queryKeys.siteSettings.all],
+    invalidates: [adminKeys.siteSettings, siteSettingsKeys.all],
   });
 }

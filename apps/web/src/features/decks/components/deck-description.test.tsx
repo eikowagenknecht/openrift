@@ -6,8 +6,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CatalogSubsetProvider } from "@/features/cards/components/catalog-subset-provider";
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { DeckDescription } from "@/features/decks/components/deck-description";
-import { queryKeys } from "@/lib/query-keys";
 import { stubPrinting } from "@/test/factories";
 
 const SET_ID = "00000000-0000-0000-0000-00000000set1";
@@ -64,9 +64,9 @@ const FULL_CATALOG = {
 function renderDescription(text: string, options?: { seedCatalog?: boolean }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const catalogFetch = vi.fn();
-  client.setQueryDefaults(queryKeys.catalog.all, { queryFn: catalogFetch });
+  client.setQueryDefaults(catalogKeys.all, { queryFn: catalogFetch });
   if (options?.seedCatalog) {
-    client.setQueryData(queryKeys.catalog.all, FULL_CATALOG);
+    client.setQueryData(catalogKeys.all, FULL_CATALOG);
   }
   const onCardClick = vi.fn();
   render(
@@ -91,6 +91,6 @@ describe("DeckDescription on a page serving its own catalogue subset", () => {
 
     expect(screen.getByText("Just a plain note about the deck.")).toBeInTheDocument();
     expect(catalogFetch).not.toHaveBeenCalled();
-    expect(client.getQueryState(queryKeys.catalog.all)).toBeUndefined();
+    expect(client.getQueryState(catalogKeys.all)).toBeUndefined();
   });
 });

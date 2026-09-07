@@ -10,8 +10,10 @@ import type {
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { copiesKeys } from "@/features/collections/lib/collections-query-keys";
+import { friendGroupsKeys, tradesKeys } from "@/features/groups/lib/groups-query-keys";
+import { listsKeys } from "@/features/lists/lib/lists-query-keys";
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -127,7 +129,7 @@ export function useGroupTrades(groupId: string) {
   const userId = useRequiredUserId();
   return useQuery(
     queryOptions({
-      queryKey: queryKeys.trades.byGroup(userId, groupId),
+      queryKey: tradesKeys.byGroup(userId, groupId),
       queryFn: () => fetchUserTrades({ data: { groupId } }),
     }),
   );
@@ -137,7 +139,7 @@ export function useGroupTrades(groupId: string) {
 export function useTradeActionCounts() {
   const userId = useUserId();
   return useQuery({
-    queryKey: queryKeys.trades.actionCounts(userId ?? ""),
+    queryKey: tradesKeys.actionCounts(userId ?? ""),
     queryFn: () => fetchTradeActionCounts(),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
@@ -148,7 +150,7 @@ export function useTradeActionCounts() {
 export function useUserTrades() {
   const userId = useUserId();
   return useQuery({
-    queryKey: queryKeys.trades.all(userId ?? ""),
+    queryKey: tradesKeys.all(userId ?? ""),
     queryFn: () => fetchUserTrades({ data: {} }),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
@@ -159,7 +161,7 @@ export function useUserTrades() {
 /** Shared by the card browsers' trade markers and the deck builder's incoming counts, so both read one cached response. */
 function liveTradesByPrintingQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.trades.liveByPrinting(userId),
+    queryKey: tradesKeys.liveByPrinting(userId),
     queryFn: () => fetchLiveTradesByPrinting(),
     staleTime: 60_000,
     refetchOnWindowFocus: true,
@@ -212,7 +214,7 @@ export function useIncomingTradeCounts(enabled: boolean): {
 
 export function tradeSheetQueryOptions(userId: string, memberId: string) {
   return queryOptions({
-    queryKey: queryKeys.trades.sheet(userId, memberId),
+    queryKey: tradesKeys.sheet(userId, memberId),
     queryFn: () => fetchTradeSheet({ data: memberId }),
   });
 }
@@ -232,7 +234,7 @@ export function useTradeSheet(memberId: string) {
  */
 export function tradeCopyOptionsQueryOptions(userId: string, tradeId: string) {
   return queryOptions({
-    queryKey: queryKeys.trades.copyOptions(userId, tradeId),
+    queryKey: tradesKeys.copyOptions(userId, tradeId),
     queryFn: () => fetchTradeCopyOptions({ data: tradeId }),
   });
 }
@@ -243,13 +245,13 @@ export function tradeCopyOptionsQueryOptions(userId: string, tradeId: string) {
  */
 function tradeInvalidationKeys(userId: string, groupSlug?: string): (readonly unknown[])[] {
   const keys: (readonly unknown[])[] = [
-    queryKeys.trades.all(userId),
-    queryKeys.copies.all(userId),
-    queryKeys.copies.syncedStore(userId),
-    queryKeys.lists.all(userId),
+    tradesKeys.all(userId),
+    copiesKeys.all(userId),
+    copiesKeys.syncedStore(userId),
+    listsKeys.all(userId),
   ];
   if (groupSlug !== undefined) {
-    keys.push(queryKeys.friendGroups.matches(userId, groupSlug));
+    keys.push(friendGroupsKeys.matches(userId, groupSlug));
   }
   return keys;
 }

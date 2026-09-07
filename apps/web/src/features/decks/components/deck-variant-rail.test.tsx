@@ -6,7 +6,7 @@ import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { decksKeys } from "@/features/decks/lib/decks-query-keys";
 
 const USER_ID = "user-1";
 
@@ -31,7 +31,7 @@ vi.mock("@/features/cards/hooks/use-cards", async () => {
 });
 
 vi.mock("@/features/decks/hooks/use-decks", async () => {
-  const { queryKeys: keys } = await import("@/lib/query-keys");
+  const { decksKeys: keys } = await import("@/features/decks/lib/decks-query-keys");
   return {
     useDecks: () => ({
       data: [
@@ -58,7 +58,7 @@ vi.mock("@/features/decks/hooks/use-decks", async () => {
       ],
     }),
     deckDetailQueryOptions: (userId: string, deckId: string) => ({
-      queryKey: keys.decks.detail(userId, deckId),
+      queryKey: keys.detail(userId, deckId),
       queryFn: () => Promise.resolve(details[deckId]),
     }),
   };
@@ -99,7 +99,7 @@ describe("DeckVariantRail", () => {
 
     act(() => {
       queryClient.setQueryData<DeckDetailResponse>(
-        queryKeys.decks.detail(USER_ID, "deck-b"),
+        decksKeys.detail(USER_ID, "deck-b"),
         deckDetail([deckCard("card-1", 1)]),
       );
     });

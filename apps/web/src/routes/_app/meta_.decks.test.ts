@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
+import { initKeys } from "@/lib/query-keys";
 
 import { Route } from "./meta_.decks";
 
@@ -22,18 +23,18 @@ describe("/meta/decks loader", () => {
   it("keeps the archive out of the dehydrated SSR payload", async () => {
     const keys = await warmedKeys();
 
-    expect(keys).not.toContainEqual([...queryKeys.meta.decks()]);
+    expect(keys).not.toContainEqual([...metaKeys.decks()]);
   });
 
   it("keeps the event list out of the dehydrated SSR payload", async () => {
     const keys = await warmedKeys();
 
-    expect(keys).not.toContainEqual([...queryKeys.meta.events()]);
+    expect(keys).not.toContainEqual([...metaKeys.events()]);
   });
 
   it("still warms the shared init query", async () => {
     const keys = await warmedKeys();
 
-    expect(keys).toContainEqual([...queryKeys.init.all]);
+    expect(keys).toContainEqual([...initKeys.all]);
   });
 });

@@ -3,7 +3,8 @@ import { adminDeckZonesContract } from "@openrift/shared/contracts/admin/deck-zo
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -15,7 +16,7 @@ const fetchDeckZones = createServerFn({ method: "GET" })
   );
 
 export const adminDeckZonesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.deckZones,
+  queryKey: adminKeys.deckZones,
   queryFn: () => fetchDeckZones(),
 });
 
@@ -33,7 +34,7 @@ const reorderDeckZonesFn = createServerFn({ method: "POST" })
 export function useReorderDeckZones() {
   return useMutationWithInvalidation({
     mutationFn: (slugs: string[]) => reorderDeckZonesFn({ data: { slugs } }),
-    invalidates: [queryKeys.admin.deckZones, queryKeys.init.all],
+    invalidates: [adminKeys.deckZones, initKeys.all],
   });
 }
 
@@ -47,6 +48,6 @@ const updateDeckZoneFn = createServerFn({ method: "POST" })
 export function useUpdateDeckZone() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label?: string }) => updateDeckZoneFn({ data: vars }),
-    invalidates: [queryKeys.admin.deckZones, queryKeys.init.all],
+    invalidates: [adminKeys.deckZones, initKeys.all],
   });
 }

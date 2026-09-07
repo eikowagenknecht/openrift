@@ -6,8 +6,8 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { deckCheckKeys } from "@/features/tournaments/lib/tournaments-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -49,7 +49,7 @@ const removeMyKeyFn = createServerFn({ method: "POST" })
 export function useMyDeckCheckKeys(enabled: boolean) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.deckCheckKeys.mine(userId),
+    queryKey: deckCheckKeys.mine(userId),
     queryFn: () => fetchMyKeys(),
     enabled,
   });
@@ -59,7 +59,7 @@ export function useMintMyDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { label: string }) => mintMyKeyFn({ data: vars }),
-    invalidates: () => [queryKeys.deckCheckKeys.mine(userId)],
+    invalidates: () => [deckCheckKeys.mine(userId)],
   });
 }
 
@@ -67,7 +67,7 @@ export function useRenameMyDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { keyId: string; label: string }) => renameMyKeyFn({ data: vars }),
-    invalidates: () => [queryKeys.deckCheckKeys.mine(userId)],
+    invalidates: () => [deckCheckKeys.mine(userId)],
   });
 }
 
@@ -75,7 +75,7 @@ export function useRevokeMyDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { keyId: string }) => revokeMyKeyFn({ data: vars }),
-    invalidates: () => [queryKeys.deckCheckKeys.mine(userId)],
+    invalidates: () => [deckCheckKeys.mine(userId)],
   });
 }
 
@@ -83,7 +83,7 @@ export function useRemoveMyDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { keyId: string }) => removeMyKeyFn({ data: vars }),
-    invalidates: () => [queryKeys.deckCheckKeys.mine(userId)],
+    invalidates: () => [deckCheckKeys.mine(userId)],
   });
 }
 
@@ -125,7 +125,7 @@ const removeOrgKeyFn = createServerFn({ method: "POST" })
 export function useOrgDeckCheckKeys(orgId: string, enabled: boolean) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.deckCheckKeys.org(userId, orgId),
+    queryKey: deckCheckKeys.org(userId, orgId),
     queryFn: () => fetchOrgKeys({ data: orgId }),
     enabled,
   });
@@ -135,7 +135,7 @@ export function useMintOrgDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { orgId: string; label: string }) => mintOrgKeyFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.deckCheckKeys.org(userId, vars.orgId)],
+    invalidates: (vars) => [deckCheckKeys.org(userId, vars.orgId)],
   });
 }
 
@@ -144,7 +144,7 @@ export function useRenameOrgDeckCheckKey() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { orgId: string; keyId: string; label: string }) =>
       renameOrgKeyFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.deckCheckKeys.org(userId, vars.orgId)],
+    invalidates: (vars) => [deckCheckKeys.org(userId, vars.orgId)],
   });
 }
 
@@ -152,7 +152,7 @@ export function useRevokeOrgDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { orgId: string; keyId: string }) => revokeOrgKeyFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.deckCheckKeys.org(userId, vars.orgId)],
+    invalidates: (vars) => [deckCheckKeys.org(userId, vars.orgId)],
   });
 }
 
@@ -160,6 +160,6 @@ export function useRemoveOrgDeckCheckKey() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { orgId: string; keyId: string }) => removeOrgKeyFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.deckCheckKeys.org(userId, vars.orgId)],
+    invalidates: (vars) => [deckCheckKeys.org(userId, vars.orgId)],
   });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { overlayKeys } from "@/features/stage/lib/stage-query-keys";
 
 // Stubs the server-side modules the import graph touches, so the query
 // options under test can load without pulling in server-fn machinery.
@@ -23,7 +23,7 @@ describe("overlayStateQueryOptions", () => {
   const options = overlayStateQueryOptions("tok-1");
 
   it("keys the poll by token", () => {
-    expect(options.queryKey).toEqual(queryKeys.overlay.stateByToken("tok-1"));
+    expect(options.queryKey).toEqual(overlayKeys.stateByToken("tok-1"));
   });
 
   it("polls every second, even while the OBS tab is backgrounded", () => {
@@ -44,8 +44,6 @@ describe("overlayStateQueryOptions", () => {
 
 describe("overlayChannelQueryOptions", () => {
   it("keys the dashboard channel by user", () => {
-    expect(overlayChannelQueryOptions("user-1").queryKey).toEqual(
-      queryKeys.overlay.channel("user-1"),
-    );
+    expect(overlayChannelQueryOptions("user-1").queryKey).toEqual(overlayKeys.channel("user-1"));
   });
 });

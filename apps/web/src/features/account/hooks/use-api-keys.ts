@@ -2,7 +2,7 @@ import type { ApiKey } from "@better-auth/api-key";
 import { useQuery } from "@tanstack/react-query";
 
 import { authClient } from "@/features/account/lib/auth-client";
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 /** A listed key: the server strips the hashed `key` field from list responses. */
@@ -22,7 +22,7 @@ export function unwrapAuthResult<T>(result: {
 /** Client-only: better-auth calls carry the browser session cookie, which SSR loaders don't have. */
 export function useApiKeys() {
   return useQuery({
-    queryKey: queryKeys.admin.apiKeys,
+    queryKey: adminKeys.apiKeys,
     queryFn: async (): Promise<ApiKeySummary[]> =>
       unwrapAuthResult(await authClient.apiKey.list()).apiKeys,
   });
@@ -36,7 +36,7 @@ export function useCreateApiKey() {
   return useMutationWithInvalidation({
     mutationFn: async (input: { name: string }) =>
       unwrapAuthResult(await authClient.apiKey.create({ name: input.name })),
-    invalidates: [queryKeys.admin.apiKeys],
+    invalidates: [adminKeys.apiKeys],
   });
 }
 
@@ -47,6 +47,6 @@ export function useDeleteApiKey() {
   return useMutationWithInvalidation({
     mutationFn: async (input: { keyId: string }) =>
       unwrapAuthResult(await authClient.apiKey.delete({ keyId: input.keyId })),
-    invalidates: [queryKeys.admin.apiKeys],
+    invalidates: [adminKeys.apiKeys],
   });
 }

@@ -3,7 +3,8 @@ import type { CardBanResponse } from "@openrift/shared/contracts/admin/card-bans
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -17,7 +18,7 @@ const fetchCardBansFn = createServerFn({ method: "GET" })
 
 export function useCardBans(cardId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.cardBans(cardId),
+    queryKey: adminKeys.cardBans(cardId),
     queryFn: async (): Promise<CardBanResponse[]> => {
       const data = await fetchCardBansFn({ data: { cardId } });
       return data.bans;
@@ -56,7 +57,7 @@ export function useCreateCardBan() {
     }) => {
       await createCardBanFn({ data: { cardId, formatId, bannedAt, reason } });
     },
-    invalidates: [queryKeys.admin.cardBans.prefix, queryKeys.catalog.all],
+    invalidates: [adminKeys.cardBans.prefix, catalogKeys.all],
   });
 }
 
@@ -90,7 +91,7 @@ export function useUpdateCardBan() {
     }) => {
       await updateCardBanFn({ data: { cardId, formatId, bannedAt, reason } });
     },
-    invalidates: [queryKeys.admin.cardBans.prefix, queryKeys.catalog.all],
+    invalidates: [adminKeys.cardBans.prefix, catalogKeys.all],
   });
 }
 
@@ -109,6 +110,6 @@ export function useRemoveCardBan() {
     mutationFn: async ({ cardId, formatId }: { cardId: string; formatId: string }) => {
       await removeCardBanFn({ data: { cardId, formatId } });
     },
-    invalidates: [queryKeys.admin.cardBans.prefix, queryKeys.catalog.all],
+    invalidates: [adminKeys.cardBans.prefix, catalogKeys.all],
   });
 }

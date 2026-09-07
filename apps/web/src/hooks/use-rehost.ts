@@ -11,7 +11,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -103,14 +103,14 @@ const migrateDirectoriesFn = createServerFn({ method: "POST" })
 
 export function useRehostStatus() {
   return useQuery({
-    queryKey: queryKeys.admin.rehostStatus,
+    queryKey: adminKeys.rehostStatus,
     queryFn: () => fetchRehostStatusFn(),
   });
 }
 
 export function useBrokenImages(enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.admin.brokenImages,
+    queryKey: adminKeys.brokenImages,
     queryFn: () => fetchBrokenImagesFn(),
     enabled,
   });
@@ -118,7 +118,7 @@ export function useBrokenImages(enabled: boolean) {
 
 export function useLowResImages(enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.admin.lowResImages,
+    queryKey: adminKeys.lowResImages,
     queryFn: () => fetchLowResImagesFn(),
     enabled,
   });
@@ -126,7 +126,7 @@ export function useLowResImages(enabled: boolean) {
 
 export function useMissingImages() {
   return useQuery({
-    queryKey: queryKeys.admin.missingImages,
+    queryKey: adminKeys.missingImages,
     queryFn: () => fetchMissingImagesFn(),
   });
 }
@@ -157,7 +157,7 @@ export function useRehostImages(onBatchComplete?: () => void) {
       return totals;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.rehostStatus });
     },
   });
 }
@@ -167,8 +167,8 @@ export function useUnrehostImages() {
   return useMutation({
     mutationFn: (imageIds: string[]) => unrehostImagesFn({ data: { imageIds } }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.brokenImages });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.brokenImages });
     },
   });
 }
@@ -181,9 +181,9 @@ export function useRegenerateImages() {
       regenerateImagesKickoffFn({ data: input }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.jobRunsByKind("images.regenerate"),
+        queryKey: adminKeys.jobRunsByKind("images.regenerate"),
       });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.jobRuns });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.jobRuns });
     },
   });
 }
@@ -194,9 +194,9 @@ export function useCancelRegenerateImages() {
     mutationFn: () => cancelRegenerateImagesFn(),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.jobRunsByKind("images.regenerate"),
+        queryKey: adminKeys.jobRunsByKind("images.regenerate"),
       });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.jobRuns });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.jobRuns });
     },
   });
 }
@@ -206,7 +206,7 @@ export function useClearRehosted() {
   return useMutation({
     mutationFn: () => clearRehostedFn(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.rehostStatus });
     },
   });
 }
@@ -216,7 +216,7 @@ export function useCleanupOrphaned() {
   return useMutation({
     mutationFn: () => cleanupOrphanedFn(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.rehostStatus });
     },
   });
 }
@@ -226,7 +226,7 @@ export function useMigrateDirectories() {
   return useMutation({
     mutationFn: () => migrateDirectoriesFn(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.rehostStatus });
     },
   });
 }

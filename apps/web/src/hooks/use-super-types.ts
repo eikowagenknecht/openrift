@@ -2,8 +2,9 @@ import type { AdminSuperTypesResponse } from "@openrift/shared/contracts/admin/s
 import { adminSuperTypesContract } from "@openrift/shared/contracts/admin/super-types";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteSuperTypeFn = createServerFn({ method: "POST" })
   });
 
 const superTypeHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.superTypes,
+  queryKey: adminKeys.superTypes,
   list: () => fetchSuperTypes(),
-  invalidates: [queryKeys.admin.superTypes, queryKeys.init.all],
+  invalidates: [adminKeys.superTypes, initKeys.all],
   create: (vars: { slug: string; label: string }) => createSuperTypeFn({ data: vars }),
   update: (vars: { slug: string; label?: string }) => updateSuperTypeFn({ data: vars }),
   reorder: (slugs: string[]) => reorderSuperTypesFn({ data: { slugs } }),

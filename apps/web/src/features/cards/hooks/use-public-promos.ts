@@ -4,7 +4,7 @@ import type { Printing } from "@openrift/shared/types/catalog";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { promosKeys } from "@/features/cards/lib/cards-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -44,7 +44,7 @@ function enrichPromoList(response: PromosListResponse): EnrichedPromoList {
 
 export function publicPromoListQueryOptions(language: string) {
   return queryOptions({
-    queryKey: queryKeys.promos.forLanguage(language),
+    queryKey: promosKeys.forLanguage(language),
     queryFn: () => fetchPromoList({ data: language }),
     staleTime: 5 * 60 * 1000,
     select: enrichPromoList,

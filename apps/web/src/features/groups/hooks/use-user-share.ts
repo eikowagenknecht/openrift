@@ -15,8 +15,8 @@ import {
 } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { userShareKeys } from "@/features/groups/lib/groups-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -28,7 +28,7 @@ const fetchUserShareStateFn = createServerFn({ method: "GET" })
 
 function userShareStateQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.userShare.state(userId),
+    queryKey: userShareKeys.state(userId),
     queryFn: () => fetchUserShareStateFn(),
   });
 }
@@ -63,7 +63,7 @@ export function useEnableUserShare() {
   return useMutation({
     mutationFn: () => enableUserShareFn(),
     onSuccess: (data) => {
-      queryClient.setQueryData<UserShareStateResponse>(queryKeys.userShare.state(userId), data);
+      queryClient.setQueryData<UserShareStateResponse>(userShareKeys.state(userId), data);
     },
   });
 }
@@ -74,7 +74,7 @@ export function useDisableUserShare() {
   return useMutation({
     mutationFn: () => disableUserShareFn(),
     onSuccess: () => {
-      queryClient.setQueryData<UserShareStateResponse>(queryKeys.userShare.state(userId), {
+      queryClient.setQueryData<UserShareStateResponse>(userShareKeys.state(userId), {
         shareToken: null,
         isPublic: false,
       });
@@ -88,7 +88,7 @@ export function useRotateUserShare() {
   return useMutation({
     mutationFn: () => rotateUserShareFn(),
     onSuccess: (data) => {
-      queryClient.setQueryData<UserShareStateResponse>(queryKeys.userShare.state(userId), data);
+      queryClient.setQueryData<UserShareStateResponse>(userShareKeys.state(userId), data);
     },
   });
 }
@@ -114,7 +114,7 @@ const fetchPublicUserBundleFn = createServerFn({ method: "GET" })
 
 export function publicUserBundleQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.userShare.publicByToken(token),
+    queryKey: userShareKeys.publicByToken(token),
     queryFn: () => fetchPublicUserBundleFn({ data: token }),
   });
 }
@@ -144,7 +144,7 @@ const fetchPublicUserBundleListFn = createServerFn({ method: "GET" })
 
 export function publicUserBundleListQueryOptions(token: string, listId: string) {
   return queryOptions({
-    queryKey: queryKeys.userShare.publicListByToken(token, listId),
+    queryKey: userShareKeys.publicListByToken(token, listId),
     queryFn: () => fetchPublicUserBundleListFn({ data: { token, listId } }),
   });
 }

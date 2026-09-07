@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 
 import { Route } from "./meta_.players_.$key";
 
@@ -53,20 +53,20 @@ describe("/meta/players/$key loader", () => {
   it("keeps the whole archive out of the dehydrated SSR payload", async () => {
     const keys = await warmedKeys();
 
-    expect(keys).not.toContainEqual([...queryKeys.meta.decks()]);
+    expect(keys).not.toContainEqual([...metaKeys.decks()]);
   });
 
   it("still warms the player the page renders from", async () => {
     const keys = await warmedKeys();
 
-    expect(keys).toContainEqual([...queryKeys.meta.player(KEY)]);
+    expect(keys).toContainEqual([...metaKeys.player(KEY)]);
   });
 
   it("warms this player's own lists under the scope the URL names, facets and all", async () => {
     const keys = await warmedKeys({ era: "origins", countriesEx: ["DE"] });
 
     expect(keys).toContainEqual([
-      ...queryKeys.meta.decks({
+      ...metaKeys.decks({
         from: "2026-01-01",
         to: "2026-07-31",
         formats: ["constructed"],
@@ -79,6 +79,6 @@ describe("/meta/players/$key loader", () => {
   it("asks for the whole record uncapped, since a player's is a few dozen rows", async () => {
     const keys = await warmedKeys({ era: "all", formats: [] });
 
-    expect(keys).toContainEqual([...queryKeys.meta.decks({ player: KEY })]);
+    expect(keys).toContainEqual([...metaKeys.decks({ player: KEY })]);
   });
 });

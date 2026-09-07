@@ -10,7 +10,8 @@ import type { PlayloltcgStatus } from "@openrift/shared/types/enums";
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -55,7 +56,7 @@ const fetchPlayloltcgCatalog = createServerFn({ method: "GET" })
 export function useAdminPlayloltcgCatalog(params: PlayloltcgCatalogParams) {
   return useQuery(
     queryOptions({
-      queryKey: queryKeys.admin.meta.playloltcgCatalogueList(params),
+      queryKey: adminKeys.meta.playloltcgCatalogueList(params),
       queryFn: () => fetchPlayloltcgCatalog({ data: params }),
       placeholderData: keepPreviousData,
     }),
@@ -70,11 +71,11 @@ const acceptFn = createServerFn({ method: "POST" })
   );
 
 const acceptInvalidates = [
-  queryKeys.admin.meta.playloltcgCatalogue,
-  queryKeys.admin.meta.syncStatus.prefix,
-  queryKeys.admin.meta.events,
-  queryKeys.admin.meta.overlays,
-  queryKeys.meta.all,
+  adminKeys.meta.playloltcgCatalogue,
+  adminKeys.meta.syncStatus.prefix,
+  adminKeys.meta.events,
+  adminKeys.meta.overlays,
+  metaKeys.all,
 ] as const;
 
 export function useAcceptPlayloltcgEvent() {
@@ -92,8 +93,8 @@ const dismissFn = createServerFn({ method: "POST" })
   });
 
 const dismissInvalidates = [
-  queryKeys.admin.meta.playloltcgCatalogue,
-  queryKeys.admin.meta.syncStatus.prefix,
+  adminKeys.meta.playloltcgCatalogue,
+  adminKeys.meta.syncStatus.prefix,
 ] as const;
 
 export function useDismissPlayloltcgEvent() {
@@ -113,7 +114,7 @@ const undismissFn = createServerFn({ method: "POST" })
 export function useUndismissPlayloltcgEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { activityShopId: number }) => undismissFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.playloltcgCatalogue, queryKeys.admin.meta.ignoredSources],
+    invalidates: [adminKeys.meta.playloltcgCatalogue, adminKeys.meta.ignoredSources],
   });
 }
 

@@ -20,11 +20,11 @@ import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import type { EncodeDeckCardInput } from "@/features/decks/lib/deck-encode-input";
+import { decksKeys } from "@/features/decks/lib/decks-query-keys";
 import { isLocalDeckId } from "@/features/decks/lib/local-deck";
 import { useLocalDecksStore } from "@/features/decks/stores/local-decks-store";
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { reportMutationError } from "@/lib/query-client";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -57,7 +57,7 @@ const fetchDeckDetail = createServerFn({ method: "GET" })
 
 export function decksQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.decks.all(userId),
+    queryKey: decksKeys.all(userId),
     queryFn: () => fetchDecks(),
     select: (data: DeckListResponse) => data.items,
   });
@@ -65,7 +65,7 @@ export function decksQueryOptions(userId: string) {
 
 export function deckDetailQueryOptions(userId: string, deckId: string) {
   return queryOptions({
-    queryKey: queryKeys.decks.detail(userId, deckId),
+    queryKey: decksKeys.detail(userId, deckId),
     queryFn: (): Promise<DeckDetailResponse> => fetchDeckDetail({ data: deckId }),
   });
 }
@@ -122,7 +122,7 @@ export function useDeckDetail(deckId: string): { data: DeckDetailResponse } {
   const query = useSuspenseQuery(
     isLocal
       ? {
-          queryKey: queryKeys.decks.detail("local", deckId),
+          queryKey: decksKeys.detail("local", deckId),
           queryFn: () => local.data,
           initialData: local.data,
           staleTime: Number.POSITIVE_INFINITY,
@@ -158,7 +158,7 @@ export function useCreateDeck() {
       isPublic?: boolean;
       links?: DeckLink[];
     }) => createDeckFn({ data: body }),
-    invalidates: userId ? [queryKeys.decks.all(userId)] : [],
+    invalidates: userId ? [decksKeys.all(userId)] : [],
   });
 }
 
@@ -184,7 +184,7 @@ export function useDeleteDeck() {
   const userId = useUserId();
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (deckId) => deleteDeckFn({ data: deckId }),
-    invalidates: userId ? [queryKeys.decks.all(userId)] : [],
+    invalidates: userId ? [decksKeys.all(userId)] : [],
   });
 }
 
@@ -231,7 +231,7 @@ export function useSaveDeckCards() {
         return;
       }
       queryClient.setQueryData<DeckDetailResponse>(
-        queryKeys.decks.detail(userId, variables.deckId),
+        decksKeys.detail(userId, variables.deckId),
         (old) => {
           if (!old) {
             return old;
@@ -242,7 +242,7 @@ export function useSaveDeckCards() {
 
       // exact: true keeps this from also refetching the detail query set above.
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.decks.all(userId),
+        queryKey: decksKeys.all(userId),
         exact: true,
       });
     },
@@ -305,7 +305,7 @@ export function useUpdateDeck() {
         return;
       }
       queryClient.setQueryData<DeckDetailResponse>(
-        queryKeys.decks.detail(userId, variables.deckId),
+        decksKeys.detail(userId, variables.deckId),
         (old) => {
           if (!old) {
             return old;
@@ -314,7 +314,7 @@ export function useUpdateDeck() {
         },
       );
 
-      queryClient.setQueryData<DeckListResponse>(queryKeys.decks.all(userId), (old) => {
+      queryClient.setQueryData<DeckListResponse>(decksKeys.all(userId), (old) => {
         if (!old) {
           return old;
         }
@@ -389,10 +389,10 @@ function applyDeckUpdateToCaches(
   deckId: string,
   data: DeckResponse,
 ) {
-  queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(userId, deckId), (old) =>
+  queryClient.setQueryData<DeckDetailResponse>(decksKeys.detail(userId, deckId), (old) =>
     old ? { ...old, deck: data } : old,
   );
-  queryClient.setQueryData<DeckListResponse>(queryKeys.decks.all(userId), (old) => {
+  queryClient.setQueryData<DeckListResponse>(decksKeys.all(userId), (old) => {
     if (!old) {
       return old;
     }
@@ -440,7 +440,7 @@ export function useCreateDeckVariant() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<DeckResponse, { deckId: string; name?: string }>({
     mutationFn: (input) => createDeckVariantFn({ data: input }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: [decksKeys.all(userId)],
   });
 }
 
@@ -466,7 +466,7 @@ export function useLinkDeckVariant() {
     { deckId: string; otherDeckId: string; markAsPreviousVersion?: boolean }
   >({
     mutationFn: (input) => linkDeckVariantFn({ data: input }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: [decksKeys.all(userId)],
   });
 }
 
@@ -483,7 +483,7 @@ export function useUnlinkDeckVariant() {
   // so the whole decks prefix (list and details) is refetched.
   return useMutationWithInvalidation<DeckResponse, string>({
     mutationFn: (deckId) => unlinkDeckVariantFn({ data: deckId }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: [decksKeys.all(userId)],
   });
 }
 
@@ -512,7 +512,7 @@ export function useSetDeckPredecessor() {
   >({
     mutationFn: (input) => setDeckPredecessorFn({ data: input }),
     onMutate: ({ deckId, predecessorDeckId }) => {
-      const key = queryKeys.decks.all(userId);
+      const key = decksKeys.all(userId);
       const previous = queryClient.getQueryData<DeckListResponse>(key);
       if (previous) {
         queryClient.setQueryData<DeckListResponse>(key, {
@@ -525,7 +525,7 @@ export function useSetDeckPredecessor() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.decks.all(userId), context.previous);
+        queryClient.setQueryData(decksKeys.all(userId), context.previous);
       }
       // Declaring onError here replaces the QueryClient's default one; call it
       // explicitly or the rollback happens silently with no error toast.
@@ -533,7 +533,7 @@ export function useSetDeckPredecessor() {
     },
     // The rail and lineage list read every member's pointer; invalidating only the changed row misses them.
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: decksKeys.all(userId) });
     },
   });
 }
@@ -551,7 +551,7 @@ export function usePromoteDeckPrimary() {
   // enough; the prefix invalidation refreshes the list and both details.
   return useMutationWithInvalidation<DeckResponse, string>({
     mutationFn: (deckId) => promoteDeckPrimaryFn({ data: deckId }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: [decksKeys.all(userId)],
   });
 }
 
@@ -607,7 +607,7 @@ export function useShareDeck() {
   return useMutation({
     mutationFn: (deckId: string) => shareDeckFn({ data: deckId }),
     onSuccess: (data, deckId) => {
-      queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(userId, deckId), (old) =>
+      queryClient.setQueryData<DeckDetailResponse>(decksKeys.detail(userId, deckId), (old) =>
         old
           ? { ...old, deck: { ...old.deck, isPublic: data.isPublic, shareToken: data.shareToken } }
           : old,
@@ -629,7 +629,7 @@ export function useUnshareDeck() {
   return useMutation({
     mutationFn: (deckId: string) => unshareDeckFn({ data: deckId }),
     onSuccess: (_, deckId) => {
-      queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(userId, deckId), (old) =>
+      queryClient.setQueryData<DeckDetailResponse>(decksKeys.detail(userId, deckId), (old) =>
         old ? { ...old, deck: { ...old.deck, isPublic: false, shareToken: null } } : old,
       );
     },
@@ -651,7 +651,7 @@ const fetchPublicDeckFn = createServerFn({ method: "GET" })
 
 export function publicDeckQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.decks.publicByToken(token),
+    queryKey: decksKeys.publicByToken(token),
     queryFn: () => fetchPublicDeckFn({ data: token }),
   });
 }
@@ -671,6 +671,6 @@ export function useCloneSharedDeck() {
   const userId = useUserId();
   return useMutationWithInvalidation<DeckCloneResponse, string>({
     mutationFn: (token) => cloneSharedDeckFn({ data: token }),
-    invalidates: userId ? [queryKeys.decks.all(userId)] : [],
+    invalidates: userId ? [decksKeys.all(userId)] : [],
   });
 }

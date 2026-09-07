@@ -7,7 +7,7 @@ import { isDefinedError, safe } from "@orpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -15,11 +15,11 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 function submissionKeys(playerOverlayId: string | null) {
   if (playerOverlayId === null) {
-    return [queryKeys.admin.meta.eventCorrections] as const;
+    return [adminKeys.meta.eventCorrections] as const;
   }
   return [
-    queryKeys.admin.meta.submissionForPlayerOverlay(playerOverlayId),
-    queryKeys.admin.meta.overlays,
+    adminKeys.meta.submissionForPlayerOverlay(playerOverlayId),
+    adminKeys.meta.overlays,
   ] as const;
 }
 
@@ -31,7 +31,7 @@ const fetchMetaEventCorrections = createServerFn({ method: "GET" })
 
 export function useMetaEventCorrections() {
   return useQuery({
-    queryKey: queryKeys.admin.meta.eventCorrections,
+    queryKey: adminKeys.meta.eventCorrections,
     queryFn: () => fetchMetaEventCorrections(),
     staleTime: 60 * 1000,
   });
@@ -48,7 +48,7 @@ const fetchSubmissionForPlayerOverlay = createServerFn({ method: "GET" })
 
 export function useMetaSubmissionForPlayerOverlay(playerOverlayId: string, enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.submissionForPlayerOverlay(playerOverlayId),
+    queryKey: adminKeys.meta.submissionForPlayerOverlay(playerOverlayId),
     queryFn: () => fetchSubmissionForPlayerOverlay({ data: { playerOverlayId } }),
     enabled,
     staleTime: 5 * 60 * 1000,

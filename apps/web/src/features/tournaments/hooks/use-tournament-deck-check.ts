@@ -8,8 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { deckCheckEntryInvalidationKeys } from "@/features/tournaments/lib/tournament-invalidation";
+import { tournamentDeckCheckKeys } from "@/features/tournaments/lib/tournaments-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -54,7 +54,7 @@ const fetchEntry = createServerFn({ method: "GET" })
 export function useTournamentDeckCheckEntries(tournamentId: string, enabled = true) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.tournamentDeckCheck.entries(userId, tournamentId),
+    queryKey: tournamentDeckCheckKeys.entries(userId, tournamentId),
     queryFn: () => fetchEntries({ data: tournamentId }),
     enabled,
     refetchInterval: POLL_INTERVAL_MS,
@@ -65,7 +65,7 @@ export function useTournamentDeckCheckEntries(tournamentId: string, enabled = tr
 export function useTournamentDeckCheckEntry(tournamentId: string, entryId: string) {
   const userId = useRequiredUserId();
   return useQuery({
-    queryKey: queryKeys.tournamentDeckCheck.entry(userId, tournamentId, entryId),
+    queryKey: tournamentDeckCheckKeys.entry(userId, tournamentId, entryId),
     queryFn: () => fetchEntry({ data: { tournamentId, entryId } }),
     refetchInterval: POLL_INTERVAL_MS,
     refetchOnWindowFocus: true,
@@ -249,7 +249,7 @@ export function useDeleteTournamentDeckCheckEntry() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { tournamentId: string; entryId: string }) => deleteEntryFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.tournamentDeckCheck.entries(userId, vars.tournamentId)],
+    invalidates: (vars) => [tournamentDeckCheckKeys.entries(userId, vars.tournamentId)],
   });
 }
 
@@ -265,7 +265,7 @@ export function useReResolveTournamentDeckCheck() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: { tournamentId: string }) => reResolveFn({ data: vars.tournamentId }),
-    invalidates: (vars) => [queryKeys.tournamentDeckCheck.entries(userId, vars.tournamentId)],
+    invalidates: (vars) => [tournamentDeckCheckKeys.entries(userId, vars.tournamentId)],
   });
 }
 
@@ -311,8 +311,6 @@ export function useTickTournamentDeckCheckCard() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (vars: Parameters<typeof tickCardFn>[0]["data"]) => tickCardFn({ data: vars }),
-    invalidates: (vars) => [
-      queryKeys.tournamentDeckCheck.entry(userId, vars.tournamentId, vars.entryId),
-    ],
+    invalidates: (vars) => [tournamentDeckCheckKeys.entry(userId, vars.tournamentId, vars.entryId)],
   });
 }

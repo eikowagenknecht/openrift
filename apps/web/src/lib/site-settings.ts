@@ -2,7 +2,8 @@ import { siteSettingsContract } from "@openrift/shared/contracts/site-settings";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "./query-keys";
+import { siteSettingsKeys } from "@/lib/query-keys";
+
 import { serverCache } from "./server-cache";
 import { apiOrpcClient } from "./server-fns/orpc-client";
 
@@ -19,7 +20,7 @@ const fetchSiteSettings = createServerFn({ method: "GET" }).handler(() =>
 );
 
 export const siteSettingsQueryOptions = queryOptions({
-  queryKey: queryKeys.siteSettings.all,
+  queryKey: siteSettingsKeys.all,
   queryFn: () => fetchSiteSettings(),
   staleTime: 5 * 60 * 1000, // 5 minutes
 });

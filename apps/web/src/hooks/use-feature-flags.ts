@@ -6,9 +6,10 @@ import { adminFeatureFlagsContract } from "@openrift/shared/contracts/admin/feat
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { queryKeys } from "@/lib/query-keys";
+import { featureFlagsKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -25,7 +26,7 @@ const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   );
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.featureFlags,
+  queryKey: adminKeys.featureFlags,
   queryFn: () => fetchAdminFeatureFlags(),
 });
 
@@ -46,7 +47,7 @@ const toggleFeatureFlagFn = createServerFn({ method: "POST" })
 export function useToggleFeatureFlag() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { key: string; enabled: boolean }) => toggleFeatureFlagFn({ data: vars }),
-    invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
+    invalidates: [adminKeys.featureFlags, featureFlagsKeys.all],
   });
 }
 
@@ -61,7 +62,7 @@ export function useCreateFeatureFlag() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { key: string; description?: string | null; enabled?: boolean }) =>
       createFeatureFlagFn({ data: vars }),
-    invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
+    invalidates: [adminKeys.featureFlags, featureFlagsKeys.all],
   });
 }
 
@@ -75,7 +76,7 @@ const deleteFeatureFlagFn = createServerFn({ method: "POST" })
 export function useDeleteFeatureFlag() {
   return useMutationWithInvalidation({
     mutationFn: (key: string) => deleteFeatureFlagFn({ data: { key } }),
-    invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
+    invalidates: [adminKeys.featureFlags, featureFlagsKeys.all],
   });
 }
 
@@ -86,7 +87,7 @@ const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   );
 
 export const adminFeatureFlagOverridesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.featureFlagOverrides,
+  queryKey: adminKeys.featureFlagOverrides,
   queryFn: () => fetchAdminFeatureFlagOverrides(),
 });
 
@@ -109,7 +110,7 @@ export function useUpsertFeatureFlagOverride() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { userId: string; flagKey: string; enabled: boolean }) =>
       upsertFeatureFlagOverrideFn({ data: vars }),
-    invalidates: [queryKeys.admin.featureFlagOverrides, queryKeys.featureFlags.all],
+    invalidates: [adminKeys.featureFlagOverrides, featureFlagsKeys.all],
   });
 }
 
@@ -127,6 +128,6 @@ export function useDeleteFeatureFlagOverride() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { userId: string; flagKey: string }) =>
       deleteFeatureFlagOverrideFn({ data: vars }),
-    invalidates: [queryKeys.admin.featureFlagOverrides, queryKeys.featureFlags.all],
+    invalidates: [adminKeys.featureFlagOverrides, featureFlagsKeys.all],
   });
 }

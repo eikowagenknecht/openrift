@@ -4,7 +4,7 @@ import { adminGrantsContract } from "@openrift/shared/contracts/admin/grants";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -16,7 +16,7 @@ const fetchAdminGrants = createServerFn({ method: "GET" })
   );
 
 export const adminGrantsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.grants,
+  queryKey: adminKeys.grants,
   queryFn: () => fetchAdminGrants(),
 });
 
@@ -38,7 +38,7 @@ export function useAddAdminGrant() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { userId: string; section: AdminSectionSlug }) =>
       addAdminGrantFn({ data: vars }),
-    invalidates: [queryKeys.admin.grants],
+    invalidates: [adminKeys.grants],
   });
 }
 
@@ -56,6 +56,6 @@ export function useRemoveAdminGrant() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { userId: string; section: AdminSectionSlug }) =>
       removeAdminGrantFn({ data: vars }),
-    invalidates: [queryKeys.admin.grants],
+    invalidates: [adminKeys.grants],
   });
 }

@@ -2,7 +2,7 @@ import { adminCardQueriesContract } from "@openrift/shared/contracts/admin/card-
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type {
   AdminCardDetailResponse,
   AdminCardListResponse,
@@ -21,7 +21,7 @@ const fetchAdminCardList = createServerFn({ method: "GET" })
   );
 
 export const adminCardListQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cards.list,
+  queryKey: adminKeys.cards.list,
   queryFn: () => fetchAdminCardList(),
   staleTime: 5 * 60 * 1000,
 });
@@ -64,7 +64,7 @@ const fetchAllCards = createServerFn({ method: "GET" })
   );
 
 export const allCardsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cards.allCards,
+  queryKey: adminKeys.cards.allCards,
   queryFn: () => fetchAllCards(),
   staleTime: 5 * 60 * 1000,
 });
@@ -104,7 +104,7 @@ export function hasPendingRehost(data?: {
 
 export function adminCardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.cards.detail(cardSlug),
+    queryKey: adminKeys.cards.detail(cardSlug),
     queryFn: () => fetchAdminCardDetail({ data: cardSlug }),
     staleTime: 5 * 60 * 1000,
     refetchInterval: (query) =>
@@ -131,7 +131,7 @@ const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
 
 export function unmatchedCardDetailQueryOptions(name: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.cards.unmatched(name),
+    queryKey: adminKeys.cards.unmatched(name),
     queryFn: () => fetchUnmatchedCardDetail({ data: name }),
   });
 }
@@ -150,7 +150,7 @@ const fetchProviderStats = createServerFn({ method: "GET" })
   );
 
 export const providerStatsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cards.providerStats,
+  queryKey: adminKeys.cards.providerStats,
   queryFn: () => fetchProviderStats(),
 });
 
@@ -165,7 +165,7 @@ const fetchProviderNames = createServerFn({ method: "GET" })
   );
 
 const providerNamesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cards.providerNames,
+  queryKey: adminKeys.cards.providerNames,
   queryFn: () => fetchProviderNames(),
 });
 

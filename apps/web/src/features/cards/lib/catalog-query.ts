@@ -9,9 +9,9 @@ import { context, propagation } from "@opentelemetry/api";
 import type { QueryClient, UseSuspenseQueryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { consumeSeededCatalogVersion, versionFromEtag } from "@/features/cards/lib/catalog-version";
 import type { GroupInfo } from "@/lib/card-group-types";
-import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiErrorFromResponse } from "@/lib/server-fns/api-error";
 import { getApiUrl } from "@/lib/server-fns/api-url";
@@ -166,7 +166,7 @@ export async function fetchCatalogFromEdge(langs: string[] | null): Promise<Cata
 let tailInFlight = false;
 
 export async function loadCatalogTail(queryClient: QueryClient): Promise<void> {
-  const current = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
+  const current = queryClient.getQueryData<CatalogResponse>(catalogKeys.all);
   if (current === undefined) {
     return;
   }
@@ -184,7 +184,7 @@ export async function loadCatalogTail(queryClient: QueryClient): Promise<void> {
     const tail = (await tailResponse.json()) as CatalogResponse;
     // The catalog rolled under us (a refetch replaced the entry): the newer
     // primary schedules its own tail, so this one just stands down.
-    if (queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all) !== current) {
+    if (queryClient.getQueryData<CatalogResponse>(catalogKeys.all) !== current) {
       return;
     }
     const merged: CatalogResponse = {
@@ -195,7 +195,7 @@ export async function loadCatalogTail(queryClient: QueryClient): Promise<void> {
     if (meta.version !== null) {
       lastCompleteCatalog = { version: meta.version, data: merged };
     }
-    queryClient.setQueryData(queryKeys.catalog.all, merged);
+    queryClient.setQueryData(catalogKeys.all, merged);
   } finally {
     tailInFlight = false;
   }
@@ -268,7 +268,7 @@ export const noCatalogQueryOptions: UseSuspenseQueryOptions<
   Error,
   UseCardsResult
 > = {
-  queryKey: queryKeys.catalog.none,
+  queryKey: catalogKeys.none,
   queryFn: () => NO_CATALOG,
   initialData: NO_CATALOG,
   staleTime: Infinity,

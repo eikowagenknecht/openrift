@@ -25,11 +25,13 @@ import type { ParsedLocation } from "@tanstack/react-router";
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 
+import { collectionsKeys } from "@/features/collections/lib/collections-query-keys";
 import type { BoxWantRow, BoxWantsLookup } from "@/features/decks/lib/box-wants";
 import { buildBoxWantsLookup, EMPTY_BOX_WANTS } from "@/features/decks/lib/box-wants";
+import { friendGroupsKeys } from "@/features/groups/lib/groups-query-keys";
 import type { GroupMatchPanels } from "@/features/groups/lib/trade-derivation";
+import { listsKeys } from "@/features/lists/lib/lists-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -156,14 +158,14 @@ const fetchSharedCollection = createServerFn({ method: "GET" })
 
 export function friendGroupsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.all(userId),
+    queryKey: friendGroupsKeys.all(userId),
     queryFn: () => fetchGroups(),
   });
 }
 
 function friendGroupDetailQueryOptions(userId: string, slug: string) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.detail(userId, slug),
+    queryKey: friendGroupsKeys.detail(userId, slug),
     queryFn: () => fetchGroupDetail({ data: slug }),
   });
 }
@@ -195,7 +197,7 @@ export async function ensureFriendGroupDetailCanonical(options: {
 
 function friendGroupMatchesQueryOptions(userId: string, slug: string) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.matches(userId, slug),
+    queryKey: friendGroupsKeys.matches(userId, slug),
     queryFn: () => fetchGroupMatches({ data: slug }),
     // Trade actions invalidate this key directly; the window only covers a
     // suggestion created by someone else's list edit.
@@ -205,7 +207,7 @@ function friendGroupMatchesQueryOptions(userId: string, slug: string) {
 
 function friendGroupBoxWantsQueryOptions(userId: string, slug: string) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.boxWants(userId, slug),
+    queryKey: friendGroupsKeys.boxWants(userId, slug),
     queryFn: () => fetchGroupBoxWants({ data: slug }),
     // No mutation invalidates this key, so counts can lag up to a minute
     // behind a take or a wishlist edit.
@@ -215,7 +217,7 @@ function friendGroupBoxWantsQueryOptions(userId: string, slug: string) {
 
 export function friendGroupJoinPreviewQueryOptions(code: string) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.joinPreview(code),
+    queryKey: friendGroupsKeys.joinPreview(code),
     queryFn: () => fetchJoinPreview({ data: code }),
     enabled: code.length > 0,
     retry: false,
@@ -306,7 +308,7 @@ export function useFriendGroupActivity(slug: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(
     queryOptions({
-      queryKey: queryKeys.friendGroups.activity(userId, slug),
+      queryKey: friendGroupsKeys.activity(userId, slug),
       queryFn: () => fetchGroupActivity({ data: slug }),
     }),
   );
@@ -316,7 +318,7 @@ export function useFriendGroupMemberDetail(slug: string, memberUserId: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(
     queryOptions({
-      queryKey: queryKeys.friendGroups.memberDetail(userId, slug, memberUserId),
+      queryKey: friendGroupsKeys.memberDetail(userId, slug, memberUserId),
       queryFn: () => fetchMemberDetail({ data: { slug, userId: memberUserId } }),
     }),
   );
@@ -324,7 +326,7 @@ export function useFriendGroupMemberDetail(slug: string, memberUserId: string) {
 
 function friendGroupSharedListQueryOptions(userId: string, slug: string, listId: string) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.sharedList(userId, slug, listId),
+    queryKey: friendGroupsKeys.sharedList(userId, slug, listId),
     queryFn: () => fetchSharedList({ data: { slug, listId } }),
   });
 }
@@ -338,7 +340,7 @@ export function useFriendGroupShareableLists(slug: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(
     queryOptions({
-      queryKey: queryKeys.friendGroups.shareableLists(userId, slug),
+      queryKey: friendGroupsKeys.shareableLists(userId, slug),
       queryFn: () => fetchShareableLists({ data: slug }),
     }),
   );
@@ -348,7 +350,7 @@ export function useFriendGroupShareableCollections(slug: string) {
   const userId = useRequiredUserId();
   return useSuspenseQuery(
     queryOptions({
-      queryKey: queryKeys.friendGroups.shareableCollections(userId, slug),
+      queryKey: friendGroupsKeys.shareableCollections(userId, slug),
       queryFn: () => fetchShareableCollections({ data: slug }),
     }),
   );
@@ -360,7 +362,7 @@ function friendGroupSharedCollectionQueryOptions(
   collectionId: string,
 ) {
   return queryOptions({
-    queryKey: queryKeys.friendGroups.sharedCollection(userId, slug, collectionId),
+    queryKey: friendGroupsKeys.sharedCollection(userId, slug, collectionId),
     queryFn: () => fetchSharedCollection({ data: { slug, collectionId } }),
   });
 }
@@ -376,7 +378,7 @@ export function useFriendGroupSharedCollection(slug: string, collectionId: strin
  */
 export function useFriendGroupPendingRequestsCount(opts?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: queryKeys.friendGroups.pendingRequestsCount(),
+    queryKey: friendGroupsKeys.pendingRequestsCount(),
     queryFn: () => fetchPendingRequestsCount(),
     staleTime: 60 * 1000,
     enabled: opts?.enabled ?? true,
@@ -530,7 +532,7 @@ export function useCreateFriendGroup() {
       description?: string | null;
       generateCode?: boolean;
     }) => createGroupFn({ data: body }),
-    invalidates: () => [queryKeys.friendGroups.all(userId)],
+    invalidates: () => [friendGroupsKeys.all(userId)],
   });
 }
 
@@ -542,9 +544,9 @@ export function useUpdateFriendGroup() {
   >({
     mutationFn: (data) => updateGroupFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.all(userId),
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      ...(variables.newSlug ? [queryKeys.friendGroups.detail(userId, variables.newSlug)] : []),
+      friendGroupsKeys.all(userId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      ...(variables.newSlug ? [friendGroupsKeys.detail(userId, variables.newSlug)] : []),
     ],
   });
 }
@@ -553,7 +555,7 @@ export function useDeleteFriendGroup() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => deleteGroupFn({ data: slug }),
-    invalidates: () => [queryKeys.friendGroups.all(userId)],
+    invalidates: () => [friendGroupsKeys.all(userId)],
   });
 }
 
@@ -561,7 +563,7 @@ export function useRotateFriendGroupCode() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => rotateCodeFn({ data: slug }),
-    invalidates: (slug) => [queryKeys.friendGroups.detail(userId, slug)],
+    invalidates: (slug) => [friendGroupsKeys.detail(userId, slug)],
   });
 }
 
@@ -569,7 +571,7 @@ export function useDisableFriendGroupCode() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => disableCodeFn({ data: slug }),
-    invalidates: (slug) => [queryKeys.friendGroups.detail(userId, slug)],
+    invalidates: (slug) => [friendGroupsKeys.detail(userId, slug)],
   });
 }
 
@@ -577,7 +579,7 @@ export function useEnableFriendGroupCode() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => enableCodeFn({ data: slug }),
-    invalidates: (slug) => [queryKeys.friendGroups.detail(userId, slug)],
+    invalidates: (slug) => [friendGroupsKeys.detail(userId, slug)],
   });
 }
 
@@ -585,7 +587,7 @@ export function useJoinFriendGroupByCode() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (code: string) => joinByCodeFn({ data: code }),
-    invalidates: () => [queryKeys.friendGroups.all(userId)],
+    invalidates: () => [friendGroupsKeys.all(userId)],
   });
 }
 
@@ -594,9 +596,9 @@ export function useAcceptFriendGroupInvite() {
   return useMutationWithInvalidation<unknown, { slug: string; userId: string }>({
     mutationFn: (data) => acceptInviteFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.all(userId),
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.pendingRequestsCount(),
+      friendGroupsKeys.all(userId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.pendingRequestsCount(),
     ],
   });
 }
@@ -606,9 +608,9 @@ export function useDeclineFriendGroupInvite() {
   return useMutationWithInvalidation<unknown, { slug: string; userId: string }>({
     mutationFn: (data) => declineInviteFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.all(userId),
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.pendingRequestsCount(),
+      friendGroupsKeys.all(userId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.pendingRequestsCount(),
     ],
   });
 }
@@ -617,7 +619,7 @@ export function useLeaveFriendGroup() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => leaveFn({ data: slug }),
-    invalidates: () => [queryKeys.friendGroups.all(userId)],
+    invalidates: () => [friendGroupsKeys.all(userId)],
   });
 }
 
@@ -625,7 +627,7 @@ export function useTransferFriendGroupOwnership() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<unknown, { slug: string; userId: string }>({
     mutationFn: (data) => transferOwnershipFn({ data }),
-    invalidates: (variables) => [queryKeys.friendGroups.detail(userId, variables.slug)],
+    invalidates: (variables) => [friendGroupsKeys.detail(userId, variables.slug)],
   });
 }
 
@@ -636,7 +638,7 @@ export function useUpdateFriendGroupRole() {
     { slug: string; userId: string; role: "admin" | "member" }
   >({
     mutationFn: (data) => updateRoleFn({ data }),
-    invalidates: (variables) => [queryKeys.friendGroups.detail(userId, variables.slug)],
+    invalidates: (variables) => [friendGroupsKeys.detail(userId, variables.slug)],
   });
 }
 
@@ -647,7 +649,7 @@ export function useUpdateGroupContactReveal() {
     { slug: string; userId: string; contactMethodIds: string[] }
   >({
     mutationFn: (data) => setRevealedContactsFn({ data }),
-    invalidates: (variables) => [queryKeys.friendGroups.detail(userId, variables.slug)],
+    invalidates: (variables) => [friendGroupsKeys.detail(userId, variables.slug)],
   });
 }
 
@@ -656,8 +658,8 @@ export function useKickFriendGroupMember() {
   return useMutationWithInvalidation<unknown, { slug: string; userId: string }>({
     mutationFn: (data) => kickMemberFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.matches(userId, variables.slug),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.matches(userId, variables.slug),
     ],
   });
 }
@@ -667,10 +669,10 @@ export function useShareListWithFriendGroup() {
   return useMutationWithInvalidation<unknown, { slug: string; listId: string }>({
     mutationFn: (data) => shareListFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.shareableLists(userId, variables.slug),
-      queryKeys.friendGroups.matches(userId, variables.slug),
-      queryKeys.lists.groupShares(userId, variables.listId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.shareableLists(userId, variables.slug),
+      friendGroupsKeys.matches(userId, variables.slug),
+      listsKeys.groupShares(userId, variables.listId),
     ],
   });
 }
@@ -680,10 +682,10 @@ export function useUnshareListFromFriendGroup() {
   return useMutationWithInvalidation<unknown, { slug: string; listId: string }>({
     mutationFn: (data) => unshareListFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.shareableLists(userId, variables.slug),
-      queryKeys.friendGroups.matches(userId, variables.slug),
-      queryKeys.lists.groupShares(userId, variables.listId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.shareableLists(userId, variables.slug),
+      friendGroupsKeys.matches(userId, variables.slug),
+      listsKeys.groupShares(userId, variables.listId),
     ],
   });
 }
@@ -693,9 +695,9 @@ export function useShareCollectionWithFriendGroup() {
   return useMutationWithInvalidation<unknown, { slug: string; collectionId: string }>({
     mutationFn: (data) => shareCollectionFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.shareableCollections(userId, variables.slug),
-      queryKeys.collections.groupShares(userId, variables.collectionId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.shareableCollections(userId, variables.slug),
+      collectionsKeys.groupShares(userId, variables.collectionId),
     ],
   });
 }
@@ -705,9 +707,9 @@ export function useUnshareCollectionFromFriendGroup() {
   return useMutationWithInvalidation<unknown, { slug: string; collectionId: string }>({
     mutationFn: (data) => unshareCollectionFn({ data }),
     invalidates: (variables) => [
-      queryKeys.friendGroups.detail(userId, variables.slug),
-      queryKeys.friendGroups.shareableCollections(userId, variables.slug),
-      queryKeys.collections.groupShares(userId, variables.collectionId),
+      friendGroupsKeys.detail(userId, variables.slug),
+      friendGroupsKeys.shareableCollections(userId, variables.slug),
+      collectionsKeys.groupShares(userId, variables.collectionId),
     ],
   });
 }
@@ -740,7 +742,7 @@ const deleteDiscordLinkFn = createServerFn({ method: "POST" })
 export function useFriendGroupDiscordLinks(slug: string, opts?: { refetchInterval?: number }) {
   const userId = useRequiredUserId();
   return useSuspenseQuery({
-    queryKey: queryKeys.friendGroups.discordLinks(userId, slug),
+    queryKey: friendGroupsKeys.discordLinks(userId, slug),
     queryFn: () => fetchDiscordLinks({ data: slug }),
     refetchInterval: opts?.refetchInterval,
   });
@@ -750,7 +752,7 @@ export function useCreateFriendGroupDiscordLinkCode() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<FriendGroupDiscordLinkCodeResponse, string>({
     mutationFn: (slug) => createDiscordLinkCodeFn({ data: slug }),
-    invalidates: (slug) => [queryKeys.friendGroups.discordLinks(userId, slug)],
+    invalidates: (slug) => [friendGroupsKeys.discordLinks(userId, slug)],
   });
 }
 
@@ -758,6 +760,6 @@ export function useDeleteFriendGroupDiscordLink() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<unknown, { slug: string; linkId: string }>({
     mutationFn: (data) => deleteDiscordLinkFn({ data }),
-    invalidates: (variables) => [queryKeys.friendGroups.discordLinks(userId, variables.slug)],
+    invalidates: (variables) => [friendGroupsKeys.discordLinks(userId, variables.slug)],
   });
 }

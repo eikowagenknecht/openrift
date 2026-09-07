@@ -6,7 +6,7 @@ import type { PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
 
 import { useStandardArtFallback } from "@/features/cards/hooks/use-standard-art-fallback";
-import { queryKeys } from "@/lib/query-keys";
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { stubPrinting } from "@/test/factories";
 
 const SET_ID = "00000000-0000-0000-0000-00000000set1";
@@ -38,7 +38,7 @@ function makeCatalog(printings: Printing[]): CatalogResponse {
 function setup(catalog?: CatalogResponse) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   if (catalog) {
-    client.setQueryData(queryKeys.catalog.all, catalog);
+    client.setQueryData(catalogKeys.all, catalog);
   }
   function wrapper({ children }: PropsWithChildren) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
@@ -76,6 +76,6 @@ describe("useStandardArtFallback", () => {
   it("returns null and does not fetch when the catalog is not cached", () => {
     const { client, result } = setup();
     expect(result.current(stubPrinting())).toBeNull();
-    expect(client.getQueryState(queryKeys.catalog.all)?.fetchStatus ?? "idle").toBe("idle");
+    expect(client.getQueryState(catalogKeys.all)?.fetchStatus ?? "idle").toBe("idle");
   });
 });

@@ -35,6 +35,7 @@ import type { AcceptPrintingBody } from "@/features/admin/hooks/use-admin-card-m
 import { useAdminCardDetail } from "@/features/admin/hooks/use-admin-card-queries";
 import { useCardReviewNavigation } from "@/features/admin/hooks/use-card-review-navigation";
 import type { AdminCardListStatus } from "@/features/admin/hooks/use-card-review-navigation";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { buildPrintingGroups } from "@/features/admin/lib/candidate-printing-groups";
 import {
   getCollapsedSections,
@@ -43,7 +44,6 @@ import {
 } from "@/features/admin/stores/admin-card-fold-store";
 import { useSets } from "@/features/cards/hooks/use-sets";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
-import { queryKeys } from "@/lib/query-keys";
 
 /** Stable placeholder so the filter hook can run before the detail lands. */
 const NO_PRINTINGS: AdminPrintingResponse[] = [];
@@ -78,7 +78,7 @@ export function ExistingCardDetailPage({
   const isAdmin = access?.isAdmin === true;
 
   // Only refetches this card's detail and the admin card list, not every query under `admin.cards`.
-  const invalidateScope = [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list];
+  const invalidateScope = [adminKeys.cards.detail(cardId), adminKeys.cards.list];
 
   const {
     data: existingData,

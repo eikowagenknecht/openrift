@@ -2,8 +2,9 @@ import type { AdminFinishesResponse } from "@openrift/shared/contracts/admin/fin
 import { adminFinishesContract } from "@openrift/shared/contracts/admin/finishes";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteFinishFn = createServerFn({ method: "POST" })
   });
 
 const finishHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.finishes,
+  queryKey: adminKeys.finishes,
   list: () => fetchFinishes(),
-  invalidates: [queryKeys.admin.finishes, queryKeys.init.all],
+  invalidates: [adminKeys.finishes, initKeys.all],
   create: (vars: { slug: string; label: string }) => createFinishFn({ data: vars }),
   update: (vars: { slug: string; label?: string }) => updateFinishFn({ data: vars }),
   reorder: (slugs: string[]) => reorderFinishesFn({ data: { slugs } }),

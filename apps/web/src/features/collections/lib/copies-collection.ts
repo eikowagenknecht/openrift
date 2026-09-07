@@ -10,9 +10,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { markOrphaned } from "@/features/collections/lib/collection-cleanup";
+import { copiesKeys } from "@/features/collections/lib/collections-query-keys";
 import { copiesQueryOptions } from "@/features/collections/lib/copies-query";
 import { useSession } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 
 interface CacheEntry {
   userId: string;
@@ -40,7 +40,7 @@ export function getCopiesCollection(
       queryClient,
       // Distinct from copiesQueryOptions' queryKey: this one stores the array QueryCollection
       // expects, not the full CopyListResponse object.
-      queryKey: [...queryKeys.copies.syncedStore(userId)],
+      queryKey: [...copiesKeys.syncedStore(userId)],
       queryFn: async () => {
         // staleTime: "static" always returns cached data regardless of staleness, which
         // breaks invalidateQueries-driven refetches after mutations. Use the default.

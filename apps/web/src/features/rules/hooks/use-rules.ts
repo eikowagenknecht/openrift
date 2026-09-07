@@ -8,7 +8,8 @@ import type {
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { rulesKeys } from "@/features/rules/lib/rules-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -37,7 +38,7 @@ const fetchVersions = createServerFn({ method: "GET" })
 
 export function rulesAtVersionQueryOptions(kind: RuleKind, version: string) {
   return queryOptions({
-    queryKey: queryKeys.rules.byVersion(kind, version),
+    queryKey: rulesKeys.byVersion(kind, version),
     queryFn: () => fetchRulesAtVersion({ data: { kind, version } }),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -46,7 +47,7 @@ export function rulesAtVersionQueryOptions(kind: RuleKind, version: string) {
 
 export function ruleVersionsQueryOptions(kind?: RuleKind) {
   return queryOptions({
-    queryKey: kind ? queryKeys.rules.versions(kind) : (["rules", "versions", "all"] as const),
+    queryKey: kind ? rulesKeys.versions(kind) : (["rules", "versions", "all"] as const),
     queryFn: () => fetchVersions({ data: kind ? { kind } : undefined }),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -87,7 +88,7 @@ export function useImportRules() {
       comments?: string | null;
       content: string;
     }) => importRulesFn({ data: vars }),
-    invalidates: [["rules"], queryKeys.admin.rules.versions],
+    invalidates: [["rules"], adminKeys.rules.versions],
   });
 }
 
@@ -106,7 +107,7 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
 export function useDeleteRuleVersion() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { kind: RuleKind; version: string }) => deleteRuleVersionFn({ data: vars }),
-    invalidates: [["rules"], queryKeys.admin.rules.versions],
+    invalidates: [["rules"], adminKeys.rules.versions],
   });
 }
 
@@ -127,6 +128,6 @@ export function useUpdateRuleVersionComments() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { kind: RuleKind; version: string; comments: string | null }) =>
       updateRuleVersionCommentsFn({ data: vars }),
-    invalidates: [["rules"], queryKeys.admin.rules.versions],
+    invalidates: [["rules"], adminKeys.rules.versions],
   });
 }

@@ -24,8 +24,11 @@ import {
   participantMutationInvalidationKeys,
   podRoundMutationInvalidationKeys,
 } from "@/features/tournaments/lib/tournament-invalidation";
+import {
+  podTournamentsKeys,
+  tournamentsKeys,
+} from "@/features/tournaments/lib/tournaments-query-keys";
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -141,49 +144,49 @@ const claimStaffInviteFn = createServerFn({ method: "POST" })
 
 export function tournamentsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.all(userId),
+    queryKey: tournamentsKeys.all(userId),
     queryFn: () => fetchTournaments(),
   });
 }
 
 export function tournamentDetailQueryOptions(userId: string, id: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.detail(userId, id),
+    queryKey: tournamentsKeys.detail(userId, id),
     queryFn: () => fetchTournamentDetail({ data: id }),
   });
 }
 
 export function groupTournamentsQueryOptions(userId: string, slug: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.forGroup(userId, slug),
+    queryKey: tournamentsKeys.forGroup(userId, slug),
     queryFn: () => fetchGroupTournaments({ data: slug }),
   });
 }
 
 export function tournamentParticipantsQueryOptions(userId: string, id: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.participants(userId, id),
+    queryKey: tournamentsKeys.participants(userId, id),
     queryFn: () => fetchParticipants({ data: id }),
   });
 }
 
 export function tournamentSubmitLandingQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.submitLanding(token),
+    queryKey: tournamentsKeys.submitLanding(token),
     queryFn: () => fetchSubmitLanding({ data: token }),
   });
 }
 
 function tournamentStaffCandidatesQueryOptions(userId: string, id: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.staffCandidates(userId, id),
+    queryKey: tournamentsKeys.staffCandidates(userId, id),
     queryFn: () => fetchStaffCandidates({ data: id }),
   });
 }
 
 export function tournamentStaffInviteLandingQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.tournaments.staffInviteLanding(token),
+    queryKey: tournamentsKeys.staffInviteLanding(token),
     queryFn: () => fetchStaffInviteLanding({ data: token }),
   });
 }
@@ -384,7 +387,7 @@ export function useCreateTournament() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<TournamentDetailResponse, CreateTournamentInput>({
     mutationFn: (data) => createTournamentFn({ data }),
-    invalidates: () => [queryKeys.tournaments.all(userId)],
+    invalidates: () => [tournamentsKeys.all(userId)],
   });
 }
 
@@ -399,8 +402,8 @@ function useTournamentDetailMutation<TVariables extends { id: string }, TData>(
   return useMutationWithInvalidation<TData, TVariables>({
     mutationFn,
     invalidates: (variables) => [
-      queryKeys.tournaments.all(userId),
-      queryKeys.tournaments.detail(userId, variables.id),
+      tournamentsKeys.all(userId),
+      tournamentsKeys.detail(userId, variables.id),
     ],
   });
 }
@@ -436,7 +439,7 @@ export function useDeleteTournament() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (id: string) => deleteTournamentFn({ data: id }),
-    invalidates: () => [queryKeys.tournaments.all(userId)],
+    invalidates: () => [tournamentsKeys.all(userId)],
   });
 }
 
@@ -510,7 +513,7 @@ export function useRequestJoinTournament() {
   const userId = useUserId();
   return useMutationWithInvalidation<PublicTournamentJoinResponse, { token: string }>({
     mutationFn: (data) => requestJoinFn({ data: data.token }),
-    invalidates: () => (userId ? [queryKeys.tournaments.all(userId)] : []),
+    invalidates: () => (userId ? [tournamentsKeys.all(userId)] : []),
   });
 }
 
@@ -523,8 +526,8 @@ export function useClaimStaffInvite() {
         return [];
       }
       return [
-        queryKeys.tournaments.all(userId),
-        ...(result ? [queryKeys.tournaments.detail(userId, result.tournamentId)] : []),
+        tournamentsKeys.all(userId),
+        ...(result ? [tournamentsKeys.detail(userId, result.tournamentId)] : []),
       ];
     },
   });
@@ -583,7 +586,7 @@ const fetchReport = createServerFn({ method: "GET" })
 
 export function tournamentRunStateQueryOptions(userId: string, id: string) {
   return queryOptions({
-    queryKey: queryKeys.podTournaments.detail(userId, id),
+    queryKey: podTournamentsKeys.detail(userId, id),
     queryFn: () => fetchRunState({ data: id }),
     refetchInterval: (query) => openRoundRefetchInterval(query.state.data),
   });
@@ -591,7 +594,7 @@ export function tournamentRunStateQueryOptions(userId: string, id: string) {
 
 export function tournamentReportQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.podTournaments.report(token),
+    queryKey: podTournamentsKeys.report(token),
     queryFn: () => fetchReport({ data: token }),
     refetchInterval: (query) => openRoundRefetchInterval(query.state.data),
   });
@@ -745,7 +748,7 @@ export function useSubmitTournamentReportPlayerResult(token: string) {
     { podId: string; playerId: string; gamePoints: number }
   >({
     mutationFn: (data) => submitReportPlayerResultFn({ data: { token, ...data } }),
-    invalidates: () => [queryKeys.podTournaments.report(token)],
+    invalidates: () => [podTournamentsKeys.report(token)],
   });
 }
 
@@ -755,6 +758,6 @@ export function useSubmitTournamentReportResult(token: string) {
     { podId: string; results: PodResultEntry[] }
   >({
     mutationFn: (data) => submitReportResultFn({ data: { token, ...data } }),
-    invalidates: () => [queryKeys.podTournaments.report(token)],
+    invalidates: () => [podTournamentsKeys.report(token)],
   });
 }

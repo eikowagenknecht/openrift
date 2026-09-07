@@ -7,6 +7,7 @@ import type {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { preferencesKeys } from "@/features/account/lib/account-query-keys";
 import type { EmailNotificationGates } from "@/features/account/lib/email-notification-prefs";
 import {
   buildEmailNotificationPatch,
@@ -15,7 +16,6 @@ import {
 } from "@/features/account/lib/email-notification-prefs";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -52,7 +52,7 @@ export function useEmailNotifications(): UseEmailNotificationsResult {
   const userId = useUserId();
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
-  const queryKey = queryKeys.preferences.all(userId ?? "");
+  const queryKey = preferencesKeys.all(userId ?? "");
 
   // `hydrated` keeps this observer from starting the query during SSR;
   // usePreferencesSync owns the actual fetch.

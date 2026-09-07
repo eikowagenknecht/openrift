@@ -9,11 +9,11 @@ import { cleanupWhenIdle, markOrphaned } from "@/features/collections/lib/collec
 import { saveDeckCardsFn } from "@/features/decks/hooks/use-decks";
 import type { DeckBuilderCard } from "@/features/decks/lib/deck-builder-card";
 import { getDeckCardKey } from "@/features/decks/lib/deck-builder-card";
+import { decksKeys } from "@/features/decks/lib/decks-query-keys";
 import { isLocalDeckId } from "@/features/decks/lib/local-deck";
 import { useDeckUndoStore } from "@/features/decks/stores/deck-undo-store";
 import { useLocalDecksStore } from "@/features/decks/stores/local-decks-store";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
 
 const LOCAL_SCOPE = "local";
@@ -113,11 +113,10 @@ async function runSave(queryClient: QueryClient, userId: string, entry: DraftEnt
     }
     entry.lastAppliedSeq = seq;
 
-    queryClient.setQueryData<DeckDetailResponse>(
-      queryKeys.decks.detail(userId, entry.deckId),
-      (old) => (old ? { ...old, cards: result.cards } : old),
+    queryClient.setQueryData<DeckDetailResponse>(decksKeys.detail(userId, entry.deckId), (old) =>
+      old ? { ...old, cards: result.cards } : old,
     );
-    void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId), exact: true });
+    void queryClient.invalidateQueries({ queryKey: decksKeys.all(userId), exact: true });
 
     const stillDirty = entry.saveTimer !== null;
     setStatus(entry, { isSaving: false, isDirty: stillDirty, error: null });

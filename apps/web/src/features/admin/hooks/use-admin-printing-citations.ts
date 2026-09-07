@@ -3,7 +3,8 @@ import type { AdminPrintingCitation } from "@openrift/shared/types/api/admin";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { catalogKeys, promosKeys, setsKeys } from "@/features/cards/lib/cards-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -11,11 +12,7 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 
 // A citation is part of the catalog response, so every write must also
 // invalidate the public catalog reads, not just the admin list.
-const PUBLIC_CATALOG_KEYS = [
-  queryKeys.catalog.all,
-  queryKeys.promos.all,
-  queryKeys.sets.all,
-] as const;
+const PUBLIC_CATALOG_KEYS = [catalogKeys.all, promosKeys.all, setsKeys.all] as const;
 
 const fetchPrintingCitations = createServerFn({ method: "GET" })
   .validator((input: { printingId: string }) => input)
@@ -29,7 +26,7 @@ const fetchPrintingCitations = createServerFn({ method: "GET" })
 /** Plain, not suspense: the editor mounts inside an expanded printing card, with no loader to warm it. */
 export function useAdminPrintingCitations(printingId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.printingCitations(printingId),
+    queryKey: adminKeys.printingCitations(printingId),
     queryFn: () => fetchPrintingCitations({ data: { printingId } }),
     staleTime: 5 * 60 * 1000,
   });
@@ -51,10 +48,7 @@ const createPrintingCitationFn = createServerFn({ method: "POST" })
 export function useCreatePrintingCitation() {
   return useMutationWithInvalidation<AdminPrintingCitation, CreatePrintingCitationInput>({
     mutationFn: (vars) => createPrintingCitationFn({ data: vars }),
-    invalidates: (vars) => [
-      queryKeys.admin.printingCitations(vars.printingId),
-      ...PUBLIC_CATALOG_KEYS,
-    ],
+    invalidates: (vars) => [adminKeys.printingCitations(vars.printingId), ...PUBLIC_CATALOG_KEYS],
   });
 }
 
@@ -72,9 +66,6 @@ export function useDeletePrintingCitation() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { printingId: string; citationId: string }) =>
       deletePrintingCitationFn({ data: vars }),
-    invalidates: (vars) => [
-      queryKeys.admin.printingCitations(vars.printingId),
-      ...PUBLIC_CATALOG_KEYS,
-    ],
+    invalidates: (vars) => [adminKeys.printingCitations(vars.printingId), ...PUBLIC_CATALOG_KEYS],
   });
 }

@@ -2,7 +2,8 @@ import { adminCardMutationsContract } from "@openrift/shared/contracts/admin/car
 import type { UploadErrataResponse } from "@openrift/shared/contracts/admin/card-mutations";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -54,7 +55,7 @@ export function useUpsertCardErrata() {
         data: { cardId, correctedRulesText, correctedEffectText, source, sourceUrl, effectiveDate },
       });
     },
-    invalidates: [queryKeys.admin.cards.all, queryKeys.catalog.all],
+    invalidates: [adminKeys.cards.all, catalogKeys.all],
   });
 }
 
@@ -72,7 +73,7 @@ export function useDeleteCardErrata() {
     mutationFn: async ({ cardId }: { cardId: string }) => {
       await deleteCardErrataFn({ data: { cardId } });
     },
-    invalidates: [queryKeys.admin.cards.all, queryKeys.catalog.all],
+    invalidates: [adminKeys.cards.all, catalogKeys.all],
   });
 }
 
@@ -95,6 +96,6 @@ const uploadErrataFn = createServerFn({ method: "POST" })
 export function useUploadErrata() {
   return useMutationWithInvalidation({
     mutationFn: (payload: BulkErrataUploadBody) => uploadErrataFn({ data: payload }),
-    invalidates: [queryKeys.admin.cards.all, queryKeys.catalog.all],
+    invalidates: [adminKeys.cards.all, catalogKeys.all],
   });
 }

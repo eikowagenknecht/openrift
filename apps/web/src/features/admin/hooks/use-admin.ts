@@ -4,8 +4,8 @@ import { ORPCError } from "@orpc/client";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -32,7 +32,7 @@ const fetchAdminAccess = createServerFn({ method: "GET" })
  */
 export const adminAccessQueryOptions = (userId: string | null) =>
   queryOptions({
-    queryKey: queryKeys.admin.me(userId),
+    queryKey: adminKeys.me(userId),
     queryFn: () => (userId === null ? NO_ACCESS : fetchAdminAccess()),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

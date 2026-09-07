@@ -3,7 +3,7 @@ import { adminMarketplaceGroupsContract } from "@openrift/shared/contracts/admin
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -18,7 +18,7 @@ const fetchMarketplaceGroups = createServerFn({ method: "GET" })
   );
 
 export const marketplaceGroupsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.marketplaceGroups,
+  queryKey: adminKeys.marketplaceGroups,
   queryFn: () => fetchMarketplaceGroups(),
 });
 
@@ -48,6 +48,6 @@ const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
 export function useUpdateMarketplaceGroup() {
   return useMutationWithInvalidation({
     mutationFn: (body: UpdateMarketplaceGroupInput) => updateMarketplaceGroupFn({ data: body }),
-    invalidates: [queryKeys.admin.marketplaceGroups],
+    invalidates: [adminKeys.marketplaceGroups],
   });
 }

@@ -3,9 +3,9 @@ import type { DeckFolderListResponse, DeckFolderResponse } from "@openrift/share
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { deckFoldersKeys, decksKeys } from "@/features/decks/lib/decks-query-keys";
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { reportMutationError } from "@/lib/query-client";
-import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -19,7 +19,7 @@ const fetchDeckFolders = createServerFn({ method: "GET" })
 
 function deckFoldersQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.deckFolders.all(userId),
+    queryKey: deckFoldersKeys.all(userId),
     queryFn: () => fetchDeckFolders(),
     select: (data: DeckFolderListResponse) => data.items,
     staleTime: 5 * 60 * 1000,
@@ -46,7 +46,7 @@ export function useCreateDeckFolder() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<DeckFolderResponse, { name: string }>({
     mutationFn: (input) => createDeckFolderFn({ data: input }),
-    invalidates: () => [queryKeys.deckFolders.all(userId)],
+    invalidates: () => [deckFoldersKeys.all(userId)],
   });
 }
 
@@ -61,7 +61,7 @@ export function useRenameDeckFolder() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<DeckFolderResponse, { id: string; name: string }>({
     mutationFn: (input) => renameDeckFolderFn({ data: input }),
-    invalidates: () => [queryKeys.deckFolders.all(userId)],
+    invalidates: () => [deckFoldersKeys.all(userId)],
   });
 }
 
@@ -77,7 +77,7 @@ export function useRemoveDeckFolder() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<void, { id: string }>({
     mutationFn: (input) => removeDeckFolderFn({ data: input }),
-    invalidates: () => [queryKeys.deckFolders.all(userId), queryKeys.decks.all(userId)],
+    invalidates: () => [deckFoldersKeys.all(userId), decksKeys.all(userId)],
   });
 }
 
@@ -99,7 +99,7 @@ export function useReorderDeckFolders() {
   >({
     mutationFn: (variables) => reorderDeckFoldersFn({ data: variables }),
     onMutate: ({ orderedIds }) => {
-      const key = queryKeys.deckFolders.all(userId);
+      const key = deckFoldersKeys.all(userId);
       const previous = queryClient.getQueryData<DeckFolderListResponse>(key);
       if (previous) {
         queryClient.setQueryData<DeckFolderListResponse>(key, {
@@ -111,14 +111,14 @@ export function useReorderDeckFolders() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.deckFolders.all(userId), context.previous);
+        queryClient.setQueryData(deckFoldersKeys.all(userId), context.previous);
       }
       // Declaring onError here replaces the QueryClient's default one; call it
       // explicitly or the rollback happens silently with no error toast.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.deckFolders.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: deckFoldersKeys.all(userId) });
     },
   });
 }
@@ -135,6 +135,6 @@ export function useSetDeckFolders() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<DeckFolderListResponse, { id: string; folderIds: string[] }>({
     mutationFn: (input) => setDeckFoldersFn({ data: input }),
-    invalidates: () => [queryKeys.deckFolders.all(userId), queryKeys.decks.all(userId)],
+    invalidates: () => [deckFoldersKeys.all(userId), decksKeys.all(userId)],
   });
 }

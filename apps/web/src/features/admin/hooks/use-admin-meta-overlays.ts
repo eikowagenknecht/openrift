@@ -15,20 +15,17 @@ import type {
 import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 /** Every write invalidates the queue and the live archive keys: accepting or claiming re-promotes the event it touches. */
-const ALL_META_KEYS = [
-  queryKeys.admin.meta.overlays,
-  queryKeys.admin.meta.events,
-  queryKeys.meta.all,
-] as const;
+const ALL_META_KEYS = [adminKeys.meta.overlays, adminKeys.meta.events, metaKeys.all] as const;
 
-const ALL_META_KEYS_WITH_IGNORED = [...ALL_META_KEYS, queryKeys.admin.meta.ignoredSources] as const;
+const ALL_META_KEYS_WITH_IGNORED = [...ALL_META_KEYS, adminKeys.meta.ignoredSources] as const;
 
 const fetchMetaOverlays = createServerFn({ method: "GET" })
   .middleware([withCookies])
@@ -37,7 +34,7 @@ const fetchMetaOverlays = createServerFn({ method: "GET" })
   );
 
 export const adminMetaOverlaysQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.meta.overlays,
+  queryKey: adminKeys.meta.overlays,
   queryFn: () => fetchMetaOverlays(),
   staleTime: 5 * 60 * 1000,
 });
@@ -56,7 +53,7 @@ const fetchMetaEventDrift = createServerFn({ method: "GET" })
 
 export function useMetaEventDrift(metaEventId: string, enabled: boolean) {
   return useQuery({
-    queryKey: [...queryKeys.admin.meta.events, metaEventId, "drift"],
+    queryKey: [...adminKeys.meta.events, metaEventId, "drift"],
     queryFn: () => fetchMetaEventDrift({ data: metaEventId }),
     enabled,
     staleTime: 60 * 1000,
@@ -258,7 +255,7 @@ const fetchEventUploads = createServerFn({ method: "GET" })
 
 export function useMetaEventUploads(eventId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.eventUploads(eventId),
+    queryKey: adminKeys.meta.eventUploads(eventId),
     queryFn: () => fetchEventUploads({ data: eventId }),
     staleTime: 60 * 1000,
   });
@@ -374,7 +371,7 @@ export interface IgnoredMetaSourcePlayer extends IgnoredMetaSourceEvent {
 
 export function useAdminMetaIgnoredSources() {
   return useQuery({
-    queryKey: queryKeys.admin.meta.ignoredSources,
+    queryKey: adminKeys.meta.ignoredSources,
     queryFn: () => fetchIgnored(),
     staleTime: 5 * 60 * 1000,
   });
@@ -423,7 +420,7 @@ const fetchEventSuggestions = createServerFn({ method: "GET" })
 /** Ranked hints only, never applied automatically; an overlay already on an event is ranked minus that event. */
 export function useMetaEventMatchSuggestions(overlayId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.eventSuggestions(overlayId),
+    queryKey: adminKeys.meta.eventSuggestions(overlayId),
     queryFn: () => fetchEventSuggestions({ data: overlayId }),
     staleTime: 60 * 1000,
   });
@@ -441,7 +438,7 @@ const fetchPlayerSuggestions = createServerFn({ method: "GET" })
 /** See {@link useMetaEventMatchSuggestions}, for standings rows; an upload of a whole top cut opens one request per row. */
 export function useMetaPlayerMatchSuggestions(overlayId: string) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.playerSuggestions(overlayId),
+    queryKey: adminKeys.meta.playerSuggestions(overlayId),
     queryFn: () => fetchPlayerSuggestions({ data: overlayId }),
     staleTime: 60 * 1000,
   });
@@ -456,7 +453,7 @@ const fetchCrossSourceReview = createServerFn({ method: "GET" })
 
 export function useMetaCrossSourceReview(metaEventId: string, enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.crossSource(metaEventId),
+    queryKey: adminKeys.meta.crossSource(metaEventId),
     queryFn: () => fetchCrossSourceReview({ data: metaEventId }),
     enabled,
     staleTime: 60 * 1000,

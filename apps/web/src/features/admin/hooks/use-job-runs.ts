@@ -9,7 +9,7 @@ import { adminJobRunsContract } from "@openrift/shared/contracts/admin/job-runs"
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -64,7 +64,7 @@ export function jobRunsRefreshIntervalMs(page: number): number | false {
 
 export function adminJobRunsQueryOptions(params: JobRunsQueryParams) {
   return queryOptions({
-    queryKey: queryKeys.admin.jobRunsList(params),
+    queryKey: adminKeys.jobRunsList(params),
     queryFn: () => fetchJobRuns({ data: params }),
     refetchInterval: jobRunsRefreshIntervalMs(params.page),
     placeholderData: keepPreviousData,
@@ -90,7 +90,7 @@ const fetchLatestJobRunByKind = createServerFn({ method: "GET" })
 
 export function useLatestJobRunByKind(kind: string) {
   return useQuery({
-    queryKey: queryKeys.admin.jobRunsByKind(kind),
+    queryKey: adminKeys.jobRunsByKind(kind),
     queryFn: () => fetchLatestJobRunByKind({ data: { kind } }),
     refetchInterval: (query) => (query.state.data?.status === "running" ? ACTIVE_POLL_MS : false),
   });

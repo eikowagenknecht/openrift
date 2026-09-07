@@ -2,8 +2,9 @@ import type { AdminCardTypesResponse } from "@openrift/shared/contracts/admin/ca
 import { adminCardTypesContract } from "@openrift/shared/contracts/admin/card-types";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteCardTypeFn = createServerFn({ method: "POST" })
   });
 
 const cardTypeHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.cardTypes,
+  queryKey: adminKeys.cardTypes,
   list: () => fetchCardTypes(),
-  invalidates: [queryKeys.admin.cardTypes, queryKeys.init.all],
+  invalidates: [adminKeys.cardTypes, initKeys.all],
   create: (vars: { slug: string; label: string }) => createCardTypeFn({ data: vars }),
   update: (vars: { slug: string; label?: string }) => updateCardTypeFn({ data: vars }),
   reorder: (slugs: string[]) => reorderCardTypesFn({ data: { slugs } }),

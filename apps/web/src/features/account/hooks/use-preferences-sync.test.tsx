@@ -35,7 +35,7 @@ vi.mock("@/hooks/use-hydrated", () => ({ useHydrated: () => true }));
 const { usePreferencesSync } = await import("./use-preferences-sync");
 const { useDisplayStore } = await import("@/stores/display-store");
 const { useThemeStore } = await import("@/stores/theme-store");
-const { queryKeys } = await import("@/lib/query-keys");
+const { preferencesKeys } = await import("@/features/account/lib/account-query-keys");
 const { createStoreResetter } = await import("@/test/store-helpers");
 
 const resetDisplay = createStoreResetter(useDisplayStore);
@@ -166,7 +166,7 @@ describe("usePreferencesSync", () => {
     await waitFor(() => expect(useDisplayStore.getState().prefsHydrated).toBe(true));
 
     act(() => {
-      client.setQueryData(queryKeys.preferences.all("test-user-id"), {
+      client.setQueryData(preferencesKeys.all("test-user-id"), {
         showImages: true,
         fancyFan: false,
       });
@@ -189,7 +189,7 @@ describe("usePreferencesSync", () => {
 
     setServerPrefs({ showImages: true } as UserPreferencesResponse);
     act(() => {
-      client.setQueryData(queryKeys.preferences.all("test-user-id"), { showImages: true });
+      client.setQueryData(preferencesKeys.all("test-user-id"), { showImages: true });
     });
     await flushMicrotasks();
 
@@ -235,7 +235,7 @@ describe("usePreferencesSync", () => {
 
     act(() => useDisplayStore.getState().setShowImages(false));
     act(() => {
-      client.setQueryData(queryKeys.preferences.all("test-user-id"), { showImages: true });
+      client.setQueryData(preferencesKeys.all("test-user-id"), { showImages: true });
     });
     await flushMicrotasks();
 

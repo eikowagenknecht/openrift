@@ -2,7 +2,7 @@ import { adminCardQueriesContract } from "@openrift/shared/contracts/admin/card-
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type { DistinctArtistsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -14,7 +14,7 @@ const fetchDistinctArtists = createServerFn({ method: "GET" })
   );
 
 export const adminDistinctArtistsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.distinctArtists,
+  queryKey: adminKeys.distinctArtists,
   queryFn: () => fetchDistinctArtists(),
   staleTime: 30 * 60 * 1000,
 });

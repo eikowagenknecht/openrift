@@ -5,10 +5,10 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CatalogSubsetProvider } from "@/features/cards/components/catalog-subset-provider";
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { DeckTokensSection } from "@/features/decks/components/deck-tokens-section";
 import { useDeckBuilderUiStore } from "@/features/decks/stores/deck-builder-ui-store";
 import { initQueryOptions } from "@/hooks/use-init";
-import { queryKeys } from "@/lib/query-keys";
 import { stubDeckBuilderCard, stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
@@ -99,7 +99,7 @@ function renderSection(variant: "grid" | "list" = "list") {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.setQueryData(initQueryOptions.queryKey, INIT);
   const catalogFetch = vi.fn();
-  client.setQueryDefaults(queryKeys.catalog.all, { queryFn: catalogFetch });
+  client.setQueryDefaults(catalogKeys.all, { queryFn: catalogFetch });
   render(
     <QueryClientProvider client={client}>
       <CatalogSubsetProvider catalog={CATALOG}>
@@ -128,6 +128,6 @@ describe("DeckTokensSection on a page serving its own catalogue subset", () => {
     const { client, catalogFetch } = renderSection();
 
     expect(catalogFetch).not.toHaveBeenCalled();
-    expect(client.getQueryState(queryKeys.catalog.all)).toBeUndefined();
+    expect(client.getQueryState(catalogKeys.all)).toBeUndefined();
   });
 });

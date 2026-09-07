@@ -33,6 +33,7 @@ import {
 } from "@/features/admin/hooks/use-admin-card-mutations";
 import type { AdminCardListStatus } from "@/features/admin/hooks/use-card-review-navigation";
 import { parseSortParam } from "@/features/admin/lib/admin-cards-search";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import {
   ALL_ASSIGNABLE_SCOPE,
   bucketScopeKey,
@@ -45,7 +46,6 @@ import type {
   MarketplaceCoverage,
   PriceAssignBucket,
 } from "@/features/cards/lib/marketplace-coverage";
-import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const cardsRouteApi = getRouteApi("/_app/_authenticated/admin/cards");
@@ -508,7 +508,7 @@ export function AcceptedCardsTable({
       return { accepted: done - failed, failed };
     },
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.cards.all] });
+      void queryClient.invalidateQueries({ queryKey: [...adminKeys.cards.all] });
       if (result.failed === 0) {
         toast.success(`Accepted printings for ${result.accepted} cards`);
       } else {

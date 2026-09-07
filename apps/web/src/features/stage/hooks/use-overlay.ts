@@ -11,8 +11,8 @@ import { publicOverlayContract } from "@openrift/shared/contracts/public-overlay
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { overlayKeys } from "@/features/stage/lib/stage-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -24,7 +24,7 @@ const overlayStateClient = browserApiOrpcClient(publicOverlayContract);
 /** Must fetch directly from the browser: routing through the web server doubles the hops and hides the conditional GET. */
 export function overlayStateQueryOptions(token: string, presetId?: string) {
   return queryOptions({
-    queryKey: queryKeys.overlay.stateByToken(token, presetId),
+    queryKey: overlayKeys.stateByToken(token, presetId),
     queryFn: () => overlayStateClient.state({ token, presetId }),
     refetchInterval: OVERLAY_POLL_MS,
     // OBS keeps the page in a background-ish state; without this the poll
@@ -51,7 +51,7 @@ const fetchOverlayChannelFn = createServerFn({ method: "GET" })
 /** The API creates the channel on first read, so there is no "no overlay yet" state. */
 export function overlayChannelQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.overlay.channel(userId),
+    queryKey: overlayKeys.channel(userId),
     queryFn: () => fetchOverlayChannelFn(),
   });
 }
@@ -80,7 +80,7 @@ function useOverlayChannelMutation<TVariables = void>(
   return useMutation<OverlayChannelResponse, Error, TVariables>({
     mutationFn,
     onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.overlay.channel(userId), data);
+      queryClient.setQueryData(overlayKeys.channel(userId), data);
     },
   });
 }

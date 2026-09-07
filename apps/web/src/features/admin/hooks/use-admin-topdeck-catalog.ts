@@ -8,7 +8,8 @@ import { adminMetaCatalogContract } from "@openrift/shared/contracts/admin/meta-
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -51,7 +52,7 @@ const fetchTopdeckCatalog = createServerFn({ method: "GET" })
 export function useAdminTopdeckCatalog(params: TopdeckCatalogParams) {
   return useQuery(
     queryOptions({
-      queryKey: queryKeys.admin.meta.topdeckCatalogueList(params),
+      queryKey: adminKeys.meta.topdeckCatalogueList(params),
       queryFn: () => fetchTopdeckCatalog({ data: params }),
       placeholderData: keepPreviousData,
     }),
@@ -66,11 +67,11 @@ const acceptFn = createServerFn({ method: "POST" })
   );
 
 const acceptInvalidates = [
-  queryKeys.admin.meta.topdeckCatalogue,
-  queryKeys.admin.meta.syncStatus.prefix,
-  queryKeys.admin.meta.events,
-  queryKeys.admin.meta.overlays,
-  queryKeys.meta.all,
+  adminKeys.meta.topdeckCatalogue,
+  adminKeys.meta.syncStatus.prefix,
+  adminKeys.meta.events,
+  adminKeys.meta.overlays,
+  metaKeys.all,
 ] as const;
 
 export function useAcceptTopdeckEvent() {
@@ -88,8 +89,8 @@ const dismissFn = createServerFn({ method: "POST" })
   });
 
 const dismissInvalidates = [
-  queryKeys.admin.meta.topdeckCatalogue,
-  queryKeys.admin.meta.syncStatus.prefix,
+  adminKeys.meta.topdeckCatalogue,
+  adminKeys.meta.syncStatus.prefix,
 ] as const;
 
 export function useDismissTopdeckEvent() {
@@ -109,6 +110,6 @@ const undismissFn = createServerFn({ method: "POST" })
 export function useUndismissTopdeckEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { tid: string }) => undismissFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.topdeckCatalogue, queryKeys.admin.meta.ignoredSources],
+    invalidates: [adminKeys.meta.topdeckCatalogue, adminKeys.meta.ignoredSources],
   });
 }

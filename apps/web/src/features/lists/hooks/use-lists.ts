@@ -15,9 +15,9 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { listsKeys } from "@/features/lists/lib/lists-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { reportMutationError } from "@/lib/query-client";
-import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
@@ -63,7 +63,7 @@ const fetchListDetail = createServerFn({ method: "GET" })
 
 export function listsQueryOptions(userId: string, intent?: ListIntent) {
   return queryOptions({
-    queryKey: queryKeys.lists.all(userId, intent),
+    queryKey: listsKeys.all(userId, intent),
     queryFn: () => fetchLists({ data: intent ? { intent } : undefined }),
     select: (data: ListListResponse) => data.items,
     staleTime: 5 * 60 * 1000,
@@ -72,7 +72,7 @@ export function listsQueryOptions(userId: string, intent?: ListIntent) {
 
 export function listDetailQueryOptions(userId: string, listId: string) {
   return queryOptions({
-    queryKey: queryKeys.lists.detail(userId, listId),
+    queryKey: listsKeys.detail(userId, listId),
     queryFn: () => fetchListDetail({ data: listId }),
   });
 }
@@ -98,10 +98,7 @@ export function useCreateList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: CreateListInput) => createListFn({ data: body }),
-    invalidates: (variables) => [
-      queryKeys.lists.all(userId),
-      queryKeys.lists.all(userId, variables.intent),
-    ],
+    invalidates: (variables) => [listsKeys.all(userId), listsKeys.all(userId, variables.intent)],
   });
 }
 
@@ -117,10 +114,7 @@ export function useUpdateList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<ListResponse, UpdateListInput>({
     mutationFn: (input) => updateListFn({ data: input }),
-    invalidates: (variables) => [
-      queryKeys.lists.all(userId),
-      queryKeys.lists.detail(userId, variables.listId),
-    ],
+    invalidates: (variables) => [listsKeys.all(userId), listsKeys.detail(userId, variables.listId)],
   });
 }
 
@@ -135,7 +129,7 @@ export function useSetListSidebarHidden() {
   >({
     mutationFn: ({ listId, hidden }) => updateListFn({ data: { listId, sidebarHidden: hidden } }),
     onMutate: ({ listId, hidden }) => {
-      const key = queryKeys.lists.all(userId);
+      const key = listsKeys.all(userId);
       const previous = queryClient.getQueryData<ListListResponse>(key);
       if (previous) {
         queryClient.setQueryData<ListListResponse>(key, {
@@ -149,13 +143,13 @@ export function useSetListSidebarHidden() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.lists.all(userId), context.previous);
+        queryClient.setQueryData(listsKeys.all(userId), context.previous);
       }
       // Replaces the QueryClient's default onError; report here or the rollback is silent.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.all(userId) });
     },
   });
 }
@@ -171,7 +165,7 @@ export function useDeleteList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (listId) => deleteListFn({ data: listId }),
-    invalidates: [queryKeys.lists.all(userId)],
+    invalidates: [listsKeys.all(userId)],
   });
 }
 
@@ -193,7 +187,7 @@ export function useReorderLists() {
   >({
     mutationFn: (variables) => reorderListsFn({ data: variables }),
     onMutate: ({ orderedIds }) => {
-      const key = queryKeys.lists.all(userId);
+      const key = listsKeys.all(userId);
       const previous = queryClient.getQueryData<ListListResponse>(key);
       if (previous) {
         queryClient.setQueryData<ListListResponse>(key, {
@@ -205,14 +199,14 @@ export function useReorderLists() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.lists.all(userId), context.previous);
+        queryClient.setQueryData(listsKeys.all(userId), context.previous);
       }
       // Replaces the QueryClient's default onError; report here or the rollback
       // reverts silently.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.all(userId) });
     },
   });
 }
@@ -260,7 +254,7 @@ export function useBulkAddListEntries() {
     // Bumps a matching existing entry's quantity before the server responds. Fresh
     // adds wait for the refetch: there's no card/printing detail here to fabricate one.
     onMutate: async (vars) => {
-      const detailKey = queryKeys.lists.detail(userId, vars.listId);
+      const detailKey = listsKeys.detail(userId, vars.listId);
       await queryClient.cancelQueries({ queryKey: detailKey });
       const prev = queryClient.getQueryData<ListDetailResponse>(detailKey);
       queryClient.setQueryData<ListDetailResponse>(detailKey, (old) => {
@@ -297,14 +291,14 @@ export function useBulkAddListEntries() {
     },
     onError: (err, vars, context) => {
       if (context?.prev !== undefined) {
-        queryClient.setQueryData(queryKeys.lists.detail(userId, vars.listId), context.prev);
+        queryClient.setQueryData(listsKeys.detail(userId, vars.listId), context.prev);
       }
       // Replaces the QueryClient's default onError; report here or the revert is silent.
       reportMutationError(err, queryClient);
     },
     onSettled: (_data, _err, vars) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.detail(userId, vars.listId) });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.detail(userId, vars.listId) });
     },
   });
 }
@@ -325,10 +319,7 @@ export function useBulkAddCopiesToList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<ListBulkAddResponse, { listId: string; copyIds: string[] }>({
     mutationFn: (vars) => bulkAddCopiesToListFn({ data: vars }),
-    invalidates: (variables) => [
-      queryKeys.lists.all(userId),
-      queryKeys.lists.detail(userId, variables.listId),
-    ],
+    invalidates: (variables) => [listsKeys.all(userId), listsKeys.detail(userId, variables.listId)],
   });
 }
 
@@ -351,9 +342,9 @@ export function useMoveListEntries() {
   >({
     mutationFn: (vars) => moveListEntriesFn({ data: vars }),
     invalidates: (variables) => [
-      queryKeys.lists.all(userId),
-      queryKeys.lists.detail(userId, variables.fromListId),
-      queryKeys.lists.detail(userId, variables.toListId),
+      listsKeys.all(userId),
+      listsKeys.detail(userId, variables.fromListId),
+      listsKeys.detail(userId, variables.toListId),
     ],
   });
 }
@@ -381,7 +372,7 @@ export function useUpdateListEntry() {
   >({
     mutationFn: (vars) => updateListEntryFn({ data: vars }),
     onMutate: async (vars) => {
-      const detailKey = queryKeys.lists.detail(userId, vars.listId);
+      const detailKey = listsKeys.detail(userId, vars.listId);
       await queryClient.cancelQueries({ queryKey: detailKey });
       const prev = queryClient.getQueryData<ListDetailResponse>(detailKey);
       queryClient.setQueryData<ListDetailResponse>(detailKey, (old) => {
@@ -405,14 +396,14 @@ export function useUpdateListEntry() {
     },
     onError: (err, vars, context) => {
       if (context?.prev !== undefined) {
-        queryClient.setQueryData(queryKeys.lists.detail(userId, vars.listId), context.prev);
+        queryClient.setQueryData(listsKeys.detail(userId, vars.listId), context.prev);
       }
       // Replaces the QueryClient's default onError; report here or the revert is silent.
       reportMutationError(err, queryClient);
     },
     onSettled: (_data, _err, vars) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists.detail(userId, vars.listId) });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: listsKeys.detail(userId, vars.listId) });
     },
   });
 }
@@ -431,10 +422,7 @@ export function useRemoveListEntry() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<unknown, { listId: string; entryId: string }>({
     mutationFn: (vars) => removeListEntryFn({ data: vars }),
-    invalidates: (variables) => [
-      queryKeys.lists.all(userId),
-      queryKeys.lists.detail(userId, variables.listId),
-    ],
+    invalidates: (variables) => [listsKeys.all(userId), listsKeys.detail(userId, variables.listId)],
   });
 }
 
@@ -452,10 +440,7 @@ export function useBulkRemoveListEntries() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<unknown, { listId: string; entryIds: string[] }>({
     mutationFn: (vars) => bulkRemoveListEntriesFn({ data: vars }),
-    invalidates: (variables) => [
-      queryKeys.lists.all(userId),
-      queryKeys.lists.detail(userId, variables.listId),
-    ],
+    invalidates: (variables) => [listsKeys.all(userId), listsKeys.detail(userId, variables.listId)],
   });
 }
 
@@ -472,7 +457,7 @@ export function useShareList() {
   return useMutation({
     mutationFn: (listId: string) => shareListFn({ data: listId }),
     onSuccess: (data, listId) => {
-      queryClient.setQueryData<ListDetailResponse>(queryKeys.lists.detail(userId, listId), (old) =>
+      queryClient.setQueryData<ListDetailResponse>(listsKeys.detail(userId, listId), (old) =>
         old
           ? {
               ...old,
@@ -497,7 +482,7 @@ export function useUnshareList() {
   return useMutation({
     mutationFn: (listId: string) => unshareListFn({ data: listId }),
     onSuccess: (_, listId) => {
-      queryClient.setQueryData<ListDetailResponse>(queryKeys.lists.detail(userId, listId), (old) =>
+      queryClient.setQueryData<ListDetailResponse>(listsKeys.detail(userId, listId), (old) =>
         old ? { ...old, list: { ...old.list, shareToken: null, isPublic: false } } : old,
       );
     },
@@ -521,7 +506,7 @@ const fetchPublicListFn = createServerFn({ method: "GET" })
 
 export function publicListQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.lists.publicByToken(token),
+    queryKey: listsKeys.publicByToken(token),
     queryFn: () => fetchPublicListFn({ data: token }),
   });
 }

@@ -3,7 +3,7 @@ import type { Marketplace } from "@openrift/shared/types/pricing";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -31,7 +31,7 @@ const fetchIgnoredProducts = createServerFn({ method: "GET" })
   );
 
 export const ignoredProductsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.ignoredProducts,
+  queryKey: adminKeys.ignoredProducts,
   queryFn: () => fetchIgnoredProducts(),
 });
 
@@ -67,10 +67,10 @@ export function useUnignoreProduct() {
     mutationFn: (input: UnignoreInput) => unignoreProductFn({ data: input }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.ignoredProducts,
+        queryKey: adminKeys.ignoredProducts,
       });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.unifiedMappings.all,
+        queryKey: adminKeys.unifiedMappings.all,
       });
     },
   });

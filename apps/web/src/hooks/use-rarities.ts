@@ -2,8 +2,9 @@ import type { AdminRaritiesResponse } from "@openrift/shared/contracts/admin/rar
 import { adminRaritiesContract } from "@openrift/shared/contracts/admin/rarities";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteRarityFn = createServerFn({ method: "POST" })
   });
 
 const rarityHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.rarities,
+  queryKey: adminKeys.rarities,
   list: () => fetchRarities(),
-  invalidates: [queryKeys.admin.rarities, queryKeys.init.all],
+  invalidates: [adminKeys.rarities, initKeys.all],
   create: (vars: { slug: string; label: string; color?: string | null }) =>
     createRarityFn({ data: vars }),
   update: (vars: { slug: string; label?: string; color?: string | null }) =>

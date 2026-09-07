@@ -10,8 +10,8 @@ import type { ContractRouterClient } from "@orpc/contract";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { collectionValueHistoryKeys } from "@/features/collections/lib/collections-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -67,7 +67,7 @@ export function useCollectionValueHistory(
   const userId = useRequiredUserId();
   const scopeStr = JSON.stringify(scope ?? {});
   return useQuery({
-    queryKey: queryKeys.collectionValueHistory.byParams(
+    queryKey: collectionValueHistoryKeys.byParams(
       userId,
       marketplace,
       range,

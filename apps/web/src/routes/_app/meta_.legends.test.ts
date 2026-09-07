@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { setsKeys } from "@/features/cards/lib/cards-query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 
 import { Route } from "./meta_.legends";
 
@@ -45,8 +46,8 @@ describe("/meta/legends loader", () => {
   it("warms only the era the scope names", async () => {
     const keys = await warmedKeys({ era: "origins" });
 
-    expect(keys).toContainEqual([...queryKeys.meta.events(ORIGINS_RANGE)]);
-    expect(keys).not.toContainEqual([...queryKeys.meta.events()]);
+    expect(keys).toContainEqual([...metaKeys.events(ORIGINS_RANGE)]);
+    expect(keys).not.toContainEqual([...metaKeys.events()]);
   });
 
   it("reruns for a different era but not for the sort column", async () => {
@@ -61,12 +62,12 @@ describe("/meta/legends loader", () => {
   it("warms the whole list once the reader asks for all time", async () => {
     const keys = await warmedKeys({ era: "all" });
 
-    expect(keys).toContainEqual([...queryKeys.meta.events()]);
+    expect(keys).toContainEqual([...metaKeys.events()]);
   });
 
   it("warms the set list its eras are derived from", async () => {
     const keys = await warmedKeys({ era: "origins" });
 
-    expect(keys).toContainEqual([...queryKeys.sets.all]);
+    expect(keys).toContainEqual([...setsKeys.all]);
   });
 });

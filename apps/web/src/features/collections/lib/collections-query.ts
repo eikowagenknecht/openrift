@@ -3,7 +3,7 @@ import type { CollectionListResponse } from "@openrift/shared/types/api/collecti
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { collectionsKeys } from "@/features/collections/lib/collections-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -15,7 +15,7 @@ const fetchCollections = createServerFn({ method: "GET" })
 
 export function collectionsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.collections.all(userId),
+    queryKey: collectionsKeys.all(userId),
     queryFn: () => fetchCollections(),
     select: (data: CollectionListResponse) => data.items,
     // Default staleTime of 0 caused 3-4 fetches per navigation: each subscriber

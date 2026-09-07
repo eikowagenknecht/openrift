@@ -19,7 +19,7 @@ const list = vi.fn();
 
 vi.mock("@/lib/server-fns/orpc-client", () => ({ apiOrpcClient: () => ({ list }) }));
 
-const { queryKeys } = await import("@/lib/query-keys");
+const { collectionsKeys } = await import("./collections-query-keys");
 const { collectionsQueryOptions } = await import("./collections-query");
 
 const USER_ID = "00000000-0000-0000-0000-000000000001";
@@ -30,7 +30,7 @@ function response(items: CollectionListResponse["items"]): CollectionListRespons
 
 describe("collectionsQueryOptions", () => {
   it("keys the query by the signed-in user", () => {
-    expect(collectionsQueryOptions(USER_ID).queryKey).toEqual(queryKeys.collections.all(USER_ID));
+    expect(collectionsQueryOptions(USER_ID).queryKey).toEqual(collectionsKeys.all(USER_ID));
   });
 
   it("gives two users separate cache entries", () => {

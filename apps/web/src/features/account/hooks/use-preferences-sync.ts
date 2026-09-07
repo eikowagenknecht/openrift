@@ -6,11 +6,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 
+import { preferencesKeys } from "@/features/account/lib/account-query-keys";
 import { usePaletteStore } from "@/features/collections/stores/palette-store";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useScopeEffect } from "@/hooks/use-scope-effect";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { sanitizePalette, sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -82,7 +82,7 @@ export function usePreferencesSync(enabled: boolean) {
   // Gated on `hydrated`: this query is SSR-prefetched fire-and-forget, so without
   // the gate the SSR-query integration hydrates it stuck at `pending` client-side.
   const { data, isError } = useQuery({
-    queryKey: queryKeys.preferences.all(userId ?? ""),
+    queryKey: preferencesKeys.all(userId ?? ""),
     queryFn: () => fetchPreferencesFn(),
     enabled: enabled && Boolean(userId) && hydrated,
   });
@@ -108,7 +108,7 @@ export function usePreferencesSync(enabled: boolean) {
       // Merge, not replace: overwriting would evict server-only keys (e.g.
       // emailNotifications) not present in this snapshot.
       queryClient.setQueryData(
-        queryKeys.preferences.all(userId),
+        preferencesKeys.all(userId),
         (previous: UserPreferencesResponse | undefined) => ({ ...previous, ...prefs }),
       );
     },

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 
 import { Route } from "./meta_.legends_.$slug";
 
@@ -48,14 +48,14 @@ describe("/meta/legends/$slug loader", () => {
   it("keeps the whole archive out of the dehydrated SSR payload", async () => {
     const keys = await warmedKeys();
 
-    expect(keys).not.toContainEqual([...queryKeys.meta.decks()]);
+    expect(keys).not.toContainEqual([...metaKeys.decks()]);
   });
 
   it("warms the legend under the scope in the URL", async () => {
     const keys = await warmedKeys({ era: "origins", tiers: ["premier"] });
 
     expect(keys).toContainEqual([
-      ...queryKeys.meta.legend(SLUG, {
+      ...metaKeys.legend(SLUG, {
         from: "2026-01-01",
         formats: ["constructed"],
         tiers: ["premier"],
@@ -67,7 +67,7 @@ describe("/meta/legends/$slug loader", () => {
     const keys = await warmedKeys({ era: "origins", tiers: ["premier"] });
 
     expect(keys).toContainEqual([
-      ...queryKeys.meta.decks({
+      ...metaKeys.decks({
         from: "2026-01-01",
         formats: ["constructed"],
         tiers: ["premier"],

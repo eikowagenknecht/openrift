@@ -3,7 +3,7 @@ import { adminStatusContract } from "@openrift/shared/contracts/admin/status";
 import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -25,7 +25,7 @@ const clearSsrCache = createServerFn({ method: "POST" })
 export const ADMIN_STATUS_REFRESH_INTERVAL_MS = 30_000;
 
 export const adminStatusQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.status,
+  queryKey: adminKeys.status,
   queryFn: () => fetchStatus(),
   refetchInterval: ADMIN_STATUS_REFRESH_INTERVAL_MS,
 });

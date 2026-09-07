@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { collectionsKeys } from "@/features/collections/lib/collections-query-keys";
 import { createQueryClient } from "@/lib/query-client";
-import { queryKeys } from "@/lib/query-keys";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 
@@ -190,7 +190,7 @@ describe("useDeleteCollection", () => {
     };
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     seedSession(client, "user-1");
-    client.setQueryData(queryKeys.collections.all("user-1"), {
+    client.setQueryData(collectionsKeys.all("user-1"), {
       items: [{ ...collection("inbox-1", 0), isInbox: true }],
     });
 

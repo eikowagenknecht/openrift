@@ -4,8 +4,8 @@ import { toast } from "sonner";
 import { MoveDialog } from "@/features/collections/components/move-dialog";
 import { useCollections } from "@/features/collections/hooks/use-collections";
 import { useMoveCopies } from "@/features/collections/hooks/use-copies";
+import { listsKeys } from "@/features/lists/lib/lists-query-keys";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 
 interface MoveCopiesToCollectionDialogProps {
   listId: string;
@@ -43,9 +43,9 @@ export function MoveCopiesToCollectionDialog({
           onMoved?.();
           if (userId) {
             void queryClient.invalidateQueries({
-              queryKey: queryKeys.lists.detail(userId, listId),
+              queryKey: listsKeys.detail(userId, listId),
             });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.lists.all(userId) });
+            void queryClient.invalidateQueries({ queryKey: listsKeys.all(userId) });
           }
         },
       },

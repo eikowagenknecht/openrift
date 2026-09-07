@@ -3,7 +3,7 @@ import { adminProviderSettingsContract } from "@openrift/shared/contracts/admin/
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -15,7 +15,7 @@ const fetchProviderSettings = createServerFn({ method: "GET" })
   );
 
 export const providerSettingsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.providerSettings,
+  queryKey: adminKeys.providerSettings,
   queryFn: () => fetchProviderSettings(),
   staleTime: 30 * 60 * 1000,
 });
@@ -38,7 +38,7 @@ export function useReorderProviderSettings() {
     mutationFn: async (providers: string[]) => {
       await reorderProviderSettingsFn({ data: { providers } });
     },
-    invalidates: [queryKeys.admin.providerSettings],
+    invalidates: [adminKeys.providerSettings],
   });
 }
 
@@ -68,6 +68,6 @@ export function useUpdateProviderSetting() {
     }) => {
       await updateProviderSettingFn({ data: vars });
     },
-    invalidates: [queryKeys.admin.providerSettings, queryKeys.admin.cards.list],
+    invalidates: [adminKeys.providerSettings, adminKeys.cards.list],
   });
 }

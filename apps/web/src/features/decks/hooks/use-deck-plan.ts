@@ -4,8 +4,8 @@ import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import type { DeckPlanSaveInput } from "@/features/decks/lib/deck-plan";
+import { decksKeys } from "@/features/decks/lib/decks-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -18,7 +18,7 @@ const fetchDeckPlanFn = createServerFn({ method: "GET" })
 
 function deckPlanQueryOptions(userId: string, deckId: string) {
   return queryOptions({
-    queryKey: queryKeys.decks.plan(userId, deckId),
+    queryKey: decksKeys.plan(userId, deckId),
     queryFn: (): Promise<DeckPlanDetailResponse> => fetchDeckPlanFn({ data: deckId }),
   });
 }
@@ -44,7 +44,7 @@ export function useSaveDeckPlan() {
       saveDeckPlanFn({ data: { deckId, plan } }),
     onSuccess: (data, variables) => {
       queryClient.setQueryData<DeckPlanDetailResponse>(
-        queryKeys.decks.plan(userId, variables.deckId),
+        decksKeys.plan(userId, variables.deckId),
         data,
       );
     },

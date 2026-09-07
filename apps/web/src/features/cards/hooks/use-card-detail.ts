@@ -6,7 +6,7 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { cardsKeys } from "@/features/cards/lib/cards-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -68,7 +68,7 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
 
 export function cardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
-    queryKey: queryKeys.cards.detail(cardSlug),
+    queryKey: cardsKeys.detail(cardSlug),
     queryFn: () => fetchCardDetail({ data: cardSlug }),
     staleTime: 5 * 60 * 1000,
     select: enrichCardDetail,

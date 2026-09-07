@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 
 import { Route } from "./meta_.events";
 
@@ -45,8 +45,8 @@ describe("/meta/events loader", () => {
   it("warms only the era the scope names", async () => {
     const keys = await warmedKeys({ era: "origins" });
 
-    expect(keys).toContainEqual([...queryKeys.meta.events(ORIGINS_RANGE)]);
-    expect(keys).not.toContainEqual([...queryKeys.meta.events()]);
+    expect(keys).toContainEqual([...metaKeys.events(ORIGINS_RANGE)]);
+    expect(keys).not.toContainEqual([...metaKeys.events()]);
   });
 
   it("reruns for a different era but not for the search box", async () => {
@@ -61,12 +61,12 @@ describe("/meta/events loader", () => {
   it("warms the whole list once the reader asks for all time", async () => {
     const keys = await warmedKeys({ era: "all" });
 
-    expect(keys).toContainEqual([...queryKeys.meta.events()]);
+    expect(keys).toContainEqual([...metaKeys.events()]);
   });
 
   it("warms the archive-wide counts the title line measures against", async () => {
     const keys = await warmedKeys({ era: "origins" });
 
-    expect(keys).toContainEqual([...queryKeys.meta.counts()]);
+    expect(keys).toContainEqual([...metaKeys.counts()]);
   });
 });

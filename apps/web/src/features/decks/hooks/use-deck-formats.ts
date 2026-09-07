@@ -2,8 +2,9 @@ import type { AdminDeckFormatsResponse } from "@openrift/shared/contracts/admin/
 import { adminDeckFormatsContract } from "@openrift/shared/contracts/admin/deck-formats";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteDeckFormatFn = createServerFn({ method: "POST" })
   });
 
 const deckFormatHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.deckFormats,
+  queryKey: adminKeys.deckFormats,
   list: () => fetchDeckFormats(),
-  invalidates: [queryKeys.admin.deckFormats, queryKeys.init.all],
+  invalidates: [adminKeys.deckFormats, initKeys.all],
   create: (vars: { slug: string; label: string }) => createDeckFormatFn({ data: vars }),
   update: (vars: { slug: string; label?: string }) => updateDeckFormatFn({ data: vars }),
   reorder: (slugs: string[]) => reorderDeckFormatsFn({ data: { slugs } }),

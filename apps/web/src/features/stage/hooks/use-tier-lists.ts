@@ -10,8 +10,8 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { tierListsKeys } from "@/features/stage/lib/stage-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -60,7 +60,7 @@ const fetchPublicTierList = createServerFn({ method: "GET" })
 
 export function tierListsQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.tierLists.all(userId),
+    queryKey: tierListsKeys.all(userId),
     queryFn: () => fetchTierLists(),
     select: (data: TierListListResponse) => data.items,
   });
@@ -68,14 +68,14 @@ export function tierListsQueryOptions(userId: string) {
 
 export function tierListQueryOptions(userId: string, id: string) {
   return queryOptions({
-    queryKey: queryKeys.tierLists.detail(userId, id),
+    queryKey: tierListsKeys.detail(userId, id),
     queryFn: (): Promise<TierListResponse> => fetchTierList({ data: id }),
   });
 }
 
 export function publicTierListQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.tierLists.publicByToken(token),
+    queryKey: tierListsKeys.publicByToken(token),
     queryFn: (): Promise<PublicTierListDetailResponse> => fetchPublicTierList({ data: token }),
   });
 }
@@ -103,7 +103,7 @@ export function useCreateTierList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<TierListResponse, CreateTierListBody>({
     mutationFn: (body) => createTierListFn({ data: body }),
-    invalidates: [queryKeys.tierLists.all(userId)],
+    invalidates: [tierListsKeys.all(userId)],
   });
 }
 
@@ -120,8 +120,8 @@ export function useUpdateTierList() {
     mutationFn: (body) => updateTierListFn({ data: body }),
     // Invalidates the index too: it shows the card count and preview strip.
     invalidates: (variables) => [
-      queryKeys.tierLists.detail(userId, variables.id),
-      queryKeys.tierLists.all(userId),
+      tierListsKeys.detail(userId, variables.id),
+      tierListsKeys.all(userId),
     ],
   });
 }
@@ -145,7 +145,7 @@ export function useDeleteTierList() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation<unknown, string>({
     mutationFn: (id) => deleteTierListFn({ data: id }),
-    invalidates: [queryKeys.tierLists.all(userId)],
+    invalidates: [tierListsKeys.all(userId)],
   });
 }
 
@@ -166,8 +166,8 @@ export function useSetTierListShare() {
   return useMutationWithInvalidation<TierListShareResponse, { id: string; shared: boolean }>({
     mutationFn: (body) => setTierListShareFn({ data: body }),
     invalidates: (variables) => [
-      queryKeys.tierLists.detail(userId, variables.id),
-      queryKeys.tierLists.all(userId),
+      tierListsKeys.detail(userId, variables.id),
+      tierListsKeys.all(userId),
     ],
   });
 }

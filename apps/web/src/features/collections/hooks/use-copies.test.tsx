@@ -6,7 +6,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { queryKeys } from "@/lib/query-keys";
+import { collectionsKeys } from "@/features/collections/lib/collections-query-keys";
 import { stubCopy } from "@/test/factories";
 
 const { copiesCollectionHolder } = vi.hoisted(() => ({
@@ -74,7 +74,7 @@ function seedCollections(
   userId: string,
   collections: { id: string; groupId: string | null }[],
 ) {
-  client.setQueryData(queryKeys.collections.all(userId), {
+  client.setQueryData(collectionsKeys.all(userId), {
     items: collections.map(({ id, groupId }) => ({
       id,
       groupId,

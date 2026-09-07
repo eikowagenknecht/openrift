@@ -3,7 +3,7 @@ import type { LandingSummaryResponse } from "@openrift/shared/types/api/catalog"
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { landingSummaryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -22,7 +22,7 @@ function fetchLandingSummaryFromEdge(): Promise<LandingSummaryResponse> {
 }
 
 export const landingSummaryQueryOptions = queryOptions({
-  queryKey: queryKeys.landingSummary.all,
+  queryKey: landingSummaryKeys.all,
   queryFn: () =>
     globalThis.window === undefined ? fetchLandingSummary() : fetchLandingSummaryFromEdge(),
   staleTime: 5 * 60 * 1000,

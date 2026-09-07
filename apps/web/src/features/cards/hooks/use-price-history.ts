@@ -4,7 +4,7 @@ import type { TimeRange } from "@openrift/shared/types/pricing";
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { priceHistoryKeys } from "@/features/cards/lib/cards-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -20,7 +20,7 @@ const fetchPriceHistoryFn = createServerFn({ method: "GET" })
 
 export function usePriceHistory(printingId: string | null, range: TimeRange = "30d") {
   return useQuery({
-    queryKey: queryKeys.priceHistory.byPrinting(printingId ?? "", range),
+    queryKey: priceHistoryKeys.byPrinting(printingId ?? "", range),
     queryFn: () =>
       fetchPriceHistoryFn({
         // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- guarded by enabled: Boolean(printingId)

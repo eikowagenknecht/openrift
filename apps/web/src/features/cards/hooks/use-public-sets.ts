@@ -6,7 +6,7 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { setsKeys } from "@/features/cards/lib/cards-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -63,14 +63,14 @@ function enrichSetDetail(response: SetDetailResponse): EnrichedSetDetail {
 }
 
 export const publicSetListQueryOptions = queryOptions({
-  queryKey: queryKeys.sets.all,
+  queryKey: setsKeys.all,
   queryFn: () => fetchSetList(),
   staleTime: 5 * 60 * 1000,
 });
 
 export function publicSetDetailQueryOptions(setSlug: string) {
   return queryOptions({
-    queryKey: queryKeys.sets.detail(setSlug),
+    queryKey: setsKeys.detail(setSlug),
     queryFn: () => fetchSetDetail({ data: setSlug }),
     staleTime: 5 * 60 * 1000,
     select: enrichSetDetail,

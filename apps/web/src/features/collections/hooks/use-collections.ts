@@ -13,10 +13,10 @@ import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { collectionsQueryOptions } from "@/features/collections/lib/collections-query";
+import { collectionsKeys, copiesKeys } from "@/features/collections/lib/collections-query-keys";
 import { useCopiesCollection } from "@/features/collections/lib/copies-collection";
 import { useRequiredUserId } from "@/lib/auth-session";
 import { reportMutationError } from "@/lib/query-client";
-import { queryKeys } from "@/lib/query-keys";
 import { reorderInPlace } from "@/lib/reorder-in-place";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -84,7 +84,7 @@ export function useCreateCollection() {
       availableForDeckbuilding?: boolean;
       groupSlug?: string;
     }) => createCollectionFn({ data: body }),
-    invalidates: [queryKeys.collections.all(userId)],
+    invalidates: [collectionsKeys.all(userId)],
   });
 }
 
@@ -100,7 +100,7 @@ export function useUpdateCollection() {
   return useMutationWithInvalidation({
     mutationFn: (body: { id: string; name?: string; description?: string | null }) =>
       updateCollectionFn({ data: body }),
-    invalidates: [queryKeys.collections.all(userId)],
+    invalidates: [collectionsKeys.all(userId)],
   });
 }
 
@@ -122,7 +122,7 @@ export function useSetCollectionDeckbuilding() {
   const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: { id: string; available: boolean }) => setDeckbuildingFn({ data: body }),
-    invalidates: [queryKeys.collections.all(userId)],
+    invalidates: [collectionsKeys.all(userId)],
   });
 }
 
@@ -151,7 +151,7 @@ export function useSetCollectionSidebarHidden() {
   >({
     mutationFn: (variables) => setCollectionSidebarHiddenFn({ data: variables }),
     onMutate: ({ id, hidden }) => {
-      const key = queryKeys.collections.all(userId);
+      const key = collectionsKeys.all(userId);
       const previous = queryClient.getQueryData<CollectionsResponse>(key);
       if (previous) {
         queryClient.setQueryData<CollectionsResponse>(key, {
@@ -165,13 +165,13 @@ export function useSetCollectionSidebarHidden() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
+        queryClient.setQueryData(collectionsKeys.all(userId), context.previous);
       }
       // Declaring onError here replaces the QueryClient's default one.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: collectionsKeys.all(userId) });
     },
   });
 }
@@ -195,7 +195,7 @@ export function useReorderCollections() {
   >({
     mutationFn: (variables) => reorderCollectionsFn({ data: variables }),
     onMutate: ({ orderedIds }) => {
-      const key = queryKeys.collections.all(userId);
+      const key = collectionsKeys.all(userId);
       const previous = queryClient.getQueryData<CollectionsResponse>(key);
       if (previous) {
         queryClient.setQueryData<CollectionsResponse>(key, {
@@ -207,13 +207,13 @@ export function useReorderCollections() {
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(queryKeys.collections.all(userId), context.previous);
+        queryClient.setQueryData(collectionsKeys.all(userId), context.previous);
       }
       // Declaring onError here replaces the QueryClient's default one.
       reportMutationError(error, queryClient);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: collectionsKeys.all(userId) });
     },
   });
 }
@@ -245,7 +245,7 @@ export function useShareCollection() {
   return useMutation({
     mutationFn: (collectionId: string) => shareCollectionFn({ data: collectionId }),
     onSuccess: (data, collectionId) => {
-      queryClient.setQueryData<CollectionsResponse>(queryKeys.collections.all(userId), (old) =>
+      queryClient.setQueryData<CollectionsResponse>(collectionsKeys.all(userId), (old) =>
         old
           ? {
               ...old,
@@ -274,7 +274,7 @@ export function useUnshareCollection() {
   return useMutation({
     mutationFn: (collectionId: string) => unshareCollectionFn({ data: collectionId }),
     onSuccess: (_, collectionId) => {
-      queryClient.setQueryData<CollectionsResponse>(queryKeys.collections.all(userId), (old) =>
+      queryClient.setQueryData<CollectionsResponse>(collectionsKeys.all(userId), (old) =>
         old
           ? {
               ...old,
@@ -317,7 +317,7 @@ const fetchPublicCollectionFn = createServerFn({ method: "GET" })
 
 export function publicCollectionQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.collections.publicByToken(token),
+    queryKey: collectionsKeys.publicByToken(token),
     queryFn: () => fetchPublicCollectionFn({ data: token }),
   });
 }
@@ -339,10 +339,8 @@ export function useDeleteCollection() {
     onSuccess: (deletedId) => {
       // Server atomically moved the remaining copies to the inbox; mirror that in the
       // synced copies collection since it's keyed separately as ["copies-collection", userId]
-      // and invalidating queryKeys.copies.all alone won't reach it.
-      const cached = queryClient.getQueryData<CollectionsResponse>(
-        queryKeys.collections.all(userId),
-      );
+      // and invalidating copiesKeys.all alone won't reach it.
+      const cached = queryClient.getQueryData<CollectionsResponse>(collectionsKeys.all(userId));
       const inboxId = cached?.items.find((col) => col.isInbox)?.id;
       if (inboxId && copiesCollection) {
         const affected = copiesCollection.toArray.filter((copy) => copy.collectionId === deletedId);
@@ -354,9 +352,9 @@ export function useDeleteCollection() {
           );
         }
       }
-      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: collectionsKeys.all(userId) });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.copies.all(userId),
+        queryKey: copiesKeys.all(userId),
         refetchType: "none",
       });
     },
@@ -385,9 +383,9 @@ export function useClearCollection() {
           copiesCollection.utils.writeDelete(removedIds);
         }
       }
-      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: collectionsKeys.all(userId) });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.copies.all(userId),
+        queryKey: copiesKeys.all(userId),
         refetchType: "none",
       });
     },

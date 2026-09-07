@@ -4,7 +4,7 @@ import type { CardSubmissionReason } from "@openrift/shared/contracts/card-submi
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { cardSubmissionsKeys } from "@/features/contribute/lib/contribute-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -17,7 +17,7 @@ const fetchSubmissionForCandidateFn = createServerFn({ method: "GET" })
 
 function submissionForCandidateQueryOptions(candidateCardId: string) {
   return queryOptions({
-    queryKey: queryKeys.cardSubmissions.forCandidate(candidateCardId),
+    queryKey: cardSubmissionsKeys.forCandidate(candidateCardId),
     queryFn: () => fetchSubmissionForCandidateFn({ data: { candidateCardId } }),
   });
 }
@@ -57,7 +57,7 @@ export function useSetSubmissionResolution() {
     }) => setSubmissionResolutionFn({ data: params }),
     onSuccess: (_result, params) => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.cardSubmissions.forCandidate(params.candidateCardId),
+        queryKey: cardSubmissionsKeys.forCandidate(params.candidateCardId),
       });
     },
   });

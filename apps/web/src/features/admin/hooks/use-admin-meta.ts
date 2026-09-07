@@ -15,7 +15,8 @@ import type {
 import { keepPreviousData, queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -114,7 +115,7 @@ const fetchMetaEvents = createServerFn({ method: "GET" })
 
 export function adminMetaEventsQueryOptions(params: AdminMetaEventQueryParams) {
   return queryOptions({
-    queryKey: queryKeys.admin.meta.eventList(params),
+    queryKey: adminKeys.meta.eventList(params),
     queryFn: () => fetchMetaEvents({ data: params }),
     placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
@@ -139,7 +140,7 @@ const searchMetaEvents = createServerFn({ method: "GET" })
 
 export function useMetaEventSearch(search: string) {
   return useQuery({
-    queryKey: queryKeys.admin.meta.eventSearch(search),
+    queryKey: adminKeys.meta.eventSearch(search),
     queryFn: () => searchMetaEvents({ data: search }),
     staleTime: 60 * 1000,
   });
@@ -154,7 +155,7 @@ const fetchMetaEvent = createServerFn({ method: "GET" })
 
 export function adminMetaEventQueryOptions(eventId: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.meta.event(eventId),
+    queryKey: adminKeys.meta.event(eventId),
     queryFn: () => fetchMetaEvent({ data: eventId }),
   });
 }
@@ -177,7 +178,7 @@ const createMetaEventFn = createServerFn({ method: "POST" })
 export function useCreateMetaEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: MetaEventInput) => createMetaEventFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.events, queryKeys.meta.all],
+    invalidates: [adminKeys.meta.events, metaKeys.all],
   });
 }
 
@@ -192,7 +193,7 @@ const updateMetaEventFn = createServerFn({ method: "POST" })
 export function useUpdateMetaEvent() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { id: string; slug: string }) => updateMetaEventFn({ data: vars }),
-    invalidates: [queryKeys.admin.meta.events, queryKeys.meta.all],
+    invalidates: [adminKeys.meta.events, metaKeys.all],
   });
 }
 
@@ -206,11 +207,7 @@ const deleteMetaEventFn = createServerFn({ method: "POST" })
 export function useDeleteMetaEvent() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => deleteMetaEventFn({ data: { id } }),
-    invalidates: (id) => [
-      queryKeys.admin.meta.events,
-      queryKeys.admin.meta.eventPlayers(id),
-      queryKeys.meta.all,
-    ],
+    invalidates: (id) => [adminKeys.meta.events, adminKeys.meta.eventPlayers(id), metaKeys.all],
   });
 }
 
@@ -223,7 +220,7 @@ const fetchMetaEventPlayers = createServerFn({ method: "GET" })
 
 export function adminMetaEventPlayersQueryOptions(eventId: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.meta.eventPlayers(eventId),
+    queryKey: adminKeys.meta.eventPlayers(eventId),
     queryFn: () => fetchMetaEventPlayers({ data: { id: eventId } }),
     staleTime: 5 * 60 * 1000,
   });
@@ -258,9 +255,9 @@ export function useCreateMetaPlayer() {
   return useMutationWithInvalidation({
     mutationFn: (vars: CreateMetaPlayerInput) => createMetaPlayerFn({ data: vars }),
     invalidates: (vars) => [
-      queryKeys.admin.meta.eventPlayers(vars.eventId),
-      queryKeys.admin.meta.events,
-      queryKeys.meta.all,
+      adminKeys.meta.eventPlayers(vars.eventId),
+      adminKeys.meta.events,
+      metaKeys.all,
     ],
   });
 }
@@ -281,9 +278,9 @@ export function useRenamePlayerDeck() {
     mutationFn: (vars: { id: string; eventId: string; name: string }) =>
       renamePlayerDeckFn({ data: vars }),
     invalidates: (vars) => [
-      queryKeys.admin.meta.eventPlayers(vars.eventId),
-      queryKeys.admin.meta.events,
-      queryKeys.meta.all,
+      adminKeys.meta.eventPlayers(vars.eventId),
+      adminKeys.meta.events,
+      metaKeys.all,
     ],
   });
 }
@@ -300,9 +297,9 @@ export function useDeleteMetaPlayer() {
     mutationFn: (vars: { id: string; eventId: string }) =>
       deleteMetaPlayerFn({ data: { id: vars.id } }),
     invalidates: (vars) => [
-      queryKeys.admin.meta.eventPlayers(vars.eventId),
-      queryKeys.admin.meta.events,
-      queryKeys.meta.all,
+      adminKeys.meta.eventPlayers(vars.eventId),
+      adminKeys.meta.events,
+      metaKeys.all,
     ],
   });
 }
@@ -316,7 +313,7 @@ const fetchMetaEventSources = createServerFn({ method: "GET" })
 
 function adminMetaEventSourcesQueryOptions(eventId: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.meta.eventSources(eventId),
+    queryKey: adminKeys.meta.eventSources(eventId),
     queryFn: () => fetchMetaEventSources({ data: { id: eventId } }),
     staleTime: 5 * 60 * 1000,
   });
@@ -352,7 +349,7 @@ const createMetaEventSourceFn = createServerFn({ method: "POST" })
 export function useCreateMetaEventSource() {
   return useMutationWithInvalidation<AdminMetaEventSource, CreateMetaEventSourceInput>({
     mutationFn: (vars) => createMetaEventSourceFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.admin.meta.eventSources(vars.eventId), queryKeys.meta.all],
+    invalidates: (vars) => [adminKeys.meta.eventSources(vars.eventId), metaKeys.all],
   });
 }
 
@@ -371,6 +368,6 @@ export function useDeleteMetaEventSource() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { eventId: string; sourceId: string }) =>
       deleteMetaEventSourceFn({ data: vars }),
-    invalidates: (vars) => [queryKeys.admin.meta.eventSources(vars.eventId), queryKeys.meta.all],
+    invalidates: (vars) => [adminKeys.meta.eventSources(vars.eventId), metaKeys.all],
   });
 }

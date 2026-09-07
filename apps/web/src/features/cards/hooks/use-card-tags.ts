@@ -3,7 +3,8 @@ import type { ClassifiedCardTag, TagCategoryResponse } from "@openrift/shared/ty
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -23,7 +24,7 @@ const fetchCardTags = createServerFn({ method: "GET" })
   );
 
 export const adminCardTagsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cardTags,
+  queryKey: adminKeys.cardTags,
   queryFn: () => fetchCardTags(),
   staleTime: 30 * 60 * 1000,
 });
@@ -39,7 +40,7 @@ const fetchTagCategories = createServerFn({ method: "GET" })
   );
 
 export const adminTagCategoriesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.tagCategories,
+  queryKey: adminKeys.tagCategories,
   queryFn: () => fetchTagCategories(),
   staleTime: 30 * 60 * 1000,
 });
@@ -59,7 +60,7 @@ export function useCreateTagCategory() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label: string; description?: string | null }) =>
       createTagCategoryFn({ data: vars }),
-    invalidates: [queryKeys.admin.tagCategories, queryKeys.admin.cardTags, queryKeys.init.all],
+    invalidates: [adminKeys.tagCategories, adminKeys.cardTags, initKeys.all],
   });
 }
 
@@ -80,7 +81,7 @@ export function useUpdateTagCategory() {
       label?: string;
       description?: string | null;
     }) => updateTagCategoryFn({ data: vars }),
-    invalidates: [queryKeys.admin.tagCategories, queryKeys.admin.cardTags, queryKeys.init.all],
+    invalidates: [adminKeys.tagCategories, adminKeys.cardTags, initKeys.all],
   });
 }
 
@@ -94,7 +95,7 @@ const deleteTagCategoryFn = createServerFn({ method: "POST" })
 export function useDeleteTagCategory() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => deleteTagCategoryFn({ data: { id } }),
-    invalidates: [queryKeys.admin.tagCategories, queryKeys.admin.cardTags, queryKeys.init.all],
+    invalidates: [adminKeys.tagCategories, adminKeys.cardTags, initKeys.all],
   });
 }
 
@@ -111,7 +112,7 @@ export function useSetTagCategory() {
       setTagCategoryFn({ data: vars }),
     // The init invalidation only refreshes this admin's own client cache; the
     // edge-cached /init means other visitors pick the change up within ~1h.
-    invalidates: [queryKeys.admin.cardTags, queryKeys.admin.tagCategories, queryKeys.init.all],
+    invalidates: [adminKeys.cardTags, adminKeys.tagCategories, initKeys.all],
   });
 }
 
@@ -130,6 +131,6 @@ const detectLegendTagsFn = createServerFn({ method: "POST" })
 export function useDetectLegendTags() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { categoryId: string }) => detectLegendTagsFn({ data: vars }),
-    invalidates: [queryKeys.admin.cardTags, queryKeys.admin.tagCategories, queryKeys.init.all],
+    invalidates: [adminKeys.cardTags, adminKeys.tagCategories, initKeys.all],
   });
 }

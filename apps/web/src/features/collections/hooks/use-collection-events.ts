@@ -3,8 +3,8 @@ import type { CollectionEventListResponse } from "@openrift/shared/types/api/col
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { collectionEventsKeys } from "@/features/collections/lib/collections-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -19,7 +19,7 @@ const fetchCollectionEventsFn = createServerFn({ method: "GET" })
 
 export function collectionEventsQueryOptions(userId: string) {
   return infiniteQueryOptions({
-    queryKey: queryKeys.collectionEvents.all(userId),
+    queryKey: collectionEventsKeys.all(userId),
     queryFn: ({ pageParam }): Promise<CollectionEventListResponse> =>
       fetchCollectionEventsFn({
         data: { cursor: pageParam },

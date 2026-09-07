@@ -5,7 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { pricesKeys } from "@/features/cards/lib/cards-query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { apiOrpcClient, browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -28,7 +28,7 @@ export function fetchPricesForSeo(): Promise<PricesResponse> {
 }
 
 export const pricesQueryOptions = queryOptions({
-  queryKey: queryKeys.prices.all,
+  queryKey: pricesKeys.all,
   queryFn: () => (globalThis.window === undefined ? fetchPrices() : fetchPricesFromEdge()),
   staleTime: 30 * 60 * 1000, // 30 minutes
   refetchOnWindowFocus: false,

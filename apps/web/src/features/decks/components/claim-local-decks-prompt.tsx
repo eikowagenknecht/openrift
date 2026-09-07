@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { DialogForm } from "@/components/ui/dialog-form";
 import { useCreateDeck, useSaveDeckCards, useUpdateDeck } from "@/features/decks/hooks/use-decks";
+import { decksKeys } from "@/features/decks/lib/decks-query-keys";
 import { useLocalDecksStore } from "@/features/decks/stores/local-decks-store";
 import { useDeckFormatList } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 
 export function ClaimLocalDecksPrompt() {
   const userId = useUserId();
@@ -71,7 +71,7 @@ export function ClaimLocalDecksPrompt() {
     }
     // Refresh the server list before dropping the imported locals, or a freshly imported deck can appear twice in the merged list.
     if (userId) {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId) });
+      await queryClient.invalidateQueries({ queryKey: decksKeys.all(userId) });
     }
     clearImported(importedIds);
     setImporting(false);

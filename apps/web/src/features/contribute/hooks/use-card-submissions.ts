@@ -3,8 +3,8 @@ import type { CardSubmissionListResponse } from "@openrift/shared/contracts/card
 import { infiniteQueryOptions, useInfiniteQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { cardSubmissionsKeys } from "@/features/contribute/lib/contribute-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -20,7 +20,7 @@ const fetchCardSubmissionsFn = createServerFn({ method: "GET" })
 /** The API scopes to the session user; `userId` here only keys the cache. */
 export function cardSubmissionsQueryOptions(userId: string) {
   return infiniteQueryOptions({
-    queryKey: queryKeys.cardSubmissions.all(userId),
+    queryKey: cardSubmissionsKeys.all(userId),
     queryFn: ({ pageParam }): Promise<CardSubmissionListResponse> =>
       fetchCardSubmissionsFn({
         data: { cursor: pageParam },

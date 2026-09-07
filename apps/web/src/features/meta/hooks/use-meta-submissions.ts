@@ -18,8 +18,8 @@ import {
 } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { metaSubmissionsKeys } from "@/features/meta/lib/meta-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -69,7 +69,7 @@ export function useSubmitMetaDeck() {
       submitMetaDeckFn({ data: input }) as Promise<MetaSubmissionOutcome>,
     onSuccess: (outcome) => {
       if (outcome.ok) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.metaSubmissions.all(userId) });
+        void queryClient.invalidateQueries({ queryKey: metaSubmissionsKeys.all(userId) });
       }
     },
   });
@@ -109,7 +109,7 @@ export function useSubmitMetaEventCorrection() {
       submitMetaEventCorrectionFn({ data: input }) as Promise<MetaEventCorrectionOutcome>,
     onSuccess: (outcome) => {
       if (outcome.ok) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.metaSubmissions.all(userId) });
+        void queryClient.invalidateQueries({ queryKey: metaSubmissionsKeys.all(userId) });
       }
     },
   });
@@ -127,7 +127,7 @@ const fetchMetaSubmissionsFn = createServerFn({ method: "GET" })
 /** The endpoint scopes to the session user; `userId` here only keys the cache. */
 export function metaSubmissionsQueryOptions(userId: string) {
   return infiniteQueryOptions({
-    queryKey: queryKeys.metaSubmissions.all(userId),
+    queryKey: metaSubmissionsKeys.all(userId),
     queryFn: ({ pageParam }): Promise<MetaSubmissionListResponse> =>
       fetchMetaSubmissionsFn({
         data: { cursor: pageParam },
@@ -150,7 +150,7 @@ const fetchMetaCreditVisibilityFn = createServerFn({ method: "GET" })
 
 function metaCreditVisibilityQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.metaSubmissions.creditVisibility(userId),
+    queryKey: metaSubmissionsKeys.creditVisibility(userId),
     queryFn: (): Promise<MetaCreditVisibilityResponse> =>
       fetchMetaCreditVisibilityFn() as Promise<MetaCreditVisibilityResponse>,
   });
@@ -181,7 +181,7 @@ export function useSetMetaCreditVisibility() {
       setMetaCreditVisibilityFn({ data: input }),
     onSuccess: (data) => {
       queryClient.setQueryData<MetaCreditVisibilityResponse>(
-        queryKeys.metaSubmissions.creditVisibility(userId),
+        metaSubmissionsKeys.creditVisibility(userId),
         data,
       );
     },

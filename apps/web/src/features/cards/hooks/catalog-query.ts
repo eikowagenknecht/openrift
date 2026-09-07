@@ -1,12 +1,12 @@
 import { queryOptions } from "@tanstack/react-query";
 
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import {
   enrichCatalog,
   fetchCatalog,
   fetchCatalogFromEdge,
   normalizeCatalogLangs,
 } from "@/features/cards/lib/catalog-query";
-import { queryKeys } from "@/lib/query-keys";
 import { useDisplayStore } from "@/stores/display-store";
 
 // Exported for tests; not part of the module's real surface.
@@ -37,7 +37,7 @@ export function primaryCatalogLanguages(): string[] | null {
 }
 
 export const catalogQueryOptions = queryOptions({
-  queryKey: queryKeys.catalog.all,
+  queryKey: catalogKeys.all,
   queryFn: () =>
     globalThis.window === undefined
       ? fetchCatalog()

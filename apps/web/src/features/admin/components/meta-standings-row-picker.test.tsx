@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { MetaStandingsRowPicker } from "@/features/admin/components/meta-standings-row-picker";
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 
 function player(overrides: Partial<AdminMetaPlayer> = {}): AdminMetaPlayer {
   return {
@@ -42,7 +42,7 @@ async function openPicker(
   currentPlayerId: string | null = null,
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  client.setQueryData(queryKeys.admin.meta.eventPlayers("e1"), { players: STANDINGS });
+  client.setQueryData(adminKeys.meta.eventPlayers("e1"), { players: STANDINGS });
 
   render(
     <QueryClientProvider client={client}>

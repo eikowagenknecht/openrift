@@ -3,8 +3,9 @@ import { adminDistributionChannelsContract } from "@openrift/shared/contracts/ad
 import type { DistributionChannelResponse } from "@openrift/shared/types/api/admin";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { promosKeys } from "@/features/cards/lib/cards-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { ContractInput } from "@/lib/server-fns/orpc-client";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -56,9 +57,9 @@ const deleteChannelFn = createServerFn({ method: "POST" })
   });
 
 const channelHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.distributionChannels,
+  queryKey: adminKeys.distributionChannels,
   list: () => fetchChannels(),
-  invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
+  invalidates: [adminKeys.distributionChannels, promosKeys.all],
   staleTime: 30 * 60 * 1000,
   create: (vars: CreateChannelInput) => createChannelFn({ data: vars }),
   update: (vars: UpdateChannelInput) => updateChannelFn({ data: vars }),

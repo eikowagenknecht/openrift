@@ -2,7 +2,8 @@ import { featureFlagsContract } from "@openrift/shared/contracts/feature-flags";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "./query-keys";
+import { featureFlagsKeys } from "@/lib/query-keys";
+
 import { serverCache } from "./server-cache";
 import { withCookies } from "./server-fns/middleware";
 import { apiOrpcClient } from "./server-fns/orpc-client";
@@ -36,7 +37,7 @@ const fetchFeatureFlags = createServerFn({ method: "GET" })
   .handler(({ context }) => loadFeatureFlags(context.cookie));
 
 export const featureFlagsQueryOptions = queryOptions({
-  queryKey: queryKeys.featureFlags.all,
+  queryKey: featureFlagsKeys.all,
   queryFn: () => fetchFeatureFlags(),
   staleTime: 5 * 60 * 1000, // 5 minutes
   refetchOnWindowFocus: false,

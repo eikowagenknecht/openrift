@@ -2,9 +2,9 @@ import type { CatalogResponse } from "@openrift/shared/types/api/catalog";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { loadCatalogTail } from "@/features/cards/lib/catalog-query";
 import { seedCatalogVersion } from "@/features/cards/lib/catalog-version";
-import { queryKeys } from "@/lib/query-keys";
 import { useDisplayStore } from "@/stores/display-store";
 import { createStoreResetter } from "@/test/store-helpers";
 
@@ -87,7 +87,7 @@ describe("split fetch + tail merge", () => {
 
     const queryClient = new QueryClient();
     const data = await queryClient.query(catalogQueryOptions);
-    const raw = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
+    const raw = queryClient.getQueryData<CatalogResponse>(catalogKeys.all);
     expect(raw).toBeDefined();
     expect(data).toBeDefined();
     expect(calls[0]).toContain("langs=EN");
@@ -95,7 +95,7 @@ describe("split fetch + tail merge", () => {
 
     await loadCatalogTail(queryClient);
     expect(calls[1]).toContain("exceptLangs=EN");
-    const merged = queryClient.getQueryData<CatalogResponse>(queryKeys.catalog.all);
+    const merged = queryClient.getQueryData<CatalogResponse>(catalogKeys.all);
     expect(merged).toBeDefined();
     expect(Object.keys((merged as CatalogResponse).printings).toSorted()).toEqual(["p1", "p2"]);
 
@@ -121,7 +121,7 @@ describe("split fetch + tail merge", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const queryClient = new QueryClient();
-    queryClient.setQueryData(queryKeys.catalog.all, wireCatalog({ p1: { language: "EN" } }));
+    queryClient.setQueryData(catalogKeys.all, wireCatalog({ p1: { language: "EN" } }));
     await loadCatalogTail(queryClient);
     expect(fetchMock).not.toHaveBeenCalled();
   });

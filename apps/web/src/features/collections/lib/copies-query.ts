@@ -3,7 +3,7 @@ import { copiesContract } from "@openrift/shared/contracts/copies";
 import type { CopyListResponse, CopyResponse } from "@openrift/shared/types/api/collection";
 import { queryOptions } from "@tanstack/react-query";
 
-import { queryKeys } from "@/lib/query-keys";
+import { copiesKeys } from "@/features/collections/lib/collections-query-keys";
 import { browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
 
 export async function fetchCopies(collectionId?: string): Promise<CopyListResponse> {
@@ -26,9 +26,7 @@ export async function fetchCopies(collectionId?: string): Promise<CopyListRespon
 
 export function copiesQueryOptions(userId: string, collectionId?: string) {
   return queryOptions({
-    queryKey: collectionId
-      ? queryKeys.copies.byCollection(userId, collectionId)
-      : queryKeys.copies.all(userId),
+    queryKey: collectionId ? copiesKeys.byCollection(userId, collectionId) : copiesKeys.all(userId),
     queryFn: () => fetchCopies(collectionId),
     select: (data: CopyListResponse) => data.items,
     staleTime: 5 * 60 * 1000,

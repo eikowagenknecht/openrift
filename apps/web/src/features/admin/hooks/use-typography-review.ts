@@ -6,7 +6,7 @@ import { adminTypographyReviewContract } from "@openrift/shared/contracts/admin/
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -18,7 +18,7 @@ const fetchTypographyReview = createServerFn({ method: "GET" })
   );
 
 export const typographyReviewQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.typographyReview,
+  queryKey: adminKeys.typographyReview,
   queryFn: () => fetchTypographyReview(),
 });
 
@@ -38,6 +38,6 @@ export function useAcceptTypographyFix() {
     mutationFn: async (variables) => {
       await acceptTypographyFixFn({ data: variables });
     },
-    invalidates: [queryKeys.admin.typographyReview],
+    invalidates: [adminKeys.typographyReview],
   });
 }

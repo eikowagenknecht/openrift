@@ -17,8 +17,8 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { metaKeys } from "@/features/meta/lib/meta-query-keys";
 import type { MetaDateRange, MetaDeckQuery } from "@/features/meta/lib/meta-scope";
-import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -55,7 +55,7 @@ const fetchMetaEvents = createServerFn({ method: "GET" })
 export function metaEventsQueryOptions(range?: MetaDateRange) {
   const narrowed = narrow(range);
   return queryOptions({
-    queryKey: queryKeys.meta.events(narrowed),
+    queryKey: metaKeys.events(narrowed),
     queryFn: () => fetchMetaEvents({ data: narrowed }),
     staleTime: 5 * 60 * 1000,
   });
@@ -78,7 +78,7 @@ const fetchMetaCounts = createServerFn({ method: "GET" })
 export function metaCountsQueryOptions(query?: MetaCountsQuery) {
   const narrowed = narrow(query);
   return queryOptions({
-    queryKey: queryKeys.meta.counts(narrowed),
+    queryKey: metaKeys.counts(narrowed),
     queryFn: () => fetchMetaCounts({ data: narrowed }),
     staleTime: 5 * 60 * 1000,
   });
@@ -98,7 +98,7 @@ const fetchMetaActivity = createServerFn({ method: "GET" })
   );
 
 export const metaActivityQueryOptions = queryOptions({
-  queryKey: queryKeys.meta.activity,
+  queryKey: metaKeys.activity,
   queryFn: () => fetchMetaActivity(),
   staleTime: 5 * 60 * 1000,
 });
@@ -124,7 +124,7 @@ const fetchMetaEvent = createServerFn({ method: "GET" })
 
 export function metaEventQueryOptions(slug: string) {
   return queryOptions({
-    queryKey: queryKeys.meta.event(slug),
+    queryKey: metaKeys.event(slug),
     queryFn: () => fetchMetaEvent({ data: slug }),
     staleTime: 5 * 60 * 1000,
   });
@@ -147,7 +147,7 @@ const fetchMetaDecks = createServerFn({ method: "GET" })
 export function metaDecksQueryOptions(query?: MetaDeckQuery) {
   const narrowed = narrow(query);
   return queryOptions({
-    queryKey: queryKeys.meta.decks(narrowed),
+    queryKey: metaKeys.decks(narrowed),
     queryFn: () => fetchMetaDecks({ data: narrowed }),
     staleTime: 5 * 60 * 1000,
   });
@@ -170,7 +170,7 @@ const fetchMetaDeckCards = createServerFn({ method: "GET" })
 function metaDeckCardsQueryOptions(range?: MetaDateRange) {
   const narrowed = narrow(range);
   return queryOptions({
-    queryKey: queryKeys.meta.deckCards(narrowed),
+    queryKey: metaKeys.deckCards(narrowed),
     queryFn: () => fetchMetaDeckCards({ data: narrowed }),
     staleTime: 5 * 60 * 1000,
   });
@@ -196,7 +196,7 @@ const fetchMetaDeck = createServerFn({ method: "GET" })
 
 export function metaDeckQueryOptions(token: string) {
   return queryOptions({
-    queryKey: queryKeys.meta.deck(token),
+    queryKey: metaKeys.deck(token),
     queryFn: () => fetchMetaDeck({ data: token }),
     staleTime: 5 * 60 * 1000,
   });
@@ -216,7 +216,7 @@ const fetchMetaLegends = createServerFn({ method: "GET" })
   );
 
 export const metaLegendsQueryOptions = queryOptions({
-  queryKey: queryKeys.meta.legends,
+  queryKey: metaKeys.legends,
   queryFn: () => fetchMetaLegends(),
   staleTime: 5 * 60 * 1000,
 });
@@ -242,7 +242,7 @@ const fetchMetaLegend = createServerFn({ method: "GET" })
 export function metaLegendQueryOptions(slug: string, query?: MetaLegendPageQuery) {
   const narrowed = narrow(query);
   return queryOptions({
-    queryKey: queryKeys.meta.legend(slug, narrowed),
+    queryKey: metaKeys.legend(slug, narrowed),
     queryFn: () => fetchMetaLegend({ data: { ...narrowed, slug } }),
     staleTime: 5 * 60 * 1000,
   });
@@ -268,7 +268,7 @@ const fetchMetaPlayer = createServerFn({ method: "GET" })
 
 export function metaPlayerQueryOptions(key: string) {
   return queryOptions({
-    queryKey: queryKeys.meta.player(key),
+    queryKey: metaKeys.player(key),
     queryFn: () => fetchMetaPlayer({ data: key }),
     staleTime: 5 * 60 * 1000,
   });

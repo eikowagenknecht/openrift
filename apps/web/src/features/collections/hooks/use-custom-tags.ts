@@ -6,7 +6,8 @@ import type {
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { catalogKeys } from "@/features/cards/lib/cards-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -30,7 +31,7 @@ const fetchCustomTags = createServerFn({ method: "GET" })
   );
 
 export const adminCustomTagsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.customTags,
+  queryKey: adminKeys.customTags,
   queryFn: () => fetchCustomTags(),
   staleTime: 30 * 60 * 1000,
 });
@@ -46,7 +47,7 @@ const fetchCustomTagCategories = createServerFn({ method: "GET" })
   );
 
 export const adminCustomTagCategoriesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.customTagCategories,
+  queryKey: adminKeys.customTagCategories,
   queryFn: () => fetchCustomTagCategories(),
   staleTime: 30 * 60 * 1000,
 });
@@ -66,7 +67,7 @@ export function useCreateCustomTagCategory() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label: string; description?: string | null }) =>
       createCustomTagCategoryFn({ data: vars }),
-    invalidates: [queryKeys.admin.customTagCategories, queryKeys.admin.customTags],
+    invalidates: [adminKeys.customTagCategories, adminKeys.customTags],
   });
 }
 
@@ -87,7 +88,7 @@ export function useUpdateCustomTagCategory() {
       label?: string;
       description?: string | null;
     }) => updateCustomTagCategoryFn({ data: vars }),
-    invalidates: [queryKeys.admin.customTagCategories, queryKeys.admin.customTags],
+    invalidates: [adminKeys.customTagCategories, adminKeys.customTags],
   });
 }
 
@@ -101,7 +102,7 @@ const deleteCustomTagCategoryFn = createServerFn({ method: "POST" })
 export function useDeleteCustomTagCategory() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => deleteCustomTagCategoryFn({ data: { id } }),
-    invalidates: [queryKeys.admin.customTagCategories, queryKeys.admin.customTags],
+    invalidates: [adminKeys.customTagCategories, adminKeys.customTags],
   });
 }
 
@@ -123,7 +124,7 @@ export function useCreateCustomTag() {
       categoryId: string;
       description?: string | null;
     }) => createCustomTagFn({ data: vars }),
-    invalidates: [queryKeys.admin.customTags, queryKeys.admin.customTagCategories],
+    invalidates: [adminKeys.customTags, adminKeys.customTagCategories],
   });
 }
 
@@ -151,7 +152,7 @@ export function useUpdateCustomTag() {
       categoryId?: string;
       description?: string | null;
     }) => updateCustomTagFn({ data: vars }),
-    invalidates: [queryKeys.admin.customTags, queryKeys.admin.customTagCategories],
+    invalidates: [adminKeys.customTags, adminKeys.customTagCategories],
   });
 }
 
@@ -165,7 +166,7 @@ const deleteCustomTagFn = createServerFn({ method: "POST" })
 export function useDeleteCustomTag() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => deleteCustomTagFn({ data: { id } }),
-    invalidates: [queryKeys.admin.customTags, queryKeys.admin.customTagCategories],
+    invalidates: [adminKeys.customTags, adminKeys.customTagCategories],
   });
 }
 
@@ -183,11 +184,7 @@ const clearCustomTagCardsFn = createServerFn({ method: "POST" })
 export function useClearCustomTagCards() {
   return useMutationWithInvalidation({
     mutationFn: (id: string) => clearCustomTagCardsFn({ data: { id } }),
-    invalidates: [
-      queryKeys.admin.customTags,
-      queryKeys.admin.cardCustomTags.prefix,
-      queryKeys.catalog.all,
-    ],
+    invalidates: [adminKeys.customTags, adminKeys.cardCustomTags.prefix, catalogKeys.all],
   });
 }
 
@@ -200,7 +197,7 @@ const fetchCardCustomTags = createServerFn({ method: "GET" })
 
 function cardCustomTagsQueryOptions(cardId: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.cardCustomTags(cardId),
+    queryKey: adminKeys.cardCustomTags(cardId),
     queryFn: () => fetchCardCustomTags({ data: { cardId } }),
     staleTime: 30 * 60 * 1000,
   });
@@ -223,7 +220,7 @@ const setCardCustomTagsFn = createServerFn({ method: "POST" })
 export function useSetCardCustomTags(cardId: string) {
   return useMutationWithInvalidation({
     mutationFn: (customTagIds: string[]) => setCardCustomTagsFn({ data: { cardId, customTagIds } }),
-    invalidates: [queryKeys.admin.cardCustomTags(cardId), queryKeys.admin.customTags],
+    invalidates: [adminKeys.cardCustomTags(cardId), adminKeys.customTags],
   });
 }
 
@@ -246,10 +243,6 @@ export function useAddCardsToCustomTag() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { tagId: string; cardIds: string[] }) =>
       addCardsToCustomTagFn({ data: vars }),
-    invalidates: [
-      queryKeys.admin.customTags,
-      queryKeys.admin.cardCustomTags.prefix,
-      queryKeys.catalog.all,
-    ],
+    invalidates: [adminKeys.customTags, adminKeys.cardCustomTags.prefix, catalogKeys.all],
   });
 }

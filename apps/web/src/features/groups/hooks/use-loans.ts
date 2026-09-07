@@ -3,9 +3,10 @@ import type { LoanResponse } from "@openrift/shared/types/api/loan";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { copiesKeys } from "@/features/collections/lib/collections-query-keys";
+import { loansKeys } from "@/features/groups/lib/groups-query-keys";
 import { loanCounterpartyLabel } from "@/features/groups/lib/loan-derivation";
 import { useRequiredUserId, useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -107,7 +108,7 @@ export function aggregateBorrowedLendersByCard(
 
 export function loansQueryOptions(userId: string) {
   return queryOptions({
-    queryKey: queryKeys.loans.all(userId),
+    queryKey: loansKeys.all(userId),
     queryFn: () => fetchLoans(),
   });
 }
@@ -121,7 +122,7 @@ export function useLoans() {
 export function useLoanActionCounts() {
   const userId = useUserId();
   return useQuery({
-    queryKey: queryKeys.loans.actionCounts(userId ?? ""),
+    queryKey: loansKeys.actionCounts(userId ?? ""),
     queryFn: () => fetchLoanActionCounts(),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
@@ -132,7 +133,7 @@ export function useLoanActionCounts() {
 export function useLoanBorrowerOptions(enabled: boolean) {
   const userId = useUserId();
   return useQuery({
-    queryKey: queryKeys.loans.borrowerOptions(userId ?? ""),
+    queryKey: loansKeys.borrowerOptions(userId ?? ""),
     queryFn: () => fetchBorrowerOptions(),
     enabled: enabled && userId !== null,
   });
@@ -169,11 +170,7 @@ export function useBorrowedLenders(): { data: Record<string, string[]> | undefin
  * client-side copies store.
  */
 function loanInvalidationKeys(userId: string): (readonly unknown[])[] {
-  return [
-    queryKeys.loans.all(userId),
-    queryKeys.copies.all(userId),
-    queryKeys.copies.syncedStore(userId),
-  ];
+  return [loansKeys.all(userId), copiesKeys.all(userId), copiesKeys.syncedStore(userId)];
 }
 
 export function useCreateLoan() {

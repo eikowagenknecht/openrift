@@ -14,11 +14,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
+import { collectionsKeys, copiesKeys } from "@/features/collections/lib/collections-query-keys";
 import { useCopiesCollection } from "@/features/collections/lib/copies-collection";
 import { isTempCopyId, TEMP_COPY_ID_PREFIX } from "@/features/collections/lib/temp-copy-id";
 import { trackEvent } from "@/lib/analytics";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { randomUuid } from "@/lib/random-uuid";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { browserApiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -38,7 +38,7 @@ function groupIdForCollection(
   userId: string,
   collectionId: string,
 ): string | null {
-  const cached = queryClient.getQueryData<CollectionsResponse>(queryKeys.collections.all(userId));
+  const cached = queryClient.getQueryData<CollectionsResponse>(collectionsKeys.all(userId));
   return cached?.items.find((col) => col.id === collectionId)?.groupId ?? null;
 }
 
@@ -85,7 +85,7 @@ export function useCopyListMemberships(
   const userId = useUserId();
   const stableIds = [...new Set(copyIds)].toSorted();
   return useQuery({
-    queryKey: queryKeys.copies.listMemberships(userId ?? "", stableIds, excludeListId),
+    queryKey: copiesKeys.listMemberships(userId ?? "", stableIds, excludeListId),
     queryFn: (): Promise<CopyListMembershipsResponse> =>
       browserApiOrpcClient(copiesContract).listMemberships({ copyIds: stableIds, excludeListId }),
     enabled: enabled && Boolean(userId) && stableIds.length > 0,
@@ -196,11 +196,11 @@ export function useAddCopies() {
         // Marks the cache stale without refetching, so a later refetch (e.g. on
         // reconnect) doesn't hand back pre-mutation data and clobber the synced store.
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.copies.all(userId),
+          queryKey: copiesKeys.all(userId),
           refetchType: "none",
         });
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.collections.all(userId),
+          queryKey: collectionsKeys.all(userId),
         });
         trackEvent("collection-add", { count: apiResult.length });
         return apiResult;
@@ -210,7 +210,7 @@ export function useAddCopies() {
         }
         // A lost response may still have created the rows, so resync rather
         // than trust the rollback.
-        void queryClient.invalidateQueries({ queryKey: queryKeys.copies.all(userId) });
+        void queryClient.invalidateQueries({ queryKey: copiesKeys.all(userId) });
         throw error;
       }
     },
@@ -262,11 +262,11 @@ export function useMoveCopies() {
             );
           }
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.copies.all(userId),
+            queryKey: copiesKeys.all(userId),
             refetchType: "none",
           });
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.collections.all(userId),
+            queryKey: collectionsKeys.all(userId),
           });
         },
       });
@@ -329,7 +329,7 @@ export function useUpdateCopies() {
             collection.utils.writeUpdate(batch.map((id) => ({ id, ...applied })));
           }
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.copies.all(userId),
+            queryKey: copiesKeys.all(userId),
             refetchType: "none",
           });
         },
@@ -490,11 +490,11 @@ export function useDisposeCopies() {
             collection.utils.writeDelete(batch);
           }
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.copies.all(userId),
+            queryKey: copiesKeys.all(userId),
             refetchType: "none",
           });
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.collections.all(userId),
+            queryKey: collectionsKeys.all(userId),
           });
         },
       });

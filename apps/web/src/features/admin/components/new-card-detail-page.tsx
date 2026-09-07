@@ -59,11 +59,11 @@ import {
   describeAcceptCardFieldIssues,
   hasRequiredActiveFields,
 } from "@/features/admin/lib/accept-card-validation";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { buildPrintingGroups } from "@/features/admin/lib/candidate-printing-groups";
 import { CardSearchDropdown } from "@/features/cards/components/card-search-dropdown";
 import { useAdminCardSearch } from "@/features/cards/hooks/use-card-search";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
-import { queryKeys } from "@/lib/query-keys";
 import { PERSISTENT_ERROR_TOAST } from "@/lib/toast";
 
 interface NewCardColumnActionsProps {
@@ -142,9 +142,9 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   // allCards is included because accepting/linking adds a new accepted card to
   // the search dropdown.
   const invalidateScope = [
-    queryKeys.admin.cards.unmatched(identifier),
-    queryKeys.admin.cards.list,
-    queryKeys.admin.cards.allCards,
+    adminKeys.cards.unmatched(identifier),
+    adminKeys.cards.list,
+    adminKeys.cards.allCards,
   ];
 
   const { data: unmatchedData, isLoading } = useUnmatchedCardDetail(identifier) as {

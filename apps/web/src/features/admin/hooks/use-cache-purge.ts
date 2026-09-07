@@ -2,7 +2,7 @@ import { adminCacheContract } from "@openrift/shared/contracts/admin/cache";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -18,7 +18,7 @@ const fetchCacheStatus = createServerFn({ method: "GET" })
   );
 
 export const adminCacheStatusQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.cacheStatus,
+  queryKey: adminKeys.cacheStatus,
   queryFn: () => fetchCacheStatus(),
 });
 
@@ -37,6 +37,6 @@ const purgeCacheFn = createServerFn({ method: "POST" })
 export function usePurgeCache() {
   return useMutationWithInvalidation({
     mutationFn: () => purgeCacheFn(),
-    invalidates: [queryKeys.admin.cacheStatus],
+    invalidates: [adminKeys.cacheStatus],
   });
 }

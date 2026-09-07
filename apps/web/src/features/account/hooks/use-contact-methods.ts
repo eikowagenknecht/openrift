@@ -7,9 +7,9 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { contactMethodsKeys } from "@/features/account/lib/account-query-keys";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -45,7 +45,7 @@ export function useContactMethods(): { contactMethods: ContactMethod[]; isLoadin
   const userId = useUserId();
   const hydrated = useHydrated();
   const { data, isPending } = useQuery({
-    queryKey: queryKeys.contactMethods.all(userId ?? ""),
+    queryKey: contactMethodsKeys.all(userId ?? ""),
     queryFn: () => listContactMethodsFn(),
     enabled: Boolean(userId) && hydrated,
   });
@@ -62,7 +62,7 @@ export function useCreateContactMethod() {
     { type: ContactMethodType; value: string }
   >({
     mutationFn: (data) => createContactMethodFn({ data }),
-    invalidates: () => [queryKeys.contactMethods.all(userId ?? "")],
+    invalidates: () => [contactMethodsKeys.all(userId ?? "")],
   });
 }
 
@@ -73,7 +73,7 @@ export function useUpdateContactMethod() {
     { id: string; type: ContactMethodType; value: string }
   >({
     mutationFn: (data) => updateContactMethodFn({ data }),
-    invalidates: () => [queryKeys.contactMethods.all(userId ?? "")],
+    invalidates: () => [contactMethodsKeys.all(userId ?? "")],
   });
 }
 
@@ -81,6 +81,6 @@ export function useDeleteContactMethod() {
   const userId = useUserId();
   return useMutationWithInvalidation<UserContactMethodsResponse, { id: string }>({
     mutationFn: (data) => deleteContactMethodFn({ data }),
-    invalidates: () => [queryKeys.contactMethods.all(userId ?? "")],
+    invalidates: () => [contactMethodsKeys.all(userId ?? "")],
   });
 }

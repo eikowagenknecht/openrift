@@ -17,7 +17,7 @@ import {
   useUnifiedSaveMappings,
   useUnifiedUnassignFromCard,
 } from "@/features/admin/hooks/use-unified-mappings";
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 
 import type { MarketplaceHandlers } from "./marketplace-products-table";
 import {
@@ -36,13 +36,13 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
   const mutateOpts = {
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.detail(cardId) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.admin.unifiedMappings.all }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.cards.detail(cardId) }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.unifiedMappings.all }),
       ]);
     },
   };
 
-  const cardKey = queryKeys.admin.unifiedMappings.byCard(cardId);
+  const cardKey = adminKeys.unifiedMappings.byCard(cardId);
 
   // Optimistic path: without this, chips stay on screen until the
   // unifiedMappings refetch finishes. On error, rolls back to the pre-batch snapshot.
@@ -92,7 +92,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           },
           onSuccess: () => {
             void queryClient.invalidateQueries({
-              queryKey: queryKeys.admin.cards.detail(cardId),
+              queryKey: adminKeys.cards.detail(cardId),
             });
           },
         },
@@ -121,8 +121,8 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
   const cmSaveMapping = useUnifiedSaveMappings("cardmarket");
   const ctSaveMapping = useUnifiedSaveMappings("cardtrader");
   const unmapPrinting = useUnmapMarketplacePrinting([
-    queryKeys.admin.cards.detail(cardId),
-    queryKeys.admin.unifiedMappings.all,
+    adminKeys.cards.detail(cardId),
+    adminKeys.unifiedMappings.all,
   ]);
 
   // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler

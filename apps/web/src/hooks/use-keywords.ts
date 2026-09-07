@@ -3,7 +3,8 @@ import { adminKeywordsContract } from "@openrift/shared/contracts/admin/keywords
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -14,7 +15,7 @@ const fetchKeywordStats = createServerFn({ method: "GET" })
   );
 
 export const keywordStatsQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.keywordStats,
+  queryKey: adminKeys.keywordStats,
   queryFn: () => fetchKeywordStats(),
 });
 
@@ -31,7 +32,7 @@ export function useRecomputeKeywords() {
   return useMutation({
     mutationFn: () => recomputeKeywordsFn(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
     },
   });
 }
@@ -55,8 +56,8 @@ export function useUpdateKeywordStyle() {
       costKeyword: boolean;
     }) => updateKeywordStyleFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: initKeys.all });
     },
   });
 }
@@ -80,8 +81,8 @@ export function useCreateKeywordStyle() {
       costKeyword: boolean;
     }) => createKeywordStyleFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: initKeys.all });
     },
   });
 }
@@ -98,8 +99,8 @@ export function useDeleteKeywordStyle() {
   return useMutation({
     mutationFn: (name: string) => deleteKeywordStyleFn({ data: { name } }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: initKeys.all });
     },
   });
 }
@@ -115,8 +116,8 @@ export function useDiscoverTranslations() {
   return useMutation({
     mutationFn: () => discoverTranslationsFn(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: initKeys.all });
     },
   });
 }
@@ -134,8 +135,8 @@ export function useUpsertTranslation() {
     mutationFn: (params: { keywordName: string; language: string; label: string }) =>
       upsertTranslationFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: initKeys.all });
     },
   });
 }
@@ -153,8 +154,8 @@ export function useDeleteTranslation() {
     mutationFn: (params: { keywordName: string; language: string }) =>
       deleteTranslationFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.keywordStats });
+      void queryClient.invalidateQueries({ queryKey: initKeys.all });
     },
   });
 }

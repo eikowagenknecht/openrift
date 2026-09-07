@@ -4,8 +4,8 @@ import { isDefinedError, safe } from "@orpc/client";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { listsKeys } from "@/features/lists/lib/lists-query-keys";
 import { useRequiredUserId } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -29,7 +29,7 @@ const fetchShares = createServerFn({ method: "GET" })
 
 export function listGroupSharesQueryOptions(userId: string, listId: string) {
   return queryOptions({
-    queryKey: queryKeys.lists.groupShares(userId, listId),
+    queryKey: listsKeys.groupShares(userId, listId),
     queryFn: () => fetchShares({ data: listId }),
   });
 }

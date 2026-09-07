@@ -2,7 +2,7 @@ import { adminIgnoredCandidatesContract } from "@openrift/shared/contracts/admin
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { queryKeys } from "@/lib/query-keys";
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import type { IgnoredCandidatesResponse } from "@/lib/server-fns/api-types";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
@@ -14,7 +14,7 @@ const fetchIgnoredCandidates = createServerFn({ method: "GET" })
   );
 
 export const ignoredCandidatesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.ignoredCandidates,
+  queryKey: adminKeys.ignoredCandidates,
   queryFn: () => fetchIgnoredCandidates(),
 });
 
@@ -35,8 +35,8 @@ export function useIgnoreCandidateCard() {
     mutationFn: (params: { provider: string; externalId: string }) =>
       ignoreCandidateCardFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ignoredCandidates });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.cards.all });
     },
   });
 }
@@ -54,8 +54,8 @@ export function useUnignoreCandidateCard() {
     mutationFn: (params: { provider: string; externalId: string }) =>
       unignoreCandidateCardFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ignoredCandidates });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.cards.all });
     },
   });
 }
@@ -73,8 +73,8 @@ export function useIgnoreCandidatePrinting() {
     mutationFn: (params: { provider: string; externalId: string; finish?: string | null }) =>
       ignoreCandidatePrintingFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ignoredCandidates });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.cards.all });
     },
   });
 }
@@ -92,8 +92,8 @@ export function useUnignoreCandidatePrinting() {
     mutationFn: (params: { provider: string; externalId: string; finish: string | null }) =>
       unignoreCandidatePrintingFn({ data: params }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.ignoredCandidates });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.cards.all });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.ignoredCandidates });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.cards.all });
     },
   });
 }

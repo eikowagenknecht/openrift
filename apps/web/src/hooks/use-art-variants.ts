@@ -2,8 +2,9 @@ import type { AdminArtVariantsResponse } from "@openrift/shared/contracts/admin/
 import { adminArtVariantsContract } from "@openrift/shared/contracts/admin/art-variants";
 import { createServerFn } from "@tanstack/react-start";
 
+import { adminKeys } from "@/features/admin/lib/admin-query-keys";
 import { createAdminEnumHooks } from "@/lib/create-admin-enum-hooks";
-import { queryKeys } from "@/lib/query-keys";
+import { initKeys } from "@/lib/query-keys";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
 
@@ -42,9 +43,9 @@ const deleteArtVariantFn = createServerFn({ method: "POST" })
   });
 
 const artVariantHooks = createAdminEnumHooks({
-  queryKey: queryKeys.admin.artVariants,
+  queryKey: adminKeys.artVariants,
   list: () => fetchArtVariants(),
-  invalidates: [queryKeys.admin.artVariants, queryKeys.init.all],
+  invalidates: [adminKeys.artVariants, initKeys.all],
   create: (vars: { slug: string; label: string }) => createArtVariantFn({ data: vars }),
   update: (vars: { slug: string; label?: string }) => updateArtVariantFn({ data: vars }),
   reorder: (slugs: string[]) => reorderArtVariantsFn({ data: { slugs } }),
