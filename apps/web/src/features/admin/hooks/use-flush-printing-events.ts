@@ -1,0 +1,99 @@
+import { adminPrintingEventsContract } from "@openrift/shared/contracts/admin/printing-events";
+import type { JobRunStartedResponse } from "@openrift/shared/types/api/admin";
+import { useMutation, useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+
+import { getLatestJobRunFn } from "@/features/admin/hooks/refresh-actions";
+import type { JobRunView, PrintingEventsListResponse } from "@/lib/server-fns/api-types";
+import { withCookies } from "@/lib/server-fns/middleware";
+import { apiOrpcClient } from "@/lib/server-fns/orpc-client";
+
+interface WebhookFailure {
+  channel: "newPrintings";
+  status?: number;
+  detail: string;
+}
+
+export interface FlushPrintingEventsResult {
+  sent: number;
+  failed: number;
+  failures?: WebhookFailure[];
+}
+
+const FLUSH_PRINTING_EVENTS_KIND = "discord.flush_printing_events";
+
+const PRINTING_EVENTS_KEY = ["admin", "printing-events"] as const;
+const FLUSH_RUN_KEY = ["admin", "job-runs", FLUSH_PRINTING_EVENTS_KIND] as const;
+
+const flushPrintingEventsFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<JobRunStartedResponse> =>
+    apiOrpcClient(adminPrintingEventsContract, context.cookie).flush(),
+  );
+
+export function useFlushPrintingEvents() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => flushPrintingEventsFn(),
+    onSuccess: () => {
+      // Surface the new running row immediately and refresh the queue list
+      // once the flush completes; the run-poll hook drives intermediate state.
+      void queryClient.invalidateQueries({ queryKey: FLUSH_RUN_KEY });
+      void queryClient.invalidateQueries({ queryKey: PRINTING_EVENTS_KEY });
+    },
+  });
+}
+
+export function useLatestFlushRun() {
+  return useQuery({
+    queryKey: FLUSH_RUN_KEY,
+    queryFn: async (): Promise<JobRunView | null> => {
+      const response = await getLatestJobRunFn({ data: { kind: FLUSH_PRINTING_EVENTS_KIND } });
+      return response.runs[0] ?? null;
+    },
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 2000 : 60_000),
+  });
+}
+
+export function isFlushPrintingEventsResult(value: unknown): value is FlushPrintingEventsResult {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as { sent?: unknown; failed?: unknown };
+  return typeof candidate.sent === "number" && typeof candidate.failed === "number";
+}
+
+export type { PrintingEventView } from "@/lib/server-fns/api-types";
+
+const fetchPrintingEvents = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }): Promise<PrintingEventsListResponse> =>
+    apiOrpcClient(adminPrintingEventsContract, context.cookie).list(),
+  );
+
+export const PRINTING_EVENTS_REFRESH_INTERVAL_MS = 30_000;
+
+export const adminPrintingEventsQueryOptions = queryOptions({
+  queryKey: PRINTING_EVENTS_KEY,
+  queryFn: () => fetchPrintingEvents(),
+  refetchInterval: PRINTING_EVENTS_REFRESH_INTERVAL_MS,
+});
+
+export function useAdminPrintingEvents() {
+  return useQuery(adminPrintingEventsQueryOptions);
+}
+
+const retryPrintingEventsFn = createServerFn({ method: "POST" })
+  .validator((input: { ids: string[] }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }): Promise<{ retried: number }> =>
+    apiOrpcClient(adminPrintingEventsContract, context.cookie).retry(data),
+  );
+
+export function useRetryPrintingEvents() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => retryPrintingEventsFn({ data: { ids } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PRINTING_EVENTS_KEY }),
+  });
+}

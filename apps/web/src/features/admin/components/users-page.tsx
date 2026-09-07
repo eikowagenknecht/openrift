@@ -1,0 +1,248 @@
+import { ADMIN_SECTION_LABELS, ADMIN_SECTION_SLUGS } from "@openrift/shared/admin-sections";
+import { formatDay } from "@openrift/shared/format-date";
+import type { AdminUserResponse } from "@openrift/shared/types/api/admin";
+import { EllipsisVerticalIcon } from "lucide-react";
+
+import { PageDescription } from "@/components/layout/page-top-bar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserAvatar } from "@/components/user-avatar";
+import { AdminTable } from "@/features/admin/components/admin-table";
+import type { AdminCellSlotProps, AdminColumnDef } from "@/features/admin/components/admin-table";
+import {
+  useAddAdminGrant,
+  useAdminGrants,
+  useRemoveAdminGrant,
+} from "@/features/admin/hooks/use-admin-grants";
+import { useAdminUsers } from "@/features/admin/hooks/use-admin-users";
+import { useGravatarHash } from "@/lib/gravatar";
+
+function formatDate(iso: string): string {
+  return formatDay(iso);
+}
+
+function UserNameCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  const gravatarHash = useGravatarHash(row?.email ?? "");
+  if (!row) {
+    return null;
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <UserAvatar
+        image={row.image}
+        name={row.name}
+        email={row.email}
+        gravatarHash={gravatarHash}
+        size="sm"
+      />
+      <span className="font-medium">{row.name ?? "—"}</span>
+    </div>
+  );
+}
+
+function EmailCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-sm">{row.email}</span>;
+}
+
+function RoleCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return row.isAdmin ? (
+    <Badge variant="default">Admin</Badge>
+  ) : (
+    <Badge variant="secondary">User</Badge>
+  );
+}
+
+function GrantsCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  const { data } = useAdminGrants();
+  const addGrant = useAddAdminGrant();
+  const removeGrant = useRemoveAdminGrant();
+  if (!row) {
+    return null;
+  }
+  // Full admins have every section implicitly — a grant would be meaningless.
+  if (row.isAdmin) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const granted = data.grants.filter((g) => g.userId === row.id).map((g) => g.section);
+  return (
+    <div className="flex items-center justify-center gap-1">
+      {granted.map((section) => (
+        <Badge key={section} variant="secondary">
+          {ADMIN_SECTION_LABELS[section]}
+        </Badge>
+      ))}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-sm" aria-label="Edit admin grants" />}
+        >
+          <EllipsisVerticalIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {ADMIN_SECTION_SLUGS.map((section) => {
+            const checked = granted.includes(section);
+            return (
+              <DropdownMenuCheckboxItem
+                key={section}
+                checked={checked}
+                onSelect={(e) => e.preventDefault()}
+                onCheckedChange={() => {
+                  if (checked) {
+                    removeGrant.mutate({ userId: row.id, section });
+                  } else {
+                    addGrant.mutate({ userId: row.id, section });
+                  }
+                }}
+              >
+                {ADMIN_SECTION_LABELS[section]}
+              </DropdownMenuCheckboxItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+function CardCountCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="tabular-nums">{row.cardCount.toLocaleString()}</span>;
+}
+
+function DeckCountCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="tabular-nums">{row.deckCount.toLocaleString()}</span>;
+}
+
+function CollectionCountCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="tabular-nums">{row.collectionCount.toLocaleString()}</span>;
+}
+
+function ListCountCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="tabular-nums">{row.listCount.toLocaleString()}</span>;
+}
+
+function JoinedCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return <span className="text-muted-foreground text-sm">{formatDate(row.createdAt)}</span>;
+}
+
+function LastActiveCell({ row }: AdminCellSlotProps<AdminUserResponse>) {
+  if (!row) {
+    return null;
+  }
+  return (
+    <span className="text-muted-foreground text-sm">
+      {row.lastActiveAt ? formatDate(row.lastActiveAt) : "Never"}
+    </span>
+  );
+}
+
+const columns: AdminColumnDef<AdminUserResponse>[] = [
+  {
+    header: "Name",
+    sortValue: (user) => user.name ?? "",
+    cell: <UserNameCell />,
+  },
+  {
+    header: "Email",
+    sortValue: (user) => user.email,
+    cell: <EmailCell />,
+  },
+  {
+    header: "Role",
+    align: "center",
+    width: "w-24",
+    cell: <RoleCell />,
+  },
+  {
+    header: "Grants",
+    headerTitle: "Per-section admin access for non-admin users",
+    align: "center",
+    width: "w-36",
+    cell: <GrantsCell />,
+  },
+  {
+    header: "Cards",
+    align: "right",
+    width: "w-20",
+    sortValue: (user) => user.cardCount,
+    cell: <CardCountCell />,
+  },
+  {
+    header: "Decks",
+    align: "right",
+    width: "w-20",
+    sortValue: (user) => user.deckCount,
+    cell: <DeckCountCell />,
+  },
+  {
+    header: "Collections",
+    align: "right",
+    width: "w-28",
+    sortValue: (user) => user.collectionCount,
+    cell: <CollectionCountCell />,
+  },
+  {
+    header: "Lists",
+    align: "right",
+    width: "w-20",
+    sortValue: (user) => user.listCount,
+    cell: <ListCountCell />,
+  },
+  {
+    header: "Joined",
+    width: "w-32",
+    sortValue: (user) => user.createdAt,
+    cell: <JoinedCell />,
+  },
+  {
+    header: "Last active",
+    width: "w-32",
+    sortValue: (user) => user.lastActiveAt ?? "",
+    cell: <LastActiveCell />,
+  },
+];
+
+export function UsersPage() {
+  const { data } = useAdminUsers();
+
+  return (
+    <AdminTable
+      columns={columns}
+      data={data.users}
+      getRowKey={(user) => user.id}
+      emptyText="No users yet."
+      defaultSort={{ column: "Joined", direction: "desc" }}
+      title="Users"
+      toolbar={
+        <PageDescription>
+          {data.users.length} registered {data.users.length === 1 ? "user" : "users"}
+        </PageDescription>
+      }
+    />
+  );
+}
