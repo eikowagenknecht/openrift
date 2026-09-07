@@ -11,8 +11,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { setupTestDb } from "../../test/integration-setup.js";
 import { migrate, rollback } from "../migrate.js";
+import { loadMigrations } from "../migration-files.js";
 import type { Database } from "../types.js";
-import { migrations } from "./index.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
@@ -36,7 +36,7 @@ describe.skipIf(!DATABASE_URL)("migrations up/down cycle", () => {
   });
 
   it("rolls back all migrations one by one", async () => {
-    const count = Object.keys(migrations).length;
+    const count = Object.keys(await loadMigrations()).length;
     for (let i = 0; i < count; i++) {
       await rollback(db, log);
     }
@@ -81,8 +81,7 @@ describe.skipIf(!DATABASE_URL)("migration order is clock-step resilient", () => 
     // failure that made the up/down cycle flaky under load before the repair.
     const unrepaired = await new Migrator({
       db,
-      // oxlint-disable-next-line prefer-await-to-then -- MigrationProvider wants a Promise
-      provider: { getMigrations: () => Promise.resolve(migrations) },
+      provider: { getMigrations: loadMigrations },
     }).migrateToLatest();
     expect(unrepaired.error).toBeInstanceOf(Error);
     expect(String(unrepaired.error)).toContain("corrupted migrations");

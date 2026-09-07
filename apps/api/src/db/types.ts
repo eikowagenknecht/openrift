@@ -1,42 +1,59 @@
+export type { Database } from "./tables.js";
+export type { AdminEventAction, AdminEventEntityType } from "./tables/admin-events.js";
 export type {
-  AdminEventAction,
-  AdminEventEntityType,
-  CollectionEventsTable,
   CandidateCardsTable,
   CandidatePrintingsTable,
-  CardNameAliasesTable,
-  CardBansTable,
-  CardErrataTable,
-  CardsTable,
   CardSubmissionKind,
   CardSubmissionReason,
   CardSubmissionStatus,
   CardSubmissionsTable,
-  CollectionsTable,
-  CopiesTable,
-  Database,
+  IgnoredCandidateCardsTable,
+  IgnoredCandidatePrintingsTable,
+} from "./tables/candidates.js";
+export type {
+  CardNameAliasesTable,
+  CardBansTable,
+  CardErrataTable,
+  CardsTable,
+  KeywordsTable,
+  PrintingImagesTable,
+  PrintingsTable,
+  SetsTable,
+  MarkersTable,
+} from "./tables/catalog.js";
+export type { CollectionEventsTable, CollectionsTable, CopiesTable } from "./tables/collections.js";
+export type {
   DeckCardsTable,
   DeckFoldersTable,
   DeckPlansTable,
   DeckMatchupPlansTable,
   DeckMatchupSwapsTable,
   DecksTable,
-  FeatureFlagsTable,
-  UserFeatureFlagsTable,
-  SiteSettingsTable,
-  IgnoredCandidateCardsTable,
-  IgnoredCandidatePrintingsTable,
-  KeywordsTable,
-  MarketplaceProductPricesTable,
-  PrintingImagesTable,
-  PrintingsTable,
-  SetsTable,
-  ListEntriesTable,
-  ListsTable,
+} from "./tables/decks.js";
+export type {
+  FriendGroupCollectionSharesTable,
+  FriendGroupDiscordLinksTable,
+  FriendGroupInvitesTable,
+  FriendGroupListSharesTable,
+  FriendGroupMembersTable,
+  FriendGroupsTable,
+} from "./tables/friend-groups.js";
+export type { ListEntriesTable, ListsTable } from "./tables/lists.js";
+export type { LoansTable } from "./tables/loans.js";
+export type { MarketplaceProductPricesTable, ProductsTable } from "./tables/marketplace.js";
+export type {
   MetaEventsTable,
   MetaEventPlayersTable,
   MetaEventMatchesTable,
   MetaEventPhasesTable,
+  MetaEventOverlaysTable,
+  MetaEventPlayerOverlaysTable,
+  MetaEventPlayerOverlayCardsTable,
+  MetaEventSourcesTable,
+  MetaPlayerLinksTable,
+  MetaSubmissionsTable,
+} from "./tables/meta.js";
+export type {
   UvsgamesEventsTable,
   PlayloltcgEventsTable,
   TopdeckEventsTable,
@@ -51,38 +68,29 @@ export type {
   TopdeckEventStandingsTable,
   TopdeckDecklistsTable,
   TopdeckDecklistCardsTable,
-  MetaEventOverlaysTable,
-  MetaEventPlayerOverlaysTable,
-  MetaEventPlayerOverlayCardsTable,
-  MetaEventSourcesTable,
-  MetaPlayerLinksTable,
-  MetaSubmissionsTable,
+} from "./tables/meta-sources.js";
+export type { OrganizationsTable, OrganizationMembersTable } from "./tables/organizations.js";
+export type { DomainsTable, RaritiesTable, ReferenceTable } from "./tables/reference.js";
+export type {
+  FeatureFlagsTable,
+  UserFeatureFlagsTable,
+  SiteSettingsTable,
+  UserPreferencesTable,
+} from "./tables/settings.js";
+export type {
   TierListCard,
   TierListRow,
   TierListsTable,
-  ProductsTable,
-  FriendGroupCollectionSharesTable,
-  FriendGroupDiscordLinksTable,
-  FriendGroupInvitesTable,
-  FriendGroupListSharesTable,
-  FriendGroupMembersTable,
-  FriendGroupsTable,
-  OrganizationsTable,
   OverlayChannelsTable,
   StagePresetsTable,
-  OrganizationMembersTable,
+} from "./tables/stage.js";
+export type {
   TournamentsTable,
   TournamentParticipantsTable,
   PodRoundsTable,
   PodsTable,
-  CardTradesTable,
-  LoansTable,
   DeckCheckEntriesTable,
   DeckCheckEntryCardsTable,
   DeckCheckKeysTable,
-  UserPreferencesTable,
-  DomainsTable,
-  MarkersTable,
-  RaritiesTable,
-  ReferenceTable,
-} from "./tables.js";
+} from "./tables/tournaments.js";
+export type { CardTradesTable } from "./tables/trades.js";

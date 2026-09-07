@@ -66,7 +66,7 @@ import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { setupTestDb } from "../test/integration-setup.js";
-import { CARD_TOKEN_SOURCES } from "./tables.js";
+import { CARD_TOKEN_SOURCES } from "./tables/catalog.js";
 import type { Database } from "./types.js";
 
 const DATABASE_URL = process.env.DATABASE_URL;

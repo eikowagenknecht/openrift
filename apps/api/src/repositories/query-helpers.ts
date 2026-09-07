@@ -13,12 +13,8 @@ import type {
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import type {
-  CopiesTable,
-  ImageFilesTable,
-  PrintingImagesTable,
-  PrintingsTable,
-} from "../db/tables.js";
+import type { ImageFilesTable, PrintingImagesTable, PrintingsTable } from "../db/tables/catalog.js";
+import type { CopiesTable } from "../db/tables/collections.js";
 import { parseKeysetCursor } from "../lib/keyset-cursor.js";
 
 /**

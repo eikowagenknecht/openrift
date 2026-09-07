@@ -4,14 +4,13 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 import { Migrator } from "kysely/migration";
 
-import { migrations } from "./migrations/index.js";
+import { loadMigrations } from "./migration-files.js";
 import type { Database } from "./types.js";
 
 function createMigrator(db: Kysely<Database>) {
   return new Migrator({
     db,
-    // oxlint-disable-next-line prefer-await-to-then -- wrapping a sync value in a Promise to satisfy Kysely's MigrationProvider interface
-    provider: { getMigrations: () => Promise.resolve(migrations) },
+    provider: { getMigrations: loadMigrations },
   });
 }
 

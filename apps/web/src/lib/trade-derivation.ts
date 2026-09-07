@@ -205,7 +205,7 @@ export function matchCopyConditionLabel(
   labels: { conditions: Record<string, string>; graders: Record<string, string> },
 ): string | null {
   if (copy.grader !== null && copy.grade !== null) {
-    return `${labels.graders[copy.grader]} ${copy.grade}`;
+    return `${enumLabel(labels.graders, copy.grader)} ${copy.grade}`;
   }
   if (copy.condition !== null) {
     return enumLabel(labels.conditions, copy.condition);
