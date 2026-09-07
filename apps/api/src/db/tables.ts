@@ -1507,7 +1507,7 @@ export interface CardSubmissionsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface ScanReportsTable {
+interface ScanReportsTable {
   id: Generated<string>;
   userId: string;
   createdAt: CreatedAt;

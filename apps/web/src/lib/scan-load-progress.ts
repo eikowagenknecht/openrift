@@ -1,6 +1,6 @@
 import type { EngineProgress, ResourceProgress } from "@/hooks/use-scan-engine";
 
-export type ScanLoadPhase = "downloading" | "starting";
+type ScanLoadPhase = "downloading" | "starting";
 
 export interface ScanLoadProgress {
   percent: number;
